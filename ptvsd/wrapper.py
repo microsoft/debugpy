@@ -16,9 +16,10 @@ import traceback
 import untangle 
 
 try:
-    from urllib import quote_plus, unquote, unquote_plus
+    import urllib
+    urllib.unquote
 except:
-    from urllib.parse import quote_plus, unquote, unquote_plus
+    import urllib.parse as urllib
 
 import _pydevd_bundle.pydevd_comm as pydevd_comm
 from _pydevd_bundle.pydevd_comm import pydevd_log
@@ -31,6 +32,10 @@ import ptvsd.futures as futures
 #    print(s)
 #ipcjson._TRACE = ipcjson_trace
 
+def unquote(s):
+    if s is None:
+        return None
+    return urllib.unquote(s)
 
 # Generates VSCode entity IDs, and maps them to corresponding pydevd entity IDs.
 #
@@ -121,7 +126,7 @@ class PydevdSocket(object):
         #self.log = open('pydevd.log', 'w')
         self.event_handler = event_handler
         self.lock = threading.Lock()
-        self.seq = 1
+        self.seq = 1000000000
         self.pipe_r, self.pipe_w = os.pipe()
         self.requests = {}
 
@@ -198,7 +203,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         try:
             return self.pydevd.pydevd_notify(cmd_id, args)
         except:
-            traceback.print_exc()
+            traceback.print_exc(file=sys.__stderr__)
             raise
 
     def pydevd_request(self, cmd_id, args):
@@ -462,7 +467,6 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         xml = untangle.parse(args).xml
         tid = xml.thread['id']
         reason = int(xml.thread['stop_reason'])
-        print(reason, file=open('reason.log', 'a'))
         if reason in (pydevd_comm.CMD_STEP_INTO, pydevd_comm.CMD_STEP_OVER, pydevd_comm.CMD_STEP_RETURN):
             reason = 'step'
         elif reason == pydevd_comm.CMD_STEP_CAUGHT_EXCEPTION:
