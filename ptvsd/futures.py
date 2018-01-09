@@ -1,31 +1,40 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
-# Licensed under the MIT License. See LICENSE in the project root for license information.
+# Licensed under the MIT License. See LICENSE in the project root
+# for license information.
 
 from __future__ import print_function, with_statement, absolute_import
+
+import sys
+import threading
+import traceback
+from ptvsd.reraise import reraise
+
 
 __author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
 __version__ = "4.0.0a1"
 
-import sys
-import threading
-from ptvsd.reraise import reraise
-
 
 class Future(object):
+    # XXX docstring
+
     def __init__(self, loop):
         self._lock = threading.Lock()
         self._loop = loop
         self._done = False
         self._observed = False
         self._done_callbacks = []
+        self._exc_info = None
 
     def __del__(self):
         with self._lock:
             if self._done and self._exc_info and not self._observed:
                 print('Unobserved exception in a Future:', file=sys.__stderr__)
-                traceback.print_exception(self._exc_info[0], self._exc_info[1], self._exc_info[2], file=sys.__stderr__)
+                exctype, exc, tb = self._exc_info
+                traceback.print_exception(exctype, exc, tb,
+                                          file=sys.__stderr__)
 
     def result(self):
+        # XXX docstring
         with self._lock:
             self._observed = True
             if self._exc_info:
@@ -33,32 +42,40 @@ class Future(object):
             return self._result
 
     def exc_info(self):
+        # XXX docstring
         with self._lock:
             self._observed = True
             return self._exc_info
 
     def set_result(self, result):
+        # XXX docstring
         with self._lock:
             self._result = result
             self._exc_info = None
             self._done = True
             callbacks = list(self._done_callbacks)
+
         def invoke_callbacks():
             for cb in callbacks:
                 cb(self)
+
         self._loop.call_soon(invoke_callbacks)
 
     def set_exc_info(self, exc_info):
+        # XXX docstring
         with self._lock:
             self._exc_info = exc_info
             self._done = True
             callbacks = list(self._done_callbacks)
+
         def invoke_callbacks():
             for cb in callbacks:
                 cb(self)
+
         self._loop.call_soon(invoke_callbacks)
 
     def add_done_callback(self, callback):
+        # XXX docstring
         with self._lock:
             done = self._done
             self._done_callbacks.append(callback)
@@ -66,11 +83,14 @@ class Future(object):
             callback(self)
 
     def remove_done_callback(self, callback):
+        # XXX docstring
         with self._lock:
             self._done_callbacks.remove(callback)
 
-       
+
 class EventLoop(object):
+    # XXX docstring
+
     def __init__(self):
         self._queue = []
         self._lock = threading.Lock()
@@ -89,7 +109,7 @@ class EventLoop(object):
                 self._event.clear()
             for (f, args) in queue:
                 f(*args)
-        
+
     def call_soon(self, f, *args):
         with self._lock:
             self._queue.append((f, args))
@@ -100,18 +120,24 @@ class EventLoop(object):
 
 
 class Result(object):
+    # XXX docstring
+
     __slots__ = ['value']
+
     def __init__(self, value):
         self.value = value
 
-        
+
 def async(f):
+    # XXX docstring
+
     def g(self, loop, *args, **kwargs):
         it = f(self, *args, **kwargs)
         result = Future(loop)
         if it is None:
             result.set_result(None)
             return result
+
         def callback(fut):
             try:
                 if fut is None:
@@ -131,6 +157,7 @@ def async(f):
                     result.set_result(x.value)
                 else:
                     x.add_done_callback(callback)
+
         callback(None)
         return result
     return g
