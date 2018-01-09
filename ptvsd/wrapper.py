@@ -253,23 +253,24 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         )
         self.send_event('initialized')
 
+    @async_handler
     def on_configurationDone(self, request, args):
         self.send_response(request)
+        yield self.pydevd_request(pydevd_comm.CMD_RUN, '')
+        self.send_process_event(self.start_reason)
 
     def on_disconnect(self, request, args):
         self.send_response(request)
 
     @async_handler
     def on_attach(self, request, args):
+        self.start_reason = 'attach'
         self.send_response(request)
-        yield self.pydevd_request(pydevd_comm.CMD_RUN, '')
-        self.send_process_event('attach')
 
     @async_handler
     def on_launch(self, request, args):
+        self.start_reason = 'launch'
         self.send_response(request)
-        yield self.pydevd_request(pydevd_comm.CMD_RUN, '')
-        self.send_process_event('launch')
 
     def send_process_event(self, start_method):
         evt = {
