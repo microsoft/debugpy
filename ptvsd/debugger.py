@@ -4,6 +4,10 @@
 
 import sys
 
+import pydevd
+
+import ptvsd.wrapper
+
 
 __author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
 __version__ = "4.0.0a1"
@@ -13,9 +17,7 @@ DONT_DEBUG = []
 
 def debug(filename, port_num, debug_id, debug_options, run_as):
     # XXX docstring
-    # XXX Convert side-effects into explicit calls.
-    import ptvsd.wrapper
-    import pydevd
+    ptvsd.wrapper.install()
     sys.argv[1:0] = [
             '--port', str(port_num),
             '--client', '127.0.0.1',

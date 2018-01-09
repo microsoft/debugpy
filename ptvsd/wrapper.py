@@ -666,6 +666,8 @@ def start_client(host, port):
     return pydevd
 
 
-# These are the functions pydevd invokes to get a socket to the client.
-pydevd_comm.start_server = start_server
-pydevd_comm.start_client = start_client
+def install():
+    """Configure pydevd to use our wrapper."""
+    # These are the functions pydevd invokes to get a socket to the client.
+    pydevd_comm.start_server = start_server
+    pydevd_comm.start_client = start_client
