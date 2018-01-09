@@ -8,8 +8,8 @@ import sys
 TEST_ROOT = os.path.dirname(__file__)
 PROJECT_ROOT = os.path.dirname(TEST_ROOT)
 
-executable = 'python3 -m unittest'
 
+executable = sys.executable + ' -m unittest'
 if all(arg.startswith('-') for arg in sys.argv[1:]):
     argv = [executable,
             'discover',
