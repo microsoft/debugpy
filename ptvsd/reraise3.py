@@ -7,5 +7,5 @@ __version__ = "4.0.0a1"
 
 
 def reraise(exc_info):
-    # XXX docstring
+    # TODO: docstring
     raise exc_info[1].with_traceback(exc_info[2])

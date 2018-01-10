@@ -16,7 +16,7 @@ DONT_DEBUG = []
 
 
 def debug(filename, port_num, debug_id, debug_options, run_as):
-    # XXX docstring
+    # TODO: docstring
     ptvsd.wrapper.install()
     sys.argv[1:0] = [
             '--port', str(port_num),

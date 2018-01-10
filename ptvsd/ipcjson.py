@@ -54,17 +54,17 @@ def _str_or_call(m):
 
 
 class InvalidHeaderError(Exception):
-    # XXX docstring
+    # TODO: docstring
     pass
 
 
 class InvalidContentError(Exception):
-    # XXX docstring
+    # TODO: docstring
     pass
 
 
 class SocketIO(object):
-    # XXX docstring
+    # TODO: docstring
 
     def __init__(self, *args, **kwargs):
         super(SocketIO, self).__init__(*args, **kwargs)
@@ -81,7 +81,7 @@ class SocketIO(object):
                     ('127.0.0.1', self.__port))
 
     def _send(self, **payload):
-        # XXX docstring
+        # TODO: docstring
         content = json.dumps(payload).encode('utf-8')
         headers = ('Content-Length: {}\r\n\r\n'.format(len(content))
                    ).encode('ascii')
@@ -119,7 +119,7 @@ class SocketIO(object):
         return line.decode('ascii', 'replace')
 
     def _buffered_read_as_utf8(self, length):
-        # XXX docstring
+        # TODO: docstring
         while len(self.__buffer) < length:
             temp = self.__socket.recv(1024)
             if not temp:
@@ -136,7 +136,7 @@ class SocketIO(object):
         return content.decode('utf-8', 'replace')
 
     def _wait_for_message(self):
-        # XXX docstring
+        # TODO: docstring
         # base protocol defined at:
         #  https://github.com/Microsoft/language-server-protocol/
         #    blob/master/protocol.md#base-protocol
@@ -186,14 +186,14 @@ class SocketIO(object):
             raise InvalidContentError('Error deserializing message content.')
 
     def _close(self):
-        # XXX docstring
+        # TODO: docstring
         if self.__own_socket:
             self.__socket.close()
 
 
 '''
 class StandardIO(object):
-    # XXX docstring
+    # TODO: docstring
 
     def __init__(self, stdin, stdout, *args, **kwargs):
         super(StandardIO, self).__init__(*args, **kwargs)
@@ -220,7 +220,7 @@ class StandardIO(object):
 
 
 class IpcChannel(object):
-    # XXX docstring
+    # TODO: docstring
 
     def __init__(self, *args, **kwargs):
         # This class is meant to be last in the list of base classes
@@ -236,11 +236,11 @@ class IpcChannel(object):
         self.__exit_on_unknown_command = True
 
     def close(self):
-        # XXX docstring
+        # TODO: docstring
         self._close()
 
     def send_event(self, _name, **kwargs):
-        # XXX docstring
+        # TODO: docstring
         with self.__lock:
             self._send(
                 type='event',
@@ -250,7 +250,7 @@ class IpcChannel(object):
             )
 
     def send_response(self, request, success=True, message=None, **kwargs):
-        # XXX docstring
+        # TODO: docstring
         with self.__lock:
             self._send(
                 type='response',
@@ -263,17 +263,17 @@ class IpcChannel(object):
             )
 
     def set_exit(self):
-        # XXX docstring
+        # TODO: docstring
         self.__exit = True
 
     def process_messages(self):
-        # XXX docstring
+        # TODO: docstring
         while True:
             if self.process_one_message():
                 return
 
     def process_one_message(self):
-        # XXX docstring
+        # TODO: docstring
         try:
             msg = self.__message.pop(0)
         except IndexError:
@@ -304,7 +304,7 @@ class IpcChannel(object):
         return self.__exit
 
     def on_request(self, request):
-        # XXX docstring
+        # TODO: docstring
         assert request.get('type', '') == 'request', \
                 "Only handle 'request' messages in on_request"
 
@@ -324,17 +324,17 @@ class IpcChannel(object):
             )
 
     def on_response(self, msg):
-        # XXX docstring
+        # TODO: docstring
         # this class is only used for server side only for now
         raise NotImplementedError
 
     def on_event(self, msg):
-        # XXX docstring
+        # TODO: docstring
         # this class is only used for server side only for now
         raise NotImplementedError
 
     def on_invalid_request(self, request, args):
-        # XXX docstring
+        # TODO: docstring
         self.send_response(request, success=False, message='Unknown command')
         if self.__exit_on_unknown_command:
             self.__exit = True

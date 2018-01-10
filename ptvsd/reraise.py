@@ -2,7 +2,7 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-# XXX only absolute_import needed?
+# TODO: only absolute_import needed?
 from __future__ import print_function, with_statement, absolute_import
 
 import sys

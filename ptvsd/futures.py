@@ -15,7 +15,7 @@ __version__ = "4.0.0a1"
 
 
 class Future(object):
-    # XXX docstring
+    # TODO: docstring
 
     def __init__(self, loop):
         self._lock = threading.Lock()
@@ -34,7 +34,7 @@ class Future(object):
                                           file=sys.__stderr__)
 
     def result(self):
-        # XXX docstring
+        # TODO: docstring
         with self._lock:
             self._observed = True
             if self._exc_info:
@@ -42,13 +42,13 @@ class Future(object):
             return self._result
 
     def exc_info(self):
-        # XXX docstring
+        # TODO: docstring
         with self._lock:
             self._observed = True
             return self._exc_info
 
     def set_result(self, result):
-        # XXX docstring
+        # TODO: docstring
         with self._lock:
             self._result = result
             self._exc_info = None
@@ -62,7 +62,7 @@ class Future(object):
         self._loop.call_soon(invoke_callbacks)
 
     def set_exc_info(self, exc_info):
-        # XXX docstring
+        # TODO: docstring
         with self._lock:
             self._exc_info = exc_info
             self._done = True
@@ -75,7 +75,7 @@ class Future(object):
         self._loop.call_soon(invoke_callbacks)
 
     def add_done_callback(self, callback):
-        # XXX docstring
+        # TODO: docstring
         with self._lock:
             done = self._done
             self._done_callbacks.append(callback)
@@ -83,13 +83,13 @@ class Future(object):
             callback(self)
 
     def remove_done_callback(self, callback):
-        # XXX docstring
+        # TODO: docstring
         with self._lock:
             self._done_callbacks.remove(callback)
 
 
 class EventLoop(object):
-    # XXX docstring
+    # TODO: docstring
 
     def __init__(self):
         self._queue = []
@@ -120,7 +120,7 @@ class EventLoop(object):
 
 
 class Result(object):
-    # XXX docstring
+    # TODO: docstring
 
     __slots__ = ['value']
 
@@ -129,7 +129,7 @@ class Result(object):
 
 
 def async(f):
-    # XXX docstring
+    # TODO: docstring
 
     def g(self, loop, *args, **kwargs):
         it = f(self, *args, **kwargs)

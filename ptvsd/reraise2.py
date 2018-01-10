@@ -2,7 +2,7 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-# XXX not needed?
+# TODO: not needed?
 from __future__ import print_function, with_statement, absolute_import
 
 
@@ -11,5 +11,5 @@ __version__ = "4.0.0a1"
 
 
 def reraise(exc_info):
-    # XXX docstring
+    # TODO: docstring
     raise exc_info[0], exc_info[1], exc_info[2]  # noqa

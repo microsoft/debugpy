@@ -2,7 +2,7 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-# XXX with_statement is not needed
+# TODO: with_statement is not needed
 from __future__ import print_function, with_statement, absolute_import
 
 import os
@@ -81,12 +81,12 @@ class IDMap(object):
         self._lock = threading.Lock()
 
     def pairs(self):
-        # XXX docstring
+        # TODO: docstring
         with self._lock:
             return list(self._pydevd_to_vscode.items())
 
     def add(self, pydevd_id):
-        # XXX docstring
+        # TODO: docstring
         with self._lock:
             vscode_id = self._next_id
             if callable(pydevd_id):
@@ -97,7 +97,7 @@ class IDMap(object):
         return vscode_id
 
     def remove(self, pydevd_id=None, vscode_id=None):
-        # XXX docstring
+        # TODO: docstring
         with self._lock:
             if pydevd_id is None:
                 pydevd_id = self._vscode_to_pydevd[vscode_id]
@@ -107,11 +107,11 @@ class IDMap(object):
             del self._pydevd_to_vscode[pydevd_id]
 
     def to_pydevd(self, vscode_id):
-        # XXX docstring
+        # TODO: docstring
         return self._vscode_to_pydevd[vscode_id]
 
     def to_vscode(self, pydevd_id, autogen=True):
-        # XXX docstring
+        # TODO: docstring
         try:
             return self._pydevd_to_vscode[pydevd_id]
         except KeyError:
@@ -121,20 +121,20 @@ class IDMap(object):
                 raise
 
     def pydevd_ids(self):
-        # XXX docstring
+        # TODO: docstring
         with self._lock:
             ids = list(self._pydevd_to_vscode.keys())
         return ids
 
     def vscode_ids(self):
-        # XXX docstring
+        # TODO: docstring
         with self._lock:
             ids = list(self._vscode_to_pydevd.keys())
         return ids
 
 
 class ExceptionInfo(object):
-    # XXX docstring
+    # TODO: docstring
 
     def __init__(self, name, description):
         self.name = name
@@ -159,22 +159,22 @@ class PydevdSocket(object):
         self.requests = {}
 
     def close(self):
-        # XXX docstring
+        # TODO: docstring
         pass
 
     def shutdown(self, mode):
-        # XXX docstring
+        # TODO: docstring
         pass
 
     def recv(self, count):
-        # XXX docstring
+        # TODO: docstring
         data = os.read(self.pipe_r, count)
         #self.log.write('>>>[' + data.decode('utf8') + ']\n\n')
         #self.log.flush()
         return data
 
     def send(self, data):
-        # XXX docstring
+        # TODO: docstring
         result = len(data)
         data = unquote(data.decode('utf8'))
         #self.log.write('<<<[' + data + ']\n\n')
@@ -191,7 +191,7 @@ class PydevdSocket(object):
         return result
 
     def make_packet(self, cmd_id, args):
-        # XXX docstring
+        # TODO: docstring
         with self.lock:
             seq = self.seq
             self.seq += 1
@@ -199,12 +199,12 @@ class PydevdSocket(object):
         return seq, s
 
     def pydevd_notify(self, cmd_id, args):
-        # XXX docstring
+        # TODO: docstring
         seq, s = self.make_packet(cmd_id, args)
         os.write(self.pipe_w, s.encode('utf8'))
 
     def pydevd_request(self, loop, cmd_id, args):
-        # XXX docstring
+        # TODO: docstring
         seq, s = self.make_packet(cmd_id, args)
         fut = loop.create_future()
         with self.lock:
@@ -242,12 +242,12 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         t.start()
 
     def close(self):
-        # XXX docstring
+        # TODO: docstring
         if self.socket:
             self.socket.close()
 
     def pydevd_notify(self, cmd_id, args):
-        # XXX docstring
+        # TODO: docstring
         try:
             return self.pydevd.pydevd_notify(cmd_id, args)
         except BaseException:
@@ -255,7 +255,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             raise
 
     def pydevd_request(self, cmd_id, args):
-        # XXX docstring
+        # TODO: docstring
         return self.pydevd.pydevd_request(self.loop, cmd_id, args)
 
     # Instances of this class provide decorators to mark methods as
@@ -272,7 +272,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     pydevd_events = EventHandlers()
 
     def on_pydevd_event(self, cmd_id, seq, args):
-        # XXX docstring
+        # TODO: docstring
         try:
             f = self.pydevd_events[cmd_id]
         except KeyError:
@@ -280,7 +280,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         return f(self, seq, args)
 
     def async_handler(m):
-        # XXX docstring
+        # TODO: docstring
         m = futures.async(m)
 
         def f(self, *args, **kwargs):
@@ -298,7 +298,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     @async_handler
     def on_initialize(self, request, args):
-        # XXX docstring
+        # TODO: docstring
         cmd = pydevd_comm.CMD_VERSION
         args = '1.1\tWINDOWS\tID'
         yield self.pydevd_request(cmd, args)
@@ -315,29 +315,29 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     @async_handler
     def on_configurationDone(self, request, args):
-        # XXX docstring
+        # TODO: docstring
         self.send_response(request)
         yield self.pydevd_request(pydevd_comm.CMD_RUN, '')
         self.send_process_event(self.start_reason)
 
     def on_disconnect(self, request, args):
-        # XXX docstring
+        # TODO: docstring
         self.send_response(request)
 
     @async_handler
     def on_attach(self, request, args):
-        # XXX docstring
+        # TODO: docstring
         self.start_reason = 'attach'
         self.send_response(request)
 
     @async_handler
     def on_launch(self, request, args):
-        # XXX docstring
+        # TODO: docstring
         self.start_reason = 'launch'
         self.send_response(request)
 
     def send_process_event(self, start_method):
-        # XXX docstring
+        # TODO: docstring
         evt = {
             'name': sys.argv[0],
             'systemProcessId': os.getpid(),
@@ -348,7 +348,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     @async_handler
     def on_threads(self, request, args):
-        # XXX docstring
+        # TODO: docstring
         _, _, args = yield self.pydevd_request(
                 pydevd_comm.CMD_LIST_THREADS, '')
         xml = untangle.parse(args).xml
@@ -371,7 +371,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     @async_handler
     def on_stackTrace(self, request, args):
-        # XXX docstring
+        # TODO: docstring
         tid = int(args['threadId'])
         startFrame = int(args['startFrame'])
         levels = int(args['levels'])
@@ -409,7 +409,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     @async_handler
     def on_scopes(self, request, args):
-        # XXX docstring
+        # TODO: docstring
         vsc_fid = int(args['frameId'])
         pyd_tid, pyd_fid = self.frame_map.to_pydevd(vsc_fid)
         pyd_var = (pyd_tid, pyd_fid, 'FRAME')
@@ -423,7 +423,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     @async_handler
     def on_variables(self, request, args):
-        # XXX docstring
+        # TODO: docstring
         vsc_var = int(args['variablesReference'])
         pyd_var = self.var_map.to_pydevd(vsc_var)
 
@@ -455,7 +455,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     @async_handler
     def on_pause(self, request, args):
-        # XXX docstring
+        # TODO: docstring
         vsc_tid = int(args['threadId'])
         if vsc_tid == 0:  # VS does this to mean "stop all threads":
             for pyd_tid in self.thread_map.pydevd_ids():
@@ -467,35 +467,35 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     @async_handler
     def on_continue(self, request, args):
-        # XXX docstring
+        # TODO: docstring
         tid = self.thread_map.to_pydevd(int(args['threadId']))
         self.pydevd_notify(pydevd_comm.CMD_THREAD_RUN, tid)
         self.send_response(request)
 
     @async_handler
     def on_next(self, request, args):
-        # XXX docstring
+        # TODO: docstring
         tid = self.thread_map.to_pydevd(int(args['threadId']))
         self.pydevd_notify(pydevd_comm.CMD_STEP_OVER, tid)
         self.send_response(request)
 
     @async_handler
     def on_stepIn(self, request, args):
-        # XXX docstring
+        # TODO: docstring
         tid = self.thread_map.to_pydevd(int(args['threadId']))
         self.pydevd_notify(pydevd_comm.CMD_STEP_INTO, tid)
         self.send_response(request)
 
     @async_handler
     def on_stepOut(self, request, args):
-        # XXX docstring
+        # TODO: docstring
         tid = self.thread_map.to_pydevd(int(args['threadId']))
         self.pydevd_notify(pydevd_comm.CMD_STEP_RETURN, tid)
         self.send_response(request)
 
     @async_handler
     def on_setBreakpoints(self, request, args):
-        # XXX docstring
+        # TODO: docstring
         bps = []
         path = args['source']['path']
         src_bps = args.get('breakpoints', [])
@@ -522,7 +522,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     @async_handler
     def on_setExceptionBreakpoints(self, request, args):
-        # XXX docstring
+        # TODO: docstring
         self.pydevd_notify(pydevd_comm.CMD_REMOVE_EXCEPTION_BREAK,
                            'python-BaseException')
         filters = args['filters']
@@ -538,7 +538,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     @async_handler
     def on_exceptionInfo(self, request, args):
-        # XXX docstring
+        # TODO: docstring
         tid = self.thread_map.to_pydevd(args['threadId'])
         with self.active_exceptions_lock:
             exc = self.active_exceptions[tid]
@@ -553,14 +553,14 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_CREATE)
     def on_pydevd_thread_create(self, seq, args):
-        # XXX docstring
+        # TODO: docstring
         xml = untangle.parse(args).xml
         tid = self.thread_map.to_vscode(xml.thread['id'])
         self.send_event('thread', reason='started', threadId=tid)
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_KILL)
     def on_pydevd_thread_kill(self, seq, args):
-        # XXX docstring
+        # TODO: docstring
         try:
             tid = self.thread_map.to_vscode(args, autogen=False)
         except KeyError:
@@ -570,7 +570,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_SUSPEND)
     def on_pydevd_thread_suspend(self, seq, args):
-        # XXX docstring
+        # TODO: docstring
         xml = untangle.parse(args).xml
         tid = xml.thread['id']
         reason = int(xml.thread['stop_reason'])
@@ -594,7 +594,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_RUN)
     def on_pydevd_thread_run(self, seq, args):
-        # XXX docstring
+        # TODO: docstring
         pyd_tid, reason = args.split('\t')
         vsc_tid = self.thread_map.to_vscode(pyd_tid)
 
@@ -615,7 +615,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     @pydevd_events.handler(pydevd_comm.CMD_SEND_CURR_EXCEPTION_TRACE)
     def on_pydevd_send_curr_exception_trace(self, seq, args):
-        # XXX docstring
+        # TODO: docstring
         _, name, description, xml = args.split('\t')
         xml = untangle.parse(xml).xml
         pyd_tid = xml.thread['id']
@@ -624,12 +624,12 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     @pydevd_events.handler(pydevd_comm.CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED)
     def on_pydevd_send_curr_exception_trace_proceeded(self, seq, args):
-        # XXX docstring
+        # TODO: docstring
         pass
 
 
 def start_server(port):
-    # XXX docstring
+    # TODO: docstring
     server = socket.socket(socket.AF_INET,
                            socket.SOCK_STREAM,
                            socket.IPPROTO_TCP)
@@ -649,7 +649,7 @@ def start_server(port):
 
 
 def start_client(host, port):
-    # XXX docstring
+    # TODO: docstring
     client = socket.socket(socket.AF_INET,
                            socket.SOCK_STREAM,
                            socket.IPPROTO_TCP)
