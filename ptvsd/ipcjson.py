@@ -230,6 +230,7 @@ class IpcChannel(object):
             import thread
         except ImportError:
             import _thread as thread
+        # TODO: switch to a single underscore for "private" variables.
         self.__seq = itertools.count()
         self.__exit = False
         self.__lock = thread.allocate_lock()
