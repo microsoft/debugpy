@@ -20,3 +20,7 @@ test: ## Run the test suite.
 .PHONY: coverage
 coverage:  ## Check line coverage.
 	$(PYTHON) -m coverage run -m tests
+
+.PHONY: check-schemafile
+check-schemafile:  ## Validate the vendored schema file.
+	python3 -m debugger_protocol.schema check

@@ -12,7 +12,7 @@ def open_url(url):
 def get_revision(url, *, _open=open_url):
     """Return the revision corresponding to the given URL."""
     if url.startswith('https://github.com/'):
-        return get_github_revision(url, _open=_open)
+        return github_get_revision(url, _open=_open)
     else:
         raise NotImplementedError
 
@@ -35,7 +35,7 @@ GH_RESOURCE_RE = re.compile(r'^https://github.com'
                             r'/(?P<path>.*)$')
 
 
-def get_github_revision(url, *, _open=open_url):
+def github_get_revision(url, *, _open=open_url):
     """Return the full commit hash corresponding to the given URL."""
     m = GH_RESOURCE_RE.match(url)
     if not m:
@@ -48,3 +48,13 @@ def get_github_revision(url, *, _open=open_url):
         raw = revinfo.read()
     data = json.loads(raw.decode())
     return data['sha']
+
+
+def github_url_replace_ref(url, newref):
+    """Return a new URL with the ref replaced."""
+    m = GH_RESOURCE_RE.match(url)
+    if not m:
+        raise ValueError('invalid GitHub resource URL: {!r}'.format(url))
+    org, repo, kind, _, path = m.groups()
+    parts = (org, repo, kind, newref, path)
+    return 'https://github.com/' + '/'.join(parts)

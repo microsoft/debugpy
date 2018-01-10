@@ -1,10 +1,10 @@
 import argparse
-import os.path
 import sys
 
-from . import (UPSTREAM, VENDORED, METADATA,
-               upstream)
 from ._util import open_url
+from .metadata import open_metadata
+from .upstream import URL as UPSTREAM, download
+from .vendored import FILENAME as VENDORED, check_local, check_upstream
 
 
 COMMANDS = {}
@@ -18,18 +18,31 @@ def as_command(name):
 
 
 @as_command('download')
-def handle_download(source=UPSTREAM, target=VENDORED):
+def handle_download(source=UPSTREAM, target=VENDORED, *,
+                    _open=open, _open_url=open_url):
     # Download the schema file.
-    with open_url(source) as infile:
-        with open(target, 'wb') as outfile:
-            meta = upstream.download(source, infile, outfile)
+    with _open_url(source) as infile:
+        with _open(target, 'wb') as outfile:
+            meta = download(source, infile, outfile,
+                            _open=_open)
 
     # Save the metadata.
-    filename = os.path.join(os.path.dirname(target),
-                            os.path.basename(METADATA))
-    with open(filename, 'w') as metafile:
+    metafile, _ = open_metadata(target, 'w',
+                                _open=_open)
+    with metafile:
         metafile.write(
                 meta.format())
+
+
+@as_command('check')
+def handle_check(schemafile=VENDORED, *, _open=open, _open_url=open_url):
+    print('checking local schema file...')
+    check_local(schemafile,
+                _open=_open)
+    print('comparing with upstream schema file...')
+    check_upstream(schemafile,
+                   _open=_open, _open_url=_open_url)
+    print('schema file okay')
 
 
 #############################
@@ -57,6 +70,9 @@ def parse_args(argv=sys.argv[1:], prog=None):
     download = subs.add_parser('download')
     download.add_argument('--source', default=UPSTREAM)
     download.add_argument('--target', default=VENDORED)
+
+    check = subs.add_parser('check')
+    check.add_argument('--schemafile', default=VENDORED)
 
     args = parser.parse_args(argv)
     if args.command is None:
