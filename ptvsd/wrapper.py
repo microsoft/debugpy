@@ -303,14 +303,14 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         msg = '1.1\tWINDOWS\tID'
         yield self.pydevd_request(cmd, msg)
         self.send_response(
-                request,
-                supportsExceptionInfoRequest=True,
-                supportsConfigurationDoneRequest=True,
-                exceptionBreakpointFilters=[
-                    {'filter': 'raised', 'label': 'Raised Exceptions'},
-                    {'filter': 'uncaught', 'label': 'Uncaught Exceptions'},
-                    ],
-                )
+            request,
+            supportsExceptionInfoRequest=True,
+            supportsConfigurationDoneRequest=True,
+            exceptionBreakpointFilters=[
+                {'filter': 'raised', 'label': 'Raised Exceptions'},
+                {'filter': 'uncaught', 'label': 'Uncaught Exceptions'},
+            ],
+        )
         self.send_event('initialized')
 
     @async_handler
@@ -398,11 +398,11 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             file = unquote(xframe['file'])
             line = int(xframe['line'])
             stackFrames.append({
-                    'id': fid,
-                    'name': name,
-                    'source': {'path': file},
-                    'line': line, 'column': 0,
-                    })
+                'id': fid,
+                'name': name,
+                'source': {'path': file},
+                'line': line, 'column': 0,
+            })
 
         self.send_response(request,
                            stackFrames=stackFrames,
@@ -416,10 +416,10 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         pyd_var = (pyd_tid, pyd_fid, 'FRAME')
         vsc_var = self.var_map.to_vscode(pyd_var)
         scope = {
-                'name': 'Locals',
-                'expensive': False,
-                'variablesReference': vsc_var,
-                }
+            'name': 'Locals',
+            'expensive': False,
+            'variablesReference': vsc_var,
+        }
         self.send_response(request, scopes=[scope])
 
     @async_handler
@@ -441,7 +441,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         except AttributeError:
             xvars = []
 
-        variabless = []
+        variables = []
         for xvar in xvars:
             var = {
                 'name': unquote(xvar['name']),
@@ -521,7 +521,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 'id': vsc_bpid,
                 'verified': True,
                 'line': line,
-                })
+            })
 
         self.send_response(request, breakpoints=bps)
 
@@ -547,14 +547,14 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         tid = self.thread_map.to_pydevd(args['threadId'])
         with self.active_exceptions_lock:
             exc = self.active_exceptions[tid]
-        self.send_response(request,
-                           exceptionId=exc.name,
-                           description=exc.description,
-                           breakMode='unhandled',
-                           details={'typeName': exc.name,
-                                    'message': exc.description,
-                                    },
-                           )
+        self.send_response(
+            request,
+            exceptionId=exc.name,
+            description=exc.description,
+            breakMode='unhandled',
+            details={'typeName': exc.name,
+                     'message': exc.description},
+        )
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_CREATE)
     def on_pydevd_thread_create(self, seq, args):
@@ -583,7 +583,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 pydevd_comm.CMD_STEP_INTO,
                 pydevd_comm.CMD_STEP_OVER,
                 pydevd_comm.CMD_STEP_RETURN,
-                }
+        }
         if reason in STEP_REASONS:
             reason = 'step'
         elif reason == pydevd_comm.CMD_STEP_CAUGHT_EXCEPTION:
