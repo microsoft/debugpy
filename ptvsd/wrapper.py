@@ -300,8 +300,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     def on_initialize(self, request, args):
         # TODO: docstring
         cmd = pydevd_comm.CMD_VERSION
-        args = '1.1\tWINDOWS\tID'
-        yield self.pydevd_request(cmd, args)
+        msg = '1.1\tWINDOWS\tID'
+        yield self.pydevd_request(cmd, msg)
         self.send_response(
                 request,
                 supportsExceptionInfoRequest=True,
@@ -349,9 +349,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     @async_handler
     def on_threads(self, request, args):
         # TODO: docstring
-        _, _, args = yield self.pydevd_request(
-                pydevd_comm.CMD_LIST_THREADS, '')
-        xml = untangle.parse(args).xml
+        cmd = pydevd_comm.CMD_LIST_THREADS
+        _, _, resp_args = yield self.pydevd_request(cmd, '')
+        xml = untangle.parse(resp_args).xml
         try:
             xthreads = xml.thread
         except AttributeError:
@@ -392,7 +392,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             if levels <= 0:
                 break
             levels -= 1
-            fid = self.frame_map.to_vscode((tid, int(xframe['id'])))
+            key = (tid, int(xframe['id']))
+            fid = self.frame_map.to_vscode(key)
             name = unquote(xframe['name'])
             file = unquote(xframe['file'])
             line = int(xframe['line'])
@@ -431,15 +432,16 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             cmd = pydevd_comm.CMD_GET_FRAME
         else:
             cmd = pydevd_comm.CMD_GET_VARIABLE
-        cmdargs = '\t'.join(str(s) for s in pyd_var)
-        _, _, args = yield self.pydevd_request(cmd, cmdargs)
-        xml = untangle.parse(args).xml
+        cmdargs = (str(s) for s in pyd_var)
+        msg = '\t'.join(cmdargs)
+        _, _, resp_args = yield self.pydevd_request(cmd, msg)
+        xml = untangle.parse(resp_args).xml
         try:
             xvars = xml.var
         except AttributeError:
             xvars = []
 
-        vars = []
+        variabless = []
         for xvar in xvars:
             var = {
                 'name': unquote(xvar['name']),
@@ -449,9 +451,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             if bool(xvar['isContainer']):
                 pyd_child = pyd_var + (var['name'],)
                 var['variablesReference'] = self.var_map.to_vscode(pyd_child)
-            vars.append(var)
+            variables.append(var)
 
-        self.send_response(request, variables=vars)
+        self.send_response(request, variables=variables)
 
     @async_handler
     def on_pause(self, request, args):
@@ -501,17 +503,20 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         src_bps = args.get('breakpoints', [])
 
         # First, we must delete all existing breakpoints in that source.
+        cmd = pydevd_comm.CMD_REMOVE_BREAK
         for pyd_bpid, vsc_bpid in self.bp_map.pairs():
-            self.pydevd_notify(pydevd_comm.CMD_REMOVE_BREAK,
-                               'python-line\t{}\t{}'.format(path, vsc_bpid))
+            msg = 'python-line\t{}\t{}'.format(path, vsc_bpid)
+            self.pydevd_notify(cmd, msg)
             self.bp_map.remove(pyd_bpid, vsc_bpid)
 
+        cmd = pydevd_comm.CMD_SET_BREAK
+        msgfmt = '{}\tpython-line\t{}\t{}\tNone\tNone\tNone'
         for src_bp in src_bps:
             line = src_bp['line']
-            vsc_bpid = self.bp_map.add(lambda vsc_bpid: (path, vsc_bpid))
-            self.pydevd_notify(pydevd_comm.CMD_SET_BREAK,
-                               ('{}\tpython-line\t{}\t{}\tNone\tNone\tNone'
-                                ).format(vsc_bpid, path, line))
+            vsc_bpid = self.bp_map.add(
+                    lambda vsc_bpid: (path, vsc_bpid))
+            msg = msgfmt.format(vsc_bpid, path. line)
+            self.pydevd_notify(cmd, msg)
             bps.append({
                 'id': vsc_bpid,
                 'verified': True,
@@ -529,10 +534,10 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         break_raised = 'raised' in filters
         break_uncaught = 'uncaught' in filters
         if break_raised or break_uncaught:
-            args = (2 if break_raised else 0,
-                    1 if break_uncaught else 0,
-                    0)
-            msg = 'python-BaseException\t{}\t{}\t{}'.format(*args)
+            cmdargs = (2 if break_raised else 0,
+                       1 if break_uncaught else 0,
+                       0)
+            msg = 'python-BaseException\t{}\t{}\t{}'.format(*cmdargs)
             self.pydevd_notify(pydevd_comm.CMD_ADD_EXCEPTION_BREAK, msg)
         self.send_response(request)
 

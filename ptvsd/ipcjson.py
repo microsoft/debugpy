@@ -25,7 +25,9 @@ __version__ = "4.0.0a1"
 _TRACE = None
 
 SKIP_TB_PREFIXES = [
-    os.path.normcase(os.path.dirname(os.path.abspath(__file__)))
+    os.path.normcase(
+        os.path.dirname(
+            os.path.abspath(__file__))),
 ]
 
 
@@ -45,12 +47,13 @@ def _trace(*msg):
 
 
 def _str_or_call(m):
+    # TODO: Use callable() here.
     try:
-        callable = m.__call__
+        call = m.__call__
     except AttributeError:
         return str(m)
     else:
-        return str(callable())
+        return str(call())
 
 
 class InvalidHeaderError(Exception):
@@ -74,8 +77,8 @@ class SocketIO(object):
         self.__own_socket = kwargs.get('own_socket', True)
         self.__logfile = kwargs.get('logfile')
         if self.__socket is None and self.__port is None:
-            raise ValueError("A 'port' or a 'socket' must be passed to "
-                             "SocketIO initializer as a keyword argument.")
+            raise ValueError(
+                    "A 'port' or a 'socket' must be passed to SocketIO initializer as a keyword argument.")  # noqa
         if self.__socket is None:
             self.__socket = socket.create_connection(
                     ('127.0.0.1', self.__port))
@@ -85,6 +88,7 @@ class SocketIO(object):
         content = json.dumps(payload).encode('utf-8')
         headers = ('Content-Length: {}\r\n\r\n'.format(len(content))
                    ).encode('ascii')
+        # TODO: We never actually use a logfile...
         if self.__logfile is not None:
             self.__logfile.write(content)
             self.__logfile.write('\n'.encode('utf-8'))
@@ -127,9 +131,8 @@ class SocketIO(object):
             self.__buffer += temp
 
         if len(self.__buffer) < length:
-            raise InvalidContentError(('Expected to read {} bytes of content, '
-                                       'but only read {} bytes.'
-                                       ).format(length, len(self.__buffer)))
+            raise InvalidContentError(
+                    'Expected to read {} bytes of content, but only read {} bytes.'.format(length, len(self.__buffer)))  # noqa
 
         content = self.__buffer[:length]
         self.__buffer = self.__buffer[length:]
@@ -171,8 +174,7 @@ class SocketIO(object):
             raise InvalidHeaderError('Content-Length not specified in headers')
 
         if length < 0 or length > 2147483647:
-            raise InvalidHeaderError(
-                    'Invalid Content-Length: ' + length_text)
+            raise InvalidHeaderError('Invalid Content-Length: ' + length_text)
 
         # read content, utf-8 encoded
         content = self._buffered_read_as_utf8(length)
@@ -309,7 +311,8 @@ class IpcChannel(object):
 
         cmd = request.get('command', '')
         args = request.get('arguments', {})
-        target = getattr(self, 'on_' + cmd, self.on_invalid_request)
+        target = getattr(self, 'on_' + cmd,
+                         self.on_invalid_request)
         try:
             _trace('Calling ', repr(target))
             target(request, args)

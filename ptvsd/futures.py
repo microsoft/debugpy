@@ -143,7 +143,7 @@ def async(f):
                 else:
                     exc_info = fut.exc_info()
                     if exc_info:
-                        x = it.throw(exc_info[0], exc_info[1], exc_info[2])
+                        x = it.throw(*exc_info)
                     else:
                         x = it.send(fut.result())
             except StopIteration:
