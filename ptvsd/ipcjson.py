@@ -138,8 +138,7 @@ class SocketIO(object):
     def _wait_for_message(self):
         # TODO: docstring
         # base protocol defined at:
-        #  https://github.com/Microsoft/language-server-protocol/
-        #    blob/master/protocol.md#base-protocol
+        #  https://github.com/Microsoft/language-server-protocol/blob/master/protocol.md#base-protocol
 
         # read all headers, ascii encoded separated by '\r\n'
         # end of headers is indicated by an empty line
