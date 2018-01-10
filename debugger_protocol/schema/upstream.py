@@ -12,14 +12,14 @@ URL = 'https://github.com/Microsoft/vscode-debugadapter-node/raw/master/debugPro
 
 def download(source, infile, outfile, *, _now=datetime.utcnow, _open=open_url):
     """Return the corresponding metadata after downloading the schema file."""
-    date = _now()
+    timestamp = _now()
     revision = get_revision(source, _open=_open)
 
     data = infile.read()
     checksum = get_checksum(data)
     outfile.write(data)
 
-    return Metadata(source, revision, checksum, date)
+    return Metadata(source, revision, checksum, timestamp)
 
 
 def read(url, *, _open_url=open_url):

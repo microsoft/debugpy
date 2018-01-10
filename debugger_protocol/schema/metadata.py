@@ -43,16 +43,17 @@ def read_metadata(schemafile, *, _open=open):
     return meta, filename
 
 
-class Metadata(namedtuple('Metadata', 'upstream revision checksum date')):
+class Metadata(
+        namedtuple('Metadata', 'upstream revision checksum downloaded')):
     """Info about the local copy of the upstream schema file."""
 
     TIMESTAMP = '%Y-%m-%d %H:%M:%S (UTC)'
 
     FORMAT = dedent("""\
-            upstream: {}
-            revision: {}
-            checksum: {}
-            date:     {:%s}
+            upstream:   {}
+            revision:   {}
+            checksum:   {}
+            downloaded: {:%s}
             """) % TIMESTAMP
 
     @classmethod
@@ -72,19 +73,19 @@ class Metadata(namedtuple('Metadata', 'upstream revision checksum date')):
         self = cls(**kwargs)
         return self
 
-    def __new__(cls, upstream, revision, checksum, date):
+    def __new__(cls, upstream, revision, checksum, downloaded):
         # coercion
         upstream = str(upstream) if upstream else None
         revision = str(revision) if revision else None
         checksum = str(checksum) if checksum else None
-        if not date:
-            date = None
-        elif isinstance(date, str):
-            date = datetime.strptime(date, cls.TIMESTAMP)
-        elif date.tzinfo is not None:
-            date -= date.utcoffset()
+        if not downloaded:
+            downloaded = None
+        elif isinstance(downloaded, str):
+            downloaded = datetime.strptime(downloaded, cls.TIMESTAMP)
+        elif downloaded.tzinfo is not None:
+            downloaded -= downloaded.utcoffset()
 
-        self = super().__new__(cls, upstream, revision, checksum, date)
+        self = super().__new__(cls, upstream, revision, checksum, downloaded)
         return self
 
     def __init__(self, *args, **kwargs):
@@ -102,8 +103,8 @@ class Metadata(namedtuple('Metadata', 'upstream revision checksum date')):
             raise ValueError('missing checksum')
         # TODO ensure checksum is a MD5 hash?
 
-        if not self.date:
-            raise ValueError('missing date')
+        if not self.downloaded:
+            raise ValueError('missing downloaded')
 
     @property
     def url(self):

@@ -13,10 +13,10 @@ class CheckLocalTests(unittest.TestCase):
 
     def test_match(self):
         metafile = io.StringIO(dedent("""
-                upstream: https://x.y.z/schema.json
-                revision: abcdef0123456789
-                checksum: e778c3751f9d0bceaf8d5aa81e2c659f
-                date:     2018-01-09 13:10:59 (UTC)
+                upstream:   https://x.y.z/schema.json
+                revision:   abcdef0123456789
+                checksum:   e778c3751f9d0bceaf8d5aa81e2c659f
+                downloaded: 2018-01-09 13:10:59 (UTC)
                 """))
         schemafile = io.BytesIO(b'<a schema>')
         opener = StubOpener(metafile, schemafile)
@@ -26,10 +26,10 @@ class CheckLocalTests(unittest.TestCase):
 
     def test_mismatch(self):
         metafile = io.StringIO(dedent("""
-                upstream: https://x.y.z/schema.json
-                revision: abcdef0123456789
-                checksum: abc2
-                date:     2018-01-09 13:10:59 (UTC)
+                upstream:   https://x.y.z/schema.json
+                revision:   abcdef0123456789
+                checksum:   abc2
+                downloaded: 2018-01-09 13:10:59 (UTC)
                 """))
         schemafile = io.BytesIO(b'<a schema>')
         opener = StubOpener(metafile, schemafile)
@@ -60,10 +60,10 @@ class CheckLocalTests(unittest.TestCase):
 
     def test_schemafile_missing(self):
         metafile = io.StringIO(dedent("""
-                upstream: https://x.y.z/schema.json
-                revision: abcdef0123456789
-                checksum: e778c3751f9d0bceaf8d5aa81e2c659f
-                date:     2018-01-09 13:10:59 (UTC)
+                upstream:   https://x.y.z/schema.json
+                revision:   abcdef0123456789
+                checksum:   e778c3751f9d0bceaf8d5aa81e2c659f
+                downloaded: 2018-01-09 13:10:59 (UTC)
                 """))
         schemafile = None
         opener = StubOpener(metafile, schemafile)
@@ -76,10 +76,10 @@ class CheckUpstream(unittest.TestCase):
 
     def test_match(self):
         metafile = io.StringIO(dedent("""
-                upstream: https://github.com/x/y/raw/master/z
-                revision: fc2395ca3564fb2afded8d90ddbe38dad1bf86f1
-                checksum: e778c3751f9d0bceaf8d5aa81e2c659f
-                date:     2018-01-09 13:10:59 (UTC)
+                upstream:   https://github.com/x/y/raw/master/z
+                revision:   fc2395ca3564fb2afded8d90ddbe38dad1bf86f1
+                checksum:   e778c3751f9d0bceaf8d5aa81e2c659f
+                downloaded: 2018-01-09 13:10:59 (UTC)
                 """))
         schemafile = io.BytesIO(b'<a schema>')
         buf = io.BytesIO(
@@ -92,10 +92,10 @@ class CheckUpstream(unittest.TestCase):
 
     def test_revision_mismatch(self):
         metafile = io.StringIO(dedent("""
-                upstream: https://github.com/x/y/raw/master/z
-                revision: abc2
-                checksum: e778c3751f9d0bceaf8d5aa81e2c659f
-                date:     2018-01-09 13:10:59 (UTC)
+                upstream:   https://github.com/x/y/raw/master/z
+                revision:   abc2
+                checksum:   e778c3751f9d0bceaf8d5aa81e2c659f
+                downloaded: 2018-01-09 13:10:59 (UTC)
                 """))
         schemafile = io.BytesIO(b'<a schema>')
         buf = io.BytesIO(
@@ -112,10 +112,10 @@ class CheckUpstream(unittest.TestCase):
 
     def test_checksum_mismatch(self):
         metafile = io.StringIO(dedent("""
-                upstream: https://github.com/x/y/raw/master/z
-                revision: fc2395ca3564fb2afded8d90ddbe38dad1bf86f1
-                checksum: abc2
-                date:     2018-01-09 13:10:59 (UTC)
+                upstream:   https://github.com/x/y/raw/master/z
+                revision:   fc2395ca3564fb2afded8d90ddbe38dad1bf86f1
+                checksum:   abc2
+                downloaded: 2018-01-09 13:10:59 (UTC)
                 """))
         schemafile = io.BytesIO(b'<a schema>')
         buf = io.BytesIO(

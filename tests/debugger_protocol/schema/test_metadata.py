@@ -48,10 +48,10 @@ class ReadMetadataTests(unittest.TestCase):
 
     def test_success(self):
         metafile = io.StringIO(dedent("""
-                upstream: https://x.y.z/schema.json
-                revision: abcdef0123456789
-                checksum: deadbeefdeadbeefdeadbeefdeadbeef
-                date:     2018-01-09 13:10:59 (UTC)
+                upstream:   https://x.y.z/schema.json
+                revision:   abcdef0123456789
+                checksum:   deadbeefdeadbeefdeadbeefdeadbeef
+                downloaded: 2018-01-09 13:10:59 (UTC)
                 """))
         opener = StubOpener(metafile)
         schemadir = os.path.join('x', 'y', 'z', '')
@@ -90,10 +90,10 @@ class MetadataTests(unittest.TestCase):
                             datetime(2018, 1, 9, 13, 10, 59),
                             )
         meta = Metadata.parse(dedent("""
-            upstream: https://x.y.z/schema.json
-            revision: abcdef0123456789
-            checksum: deadbeefdeadbeefdeadbeefdeadbeef
-            date:     2018-01-09 13:10:59 (UTC)
+            upstream:   https://x.y.z/schema.json
+            revision:   abcdef0123456789
+            checksum:   deadbeefdeadbeefdeadbeefdeadbeef
+            downloaded: 2018-01-09 13:10:59 (UTC)
             """))
 
         self.assertEqual(meta, expected)
@@ -111,7 +111,7 @@ class MetadataTests(unittest.TestCase):
 
             revision: abcdef0123456789
              checksum: deadbeefdeadbeefdeadbeefdeadbeef
-            date:	2018-01-09 13:10:59 (UTC)
+            downloaded:	2018-01-09 13:10:59 (UTC)
               
               # done!
 
@@ -132,10 +132,10 @@ class MetadataTests(unittest.TestCase):
 
     def test_parse_roundtrip_from_string(self):
         orig = dedent("""\
-            upstream: https://x.y.z/schema.json
-            revision: abcdef0123456789
-            checksum: deadbeefdeadbeefdeadbeefdeadbeef
-            date:     2018-01-09 13:10:59 (UTC)
+            upstream:   https://x.y.z/schema.json
+            revision:   abcdef0123456789
+            checksum:   deadbeefdeadbeefdeadbeefdeadbeef
+            downloaded: 2018-01-09 13:10:59 (UTC)
             """)
         data = (Metadata.parse(orig)
                 ).format()
@@ -203,8 +203,8 @@ class MetadataTests(unittest.TestCase):
         formatted = meta.format()
 
         self.assertEqual(formatted, dedent("""\
-            upstream: https://x.y.z/schema.json
-            revision: abcdef0123456789
-            checksum: deadbeefdeadbeefdeadbeefdeadbeef
-            date:     2018-01-09 13:10:59 (UTC)
+            upstream:   https://x.y.z/schema.json
+            revision:   abcdef0123456789
+            checksum:   deadbeefdeadbeefdeadbeefdeadbeef
+            downloaded: 2018-01-09 13:10:59 (UTC)
             """))

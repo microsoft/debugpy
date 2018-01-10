@@ -50,13 +50,13 @@ class HandleDownloadTests(unittest.TestCase):
                         _open=opener.open, _open_url=opener.open)
         metadata = '\n'.join(line
                              for line in metafile.written.splitlines()
-                             if not line.startswith('date: '))
+                             if not line.startswith('downloaded: '))
 
         self.assertEqual(outfile.written, b'<a schema>')
         self.assertEqual(metadata, dedent("""
-                upstream: https://github.com/Microsoft/vscode-debugadapter-node/raw/master/debugProtocol.json
-                revision: fc2395ca3564fb2afded8d90ddbe38dad1bf86f1
-                checksum: e778c3751f9d0bceaf8d5aa81e2c659f
+                upstream:   https://github.com/Microsoft/vscode-debugadapter-node/raw/master/debugProtocol.json
+                revision:   fc2395ca3564fb2afded8d90ddbe38dad1bf86f1
+                checksum:   e778c3751f9d0bceaf8d5aa81e2c659f
                 """).strip())  # noqa
         self.assertEqual(stdout.getvalue(), '')
 
@@ -65,10 +65,10 @@ class HandleCheckTests(unittest.TestCase):
 
     def test_default_args(self):
         metadata = dedent("""
-                upstream: https://github.com/x/y/raw/master/z
-                revision: fc2395ca3564fb2afded8d90ddbe38dad1bf86f1
-                checksum: e778c3751f9d0bceaf8d5aa81e2c659f
-                date:     2018-01-09 13:10:59 (UTC)
+                upstream:   https://github.com/x/y/raw/master/z
+                revision:   fc2395ca3564fb2afded8d90ddbe38dad1bf86f1
+                checksum:   e778c3751f9d0bceaf8d5aa81e2c659f
+                downloaded: 2018-01-09 13:10:59 (UTC)
                 """)
         opener = StubOpener(
                 io.StringIO(metadata),

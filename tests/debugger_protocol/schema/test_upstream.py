@@ -49,7 +49,7 @@ class ReadSchemaTests(unittest.TestCase):
             'https://github.com/x/y/raw/master/z',
             'fc2395ca3564fb2afded8d90ddbe38dad1bf86f1',
             'e778c3751f9d0bceaf8d5aa81e2c659f',
-            meta.date,
+            meta.downloaded,
             ))
 
     def test_resource_missing(self):
