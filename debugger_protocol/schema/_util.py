@@ -1,0 +1,50 @@
+import hashlib
+import json
+import re
+import urllib.request
+
+
+def open_url(url):
+    """Return a file-like object for (binary) reading the given URL."""
+    return urllib.request.urlopen(url)
+
+
+def get_revision(url, *, _open=open_url):
+    """Return the revision corresponding to the given URL."""
+    if url.startswith('https://github.com/'):
+        return get_github_revision(url, _open=_open)
+    else:
+        raise NotImplementedError
+
+
+def get_checksum(data):
+    """Return the MD5 hash for the given data."""
+    m = hashlib.md5()
+    m.update(data)
+    return m.hexdigest()
+
+
+##################################
+# github
+
+GH_RESOURCE_RE = re.compile(r'^https://github.com'
+                            r'/(?P<org>[^/]*)'
+                            r'/(?P<repo>[^/]*)'
+                            r'/(?P<kind>[^/]*)'
+                            r'/(?P<rev>[^/]*)'
+                            r'/(?P<path>.*)$')
+
+
+def get_github_revision(url, *, _open=open_url):
+    """Return the full commit hash corresponding to the given URL."""
+    m = GH_RESOURCE_RE.match(url)
+    if not m:
+        raise ValueError('invalid GitHub resource URL: {!r}'.format(url))
+    org, repo, _, ref, _ = m.groups()
+
+    revurl = ('https://api.github.com/repos/{}/{}/commits/{}'
+              ).format(org, repo, ref)
+    with _open(revurl) as revinfo:
+        raw = revinfo.read()
+    data = json.loads(raw.decode())
+    return data['sha']
