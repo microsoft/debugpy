@@ -529,11 +529,11 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         break_raised = 'raised' in filters
         break_uncaught = 'uncaught' in filters
         if break_raised or break_uncaught:
-            self.pydevd_notify(pydevd_comm.CMD_ADD_EXCEPTION_BREAK,
-                               ('python-BaseException\t{}\t{}\t{}'
-                                ).format(2 if break_raised else 0,
-                                         1 if break_uncaught else 0,
-                                         0))
+            args = (2 if break_raised else 0,
+                    1 if break_uncaught else 0,
+                    0)
+            msg = 'python-BaseException\t{}\t{}\t{}'.format(*args)
+            self.pydevd_notify(pydevd_comm.CMD_ADD_EXCEPTION_BREAK, msg)
         self.send_response(request)
 
     @async_handler
