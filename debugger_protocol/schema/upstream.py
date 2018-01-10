@@ -28,7 +28,7 @@ def read(url, *, _open_url=open_url):
     try:
         infile = _open_url(url)
     except (FileNotFoundError, urllib.error.HTTPError) as exc:
-        # XXX Ensure it's a 404 error?
+        # TODO: Ensure it's a 404 error?
         raise SchemaFileError('schema file at {!r} not found'.format(url))
     with infile:
         upstream = download(url, infile, outfile, _open=_open_url)
