@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
 # Copyright (c) Microsoft Corporation. All rights reserved.
-# Licensed under the MIT License. See LICENSE in the project root for license information.
+# Licensed under the MIT License. See LICENSE in the project root
+# for license information.
 
-import sys
 from setuptools import setup
+
 
 setup(name='ptvsd',
       version='4.0.0a1',
@@ -21,4 +22,4 @@ setup(name='ptvsd',
         'License :: OSI Approved :: MIT License'],
       packages=['ptvsd'],
       install_requires=['untangle', 'pydevd>=1.1.1']
-     )
+      )
