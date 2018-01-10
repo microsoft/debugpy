@@ -3,6 +3,19 @@ from datetime import datetime
 from textwrap import dedent
 
 from . import UPSTREAM
+from ._util import open_url, get_revision, get_checksum
+
+
+def download(source, infile, outfile, *, _now=datetime.utcnow, _open=open_url):
+    """Return the corresponding metadata after downloading the schema file."""
+    date = _now()
+    revision = get_revision(source, _open=_open)
+
+    data = infile.read()
+    checksum = get_checksum(data)
+    outfile.write(data)
+
+    return Metadata(source, revision, checksum, date)
 
 
 class Metadata(namedtuple('Metadata', 'upstream revision checksum date')):
@@ -16,6 +29,11 @@ class Metadata(namedtuple('Metadata', 'upstream revision checksum date')):
             checksum: {}
             date:     {:%s}
             """) % TIMESTAMP
+
+    #@get_revision(upstream)
+    #@download(upstream, revision=None)
+    #validate_file(filename)
+    #verify_remote()
 
     @classmethod
     def parse(cls, data):

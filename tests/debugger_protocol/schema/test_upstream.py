@@ -1,9 +1,10 @@
 from datetime import datetime
+import io
 from textwrap import dedent
 import unittest
 
 from debugger_protocol.schema import UPSTREAM
-from debugger_protocol.schema.upstream import Metadata
+from debugger_protocol.schema.upstream import download, Metadata
 
 
 class Stringlike:
@@ -17,6 +18,31 @@ class Stringlike:
 
 class Hash(Stringlike):
     pass
+
+
+class DownloadTests(unittest.TestCase):
+
+    def test_success(self):
+        now = datetime.utcnow()
+        infile = io.BytesIO(b'<a schema>')
+        outfile = io.BytesIO()
+        buf = io.BytesIO(
+                b'{"sha": "fc2395ca3564fb2afded8d90ddbe38dad1bf86f1"}')
+        meta = download('https://github.com/x/y/raw/master/z',
+                        infile,
+                        outfile,
+                        _now=(lambda: now),
+                        _open=(lambda _: buf),
+                        )
+        rcvd = outfile.getvalue()
+
+        self.assertEqual(meta, Metadata(
+            'https://github.com/x/y/raw/master/z',
+            'fc2395ca3564fb2afded8d90ddbe38dad1bf86f1',
+            'e778c3751f9d0bceaf8d5aa81e2c659f',
+            now,
+            ))
+        self.assertEqual(rcvd, b'<a schema>')
 
 
 class MetadataTests(unittest.TestCase):
