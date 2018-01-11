@@ -43,6 +43,8 @@ def convert_argv(argv):
         # Do discovery.
         if quick:
             start = os.path.join(TEST_ROOT, 'ptvsd')
+        elif sys.version_info[0] != 3:
+            start = os.path.join(TEST_ROOT, 'ptvsd')
         else:
             start = PROJECT_ROOT
         cmd += [
