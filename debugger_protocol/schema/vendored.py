@@ -54,11 +54,13 @@ def check_local(filename, *, _open=open):
         raise SchemaFileMismatchError(filename, actual, meta)
 
 
-def check_upstream(filename, *, _open=open, _open_url=open_url):
+def check_upstream(filename, url=None, *, _open=open, _open_url=open_url):
     """Ensure that the local metadata file matches the upstream schema file."""
     # Get the vendored and upstream metadata.
     meta, _ = read_metadata(filename, _open=_open)
-    _, upmeta = upstream.read(meta.upstream, _open_url=_open_url)
+    if url is None:
+        url = meta.upstream
+    _, upmeta = upstream.read(url, _open_url=_open_url)
 
     # Make sure the revision and checksum match.
     if meta.revision != upmeta.revision:

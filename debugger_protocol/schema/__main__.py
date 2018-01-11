@@ -39,13 +39,20 @@ def handle_download(source=UPSTREAM, target=VENDORED, *,
 
 
 @as_command('check')
-def handle_check(schemafile=VENDORED, *, _open=open, _open_url=open_url):
+def handle_check(schemafile=VENDORED, upstream=None, *,
+                 _open=open, _open_url=open_url):
     print('checking local schema file...')
-    check_local(schemafile,
-                _open=_open)
+    try:
+        check_local(schemafile,
+                    _open=_open)
+    except Exception as exc:
+        sys.exit('ERROR: {}'.format(exc))
     print('comparing with upstream schema file...')
-    check_upstream(schemafile,
-                   _open=_open, _open_url=_open_url)
+    try:
+        check_upstream(schemafile, url=upstream,
+                       _open=_open, _open_url=_open_url)
+    except Exception as exc:
+        sys.exit('ERROR: {}'.format(exc))
     print('schema file okay')
 
 
@@ -77,6 +84,7 @@ def parse_args(argv=sys.argv[1:], prog=None):
 
     check = subs.add_parser('check')
     check.add_argument('--schemafile', default=VENDORED)
+    check.add_argument('--upstream', default=None)
 
     args = parser.parse_args(argv)
     if args.command is None:
