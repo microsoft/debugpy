@@ -9,6 +9,7 @@ PROJECT_ROOT = os.path.dirname(TEST_ROOT)
 
 
 def convert_argv(argv):
+    help  = False
     args = []
     modules = set()
     for arg in argv:
@@ -26,15 +27,17 @@ def convert_argv(argv):
             mod = mod.replace(os.sep, '.')
             arg = mod if not test else mod + '.' + test
             modules.add(mod)
+        elif arg in ('-h', '--help'):
+            help = True
         args.append(arg)
 
-    if not modules:
+    cmd = [sys.executable + ' -m unittest']  # ...how unittest.main() likes it.
+    if not modules and not help:
         # Do discovery.
-        args = ['discover',
+        cmd += ['discover',
                 '--start-directory', PROJECT_ROOT,
-                ] + args
-    return [sys.executable + ' -m unittest'] + args
-    #return [sys.executable, '-m', 'unittest'] + args
+                ]
+    return cmd + args
 
 
 if __name__ == '__main__':
