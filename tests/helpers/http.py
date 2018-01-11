@@ -59,3 +59,16 @@ def json_file_handler(data):
             pass
 
     return HTTPHandler
+
+
+def error_handler(code, msg):
+    """Return an HTTP handler that always returns the given error code."""
+
+    class HTTPHandler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_error(code, msg)
+
+        def log_message(self, *args, **kwargs):
+            pass
+
+    return HTTPHandler
