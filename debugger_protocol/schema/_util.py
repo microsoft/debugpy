@@ -14,7 +14,7 @@ def get_revision(url, *, _open_url=open_url):
     if url.startswith('https://github.com/'):
         return github_get_revision(url, _open_url=_open_url)
     else:
-        raise NotImplementedError
+        return '<unknown>'
 
 
 def get_checksum(data):

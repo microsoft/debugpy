@@ -14,6 +14,12 @@ class GetRevisionTests(unittest.TestCase):
 
         self.assertEqual(revision, 'fc2395ca3564fb2afded8d90ddbe38dad1bf86f1')
 
+    def test_unrecognized_url(self):
+        revision = get_revision('https://localhost/schema.json',
+                                _open_url=lambda _: io.BytesIO())
+
+        self.assertEqual(revision, '<unknown>')
+
 
 class GetChecksumTests(unittest.TestCase):
 
