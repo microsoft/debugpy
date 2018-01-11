@@ -9,10 +9,10 @@ def open_url(url):
     return urllib.request.urlopen(url)
 
 
-def get_revision(url, *, _open=open_url):
+def get_revision(url, *, _open_url=open_url):
     """Return the revision corresponding to the given URL."""
     if url.startswith('https://github.com/'):
-        return github_get_revision(url, _open=_open)
+        return github_get_revision(url, _open_url=_open_url)
     else:
         raise NotImplementedError
 
@@ -35,7 +35,7 @@ GH_RESOURCE_RE = re.compile(r'^https://github.com'
                             r'/(?P<path>.*)$')
 
 
-def github_get_revision(url, *, _open=open_url):
+def github_get_revision(url, *, _open_url=open_url):
     """Return the full commit hash corresponding to the given URL."""
     m = GH_RESOURCE_RE.match(url)
     if not m:
@@ -44,7 +44,7 @@ def github_get_revision(url, *, _open=open_url):
 
     revurl = ('https://api.github.com/repos/{}/{}/commits/{}'
               ).format(org, repo, ref)
-    with _open(revurl) as revinfo:
+    with _open_url(revurl) as revinfo:
         raw = revinfo.read()
     data = json.loads(raw.decode())
     return data['sha']

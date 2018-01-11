@@ -24,7 +24,7 @@ def handle_download(source=UPSTREAM, target=VENDORED, *,
     with _open_url(source) as infile:
         with _open(target, 'wb') as outfile:
             meta = download(source, infile, outfile,
-                            _open=_open)
+                            _open_url=_open_url)
 
     # Save the metadata.
     metafile, _ = open_metadata(target, 'w',

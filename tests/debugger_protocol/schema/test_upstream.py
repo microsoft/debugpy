@@ -21,7 +21,7 @@ class DownloadTests(unittest.TestCase):
                         infile,
                         outfile,
                         _now=(lambda: now),
-                        _open=(lambda _: buf),
+                        _open_url=(lambda _: buf),
                         )
         rcvd = outfile.getvalue()
 

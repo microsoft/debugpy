@@ -10,10 +10,11 @@ from .metadata import Metadata
 URL = 'https://github.com/Microsoft/vscode-debugadapter-node/raw/master/debugProtocol.json'  # noqa
 
 
-def download(source, infile, outfile, *, _now=datetime.utcnow, _open=open_url):
+def download(source, infile, outfile, *,
+             _now=datetime.utcnow, _open_url=open_url):
     """Return the corresponding metadata after downloading the schema file."""
     timestamp = _now()
-    revision = get_revision(source, _open=_open)
+    revision = get_revision(source, _open_url=_open_url)
 
     data = infile.read()
     checksum = get_checksum(data)
@@ -31,5 +32,5 @@ def read(url, *, _open_url=open_url):
         # TODO: Ensure it's a 404 error?
         raise SchemaFileError('schema file at {!r} not found'.format(url))
     with infile:
-        upstream = download(url, infile, outfile, _open=_open_url)
+        upstream = download(url, infile, outfile, _open_url=_open_url)
     return outfile.getvalue(), upstream

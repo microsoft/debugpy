@@ -10,7 +10,7 @@ class GetRevisionTests(unittest.TestCase):
         buf = io.BytesIO(
                 b'{"sha": "fc2395ca3564fb2afded8d90ddbe38dad1bf86f1"}')
         revision = get_revision('https://github.com/x/y/raw/master/z',
-                                _open=lambda _: buf)
+                                _open_url=lambda _: buf)
 
         self.assertEqual(revision, 'fc2395ca3564fb2afded8d90ddbe38dad1bf86f1')
 
