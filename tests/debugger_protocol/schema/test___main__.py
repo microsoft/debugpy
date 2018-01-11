@@ -4,6 +4,7 @@ from textwrap import dedent
 import unittest
 
 from .helpers import StubOpener
+from debugger_protocol.schema.vendored import FILENAME as VENDORED, METADATA
 from debugger_protocol.schema.__main__ import (
         COMMANDS, handle_download, handle_check)
 
@@ -58,7 +59,12 @@ class HandleDownloadTests(unittest.TestCase):
                 revision:   fc2395ca3564fb2afded8d90ddbe38dad1bf86f1
                 checksum:   e778c3751f9d0bceaf8d5aa81e2c659f
                 """).strip())  # noqa
-        self.assertEqual(stdout.getvalue(), '')
+        self.assertEqual(stdout.getvalue(), dedent("""\
+                downloading the schema file from https://github.com/Microsoft/vscode-debugadapter-node/raw/master/debugProtocol.json...
+                ...schema file written to {}.
+                saving the schema metadata...
+                ...metadata written to {}.
+                """).format(VENDORED, METADATA))  # noqa
 
 
 class HandleCheckTests(unittest.TestCase):

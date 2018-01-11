@@ -21,17 +21,21 @@ def as_command(name):
 def handle_download(source=UPSTREAM, target=VENDORED, *,
                     _open=open, _open_url=open_url):
     # Download the schema file.
+    print('downloading the schema file from {}...'.format(source))
     with _open_url(source) as infile:
         with _open(target, 'wb') as outfile:
             meta = download(source, infile, outfile,
                             _open_url=_open_url)
+    print('...schema file written to {}.'.format(target))
 
     # Save the metadata.
-    metafile, _ = open_metadata(target, 'w',
-                                _open=_open)
+    print('saving the schema metadata...')
+    metafile, filename = open_metadata(target, 'w',
+                                       _open=_open)
     with metafile:
         metafile.write(
                 meta.format())
+    print('...metadata written to {}.'.format(filename))
 
 
 @as_command('check')
