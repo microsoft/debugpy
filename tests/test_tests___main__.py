@@ -6,18 +6,41 @@ import sys
 from .__main__ import convert_argv
 
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
+TEST_ROOT = os.path.dirname(__file__)
+PROJECT_ROOT = os.path.dirname(TEST_ROOT)
 
 
 class ConvertArgsTests(unittest.TestCase):
 
-    def test_discovery(self):
-        argv = convert_argv(['-v', '--failfast'])
+    def test_no_args(self):
+        argv = convert_argv([])
 
         self.assertEqual(argv, [
             sys.executable + ' -m unittest',
             'discover',
+            '--top-level-directory', PROJECT_ROOT,
             '--start-directory', PROJECT_ROOT,
+            ])
+
+    def test_discovery_full(self):
+        argv = convert_argv(['-v', '--failfast', '--full'])
+
+        self.assertEqual(argv, [
+            sys.executable + ' -m unittest',
+            'discover',
+            '--top-level-directory', PROJECT_ROOT,
+            '--start-directory', PROJECT_ROOT,
+            '-v', '--failfast',
+            ])
+
+    def test_discovery_quick(self):
+        argv = convert_argv(['-v', '--failfast', '--quick'])
+
+        self.assertEqual(argv, [
+            sys.executable + ' -m unittest',
+            'discover',
+            '--top-level-directory', PROJECT_ROOT,
+            '--start-directory', os.path.join(TEST_ROOT, 'ptvsd'),
             '-v', '--failfast',
             ])
 
@@ -34,13 +57,4 @@ class ConvertArgsTests(unittest.TestCase):
             'w',
             'x.y.Spam.test_spam',
             'z.Eggs',
-            ])
-
-    def test_no_args(self):
-        argv = convert_argv([])
-
-        self.assertEqual(argv, [
-            sys.executable + ' -m unittest',
-            'discover',
-            '--start-directory', PROJECT_ROOT,
             ])

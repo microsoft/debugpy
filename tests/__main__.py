@@ -10,9 +10,16 @@ PROJECT_ROOT = os.path.dirname(TEST_ROOT)
 
 def convert_argv(argv):
     help  = False
+    quick = False
     args = []
     modules = set()
     for arg in argv:
+        if arg == '--quick':
+            quick = True
+            continue
+        if arg == '--full':
+            quick = False
+            continue
         # Unittest's main has only flags and positional args.
         # So we don't worry about options with values.
         if not arg.startswith('-'):
@@ -34,9 +41,15 @@ def convert_argv(argv):
     cmd = [sys.executable + ' -m unittest']  # ...how unittest.main() likes it.
     if not modules and not help:
         # Do discovery.
-        cmd += ['discover',
-                '--start-directory', PROJECT_ROOT,
-                ]
+        if quick:
+            start = os.path.join(TEST_ROOT, 'ptvsd')
+        else:
+            start = PROJECT_ROOT
+        cmd += [
+            'discover',
+            '--top-level-directory', PROJECT_ROOT,
+            '--start-directory', start,
+        ]
     return cmd + args
 
 
