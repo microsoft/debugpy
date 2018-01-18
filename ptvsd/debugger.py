@@ -4,10 +4,6 @@
 
 import sys
 
-import pydevd
-
-import ptvsd.wrapper
-
 
 __author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
 __version__ = "4.0.0a1"
@@ -16,8 +12,11 @@ DONT_DEBUG = []
 
 
 def debug(filename, port_num, debug_id, debug_options, run_as):
+    # import the wrapper first, so that it gets a chance to detour pydevd socket functionality.
+    import ptvsd.wrapper
+    import pydevd
+
     # TODO: docstring
-    ptvsd.wrapper.install()
     sys.argv[1:0] = [
             '--port', str(port_num),
             '--client', '127.0.0.1',
