@@ -2,9 +2,6 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-import pydevd
-
-import ptvsd.wrapper
 
 
 __author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
@@ -12,5 +9,7 @@ __version__ = "4.0.0a1"
 
 
 if __name__ == '__main__':
-    ptvsd.wrapper.install()
+    # import the wrapper first, so that it gets a chance to detour pydevd socket functionality.
+    import ptvsd.wrapper
+    import pydevd
     pydevd.main()

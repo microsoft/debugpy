@@ -239,6 +239,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
         t = threading.Thread(target=self.loop.run_forever,
                              name='ptvsd.EventLoop')
+        t.daemon = True
         t.start()
 
     def close(self):
@@ -648,6 +649,7 @@ def start_server(port):
 
     server_thread = threading.Thread(target=proc.process_messages,
                                      name='ptvsd.Server')
+    server_thread.daemon = True
     server_thread.start()
 
     return pydevd
@@ -666,13 +668,12 @@ def start_client(host, port):
 
     server_thread = threading.Thread(target=proc.process_messages,
                                      name='ptvsd.Client')
+    server_thread.daemon = True
     server_thread.start()
 
     return pydevd
 
 
-def install():
-    """Configure pydevd to use our wrapper."""
-    # These are the functions pydevd invokes to get a socket to the client.
-    pydevd_comm.start_server = start_server
-    pydevd_comm.start_client = start_client
+# These are the functions pydevd invokes to get a socket to the client.
+pydevd_comm.start_server = start_server
+pydevd_comm.start_client = start_client
