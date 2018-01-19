@@ -516,7 +516,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             line = src_bp['line']
             vsc_bpid = self.bp_map.add(
                     lambda vsc_bpid: (path, vsc_bpid))
-            msg = msgfmt.format(vsc_bpid, path. line)
+            msg = msgfmt.format(vsc_bpid, path, line)
             self.pydevd_notify(cmd, msg)
             bps.append({
                 'id': vsc_bpid,
