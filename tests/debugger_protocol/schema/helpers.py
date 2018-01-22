@@ -1,3 +1,4 @@
+import urllib.error
 
 
 class StubOpener:
@@ -11,5 +12,9 @@ class StubOpener:
 
         file = self.files.pop(0)
         if file is None:
-            raise FileNotFoundError
+            if args[0].startswith('http'):
+                raise urllib.error.HTTPError(args[0], 404, 'Not Found',
+                                             None, None)
+            else:
+                raise FileNotFoundError
         return file

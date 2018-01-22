@@ -131,7 +131,24 @@ class CheckUpstream(unittest.TestCase):
                           "(checksum mismatch: 'abc2' != 'e778c3751f9d0bceaf8d5aa81e2c659f')"))  # noqa
 
     def test_metafile_missing(self):
-        ...
+        metafile = None
+        opener = StubOpener(metafile)
+
+        with self.assertRaises(MetadataError):
+            check_upstream('schema.json',
+                           _open=opener.open, _open_url=opener.open)
 
     def test_url_resource_missing(self):
-        ...
+        metafile = io.StringIO(dedent("""
+                upstream:   https://github.com/x/y/raw/master/z
+                revision:   fc2395ca3564fb2afded8d90ddbe38dad1bf86f1
+                checksum:   abc2
+                downloaded: 2018-01-09 13:10:59 (UTC)
+                """))
+        #schemafile = io.BytesIO(b'<a schema>')
+        schemafile = None
+        opener = StubOpener(metafile, schemafile)
+
+        with self.assertRaises(SchemaFileError):
+            check_upstream('schema.json',
+                           _open=opener.open, _open_url=opener.open)
