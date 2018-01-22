@@ -12,6 +12,7 @@ from debugger_protocol.schema.__main__ import handle_check
 
 
 class VendoredSchemaTests(unittest.TestCase):
+    """Tests to make sure our vendored schema is up-to-date."""
 
     def test_matches_upstream(self):
         stdout = io.StringIO()
