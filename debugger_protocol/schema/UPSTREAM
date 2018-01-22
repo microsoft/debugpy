@@ -1,0 +1,4 @@
+upstream:   https://github.com/Microsoft/vscode-debugadapter-node/raw/master/debugProtocol.json
+revision:   393919e9ae7e469c40bcd3625bd3c72f5412fb2a
+checksum:   24a370d038f7875f4db2631d5238fd17
+downloaded: 2018-01-10 00:47:10 (UTC)
