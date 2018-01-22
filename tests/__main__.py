@@ -17,9 +17,10 @@ def convert_argv(argv):
         if arg == '--quick':
             quick = True
             continue
-        if arg == '--full':
+        elif arg == '--full':
             quick = False
             continue
+
         # Unittest's main has only flags and positional args.
         # So we don't worry about options with values.
         if not arg.startswith('-'):
