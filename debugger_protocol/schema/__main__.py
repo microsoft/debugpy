@@ -30,11 +30,11 @@ def handle_download(source=UPSTREAM, target=VENDORED, *,
 
     # Save the metadata.
     print('saving the schema metadata...')
+    formatted = meta.format()
     metafile, filename = open_metadata(target, 'w',
                                        _open=_open)
     with metafile:
-        metafile.write(
-                meta.format())
+        metafile.write(formatted)
     print('...metadata written to {}.'.format(filename))
 
 
