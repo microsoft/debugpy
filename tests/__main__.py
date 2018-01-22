@@ -39,7 +39,9 @@ def convert_argv(argv):
             help = True
         args.append(arg)
 
-    cmd = [sys.executable + ' -m unittest']  # ...how unittest.main() likes it.
+    # We make the "executable" a single arg because unittest.main()
+    # doesn't work if we split it into 3 parts.
+    cmd = [sys.executable + ' -m unittest']
     if not modules and not help:
         # Do discovery.
         if quick:
