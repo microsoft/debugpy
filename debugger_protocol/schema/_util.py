@@ -57,4 +57,4 @@ def github_url_replace_ref(url, newref):
         raise ValueError('invalid GitHub resource URL: {!r}'.format(url))
     org, repo, kind, _, path = m.groups()
     parts = (org, repo, kind, newref, path)
-    return 'https://github.com/' + '/'.join(parts)
+    return 'https://github.com/{}/{}/{}/{}/{}'.format(*parts)
