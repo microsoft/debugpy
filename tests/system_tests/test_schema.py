@@ -21,8 +21,6 @@ class VendoredSchemaTests(unittest.TestCase):
                     handle_check()
                 except Exception as exc:
                     self.fail(str(exc))
-        result = stdout.getvalue().strip().splitlines()[-1]
-        self.assertEqual(result, 'schema file okay')
 
 
 class DownloadCommandTests(unittest.TestCase):
