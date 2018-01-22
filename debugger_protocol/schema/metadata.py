@@ -15,7 +15,7 @@ def open_metadata(schemafile, mode='r', *, _open=open):
 
     Also return the metadata file's filename.
     """
-    from .vendored import METADATA
+    from .vendored import METADATA  # Here due to a circular import.
     filename = os.path.join(os.path.dirname(schemafile),
                             os.path.basename(METADATA))
     try:
