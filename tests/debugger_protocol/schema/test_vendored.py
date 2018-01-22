@@ -37,9 +37,9 @@ class CheckLocalTests(unittest.TestCase):
         with self.assertRaises(SchemaFileMismatchError) as cm:
             check_local('schema.json', _open=opener.open)
         self.assertEqual(str(cm.exception),
-                         ('schema file \'schema.json\' does not match '
+                         ("schema file 'schema.json' does not match "
                           'metadata file (checksum mismatch: '
-                          '\'e778c3751f9d0bceaf8d5aa81e2c659f\' != \'abc2\')'))
+                          "'e778c3751f9d0bceaf8d5aa81e2c659f' != 'abc2')"))
 
     def test_metafile_missing(self):
         metafile = None
@@ -106,9 +106,9 @@ class CheckUpstream(unittest.TestCase):
             check_upstream('schema.json',
                            _open=opener.open, _open_url=opener.open)
         self.assertEqual(str(cm.exception),
-                         ('local schema file \'schema.json\' does not match '
-                          'upstream \'https://github.com/x/y/raw/master/z\' '
-                          '(revision mismatch: \'abc2\' != \'fc2395ca3564fb2afded8d90ddbe38dad1bf86f1\')'))  # noqa
+                         ("local schema file 'schema.json' does not match "
+                          "upstream 'https://github.com/x/y/raw/master/z' "
+                          "(revision mismatch: 'abc2' != 'fc2395ca3564fb2afded8d90ddbe38dad1bf86f1')"))  # noqa
 
     def test_checksum_mismatch(self):
         metafile = io.StringIO(dedent("""
@@ -126,9 +126,9 @@ class CheckUpstream(unittest.TestCase):
             check_upstream('schema.json',
                            _open=opener.open, _open_url=opener.open)
         self.assertEqual(str(cm.exception),
-                         ('local schema file \'schema.json\' does not match '
-                          'upstream \'https://github.com/x/y/raw/master/z\' '
-                          '(checksum mismatch: \'abc2\' != \'e778c3751f9d0bceaf8d5aa81e2c659f\')'))  # noqa
+                         ("local schema file 'schema.json' does not match "
+                          "upstream 'https://github.com/x/y/raw/master/z' "
+                          "(checksum mismatch: 'abc2' != 'e778c3751f9d0bceaf8d5aa81e2c659f')"))  # noqa
 
     def test_metafile_missing(self):
         ...
