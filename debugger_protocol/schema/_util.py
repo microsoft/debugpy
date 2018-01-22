@@ -40,14 +40,14 @@ def github_get_revision(url, *, _open_url=open_url):
     m = GH_RESOURCE_RE.match(url)
     if not m:
         raise ValueError('invalid GitHub resource URL: {!r}'.format(url))
-    org, repo, _, ref, _ = m.groups()
+    org, repo, _, ref, path = m.groups()
 
-    revurl = ('https://api.github.com/repos/{}/{}/commits/{}'
-              ).format(org, repo, ref)
+    revurl = ('https://api.github.com/repos/{}/{}/commits?sha={}&path={}'
+              ).format(org, repo, ref, path)
     with _open_url(revurl) as revinfo:
         raw = revinfo.read()
     data = json.loads(raw.decode())
-    return data['sha']
+    return data[0]['sha']
 
 
 def github_url_replace_ref(url, newref):

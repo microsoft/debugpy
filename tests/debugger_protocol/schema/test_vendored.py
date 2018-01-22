@@ -83,7 +83,7 @@ class CheckUpstream(unittest.TestCase):
                 """))
         schemafile = io.BytesIO(b'<a schema>')
         buf = io.BytesIO(
-                b'{"sha": "fc2395ca3564fb2afded8d90ddbe38dad1bf86f1"}')
+                b'[{"sha": "fc2395ca3564fb2afded8d90ddbe38dad1bf86f1"}]')
         opener = StubOpener(metafile, schemafile, buf)
 
         # This does not fail.
@@ -99,7 +99,7 @@ class CheckUpstream(unittest.TestCase):
                 """))
         schemafile = io.BytesIO(b'<a schema>')
         buf = io.BytesIO(
-                b'{"sha": "fc2395ca3564fb2afded8d90ddbe38dad1bf86f1"}')
+                b'[{"sha": "fc2395ca3564fb2afded8d90ddbe38dad1bf86f1"}]')
         opener = StubOpener(metafile, schemafile, buf)
 
         with self.assertRaises(SchemaFileMismatchError) as cm:
@@ -119,7 +119,7 @@ class CheckUpstream(unittest.TestCase):
                 """))
         schemafile = io.BytesIO(b'<a schema>')
         buf = io.BytesIO(
-                b'{"sha": "fc2395ca3564fb2afded8d90ddbe38dad1bf86f1"}')
+                b'[{"sha": "fc2395ca3564fb2afded8d90ddbe38dad1bf86f1"}]')
         opener = StubOpener(metafile, schemafile, buf)
 
         with self.assertRaises(SchemaFileMismatchError) as cm:

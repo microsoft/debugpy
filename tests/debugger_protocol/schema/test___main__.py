@@ -40,7 +40,7 @@ class HandleDownloadTests(unittest.TestCase):
         schemafile = io.BytesIO(b'<a schema>')
         outfile = Outfile(b'')
         buf = io.BytesIO(
-                b'{"sha": "fc2395ca3564fb2afded8d90ddbe38dad1bf86f1"}')
+                b'[{"sha": "fc2395ca3564fb2afded8d90ddbe38dad1bf86f1"}]')
         metafile = Outfile('')
         opener = StubOpener(schemafile, outfile, buf, metafile)
 
@@ -82,7 +82,7 @@ class HandleCheckTests(unittest.TestCase):
                 io.StringIO(metadata),
                 io.BytesIO(b'<a schema>'),  # upstream
                 io.BytesIO(
-                    b'{"sha": "fc2395ca3564fb2afded8d90ddbe38dad1bf86f1"}'),
+                    b'[{"sha": "fc2395ca3564fb2afded8d90ddbe38dad1bf86f1"}]'),
                 )
 
         stdout = io.StringIO()

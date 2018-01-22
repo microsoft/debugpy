@@ -8,7 +8,7 @@ class GetRevisionTests(unittest.TestCase):
 
     def test_github(self):
         buf = io.BytesIO(
-                b'{"sha": "fc2395ca3564fb2afded8d90ddbe38dad1bf86f1"}')
+                b'[{"sha": "fc2395ca3564fb2afded8d90ddbe38dad1bf86f1"}]')
         revision = get_revision('https://github.com/x/y/raw/master/z',
                                 _open_url=lambda _: buf)
 

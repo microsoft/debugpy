@@ -16,7 +16,7 @@ class DownloadTests(unittest.TestCase):
         infile = io.BytesIO(b'<a schema>')
         outfile = io.BytesIO()
         buf = io.BytesIO(
-                b'{"sha": "fc2395ca3564fb2afded8d90ddbe38dad1bf86f1"}')
+                b'[{"sha": "fc2395ca3564fb2afded8d90ddbe38dad1bf86f1"}]')
         meta = download('https://github.com/x/y/raw/master/z',
                         infile,
                         outfile,
@@ -39,7 +39,7 @@ class ReadSchemaTests(unittest.TestCase):
     def test_success(self):
         schemafile = io.BytesIO(b'<a schema>')
         buf = io.BytesIO(
-                b'{"sha": "fc2395ca3564fb2afded8d90ddbe38dad1bf86f1"}')
+                b'[{"sha": "fc2395ca3564fb2afded8d90ddbe38dad1bf86f1"}]')
         opener = StubOpener(schemafile, buf)
         data, meta = read('https://github.com/x/y/raw/master/z',
                           _open_url=opener.open)
