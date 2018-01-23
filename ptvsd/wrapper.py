@@ -308,8 +308,16 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             supportsExceptionInfoRequest=True,
             supportsConfigurationDoneRequest=True,
             exceptionBreakpointFilters=[
-                {'filter': 'raised', 'label': 'Raised Exceptions'},
-                {'filter': 'uncaught', 'label': 'Uncaught Exceptions'},
+                {
+                    'filter': 'raised',
+                    'label': 'Raised Exceptions',
+                    'default': 'true'
+                },
+                {
+                    'filter': 'uncaught',
+                    'label': 'Uncaught Exceptions',
+                    'default': 'true'
+                },
             ],
         )
         self.send_event('initialized')
@@ -535,9 +543,24 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         break_raised = 'raised' in filters
         break_uncaught = 'uncaught' in filters
         if break_raised or break_uncaught:
-            cmdargs = (2 if break_raised else 0,
-                       1 if break_uncaught else 0,
-                       0)
+            # notify_always options:
+            #   1 is deprecated, you will see a warning message
+            #   2 notify on first raise only 
+            #   3 or greater, notify always
+            notify_always = 3 if break_raised else 0
+
+            # notify_on_terminate options:
+            #   1 notify on terminate
+            #   Any other value do NOT notify on terminate
+            notify_on_terminate = 1 if break_uncaught else 0
+
+            # ignore_libraries options:
+            #   Less than or equal to 0 DO NOT ignore libraries
+            #   Greater than 0 ignore libraries
+            ignore_libraries = 1
+            cmdargs = (notify_always,   
+                       notify_on_terminate, 
+                       ignore_libraries)
             msg = 'python-BaseException\t{}\t{}\t{}'.format(*cmdargs)
             self.pydevd_notify(pydevd_comm.CMD_ADD_EXCEPTION_BREAK, msg)
         self.send_response(request)
