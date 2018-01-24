@@ -307,6 +307,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             request,
             supportsExceptionInfoRequest=True,
             supportsConfigurationDoneRequest=True,
+            supportsConditionalBreakpoints=True,
             supportsSetVariable=True,
             exceptionBreakpointFilters=[
                 {
@@ -543,12 +544,16 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             self.bp_map.remove(pyd_bpid, vsc_bpid)
 
         cmd = pydevd_comm.CMD_SET_BREAK
-        msgfmt = '{}\tpython-line\t{}\t{}\tNone\tNone\tNone'
+        msgfmt = '{}\tpython-line\t{}\t{}\tNone\t{}\tNone'
         for src_bp in src_bps:
             line = src_bp['line']
             vsc_bpid = self.bp_map.add(
                     lambda vsc_bpid: (path, vsc_bpid))
-            msg = msgfmt.format(vsc_bpid, path, line)
+            try:
+                condition = src_bp['condition']
+                msg = msgfmt.format(vsc_bpid, path, line, condition)
+            except KeyError:
+                msg = msgfmt.format(vsc_bpid, path, line, 'None')
             self.pydevd_notify(cmd, msg)
             bps.append({
                 'id': vsc_bpid,
