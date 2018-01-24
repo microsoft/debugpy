@@ -307,6 +307,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             request,
             supportsExceptionInfoRequest=True,
             supportsConfigurationDoneRequest=True,
+            supportsSetVariable=True,
             exceptionBreakpointFilters=[
                 {'filter': 'raised', 'label': 'Raised Exceptions'},
                 {'filter': 'uncaught', 'label': 'Uncaught Exceptions'},
@@ -455,6 +456,29 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             variables.append(var)
 
         self.send_response(request, variables=variables)
+
+    @async_handler
+    def on_setVariable(self, request, args):
+        vsc_var = int(args['variablesReference'])
+        pyd_var = self.var_map.to_pydevd(vsc_var)
+
+        # VSC gives us variablesReference to the parent of the variable being set, and
+        # variable name; but pydevd wants the ID (or rather path) of the variable itself.
+        pyd_var += (args['name'],)
+        vsc_var = self.var_map.to_vscode(pyd_var)
+        
+        cmd_args = [str(s) for s in pyd_var] + [args['value']]
+        _, _, resp_args = yield self.pydevd_request(pydevd_comm.CMD_CHANGE_VARIABLE, '\t'.join(cmd_args))
+        xml = untangle.parse(resp_args).xml
+        xvar = xml.var
+
+        response = {
+            'type': unquote(xvar['type']),
+            'value': unquote(xvar['value']),
+        }
+        if bool(xvar['isContainer']):
+            response['variablesReference'] = vsc_var
+        self.send_response(request, **response)
 
     @async_handler
     def on_pause(self, request, args):
