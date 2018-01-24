@@ -549,11 +549,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             line = src_bp['line']
             vsc_bpid = self.bp_map.add(
                     lambda vsc_bpid: (path, vsc_bpid))
-            try:
-                condition = src_bp['condition']
-                msg = msgfmt.format(vsc_bpid, path, line, condition)
-            except KeyError:
-                msg = msgfmt.format(vsc_bpid, path, line, 'None')
+            msg = msgfmt.format(vsc_bpid, path, line, src_bp.get('condition', None))
             self.pydevd_notify(cmd, msg)
             bps.append({
                 'id': vsc_bpid,
