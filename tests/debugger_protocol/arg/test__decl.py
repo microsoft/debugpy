@@ -14,6 +14,7 @@ class ModuleTests(unittest.TestCase):
 
     def test_normalize_datatype(self):
         NOOP = object()
+        param = SimpleParameter(str)
         tests = [
             # explicitly handled
             (REF, TYPE_REFERENCE),
@@ -33,9 +34,9 @@ class ModuleTests(unittest.TestCase):
             # others
             (Field('spam'), NOOP),
             (Fields(Field('spam')), NOOP),
-            (Parameter(object()), NOOP),
-            (ParameterImplBase(str), NOOP),
-            (Arg(object(), object()), NOOP),
+            (param, NOOP),
+            (DatatypeHandler(str), NOOP),
+            (Arg(param, 'spam'), NOOP),
             (SimpleParameter(str), NOOP),
             (UnionParameter(Union(str)), NOOP),
             (ArrayParameter(Array(str)), NOOP),
@@ -70,8 +71,8 @@ class ModuleTests(unittest.TestCase):
             [str],
             (str,),
             Parameter(object()),
-            ParameterImplBase(str),
-            Arg(object(), object()),
+            DatatypeHandler(str),
+            Arg(SimpleParameter(str), 'spam'),
             SimpleParameter(str),
             UnionParameter(Union(str, int)),
             ArrayParameter(Array(str)),
