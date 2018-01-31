@@ -1,8 +1,8 @@
 from debugger_protocol._base import Readonly, WithRepr
-from ._common import NOT_SET, ANY
+from ._common import NOT_SET, ANY, SIMPLE_TYPES
 from ._decl import (
     _transform_datatype, _replace_ref,
-    Union, Array, Field, Fields)
+    Enum, Union, Array, Field, Fields)
 from ._errors import ArgTypeMismatchError, ArgMissingError, IncompleteArgError
 
 
@@ -13,8 +13,17 @@ def _coerce(datatype, value, call=True):
         return value
     elif value is datatype:
         return value
+    elif datatype is None:
+        pass  # fail below
+    elif datatype in SIMPLE_TYPES:
+        # We already checked for exact type match above.
+        pass  # fail below
 
     # decl types
+    elif isinstance(datatype, Enum):
+        value = _coerce(datatype.datatype, value, call=False)
+        if value in datatype.choices:
+            return value
     elif isinstance(datatype, Union):
         for dt in datatype:
             try:

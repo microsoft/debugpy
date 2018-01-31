@@ -17,6 +17,8 @@ def _normalize_datatype(datatype):
         return ANY
     elif datatype in list(SIMPLE_TYPES):
         return datatype
+    elif isinstance(datatype, Enum):
+        return datatype
     elif isinstance(datatype, Union):
         return datatype
     elif isinstance(datatype, Array):
@@ -47,6 +49,49 @@ def _replace_ref(datatype, target):
         return target
     else:
         return datatype
+
+
+class Enum(namedtuple('Enum', 'datatype choices')):
+    """A simple type with a limited set of allowed values."""
+
+    @classmethod
+    def _check_choices(cls, datatype, choices, strict=True):
+        if callable(choices):
+            return choices
+
+        if isinstance(choices, str):
+            msg = 'bad choices (expected {!r} values, got {!r})'
+            raise ValueError(msg.format(datatype, choices))
+
+        choices = frozenset(choices)
+        if not choices:
+            raise TypeError('missing choices')
+        if not strict:
+            return choices
+
+        for value in choices:
+            if type(value) is not datatype:
+                msg = 'bad choices (expected {!r} values, got {!r})'
+                raise ValueError(msg.format(datatype, choices))
+        return choices
+
+    def __new__(cls, datatype, choices, **kwargs):
+        strict = kwargs.pop('strict', True)
+        normalize = kwargs.pop('_normalize', True)
+        (lambda: None)(**kwargs)  # Make sure there aren't any other kwargs.
+
+        if not isinstance(datatype, type):
+            raise ValueError('expected a class, got {!r}'.format(datatype))
+        if datatype not in list(SIMPLE_TYPES):
+            msg = 'only simple datatypes are supported, got {!r}'
+            raise ValueError(msg.format(datatype))
+        if normalize:
+            # There's no need to normalize datatype (it's a simple type).
+            pass
+        choices = cls._check_choices(datatype, choices, strict=strict)
+
+        self = super(Enum, cls).__new__(cls, datatype, choices)
+        return self
 
 
 class Union(frozenset):
@@ -137,8 +182,12 @@ class Field(namedtuple('Field', 'name datatype default optional')):
 
     START_OPTIONAL = sentinel('START_OPTIONAL')
 
-    def __new__(cls, name, datatype=str, default=NOT_SET, optional=False,
-                _normalize=True, **kwargs):
+    def __new__(cls, name, datatype=str, enum=None, default=NOT_SET,
+                optional=False, _normalize=True, **kwargs):
+        if enum is not None and not isinstance(enum, Enum):
+            datatype = Enum(datatype, enum)
+            enum = None
+
         if _normalize:
             datatype = _normalize_datatype(datatype)
         self = super(Field, cls).__new__(

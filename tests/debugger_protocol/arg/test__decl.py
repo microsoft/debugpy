@@ -4,8 +4,8 @@ from debugger_protocol.arg import NOT_SET, ANY
 from debugger_protocol.arg._datatype import FieldsNamespace
 from debugger_protocol.arg._decl import (
     REF, TYPE_REFERENCE, _normalize_datatype, _transform_datatype,
-    Union, Array, Field, Fields)
-from debugger_protocol.arg._param import Parameter, ParameterImplBase, Arg
+    Enum, Union, Array, Field, Fields)
+from debugger_protocol.arg._param import Parameter, DatatypeHandler, Arg
 from debugger_protocol.arg._params import (
     SimpleParameter, UnionParameter, ArrayParameter, ComplexParameter)
 
@@ -23,6 +23,7 @@ class ModuleTests(unittest.TestCase):
             (int, NOOP),
             (str, NOOP),
             (bool, NOOP),
+            (Enum(str, ('spam',)), NOOP),
             (Union(str, int), NOOP),
             ({str, int}, Union(str, int)),
             (frozenset([str, int]), Union(str, int)),
@@ -169,6 +170,35 @@ class ModuleTests(unittest.TestCase):
         ])
 
 
+class EnumTests(unittest.TestCase):
+
+    def test_attrs(self):
+        enum = Enum(str, ('spam', 'eggs'))
+        datatype, choices = enum
+
+        self.assertIs(datatype, str)
+        self.assertEqual(choices, frozenset(['spam', 'eggs']))
+
+    def test_bad_datatype(self):
+        with self.assertRaises(ValueError):
+            Enum('spam', ('spam', 'eggs'))
+        with self.assertRaises(ValueError):
+            Enum(dict, ('spam', 'eggs'))
+
+    def test_bad_choices(self):
+        class String(str):
+            pass
+
+        with self.assertRaises(ValueError):
+            Enum(str, 'spam')
+        with self.assertRaises(TypeError):
+            Enum(str, ())
+        with self.assertRaises(ValueError):
+            Enum(str, ('spam', 10))
+        with self.assertRaises(ValueError):
+            Enum(str, ('spam', String))
+
+
 class UnionTests(unittest.TestCase):
 
     def test_normalized(self):
@@ -270,6 +300,11 @@ class FieldTests(unittest.TestCase):
         self.assertIs(field.datatype, str)
         self.assertIs(field.default, NOT_SET)
         self.assertFalse(field.optional)
+
+    def test_enum(self):
+        field = Field('spam', str, enum=('a', 'b', 'c'))
+
+        self.assertEqual(field.datatype, Enum(str, ('a', 'b', 'c')))
 
     def test_normalized(self):
         tests = [
