@@ -34,21 +34,7 @@ __version__ = "4.0.0a1"
 #    print(s)
 #ipcjson._TRACE = ipcjson_trace
 
-
-class SysExitHook(object):
-    """Captures the exit code to use with exitedEvent
-    """
-    def __init__(self):
-        self.prog_exit_code = 0
-        self._sys_exit = sys.exit
-        sys.exit = self.exit_hook
-
-    def exit_hook(self, code=0):
-        self.prog_exit_code = code
-        self._sys_exit(code)
-
-sys_exit_hook = SysExitHook()
-
+ptvsd_sys_exit_code = 0
 
 def unquote(s):
     if s is None:
@@ -260,7 +246,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     def close(self):
         # TODO: docstring
-        self.send_event('exited', exitCode=sys_exit_hook.prog_exit_code)
+        global ptvsd_sys_exit_code
+        self.send_event('exited', exitCode=ptvsd_sys_exit_code)
         if self.socket:
             self.socket.close()
 
