@@ -5,6 +5,7 @@
 # TODO: with_statement is not needed
 from __future__ import print_function, with_statement, absolute_import
 
+import atexit
 import os
 import socket
 import sys
@@ -33,6 +34,7 @@ __version__ = "4.0.0a1"
 #    print(s)
 #ipcjson._TRACE = ipcjson_trace
 
+ptvsd_sys_exit_code = 0
 
 def unquote(s):
     if s is None:
@@ -244,6 +246,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     def close(self):
         # TODO: docstring
+        global ptvsd_sys_exit_code
+        self.send_event('exited', exitCode=ptvsd_sys_exit_code)
         if self.socket:
             self.socket.close()
 
@@ -700,6 +704,8 @@ def start_server(port):
     server_thread.daemon = True
     server_thread.start()
 
+    atexit.register(proc.close)
+
     return pydevd
 
 
@@ -718,6 +724,8 @@ def start_client(host, port):
                                      name='ptvsd.Client')
     server_thread.daemon = True
     server_thread.start()
+
+    atexit.register(proc.close)
 
     return pydevd
 
