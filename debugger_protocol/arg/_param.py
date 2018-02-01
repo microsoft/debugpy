@@ -17,7 +17,7 @@ class _ParameterBase(WithRepr):
 
     def __eq__(self, other):
         if type(self) is not type(other):
-            return False
+            return NotImplemented
         return self._datatype == other._datatype
 
     def __ne__(self, other):

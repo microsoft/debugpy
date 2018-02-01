@@ -5,3 +5,4 @@ from ._errors import (  # noqa
     ArgumentError,
     ArgMissingError, IncompleteArgError, ArgTypeMismatchError,
 )
+from ._params import param_from_datatype  # noqa

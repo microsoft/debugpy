@@ -301,7 +301,6 @@ class Fields(Readonly, Sequence):
     def __getitem__(self, index):
         return self._fields[index]
 
-    @property
     def as_dict(self):
         return {field.name: field for field in self._fields}
 
