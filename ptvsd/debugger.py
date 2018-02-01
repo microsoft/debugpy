@@ -12,11 +12,13 @@ DONT_DEBUG = []
 
 
 def debug(filename, port_num, debug_id, debug_options, run_as):
-    # import the wrapper first, so that it gets a chance to detour pydevd socket functionality.
+    # TODO: docstring
+
+    # import the wrapper first, so that it gets a chance
+    # to detour pydevd socket functionality.
     import ptvsd.wrapper
     import pydevd
 
-    # TODO: docstring
     sys.argv[1:0] = [
             '--port', str(port_num),
             '--client', '127.0.0.1',
