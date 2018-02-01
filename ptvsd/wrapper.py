@@ -36,6 +36,7 @@ __version__ = "4.0.0a1"
 
 ptvsd_sys_exit_code = 0
 
+
 def unquote(s):
     if s is None:
         return None
@@ -475,13 +476,17 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         vsc_var = int(args['variablesReference'])
         pyd_var = self.var_map.to_pydevd(vsc_var)
 
-        # VSC gives us variablesReference to the parent of the variable being set, and
-        # variable name; but pydevd wants the ID (or rather path) of the variable itself.
+        # VSC gives us variablesReference to the parent of the variable
+        # being set, and variable name; but pydevd wants the ID
+        # (or rather path) of the variable itself.
         pyd_var += (args['name'],)
         vsc_var = self.var_map.to_vscode(pyd_var)
-        
+
         cmd_args = [str(s) for s in pyd_var] + [args['value']]
-        _, _, resp_args = yield self.pydevd_request(pydevd_comm.CMD_CHANGE_VARIABLE, '\t'.join(cmd_args))
+        _, _, resp_args = yield self.pydevd_request(
+            pydevd_comm.CMD_CHANGE_VARIABLE,
+            '\t'.join(cmd_args),
+        )
         xml = untangle.parse(resp_args).xml
         xvar = xml.var
 
@@ -553,7 +558,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             line = src_bp['line']
             vsc_bpid = self.bp_map.add(
                     lambda vsc_bpid: (path, vsc_bpid))
-            msg = msgfmt.format(vsc_bpid, path, line, src_bp.get('condition', None))
+            msg = msgfmt.format(vsc_bpid, path, line,
+                                src_bp.get('condition', None))
             self.pydevd_notify(cmd, msg)
             bps.append({
                 'id': vsc_bpid,
@@ -574,7 +580,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         if break_raised or break_uncaught:
             # notify_always options:
             #   1 is deprecated, you will see a warning message
-            #   2 notify on first raise only 
+            #   2 notify on first raise only
             #   3 or greater, notify always
             notify_always = 3 if break_raised else 0
 
@@ -587,8 +593,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             #   Less than or equal to 0 DO NOT ignore libraries
             #   Greater than 0 ignore libraries
             ignore_libraries = 1
-            cmdargs = (notify_always,   
-                       notify_on_terminate, 
+            cmdargs = (notify_always,
+                       notify_on_terminate,
                        ignore_libraries)
             msg = 'python-BaseException\t{}\t{}\t{}'.format(*cmdargs)
             self.pydevd_notify(pydevd_comm.CMD_ADD_EXCEPTION_BREAK, msg)
