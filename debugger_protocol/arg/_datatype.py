@@ -97,6 +97,7 @@ class FieldsNamespace(Readonly, WithRepr):
             fields = _transform_datatype(fields, transform)
             fields = cls._normalize(fields)
         cls.FIELDS = fields
+        return cls
 
     @classmethod
     def _normalize(cls, fields):

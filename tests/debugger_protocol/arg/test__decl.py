@@ -13,6 +13,12 @@ from debugger_protocol.arg._params import (
 class ModuleTests(unittest.TestCase):
 
     def test_normalize_datatype(self):
+        class Spam:
+            @classmethod
+            def normalize(cls):
+                return OKAY
+
+        OKAY = object()
         NOOP = object()
         param = SimpleParameter(str)
         tests = [
@@ -45,6 +51,7 @@ class ModuleTests(unittest.TestCase):
             (object(), NOOP),
             (object, NOOP),
             (type, NOOP),
+            (Spam, OKAY),
         ]
         for datatype, expected in tests:
             if expected is NOOP:

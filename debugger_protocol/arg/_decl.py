@@ -22,18 +22,26 @@ def _is_simple(datatype):
 
 def _normalize_datatype(datatype):
     cls = type(datatype)
+    # convert to canonical types (part 1):
     if datatype == REF or datatype is TYPE_REFERENCE:
         return TYPE_REFERENCE
+    # do not need normalization:
     elif datatype is ANY:
         return ANY
     elif datatype in list(SIMPLE_TYPES):
         return datatype
     elif isinstance(datatype, Enum):
         return datatype
+    # normalized when instantiated:
     elif isinstance(datatype, Union):
         return datatype
     elif isinstance(datatype, Array):
         return datatype
+    elif isinstance(datatype, Field):
+        return datatype
+    elif isinstance(datatype, Fields):
+        return datatype
+    # convert to canonical types (part 2):
     elif cls is set or cls is frozenset:
         return Union(*datatype)
     elif cls is list or cls is tuple:
@@ -41,8 +49,14 @@ def _normalize_datatype(datatype):
         return Array(datatype)
     elif cls is dict:
         raise NotImplementedError
+    # fallback:
     else:
-        return datatype
+        try:
+            normalize = datatype.normalize
+        except AttributeError:
+            return datatype
+        else:
+            return normalize()
 
 
 def _transform_datatype(datatype, op):
