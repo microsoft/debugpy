@@ -4,6 +4,7 @@ import unittest
 from debugger_protocol.arg._common import ANY
 from debugger_protocol.arg._datatype import FieldsNamespace
 from debugger_protocol.arg._decl import Array, Field, Fields
+from debugger_protocol.arg._param import Parameter, DatatypeHandler, Arg
 
 from ._common import (
     BASIC_FULL, BASIC_MIN, Basic,
@@ -169,6 +170,62 @@ class FieldsNamespaceTests(unittest.TestCase):
     def test_normalize_missing(self):
         with self.assertRaises(TypeError):
             FieldsNamespace.normalize()
+
+    #######
+
+    def test_bind_no_param(self):
+        class Spam(FieldsNamespace):
+            FIELDS = [
+                Field('a'),
+            ]
+
+        arg = Spam.bind({'a': 'x'})
+
+        self.assertIsInstance(arg, Spam)
+        self.assertEqual(arg, Spam(a='x'))
+
+    def test_bind_with_param_obj(self):
+        class Param(Parameter):
+            HANDLER = DatatypeHandler(ANY)
+            match_type = (lambda self, raw: self.HANDLER)
+
+        class Spam(FieldsNamespace):
+            PARAM = Param(ANY)
+            FIELDS = [
+                Field('a'),
+            ]
+
+        arg = Spam.bind({'a': 'x'})
+
+        self.assertIsInstance(arg, Arg)
+        self.assertEqual(arg, Arg(Param(ANY), {'a': 'x'}))
+
+    def test_bind_with_param_type(self):
+        class Param(Parameter):
+            HANDLER = DatatypeHandler(ANY)
+            match_type = (lambda self, raw: self.HANDLER)
+
+        class Spam(FieldsNamespace):
+            PARAM_TYPE = Param
+            FIELDS = [
+                Field('a'),
+            ]
+
+        arg = Spam.bind({'a': 'x'})
+
+        self.assertIsInstance(arg, Arg)
+        self.assertEqual(arg, Arg(Param(Spam.FIELDS), {'a': 'x'}))
+
+    def test_bind_already_bound(self):
+        class Spam(FieldsNamespace):
+            FIELDS = [
+                Field('a'),
+            ]
+
+        spam = Spam(a='x')
+        arg = Spam.bind(spam)
+
+        self.assertIs(arg, spam)
 
     #######
 

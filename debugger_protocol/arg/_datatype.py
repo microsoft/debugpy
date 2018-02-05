@@ -117,6 +117,8 @@ class FieldsNamespace(Readonly, WithRepr):
 
     @classmethod
     def bind(cls, ns, **kwargs):
+        if isinstance(ns, cls):
+            return ns
         param = cls.PARAM
         if param is None:
             if cls.PARAM_TYPE is None:
