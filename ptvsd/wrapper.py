@@ -6,6 +6,7 @@
 from __future__ import print_function, with_statement, absolute_import
 
 import atexit
+import itertools
 import os
 import socket
 import sys
@@ -229,24 +230,25 @@ class ExceptionsManager(object):
             self.exceptions = []
 
     def add_exception_break(self, exception, break_raised, break_uncaught):
+        
+        # notify_always options:
+        #   1 is deprecated, you will see a warning message
+        #   2 notify on first raise only 
+        #   3 or greater, notify always
+        notify_always = 3 if break_raised else 0
+
+        # notify_on_terminate options:
+        #   1 notify on terminate
+        #   Any other value do NOT notify on terminate
+        notify_on_terminate = 1 if break_uncaught else 0
+
+        # ignore_libraries options:
+        #   Less than or equal to 0 DO NOT ignore libraries (required for notify_always)
+        #   Greater than 0 ignore libraries
+        ignore_libraries = 0
+        cmdargs = (exception, notify_always, notify_on_terminate, ignore_libraries)
+        msg = 'python-{}\t{}\t{}\t{}'.format(*cmdargs)
         with self.lock:
-            # notify_always options:
-            #   1 is deprecated, you will see a warning message
-            #   2 notify on first raise only 
-            #   3 or greater, notify always
-            notify_always = 3 if break_raised else 0
-
-            # notify_on_terminate options:
-            #   1 notify on terminate
-            #   Any other value do NOT notify on terminate
-            notify_on_terminate = 1 if break_uncaught else 0
-
-            # ignore_libraries options:
-            #   Less than or equal to 0 DO NOT ignore libraries
-            #   Greater than 0 ignore libraries
-            ignore_libraries = 1
-            cmdargs = (exception, notify_always, notify_on_terminate, ignore_libraries)
-            msg = 'python-{}\t{}\t{}\t{}'.format(*cmdargs)
             self.proc.pydevd_notify(pydevd_comm.CMD_ADD_EXCEPTION_BREAK, msg)
             self.exceptions.append(exception)
     
@@ -254,7 +256,7 @@ class ExceptionsManager(object):
         """Applies exception options after removing any existing exception breaks.
         """
         self.remove_all_exception_breaks()
-        pyex_options = [o for o in exception_options if self.__is_python_exception_category__(o)]
+        pyex_options = (o for o in exception_options if self.__is_python_exception_category(o))
         for option in pyex_options:
             exception_paths = option['path']
             mode = option['breakMode']
@@ -262,22 +264,20 @@ class ExceptionsManager(object):
             break_uncaught = True if mode in ['unhandled', 'userUnhandled'] else False
 
             # Special case for the entire python exceptions category
-            if len(exception_paths) == 1:
+            if len(exception_paths) == 1 and exception_paths[0]['names'][0] == 'Python Exceptions':
                 self.add_exception_break('BaseException', break_raised, break_uncaught)
             else:
                 # Skip the first one. It will always be the category "Python Exceptions"
-                path_iterator = iter(exception_paths)
-                next(path_iterator)
-                exception_names = [ex_name for path in path_iterator for ex_name in path['names']]
+                path_iterator = itertools.islice(exception_paths, 1, None)
+                exception_names = (ex_name for path in path_iterator for ex_name in path['names'])
                 for exception_name in exception_names:
                     self.add_exception_break(exception_name, break_raised, break_uncaught)
     
-    def __is_python_exception_category__(self, option):
+    def __is_python_exception_category(self, option):
+        """Check if the option has entires and that the first entry is 'Python Exceptions'
+        """
         exception_paths = option['path']
-        if exception_paths is None:
-            return False
-
-        if len(exception_paths) == 0:
+        if not exception_paths:
             return False
 
         category = exception_paths[0]['names']
