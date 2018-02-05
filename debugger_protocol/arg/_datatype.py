@@ -22,7 +22,7 @@ def _coerce(datatype, value, call=True):
     # decl types
     elif isinstance(datatype, Enum):
         value = _coerce(datatype.datatype, value, call=False)
-        if value in datatype.choices:
+        if value in datatype.choice:
             return value
     elif isinstance(datatype, Union):
         for dt in datatype:

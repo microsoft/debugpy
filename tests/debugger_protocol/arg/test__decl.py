@@ -136,7 +136,7 @@ class ModuleTests(unittest.TestCase):
                 # ...
                 str,
                 Field('a'),
-                Fields(Field('a')),
+                #Fields(Field('a')),
                 Spam,
                 Array(Spam),
                 Union(Array(Spam)),
@@ -431,7 +431,7 @@ class FieldsTests(unittest.TestCase):
             Field('ham'),
             Field('eggs', Array(str)),
         )
-        result = fields.as_dict
+        result = fields.as_dict()
 
         self.assertEqual(result, {
             'spam': fields[0],
