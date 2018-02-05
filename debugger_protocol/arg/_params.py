@@ -1,4 +1,4 @@
-from ._common import ANY, SIMPLE_TYPES
+from ._common import NOT_SET, ANY, SIMPLE_TYPES
 from ._datatype import FieldsNamespace
 from ._decl import Enum, Union, Array, Field, Fields
 from ._errors import ArgTypeMismatchError
@@ -372,6 +372,8 @@ class ComplexParameter(Parameter):
                 if not field.optional:
                     return None
                 value = field.default
+                if value is NOT_SET:
+                    continue
             param = self.params[field.name]
             handler = param.match_type(value)
             if handler is None:

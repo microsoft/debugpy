@@ -669,13 +669,26 @@ class ArrayParameterTests(unittest.TestCase):
 
 class ComplexParameterTests(unittest.TestCase):
 
-    def test_match_type(self):
+    def test_match_type_none_missing(self):
         fields = Fields(*FIELDS_BASIC)
         param = ComplexParameter(fields)
         handler = param.match_type(BASIC_FULL)
 
         self.assertIs(type(handler), ComplexParameter.HANDLER)
         self.assertEqual(handler.datatype.FIELDS, fields)
+
+    def test_match_type_missing_optional(self):
+        fields = Fields(
+            Field('name'),
+            Field.START_OPTIONAL,
+            Field('value'),
+        )
+        param = ComplexParameter(fields)
+        handler = param.match_type({'name': 'spam'})
+
+        self.assertIs(type(handler), ComplexParameter.HANDLER)
+        self.assertEqual(handler.datatype.FIELDS, fields)
+        self.assertNotIn('value', handler.handlers)
 
     def test_coerce(self):
         handler = ComplexParameter.HANDLER(Basic)
