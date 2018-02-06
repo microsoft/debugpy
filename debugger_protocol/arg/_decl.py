@@ -193,7 +193,7 @@ class Array(Readonly):
 
     def __init__(self, itemtype, _normalize=True):
         if _normalize:
-            itemtype = _normalize_datatype(itemtype)
+            itemtype = _transform_datatype(itemtype, _normalize_datatype)
         self._bind_attrs(
             itemtype=itemtype,
         )
@@ -234,7 +234,7 @@ class Field(namedtuple('Field', 'name datatype default optional')):
             enum = None
 
         if _normalize:
-            datatype = _normalize_datatype(datatype)
+            datatype = _transform_datatype(datatype, _normalize_datatype)
         self = super(Field, cls).__new__(
             cls,
             name=str(name) if name else None,

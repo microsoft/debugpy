@@ -274,6 +274,21 @@ class ArrayTests(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             Array({1: 2})
 
+    def test_normalized_transformed(self):
+        calls = 0
+
+        class Spam:
+            @classmethod
+            def traverse(cls, op):
+                nonlocal calls
+                calls += 1
+                return cls
+
+        array = Array(Spam)
+
+        self.assertIs(array.itemtype, Spam)
+        self.assertEqual(calls, 1)
+
     def test_traverse_noop(self):
         calls = []
         op = (lambda dt: calls.append(dt) or dt)
@@ -331,6 +346,21 @@ class FieldTests(unittest.TestCase):
 
         with self.assertRaises(NotImplementedError):
             Field('spam', {1: 2})
+
+    def test_normalized_transformed(self):
+        calls = 0
+
+        class Spam:
+            @classmethod
+            def traverse(cls, op):
+                nonlocal calls
+                calls += 1
+                return cls
+
+        field = Field('spam', Spam)
+
+        self.assertIs(field.datatype, Spam)
+        self.assertEqual(calls, 1)
 
     def test_traverse_noop(self):
         calls = []
