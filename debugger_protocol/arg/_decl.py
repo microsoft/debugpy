@@ -257,10 +257,11 @@ class Mapping(Readonly):
 
     def __repr__(self):
         if self.keytype is str:
-            return '{}(valuetype={!r})'.format(type(self).__name__, self.valuetype)
+            return '{}(valuetype={!r})'.format(
+                type(self).__name__, self.valuetype)
         else:
             return '{}(keytype={!r}, valuetype={!r})'.format(
-                    type(self).__name__, self.keytype, self.valuetype)
+                type(self).__name__, self.keytype, self.valuetype)
 
     def __hash__(self):
         return hash((self.keytype, self.valuetype))
