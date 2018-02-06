@@ -27,7 +27,9 @@ def _normalize_datatype(datatype):
         return datatype
     elif isinstance(datatype, Array):
         return datatype
-    elif isinstance(datatype, Field):
+    elif isinstance(datatype, Array):
+        return datatype
+    elif isinstance(datatype, Mapping):
         return datatype
     elif isinstance(datatype, Fields):
         return datatype
@@ -49,7 +51,10 @@ def _normalize_datatype(datatype):
         datatype, = datatype
         return Array(datatype)
     elif cls is dict:
-        raise NotImplementedError
+        if len(datatype) != 1:
+            raise NotImplementedError
+        [keytype, valuetype], = datatype.items()
+        return Mapping(valuetype, keytype)
     # fallback:
     else:
         try:
@@ -215,7 +220,7 @@ class Array(Readonly):
         )
 
     def __repr__(self):
-        return '{}(datatype={!r})'.format(type(self).__name__, self.itemtype)
+        return '{}(itemtype={!r})'.format(type(self).__name__, self.itemtype)
 
     def __hash__(self):
         return hash(self.itemtype)
@@ -236,6 +241,55 @@ class Array(Readonly):
         if datatype is self.itemtype and not kwargs:
             return self
         return self.__class__(datatype, **kwargs)
+
+
+class Mapping(Readonly):
+    """Declare a mapping (to a single type)."""
+
+    def __init__(self, valuetype, keytype=str, _normalize=True):
+        if _normalize:
+            keytype = _transform_datatype(keytype, _normalize_datatype)
+            valuetype = _transform_datatype(valuetype, _normalize_datatype)
+        self._bind_attrs(
+            keytype=keytype,
+            valuetype=valuetype,
+        )
+
+    def __repr__(self):
+        if self.keytype is str:
+            return '{}(valuetype={!r})'.format(type(self).__name__, self.valuetype)
+        else:
+            return '{}(keytype={!r}, valuetype={!r})'.format(
+                    type(self).__name__, self.keytype, self.valuetype)
+
+    def __hash__(self):
+        return hash((self.keytype, self.valuetype))
+
+    def __eq__(self, other):
+        try:
+            other_keytype = other.keytype
+            other_valuetype = other.valuetype
+        except AttributeError:
+            return False
+        if self.keytype != other_keytype:
+            return False
+        if self.valuetype != other_valuetype:
+            return False
+        return True
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def traverse(self, op, **kwargs):
+        """Return a copy with op applied to the item datatype."""
+        keytype = op(self.keytype)
+        valuetype = op(self.valuetype)
+        if (keytype is self.keytype and
+            valuetype is self.valuetype and
+            not kwargs
+            ):
+            return self
+        return self.__class__(valuetype, keytype, **kwargs)
 
 
 class Field(namedtuple('Field', 'name datatype default optional')):
