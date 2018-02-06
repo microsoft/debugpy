@@ -1,6 +1,6 @@
-from ._common import ANY, SIMPLE_TYPES
+from ._common import NOT_SET, ANY, SIMPLE_TYPES
 from ._datatype import FieldsNamespace
-from ._decl import Enum, Union, Array, Field, Fields
+from ._decl import Enum, Union, Array, Mapping, Field, Fields
 from ._errors import ArgTypeMismatchError
 from ._param import Parameter, DatatypeHandler
 
@@ -49,7 +49,8 @@ def param_from_datatype(datatype, **kwargs):
     elif not isinstance(datatype, type):
         raise NotImplementedError
     elif issubclass(datatype, FieldsNamespace):
-        return ComplexParameter(datatype, **kwargs)
+        param = datatype.param()
+        return param or ComplexParameter(datatype, **kwargs)
     else:
         raise NotImplementedError
 
@@ -276,6 +277,98 @@ class ArrayParameter(Parameter):
         return self.HANDLER(self.datatype, handlers)
 
 
+class MappingParameter(Parameter):
+    """A parameter that is a mapping of some fixed type."""
+
+    class HANDLER(DatatypeHandler):
+
+        def __init__(self, datatype, handlers=None,
+                     keyparam=None, valueparam=None):
+            if not isinstance(datatype, Mapping):
+                raise ValueError(
+                    'expected an Mapping, got {!r}'.format(datatype))
+            super(MappingParameter.HANDLER, self).__init__(datatype)
+            self.handlers = handlers
+            self.keyparam = keyparam
+            self.valueparam = valueparam
+
+        def coerce(self, raw):
+            if self.handlers is None:
+                if self.keyparam is None:
+                    keytype = self.datatype.keytype
+                    self.keyparam = param_from_datatype(keytype)
+                if self.valueparam is None:
+                    valuetype = self.datatype.valuetype
+                    self.valueparam = param_from_datatype(valuetype)
+                handlers = {}
+                for key, value in raw.items():
+                    keyhandler = self.keyparam.match_type(key)
+                    if keyhandler is None:
+                        raise ArgTypeMismatchError(key)
+                    valuehandler = self.valueparam.match_type(value)
+                    if valuehandler is None:
+                        raise ArgTypeMismatchError(value)
+                    handlers[key] = (keyhandler, valuehandler)
+                self.handlers = handlers
+
+            result = {}
+            for key, value in raw.items():
+                keyhandler, valuehandler = self.handlers[key]
+                key = keyhandler.coerce(key)
+                value = valuehandler.coerce(value)
+                result[key] = value
+            return result
+
+        def validate(self, coerced):
+            if self.handlers is None:
+                raise TypeError('coerce first')
+            for key, value in coerced.items():
+                keyhandler, valuehandler = self.handlers[key]
+                keyhandler.validate(key)
+                valuehandler.validate(value)
+
+        def as_data(self, coerced):
+            if self.handlers is None:
+                raise TypeError('coerce first')
+            data = {}
+            for key, value in coerced.items():
+                keyhandler, valuehandler = self.handlers[key]
+                key = keyhandler.as_data(key)
+                value = valuehandler.as_data(value)
+                data[key] = value
+            return data
+
+    @classmethod
+    def from_valuetype(cls, valuetype, keytype=str, **kwargs):
+        datatype = Mapping(valuetype, keytype)
+        return cls(datatype, **kwargs)
+
+    def __init__(self, datatype):
+        if not isinstance(datatype, Mapping):
+            raise ValueError('expected Mapping, got {!r}'.format(datatype))
+        keyparam = param_from_datatype(datatype.keytype)
+        valueparam = param_from_datatype(datatype.valuetype)
+        handler = self.HANDLER(datatype, None, keyparam, valueparam)
+        super(MappingParameter, self).__init__(datatype, handler)
+
+        self.keyparam = keyparam
+        self.valueparam = valueparam
+
+    def match_type(self, raw):
+        if not isinstance(raw, dict):
+            return None
+        handlers = {}
+        for key, value in raw.items():
+            keyhandler = self.keyparam.match_type(key)
+            if keyhandler is None:
+                return None
+            valuehandler = self.valueparam.match_type(value)
+            if valuehandler is None:
+                return None
+            handlers[key] = (keyhandler, valuehandler)
+        return self.HANDLER(self.datatype, handlers)
+
+
 class ComplexParameter(Parameter):
 
     class HANDLER(DatatypeHandler):
@@ -344,6 +437,7 @@ class ComplexParameter(Parameter):
             msg = 'expected Fields or FieldsNamespace, got {!r}'
             raise ValueError(msg.format(datatype))
         datatype.normalize()
+        datatype.PARAM = self
         # We set handler later in match_type().
         super(ComplexParameter, self).__init__(datatype)
 
@@ -372,6 +466,8 @@ class ComplexParameter(Parameter):
                 if not field.optional:
                     return None
                 value = field.default
+                if value is NOT_SET:
+                    continue
             param = self.params[field.name]
             handler = param.match_type(value)
             if handler is None:

@@ -22,7 +22,19 @@ def _is_simple(datatype):
 
 def _normalize_datatype(datatype):
     cls = type(datatype)
-    if datatype == REF or datatype is TYPE_REFERENCE:
+    # normalized when instantiated:
+    if isinstance(datatype, Union):
+        return datatype
+    elif isinstance(datatype, Array):
+        return datatype
+    elif isinstance(datatype, Array):
+        return datatype
+    elif isinstance(datatype, Mapping):
+        return datatype
+    elif isinstance(datatype, Fields):
+        return datatype
+    # do not need normalization:
+    elif datatype is TYPE_REFERENCE:
         return TYPE_REFERENCE
     elif datatype is ANY:
         return ANY
@@ -30,29 +42,38 @@ def _normalize_datatype(datatype):
         return datatype
     elif isinstance(datatype, Enum):
         return datatype
-    elif isinstance(datatype, Union):
-        return datatype
-    elif isinstance(datatype, Array):
-        return datatype
+    # convert to canonical types:
+    elif type(datatype) == type(REF) and datatype == REF:
+        return TYPE_REFERENCE
     elif cls is set or cls is frozenset:
-        return Union(*datatype)
+        return Union.unordered(*datatype)
     elif cls is list or cls is tuple:
         datatype, = datatype
         return Array(datatype)
     elif cls is dict:
-        raise NotImplementedError
+        if len(datatype) != 1:
+            raise NotImplementedError
+        [keytype, valuetype], = datatype.items()
+        return Mapping(valuetype, keytype)
+    # fallback:
     else:
-        return datatype
+        try:
+            normalize = datatype.normalize
+        except AttributeError:
+            return datatype
+        else:
+            return normalize()
 
 
 def _transform_datatype(datatype, op):
+    datatype = op(datatype)
     try:
         dt_traverse = datatype.traverse
     except AttributeError:
         pass
     else:
         datatype = dt_traverse(lambda dt: _transform_datatype(dt, op))
-    return op(datatype)
+    return datatype
 
 
 def _replace_ref(datatype, target):
@@ -114,6 +135,13 @@ class Union(tuple):
     """
 
     @classmethod
+    def unordered(cls, *datatypes, **kwargs):
+        """Return an unordered union of the given datatypes."""
+        self = cls(*datatypes, **kwargs)
+        self._ordered = False
+        return self
+
+    @classmethod
     def _traverse(cls, datatypes, op):
         changed = False
         result = []
@@ -136,6 +164,7 @@ class Union(tuple):
             )
         self = super(Union, cls).__new__(cls, datatypes)
         self._simple = all(_is_simple(dt) for dt in datatypes)
+        self._ordered = True
         return self
 
     def __repr__(self):
@@ -147,13 +176,16 @@ class Union(tuple):
     def __eq__(self, other):  # honors order
         if not isinstance(other, Union):
             return NotImplemented
-        if super(Union, self).__eq__(other):
+        elif super(Union, self).__eq__(other):
             return True
-        if set(self) != set(other):
+        elif set(self) != set(other):
             return False
-        if self._simple and other._simple:
+        elif self._simple and other._simple:
             return True
-        return NotImplemented
+        elif not self._ordered and not other._ordered:
+            return True
+        else:
+            return NotImplemented
 
     def __ne__(self, other):
         return not (self == other)
@@ -167,7 +199,10 @@ class Union(tuple):
         datatypes, changed = self._traverse(self, op)
         if not changed and not kwargs:
             return self
-        return self.__class__(*datatypes, **kwargs)
+        updated = self.__class__(*datatypes, **kwargs)
+        if not self._ordered:
+            updated._ordered = False
+        return updated
 
 
 class Array(Readonly):
@@ -179,13 +214,13 @@ class Array(Readonly):
 
     def __init__(self, itemtype, _normalize=True):
         if _normalize:
-            itemtype = _normalize_datatype(itemtype)
+            itemtype = _transform_datatype(itemtype, _normalize_datatype)
         self._bind_attrs(
             itemtype=itemtype,
         )
 
     def __repr__(self):
-        return '{}(datatype={!r})'.format(type(self).__name__, self.itemtype)
+        return '{}(itemtype={!r})'.format(type(self).__name__, self.itemtype)
 
     def __hash__(self):
         return hash(self.itemtype)
@@ -208,6 +243,56 @@ class Array(Readonly):
         return self.__class__(datatype, **kwargs)
 
 
+class Mapping(Readonly):
+    """Declare a mapping (to a single type)."""
+
+    def __init__(self, valuetype, keytype=str, _normalize=True):
+        if _normalize:
+            keytype = _transform_datatype(keytype, _normalize_datatype)
+            valuetype = _transform_datatype(valuetype, _normalize_datatype)
+        self._bind_attrs(
+            keytype=keytype,
+            valuetype=valuetype,
+        )
+
+    def __repr__(self):
+        if self.keytype is str:
+            return '{}(valuetype={!r})'.format(
+                type(self).__name__, self.valuetype)
+        else:
+            return '{}(keytype={!r}, valuetype={!r})'.format(
+                type(self).__name__, self.keytype, self.valuetype)
+
+    def __hash__(self):
+        return hash((self.keytype, self.valuetype))
+
+    def __eq__(self, other):
+        try:
+            other_keytype = other.keytype
+            other_valuetype = other.valuetype
+        except AttributeError:
+            return False
+        if self.keytype != other_keytype:
+            return False
+        if self.valuetype != other_valuetype:
+            return False
+        return True
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def traverse(self, op, **kwargs):
+        """Return a copy with op applied to the item datatype."""
+        keytype = op(self.keytype)
+        valuetype = op(self.valuetype)
+        if (keytype is self.keytype and
+            valuetype is self.valuetype and
+            not kwargs
+            ):
+            return self
+        return self.__class__(valuetype, keytype, **kwargs)
+
+
 class Field(namedtuple('Field', 'name datatype default optional')):
     """Declare a field in a data map param."""
 
@@ -220,7 +305,7 @@ class Field(namedtuple('Field', 'name datatype default optional')):
             enum = None
 
         if _normalize:
-            datatype = _normalize_datatype(datatype)
+            datatype = _transform_datatype(datatype, _normalize_datatype)
         self = super(Field, cls).__new__(
             cls,
             name=str(name) if name else None,
@@ -315,4 +400,5 @@ class Fields(Readonly, Sequence):
 
         if not changed and not kwargs:
             return self
+        kwargs['_normalize'] = False
         return self.__class__(*updated, **kwargs)

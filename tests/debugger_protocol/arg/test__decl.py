@@ -4,7 +4,7 @@ from debugger_protocol.arg import NOT_SET, ANY
 from debugger_protocol.arg._datatype import FieldsNamespace
 from debugger_protocol.arg._decl import (
     REF, TYPE_REFERENCE, _normalize_datatype, _transform_datatype,
-    Enum, Union, Array, Field, Fields)
+    Enum, Union, Array, Mapping, Field, Fields)
 from debugger_protocol.arg._param import Parameter, DatatypeHandler, Arg
 from debugger_protocol.arg._params import (
     SimpleParameter, UnionParameter, ArrayParameter, ComplexParameter)
@@ -13,6 +13,12 @@ from debugger_protocol.arg._params import (
 class ModuleTests(unittest.TestCase):
 
     def test_normalize_datatype(self):
+        class Spam:
+            @classmethod
+            def normalize(cls):
+                return OKAY
+
+        OKAY = object()
         NOOP = object()
         param = SimpleParameter(str)
         tests = [
@@ -31,6 +37,8 @@ class ModuleTests(unittest.TestCase):
             (Array(str), NOOP),
             ([str], Array(str)),
             ((str,), Array(str)),
+            (Mapping(str), NOOP),
+            ({str: str}, Mapping(str)),
             # others
             (Field('spam'), NOOP),
             (Fields(Field('spam')), NOOP),
@@ -45,6 +53,7 @@ class ModuleTests(unittest.TestCase):
             (object(), NOOP),
             (object, NOOP),
             (type, NOOP),
+            (Spam, OKAY),
         ]
         for datatype, expected in tests:
             if expected is NOOP:
@@ -53,9 +62,6 @@ class ModuleTests(unittest.TestCase):
                 datatype = _normalize_datatype(datatype)
 
                 self.assertEqual(datatype, expected)
-
-        with self.assertRaises(NotImplementedError):
-            _normalize_datatype({1: 2})
 
     def test_transform_datatype_simple(self):
         datatypes = [
@@ -95,9 +101,8 @@ class ModuleTests(unittest.TestCase):
         class Spam(FieldsNamespace):
             FIELDS = [
                 Field('a'),
+                Field('b', {str: str})
             ]
-
-        Spam.normalize()
 
         fields = Fields(Field('...'))
         field_spam = Field('spam', ANY)
@@ -113,42 +118,46 @@ class ModuleTests(unittest.TestCase):
         )
         tests = {
             Array(str): [
-                str,
                 Array(str),
+                str,
             ],
             Field('...'): [
-                str,
                 Field('...'),
+                str,
             ],
             fields: [
-                str,
-                Field('...'),
                 fields,
+                Field('...'),
+                str,
             ],
             nested: [
-                str,
-                Field('...'),
-                fields,
-                Field('???', fields),
-                # ...
-                ANY,
-                Field('spam', ANY),
-                # ...
-                str,
-                Field('a'),
-                Fields(Field('a')),
-                Spam,
-                Array(Spam),
-                Union(Array(Spam)),
-                field_ham,
-                # ...
-                TYPE_REFERENCE,
-                Array(TYPE_REFERENCE),
-                field_eggs,
-                # ...
                 nested,
+                # ...
+                Field('???', fields),
+                fields,
+                Field('...'),
+                str,
+                # ...
+                Field('spam', ANY),
+                ANY,
+                # ...
+                field_ham,
+                Union(Array(Spam)),
+                Array(Spam),
+                Spam,
+                Field('a'),
+                str,
+                Field('b', Mapping(str)),
+                Mapping(str),
+                str,
+                str,
+                # ...
+                field_eggs,
+                Array(TYPE_REFERENCE),
+                TYPE_REFERENCE,
             ],
         }
+        self.maxDiff = None
         for datatype, expected in tests.items():
             calls = []
             op = (lambda dt: calls.append(dt) or dt)
@@ -165,10 +174,8 @@ class ModuleTests(unittest.TestCase):
         transformed = _transform_datatype(datatype, op)
 
         self.assertIs(transformed, datatype)
-        self.assertEqual(set(calls[:2]), {str, int})
-        self.assertEqual(calls[2:], [
-            Union(str, int),
-        ])
+        self.assertEqual(calls[0], Union(str, int))
+        self.assertEqual(set(calls[1:]), {str, int})
 
 
 class EnumTests(unittest.TestCase):
@@ -209,6 +216,7 @@ class UnionTests(unittest.TestCase):
             (frozenset([str, int]), Union(*frozenset([str, int]))),
             ([str], Array(str)),
             ((str,), Array(str)),
+            ({str: str}, Mapping(str)),
             (None, None),
         ]
         for datatype, expected in tests:
@@ -216,9 +224,6 @@ class UnionTests(unittest.TestCase):
                 union = Union(int, datatype, str)
 
                 self.assertEqual(union, Union(int, expected, str))
-
-        with self.assertRaises(NotImplementedError):
-            Union({1: 2})
 
     def test_traverse_noop(self):
         calls = []
@@ -256,6 +261,7 @@ class ArrayTests(unittest.TestCase):
             (frozenset([str, int]), Union(str, int)),
             ([str], Array(str)),
             ((str,), Array(str)),
+            ({str: str}, Mapping(str)),
             (None, None),
         ]
         for datatype, expected in tests:
@@ -264,8 +270,20 @@ class ArrayTests(unittest.TestCase):
 
                 self.assertEqual(array, Array(expected))
 
-        with self.assertRaises(NotImplementedError):
-            Array({1: 2})
+    def test_normalized_transformed(self):
+        calls = 0
+
+        class Spam:
+            @classmethod
+            def traverse(cls, op):
+                nonlocal calls
+                calls += 1
+                return cls
+
+        array = Array(Spam)
+
+        self.assertIs(array.itemtype, Spam)
+        self.assertEqual(calls, 1)
 
     def test_traverse_noop(self):
         calls = []
@@ -292,6 +310,67 @@ class ArrayTests(unittest.TestCase):
         ])
 
 
+class MappingTests(unittest.TestCase):
+
+    def test_normalized(self):
+        tests = [
+            (REF, TYPE_REFERENCE),
+            ({str, int}, Union(str, int)),
+            (frozenset([str, int]), Union(str, int)),
+            ([str], Array(str)),
+            ((str,), Array(str)),
+            ({str: str}, Mapping(str)),
+            (None, None),
+        ]
+        for datatype, expected in tests:
+            with self.subTest(datatype):
+                mapping = Mapping(datatype)
+
+                self.assertEqual(mapping, Mapping(expected))
+
+    def test_normalized_transformed(self):
+        calls = 0
+
+        class Spam:
+            @classmethod
+            def traverse(cls, op):
+                nonlocal calls
+                calls += 1
+                return cls
+
+        mapping = Mapping(Spam)
+
+        self.assertIs(mapping.keytype, str)
+        self.assertIs(mapping.valuetype, Spam)
+        self.assertEqual(calls, 1)
+
+    def test_traverse_noop(self):
+        calls = []
+        op = (lambda dt: calls.append(dt) or dt)
+        mapping = Mapping(Union(str, int))
+        transformed = mapping.traverse(op)
+
+        self.assertIs(transformed, mapping)
+        self.assertCountEqual(calls, [
+            str,
+            # Note that it did not recurse into Union(str, int).
+            Union(str, int),
+        ])
+
+    def test_traverse_changed(self):
+        calls = []
+        op = (lambda dt: calls.append(dt) or str)
+        mapping = Mapping(ANY)
+        transformed = mapping.traverse(op)
+
+        self.assertIsNot(transformed, mapping)
+        self.assertEqual(transformed, Mapping(str))
+        self.assertEqual(calls, [
+            str,
+            ANY,
+        ])
+
+
 class FieldTests(unittest.TestCase):
 
     def test_defaults(self):
@@ -314,6 +393,7 @@ class FieldTests(unittest.TestCase):
             (frozenset([str, int]), Union(str, int)),
             ([str], Array(str)),
             ((str,), Array(str)),
+            ({str: str}, Mapping(str)),
             (None, None),
         ]
         for datatype, expected in tests:
@@ -322,8 +402,20 @@ class FieldTests(unittest.TestCase):
 
                 self.assertEqual(field, Field('spam', expected))
 
-        with self.assertRaises(NotImplementedError):
-            Field('spam', {1: 2})
+    def test_normalized_transformed(self):
+        calls = 0
+
+        class Spam:
+            @classmethod
+            def traverse(cls, op):
+                nonlocal calls
+                calls += 1
+                return cls
+
+        field = Field('spam', Spam)
+
+        self.assertIs(field.datatype, Spam)
+        self.assertEqual(calls, 1)
 
     def test_traverse_noop(self):
         calls = []
@@ -386,6 +478,7 @@ class FieldsTests(unittest.TestCase):
             (frozenset([str, int]), Union(str, int)),
             ([str], Array(str)),
             ((str,), Array(str)),
+            ({str: str}, Mapping(str)),
             (None, None),
         ]
         for datatype, expected in tests:
@@ -397,11 +490,6 @@ class FieldsTests(unittest.TestCase):
                 self.assertEqual(fields, [
                     Field('spam', expected),
                 ])
-
-        with self.assertRaises(NotImplementedError):
-            Fields(
-                Field('spam', {1: 2}),
-            )
 
     def test_with_START_OPTIONAL(self):
         fields = Fields(
@@ -431,7 +519,7 @@ class FieldsTests(unittest.TestCase):
             Field('ham'),
             Field('eggs', Array(str)),
         )
-        result = fields.as_dict
+        result = fields.as_dict()
 
         self.assertEqual(result, {
             'spam': fields[0],
