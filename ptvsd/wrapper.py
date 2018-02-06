@@ -574,6 +574,31 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.send_response(request, **response)
 
     @async_handler
+    def on_evaluate(self, request, args):
+        # pydevd message format doesn't permit tabs in expressions
+        expr = args['expression'].replace('\t', ' ')
+
+        vsc_fid = int(args['frameId'])
+        pyd_tid, pyd_fid = self.frame_map.to_pydevd(vsc_fid)
+
+        cmd_args = (pyd_tid, pyd_fid, 'LOCAL', expr, '1')
+        _, _, resp_args = yield self.pydevd_request(
+            pydevd_comm.CMD_EVALUATE_EXPRESSION,
+            '\t'.join(str(s) for s in cmd_args))
+        xml = untangle.parse(resp_args).xml
+        xvar = xml.var
+
+        pyd_var = (pyd_tid, pyd_fid, 'EXPRESSION', expr)
+        vsc_var = self.var_map.to_vscode(pyd_var)
+        response = {
+            'type': unquote(xvar['type']),
+            'result': unquote(xvar['value']),
+        }
+        if bool(xvar['isContainer']):
+            response['variablesReference'] = vsc_var
+        self.send_response(request, **response)
+
+    @async_handler
     def on_pause(self, request, args):
         # TODO: docstring
         vsc_tid = int(args['threadId'])
