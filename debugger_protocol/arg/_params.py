@@ -49,7 +49,8 @@ def param_from_datatype(datatype, **kwargs):
     elif not isinstance(datatype, type):
         raise NotImplementedError
     elif issubclass(datatype, FieldsNamespace):
-        return ComplexParameter(datatype, **kwargs)
+        param = datatype.param()
+        return param or ComplexParameter(datatype, **kwargs)
     else:
         raise NotImplementedError
 
@@ -344,6 +345,7 @@ class ComplexParameter(Parameter):
             msg = 'expected Fields or FieldsNamespace, got {!r}'
             raise ValueError(msg.format(datatype))
         datatype.normalize()
+        datatype.PARAM = self
         # We set handler later in match_type().
         super(ComplexParameter, self).__init__(datatype)
 
