@@ -22,18 +22,8 @@ def _is_simple(datatype):
 
 def _normalize_datatype(datatype):
     cls = type(datatype)
-    # convert to canonical types (part 1):
-    if datatype == REF or datatype is TYPE_REFERENCE:
-        return TYPE_REFERENCE
-    # do not need normalization:
-    elif datatype is ANY:
-        return ANY
-    elif datatype in list(SIMPLE_TYPES):
-        return datatype
-    elif isinstance(datatype, Enum):
-        return datatype
     # normalized when instantiated:
-    elif isinstance(datatype, Union):
+    if isinstance(datatype, Union):
         return datatype
     elif isinstance(datatype, Array):
         return datatype
@@ -41,9 +31,20 @@ def _normalize_datatype(datatype):
         return datatype
     elif isinstance(datatype, Fields):
         return datatype
-    # convert to canonical types (part 2):
+    # do not need normalization:
+    elif datatype is TYPE_REFERENCE:
+        return TYPE_REFERENCE
+    elif datatype is ANY:
+        return ANY
+    elif datatype in list(SIMPLE_TYPES):
+        return datatype
+    elif isinstance(datatype, Enum):
+        return datatype
+    # convert to canonical types:
+    elif type(datatype) == type(REF) and datatype == REF:
+        return TYPE_REFERENCE
     elif cls is set or cls is frozenset:
-        return Union(*datatype)
+        return Union.unordered(*datatype)
     elif cls is list or cls is tuple:
         datatype, = datatype
         return Array(datatype)
@@ -60,13 +61,14 @@ def _normalize_datatype(datatype):
 
 
 def _transform_datatype(datatype, op):
+    datatype = op(datatype)
     try:
         dt_traverse = datatype.traverse
     except AttributeError:
         pass
     else:
         datatype = dt_traverse(lambda dt: _transform_datatype(dt, op))
-    return op(datatype)
+    return datatype
 
 
 def _replace_ref(datatype, target):
@@ -128,6 +130,13 @@ class Union(tuple):
     """
 
     @classmethod
+    def unordered(cls, *datatypes, **kwargs):
+        """Return an unordered union of the given datatypes."""
+        self = cls(*datatypes, **kwargs)
+        self._ordered = False
+        return self
+
+    @classmethod
     def _traverse(cls, datatypes, op):
         changed = False
         result = []
@@ -150,6 +159,7 @@ class Union(tuple):
             )
         self = super(Union, cls).__new__(cls, datatypes)
         self._simple = all(_is_simple(dt) for dt in datatypes)
+        self._ordered = True
         return self
 
     def __repr__(self):
@@ -161,13 +171,16 @@ class Union(tuple):
     def __eq__(self, other):  # honors order
         if not isinstance(other, Union):
             return NotImplemented
-        if super(Union, self).__eq__(other):
+        elif super(Union, self).__eq__(other):
             return True
-        if set(self) != set(other):
+        elif set(self) != set(other):
             return False
-        if self._simple and other._simple:
+        elif self._simple and other._simple:
             return True
-        return NotImplemented
+        elif not self._ordered and not other._ordered:
+            return True
+        else:
+            return NotImplemented
 
     def __ne__(self, other):
         return not (self == other)
@@ -181,7 +194,10 @@ class Union(tuple):
         datatypes, changed = self._traverse(self, op)
         if not changed and not kwargs:
             return self
-        return self.__class__(*datatypes, **kwargs)
+        updated = self.__class__(*datatypes, **kwargs)
+        if not self._ordered:
+            updated._ordered = False
+        return updated
 
 
 class Array(Readonly):
@@ -329,4 +345,5 @@ class Fields(Readonly, Sequence):
 
         if not changed and not kwargs:
             return self
+        kwargs['_normalize'] = False
         return self.__class__(*updated, **kwargs)

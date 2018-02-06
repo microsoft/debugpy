@@ -79,20 +79,31 @@ class FieldsNamespace(Readonly, WithRepr):
     PARAM_TYPE = None
     PARAM = None
 
+    _TRAVERSING = False
+
     @classmethod
     def traverse(cls, op, **kwargs):
         """Apply op to each field in cls.FIELDS."""
+        if cls._TRAVERSING:  # recursion check
+            return cls
+        cls._TRAVERSING = True
+
         fields = cls._normalize(cls.FIELDS)
-        fields = fields.traverse(op)
-        cls.FIELDS = cls._normalize(fields)
+        try:
+            fields_traverse = fields.traverse
+        except AttributeError:
+            # must be normalizing right now...
+            return cls
+        fields = fields_traverse(op)
+        cls.FIELDS = cls._normalize(fields, force=True)
+
+        cls._TRAVERSING = False
         return cls
 
     @classmethod
     def normalize(cls, *transforms):
         """Normalize FIELDS and apply the given ops."""
         fields = cls._normalize(cls.FIELDS)
-        if not isinstance(fields, Fields):
-            fields = Fields(*fields)
         for transform in transforms:
             fields = _transform_datatype(fields, transform)
             fields = cls._normalize(fields)
@@ -100,18 +111,18 @@ class FieldsNamespace(Readonly, WithRepr):
         return cls
 
     @classmethod
-    def _normalize(cls, fields):
+    def _normalize(cls, fields, force=False):
         if fields is None:
             raise TypeError('missing FIELDS')
-        if isinstance(fields, Fields):
-            try:
-                normalized = cls._normalized
-            except AttributeError:
-                normalized = cls._normalized = False
-        else:
-            fields = Fields(*fields)
-            normalized = cls._normalized = False
-        if not normalized:
+
+        try:
+            fixref = cls._fixref
+        except AttributeError:
+            fixref = cls._fixref = True
+            if not isinstance(fields, Fields):
+                fields = Fields(*fields)
+        if fixref or force:
+            cls._fixref = False
             fields = _transform_datatype(fields,
                                          lambda dt: _replace_ref(dt, cls))
         return fields

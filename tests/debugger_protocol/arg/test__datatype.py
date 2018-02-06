@@ -3,7 +3,7 @@ import unittest
 
 from debugger_protocol.arg._common import ANY
 from debugger_protocol.arg._datatype import FieldsNamespace
-from debugger_protocol.arg._decl import Array, Field, Fields
+from debugger_protocol.arg._decl import Union, Array, Field, Fields
 from debugger_protocol.arg._param import Parameter, DatatypeHandler, Arg
 
 from ._common import (
@@ -135,23 +135,25 @@ class FieldsNamespaceTests(unittest.TestCase):
         self.assertIs(Spam.FIELDS, fields)
         for i, field in enumerate(Spam.FIELDS):
             self.assertIs(field, fieldlist[i])
+        self.maxDiff = None
         self.assertEqual(calls, [
-            (op1, str),
-            (op1, Field('spam')),
-            (op1, int),
-            (op1, Field('ham', int)),
-            (op1, ANY),
-            (op1, Array(ANY)),
-            (op1, Field('eggs', Array(ANY))),
             (op1, fields),
-            (op2, str),
-            (op2, Field('spam')),
-            (op2, int),
-            (op2, Field('ham', int)),
-            (op2, ANY),
-            (op2, Array(ANY)),
-            (op2, Field('eggs', Array(ANY))),
+            (op1, Field('spam')),
+            (op1, str),
+            (op1, Field('ham', int)),
+            (op1, int),
+            (op1, Field('eggs', Array(ANY))),
+            (op1, Array(ANY)),
+            (op1, ANY),
+
             (op2, fields),
+            (op2, Field('spam')),
+            (op2, str),
+            (op2, Field('ham', int)),
+            (op2, int),
+            (op2, Field('eggs', Array(ANY))),
+            (op2, Array(ANY)),
+            (op2, ANY),
         ])
 
     def test_normalize_with_op_changed(self):
@@ -165,6 +167,57 @@ class FieldsNamespaceTests(unittest.TestCase):
 
         self.assertEqual(Spam.FIELDS, Fields(
             Field('spam', Array(int)),
+        ))
+
+    def test_normalize_declarative(self):
+        class Spam(FieldsNamespace):
+            FIELDS = [
+                Field('a'),
+                Field('b', bool),
+                Field.START_OPTIONAL,
+                Field('c', {int, str}),
+                Field('d', [int]),
+                Field('e', ANY),
+                Field('f', '<ref>'),
+            ]
+
+        class Ham(FieldsNamespace):
+            FIELDS = [
+                Field('w', Spam),
+                Field('x', int),
+                Field('y', frozenset({int, str})),
+                Field('z', (int,)),
+            ]
+
+        class Eggs(FieldsNamespace):
+            FIELDS = [
+                Field('b', [Ham]),
+                Field('x', [{str, ('<ref>',)}], optional=True),
+                Field('d', {Spam, '<ref>'}, optional=True),
+            ]
+
+        Eggs.normalize()
+
+        self.assertEqual(Spam.FIELDS, Fields(
+            Field('a'),
+            Field('b', bool),
+            Field('c', Union(int, str), optional=True),
+            Field('d', Array(int), optional=True),
+            Field('e', ANY, optional=True),
+            Field('f', Spam, optional=True),
+        ))
+        self.assertEqual(Ham.FIELDS, Fields(
+            Field('w', Spam),
+            Field('x', int),
+            Field('y', Union(int, str)),
+            Field('z', Array(int)),
+        ))
+        self.assertEqual(Eggs.FIELDS, Fields(
+            Field('b', Array(Ham)),
+            Field('x',
+                  Array(Union.unordered(str, Array(Eggs))),
+                  optional=True),
+            Field('d', Union.unordered(Spam, Eggs), optional=True),
         ))
 
     def test_normalize_missing(self):

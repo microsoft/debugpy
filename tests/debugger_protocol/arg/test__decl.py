@@ -104,8 +104,6 @@ class ModuleTests(unittest.TestCase):
                 Field('a'),
             ]
 
-        Spam.normalize()
-
         fields = Fields(Field('...'))
         field_spam = Field('spam', ANY)
         field_ham = Field('ham', Union(
@@ -120,42 +118,43 @@ class ModuleTests(unittest.TestCase):
         )
         tests = {
             Array(str): [
-                str,
                 Array(str),
+                str,
             ],
             Field('...'): [
-                str,
                 Field('...'),
+                str,
             ],
             fields: [
-                str,
-                Field('...'),
                 fields,
+                Field('...'),
+                str,
             ],
             nested: [
-                str,
-                Field('...'),
-                fields,
-                Field('???', fields),
-                # ...
-                ANY,
-                Field('spam', ANY),
-                # ...
-                str,
-                Field('a'),
-                #Fields(Field('a')),
-                Spam,
-                Array(Spam),
-                Union(Array(Spam)),
-                field_ham,
-                # ...
-                TYPE_REFERENCE,
-                Array(TYPE_REFERENCE),
-                field_eggs,
-                # ...
                 nested,
+                # ...
+                Field('???', fields),
+                fields,
+                Field('...'),
+                str,
+                # ...
+                Field('spam', ANY),
+                ANY,
+                # ...
+                field_ham,
+                Union(Array(Spam)),
+                Array(Spam),
+                Spam,
+                #Fields(Field('a')),
+                Field('a'),
+                str,
+                # ...
+                field_eggs,
+                Array(TYPE_REFERENCE),
+                TYPE_REFERENCE,
             ],
         }
+        self.maxDiff = None
         for datatype, expected in tests.items():
             calls = []
             op = (lambda dt: calls.append(dt) or dt)
@@ -172,10 +171,8 @@ class ModuleTests(unittest.TestCase):
         transformed = _transform_datatype(datatype, op)
 
         self.assertIs(transformed, datatype)
-        self.assertEqual(set(calls[:2]), {str, int})
-        self.assertEqual(calls[2:], [
-            Union(str, int),
-        ])
+        self.assertEqual(calls[0], Union(str, int))
+        self.assertEqual(set(calls[1:]), {str, int})
 
 
 class EnumTests(unittest.TestCase):
