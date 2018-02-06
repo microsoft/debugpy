@@ -13,7 +13,7 @@ class Stub(object):
     def add_call(self, name, *args, **kwargs):
         self.add_call_exact(name, args, kwargs)
 
-    def add_call_exact(self, name, args, kwargs):
+    def add_call_exact(self, name, args=None, kwargs=None):
         self.calls.append((name, args, kwargs))
 
     def maybe_raise(self):
