@@ -1,13 +1,14 @@
 import unittest
 
 from debugger_protocol.arg._common import NOT_SET, ANY
-from debugger_protocol.arg._decl import Enum, Union, Array, Field, Fields
+from debugger_protocol.arg._decl import (
+    Enum, Union, Array, Mapping, Field, Fields)
 from debugger_protocol.arg._param import Parameter, DatatypeHandler
 from debugger_protocol.arg._params import (
     param_from_datatype,
     NoopParameter, SingletonParameter,
     SimpleParameter, EnumParameter,
-    UnionParameter, ArrayParameter, ComplexParameter)
+    UnionParameter, ArrayParameter, MappingParameter, ComplexParameter)
 
 from ._common import FIELDS_BASIC, BASIC_FULL, Basic
 
@@ -663,6 +664,94 @@ class ArrayParameterTests(unittest.TestCase):
             Basic(name='spam', value='eggs'),
             'c',
         ])
+
+        self.assertEqual(data, value)
+
+
+class MappingParameterTests(unittest.TestCase):
+
+    def test_match_type_match(self):
+        param = MappingParameter(Mapping(int))
+        expected = MappingParameter.HANDLER(Mapping(int))
+        values = [
+            {'a': 1, 'b': 2, 'c': 3},
+            {},
+        ]
+        for value in values:
+            with self.subTest(value):
+                handler = param.match_type(value)
+
+                self.assertEqual(handler, expected)
+
+    def test_match_type_no_match(self):
+        param = MappingParameter(Mapping(int))
+        values = [
+            {'a': 1, 'b': '2', 'c': 3},
+            [('a', 1), ('b', 2), ('c', 3)],
+            'spam',
+        ]
+        for value in values:
+            with self.subTest(value):
+                handler = param.match_type(value)
+
+                self.assertIs(handler, None)
+
+    def test_coerce_simple(self):
+        param = MappingParameter(Mapping(int))
+        values = [
+            {'a': 1, 'b': 2, 'c': 3},
+            {},
+        ]
+        for value in values:
+            with self.subTest(value):
+                handler = param.match_type(value)
+                coerced = handler.coerce(value)
+
+                self.assertEqual(coerced, value)
+
+    def test_coerce_complicated(self):
+        param = MappingParameter(Mapping(Union(int, Basic)))
+        value = {
+            'a': 1,
+            'b': BASIC_FULL,
+            'c': 3,
+        }
+        handler = param.match_type(value)
+        coerced = handler.coerce(value)
+
+        self.assertEqual(coerced, {
+            'a': 1,
+            'b': Basic(name='spam', value='eggs'),
+            'c': 3,
+        })
+
+    def test_validate(self):
+        raw = {'a': 1, 'b': 2, 'c': 3}
+        param = MappingParameter(Mapping(int))
+        handler = param.match_type(raw)
+        handler.validate(raw)
+
+    def test_as_data_simple(self):
+        raw = {'a': 1, 'b': 2, 'c': 3}
+        param = MappingParameter(Mapping(int))
+        handler = param.match_type(raw)
+        data = handler.as_data(raw)
+
+        self.assertEqual(data, raw)
+
+    def test_as_data_complicated(self):
+        param = MappingParameter(Mapping(Union(int, Basic)))
+        value = {
+            'a': 1,
+            'b': BASIC_FULL,
+            'c': 3,
+        }
+        handler = param.match_type(value)
+        data = handler.as_data({
+            'a': 1,
+            'b': Basic(name='spam', value='eggs'),
+            'c': 3,
+        })
 
         self.assertEqual(data, value)
 
