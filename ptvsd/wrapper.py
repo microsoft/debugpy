@@ -22,6 +22,8 @@ except Exception:
     import urllib.parse as urllib
 
 import _pydevd_bundle.pydevd_comm as pydevd_comm
+import _pydevd_bundle.pydevd_extension_api as pydevd_extapi
+import _pydevd_bundle.pydevd_extension_utils as pydevd_extutil
 #from _pydevd_bundle.pydevd_comm import pydevd_log
 
 import ptvsd.ipcjson as ipcjson
@@ -825,3 +827,21 @@ def start_client(host, port):
 # These are the functions pydevd invokes to get a socket to the client.
 pydevd_comm.start_server = start_server
 pydevd_comm.start_client = start_client
+
+
+class SafeReprPresentationProvider(pydevd_extapi.StrPresentationProvider):
+    """Computes string representation of Python values by delegating them to SafeRepr."""
+
+    def __init__(self):
+        from ptvsd.safe_repr import SafeRepr
+        self.safe_repr = SafeRepr()
+
+    def can_provide(self, type_object, type_name):
+        return True
+
+    def get_str(self, val):
+        return self.safe_repr(val)
+
+# Register our presentation provider as the first item on the list, so that we're in full control of presentation.
+str_handlers = pydevd_extutil.EXTENSION_MANAGER_INSTANCE.type_to_instance.setdefault(pydevd_extapi.StrPresentationProvider, [])
+str_handlers.insert(0, SafeReprPresentationProvider())
