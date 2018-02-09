@@ -3,7 +3,7 @@ import json
 from . import look_up
 
 
-def read(stream):
+def read(stream, look_up=look_up):
     """Return an instance based on the given bytes."""
     headers = {}
     for line in stream:
