@@ -46,6 +46,14 @@ def register(cls, msgtype=None, typekey=None, key=None):
     return cls
 
 
+def look_up(data):
+    """Return the message class for the given raw message data."""
+    msgtype = data['type']
+    typekey = MESSAGE_TYPE_KEYS[msgtype]
+    key = data[typekey]
+    return MESSAGE_TYPES[msgtype][key]
+
+
 class Message(object):
     """The API for register-able message types."""
 
@@ -63,5 +71,6 @@ class Message(object):
 
 
 # Force registration.
+from .message import ProtocolMessage, Request, Response, Event
 from .requests import *  # noqa
 from .events import *  # noqa

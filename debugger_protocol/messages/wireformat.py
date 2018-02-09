@@ -1,6 +1,6 @@
 import json
 
-from . import MESSAGE_TYPES, MESSAGE_TYPE_KEYS
+from . import look_up
 
 
 def read(stream):
@@ -22,12 +22,14 @@ def read(stream):
 
     data = json.loads(body.decode('utf-8'))
 
-    msgtype = data['type']
-    typekey = MESSAGE_TYPE_KEYS[msgtype]
-    key = data[typekey]
-    cls = MESSAGE_TYPES[msgtype][key]
-
+    cls = look_up(data)
     return cls.from_data(**data)
+
+
+def write(stream, msg):
+    """Serialize the message and write it to the stream."""
+    raw = as_bytes(msg)
+    stream.write(raw)
 
 
 def as_bytes(msg):

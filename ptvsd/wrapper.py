@@ -174,14 +174,22 @@ class PydevdSocket(object):
         pass
 
     def recv(self, count):
-        # TODO: docstring
+        """Return the requested number of bytes.
+
+        This is where the "socket" sends requests to pydevd.  The data
+        must follow the pydevd line protocol.
+        """
         data = os.read(self.pipe_r, count)
         #self.log.write('>>>[' + data.decode('utf8') + ']\n\n')
         #self.log.flush()
         return data
 
     def send(self, data):
-        # TODO: docstring
+        """Handle the given bytes.
+
+        This is where pydevd sends responses and events.  The data will
+        follow the pydevd line protocol.
+        """
         result = len(data)
         data = unquote(data.decode('utf8'))
         #self.log.write('<<<[' + data + ']\n\n')
@@ -781,7 +789,13 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
 
 def start_server(port):
-    # TODO: docstring
+    """Return a socket to a (new) local pydevd-handling daemon.
+
+    The daemon supports the pydevd client wire protocol, sending
+    requests and handling responses (and events).
+
+    This is a replacement fori _pydevd_bundle.pydevd_comm.start_server.
+    """
     server = socket.socket(socket.AF_INET,
                            socket.SOCK_STREAM,
                            socket.IPPROTO_TCP)
@@ -804,7 +818,13 @@ def start_server(port):
 
 
 def start_client(host, port):
-    # TODO: docstring
+    """Return a socket to an existing "remote" pydevd-handling daemon.
+
+    The daemon supports the pydevd client wire protocol, sending
+    requests and handling responses (and events).
+
+    This is a replacement fori _pydevd_bundle.pydevd_comm.start_client.
+    """
     client = socket.socket(socket.AF_INET,
                            socket.SOCK_STREAM,
                            socket.IPPROTO_TCP)
