@@ -4,7 +4,6 @@ import threading
 from ptvsd.wrapper import start_server, start_client
 
 from ._pydevd import parse_message, iter_messages, StreamFailure
-from ._pydevd import RawMessage  # noqa
 
 
 def _connect(host, port):
