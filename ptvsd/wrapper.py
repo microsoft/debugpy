@@ -473,7 +473,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 name = unquote(xthread['name'])
             except KeyError:
                 name = None
-            if not (name and name.startswith('pydevd.')):
+            if not (name and (name.startswith('pydevd.') or name.startswith('ptvsd.'))):
                 threads.append({'id': tid, 'name': name})
 
         self.send_response(request, threads=threads)
@@ -724,7 +724,12 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         # TODO: docstring
         xml = untangle.parse(args).xml
         tid = self.thread_map.to_vscode(xml.thread['id'])
-        self.send_event('thread', reason='started', threadId=tid)
+        try:
+            name = unquote(xml.thread['name'])
+        except KeyError:
+            name = None
+        if not (name and name.startswith('ptvsd.')):
+            self.send_event('thread', reason='started', threadId=tid)
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_KILL)
     def on_pydevd_thread_kill(self, seq, args):
