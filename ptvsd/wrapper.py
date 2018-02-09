@@ -184,6 +184,9 @@ class PydevdSocket(object):
         #self.log.flush()
         return data
 
+    def recv_into(self, buf):
+        return os.readv(self.pipe_r, [buf])
+
     def send(self, data):
         """Handle the given bytes.
 
@@ -204,6 +207,10 @@ class PydevdSocket(object):
         else:
             loop.call_soon_threadsafe(fut.set_result, (cmd_id, seq, args))
         return result
+
+    def makefile(self, *args, **kwargs):
+        """Return a file-like wrapper around the socket."""
+        return os.fdopen(self.pipe_r)
 
     def make_packet(self, cmd_id, args):
         # TODO: docstring
