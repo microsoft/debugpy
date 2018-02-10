@@ -1,25 +1,28 @@
 from collections import namedtuple
 
+from tests.helpers.protocol import StreamFailure
+
 # TODO: Everything here belongs in a proper pydevd package.
 
 
-class StreamFailure(Exception):
-    """Something went wrong while handling messages to/from a stream."""
+def parse_message(msg):
+    """Return a message object for the given "msg" data."""
+    if type(msg) is bytes:
+        return RawMessage.from_bytes(msg)
+    elif isinstance(msg, str):
+        return RawMessage.from_bytes(msg)
+    elif type(msg) is RawMessage:
+        return msg
+    else:
+        raise NotImplementedError
 
-    def __init__(self, direction, msg, exception):
-        err = 'error while processing stream: {!r}'.format(exception)
-        super(StreamFailure, self).__init__(self, err)
-        self.direction = direction
-        self.msg = msg
-        self.exception = exception
 
-    def __repr__(self):
-        return '{}(direction={!r}, msg={!r}, exception={!r})'.format(
-            type(self).__name__,
-            self.direction,
-            self.msg,
-            self.exception,
-        )
+def encode_message(msg):
+    """Return the message, serialized to the line-format."""
+    raw = msg.as_bytes()
+    if not raw.endswith(b'\n'):
+        raw += b'\n'
+    return raw
 
 
 def iter_messages(stream, stop=lambda: False):
@@ -34,18 +37,6 @@ def iter_messages(stream, stop=lambda: False):
             yield parse_message(line)
         except Exception as exc:
             yield StreamFailure('recv', None, exc)
-
-
-def parse_message(msg):
-    """Return a message object for the given "msg" data."""
-    if type(msg) is bytes:
-        return RawMessage.from_bytes(msg)
-    elif isinstance(msg, str):
-        return RawMessage.from_bytes(msg)
-    elif type(msg) is RawMessage:
-        return msg
-    else:
-        raise NotImplementedError
 
 
 class RawMessage(namedtuple('RawMessage', 'bytes')):
