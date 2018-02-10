@@ -16,6 +16,14 @@ class StreamFailure(Exception):
         self.msg = msg
         self.exception = exception
 
+    def __repr__(self):
+        return '{}(direction={!r}, msg={!r}, exception={!r})'.format(
+            type(self).__name__,
+            self.direction,
+            self.msg,
+            self.exception,
+        )
+
 
 def encode_message(msg):
     """Return the line-formatted bytes for the message."""
@@ -26,7 +34,10 @@ def iter_messages(stream, stop=lambda: False):
     """Yield the correct message for each line-formatted one found."""
     while not stop():
         try:
-            yield wireformat.read(stream, lambda _: RawMessage)
+            msg = wireformat.read(stream, lambda _: RawMessage)
+            if msg is None:  # EOF
+                break
+            yield msg
         except Exception as exc:
             yield StreamFailure('recv', None, exc)
 
@@ -35,21 +46,20 @@ def parse_message(msg):
     """Return a message object for the given "msg" data."""
     if type(msg) is str:
         data = json.loads(msg)
-        return RawMessage(data)
     elif isinstance(msg, bytes):
         data = json.loads(msg.decode('utf-8'))
-        return RawMessage(data)
     elif type(msg) is RawMessage:
         return msg
     else:
-        raise NotImplementedError
+        data = msg
+    return RawMessage.from_data(**data)
 
 
 class RawMessage(namedtuple('RawMessage', 'data')):
     """A wrapper around a line-formatted debugger protocol message."""
 
     @classmethod
-    def from_data(cls, data):
+    def from_data(cls, **data):
         """Return a RawMessage for the given JSON-decoded data."""
         return cls(data)
 
