@@ -16,6 +16,12 @@ def read(stream, look_up=look_up):
         except ValueError:
             raise RuntimeError('invalid header line: {}'.format(line))
         headers[name] = value
+    else:
+        # EOF
+        return None
+
+    if not headers:
+        raise RuntimeError('got message without headers')
 
     size = int(headers['Content-Length'])
     body = stream.read(size)
