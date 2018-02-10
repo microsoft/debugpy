@@ -455,6 +455,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         }
         self.send_event('process', **evt)
 
+    def is_debugger_internal_thread(self, thread_name):
+        return thread_name and (thread_name.startswith('pydevd.') or thread_name.startswith('ptvsd.'))
+
     @async_handler
     def on_threads(self, request, args):
         # TODO: docstring
@@ -473,7 +476,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 name = unquote(xthread['name'])
             except KeyError:
                 name = None
-            if not (name and (name.startswith('pydevd.') or name.startswith('ptvsd.'))):
+            if not self.is_debugger_internal_thread(name):
                 threads.append({'id': tid, 'name': name})
 
         self.send_response(request, threads=threads)
@@ -728,7 +731,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             name = unquote(xml.thread['name'])
         except KeyError:
             name = None
-        if not (name and name.startswith('ptvsd.')):
+        if not self.is_debugger_internal_thread(name):
             self.send_event('thread', reason='started', threadId=tid)
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_KILL)
