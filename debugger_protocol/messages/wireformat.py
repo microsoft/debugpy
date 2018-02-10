@@ -3,7 +3,7 @@ import json
 from . import look_up
 
 
-def read(stream):
+def read(stream, look_up=look_up):
     """Return an instance based on the given bytes."""
     headers = {}
     for line in stream:
@@ -16,6 +16,12 @@ def read(stream):
         except ValueError:
             raise RuntimeError('invalid header line: {}'.format(line))
         headers[name] = value
+    else:
+        # EOF
+        return None
+
+    if not headers:
+        raise RuntimeError('got message without headers')
 
     size = int(headers['Content-Length'])
     body = stream.read(size)
