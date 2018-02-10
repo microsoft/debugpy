@@ -1,3 +1,4 @@
+from collections import namedtuple
 
 # TODO: Everything here belongs in a proper pydevd package.
 
@@ -11,6 +12,14 @@ class StreamFailure(Exception):
         self.direction = direction
         self.msg = msg
         self.exception = exception
+
+    def __repr__(self):
+        return '{}(direction={!r}, msg={!r}, exception={!r})'.format(
+            type(self).__name__,
+            self.direction,
+            self.msg,
+            self.exception,
+        )
 
 
 def iter_messages(stream, stop=lambda: False):
@@ -39,7 +48,7 @@ def parse_message(msg):
         raise NotImplementedError
 
 
-class RawMessage(bytes):
+class RawMessage(namedtuple('RawMessage', 'bytes')):
     """A pydevd message class that leaves the raw bytes unprocessed."""
 
     @classmethod
@@ -52,10 +61,10 @@ class RawMessage(bytes):
             return raw
         if type(raw) is not bytes:
             raw = raw.encode('utf-8')
-        raw = raw.rstrip('\n')
+        raw = raw.rstrip(b'\n')
         self = super(RawMessage, cls).__new__(cls, raw)
         return self
 
-    def as_bytse(self):
+    def as_bytes(self):
         """Return the line-formatted bytes corresponding to the message."""
-        return bytes(self)
+        return self.bytes
