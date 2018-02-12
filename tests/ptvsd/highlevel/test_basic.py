@@ -104,8 +104,9 @@ class LivecycleTests(HighlevelTestCase):
             },
         ])
         seq = 1000000000
+        text = '\t'.join(['1.1', OS_ID, 'ID'])
         pydevd.assert_received(self, [
-            '{}\t{}\t1.1\t{}\tID'.format(CMD_VERSION, seq, OS_ID),
+            (CMD_VERSION, seq, text),
         ])
 
     def test_launch(self):
@@ -202,8 +203,9 @@ class LivecycleTests(HighlevelTestCase):
             },
         ])
         seq = 1000000000
+        text = '\t'.join(['1.1', OS_ID, 'ID'])
         pydevd.assert_received(self, [
-            '{}\t{}\t1.1\t{}\tID'.format(CMD_VERSION, seq, OS_ID),
+            (CMD_VERSION, seq, text),
         ])
 
 
@@ -263,6 +265,7 @@ class MessageTests(HighlevelTestCase):
             },
         ])
         seq = 1000000000
+        text = '\t'.join(['1.1', OS_ID, 'ID'])
         pydevd.assert_received(self, [
-            '{}\t{}\t1.1\t{}\tID'.format(CMD_VERSION, seq, OS_ID),
+            (CMD_VERSION, seq, text),
         ])

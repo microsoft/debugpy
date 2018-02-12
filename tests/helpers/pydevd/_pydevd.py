@@ -12,15 +12,16 @@ from tests.helpers.protocol import StreamFailure
 def parse_message(msg):
     """Return a message object for the given "msg" data."""
     if type(msg) is bytes:
-        return RawMessage.from_bytes(msg)
+        return Message.from_bytes(msg)
     elif isinstance(msg, str):
-        return RawMessage.from_bytes(msg)
+        return Message.from_bytes(msg)
     elif type(msg) is RawMessage:
-        return msg
+        return msg.msg
     elif type(msg) is Message:
         return msg
+    elif isinstance(msg, tuple):
+        return Message(*msg)
     else:
-        print(msg)
         raise NotImplementedError
 
 
