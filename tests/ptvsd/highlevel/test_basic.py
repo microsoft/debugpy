@@ -1,11 +1,9 @@
-import threading
 import unittest
 
 from _pydevd_bundle.pydevd_comm import (
     CMD_VERSION,
 )
 
-from tests.helpers.pydevd import FakePyDevd
 from . import OS_ID, HighlevelTestCase
 
 
@@ -15,7 +13,10 @@ class LivecycleTests(HighlevelTestCase):
     See https://code.visualstudio.com/docs/extensionAPI/api-debugging#_the-vs-code-debug-protocol-in-a-nutshell
     """  # noqa
 
-    def test_startup(self):
+    def test_attach(self):
+        raise NotImplementedError
+
+    def test_launch(self):
         raise NotImplementedError
 
     def test_shutdown(self):
@@ -25,45 +26,20 @@ class LivecycleTests(HighlevelTestCase):
 class MessageTests(HighlevelTestCase):
 
     def test_initialize(self):
-        self.pseq = -1
-        plock = threading.Lock()
-        plock.acquire()
+        vsc, pydevd = self.new_fake()
 
-        def handle_pydevd(msg, _):
-            try:
-                seq = msg.bytes.split(b'\t')[1]
-            except IndexError:
-                return
-            self.pseq = int(seq.decode('utf-8'))
-            plock.release()
-        pydevd = FakePyDevd(handle_pydevd)
-
-        self.num_left_vsc = 2
-        vlock = threading.Lock()
-        vlock.acquire()
-
-        def handle_vsp(msg, _):
-            if self.num_left_vsc == 0:
-                return
-            self.num_left_vsc -= 1
-            if self.num_left_vsc == 0:
-                vlock.release()
-        vsc, _ = self.new_fake(pydevd, handle_vsp)
         with vsc.start(None, 8888):
-            vsc.send_request({
+            pydevd.add_pending_response(CMD_VERSION, pydevd.VERSION)
+            req = {
                 'type': 'request',
-                'seq': 42,
+                'seq': self.next_vsc_seq(),
                 'command': 'initialize',
                 'arguments': {
                     'adapterID': 'spam',
                 },
-            })
-            plock.acquire(timeout=1)
-            pydevd.send_response(
-                '{}\t{}\t<VERSION>'.format(CMD_VERSION, self.pseq))
-            plock.release()
-            vlock.acquire(timeout=1)  # wait for 2 messages to come back
-            vlock.release()
+            }
+            with vsc.wait_for_response(req):
+                vsc.send_request(req)
 
         self.maxDiff = None
         self.assertFalse(pydevd.failures)
@@ -72,7 +48,7 @@ class MessageTests(HighlevelTestCase):
             {
                 'type': 'response',
                 'seq': 0,
-                'request_seq': 42,
+                'request_seq': req['seq'],
                 'command': 'initialize',
                 'success': True,
                 'message': '',

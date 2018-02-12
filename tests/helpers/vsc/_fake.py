@@ -1,3 +1,4 @@
+import contextlib
 import threading
 
 from tests.helpers import protocol, socket
@@ -65,6 +66,28 @@ class FakeVSC(protocol.Daemon):
         """Send the given Request object."""
         return self.send_message(req)
 
+    def wait_for_response(self, req, **kwargs):
+        reqseq = req['seq']
+        command = req['command']
+
+        def match(msg):
+            msg = msg.data
+            if msg['type'] != 'response' or msg['request_seq'] != reqseq:
+                return False
+            assert(msg['command'] == command)
+            return True
+
+        return self._wait_for_message(match, req, **kwargs)
+
+    def wait_for_event(self, event, **kwargs):
+        def match(msg):
+            msg = msg.data
+            if msg['type'] != 'event' or msg['event'] != event:
+                return False
+            return True
+
+        return self._wait_for_message(match, req=None, **kwargs)
+
     # internal methods
 
     def _start(self, host=None):
@@ -93,3 +116,20 @@ class FakeVSC(protocol.Daemon):
             self._adapter.close()
             self._adapter = None
         super(FakeVSC, self)._close()
+
+    @contextlib.contextmanager
+    def _wait_for_message(self, match, req=None, timeout=1):
+        lock = threading.Lock()
+        lock.acquire()
+
+        def handle_message(msg, _):
+            if match(msg):
+                lock.release()
+            else:
+                return False
+        self.add_handler(handle_message)
+
+        yield req
+
+        lock.acquire(timeout=timeout)  # Wait for the message to match.
+        lock.release()

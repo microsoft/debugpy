@@ -58,14 +58,21 @@ class Daemon(object):
 
     STARTED = Started
 
-    def __init__(self, connect, protocol, handler=None):
+    @classmethod
+    def validate_message(cls, msg):
+        """Ensure the message is legitimate."""
+        # By default check nothing.
+
+    def __init__(self, connect, protocol, handler):
         self._connect = connect
         self._protocol = protocol
-        self._handler = handler
 
         self._closed = False
         self._received = []
         self._failures = []
+
+        self._handlers = []
+        self._default_handler = handler
 
         # These are set when we start.
         self._host = None
@@ -101,13 +108,8 @@ class Daemon(object):
         """Serialize msg to the line format and send it to the socket."""
         if self._closed:
             raise EOFError('closed')
-        msg = self._protocol.parse(msg)
-        raw = self._protocol.encode(msg)
-        try:
-            self._send(raw)
-        except Exception as exc:
-            failure = StreamFailure('send', msg, exc)
-            self._failures.append(failure)
+        self._validate_message(msg)
+        self._send_message(msg)
 
     def close(self):
         """Clean up the daemon's resources (e.g. sockets, files, listener)."""
@@ -116,6 +118,23 @@ class Daemon(object):
 
         self._closed = True
         self._close()
+
+    def add_handler(self, handler, oneoff=True):
+        """Add the given handler to the list of possible handlers."""
+        entry = (handler, 1 if oneoff else None)
+        self._handlers.append(entry)
+        return handler
+
+    def reset(self, force=False):
+        """Clear the recorded messages."""
+        if self._failures:
+            raise RuntimeError('have failures ({!r})'.format(self._failures))
+        if self._handlers:
+            if force:
+                self._handlers = []
+            else:
+                raise RuntimeError('have pending handlers')
+        self._received = []
 
     def assert_received(self, case, expected):
         """Ensure that the received messages match the expected ones."""
@@ -145,9 +164,35 @@ class Daemon(object):
 
     def _add_received(self, msg):
         self._received.append(msg)
+        self._handle_message(msg)
 
-        if self._handler is not None:
-            self._handler(msg, self.send_message)
+    def _handle_message(self, msg):
+        for i, entry in enumerate(list(self._handlers)):
+            handle_message, remaining = entry
+            handled = handle_message(msg, self._send_message)
+            if handled or handled is None:
+                if remaining is not None:
+                    if remaining == 1:
+                        self._handlers.pop(i)
+                    else:
+                        self._handlers[i] = (handle_message, remaining-1)
+                return handled
+        else:
+            if self._default_handler is not None:
+                return self._default_handler(msg, self._send_message)
+            return False
+
+    def _validate_message(self, msg):
+        return
+
+    def _send_message(self, msg):
+        msg = self._protocol.parse(msg)
+        raw = self._protocol.encode(msg)
+        try:
+            self._send(raw)
+        except Exception as exc:
+            failure = StreamFailure('send', msg, exc)
+            self._failures.append(failure)
 
     def _send(self, raw):
         while raw:

@@ -1,4 +1,8 @@
 from collections import namedtuple
+try:
+    from urllib.parse import quote, unquote
+except ImportError:
+    from urllib import quote, unquote
 
 from tests.helpers.protocol import StreamFailure
 
@@ -13,7 +17,10 @@ def parse_message(msg):
         return RawMessage.from_bytes(msg)
     elif type(msg) is RawMessage:
         return msg
+    elif type(msg) is Message:
+        return msg
     else:
+        print(msg)
         raise NotImplementedError
 
 
@@ -56,6 +63,68 @@ class RawMessage(namedtuple('RawMessage', 'bytes')):
         self = super(RawMessage, cls).__new__(cls, raw)
         return self
 
+    @property
+    def msg(self):
+        try:
+            return self._msg
+        except AttributeError:
+            self._msg = Message.from_bytes(self.bytes)
+            return self._msg
+
     def as_bytes(self):
         """Return the line-formatted bytes corresponding to the message."""
         return self.bytes
+
+
+class Message(namedtuple('Message', 'cmdid seq payload')):
+    """A de-seralized PyDevd message."""
+
+    @classmethod
+    def from_bytes(cls, raw):
+        """Return a RawMessage corresponding to the given raw message."""
+        raw = RawMessage.from_bytes(raw)
+        parts = raw.bytes.split(b'\t', 2)
+        return cls(*parts)
+
+    @classmethod
+    def parse_payload(cls, payload):
+        """Return the de-serialized payload."""
+        if isinstance(payload, bytes):
+            payload = payload.decode('utf-8')
+        if isinstance(payload, str):
+            text = unquote(payload)
+            return cls._parse_payload_text(text)
+        elif hasattr(payload, 'as_text'):
+            return payload
+        else:
+            raise ValueError('unsupported payload {!r}'.format(payload))
+
+    @classmethod
+    def _parse_payload_text(cls, text):
+        # TODO: convert to the appropriate payload type.
+        return text
+
+    def __new__(cls, cmdid, seq, payload):
+        cmdid = int(cmdid) if cmdid or cmdid == 0 else None
+        seq = int(seq) if seq or seq == 0 else None
+        payload = cls.parse_payload(payload)
+        self = super(Message, cls).__new__(cls, cmdid, seq, payload)
+        return self
+
+    def __init__(self, *args, **kwargs):
+        if self.cmdid is None:
+            raise TypeError('missing cmdid')
+        if self.seq is None:
+            raise TypeError('missing seq')
+
+    def as_bytes(self):
+        """Return the line-formatted bytes corresponding to the message."""
+        try:
+            payload_as_text = self.payload.as_text
+        except AttributeError:
+            text = self.payload
+        else:
+            text = payload_as_text()
+        payload = quote(text)
+        data = '{}\t{}\t{}'.format(self.cmdid, self.seq, payload)
+        return data.encode('utf-8')
