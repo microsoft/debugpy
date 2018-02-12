@@ -78,7 +78,7 @@ class HighlevelTestCase(unittest.TestCase):
             vsc.send_request(req)
 
         if disconnect:
-            self.addCleanup(self.disconnect)
+            self.addCleanup(lambda: self.disconnect(vsc))
 
     def disconnect(self, vsc, **reqargs):
         req = {

@@ -215,17 +215,21 @@ class MessageTests(HighlevelTestCase):
         vsc, pydevd = self.new_fake()
 
         with vsc.start(None, 8888):
-            pydevd.add_pending_response(CMD_VERSION, pydevd.VERSION)
-            req = {
-                'type': 'request',
-                'seq': self.next_vsc_seq(),
-                'command': 'initialize',
-                'arguments': {
-                    'adapterID': 'spam',
-                },
-            }
-            with vsc.wait_for_response(req):
-                vsc.send_request(req)
+            try:
+                pydevd.add_pending_response(CMD_VERSION, pydevd.VERSION)
+                req = {
+                    'type': 'request',
+                    'seq': self.next_vsc_seq(),
+                    'command': 'initialize',
+                    'arguments': {
+                        'adapterID': 'spam',
+                    },
+                }
+                with vsc.wait_for_response(req):
+                    vsc.send_request(req)
+            finally:
+                self.disconnect(vsc)
+                vsc._received.pop(-1)
 
         self.assertFalse(pydevd.failures)
         self.assertFalse(vsc.failures)
