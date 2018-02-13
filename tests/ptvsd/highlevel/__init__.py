@@ -108,6 +108,8 @@ class HighlevelTestCase(unittest.TestCase):
         """
         See https://code.visualstudio.com/docs/extensionAPI/api-debugging#_the-vs-code-debug-protocol-in-a-nutshell
         """  # noqa
+        def handle_response(resp, _):
+            self._capabilities = resp.data['body']
         pydevd.add_pending_response(CMD_VERSION, pydevd.VERSION)
         req = {
             'type': 'request',
@@ -115,7 +117,7 @@ class HighlevelTestCase(unittest.TestCase):
             'command': 'initialize',
             'arguments':  dict(self.MIN_INITIALIZE_ARGS, **reqargs),
         }
-        with vsc.wait_for_response(req):
+        with vsc.wait_for_response(req, handler=handle_response):
             vsc.send_request(req)
 
     def _parse_breakpoints(self, breakpoints):

@@ -118,13 +118,15 @@ class FakeVSC(protocol.Daemon):
         super(FakeVSC, self)._close()
 
     @contextlib.contextmanager
-    def _wait_for_message(self, match, req=None, timeout=1):
+    def _wait_for_message(self, match, req=None, handler=None, timeout=1):
         lock = threading.Lock()
         lock.acquire()
 
-        def handle_message(msg, _):
+        def handle_message(msg, send_message):
             if match(msg):
                 lock.release()
+                if handler is not None:
+                    handler(msg, send_message)
             else:
                 return False
         self.add_handler(handle_message)
