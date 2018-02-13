@@ -9,6 +9,13 @@ from _pydevd_bundle.pydevd_comm import (
 from . import OS_ID, HighlevelTestCase
 
 
+# TODO: Make sure we are handling the following properly:
+#  * initialize args
+#  * capabilities (sent in a response)
+#  * setting breakpoints during config
+#  * sending an "exit" event.
+
+
 class LifecycleTests(HighlevelTestCase):
     """
     See https://code.visualstudio.com/docs/extensionAPI/api-debugging#_the-vs-code-debug-protocol-in-a-nutshell
@@ -21,122 +28,60 @@ class LifecycleTests(HighlevelTestCase):
             with vsc.wait_for_event('initialized'):
                 # initialize
                 pydevd.add_pending_response(CMD_VERSION, pydevd.VERSION)
-                req_initialize = {
-                    'type': 'request',
-                    'seq': self.next_vsc_seq(),
-                    'command': 'initialize',
-                    'arguments': {
-                        'adapterID': 'spam',
-                    },
-                }
+                req_initialize = self.new_request('initialize',
+                    adapterID='spam',
+                )  # noqa
                 with vsc.wait_for_response(req_initialize):
                     vsc.send_request(req_initialize)
 
                 # attach
-                req_attach = {
-                    'type': 'request',
-                    'seq': self.next_vsc_seq(),
-                    'command': 'attach',
-                    'arguments': {},
-                }
+                req_attach = self.new_request('attach')
                 with vsc.wait_for_response(req_attach):
                     vsc.send_request(req_attach)
 
             # configuration
             pydevd.add_pending_response(CMD_RUN, '')
-            req_config = {
-                'type': 'request',
-                'seq': self.next_vsc_seq(),
-                'command': 'configurationDone',
-                'arguments': {}
-            }
+            req_config = self.new_request('configurationDone')
             with vsc.wait_for_response(req_config):
                 vsc.send_request(req_config)
 
             # end
-            req_disconnect = {
-                'type': 'request',
-                'seq': self.next_vsc_seq(),
-                'command': 'disconnect',
-                'arguments': {},
-            }
+            req_disconnect = self.new_request('disconnect')
             with vsc.wait_for_response(req_disconnect):
                 vsc.send_request(req_disconnect)
 
         self.assertFalse(pydevd.failures)
         self.assertFalse(vsc.failures)
         vsc.assert_received(self, [
-            {
-                'type': 'response',
-                'seq': 0,
-                'request_seq': req_initialize['seq'],
-                'command': 'initialize',
-                'success': True,
-                'message': '',
-                'body': dict(
-                    supportsExceptionInfoRequest=True,
-                    supportsConfigurationDoneRequest=True,
-                    supportsConditionalBreakpoints=True,
-                    supportsSetVariable=True,
-                    supportsExceptionOptions=True,
-                    exceptionBreakpointFilters=[
-                        {
-                            'filter': 'raised',
-                            'label': 'Raised Exceptions',
-                            'default': 'true'
-                        },
-                        {
-                            'filter': 'uncaught',
-                            'label': 'Uncaught Exceptions',
-                            'default': 'true'
-                        },
-                    ],
-                ),
-            },
-            {
-                'type': 'event',
-                'seq': 1,
-                'event': 'initialized',
-                'body': {},
-            },
-            {
-                'type': 'response',
-                'seq': 2,
-                'request_seq': req_attach['seq'],
-                'command': 'attach',
-                'success': True,
-                'message': '',
-                'body': {},
-            },
-            {
-                'type': 'response',
-                'seq': 3,
-                'request_seq': req_config['seq'],
-                'command': 'configurationDone',
-                'success': True,
-                'message': '',
-                'body': {},
-            },
-            {
-                'type': 'event',
-                'seq': 4,
-                'event': 'process',
-                'body': {
-                    'name': sys.argv[0],
-                    'systemProcessId': os.getpid(),
-                    'isLocalProcess': True,
-                    'startMethod': 'attach',
-                },
-            },
-            {
-                'type': 'response',
-                'seq': 5,
-                'request_seq': req_disconnect['seq'],
-                'command': 'disconnect',
-                'success': True,
-                'message': '',
-                'body': {},
-            },
+            self.new_response(0, req_initialize,
+                supportsExceptionInfoRequest=True,
+                supportsConfigurationDoneRequest=True,
+                supportsConditionalBreakpoints=True,
+                supportsSetVariable=True,
+                supportsExceptionOptions=True,
+                exceptionBreakpointFilters=[
+                    {
+                        'filter': 'raised',
+                        'label': 'Raised Exceptions',
+                        'default': 'true'
+                    },
+                    {
+                        'filter': 'uncaught',
+                        'label': 'Uncaught Exceptions',
+                        'default': 'true'
+                    },
+                ],
+            ),  # noqa
+            self.new_event(1, 'initialized'),
+            self.new_response(2, req_attach),
+            self.new_response(3, req_config),
+            self.new_event(4, 'process',
+                name=sys.argv[0],
+                systemProcessId=os.getpid(),
+                isLocalProcess=True,
+                startMethod='attach',
+            ),  # noqa
+            self.new_response(5, req_disconnect),
         ])
         pydevd.assert_received(self, [
             # (cmdid, seq, text)
@@ -155,122 +100,60 @@ class LifecycleTests(HighlevelTestCase):
             with vsc.wait_for_event('initialized'):
                 # initialize
                 pydevd.add_pending_response(CMD_VERSION, pydevd.VERSION)
-                req_initialize = {
-                    'type': 'request',
-                    'seq': self.next_vsc_seq(),
-                    'command': 'initialize',
-                    'arguments': {
-                        'adapterID': 'spam',
-                    },
-                }
+                req_initialize = self.new_request('initialize',
+                    adapterID='spam',
+                )  # noqa
                 with vsc.wait_for_response(req_initialize):
                     vsc.send_request(req_initialize)
 
                 # launch
-                req_launch = {
-                    'type': 'request',
-                    'seq': self.next_vsc_seq(),
-                    'command': 'launch',
-                    'arguments': {},
-                }
+                req_launch = self.new_request('launch')
                 with vsc.wait_for_response(req_launch):
                     vsc.send_request(req_launch)
 
             # configuration
             pydevd.add_pending_response(CMD_RUN, '')
-            req_config = {
-                'type': 'request',
-                'seq': self.next_vsc_seq(),
-                'command': 'configurationDone',
-                'arguments': {}
-            }
+            req_config = self.new_request('configurationDone')
             with vsc.wait_for_response(req_config):
                 vsc.send_request(req_config)
 
             # end
-            req_disconnect = {
-                'type': 'request',
-                'seq': self.next_vsc_seq(),
-                'command': 'disconnect',
-                'arguments': {},
-            }
+            req_disconnect = self.new_request('disconnect')
             with vsc.wait_for_response(req_disconnect):
                 vsc.send_request(req_disconnect)
 
         self.assertFalse(pydevd.failures)
         self.assertFalse(vsc.failures)
         vsc.assert_received(self, [
-            {
-                'type': 'response',
-                'seq': 0,
-                'request_seq': req_initialize['seq'],
-                'command': 'initialize',
-                'success': True,
-                'message': '',
-                'body': dict(
-                    supportsExceptionInfoRequest=True,
-                    supportsConfigurationDoneRequest=True,
-                    supportsConditionalBreakpoints=True,
-                    supportsSetVariable=True,
-                    supportsExceptionOptions=True,
-                    exceptionBreakpointFilters=[
-                        {
-                            'filter': 'raised',
-                            'label': 'Raised Exceptions',
-                            'default': 'true'
-                        },
-                        {
-                            'filter': 'uncaught',
-                            'label': 'Uncaught Exceptions',
-                            'default': 'true'
-                        },
-                    ],
-                ),
-            },
-            {
-                'type': 'event',
-                'seq': 1,
-                'event': 'initialized',
-                'body': {},
-            },
-            {
-                'type': 'response',
-                'seq': 2,
-                'request_seq': req_launch['seq'],
-                'command': 'launch',
-                'success': True,
-                'message': '',
-                'body': {},
-            },
-            {
-                'type': 'response',
-                'seq': 3,
-                'request_seq': req_config['seq'],
-                'command': 'configurationDone',
-                'success': True,
-                'message': '',
-                'body': {},
-            },
-            {
-                'type': 'event',
-                'seq': 4,
-                'event': 'process',
-                'body': {
-                    'name': sys.argv[0],
-                    'systemProcessId': os.getpid(),
-                    'isLocalProcess': True,
-                    'startMethod': 'launch',
-                },
-            },
-            {
-                'type': 'response',
-                'seq': 5,
-                'request_seq': req_disconnect['seq'],
-                'command': 'disconnect',
-                'success': True,
-                'message': '',
-                'body': {},
-            },
+            self.new_response(0, req_initialize,
+                supportsExceptionInfoRequest=True,
+                supportsConfigurationDoneRequest=True,
+                supportsConditionalBreakpoints=True,
+                supportsSetVariable=True,
+                supportsExceptionOptions=True,
+                exceptionBreakpointFilters=[
+                    {
+                        'filter': 'raised',
+                        'label': 'Raised Exceptions',
+                        'default': 'true'
+                    },
+                    {
+                        'filter': 'uncaught',
+                        'label': 'Uncaught Exceptions',
+                        'default': 'true'
+                    },
+                ],
+            ),  # noqa
+            self.new_event(1, 'initialized'),
+            self.new_response(2, req_launch),
+            self.new_response(3, req_config),
+            self.new_event(4, 'process',
+                name=sys.argv[0],
+                systemProcessId=os.getpid(),
+                isLocalProcess=True,
+                startMethod='launch',
+            ),  # noqa
+            self.new_response(5, req_disconnect),
         ])
         pydevd.assert_received(self, [
             # (cmdid, seq, text)
