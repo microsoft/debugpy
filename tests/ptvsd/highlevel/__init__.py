@@ -1,3 +1,4 @@
+import contextlib
 import platform
 import unittest
 
@@ -36,6 +37,15 @@ class HighlevelTestCase(unittest.TestCase):
 
         return vsc, pydevd
 
+    @contextlib.contextmanager
+    def launched(self, vsc, pydevd, port=8888, **kwargs):
+        with vsc.start(None, port):
+            try:
+                self.launch(vsc, pydevd, **kwargs)
+            finally:
+                self.disconnect(vsc)
+                vsc._received.pop(-1)
+
     def attach(self, vsc, pydevd, **kwargs):
         """Initialize the debugger protocol and then attach."""
         self._handshake(vsc, pydevd, 'attach', **kwargs)
@@ -64,7 +74,6 @@ class HighlevelTestCase(unittest.TestCase):
 
         # Handle breakpoints
         if breakpoints:
-            args = self._parse_breakpoints(breakpoints)
             req = {
                 'type': 'request',
                 'seq': self.next_vsc_seq(),
@@ -95,7 +104,7 @@ class HighlevelTestCase(unittest.TestCase):
             vsc.reset()
             pydevd.reset()
 
-    def _initialize(self, vsc, pydevd, disconnect=True, **reqargs):
+    def _initialize(self, vsc, pydevd, **reqargs):
         """
         See https://code.visualstudio.com/docs/extensionAPI/api-debugging#_the-vs-code-debug-protocol-in-a-nutshell
         """  # noqa
@@ -108,9 +117,6 @@ class HighlevelTestCase(unittest.TestCase):
         }
         with vsc.wait_for_response(req):
             vsc.send_request(req)
-
-        if disconnect:
-            self.addCleanup(lambda: self.disconnect(vsc))
 
     def _parse_breakpoints(self, breakpoints):
         raise NotImplementedError
