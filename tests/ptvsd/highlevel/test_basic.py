@@ -2,8 +2,9 @@ import os
 import sys
 
 from _pydevd_bundle.pydevd_comm import (
-    CMD_VERSION,
+    CMD_LIST_THREADS,
     CMD_RUN,
+    CMD_VERSION,
 )
 
 from . import OS_ID, HighlevelTestCase
@@ -374,4 +375,47 @@ class RequestTests(HighlevelTestCase):
         text = '\t'.join(['1.1', OS_ID, 'ID'])
         pydevd.assert_received(self, [
             (CMD_VERSION, seq, text),
+        ])
+
+    def test_threads(self):
+        vsc, pydevd = self.new_fake()
+        with self.launched(vsc, pydevd):
+            pydevd.add_pending_response(CMD_LIST_THREADS, """
+                <xml>
+                <thread name="spam" id="10" />
+                <thread name="pydevd.spam" id="11" />
+                <thread name="" id="12" />
+                </xml>
+            """.strip().replace('\n', ''))
+            req = {
+                'type': 'request',
+                'seq': self.next_vsc_seq(),
+                'command': 'threads',
+                'arguments': {},
+            }
+            with vsc.wait_for_response(req):
+                vsc.send_request(req)
+
+        self.maxDiff = None
+        self.assertFalse(pydevd.failures)
+        self.assertFalse(vsc.failures)
+        vsc.assert_received(self, [
+            {
+                'type': 'response',
+                'seq': 5,
+                'request_seq': req['seq'],
+                'command': 'threads',
+                'success': True,
+                'message': '',
+                'body': {
+                    'threads': [
+                        {'id': 1, 'name': 'spam'},
+                        {'id': 3, 'name': ''},
+                    ],
+                },
+            },
+        ])
+        pydevd.assert_received(self, [
+            # (cmdid, seq, text)
+            (CMD_LIST_THREADS, 1000000002, ''),
         ])

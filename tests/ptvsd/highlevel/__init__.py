@@ -3,8 +3,8 @@ import platform
 import unittest
 
 from _pydevd_bundle.pydevd_comm import (
-    CMD_VERSION,
     CMD_RUN,
+    CMD_VERSION,
 )
 
 from tests.helpers.pydevd import FakePyDevd
@@ -43,6 +43,7 @@ class HighlevelTestCase(unittest.TestCase):
         with vsc.start(None, port):
             try:
                 self.launch(vsc, pydevd, **kwargs)
+                yield
             finally:
                 self.disconnect(vsc)
                 vsc._received.pop(-1)
