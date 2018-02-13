@@ -53,14 +53,9 @@ class RequestTests(HighlevelTestCase):
         with vsc.start(None, 8888):
             try:
                 pydevd.add_pending_response(CMD_VERSION, pydevd.VERSION)
-                req = {
-                    'type': 'request',
-                    'seq': self.next_vsc_seq(),
-                    'command': 'initialize',
-                    'arguments': {
-                        'adapterID': 'spam',
-                    },
-                }
+                req = self.new_request('initialize',
+                    adapterID='spam',
+                )  # noqa
                 with vsc.wait_for_response(req):
                     vsc.send_request(req)
             finally:
@@ -70,39 +65,26 @@ class RequestTests(HighlevelTestCase):
         self.assertFalse(pydevd.failures)
         self.assertFalse(vsc.failures)
         vsc.assert_received(self, [
-            {
-                'type': 'response',
-                'seq': 0,
-                'request_seq': req['seq'],
-                'command': 'initialize',
-                'success': True,
-                'message': '',
-                'body': dict(
-                    supportsExceptionInfoRequest=True,
-                    supportsConfigurationDoneRequest=True,
-                    supportsConditionalBreakpoints=True,
-                    supportsSetVariable=True,
-                    supportsExceptionOptions=True,
-                    exceptionBreakpointFilters=[
-                        {
-                            'filter': 'raised',
-                            'label': 'Raised Exceptions',
-                            'default': 'true'
-                        },
-                        {
-                            'filter': 'uncaught',
-                            'label': 'Uncaught Exceptions',
-                            'default': 'true'
-                        },
-                    ],
-                ),
-            },
-            {
-                'type': 'event',
-                'seq': 1,
-                'event': 'initialized',
-                'body': {},
-            },
+            self.new_response(0, req,
+                supportsExceptionInfoRequest=True,
+                supportsConfigurationDoneRequest=True,
+                supportsConditionalBreakpoints=True,
+                supportsSetVariable=True,
+                supportsExceptionOptions=True,
+                exceptionBreakpointFilters=[
+                    {
+                        'filter': 'raised',
+                        'label': 'Raised Exceptions',
+                        'default': 'true'
+                    },
+                    {
+                        'filter': 'uncaught',
+                        'label': 'Uncaught Exceptions',
+                        'default': 'true'
+                    },
+                ],
+            ),  # noqa
+            self.new_event(1, 'initialized'),
         ])
         seq = 1000000000
         text = '\t'.join(['1.1', OS_ID, 'ID'])
@@ -120,12 +102,7 @@ class RequestTests(HighlevelTestCase):
                 <thread name="" id="12" />
                 </xml>
             """.strip().replace('\n', ''))
-            req = {
-                'type': 'request',
-                'seq': self.next_vsc_seq(),
-                'command': 'threads',
-                'arguments': {},
-            }
+            req = self.new_request('threads')
             with vsc.wait_for_response(req):
                 vsc.send_request(req)
 
@@ -133,20 +110,12 @@ class RequestTests(HighlevelTestCase):
         self.assertFalse(pydevd.failures)
         self.assertFalse(vsc.failures)
         vsc.assert_received(self, [
-            {
-                'type': 'response',
-                'seq': 5,
-                'request_seq': req['seq'],
-                'command': 'threads',
-                'success': True,
-                'message': '',
-                'body': {
-                    'threads': [
-                        {'id': 1, 'name': 'spam'},
-                        {'id': 3, 'name': ''},
-                    ],
-                },
-            },
+            self.new_response(5, req,
+                threads=[
+                    {'id': 1, 'name': 'spam'},
+                    {'id': 3, 'name': ''},
+                ],
+            ),  # noqa
         ])
         pydevd.assert_received(self, [
             # (cmdid, seq, text)

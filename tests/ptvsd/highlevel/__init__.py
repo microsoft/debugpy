@@ -38,6 +38,46 @@ class HighlevelTestCase(unittest.TestCase):
 
         return vsc, pydevd
 
+    def new_request(self, command, **args):
+        """Return a new VSC request message."""
+        return {
+            'type': 'request',
+            'seq': self.next_vsc_seq(),
+            'command': command,
+            'arguments': args,
+        }
+
+    def new_response(self, *args, **body):
+        """Return a new VSC response message."""
+        seq, req = args
+        return self._new_response(seq, req, None, body)
+
+    def new_failure(self, *args, **body):
+        """Return a new VSC response message."""
+        seq, req, err = args
+        return self._new_response(req, seq, err, body)
+
+    def _new_response(self, seq, req, err=None, body=None):
+        return {
+            'type': 'response',
+            'seq': seq,
+            'request_seq': req['seq'],
+            'command': req['command'],
+            'success': err is None,
+            'message': err or '',
+            'body': body,
+        }
+
+    def new_event(self, *args, **body):
+        """Return a new VSC event message."""
+        seq, event = args
+        return {
+            'type': 'event',
+            'seq': seq,
+            'event': event,
+            'body': body,
+        }
+
     @contextlib.contextmanager
     def launched(self, vsc, pydevd, port=8888, **kwargs):
         with vsc.start(None, port):
