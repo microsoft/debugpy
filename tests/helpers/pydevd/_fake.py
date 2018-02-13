@@ -59,6 +59,7 @@ class FakePyDevd(protocol.Daemon):
 
     STARTED = Started
 
+    PROTOCOL = PROTOCOL
     VERSION = '1.1.1'
 
     @classmethod

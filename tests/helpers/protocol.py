@@ -33,6 +33,11 @@ class MessageProtocol(namedtuple('Protocol', 'parse encode iter')):
         iterator should stop.
     """
 
+    def parse_each(self, messages):
+        """Yield the parsed version of each message."""
+        for msg in messages:
+            yield self.parse(msg)
+
 
 class Started(object):
     """A simple wrapper around a started message protocol daemon."""
@@ -82,14 +87,20 @@ class Daemon(object):
         self._listener = None
 
     @property
+    def protocol(self):
+        return self._protocol
+
+    @property
     def received(self):
         """All the messages received thus far."""
+        #parsed = self._protocol.parse_each(self._received)
+        #return list(parsed)
         return list(self._received)
 
     @property
     def failures(self):
         """All send/recv failures thus far."""
-        return self._failures
+        return list(self._failures)
 
     def start(self, host, port):
         """Start the fake daemon.
@@ -135,12 +146,6 @@ class Daemon(object):
             else:
                 raise RuntimeError('have pending handlers')
         self._received = []
-
-    def assert_received(self, case, expected):
-        """Ensure that the received messages match the expected ones."""
-        received = [self._protocol.parse(msg) for msg in self._received]
-        expected = [self._protocol.parse(msg) for msg in expected]
-        case.assertEqual(received, expected)
 
     # internal methods
 

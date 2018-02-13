@@ -1,12 +1,13 @@
 import os
 import sys
+import unittest
 
 from _pydevd_bundle.pydevd_comm import (
     CMD_RUN,
     CMD_VERSION,
 )
 
-from . import OS_ID, HighlevelTestCase
+from . import OS_ID, HighlevelTest, HighlevelFixture
 
 
 # TODO: Make sure we are handling the following properly:
@@ -16,44 +17,38 @@ from . import OS_ID, HighlevelTestCase
 #  * sending an "exit" event.
 
 
-class LifecycleTests(HighlevelTestCase):
+class LifecycleTests(HighlevelTest, unittest.TestCase):
     """
     See https://code.visualstudio.com/docs/extensionAPI/api-debugging#_the-vs-code-debug-protocol-in-a-nutshell
     """  # noqa
 
-    def test_attach(self):
-        vsc, pydevd = self.new_fake()
+    class FIXTURE(HighlevelFixture):
+        lifecycle = None  # Make sure we don't cheat.
 
-        with vsc.start(None, 8888):
-            with vsc.wait_for_event('initialized'):
+    def test_attach(self):
+        version = self.debugger.VERSION
+        with self.vsc.start(None, 8888):
+            with self.vsc.wait_for_event('initialized'):
                 # initialize
-                pydevd.add_pending_response(CMD_VERSION, pydevd.VERSION)
-                req_initialize = self.new_request('initialize',
-                    adapterID='spam',
-                )  # noqa
-                with vsc.wait_for_response(req_initialize):
-                    vsc.send_request(req_initialize)
+                self.set_debugger_response(CMD_VERSION, version)
+                req_initialize = self.send_request('initialize', {
+                    'adapterID': 'spam',
+                })
 
                 # attach
-                req_attach = self.new_request('attach')
-                with vsc.wait_for_response(req_attach):
-                    vsc.send_request(req_attach)
+                req_attach = self.send_request('attach')
 
             # configuration
-            pydevd.add_pending_response(CMD_RUN, '')
-            req_config = self.new_request('configurationDone')
-            with vsc.wait_for_response(req_config):
-                vsc.send_request(req_config)
+            self.set_debugger_response(CMD_RUN, '')
+            req_config = self.send_request('configurationDone')
+
+            # Normal ops would go here.
 
             # end
-            req_disconnect = self.new_request('disconnect')
-            with vsc.wait_for_response(req_disconnect):
-                vsc.send_request(req_disconnect)
+            req_disconnect = self.send_request('disconnect')
 
-        self.assertFalse(pydevd.failures)
-        self.assertFalse(vsc.failures)
-        vsc.assert_received(self, [
-            self.new_response(0, req_initialize,
+        self.assert_received(self.vsc, [
+            self.new_response(req_initialize, **dict(
                 supportsExceptionInfoRequest=True,
                 supportsConfigurationDoneRequest=True,
                 supportsConditionalBreakpoints=True,
@@ -71,61 +66,48 @@ class LifecycleTests(HighlevelTestCase):
                         'default': 'true'
                     },
                 ],
-            ),  # noqa
-            self.new_event(1, 'initialized'),
-            self.new_response(2, req_attach),
-            self.new_response(3, req_config),
-            self.new_event(4, 'process',
+            )),
+            self.new_event('initialized'),
+            self.new_response(req_attach),
+            self.new_response(req_config),
+            self.new_event('process', **dict(
                 name=sys.argv[0],
                 systemProcessId=os.getpid(),
                 isLocalProcess=True,
                 startMethod='attach',
-            ),  # noqa
-            self.new_response(5, req_disconnect),
+            )),
+            self.new_response(req_disconnect),
         ])
-        pydevd.assert_received(self, [
-            # (cmdid, seq, text)
-            (
-                CMD_VERSION,
-                1000000000,
-                '\t'.join(['1.1', OS_ID, 'ID']),
-            ),
-            (CMD_RUN, 1000000001, ''),
+        self.assert_received(self.debugger, [
+            self.debugger_msgs.new_request(CMD_VERSION,
+                                           *['1.1', OS_ID, 'ID']),
+            self.debugger_msgs.new_request(CMD_RUN),
         ])
 
     def test_launch(self):
-        vsc, pydevd = self.new_fake()
-
-        with vsc.start(None, 8888):
-            with vsc.wait_for_event('initialized'):
+        version = self.debugger.VERSION
+        with self.vsc.start(None, 8888):
+            with self.vsc.wait_for_event('initialized'):
                 # initialize
-                pydevd.add_pending_response(CMD_VERSION, pydevd.VERSION)
-                req_initialize = self.new_request('initialize',
-                    adapterID='spam',
-                )  # noqa
-                with vsc.wait_for_response(req_initialize):
-                    vsc.send_request(req_initialize)
+                self.set_debugger_response(CMD_VERSION, version)
+                req_initialize = self.send_request('initialize', {
+                    'adapterID': 'spam',
+                })
 
                 # launch
-                req_launch = self.new_request('launch')
-                with vsc.wait_for_response(req_launch):
-                    vsc.send_request(req_launch)
+                req_launch = self.send_request('launch')
 
             # configuration
-            pydevd.add_pending_response(CMD_RUN, '')
-            req_config = self.new_request('configurationDone')
-            with vsc.wait_for_response(req_config):
-                vsc.send_request(req_config)
+            self.set_debugger_response(CMD_RUN, '')
+            req_config = self.send_request('configurationDone')
+
+            # Normal ops would go here.
 
             # end
-            req_disconnect = self.new_request('disconnect')
-            with vsc.wait_for_response(req_disconnect):
-                vsc.send_request(req_disconnect)
+            req_disconnect = self.send_request('disconnect')
 
-        self.assertFalse(pydevd.failures)
-        self.assertFalse(vsc.failures)
-        vsc.assert_received(self, [
-            self.new_response(0, req_initialize,
+        self.assert_received(self.vsc, [
+            self.new_response(req_initialize, **dict(
                 supportsExceptionInfoRequest=True,
                 supportsConfigurationDoneRequest=True,
                 supportsConditionalBreakpoints=True,
@@ -143,24 +125,20 @@ class LifecycleTests(HighlevelTestCase):
                         'default': 'true'
                     },
                 ],
-            ),  # noqa
-            self.new_event(1, 'initialized'),
-            self.new_response(2, req_launch),
-            self.new_response(3, req_config),
-            self.new_event(4, 'process',
+            )),
+            self.new_event('initialized'),
+            self.new_response(req_launch),
+            self.new_response(req_config),
+            self.new_event('process', **dict(
                 name=sys.argv[0],
                 systemProcessId=os.getpid(),
                 isLocalProcess=True,
                 startMethod='launch',
-            ),  # noqa
-            self.new_response(5, req_disconnect),
+            )),
+            self.new_response(req_disconnect),
         ])
-        pydevd.assert_received(self, [
-            # (cmdid, seq, text)
-            (
-                CMD_VERSION,
-                1000000000,
-                '\t'.join(['1.1', OS_ID, 'ID']),
-            ),
-            (CMD_RUN, 1000000001, ''),
+        self.assert_received(self.debugger, [
+            self.debugger_msgs.new_request(CMD_VERSION,
+                                           *['1.1', OS_ID, 'ID']),
+            self.debugger_msgs.new_request(CMD_RUN),
         ])
