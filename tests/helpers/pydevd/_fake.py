@@ -72,7 +72,7 @@ class FakePyDevd(protocol.Daemon):
         if handler is not None:
             handler(req, send_message)
 
-        resp = cls._get_response(cls, req)
+        resp = cls._get_response(req)
         if resp is not None:
             send_message(resp)
 

@@ -44,7 +44,9 @@ class HighlevelTestCase(unittest.TestCase):
         """Initialize the debugger protocol and then launch."""
         self._handshake(vsc, pydevd, 'launch', **kwargs)
 
-    def _handshake(self, vsc, pydevd, command, reset=True, **kwargs):
+    def _handshake(self, vsc, pydevd, command,
+                   breakpoints=None, excbreakpoints=None,
+                   reset=True, **kwargs):
         initargs = dict(
             kwargs.pop('initargs', None) or {},
             disconnect=kwargs.pop('disconnect', True),
@@ -59,6 +61,36 @@ class HighlevelTestCase(unittest.TestCase):
             }
             with vsc.wait_for_response(req):
                 vsc.send_request(req)
+
+        # Handle breakpoints
+        if breakpoints:
+            args = self._parse_breakpoints(breakpoints)
+            req = {
+                'type': 'request',
+                'seq': self.next_vsc_seq(),
+                'command': 'setBreakpoints',
+                'arguments': self._parse_breakpoints(breakpoints),
+            }
+            with vsc.wait_for_response(req):
+                vsc.send_request(req)
+        if excbreakpoints:
+            req = {
+                'type': 'request',
+                'seq': self.next_vsc_seq(),
+                'command': 'setExceptionBreakpoints',
+                'arguments': self._parse_breakpoints(excbreakpoints),
+            }
+            with vsc.wait_for_response(req):
+                vsc.send_request(req)
+        req = {
+            'type': 'request',
+            'seq': self.next_vsc_seq(),
+            'command': 'configurationDone',
+            'arguments': {}
+        }
+        with vsc.wait_for_response(req):
+            vsc.send_request(req)
+
         if reset:
             vsc.reset()
             pydevd.reset()
@@ -79,6 +111,10 @@ class HighlevelTestCase(unittest.TestCase):
 
         if disconnect:
             self.addCleanup(lambda: self.disconnect(vsc))
+
+    def _parse_breakpoints(self, breakpoints):
+        raise NotImplementedError
+        #for bp in breakpoints or ():
 
     def disconnect(self, vsc, **reqargs):
         req = {

@@ -1,5 +1,6 @@
 from _pydevd_bundle.pydevd_comm import (
     CMD_VERSION,
+    CMD_RUN,
 )
 
 from . import OS_ID, HighlevelTestCase
@@ -37,6 +38,16 @@ class LivecycleTests(HighlevelTestCase):
                 }
                 with vsc.wait_for_response(req_attach):
                     vsc.send_request(req_attach)
+
+            # configuration
+            req_config = {
+                'type': 'request',
+                'seq': self.next_vsc_seq(),
+                'command': 'configurationDone',
+                'arguments': {}
+            }
+            with vsc.wait_for_response(req_config):
+                vsc.send_request(req_config)
 
             # end
             req_disconnect = {
@@ -96,6 +107,15 @@ class LivecycleTests(HighlevelTestCase):
             {
                 'type': 'response',
                 'seq': 3,
+                'request_seq': req_config['seq'],
+                'command': 'configurationDone',
+                'success': True,
+                'message': '',
+                'body': {},
+            },
+            {
+                'type': 'response',
+                'seq': 4,
                 'request_seq': req_disconnect['seq'],
                 'command': 'disconnect',
                 'success': True,
@@ -103,10 +123,14 @@ class LivecycleTests(HighlevelTestCase):
                 'body': {},
             },
         ])
-        seq = 1000000000
-        text = '\t'.join(['1.1', OS_ID, 'ID'])
         pydevd.assert_received(self, [
-            (CMD_VERSION, seq, text),
+            # (cmdid, seq, text)
+            (
+                CMD_VERSION,
+                1000000000,
+                '\t'.join(['1.1', OS_ID, 'ID']),
+            ),
+            (CMD_RUN, 1000000001, ''),
         ])
 
     def test_launch(self):
@@ -136,6 +160,16 @@ class LivecycleTests(HighlevelTestCase):
                 }
                 with vsc.wait_for_response(req_launch):
                     vsc.send_request(req_launch)
+
+            # configuration
+            req_config = {
+                'type': 'request',
+                'seq': self.next_vsc_seq(),
+                'command': 'configurationDone',
+                'arguments': {}
+            }
+            with vsc.wait_for_response(req_config):
+                vsc.send_request(req_config)
 
             # end
             req_disconnect = {
@@ -195,6 +229,15 @@ class LivecycleTests(HighlevelTestCase):
             {
                 'type': 'response',
                 'seq': 3,
+                'request_seq': req_config['seq'],
+                'command': 'configurationDone',
+                'success': True,
+                'message': '',
+                'body': {},
+            },
+            {
+                'type': 'response',
+                'seq': 4,
                 'request_seq': req_disconnect['seq'],
                 'command': 'disconnect',
                 'success': True,
@@ -202,14 +245,46 @@ class LivecycleTests(HighlevelTestCase):
                 'body': {},
             },
         ])
-        seq = 1000000000
-        text = '\t'.join(['1.1', OS_ID, 'ID'])
         pydevd.assert_received(self, [
-            (CMD_VERSION, seq, text),
+            # (cmdid, seq, text)
+            (
+                CMD_VERSION,
+                1000000000,
+                '\t'.join(['1.1', OS_ID, 'ID']),
+            ),
+            (CMD_RUN, 1000000001, ''),
         ])
 
 
-class MessageTests(HighlevelTestCase):
+class RequestTests(HighlevelTestCase):
+    """
+    lifecycle (in order):
+
+    initialize
+    attach
+    launch
+    setBreakpoints
+    setExceptionBreakpoints
+    configurationDone
+    disconnect
+
+    normal operation:
+
+    threads
+    stackTrace
+    scopes
+    variables
+    setVariable
+    evaluate
+    pause
+    continue
+    next
+    stepIn
+    stepOut
+    setBreakpoints
+    setExceptionBreakpoints
+    exceptionInfo
+    """
 
     def test_initialize(self):
         vsc, pydevd = self.new_fake()
