@@ -1,7 +1,24 @@
 import unittest
 
 from _pydevd_bundle.pydevd_comm import (
+    CMD_ADD_EXCEPTION_BREAK,
+    CMD_CHANGE_VARIABLE,
+    CMD_EVALUATE_EXPRESSION,
+    CMD_GET_FRAME,
+    CMD_GET_VARIABLE,
     CMD_LIST_THREADS,
+    CMD_REMOVE_BREAK,
+    CMD_REMOVE_EXCEPTION_BREAK,
+    CMD_SEND_CURR_EXCEPTION_TRACE,
+    CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED,
+    CMD_SET_BREAK,
+    CMD_STEP_INTO,
+    CMD_STEP_OVER,
+    CMD_STEP_RETURN,
+    CMD_THREAD_CREATE,
+    CMD_THREAD_KILL,
+    CMD_THREAD_RUN,
+    CMD_THREAD_SUSPEND,
     CMD_VERSION,
 )
 
@@ -107,16 +124,17 @@ class InitializeTests(LifecycleTest, unittest.TestCase):
 class NormalRequestTest(RunningTest):
 
     COMMAND = None
+    PYDEVD_REQ = None
     PYDEVD_CMD = None
 
     def launched(self, port=8888):
         return super(NormalRequestTest, self).launched(port)
 
     def set_debugger_response(self, *args, **kwargs):
-        if self.PYDEVD_CMD is None:
+        if self.PYDEVD_REQ is None:
             return
         self.fix.set_debugger_response(
-            self.PYDEVD_CMD,
+            self.PYDEVD_REQ,
             self.pydevd_payload(*args, **kwargs),
         )
 
@@ -139,7 +157,7 @@ class NormalRequestTest(RunningTest):
 class ThreadsTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'threads'
-    PYDEVD_CMD = CMD_LIST_THREADS
+    PYDEVD_REQ = CMD_LIST_THREADS
 
     def pydevd_payload(self, *threads):
         text = '<xml>'
@@ -170,3 +188,205 @@ class ThreadsTests(NormalRequestTest, unittest.TestCase):
         self.assert_received(self.debugger, [
             self.expected_pydevd_request(),
         ])
+
+
+# TODO: finish!
+@unittest.skip('not finished')
+class StackTraceTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'stackTrace'
+
+    def test_basic(self):
+        raise NotImplementedError
+
+
+# TODO: finish!
+@unittest.skip('not finished')
+class ScopesTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'scopes'
+
+    def test_basic(self):
+        raise NotImplementedError
+
+
+# TODO: finish!
+@unittest.skip('not finished')
+class VariablesTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'variables'
+    PYDEVD_REQ = [
+        CMD_GET_FRAME,
+        CMD_GET_VARIABLE,
+    ]
+
+    def test_basic(self):
+        raise NotImplementedError
+
+
+# TODO: finish!
+@unittest.skip('not finished')
+class SetVariableTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'setVariable'
+    PYDEVD_REQ = CMD_CHANGE_VARIABLE
+
+    def test_basic(self):
+        raise NotImplementedError
+
+
+# TODO: finish!
+@unittest.skip('not finished')
+class EvaluateTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'evaluate'
+    PYDEVD_REQ = CMD_EVALUATE_EXPRESSION
+
+    def test_basic(self):
+        raise NotImplementedError
+
+
+# TODO: finish!
+@unittest.skip('not finished')
+class PauseTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'pause'
+    PYDEVD_CMD = CMD_THREAD_SUSPEND
+
+    def test_basic(self):
+        raise NotImplementedError
+
+
+# TODO: finish!
+@unittest.skip('not finished')
+class ContinueTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'continue'
+    PYDEVD_CMD = CMD_THREAD_RUN
+
+    def test_basic(self):
+        raise NotImplementedError
+
+
+# TODO: finish!
+@unittest.skip('not finished')
+class NextTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'next'
+    PYDEVD_CMD = CMD_STEP_OVER
+
+    def test_basic(self):
+        raise NotImplementedError
+
+
+# TODO: finish!
+@unittest.skip('not finished')
+class StepInTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'stepIn'
+    PYDEVD_CMD = CMD_STEP_INTO
+
+    def test_basic(self):
+        raise NotImplementedError
+
+
+# TODO: finish!
+@unittest.skip('not finished')
+class StepOutTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'stepOut'
+    PYDEVD_CMD = CMD_STEP_RETURN
+
+    def test_basic(self):
+        raise NotImplementedError
+
+
+# TODO: finish!
+@unittest.skip('not finished')
+class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'setBreakpoints'
+    PYDEVD_CMD = [
+        [CMD_REMOVE_BREAK],
+        [CMD_SET_BREAK],
+    ]
+
+    def test_basic(self):
+        raise NotImplementedError
+
+
+# TODO: finish!
+@unittest.skip('not finished')
+class SetExceptionBreakpointsTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'setExceptionBreakpoints'
+    PYDEVD_CMD = [
+        [CMD_REMOVE_EXCEPTION_BREAK],
+        [CMD_ADD_EXCEPTION_BREAK],
+    ]
+
+    def test_basic(self):
+        raise NotImplementedError
+
+
+# TODO: finish!
+@unittest.skip('not finished')
+class ExceptionInfoTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'exceptionInfo'
+
+    def test_basic(self):
+        raise NotImplementedError
+
+
+##################################
+# handled PyDevd events
+
+class PyDevdEventTest(RunningTest):
+
+    CMD = None
+
+    def test_basic(self):
+        raise NotImplementedError
+
+
+# TODO: finish!
+@unittest.skip('not finished')
+class ThreadCreateTests(PyDevdEventTest, unittest.TestCase):
+
+    CMD = CMD_THREAD_CREATE
+
+
+# TODO: finish!
+@unittest.skip('not finished')
+class ThreadKillTests(PyDevdEventTest, unittest.TestCase):
+
+    CMD = CMD_THREAD_KILL
+
+
+# TODO: finish!
+@unittest.skip('not finished')
+class ThreadSuspendTests(PyDevdEventTest, unittest.TestCase):
+
+    CMD = CMD_THREAD_SUSPEND
+
+
+# TODO: finish!
+@unittest.skip('not finished')
+class ThreadRunTests(PyDevdEventTest, unittest.TestCase):
+
+    CMD = CMD_THREAD_RUN
+
+
+# TODO: finish!
+@unittest.skip('not finished')
+class SendCurrExcTraceTests(PyDevdEventTest, unittest.TestCase):
+
+    CMD = CMD_SEND_CURR_EXCEPTION_TRACE
+
+
+# TODO: finish!
+@unittest.skip('not finished')
+class SendCurrExcTraceProceededTests(PyDevdEventTest, unittest.TestCase):
+
+    CMD = CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED
