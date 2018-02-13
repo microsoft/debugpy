@@ -1,3 +1,5 @@
+import unittest
+
 from _pydevd_bundle.pydevd_comm import (
     CMD_LIST_THREADS,
     CMD_VERSION,
@@ -8,17 +10,21 @@ from . import OS_ID, HighlevelTestCase
 
 class RequestTests(HighlevelTestCase):
     """
-    lifecycle (in order):
+    lifecycle (in order), tested via test_lifecycle.py:
 
     initialize
     attach
     launch
-    setBreakpoints
-    setExceptionBreakpoints
+    (setBreakpoints)
+    (setExceptionBreakpoints)
     configurationDone
+    (normal ops)
     disconnect
 
-    normal operation:
+    Note that setFunctionBreakpoints may also be sent during
+    configuration, but we do not support function breakpoints.
+
+    normal operation (supported-only):
 
     threads
     stackTrace
@@ -36,6 +42,7 @@ class RequestTests(HighlevelTestCase):
     exceptionInfo
     """
 
+    @unittest.skip('tested via test_lifecycle.py')
     def test_initialize(self):
         vsc, pydevd = self.new_fake()
 
