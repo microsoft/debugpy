@@ -9,6 +9,13 @@ from _pydevd_bundle.pydevd_comm import (
 from . import OS_ID, HighlevelTestCase
 
 
+# TODO: Make sure we are handling the following properly:
+#  * initialize args
+#  * capabilities (sent in a response)
+#  * setting breakpoints during config
+#  * sending an "exit" event.
+
+
 class LifecycleTests(HighlevelTestCase):
     """
     See https://code.visualstudio.com/docs/extensionAPI/api-debugging#_the-vs-code-debug-protocol-in-a-nutshell
