@@ -47,6 +47,10 @@ class FakeVSC(protocol.Daemon):
     protocol itself.
     """  # noqa
 
+    STARTED = Started
+
+    PROTOCOL = PROTOCOL
+
     def __init__(self, start_adapter, handler=None):
         super(FakeVSC, self).__init__(socket.connect, PROTOCOL, handler)
 
