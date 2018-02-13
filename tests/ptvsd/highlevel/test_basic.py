@@ -1,3 +1,6 @@
+import os
+import sys
+
 from _pydevd_bundle.pydevd_comm import (
     CMD_VERSION,
     CMD_RUN,
@@ -6,7 +9,7 @@ from _pydevd_bundle.pydevd_comm import (
 from . import OS_ID, HighlevelTestCase
 
 
-class LivecycleTests(HighlevelTestCase):
+class LifecycleTests(HighlevelTestCase):
     """
     See https://code.visualstudio.com/docs/extensionAPI/api-debugging#_the-vs-code-debug-protocol-in-a-nutshell
     """  # noqa
@@ -40,6 +43,7 @@ class LivecycleTests(HighlevelTestCase):
                     vsc.send_request(req_attach)
 
             # configuration
+            pydevd.add_pending_response(CMD_RUN, '')
             req_config = {
                 'type': 'request',
                 'seq': self.next_vsc_seq(),
@@ -114,8 +118,19 @@ class LivecycleTests(HighlevelTestCase):
                 'body': {},
             },
             {
-                'type': 'response',
+                'type': 'event',
                 'seq': 4,
+                'event': 'process',
+                'body': {
+                    'name': sys.argv[0],
+                    'systemProcessId': os.getpid(),
+                    'isLocalProcess': True,
+                    'startMethod': 'attach',
+                },
+            },
+            {
+                'type': 'response',
+                'seq': 5,
                 'request_seq': req_disconnect['seq'],
                 'command': 'disconnect',
                 'success': True,
@@ -162,6 +177,7 @@ class LivecycleTests(HighlevelTestCase):
                     vsc.send_request(req_launch)
 
             # configuration
+            pydevd.add_pending_response(CMD_RUN, '')
             req_config = {
                 'type': 'request',
                 'seq': self.next_vsc_seq(),
@@ -236,8 +252,19 @@ class LivecycleTests(HighlevelTestCase):
                 'body': {},
             },
             {
-                'type': 'response',
+                'type': 'event',
                 'seq': 4,
+                'event': 'process',
+                'body': {
+                    'name': sys.argv[0],
+                    'systemProcessId': os.getpid(),
+                    'isLocalProcess': True,
+                    'startMethod': 'launch',
+                },
+            },
+            {
+                'type': 'response',
+                'seq': 5,
                 'request_seq': req_disconnect['seq'],
                 'command': 'disconnect',
                 'success': True,

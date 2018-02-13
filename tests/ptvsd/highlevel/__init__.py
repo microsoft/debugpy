@@ -4,6 +4,7 @@ import unittest
 
 from _pydevd_bundle.pydevd_comm import (
     CMD_VERSION,
+    CMD_RUN,
 )
 
 from tests.helpers.pydevd import FakePyDevd
@@ -91,6 +92,7 @@ class HighlevelTestCase(unittest.TestCase):
             }
             with vsc.wait_for_response(req):
                 vsc.send_request(req)
+        pydevd.add_pending_response(CMD_RUN, '')
         req = {
             'type': 'request',
             'seq': self.next_vsc_seq(),
