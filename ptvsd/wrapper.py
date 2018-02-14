@@ -164,13 +164,24 @@ class PydevdSocket(object):
         self.pipe_r, self.pipe_w = os.pipe()
         self.requests = {}
 
+        self._closed = False
+
     def close(self):
-        # TODO: docstring
-        pass
+        """Mark the socket as closed and release any resources."""
+        with self.lock:
+            if self._closed:
+                return
+
+            if self.pipe_w is not None:
+                os.close(self.pipe_w)
+                self.pipe_w = None
+            if self.pipe_r is not None:
+                os.close(self.pipe_r)
+                self.pipe_r = None
+            self._closed = True
 
     def shutdown(self, mode):
-        # TODO: docstring
-        pass
+        """Called when pydevd has stopped."""
 
     def recv(self, count):
         """Return the requested number of bytes.
