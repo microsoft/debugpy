@@ -375,7 +375,10 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         t.start()
 
     def close(self):
-        # TODO: docstring
+        """Stop the message processor and release its resources."""
+        self.pydevd.shutdown()
+        self.pydevd.close()
+
         global ptvsd_sys_exit_code
         self.send_event('exited', exitCode=ptvsd_sys_exit_code)
         self.send_event('terminated')
