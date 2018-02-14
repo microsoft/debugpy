@@ -95,18 +95,24 @@ class EventLoop(object):
         self._event = threading.Event()
         self._event.set()
 
+        self._stop = False
+
     def create_future(self):
         return Future(self)
 
     def run_forever(self):
-        while True:
-            self._event.wait()
+        while not self._stop:
+            if not self._event.wait(timeout=0.1):
+                continue
             with self._lock:
                 queue = self._queue
                 self._queue = []
                 self._event.clear()
             for (f, args) in queue:
                 f(*args)
+
+    def stop(self):
+        self._stop = True
 
     def call_soon(self, f, *args):
         with self._lock:

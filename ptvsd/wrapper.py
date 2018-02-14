@@ -406,6 +406,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.send_event('exited', exitCode=ptvsd_sys_exit_code)
         self.send_event('terminated')
 
+        self.loop.stop()
+
         if self.socket:
             self.socket.shutdown(socket.SHUT_RDWR)
             self.socket.close()
