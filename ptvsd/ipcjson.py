@@ -11,9 +11,10 @@ from __future__ import print_function, with_statement, absolute_import
 # the main thread. This will cause issues when the thread goes away
 # after attach completes.
 
+import errno
+import itertools
 import json
 import os.path
-import itertools
 import socket
 import sys
 import traceback
@@ -93,8 +94,11 @@ class SocketIO(object):
             self.__logfile.write(content)
             self.__logfile.write('\n'.encode('utf-8'))
             self.__logfile.flush()
-        self.__socket.send(headers)
-        self.__socket.send(content)
+        try:
+            self.__socket.send(headers)
+            self.__socket.send(content)
+        except BrokenPipeError:
+            pass
 
     def _buffered_read_line_as_ascii(self):
         """Return the next line from the buffer as a string.
@@ -279,7 +283,12 @@ class IpcChannel(object):
         try:
             msg = self.__message.pop(0)
         except IndexError:
-            self._wait_for_message()
+            try:
+                self._wait_for_message()
+            except OSError as exc:
+                if exc.errno == errno.EBADF:  # socket closed
+                    return self.__exit
+                raise
             try:
                 msg = self.__message.pop(0)
             except IndexError:

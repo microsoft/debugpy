@@ -156,6 +156,8 @@ class PydevdSocket(object):
     awaited.
     """
 
+    _vscprocessor = None
+
     def __init__(self, event_handler):
         #self.log = open('pydevd.log', 'w')
         self.event_handler = event_handler
@@ -165,20 +167,32 @@ class PydevdSocket(object):
         self.requests = {}
 
         self._closed = False
+        self._closing = False
 
     def close(self):
         """Mark the socket as closed and release any resources."""
+        if self._closing:
+            return
+
         with self.lock:
             if self._closed:
                 return
+            self._closing = True
 
             if self.pipe_w is not None:
-                os.close(self.pipe_w)
+                pipe_w = self.pipe_w
                 self.pipe_w = None
+                os.close(pipe_w)
             if self.pipe_r is not None:
-                os.close(self.pipe_r)
+                pipe_r = self.pipe_r
                 self.pipe_r = None
+                os.close(pipe_r)
+            if self._vscprocessor is not None:
+                proc = self._vscprocessor
+                self._vscprocessor = None
+                proc.close()
             self._closed = True
+            self._closing = False
 
     def shutdown(self, mode):
         """Called when pydevd has stopped."""
@@ -369,6 +383,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.loop = futures.EventLoop()
         self.exceptions_mgr = ExceptionsManager(self)
 
+        pydevd._vscprocessor = self
+        self._closed = False
+
         t = threading.Thread(target=self.loop.run_forever,
                              name='ptvsd.EventLoop')
         t.daemon = True
@@ -376,14 +393,21 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     def close(self):
         """Stop the message processor and release its resources."""
-        self.pydevd.shutdown()
-        self.pydevd.close()
+        if self._closed:
+            return
+        self._closed = True
+
+        pydevd = self.pydevd
+        self.pydevd = None
+        pydevd.shutdown(socket.SHUT_RDWR)
+        pydevd.close()
 
         global ptvsd_sys_exit_code
         self.send_event('exited', exitCode=ptvsd_sys_exit_code)
         self.send_event('terminated')
+
         if self.socket:
-            self.socket.shutdown()
+            self.socket.shutdown(socket.SHUT_RDWR)
             self.socket.close()
 
     def pydevd_notify(self, cmd_id, args):

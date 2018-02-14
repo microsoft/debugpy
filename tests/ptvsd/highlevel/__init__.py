@@ -274,7 +274,7 @@ class HighlevelFixture(object):
             yield
         finally:
             self.send_request('disconnect')
-            self.vsc._received.pop(-1)
+            #self.vsc._received.pop(-1)
 
 
 class HighlevelTest(object):
@@ -292,6 +292,8 @@ class HighlevelTest(object):
             self.addCleanup(vsc.close)
             return vsc
         self.fix = self.FIXTURE(new_daemon)
+
+        self.maxDiff = None
 
     def __getattr__(self, name):
         return getattr(self.fix, name)
@@ -312,6 +314,11 @@ class HighlevelTest(object):
         """Return a new fake VSC that may be used in tests."""
         vsc, debugger = self.fix.new_fake(debugger, handler)
         return vsc, debugger
+
+    def assert_vsc_received(self, received, expected):
+        received = list(self.vsc.protocol.parse_each(received))
+        expected = list(self.vsc.protocol.parse_each(expected))
+        self.assertEqual(received, expected)
 
     def assert_received(self, daemon, expected):
         """Ensure that the received messages match the expected ones."""

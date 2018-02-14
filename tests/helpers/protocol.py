@@ -1,4 +1,5 @@
 from collections import namedtuple
+import errno
 import threading
 
 from . import socket
@@ -160,12 +161,25 @@ class Daemon(object):
         self._listener.start()
 
     def _listen(self):
-        with self._sock.makefile('rb') as sockfile:
-            for msg in self._protocol.iter(sockfile, lambda: self._closed):
-                if isinstance(msg, StreamFailure):
-                    self._failures.append(msg)
-                else:
-                    self._add_received(msg)
+        try:
+            with self._sock.makefile('rb') as sockfile:
+                for msg in self._protocol.iter(sockfile, lambda: self._closed):
+                    if isinstance(msg, StreamFailure):
+                        self._failures.append(msg)
+                    else:
+                        self._add_received(msg)
+        except BrokenPipeError:
+            if self._closed:
+                return
+            # TODO: try reconnecting?
+            raise
+        except OSError as exc:
+            if exc.errno == 9:  # socket closed
+                return
+            if exc.errno == errno.EBADF:  # socket closed
+                return
+            # TODO: try reconnecting?
+            raise
 
     def _add_received(self, msg):
         self._received.append(msg)
