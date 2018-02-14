@@ -6,14 +6,13 @@
 from __future__ import print_function, with_statement, absolute_import
 
 import atexit
-import itertools
 import os
 import socket
 import sys
 import threading
 import traceback
 import untangle
-import platform 
+import platform
 
 try:
     import urllib
@@ -234,6 +233,7 @@ class PydevdSocket(object):
             os.write(self.pipe_w, s.encode('utf8'))
         return fut
 
+
 class ExceptionsManager(object):
     def __init__(self, proc):
         self.proc = proc
@@ -244,14 +244,14 @@ class ExceptionsManager(object):
         with self.lock:
             for exception in self.exceptions:
                 self.proc.pydevd_notify(pydevd_comm.CMD_REMOVE_EXCEPTION_BREAK,
-                            'python-{}'.format(exception))
+                                        'python-{}'.format(exception))
             self.exceptions = []
 
     def add_exception_break(self, exception, break_raised, break_uncaught):
-        
+
         # notify_always options:
         #   1 is deprecated, you will see a warning message
-        #   2 notify on first raise only 
+        #   2 notify on first raise only
         #   3 or greater, notify always
         notify_always = 3 if break_raised else 0
 
@@ -261,38 +261,66 @@ class ExceptionsManager(object):
         notify_on_terminate = 1 if break_uncaught else 0
 
         # ignore_libraries options:
-        #   Less than or equal to 0 DO NOT ignore libraries (required for notify_always)
+        #   Less than or equal to 0 DO NOT ignore libraries (required
+        #   for notify_always)
         #   Greater than 0 ignore libraries
         ignore_libraries = 0
-        cmdargs = (exception, notify_always, notify_on_terminate, ignore_libraries)
+        cmdargs = (
+            exception,
+            notify_always,
+            notify_on_terminate,
+            ignore_libraries,
+        )
         msg = 'python-{}\t{}\t{}\t{}'.format(*cmdargs)
         with self.lock:
-            self.proc.pydevd_notify(pydevd_comm.CMD_ADD_EXCEPTION_BREAK, msg)
+            self.proc.pydevd_notify(
+                pydevd_comm.CMD_ADD_EXCEPTION_BREAK, msg)
             self.exceptions.append(exception)
-    
+
     def apply_exception_options(self, exception_options):
-        """Applies exception options after removing any existing exception breaks.
+        """
+        Applies exception options after removing any existing exception
+        breaks.
         """
         self.remove_all_exception_breaks()
-        pyex_options = (o for o in exception_options if self.__is_python_exception_category(o))
+        pyex_options = (opt
+                        for opt in exception_options
+                        if self.__is_python_exception_category(opt))
         for option in pyex_options:
             exception_paths = option['path']
+            if not exception_paths:
+                continue
+
             mode = option['breakMode']
-            break_raised = True if mode == 'always' else False
-            break_uncaught = True if mode in ['unhandled', 'userUnhandled'] else False
+            break_raised = (mode == 'always')
+            break_uncaught = (mode in ['unhandled', 'userUnhandled'])
 
             # Special case for the entire python exceptions category
-            if len(exception_paths) == 1 and exception_paths[0]['names'][0] == 'Python Exceptions':
-                self.add_exception_break('BaseException', break_raised, break_uncaught)
+            is_category = False
+            if len(exception_paths) == 1:
+                # TODO: isn't the first one always the category?
+                if exception_paths[0]['names'][0] == 'Python Exceptions':
+                    is_category = True
+            if is_category:
+                self.add_exception_break(
+                    'BaseException', break_raised, break_uncaught)
             else:
-                # Skip the first one. It will always be the category "Python Exceptions"
-                path_iterator = itertools.islice(exception_paths, 1, None)
-                exception_names = (ex_name for path in path_iterator for ex_name in path['names'])
+                path_iterator = iter(exception_paths)
+                # Skip the first one. It will always be the category
+                # "Python Exceptions"
+                next(path_iterator)
+                exception_names = []
+                for path in path_iterator:
+                    for ex_name in path['names']:
+                        exception_names.append(ex_name)
                 for exception_name in exception_names:
-                    self.add_exception_break(exception_name, break_raised, break_uncaught)
-    
+                    self.add_exception_break(
+                        exception_name, break_raised, break_uncaught)
+
     def __is_python_exception_category(self, option):
-        """Check if the option has entires and that the first entry is 'Python Exceptions'
+        """
+        Check if the option has entires and that the first entry
+        is 'Python Exceptions'.
         """
         exception_paths = option['path']
         if not exception_paths:
@@ -301,7 +329,7 @@ class ExceptionsManager(object):
         category = exception_paths[0]['names']
         if category is None or len(category) != 1:
             return False
-        
+
         return category[0] == 'Python Exceptions'
 
 
@@ -456,7 +484,12 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.send_event('process', **evt)
 
     def is_debugger_internal_thread(self, thread_name):
-        return thread_name and (thread_name.startswith('pydevd.') or thread_name.startswith('ptvsd.'))
+        if thread_name:
+            if thread_name.startswith('pydevd.'):
+                return True
+            elif thread_name.startswith('ptvsd.'):
+                return True
+        return False
 
     @async_handler
     def on_threads(self, request, args):
@@ -704,7 +737,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             break_raised = 'raised' in filters
             break_uncaught = 'uncaught' in filters
             if break_raised or break_uncaught:
-                self.exceptions_mgr.add_exception_break('BaseException', break_raised, break_uncaught)
+                self.exceptions_mgr.add_exception_break(
+                    'BaseException', break_raised, break_uncaught)
         self.send_response(request)
 
     @async_handler
@@ -866,7 +900,10 @@ pydevd_comm.start_client = start_client
 
 
 class SafeReprPresentationProvider(pydevd_extapi.StrPresentationProvider):
-    """Computes string representation of Python values by delegating them to SafeRepr."""
+    """
+    Computes string representation of Python values by delegating them
+    to SafeRepr.
+    """
 
     def __init__(self):
         from ptvsd.safe_repr import SafeRepr
@@ -878,6 +915,8 @@ class SafeReprPresentationProvider(pydevd_extapi.StrPresentationProvider):
     def get_str(self, val):
         return self.safe_repr(val)
 
-# Register our presentation provider as the first item on the list, so that we're in full control of presentation.
-str_handlers = pydevd_extutil.EXTENSION_MANAGER_INSTANCE.type_to_instance.setdefault(pydevd_extapi.StrPresentationProvider, [])
+
+# Register our presentation provider as the first item on the list,
+# so that we're in full control of presentation.
+str_handlers = pydevd_extutil.EXTENSION_MANAGER_INSTANCE.type_to_instance.setdefault(pydevd_extapi.StrPresentationProvider, [])  # noqa
 str_handlers.insert(0, SafeReprPresentationProvider())

@@ -71,6 +71,6 @@ class Message(object):
 
 
 # Force registration.
-from .message import ProtocolMessage, Request, Response, Event
+from .message import ProtocolMessage, Request, Response, Event  # noqa
 from .requests import *  # noqa
 from .events import *  # noqa
