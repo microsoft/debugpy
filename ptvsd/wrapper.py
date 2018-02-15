@@ -518,9 +518,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     def on_stackTrace(self, request, args):
         # TODO: docstring
         tid = int(args['threadId'])
-        startFrame = int(args['startFrame']) if 'startFrame' in args else 0
-        levels = int(args['levels']) if 'levels' in args else 0
-''
+        startFrame = int(args.get('startFrame', 0))
+        levels = int(args.get('levels', 0))
+
         tid = self.thread_map.to_pydevd(tid)
         with self.stack_traces_lock:
             xframes = self.stack_traces[tid]
