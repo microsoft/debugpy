@@ -19,11 +19,16 @@ def debug(filename, port_num, debug_id, debug_options, run_as):
     import ptvsd.wrapper
     import pydevd
 
-    sys.argv[1:0] = [
+    args = [
             '--port', str(port_num),
             '--client', '127.0.0.1',
-            '--file', filename,
             ]
+    if run_as == 'module':
+        args.append('--module')
+        args.extend(('--file', filename + ":"))
+    else:
+        args.extend(('--file', filename))
+    sys.argv[1:0] = args
     try:
         pydevd.main()
     except SystemExit as ex:
