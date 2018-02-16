@@ -727,10 +727,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     def on_setExceptionBreakpoints(self, request, args):
         # TODO: docstring
         filters = args['filters']
-        exception_options = args['exceptionOptions']
-        use_exception_options = len(exception_options) > 0
+        exception_options = args.get('exceptionOptions', [])
 
-        if use_exception_options:
+        if exception_options:
             self.exceptions_mgr.apply_exception_options(exception_options)
         else:
             self.exceptions_mgr.remove_all_exception_breaks()
