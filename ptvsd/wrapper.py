@@ -454,7 +454,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     def on_configurationDone(self, request, args):
         # TODO: docstring
         self.send_response(request)
-        yield self.pydevd_request(pydevd_comm.CMD_RUN, '')
+        self.pydevd_request(pydevd_comm.CMD_RUN, '')
         self.send_process_event(self.start_reason)
 
     def on_disconnect(self, request, args):
