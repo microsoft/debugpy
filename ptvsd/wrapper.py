@@ -788,9 +788,13 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 pydevd_comm.CMD_STEP_OVER,
                 pydevd_comm.CMD_STEP_RETURN,
         }
+        EXCEPTION_REASONS = {
+            pydevd_comm.CMD_STEP_CAUGHT_EXCEPTION,
+            pydevd_comm.CMD_ADD_EXCEPTION_BREAK
+        }
         if reason in STEP_REASONS:
             reason = 'step'
-        elif reason == pydevd_comm.CMD_STEP_CAUGHT_EXCEPTION:
+        elif reason in EXCEPTION_REASONS:
             reason = 'exception'
         elif reason == pydevd_comm.CMD_SET_BREAK:
             reason = 'breakpoint'
