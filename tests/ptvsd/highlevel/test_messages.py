@@ -83,14 +83,16 @@ class InitializeTests(LifecycleTest, unittest.TestCase):
     @unittest.skip('tested via test_lifecycle.py')
     def test_basic(self):
         version = self.debugger.VERSION
-        with self.vsc.start(None, 8888):
+        addr = (None, 8888)
+        with self.vsc.start(addr):
             with self.disconnect_when_done():
                 self.set_debugger_response(CMD_VERSION, version)
                 req = self.send_request('initialize', {
                     'adapterID': 'spam',
                 })
+                received = self.vsc.received
 
-        self.assert_received(self.vsc, [
+        self.assert_vsc_received(received, [
             self.new_response(req, **dict(
                 supportsExceptionInfoRequest=True,
                 supportsConfigurationDoneRequest=True,
@@ -151,7 +153,10 @@ class NormalRequestTest(RunningTest):
         )
 
     def expected_pydevd_request(self, *args):
-        return self.debugger_msgs.new_request(self.PYDEVD_CMD, *args)
+        if self.PYDEVD_REQ is not None:
+            return self.debugger_msgs.new_request(self.PYDEVD_REQ, *args)
+        else:
+            return self.debugger_msgs.new_request(self.PYDEVD_CMD, *args)
 
 
 class ThreadsTests(NormalRequestTest, unittest.TestCase):
@@ -174,8 +179,9 @@ class ThreadsTests(NormalRequestTest, unittest.TestCase):
                 (12, ''),
             )
             self.send_request()
+            received = self.vsc.received
 
-        self.assert_received(self.vsc, [
+        self.assert_vsc_received(received, [
             self.expected_response(
                 threads=[
                     {'id': 1, 'name': 'spam'},

@@ -27,7 +27,8 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
 
     def test_attach(self):
         version = self.debugger.VERSION
-        with self.vsc.start(None, 8888):
+        addr = (None, 8888)
+        with self.vsc.start(addr):
             with self.vsc.wait_for_event('initialized'):
                 # initialize
                 self.set_debugger_response(CMD_VERSION, version)
@@ -46,6 +47,7 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
 
             # end
             req_disconnect = self.send_request('disconnect')
+        # An "exited" event comes once self.vsc closes.
 
         self.assert_received(self.vsc, [
             self.new_response(req_initialize, **dict(
@@ -77,6 +79,7 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
                 startMethod='attach',
             )),
             self.new_response(req_disconnect),
+            self.new_event('exited', exitCode=0),
         ])
         self.assert_received(self.debugger, [
             self.debugger_msgs.new_request(CMD_VERSION,
@@ -86,7 +89,8 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
 
     def test_launch(self):
         version = self.debugger.VERSION
-        with self.vsc.start(None, 8888):
+        addr = (None, 8888)
+        with self.vsc.start(addr):
             with self.vsc.wait_for_event('initialized'):
                 # initialize
                 self.set_debugger_response(CMD_VERSION, version)
@@ -105,6 +109,7 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
 
             # end
             req_disconnect = self.send_request('disconnect')
+        # An "exited" event comes once self.vsc closes.
 
         self.assert_received(self.vsc, [
             self.new_response(req_initialize, **dict(
@@ -136,6 +141,7 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
                 startMethod='launch',
             )),
             self.new_response(req_disconnect),
+            self.new_event('exited', exitCode=0),
         ])
         self.assert_received(self.debugger, [
             self.debugger_msgs.new_request(CMD_VERSION,

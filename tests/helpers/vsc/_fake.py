@@ -12,9 +12,19 @@ PROTOCOL = protocol.MessageProtocol(
 )
 
 
+def _bind(address):
+    connect, remote = socket.bind(address)
+
+    def connect(_connect=connect):
+        client, server = _connect()
+        return socket.Connection(client, server)
+    return connect, remote
+
+
 class Started(protocol.Started):
 
     def send_request(self, msg):
+        self.wait_until_connected()
         return self.fake.send_request(msg)
 
 
@@ -52,19 +62,23 @@ class FakeVSC(protocol.Daemon):
     PROTOCOL = PROTOCOL
 
     def __init__(self, start_adapter, handler=None):
-        super(FakeVSC, self).__init__(socket.connect, PROTOCOL, handler)
+        super(FakeVSC, self).__init__(
+            _bind,
+            PROTOCOL,
+            handler,
+        )
 
-        def start_adapter(host, port, _start_adapter=start_adapter):
-            self._adapter = _start_adapter(host, port)
-
+        def start_adapter(address, start=start_adapter):
+            self._adapter = start(address)
+            return self._adapter
         self._start_adapter = start_adapter
         self._adapter = None
 
-    def start(self, host, port):
+    def start(self, address):
         """Start the fake and the adapter."""
         if self._adapter is not None:
             raise RuntimeError('already started')
-        return super(FakeVSC, self).start(host, port)
+        return super(FakeVSC, self).start(address)
 
     def send_request(self, req):
         """Send the given Request object."""
@@ -94,26 +108,20 @@ class FakeVSC(protocol.Daemon):
 
     # internal methods
 
-    def _start(self, host=None):
-        start_adapter = (lambda: self._start_adapter(self._host, self._port))
-        if not self._host:
+    def _start(self, address):
+        host, port = address
+        if host is None:
             # The adapter is the server so start it first.
-            t = threading.Thread(target=start_adapter)
-            t.start()
-            super(FakeVSC, self)._start('127.0.0.1')
-            t.join(timeout=1)
-            if t.is_alive():
-                raise RuntimeError('timed out')
+            adapter = self._start_adapter((None, port))
+            return super(FakeVSC, self)._start(adapter.address)
         else:
             # The adapter is the client so start it last.
             # TODO: For now don't use this.
             raise NotImplementedError
-            t = threading.Thread(target=super(FakeVSC, self)._start)
-            t.start()
-            start_adapter()
-            t.join(timeout=1)
-            if t.is_alive():
-                raise RuntimeError('timed out')
+            addr, starting = super(FakeVSC, self)._start(address)
+            self._start_adapter(addr)
+            # TODO Wait for adapter to be ready?
+            return addr, starting
 
     def _close(self):
         if self._adapter is not None:

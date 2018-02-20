@@ -113,6 +113,8 @@ class VSCMessages(object):
 
 class VSCLifecycle(object):
 
+    PORT = 8888
+
     MIN_INITIALIZE_ARGS = {
         'adapterID': '<an adapter ID>',
     }
@@ -120,12 +122,12 @@ class VSCLifecycle(object):
     def __init__(self, fix):
         self._fix = fix
 
-    def launched(self, port=8888, **kwargs):
+    def launched(self, port=None, **kwargs):
         def start():
             self.launch(**kwargs)
         return self._started(start, port)
 
-    def attached(self, port=8888, **kwargs):
+    def attached(self, port=None, **kwargs):
         def start():
             self.attach(**kwargs)
         return self._started(start, port)
@@ -147,7 +149,10 @@ class VSCLifecycle(object):
 
     @contextlib.contextmanager
     def _started(self, start, port):
-        with self._fix.vsc.start(None, port):
+        if port is None:
+            port = self.PORT
+        addr = (None, port)
+        with self._fix.vsc.start(addr):
             with self._fix.disconnect_when_done():
                 start()
                 yield
@@ -167,8 +172,8 @@ class VSCLifecycle(object):
         self._send_request('configurationDone')
         next(self._fix.vsc_msgs.event_seq)
 
-        assert(self._fix.vsc.failures == [])
-        assert(self._fix.debugger.failures == [])
+        assert self._fix.vsc.failures == [], self._fix.vsc.failures
+        assert self._fix.debugger.failures == [], self._fix.debugger.failures
         if reset:
             self._fix.vsc.reset()
             self._fix.debugger.reset()
@@ -274,7 +279,7 @@ class HighlevelFixture(object):
             yield
         finally:
             self.send_request('disconnect')
-            self.vsc._received.pop(-1)
+            #self.vsc._received.pop(-1)
 
 
 class HighlevelTest(object):
@@ -292,6 +297,8 @@ class HighlevelTest(object):
             self.addCleanup(vsc.close)
             return vsc
         self.fix = self.FIXTURE(new_daemon)
+
+        self.maxDiff = None
 
     def __getattr__(self, name):
         return getattr(self.fix, name)
@@ -312,6 +319,11 @@ class HighlevelTest(object):
         """Return a new fake VSC that may be used in tests."""
         vsc, debugger = self.fix.new_fake(debugger, handler)
         return vsc, debugger
+
+    def assert_vsc_received(self, received, expected):
+        received = list(self.vsc.protocol.parse_each(received))
+        expected = list(self.vsc.protocol.parse_each(expected))
+        self.assertEqual(received, expected)
 
     def assert_received(self, daemon, expected):
         """Ensure that the received messages match the expected ones."""
