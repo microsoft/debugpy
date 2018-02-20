@@ -113,6 +113,8 @@ class VSCMessages(object):
 
 class VSCLifecycle(object):
 
+    PORT = 8888
+
     MIN_INITIALIZE_ARGS = {
         'adapterID': '<an adapter ID>',
     }
@@ -120,12 +122,12 @@ class VSCLifecycle(object):
     def __init__(self, fix):
         self._fix = fix
 
-    def launched(self, port=8888, **kwargs):
+    def launched(self, port=None, **kwargs):
         def start():
             self.launch(**kwargs)
         return self._started(start, port)
 
-    def attached(self, port=8888, **kwargs):
+    def attached(self, port=None, **kwargs):
         def start():
             self.attach(**kwargs)
         return self._started(start, port)
@@ -147,7 +149,10 @@ class VSCLifecycle(object):
 
     @contextlib.contextmanager
     def _started(self, start, port):
-        with self._fix.vsc.start(None, port):
+        if port is None:
+            port = self.PORT
+        addr = (None, port)
+        with self._fix.vsc.start(addr):
             with self._fix.disconnect_when_done():
                 start()
                 yield
@@ -167,8 +172,8 @@ class VSCLifecycle(object):
         self._send_request('configurationDone')
         next(self._fix.vsc_msgs.event_seq)
 
-        assert(self._fix.vsc.failures == [])
-        assert(self._fix.debugger.failures == [])
+        assert self._fix.vsc.failures == [], self._fix.vsc.failures
+        assert self._fix.debugger.failures == [], self._fix.debugger.failures
         if reset:
             self._fix.vsc.reset()
             self._fix.debugger.reset()

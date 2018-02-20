@@ -2,9 +2,9 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_VERSION,
 )
 
-from ptvsd.wrapper import start_server, start_client
+import ptvsd.wrapper as _ptvsd
 from ._pydevd import parse_message, encode_message, iter_messages, Message
-from tests.helpers import protocol
+from tests.helpers import protocol, socket
 
 
 PROTOCOL = protocol.MessageProtocol(
@@ -14,19 +14,24 @@ PROTOCOL = protocol.MessageProtocol(
 )
 
 
-def _connect(host, port):
-    if host is None:
-        return start_server(port), None
-    else:
-        return start_client(host, port), None
+def _bind(address):
+    connect, remote = socket.bind(address)
+
+    def connect(_connect=connect):
+        client, server = _connect()
+        pydevd, _, _ = _ptvsd._start(client, server)
+        return socket.Connection(pydevd, server)
+    return connect, remote
 
 
 class Started(protocol.Started):
 
     def send_response(self, msg):
+        self.wait_until_connected()
         return self.fake.send_response(msg)
 
     def send_event(self, msg):
+        self.wait_until_connected()
         return self.fake.send_event(msg)
 
 
@@ -92,7 +97,7 @@ class FakePyDevd(protocol.Daemon):
 
     def __init__(self, handler=None):
         super(FakePyDevd, self).__init__(
-            _connect,
+            _bind,
             PROTOCOL,
             (lambda msg, send: self.handle_request(msg, send, handler)),
         )

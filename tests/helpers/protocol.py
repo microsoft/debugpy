@@ -43,19 +43,33 @@ class MessageProtocol(namedtuple('Protocol', 'parse encode iter')):
 class Started(object):
     """A simple wrapper around a started message protocol daemon."""
 
-    def __init__(self, fake):
+    def __init__(self, fake, address, starting=None):
         self.fake = fake
+        self.address = address
+        self._starting = starting
 
     def __enter__(self):
+        self.wait_until_connected()
         return self
 
     def __exit__(self, *args):
         self.close()
 
+    def wait_until_connected(self, timeout=None):
+        starting = self._starting
+        if starting is None:
+            return
+        starting.join(timeout=timeout)
+        if starting.is_alive():
+            raise RuntimeError('timed out')
+        self._starting = None
+
     def send_message(self, msg):
-        return self.fake.send_response(msg)
+        self.wait_until_connected()
+        return self.fake.send_message(msg)
 
     def close(self):
+        self.wait_until_connected()
         self.fake.close()
 
 
@@ -69,8 +83,8 @@ class Daemon(object):
         """Ensure the message is legitimate."""
         # By default check nothing.
 
-    def __init__(self, connect, protocol, handler):
-        self._connect = connect
+    def __init__(self, bind, protocol, handler):
+        self._bind = bind
         self._protocol = protocol
 
         self._closed = False
@@ -81,10 +95,8 @@ class Daemon(object):
         self._default_handler = handler
 
         # These are set when we start.
-        self._host = None
-        self._port = None
+        self._address = None
         self._sock = None
-        self._server = None
         self._listener = None
 
     @property
@@ -103,18 +115,17 @@ class Daemon(object):
         """All send/recv failures thus far."""
         return list(self._failures)
 
-    def start(self, host, port):
+    def start(self, address):
         """Start the fake daemon.
 
-        This calls the earlier provided connect() function.
+        This calls the earlier provided bind() function.
 
         A listener loop is started in another thread to handle incoming
         messages from the socket.
         """
-        self._host = host or None
-        self._port = port
-        self._start()
-        return self.STARTED(self)
+        self._address = address
+        addr, starting = self._start(address)
+        return self.STARTED(self, addr, starting)
 
     def send_message(self, msg):
         """Serialize msg to the line format and send it to the socket."""
@@ -150,15 +161,17 @@ class Daemon(object):
 
     # internal methods
 
-    def _start(self, host=None):
-        self._sock, self._server = self._connect(
-            host or self._host,
-            self._port,
-        )
+    def _start(self, address):
+        connect, addr = self._bind(address)
 
-        # TODO: make it a daemon thread?
-        self._listener = threading.Thread(target=self._listen)
-        self._listener.start()
+        def run():
+            self._sock = connect()
+            # TODO: make it a daemon thread?
+            self._listener = threading.Thread(target=self._listen)
+            self._listener.start()
+        t = threading.Thread(target=run)
+        t.start()
+        return addr, t
 
     def _listen(self):
         try:
@@ -210,6 +223,7 @@ class Daemon(object):
         try:
             self._send(raw)
         except Exception as exc:
+            raise
             failure = StreamFailure('send', msg, exc)
             self._failures.append(failure)
 
@@ -222,9 +236,6 @@ class Daemon(object):
         if self._sock is not None:
             socket.close(self._sock)
             self._sock = None
-        if self._server is not None:
-            socket.close(self._server)
-            self._server = None
         if self._listener is not None:
             self._listener.join(timeout=1)
             # TODO: the listener isn't stopping!

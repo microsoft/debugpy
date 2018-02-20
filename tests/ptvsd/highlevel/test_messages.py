@@ -83,7 +83,8 @@ class InitializeTests(LifecycleTest, unittest.TestCase):
     @unittest.skip('tested via test_lifecycle.py')
     def test_basic(self):
         version = self.debugger.VERSION
-        with self.vsc.start(None, 8888):
+        addr = (None, 8888)
+        with self.vsc.start(addr):
             with self.disconnect_when_done():
                 self.set_debugger_response(CMD_VERSION, version)
                 req = self.send_request('initialize', {

@@ -27,7 +27,8 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
 
     def test_attach(self):
         version = self.debugger.VERSION
-        with self.vsc.start(None, 8888):
+        addr = (None, 8888)
+        with self.vsc.start(addr):
             with self.vsc.wait_for_event('initialized'):
                 # initialize
                 self.set_debugger_response(CMD_VERSION, version)
@@ -88,7 +89,8 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
 
     def test_launch(self):
         version = self.debugger.VERSION
-        with self.vsc.start(None, 8888):
+        addr = (None, 8888)
+        with self.vsc.start(addr):
             with self.vsc.wait_for_event('initialized'):
                 # initialize
                 self.set_debugger_response(CMD_VERSION, version)
