@@ -879,6 +879,45 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         pass
 
 
+########################
+# lifecycle
+
+def _create_server(port):
+    server = _new_sock()
+    server.bind(('127.0.0.1', port))
+    server.listen(1)
+    return server
+
+
+def _create_client():
+    return _new_sock()
+
+
+def _new_sock():
+    sock = socket.socket(socket.AF_INET,
+                         socket.SOCK_STREAM,
+                         socket.IPPROTO_TCP)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    return sock
+
+
+def _start(client, server):
+    name = 'ptvsd.Client' if server is None else 'ptvsd.Server'
+
+    pydevd = PydevdSocket(lambda *args: proc.on_pydevd_event(*args))
+    proc = VSCodeMessageProcessor(client, pydevd)
+
+    server_thread = threading.Thread(target=proc.process_messages,
+                                     name=name)
+    server_thread.daemon = True
+    server_thread.start()
+
+    return pydevd, proc, server_thread
+
+
+########################
+# pydevd hooks
+
 def start_server(port):
     """Return a socket to a (new) local pydevd-handling daemon.
 
@@ -887,24 +926,10 @@ def start_server(port):
 
     This is a replacement fori _pydevd_bundle.pydevd_comm.start_server.
     """
-    server = socket.socket(socket.AF_INET,
-                           socket.SOCK_STREAM,
-                           socket.IPPROTO_TCP)
-    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server.bind(('127.0.0.1', port))
-    server.listen(1)
-    client, addr = server.accept()
-
-    pydevd = PydevdSocket(lambda *args: proc.on_pydevd_event(*args))
-    proc = VSCodeMessageProcessor(client, pydevd)
-
-    server_thread = threading.Thread(target=proc.process_messages,
-                                     name='ptvsd.Server')
-    server_thread.daemon = True
-    server_thread.start()
-
+    server = _create_server(port)
+    client, _ = server.accept()
+    pydevd, proc, _ = _start(client, server)
     atexit.register(proc.close)
-
     return pydevd
 
 
@@ -916,22 +941,10 @@ def start_client(host, port):
 
     This is a replacement fori _pydevd_bundle.pydevd_comm.start_client.
     """
-    client = socket.socket(socket.AF_INET,
-                           socket.SOCK_STREAM,
-                           socket.IPPROTO_TCP)
-    client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    client = _create_client()
     client.connect((host, port))
-
-    pydevd = PydevdSocket(lambda *args: proc.on_pydevd_event(*args))
-    proc = VSCodeMessageProcessor(client, pydevd)
-
-    server_thread = threading.Thread(target=proc.process_messages,
-                                     name='ptvsd.Client')
-    server_thread.daemon = True
-    server_thread.start()
-
+    pydevd, proc, _ = _start(client, None)
     atexit.register(proc.close)
-
     return pydevd
 
 
