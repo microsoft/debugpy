@@ -62,7 +62,7 @@ def close(sock):
 
 class Connection(namedtuple('Connection', 'client server')):
     """A wrapper around a client socket.
-    
+
     If a server socket is provided then it will be closed when the
     client is closed.
     """
