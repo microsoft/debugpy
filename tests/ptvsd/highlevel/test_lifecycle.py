@@ -40,7 +40,6 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
                 req_attach = self.send_request('attach')
 
             # configuration
-            self.set_debugger_response(CMD_RUN, '')
             req_config = self.send_request('configurationDone')
 
             # Normal ops would go here.
@@ -102,7 +101,6 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
                 req_launch = self.send_request('launch')
 
             # configuration
-            self.set_debugger_response(CMD_RUN, '')
             req_config = self.send_request('configurationDone')
 
             # Normal ops would go here.

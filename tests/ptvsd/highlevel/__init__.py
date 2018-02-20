@@ -3,7 +3,6 @@ import itertools
 import platform
 
 from _pydevd_bundle.pydevd_comm import (
-    CMD_RUN,
     CMD_VERSION,
 )
 
@@ -168,9 +167,9 @@ class VSCLifecycle(object):
         next(self._fix.vsc_msgs.event_seq)
 
         self._handle_config(**config or {})
-        self._set_debugger_response(CMD_RUN, '')
         self._send_request('configurationDone')
         next(self._fix.vsc_msgs.event_seq)
+        next(self._fix.debugger_msgs.request_seq)  # CMD_RUN
 
         assert self._fix.vsc.failures == [], self._fix.vsc.failures
         assert self._fix.debugger.failures == [], self._fix.debugger.failures
