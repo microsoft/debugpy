@@ -11,8 +11,7 @@ import socket
 import sys
 import threading
 import traceback
-import untangle
-import platform
+import platform 
 
 try:
     import urllib
@@ -27,6 +26,7 @@ import _pydevd_bundle.pydevd_extension_utils as pydevd_extutil
 
 import ptvsd.ipcjson as ipcjson
 import ptvsd.futures as futures
+import ptvsd.untangle as untangle
 
 
 __author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
