@@ -2,8 +2,7 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-# TODO: with_statement is not needed
-from __future__ import print_function, with_statement, absolute_import
+from __future__ import print_function, absolute_import
 
 import atexit
 import os
