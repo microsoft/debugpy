@@ -2,8 +2,7 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-# TODO: with_statement is not needed
-from __future__ import print_function, with_statement, absolute_import
+from __future__ import print_function, absolute_import
 
 import atexit
 import os
@@ -11,8 +10,7 @@ import socket
 import sys
 import threading
 import traceback
-import untangle
-import platform
+import platform 
 
 try:
     import urllib
@@ -27,6 +25,7 @@ import _pydevd_bundle.pydevd_extension_utils as pydevd_extutil
 
 import ptvsd.ipcjson as ipcjson
 import ptvsd.futures as futures
+import ptvsd.untangle as untangle
 
 
 __author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
