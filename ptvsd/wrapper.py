@@ -5,13 +5,13 @@
 from __future__ import print_function, absolute_import
 
 import atexit
+import errno
 import os
+import platform
 import socket
 import sys
 import threading
 import traceback
-import platform 
-
 try:
     import urllib
     urllib.unquote
@@ -22,6 +22,7 @@ import _pydevd_bundle.pydevd_comm as pydevd_comm
 import _pydevd_bundle.pydevd_extension_api as pydevd_extapi
 import _pydevd_bundle.pydevd_extension_utils as pydevd_extutil
 #from _pydevd_bundle.pydevd_comm import pydevd_log
+import untangle
 
 import ptvsd.ipcjson as ipcjson
 import ptvsd.futures as futures
@@ -181,11 +182,19 @@ class PydevdSocket(object):
             if self.pipe_w is not None:
                 pipe_w = self.pipe_w
                 self.pipe_w = None
-                os.close(pipe_w)
+                try:
+                    os.close(pipe_w)
+                except OSError as exc:
+                    if exc.errno != errno.EBADF:
+                        raise
             if self.pipe_r is not None:
                 pipe_r = self.pipe_r
                 self.pipe_r = None
-                os.close(pipe_r)
+                try:
+                    os.close(pipe_r)
+                except OSError as exc:
+                    if exc.errno != errno.EBADF:
+                        raise
             if self._vscprocessor is not None:
                 proc = self._vscprocessor
                 self._vscprocessor = None
