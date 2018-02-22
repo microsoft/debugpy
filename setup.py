@@ -8,20 +8,22 @@ import os
 import os.path
 from setuptools import setup
 
+ROOT = os.path.dirname(os.path.abspath(__file__))
+
 # Add pydevd files as data files for this package. They are not treated as a package of their own,
 # because we don't actually want to provide pydevd - just use our own copy internally.
 def get_pydevd_package_data():
-    ptvsd_prefix = 'ptvsd/'
-    pydevd_prefix = ptvsd_prefix + 'pydevd'
+    ptvsd_prefix = os.path.join(ROOT, 'ptvsd')
+    pydevd_prefix = os.path.join(ptvsd_prefix, 'pydevd')
     for root, dirs, files in os.walk(pydevd_prefix):
         # From the root of pydevd repo, we want only scripts and subdirectories that
         # constitute the package itself (not helper scripts, tests etc). But when
         # walking down into those subdirectories, we want everything below.
-        if root == pydevd_prefix:
+        if os.path.normcase(root) == os.path.normcase(pydevd_prefix):
             dirs[:] = [d for d in dirs if d.startswith('pydev') or d.startswith('_pydev')]
             files[:] = [f for f in files if f.endswith('.py') and 'pydev' in f]
         for f in files:
-            yield os.path.join(root[len(ptvsd_prefix):], f)
+            yield os.path.join(root[len(ptvsd_prefix) + 1:], f)
 
 setup(name='ptvsd',
       version='4.0.0a1',
@@ -37,5 +39,5 @@ setup(name='ptvsd',
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: MIT License'],
       packages=['ptvsd'],
-      package_data={'ptvsd': list(get_pydevd_package_data())},
+      package_data={'ptvsd': list(get_pydevd_package_data()) + ['ThirdPartyNotices.txt']},
       )
