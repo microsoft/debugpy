@@ -479,7 +479,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 {
                     'filter': 'raised',
                     'label': 'Raised Exceptions',
-                    'default': 'true'
+                    'default': 'false'
                 },
                 {
                     'filter': 'uncaught',
