@@ -6,6 +6,7 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_VERSION,
     CMD_LIST_THREADS,
     CMD_THREAD_SUSPEND,
+    CMD_RUN,
 )
 
 from tests.helpers.pydevd import FakePyDevd
@@ -193,9 +194,9 @@ class VSCLifecycle(object):
                               **dict(default_threads=default_threads))
 
         self._handle_config(**config or {})
-        with self._fix.wait_for_event('process'):
-            self._fix.send_request('configurationDone')
-        next(self._fix.debugger_msgs.request_seq)  # CMD_RUN
+        with self._fix.expect_debugger_command(CMD_RUN):
+            with self._fix.wait_for_event('process'):
+                self._fix.send_request('configurationDone')
 
         if reset:
             self._fix.reset()
@@ -315,6 +316,12 @@ class HighlevelFixture(object):
             yield
         if self._hidden:
             next(self.vsc_msgs.event_seq)
+
+    @contextlib.contextmanager
+    def expect_debugger_command(self, cmdid):
+        yield
+        if self._hidden:
+            next(self.debugger_msgs.request_seq)
 
     def set_debugger_response(self, cmdid, payload):
         self.debugger.add_pending_response(cmdid, payload)
