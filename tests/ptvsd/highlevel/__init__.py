@@ -335,6 +335,9 @@ class HighlevelFixture(object):
     def set_threads(self, *threads, **kwargs):
         return self._set_threads(threads, **kwargs)
 
+    def set_thread(self, thread):
+        return self.set_threads(thread)[thread]
+
     def _set_threads(self, threads, default_threads=True):
         request = {t[1]: t for t in threads}
         response = {t: None for t in threads}
@@ -380,6 +383,12 @@ class HighlevelFixture(object):
                 CMD_THREAD_SUSPEND,
                 self.debugger_msgs.format_frames(thread, reason, *stack),
             )
+
+    def pause(self, thread, *stack):
+        tid = self.set_thread(thread)
+        self.suspend(thread, CMD_THREAD_SUSPEND, *stack)
+        self.send_request('stackTrace', {'threadId': tid})
+        return tid
 
     #def set_variables(self, ...):
     #    ...

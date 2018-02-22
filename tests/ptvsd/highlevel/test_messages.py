@@ -217,7 +217,7 @@ class StackTraceTests(NormalRequestTest, unittest.TestCase):
         thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                tid = self.set_threads(thread)[thread]
+                tid = self.set_thread(thread)
                 self.suspend(thread, CMD_THREAD_SUSPEND, *[
                     (2, 'spam', 'abc.py', 10),
                     (5, 'eggs', 'xyz.py', 2),
@@ -285,12 +285,10 @@ class ScopesTests(NormalRequestTest, unittest.TestCase):
         thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                tid = self.set_threads(thread)[thread]
-                self.suspend(thread, CMD_THREAD_SUSPEND, *[
+                self.pause(thread, *[
                     (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
                     (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
                 ])
-                self.fix.send_request('stackTrace', {'threadId': tid})
             self.send_request(
                 frameId=1,
             )
