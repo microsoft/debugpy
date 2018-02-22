@@ -148,16 +148,9 @@ class Daemon(object):
         self._handlers.append(entry)
         return handler
 
-    def reset(self, force=False):
+    def reset(self, *initial, **kwargs):
         """Clear the recorded messages."""
-        if self._failures:
-            raise RuntimeError('have failures ({!r})'.format(self._failures))
-        if self._handlers:
-            if force:
-                self._handlers = []
-            else:
-                raise RuntimeError('have pending handlers')
-        self._received = []
+        self._reset(initial, **kwargs)
 
     # internal methods
 
@@ -242,3 +235,13 @@ class Daemon(object):
             #if self._listener.is_alive():
             #    raise RuntimeError('timed out')
             self._listener = None
+
+    def _reset(self, initial, force=False):
+        if self._failures:
+            raise RuntimeError('have failures ({!r})'.format(self._failures))
+        if self._handlers:
+            if force:
+                self._handlers = []
+            else:
+                raise RuntimeError('have pending handlers')
+        self._received = list(self._protocol.parse_each(initial))

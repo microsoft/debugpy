@@ -115,8 +115,8 @@ class InitializeTests(LifecycleTest, unittest.TestCase):
             self.new_event(1, 'initialized'),
         ])
         self.assert_received(self.debugger, [
-            self.debugger_msgs.new_request(CMD_VERSION,
-                                           *['1.1', OS_ID, 'ID']),
+            self.new_debugger_request(CMD_VERSION,
+                                      *['1.1', OS_ID, 'ID']),
         ])
 
 
@@ -129,8 +129,8 @@ class NormalRequestTest(RunningTest):
     PYDEVD_REQ = None
     PYDEVD_CMD = None
 
-    def launched(self, port=8888):
-        return super(NormalRequestTest, self).launched(port)
+    def launched(self, port=8888, **kwargs):
+        return super(NormalRequestTest, self).launched(port, **kwargs)
 
     def set_debugger_response(self, *args, **kwargs):
         if self.PYDEVD_REQ is None:
@@ -145,6 +145,7 @@ class NormalRequestTest(RunningTest):
 
     def send_request(self, **args):
         self.req = self.fix.send_request(self.COMMAND, args)
+        return self.req
 
     def expected_response(self, **body):
         return self.new_response(
@@ -165,14 +166,10 @@ class ThreadsTests(NormalRequestTest, unittest.TestCase):
     PYDEVD_REQ = CMD_LIST_THREADS
 
     def pydevd_payload(self, *threads):
-        text = '<xml>'
-        for tid, tname in threads:
-            text += '<thread name="{}" id="{}" />'.format(tname, tid)
-        text += '</xml>'
-        return text
+        return self.debugger_msgs.format_threads(*threads)
 
-    def test_basic(self):
-        with self.launched():
+    def test_few(self):
+        with self.launched(default_threads=False):
             self.set_debugger_response(
                 (10, 'spam'),
                 (11, 'pydevd.eggs'),
@@ -188,6 +185,22 @@ class ThreadsTests(NormalRequestTest, unittest.TestCase):
                     # Threads named 'pydevd.*' are ignored.
                     {'id': 3, 'name': ''},
                 ],
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request(),
+        ])
+
+    def test_none(self):
+        with self.launched(default_threads=False):
+            self.set_debugger_response()
+            self.send_request()
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                threads=[],
             ),
             # no events
         ])
