@@ -6,7 +6,7 @@
 
 import os
 import os.path
-from setuptools import setup
+from setuptools import setup, Extension
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 
@@ -40,4 +40,7 @@ setup(name='ptvsd',
         'License :: OSI Approved :: MIT License'],
       packages=['ptvsd'],
       package_data={'ptvsd': list(get_pydevd_package_data()) + ['ThirdPartyNotices.txt']},
+      ext_modules=[Extension('ptvsd.pydevd._pydevd_bundle.pydevd_cython',
+                             ['ptvsd/pydevd/_pydevd_bundle/pydevd_cython.c'],
+                             optional=True)],
       )

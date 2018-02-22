@@ -36,12 +36,10 @@ TRACE_PROPERTY = 'pydevd_traceproperty.py'
 get_file_type = DONT_TRACE.get
 
 
-def handle_breakpoint_condition(py_db, info, breakpoint, new_frame, default_return_value):
+def handle_breakpoint_condition(py_db, info, breakpoint, new_frame):
     condition = breakpoint.condition
     try:
-        val = eval(condition, new_frame.f_globals, new_frame.f_locals)
-        if not val:
-            return default_return_value
+        return eval(condition, new_frame.f_globals, new_frame.f_locals)
 
     except:
         if type(condition) != type(''):
@@ -559,10 +557,9 @@ class PyDBFrame:
                     if stop or exist_result:
                         condition = breakpoint.condition
                         if condition is not None:
-                            result = handle_breakpoint_condition(main_debugger, info, breakpoint, new_frame,
-                                                                 self.trace_dispatch)
-                            if result is not None:
-                                return result
+                            result = handle_breakpoint_condition(main_debugger, info, breakpoint, new_frame)
+                            if not result:
+                                return self.trace_dispatch
 
                         if breakpoint.expression is not None:
                             handle_breakpoint_expression(breakpoint, info, new_frame)
