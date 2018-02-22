@@ -38,5 +38,7 @@ setup(name='ptvsd',
         'License :: OSI Approved :: MIT License'],
       packages=['ptvsd'],
       package_data={'ptvsd': list(get_pydevd_package_data())},
-      ext_modules=[Extension('ptvsd.pydevd._pydevd_bundle.pydevd_cython', ['ptvsd/pydevd/_pydevd_bundle/pydevd_cython.c'])],
+      ext_modules=[Extension('ptvsd.pydevd._pydevd_bundle.pydevd_cython',
+                             ['ptvsd/pydevd/_pydevd_bundle/pydevd_cython.c'],
+                             optional=True)],
       )
