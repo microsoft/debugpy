@@ -6,7 +6,7 @@
 
 import os
 import os.path
-from setuptools import setup
+from setuptools import setup, Extension
 
 # Add pydevd files as data files for this package. They are not treated as a package of their own,
 # because we don't actually want to provide pydevd - just use our own copy internally.
@@ -38,4 +38,7 @@ setup(name='ptvsd',
         'License :: OSI Approved :: MIT License'],
       packages=['ptvsd'],
       package_data={'ptvsd': list(get_pydevd_package_data())},
+      ext_modules=[Extension('ptvsd.pydevd._pydevd_bundle.pydevd_cython',
+                             ['ptvsd/pydevd/_pydevd_bundle/pydevd_cython.c'],
+                             optional=True)],
       )
