@@ -34,20 +34,27 @@ class PyDevdMessages(object):
 
     def new_request(self, cmdid, *args, **kwargs):
         """Return a new PyDevd request message."""
-        return self._new_message(cmdid, args=args, **kwargs)
+        seq = kwargs.pop('seq', None)
+        if seq is None:
+            seq = next(self.request_seq)
+        return self._new_message(cmdid, seq, args, **kwargs)
 
     def new_response(self, req, *args):
         """Return a new VSC response message."""
+        #seq = kwargs.pop('seq', None)
+        #if seq is None:
+        #    seq = next(self.response_seq)
         req = self.protocol.parse(req)
         return self._new_message(req.cmdid, req.seq, args)
 
     def new_event(self, cmdid, *args, **kwargs):
         """Return a new VSC event message."""
-        return self._new_message(cmdid, args=args, **kwargs)
-
-    def _new_message(self, cmdid, seq=None, args=()):
+        seq = kwargs.pop('seq', None)
         if seq is None:
-            seq = next(self.request_seq)
+            seq = next(self.event_seq)
+        return self._new_message(cmdid, seq, args, **kwargs)
+
+    def _new_message(self, cmdid, seq, args=()):
         text = '\t'.join(args)
         msg = (cmdid, seq, text)
         return self.protocol.parse(msg)
