@@ -209,14 +209,72 @@ class ThreadsTests(NormalRequestTest, unittest.TestCase):
         ])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class StackTraceTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'stackTrace'
 
     def test_basic(self):
-        raise NotImplementedError
+        thread = (10, 'x')
+        with self.launched():
+            with self.hidden():
+                tid = self.set_threads(thread)[thread]
+                self.suspend(thread, CMD_THREAD_SUSPEND, *[
+                    (2, 'spam', 'abc.py', 10),
+                    (5, 'eggs', 'xyz.py', 2),
+                ])
+            self.send_request(
+                threadId=tid,
+                #startFrame=1,
+                #levels=1,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                stackFrames=[
+                    {
+                        'id': 1,
+                        'name': 'spam',
+                        'source': {'path': 'abc.py'},
+                        'line': 10,
+                        'column': 0,
+                    },
+                    {
+                        'id': 2,
+                        'name': 'eggs',
+                        'source': {'path': 'xyz.py'},
+                        'line': 2,
+                        'column': 0,
+                    },
+                ],
+                totalFrames=2,
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [])
+
+    def test_no_threads(self):
+        with self.launched():
+            req = self.send_request(
+                threadId=10,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_failure(received, [], req)
+        self.assert_received(self.debugger, [])
+
+    def test_unknown_thread(self):
+        thread = (10, 'x')
+        with self.launched():
+            with self.hidden():
+                tid = self.set_threads(thread)[thread]
+            req = self.send_request(
+                threadId=tid + 1,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_failure(received, [], req)
+        self.assert_received(self.debugger, [])
 
 
 # TODO: finish!
