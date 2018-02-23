@@ -6,6 +6,7 @@
 
 import os
 import os.path
+import sys
 from setuptools import setup, Extension
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -25,6 +26,18 @@ def get_pydevd_package_data():
         for f in files:
             yield os.path.join(root[len(ptvsd_prefix) + 1:], f)
 
+cmdclass = {}
+
+if sys.version_info[0] == 2:
+    from setuptools.command.build_ext import build_ext
+    class build_optional_ext(build_ext):
+        def build_extension(self, ext):
+            try:
+                super(build_optional_ext, self).build_extension(ext)
+            except:
+                pass
+    cmdclass = { 'build_ext': build_optional_ext }
+
 setup(name='ptvsd',
       version='4.0.0a1',
       description='Visual Studio remote debugging server for Python',
@@ -43,4 +56,5 @@ setup(name='ptvsd',
       ext_modules=[Extension('ptvsd.pydevd._pydevd_bundle.pydevd_cython',
                              ['ptvsd/pydevd/_pydevd_bundle/pydevd_cython.c'],
                              optional=True)],
+      cmdclass=cmdclass,
       )
