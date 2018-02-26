@@ -22,7 +22,6 @@ import _pydevd_bundle.pydevd_comm as pydevd_comm
 import _pydevd_bundle.pydevd_extension_api as pydevd_extapi
 import _pydevd_bundle.pydevd_extension_utils as pydevd_extutil
 #from _pydevd_bundle.pydevd_comm import pydevd_log
-import untangle
 
 import ptvsd.ipcjson as ipcjson
 import ptvsd.futures as futures

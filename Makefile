@@ -11,7 +11,7 @@ depends:
 
 .PHONY: lint
 lint:
-	$(PYTHON) -m flake8 --ignore E24,E121,E123,E125,E126,E221,E226,E266,E704,E265 $(CURDIR)
+	$(PYTHON) -m flake8 --ignore E24,E121,E123,E125,E126,E221,E226,E266,E704,E265 --exclude ptvsd/pydevd $(CURDIR)
 
 .PHONY: test
 test:  ## Run the test suite.
