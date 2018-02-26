@@ -599,8 +599,6 @@ class PauseTests(NormalRequestTest, unittest.TestCase):
         raise NotImplementedError
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class ContinueTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'continue'
@@ -608,26 +606,26 @@ class ContinueTests(NormalRequestTest, unittest.TestCase):
     PYDEVD_RESP = None
 
     def test_basic(self):
-        raise NotImplementedError
+        thread = (10, 'x')
         with self.launched():
+            with self.hidden():
+                self.pause(thread, *[
+                    (2, 'spam', 'abc.py', 10),
+                ])
             self.send_request(
-                # ...
+                threadId=5,  # matches our thread
             )
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
-            self.expected_response(
-                # ...
-            ),
+            self.expected_response(),
             # no events
         ])
         self.assert_received(self.debugger, [
-            self.expected_pydevd_request(),
+            self.expected_pydevd_request('10'),
         ])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class NextTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'next'
@@ -635,26 +633,26 @@ class NextTests(NormalRequestTest, unittest.TestCase):
     PYDEVD_RESP = None
 
     def test_basic(self):
-        raise NotImplementedError
+        thread = (10, 'x')
         with self.launched():
+            with self.hidden():
+                self.pause(thread, *[
+                    (2, 'spam', 'abc.py', 10),
+                ])
             self.send_request(
-                # ...
+                threadId=5,  # matches our thread
             )
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
-            self.expected_response(
-                # ...
-            ),
+            self.expected_response(),
             # no events
         ])
         self.assert_received(self.debugger, [
-            self.expected_pydevd_request(),
+            self.expected_pydevd_request('10'),
         ])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class StepInTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'stepIn'
@@ -662,26 +660,26 @@ class StepInTests(NormalRequestTest, unittest.TestCase):
     PYDEVD_RESP = None
 
     def test_basic(self):
-        raise NotImplementedError
+        thread = (10, 'x')
         with self.launched():
+            with self.hidden():
+                self.pause(thread, *[
+                    (2, 'spam', 'abc.py', 10),
+                ])
             self.send_request(
-                # ...
+                threadId=5,  # matches our thread
             )
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
-            self.expected_response(
-                # ...
-            ),
+            self.expected_response(),
             # no events
         ])
         self.assert_received(self.debugger, [
-            self.expected_pydevd_request(),
+            self.expected_pydevd_request('10'),
         ])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class StepOutTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'stepOut'
@@ -689,21 +687,23 @@ class StepOutTests(NormalRequestTest, unittest.TestCase):
     PYDEVD_RESP = None
 
     def test_basic(self):
-        raise NotImplementedError
+        thread = (10, 'x')
         with self.launched():
+            with self.hidden():
+                self.pause(thread, *[
+                    (2, 'spam', 'abc.py', 10),
+                ])
             self.send_request(
-                # ...
+                threadId=5,  # matches our thread
             )
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
-            self.expected_response(
-                # ...
-            ),
+            self.expected_response(),
             # no events
         ])
         self.assert_received(self.debugger, [
-            self.expected_pydevd_request(),
+            self.expected_pydevd_request('10'),
         ])
 
 
