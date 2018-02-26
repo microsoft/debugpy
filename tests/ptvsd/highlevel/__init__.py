@@ -11,6 +11,7 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_VERSION,
     CMD_LIST_THREADS,
     CMD_THREAD_SUSPEND,
+    CMD_RETURN,
     CMD_RUN,
 )
 
@@ -364,7 +365,7 @@ class HighlevelFixture(object):
         if default_threads:
             threads = self._add_default_threads(threads)
         text = self.debugger_msgs.format_threads(*threads)
-        self.set_debugger_response(CMD_LIST_THREADS, text)
+        self.set_debugger_response(CMD_RETURN, text, reqid=CMD_LIST_THREADS)
         self.send_request('threads')
 
         for tinfo in self.vsc.received[-1].data['body']['threads']:
