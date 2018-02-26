@@ -793,7 +793,10 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         # TODO: docstring
         tid = self.thread_map.to_pydevd(args['threadId'])
         with self.active_exceptions_lock:
-            exc = self.active_exceptions[tid]
+            try:
+                exc = self.active_exceptions[tid]
+            except KeyError:
+                exc = ExceptionInfo('BaseException', 'exception: no description')
         self.send_response(
             request,
             exceptionId=exc.name,
