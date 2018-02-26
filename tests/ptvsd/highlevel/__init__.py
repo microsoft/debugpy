@@ -299,11 +299,12 @@ class HighlevelFixture(object):
     def hidden(self):
         vsc = self.vsc.received
         debugger = self.debugger.received
+        orig = self._hidden
         self._hidden = True
         try:
             yield
         finally:
-            self._hidden = False
+            self._hidden = orig
             self.vsc.reset(*vsc)
             self.debugger.reset(*debugger)
 
