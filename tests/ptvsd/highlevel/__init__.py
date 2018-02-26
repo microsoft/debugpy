@@ -6,6 +6,7 @@ try:
 except ImportError:
     import urllib
 
+from _pydevd_bundle import pydevd_xml
 from _pydevd_bundle.pydevd_comm import (
     CMD_VERSION,
     CMD_LIST_THREADS,
@@ -83,14 +84,8 @@ class PyDevdMessages(object):
 
     def format_variables(self, *variables):
         text = '<xml>'
-        varfmt = '<var name="{}" type="{}" value="{}"%s />'
-        for name, value, iscontainer in variables:
-            extra = ' isContainer="1"' if iscontainer else ''
-            text += (varfmt % extra).format(
-                urllib.quote(name),
-                urllib.quote(str(type(value))),
-                urllib.quote(str(value)),
-            )
+        for name, value in variables:
+            text += pydevd_xml.var_to_xml(value, name)
         text += '</xml>'
         return urllib.quote(text)
 

@@ -335,12 +335,12 @@ class VariablesTests(NormalRequestTest, unittest.TestCase):
                     (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
                 ])
             self.set_debugger_response(
-                # (var, value, iscontainer)
-                ('spam', 'eggs', False),
-                ('ham', [1, 2, 3], True),
-                ('x', True, False),
-                ('y', 42, False),
-                ('z', obj, False),
+                # (var, value)
+                ('spam', 'eggs'),
+                ('ham', [1, 2, 3]),
+                ('x', True),
+                ('y', 42),
+                ('z', obj),
             )
             self.send_request(
                 variablesReference=1,  # matches frame locals
@@ -352,28 +352,29 @@ class VariablesTests(NormalRequestTest, unittest.TestCase):
                 variables=[
                     {
                         'name': 'spam',
-                        'type': str(str),
-                        'value': 'eggs',
+                        'type': 'str',
+                        'value': "'eggs'",
                     },
                     {
                         'name': 'ham',
-                        'type': str(list),
+                        'type': 'list',
                         'value': '[1, 2, 3]',
                         'variablesReference': 2,
                     },
                     {
                         'name': 'x',
-                        'type': str(bool),
+                        'type': 'bool',
                         'value': 'True',
                     },
                     {
                         'name': 'y',
-                        'type': str(int),
+                        'type': 'int',
                         'value': '42',
                     },
                     {
                         'name': 'z',
-                        'type': str(MyType),
+                        'type': 'MyType',
+                        'variablesReference': 3,
                         'value': str(obj),
                     },
                 ],
@@ -395,18 +396,18 @@ class VariablesTests(NormalRequestTest, unittest.TestCase):
                     (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
                 ])
                 self.set_debugger_response(
-                    # (var, value, iscontainer)
-                    ('spam', {'x', 'y', 'z'}, True),
+                    # (var, value)
+                    ('spam', {'x', 'y', 'z'}),
                 )
                 self.send_request(
                     variablesReference=1,  # matches frame locals
                 )
             self.PYDEVD_CMD = CMD_GET_VARIABLE
             self.set_debugger_response(
-                # (var, value, iscontainer)
-                ('x', 1, False),
-                ('y', 2, False),
-                ('z', 3, False),
+                # (var, value)
+                ('x', 1),
+                ('y', 2),
+                ('z', 3),
             )
             self.send_request(
                 variablesReference=2,  # matches container
@@ -418,17 +419,17 @@ class VariablesTests(NormalRequestTest, unittest.TestCase):
                 variables=[
                     {
                         'name': 'x',
-                        'type': str(int),
+                        'type': 'int',
                         'value': '1',
                     },
                     {
                         'name': 'y',
-                        'type': str(int),
+                        'type': 'int',
                         'value': '2',
                     },
                     {
                         'name': 'z',
-                        'type': str(int),
+                        'type': 'int',
                         'value': '3',
                     },
                 ],
