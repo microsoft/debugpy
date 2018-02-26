@@ -567,31 +567,36 @@ class EvaluateTests(NormalRequestTest, unittest.TestCase):
         ])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class PauseTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'pause'
     PYDEVD_CMD = CMD_THREAD_SUSPEND
     PYDEVD_RESP = None
 
-    def test_basic(self):
-        raise NotImplementedError
+    def test_pause_one(self):
         with self.launched():
+            with self.hidden():
+                self.set_threads(
+                    (10, 'spam'),
+                    (11, ''),
+                )
             self.send_request(
-                # ...
+                threadId=5,  # matches our first thread
             )
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
-            self.expected_response(
-                # ...
-            ),
+            self.expected_response(),
             # no events
         ])
         self.assert_received(self.debugger, [
-            self.expected_pydevd_request(),
+            self.expected_pydevd_request('10'),
         ])
+
+    # TODO: finish!
+    @unittest.skip('not finished')
+    def test_pause_all(self):
+        raise NotImplementedError
 
 
 # TODO: finish!
