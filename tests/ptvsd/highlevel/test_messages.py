@@ -529,32 +529,41 @@ class SetVariableTests(NormalRequestTest, unittest.TestCase):
         ])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class EvaluateTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'evaluate'
     PYDEVD_CMD = CMD_EVALUATE_EXPRESSION
 
+    def pydevd_payload(self, variable):
+        return self.debugger_msgs.format_variables(variable)
+
     def test_basic(self):
-        raise NotImplementedError
+        thread = (10, 'x')
         with self.launched():
+            with self.hidden():
+                self.pause(thread, *[
+                    # (pfid, func, file, line)
+                    (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
+                    (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
+                ])
             self.set_debugger_response(
-                # ...
+                ('spam + 1', 43),
             )
             self.send_request(
-                # ...
+                frameId=2,
+                expression='spam + 1',
             )
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
             self.expected_response(
-                # ...
+                type='int',
+                result='43',
             ),
             # no events
         ])
         self.assert_received(self.debugger, [
-            self.expected_pydevd_request(),
+            self.expected_pydevd_request('10\t5\tLOCAL\tspam + 1\t1'),
         ])
 
 
