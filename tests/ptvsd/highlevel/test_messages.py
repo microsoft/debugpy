@@ -441,33 +441,91 @@ class VariablesTests(NormalRequestTest, unittest.TestCase):
         ])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class SetVariableTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'setVariable'
     PYDEVD_CMD = CMD_CHANGE_VARIABLE
     PYDEVD_RESP = CMD_RETURN
 
-    def test_basic(self):
-        raise NotImplementedError
+    def pydevd_payload(self, variable):
+        return self.debugger_msgs.format_variables(variable)
+
+    def _set_variables(self, varref, *variables):
+        with self.hidden():
+            self.fix.set_debugger_response(
+                CMD_GET_FRAME,
+                self.debugger_msgs.format_variables(*variables),
+            )
+            self.fix.send_request('variables', dict(
+                variablesReference=varref,
+            ))
+
+    def test_local(self):
+        thread = (10, 'x')
         with self.launched():
+            with self.hidden():
+                self.pause(thread, *[
+                    # (pfid, func, file, line)
+                    (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
+                    (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
+                ])
+                self._set_variables(
+                    1,  # matches frame locals
+                    ('spam', 42),
+                )
             self.set_debugger_response(
-                # ...
+                ('spam', 'eggs'),
             )
             self.send_request(
-                # ...
+                variablesReference=1,  # matches frame locals
+                name='spam',
+                value='eggs',
             )
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
             self.expected_response(
-                # ...
+                type='str',
+                value="'eggs'",
             ),
             # no events
         ])
         self.assert_received(self.debugger, [
-            self.expected_pydevd_request(),
+            self.expected_pydevd_request('10\t2\tFRAME\tspam\teggs'),
+        ])
+
+    def test_container(self):
+        thread = (10, 'x')
+        with self.launched():
+            with self.hidden():
+                self.pause(thread, *[
+                    # (pfid, func, file, line)
+                    (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
+                    (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
+                ])
+                self._set_variables(
+                    1,  # matches frame locals
+                    ('spam', {'x': 1}),
+                )
+            self.set_debugger_response(
+                ('x', 2),
+            )
+            self.send_request(
+                variablesReference=2,  # matches spam
+                name='x',
+                value='2',
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                type='int',
+                value='2',
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('10\t2\tFRAME\tspam\tx\t2'),
         ])
 
 
