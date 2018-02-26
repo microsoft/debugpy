@@ -347,8 +347,8 @@ class HighlevelFixture(object):
         if self._hidden:
             next(self.debugger_msgs.request_seq)
 
-    def set_debugger_response(self, cmdid, payload):
-        self.debugger.add_pending_response(cmdid, payload)
+    def set_debugger_response(self, cmdid, payload, **kwargs):
+        self.debugger.add_pending_response(cmdid, payload, **kwargs)
         if self._hidden:
             next(self.debugger_msgs.request_seq)
 

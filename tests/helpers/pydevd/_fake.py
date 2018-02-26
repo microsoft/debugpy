@@ -112,18 +112,21 @@ class FakePyDevd(protocol.Daemon):
         # XXX Ensure it's a request?
         return self.send_message(msg)
 
-    def add_pending_response(self, cmdid, text):
+    def add_pending_response(self, cmdid, text, reqid=None):
         """Add a response for a request."""
-        def handle_request(req, send_message, respid=cmdid):
+        if reqid is None:
+            reqid = cmdid
+        respid = cmdid
+
+        def handle_request(req, send_message):
             try:
                 cmdid, seq, _ = req
             except (IndexError, ValueError):
                 req = req.msg
                 cmdid, seq, _ = req
-            if cmdid != respid:
+            if cmdid != reqid:
                 return False
-            resp = Message(cmdid, seq, text)
+            resp = Message(respid, seq, text)
             send_message(resp)
             return True
-
         self.add_handler(handle_request)

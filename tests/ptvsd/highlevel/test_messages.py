@@ -9,6 +9,7 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_LIST_THREADS,
     CMD_REMOVE_BREAK,
     CMD_REMOVE_EXCEPTION_BREAK,
+    CMD_RETURN,
     CMD_SEND_CURR_EXCEPTION_TRACE,
     CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED,
     CMD_SET_BREAK,
@@ -126,18 +127,21 @@ class InitializeTests(LifecycleTest, unittest.TestCase):
 class NormalRequestTest(RunningTest):
 
     COMMAND = None
-    PYDEVD_REQ = None
     PYDEVD_CMD = None
+    PYDEVD_RESP = True
 
     def launched(self, port=8888, **kwargs):
         return super(NormalRequestTest, self).launched(port, **kwargs)
 
     def set_debugger_response(self, *args, **kwargs):
-        if self.PYDEVD_REQ is None:
+        if self.PYDEVD_RESP is None:
             return
+        if self.PYDEVD_RESP is True:
+            self.PYDEVD_RESP = self.PYDEVD_CMD
         self.fix.set_debugger_response(
-            self.PYDEVD_REQ,
+            self.PYDEVD_RESP,
             self.pydevd_payload(*args, **kwargs),
+            reqid=self.PYDEVD_CMD,
         )
 
     def pydevd_payload(self, *args, **kwargs):
@@ -154,16 +158,14 @@ class NormalRequestTest(RunningTest):
         )
 
     def expected_pydevd_request(self, *args):
-        if self.PYDEVD_REQ is not None:
-            return self.debugger_msgs.new_request(self.PYDEVD_REQ, *args)
-        else:
-            return self.debugger_msgs.new_request(self.PYDEVD_CMD, *args)
+        return self.debugger_msgs.new_request(self.PYDEVD_CMD, *args)
 
 
 class ThreadsTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'threads'
-    PYDEVD_REQ = CMD_LIST_THREADS
+    PYDEVD_CMD = CMD_LIST_THREADS
+    PYDEVD_RESP = CMD_RETURN
 
     def pydevd_payload(self, *threads):
         return self.debugger_msgs.format_threads(*threads)
@@ -311,7 +313,7 @@ class ScopesTests(NormalRequestTest, unittest.TestCase):
 class VariablesTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'variables'
-    PYDEVD_REQ = [
+    PYDEVD_CMD = [
         CMD_GET_FRAME,
         CMD_GET_VARIABLE,
     ]
@@ -324,7 +326,7 @@ class VariablesTests(NormalRequestTest, unittest.TestCase):
             pass
         obj = MyType()
         thread = (10, 'x')
-        self.PYDEVD_REQ = CMD_GET_FRAME
+        self.PYDEVD_CMD = CMD_GET_FRAME
         with self.launched():
             with self.hidden():
                 self.pause(thread, *[
@@ -384,7 +386,7 @@ class VariablesTests(NormalRequestTest, unittest.TestCase):
 
     def test_container(self):
         thread = (10, 'x')
-        self.PYDEVD_REQ = CMD_GET_FRAME
+        self.PYDEVD_CMD = CMD_GET_FRAME
         with self.launched():
             with self.hidden():
                 self.pause(thread, *[
@@ -399,7 +401,7 @@ class VariablesTests(NormalRequestTest, unittest.TestCase):
                 self.send_request(
                     variablesReference=1,  # matches frame locals
                 )
-            self.PYDEVD_REQ = CMD_GET_VARIABLE
+            self.PYDEVD_CMD = CMD_GET_VARIABLE
             self.set_debugger_response(
                 # (var, value, iscontainer)
                 ('x', 1, False),
@@ -443,7 +445,8 @@ class VariablesTests(NormalRequestTest, unittest.TestCase):
 class SetVariableTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'setVariable'
-    PYDEVD_REQ = CMD_CHANGE_VARIABLE
+    PYDEVD_CMD = CMD_CHANGE_VARIABLE
+    PYDEVD_RESP = CMD_RETURN
 
     def test_basic(self):
         raise NotImplementedError
@@ -472,7 +475,7 @@ class SetVariableTests(NormalRequestTest, unittest.TestCase):
 class EvaluateTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'evaluate'
-    PYDEVD_REQ = CMD_EVALUATE_EXPRESSION
+    PYDEVD_CMD = CMD_EVALUATE_EXPRESSION
 
     def test_basic(self):
         raise NotImplementedError
@@ -502,6 +505,7 @@ class PauseTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'pause'
     PYDEVD_CMD = CMD_THREAD_SUSPEND
+    PYDEVD_RESP = None
 
     def test_basic(self):
         raise NotImplementedError
@@ -528,6 +532,7 @@ class ContinueTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'continue'
     PYDEVD_CMD = CMD_THREAD_RUN
+    PYDEVD_RESP = None
 
     def test_basic(self):
         raise NotImplementedError
@@ -554,6 +559,7 @@ class NextTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'next'
     PYDEVD_CMD = CMD_STEP_OVER
+    PYDEVD_RESP = None
 
     def test_basic(self):
         raise NotImplementedError
@@ -580,6 +586,7 @@ class StepInTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'stepIn'
     PYDEVD_CMD = CMD_STEP_INTO
+    PYDEVD_RESP = None
 
     def test_basic(self):
         raise NotImplementedError
@@ -606,6 +613,7 @@ class StepOutTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'stepOut'
     PYDEVD_CMD = CMD_STEP_RETURN
+    PYDEVD_RESP = None
 
     def test_basic(self):
         raise NotImplementedError
@@ -635,6 +643,7 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
         [CMD_REMOVE_BREAK],
         [CMD_SET_BREAK],
     ]
+    PYDEVD_RESP = None
 
     def test_basic(self):
         raise NotImplementedError
@@ -664,6 +673,7 @@ class SetExceptionBreakpointsTests(NormalRequestTest, unittest.TestCase):
         [CMD_REMOVE_EXCEPTION_BREAK],
         [CMD_ADD_EXCEPTION_BREAK],
     ]
+    PYDEVD_RESP = None
 
     def test_basic(self):
         raise NotImplementedError
