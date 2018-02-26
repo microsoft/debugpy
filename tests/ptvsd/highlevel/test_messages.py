@@ -219,6 +219,7 @@ class StackTraceTests(NormalRequestTest, unittest.TestCase):
             with self.hidden():
                 tid = self.set_thread(thread)
                 self.suspend(thread, CMD_THREAD_SUSPEND, *[
+                    # (pfid, func, file, line)
                     (2, 'spam', 'abc.py', 10),
                     (5, 'eggs', 'xyz.py', 2),
                 ])
@@ -286,6 +287,7 @@ class ScopesTests(NormalRequestTest, unittest.TestCase):
         with self.launched():
             with self.hidden():
                 self.pause(thread, *[
+                    # (pfid, func, file, line)
                     (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
                     (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
                 ])
@@ -293,7 +295,6 @@ class ScopesTests(NormalRequestTest, unittest.TestCase):
                 frameId=1,
             )
             received = self.vsc.received
-
         self.assert_vsc_received(received, [
             self.expected_response(
                 scopes=[{
@@ -307,8 +308,6 @@ class ScopesTests(NormalRequestTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class VariablesTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'variables'
@@ -317,8 +316,126 @@ class VariablesTests(NormalRequestTest, unittest.TestCase):
         CMD_GET_VARIABLE,
     ]
 
-    def test_basic(self):
-        raise NotImplementedError
+    def pydevd_payload(self, *variables):
+        return self.debugger_msgs.format_variables(*variables)
+
+    def test_locals(self):
+        class MyType(object):
+            pass
+        obj = MyType()
+        thread = (10, 'x')
+        self.PYDEVD_REQ = CMD_GET_FRAME
+        with self.launched():
+            with self.hidden():
+                self.pause(thread, *[
+                    # (pfid, func, file, line)
+                    (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
+                    (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
+                ])
+            self.set_debugger_response(
+                # (var, value, iscontainer)
+                ('spam', 'eggs', False),
+                ('ham', [1, 2, 3], True),
+                ('x', True, False),
+                ('y', 42, False),
+                ('z', obj, False),
+            )
+            self.send_request(
+                variablesReference=1,  # matches frame locals
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                variables=[
+                    {
+                        'name': 'spam',
+                        'type': str(str),
+                        'value': 'eggs',
+                    },
+                    {
+                        'name': 'ham',
+                        'type': str(list),
+                        'value': '[1, 2, 3]',
+                        'variablesReference': 2,
+                    },
+                    {
+                        'name': 'x',
+                        'type': str(bool),
+                        'value': 'True',
+                    },
+                    {
+                        'name': 'y',
+                        'type': str(int),
+                        'value': '42',
+                    },
+                    {
+                        'name': 'z',
+                        'type': str(MyType),
+                        'value': str(obj),
+                    },
+                ],
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('10\t2\tFRAME'),
+        ])
+
+    def test_container(self):
+        thread = (10, 'x')
+        self.PYDEVD_REQ = CMD_GET_FRAME
+        with self.launched():
+            with self.hidden():
+                self.pause(thread, *[
+                    # (pfid, func, file, line)
+                    (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
+                    (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
+                ])
+                self.set_debugger_response(
+                    # (var, value, iscontainer)
+                    ('spam', {'x', 'y', 'z'}, True),
+                )
+                self.send_request(
+                    variablesReference=1,  # matches frame locals
+                )
+            self.PYDEVD_REQ = CMD_GET_VARIABLE
+            self.set_debugger_response(
+                # (var, value, iscontainer)
+                ('x', 1, False),
+                ('y', 2, False),
+                ('z', 3, False),
+            )
+            self.send_request(
+                variablesReference=2,  # matches container
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                variables=[
+                    {
+                        'name': 'x',
+                        'type': str(int),
+                        'value': '1',
+                    },
+                    {
+                        'name': 'y',
+                        'type': str(int),
+                        'value': '2',
+                    },
+                    {
+                        'name': 'z',
+                        'type': str(int),
+                        'value': '3',
+                    },
+                ],
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('10\t2\tFRAME\tspam'),
+        ])
 
 
 # TODO: finish!
@@ -330,6 +447,24 @@ class SetVariableTests(NormalRequestTest, unittest.TestCase):
 
     def test_basic(self):
         raise NotImplementedError
+        with self.launched():
+            self.set_debugger_response(
+                # ...
+            )
+            self.send_request(
+                # ...
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                # ...
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request(),
+        ])
 
 
 # TODO: finish!
@@ -341,6 +476,24 @@ class EvaluateTests(NormalRequestTest, unittest.TestCase):
 
     def test_basic(self):
         raise NotImplementedError
+        with self.launched():
+            self.set_debugger_response(
+                # ...
+            )
+            self.send_request(
+                # ...
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                # ...
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request(),
+        ])
 
 
 # TODO: finish!
@@ -352,6 +505,21 @@ class PauseTests(NormalRequestTest, unittest.TestCase):
 
     def test_basic(self):
         raise NotImplementedError
+        with self.launched():
+            self.send_request(
+                # ...
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                # ...
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request(),
+        ])
 
 
 # TODO: finish!
@@ -363,6 +531,21 @@ class ContinueTests(NormalRequestTest, unittest.TestCase):
 
     def test_basic(self):
         raise NotImplementedError
+        with self.launched():
+            self.send_request(
+                # ...
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                # ...
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request(),
+        ])
 
 
 # TODO: finish!
@@ -374,6 +557,21 @@ class NextTests(NormalRequestTest, unittest.TestCase):
 
     def test_basic(self):
         raise NotImplementedError
+        with self.launched():
+            self.send_request(
+                # ...
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                # ...
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request(),
+        ])
 
 
 # TODO: finish!
@@ -385,6 +583,21 @@ class StepInTests(NormalRequestTest, unittest.TestCase):
 
     def test_basic(self):
         raise NotImplementedError
+        with self.launched():
+            self.send_request(
+                # ...
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                # ...
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request(),
+        ])
 
 
 # TODO: finish!
@@ -396,6 +609,21 @@ class StepOutTests(NormalRequestTest, unittest.TestCase):
 
     def test_basic(self):
         raise NotImplementedError
+        with self.launched():
+            self.send_request(
+                # ...
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                # ...
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request(),
+        ])
 
 
 # TODO: finish!
@@ -410,6 +638,21 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
 
     def test_basic(self):
         raise NotImplementedError
+        with self.launched():
+            self.send_request(
+                # ...
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                # ...
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request(),
+        ])
 
 
 # TODO: finish!
@@ -424,6 +667,21 @@ class SetExceptionBreakpointsTests(NormalRequestTest, unittest.TestCase):
 
     def test_basic(self):
         raise NotImplementedError
+        with self.launched():
+            self.send_request(
+                # ...
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                # ...
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request(),
+        ])
 
 
 # TODO: finish!
@@ -434,6 +692,19 @@ class ExceptionInfoTests(NormalRequestTest, unittest.TestCase):
 
     def test_basic(self):
         raise NotImplementedError
+        with self.launched():
+            self.send_request(
+                # ...
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                # ...
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [])
 
 
 ##################################

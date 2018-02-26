@@ -1,6 +1,10 @@
 import contextlib
 import itertools
 import platform
+try:
+    import urllib.parse as urllib
+except ImportError:
+    import urllib
 
 from _pydevd_bundle.pydevd_comm import (
     CMD_VERSION,
@@ -76,6 +80,19 @@ class PyDevdMessages(object):
         text += '</thread>'
         text += '</xml>'
         return text
+
+    def format_variables(self, *variables):
+        text = '<xml>'
+        varfmt = '<var name="{}" type="{}" value="{}"%s />'
+        for name, value, iscontainer in variables:
+            extra = ' isContainer="1"' if iscontainer else ''
+            text += (varfmt % extra).format(
+                urllib.quote(name),
+                urllib.quote(str(type(value))),
+                urllib.quote(str(value)),
+            )
+        text += '</xml>'
+        return urllib.quote(text)
 
 
 class VSCMessages(object):
@@ -395,6 +412,7 @@ class HighlevelFixture(object):
         tid = self.set_thread(thread)
         self.suspend(thread, CMD_THREAD_SUSPEND, *stack)
         self.send_request('stackTrace', {'threadId': tid})
+        self.send_request('scopes', {'frameId': 1})
         return tid
 
     #def set_variables(self, ...):
