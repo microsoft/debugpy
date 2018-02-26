@@ -148,12 +148,21 @@ class NormalRequestTest(RunningTest):
         return ''
 
     def send_request(self, **args):
-        self.req = self.fix.send_request(self.COMMAND, args)
-        return self.req
+        req = self.fix.send_request(self.COMMAND, args)
+        if not self.ishidden:
+            try:
+                reqs = self.reqs
+            except AttributeError:
+                reqs = self.reqs = []
+            reqs.append(req)
+        return req
+
+    def _next_request(self):
+        return self.reqs.pop(0)
 
     def expected_response(self, **body):
         return self.new_response(
-            self.req,
+            self._next_request(),
             **body
         )
 
@@ -707,8 +716,6 @@ class StepOutTests(NormalRequestTest, unittest.TestCase):
         ])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'setBreakpoints'
@@ -718,22 +725,142 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
     ]
     PYDEVD_RESP = None
 
-    def test_basic(self):
-        raise NotImplementedError
+    def test_initial(self):
         with self.launched():
             self.send_request(
-                # ...
+                source={'path': 'spam.py'},
+                breakpoints=[
+                    {'line': '10'},
+                    {'line': '15',
+                     'condition': 'i == 3'},
+                ],
             )
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
             self.expected_response(
-                # ...
+                breakpoints=[
+                    {'id': 1,
+                     'verified': True,
+                     'line': '10'},
+                    {'id': 2,
+                     'verified': True,
+                     'line': '15'},
+                ],
             ),
             # no events
         ])
+        self.PYDEVD_CMD = CMD_SET_BREAK
         self.assert_received(self.debugger, [
-            self.expected_pydevd_request(),
+            self.expected_pydevd_request(
+                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone'),
+            self.expected_pydevd_request(
+                '2\tpython-line\tspam.py\t15\tNone\ti == 3\tNone'),
+        ])
+
+    def test_with_existing(self):
+        with self.launched():
+            with self.hidden():
+                self.PYDEVD_CMD = CMD_SET_BREAK
+                self.expected_pydevd_request(
+                    '1\tpython-line\tspam.py\t10\tNone\tNone\tNone')
+                self.expected_pydevd_request(
+                    '2\tpython-line\tspam.py\t17\tNone\tNone\tNone')
+                self.fix.send_request('setBreakpoints', dict(
+                    source={'path': 'spam.py'},
+                    breakpoints=[
+                        {'line': '10'},
+                        {'line': '17'},
+                    ],
+                ))
+            self.send_request(
+                source={'path': 'spam.py'},
+                breakpoints=[
+                    {'line': '113'},
+                    {'line': '2'},
+                    {'line': '10'},  # a repeat
+                ],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                breakpoints=[
+                    {'id': 3,
+                     'verified': True,
+                     'line': '113'},
+                    {'id': 4,
+                     'verified': True,
+                     'line': '2'},
+                    {'id': 5,
+                     'verified': True,
+                     'line': '10'},
+                ],
+            ),
+            # no events
+        ])
+        self.PYDEVD_CMD = CMD_REMOVE_BREAK
+        if self.debugger.received[0].payload.endswith('1'):
+            removed = [
+                self.expected_pydevd_request('python-line\tspam.py\t1'),
+                self.expected_pydevd_request('python-line\tspam.py\t2'),
+            ]
+        else:
+            removed = [
+                self.expected_pydevd_request('python-line\tspam.py\t2'),
+                self.expected_pydevd_request('python-line\tspam.py\t1'),
+            ]
+        self.PYDEVD_CMD = CMD_SET_BREAK
+        self.assert_received(self.debugger, removed + [
+            self.expected_pydevd_request(
+                '3\tpython-line\tspam.py\t113\tNone\tNone\tNone'),
+            self.expected_pydevd_request(
+                '4\tpython-line\tspam.py\t2\tNone\tNone\tNone'),
+            self.expected_pydevd_request(
+                '5\tpython-line\tspam.py\t10\tNone\tNone\tNone'),
+        ])
+
+    # TODO: fix!
+    @unittest.skip('broken: https://github.com/Microsoft/ptvsd/issues/126')
+    def test_multiple_files(self):
+        with self.launched():
+            print(self.vsc.received)
+            self.send_request(
+                source={'path': 'spam.py'},
+                breakpoints=[{'line': '10'}],
+            )
+            print(self.vsc.received)
+            self.send_request(
+                source={'path': 'eggs.py'},
+                breakpoints=[{'line': '17'}],
+            )
+            print(self.vsc.received)
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                breakpoints=[
+                    {'id': 1,
+                     'verified': True,
+                     'line': '10'},
+                ],
+            ),
+            self.expected_response(
+                breakpoints=[
+                    {'id': 2,
+                     'verified': True,
+                     'line': '17'},
+                ],
+            ),
+            # no events
+        ])
+
+        self.PYDEVD_CMD = CMD_SET_BREAK
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request(
+                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone'),
+            self.expected_pydevd_request(
+                '2\tpython-line\teggs.py\t17\tNone\tNone\tNone'),
         ])
 
 

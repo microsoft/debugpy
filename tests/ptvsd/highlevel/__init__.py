@@ -296,6 +296,10 @@ class HighlevelFixture(object):
             self._lifecycle = VSCLifecycle(self)
             return self._lifecycle
 
+    @property
+    def ishidden(self):
+        return self._hidden
+
     @contextlib.contextmanager
     def hidden(self):
         vsc = self.vsc.received
