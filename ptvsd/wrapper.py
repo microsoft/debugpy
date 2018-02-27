@@ -832,11 +832,12 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     def on_pydevd_thread_kill(self, seq, args):
         # TODO: docstring
         try:
-            tid = self.thread_map.to_vscode(args, autogen=False)
+            pyd_tid = args.strip()
+            vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=False)
         except KeyError:
             pass
         else:
-            self.send_event('thread', reason='exited', threadId=tid)
+            self.send_event('thread', reason='exited', threadId=vsc_tid)
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_SUSPEND)
     def on_pydevd_thread_suspend(self, seq, args):
@@ -877,6 +878,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     def on_pydevd_thread_run(self, seq, args):
         # TODO: docstring
         pyd_tid, reason = args.split('\t')
+        pyd_tid = pyd_tid.strip()
 
         # Stack trace, and all frames and variables for this thread
         # are now invalid; clear their IDs.
