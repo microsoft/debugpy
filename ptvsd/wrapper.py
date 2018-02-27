@@ -553,17 +553,20 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         threads = []
         for xthread in xthreads:
             try:
-                tid = self.thread_map.to_vscode(xthread['id'], autogen=False)
-            except KeyError:
-                continue
-
-            try:
                 name = unquote(xthread['name'])
             except KeyError:
                 name = None
-
+            
             if not self.is_debugger_internal_thread(name):
-                threads.append({'id': tid, 'name': name})
+                pyd_tid = xthread['id']
+                try:
+                    vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=False)
+                except KeyError:
+                    # This is a previously unseen thread
+                    vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=True)
+                    self.send_event('thread', reason='started', threadId=vsc_tid)
+
+                threads.append({'id': vsc_tid, 'name': name})
 
         self.send_response(request, threads=threads)
 
@@ -825,6 +828,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         except KeyError:
             name = None
         if not self.is_debugger_internal_thread(name):
+            # Any internal pydevd or ptvsd threads will be ignored everywhere
             tid = self.thread_map.to_vscode(xml.thread['id'], autogen=True)
             self.send_event('thread', reason='started', threadId=tid)
 
