@@ -1817,11 +1817,41 @@ class ThreadRunTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class SendCurrExcTraceTests(PyDevdEventTest, unittest.TestCase):
 
     CMD = CMD_SEND_CURR_EXCEPTION_TRACE
+    EVENT = None
+
+    def pydevd_payload(self, thread, exc, frame):
+        return self.debugger_msgs.format_exception(thread[0], exc, frame)
+
+    def test_basic(self):
+        thread = (10, 'x')
+        exc = RuntimeError('something went wrong')
+        frame = (2, 'spam', 'abc.py', 10)  # (pfid, func, file, line)
+        with self.launched():
+            with self.hidden():
+                tid = self.set_thread(thread)
+            self.send_event(thread, exc, frame)
+            received = self.vsc.received
+
+            self.send_request('exceptionInfo', dict(
+                threadId=tid,
+            ))
+            resp = self.vsc.received[-1]
+
+        self.assert_vsc_received(received, [])
+        self.assert_received(self.debugger, [])
+        self.assertTrue(resp.data['success'], resp.data['message'])
+        self.assertEqual(resp.data['body'], dict(
+            exceptionId='RuntimeError',
+            description='something went wrong',
+            breakMode='unhandled',
+            details=dict(
+                message='something went wrong',
+                typeName='RuntimeError',
+            ),
+        ))
 
 
 # TODO: finish!
