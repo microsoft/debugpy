@@ -1379,25 +1379,97 @@ class SetExceptionBreakpointsTests(NormalRequestTest, unittest.TestCase):
         ])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class ExceptionInfoTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'exceptionInfo'
 
-    def test_basic(self):
-        raise NotImplementedError
+    # modes: ['never', 'always', 'unhandled', 'userUnhandled']
+    #
+    # min response:
+    #   exceptionId='',
+    #   breakMode='',
+    #
+    # max response:
+    #   exceptionId='',
+    #   description='',
+    #   breakMode='',
+    #   details=dict(
+    #       message='',
+    #       typeName='',
+    #       fullTypeName='',
+    #       evaluateName='',
+    #       stackTrace='',
+    #       innerException=[
+    #           # details
+    #           # details
+    #           # ...
+    #       ],
+    #   ),
+
+    def test_active_exception(self):
+        thread = (10, 'x')
+        exc = RuntimeError('something went wrong')
+        frame = (2, 'spam', 'abc.py', 10)  # (pfid, func, file, line)
         with self.launched():
+            with self.hidden():
+                tid = self.error(thread, exc, frame)
             self.send_request(
-                # ...
+                threadId=tid,
             )
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
             self.expected_response(
-                # ...
+                exceptionId='RuntimeError',
+                description='something went wrong',
+                breakMode='unhandled',
+                details=dict(
+                    message='something went wrong',
+                    typeName='RuntimeError',
+                ),
             ),
-            # no events
+        ])
+        self.assert_received(self.debugger, [])
+
+    # TODO: verify behavior
+    @unittest.skip('poorly specified (broken?)')
+    def test_no_exception(self):
+        thread = (10, 'x')
+        with self.launched():
+            with self.hidden():
+                tid = self.pause(thread)
+            self.send_request(
+                threadId=tid,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+            ),
+        ])
+        self.assert_received(self.debugger, [])
+
+    # TODO: verify behavior
+    @unittest.skip('poorly specified (broken?)')
+    def test_exception_cleared(self):
+        thread = (10, 'x')
+        exc = RuntimeError('something went wrong')
+        frame = (2, 'spam', 'abc.py', 10)  # (pfid, func, file, line)
+        with self.launched():
+            with self.hidden():
+                tid = self.error(thread, exc, frame)
+                self.send_debugger_event(
+                    CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED,
+                    str(thread[0]),
+                )
+            self.send_request(
+                threadId=tid,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+            ),
         ])
         self.assert_received(self.debugger, [])
 
