@@ -824,17 +824,14 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
     @unittest.skip('broken: https://github.com/Microsoft/ptvsd/issues/126')
     def test_multiple_files(self):
         with self.launched():
-            print(self.vsc.received)
             self.send_request(
                 source={'path': 'spam.py'},
                 breakpoints=[{'line': '10'}],
             )
-            print(self.vsc.received)
             self.send_request(
                 source={'path': 'eggs.py'},
                 breakpoints=[{'line': '17'}],
             )
-            print(self.vsc.received)
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
@@ -864,8 +861,6 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
         ])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class SetExceptionBreakpointsTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'setExceptionBreakpoints'
@@ -875,22 +870,512 @@ class SetExceptionBreakpointsTests(NormalRequestTest, unittest.TestCase):
     ]
     PYDEVD_RESP = None
 
-    def test_basic(self):
-        raise NotImplementedError
+    def _check_options(self, options, expectedpydevd):
         with self.launched():
             self.send_request(
-                # ...
+                filters=[],
+                exceptionOptions=options,
             )
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
-            self.expected_response(
-                # ...
-            ),
-            # no events
+            self.expected_response(),
         ])
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+        self.assert_received(
+            self.debugger,
+            [self.expected_pydevd_request(expect)
+             for expect in expectedpydevd],
+        )
+
+    def _check_option(self, paths, mode, expectedpydevd):
+        options = [{
+            'path': paths,
+            'breakMode': mode,
+        }]
+        self._check_options(options, expectedpydevd)
+
+    # TODO: We've hard-coded the currently supported modes.  If other
+    # modes are added later then we need to add more tests.  We don't
+    # have a programatic alternative that is very readable.
+
+    def test_single_option_single_path_mode_never(self):
+        path = {
+            'names': ['Python Exceptions'],
+        }
+        self._check_option(
+            [path],
+            'never',
+            ['python-BaseException\t0\t0\t0'],
+        )
+
+    def test_single_option_single_path_mode_always(self):
+        path = {
+            'names': ['Python Exceptions'],
+        }
+        self._check_option(
+            [path],
+            'always',
+            ['python-BaseException\t3\t0\t0'],
+        )
+
+    def test_single_option_single_path_mode_unhandled(self):
+        path = {
+            'names': ['Python Exceptions'],
+        }
+        self._check_option(
+            [path],
+            'unhandled',
+            ['python-BaseException\t0\t1\t0'],
+        )
+
+    def test_single_option_single_path_mode_userUnhandled(self):
+        path = {
+            'names': ['Python Exceptions'],
+        }
+        self._check_option(
+            [path],
+            'userUnhandled',
+            ['python-BaseException\t0\t1\t0'],
+        )
+
+    def test_single_option_empty_paths(self):
+        self._check_option([], 'userUnhandled', [])
+
+    def test_single_option_single_path_python_exception(self):
+        path = {
+            'names': ['ImportError'],
+        }
+        self._check_option(
+            [path],
+            'userUnhandled',
+            [],
+        )
+
+    def test_single_option_single_path_not_python_category(self):
+        path = {
+            'names': ['not Python Exceptions'],
+        }
+        self._check_option(
+            [path],
+            'userUnhandled',
+            [],
+        )
+
+    # TODO: verify behavior
+    @unittest.skip('poorly specified')
+    def test_single_option_single_path_multiple_names(self):
+        path = {
+            'names': [
+                'Python Exceptions',
+                # The rest are ignored by ptvsd?  VSC?
+                'spam',
+                'eggs'
+            ],
+        }
+        self._check_option(
+            [path],
+            'always',
+            ['python-BaseException\t3\t0\t0'],
+        )
+
+    def test_single_option_shallow_path(self):
+        path = [
+            {'names': ['Python Exceptions']},
+            {'names': ['ImportError']},
+        ]
+        self._check_option(path, 'always', [
+            'python-ImportError\t3\t0\t0',
+        ])
+
+    def test_single_option_deep_path(self):
+        path = [
+            {'names': ['Python Exceptions']},
+            {'names': ['ImportError']},
+            {'names': ['RuntimeError']},
+            {'names': ['ValueError']},
+            {'names': ['MyError']},
+        ]
+        self._check_option(path, 'always', [
+            'python-ImportError\t3\t0\t0',
+            'python-RuntimeError\t3\t0\t0',
+            'python-ValueError\t3\t0\t0',
+            'python-MyError\t3\t0\t0',
+        ])
+
+    # TODO: verify behavior
+    @unittest.skip('poorly specified')
+    def test_single_option_multiple_names(self):
+        path = [
+            {'names': ['Python Exceptions']},
+            {'names': ['ImportError', 'RuntimeError', 'ValueError']},
+        ]
+        self._check_option(path, 'always', [
+            'python-ImportError\t3\t0\t0',
+            'python-RuntimeError\t3\t0\t0',
+            'python-ValueError\t3\t0\t0',
+        ])
+
+    # TODO: verify behavior
+    @unittest.skip('poorly specified')
+    def test_single_option_first_path_not_category(self):
+        self._check_option(
+            [
+                {'names': ['not Python Exceptions']},
+                {'names': ['other']},
+             ],
+            'always',
+            [],
+        )
+
+    # TODO: verify behavior
+    @unittest.skip('poorly specified')
+    def test_single_option_unknown_exception(self):
+        path = [
+            {'names': ['Python Exceptions']},
+            {'names': ['AnUnknownException']},
+        ]
+        with self.assertRaises(ValueError):
+            self._check_option(path, 'always', [])
+
+    def test_multiple_options(self):
+        options = [
+            # shallow path
+            {'path': [
+                {'names': ['Python Exceptions']},
+                {'names': ['ImportError']},
+             ],
+             'breakMode': 'always'},
+            # ignored
+            {'path': [
+                {'names': ['non-Python Exceptions']},
+                {'names': ['OSError']},
+             ],
+             'breakMode': 'always'},
+            # deep path
+            {'path': [
+                {'names': ['Python Exceptions']},
+                {'names': ['ModuleNotFoundError']},
+                {'names': ['RuntimeError']},
+                {'names': ['MyError']},
+             ],
+             'breakMode': 'unhandled'},
+            # multiple names
+            {'path': [
+                {'names': ['Python Exceptions']},
+                {'names': ['ValueError', 'IndexError']},
+             ],
+             'breakMode': 'never'},
+            # catch-all
+            {'path': [
+                {'names': ['Python Exceptions']},
+             ],
+             'breakMode': 'userUnhandled'},
+        ]
+        self._check_options(options, [
+            # shallow path
+            'python-ImportError\t3\t0\t0',
+            # ignored
+            # deep path
+            'python-ModuleNotFoundError\t0\t1\t0',
+            'python-RuntimeError\t0\t1\t0',
+            'python-MyError\t0\t1\t0',
+            # multiple names
+            'python-ValueError\t0\t0\t0',
+            'python-IndexError\t0\t0\t0',
+            # catch-all
+            'python-BaseException\t0\t1\t0',
+        ])
+
+    def test_options_with_existing_filters(self):
+        with self.launched():
+            with self.hidden():
+                self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+                self.expected_pydevd_request('python-BaseException\t0\t1\t0')
+                self.fix.send_request('setExceptionBreakpoints', dict(
+                    filters=[
+                        'uncaught',
+                    ],
+                ))
+            self.send_request(
+                filters=[],
+                exceptionOptions=[
+                    {'path': [
+                        {'names': ['Python Exceptions']},
+                        {'names': ['ImportError']},
+                     ],
+                     'breakMode': 'never'},
+                    {'path': [
+                        {'names': ['Python Exceptions']},
+                        {'names': ['RuntimeError']},
+                     ],
+                     'breakMode': 'always'},
+                ]
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+        ])
+        self.PYDEVD_CMD = CMD_REMOVE_EXCEPTION_BREAK
+        removed = [
+            self.expected_pydevd_request('python-BaseException'),
+        ]
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+        self.assert_received(self.debugger, removed + [
+            self.expected_pydevd_request('python-ImportError\t0\t0\t0'),
+            self.expected_pydevd_request('python-RuntimeError\t3\t0\t0'),
+        ])
+
+    def test_options_with_existing_options(self):
+        with self.launched():
+            with self.hidden():
+                self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+                self.expected_pydevd_request('python-ImportError\t0\t1\t0')
+                self.expected_pydevd_request('python-BaseException\t3\t0\t0')
+                self.fix.send_request('setExceptionBreakpoints', dict(
+                    filters=[],
+                    exceptionOptions=[
+                        {'path': [
+                            {'names': ['Python Exceptions']},
+                            {'names': ['ImportError']},
+                         ],
+                         'breakMode': 'unhandled'},
+                        {'path': [
+                            {'names': ['Python Exceptions']},
+                         ],
+                         'breakMode': 'always'},
+                    ],
+                ))
+            self.send_request(
+                filters=[],
+                exceptionOptions=[
+                    {'path': [
+                        {'names': ['Python Exceptions']},
+                        {'names': ['ImportError']},
+                     ],
+                     'breakMode': 'never'},
+                    {'path': [
+                        {'names': ['Python Exceptions']},
+                        {'names': ['RuntimeError']},
+                     ],
+                     'breakMode': 'unhandled'},
+                ]
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+        ])
+        self.PYDEVD_CMD = CMD_REMOVE_EXCEPTION_BREAK
+        removed = [
+            self.expected_pydevd_request('python-ImportError'),
+            self.expected_pydevd_request('python-BaseException'),
+        ]
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+        self.assert_received(self.debugger, removed + [
+            self.expected_pydevd_request('python-ImportError\t0\t0\t0'),
+            self.expected_pydevd_request('python-RuntimeError\t0\t1\t0'),
+        ])
+
+    # TODO: As with the option modes, we've hard-coded the filters
+    # in the following tests.  If the supported filters change then
+    # we must adjust/extend the tests.
+
+    def test_single_filter_raised(self):
+        with self.launched():
+            self.send_request(
+                filters=[
+                    'raised',
+                ],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+        ])
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
         self.assert_received(self.debugger, [
-            self.expected_pydevd_request(),
+            self.expected_pydevd_request('python-BaseException\t3\t0\t0'),
+        ])
+
+    def test_single_filter_uncaught(self):
+        with self.launched():
+            self.send_request(
+                filters=[
+                    'uncaught',
+                ],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+        ])
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('python-BaseException\t0\t1\t0'),
+        ])
+
+    def test_multiple_filters_all(self):
+        with self.launched():
+            self.send_request(
+                filters=[
+                    'uncaught',
+                    'raised',
+                ],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+        ])
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('python-BaseException\t3\t1\t0'),
+        ])
+
+    def test_multiple_filters_repeat(self):
+        with self.launched():
+            self.send_request(
+                filters=[
+                    'raised',
+                    'raised',
+                ],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+        ])
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('python-BaseException\t3\t0\t0'),
+        ])
+
+    def test_empty_filters(self):
+        with self.launched():
+            self.send_request(
+                filters=[],
+            )
+
+            self.assert_received(self.vsc, [
+                self.expected_response()
+                # no events
+            ])
+            self.assert_received(self.debugger, [])
+
+    def test_filters_with_existing_filters(self):
+        with self.launched():
+            with self.hidden():
+                self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+                self.expected_pydevd_request('python-BaseException\t0\t1\t0')
+                self.fix.send_request('setExceptionBreakpoints', dict(
+                    filters=[
+                        'uncaught',
+                    ],
+                ))
+            self.send_request(
+                filters=[
+                    'raised',
+                ],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+        ])
+        self.PYDEVD_CMD = CMD_REMOVE_EXCEPTION_BREAK
+        removed = [
+            self.expected_pydevd_request('python-BaseException'),
+        ]
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+        self.assert_received(self.debugger, removed + [
+            self.expected_pydevd_request('python-BaseException\t3\t0\t0'),
+        ])
+
+    def test_filters_with_existing_options(self):
+        with self.launched():
+            with self.hidden():
+                self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+                self.expected_pydevd_request('python-ImportError\t0\t1\t0')
+                self.expected_pydevd_request('python-BaseException\t3\t0\t0')
+                self.fix.send_request('setExceptionBreakpoints', dict(
+                    filters=[],
+                    exceptionOptions=[
+                        {'path': [
+                            {'names': ['Python Exceptions']},
+                            {'names': ['ImportError']},
+                         ],
+                         'breakMode': 'unhandled'},
+                        {'path': [
+                            {'names': ['Python Exceptions']},
+                         ],
+                         'breakMode': 'always'},
+                    ],
+                ))
+            self.send_request(
+                filters=[
+                    'raised',
+                ],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+        ])
+        self.PYDEVD_CMD = CMD_REMOVE_EXCEPTION_BREAK
+        removed = [
+            self.expected_pydevd_request('python-ImportError'),
+            self.expected_pydevd_request('python-BaseException'),
+        ]
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+        self.assert_received(self.debugger, removed + [
+            self.expected_pydevd_request('python-BaseException\t3\t0\t0'),
+        ])
+
+    def test_filters_with_empty_options(self):
+        with self.launched():
+            self.send_request(
+                filters=[
+                    'raised',
+                ],
+                exceptionOptions=[],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+        ])
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('python-BaseException\t3\t0\t0'),
+        ])
+
+    # TODO: verify behavior
+    @unittest.skip('poorly specified')
+    def test_options_and_filters_both_provided(self):
+        with self.launched():
+            self.send_request(
+                filters=[
+                    'raised',
+                ],
+                exceptionOptions=[
+                    {'path': [
+                        {'names': ['Python Exceptions']},
+                        {'names': ['ImportError']},
+                     ],
+                     'breakMode': 'unhandled'},
+                ],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+        ])
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+        self.assert_received(self.debugger, [
+            'python-BaseException\t3\t0\t0',
+            'python-ImportError\t0\t1\t0',
         ])
 
 
