@@ -1854,8 +1854,27 @@ class SendCurrExcTraceTests(PyDevdEventTest, unittest.TestCase):
         ))
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class SendCurrExcTraceProceededTests(PyDevdEventTest, unittest.TestCase):
 
     CMD = CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED
+    EVENT = None
+
+    # See https://github.com/Microsoft/ptvsd/issues/141.
+
+    def pydevd_payload(self, threadid):
+        return str(threadid)
+
+    def test_basic(self):
+        thread = (10, 'x')
+        exc = RuntimeError('something went wrong')
+        frame = (2, 'spam', 'abc.py', 10)  # (pfid, func, file, line)
+        text = self.debugger_msgs.format_exception(thread[0], exc, frame)
+        with self.launched():
+            with self.hidden():
+                self.set_thread(thread)
+                self.fix.send_event(CMD_SEND_CURR_EXCEPTION_TRACE, text)
+            self.send_event(10)
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [])
+        self.assert_received(self.debugger, [])
