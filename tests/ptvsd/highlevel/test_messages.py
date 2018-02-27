@@ -1789,11 +1789,32 @@ class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
-class ThreadRunTests(PyDevdEventTest, unittest.TestCase):
+class ThreadRunTests(ThreadEventTest, unittest.TestCase):
 
     CMD = CMD_THREAD_RUN
+    EVENT = 'continued'
+
+    def pydevd_payload(self, threadid, reason):
+        return '{}\t{}'.format(threadid, reason)
+
+    def test_basic(self):
+        thread = (10, '')
+        with self.launched():
+            with self.hidden():
+                self.pause(thread, *[
+                    # (pfid, func, file, line)
+                    (2, 'spam', 'abc.py', 10),
+                    (5, 'eggs', 'xyz.py', 2),
+                ])
+            tid = self.send_event(10, '???')
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_event(
+                threadId=tid,
+            ),
+        ])
+        self.assert_received(self.debugger, [])
 
 
 # TODO: finish!
