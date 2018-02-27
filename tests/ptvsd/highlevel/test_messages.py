@@ -9,6 +9,7 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_LIST_THREADS,
     CMD_REMOVE_BREAK,
     CMD_REMOVE_EXCEPTION_BREAK,
+    CMD_RETURN,
     CMD_SEND_CURR_EXCEPTION_TRACE,
     CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED,
     CMD_SET_BREAK,
@@ -115,8 +116,8 @@ class InitializeTests(LifecycleTest, unittest.TestCase):
             self.new_event(1, 'initialized'),
         ])
         self.assert_received(self.debugger, [
-            self.debugger_msgs.new_request(CMD_VERSION,
-                                           *['1.1', OS_ID, 'ID']),
+            self.new_debugger_request(CMD_VERSION,
+                                      *['1.1', OS_ID, 'ID']),
         ])
 
 
@@ -126,53 +127,60 @@ class InitializeTests(LifecycleTest, unittest.TestCase):
 class NormalRequestTest(RunningTest):
 
     COMMAND = None
-    PYDEVD_REQ = None
     PYDEVD_CMD = None
+    PYDEVD_RESP = True
 
-    def launched(self, port=8888):
-        return super(NormalRequestTest, self).launched(port)
+    def launched(self, port=8888, **kwargs):
+        return super(NormalRequestTest, self).launched(port, **kwargs)
 
     def set_debugger_response(self, *args, **kwargs):
-        if self.PYDEVD_REQ is None:
+        if self.PYDEVD_RESP is None:
             return
+        if self.PYDEVD_RESP is True:
+            self.PYDEVD_RESP = self.PYDEVD_CMD
         self.fix.set_debugger_response(
-            self.PYDEVD_REQ,
+            self.PYDEVD_RESP,
             self.pydevd_payload(*args, **kwargs),
+            reqid=self.PYDEVD_CMD,
         )
 
     def pydevd_payload(self, *args, **kwargs):
         return ''
 
     def send_request(self, **args):
-        self.req = self.fix.send_request(self.COMMAND, args)
+        req = self.fix.send_request(self.COMMAND, args)
+        if not self.ishidden:
+            try:
+                reqs = self.reqs
+            except AttributeError:
+                reqs = self.reqs = []
+            reqs.append(req)
+        return req
+
+    def _next_request(self):
+        return self.reqs.pop(0)
 
     def expected_response(self, **body):
         return self.new_response(
-            self.req,
+            self._next_request(),
             **body
         )
 
     def expected_pydevd_request(self, *args):
-        if self.PYDEVD_REQ is not None:
-            return self.debugger_msgs.new_request(self.PYDEVD_REQ, *args)
-        else:
-            return self.debugger_msgs.new_request(self.PYDEVD_CMD, *args)
+        return self.debugger_msgs.new_request(self.PYDEVD_CMD, *args)
 
 
 class ThreadsTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'threads'
-    PYDEVD_REQ = CMD_LIST_THREADS
+    PYDEVD_CMD = CMD_LIST_THREADS
+    PYDEVD_RESP = CMD_RETURN
 
     def pydevd_payload(self, *threads):
-        text = '<xml>'
-        for tid, tname in threads:
-            text += '<thread name="{}" id="{}" />'.format(tname, tid)
-        text += '</xml>'
-        return text
+        return self.debugger_msgs.format_threads(*threads)
 
-    def test_basic(self):
-        with self.launched():
+    def test_few(self):
+        with self.launched(default_threads=False):
             self.set_debugger_response(
                 (10, 'spam'),
                 (11, 'pydevd.eggs'),
@@ -195,120 +203,519 @@ class ThreadsTests(NormalRequestTest, unittest.TestCase):
             self.expected_pydevd_request(),
         ])
 
+    def test_none(self):
+        with self.launched(default_threads=False):
+            self.set_debugger_response()
+            self.send_request()
+            received = self.vsc.received
 
-# TODO: finish!
-@unittest.skip('not finished')
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                threads=[],
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request(),
+        ])
+
+
 class StackTraceTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'stackTrace'
 
     def test_basic(self):
-        raise NotImplementedError
+        thread = (10, 'x')
+        with self.launched():
+            with self.hidden():
+                tid = self.set_thread(thread)
+                self.suspend(thread, CMD_THREAD_SUSPEND, *[
+                    # (pfid, func, file, line)
+                    (2, 'spam', 'abc.py', 10),
+                    (5, 'eggs', 'xyz.py', 2),
+                ])
+            self.send_request(
+                threadId=tid,
+                #startFrame=1,
+                #levels=1,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                stackFrames=[
+                    {
+                        'id': 1,
+                        'name': 'spam',
+                        'source': {'path': 'abc.py'},
+                        'line': 10,
+                        'column': 0,
+                    },
+                    {
+                        'id': 2,
+                        'name': 'eggs',
+                        'source': {'path': 'xyz.py'},
+                        'line': 2,
+                        'column': 0,
+                    },
+                ],
+                totalFrames=2,
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [])
+
+    def test_no_threads(self):
+        with self.launched():
+            req = self.send_request(
+                threadId=10,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_failure(received, [], req)
+        self.assert_received(self.debugger, [])
+
+    def test_unknown_thread(self):
+        thread = (10, 'x')
+        with self.launched():
+            with self.hidden():
+                tid = self.set_threads(thread)[thread]
+            req = self.send_request(
+                threadId=tid + 1,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_failure(received, [], req)
+        self.assert_received(self.debugger, [])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class ScopesTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'scopes'
 
     def test_basic(self):
-        raise NotImplementedError
+        thread = (10, 'x')
+        with self.launched():
+            with self.hidden():
+                self.pause(thread, *[
+                    # (pfid, func, file, line)
+                    (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
+                    (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
+                ])
+            self.send_request(
+                frameId=1,
+            )
+            received = self.vsc.received
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                scopes=[{
+                    'name': 'Locals',
+                    'expensive': False,
+                    'variablesReference': 1,  # matches frame 2 locals
+                }],
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class VariablesTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'variables'
-    PYDEVD_REQ = [
+    PYDEVD_CMD = [
         CMD_GET_FRAME,
         CMD_GET_VARIABLE,
     ]
 
-    def test_basic(self):
-        raise NotImplementedError
+    def pydevd_payload(self, *variables):
+        return self.debugger_msgs.format_variables(*variables)
+
+    def test_locals(self):
+        class MyType(object):
+            pass
+        obj = MyType()
+        thread = (10, 'x')
+        self.PYDEVD_CMD = CMD_GET_FRAME
+        with self.launched():
+            with self.hidden():
+                self.pause(thread, *[
+                    # (pfid, func, file, line)
+                    (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
+                    (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
+                ])
+            self.set_debugger_response(
+                # (var, value)
+                ('spam', 'eggs'),
+                ('ham', [1, 2, 3]),
+                ('x', True),
+                ('y', 42),
+                ('z', obj),
+            )
+            self.send_request(
+                variablesReference=1,  # matches frame locals
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                variables=[
+                    {
+                        'name': 'spam',
+                        'type': 'str',
+                        'value': "'eggs'",
+                    },
+                    {
+                        'name': 'ham',
+                        'type': 'list',
+                        'value': '[1, 2, 3]',
+                        'variablesReference': 2,
+                    },
+                    {
+                        'name': 'x',
+                        'type': 'bool',
+                        'value': 'True',
+                    },
+                    {
+                        'name': 'y',
+                        'type': 'int',
+                        'value': '42',
+                    },
+                    {
+                        'name': 'z',
+                        'type': 'MyType',
+                        'variablesReference': 3,
+                        'value': str(obj),
+                    },
+                ],
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('10\t2\tFRAME'),
+        ])
+
+    def test_container(self):
+        thread = (10, 'x')
+        self.PYDEVD_CMD = CMD_GET_FRAME
+        with self.launched():
+            with self.hidden():
+                self.pause(thread, *[
+                    # (pfid, func, file, line)
+                    (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
+                    (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
+                ])
+                self.set_debugger_response(
+                    # (var, value)
+                    ('spam', {'x', 'y', 'z'}),
+                )
+                self.send_request(
+                    variablesReference=1,  # matches frame locals
+                )
+            self.PYDEVD_CMD = CMD_GET_VARIABLE
+            self.set_debugger_response(
+                # (var, value)
+                ('x', 1),
+                ('y', 2),
+                ('z', 3),
+            )
+            self.send_request(
+                variablesReference=2,  # matches container
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                variables=[
+                    {
+                        'name': 'x',
+                        'type': 'int',
+                        'value': '1',
+                    },
+                    {
+                        'name': 'y',
+                        'type': 'int',
+                        'value': '2',
+                    },
+                    {
+                        'name': 'z',
+                        'type': 'int',
+                        'value': '3',
+                    },
+                ],
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('10\t2\tFRAME\tspam'),
+        ])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class SetVariableTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'setVariable'
-    PYDEVD_REQ = CMD_CHANGE_VARIABLE
+    PYDEVD_CMD = CMD_CHANGE_VARIABLE
+    PYDEVD_RESP = CMD_RETURN
 
-    def test_basic(self):
-        raise NotImplementedError
+    def pydevd_payload(self, variable):
+        return self.debugger_msgs.format_variables(variable)
+
+    def _set_variables(self, varref, *variables):
+        with self.hidden():
+            self.fix.set_debugger_response(
+                CMD_GET_FRAME,
+                self.debugger_msgs.format_variables(*variables),
+            )
+            self.fix.send_request('variables', dict(
+                variablesReference=varref,
+            ))
+
+    def test_local(self):
+        thread = (10, 'x')
+        with self.launched():
+            with self.hidden():
+                self.pause(thread, *[
+                    # (pfid, func, file, line)
+                    (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
+                    (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
+                ])
+                self._set_variables(
+                    1,  # matches frame locals
+                    ('spam', 42),
+                )
+            self.set_debugger_response(
+                ('spam', 'eggs'),
+            )
+            self.send_request(
+                variablesReference=1,  # matches frame locals
+                name='spam',
+                value='eggs',
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                type='str',
+                value="'eggs'",
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('10\t2\tFRAME\tspam\teggs'),
+        ])
+
+    def test_container(self):
+        thread = (10, 'x')
+        with self.launched():
+            with self.hidden():
+                self.pause(thread, *[
+                    # (pfid, func, file, line)
+                    (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
+                    (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
+                ])
+                self._set_variables(
+                    1,  # matches frame locals
+                    ('spam', {'x': 1}),
+                )
+            self.set_debugger_response(
+                ('x', 2),
+            )
+            self.send_request(
+                variablesReference=2,  # matches spam
+                name='x',
+                value='2',
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                type='int',
+                value='2',
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('10\t2\tFRAME\tspam\tx\t2'),
+        ])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class EvaluateTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'evaluate'
-    PYDEVD_REQ = CMD_EVALUATE_EXPRESSION
+    PYDEVD_CMD = CMD_EVALUATE_EXPRESSION
+
+    def pydevd_payload(self, variable):
+        return self.debugger_msgs.format_variables(variable)
 
     def test_basic(self):
-        raise NotImplementedError
+        thread = (10, 'x')
+        with self.launched():
+            with self.hidden():
+                self.pause(thread, *[
+                    # (pfid, func, file, line)
+                    (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
+                    (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
+                ])
+            self.set_debugger_response(
+                ('spam + 1', 43),
+            )
+            self.send_request(
+                frameId=2,
+                expression='spam + 1',
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                type='int',
+                result='43',
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('10\t5\tLOCAL\tspam + 1\t1'),
+        ])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class PauseTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'pause'
     PYDEVD_CMD = CMD_THREAD_SUSPEND
+    PYDEVD_RESP = None
 
-    def test_basic(self):
+    def test_pause_one(self):
+        with self.launched():
+            with self.hidden():
+                self.set_threads(
+                    (10, 'spam'),
+                    (11, ''),
+                )
+            self.send_request(
+                threadId=5,  # matches our first thread
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('10'),
+        ])
+
+    # TODO: finish!
+    @unittest.skip('not finished')
+    def test_pause_all(self):
         raise NotImplementedError
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class ContinueTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'continue'
     PYDEVD_CMD = CMD_THREAD_RUN
+    PYDEVD_RESP = None
 
     def test_basic(self):
-        raise NotImplementedError
+        thread = (10, 'x')
+        with self.launched():
+            with self.hidden():
+                self.pause(thread, *[
+                    (2, 'spam', 'abc.py', 10),
+                ])
+            self.send_request(
+                threadId=5,  # matches our thread
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('10'),
+        ])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class NextTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'next'
     PYDEVD_CMD = CMD_STEP_OVER
+    PYDEVD_RESP = None
 
     def test_basic(self):
-        raise NotImplementedError
+        thread = (10, 'x')
+        with self.launched():
+            with self.hidden():
+                self.pause(thread, *[
+                    (2, 'spam', 'abc.py', 10),
+                ])
+            self.send_request(
+                threadId=5,  # matches our thread
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('10'),
+        ])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class StepInTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'stepIn'
     PYDEVD_CMD = CMD_STEP_INTO
+    PYDEVD_RESP = None
 
     def test_basic(self):
-        raise NotImplementedError
+        thread = (10, 'x')
+        with self.launched():
+            with self.hidden():
+                self.pause(thread, *[
+                    (2, 'spam', 'abc.py', 10),
+                ])
+            self.send_request(
+                threadId=5,  # matches our thread
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('10'),
+        ])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class StepOutTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'stepOut'
     PYDEVD_CMD = CMD_STEP_RETURN
+    PYDEVD_RESP = None
 
     def test_basic(self):
-        raise NotImplementedError
+        thread = (10, 'x')
+        with self.launched():
+            with self.hidden():
+                self.pause(thread, *[
+                    (2, 'spam', 'abc.py', 10),
+                ])
+            self.send_request(
+                threadId=5,  # matches our thread
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+            # no events
+        ])
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('10'),
+        ])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'setBreakpoints'
@@ -316,13 +723,144 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
         [CMD_REMOVE_BREAK],
         [CMD_SET_BREAK],
     ]
+    PYDEVD_RESP = None
 
-    def test_basic(self):
-        raise NotImplementedError
+    def test_initial(self):
+        with self.launched():
+            self.send_request(
+                source={'path': 'spam.py'},
+                breakpoints=[
+                    {'line': '10'},
+                    {'line': '15',
+                     'condition': 'i == 3'},
+                ],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                breakpoints=[
+                    {'id': 1,
+                     'verified': True,
+                     'line': '10'},
+                    {'id': 2,
+                     'verified': True,
+                     'line': '15'},
+                ],
+            ),
+            # no events
+        ])
+        self.PYDEVD_CMD = CMD_SET_BREAK
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request(
+                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone'),
+            self.expected_pydevd_request(
+                '2\tpython-line\tspam.py\t15\tNone\ti == 3\tNone'),
+        ])
+
+    def test_with_existing(self):
+        with self.launched():
+            with self.hidden():
+                self.PYDEVD_CMD = CMD_SET_BREAK
+                self.expected_pydevd_request(
+                    '1\tpython-line\tspam.py\t10\tNone\tNone\tNone')
+                self.expected_pydevd_request(
+                    '2\tpython-line\tspam.py\t17\tNone\tNone\tNone')
+                self.fix.send_request('setBreakpoints', dict(
+                    source={'path': 'spam.py'},
+                    breakpoints=[
+                        {'line': '10'},
+                        {'line': '17'},
+                    ],
+                ))
+            self.send_request(
+                source={'path': 'spam.py'},
+                breakpoints=[
+                    {'line': '113'},
+                    {'line': '2'},
+                    {'line': '10'},  # a repeat
+                ],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                breakpoints=[
+                    {'id': 3,
+                     'verified': True,
+                     'line': '113'},
+                    {'id': 4,
+                     'verified': True,
+                     'line': '2'},
+                    {'id': 5,
+                     'verified': True,
+                     'line': '10'},
+                ],
+            ),
+            # no events
+        ])
+        self.PYDEVD_CMD = CMD_REMOVE_BREAK
+        if self.debugger.received[0].payload.endswith('1'):
+            removed = [
+                self.expected_pydevd_request('python-line\tspam.py\t1'),
+                self.expected_pydevd_request('python-line\tspam.py\t2'),
+            ]
+        else:
+            removed = [
+                self.expected_pydevd_request('python-line\tspam.py\t2'),
+                self.expected_pydevd_request('python-line\tspam.py\t1'),
+            ]
+        self.PYDEVD_CMD = CMD_SET_BREAK
+        self.assert_received(self.debugger, removed + [
+            self.expected_pydevd_request(
+                '3\tpython-line\tspam.py\t113\tNone\tNone\tNone'),
+            self.expected_pydevd_request(
+                '4\tpython-line\tspam.py\t2\tNone\tNone\tNone'),
+            self.expected_pydevd_request(
+                '5\tpython-line\tspam.py\t10\tNone\tNone\tNone'),
+        ])
+
+    # TODO: fix!
+    @unittest.skip('broken: https://github.com/Microsoft/ptvsd/issues/126')
+    def test_multiple_files(self):
+        with self.launched():
+            self.send_request(
+                source={'path': 'spam.py'},
+                breakpoints=[{'line': '10'}],
+            )
+            self.send_request(
+                source={'path': 'eggs.py'},
+                breakpoints=[{'line': '17'}],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                breakpoints=[
+                    {'id': 1,
+                     'verified': True,
+                     'line': '10'},
+                ],
+            ),
+            self.expected_response(
+                breakpoints=[
+                    {'id': 2,
+                     'verified': True,
+                     'line': '17'},
+                ],
+            ),
+            # no events
+        ])
+
+        self.PYDEVD_CMD = CMD_SET_BREAK
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request(
+                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone'),
+            self.expected_pydevd_request(
+                '2\tpython-line\teggs.py\t17\tNone\tNone\tNone'),
+        ])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class SetExceptionBreakpointsTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'setExceptionBreakpoints'
@@ -330,19 +868,610 @@ class SetExceptionBreakpointsTests(NormalRequestTest, unittest.TestCase):
         [CMD_REMOVE_EXCEPTION_BREAK],
         [CMD_ADD_EXCEPTION_BREAK],
     ]
+    PYDEVD_RESP = None
 
-    def test_basic(self):
-        raise NotImplementedError
+    def _check_options(self, options, expectedpydevd):
+        with self.launched():
+            self.send_request(
+                filters=[],
+                exceptionOptions=options,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+        ])
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+        self.assert_received(
+            self.debugger,
+            [self.expected_pydevd_request(expect)
+             for expect in expectedpydevd],
+        )
+
+    def _check_option(self, paths, mode, expectedpydevd):
+        options = [{
+            'path': paths,
+            'breakMode': mode,
+        }]
+        self._check_options(options, expectedpydevd)
+
+    # TODO: We've hard-coded the currently supported modes.  If other
+    # modes are added later then we need to add more tests.  We don't
+    # have a programatic alternative that is very readable.
+
+    def test_single_option_single_path_mode_never(self):
+        path = {
+            'names': ['Python Exceptions'],
+        }
+        self._check_option(
+            [path],
+            'never',
+            ['python-BaseException\t0\t0\t0'],
+        )
+
+    def test_single_option_single_path_mode_always(self):
+        path = {
+            'names': ['Python Exceptions'],
+        }
+        self._check_option(
+            [path],
+            'always',
+            ['python-BaseException\t3\t0\t0'],
+        )
+
+    def test_single_option_single_path_mode_unhandled(self):
+        path = {
+            'names': ['Python Exceptions'],
+        }
+        self._check_option(
+            [path],
+            'unhandled',
+            ['python-BaseException\t0\t1\t0'],
+        )
+
+    def test_single_option_single_path_mode_userUnhandled(self):
+        path = {
+            'names': ['Python Exceptions'],
+        }
+        self._check_option(
+            [path],
+            'userUnhandled',
+            ['python-BaseException\t0\t1\t0'],
+        )
+
+    def test_single_option_empty_paths(self):
+        self._check_option([], 'userUnhandled', [])
+
+    def test_single_option_single_path_python_exception(self):
+        path = {
+            'names': ['ImportError'],
+        }
+        self._check_option(
+            [path],
+            'userUnhandled',
+            [],
+        )
+
+    def test_single_option_single_path_not_python_category(self):
+        path = {
+            'names': ['not Python Exceptions'],
+        }
+        self._check_option(
+            [path],
+            'userUnhandled',
+            [],
+        )
+
+    # TODO: verify behavior
+    @unittest.skip('poorly specified')
+    def test_single_option_single_path_multiple_names(self):
+        path = {
+            'names': [
+                'Python Exceptions',
+                # The rest are ignored by ptvsd?  VSC?
+                'spam',
+                'eggs'
+            ],
+        }
+        self._check_option(
+            [path],
+            'always',
+            ['python-BaseException\t3\t0\t0'],
+        )
+
+    def test_single_option_shallow_path(self):
+        path = [
+            {'names': ['Python Exceptions']},
+            {'names': ['ImportError']},
+        ]
+        self._check_option(path, 'always', [
+            'python-ImportError\t3\t0\t0',
+        ])
+
+    def test_single_option_deep_path(self):
+        path = [
+            {'names': ['Python Exceptions']},
+            {'names': ['ImportError']},
+            {'names': ['RuntimeError']},
+            {'names': ['ValueError']},
+            {'names': ['MyError']},
+        ]
+        self._check_option(path, 'always', [
+            'python-ImportError\t3\t0\t0',
+            'python-RuntimeError\t3\t0\t0',
+            'python-ValueError\t3\t0\t0',
+            'python-MyError\t3\t0\t0',
+        ])
+
+    # TODO: verify behavior
+    @unittest.skip('poorly specified')
+    def test_single_option_multiple_names(self):
+        path = [
+            {'names': ['Python Exceptions']},
+            {'names': ['ImportError', 'RuntimeError', 'ValueError']},
+        ]
+        self._check_option(path, 'always', [
+            'python-ImportError\t3\t0\t0',
+            'python-RuntimeError\t3\t0\t0',
+            'python-ValueError\t3\t0\t0',
+        ])
+
+    # TODO: verify behavior
+    @unittest.skip('poorly specified')
+    def test_single_option_first_path_not_category(self):
+        self._check_option(
+            [
+                {'names': ['not Python Exceptions']},
+                {'names': ['other']},
+             ],
+            'always',
+            [],
+        )
+
+    # TODO: verify behavior
+    @unittest.skip('poorly specified')
+    def test_single_option_unknown_exception(self):
+        path = [
+            {'names': ['Python Exceptions']},
+            {'names': ['AnUnknownException']},
+        ]
+        with self.assertRaises(ValueError):
+            self._check_option(path, 'always', [])
+
+    def test_multiple_options(self):
+        options = [
+            # shallow path
+            {'path': [
+                {'names': ['Python Exceptions']},
+                {'names': ['ImportError']},
+             ],
+             'breakMode': 'always'},
+            # ignored
+            {'path': [
+                {'names': ['non-Python Exceptions']},
+                {'names': ['OSError']},
+             ],
+             'breakMode': 'always'},
+            # deep path
+            {'path': [
+                {'names': ['Python Exceptions']},
+                {'names': ['ModuleNotFoundError']},
+                {'names': ['RuntimeError']},
+                {'names': ['MyError']},
+             ],
+             'breakMode': 'unhandled'},
+            # multiple names
+            {'path': [
+                {'names': ['Python Exceptions']},
+                {'names': ['ValueError', 'IndexError']},
+             ],
+             'breakMode': 'never'},
+            # catch-all
+            {'path': [
+                {'names': ['Python Exceptions']},
+             ],
+             'breakMode': 'userUnhandled'},
+        ]
+        self._check_options(options, [
+            # shallow path
+            'python-ImportError\t3\t0\t0',
+            # ignored
+            # deep path
+            'python-ModuleNotFoundError\t0\t1\t0',
+            'python-RuntimeError\t0\t1\t0',
+            'python-MyError\t0\t1\t0',
+            # multiple names
+            'python-ValueError\t0\t0\t0',
+            'python-IndexError\t0\t0\t0',
+            # catch-all
+            'python-BaseException\t0\t1\t0',
+        ])
+
+    def test_options_with_existing_filters(self):
+        with self.launched():
+            with self.hidden():
+                self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+                self.expected_pydevd_request('python-BaseException\t0\t1\t0')
+                self.fix.send_request('setExceptionBreakpoints', dict(
+                    filters=[
+                        'uncaught',
+                    ],
+                ))
+            self.send_request(
+                filters=[],
+                exceptionOptions=[
+                    {'path': [
+                        {'names': ['Python Exceptions']},
+                        {'names': ['ImportError']},
+                     ],
+                     'breakMode': 'never'},
+                    {'path': [
+                        {'names': ['Python Exceptions']},
+                        {'names': ['RuntimeError']},
+                     ],
+                     'breakMode': 'always'},
+                ]
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+        ])
+        self.PYDEVD_CMD = CMD_REMOVE_EXCEPTION_BREAK
+        removed = [
+            self.expected_pydevd_request('python-BaseException'),
+        ]
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+        self.assert_received(self.debugger, removed + [
+            self.expected_pydevd_request('python-ImportError\t0\t0\t0'),
+            self.expected_pydevd_request('python-RuntimeError\t3\t0\t0'),
+        ])
+
+    def test_options_with_existing_options(self):
+        with self.launched():
+            with self.hidden():
+                self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+                self.expected_pydevd_request('python-ImportError\t0\t1\t0')
+                self.expected_pydevd_request('python-BaseException\t3\t0\t0')
+                self.fix.send_request('setExceptionBreakpoints', dict(
+                    filters=[],
+                    exceptionOptions=[
+                        {'path': [
+                            {'names': ['Python Exceptions']},
+                            {'names': ['ImportError']},
+                         ],
+                         'breakMode': 'unhandled'},
+                        {'path': [
+                            {'names': ['Python Exceptions']},
+                         ],
+                         'breakMode': 'always'},
+                    ],
+                ))
+            self.send_request(
+                filters=[],
+                exceptionOptions=[
+                    {'path': [
+                        {'names': ['Python Exceptions']},
+                        {'names': ['ImportError']},
+                     ],
+                     'breakMode': 'never'},
+                    {'path': [
+                        {'names': ['Python Exceptions']},
+                        {'names': ['RuntimeError']},
+                     ],
+                     'breakMode': 'unhandled'},
+                ]
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+        ])
+        self.PYDEVD_CMD = CMD_REMOVE_EXCEPTION_BREAK
+        removed = [
+            self.expected_pydevd_request('python-ImportError'),
+            self.expected_pydevd_request('python-BaseException'),
+        ]
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+        self.assert_received(self.debugger, removed + [
+            self.expected_pydevd_request('python-ImportError\t0\t0\t0'),
+            self.expected_pydevd_request('python-RuntimeError\t0\t1\t0'),
+        ])
+
+    # TODO: As with the option modes, we've hard-coded the filters
+    # in the following tests.  If the supported filters change then
+    # we must adjust/extend the tests.
+
+    def test_single_filter_raised(self):
+        with self.launched():
+            self.send_request(
+                filters=[
+                    'raised',
+                ],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+        ])
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('python-BaseException\t3\t0\t0'),
+        ])
+
+    def test_single_filter_uncaught(self):
+        with self.launched():
+            self.send_request(
+                filters=[
+                    'uncaught',
+                ],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+        ])
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('python-BaseException\t0\t1\t0'),
+        ])
+
+    def test_multiple_filters_all(self):
+        with self.launched():
+            self.send_request(
+                filters=[
+                    'uncaught',
+                    'raised',
+                ],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+        ])
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('python-BaseException\t3\t1\t0'),
+        ])
+
+    def test_multiple_filters_repeat(self):
+        with self.launched():
+            self.send_request(
+                filters=[
+                    'raised',
+                    'raised',
+                ],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+        ])
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('python-BaseException\t3\t0\t0'),
+        ])
+
+    def test_empty_filters(self):
+        with self.launched():
+            self.send_request(
+                filters=[],
+            )
+
+            self.assert_received(self.vsc, [
+                self.expected_response()
+                # no events
+            ])
+            self.assert_received(self.debugger, [])
+
+    def test_filters_with_existing_filters(self):
+        with self.launched():
+            with self.hidden():
+                self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+                self.expected_pydevd_request('python-BaseException\t0\t1\t0')
+                self.fix.send_request('setExceptionBreakpoints', dict(
+                    filters=[
+                        'uncaught',
+                    ],
+                ))
+            self.send_request(
+                filters=[
+                    'raised',
+                ],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+        ])
+        self.PYDEVD_CMD = CMD_REMOVE_EXCEPTION_BREAK
+        removed = [
+            self.expected_pydevd_request('python-BaseException'),
+        ]
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+        self.assert_received(self.debugger, removed + [
+            self.expected_pydevd_request('python-BaseException\t3\t0\t0'),
+        ])
+
+    def test_filters_with_existing_options(self):
+        with self.launched():
+            with self.hidden():
+                self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+                self.expected_pydevd_request('python-ImportError\t0\t1\t0')
+                self.expected_pydevd_request('python-BaseException\t3\t0\t0')
+                self.fix.send_request('setExceptionBreakpoints', dict(
+                    filters=[],
+                    exceptionOptions=[
+                        {'path': [
+                            {'names': ['Python Exceptions']},
+                            {'names': ['ImportError']},
+                         ],
+                         'breakMode': 'unhandled'},
+                        {'path': [
+                            {'names': ['Python Exceptions']},
+                         ],
+                         'breakMode': 'always'},
+                    ],
+                ))
+            self.send_request(
+                filters=[
+                    'raised',
+                ],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+        ])
+        self.PYDEVD_CMD = CMD_REMOVE_EXCEPTION_BREAK
+        removed = [
+            self.expected_pydevd_request('python-ImportError'),
+            self.expected_pydevd_request('python-BaseException'),
+        ]
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+        self.assert_received(self.debugger, removed + [
+            self.expected_pydevd_request('python-BaseException\t3\t0\t0'),
+        ])
+
+    def test_filters_with_empty_options(self):
+        with self.launched():
+            self.send_request(
+                filters=[
+                    'raised',
+                ],
+                exceptionOptions=[],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+        ])
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request('python-BaseException\t3\t0\t0'),
+        ])
+
+    # TODO: verify behavior
+    @unittest.skip('poorly specified')
+    def test_options_and_filters_both_provided(self):
+        with self.launched():
+            self.send_request(
+                filters=[
+                    'raised',
+                ],
+                exceptionOptions=[
+                    {'path': [
+                        {'names': ['Python Exceptions']},
+                        {'names': ['ImportError']},
+                     ],
+                     'breakMode': 'unhandled'},
+                ],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(),
+        ])
+        self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
+        self.assert_received(self.debugger, [
+            'python-BaseException\t3\t0\t0',
+            'python-ImportError\t0\t1\t0',
+        ])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
 class ExceptionInfoTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'exceptionInfo'
 
-    def test_basic(self):
-        raise NotImplementedError
+    # modes: ['never', 'always', 'unhandled', 'userUnhandled']
+    #
+    # min response:
+    #   exceptionId='',
+    #   breakMode='',
+    #
+    # max response:
+    #   exceptionId='',
+    #   description='',
+    #   breakMode='',
+    #   details=dict(
+    #       message='',
+    #       typeName='',
+    #       fullTypeName='',
+    #       evaluateName='',
+    #       stackTrace='',
+    #       innerException=[
+    #           # details
+    #           # details
+    #           # ...
+    #       ],
+    #   ),
+
+    def test_active_exception(self):
+        thread = (10, 'x')
+        exc = RuntimeError('something went wrong')
+        frame = (2, 'spam', 'abc.py', 10)  # (pfid, func, file, line)
+        with self.launched():
+            with self.hidden():
+                tid = self.error(thread, exc, frame)
+            self.send_request(
+                threadId=tid,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                exceptionId='RuntimeError',
+                description='something went wrong',
+                breakMode='unhandled',
+                details=dict(
+                    message='something went wrong',
+                    typeName='RuntimeError',
+                ),
+            ),
+        ])
+        self.assert_received(self.debugger, [])
+
+    # TODO: verify behavior
+    @unittest.skip('poorly specified (broken?)')
+    def test_no_exception(self):
+        thread = (10, 'x')
+        with self.launched():
+            with self.hidden():
+                tid = self.pause(thread)
+            self.send_request(
+                threadId=tid,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+            ),
+        ])
+        self.assert_received(self.debugger, [])
+
+    # TODO: verify behavior
+    @unittest.skip('poorly specified (broken?)')
+    def test_exception_cleared(self):
+        thread = (10, 'x')
+        exc = RuntimeError('something went wrong')
+        frame = (2, 'spam', 'abc.py', 10)  # (pfid, func, file, line)
+        with self.launched():
+            with self.hidden():
+                tid = self.error(thread, exc, frame)
+                self.send_debugger_event(
+                    CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED,
+                    str(thread[0]),
+                )
+            self.send_request(
+                threadId=tid,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+            ),
+        ])
+        self.assert_received(self.debugger, [])
 
 
 ##################################
