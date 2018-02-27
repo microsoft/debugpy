@@ -796,7 +796,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             try:
                 exc = self.active_exceptions[tid]
             except KeyError:
-                exc = ExceptionInfo('BaseException', 'exception: no description')
+                exc = ExceptionInfo('BaseException',
+                                    'exception: no description')
         self.send_response(
             request,
             exceptionId=exc.name,
