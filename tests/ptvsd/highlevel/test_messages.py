@@ -13,6 +13,7 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_SEND_CURR_EXCEPTION_TRACE,
     CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED,
     CMD_SET_BREAK,
+    CMD_STEP_CAUGHT_EXCEPTION,
     CMD_STEP_INTO,
     CMD_STEP_OVER,
     CMD_STEP_RETURN,
@@ -1623,11 +1624,169 @@ class ThreadKillTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
-class ThreadSuspendTests(PyDevdEventTest, unittest.TestCase):
+class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
 
     CMD = CMD_THREAD_SUSPEND
+    EVENT = 'stopped'
+
+    def pydevd_payload(self, threadid, reason, *frames):
+        if not frames:
+            frames = [
+                # (pfid, func, file, line)
+                (2, 'spam', 'abc.py', 10),
+                (5, 'eggs', 'xyz.py', 2),
+            ]
+        return self.debugger_msgs.format_frames(threadid, reason, *frames)
+
+    def test_step_into(self):
+        thread = (10, '')
+        with self.launched():
+            with self.hidden():
+                self.set_thread(thread)
+            tid = self.send_event(10, CMD_STEP_INTO)
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_event(
+                reason='step',
+                threadId=tid,
+            ),
+        ])
+        self.assert_received(self.debugger, [])
+
+    def test_step_over(self):
+        thread = (10, '')
+        with self.launched():
+            with self.hidden():
+                self.set_thread(thread)
+            tid = self.send_event(10, CMD_STEP_OVER)
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_event(
+                reason='step',
+                threadId=tid,
+            ),
+        ])
+        self.assert_received(self.debugger, [])
+
+    def test_step_return(self):
+        thread = (10, '')
+        with self.launched():
+            with self.hidden():
+                self.set_thread(thread)
+            tid = self.send_event(10, CMD_STEP_RETURN)
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_event(
+                reason='step',
+                threadId=tid,
+            ),
+        ])
+        self.assert_received(self.debugger, [])
+
+    def test_caught_exception(self):
+        thread = (10, '')
+        with self.launched():
+            with self.hidden():
+                self.set_thread(thread)
+            tid = self.send_event(10, CMD_STEP_CAUGHT_EXCEPTION)
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_event(
+                reason='exception',
+                threadId=tid,
+            ),
+        ])
+        self.assert_received(self.debugger, [])
+
+    def test_exception_break(self):
+        thread = (10, '')
+        with self.launched():
+            with self.hidden():
+                self.set_thread(thread)
+            tid = self.send_event(10, CMD_ADD_EXCEPTION_BREAK)
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_event(
+                reason='exception',
+                threadId=tid,
+            ),
+        ])
+        self.assert_received(self.debugger, [])
+
+    def test_suspend(self):
+        thread = (10, '')
+        with self.launched():
+            with self.hidden():
+                self.set_thread(thread)
+            tid = self.send_event(10, CMD_THREAD_SUSPEND)
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_event(
+                reason='pause',
+                threadId=tid,
+            ),
+        ])
+        self.assert_received(self.debugger, [])
+
+    def test_unknown_reason(self):
+        thread = (10, '')
+        with self.launched():
+            with self.hidden():
+                self.set_thread(thread)
+            tid = self.send_event(10, 99999)
+            received = self.vsc.received
+
+        # TODO: Should this fail instead?
+        self.assert_vsc_received(received, [
+            self.expected_event(
+                reason='pause',
+                threadId=tid,
+            ),
+        ])
+        self.assert_received(self.debugger, [])
+
+    # TODO: verify behavior
+    @unittest.skip('poorly specified')
+    def test_no_reason(self):
+        thread = (10, '')
+        with self.launched():
+            with self.hidden():
+                self.set_thread(thread)
+            tid = self.send_event(10, '')
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_event(
+                reason='pause',
+                threadId=tid,
+            ),
+        ])
+        self.assert_received(self.debugger, [])
+
+    # TODO: verify behavior
+    @unittest.skip('poorly specified')
+    def test_str_reason(self):
+        thread = (10, '')
+        with self.launched():
+            with self.hidden():
+                self.set_thread(thread)
+            tid = self.send_event(10, '???')
+            received = self.vsc.received
+
+        # TODO: Should this fail instead?
+        self.assert_vsc_received(received, [
+            self.expected_event(
+                reason='pause',
+                threadId=tid,
+            ),
+        ])
+        self.assert_received(self.debugger, [])
 
 
 # TODO: finish!
