@@ -37,7 +37,7 @@ __version__ = "4.0.0a1"
 #ipcjson._TRACE = ipcjson_trace
 
 ptvsd_sys_exit_code = 0
-
+WAIT_FOR_THREAD_FINISH_TIMEOUT = 1
 
 def unquote(s):
     if s is None:
@@ -415,7 +415,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
         self.set_exit()    
         self.loop.stop()
-        self.event_loop_thread.join(0.1)
+        self.event_loop_thread.join(WAIT_FOR_THREAD_FINISH_TIMEOUT)
 
         if self.socket:
             self.socket.shutdown(socket.SHUT_RDWR)
@@ -936,7 +936,7 @@ def _start(client, server):
 def exit_handler(proc, server_thread):
     proc.close()
     if server_thread.is_alive():
-        server_thread.join(0.1)
+        server_thread.join(WAIT_FOR_THREAD_FINISH_TIMEOUT)
 
 def start_server(port):
     """Return a socket to a (new) local pydevd-handling daemon.
