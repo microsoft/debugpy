@@ -377,6 +377,14 @@ class HighlevelFixture(object):
         event = self.debugger_msgs.new_event(cmdid, payload)
         self.debugger.send_event(event)
 
+    def send_event(self, cmdid, text, event=None, handler=None):
+        if event is not None:
+            with self.wait_for_event(event, handler=handler):
+                self.send_debugger_event(cmdid, text)
+        else:
+            self.send_debugger_event(cmdid, text)
+            return None
+
     def set_threads(self, *threads, **kwargs):
         return self._set_threads(threads, **kwargs)
 

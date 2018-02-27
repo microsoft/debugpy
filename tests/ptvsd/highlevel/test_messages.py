@@ -1480,16 +1480,86 @@ class ExceptionInfoTests(NormalRequestTest, unittest.TestCase):
 class PyDevdEventTest(RunningTest):
 
     CMD = None
+    EVENT = None
 
-    def test_basic(self):
-        raise NotImplementedError
+    def pydevd_payload(self, *args, **kwargs):
+        return ''
+
+    def launched(self, port=8888, **kwargs):
+        kwargs.setdefault('default_threads', False)
+        return super(PyDevdEventTest, self).launched(port, **kwargs)
+
+    def send_event(self, *args, **kwargs):
+        handler = kwargs.pop('handler', None)
+        text = self.pydevd_payload(*args, **kwargs)
+        self.fix.send_event(self.CMD, text, self.EVENT, handler=handler)
+
+    def expected_event(self, **body):
+        return self.new_event(self.EVENT, seq=None, **body)
 
 
-# TODO: finish!
-@unittest.skip('not finished')
-class ThreadCreateTests(PyDevdEventTest, unittest.TestCase):
+class ThreadEventTest(PyDevdEventTest):
+
+    _tid = None
+
+    def send_event(self, *args, **kwargs):
+        def handler(msg, _):
+            self._tid = msg.data['body']['threadId']
+        kwargs['handler'] = handler
+        super(ThreadEventTest, self).send_event(*args, **kwargs)
+        return self._tid
+
+
+class ThreadCreateTests(ThreadEventTest, unittest.TestCase):
 
     CMD = CMD_THREAD_CREATE
+    EVENT = 'thread'
+
+    def pydevd_payload(self, threadid, name):
+        thread = (threadid, name)
+        return self.debugger_msgs.format_threads(thread)
+
+    def test_new(self):
+        with self.launched():
+            tid = self.send_event(10, 'spam')
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_event(
+                reason='started',
+                threadId=tid,
+            ),
+        ])
+        self.assert_received(self.debugger, [])
+
+    # TODO: verify behavior
+    @unittest.skip('poorly specified')
+    def test_exists(self):
+        thread = (10, 'x')
+        with self.launched():
+            with self.hidden():
+                self.set_thread(thread)
+            self.send_event(10, 'spam')
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [])
+        self.assert_received(self.debugger, [])
+
+    def test_pydevd_name(self):
+        with self.launched():
+            self.send_event(10, 'pydevd.spam')
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [])
+        self.assert_received(self.debugger, [])
+
+    def test_ptvsd_name(self):
+        with self.launched():
+            self.send_event(10, 'ptvsd.spam')
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [])
+        self.assert_received(self.debugger, [])
 
 
 # TODO: finish!
