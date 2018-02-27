@@ -393,10 +393,10 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         pydevd._vscprocessor = self
         self._closed = False
 
-        t = threading.Thread(target=self.loop.run_forever,
+        self.event_loop_thread = threading.Thread(target=self.loop.run_forever,
                              name='ptvsd.EventLoop')
-        t.daemon = True
-        t.start()
+        self.event_loop_thread.daemon = True
+        self.event_loop_thread.start()
 
     def close(self):
         """Stop the message processor and release its resources."""
@@ -413,7 +413,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.send_event('exited', exitCode=ptvsd_sys_exit_code)
         self.send_event('terminated')
 
+        self.set_exit()    
         self.loop.stop()
+        self.event_loop_thread.join(0.1)
 
         if self.socket:
             self.socket.shutdown(socket.SHUT_RDWR)
@@ -931,6 +933,11 @@ def _start(client, server):
 ########################
 # pydevd hooks
 
+def exit_handler(proc, server_thread):
+    proc.close()
+    if server_thread.is_alive():
+        server_thread.join(0.1)
+
 def start_server(port):
     """Return a socket to a (new) local pydevd-handling daemon.
 
@@ -941,8 +948,8 @@ def start_server(port):
     """
     server = _create_server(port)
     client, _ = server.accept()
-    pydevd, proc, _ = _start(client, server)
-    atexit.register(proc.close)
+    pydevd, proc, server_thread = _start(client, server)
+    atexit.register(lambda: exit_handler(proc, server_thread))
     return pydevd
 
 
@@ -956,8 +963,8 @@ def start_client(host, port):
     """
     client = _create_client()
     client.connect((host, port))
-    pydevd, proc, _ = _start(client, None)
-    atexit.register(proc.close)
+    pydevd, proc, server_thread = _start(client, None)
+    atexit.register(lambda: exit_handler(proc, server_thread))
     return pydevd
 
 
