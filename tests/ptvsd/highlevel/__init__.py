@@ -13,6 +13,8 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_THREAD_SUSPEND,
     CMD_RETURN,
     CMD_RUN,
+    CMD_STEP_CAUGHT_EXCEPTION,
+    CMD_SEND_CURR_EXCEPTION_TRACE,
 )
 
 from tests.helpers.pydevd import FakePyDevd
@@ -72,10 +74,9 @@ class PyDevdMessages(object):
         text += '</xml>'
         return text
 
-    def format_frames(self, thread, reason, *frames):
-        tid, _ = thread  # (tid, tname)
+    def format_frames(self, threadid, reason, *frames):
         text = '<xml>'
-        text += '<thread id="{}" stop_reason="{}">'.format(tid, reason)
+        text += '<thread id="{}" stop_reason="{}">'.format(threadid, reason)
         fmt = '<frame id="{}" name="{}" file="{}" line="{}" />'
         for frame in frames:  # (fid, func, filename, line)
             text += fmt.format(*frame)
@@ -89,6 +90,25 @@ class PyDevdMessages(object):
             text += pydevd_xml.var_to_xml(value, name)
         text += '</xml>'
         return urllib.quote(text)
+
+    def format_exception(self, threadid, exc, frame):
+        frameid, _, _, _ = frame
+        name = pydevd_xml.make_valid_xml_value(type(exc).__name__)
+        description = pydevd_xml.make_valid_xml_value(str(exc))
+
+        info = '<xml>'
+        info += '<thread id="{}" />'.format(threadid)
+        info += '</xml>'
+        return '{}\t{}\t{}\t{}'.format(
+            frameid,
+            name or 'exception: type unknown',
+            description or 'exception: no description',
+            self.format_frames(
+                threadid,
+                CMD_SEND_CURR_EXCEPTION_TRACE,
+                frame,
+            ),
+        )
 
 
 class VSCMessages(object):
@@ -403,10 +423,11 @@ class HighlevelFixture(object):
         return allthreads
 
     def suspend(self, thread, reason, *stack):
+        ptid, _ = thread
         with self.wait_for_event('stopped'):
             self.send_debugger_event(
                 CMD_THREAD_SUSPEND,
-                self.debugger_msgs.format_frames(thread, reason, *stack),
+                self.debugger_msgs.format_frames(ptid, reason, *stack),
             )
 
     def pause(self, thread, *stack):
@@ -414,6 +435,15 @@ class HighlevelFixture(object):
         self.suspend(thread, CMD_THREAD_SUSPEND, *stack)
         self.send_request('stackTrace', {'threadId': tid})
         self.send_request('scopes', {'frameId': 1})
+        return tid
+
+    def error(self, thread, exc, frame):
+        tid = self.set_thread(thread)
+        self.send_debugger_event(
+            CMD_SEND_CURR_EXCEPTION_TRACE,
+            self.debugger_msgs.format_exception(thread[0], exc, frame),
+        )
+        self.suspend(thread, CMD_STEP_CAUGHT_EXCEPTION, frame)
         return tid
 
     #def set_variables(self, ...):
