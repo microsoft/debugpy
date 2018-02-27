@@ -1562,11 +1562,65 @@ class ThreadCreateTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
 
-# TODO: finish!
-@unittest.skip('not finished')
-class ThreadKillTests(PyDevdEventTest, unittest.TestCase):
+class ThreadKillTests(ThreadEventTest, unittest.TestCase):
 
     CMD = CMD_THREAD_KILL
+    EVENT = 'thread'
+
+    def pydevd_payload(self, threadid):
+        return str(threadid)
+
+    # TODO: https://github.com/Microsoft/ptvsd/issues/138
+    @unittest.skip('broken')
+    def test_known(self):
+        thread = (10, 'x')
+        with self.launched():
+            with self.hidden():
+                tid = self.set_thread(thread)
+            self.send_event(10)
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_event(
+                reason='exited',
+                threadId=tid,
+            ),
+        ])
+        self.assert_received(self.debugger, [])
+
+    def test_unknown(self):
+        with self.launched():
+            self.send_event(10)
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [])
+        self.assert_received(self.debugger, [])
+
+    # TODO: https://github.com/Microsoft/ptvsd/issues/137
+    @unittest.skip('broken')
+    def test_pydevd_name(self):
+        thread = (10, 'pydevd.spam')
+        with self.launched():
+            with self.hidden():
+                self.set_thread(thread)
+            self.send_event(10)
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [])
+        self.assert_received(self.debugger, [])
+
+    # TODO: https://github.com/Microsoft/ptvsd/issues/137
+    @unittest.skip('broken')
+    def test_ptvsd_name(self):
+        thread = (10, 'ptvsd.spam')
+        with self.launched():
+            with self.hidden():
+                self.set_thread(thread)
+            self.send_event(10)
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [])
+        self.assert_received(self.debugger, [])
 
 
 # TODO: finish!
