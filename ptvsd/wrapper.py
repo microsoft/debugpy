@@ -922,7 +922,12 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     @pydevd_events.handler(pydevd_comm.CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED)
     def on_pydevd_send_curr_exception_trace_proceeded(self, seq, args):
         # TODO: docstring
-        pass
+        pyd_tid = args.strip()
+        with self.active_exceptions_lock:
+            try:
+                del self.active_exceptions[pyd_tid]
+            except KeyError:
+                pass
 
 
 ########################
