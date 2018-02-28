@@ -8,6 +8,7 @@ import atexit
 import errno
 import os
 import platform
+import signal
 import socket
 import sys
 import threading
@@ -969,6 +970,10 @@ def exit_handler(proc, server_thread):
     if server_thread.is_alive():
         server_thread.join(WAIT_FOR_THREAD_FINISH_TIMEOUT)
 
+def signal_handler(signum, frame, proc):
+    proc.close()
+    sys.exit(0)
+
 def start_server(port):
     """Return a socket to a (new) local pydevd-handling daemon.
 
@@ -981,6 +986,8 @@ def start_server(port):
     client, _ = server.accept()
     pydevd, proc, server_thread = _start(client, server)
     atexit.register(lambda: exit_handler(proc, server_thread))
+    if platform.system() != 'Windows':
+        signal.signal(signal.SIGHUP, lambda signum, frame: signal_handler(signum, frame, proc))
     return pydevd
 
 
@@ -996,6 +1003,8 @@ def start_client(host, port):
     client.connect((host, port))
     pydevd, proc, server_thread = _start(client, None)
     atexit.register(lambda: exit_handler(proc, server_thread))
+    if platform.system() != 'Windows':
+        signal.signal(signal.SIGHUP, lambda signum, frame: signal_handler(signum, frame, proc))
     return pydevd
 
 
