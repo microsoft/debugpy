@@ -271,15 +271,36 @@ class PydevdSocket(object):
 class ExceptionsManager(object):
     def __init__(self, proc):
         self.proc = proc
-        self.exceptions = []
+        self.exceptions = {}
         self.lock = threading.Lock()
 
     def remove_all_exception_breaks(self):
         with self.lock:
-            for exception in self.exceptions:
+            for exception in self.exceptions.keys():
                 self.proc.pydevd_notify(pydevd_comm.CMD_REMOVE_EXCEPTION_BREAK,
                                         'python-{}'.format(exception))
-            self.exceptions = []
+            self.exceptions = {}
+
+    def __find_exception(self, name):
+        if name in self.exceptions:
+            return name
+
+        for ex_name in self.exceptions.keys():
+            # ExceptionInfo.name can be in repr form
+            # here we attempt to find the exception as it
+            # is saved in the dictionary
+            if ex_name in name:
+                return ex_name
+
+        return 'BaseException'
+
+    def get_break_mode(self, name):
+        with self.lock:
+            try:
+                return self.exceptions[self.__find_exception(name)]
+            except KeyError:
+                pass
+        return 'unhandled'
 
     def add_exception_break(self, exception, break_raised, break_uncaught):
 
@@ -305,11 +326,17 @@ class ExceptionsManager(object):
             notify_on_terminate,
             ignore_libraries,
         )
+        break_mode = 'never' 
+        if break_raised:
+            break_mode = 'always'
+        elif break_uncaught:
+            break_mode = 'unhandled'
+
         msg = 'python-{}\t{}\t{}\t{}'.format(*cmdargs)
         with self.lock:
             self.proc.pydevd_notify(
                 pydevd_comm.CMD_ADD_EXCEPTION_BREAK, msg)
-            self.exceptions.append(exception)
+            self.exceptions[exception] = break_mode
 
     def apply_exception_options(self, exception_options):
         """
@@ -833,7 +860,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             request,
             exceptionId=exc.name,
             description=exc.description,
-            breakMode='unhandled',
+            breakMode=self.exceptions_mgr.get_break_mode(exc.name),
             details={'typeName': exc.name,
                      'message': exc.description},
         )
