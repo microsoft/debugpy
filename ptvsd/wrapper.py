@@ -38,6 +38,7 @@ __version__ = "4.0.0a1"
 #ipcjson._TRACE = ipcjson_trace
 
 ptvsd_sys_exit_code = 0
+WAIT_FOR_DISCONNECT_REQUEST_TIMEOUT = 2
 WAIT_FOR_THREAD_FINISH_TIMEOUT = 1
 
 def unquote(s):
@@ -390,7 +391,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.next_var_ref = 0
         self.loop = futures.EventLoop()
         self.exceptions_mgr = ExceptionsManager(self)
-
+        self.disconnect_request = None
+        self.disconnect_request_event = threading.Event()
         pydevd._vscprocessor = self
         self._closed = False
 
@@ -413,6 +415,11 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         global ptvsd_sys_exit_code
         self.send_event('exited', exitCode=ptvsd_sys_exit_code)
         self.send_event('terminated')
+
+        self.disconnect_request_event.wait(WAIT_FOR_DISCONNECT_REQUEST_TIMEOUT)
+        if self.disconnect_request is not None:
+            self.send_response(self.disconnect_request)
+            self.disconnect_request = None
 
         self.set_exit()    
         self.loop.stop()
@@ -510,7 +517,15 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     def on_disconnect(self, request, args):
         # TODO: docstring
-        self.send_response(request)
+        if self.start_reason == 'launch':
+            self.disconnect_request = request
+            self.disconnect_request_event.set()
+            killProcess = not self._closed
+            self.close()
+            if killProcess:
+                os.kill(os.getpid(), signal.SIGTERM)
+        else:
+            self.send_response(request)    
 
     @async_handler
     def on_attach(self, request, args):
