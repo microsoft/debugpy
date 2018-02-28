@@ -854,12 +854,13 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_KILL)
     def on_pydevd_thread_kill(self, seq, args):
         # TODO: docstring
+        pyd_tid = args.strip()
         try:
-            pyd_tid = args.strip()
             vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=False)
         except KeyError:
             pass
         else:
+            self.thread_map.remove(pyd_tid, vsc_tid)
             self.send_event('thread', reason='exited', threadId=vsc_tid)
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_SUSPEND)
@@ -938,7 +939,12 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     @pydevd_events.handler(pydevd_comm.CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED)
     def on_pydevd_send_curr_exception_trace_proceeded(self, seq, args):
         # TODO: docstring
-        pass
+        pyd_tid = args.strip()
+        with self.active_exceptions_lock:
+            try:
+                del self.active_exceptions[pyd_tid]
+            except KeyError:
+                pass
 
 
 ########################
