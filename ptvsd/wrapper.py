@@ -850,21 +850,26 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     def on_exceptionInfo(self, request, args):
         # TODO: docstring
         tid = self.thread_map.to_pydevd(args['threadId'])
+        name, description = self.get_exceptionInfo(tid)
+        self.send_response(
+            request,
+            exceptionId=name,
+            description=description,
+            breakMode=self.exceptions_mgr.get_break_mode(name),
+            details={'typeName': name,
+                     'message': description},
+        )
+
+    def get_exceptionInfo(self, pyd_tid):
+        """Gets the exception name and description for the given PyDev Thread id"""
         with self.active_exceptions_lock:
             try:
-                exc = self.active_exceptions[tid]
+                exc = self.active_exceptions[pyd_tid]
             except KeyError:
                 exc = ExceptionInfo('BaseException',
                                     'exception: no description')
-        self.send_response(
-            request,
-            exceptionId=exc.name,
-            description=exc.description,
-            breakMode=self.exceptions_mgr.get_break_mode(exc.name),
-            details={'typeName': exc.name,
-                     'message': exc.description},
-        )
-
+        return (exc.name, exc.description)
+        
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_CREATE)
     def on_pydevd_thread_create(self, seq, args):
         # TODO: docstring
@@ -910,11 +915,14 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=False)
         except KeyError:
             return
-
+        
+        text = None
         if reason in STEP_REASONS:
             reason = 'step'
         elif reason in EXCEPTION_REASONS:
             reason = 'exception'
+            name, description = self.get_exceptionInfo(pyd_tid)
+            text = '{}, {}'.format(name, description)
         elif reason == pydevd_comm.CMD_SET_BREAK:
             reason = 'breakpoint'
         else:
@@ -923,7 +931,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         with self.stack_traces_lock:
             self.stack_traces[pyd_tid] = xml.thread.frame
         
-        self.send_event('stopped', reason=reason, threadId=vsc_tid)
+        self.send_event('stopped', reason=reason, threadId=vsc_tid, text=text)
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_RUN)
     def on_pydevd_thread_run(self, seq, args):
