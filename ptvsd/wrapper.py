@@ -67,7 +67,7 @@ class IDMap(object):
     as it doesn't have evaluation persistence. However, for a given
     frame, any child can be identified by the path one needs to walk
     from the root of the frame to get to that child - and that path,
-    represented as a sequence of its consituent components, is used by
+    represented as a sequence of its constituent components, is used by
     pydevd commands to identify the variable. So we use the tuple
     representation of the same as its pydevd ID.  For example, for
     something like foo[1].bar, its ID is:
@@ -876,8 +876,33 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     @async_handler
     def on_exceptionInfo(self, request, args):
         # TODO: docstring
-        tid = self.thread_map.to_pydevd(args['threadId'])
-        name, description = self.get_exceptionInfo(tid)
+        pyd_tid = self.thread_map.to_pydevd(args['threadId'])
+        with self.stack_traces_lock:
+            try:
+                xframes = self.stack_traces[pyd_tid]
+            except:
+                xframes = None
+
+        name = None
+        description = None
+        if xframes:
+            # pydevd adds a __exception__ object to the frame at the top of the stack
+            # Always extract from that object to get accurate exception info.
+            try:
+                xframe = xframes[0]
+                pyd_fid = xframe['id']
+                cmdargs = '{}\t{}\tFRAME\t__exception__'.format(pyd_tid, pyd_fid)
+                _, _, resp_args = yield self.pydevd_request(pydevd_comm.CMD_GET_VARIABLE, cmdargs)
+                xml = untangle.parse(resp_args).xml
+                name = unquote(xml.var[1]['type'])
+                description = unquote(xml.var[1]['value'])
+            except:
+                name = None
+                description = None
+
+        if not name:
+            name, description = self.get_exceptionInfo(pyd_tid)
+
         self.send_response(
             request,
             exceptionId=name,
@@ -1077,7 +1102,7 @@ def start_server(port):
     The daemon supports the pydevd client wire protocol, sending
     requests and handling responses (and events).
 
-    This is a replacement fori _pydevd_bundle.pydevd_comm.start_server.
+    This is a replacement for _pydevd_bundle.pydevd_comm.start_server.
     """
     server = _create_server(port)
     client, _ = server.accept()
@@ -1097,7 +1122,7 @@ def start_client(host, port):
     The daemon supports the pydevd client wire protocol, sending
     requests and handling responses (and events).
 
-    This is a replacement fori _pydevd_bundle.pydevd_comm.start_client.
+    This is a replacement for _pydevd_bundle.pydevd_comm.start_client.
     """
     client = _create_client()
     client.connect((host, port))
