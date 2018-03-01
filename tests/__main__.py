@@ -58,6 +58,15 @@ def convert_argv(argv):
     return cmd + args
 
 
+def fix_sys_path():
+    pydevdroot = os.path.join(PROJECT_ROOT, 'ptvsd', 'pydevd')
+    if not sys.path[0] or sys.path[0] == '.':
+        sys.path.insert(1, pydevdroot)
+    else:
+        sys.path.insert(0, pydevdroot)
+
+
 if __name__ == '__main__':
     argv = convert_argv(sys.argv[1:])
+    fix_sys_path()
     unittest.main(module=None, argv=argv)
