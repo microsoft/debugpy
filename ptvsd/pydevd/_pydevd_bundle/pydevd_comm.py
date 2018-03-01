@@ -47,6 +47,11 @@ each command has a format:
     119      CMD_RELOAD_CODE
     120      CMD_GET_COMPLETIONS      JAVA
 
+    200      CMD_REDIRECT_OUTPUT      JAVA      streams to redirect as string - 
+                                                'STDOUT' (redirect only STDOUT)
+                                                'STDERR' (redirect only STDERR)
+                                                'STDOUT STDERR' (redirect both streams)
+
 500 series diagnostics/ok
     501      VERSION                  either      Version string (1.0)        Currently just used at startup
     502      RETURN                   either      Depends on caller    -
@@ -147,6 +152,8 @@ CMD_GET_DESCRIPTION = 148
 
 CMD_PROCESS_CREATED = 149
 
+CMD_REDIRECT_OUTPUT = 200
+
 CMD_VERSION = 501
 CMD_RETURN = 502
 CMD_ERROR = 901
@@ -203,6 +210,8 @@ ID_TO_MEANING = {
     '148': 'CMD_GET_DESCRIPTION',
 
     '149': 'CMD_PROCESS_CREATED',
+
+    '200': 'CMD_REDIRECT_OUTPUT',
 
     '501': 'CMD_VERSION',
     '502': 'CMD_RETURN',

@@ -18,7 +18,7 @@ from _pydevd_bundle.pydevd_comm import CMD_RUN, CMD_VERSION, CMD_LIST_THREADS, C
     CMD_REMOVE_EXCEPTION_BREAK, CMD_LOAD_SOURCE, CMD_ADD_DJANGO_EXCEPTION_BREAK, CMD_REMOVE_DJANGO_EXCEPTION_BREAK, \
     CMD_EVALUATE_CONSOLE_EXPRESSION, InternalEvaluateConsoleExpression, InternalConsoleGetCompletions, \
     CMD_RUN_CUSTOM_OPERATION, InternalRunCustomOperation, CMD_IGNORE_THROWN_EXCEPTION_AT, CMD_ENABLE_DONT_TRACE, \
-    CMD_SHOW_RETURN_VALUES, ID_TO_MEANING, CMD_GET_DESCRIPTION, InternalGetDescription
+    CMD_SHOW_RETURN_VALUES, ID_TO_MEANING, CMD_GET_DESCRIPTION, InternalGetDescription, CMD_REDIRECT_OUTPUT
 from _pydevd_bundle.pydevd_constants import get_thread_id, IS_PY3K, DebugInfoHolder, dict_keys, \
     STATE_RUN
 
@@ -679,6 +679,10 @@ def process_net_command(py_db, cmd_id, seq, text):
                     mode = text.strip() == true_str
                     pydevd_dont_trace.trace_filter(mode)
 
+            elif cmd_id == CMD_REDIRECT_OUTPUT:
+                if text:
+                    py_db.enable_output_redirection('STDOUT' in text, 'STDERR' in text)
+
             else:
                 #I have no idea what this is all about
                 cmd = py_db.cmd_factory.make_error_message(seq, "unexpected command " + str(cmd_id))
@@ -705,5 +709,3 @@ def process_net_command(py_db, cmd_id, seq, text):
             py_db.writer.add_command(cmd)
     finally:
         py_db._main_lock.release()
-
-
