@@ -230,8 +230,9 @@ class VSCLifecycle(object):
             self._initialize(**initargs)
             self._fix.send_request(command, **kwargs)
 
-        self._fix.set_threads(*threads or (),
-                              **dict(default_threads=default_threads))
+        if threads:
+            self._fix.set_threads(*threads,
+                                  **dict(default_threads=default_threads))
 
         self._handle_config(**config or {})
         with self._fix.expect_debugger_command(CMD_RUN):
@@ -385,11 +386,13 @@ class HighlevelFixture(object):
             self.send_debugger_event(cmdid, text)
             return None
 
-    def set_threads(self, *threads, **kwargs):
+    def set_threads(self, _thread, *threads, **kwargs):
+        threads = (_thread,) + threads
         return self._set_threads(threads, **kwargs)
 
     def set_thread(self, thread):
-        return self.set_threads(thread)[thread]
+        threads = (thread,)
+        return self._set_threads(threads)[thread]
 
     def _set_threads(self, threads, default_threads=True):
         request = {t[1]: t for t in threads}
@@ -398,9 +401,23 @@ class HighlevelFixture(object):
             threads = self._add_default_threads(threads)
         text = self.debugger_msgs.format_threads(*threads)
         self.set_debugger_response(CMD_RETURN, text, reqid=CMD_LIST_THREADS)
-        self.send_request('threads')
+        with self.wait_for_event('thread'):
+            self.send_request('threads')
+        if self._hidden:
+            # The first event was handled by wait_for_event().
+            for _, name in tuple(threads)[1:]:
+                if name.startswith(('ptvsd.', 'pydevd.')):
+                    continue
+                next(self.vsc_msgs.event_seq)
 
-        for tinfo in self.vsc.received[-1].data['body']['threads']:
+        for msg in reversed(self.vsc.received):
+            if msg.data['type'] == 'response':
+                if msg.data['command'] == 'threads':
+                    break
+        else:
+            assert False, 'we waited for the response in send_request()'
+
+        for tinfo in msg.data['body']['threads']:
             try:
                 thread = request[tinfo['name']]
             except KeyError:

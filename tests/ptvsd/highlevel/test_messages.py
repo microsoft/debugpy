@@ -191,11 +191,13 @@ class ThreadsTests(NormalRequestTest, unittest.TestCase):
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
+            self.new_event('thread', threadId=1, reason='started'),
+            self.new_event('thread', threadId=2, reason='started'),
             self.expected_response(
                 threads=[
                     {'id': 1, 'name': 'spam'},
                     # Threads named 'pydevd.*' are ignored.
-                    {'id': 3, 'name': ''},
+                    {'id': 2, 'name': ''},
                 ],
             ),
             # no events
