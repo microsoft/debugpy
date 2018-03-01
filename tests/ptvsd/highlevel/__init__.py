@@ -17,6 +17,7 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_SEND_CURR_EXCEPTION_TRACE,
 )
 
+from tests.helpers.protocol import MessageCounters
 from tests.helpers.pydevd import FakePyDevd
 from tests.helpers.vsc import FakeVSC
 
@@ -33,18 +34,20 @@ class PyDevdMessages(object):
                  response_seq=0,  # PyDevd responses/events to ptvsd
                  event_seq=None,
                  ):
-        self.request_seq = itertools.count(request_seq)
-        self.response_seq = itertools.count(response_seq)
-        if event_seq is None:
-            self.event_seq = self.response_seq
-        else:
-            self.event_seq = itertools.count(event_seq)
+        self.counters = MessageCounters(
+            request_seq,
+            response_seq,
+            event_seq,
+        )
+
+    def __getattr__(self, name):
+        return getattr(self.counters, name)
 
     def new_request(self, cmdid, *args, **kwargs):
         """Return a new PyDevd request message."""
         seq = kwargs.pop('seq', None)
         if seq is None:
-            seq = next(self.request_seq)
+            seq = self.counters.next_request()
         return self._new_message(cmdid, seq, args, **kwargs)
 
     def new_response(self, req, *args):
@@ -59,7 +62,7 @@ class PyDevdMessages(object):
         """Return a new VSC event message."""
         seq = kwargs.pop('seq', None)
         if seq is None:
-            seq = next(self.event_seq)
+            seq = self.counters.next_event()
         return self._new_message(cmdid, seq, args, **kwargs)
 
     def _new_message(self, cmdid, seq, args=()):
@@ -120,17 +123,19 @@ class VSCMessages(object):
                  response_seq=0,  # ptvsd responses/events to VSC
                  event_seq=None,
                  ):
-        self.request_seq = itertools.count(request_seq)
-        self.response_seq = itertools.count(response_seq)
-        if event_seq is None:
-            self.event_seq = self.response_seq
-        else:
-            self.event_seq = itertools.count(event_seq)
+        self.counters = MessageCounters(
+            request_seq,
+            response_seq,
+            event_seq,
+        )
+
+    def __getattr__(self, name):
+        return getattr(self.counters, name)
 
     def new_request(self, command, seq=None, **args):
         """Return a new VSC request message."""
         if seq is None:
-            seq = next(self.request_seq)
+            seq = self.counters.next_request()
         return {
             'type': 'request',
             'seq': seq,
@@ -148,7 +153,7 @@ class VSCMessages(object):
 
     def _new_response(self, req, err=None, seq=None, body=None):
         if seq is None:
-            seq = next(self.response_seq)
+            seq = self.counters.next_response()
         return {
             'type': 'response',
             'seq': seq,
@@ -162,7 +167,7 @@ class VSCMessages(object):
     def new_event(self, eventname, seq=None, **body):
         """Return a new VSC event message."""
         if seq is None:
-            seq = next(self.event_seq)
+            seq = self.counters.next_event()
         return {
             'type': 'event',
             'seq': seq,
@@ -354,25 +359,25 @@ class HighlevelFixture(object):
         with self.vsc.wait_for_response(req, handler=handler):
             yield req
         if self._hidden:
-            next(self.vsc_msgs.response_seq)
+            self.vsc_msgs.next_response()
 
     @contextlib.contextmanager
     def wait_for_event(self, event, *args, **kwargs):
         with self.vsc.wait_for_event(event, *args, **kwargs):
             yield
         if self._hidden:
-            next(self.vsc_msgs.event_seq)
+            self.vsc_msgs.next_event()
 
     @contextlib.contextmanager
     def expect_debugger_command(self, cmdid):
         yield
         if self._hidden:
-            next(self.debugger_msgs.request_seq)
+            self.debugger_msgs.next_request()
 
     def set_debugger_response(self, cmdid, payload, **kwargs):
         self.debugger.add_pending_response(cmdid, payload, **kwargs)
         if self._hidden:
-            next(self.debugger_msgs.request_seq)
+            self.debugger_msgs.next_request()
 
     def send_debugger_event(self, cmdid, payload):
         event = self.debugger_msgs.new_event(cmdid, payload)
@@ -408,7 +413,7 @@ class HighlevelFixture(object):
             for _, name in tuple(threads)[1:]:
                 if name.startswith(('ptvsd.', 'pydevd.')):
                     continue
-                next(self.vsc_msgs.event_seq)
+                self.vsc_msgs.next_event()
 
         for msg in reversed(self.vsc.received):
             if msg.type == 'response':

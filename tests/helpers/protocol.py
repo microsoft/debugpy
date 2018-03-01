@@ -3,6 +3,7 @@ import errno
 import threading
 
 from . import socket
+from .counter import Counter
 
 
 class StreamFailure(Exception):
@@ -38,6 +39,42 @@ class MessageProtocol(namedtuple('Protocol', 'parse encode iter')):
         """Yield the parsed version of each message."""
         for msg in messages:
             yield self.parse(msg)
+
+
+class MessageCounters(namedtuple('MessageCounters',
+                                 'request response event')):
+    """Track the next "seq" value for the protocol message types."""
+
+    REQUEST_INC = 1
+    RESPONSE_INC = 1
+    EVENT_INC = 1
+
+    def __new__(cls, request=0, response=0, event=None):
+        request = Counter(request, cls.REQUEST_INC)
+        if response is None:
+            response = request
+        else:
+            response = Counter(response, cls.RESPONSE_INC)
+        if event is None:
+            event = response
+        else:
+            event = Counter(event, cls.EVENT_INC)
+        self = super(MessageCounters, cls).__new__(
+            cls,
+            request,
+            response,
+            event,
+        )
+        return self
+
+    def next_request(self):
+        return next(self.request)
+
+    def next_response(self):
+        return next(self.response)
+
+    def next_event(self):
+        return next(self.event)
 
 
 class Started(object):
