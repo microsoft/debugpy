@@ -419,6 +419,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.loop = futures.EventLoop()
         self.exceptions_mgr = ExceptionsManager(self)
         self.disconnect_request = None
+        self.launch_arguments = None
         self.disconnect_request_event = threading.Event()
         pydevd._vscprocessor = self
         self._closed = False
@@ -539,8 +540,17 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     def on_configurationDone(self, request, args):
         # TODO: docstring
         self.send_response(request)
+        self.process_launch_arguments()
         self.pydevd_request(pydevd_comm.CMD_RUN, '')
         self.send_process_event(self.start_reason)
+    
+    def process_launch_arguments(self):
+        """Process the launch arguments to configure the debugger"""
+        if self.launch_arguments is None:
+            return
+
+        redirect_stdout = 'STDOUT\tSTDERR' if self.launch_arguments.get('redirectOutput', False) == True else ''
+        self.pydevd_request(pydevd_comm.CMD_REDIRECT_OUTPUT, redirect_stdout)
 
     def on_disconnect(self, request, args):
         # TODO: docstring
@@ -564,6 +574,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     def on_launch(self, request, args):
         # TODO: docstring
         self.start_reason = 'launch'
+        self.launch_arguments = request.get('arguments', None)
         self.send_response(request)
 
     def send_process_event(self, start_method):
@@ -981,6 +992,15 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             except KeyError:
                 pass
 
+    @pydevd_events.handler(pydevd_comm.CMD_WRITE_TO_CONSOLE)
+    def on_pydevd_cmd_write_to_console2(self, seq, args):
+        """Handle console output"""
+        xml = untangle.parse(args).xml
+        ctx = xml.io['ctx']
+        category = 'stdout' if ctx == '1' else 'stderr'
+        content = unquote(xml.io['s'])
+        self.send_event('output', category=category, output=content)
+        
 
 ########################
 # lifecycle
