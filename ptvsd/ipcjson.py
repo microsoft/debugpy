@@ -287,7 +287,7 @@ class IpcChannel(object):
                 self._wait_for_message()
             except OSError as exc:
                 if exc.errno == errno.EBADF or self.__exit:  # socket closed
-                    return self.__exit                
+                    return self.__exit
                 raise
             except Exception:
                 if self.__exit:
