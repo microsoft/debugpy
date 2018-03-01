@@ -1507,7 +1507,7 @@ class ThreadEventTest(PyDevdEventTest):
 
     def send_event(self, *args, **kwargs):
         def handler(msg, _):
-            self._tid = msg.data['body']['threadId']
+            self._tid = msg.body['threadId']
         kwargs['handler'] = handler
         super(ThreadEventTest, self).send_event(*args, **kwargs)
         return self._tid
@@ -1844,8 +1844,8 @@ class SendCurrExcTraceTests(PyDevdEventTest, unittest.TestCase):
 
         self.assert_vsc_received(received, [])
         self.assert_received(self.debugger, [])
-        self.assertTrue(resp.data['success'], resp.data['message'])
-        self.assertEqual(resp.data['body'], dict(
+        self.assertTrue(resp.success, resp.message)
+        self.assertEqual(resp.body, dict(
             exceptionId='RuntimeError',
             description='something went wrong',
             breakMode='unhandled',

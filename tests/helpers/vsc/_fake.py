@@ -89,18 +89,26 @@ class FakeVSC(protocol.Daemon):
         command = req['command']
 
         def match(msg):
-            msg = msg.data
-            if msg['type'] != 'response' or msg['request_seq'] != reqseq:
+            #msg = parse_message(msg)
+            try:
+                actual = msg.request_seq
+            except AttributeError:
                 return False
-            assert(msg['command'] == command)
+            if actual != reqseq:
+                return False
+            assert(msg.command == command)
             return True
 
         return self._wait_for_message(match, req, **kwargs)
 
     def wait_for_event(self, event, **kwargs):
         def match(msg):
-            msg = msg.data
-            if msg['type'] != 'event' or msg['event'] != event:
+            #msg = parse_message(msg)
+            try:
+                actual = msg.event
+            except AttributeError:
+                return False
+            if actual != event:
                 return False
             return True
 

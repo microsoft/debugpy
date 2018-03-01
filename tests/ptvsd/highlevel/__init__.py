@@ -249,7 +249,7 @@ class VSCLifecycle(object):
         See https://code.visualstudio.com/docs/extensionAPI/api-debugging#_the-vs-code-debug-protocol-in-a-nutshell
         """  # noqa
         def handle_response(resp, _):
-            self._capabilities = resp.data['body']
+            self._capabilities = resp.body
         version = self._fix.debugger.VERSION
         self._fix.set_debugger_response(CMD_VERSION, version)
         self._fix.send_request(
@@ -411,13 +411,13 @@ class HighlevelFixture(object):
                 next(self.vsc_msgs.event_seq)
 
         for msg in reversed(self.vsc.received):
-            if msg.data['type'] == 'response':
-                if msg.data['command'] == 'threads':
+            if msg.type == 'response':
+                if msg.command == 'threads':
                     break
         else:
             assert False, 'we waited for the response in send_request()'
 
-        for tinfo in msg.data['body']['threads']:
+        for tinfo in msg.body['threads']:
             try:
                 thread = request[tinfo['name']]
             except KeyError:
@@ -541,7 +541,7 @@ class HighlevelTest(object):
 
         failure = received[-1]
         expected = self.vsc.protocol.parse(
-            self.fix.vsc_msgs.new_failure(req, failure.data['message']))
+            self.fix.vsc_msgs.new_failure(req, failure.message))
         self.assertEqual(failure, expected)
 
     def assert_received(self, daemon, expected):
