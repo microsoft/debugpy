@@ -402,12 +402,13 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     protocol.
     """
 
-    def __init__(self, socket, pydevd, logfile=None):
+    def __init__(self, socket, pydevd, logfile=None, killonclose=True):
         super(VSCodeMessageProcessor, self).__init__(socket=socket,
                                                      own_socket=False,
                                                      logfile=logfile)
         self.socket = socket
         self.pydevd = pydevd
+        self.killonclose = killonclose
         self.stack_traces = {}
         self.stack_traces_lock = threading.Lock()
         self.active_exceptions = {}
@@ -563,7 +564,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             self.disconnect_request_event.set()
             killProcess = not self._closed
             self.close()
-            if killProcess:
+            if killProcess and self.killonclose:
                 os.kill(os.getpid(), signal.SIGTERM)
         else:
             self.send_response(request)
@@ -1032,11 +1033,12 @@ def _new_sock():
     return sock
 
 
-def _start(client, server):
+def _start(client, server, killonclose=True):
     name = 'ptvsd.Client' if server is None else 'ptvsd.Server'
 
     pydevd = PydevdSocket(lambda *args: proc.on_pydevd_event(*args))
-    proc = VSCodeMessageProcessor(client, pydevd)
+    proc = VSCodeMessageProcessor(client, pydevd,
+                                  killonclose=killonclose)
 
     server_thread = threading.Thread(target=proc.process_messages,
                                      name=name)
