@@ -67,7 +67,7 @@ class IDMap(object):
     as it doesn't have evaluation persistence. However, for a given
     frame, any child can be identified by the path one needs to walk
     from the root of the frame to get to that child - and that path,
-    represented as a sequence of its consituent components, is used by
+    represented as a sequence of its constituent components, is used by
     pydevd commands to identify the variable. So we use the tuple
     representation of the same as its pydevd ID.  For example, for
     something like foo[1].bar, its ID is:
@@ -876,28 +876,21 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     @async_handler
     def on_exceptionInfo(self, request, args):
         # TODO: docstring
-        tid = self.thread_map.to_pydevd(args['threadId'])
-        name, description = self.get_exceptionInfo(tid)
-        self.send_response(
-            request,
-            exceptionId=name,
-            description=description,
-            breakMode=self.exceptions_mgr.get_break_mode(name),
-            details={'typeName': name,
-                     'message': description},
-        )
-
-    def get_exceptionInfo(self, pyd_tid):
-        """
-        Gets the exception name and description for the given PyDev Thread id.
-        """
+        pyd_tid = self.thread_map.to_pydevd(args['threadId'])
         with self.active_exceptions_lock:
             try:
                 exc = self.active_exceptions[pyd_tid]
             except KeyError:
                 exc = ExceptionInfo('BaseException',
                                     'exception: no description')
-        return (exc.name, exc.description)
+        self.send_response(
+            request,
+            exceptionId=exc.name,
+            description=exc.description,
+            breakMode=self.exceptions_mgr.get_break_mode(exc.name),
+            details={'typeName': exc.name,
+                     'message': exc.description},
+        )
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_CREATE)
     def on_pydevd_thread_create(self, seq, args):
@@ -925,6 +918,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             self.send_event('thread', reason='exited', threadId=vsc_tid)
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_SUSPEND)
+    @async_handler
     def on_pydevd_thread_suspend(self, seq, args):
         # TODO: docstring
         xml = untangle.parse(args).xml
@@ -944,23 +938,47 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=False)
         except KeyError:
             return
+        
+        with self.stack_traces_lock:
+            self.stack_traces[pyd_tid] = xml.thread.frame
 
+        description = None
         text = None
         if reason in STEP_REASONS:
             reason = 'step'
         elif reason in EXCEPTION_REASONS:
             reason = 'exception'
-            name, description = self.get_exceptionInfo(pyd_tid)
-            text = '{}, {}'.format(name, description)
         elif reason == pydevd_comm.CMD_SET_BREAK:
             reason = 'breakpoint'
         else:
             reason = 'pause'
 
-        with self.stack_traces_lock:
-            self.stack_traces[pyd_tid] = xml.thread.frame
+        # For exception cases both raise and uncaught, pydevd adds a __exception__ object to the
+        # top most frame. Extracting the exception name and description from that frame gives 
+        # accurate exception information.
+        if reason == 'exception':
+            # Get exception info from frame
+            try:
+                xframe = xml.thread.frame[0]
+                pyd_fid = xframe['id']
+                cmdargs = '{}\t{}\tFRAME\t__exception__'.format(pyd_tid, pyd_fid)
+                _, _, resp_args = yield self.pydevd_request(pydevd_comm.CMD_GET_VARIABLE, cmdargs)
+                xml = untangle.parse(resp_args).xml
+                text = unquote(xml.var[1]['type'])
+                description = unquote(xml.var[1]['value'])
+            except:
+                text = 'BaseException'
+                description = 'exception: no description'
 
-        self.send_event('stopped', reason=reason, threadId=vsc_tid, text=text)
+            with self.active_exceptions_lock:
+                self.active_exceptions[pyd_tid] = ExceptionInfo(text, description)
+
+        self.send_event(
+            'stopped', 
+            reason=reason, 
+            threadId=vsc_tid, 
+            text=text, 
+            description=description)
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_RUN)
     def on_pydevd_thread_run(self, seq, args):
@@ -968,11 +986,17 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         pyd_tid, reason = args.split('\t')
         pyd_tid = pyd_tid.strip()
 
-        # Stack trace, and all frames and variables for this thread
+        # Stack trace, active exception, all frames, and variables for this thread
         # are now invalid; clear their IDs.
         with self.stack_traces_lock:
             try:
                 del self.stack_traces[pyd_tid]
+            except KeyError:
+                pass
+
+        with self.active_exceptions_lock:
+            try:
+                del self.active_exceptions[pyd_tid]
             except KeyError:
                 pass
 
@@ -994,11 +1018,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     @pydevd_events.handler(pydevd_comm.CMD_SEND_CURR_EXCEPTION_TRACE)
     def on_pydevd_send_curr_exception_trace(self, seq, args):
         # TODO: docstring
-        _, name, description, xml = args.split('\t')
-        xml = untangle.parse(xml).xml
-        pyd_tid = xml.thread['id']
-        with self.active_exceptions_lock:
-            self.active_exceptions[pyd_tid] = ExceptionInfo(name, description)
+        pass
 
     @pydevd_events.handler(pydevd_comm.CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED)
     def on_pydevd_send_curr_exception_trace_proceeded(self, seq, args):
@@ -1077,7 +1097,7 @@ def start_server(port):
     The daemon supports the pydevd client wire protocol, sending
     requests and handling responses (and events).
 
-    This is a replacement fori _pydevd_bundle.pydevd_comm.start_server.
+    This is a replacement for _pydevd_bundle.pydevd_comm.start_server.
     """
     server = _create_server(port)
     client, _ = server.accept()
@@ -1097,7 +1117,7 @@ def start_client(host, port):
     The daemon supports the pydevd client wire protocol, sending
     requests and handling responses (and events).
 
-    This is a replacement fori _pydevd_bundle.pydevd_comm.start_client.
+    This is a replacement for _pydevd_bundle.pydevd_comm.start_client.
     """
     client = _create_client()
     client.connect((host, port))
