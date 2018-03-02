@@ -513,8 +513,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     def on_initialize(self, request, args):
         # TODO: docstring
         cmd = pydevd_comm.CMD_VERSION
-        os_id = 'WINDOWS' if platform.system() == 'Windows' else 'UNIX'
-        msg = '1.1\t{}\tID'.format(os_id)
+        msg = '1.1\tUNIX\tID'
         yield self.pydevd_request(cmd, msg)
         self.send_response(
             request,
@@ -547,7 +546,17 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.send_process_event(self.start_reason)
 
     def process_launch_arguments(self):
-        """Process the launch arguments to configure the debugger"""
+        """
+        Process the launch arguments to configure the debugger.
+        Further information can be found here https://code.visualstudio.com/docs/editor/debugging#_launchjson-attributes
+        {
+            type:'python',
+            request:'launch'|'attach',
+            name:'friendly name for debug config',
+            // Custom attributes supported by PTVSD.
+            redirectOutput:true|false,
+        }
+        """
         if self.launch_arguments is None:
             return
 
