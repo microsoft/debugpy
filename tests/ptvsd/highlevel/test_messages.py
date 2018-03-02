@@ -586,14 +586,15 @@ class PauseTests(NormalRequestTest, unittest.TestCase):
     PYDEVD_RESP = None
 
     def test_pause_one(self):
+        thread = (10, 'spam')
         with self.launched():
             with self.hidden():
-                self.set_threads(
-                    (10, 'spam'),
+                tids = self.set_threads(
+                    thread,
                     (11, ''),
                 )
             self.send_request(
-                threadId=5,  # matches our first thread
+                threadId=tids[thread],
             )
             received = self.vsc.received
 
@@ -621,11 +622,11 @@ class ContinueTests(NormalRequestTest, unittest.TestCase):
         thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                self.pause(thread, *[
+                tid = self.pause(thread, *[
                     (2, 'spam', 'abc.py', 10),
                 ])
             self.send_request(
-                threadId=5,  # matches our thread
+                threadId=tid,
             )
             received = self.vsc.received
 
@@ -648,11 +649,11 @@ class NextTests(NormalRequestTest, unittest.TestCase):
         thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                self.pause(thread, *[
+                tid = self.pause(thread, *[
                     (2, 'spam', 'abc.py', 10),
                 ])
             self.send_request(
-                threadId=5,  # matches our thread
+                threadId=tid,
             )
             received = self.vsc.received
 
@@ -675,11 +676,11 @@ class StepInTests(NormalRequestTest, unittest.TestCase):
         thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                self.pause(thread, *[
+                tid = self.pause(thread, *[
                     (2, 'spam', 'abc.py', 10),
                 ])
             self.send_request(
-                threadId=5,  # matches our thread
+                threadId=tid,
             )
             received = self.vsc.received
 
@@ -702,11 +703,11 @@ class StepOutTests(NormalRequestTest, unittest.TestCase):
         thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                self.pause(thread, *[
+                tid = self.pause(thread, *[
                     (2, 'spam', 'abc.py', 10),
                 ])
             self.send_request(
-                threadId=5,  # matches our thread
+                threadId=tid,
             )
             received = self.vsc.received
 
