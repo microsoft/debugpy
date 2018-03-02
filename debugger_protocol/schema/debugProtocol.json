@@ -441,6 +441,30 @@
 			]
 		},
 
+		"CapabilitiesEvent": {
+			"allOf": [ { "$ref": "#/definitions/Event" }, {
+				"type": "object",
+				"description": "Event message for 'capabilities' event type.\nThe event indicates that one or more capabilities have changed.\nSince the capabilities are dependent on the frontend and its UI, it might not be possible to change that at random times (or too late).\nConsequently this event has a hint characteristic: a frontend can only be expected to make a 'best effort' in honouring individual capabilities but there are no guarantees.\nOnly changed capabilities need to be included, all other capabilities keep their values.",
+				"properties": {
+					"event": {
+						"type": "string",
+						"enum": [ "capabilities" ]
+					},
+					"body": {
+						"type": "object",
+						"properties": {
+							"capabilities": {
+								"$ref": "#/definitions/Capabilities",
+								"description": "The set of updated capabilities."
+							}
+						},
+						"required": [ "capabilities" ]
+					}
+				},
+				"required": [ "event", "body" ]
+			}]
+		},
+
 		"RunInTerminalRequest": {
 			"allOf": [ { "$ref": "#/definitions/Request" }, {
 				"type": "object",
@@ -2104,6 +2128,10 @@
 				"supportsLoadedSourcesRequest": {
 					"type": "boolean",
 					"description": "The debug adapter supports the 'loadedSources' request."
+				},
+				"supportsLogPoints": {
+					"type": "boolean",
+					"description": "The debug adapter supports logpoints by interpreting the 'logMessage' attribute of the SourceBreakpoint."
 				}
 			}
 		},
@@ -2502,11 +2530,11 @@
 
 		"SourceBreakpoint": {
 			"type": "object",
-			"description": "Properties of a breakpoint passed to the setBreakpoints request.",
+			"description": "Properties of a breakpoint or logpoint passed to the setBreakpoints request.",
 			"properties": {
 				"line": {
 					"type": "integer",
-					"description": "The source line of the breakpoint."
+					"description": "The source line of the breakpoint or logpoint."
 				},
 				"column": {
 					"type": "integer",
@@ -2519,6 +2547,10 @@
 				"hitCondition": {
 					"type": "string",
 					"description": "An optional expression that controls how many hits of the breakpoint are ignored. The backend is expected to interpret the expression as needed."
+				},
+				"logMessage": {
+					"type": "string",
+					"description": "If this attribute exists and is non-empty, the backend must not 'break' (stop) but log the message instead. Expressions within {} are interpolated."
 				}
 			},
 			"required": [ "line" ]
