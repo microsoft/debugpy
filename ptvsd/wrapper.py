@@ -877,52 +877,20 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     def on_exceptionInfo(self, request, args):
         # TODO: docstring
         pyd_tid = self.thread_map.to_pydevd(args['threadId'])
-        with self.stack_traces_lock:
-            try:
-                xframes = self.stack_traces[pyd_tid]
-            except:
-                xframes = None
-
-        name = None
-        description = None
-        if xframes:
-            # pydevd adds a __exception__ object to the frame at the top of the stack
-            # Always extract from that object to get accurate exception info.
-            try:
-                xframe = xframes[0]
-                pyd_fid = xframe['id']
-                cmdargs = '{}\t{}\tFRAME\t__exception__'.format(pyd_tid, pyd_fid)
-                _, _, resp_args = yield self.pydevd_request(pydevd_comm.CMD_GET_VARIABLE, cmdargs)
-                xml = untangle.parse(resp_args).xml
-                name = unquote(xml.var[1]['type'])
-                description = unquote(xml.var[1]['value'])
-            except:
-                name = None
-                description = None
-
-        if not name:
-            name, description = self.get_exceptionInfo(pyd_tid)
-
-        self.send_response(
-            request,
-            exceptionId=name,
-            description=description,
-            breakMode=self.exceptions_mgr.get_break_mode(name),
-            details={'typeName': name,
-                     'message': description},
-        )
-
-    def get_exceptionInfo(self, pyd_tid):
-        """
-        Gets the exception name and description for the given PyDev Thread id.
-        """
         with self.active_exceptions_lock:
             try:
                 exc = self.active_exceptions[pyd_tid]
             except KeyError:
                 exc = ExceptionInfo('BaseException',
                                     'exception: no description')
-        return (exc.name, exc.description)
+        self.send_response(
+            request,
+            exceptionId=exc.name,
+            description=exc.description,
+            breakMode=self.exceptions_mgr.get_break_mode(exc.name),
+            details={'typeName': exc.name,
+                     'message': exc.description},
+        )
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_CREATE)
     def on_pydevd_thread_create(self, seq, args):
@@ -950,6 +918,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             self.send_event('thread', reason='exited', threadId=vsc_tid)
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_SUSPEND)
+    @async_handler
     def on_pydevd_thread_suspend(self, seq, args):
         # TODO: docstring
         xml = untangle.parse(args).xml
@@ -969,23 +938,47 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=False)
         except KeyError:
             return
+        
+        with self.stack_traces_lock:
+            self.stack_traces[pyd_tid] = xml.thread.frame
 
+        description = None
         text = None
         if reason in STEP_REASONS:
             reason = 'step'
         elif reason in EXCEPTION_REASONS:
             reason = 'exception'
-            name, description = self.get_exceptionInfo(pyd_tid)
-            text = '{}, {}'.format(name, description)
         elif reason == pydevd_comm.CMD_SET_BREAK:
             reason = 'breakpoint'
         else:
             reason = 'pause'
 
-        with self.stack_traces_lock:
-            self.stack_traces[pyd_tid] = xml.thread.frame
+        # For exception case both raise and caught, pydevd adds a __exception__ object to the
+        # top most frame. Extracting the exception name and description from that frame gives
+        #  accurate exception information.
+        if reason == 'exception':
+            # Get exception info from frame
+            try:
+                xframe = xml.thread.frame[0]
+                pyd_fid = xframe['id']
+                cmdargs = '{}\t{}\tFRAME\t__exception__'.format(pyd_tid, pyd_fid)
+                _, _, resp_args = yield self.pydevd_request(pydevd_comm.CMD_GET_VARIABLE, cmdargs)
+                xml = untangle.parse(resp_args).xml
+                text = unquote(xml.var[1]['type'])
+                description = unquote(xml.var[1]['value'])
+            except:
+                text = 'BaseException'
+                description = 'exception: no description'
 
-        self.send_event('stopped', reason=reason, threadId=vsc_tid, text=text)
+            with self.active_exceptions_lock:
+                self.active_exceptions[pyd_tid] = ExceptionInfo(text, description)
+
+        self.send_event(
+            'stopped', 
+            reason=reason, 
+            threadId=vsc_tid, 
+            text=text, 
+            description=description)
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_RUN)
     def on_pydevd_thread_run(self, seq, args):
@@ -993,11 +986,17 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         pyd_tid, reason = args.split('\t')
         pyd_tid = pyd_tid.strip()
 
-        # Stack trace, and all frames and variables for this thread
+        # Stack trace, active exception, all frames, and variables for this thread
         # are now invalid; clear their IDs.
         with self.stack_traces_lock:
             try:
                 del self.stack_traces[pyd_tid]
+            except KeyError:
+                pass
+
+        with self.active_exceptions_lock:
+            try:
+                del self.active_exceptions[pyd_tid]
             except KeyError:
                 pass
 
@@ -1019,11 +1018,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     @pydevd_events.handler(pydevd_comm.CMD_SEND_CURR_EXCEPTION_TRACE)
     def on_pydevd_send_curr_exception_trace(self, seq, args):
         # TODO: docstring
-        _, name, description, xml = args.split('\t')
-        xml = untangle.parse(xml).xml
-        pyd_tid = xml.thread['id']
-        with self.active_exceptions_lock:
-            self.active_exceptions[pyd_tid] = ExceptionInfo(name, description)
+        pass
 
     @pydevd_events.handler(pydevd_comm.CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED)
     def on_pydevd_send_curr_exception_trace_proceeded(self, seq, args):
