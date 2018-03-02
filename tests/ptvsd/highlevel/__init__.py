@@ -297,6 +297,7 @@ class HighlevelFixture(object):
         self.debugger_msgs = PyDevdMessages()
 
         self._hidden = False
+        self._default_threads = None
 
     @property
     def vsc(self):
@@ -369,6 +370,15 @@ class HighlevelFixture(object):
             self.vsc_msgs.next_event()
 
     @contextlib.contextmanager
+    def _wait_for_events(self, events):
+        if not events:
+            yield
+            return
+        with self._wait_for_events(events[1:]):
+            with self.wait_for_event(events[0]):
+                yield
+
+    @contextlib.contextmanager
     def expect_debugger_command(self, cmdid):
         yield
         if self._hidden:
@@ -404,16 +414,13 @@ class HighlevelFixture(object):
         response = {t: None for t in threads}
         if default_threads:
             threads = self._add_default_threads(threads)
+        active = [name
+                  for _, name in threads
+                  if not name.startswith(('ptvsd.', 'pydevd.'))]
         text = self.debugger_msgs.format_threads(*threads)
         self.set_debugger_response(CMD_RETURN, text, reqid=CMD_LIST_THREADS)
-        with self.wait_for_event('thread'):
+        with self._wait_for_events(['thread' for _ in active]):
             self.send_request('threads')
-        if self._hidden:
-            # The first event was handled by wait_for_event().
-            for _, name in tuple(threads)[1:]:
-                if name.startswith(('ptvsd.', 'pydevd.')):
-                    continue
-                self.vsc_msgs.next_event()
 
         for msg in reversed(self.vsc.received):
             if msg.type == 'response':
@@ -431,6 +438,8 @@ class HighlevelFixture(object):
         return response
 
     def _add_default_threads(self, threads):
+        if self._default_threads is not None:
+            return threads
         defaults = {
             'MainThread',
             'ptvsd.Server',
@@ -449,6 +458,7 @@ class HighlevelFixture(object):
             tid = next(ids)
             thread = tid, tname
             allthreads.append(thread)
+        self._default_threads = list(allthreads)
         allthreads.extend(threads)
         return allthreads
 
