@@ -1647,6 +1647,7 @@ class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
             self.expected_event(
                 reason='step',
                 threadId=tid,
+                text=None,
             ),
         ])
         self.assert_received(self.debugger, [])
@@ -1663,6 +1664,7 @@ class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
             self.expected_event(
                 reason='step',
                 threadId=tid,
+                text=None,
             ),
         ])
         self.assert_received(self.debugger, [])
@@ -1679,6 +1681,7 @@ class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
             self.expected_event(
                 reason='step',
                 threadId=tid,
+                text=None,
             ),
         ])
         self.assert_received(self.debugger, [])
@@ -1695,6 +1698,7 @@ class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
             self.expected_event(
                 reason='exception',
                 threadId=tid,
+                text='BaseException, exception: no description',
             ),
         ])
         self.assert_received(self.debugger, [])
@@ -1711,6 +1715,7 @@ class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
             self.expected_event(
                 reason='exception',
                 threadId=tid,
+                text='BaseException, exception: no description',
             ),
         ])
         self.assert_received(self.debugger, [])
@@ -1727,6 +1732,7 @@ class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
             self.expected_event(
                 reason='pause',
                 threadId=tid,
+                text=None,
             ),
         ])
         self.assert_received(self.debugger, [])
@@ -1744,6 +1750,7 @@ class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
             self.expected_event(
                 reason='pause',
                 threadId=tid,
+                text=None,
             ),
         ])
         self.assert_received(self.debugger, [])
@@ -1762,6 +1769,7 @@ class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
             self.expected_event(
                 reason='pause',
                 threadId=tid,
+                text=None,
             ),
         ])
         self.assert_received(self.debugger, [])
@@ -1781,6 +1789,7 @@ class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
             self.expected_event(
                 reason='pause',
                 threadId=tid,
+                text=None,
             ),
         ])
         self.assert_received(self.debugger, [])
