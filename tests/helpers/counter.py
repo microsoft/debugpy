@@ -7,13 +7,9 @@ class Counter(object):
         self._step = int(step)
 
     def __repr__(self):
-        if self._last is None:
-            start = self._start
-        else:
-            start = self._last + self._step
         return '{}(start={}, step={})'.format(
             type(self).__name__,
-            start,
+            self.peek(),
             self._step,
         )
 
