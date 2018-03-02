@@ -3,6 +3,7 @@ import sys
 import unittest
 
 from _pydevd_bundle.pydevd_comm import (
+    CMD_REDIRECT_OUTPUT,
     CMD_RUN,
     CMD_VERSION,
 )
@@ -145,5 +146,6 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
         self.assert_received(self.debugger, [
             self.debugger_msgs.new_request(CMD_VERSION,
                                            *['1.1', OS_ID, 'ID']),
+            self.debugger_msgs.new_request(CMD_REDIRECT_OUTPUT),
             self.debugger_msgs.new_request(CMD_RUN),
         ])
