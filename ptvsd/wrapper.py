@@ -513,7 +513,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     def on_initialize(self, request, args):
         # TODO: docstring
         cmd = pydevd_comm.CMD_VERSION
-        msg = '1.1\tUNIX\tID'
+        os_id = 'WINDOWS' if platform.system() == 'Windows' else 'UNIX'
+        msg = '1.1\t{}\tID'.format(os_id)
         yield self.pydevd_request(cmd, msg)
         self.send_response(
             request,
