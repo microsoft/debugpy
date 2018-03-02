@@ -11,6 +11,7 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_VERSION,
     CMD_LIST_THREADS,
     CMD_THREAD_SUSPEND,
+    CMD_REDIRECT_OUTPUT,
     CMD_RETURN,
     CMD_RUN,
     CMD_STEP_CAUGHT_EXCEPTION,
@@ -240,9 +241,10 @@ class VSCLifecycle(object):
                                   **dict(default_threads=default_threads))
 
         self._handle_config(**config or {})
-        with self._fix.expect_debugger_command(CMD_RUN):
-            with self._fix.wait_for_event('process'):
-                self._fix.send_request('configurationDone')
+        with self._fix.expect_debugger_command(CMD_REDIRECT_OUTPUT):
+            with self._fix.expect_debugger_command(CMD_RUN):
+                with self._fix.wait_for_event('process'):
+                    self._fix.send_request('configurationDone')
 
         if reset:
             self._fix.reset()
