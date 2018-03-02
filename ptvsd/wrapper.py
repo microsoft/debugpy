@@ -953,9 +953,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         else:
             reason = 'pause'
 
-        # For exception case both raise and caught, pydevd adds a __exception__ object to the
-        # top most frame. Extracting the exception name and description from that frame gives
-        #  accurate exception information.
+        # For exception cases both raise and uncaught, pydevd adds a __exception__ object to the
+        # top most frame. Extracting the exception name and description from that frame gives 
+        # accurate exception information.
         if reason == 'exception':
             # Get exception info from frame
             try:
