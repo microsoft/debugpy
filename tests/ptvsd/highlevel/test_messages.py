@@ -1172,10 +1172,16 @@ class SetExceptionBreakpointsTests(NormalRequestTest, unittest.TestCase):
             self.expected_response(),
         ])
         self.PYDEVD_CMD = CMD_REMOVE_EXCEPTION_BREAK
-        removed = [
-            self.expected_pydevd_request('python-ImportError'),
-            self.expected_pydevd_request('python-BaseException'),
-        ]
+        if self.debugger.received[0].payload == 'python-ImportError':
+            removed = [
+                self.expected_pydevd_request('python-ImportError'),
+                self.expected_pydevd_request('python-BaseException'),
+            ]
+        else:
+            removed = [
+                self.expected_pydevd_request('python-BaseException'),
+                self.expected_pydevd_request('python-ImportError'),
+            ]
         self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
         self.assert_received(self.debugger, removed + [
             self.expected_pydevd_request('python-ImportError\t0\t0\t0'),
@@ -1328,10 +1334,16 @@ class SetExceptionBreakpointsTests(NormalRequestTest, unittest.TestCase):
             self.expected_response(),
         ])
         self.PYDEVD_CMD = CMD_REMOVE_EXCEPTION_BREAK
-        removed = [
-            self.expected_pydevd_request('python-ImportError'),
-            self.expected_pydevd_request('python-BaseException'),
-        ]
+        if self.debugger.received[0].payload == 'python-ImportError':
+            removed = [
+                self.expected_pydevd_request('python-ImportError'),
+                self.expected_pydevd_request('python-BaseException'),
+            ]
+        else:
+            removed = [
+                self.expected_pydevd_request('python-BaseException'),
+                self.expected_pydevd_request('python-ImportError'),
+            ]
         self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
         self.assert_received(self.debugger, removed + [
             self.expected_pydevd_request('python-BaseException\t3\t0\t0'),
