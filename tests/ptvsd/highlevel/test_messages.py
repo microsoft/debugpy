@@ -1574,8 +1574,6 @@ class ThreadKillTests(ThreadEventTest, unittest.TestCase):
     def pydevd_payload(self, threadid):
         return str(threadid)
 
-    # TODO: https://github.com/Microsoft/ptvsd/issues/138
-    @unittest.skip('broken')
     def test_known(self):
         thread = (10, 'x')
         with self.launched():
@@ -1600,8 +1598,6 @@ class ThreadKillTests(ThreadEventTest, unittest.TestCase):
         self.assert_vsc_received(received, [])
         self.assert_received(self.debugger, [])
 
-    # TODO: https://github.com/Microsoft/ptvsd/issues/137
-    @unittest.skip('broken')
     def test_pydevd_name(self):
         thread = (10, 'pydevd.spam')
         with self.launched():
@@ -1613,8 +1609,6 @@ class ThreadKillTests(ThreadEventTest, unittest.TestCase):
         self.assert_vsc_received(received, [])
         self.assert_received(self.debugger, [])
 
-    # TODO: https://github.com/Microsoft/ptvsd/issues/137
-    @unittest.skip('broken')
     def test_ptvsd_name(self):
         thread = (10, 'ptvsd.spam')
         with self.launched():
@@ -1862,8 +1856,6 @@ class SendCurrExcTraceProceededTests(PyDevdEventTest, unittest.TestCase):
     CMD = CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED
     EVENT = None
 
-    # See https://github.com/Microsoft/ptvsd/issues/141.
-
     def pydevd_payload(self, threadid):
         return str(threadid)
 
@@ -1874,10 +1866,24 @@ class SendCurrExcTraceProceededTests(PyDevdEventTest, unittest.TestCase):
         text = self.debugger_msgs.format_exception(thread[0], exc, frame)
         with self.launched():
             with self.hidden():
-                self.set_thread(thread)
+                tid = self.set_thread(thread)
                 self.fix.send_event(CMD_SEND_CURR_EXCEPTION_TRACE, text)
+                self.send_request('exceptionInfo', dict(
+                    threadId=tid,
+                ))
+                before = self.vsc.received[-1]
+
             self.send_event(10)
             received = self.vsc.received
 
+            self.send_request('exceptionInfo', dict(
+                threadId=tid,
+            ))
+            after = self.vsc.received[-1]
+
         self.assert_vsc_received(received, [])
         self.assert_received(self.debugger, [])
+        # The exception got cleared so we do not see RuntimeError.
+        self.assertEqual(after.body['exceptionId'], 'BaseException')
+        self.assertNotEqual(after.body['exceptionId'],
+                            before.body['exceptionId'])
