@@ -11,12 +11,14 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_VERSION,
     CMD_LIST_THREADS,
     CMD_THREAD_SUSPEND,
+    CMD_REDIRECT_OUTPUT,
     CMD_RETURN,
     CMD_RUN,
     CMD_STEP_CAUGHT_EXCEPTION,
     CMD_SEND_CURR_EXCEPTION_TRACE,
 )
 
+from tests.helpers.protocol import MessageCounters
 from tests.helpers.pydevd import FakePyDevd
 from tests.helpers.vsc import FakeVSC
 
@@ -33,18 +35,20 @@ class PyDevdMessages(object):
                  response_seq=0,  # PyDevd responses/events to ptvsd
                  event_seq=None,
                  ):
-        self.request_seq = itertools.count(request_seq)
-        self.response_seq = itertools.count(response_seq)
-        if event_seq is None:
-            self.event_seq = self.response_seq
-        else:
-            self.event_seq = itertools.count(event_seq)
+        self.counters = MessageCounters(
+            request_seq,
+            response_seq,
+            event_seq,
+        )
+
+    def __getattr__(self, name):
+        return getattr(self.counters, name)
 
     def new_request(self, cmdid, *args, **kwargs):
         """Return a new PyDevd request message."""
         seq = kwargs.pop('seq', None)
         if seq is None:
-            seq = next(self.request_seq)
+            seq = self.counters.next_request()
         return self._new_message(cmdid, seq, args, **kwargs)
 
     def new_response(self, req, *args):
@@ -59,7 +63,7 @@ class PyDevdMessages(object):
         """Return a new VSC event message."""
         seq = kwargs.pop('seq', None)
         if seq is None:
-            seq = next(self.event_seq)
+            seq = self.counters.next_event()
         return self._new_message(cmdid, seq, args, **kwargs)
 
     def _new_message(self, cmdid, seq, args=()):
@@ -120,17 +124,19 @@ class VSCMessages(object):
                  response_seq=0,  # ptvsd responses/events to VSC
                  event_seq=None,
                  ):
-        self.request_seq = itertools.count(request_seq)
-        self.response_seq = itertools.count(response_seq)
-        if event_seq is None:
-            self.event_seq = self.response_seq
-        else:
-            self.event_seq = itertools.count(event_seq)
+        self.counters = MessageCounters(
+            request_seq,
+            response_seq,
+            event_seq,
+        )
+
+    def __getattr__(self, name):
+        return getattr(self.counters, name)
 
     def new_request(self, command, seq=None, **args):
         """Return a new VSC request message."""
         if seq is None:
-            seq = next(self.request_seq)
+            seq = self.counters.next_request()
         return {
             'type': 'request',
             'seq': seq,
@@ -148,7 +154,7 @@ class VSCMessages(object):
 
     def _new_response(self, req, err=None, seq=None, body=None):
         if seq is None:
-            seq = next(self.response_seq)
+            seq = self.counters.next_response()
         return {
             'type': 'response',
             'seq': seq,
@@ -162,7 +168,7 @@ class VSCMessages(object):
     def new_event(self, eventname, seq=None, **body):
         """Return a new VSC event message."""
         if seq is None:
-            seq = next(self.event_seq)
+            seq = self.counters.next_event()
         return {
             'type': 'event',
             'seq': seq,
@@ -230,13 +236,15 @@ class VSCLifecycle(object):
             self._initialize(**initargs)
             self._fix.send_request(command, **kwargs)
 
-        self._fix.set_threads(*threads or (),
-                              **dict(default_threads=default_threads))
+        if threads:
+            self._fix.set_threads(*threads,
+                                  **dict(default_threads=default_threads))
 
         self._handle_config(**config or {})
-        with self._fix.expect_debugger_command(CMD_RUN):
-            with self._fix.wait_for_event('process'):
-                self._fix.send_request('configurationDone')
+        with self._fix.expect_debugger_command(CMD_REDIRECT_OUTPUT):
+            with self._fix.expect_debugger_command(CMD_RUN):
+                with self._fix.wait_for_event('process'):
+                    self._fix.send_request('configurationDone')
 
         if reset:
             self._fix.reset()
@@ -248,7 +256,7 @@ class VSCLifecycle(object):
         See https://code.visualstudio.com/docs/extensionAPI/api-debugging#_the-vs-code-debug-protocol-in-a-nutshell
         """  # noqa
         def handle_response(resp, _):
-            self._capabilities = resp.data['body']
+            self._capabilities = resp.body
         version = self._fix.debugger.VERSION
         self._fix.set_debugger_response(CMD_VERSION, version)
         self._fix.send_request(
@@ -291,6 +299,7 @@ class HighlevelFixture(object):
         self.debugger_msgs = PyDevdMessages()
 
         self._hidden = False
+        self._default_threads = None
 
     @property
     def vsc(self):
@@ -353,25 +362,34 @@ class HighlevelFixture(object):
         with self.vsc.wait_for_response(req, handler=handler):
             yield req
         if self._hidden:
-            next(self.vsc_msgs.response_seq)
+            self.vsc_msgs.next_response()
 
     @contextlib.contextmanager
     def wait_for_event(self, event, *args, **kwargs):
         with self.vsc.wait_for_event(event, *args, **kwargs):
             yield
         if self._hidden:
-            next(self.vsc_msgs.event_seq)
+            self.vsc_msgs.next_event()
+
+    @contextlib.contextmanager
+    def _wait_for_events(self, events):
+        if not events:
+            yield
+            return
+        with self._wait_for_events(events[1:]):
+            with self.wait_for_event(events[0]):
+                yield
 
     @contextlib.contextmanager
     def expect_debugger_command(self, cmdid):
         yield
         if self._hidden:
-            next(self.debugger_msgs.request_seq)
+            self.debugger_msgs.next_request()
 
     def set_debugger_response(self, cmdid, payload, **kwargs):
         self.debugger.add_pending_response(cmdid, payload, **kwargs)
         if self._hidden:
-            next(self.debugger_msgs.request_seq)
+            self.debugger_msgs.next_request()
 
     def send_debugger_event(self, cmdid, payload):
         event = self.debugger_msgs.new_event(cmdid, payload)
@@ -385,22 +403,35 @@ class HighlevelFixture(object):
             self.send_debugger_event(cmdid, text)
             return None
 
-    def set_threads(self, *threads, **kwargs):
+    def set_threads(self, _thread, *threads, **kwargs):
+        threads = (_thread,) + threads
         return self._set_threads(threads, **kwargs)
 
     def set_thread(self, thread):
-        return self.set_threads(thread)[thread]
+        threads = (thread,)
+        return self._set_threads(threads)[thread]
 
     def _set_threads(self, threads, default_threads=True):
         request = {t[1]: t for t in threads}
         response = {t: None for t in threads}
         if default_threads:
             threads = self._add_default_threads(threads)
+        active = [name
+                  for _, name in threads
+                  if not name.startswith(('ptvsd.', 'pydevd.'))]
         text = self.debugger_msgs.format_threads(*threads)
         self.set_debugger_response(CMD_RETURN, text, reqid=CMD_LIST_THREADS)
-        self.send_request('threads')
+        with self._wait_for_events(['thread' for _ in active]):
+            self.send_request('threads')
 
-        for tinfo in self.vsc.received[-1].data['body']['threads']:
+        for msg in reversed(self.vsc.received):
+            if msg.type == 'response':
+                if msg.command == 'threads':
+                    break
+        else:
+            assert False, 'we waited for the response in send_request()'
+
+        for tinfo in msg.body['threads']:
             try:
                 thread = request[tinfo['name']]
             except KeyError:
@@ -409,6 +440,8 @@ class HighlevelFixture(object):
         return response
 
     def _add_default_threads(self, threads):
+        if self._default_threads is not None:
+            return threads
         defaults = {
             'MainThread',
             'ptvsd.Server',
@@ -427,6 +460,7 @@ class HighlevelFixture(object):
             tid = next(ids)
             thread = tid, tname
             allthreads.append(thread)
+        self._default_threads = list(allthreads)
         allthreads.extend(threads)
         return allthreads
 
@@ -524,7 +558,7 @@ class HighlevelTest(object):
 
         failure = received[-1]
         expected = self.vsc.protocol.parse(
-            self.fix.vsc_msgs.new_failure(req, failure.data['message']))
+            self.fix.vsc_msgs.new_failure(req, failure.message))
         self.assertEqual(failure, expected)
 
     def assert_received(self, daemon, expected):

@@ -19,7 +19,7 @@ def _bind(address):
 
     def connect(_connect=connect):
         client, server = _connect()
-        pydevd, _, _ = _ptvsd._start(client, server)
+        pydevd, _, _ = _ptvsd._start(client, server, killonclose=False)
         return socket.Connection(pydevd, server)
     return connect, remote
 
