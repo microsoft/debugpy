@@ -32,5 +32,5 @@ def debug(filename, port_num, debug_id, debug_options, run_as):
     try:
         pydevd.main()
     except SystemExit as ex:
-        ptvsd.wrapper.ptvsd_sys_exit_code = ex.code
+        ptvsd.wrapper.ptvsd_sys_exit_code = int(ex.code)
         raise
