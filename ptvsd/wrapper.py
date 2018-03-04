@@ -524,6 +524,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             supportsConditionalBreakpoints=True,
             supportsSetVariable=True,
             supportsExceptionOptions=True,
+            supportsEvaluateForHovers=True,
             exceptionBreakpointFilters=[
                 {
                     'filter': 'raised',
@@ -776,6 +777,13 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             '\t'.join(str(s) for s in cmd_args))
         xml = untangle.parse(resp_args).xml
         xvar = xml.var
+
+        if args['context'] == 'hover' and xvar['isErrorOnEval']=='True':
+            self.send_response(
+                request,
+                result=None,
+                variablesReference=0)
+            return
 
         pyd_var = (pyd_tid, pyd_fid, 'EXPRESSION', expr)
         vsc_var = self.var_map.to_vscode(pyd_var, autogen=True)
