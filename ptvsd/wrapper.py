@@ -524,6 +524,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             supportsConditionalBreakpoints=True,
             supportsSetVariable=True,
             supportsExceptionOptions=True,
+            supportsEvaluateForHovers=True,
             exceptionBreakpointFilters=[
                 {
                     'filter': 'raised',
@@ -777,7 +778,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         xml = untangle.parse(resp_args).xml
         xvar = xml.var
 
-        if xvar['isErrorOnEval']=='True':
+        if args['context'] == 'hover' and xvar['isErrorOnEval']=='True':
             self.send_response(
                 request,
                 result=None,
