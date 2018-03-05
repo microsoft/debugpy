@@ -18,13 +18,13 @@ matrix:
         - if [ $TRAVIS_UPLOAD_COVERAGE == "true" ]; then
               bash <(curl -s https://codecov.io/bash);
           fi
-    #- python: 2.7
-    #- env: TARGET=test
+
+before_install: |
+  export TRAVIS_PYTHON_PATH=`which python`
 
 install:
-  - make depends PYTHON=python
+  - make depends PYTHON=$TRAVIS_PYTHON_PATH
 
 script:
   #- make $TARGET PYTHON=python$TRAVIS_PYTHON_VERSION
-  #- make $TARGET PYTHON=$TRAVIS_PYTHON_PATH
-  - make $TARGET PYTHON=python
+  - make $TARGET PYTHON=$TRAVIS_PYTHON_PATH
