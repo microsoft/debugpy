@@ -971,7 +971,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         if reason == 'exception':
             # Get exception info from frame
             try:
-                xframe = xml.thread.frame[0]
+                xframe = list(xml.thread.frame)[0]
                 pyd_fid = xframe['id']
                 cmdargs = '{}\t{}\tFRAME\t__exception__'.format(pyd_tid, pyd_fid)
                 _, _, resp_args = yield self.pydevd_request(pydevd_comm.CMD_GET_VARIABLE, cmdargs)
