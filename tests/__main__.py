@@ -1,5 +1,6 @@
 import os
 import os.path
+import subprocess
 import sys
 import unittest
 
@@ -11,6 +12,7 @@ PROJECT_ROOT = os.path.dirname(TEST_ROOT)
 def convert_argv(argv):
     help  = False
     quick = False
+    lint = False
     args = []
     modules = set()
     for arg in argv:
@@ -19,6 +21,9 @@ def convert_argv(argv):
             continue
         elif arg == '--full':
             quick = False
+            continue
+        elif arg == '--lint':
+            lint = True
             continue
 
         # Unittest's main has only flags and positional args.
@@ -55,7 +60,7 @@ def convert_argv(argv):
             '--top-level-directory', PROJECT_ROOT,
             '--start-directory', start,
         ]
-    return cmd + args
+    return cmd + args, lint
 
 
 def fix_sys_path():
@@ -66,7 +71,25 @@ def fix_sys_path():
         sys.path.insert(0, pydevdroot)
 
 
+def check_lint():
+    print('linting...')
+    args = [
+        sys.executable,
+        '-m', 'flake8',
+        '--ignore', 'E24,E121,E123,E125,E126,E221,E226,E266,E704,E265',
+        '--exclude', 'ptvsd/pydevd',
+        PROJECT_ROOT,
+    ]
+    rc = subprocess.call(args)
+    if rc != 0:
+        print('...linting failed!')
+        sys.exit(rc)
+    print('...done')
+
+
 if __name__ == '__main__':
-    argv = convert_argv(sys.argv[1:])
+    argv, lint = convert_argv(sys.argv[1:])
     fix_sys_path()
+    if lint:
+        check_lint()
     unittest.main(module=None, argv=argv)
