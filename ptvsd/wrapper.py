@@ -781,7 +781,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         xml = untangle.parse(resp_args).xml
         xvar = xml.var
 
-        if args['context'] == 'hover' and xvar['isErrorOnEval'] == 'True':
+        context = args.get('context', '')
+        is_eval_error = xvar.get('isErrorOnEval', '')
+        if context == 'hover' and is_eval_error =='True':
             self.send_response(
                 request,
                 result=None,
