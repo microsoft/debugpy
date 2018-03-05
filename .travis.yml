@@ -18,7 +18,7 @@ matrix:
       env: TARGET=test
 
 install:
-  - make depends
+  - make depends PYTHON=$TRAVIS_PYTHON_PATH
 
 script:
   #- make $TARGET PYTHON=python$TRAVIS_PYTHON_VERSION
