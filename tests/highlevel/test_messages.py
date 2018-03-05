@@ -1,3 +1,4 @@
+import sys
 import unittest
 
 from _pydevd_bundle.pydevd_comm import (
@@ -1467,7 +1468,9 @@ class ExceptionInfoTests(NormalRequestTest, unittest.TestCase):
             received = self.vsc.received
 
         # TODO: Is this the right str?
-        excstr = "RuntimeError('something went wrong',)"
+        excstr = "RuntimeError('something went wrong')"
+        if sys.version_info[1] < 7:
+            excstr = excstr[:-1] + ',)'
         self.assert_vsc_received(received, [
             self.expected_response(
                 exceptionId='RuntimeError',
@@ -1752,7 +1755,9 @@ class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
             received = self.vsc.received
 
         # TODO: Is this the right str?
-        excstr = "RuntimeError('something went wrong',)"
+        excstr = "RuntimeError('something went wrong')"
+        if sys.version_info[1] < 7:
+            excstr = excstr[:-1] + ',)'
         self.assert_vsc_received(received, [
             self.expected_event(
                 reason='exception',
@@ -1783,7 +1788,9 @@ class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
             received = self.vsc.received
 
         # TODO: Is this the right str?
-        excstr = "RuntimeError('something went wrong',)"
+        excstr = "RuntimeError('something went wrong')"
+        if sys.version_info[1] < 7:
+            excstr = excstr[:-1] + ',)'
         self.assert_vsc_received(received, [
             self.expected_event(
                 reason='exception',
