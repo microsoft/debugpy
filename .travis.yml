@@ -2,8 +2,9 @@ language: python
 cache: pip
 python:
   - "2.7"
-  - "3.5"
+  - "3.5-dev"
   # 3.6 is tested via coverage
+  - "3.7-dev"
 env:
   - TARGET=test
 
@@ -11,7 +12,7 @@ matrix:
   include:
     - python: 3.6
       env: TARGET=lint
-    - python: 3.6
+    - python: "3.6-dev"
       env: TARGET=coverage
       after_success:
         - if [ $TRAVIS_UPLOAD_COVERAGE == "true" ]; then
@@ -25,4 +26,5 @@ install:
 
 script:
   #- make $TARGET PYTHON=python$TRAVIS_PYTHON_VERSION
-  - make $TARGET PYTHON=$TRAVIS_PYTHON_PATH
+  #- make $TARGET PYTHON=$TRAVIS_PYTHON_PATH
+  - make $TARGET PYTHON=python
