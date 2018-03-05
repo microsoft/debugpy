@@ -68,6 +68,7 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
                         'default': 'true'
                     },
                 ],
+                supportsEvaluateForHovers=True,
             )),
             self.new_event('initialized'),
             self.new_response(req_attach),
@@ -129,6 +130,7 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
                         'default': 'true'
                     },
                 ],
+                supportsEvaluateForHovers=True,
             )),
             self.new_event('initialized'),
             self.new_response(req_launch),
