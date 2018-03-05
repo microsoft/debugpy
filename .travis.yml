@@ -6,14 +6,14 @@ python:
   # 3.6 is tested via coverage
   - "3.7-dev"
 env:
-  - TARGET=test
+  - TARGET=ci-test
 
 matrix:
   include:
     - python: 3.6
       env: TARGET=lint
     - python: "3.6-dev"
-      env: TARGET=coverage
+      env: TARGET=ci-coverage
       after_success:
         - if [ $TRAVIS_UPLOAD_COVERAGE == "true" ]; then
               bash <(curl -s https://codecov.io/bash);

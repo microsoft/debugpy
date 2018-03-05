@@ -12,6 +12,7 @@ PROJECT_ROOT = os.path.dirname(TEST_ROOT)
 def convert_argv(argv):
     help  = False
     quick = False
+    network = True
     lint = False
     runtests = True
     args = []
@@ -22,6 +23,12 @@ def convert_argv(argv):
             continue
         elif arg == '--full':
             quick = False
+            continue
+        elif arg == '--network':
+            network = True
+            continue
+        elif arg == '--no-network':
+            network = False
             continue
         elif arg == '--coverage':
             runtests = 'coverage'
@@ -53,15 +60,19 @@ def convert_argv(argv):
         args.append(arg)
 
     if runtests:
+        env = {}
+        if network:
+            env['HAS_NETWORK'] = '1'
         # We make the "executable" a single arg because unittest.main()
         # doesn't work if we split it into 3 parts.
         cmd = [sys.executable + ' -m unittest']
         if not modules and not help:
             # Do discovery.
+            quickroot = os.path.join(TEST_ROOT, 'ptvsd')
             if quick:
-                start = os.path.join(TEST_ROOT, 'ptvsd')
+                start = quickroot
             elif sys.version_info[0] != 3:
-                start = os.path.join(TEST_ROOT, 'ptvsd')
+                start = quickroot
             else:
                 start = PROJECT_ROOT
             cmd += [
@@ -71,8 +82,8 @@ def convert_argv(argv):
             ]
         args = cmd + args
     else:
-        args = None
-    return args, runtests, lint
+        args = env = None
+    return args, env, runtests, lint
 
 
 def fix_sys_path():
@@ -99,7 +110,7 @@ def check_lint():
     print('...done')
 
 
-def run_tests(argv, coverage=False):
+def run_tests(argv, env, coverage=False):
     print('running tests...')
     if coverage:
         args = [
@@ -110,22 +121,24 @@ def run_tests(argv, coverage=False):
             '--omit', 'ptvsd/pydevd/*.py',
             '-m', 'unittest',
         ] + argv[1:]
-        rc = subprocess.call(args)
+        rc = subprocess.call(args, env=env)
         if rc != 0:
             print('...coverage failed!')
             sys.exit(rc)
         print('...done')
     else:
+        os.environ.update(env)
         unittest.main(module=None, argv=argv)
 
 
 if __name__ == '__main__':
-    argv, runtests, lint = convert_argv(sys.argv[1:])
+    argv, env, runtests, lint = convert_argv(sys.argv[1:])
     fix_sys_path()
     if lint:
         check_lint()
     if runtests:
         run_tests(
             argv,
+            env,
             coverage=(runtests=='coverage'),
         )

@@ -1,5 +1,6 @@
 PYTHON ?= python3
 
+
 .PHONY: help
 help:  ## Print help about available targets.
 	@grep -h -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -22,10 +23,18 @@ test:  ## Run the test suite.
 test-quick:
 	$(PYTHON) -m tests --quick
 
+.PHONY: ci-test
+ci-test:
+	$(PYTHON) -m tests --full --no-network
+
 .PHONY: coverage
 coverage:  ## Check line coverage.
 	#$(PYTHON) -m coverage run --include 'ptvsd/*.py' --omit 'ptvsd/pydevd/*.py' -m tests
 	$(PYTHON) -m tests --full --coverage
+
+.PHONY: ci-coverage
+ci-coverage:
+	$(PYTHON) -m tests --full --coverage --no-network
 
 .PHONY: check-schemafile
 check-schemafile:  ## Validate the vendored schema file.
