@@ -23,13 +23,16 @@ def convert_argv(argv):
         elif arg == '--full':
             quick = False
             continue
+        elif arg == '--coverage':
+            runtests = 'coverage'
+            continue
         elif arg == '--lint':
             lint = True
             continue
         elif arg == '--lint-only':
             lint = True
             runtests = False
-            continue
+            break
 
         # Unittest's main has only flags and positional args.
         # So we don't worry about options with values.
@@ -49,23 +52,27 @@ def convert_argv(argv):
             help = True
         args.append(arg)
 
-    # We make the "executable" a single arg because unittest.main()
-    # doesn't work if we split it into 3 parts.
-    cmd = [sys.executable + ' -m unittest']
-    if not modules and not help:
-        # Do discovery.
-        if quick:
-            start = os.path.join(TEST_ROOT, 'ptvsd')
-        elif sys.version_info[0] != 3:
-            start = os.path.join(TEST_ROOT, 'ptvsd')
-        else:
-            start = PROJECT_ROOT
-        cmd += [
-            'discover',
-            '--top-level-directory', PROJECT_ROOT,
-            '--start-directory', start,
-        ]
-    return cmd + args, runtests, lint
+    if runtests:
+        # We make the "executable" a single arg because unittest.main()
+        # doesn't work if we split it into 3 parts.
+        cmd = [sys.executable + ' -m unittest']
+        if not modules and not help:
+            # Do discovery.
+            if quick:
+                start = os.path.join(TEST_ROOT, 'ptvsd')
+            elif sys.version_info[0] != 3:
+                start = os.path.join(TEST_ROOT, 'ptvsd')
+            else:
+                start = PROJECT_ROOT
+            cmd += [
+                'discover',
+                '--top-level-directory', PROJECT_ROOT,
+                '--start-directory', start,
+            ]
+        args = cmd + args
+    else:
+        args = None
+    return args, runtests, lint
 
 
 def fix_sys_path():
@@ -92,11 +99,33 @@ def check_lint():
     print('...done')
 
 
+def run_tests(argv, coverage=False):
+    print('running tests...')
+    if coverage:
+        args = [
+            sys.executable,
+	    '-m', 'coverage',
+            'run',
+            '--include', 'ptvsd/*.py',
+            '--omit', 'ptvsd/pydevd/*.py',
+            '-m', 'unittest',
+        ] + argv[1:]
+        rc = subprocess.call(args)
+        if rc != 0:
+            print('...coverage failed!')
+            sys.exit(rc)
+        print('...done')
+    else:
+        unittest.main(module=None, argv=argv)
+
+
 if __name__ == '__main__':
     argv, runtests, lint = convert_argv(sys.argv[1:])
     fix_sys_path()
     if lint:
         check_lint()
     if runtests:
-        print('running tests...')
-        unittest.main(module=None, argv=argv)
+        run_tests(
+            argv,
+            coverage=(runtests=='coverage'),
+        )

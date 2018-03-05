@@ -11,6 +11,7 @@ depends:
 
 .PHONY: lint
 lint:
+	#$(PYTHON) -m flake8 --ignore E24,E121,E123,E125,E126,E221,E226,E266,E704,E265 --exclude ptvsd/pydevd $(CURDIR)
 	$(PYTHON) -m tests --lint-only
 
 .PHONY: test
@@ -23,7 +24,8 @@ test-quick:
 
 .PHONY: coverage
 coverage:  ## Check line coverage.
-	$(PYTHON) -m coverage run --include 'ptvsd/*.py' --omit 'ptvsd/pydevd/*.py' -m tests
+	#$(PYTHON) -m coverage run --include 'ptvsd/*.py' --omit 'ptvsd/pydevd/*.py' -m tests
+	$(PYTHON) -m tests --full --coverage
 
 .PHONY: check-schemafile
 check-schemafile:  ## Validate the vendored schema file.
