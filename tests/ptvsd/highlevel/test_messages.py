@@ -1955,7 +1955,7 @@ class SendCurrExcTraceProceededTests(PyDevdEventTest, unittest.TestCase):
         thread = (10, 'x')
         exc = RuntimeError('something went wrong')
         frame = (2, 'spam', 'abc.py', 10)  # (pfid, func, file, line)
-        text = self.debugger_msgs.format_exception(thread[0], exc, frame)
+        #text = self.debugger_msgs.format_exception(thread[0], exc, frame)
         with self.launched():
             with self.hidden():
                 #tid = self.set_thread(thread)
