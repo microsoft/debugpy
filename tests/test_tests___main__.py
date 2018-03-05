@@ -28,7 +28,9 @@ class ConvertArgsTests(unittest.TestCase):
         self.assertFalse(lint)
 
     def test_discovery_full(self):
-        argv, env, runtests, lint = convert_argv(['-v', '--failfast', '--full'])
+        argv, env, runtests, lint = convert_argv([
+            '-v', '--failfast', '--full',
+        ])
 
         self.assertEqual(argv, [
             sys.executable + ' -m unittest',
@@ -44,7 +46,9 @@ class ConvertArgsTests(unittest.TestCase):
         self.assertFalse(lint)
 
     def test_discovery_quick(self):
-        argv, env, runtests, lint = convert_argv(['-v', '--failfast', '--quick'])
+        argv, env, runtests, lint = convert_argv([
+            '-v', '--failfast', '--quick',
+        ])
 
         self.assertEqual(argv, [
             sys.executable + ' -m unittest',
@@ -60,11 +64,12 @@ class ConvertArgsTests(unittest.TestCase):
         self.assertFalse(lint)
 
     def test_modules(self):
-        argv, env, runtests, lint = convert_argv(['-v', '--failfast',
-                             'w',
-                             'x/y.py:Spam.test_spam'.replace('/', os.sep),
-                             'z:Eggs',
-                             ])
+        argv, env, runtests, lint = convert_argv([
+            '-v', '--failfast',
+            'w',
+            'x/y.py:Spam.test_spam'.replace('/', os.sep),
+            'z:Eggs',
+        ])
 
         self.assertEqual(argv, [
             sys.executable + ' -m unittest',
@@ -109,7 +114,9 @@ class ConvertArgsTests(unittest.TestCase):
         self.assertTrue(lint)
 
     def test_lint_only(self):
-        argv, env, runtests, lint = convert_argv(['--quick', '--lint-only', '-v'])
+        argv, env, runtests, lint = convert_argv([
+            '--quick', '--lint-only', '-v',
+        ])
 
         self.assertIsNone(argv)
         self.assertIsNone(env)

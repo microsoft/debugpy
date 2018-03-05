@@ -115,7 +115,7 @@ def run_tests(argv, env, coverage=False):
     if coverage:
         args = [
             sys.executable,
-	    '-m', 'coverage',
+            '-m', 'coverage',
             'run',
             '--include', 'ptvsd/*.py',
             '--omit', 'ptvsd/pydevd/*.py',
@@ -140,5 +140,5 @@ if __name__ == '__main__':
         run_tests(
             argv,
             env,
-            coverage=(runtests=='coverage'),
+            coverage=(runtests == 'coverage'),
         )
