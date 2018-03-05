@@ -4,16 +4,16 @@
 
 from __future__ import print_function, with_statement, absolute_import
 
-import sys
+from glob import glob
 import os.path
 import platform
-from glob import glob
 
 
 __author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
 __version__ = "4.0.0a1"
 
 MAX_FILES_TO_CACHE = 1000
+
 
 class PathUnNormcase(object):
     """Ensures path names of files are returned as they exist on the fs."""
@@ -51,13 +51,13 @@ class PathUnNormcase(object):
         sep = os.path.sep
         parts = os.path.normpath(name).split(sep)
         dirs = parts[0:-1]
-        filename = "%s[%s]"%(parts[-1][:-1],parts[-1][-1:])
+        filename = '{}[{}]'.format(parts[-1][:-1], parts[-1][-1:])
         if dirs[0] == os.path.splitdrive(name)[0]:
             test_name = [dirs[0].upper()]
         else:
             test_name = [sep + dirs[0]]
         for d in dirs[1:]:
-            test_name += ["%s[%s]"%(d[: - 1], d[-1])]
+            test_name += ["{}[{}]".format(d[: - 1], d[-1])]
         path = glob(sep.join(test_name))[0]
         res = glob(sep.join((path, filename)))
         if not res:
