@@ -681,7 +681,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 'id': fid,
                 'name': name,
                 'source': {'path': file},
-                'line': line, 'column': 0,
+                'line': line, 'column': 1,
             })
 
         self.send_response(request,
