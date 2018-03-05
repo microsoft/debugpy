@@ -75,6 +75,7 @@ def convert_argv(argv):
                 start = quickroot
             else:
                 start = PROJECT_ROOT
+            print('(will look for tests under {})'.format(start))
             cmd += [
                 'discover',
                 '--top-level-directory', PROJECT_ROOT,
