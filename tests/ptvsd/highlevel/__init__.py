@@ -91,6 +91,8 @@ class PyDevdMessages(object):
     def format_variables(self, *variables):
         text = '<xml>'
         for name, value in variables:
+            if isinstance(value, str) and value.startswith('err:'):
+                value = pydevd_xml.ExceptionOnEvaluate(value[4:])
             text += pydevd_xml.var_to_xml(value, name)
         text += '</xml>'
         return urllib.quote(text)
