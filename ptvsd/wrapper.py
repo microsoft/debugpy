@@ -849,9 +849,10 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         # First, we must delete all existing breakpoints in that source.
         cmd = pydevd_comm.CMD_REMOVE_BREAK
         for pyd_bpid, vsc_bpid in self.bp_map.pairs():
-            msg = 'python-line\t{}\t{}'.format(path, vsc_bpid)
-            self.pydevd_notify(cmd, msg)
-            self.bp_map.remove(pyd_bpid, vsc_bpid)
+            if pyd_bpid[0] == path:
+                msg = 'python-line\t{}\t{}'.format(path, vsc_bpid)
+                self.pydevd_notify(cmd, msg)
+                self.bp_map.remove(pyd_bpid, vsc_bpid)
 
         cmd = pydevd_comm.CMD_SET_BREAK
         msgfmt = '{}\tpython-line\t{}\t{}\tNone\t{}\tNone'
