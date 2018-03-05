@@ -559,14 +559,17 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             // Custom attributes supported by PTVSD.
             redirectOutput:true|false,
         }
-        """
+        """  # noqa
         if self.launch_arguments is None:
             return
 
         if self.launch_arguments.get('fixFilePathCase', False):
             self.path_casing.enable()
-            
-        redirect_output = 'STDOUT\tSTDERR' if self.launch_arguments.get('redirectOutput', False) == True else ''
+
+        if self.launch_arguments.get('redirectOutput', False):
+            redirect_output = 'STDOUT\tSTDERR'
+        else:
+            redirect_output = ''
         self.pydevd_request(pydevd_comm.CMD_REDIRECT_OUTPUT, redirect_output)
 
     def on_disconnect(self, request, args):
@@ -778,7 +781,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         xml = untangle.parse(resp_args).xml
         xvar = xml.var
 
-        if args['context'] == 'hover' and xvar['isErrorOnEval']=='True':
+        if args['context'] == 'hover' and xvar['isErrorOnEval'] == 'True':
             self.send_response(
                 request,
                 result=None,
@@ -950,7 +953,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=False)
         except KeyError:
             return
-        
+
         with self.stack_traces_lock:
             self.stack_traces[pyd_tid] = xml.thread.frame
 
@@ -965,31 +968,35 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         else:
             reason = 'pause'
 
-        # For exception cases both raise and uncaught, pydevd adds a __exception__ object to the
-        # top most frame. Extracting the exception name and description from that frame gives 
-        # accurate exception information.
+        # For exception cases both raise and uncaught, pydevd adds a
+        # __exception__ object to the top most frame. Extracting the
+        # exception name and description from that frame gives accurate
+        # exception information.
         if reason == 'exception':
             # Get exception info from frame
             try:
                 xframe = list(xml.thread.frame)[0]
                 pyd_fid = xframe['id']
-                cmdargs = '{}\t{}\tFRAME\t__exception__'.format(pyd_tid, pyd_fid)
-                _, _, resp_args = yield self.pydevd_request(pydevd_comm.CMD_GET_VARIABLE, cmdargs)
+                cmdargs = '{}\t{}\tFRAME\t__exception__'.format(pyd_tid,
+                                                                pyd_fid)
+                cmdid = pydevd_comm.CMD_GET_VARIABLE
+                _, _, resp_args = yield self.pydevd_request(cmdid, cmdargs)
                 xml = untangle.parse(resp_args).xml
                 text = unquote(xml.var[1]['type'])
                 description = unquote(xml.var[1]['value'])
-            except:
+            except Exception:
                 text = 'BaseException'
                 description = 'exception: no description'
 
             with self.active_exceptions_lock:
-                self.active_exceptions[pyd_tid] = ExceptionInfo(text, description)
+                self.active_exceptions[pyd_tid] = ExceptionInfo(text,
+                                                                description)
 
         self.send_event(
-            'stopped', 
-            reason=reason, 
-            threadId=vsc_tid, 
-            text=text, 
+            'stopped',
+            reason=reason,
+            threadId=vsc_tid,
+            text=text,
             description=description)
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_RUN)
@@ -998,8 +1005,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         pyd_tid, reason = args.split('\t')
         pyd_tid = pyd_tid.strip()
 
-        # Stack trace, active exception, all frames, and variables for this thread
-        # are now invalid; clear their IDs.
+        # Stack trace, active exception, all frames, and variables for
+        # this thread are now invalid; clear their IDs.
         with self.stack_traces_lock:
             try:
                 del self.stack_traces[pyd_tid]

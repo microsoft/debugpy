@@ -16,6 +16,7 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_RUN,
     CMD_STEP_CAUGHT_EXCEPTION,
     CMD_SEND_CURR_EXCEPTION_TRACE,
+    CMD_GET_VARIABLE,
 )
 
 from tests.helpers.protocol import MessageCounters
@@ -91,6 +92,8 @@ class PyDevdMessages(object):
     def format_variables(self, *variables):
         text = '<xml>'
         for name, value in variables:
+            if isinstance(value, str) and value.startswith('err:'):
+                value = pydevd_xml.ExceptionOnEvaluate(value[4:])
             text += pydevd_xml.var_to_xml(value, name)
         text += '</xml>'
         return urllib.quote(text)
@@ -467,6 +470,16 @@ class HighlevelFixture(object):
     def suspend(self, thread, reason, *stack):
         ptid, _ = thread
         with self.wait_for_event('stopped'):
+            if isinstance(reason, Exception):
+                exc = reason
+                reason = CMD_STEP_CAUGHT_EXCEPTION
+                self.set_debugger_response(
+                    CMD_GET_VARIABLE,
+                    self.debugger_msgs.format_variables(
+                        ('???', '???'),
+                        ('???', exc),
+                    ),
+                )
             self.send_debugger_event(
                 CMD_THREAD_SUSPEND,
                 self.debugger_msgs.format_frames(ptid, reason, *stack),
@@ -485,7 +498,7 @@ class HighlevelFixture(object):
             CMD_SEND_CURR_EXCEPTION_TRACE,
             self.debugger_msgs.format_exception(thread[0], exc, frame),
         )
-        self.suspend(thread, CMD_STEP_CAUGHT_EXCEPTION, frame)
+        self.suspend(thread, exc, frame)
         return tid
 
     #def set_variables(self, ...):
