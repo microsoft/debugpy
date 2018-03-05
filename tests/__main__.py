@@ -13,6 +13,7 @@ def convert_argv(argv):
     help  = False
     quick = False
     lint = False
+    runtests = True
     args = []
     modules = set()
     for arg in argv:
@@ -24,6 +25,10 @@ def convert_argv(argv):
             continue
         elif arg == '--lint':
             lint = True
+            continue
+        elif arg == '--lint-only':
+            lint = True
+            runtests = False
             continue
 
         # Unittest's main has only flags and positional args.
@@ -60,7 +65,7 @@ def convert_argv(argv):
             '--top-level-directory', PROJECT_ROOT,
             '--start-directory', start,
         ]
-    return cmd + args, lint
+    return cmd + args, runtests, lint
 
 
 def fix_sys_path():
@@ -88,8 +93,10 @@ def check_lint():
 
 
 if __name__ == '__main__':
-    argv, lint = convert_argv(sys.argv[1:])
+    argv, runtests, lint = convert_argv(sys.argv[1:])
     fix_sys_path()
     if lint:
         check_lint()
-    unittest.main(module=None, argv=argv)
+    if runtests:
+        print('running tests...')
+        unittest.main(module=None, argv=argv)
