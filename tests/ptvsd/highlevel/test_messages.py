@@ -1694,6 +1694,7 @@ class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
                 reason='step',
                 threadId=tid,
                 text=None,
+                description=None,
             ),
         ])
         self.assert_received(self.debugger, [])
@@ -1711,6 +1712,7 @@ class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
                 reason='step',
                 threadId=tid,
                 text=None,
+                description=None,
             ),
         ])
         self.assert_received(self.debugger, [])
@@ -1728,43 +1730,72 @@ class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
                 reason='step',
                 threadId=tid,
                 text=None,
+                description=None,
             ),
         ])
         self.assert_received(self.debugger, [])
 
     def test_caught_exception(self):
+        exc = RuntimeError('something went wrong')
         thread = (10, '')
         with self.launched():
             with self.hidden():
                 self.set_thread(thread)
+            self.set_debugger_response(
+                CMD_GET_VARIABLE,
+                self.debugger_msgs.format_variables(
+                    ('???', '???'),
+                    ('???', exc),
+                ),
+            )
             tid = self.send_event(10, CMD_STEP_CAUGHT_EXCEPTION)
             received = self.vsc.received
 
+        # TODO: Is this the right str?
+        excstr = "RuntimeError('something went wrong',)"
         self.assert_vsc_received(received, [
             self.expected_event(
                 reason='exception',
                 threadId=tid,
-                text='BaseException, exception: no description',
+                text='RuntimeError',
+                description=excstr,
             ),
         ])
-        self.assert_received(self.debugger, [])
+        self.assert_received(self.debugger, [
+            self.debugger_msgs.new_request(
+                CMD_GET_VARIABLE, '10', '2', 'FRAME', '__exception__'),
+        ])
 
     def test_exception_break(self):
+        exc = RuntimeError('something went wrong')
         thread = (10, '')
         with self.launched():
             with self.hidden():
                 self.set_thread(thread)
+            self.set_debugger_response(
+                CMD_GET_VARIABLE,
+                self.debugger_msgs.format_variables(
+                    ('???', '???'),
+                    ('???', exc),
+                ),
+            )
             tid = self.send_event(10, CMD_ADD_EXCEPTION_BREAK)
             received = self.vsc.received
 
+        # TODO: Is this the right str?
+        excstr = "RuntimeError('something went wrong',)"
         self.assert_vsc_received(received, [
             self.expected_event(
                 reason='exception',
                 threadId=tid,
-                text='BaseException, exception: no description',
+                text='RuntimeError',
+                description=excstr,
             ),
         ])
-        self.assert_received(self.debugger, [])
+        self.assert_received(self.debugger, [
+            self.debugger_msgs.new_request(
+                CMD_GET_VARIABLE, '10', '2', 'FRAME', '__exception__'),
+        ])
 
     def test_suspend(self):
         thread = (10, '')
@@ -1779,6 +1810,7 @@ class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
                 reason='pause',
                 threadId=tid,
                 text=None,
+                description=None,
             ),
         ])
         self.assert_received(self.debugger, [])
@@ -1797,6 +1829,7 @@ class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
                 reason='pause',
                 threadId=tid,
                 text=None,
+                description=None,
             ),
         ])
         self.assert_received(self.debugger, [])
@@ -1816,6 +1849,7 @@ class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
                 reason='pause',
                 threadId=tid,
                 text=None,
+                description=None,
             ),
         ])
         self.assert_received(self.debugger, [])
@@ -1836,6 +1870,7 @@ class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
                 reason='pause',
                 threadId=tid,
                 text=None,
+                description=None,
             ),
         ])
         self.assert_received(self.debugger, [])
@@ -1877,6 +1912,8 @@ class SendCurrExcTraceTests(PyDevdEventTest, unittest.TestCase):
     def pydevd_payload(self, thread, exc, frame):
         return self.debugger_msgs.format_exception(thread[0], exc, frame)
 
+    # TODO: Is this right?
+    @unittest.skip('now a no-op')
     def test_basic(self):
         thread = (10, 'x')
         exc = RuntimeError('something went wrong')
@@ -1921,8 +1958,9 @@ class SendCurrExcTraceProceededTests(PyDevdEventTest, unittest.TestCase):
         text = self.debugger_msgs.format_exception(thread[0], exc, frame)
         with self.launched():
             with self.hidden():
-                tid = self.set_thread(thread)
-                self.fix.send_event(CMD_SEND_CURR_EXCEPTION_TRACE, text)
+                #tid = self.set_thread(thread)
+                #self.fix.send_event(CMD_SEND_CURR_EXCEPTION_TRACE, text)
+                tid = self.error(thread, exc, frame)
                 self.send_request('exceptionInfo', dict(
                     threadId=tid,
                 ))
