@@ -23,7 +23,7 @@ test-quick:
 
 .PHONY: coverage
 coverage:  ## Check line coverage.
-	$(PYTHON) -m coverage run -m tests
+	$(PYTHON) -m coverage run --include 'ptvsd/*.py' --omit 'ptvsd/pydevd/*.py' -m tests
 
 .PHONY: check-schemafile
 check-schemafile:  ## Validate the vendored schema file.
