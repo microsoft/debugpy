@@ -1466,13 +1466,15 @@ class ExceptionInfoTests(NormalRequestTest, unittest.TestCase):
             )
             received = self.vsc.received
 
+        # TODO: Is this the right str?
+        excstr = "RuntimeError('something went wrong',)"
         self.assert_vsc_received(received, [
             self.expected_response(
                 exceptionId='RuntimeError',
-                description='something went wrong',
+                description=excstr,
                 breakMode='unhandled',
                 details=dict(
-                    message='something went wrong',
+                    message=excstr,
                     typeName='RuntimeError',
                 ),
             ),

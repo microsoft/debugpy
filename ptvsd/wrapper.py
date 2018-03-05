@@ -984,7 +984,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 xml = untangle.parse(resp_args).xml
                 text = unquote(xml.var[1]['type'])
                 description = unquote(xml.var[1]['value'])
-            except BaseException:
+            except Exception:
                 text = 'BaseException'
                 description = 'exception: no description'
 
