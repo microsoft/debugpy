@@ -75,7 +75,6 @@ def convert_argv(argv):
                 start = quickroot
             else:
                 start = PROJECT_ROOT
-            print('(will look for tests under {})'.format(start))
             cmd += [
                 'discover',
                 '--top-level-directory', PROJECT_ROOT,
@@ -138,6 +137,9 @@ if __name__ == '__main__':
     if lint:
         check_lint()
     if runtests:
+        if '--start-directory' in argv:
+            start = argv[argv.index('--start-directory') + 1]
+            print('(will look for tests under {})'.format(start))
         run_tests(
             argv,
             env,
