@@ -1,5 +1,7 @@
 # Python Tools for Visual Studio debug server
 
+[![Build Status](https://travis-ci.org/Microsoft/ptvsd.svg?branch=master)](https://travis-ci.org/Microsoft/ptvsd)
+
 ## Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
