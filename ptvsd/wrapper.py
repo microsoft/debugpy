@@ -157,9 +157,11 @@ class IDMap(object):
 class ExceptionInfo(object):
     # TODO: docstring
 
-    def __init__(self, name, description):
+    def __init__(self, name, description, stack, source):
         self.name = name
         self.description = description
+        self.stack = stack
+        self.source = source
 
 
 class PydevdSocket(object):
@@ -920,14 +922,17 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 exc = self.active_exceptions[pyd_tid]
             except KeyError:
                 exc = ExceptionInfo('BaseException',
-                                    'exception: no description')
+                                    'exception: no description',
+                                    None, None)
         self.send_response(
             request,
             exceptionId=exc.name,
             description=exc.description,
             breakMode=self.exceptions_mgr.get_break_mode(exc.name),
             details={'typeName': exc.name,
-                     'message': exc.description},
+                     'message': exc.description,
+                     'stackTrace': exc.stack,
+                     'source': exc.source},
         )
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_CREATE)
@@ -1004,7 +1009,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         if reason == 'exception':
             # Get exception info from frame
             try:
-                xframe = list(xml.thread.frame)[0]
+                xframes = list(xml.thread.frame)
+                xframe = xframes[0]
                 pyd_fid = xframe['id']
                 cmdargs = '{}\t{}\tFRAME\t__exception__'.format(pyd_tid,
                                                                 pyd_fid)
@@ -1013,13 +1019,25 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 xml = untangle.parse(resp_args).xml
                 text = unquote(xml.var[1]['type'])
                 description = unquote(xml.var[1]['value'])
+                frame_data = ((
+                               unquote(f['file']), 
+                               int(f['line']), 
+                               unquote(f['name']), 
+                               None
+                               ) for f in xframes)
+                stack = ''.join(traceback.format_list(frame_data))
+                source = unquote(xframe['file'])
             except Exception:
                 text = 'BaseException'
                 description = 'exception: no description'
+                stack = None
+                source = None
 
             with self.active_exceptions_lock:
                 self.active_exceptions[pyd_tid] = ExceptionInfo(text,
-                                                                description)
+                                                                description,
+                                                                stack,
+                                                                source)
 
         self.send_event(
             'stopped',
