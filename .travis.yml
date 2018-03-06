@@ -15,9 +15,7 @@ matrix:
     - python: "3.6-dev"
       env: TARGET=ci-coverage
       after_success:
-        - if [ $TRAVIS_UPLOAD_COVERAGE == "true" ]; then
-              bash <(curl -s https://codecov.io/bash);
-          fi
+        - bash <(curl -s https://codecov.io/bash)
 
 before_install: |
   export TRAVIS_PYTHON_PATH=`which python`
