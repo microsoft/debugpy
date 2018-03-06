@@ -202,15 +202,16 @@ class SafeReprTests(TestBase):
         d1[2] = d1
         test(d1, '{1: None, 2: {...}}')
 
+    def test_largest_repr(self):
         # Find the largest possible repr and ensure it is below our arbitrary
         # limit (8KB).
-        coll = '-' * (saferepr.maxstring_outer * 2)
-        for limit in reversed(saferepr.maxcollection[1:]):
+        coll = '-' * (SafeRepr.maxstring_outer * 2)
+        for limit in reversed(SafeRepr.maxcollection[1:]):
             coll = [coll] * (limit * 2)
         dcoll = {}
-        for i in range(saferepr.maxcollection[0]):
-            dcoll[str(i) * saferepr.maxstring_outer] = coll
-        text = saferepr(dcoll)
+        for i in range(SafeRepr.maxcollection[0]):
+            dcoll[str(i) * SafeRepr.maxstring_outer] = coll
+        text = self.saferepr(dcoll)
         #try:
         #    text_repr = repr(dcoll)
         #except MemoryError:
@@ -218,7 +219,8 @@ class SafeReprTests(TestBase):
         #    text_repr = ''
         #print('len(SafeRepr()(dcoll)) = ' + str(len(text)) +
         #      ', len(repr(coll)) = ' + str(len(text_repr)))
-        assert len(text) < 8192
+
+        self.assertLess(len(text), 8192)
 
 
 class StringTests(TestBase):
