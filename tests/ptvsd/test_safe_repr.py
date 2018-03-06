@@ -9,19 +9,22 @@ except ImportError:
 from ptvsd.safe_repr import SafeRepr
 
 
-if sys.version_info[0] > 2:
+PY_VER = sys.version_info[0]
+assert PY_VER <= 3  # Fix the code when Python 4 comes around.
+PY3K = PY_VER == 3
+
+if PY3K:
     unicode = str
     xrange = range
 
 
 def py2_only(f):
-    deco = unittest.skipIf(sys.version_info[0] != 2, 'py2-only')
+    deco = unittest.skipIf(PY_VER != 2, 'py2-only')
     return deco(f)
 
 
 def py3_only(f):
-    assert sys.version_info[0] <= 3
-    deco = unittest.skipIf(sys.version_info[0] != 3, 'py3-only')
+    deco = unittest.skipIf(PY_VER == 2, 'py3-only')
     return deco(f)
 
 
@@ -31,18 +34,43 @@ class TestBase(unittest.TestCase):
         super(TestBase, self).setUp()
         self.saferepr = SafeRepr()
 
-    def assert_unchanged(self, value, expected):
+    def assert_saferepr(self, value, expected):
         safe = self.saferepr(value)
-        actual = repr(value)
 
         self.assertEqual(safe, expected)
+        return safe
+
+    def assert_unchanged(self, value, expected):
+        actual = repr(value)
+
+        safe = self.assert_saferepr(value, expected)
         self.assertEqual(safe, actual)
 
     def assert_shortened(self, value, expected):
-        safe = self.saferepr(value)
         actual = repr(value)
 
-        self.assertEqual(safe, expected)
+        safe = self.assert_saferepr(value, expected)
+        self.assertNotEqual(safe, actual)
+
+    def assert_saferepr_regex(self, value, expected):
+        safe = self.saferepr(value)
+
+        if PY_VER == 2:
+            self.assertRegexpMatches(safe, expected)
+        else:
+            self.assertRegex(safe, expected)
+        return safe
+
+    def assert_unchanged_regex(self, value, expected):
+        actual = repr(value)
+
+        safe = self.assert_saferepr_regex(value, expected)
+        self.assertEqual(safe, actual)
+
+    def assert_shortened_regex(self, value, expected):
+        actual = repr(value)
+
+        safe = self.assert_saferepr_regex(value, expected)
         self.assertNotEqual(safe, actual)
 
 
@@ -51,45 +79,24 @@ class SafeReprTests(TestBase):
     # TODO: Split up test_all().
 
     def test_all(self):
-        saferepr = SafeRepr()
-
-        def test(source, expected):
-            actual = saferepr(source)
-            if actual != expected:
-                print("Source " + repr(source))
-                print("Expect " + expected)
-                print("Actual " + actual)
-                print("")
-                assert False
-
-        def re_test(source, pattern):
-            import re
-            actual = saferepr(source)
-            if not re.match(pattern, actual):
-                print("Source  " + repr(source))
-                print("Pattern " + pattern)
-                print("Actual  " + actual)
-                print("")
-                assert False
-
-        for ctype, _prefix, _suffix, comma in saferepr.collection_types:
-            for i in range(len(saferepr.maxcollection)):
+        for ctype, _prefix, _suffix, comma in SafeRepr.collection_types:
+            for i in range(len(SafeRepr.maxcollection)):
                 prefix = _prefix * (i + 1)
                 if comma:
                     suffix = _suffix + ("," + _suffix) * i
                 else:
                     suffix = _suffix * (i + 1)
                 #print("ctype = " + ctype.__name__ + ", maxcollection[" +
-                #      str(i) + "] == " + str(saferepr.maxcollection[i]))
-                c1 = ctype(range(saferepr.maxcollection[i] - 1))
+                #      str(i) + "] == " + str(SafeRepr.maxcollection[i]))
+                c1 = ctype(range(SafeRepr.maxcollection[i] - 1))
                 inner_repr = prefix + ', '.join(str(j) for j in c1)
-                c2 = ctype(range(saferepr.maxcollection[i]))
-                c3 = ctype(range(saferepr.maxcollection[i] + 1))
+                c2 = ctype(range(SafeRepr.maxcollection[i]))
+                c3 = ctype(range(SafeRepr.maxcollection[i] + 1))
                 for j in range(i):
                     c1, c2, c3 = ctype((c1,)), ctype((c2,)), ctype((c3,))
-                test(c1, inner_repr + suffix)
-                test(c2, inner_repr + ", ..." + suffix)
-                test(c3, inner_repr + ", ..." + suffix)
+                self.assert_unchanged(c1, inner_repr + suffix)
+                self.assert_shortened(c2, inner_repr + ", ..." + suffix)
+                self.assert_shortened(c3, inner_repr + ", ..." + suffix)
 
                 if ctype is set:
                     # Cannot recursively add sets to sets
@@ -97,36 +104,36 @@ class SafeReprTests(TestBase):
 
         # Assume that all tests apply equally to all iterable types and only
         # test with lists.
-        c1 = list(range(saferepr.maxcollection[0] * 2))
-        c2 = [c1 for _ in range(saferepr.maxcollection[0] * 2)]
-        c1_expect = '[' + ', '.join(str(j) for j in range(saferepr.maxcollection[0] - 1)) + ', ...]'  # noqa
-        test(c1, c1_expect)
-        c1_expect2 = '[' + ', '.join(str(j) for j in range(saferepr.maxcollection[1] - 1)) + ', ...]'  # noqa
-        c2_expect = '[' + ', '.join(c1_expect2 for _ in range(saferepr.maxcollection[0] - 1)) + ', ...]'  # noqa
-        test(c2, c2_expect)
+        c1 = list(range(SafeRepr.maxcollection[0] * 2))
+        c2 = [c1 for _ in range(SafeRepr.maxcollection[0] * 2)]
+        c1_expect = '[' + ', '.join(str(j) for j in range(SafeRepr.maxcollection[0] - 1)) + ', ...]'  # noqa
+        self.assert_shortened(c1, c1_expect)
+        c1_expect2 = '[' + ', '.join(str(j) for j in range(SafeRepr.maxcollection[1] - 1)) + ', ...]'  # noqa
+        c2_expect = '[' + ', '.join(c1_expect2 for _ in range(SafeRepr.maxcollection[0] - 1)) + ', ...]'  # noqa
+        self.assert_shortened(c2, c2_expect)
 
         # Ensure dict keys and values are limited correctly
         d1 = {}
-        d1_key = 'a' * saferepr.maxstring_inner * 2
+        d1_key = 'a' * SafeRepr.maxstring_inner * 2
         d1[d1_key] = d1_key
-        re_test(d1, "{'a+\.\.\.a+': 'a+\.\.\.a+'}")
+        self.assert_shortened_regex(d1, "{'a+\.\.\.a+': 'a+\.\.\.a+'}")
         d2 = {d1_key: d1}
-        re_test(d2, "{'a+\.\.\.a+': {'a+\.\.\.a+': 'a+\.\.\.a+'}}")
+        self.assert_shortened_regex(d2, "{'a+\.\.\.a+': {'a+\.\.\.a+': 'a+\.\.\.a+'}}")  # noqa
         d3 = {d1_key: d2}
-        if len(saferepr.maxcollection) == 2:
-            re_test(d3, "{'a+\.\.\.a+': {'a+\.\.\.a+': {\.\.\.}}}")
+        if len(SafeRepr.maxcollection) == 2:
+            self.assert_shortened_regex(d3, "{'a+\.\.\.a+': {'a+\.\.\.a+': {\.\.\.}}}")  # noqa
         else:
-            re_test(d3, "{'a+\.\.\.a+': {'a+\.\.\.a+': {'a+\.\.\.a+': 'a+\.\.\.a+'}}}")  # noqa
+            self.assert_shortened_regex(d3, "{'a+\.\.\.a+': {'a+\.\.\.a+': {'a+\.\.\.a+': 'a+\.\.\.a+'}}}")  # noqa
 
         # Ensure empty dicts work
-        test({}, '{}')
+        self.assert_unchanged({}, '{}')
 
         # Ensure dict keys are sorted
         d1 = {}
         d1['c'] = None
         d1['b'] = None
         d1['a'] = None
-        test(d1, "{'a': None, 'b': None, 'c': None}")
+        self.assert_saferepr(d1, "{'a': None, 'b': None, 'c': None}")
 
         if sys.version_info >= (3, 0):
             # Ensure dicts with unsortable keys do not crash
@@ -138,61 +145,66 @@ class SafeReprTests(TestBase):
                 assert False, "d1.keys() should be unorderable"
             except TypeError:
                 pass
-            saferepr(d1)
+            self.saferepr(d1)
 
         # Test with objects with broken repr implementations
         class TestClass(object):
-            def __repr__(saferepr):
+            def __repr__(_):
                 raise NameError
-        try:
+        with self.assertRaises(NameError):
             repr(TestClass())
-            assert False, "TestClass().__repr__ should have thrown"
-        except NameError:
-            pass
-        saferepr(TestClass())
+        self.saferepr(TestClass())
 
         # Test with objects with long repr implementations
         class TestClass(object):
-            repr_str = '<' + 'A' * saferepr.maxother_outer * 2 + '>'
+            repr_str = '<' + 'A' * SafeRepr.maxother_outer * 2 + '>'
 
-            def __repr__(saferepr):
-                return saferepr.repr_str
-        re_test(TestClass(), r'\<A+\.\.\.A+\>')
+            def __repr__(self):
+                return self.repr_str
+        self.assert_shortened_regex(TestClass(), r'\<A+\.\.\.A+\>')
 
         # Test collections that don't override repr
         class TestClass(dict):
             pass
-        test(TestClass(), '{}')
+        self.assert_unchanged(TestClass(), '{}')
 
         class TestClass(list):
             pass
-        test(TestClass(), '[]')
+        self.assert_unchanged(TestClass(), '[]')
 
         # Test collections that override repr
         class TestClass(dict):
-            def __repr__(saferepr):
+            def __repr__(_):
                 return 'MyRepr'
-        test(TestClass(), 'MyRepr')
+        self.assert_unchanged(TestClass(), 'MyRepr')
 
         class TestClass(list):
-            def __init__(saferepr, iter=()):
-                list.__init__(saferepr, iter)
+            def __init__(self, it=()):
+                list.__init__(self, it)
 
-            def __repr__(saferepr):
+            def __repr__(_):
                 return 'MyRepr'
-        test(TestClass(), 'MyRepr')
+        self.assert_unchanged(TestClass(), 'MyRepr')
 
         # Test collections and iterables with long repr
-        test(TestClass(xrange(0, 15)), 'MyRepr')
-        test(TestClass(xrange(0, 16)), '<TestClass, len() = 16>')
-        test(TestClass([TestClass(xrange(0, 10))]), 'MyRepr')
-        test(TestClass([TestClass(xrange(0, 11))]), '<TestClass, len() = 1>')
+        self.assert_unchanged(TestClass(xrange(0, 15)),
+                              'MyRepr')
+        self.assert_shortened(TestClass(xrange(0, 16)),
+                              '<TestClass, len() = 16>')
+        self.assert_unchanged(TestClass([TestClass(xrange(0, 10))]),
+                              'MyRepr')
+        self.assert_shortened(TestClass([TestClass(xrange(0, 11))]),
+                              '<TestClass, len() = 1>')
 
         # Test strings inside long iterables
-        test(TestClass(['a' * (saferepr.maxcollection[1] + 1)]),
-             'MyRepr')
-        test(TestClass(['a' * (saferepr.maxstring_inner + 1)]),
-             '<TestClass, len() = 1>')
+        self.assert_unchanged(
+            TestClass(['a' * (SafeRepr.maxcollection[1] + 1)]),
+            'MyRepr',
+        )
+        self.assert_shortened(
+            TestClass(['a' * (SafeRepr.maxstring_inner + 1)]),
+            '<TestClass, len() = 1>',
+        )
 
     def test_largest_repr(self):
         # Find the largest possible repr and ensure it is below our arbitrary
