@@ -132,7 +132,7 @@ class Result(object):
         self.value = value
 
 
-def async(f):
+def wrap_async(f):
     # TODO: docstring
 
     def g(self, loop, *args, **kwargs):

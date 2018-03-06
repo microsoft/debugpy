@@ -495,7 +495,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     def async_handler(m):
         # TODO: docstring
-        m = futures.async(m)
+        m = futures.wrap_async(m)
 
         def f(self, *args, **kwargs):
             fut = m(self, self.loop, *args, **kwargs)

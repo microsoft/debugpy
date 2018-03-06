@@ -2,23 +2,28 @@ language: python
 cache: pip
 python:
   - "2.7"
-  - "3.6"
+  - "3.5-dev"
+  # 3.6 is tested via coverage
+  - "3.7-dev"
+env:
+  - TARGET=ci-test
 
 matrix:
   include:
     - python: 3.6
       env: TARGET=lint
-    - python: 3.6
-      env: TARGET=coverage
+    - python: "3.6-dev"
+      env: TARGET=ci-coverage
       after_success:
         - if [ $TRAVIS_UPLOAD_COVERAGE == "true" ]; then
               bash <(curl -s https://codecov.io/bash);
           fi
-    - python: 2.7
-      env: TARGET=test
+
+before_install: |
+  export TRAVIS_PYTHON_PATH=`which python`
 
 install:
-  - make depends
+  - make depends PYTHON=$TRAVIS_PYTHON_PATH
 
 script:
   #- make $TARGET PYTHON=python$TRAVIS_PYTHON_VERSION

@@ -14,6 +14,7 @@ from debugger_protocol.schema.__main__ import handle_check
 class VendoredSchemaTests(unittest.TestCase):
     """Tests to make sure our vendored schema is up-to-date."""
 
+    @unittest.skipUnless(os.environ.get('HAS_NETWORK'), 'no network')
     def test_matches_upstream(self):
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
@@ -44,6 +45,7 @@ class DownloadCommandTests(unittest.TestCase):
         self._tempdir.cleanup()
         super().tearDown()
 
+    @unittest.skipUnless(os.environ.get('HAS_NETWORK'), 'no network')
     def test_default_source(self):
         res = subprocess.run(self.args,
                              stdout=subprocess.PIPE,

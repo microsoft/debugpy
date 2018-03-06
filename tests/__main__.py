@@ -1,5 +1,6 @@
 import os
 import os.path
+import subprocess
 import sys
 import unittest
 
@@ -11,6 +12,9 @@ PROJECT_ROOT = os.path.dirname(TEST_ROOT)
 def convert_argv(argv):
     help  = False
     quick = False
+    network = True
+    lint = False
+    runtests = True
     args = []
     modules = set()
     for arg in argv:
@@ -20,6 +24,22 @@ def convert_argv(argv):
         elif arg == '--full':
             quick = False
             continue
+        elif arg == '--network':
+            network = True
+            continue
+        elif arg == '--no-network':
+            network = False
+            continue
+        elif arg == '--coverage':
+            runtests = 'coverage'
+            continue
+        elif arg == '--lint':
+            lint = True
+            continue
+        elif arg == '--lint-only':
+            lint = True
+            runtests = False
+            break
 
         # Unittest's main has only flags and positional args.
         # So we don't worry about options with values.
@@ -39,23 +59,31 @@ def convert_argv(argv):
             help = True
         args.append(arg)
 
-    # We make the "executable" a single arg because unittest.main()
-    # doesn't work if we split it into 3 parts.
-    cmd = [sys.executable + ' -m unittest']
-    if not modules and not help:
-        # Do discovery.
-        if quick:
-            start = os.path.join(TEST_ROOT, 'ptvsd')
-        elif sys.version_info[0] != 3:
-            start = os.path.join(TEST_ROOT, 'ptvsd')
-        else:
-            start = PROJECT_ROOT
-        cmd += [
-            'discover',
-            '--top-level-directory', PROJECT_ROOT,
-            '--start-directory', start,
-        ]
-    return cmd + args
+    if runtests:
+        env = {}
+        if network:
+            env['HAS_NETWORK'] = '1'
+        # We make the "executable" a single arg because unittest.main()
+        # doesn't work if we split it into 3 parts.
+        cmd = [sys.executable + ' -m unittest']
+        if not modules and not help:
+            # Do discovery.
+            quickroot = os.path.join(TEST_ROOT, 'ptvsd')
+            if quick:
+                start = quickroot
+            elif sys.version_info[0] != 3:
+                start = quickroot
+            else:
+                start = PROJECT_ROOT
+            cmd += [
+                'discover',
+                '--top-level-directory', PROJECT_ROOT,
+                '--start-directory', start,
+            ]
+        args = cmd + args
+    else:
+        args = env = None
+    return args, env, runtests, lint
 
 
 def fix_sys_path():
@@ -66,7 +94,54 @@ def fix_sys_path():
         sys.path.insert(0, pydevdroot)
 
 
+def check_lint():
+    print('linting...')
+    args = [
+        sys.executable,
+        '-m', 'flake8',
+        '--ignore', 'E24,E121,E123,E125,E126,E221,E226,E266,E704,E265',
+        '--exclude', 'ptvsd/pydevd',
+        PROJECT_ROOT,
+    ]
+    rc = subprocess.call(args)
+    if rc != 0:
+        print('...linting failed!')
+        sys.exit(rc)
+    print('...done')
+
+
+def run_tests(argv, env, coverage=False):
+    print('running tests...')
+    if coverage:
+        args = [
+            sys.executable,
+            '-m', 'coverage',
+            'run',
+            '--include', 'ptvsd/*.py',
+            '--omit', 'ptvsd/pydevd/*.py',
+            '-m', 'unittest',
+        ] + argv[1:]
+        rc = subprocess.call(args, env=env)
+        if rc != 0:
+            print('...coverage failed!')
+            sys.exit(rc)
+        print('...done')
+    else:
+        os.environ.update(env)
+        unittest.main(module=None, argv=argv)
+
+
 if __name__ == '__main__':
-    argv = convert_argv(sys.argv[1:])
+    argv, env, runtests, lint = convert_argv(sys.argv[1:])
     fix_sys_path()
-    unittest.main(module=None, argv=argv)
+    if lint:
+        check_lint()
+    if runtests:
+        if '--start-directory' in argv:
+            start = argv[argv.index('--start-directory') + 1]
+            print('(will look for tests under {})'.format(start))
+        run_tests(
+            argv,
+            env,
+            coverage=(runtests == 'coverage'),
+        )
