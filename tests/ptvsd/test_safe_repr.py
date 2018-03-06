@@ -102,41 +102,6 @@ class SafeReprTests(TestBase):
                     # Cannot recursively add sets to sets
                     break
 
-        # Ensure dict keys and values are limited correctly
-        d1 = {}
-        d1_key = 'a' * SafeRepr.maxstring_inner * 2
-        d1[d1_key] = d1_key
-        self.assert_shortened_regex(d1, "{'a+\.\.\.a+': 'a+\.\.\.a+'}")
-        d2 = {d1_key: d1}
-        self.assert_shortened_regex(d2, "{'a+\.\.\.a+': {'a+\.\.\.a+': 'a+\.\.\.a+'}}")  # noqa
-        d3 = {d1_key: d2}
-        if len(SafeRepr.maxcollection) == 2:
-            self.assert_shortened_regex(d3, "{'a+\.\.\.a+': {'a+\.\.\.a+': {\.\.\.}}}")  # noqa
-        else:
-            self.assert_shortened_regex(d3, "{'a+\.\.\.a+': {'a+\.\.\.a+': {'a+\.\.\.a+': 'a+\.\.\.a+'}}}")  # noqa
-
-        # Ensure empty dicts work
-        self.assert_unchanged({}, '{}')
-
-        # Ensure dict keys are sorted
-        d1 = {}
-        d1['c'] = None
-        d1['b'] = None
-        d1['a'] = None
-        self.assert_saferepr(d1, "{'a': None, 'b': None, 'c': None}")
-
-        if sys.version_info >= (3, 0):
-            # Ensure dicts with unsortable keys do not crash
-            d1 = {}
-            for _ in range(100):
-                d1[object()] = None
-            try:
-                list(sorted(d1))
-                assert False, "d1.keys() should be unorderable"
-            except TypeError:
-                pass
-            self.saferepr(d1)
-
         # Test with objects with broken repr implementations
         class TestClass(object):
             def __repr__(_):
@@ -399,6 +364,62 @@ class SetTests(ContainerBase, TestBase):
 # TODO: Use ContainerBase in DictTests?
 
 class DictTests(TestBase):
+
+    def test_large_key(self):
+        value = {
+            'a' * SafeRepr.maxstring_inner * 2: '',
+        }
+
+        self.assert_shortened_regex(value, "{'a+\.\.\.a+': ''}")
+
+    def test_large_value(self):
+        value = {
+            '': 'a' * SafeRepr.maxstring_inner * 2,
+        }
+
+        self.assert_shortened_regex(value, "{'': 'a+\.\.\.a+'}")
+
+    def test_large_both(self):
+        value = {}
+        key = 'a' * SafeRepr.maxstring_inner * 2
+        value[key] = key
+
+        self.assert_shortened_regex(value, "{'a+\.\.\.a+': 'a+\.\.\.a+'}")
+
+    def test_nested_value(self):
+        d1 = {}
+        d1_key = 'a' * SafeRepr.maxstring_inner * 2
+        d1[d1_key] = d1_key
+        d2 = {d1_key: d1}
+        d3 = {d1_key: d2}
+
+        self.assert_shortened_regex(d2, "{'a+\.\.\.a+': {'a+\.\.\.a+': 'a+\.\.\.a+'}}")  # noqa
+        if len(SafeRepr.maxcollection) == 2:
+            self.assert_shortened_regex(d3, "{'a+\.\.\.a+': {'a+\.\.\.a+': {\.\.\.}}}")  # noqa
+        else:
+            self.assert_shortened_regex(d3, "{'a+\.\.\.a+': {'a+\.\.\.a+': {'a+\.\.\.a+': 'a+\.\.\.a+'}}}")  # noqa
+
+    def test_empty(self):
+        # Ensure empty dicts work
+        self.assert_unchanged({}, '{}')
+
+    def test_sorted(self):
+        # Ensure dict keys are sorted
+        d1 = {}
+        d1['c'] = None
+        d1['b'] = None
+        d1['a'] = None
+        self.assert_saferepr(d1, "{'a': None, 'b': None, 'c': None}")
+
+    @py3_only
+    def test_unsortable_keys(self):
+        # Ensure dicts with unsortable keys do not crash
+        d1 = {}
+        for _ in range(100):
+            d1[object()] = None
+        with self.assertRaises(TypeError):
+            list(sorted(d1))
+        self.saferepr(d1)
 
     def test_directly_recursive(self):
         value = {1: None}
