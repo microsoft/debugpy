@@ -1,6 +1,11 @@
 import sys
 import unittest
 
+try:
+    import numpy as np
+except ImportError:
+    np = None
+
 from ptvsd.safe_repr import SafeRepr
 
 
@@ -286,17 +291,14 @@ class SafeReprTests(unittest.TestCase):
         #      ', len(repr(coll)) = ' + str(len(text_repr)))
         assert len(text) < 8192
 
+    @unittest.skipIf(np is None, 'could not import numpy')
+    def test_numpy(self):
         # Test numpy types - they should all use their native reprs,
         # even arrays exceeding limits
-        try:
-            import numpy as np
-        except ImportError:
-            msg = 'WARNING! could not import numpy - skipping all numpy tests.'
-            print(msg)
-        else:
-            test(np.int32(123),
-                 repr(np.int32(123)))
-            test(np.float64(123.456),
-                 repr(np.float64(123.456)))
-            test(np.zeros(saferepr.maxcollection[0] + 1),
-                 repr(np.zeros(saferepr.maxcollection[0] + 1)))
+        int32 = np.int32(123)
+        float32 = np.float32(123.456)
+        zeros = np.zeros(SafeRepr.maxcollection[0] + 1)
+
+        self.assert_unchanged(int32, repr(int32))
+        self.assert_unchanged(float32, repr(float32))
+        self.assert_unchanged(zeros, repr(zeros))
