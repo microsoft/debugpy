@@ -25,10 +25,10 @@ def py3_only(f):
     return deco(f)
 
 
-class SafeReprTests(unittest.TestCase):
+class TestBase(unittest.TestCase):
 
     def setUp(self):
-        super(SafeReprTests, self).setUp()
+        super(TestBase, self).setUp()
         self.saferepr = SafeRepr()
 
     def assert_unchanged(self, value, expected):
@@ -45,7 +45,8 @@ class SafeReprTests(unittest.TestCase):
         self.assertEqual(safe, expected)
         self.assertNotEqual(safe, actual)
 
-    # strings
+
+class StringTests(TestBase):
 
     def test_str_small(self):
         value = 'A' * 5
@@ -110,6 +111,109 @@ class SafeReprTests(unittest.TestCase):
         self.assert_shortened(value,
                               "b'" + 'A' * 43688 + "..." + 'A' * 21844 + "'")
         self.assert_shortened([value], "[b'AAAAAAAAAAAAAAAAAA...AAAAAAAAA']")
+
+    @unittest.skip('not written')  # TODO: finish!
+    def test_bytearray_small(self):
+        raise NotImplementedError
+
+    @unittest.skip('not written')  # TODO: finish!
+    def test_bytearray_large(self):
+        raise NotImplementedError
+
+
+class NumberTests(TestBase):
+
+    @unittest.skip('not written')  # TODO: finish!
+    def test_int(self):
+        raise NotImplementedError
+
+    @unittest.skip('not written')  # TODO: finish!
+    def test_float(self):
+        raise NotImplementedError
+
+    @unittest.skip('not written')  # TODO: finish!
+    def test_complex(self):
+        raise NotImplementedError
+
+
+class ContainerBase(object):
+
+    @unittest.skip('not written')  # TODO: finish!
+    def test_empty(self):
+        raise NotImplementedError
+
+    @unittest.skip('not written')  # TODO: finish!
+    def test_subclass(self):
+        raise NotImplementedError
+
+
+class TupleTests(ContainerBase, TestBase):
+    pass
+
+
+class ListTests(ContainerBase, TestBase):
+    pass
+
+
+class FrozensetTests(ContainerBase, TestBase):
+    pass
+
+
+class SetTests(ContainerBase, TestBase):
+    pass
+
+
+class DictTests(ContainerBase, TestBase):
+    pass
+
+
+class OtherPythonTypeTests(TestBase):
+    # not critical to test:
+    #  singletons
+    #  <function>
+    #  <class>
+    #  <iterator>
+    #  memoryview
+    #  classmethod
+    #  staticmethod
+    #  property
+    #  enumerate
+    #  reversed
+    #  object
+    #  type
+    #  super
+
+    @unittest.skip('not written')  # TODO: finish!
+    def test_file(self):
+        raise NotImplementedError
+
+    @unittest.skip('not written')  # TODO: finish!
+    def test_range(self):
+        raise NotImplementedError
+
+    @unittest.skip('not written')  # TODO: finish!
+    def test_named_struct(self):
+        # e.g. sys.version_info
+        raise NotImplementedError
+
+    @unittest.skip('not written')  # TODO: finish!
+    def test_namedtuple(self):
+        raise NotImplementedError
+
+    @unittest.skip('not written')  # TODO: finish!
+    @py3_only
+    def test_SimpleNamespace(self):
+        raise NotImplementedError
+
+
+class UserDefinedObjectTests(TestBase):
+
+    @unittest.skip('not written')  # TODO: finish!
+    def test_object(self):
+        raise NotImplementedError
+
+
+class SafeReprTests(TestBase):
 
     # TODO: Split up test_all().
 
@@ -291,14 +395,23 @@ class SafeReprTests(unittest.TestCase):
         #      ', len(repr(coll)) = ' + str(len(text_repr)))
         assert len(text) < 8192
 
-    @unittest.skipIf(np is None, 'could not import numpy')
-    def test_numpy(self):
-        # Test numpy types - they should all use their native reprs,
-        # even arrays exceeding limits
-        int32 = np.int32(123)
-        float32 = np.float32(123.456)
-        zeros = np.zeros(SafeRepr.maxcollection[0] + 1)
 
-        self.assert_unchanged(int32, repr(int32))
-        self.assert_unchanged(float32, repr(float32))
-        self.assert_unchanged(zeros, repr(zeros))
+@unittest.skipIf(np is None, 'could not import numpy')
+class NumpyTests(TestBase):
+    # numpy types should all use their native reprs, even arrays
+    # exceeding limits.
+
+    def test_int32(self):
+        value = np.int32(123)
+
+        self.assert_unchanged(value, repr(value))
+
+    def test_float32(self):
+        value = np.float32(123.456)
+
+        self.assert_unchanged(value, repr(value))
+
+    def test_zeros(self):
+        value = np.zeros(SafeRepr.maxcollection[0] + 1)
+
+        self.assert_unchanged(value, repr(value))
