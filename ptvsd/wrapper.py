@@ -410,6 +410,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.socket = socket
         self.pydevd = pydevd
         self.killonclose = killonclose
+        self.is_process_created = False
+        self.is_process_created_lock = threading.Lock()
         self.stack_traces = {}
         self.stack_traces_lock = threading.Lock()
         self.active_exceptions = {}
@@ -546,7 +548,6 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.send_response(request)
         self.process_launch_arguments()
         self.pydevd_request(pydevd_comm.CMD_RUN, '')
-        self.send_process_event(self.start_reason)
 
     def process_launch_arguments(self):
         """
@@ -912,6 +913,12 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_CREATE)
     def on_pydevd_thread_create(self, seq, args):
+        # If this is the first thread reported, report process creation as well.
+        with self.is_process_created_lock:
+            if not self.is_process_created:
+                self.is_process_created = True
+                self.send_process_event(self.start_reason)
+
         # TODO: docstring
         xml = untangle.parse(args).xml
         try:
