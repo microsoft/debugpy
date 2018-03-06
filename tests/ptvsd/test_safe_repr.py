@@ -1,28 +1,115 @@
 import sys
 import unittest
 
-from ptvsd.safe_repr import SafeRepr, unicode, xrange
+from ptvsd.safe_repr import SafeRepr
+
+
+if sys.version_info[0] > 2:
+    unicode = str
+    xrange = range
+
+
+def py2_only(f):
+    deco = unittest.skipIf(sys.version_info[0] != 2, 'py2-only')
+    return deco(f)
+
+
+def py3_only(f):
+    assert sys.version_info[0] <= 3
+    deco = unittest.skipIf(sys.version_info[0] != 3, 'py3-only')
+    return deco(f)
 
 
 class SafeReprTests(unittest.TestCase):
+
+    def setUp(self):
+        super(SafeReprTests, self).setUp()
+        self.saferepr = SafeRepr()
+
+    def assert_unchanged(self, value, expected):
+        safe = self.saferepr(value)
+        actual = repr(value)
+
+        self.assertEqual(safe, expected)
+        self.assertEqual(safe, actual)
+
+    def assert_shortened(self, value, expected):
+        safe = self.saferepr(value)
+        actual = repr(value)
+
+        self.assertEqual(safe, expected)
+        self.assertNotEqual(safe, actual)
+
+    # strings
+
+    def test_str_small(self):
+        value = 'A' * 5
+
+        self.assert_unchanged(value, "'AAAAA'")
+        self.assert_unchanged([value], "['AAAAA']")
+
+    def test_str_large(self):
+        value = 'A' * (SafeRepr.maxstring_outer + 10)
+
+        self.assert_shortened(value,
+                              "'" + 'A' * 43689 + "..." + 'A' * 21844 + "'")
+        self.assert_shortened([value], "['AAAAAAAAAAAAAAAAAAA...AAAAAAAAA']")
+
+    def test_str_largest_unchanged(self):
+        value = 'A' * (SafeRepr.maxstring_outer - 2)
+
+        self.assert_unchanged(value, "'" + 'A' * 65534 + "'")
+
+    def test_str_smallest_changed(self):
+        value = 'A' * (SafeRepr.maxstring_outer - 1)
+
+        self.assert_shortened(value,
+                              "'" + 'A' * 43689 + "..." + 'A' * 21844 + "'")
+
+    def test_str_list_largest_unchanged(self):
+        value = 'A' * (SafeRepr.maxstring_inner - 2)
+
+        self.assert_unchanged([value], "['" + 'A' * 28 + "']")
+
+    def test_str_list_smallest_changed(self):
+        value = 'A' * (SafeRepr.maxstring_inner - 1)
+
+        self.assert_shortened([value], "['AAAAAAAAAAAAAAAAAAA...AAAAAAAAA']")
+
+    @py2_only
+    def test_unicode_small(self):
+        value = u'A' * 5
+
+        self.assert_unchanged(value, "u'AAAAA'")
+        self.assert_unchanged([value], "[u'AAAAA']")
+
+    @py2_only
+    def test_unicode_large(self):
+        value = u'A' * (SafeRepr.maxstring_outer + 10)
+
+        self.assert_shortened(value,
+                              "u'" + 'A' * 43688 + "..." + 'A' * 21844 + "'")
+        self.assert_shortened([value], "[u'AAAAAAAAAAAAAAAAAA...AAAAAAAAA']")
+
+    @py3_only
+    def test_bytes_small(self):
+        value = b'A' * 5
+
+        self.assert_unchanged(value, "b'AAAAA'")
+        self.assert_unchanged([value], "[b'AAAAA']")
+
+    @py3_only
+    def test_bytes_large(self):
+        value = b'A' * (SafeRepr.maxstring_outer + 10)
+
+        self.assert_shortened(value,
+                              "b'" + 'A' * 43688 + "..." + 'A' * 21844 + "'")
+        self.assert_shortened([value], "[b'AAAAAAAAAAAAAAAAAA...AAAAAAAAA']")
 
     # TODO: Split up test_all().
 
     def test_all(self):
         saferepr = SafeRepr()
-
-        # Test the string limiting somewhat automatically
-        tests = []
-        tests.append((7, 9, 'A' * (5)))
-        tests.append((saferepr.maxstring_outer + 3, saferepr.maxstring_inner + 3 + 2, 'A' * (saferepr.maxstring_outer + 10)))  # noqa
-        if sys.version_info >= (3, 0):
-            tests.append((saferepr.maxstring_outer + 4, saferepr.maxstring_inner + 4 + 2, bytes('A', 'ascii') * (saferepr.maxstring_outer + 10)))  # noqa
-        else:
-            tests.append((saferepr.maxstring_outer + 4, saferepr.maxstring_inner + 4 + 2, unicode('A') * (saferepr.maxstring_outer + 10)))  # noqa
-
-        for limit1, limit2, value in tests:
-            assert len(saferepr(value)) <= limit1 <= len(repr(value)), (len(saferepr(value)), limit1, len(repr(value)), value)  # noqa
-            assert len(saferepr([value])) <= limit2 <= len(repr([value])), (len(saferepr([value])), limit2, len(repr([value])), saferepr([value]))  # noqa
 
         def test(source, expected):
             actual = saferepr(source)
