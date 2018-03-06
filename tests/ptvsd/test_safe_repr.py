@@ -187,9 +187,28 @@ class OtherPythonTypeTests(TestBase):
     def test_file(self):
         raise NotImplementedError
 
-    @unittest.skip('not written')  # TODO: finish!
-    def test_range(self):
-        raise NotImplementedError
+    def test_range_small(self):
+        range_name = xrange.__name__
+        value = xrange(1, 42)
+
+        self.assert_unchanged(value, '{}(1, 42)'.format(range_name))
+
+    @py3_only
+    def test_range_large_stop_only(self):
+        range_name = xrange.__name__
+        stop = SafeRepr.maxcollection[0]
+        value = xrange(stop)
+
+        self.assert_unchanged(value,
+                              '{}(0, {})'.format(range_name, stop))
+
+    def test_range_large_with_start(self):
+        range_name = xrange.__name__
+        stop = SafeRepr.maxcollection[0] + 1
+        value = xrange(1, stop)
+
+        self.assert_unchanged(value,
+                              '{}(1, {})'.format(range_name, stop))
 
     @unittest.skip('not written')  # TODO: finish!
     def test_named_struct(self):
@@ -360,14 +379,6 @@ class SafeReprTests(TestBase):
              'MyRepr')
         test(TestClass(['a' * (saferepr.maxstring_inner + 1)]),
              '<TestClass, len() = 1>')
-
-        # Test range
-        if sys.version[0] == '2':
-            range_name = 'xrange'
-        else:
-            range_name = 'range'
-        test(xrange(1, saferepr.maxcollection[0] + 1),
-             '%s(1, %s)' % (range_name, saferepr.maxcollection[0] + 1))
 
         # Test directly recursive collections
         c1 = [1, 2]
