@@ -194,14 +194,6 @@ class SafeReprTests(TestBase):
         test(TestClass(['a' * (saferepr.maxstring_inner + 1)]),
              '<TestClass, len() = 1>')
 
-        # Test directly recursive collections
-        c1 = [1, 2]
-        c1.append(c1)
-        test(c1, '[1, 2, [...]]')
-        d1 = {1: None}
-        d1[2] = d1
-        test(d1, '{1: None, 2: {...}}')
-
     def test_largest_repr(self):
         # Find the largest possible repr and ensure it is below our arbitrary
         # limit (8KB).
@@ -329,7 +321,18 @@ class TupleTests(ContainerBase, TestBase):
 
 
 class ListTests(ContainerBase, TestBase):
-    pass
+
+    def test_directly_recursive(self):
+        value = [1, 2]
+        value.append(value)
+
+        self.assert_unchanged(value, '[1, 2, [...]]')
+
+    def test_indirectly_recursive(self):
+        value = [1, 2]
+        value.append([value])
+
+        self.assert_unchanged(value, '[1, 2, [[...]]]')
 
 
 class FrozensetTests(ContainerBase, TestBase):
@@ -341,7 +344,18 @@ class SetTests(ContainerBase, TestBase):
 
 
 class DictTests(ContainerBase, TestBase):
-    pass
+
+    def test_directly_recursive(self):
+        value = {1: None}
+        value[2] = value
+
+        self.assert_unchanged(value, '{1: None, 2: {...}}')
+
+    def test_indirectly_recursive(self):
+        value = {1: None}
+        value[2] = {3: value}
+
+        self.assert_unchanged(value, '{1: None, 2: {3: {...}}}')
 
 
 class OtherPythonTypeTests(TestBase):
