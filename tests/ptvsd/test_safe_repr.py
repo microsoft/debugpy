@@ -1,3 +1,4 @@
+import collections
 import sys
 import unittest
 
@@ -76,31 +77,16 @@ class TestBase(unittest.TestCase):
 
 class SafeReprTests(TestBase):
 
-    # TODO: Split up test_all().
+    def test_collection_types(self):
+        colltypes = [t for t, _, _, _ in SafeRepr.collection_types]
 
-    def test_all(self):
-        for ctype, _prefix, _suffix, comma in SafeRepr.collection_types:
-            for i in range(len(SafeRepr.maxcollection)):
-                prefix = _prefix * (i + 1)
-                if comma:
-                    suffix = _suffix + ("," + _suffix) * i
-                else:
-                    suffix = _suffix * (i + 1)
-                #print("ctype = " + ctype.__name__ + ", maxcollection[" +
-                #      str(i) + "] == " + str(SafeRepr.maxcollection[i]))
-                c1 = ctype(range(SafeRepr.maxcollection[i] - 1))
-                inner_repr = prefix + ', '.join(str(j) for j in c1)
-                c2 = ctype(range(SafeRepr.maxcollection[i]))
-                c3 = ctype(range(SafeRepr.maxcollection[i] + 1))
-                for j in range(i):
-                    c1, c2, c3 = ctype((c1,)), ctype((c2,)), ctype((c3,))
-                self.assert_unchanged(c1, inner_repr + suffix)
-                self.assert_shortened(c2, inner_repr + ", ..." + suffix)
-                self.assert_shortened(c3, inner_repr + ", ..." + suffix)
-
-                if ctype is set:
-                    # Cannot recursively add sets to sets
-                    break
+        self.assertEqual(colltypes, [
+            tuple,
+            list,
+            frozenset,
+            set,
+            collections.deque,
+        ])
 
     def test_largest_repr(self):
         # Find the largest possible repr and ensure it is below our arbitrary
@@ -219,13 +205,40 @@ class ContainerBase(object):
     LEFT = None
     RIGHT = None
 
-    def combine(self, items, large=False):
-        if self.LEFT is None:
-            raise unittest.SkipTest('unsupported')
+    @property
+    def info(self):
+        try:
+            return self._info
+        except AttributeError:
+            for info in SafeRepr.collection_types:
+                ctype, _, _, _ = info
+                if self.CLASS is ctype:
+                    type(self)._info = info
+                    return info
+            else:
+                raise TypeError('unsupported')
+
+    def _combine(self, items, prefix, suffix, large):
         contents = ', '.join(str(item) for item in items)
         if large:
             contents += ', ...'
-        return self.LEFT + contents + self.RIGHT
+        return prefix + contents + suffix
+
+    def combine(self, items, large=False):
+        if self.LEFT is None:
+            raise unittest.SkipTest('unsupported')
+        return self._combine(items, self.LEFT, self.RIGHT, large=large)
+
+    def combine_nested(self, depth, items, large=False):
+        _, _prefix, _suffix, comma = self.info
+        prefix = _prefix * (depth + 1)
+        if comma:
+            suffix = _suffix + ("," + _suffix) * depth
+        else:
+            suffix = _suffix * (depth + 1)
+        #print("ctype = " + ctype.__name__ + ", maxcollection[" +
+        #      str(i) + "] == " + str(SafeRepr.maxcollection[i]))
+        return self._combine(items, prefix, suffix, large=large)
 
     def test_large_flat(self):
         # Assume that all tests apply equally to all iterable types and only
@@ -256,6 +269,40 @@ class ContainerBase(object):
     @unittest.skip('not written')  # TODO: finish!
     def test_subclass(self):
         raise NotImplementedError
+
+    def test_boundary(self):
+        items1 = range(SafeRepr.maxcollection[0] - 1)
+        items2 = range(SafeRepr.maxcollection[0])
+        items3 = range(SafeRepr.maxcollection[0] + 1)
+        c1 = self.CLASS(items1)
+        c2 = self.CLASS(items2)
+        c3 = self.CLASS(items3)
+        expected1 = self.combine(items1)
+        expected2 = self.combine(items2[:-1], large=True)
+        expected3 = self.combine(items3[:-2], large=True)
+
+        self.assert_unchanged(c1, expected1)
+        self.assert_shortened(c2, expected2)
+        self.assert_shortened(c3, expected3)
+
+    def test_nested(self):
+        ctype = self.CLASS
+        for i in range(1, len(SafeRepr.maxcollection)):
+            items1 = range(SafeRepr.maxcollection[i] - 1)
+            items2 = range(SafeRepr.maxcollection[i])
+            items3 = range(SafeRepr.maxcollection[i] + 1)
+            c1 = self.CLASS(items1)
+            c2 = self.CLASS(items2)
+            c3 = self.CLASS(items3)
+            for j in range(i):
+                c1, c2, c3 = ctype((c1,)), ctype((c2,)), ctype((c3,))
+            expected1 = self.combine_nested(i, items1)
+            expected2 = self.combine_nested(i, items2[:-1], large=True)
+            expected3 = self.combine_nested(i, items3[:-2], large=True)
+
+            self.assert_unchanged(c1, expected1)
+            self.assert_shortened(c2, expected2)
+            self.assert_shortened(c3, expected3)
 
 
 class TupleTests(ContainerBase, TestBase):
@@ -297,6 +344,9 @@ class SetTests(ContainerBase, TestBase):
     if PY_VER != 2:
         LEFT = '{'
         RIGHT = '}'
+
+    def test_nested(self):
+        raise unittest.SkipTest('unsupported')
 
     def test_large_nested(self):
         raise unittest.SkipTest('unsupported')
