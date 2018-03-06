@@ -241,8 +241,6 @@ class ContainerBase(object):
         return self._combine(items, prefix, suffix, large=large)
 
     def test_large_flat(self):
-        # Assume that all tests apply equally to all iterable types and only
-        # test with lists.
         c1 = self.CLASS(range(SafeRepr.maxcollection[0] * 2))
         items = range(SafeRepr.maxcollection[0] - 1)
         c1_expect = self.combine(items, large=True)
@@ -250,8 +248,6 @@ class ContainerBase(object):
         self.assert_shortened(c1, c1_expect)
 
     def test_large_nested(self):
-        # Assume that all tests apply equally to all iterable types and only
-        # test with lists.
         c1 = self.CLASS(range(SafeRepr.maxcollection[0] * 2))
         c1_items = range(SafeRepr.maxcollection[1] - 1)
         c1_expect = self.combine(c1_items, large=True)
@@ -318,8 +314,6 @@ class ListTests(ContainerBase, TestBase):
     LEFT = '['
     RIGHT = ']'
 
-    # TODO: Move test_large to ContainerBase.
-
     def test_directly_recursive(self):
         value = [1, 2]
         value.append(value)
@@ -351,8 +345,6 @@ class SetTests(ContainerBase, TestBase):
     def test_large_nested(self):
         raise unittest.SkipTest('unsupported')
 
-
-# TODO: Use ContainerBase in DictTests?
 
 class DictTests(TestBase):
 
