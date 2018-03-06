@@ -102,16 +102,6 @@ class SafeReprTests(TestBase):
                     # Cannot recursively add sets to sets
                     break
 
-        # Assume that all tests apply equally to all iterable types and only
-        # test with lists.
-        c1 = list(range(SafeRepr.maxcollection[0] * 2))
-        c2 = [c1 for _ in range(SafeRepr.maxcollection[0] * 2)]
-        c1_expect = '[' + ', '.join(str(j) for j in range(SafeRepr.maxcollection[0] - 1)) + ', ...]'  # noqa
-        self.assert_shortened(c1, c1_expect)
-        c1_expect2 = '[' + ', '.join(str(j) for j in range(SafeRepr.maxcollection[1] - 1)) + ', ...]'  # noqa
-        c2_expect = '[' + ', '.join(c1_expect2 for _ in range(SafeRepr.maxcollection[0] - 1)) + ', ...]'  # noqa
-        self.assert_shortened(c2, c2_expect)
-
         # Ensure dict keys and values are limited correctly
         d1 = {}
         d1_key = 'a' * SafeRepr.maxstring_inner * 2
@@ -319,6 +309,40 @@ class NumberTests(TestBase):
 
 class ContainerBase(object):
 
+    CLASS = None
+    LEFT = None
+    RIGHT = None
+
+    def combine(self, items, large=False):
+        if self.LEFT is None:
+            raise unittest.SkipTest('unsupported')
+        contents = ', '.join(str(item) for item in items)
+        if large:
+            contents += ', ...'
+        return self.LEFT + contents + self.RIGHT
+
+    def test_large_flat(self):
+        # Assume that all tests apply equally to all iterable types and only
+        # test with lists.
+        c1 = self.CLASS(range(SafeRepr.maxcollection[0] * 2))
+        items = range(SafeRepr.maxcollection[0] - 1)
+        c1_expect = self.combine(items, large=True)
+
+        self.assert_shortened(c1, c1_expect)
+
+    def test_large_nested(self):
+        # Assume that all tests apply equally to all iterable types and only
+        # test with lists.
+        c1 = self.CLASS(range(SafeRepr.maxcollection[0] * 2))
+        c1_items = range(SafeRepr.maxcollection[1] - 1)
+        c1_expect = self.combine(c1_items, large=True)
+
+        c2 = self.CLASS(c1 for _ in range(SafeRepr.maxcollection[0] * 2))
+        items = (c1_expect for _ in range(SafeRepr.maxcollection[0] - 1))
+        c2_expect = self.combine(items, large=True)
+
+        self.assert_shortened(c2, c2_expect)
+
     @unittest.skip('not written')  # TODO: finish!
     def test_empty(self):
         raise NotImplementedError
@@ -329,10 +353,19 @@ class ContainerBase(object):
 
 
 class TupleTests(ContainerBase, TestBase):
-    pass
+
+    CLASS = tuple
+    LEFT = '('
+    RIGHT = ')'
 
 
 class ListTests(ContainerBase, TestBase):
+
+    CLASS = list
+    LEFT = '['
+    RIGHT = ']'
+
+    # TODO: Move test_large to ContainerBase.
 
     def test_directly_recursive(self):
         value = [1, 2]
@@ -348,14 +381,24 @@ class ListTests(ContainerBase, TestBase):
 
 
 class FrozensetTests(ContainerBase, TestBase):
-    pass
+
+    CLASS = frozenset
 
 
 class SetTests(ContainerBase, TestBase):
-    pass
+
+    CLASS = set
+    if PY_VER != 2:
+        LEFT = '{'
+        RIGHT = '}'
+
+    def test_large_nested(self):
+        raise unittest.SkipTest('unsupported')
 
 
-class DictTests(ContainerBase, TestBase):
+# TODO: Use ContainerBase in DictTests?
+
+class DictTests(TestBase):
 
     def test_directly_recursive(self):
         value = {1: None}
