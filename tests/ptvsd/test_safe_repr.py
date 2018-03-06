@@ -102,65 +102,6 @@ class SafeReprTests(TestBase):
                     # Cannot recursively add sets to sets
                     break
 
-        # Test with objects with broken repr implementations
-        class TestClass(object):
-            def __repr__(_):
-                raise NameError
-        with self.assertRaises(NameError):
-            repr(TestClass())
-        self.saferepr(TestClass())
-
-        # Test with objects with long repr implementations
-        class TestClass(object):
-            repr_str = '<' + 'A' * SafeRepr.maxother_outer * 2 + '>'
-
-            def __repr__(self):
-                return self.repr_str
-        self.assert_shortened_regex(TestClass(), r'\<A+\.\.\.A+\>')
-
-        # Test collections that don't override repr
-        class TestClass(dict):
-            pass
-        self.assert_unchanged(TestClass(), '{}')
-
-        class TestClass(list):
-            pass
-        self.assert_unchanged(TestClass(), '[]')
-
-        # Test collections that override repr
-        class TestClass(dict):
-            def __repr__(_):
-                return 'MyRepr'
-        self.assert_unchanged(TestClass(), 'MyRepr')
-
-        class TestClass(list):
-            def __init__(self, it=()):
-                list.__init__(self, it)
-
-            def __repr__(_):
-                return 'MyRepr'
-        self.assert_unchanged(TestClass(), 'MyRepr')
-
-        # Test collections and iterables with long repr
-        self.assert_unchanged(TestClass(xrange(0, 15)),
-                              'MyRepr')
-        self.assert_shortened(TestClass(xrange(0, 16)),
-                              '<TestClass, len() = 16>')
-        self.assert_unchanged(TestClass([TestClass(xrange(0, 10))]),
-                              'MyRepr')
-        self.assert_shortened(TestClass([TestClass(xrange(0, 11))]),
-                              '<TestClass, len() = 1>')
-
-        # Test strings inside long iterables
-        self.assert_unchanged(
-            TestClass(['a' * (SafeRepr.maxcollection[1] + 1)]),
-            'MyRepr',
-        )
-        self.assert_shortened(
-            TestClass(['a' * (SafeRepr.maxstring_inner + 1)]),
-            '<TestClass, len() = 1>',
-        )
-
     def test_largest_repr(self):
         # Find the largest possible repr and ensure it is below our arbitrary
         # limit (8KB).
@@ -494,9 +435,79 @@ class OtherPythonTypeTests(TestBase):
 
 class UserDefinedObjectTests(TestBase):
 
-    @unittest.skip('not written')  # TODO: finish!
-    def test_object(self):
-        raise NotImplementedError
+    def test_broken_repr(self):
+        class TestClass(object):
+            def __repr__(_):
+                raise NameError
+        value = TestClass()
+
+        with self.assertRaises(NameError):
+            repr(TestClass())
+        self.assert_saferepr(value, object.__repr__(value))
+
+    def test_large(self):
+        class TestClass(object):
+            def __repr__(self):
+                return '<' + 'A' * SafeRepr.maxother_outer * 2 + '>'
+        value = TestClass()
+
+        self.assert_shortened_regex(value, r'\<A+\.\.\.A+\>')
+
+    def test_inherit_repr(self):
+        class TestClass(dict):
+            pass
+        value_dict = TestClass()
+
+        class TestClass(list):
+            pass
+        value_list = TestClass()
+
+        self.assert_unchanged(value_dict, '{}')
+        self.assert_unchanged(value_list, '[]')
+
+    def test_custom_repr(self):
+        class TestClass(dict):
+            def __repr__(_):
+                return 'MyRepr'
+        value1 = TestClass()
+
+        class TestClass(list):
+            def __repr__(_):
+                return 'MyRepr'
+        value2 = TestClass()
+
+        self.assert_unchanged(value1, 'MyRepr')
+        self.assert_unchanged(value2, 'MyRepr')
+
+    def test_custom_repr_many_items(self):
+        class TestClass(list):
+            def __init__(self, it=()):
+                list.__init__(self, it)
+
+            def __repr__(_):
+                return 'MyRepr'
+        value1 = TestClass(xrange(0, 15))
+        value2 = TestClass(xrange(0, 16))
+        value3 = TestClass([TestClass(xrange(0, 10))])
+        value4 = TestClass([TestClass(xrange(0, 11))])
+
+        self.assert_unchanged(value1, 'MyRepr')
+        self.assert_shortened(value2, '<TestClass, len() = 16>')
+        self.assert_unchanged(value3, 'MyRepr')
+        self.assert_shortened(value4, '<TestClass, len() = 1>')
+
+    def test_custom_repr_large_item(self):
+        class TestClass(list):
+            def __init__(self, it=()):
+                list.__init__(self, it)
+
+            def __repr__(_):
+                return 'MyRepr'
+        value1 = TestClass(['a' * (SafeRepr.maxcollection[1] + 1)])
+        value2 = TestClass(['a' * (SafeRepr.maxstring_inner + 1)])
+
+        self.assert_unchanged(value1, 'MyRepr')
+        self.assert_shortened(value2, '<TestClass, len() = 1>')
 
 
 @unittest.skipIf(np is None, 'could not import numpy')
