@@ -804,6 +804,13 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     @async_handler
     def on_pause(self, request, args):
         # TODO: docstring
+
+        # Pause requests cannot be serviced until pydevd is fully initialized.
+        with self.is_process_created_lock:
+            if not self.is_process_created:
+                self.send_response(request, success=False, message='Cannot pause while debugger is initializing')
+                return
+
         vsc_tid = int(args['threadId'])
         if vsc_tid == 0:  # VS does this to mean "stop all threads":
             for pyd_tid in self.thread_map.pydevd_ids():
