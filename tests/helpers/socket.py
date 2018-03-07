@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 from collections import namedtuple
+import errno
 import socket
 
 import ptvsd.wrapper as _ptvsd
@@ -87,7 +88,11 @@ class Connection(namedtuple('Connection', 'client server')):
     def shutdown(self, *args, **kwargs):
         if self.server is not None:
             self.server.shutdown(*args, **kwargs)
-        self.client.shutdown(*args, **kwargs)
+        try:
+            self.client.shutdown(*args, **kwargs)
+        except OSError as exc:
+            if exc.errno != errno.ENOTCONN:
+                raise
 
     def close(self):
         if self.server is not None:

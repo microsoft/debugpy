@@ -551,6 +551,10 @@ class HighlevelTest(object):
         return self.fix.vsc_msgs.new_response
 
     @property
+    def new_failure(self):
+        return self.fix.vsc_msgs.new_failure
+
+    @property
     def new_event(self):
         return self.fix.vsc_msgs.new_event
 

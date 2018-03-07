@@ -47,6 +47,14 @@ WAIT_FOR_DISCONNECT_REQUEST_TIMEOUT = 2
 WAIT_FOR_THREAD_FINISH_TIMEOUT = 1
 
 
+class UnsupportedPyDevdCommandError(Exception):
+
+    def __init__(self, cmdid):
+        msg = 'unsupported pydevd command ' + str(cmdid)
+        super(UnsupportedPyDevdCommandError, self).__init__(msg)
+        self.cmdid = cmdid
+
+
 def unquote(s):
     if s is None:
         return None
@@ -496,7 +504,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         try:
             f = self.pydevd_events[cmd_id]
         except KeyError:
-            raise Exception('Unsupported pydevd command ' + str(cmd_id))
+            raise UnsupportedPyDevdCommandError(cmd_id)
         return f(self, seq, args)
 
     def async_handler(m):
