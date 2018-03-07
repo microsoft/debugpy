@@ -739,19 +739,33 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         except AttributeError:
             xvars = []
 
-        variables = []
+        variables = [] # variables that do not begin with underscores
+        single_underscore = [] # variables that begin with underscores
+        double_underscore = [] # variables that begin with two underscores
+        dunder = [] # variables that begin and end with double underscores
         for xvar in xvars:
+            var_name = unquote(xvar['name'])
+            var_type = unquote(xvar['type'])
+            var_value = unquote(xvar['value'])
             var = {
-                'name': unquote(xvar['name']),
-                'type': unquote(xvar['type']),
-                'value': unquote(xvar['value']),
+                'name': var_name,
+                'type': var_type,
+                'value': var_value,
             }
             if bool(xvar['isContainer']):
                 pyd_child = pyd_var + (var['name'],)
                 var['variablesReference'] = self.var_map.to_vscode(
                     pyd_child, autogen=True)
-            variables.append(var)
-
+            if var_name.startswith('__'):
+                if var_name.endswith('__'):
+                    dunder.append(var)
+                else:
+                    double_underscore.append(var)
+            elif var_name.startswith('_'):
+                single_underscore.append(var)
+            else:
+                variables.append(var)
+        variables = variables + single_underscore + double_underscore + dunder
         self.send_response(request, variables=variables)
 
     @async_handler
