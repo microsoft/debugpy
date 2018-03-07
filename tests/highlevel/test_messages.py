@@ -5,15 +5,19 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_ADD_EXCEPTION_BREAK,
     CMD_CHANGE_VARIABLE,
     CMD_EVALUATE_EXPRESSION,
+    CMD_EXIT,
+    CMD_GET_BREAKPOINT_EXCEPTION,
     CMD_GET_FRAME,
     CMD_GET_VARIABLE,
     CMD_LIST_THREADS,
+    CMD_PROCESS_CREATED,
     CMD_REMOVE_BREAK,
     CMD_REMOVE_EXCEPTION_BREAK,
     CMD_RETURN,
     CMD_SEND_CURR_EXCEPTION_TRACE,
     CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED,
     CMD_SET_BREAK,
+    CMD_SHOW_CONSOLE,
     CMD_STEP_CAUGHT_EXCEPTION,
     CMD_STEP_INTO,
     CMD_STEP_OVER,
@@ -23,9 +27,11 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_THREAD_RUN,
     CMD_THREAD_SUSPEND,
     CMD_VERSION,
+    CMD_WRITE_TO_CONSOLE,
 )
 
 from . import OS_ID, RunningTest
+from ptvsd.wrapper import UnsupportedPyDevdCommandError
 
 
 # TODO: Make sure we are handling all args properly and sending the
@@ -1551,6 +1557,42 @@ class PyDevdEventTest(RunningTest):
         return self.new_event(self.EVENT, seq=None, **body)
 
 
+class ProcessCreatedEventTests(PyDevdEventTest, unittest.TestCase):
+
+    CMD = CMD_PROCESS_CREATED
+    EVENT = None
+
+    def pydevd_payload(self, pid):
+        return '<process/>'
+
+    def test_unsupported(self):
+        with self.launched():
+            with self.assertRaises(UnsupportedPyDevdCommandError):
+                self.send_event(12345)
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [])
+        self.assert_received(self.debugger, [])
+
+
+class ExitEventTests(PyDevdEventTest, unittest.TestCase):
+
+    CMD = CMD_EXIT
+    EVENT = None
+
+    def pydevd_payload(self):
+        return ''
+
+    def test_unsupported(self):
+        with self.launched():
+            with self.assertRaises(UnsupportedPyDevdCommandError):
+                self.send_event()
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [])
+        self.assert_received(self.debugger, [])
+
+
 class ThreadEventTest(PyDevdEventTest):
 
     _tid = None
@@ -1615,7 +1657,7 @@ class ThreadCreateTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
 
-class ThreadKillTests(ThreadEventTest, unittest.TestCase):
+class ThreadKillEventTests(ThreadEventTest, unittest.TestCase):
 
     CMD = CMD_THREAD_KILL
     EVENT = 'thread'
@@ -1670,7 +1712,7 @@ class ThreadKillTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
 
-class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
+class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
 
     CMD = CMD_THREAD_SUSPEND
     EVENT = 'stopped'
@@ -1883,7 +1925,7 @@ class ThreadSuspendTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
 
-class ThreadRunTests(ThreadEventTest, unittest.TestCase):
+class ThreadRunEventTests(ThreadEventTest, unittest.TestCase):
 
     CMD = CMD_THREAD_RUN
     EVENT = 'continued'
@@ -1911,7 +1953,7 @@ class ThreadRunTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
 
-class SendCurrExcTraceTests(PyDevdEventTest, unittest.TestCase):
+class SendCurrExcTraceEventTests(PyDevdEventTest, unittest.TestCase):
 
     CMD = CMD_SEND_CURR_EXCEPTION_TRACE
     EVENT = None
@@ -1950,7 +1992,7 @@ class SendCurrExcTraceTests(PyDevdEventTest, unittest.TestCase):
         ))
 
 
-class SendCurrExcTraceProceededTests(PyDevdEventTest, unittest.TestCase):
+class SendCurrExcTraceProceededEventTests(PyDevdEventTest, unittest.TestCase):
 
     CMD = CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED
     EVENT = None
@@ -1987,3 +2029,67 @@ class SendCurrExcTraceProceededTests(PyDevdEventTest, unittest.TestCase):
         self.assertEqual(after.body['exceptionId'], 'BaseException')
         self.assertNotEqual(after.body['exceptionId'],
                             before.body['exceptionId'])
+
+
+class GetExceptionBreakpointEventTests(PyDevdEventTest, unittest.TestCase):
+
+    CMD = CMD_GET_BREAKPOINT_EXCEPTION
+    EVENT = None
+
+    def pydevd_payload(self, thread, exc, frame):
+        return self.debugger_msgs.format_exception(thread[0], exc, frame)
+
+
+    def test_unsupported(self):
+        thread = (10, 'x')
+        exc = RuntimeError('something went wrong')
+        frame = (2, 'spam', 'abc.py', 10)  # (pfid, func, file, line)
+        with self.launched():
+            with self.assertRaises(UnsupportedPyDevdCommandError):
+                self.send_event(thread, exc, frame)
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [])
+        self.assert_received(self.debugger, [])
+
+
+class ShowConsoleEventTests(PyDevdEventTest, unittest.TestCase):
+
+    CMD = CMD_SHOW_CONSOLE
+    EVENT = None
+
+    def pydevd_payload(self, threadid, *frames):
+        reason = self.CMD
+        return self.debugger_msgs.format_frames(threadid, reason, *frames)
+
+    def test_unsupported(self):
+        thread = (10, 'x')
+        ptid, _ = thread
+        frame = (2, 'spam', 'abc.py', 10)  # (pfid, func, file, line)
+        with self.launched():
+            with self.assertRaises(UnsupportedPyDevdCommandError):
+                self.send_event(ptid, frame)
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [])
+        self.assert_received(self.debugger, [])
+
+
+class WriteToConsoleEventTests(PyDevdEventTest, unittest.TestCase):
+
+    CMD = CMD_WRITE_TO_CONSOLE
+    EVENT = None
+
+    def pydevd_payload(self, msg, stdout=True):
+        ctx = 1 if stdout else 2
+        return '<xml><io s="{}" ctx="{}"/></xml>'.format(msg, ctx)
+
+    @unittest.skip('supported now')  # TODO: write test
+    def test_unsupported(self):
+        with self.launched():
+            with self.assertRaises(UnsupportedPyDevdCommandError):
+                self.send_event('output')
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [])
+        self.assert_received(self.debugger, [])
