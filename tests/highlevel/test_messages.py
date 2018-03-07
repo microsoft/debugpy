@@ -175,8 +175,31 @@ class NormalRequestTest(RunningTest):
             **body
         )
 
+    def expected_failure(self, err, **body):
+        return self.new_failure(
+            self._next_request(),
+            err,
+            seq=None,
+            **body,
+        )
+
     def expected_pydevd_request(self, *args):
         return self.debugger_msgs.new_request(self.PYDEVD_CMD, *args)
+
+
+class RestartTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'restart'
+
+    def test_unsupported(self):
+        with self.launched():
+            self.send_request()
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_failure('Unknown command'),
+        ])
+        self.assert_received(self.debugger, [])
 
 
 class ThreadsTests(NormalRequestTest, unittest.TestCase):
@@ -759,6 +782,75 @@ class StepOutTests(NormalRequestTest, unittest.TestCase):
         ])
 
 
+class StepBackTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'stepBack'
+
+    def test_unsupported(self):
+        with self.launched():
+            self.send_request(
+                threadId=10,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_failure('Unknown command'),
+        ])
+        self.assert_received(self.debugger, [])
+
+
+class ReverseContinueTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'reverseContinue'
+
+    def test_unsupported(self):
+        with self.launched():
+            self.send_request(
+                threadId=10,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_failure('Unknown command'),
+        ])
+        self.assert_received(self.debugger, [])
+
+
+class RestartFrameTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'restartFrame'
+
+    def test_unsupported(self):
+        with self.launched():
+            self.send_request(
+                threadId=10,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_failure('Unknown command'),
+        ])
+        self.assert_received(self.debugger, [])
+
+
+class GotoTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'goto'
+
+    def test_unsupported(self):
+        with self.launched():
+            self.send_request(
+                threadId=10,
+                targetId=1,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_failure('Unknown command'),
+        ])
+        self.assert_received(self.debugger, [])
+
+
 class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'setBreakpoints'
@@ -902,6 +994,27 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
             self.expected_pydevd_request(
                 '2\tpython-line\teggs.py\t17\tNone\tNone\tNone'),
         ])
+
+
+class SetFunctionBreakpointsTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'setFunctionBreakpoints'
+
+    def test_unsupported(self):
+        with self.launched():
+            self.send_request(
+                breakpoints=[
+                    {
+                        'name': 'spam',
+                    },
+                ],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_failure('Unknown command'),
+        ])
+        self.assert_received(self.debugger, [])
 
 
 class SetExceptionBreakpointsTests(NormalRequestTest, unittest.TestCase):
@@ -1533,6 +1646,155 @@ class ExceptionInfoTests(NormalRequestTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
 
+class RunInTerminalTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'runInTerminal'
+
+    def test_unsupported(self):
+        with self.launched():
+            self.send_request(
+                cwd='.',
+                args=['spam'],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_failure('Unknown command'),
+        ])
+        self.assert_received(self.debugger, [])
+
+
+class SourceTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'source'
+
+    def test_unsupported(self):
+        with self.launched():
+            self.send_request(
+                sourceReference=1,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_failure('Unknown command'),
+        ])
+        self.assert_received(self.debugger, [])
+
+
+class ModulesTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'modules'
+
+    def test_unsupported(self):
+        with self.launched():
+            self.send_request()
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_failure('Unknown command'),
+        ])
+        self.assert_received(self.debugger, [])
+
+
+class LoadedSourcesTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'loadedSources'
+
+    def test_unsupported(self):
+        with self.launched():
+            self.send_request()
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_failure('Unknown command'),
+        ])
+        self.assert_received(self.debugger, [])
+
+
+class StepInTargetsTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'stepInTargets'
+
+    def test_unsupported(self):
+        with self.launched():
+            self.send_request(
+                frameId=1,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_failure('Unknown command'),
+        ])
+        self.assert_received(self.debugger, [])
+
+
+class GotoTargetsTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'gotoTargets'
+
+    def test_unsupported(self):
+        with self.launched():
+            self.send_request(
+                source={},
+                line=0,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_failure('Unknown command'),
+        ])
+        self.assert_received(self.debugger, [])
+
+
+class CompletionsTests(NormalRequestTest, unittest.TestCase):
+
+    COMMAND = 'completions'
+
+    def test_unsupported(self):
+        with self.launched():
+            self.send_request(
+                text='spa',
+                column=3,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_failure('Unknown command'),
+        ])
+        self.assert_received(self.debugger, [])
+
+
+##################################
+# VSC events
+
+# These events are emitted by ptvsd:
+#
+#  initialized
+#     - after "initialize" response
+#  exited
+#     - at close
+#  terminated
+#     - at close
+#  stopped
+#      - in response to CMD_THREAD_SUSPEND
+#  continued
+#      - in response to CMD_THREAD_RUN
+#  thread
+#      - in response to CMD_THREAD_CREATE
+#      - in response to CMD_THREAD_KILL
+#      - with "threads" response (if new)
+#  process
+#      - at the end of initialization (after "configurationDone" response)
+
+# These events are never emitted by ptvsd:
+#
+#  output
+#  breakpoint
+#  module
+#  loadedSource
+#  capabilities
+
+
 ##################################
 # handled PyDevd events
 
@@ -2038,7 +2300,6 @@ class GetExceptionBreakpointEventTests(PyDevdEventTest, unittest.TestCase):
 
     def pydevd_payload(self, thread, exc, frame):
         return self.debugger_msgs.format_exception(thread[0], exc, frame)
-
 
     def test_unsupported(self):
         thread = (10, 'x')
