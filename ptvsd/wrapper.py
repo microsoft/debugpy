@@ -19,6 +19,10 @@ try:
 except Exception:
     import urllib.parse as urllib
 
+# Disable this, since we aren't packaging the Cython modules at the moment.
+import _pydevd_bundle.pydevd_constants as pydevd_constants
+pydevd_constants.CYTHON_SUPPORTED = False
+
 import _pydevd_bundle.pydevd_comm as pydevd_comm
 import _pydevd_bundle.pydevd_extension_api as pydevd_extapi
 import _pydevd_bundle.pydevd_extension_utils as pydevd_extutil
