@@ -807,31 +807,29 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             eval_name = var[3]
             for s in var[4:]:
                 try:
-                    # check if this is a dictionary key
+                    # Check and get the dictionary key or list index.
                     # Note: this is best effort, keys that are object references
                     # will not work
-                    key = self.__get_dictionary_key(s)
-                    if key is not None:
-                        eval_name += '[{}]'.format(key)
-                    else:
-                        # In the result XML from pydevd list indexes appear 
-                        # as names. If the name is a number then it is a index.
-                        eval_name += '[{}]'.format(int(s))
+                    i = self.__get_index_or_key(s)
+                    eval_name += '[{}]'.format(i)
                 except:
                     eval_name += '.' + s
 
         return eval_name
 
-    def __get_dictionary_key(self, text):
+    def __get_index_or_key(self, text):
         # Dictionary resolver in pydevd provides key in '<repr> (<hash>)' format
         result = re.match(r"(.*)\ \(([0-9]*)\)", text, re.IGNORECASE | re.UNICODE)
         if result and len(result.groups()) == 2:
             try:
+                # check if group 2 is a hash
                 int(result.group(2))
                 return result.group(1)
             except:
                 pass
-        return None
+        # In the result XML from pydevd list indexes appear 
+        # as names. If the name is a number then it is a index.
+        return int(text)
 
     @async_handler
     def on_setVariable(self, request, args):
