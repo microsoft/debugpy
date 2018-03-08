@@ -804,7 +804,6 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             # FRAME variable. These require evaluateName to work in VS 
             # watch window
             var = pyd_var_parent + (var_name,)
-            print(var)
             eval_name = var[3]
             for s in var[4:]:
                 try:
@@ -812,7 +811,6 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                     # Note: this is best effort, keys that are object references
                     # will not work
                     key = self.__get_dictionary_key(s)
-                    print(key)
                     if key is not None:
                         eval_name += '[{}]'.format(key)
                     else:
