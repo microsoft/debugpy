@@ -157,9 +157,11 @@ class IDMap(object):
 class ExceptionInfo(object):
     # TODO: docstring
 
-    def __init__(self, name, description):
+    def __init__(self, name, description, stack, source):
         self.name = name
         self.description = description
+        self.stack = stack
+        self.source = source
 
 
 class PydevdSocket(object):
@@ -406,6 +408,40 @@ class ExceptionsManager(object):
             return False
 
         return category[0] == 'Python Exceptions'
+
+
+class VariablesSorter(object):
+    def __init__(self):
+        self.variables = [] # variables that do not begin with underscores
+        self.single_underscore = [] # variables that begin with underscores
+        self.double_underscore = [] # variables that begin with two underscores
+        self.dunder = [] # variables that begin and end with double underscores
+    
+    def append(self, var):
+        var_name = var['name']
+        if var_name.startswith('__'):
+            if var_name.endswith('__'):
+                self.dunder.append(var)
+                print('Apended dunder: %s' % var_name)
+            else:
+                self.double_underscore.append(var)
+                print('Apended double under: %s' % var_name)
+        elif var_name.startswith('_'):
+            self.single_underscore.append(var)
+            print('Apended single under: %s' % var_name)
+        else:
+            self.variables.append(var)
+            print('Apended variable: %s' % var_name)
+    
+    def get_sorted_variables(self):
+        def get_sort_key(o):
+            return o['name']
+        self.variables.sort(key=get_sort_key)
+        self.single_underscore.sort(key=get_sort_key)
+        self.double_underscore.sort(key=get_sort_key)
+        self.dunder.sort(key=get_sort_key)
+        print('sorted')
+        return self.variables + self.single_underscore + self.double_underscore + self.dunder
 
 
 class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
@@ -737,20 +773,23 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         except AttributeError:
             xvars = []
 
-        variables = []
+        variables = VariablesSorter()
         for xvar in xvars:
+            var_name = unquote(xvar['name'])
+            var_type = unquote(xvar['type'])
+            var_value = unquote(xvar['value'])
             var = {
-                'name': unquote(xvar['name']),
-                'type': unquote(xvar['type']),
-                'value': unquote(xvar['value']),
+                'name': var_name,
+                'type': var_type,
+                'value': var_value,
             }
+
             if bool(xvar['isContainer']):
-                pyd_child = pyd_var + (var['name'],)
+                pyd_child = pyd_var + (var_name,)
                 var['variablesReference'] = self.var_map.to_vscode(
                     pyd_child, autogen=True)
             variables.append(var)
-
-        self.send_response(request, variables=variables)
+        self.send_response(request, variables=variables.get_sorted_variables())
 
     @async_handler
     def on_setVariable(self, request, args):
@@ -920,14 +959,17 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 exc = self.active_exceptions[pyd_tid]
             except KeyError:
                 exc = ExceptionInfo('BaseException',
-                                    'exception: no description')
+                                    'exception: no description',
+                                    None, None)
         self.send_response(
             request,
             exceptionId=exc.name,
             description=exc.description,
             breakMode=self.exceptions_mgr.get_break_mode(exc.name),
             details={'typeName': exc.name,
-                     'message': exc.description},
+                     'message': exc.description,
+                     'stackTrace': exc.stack,
+                     'source': exc.source},
         )
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_CREATE)
@@ -1004,7 +1046,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         if reason == 'exception':
             # Get exception info from frame
             try:
-                xframe = list(xml.thread.frame)[0]
+                xframes = list(xml.thread.frame)
+                xframe = xframes[0]
                 pyd_fid = xframe['id']
                 cmdargs = '{}\t{}\tFRAME\t__exception__'.format(pyd_tid,
                                                                 pyd_fid)
@@ -1013,13 +1056,25 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 xml = untangle.parse(resp_args).xml
                 text = unquote(xml.var[1]['type'])
                 description = unquote(xml.var[1]['value'])
+                frame_data = ((
+                               unquote(f['file']), 
+                               int(f['line']), 
+                               unquote(f['name']), 
+                               None
+                               ) for f in xframes)
+                stack = ''.join(traceback.format_list(frame_data))
+                source = unquote(xframe['file'])
             except Exception:
                 text = 'BaseException'
                 description = 'exception: no description'
+                stack = None
+                source = None
 
             with self.active_exceptions_lock:
                 self.active_exceptions[pyd_tid] = ExceptionInfo(text,
-                                                                description)
+                                                                description,
+                                                                stack,
+                                                                source)
 
         self.send_event(
             'stopped',
