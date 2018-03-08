@@ -788,6 +788,27 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 pyd_child = pyd_var + (var_name,)
                 var['variablesReference'] = self.var_map.to_vscode(
                     pyd_child, autogen=True)
+
+            if len(pyd_var) > 3:
+                # This means the current variable has a parent i.e, it is not a
+                # FRAME variable. These require evaluateName to work in VS 
+                # watch window
+                eval_name = pyd_var[3]
+                for s in pyd_var[4:]:
+                    try:
+                        # In the result XML from pydevd list indexes appear 
+                        # as names. If the name is a number then it is a index.
+                        eval_name += '[' + str(int(s)) + ']'
+                    except:
+                        eval_name += '.' + s 
+
+                try:
+                    eval_name += '[' + str(int(var_name)) + ']'
+                except:
+                    eval_name += '.' + var_name
+
+                var['evaluateName'] = eval_name
+
             variables.append(var)
         self.send_response(request, variables=variables.get_sorted_variables())
 
