@@ -753,9 +753,10 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 'value': var_value,
             }
             if bool(xvar['isContainer']):
-                pyd_child = pyd_var + (var['name'],)
+                pyd_child = pyd_var + (var_name,)
                 var['variablesReference'] = self.var_map.to_vscode(
                     pyd_child, autogen=True)
+
             if var_name.startswith('__'):
                 if var_name.endswith('__'):
                     dunder.append(var)
@@ -765,6 +766,15 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 single_underscore.append(var)
             else:
                 variables.append(var)
+
+        def get_sort_key(o):
+            return o['name']
+
+        variables.sort(key=get_sort_key)
+        single_underscore.sort(key=get_sort_key)
+        double_underscore.sort(key=get_sort_key)
+        dunder.sort(key=get_sort_key)
+
         variables = variables + single_underscore + double_underscore + dunder
         self.send_response(request, variables=variables)
 
