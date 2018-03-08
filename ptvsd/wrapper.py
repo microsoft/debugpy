@@ -410,6 +410,40 @@ class ExceptionsManager(object):
         return category[0] == 'Python Exceptions'
 
 
+class VariablesSorter(object):
+    def __init__(self):
+        self.variables = [] # variables that do not begin with underscores
+        self.single_underscore = [] # variables that begin with underscores
+        self.double_underscore = [] # variables that begin with two underscores
+        self.dunder = [] # variables that begin and end with double underscores
+    
+    def append(self, var):
+        var_name = var['name']
+        if var_name.startswith('__'):
+            if var_name.endswith('__'):
+                self.dunder.append(var)
+                print('Apended dunder: %s' % var_name)
+            else:
+                self.double_underscore.append(var)
+                print('Apended double under: %s' % var_name)
+        elif var_name.startswith('_'):
+            self.single_underscore.append(var)
+            print('Apended single under: %s' % var_name)
+        else:
+            self.variables.append(var)
+            print('Apended variable: %s' % var_name)
+    
+    def get_sorted_variables(self):
+        def get_sort_key(o):
+            return o['name']
+        self.variables.sort(key=get_sort_key)
+        self.single_underscore.sort(key=get_sort_key)
+        self.double_underscore.sort(key=get_sort_key)
+        self.dunder.sort(key=get_sort_key)
+        print('sorted')
+        return self.variables + self.single_underscore + self.double_underscore + self.dunder
+
+
 class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     """IPC JSON message processor for VSC debugger protocol.
 
@@ -739,10 +773,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         except AttributeError:
             xvars = []
 
-        variables = [] # variables that do not begin with underscores
-        single_underscore = [] # variables that begin with underscores
-        double_underscore = [] # variables that begin with two underscores
-        dunder = [] # variables that begin and end with double underscores
+        variables = VariablesSorter()
         for xvar in xvars:
             var_name = unquote(xvar['name'])
             var_type = unquote(xvar['type'])
@@ -752,31 +783,13 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 'type': var_type,
                 'value': var_value,
             }
+
             if bool(xvar['isContainer']):
                 pyd_child = pyd_var + (var_name,)
                 var['variablesReference'] = self.var_map.to_vscode(
                     pyd_child, autogen=True)
-
-            if var_name.startswith('__'):
-                if var_name.endswith('__'):
-                    dunder.append(var)
-                else:
-                    double_underscore.append(var)
-            elif var_name.startswith('_'):
-                single_underscore.append(var)
-            else:
-                variables.append(var)
-
-        def get_sort_key(o):
-            return o['name']
-
-        variables.sort(key=get_sort_key)
-        single_underscore.sort(key=get_sort_key)
-        double_underscore.sort(key=get_sort_key)
-        dunder.sort(key=get_sort_key)
-
-        variables = variables + single_underscore + double_underscore + dunder
-        self.send_response(request, variables=variables)
+            variables.append(var)
+        self.send_response(request, variables=variables.get_sorted_variables())
 
     @async_handler
     def on_setVariable(self, request, args):
