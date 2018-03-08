@@ -1,3 +1,4 @@
+from collections import namedtuple
 import contextlib
 import itertools
 import platform
@@ -26,6 +27,34 @@ from tests.helpers.vsc import FakeVSC
 
 
 OS_ID = 'WINDOWS' if platform.system() == 'Windows' else 'UNIX'
+
+
+class Thread(namedtuple('Thread', 'id name')):
+    """Information about a thread."""
+
+    PREFIX = 'Thread-'
+
+    @classmethod
+    def from_raw(cls, raw):
+        """Return a Thread corresponding to the given value."""
+        if isinstance(raw, cls):
+            return raw
+        elif isinstance(raw, str):
+            return cls(None, raw)
+        elif isinstance(raw, int):
+            return cls(raw)
+        else:
+            return cls(*raw)
+
+    def __new__(cls, id, name=None):
+        id = int(id) if id or id == 0 else None
+        name = str(name) if name else cls.PREFIX + str(id)
+        self = super(Thread, cls).__new__(cls, id, name)
+        return self
+
+    def __init__(self, *args, **kwargs):
+        if self.id is None:
+            raise TypeError('missing id')
 
 
 class PyDevdMessages(object):
@@ -181,6 +210,25 @@ class VSCMessages(object):
         }
 
 
+class PyDevdLifecycle(object):
+
+    def __init__(self, fix):
+        self._fix = fix
+
+    @contextlib.contextmanager
+    def _wait_for_initialized(self):
+        with self._fix.expect_command(CMD_REDIRECT_OUTPUT):
+            with self._fix.expect_command(CMD_RUN):
+                yield
+
+    def _initialize(self):
+        version = self._fix.fake.VERSION
+        self._fix.set_response(CMD_VERSION, version)
+
+    def notify_main_thread(self):
+        self._fix.notify_main_thread()
+
+
 class VSCLifecycle(object):
 
     PORT = 8888
@@ -189,8 +237,10 @@ class VSCLifecycle(object):
         'adapterID': '<an adapter ID>',
     }
 
-    def __init__(self, fix):
+    def __init__(self, fix, pydevd=None, hidden=None):
         self._fix = fix
+        self._pydevd = pydevd
+        self._hidden = hidden or fix.hidden
 
     def launched(self, port=None, **kwargs):
         def start():
@@ -204,12 +254,12 @@ class VSCLifecycle(object):
 
     def launch(self, **kwargs):
         """Initialize the debugger protocol and then launch."""
-        with self._fix.hidden():
+        with self._hidden():
             self._handshake('launch', **kwargs)
 
     def attach(self, **kwargs):
         """Initialize the debugger protocol and then attach."""
-        with self._fix.hidden():
+        with self._hidden():
             self._handshake('attach', **kwargs)
 
     def disconnect(self, **reqargs):
@@ -224,7 +274,7 @@ class VSCLifecycle(object):
         if port is None:
             port = self.PORT
         addr = (None, port)
-        with self._fix.vsc.start(addr):
+        with self._fix.fake.start(addr):
             with self._fix.disconnect_when_done():
                 start()
                 yield
@@ -245,23 +295,27 @@ class VSCLifecycle(object):
                                   **dict(default_threads=default_threads))
 
         self._handle_config(**config or {})
-        with self._fix.expect_debugger_command(CMD_REDIRECT_OUTPUT):
-            with self._fix.expect_debugger_command(CMD_RUN):
-                self._fix.send_request('configurationDone')
+        with self._wait_for_debugger_init():
+            self._fix.send_request('configurationDone')
 
         if process:
-            main = (1, 'MainThead')
             with self._fix.wait_for_event('process'):
                 with self._fix.wait_for_event('thread'):
-                    self._fix.send_event(
-                        CMD_THREAD_CREATE,
-                        self._fix.debugger_msgs.format_threads(main),
-                    )
+                    if self._pydevd:
+                        self._pydevd.notify_main_thread()
 
         if reset:
             self._fix.reset()
         else:
             self._fix.assert_no_failures()
+
+    @contextlib.contextmanager
+    def _wait_for_debugger_init(self):
+        if self._pydevd:
+            with self._pydevd._wait_for_initialized():
+                yield
+        else:
+                yield
 
     def _initialize(self, **reqargs):
         """
@@ -269,8 +323,8 @@ class VSCLifecycle(object):
         """  # noqa
         def handle_response(resp, _):
             self._capabilities = resp.body
-        version = self._fix.debugger.VERSION
-        self._fix.set_debugger_response(CMD_VERSION, version)
+        if self._pydevd:
+            self._pydevd._initialize()
         self._fix.send_request(
             'initialize',
             dict(self.MIN_INITIALIZE_ARGS, **reqargs),
@@ -294,48 +348,24 @@ class VSCLifecycle(object):
             raise NotImplementedError
 
 
-class HighlevelFixture(object):
+class FixtureBase(object):
+    """Base class for protocol daemon test fixtures."""
 
-    DAEMON = FakeVSC
-    DEBUGGER = FakePyDevd
+    def __init__(self, new_fake, new_msgs):
+        if not callable(new_fake):
+            raise ValueError('bad new_fake {!r}'.format(new_fake))
 
-    def __init__(self, new_daemon=None, new_debugger=None):
-        if new_daemon is None:
-            new_daemon = self.DAEMON
-        if new_debugger is None:
-            new_debugger = self.DEBUGGER
-
-        self._new_daemon = new_daemon
-        self._new_debugger = new_debugger
-        self.vsc_msgs = VSCMessages()
-        self.debugger_msgs = PyDevdMessages()
-
+        self._new_fake = new_fake
+        self.msgs = new_msgs()
         self._hidden = False
-        self._default_threads = None
 
     @property
-    def vsc(self):
+    def fake(self):
         try:
-            return self._vsc
+            return self._fake
         except AttributeError:
-            self._vsc, self._debugger = self.new_fake()
-            return self._vsc
-
-    @property
-    def debugger(self):
-        try:
-            return self._debugger
-        except AttributeError:
-            self._vsc, self._debugger = self.new_fake()
-            return self._debugger
-
-    @property
-    def lifecycle(self):
-        try:
-            return self._lifecycle
-        except AttributeError:
-            self._lifecycle = VSCLifecycle(self)
-            return self._lifecycle
+            self._fake = self.new_fake()
+            return self._fake
 
     @property
     def ishidden(self):
@@ -343,113 +373,74 @@ class HighlevelFixture(object):
 
     @contextlib.contextmanager
     def hidden(self):
-        vsc = self.vsc.received
-        debugger = self.debugger.received
+        received = self.fake.received
         orig = self._hidden
         self._hidden = True
         try:
             yield
         finally:
             self._hidden = orig
-            self.vsc.reset(*vsc)
-            self.debugger.reset(*debugger)
+            self.fake.reset(*received)
 
-    def new_fake(self, debugger=None, handler=None):
-        """Return a new fake VSC that may be used in tests."""
-        if debugger is None:
-            debugger = self._new_debugger()
-        vsc = self._new_daemon(debugger.start, handler)
-        return vsc, debugger
+    def set_fake(self, fake):
+        if hasattr(self, '_fake'):
+            raise AttributeError('fake already set')
+        self._fake = fake
 
-    def send_request(self, command, args=None, handle_response=None):
-        kwargs = dict(args or {}, handler=handle_response)
-        with self._wait_for_response(command, **kwargs) as req:
-            self.vsc.send_request(req)
-        return req
+    def new_fake(self, handler=None, **kwargs):
+        """Return a new fake that may be used in tests."""
+        return self._new_fake(handler=handler, **kwargs)
 
-    @contextlib.contextmanager
-    def _wait_for_response(self, command, *args, **kwargs):
-        handler = kwargs.pop('handler', None)
-        req = self.vsc_msgs.new_request(command, *args, **kwargs)
-        with self.vsc.wait_for_response(req, handler=handler):
-            yield req
-        if self._hidden:
-            self.vsc_msgs.next_response()
+    def assert_no_failures(self):
+        assert self.fake.failures == [], self.fake.failures
 
-    @contextlib.contextmanager
-    def wait_for_event(self, event, *args, **kwargs):
-        with self.vsc.wait_for_event(event, *args, **kwargs):
-            yield
-        if self._hidden:
-            self.vsc_msgs.next_event()
+    def reset(self):
+        self.assert_no_failures()
+        self.fake.reset()
 
-    @contextlib.contextmanager
-    def _wait_for_events(self, events):
-        if not events:
-            yield
-            return
-        with self._wait_for_events(events[1:]):
-            with self.wait_for_event(events[0]):
-                yield
+
+class PyDevdFixture(FixtureBase):
+    """A test fixture for the PyDevd protocol."""
+
+    FAKE = FakePyDevd
+    MSGS = PyDevdMessages
+
+    def __init__(self, new_fake=None):
+        if new_fake is None:
+            new_fake = self.FAKE
+        super(PyDevdFixture, self).__init__(new_fake, self.MSGS)
+        self._default_threads = None
+
+    def notify_main_thread(self):
+        main = (1, 'MainThead')
+        self.send_event(
+            CMD_THREAD_CREATE,
+            self.msgs.format_threads(main),
+        )
 
     @contextlib.contextmanager
-    def expect_debugger_command(self, cmdid):
+    def expect_command(self, cmdid):
         yield
         if self._hidden:
-            self.debugger_msgs.next_request()
+            self.msgs.next_request()
 
-    def set_debugger_response(self, cmdid, payload, **kwargs):
-        self.debugger.add_pending_response(cmdid, payload, **kwargs)
+    def set_response(self, cmdid, payload, **kwargs):
+        self.fake.add_pending_response(cmdid, payload, **kwargs)
         if self._hidden:
-            self.debugger_msgs.next_request()
+            self.msgs.next_request()
 
-    def send_debugger_event(self, cmdid, payload):
-        event = self.debugger_msgs.new_event(cmdid, payload)
-        self.debugger.send_event(event)
+    def send_event(self, cmdid, payload):
+        event = self.msgs.new_event(cmdid, payload)
+        self.fake.send_event(event)
 
-    def send_event(self, cmdid, text, event=None, handler=None):
-        if event is not None:
-            with self.wait_for_event(event, handler=handler):
-                self.send_debugger_event(cmdid, text)
-        else:
-            self.send_debugger_event(cmdid, text)
-            return None
-
-    def set_threads(self, _thread, *threads, **kwargs):
-        threads = (_thread,) + threads
-        return self._set_threads(threads, **kwargs)
-
-    def set_thread(self, thread):
-        threads = (thread,)
-        return self._set_threads(threads)[thread]
-
-    def _set_threads(self, threads, default_threads=True):
-        request = {t[1]: t for t in threads}
-        response = {t: None for t in threads}
+    def set_threads_response(self, threads, default_threads=True):
+        threads = [Thread.from_raw(t) for t in threads]
         if default_threads:
             threads = self._add_default_threads(threads)
-        active = [name
-                  for _, name in threads
-                  if not name.startswith(('ptvsd.', 'pydevd.'))]
-        text = self.debugger_msgs.format_threads(*threads)
-        self.set_debugger_response(CMD_RETURN, text, reqid=CMD_LIST_THREADS)
-        with self._wait_for_events(['thread' for _ in active]):
-            self.send_request('threads')
 
-        for msg in reversed(self.vsc.received):
-            if msg.type == 'response':
-                if msg.command == 'threads':
-                    break
-        else:
-            assert False, 'we waited for the response in send_request()'
-
-        for tinfo in msg.body['threads']:
-            try:
-                thread = request[tinfo['name']]
-            except KeyError:
-                continue
-            response[thread] = tinfo['id']
-        return response
+        text = self.msgs.format_threads(*threads)
+        self.set_response(CMD_RETURN, text, reqid=CMD_LIST_THREADS)
+        return threads
 
     def _add_default_threads(self, threads):
         if self._default_threads is not None:
@@ -470,48 +461,117 @@ class HighlevelFixture(object):
         allthreads = []
         for tname in defaults:
             tid = next(ids)
-            thread = tid, tname
+            thread = Thread(tid, tname)
             allthreads.append(thread)
         self._default_threads = list(allthreads)
         allthreads.extend(threads)
         return allthreads
 
-    def suspend(self, thread, reason, *stack):
-        ptid, _ = thread
-        with self.wait_for_event('stopped'):
-            if isinstance(reason, Exception):
-                exc = reason
-                reason = CMD_STEP_CAUGHT_EXCEPTION
-                self.set_debugger_response(
-                    CMD_GET_VARIABLE,
-                    self.debugger_msgs.format_variables(
-                        ('???', '???'),
-                        ('???', exc),
-                    ),
-                )
-            self.send_debugger_event(
-                CMD_THREAD_SUSPEND,
-                self.debugger_msgs.format_frames(ptid, reason, *stack),
-            )
+    def send_suspend_event(self, thread, reason, *stack):
+        thread = Thread.from_raw(thread)
+        self._suspend(thread, reason, stack)
 
-    def pause(self, thread, *stack):
-        tid = self.set_thread(thread)
-        self.suspend(thread, CMD_THREAD_SUSPEND, *stack)
-        self.send_request('stackTrace', {'threadId': tid})
-        self.send_request('scopes', {'frameId': 1})
-        return tid
+    def send_pause_event(self, thread, *stack):
+        thread = Thread.from_raw(thread)
+        reason = CMD_THREAD_SUSPEND
+        self._suspend(thread, reason, stack)
 
-    def error(self, thread, exc, frame):
-        tid = self.set_thread(thread)
-        self.send_debugger_event(
-            CMD_SEND_CURR_EXCEPTION_TRACE,
-            self.debugger_msgs.format_exception(thread[0], exc, frame),
+    def _suspend(self, thread, reason, stack):
+        self.send_event(
+            CMD_THREAD_SUSPEND,
+            self.msgs.format_frames(thread.id, reason, *stack),
         )
-        self.suspend(thread, exc, frame)
-        return tid
 
-    #def set_variables(self, ...):
-    #    ...
+    def send_caught_exception_events(self, thread, exc, *stack):
+        thread = Thread.from_raw(thread)
+        reason = CMD_STEP_CAUGHT_EXCEPTION
+        self._exception(thread, exc, reason, stack)
+
+    def _exception(self, thread, exc, reason, stack):
+        self.send_event(
+            CMD_SEND_CURR_EXCEPTION_TRACE,
+            self.msgs.format_exception(thread.id, exc, *stack),
+        )
+        self.send_suspend_event(thread, reason, *stack)
+        #self.set_exception_var_response(exc)
+
+    def set_exception_var_response(self, exc):
+        self.set_response(
+            CMD_GET_VARIABLE,
+            self.msgs.format_variables(
+                ('???', '???'),
+                ('???', exc),
+            ),
+        )
+
+
+class VSCFixture(FixtureBase):
+    """A test fixture for the DAP."""
+
+    FAKE = FakeVSC
+    MSGS = VSCMessages
+    LIFECYCLE = VSCLifecycle
+    START_ADAPTER = None
+
+    def __init__(self, new_fake=None, start_adapter=None):
+        if new_fake is None:
+            new_fake = self.FAKE
+        if start_adapter is None:
+            start_adapter = self.START_ADAPTER
+        elif not callable(start_adapter):
+            raise ValueError('bad start_adapter {!r}'.format(start_adapter))
+
+        def new_fake(start_adapter=start_adapter, handler=None,
+                     _new_fake=new_fake):
+            return _new_fake(start_adapter, handler=handler)
+        super(VSCFixture, self).__init__(new_fake, self.MSGS)
+
+    @property
+    def vsc(self):
+        return self.fake
+
+    @property
+    def vsc_msgs(self):
+        return self.msgs
+
+    @property
+    def lifecycle(self):
+        try:
+            return self._lifecycle
+        except AttributeError:
+            self._lifecycle = self.LIFECYCLE(self)
+            return self._lifecycle
+
+    def send_request(self, command, args=None, handle_response=None):
+        kwargs = dict(args or {}, handler=handle_response)
+        with self._wait_for_response(command, **kwargs) as req:
+            self.fake.send_request(req)
+        return req
+
+    @contextlib.contextmanager
+    def _wait_for_response(self, command, *args, **kwargs):
+        handler = kwargs.pop('handler', None)
+        req = self.msgs.new_request(command, *args, **kwargs)
+        with self.fake.wait_for_response(req, handler=handler):
+            yield req
+        if self._hidden:
+            self.msgs.next_response()
+
+    @contextlib.contextmanager
+    def wait_for_event(self, event, *args, **kwargs):
+        with self.fake.wait_for_event(event, *args, **kwargs):
+            yield
+        if self._hidden:
+            self.msgs.next_event()
+
+    @contextlib.contextmanager
+    def _wait_for_events(self, events):
+        if not events:
+            yield
+            return
+        with self._wait_for_events(events[1:]):
+            with self.wait_for_event(events[0]):
+                yield
 
     @contextlib.contextmanager
     def disconnect_when_done(self):
@@ -520,28 +580,207 @@ class HighlevelFixture(object):
         finally:
             self.send_request('disconnect')
 
+
+class HighlevelFixture(object):
+
+    DAEMON = FakeVSC
+    DEBUGGER = FakePyDevd
+
+    def __init__(self, vsc=None, pydevd=None):
+        if vsc is None:
+            self._new_vsc = self.DAEMON
+            vsc = VSCFixture(new_fake=self._new_fake_vsc)
+        elif callable(vsc):
+            self._new_vsc = vsc
+            vsc = VSCFixture(new_fake=self._new_fake_vsc)
+        else:
+            self._new_vsc = None
+        self._vsc = vsc
+
+        if pydevd is None:
+            pydevd = PyDevdFixture(self.DEBUGGER)
+        elif callable(pydevd):
+            pydevd = PyDevdFixture(pydevd)
+        self._pydevd = pydevd
+
+        def highlevel_lifecycle(fix, _cls=vsc.LIFECYCLE):
+            pydevd = PyDevdLifecycle(self._pydevd)
+            return _cls(fix, pydevd, self.hidden)
+        vsc.LIFECYCLE = highlevel_lifecycle
+
+    def _new_fake_vsc(self, start_adapter=None, handler=None):
+        if start_adapter is None:
+            try:
+                self._default_fake_vsc
+            except AttributeError:
+                pass
+            else:
+                raise RuntimeError('default fake VSC already created')
+            start_adapter = self.debugger.start
+        return self._new_vsc(start_adapter, handler)
+
+    @property
+    def vsc(self):
+        return self._vsc.fake
+
+    @property
+    def vsc_msgs(self):
+        return self._vsc.msgs
+
+    @property
+    def debugger(self):
+        return self._pydevd.fake
+
+    @property
+    def debugger_msgs(self):
+        return self._pydevd.msgs
+
+    @property
+    def lifecycle(self):
+        return self._vsc.lifecycle
+
+    @property
+    def ishidden(self):
+        return self._vsc.ishidden and self._pydevd.ishidden
+
+    @contextlib.contextmanager
+    def hidden(self):
+        with self._vsc.hidden():
+            with self._pydevd.hidden():
+                yield
+
+    def new_fake(self, debugger=None, handler=None):
+        """Return a new fake VSC that may be used in tests."""
+        if debugger is None:
+            debugger = self._pydevd.new_fake()
+        vsc = self._vsc.new_fake(debugger.start, handler)
+        return vsc, debugger
+
     def assert_no_failures(self):
-        assert self.vsc.failures == [], self.vsc.failures
-        assert self.debugger.failures == [], self.debugger.failures
+        self._vsc.assert_no_failures()
+        self._pydevd.assert_no_failures()
 
     def reset(self):
-        self.assert_no_failures()
-        self.vsc.reset()
-        self.debugger.reset()
+        self._vsc.reset()
+        self._debugger.reset()
+
+    # wrappers
+
+    def send_request(self, command, args=None, handle_response=None):
+        return self._vsc.send_request(command, args, handle_response)
+
+    @contextlib.contextmanager
+    def wait_for_event(self, event, *args, **kwargs):
+        with self._vsc.wait_for_event(event, *args, **kwargs):
+            yield
+
+    @contextlib.contextmanager
+    def expect_debugger_command(self, cmdid):
+        with self._pydevd.expected_command(cmdid):
+            yield
+
+    def set_debugger_response(self, cmdid, payload, **kwargs):
+        self._pydevd.set_response(cmdid, payload, **kwargs)
+
+    def send_debugger_event(self, cmdid, payload):
+        self._pydevd.send_event(cmdid, payload)
+
+    @contextlib.contextmanager
+    def disconnect_when_done(self):
+        with self._vsc.disconnect_when_done():
+            yield
+
+    # combinations
+
+    def send_event(self, cmdid, text, event=None, handler=None):
+        if event is not None:
+            with self.wait_for_event(event, handler=handler):
+                self.send_debugger_event(cmdid, text)
+        else:
+            self.send_debugger_event(cmdid, text)
+            return None
+
+    def set_threads(self, _thread, *threads, **kwargs):
+        first = Thread.from_raw(_thread)
+        threads = [first] + [Thread.from_raw(t) for t in threads]
+        return self._set_threads(threads, **kwargs)
+
+    def set_thread(self, thread):
+        thread = Thread.from_raw(thread)
+        threads = (thread,)
+        return self._set_threads(threads)[thread]
+
+    def _set_threads(self, threads, default_threads=True):
+        # Set up and send messages.
+        allthreads = self._pydevd.set_threads_response(
+            threads,
+            default_threads=default_threads,
+        )
+        ignored = ('ptvsd.', 'pydevd.')
+        supported = [t for t in allthreads if not t.name.startswith(ignored)]
+        with self._vsc._wait_for_events(['thread' for _ in supported]):
+            self.send_request('threads')
+
+        # Extract thread info from the response.
+        request = {t.name: t for t in threads}
+        response = {t: None for t in threads}
+        for msg in reversed(self.vsc.received):
+            if msg.type == 'response':
+                if msg.command == 'threads':
+                    break
+        else:
+            assert False, 'we waited for the response in send_request()'
+        for tinfo in msg.body['threads']:
+            try:
+                thread = request[tinfo['name']]
+            except KeyError:
+                continue
+            response[thread] = tinfo['id']
+        return response
+
+    def suspend(self, thread, reason, *stack):
+        ptid, _ = thread
+        with self.wait_for_event('stopped'):
+            if isinstance(reason, Exception):
+                exc = reason
+                self._pydevd.send_caught_exception_events(thread, exc, *stack)
+                self._pydevd.set_exception_var_response(exc)
+            else:
+                self._pydevd.send_suspend_event(thread, reason, *stack)
+
+    def pause(self, thread, *stack):
+        thread = Thread.from_raw(thread)
+        tid = self.set_thread(thread)
+        self._pydevd.send_pause_event(thread, *stack)
+        if self._vsc._hidden:
+            self._vsc.msgs.next_event()
+        self.send_request('stackTrace', {'threadId': tid})
+        self.send_request('scopes', {'frameId': 1})
+        return tid
+
+    def error(self, thread, exc, frame):
+        thread = Thread.from_raw(thread)
+        tid = self.set_thread(thread)
+        self.suspend(thread, exc, frame)
+        return tid
 
 
-class HighlevelTest(object):
-    """The base mixin class for high-level ptvsd tests."""
+class VSCTest(object):
+    """The base mixin class for high-level VSC-only ptvsd tests."""
 
-    FIXTURE = HighlevelFixture
+    FIXTURE = VSCFixture
 
     fix = None  # overridden in setUp()
 
+    @classmethod
+    def _new_daemon(cls, *args, **kwargs):
+        return cls.FIXTURE.FAKE(*args, **kwargs)
+
     def setUp(self):
-        super(HighlevelTest, self).setUp()
+        super(VSCTest, self).setUp()
 
         def new_daemon(*args, **kwargs):
-            vsc = self.FIXTURE.DAEMON(*args, **kwargs)
+            vsc = self._new_daemon(*args, **kwargs)
             self.addCleanup(vsc.close)
             return vsc
         self.fix = self.FIXTURE(new_daemon)
@@ -550,10 +789,6 @@ class HighlevelTest(object):
 
     def __getattr__(self, name):
         return getattr(self.fix, name)
-
-    @property
-    def pydevd(self):
-        return self.debugger
 
     @property
     def new_response(self):
@@ -566,11 +801,6 @@ class HighlevelTest(object):
     @property
     def new_event(self):
         return self.fix.vsc_msgs.new_event
-
-    def new_fake(self, debugger=None, handler=None):
-        """Return a new fake VSC that may be used in tests."""
-        vsc, debugger = self.fix.new_fake(debugger, handler)
-        return vsc, debugger
 
     def assert_vsc_received(self, received, expected):
         received = list(self.vsc.protocol.parse_each(received))
@@ -592,6 +822,25 @@ class HighlevelTest(object):
         received = list(daemon.protocol.parse_each(daemon.received))
         expected = list(daemon.protocol.parse_each(expected))
         self.assertEqual(received, expected)
+
+
+class HighlevelTest(VSCTest):
+    """The base mixin class for high-level ptvsd tests."""
+
+    FIXTURE = HighlevelFixture
+
+    @classmethod
+    def _new_daemon(cls, *args, **kwargs):
+        return cls.FIXTURE.DAEMON(*args, **kwargs)
+
+    @property
+    def pydevd(self):
+        return self.debugger
+
+    def new_fake(self, debugger=None, handler=None):
+        """Return a new fake VSC that may be used in tests."""
+        vsc, debugger = self.fix.new_fake(debugger, handler)
+        return vsc, debugger
 
 
 class RunningTest(HighlevelTest):
