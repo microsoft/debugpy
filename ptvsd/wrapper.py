@@ -23,15 +23,15 @@ except Exception:
 import _pydevd_bundle.pydevd_constants as pydevd_constants
 pydevd_constants.CYTHON_SUPPORTED = False
 
-import _pydevd_bundle.pydevd_comm as pydevd_comm
-import _pydevd_bundle.pydevd_extension_api as pydevd_extapi
-import _pydevd_bundle.pydevd_extension_utils as pydevd_extutil
+import _pydevd_bundle.pydevd_comm as pydevd_comm  # noqa
+import _pydevd_bundle.pydevd_extension_api as pydevd_extapi  # noqa
+import _pydevd_bundle.pydevd_extension_utils as pydevd_extutil  # noqa
 #from _pydevd_bundle.pydevd_comm import pydevd_log
 
-import ptvsd.ipcjson as ipcjson
-import ptvsd.futures as futures
-import ptvsd.untangle as untangle
-from ptvsd.pathutils import PathUnNormcase
+import ptvsd.ipcjson as ipcjson  # noqa
+import ptvsd.futures as futures  # noqa
+import ptvsd.untangle as untangle  # noqa
+from ptvsd.pathutils import PathUnNormcase  # noqa
 
 
 __author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
@@ -412,27 +412,27 @@ class ExceptionsManager(object):
 
 class VariablesSorter(object):
     def __init__(self):
-        self.variables = [] # variables that do not begin with underscores
-        self.single_underscore = [] # variables that begin with underscores
-        self.double_underscore = [] # variables that begin with two underscores
-        self.dunder = [] # variables that begin and end with double underscores
-    
+        self.variables = []  # variables that do not begin with underscores
+        self.single_underscore = []  # variables beginning with underscores
+        self.double_underscore = []  # variables beginning with two underscores
+        self.dunder = []  # variables that begin & end with double underscores
+
     def append(self, var):
         var_name = var['name']
         if var_name.startswith('__'):
             if var_name.endswith('__'):
                 self.dunder.append(var)
-                print('Apended dunder: %s' % var_name)
+                #print('Apended dunder: %s' % var_name)
             else:
                 self.double_underscore.append(var)
-                print('Apended double under: %s' % var_name)
+                #print('Apended double under: %s' % var_name)
         elif var_name.startswith('_'):
             self.single_underscore.append(var)
-            print('Apended single under: %s' % var_name)
+            #print('Apended single under: %s' % var_name)
         else:
             self.variables.append(var)
-            print('Apended variable: %s' % var_name)
-    
+            #print('Apended variable: %s' % var_name)
+
     def get_sorted_variables(self):
         def get_sort_key(o):
             return o['name']
@@ -440,8 +440,8 @@ class VariablesSorter(object):
         self.single_underscore.sort(key=get_sort_key)
         self.double_underscore.sort(key=get_sort_key)
         self.dunder.sort(key=get_sort_key)
-        print('sorted')
-        return self.variables + self.single_underscore + self.double_underscore + self.dunder
+        #print('sorted')
+        return self.variables + self.single_underscore + self.double_underscore + self.dunder  # noqa
 
 
 class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
@@ -859,7 +859,11 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         # Pause requests cannot be serviced until pydevd is fully initialized.
         with self.is_process_created_lock:
             if not self.is_process_created:
-                self.send_response(request, success=False, message='Cannot pause while debugger is initializing')
+                self.send_response(
+                    request,
+                    success=False,
+                    message='Cannot pause while debugger is initializing',
+                )
                 return
 
         vsc_tid = int(args['threadId'])
@@ -974,7 +978,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_CREATE)
     def on_pydevd_thread_create(self, seq, args):
-        # If this is the first thread reported, report process creation as well.
+        # If this is the first thread reported, report process creation
+        # as well.
         with self.is_process_created_lock:
             if not self.is_process_created:
                 self.is_process_created = True
@@ -1057,9 +1062,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 text = unquote(xml.var[1]['type'])
                 description = unquote(xml.var[1]['value'])
                 frame_data = ((
-                               unquote(f['file']), 
-                               int(f['line']), 
-                               unquote(f['name']), 
+                               unquote(f['file']),
+                               int(f['line']),
+                               unquote(f['name']),
                                None
                                ) for f in xframes)
                 stack = ''.join(traceback.format_list(frame_data))

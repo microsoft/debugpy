@@ -99,6 +99,8 @@ class FakeVSC(protocol.Daemon):
             assert(msg.command == command)
             return True
 
+        kwargs.setdefault('handlername',
+                          '<request cmd={} seq={}>'.format(command, reqseq))
         return self._wait_for_message(match, req, **kwargs)
 
     def wait_for_event(self, event, **kwargs):
@@ -112,6 +114,8 @@ class FakeVSC(protocol.Daemon):
                 return False
             return True
 
+        kwargs.setdefault('handlername',
+                          '<event {}>'.format(event))
         return self._wait_for_message(match, req=None, **kwargs)
 
     # internal methods
@@ -138,7 +142,8 @@ class FakeVSC(protocol.Daemon):
         super(FakeVSC, self)._close()
 
     @contextlib.contextmanager
-    def _wait_for_message(self, match, req=None, handler=None, timeout=1):
+    def _wait_for_message(self, match, req=None, handler=None,
+                          handlername=None, timeout=1):
         lock = threading.Lock()
         lock.acquire()
 
@@ -149,7 +154,7 @@ class FakeVSC(protocol.Daemon):
                     handler(msg, send_message)
             else:
                 return False
-        self.add_handler(handle_message)
+        self.add_handler(handle_message, handlername)
 
         yield req
 

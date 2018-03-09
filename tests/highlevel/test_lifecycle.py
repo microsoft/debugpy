@@ -1,5 +1,5 @@
-import os
-import sys
+#import os
+#import sys
 import unittest
 
 from _pydevd_bundle.pydevd_comm import (
@@ -73,12 +73,12 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
             self.new_event('initialized'),
             self.new_response(req_attach),
             self.new_response(req_config),
-            self.new_event('process', **dict(
-                name=sys.argv[0],
-                systemProcessId=os.getpid(),
-                isLocalProcess=True,
-                startMethod='attach',
-            )),
+            #self.new_event('process', **dict(
+            #    name=sys.argv[0],
+            #    systemProcessId=os.getpid(),
+            #    isLocalProcess=True,
+            #    startMethod='attach',
+            #)),
             self.new_response(req_disconnect),
             self.new_event('exited', exitCode=0),
         ])
@@ -135,12 +135,12 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
             self.new_event('initialized'),
             self.new_response(req_launch),
             self.new_response(req_config),
-            self.new_event('process', **dict(
-                name=sys.argv[0],
-                systemProcessId=os.getpid(),
-                isLocalProcess=True,
-                startMethod='launch',
-            )),
+            #self.new_event('process', **dict(
+            #    name=sys.argv[0],
+            #    systemProcessId=os.getpid(),
+            #    isLocalProcess=True,
+            #    startMethod='launch',
+            #)),
             self.new_event('exited', exitCode=0),
             self.new_event('terminated'),
             self.new_response(req_disconnect),

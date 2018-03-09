@@ -1,3 +1,4 @@
+import os
 import sys
 import unittest
 
@@ -222,13 +223,14 @@ class ThreadsTests(NormalRequestTest, unittest.TestCase):
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
-            self.new_event('thread', threadId=1, reason='started'),
+            # MainThread is #1.
             self.new_event('thread', threadId=2, reason='started'),
+            self.new_event('thread', threadId=3, reason='started'),
             self.expected_response(
                 threads=[
-                    {'id': 1, 'name': 'spam'},
+                    {'id': 2, 'name': 'spam'},
                     # Threads named 'pydevd.*' are ignored.
-                    {'id': 2, 'name': ''},
+                    {'id': 3, 'name': ''},
                 ],
             ),
             # no events
@@ -394,15 +396,15 @@ class VariablesTests(NormalRequestTest, unittest.TestCase):
             self.expected_response(
                 variables=[
                     {
-                        'name': 'spam',
-                        'type': 'str',
-                        'value': "'eggs'",
-                    },
-                    {
                         'name': 'ham',
                         'type': 'list',
                         'value': '[1, 2, 3]',
                         'variablesReference': 2,
+                    },
+                    {
+                        'name': 'spam',
+                        'type': 'str',
+                        'value': "'eggs'",
                     },
                     {
                         'name': 'x',
@@ -653,7 +655,7 @@ class PauseTests(NormalRequestTest, unittest.TestCase):
             with self.hidden():
                 tids = self.set_threads(
                     thread,
-                    (11, ''),
+                    (11, 'eggs'),
                 )
             self.send_request(
                 threadId=tids[thread],
@@ -1598,6 +1600,12 @@ class ExceptionInfoTests(NormalRequestTest, unittest.TestCase):
                 details=dict(
                     message=excstr,
                     typeName='RuntimeError',
+                    source='abc.py',
+                    stackTrace='\n'.join([
+                        '  File "abc.py", line 10, in spam',
+                        '    """A decorator indicating abstract methods.',
+                        '',
+                    ]),
                 ),
             ),
         ])
@@ -1876,15 +1884,67 @@ class ThreadCreateTests(ThreadEventTest, unittest.TestCase):
         thread = (threadid, name)
         return self.debugger_msgs.format_threads(thread)
 
-    def test_new(self):
-        with self.launched():
-            tid = self.send_event(10, 'spam')
+    def test_launched(self):
+        with self.launched(process=False):
+            with self.wait_for_event('process'):
+                tid = self.send_event(10, 'spam')
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
+            self.new_event('process', **dict(
+                name=sys.argv[0],
+                systemProcessId=os.getpid(),
+                isLocalProcess=True,
+                startMethod='launch',
+            )),
             self.expected_event(
                 reason='started',
                 threadId=tid,
+            ),
+        ])
+        self.assert_received(self.debugger, [])
+
+    def test_attached(self):
+        with self.attached(8888, process=False):
+            with self.wait_for_event('process'):
+                tid = self.send_event(10, 'spam')
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.new_event('process', **dict(
+                name=sys.argv[0],
+                systemProcessId=os.getpid(),
+                isLocalProcess=True,
+                startMethod='attach',
+            )),
+            self.expected_event(
+                reason='started',
+                threadId=tid,
+            ),
+        ])
+        self.assert_received(self.debugger, [])
+
+    def test_process_one_off(self):
+        with self.launched(process=False):
+            with self.wait_for_event('process'):
+                tid1 = self.send_event(10, 'spam')
+            tid2 = self.send_event(11, 'eggs')
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.new_event('process', **dict(
+                name=sys.argv[0],
+                systemProcessId=os.getpid(),
+                isLocalProcess=True,
+                startMethod='launch',
+            )),
+            self.expected_event(
+                reason='started',
+                threadId=tid1,
+            ),
+            self.expected_event(
+                reason='started',
+                threadId=tid2,
             ),
         ])
         self.assert_received(self.debugger, [])

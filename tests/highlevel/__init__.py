@@ -16,6 +16,7 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_RUN,
     CMD_STEP_CAUGHT_EXCEPTION,
     CMD_SEND_CURR_EXCEPTION_TRACE,
+    CMD_THREAD_CREATE,
     CMD_GET_VARIABLE,
 )
 
@@ -229,7 +230,7 @@ class VSCLifecycle(object):
                 yield
 
     def _handshake(self, command, threads=None, config=None,
-                   default_threads=True, reset=True,
+                   default_threads=True, process=True, reset=True,
                    **kwargs):
         initargs = dict(
             kwargs.pop('initargs', None) or {},
@@ -246,8 +247,16 @@ class VSCLifecycle(object):
         self._handle_config(**config or {})
         with self._fix.expect_debugger_command(CMD_REDIRECT_OUTPUT):
             with self._fix.expect_debugger_command(CMD_RUN):
-                with self._fix.wait_for_event('process'):
-                    self._fix.send_request('configurationDone')
+                self._fix.send_request('configurationDone')
+
+        if process:
+            main = (1, 'MainThead')
+            with self._fix.wait_for_event('process'):
+                with self._fix.wait_for_event('thread'):
+                    self._fix.send_event(
+                        CMD_THREAD_CREATE,
+                        self._fix.debugger_msgs.format_threads(main),
+                    )
 
         if reset:
             self._fix.reset()

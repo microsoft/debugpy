@@ -179,9 +179,13 @@ class Daemon(object):
         self._closed = True
         self._close()
 
-    def add_handler(self, handler, oneoff=True):
+    def add_handler(self, handler, handlername=None, oneoff=True):
         """Add the given handler to the list of possible handlers."""
-        entry = (handler, 1 if oneoff else None)
+        entry = (
+            handler,
+            handlername or repr(handler),
+            1 if oneoff else None,
+        )
         self._handlers.append(entry)
         return handler
 
@@ -230,14 +234,14 @@ class Daemon(object):
 
     def _handle_message(self, msg):
         for i, entry in enumerate(list(self._handlers)):
-            handle_message, remaining = entry
+            handle_message, name, remaining = entry
             handled = handle_message(msg, self._send_message)
             if handled or handled is None:
                 if remaining is not None:
                     if remaining == 1:
                         self._handlers.pop(i)
                     else:
-                        self._handlers[i] = (handle_message, remaining-1)
+                        self._handlers[i] = (handle_message, name, remaining-1)
                 return handled
         else:
             if self._default_handler is not None:
@@ -280,5 +284,6 @@ class Daemon(object):
             if force:
                 self._handlers = []
             else:
-                raise RuntimeError('have pending handlers')
+                names = ', '.join(name for _, name, _ in self._handlers)
+                raise RuntimeError('have pending handlers: [{}]'.format(names))
         self._received = list(self._protocol.parse_each(initial))

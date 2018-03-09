@@ -112,11 +112,14 @@ class FakePyDevd(protocol.Daemon):
         # XXX Ensure it's a request?
         return self.send_message(msg)
 
-    def add_pending_response(self, cmdid, text, reqid=None):
+    def add_pending_response(self, cmdid, text, reqid=None, handlername=None):
         """Add a response for a request."""
         if reqid is None:
             reqid = cmdid
         respid = cmdid
+
+        if handlername is None:
+            handlername = '<request cmdid={}>'.format(cmdid)
 
         def handle_request(req, send_message):
             try:
@@ -129,4 +132,4 @@ class FakePyDevd(protocol.Daemon):
             resp = Message(respid, seq, text)
             send_message(resp)
             return True
-        self.add_handler(handle_request)
+        self.add_handler(handle_request, handlername)
