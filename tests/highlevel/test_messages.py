@@ -396,15 +396,15 @@ class VariablesTests(NormalRequestTest, unittest.TestCase):
             self.expected_response(
                 variables=[
                     {
-                        'name': 'spam',
-                        'type': 'str',
-                        'value': "'eggs'",
-                    },
-                    {
                         'name': 'ham',
                         'type': 'list',
                         'value': '[1, 2, 3]',
                         'variablesReference': 2,
+                    },
+                    {
+                        'name': 'spam',
+                        'type': 'str',
+                        'value': "'eggs'",
                     },
                     {
                         'name': 'x',
