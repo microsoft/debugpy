@@ -8,6 +8,7 @@ import atexit
 import errno
 import os
 import platform
+import re
 import signal
 import socket
 import sys
@@ -45,7 +46,6 @@ __version__ = "4.0.0a1"
 ptvsd_sys_exit_code = 0
 WAIT_FOR_DISCONNECT_REQUEST_TIMEOUT = 2
 WAIT_FOR_THREAD_FINISH_TIMEOUT = 1
-
 
 class UnsupportedPyDevdCommandError(Exception):
 
@@ -788,8 +788,48 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 pyd_child = pyd_var + (var_name,)
                 var['variablesReference'] = self.var_map.to_vscode(
                     pyd_child, autogen=True)
+
+            eval_name = self.__get_variable_evaluate_name(pyd_var, var_name)
+            if eval_name:
+                var['evaluateName'] = eval_name
+
             variables.append(var)
         self.send_response(request, variables=variables.get_sorted_variables())
+
+    def __get_variable_evaluate_name(self, pyd_var_parent, var_name):
+        # TODO: docstring
+        eval_name = None
+        if len(pyd_var_parent) > 3:
+            # This means the current variable has a parent i.e, it is not a
+            # FRAME variable. These require evaluateName to work in VS 
+            # watch window
+            var = pyd_var_parent + (var_name,)
+            eval_name = var[3]
+            for s in var[4:]:
+                try:
+                    # Check and get the dictionary key or list index.
+                    # Note: this is best effort, keys that are object references
+                    # will not work
+                    i = self.__get_index_or_key(s)
+                    eval_name += '[{}]'.format(i)
+                except:
+                    eval_name += '.' + s
+
+        return eval_name
+
+    def __get_index_or_key(self, text):
+        # Dictionary resolver in pydevd provides key in '<repr> (<hash>)' format
+        result = re.match(r"(.*)\ \(([0-9]*)\)", text, re.IGNORECASE | re.UNICODE)
+        if result and len(result.groups()) == 2:
+            try:
+                # check if group 2 is a hash
+                int(result.group(2))
+                return result.group(1)
+            except:
+                pass
+        # In the result XML from pydevd list indexes appear 
+        # as names. If the name is a number then it is a index.
+        return int(text)
 
     @async_handler
     def on_setVariable(self, request, args):
