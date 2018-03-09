@@ -1600,6 +1600,12 @@ class ExceptionInfoTests(NormalRequestTest, unittest.TestCase):
                 details=dict(
                     message=excstr,
                     typeName='RuntimeError',
+                    source='abc.py',
+                    stackTrace='\n'.join([
+                        '  File "abc.py", line 10, in spam',
+                        '    """A decorator indicating abstract methods.',
+                        '',
+                    ]),
                 ),
             ),
         ])
