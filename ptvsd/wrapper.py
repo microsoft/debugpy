@@ -222,6 +222,18 @@ class PydevdSocket(object):
     def shutdown(self, mode):
         """Called when pydevd has stopped."""
 
+    def getpeername(self):
+        """Return the remote address to which the socket is connected."""
+        if self._vscprocessor is None:
+            raise NotImplementedError
+        return self._vscprocessor.socket.getpeername()
+
+    def getsockname(self):
+        """Return the socket’s own address."""
+        if self._vscprocessor is None:
+            raise NotImplementedError
+        return self._vscprocessor.socket.getsockname()
+
     def recv(self, count):
         """Return the requested number of bytes.
 
