@@ -26,7 +26,7 @@ def _bind(address):
     return connect, remote
 
 
-class Started(protocol.Started):
+class Started(protocol.MessageDaemonStarted):
 
     def send_response(self, msg):
         self.wait_until_connected()
@@ -37,7 +37,7 @@ class Started(protocol.Started):
         return self.fake.send_event(msg)
 
 
-class FakePyDevd(protocol.Daemon):
+class FakePyDevd(protocol.MessageDaemon):
     """A testing double for PyDevd.
 
     Note that you have the option to provide a handler function.  This

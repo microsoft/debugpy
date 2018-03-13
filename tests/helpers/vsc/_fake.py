@@ -21,14 +21,14 @@ def _bind(address):
     return connect, remote
 
 
-class Started(protocol.Started):
+class Started(protocol.MessageDaemonStarted):
 
     def send_request(self, msg):
         self.wait_until_connected()
         return self.fake.send_request(msg)
 
 
-class FakeVSC(protocol.Daemon):
+class FakeVSC(protocol.MessageDaemon):
     """A testing double for a VSC debugger protocol client.
 
     This class facilitates sending VSC debugger protocol messages over

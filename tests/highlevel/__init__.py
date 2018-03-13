@@ -770,7 +770,8 @@ class VSCTest(object):
 
     FIXTURE = VSCFixture
 
-    fix = None  # overridden in setUp()
+    _ready = False
+    _fix = None  # overridden in setUp()
 
     @classmethod
     def _new_daemon(cls, *args, **kwargs):
@@ -778,17 +779,24 @@ class VSCTest(object):
 
     def setUp(self):
         super(VSCTest, self).setUp()
-
-        def new_daemon(*args, **kwargs):
-            vsc = self._new_daemon(*args, **kwargs)
-            self.addCleanup(vsc.close)
-            return vsc
-        self.fix = self.FIXTURE(new_daemon)
+        self._ready = True
 
         self.maxDiff = None
 
     def __getattr__(self, name):
+        if not self._ready:
+            raise AttributeError
         return getattr(self.fix, name)
+
+    @property
+    def fix(self):
+        if self._fix is None:
+            def new_daemon(*args, **kwargs):
+                vsc = self._new_daemon(*args, **kwargs)
+                self.addCleanup(vsc.close)
+                return vsc
+            self._fix = self._new_fixture(new_daemon)
+        return self._fix
 
     @property
     def new_response(self):
@@ -801,6 +809,9 @@ class VSCTest(object):
     @property
     def new_event(self):
         return self.fix.vsc_msgs.new_event
+
+    def _new_fixture(self, new_daemon):
+        return self.FIXTURE(new_daemon)
 
     def assert_vsc_received(self, received, expected):
         received = list(self.vsc.protocol.parse_each(received))

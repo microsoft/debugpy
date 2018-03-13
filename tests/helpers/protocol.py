@@ -77,11 +77,11 @@ class MessageCounters(namedtuple('MessageCounters',
         return next(self.event)
 
 
-class Started(object):
-    """A simple wrapper around a started message protocol daemon."""
+class DaemonStarted(object):
+    """A simple wrapper around a started protocol daemon."""
 
-    def __init__(self, fake, address, starting=None):
-        self.fake = fake
+    def __init__(self, daemon, address, starting=None):
+        self.daemon = daemon
         self.address = address
         self._starting = starting
 
@@ -101,19 +101,77 @@ class Started(object):
             raise RuntimeError('timed out')
         self._starting = None
 
-    def send_message(self, msg):
-        self.wait_until_connected()
-        return self.fake.send_message(msg)
-
     def close(self):
         self.wait_until_connected()
-        self.fake.close()
+        self.daemon.close()
 
 
 class Daemon(object):
+
+    STARTED = DaemonStarted
+
+    def __init__(self, bind):
+        self._bind = bind
+
+        self._closed = False
+
+        # These are set when we start.
+        self._address = None
+        self._sock = None
+
+    def start(self, address):
+        """Start the fake daemon.
+
+        This calls the earlier provided bind() function.
+
+        A listener loop is started in another thread to handle incoming
+        messages from the socket.
+        """
+        self._address = address
+        addr, starting = self._start(address)
+        return self.STARTED(self, addr, starting)
+
+    def close(self):
+        """Clean up the daemon's resources (e.g. sockets, files, listener)."""
+        if self._closed:
+            return
+
+        self._closed = True
+        self._close()
+
+    # internal methods
+
+    def _start(self, address):
+        connect, addr = self._bind(address)
+
+        def run():
+            self._sock = connect()
+            self._handle_connected()
+        t = threading.Thread(target=run)
+        t.start()
+        return addr, t
+
+    def _handle_connected(self):
+        pass
+
+    def _close(self):
+        if self._sock is not None:
+            socket.close(self._sock)
+            self._sock = None
+
+
+class MessageDaemonStarted(DaemonStarted):
+    """A simple wrapper around a started message protocol daemon."""
+
+    def send_message(self, msg):
+        self.wait_until_connected()
+        return self.daemon.send_message(msg)
+
+
+class MessageDaemon(Daemon):
     """A testing double for a protocol daemon."""
 
-    STARTED = Started
+    STARTED = MessageDaemonStarted
 
     @classmethod
     def validate_message(cls, msg):
@@ -121,10 +179,10 @@ class Daemon(object):
         # By default check nothing.
 
     def __init__(self, bind, protocol, handler):
-        self._bind = bind
+        super(MessageDaemon, self).__init__(bind)
+
         self._protocol = protocol
 
-        self._closed = False
         self._received = []
         self._failures = []
 
@@ -132,8 +190,6 @@ class Daemon(object):
         self._default_handler = handler
 
         # These are set when we start.
-        self._address = None
-        self._sock = None
         self._listener = None
 
     @property
@@ -152,32 +208,12 @@ class Daemon(object):
         """All send/recv failures thus far."""
         return list(self._failures)
 
-    def start(self, address):
-        """Start the fake daemon.
-
-        This calls the earlier provided bind() function.
-
-        A listener loop is started in another thread to handle incoming
-        messages from the socket.
-        """
-        self._address = address
-        addr, starting = self._start(address)
-        return self.STARTED(self, addr, starting)
-
     def send_message(self, msg):
         """Serialize msg to the line format and send it to the socket."""
         if self._closed:
             raise EOFError('closed')
         self._validate_message(msg)
         self._send_message(msg)
-
-    def close(self):
-        """Clean up the daemon's resources (e.g. sockets, files, listener)."""
-        if self._closed:
-            return
-
-        self._closed = True
-        self._close()
 
     def add_handler(self, handler, handlername=None, oneoff=True):
         """Add the given handler to the list of possible handlers."""
@@ -195,17 +231,10 @@ class Daemon(object):
 
     # internal methods
 
-    def _start(self, address):
-        connect, addr = self._bind(address)
-
-        def run():
-            self._sock = connect()
-            # TODO: make it a daemon thread?
-            self._listener = threading.Thread(target=self._listen)
-            self._listener.start()
-        t = threading.Thread(target=run)
-        t.start()
-        return addr, t
+    def _handle_connected(self):
+        # TODO: make it a daemon thread?
+        self._listener = threading.Thread(target=self._listen)
+        self._listener.start()
 
     def _listen(self):
         try:
@@ -267,9 +296,7 @@ class Daemon(object):
             raw = raw[sent:]
 
     def _close(self):
-        if self._sock is not None:
-            socket.close(self._sock)
-            self._sock = None
+        super(MessageDaemon, self)._close()
         if self._listener is not None:
             self._listener.join(timeout=1)
             # TODO: the listener isn't stopping!
