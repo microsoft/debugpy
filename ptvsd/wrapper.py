@@ -1182,7 +1182,7 @@ def _new_sock():
     return sock
 
 
-def _start(client, server, killonclose=True):
+def _start(client, server, killonclose=True, addhandlers=True):
     name = 'ptvsd.Client' if server is None else 'ptvsd.Server'
 
     pydevd = PydevdSocket(lambda *args: proc.on_pydevd_event(*args))
@@ -1194,24 +1194,35 @@ def _start(client, server, killonclose=True):
     server_thread.daemon = True
     server_thread.start()
 
-    return pydevd, proc, server_thread
+    if addhandlers:
+        _add_atexit_handler(proc, server_thread)
+        _set_signal_handlers(proc)
+
+    return pydevd
+
+
+def _add_atexit_handler(proc, server_thread):
+    def handler(proc, server_thread):
+        proc.close()
+        if server_thread.is_alive():
+            server_thread.join(WAIT_FOR_THREAD_FINISH_TIMEOUT)
+    atexit.register(handler)
+
+
+def _set_signal_handlers(proc):
+    if platform.system() == 'Windows':
+        return None
+
+    def handler(signum, frame):
+        proc.close()
+        sys.exit(0)
+    signal.signal(signal.SIGHUP, handler)
 
 
 ########################
 # pydevd hooks
 
-def exit_handler(proc, server_thread):
-    proc.close()
-    if server_thread.is_alive():
-        server_thread.join(WAIT_FOR_THREAD_FINISH_TIMEOUT)
-
-
-def signal_handler(signum, frame, proc):
-    proc.close()
-    sys.exit(0)
-
-
-def start_server(port):
+def start_server(port, addhandlers=True):
     """Return a socket to a (new) local pydevd-handling daemon.
 
     The daemon supports the pydevd client wire protocol, sending
@@ -1221,17 +1232,11 @@ def start_server(port):
     """
     server = _create_server(port)
     client, _ = server.accept()
-    pydevd, proc, server_thread = _start(client, server)
-    atexit.register(lambda: exit_handler(proc, server_thread))
-    if platform.system() != 'Windows':
-        signal.signal(
-            signal.SIGHUP,
-            (lambda signum, frame: signal_handler(signum, frame, proc)),
-        )
+    pydevd = _start(client, server)
     return pydevd
 
 
-def start_client(host, port):
+def start_client(host, port, addhandlers=True):
     """Return a socket to an existing "remote" pydevd-handling daemon.
 
     The daemon supports the pydevd client wire protocol, sending
@@ -1241,13 +1246,7 @@ def start_client(host, port):
     """
     client = _create_client()
     client.connect((host, port))
-    pydevd, proc, server_thread = _start(client, None)
-    atexit.register(lambda: exit_handler(proc, server_thread))
-    if platform.system() != 'Windows':
-        signal.signal(
-            signal.SIGHUP,
-            (lambda signum, frame: signal_handler(signum, frame, proc)),
-        )
+    pydevd = _start(client, None)
     return pydevd
 
 
