@@ -1,5 +1,6 @@
 import contextlib
 import threading
+import warnings
 
 from tests.helpers import protocol, socket
 from ._vsc import encode_message, iter_messages, parse_message
@@ -161,3 +162,6 @@ class FakeVSC(protocol.MessageDaemon):
         # Wait for the message to match.
         if lock.acquire(timeout=timeout):
             lock.release()
+        else:
+            msg = 'timed out after {} seconds waiting for message ({})'
+            warnings.warn(msg.format(timeout, handlername))
