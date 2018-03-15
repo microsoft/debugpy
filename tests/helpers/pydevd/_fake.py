@@ -22,6 +22,7 @@ def _bind(address):
         pydevd = _ptvsd._start(client, server,
                                killonclose=False,
                                addhandlers=False)
+        pydevd._vscprocessor._exit_on_unknown_command = False
         return socket.Connection(pydevd, server)
     return connect, remote
 

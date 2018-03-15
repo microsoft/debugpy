@@ -488,11 +488,25 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.disconnect_request_event = threading.Event()
         pydevd._vscprocessor = self
         self._closed = False
+        self._exited = False
         self.path_casing = PathUnNormcase()
         self.event_loop_thread = threading.Thread(target=self.loop.run_forever,
                                                   name='ptvsd.EventLoop')
         self.event_loop_thread.daemon = True
         self.event_loop_thread.start()
+
+    def _handle_exit(self):
+        if self._exited:
+            return
+        self._exited = True
+
+        self.send_event('exited', exitCode=ptvsd_sys_exit_code)
+        self.send_event('terminated')
+
+        self.disconnect_request_event.wait(WAIT_FOR_DISCONNECT_REQUEST_TIMEOUT)
+        if self.disconnect_request is not None:
+            self.send_response(self.disconnect_request)
+            self.disconnect_request = None
 
     def close(self):
         """Stop the message processor and release its resources."""
@@ -505,14 +519,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         pydevd.shutdown(socket.SHUT_RDWR)
         pydevd.close()
 
-        global ptvsd_sys_exit_code
-        self.send_event('exited', exitCode=ptvsd_sys_exit_code)
-        self.send_event('terminated')
-
-        self.disconnect_request_event.wait(WAIT_FOR_DISCONNECT_REQUEST_TIMEOUT)
-        if self.disconnect_request is not None:
-            self.send_response(self.disconnect_request)
-            self.disconnect_request = None
+        self._handle_exit()
 
         self.set_exit()
         self.loop.stop()

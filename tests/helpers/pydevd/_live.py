@@ -71,10 +71,19 @@ class LivePyDevd(protocol.Daemon):
                 pydevd_comm.start_client = new_pydevd_sock
                 # Force a fresh pydevd.
                 sys.modules.pop('pydevd', None)
-                if module is None:
-                    debugger._run_file(address, filename)
-                else:
-                    debugger._run_module(address, module)
+                try:
+                    if module is None:
+                        debugger._run_file(address, filename)
+                    else:
+                        debugger._run_module(address, module)
+                except SystemExit as exc:
+                    wrapper.ptvsd_sys_exit_code = int(exc.code)
+                    raise
+
+                #if module is None:
+                #    debugger._run_file(address, filename)
+                #else:
+                #    debugger._run_module(address, module)
                 waiter.acquire(timeout=1)
                 waiter.release()
             return connect, remote

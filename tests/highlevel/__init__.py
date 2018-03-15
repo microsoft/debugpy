@@ -21,6 +21,7 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_GET_VARIABLE,
 )
 
+from ptvsd import wrapper
 from tests.helpers.protocol import MessageCounters
 from tests.helpers.pydevd import FakePyDevd
 from tests.helpers.vsc import FakeVSC
@@ -242,15 +243,15 @@ class VSCLifecycle(object):
         self._pydevd = pydevd
         self._hidden = hidden or fix.hidden
 
-    def launched(self, port=None, **kwargs):
+    def launched(self, port=None, hidedisconnect=False, **kwargs):
         def start():
             self.launch(**kwargs)
-        return self._started(start, port)
+        return self._started(start, port, hidedisconnect=hidedisconnect)
 
-    def attached(self, port=None, **kwargs):
+    def attached(self, port=None, hidedisconnect=False, **kwargs):
         def start():
             self.attach(**kwargs)
-        return self._started(start, port)
+        return self._started(start, port, hidedisconnect=hidedisconnect)
 
     def launch(self, **kwargs):
         """Initialize the debugger protocol and then launch."""
@@ -270,12 +271,12 @@ class VSCLifecycle(object):
     # internal methods
 
     @contextlib.contextmanager
-    def _started(self, start, port):
+    def _started(self, start, port, hidedisconnect=False):
         if port is None:
             port = self.PORT
         addr = (None, port)
         with self._fix.fake.start(addr):
-            with self._fix.disconnect_when_done():
+            with self._fix.disconnect_when_done(hide=hidedisconnect):
                 start()
                 yield
 
@@ -574,11 +575,25 @@ class VSCFixture(FixtureBase):
                 yield
 
     @contextlib.contextmanager
-    def disconnect_when_done(self):
+    def disconnect_when_done(self, hide=True):
         try:
             yield
         finally:
+            if hide:
+                with self.hidden():
+                    self._disconnect()
+            else:
+                self._disconnect()
+
+    def _disconnect(self):
+        with self.exits_after(exitcode=0):
             self.send_request('disconnect')
+
+    @contextlib.contextmanager
+    def exits_after(self, exitcode):
+        wrapper.ptvsd_sys_exit_code = exitcode
+        with self._wait_for_events(['exited', 'terminated']):
+            yield
 
 
 class HighlevelFixture(object):
