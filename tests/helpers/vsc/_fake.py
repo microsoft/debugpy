@@ -148,15 +148,16 @@ class FakeVSC(protocol.MessageDaemon):
         lock.acquire()
 
         def handle_message(msg, send_message):
-            if match(msg):
-                lock.release()
-                if handler is not None:
-                    handler(msg, send_message)
-            else:
+            if not match(msg):
                 return False
+            lock.release()
+            if handler is not None:
+                handler(msg, send_message)
+            return True
         self.add_handler(handle_message, handlername)
 
         yield req
 
-        lock.acquire(timeout=timeout)  # Wait for the message to match.
-        lock.release()
+        # Wait for the message to match.
+        if lock.acquire(timeout=timeout):
+            lock.release()
