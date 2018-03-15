@@ -1875,7 +1875,7 @@ class ThreadEventTest(PyDevdEventTest):
         return self._tid
 
 
-class ThreadCreateTests(ThreadEventTest, unittest.TestCase):
+class ThreadCreateEventTests(ThreadEventTest, unittest.TestCase):
 
     CMD = CMD_THREAD_CREATE
     EVENT = 'thread'
@@ -1904,6 +1904,7 @@ class ThreadCreateTests(ThreadEventTest, unittest.TestCase):
         ])
         self.assert_received(self.debugger, [])
 
+    @unittest.skip('currently not supported')
     def test_attached(self):
         with self.attached(8888, process=False):
             with self.wait_for_event('process'):
@@ -1963,6 +1964,7 @@ class ThreadCreateTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
     def test_pydevd_name(self):
+        self.EVENT = None
         with self.launched():
             self.send_event(10, 'pydevd.spam')
             received = self.vsc.received
@@ -1971,6 +1973,7 @@ class ThreadCreateTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
     def test_ptvsd_name(self):
+        self.EVENT = None
         with self.launched():
             self.send_event(10, 'ptvsd.spam')
             received = self.vsc.received
@@ -2004,6 +2007,7 @@ class ThreadKillEventTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
     def test_unknown(self):
+        self.EVENT = None
         with self.launched():
             self.send_event(10)
             received = self.vsc.received
@@ -2012,6 +2016,7 @@ class ThreadKillEventTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
     def test_pydevd_name(self):
+        self.EVENT = None
         thread = (10, 'pydevd.spam')
         with self.launched():
             with self.hidden():
@@ -2023,6 +2028,7 @@ class ThreadKillEventTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
     def test_ptvsd_name(self):
+        self.EVENT = None
         thread = (10, 'ptvsd.spam')
         with self.launched():
             with self.hidden():
