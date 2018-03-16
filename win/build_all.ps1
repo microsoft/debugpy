@@ -11,6 +11,8 @@ if ($env:BUILD_BINARIESDIRECTORY) {
     $dist = mkdir -Force $root\dist
 }
 
+$env:SKIP_CYTHON_BUILD = "1"
+
 if (-not $pack) {
     (gci $packages\python* -Directory) | %{ gi $_\tools\python.exe } | ?{ Test-Path $_ } | %{
         Write-Host "Building with $_"

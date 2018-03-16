@@ -11,6 +11,11 @@ import sys
 
 from setuptools import setup, Extension
 
+if not os.getenv('SKIP_CYTHON_BUILD'):
+    print('Compiling extension modules (set SKIP_CYTHON_BUILD=1 to omit)')
+    subprocess.check_call(
+        [sys.executable, 'ptvsd/pydevd/setup_cython.py', 'build_ext', '-i'])
+
 ROOT = os.path.dirname(os.path.abspath(__file__))
 
 # Add pydevd files as data files for this package. They are not treated
