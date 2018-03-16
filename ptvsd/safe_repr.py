@@ -29,7 +29,7 @@ class SafeRepr(object):
         string_types = (str, bytes)
         set_info = (set, '{', '}', False)
         frozenset_info = (frozenset, 'frozenset({', '})', False)
-        int_types = (int)
+        int_types = (int,)
     else:
         string_types = (str, unicode)
         set_info = (set, 'set([', '])', False)
