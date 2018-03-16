@@ -1,1 +1,2 @@
 include LICENSE
+global-exclude *.py[cdo]

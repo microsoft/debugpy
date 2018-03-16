@@ -23,9 +23,12 @@ if (-not $pack) {
     }
 
 } else {
-    gci $dist\*.whl | Remove-Item -Force
+    gci $dist\*.whl, $dist\*.zip | Remove-Item -Force
 
     (gci $packages\python* -Directory) | %{ gi $_\tools\python.exe } | ?{ Test-Path $_ } | select -last 1 | %{
+        Write-Host "Building sdist with $_"
+        & $_ setup.py sdist -d "$dist" --formats zip
+
         Write-Host "Building wheel with $_"
         & $_ setup.py build -b "$bin" -t "$obj" bdist_wheel -d "$dist"
         gci $dist\ptvsd-*.whl | %{
@@ -35,5 +38,6 @@ if (-not $pack) {
             Remove-Item $_
         }
     }
+
 }
 
