@@ -866,20 +866,40 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     def on_setVariable(self, request, args):
         vsc_var = int(args['variablesReference'])
         pyd_var = self.var_map.to_pydevd(vsc_var)
+        
+        var_name = args['name']
+        var_value = args['value']
+        
+        lhs_expr = self.__get_variable_evaluate_name(pyd_var, var_name)
+        if not lhs_expr:
+            lhs_expr = var_name
+        expr = '%s = %s' % (lhs_expr, var_value)
+        # pydevd message format doesn't permit tabs in expressions
+        expr = expr.replace('\t', ' ')
+
+        pyd_tid = str(pyd_var[0])
+        pyd_fid = str(pyd_var[1])
 
         safe_repr_provider.convert_to_hex = args.get('format', {}).get('hex', False)
 
         # VSC gives us variablesReference to the parent of the variable
         # being set, and variable name; but pydevd wants the ID
         # (or rather path) of the variable itself.
-        pyd_var += (args['name'],)
+        pyd_var += (var_name,)
         vsc_var = self.var_map.to_vscode(pyd_var, autogen=True)
 
-        cmd_args = [str(s) for s in pyd_var] + [args['value']]
-        _, _, resp_args = yield self.pydevd_request(
-            pydevd_comm.CMD_CHANGE_VARIABLE,
+        cmd_args = [pyd_tid, pyd_fid, 'LOCAL', expr, '1']
+        yield self.pydevd_request(
+            pydevd_comm.CMD_EXEC_EXPRESSION,
             '\t'.join(cmd_args),
         )
+
+        cmd_args = [pyd_tid, pyd_fid, 'LOCAL', lhs_expr, '1']
+        _, _, resp_args = yield self.pydevd_request(
+            pydevd_comm.CMD_EVALUATE_EXPRESSION,
+            '\t'.join(cmd_args),
+        )
+
         xml = untangle.parse(resp_args).xml
         xvar = xml.var
 
