@@ -36,7 +36,7 @@ TRACE_PROPERTY = 'pydevd_traceproperty.py'
 get_file_type = DONT_TRACE.get
 
 
-def handle_breakpoint_condition(py_db, info, breakpoint, new_frame):
+def handle_breakpoint_condition(py_db, info, breakpoint, new_frame, default_return_value=None):
     condition = breakpoint.condition
     try:
         return eval(condition, new_frame.f_globals, new_frame.f_locals)
