@@ -91,7 +91,7 @@ class Connection(namedtuple('Connection', 'client server')):
         try:
             self.client.shutdown(*args, **kwargs)
         except OSError as exc:
-            if exc.errno != errno.ENOTCONN:
+            if exc.errno not in (errno.ENOTCONN, errno.EBADF):
                 raise
 
     def close(self):

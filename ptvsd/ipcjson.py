@@ -99,6 +99,9 @@ class SocketIO(object):
             self.__socket.send(content)
         except BrokenPipeError:
             pass
+        except OSError as exc:
+            if exc.errno not in (errno.ENOTCONN, errno.EBADF):
+                raise
 
     def _buffered_read_line_as_ascii(self):
         """Return the next line from the buffer as a string.
