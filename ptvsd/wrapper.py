@@ -47,6 +47,31 @@ ptvsd_sys_exit_code = 0
 WAIT_FOR_DISCONNECT_REQUEST_TIMEOUT = 2
 WAIT_FOR_THREAD_FINISH_TIMEOUT = 1
 
+
+class SafeReprPresentationProvider(pydevd_extapi.StrPresentationProvider):
+    """
+    Computes string representation of Python values by delegating them
+    to SafeRepr.
+    """
+
+    def __init__(self):
+        from ptvsd.safe_repr import SafeRepr
+        self.safe_repr = SafeRepr()
+        self.convert_to_hex = False
+
+    def can_provide(self, type_object, type_name):
+        return True
+
+    def get_str(self, val):
+        return self.safe_repr(val, self.convert_to_hex)
+            
+# Register our presentation provider as the first item on the list,
+# so that we're in full control of presentation.
+str_handlers = pydevd_extutil.EXTENSION_MANAGER_INSTANCE.type_to_instance.setdefault(pydevd_extapi.StrPresentationProvider, [])  # noqa
+safe_repr_provider = SafeReprPresentationProvider()
+str_handlers.insert(0, safe_repr_provider)
+
+
 class UnsupportedPyDevdCommandError(Exception):
 
     def __init__(self, cmdid):
@@ -575,6 +600,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             supportsSetVariable=True,
             supportsExceptionOptions=True,
             supportsEvaluateForHovers=True,
+            supportsValueFormattingOptions=True,
             exceptionBreakpointFilters=[
                 {
                     'filter': 'raised',
@@ -759,6 +785,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         # TODO: docstring
         vsc_var = int(args['variablesReference'])
         pyd_var = self.var_map.to_pydevd(vsc_var)
+        
+        safe_repr_provider.convert_to_hex = args.get('format', {}).get('hex', False)
 
         if len(pyd_var) == 3:
             cmd = pydevd_comm.CMD_GET_FRAME
@@ -794,6 +822,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 var['evaluateName'] = eval_name
 
             variables.append(var)
+
+        # Reset hex format since this is per request.
+        safe_repr_provider.convert_to_hex = False
         self.send_response(request, variables=variables.get_sorted_variables())
 
     def __get_variable_evaluate_name(self, pyd_var_parent, var_name):
@@ -836,6 +867,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         vsc_var = int(args['variablesReference'])
         pyd_var = self.var_map.to_pydevd(vsc_var)
 
+        safe_repr_provider.convert_to_hex = args.get('format', {}).get('hex', False)
+
         # VSC gives us variablesReference to the parent of the variable
         # being set, and variable name; but pydevd wants the ID
         # (or rather path) of the variable itself.
@@ -856,6 +889,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         }
         if bool(xvar['isContainer']):
             response['variablesReference'] = vsc_var
+        
+        # Reset hex format since this is per request.
+        safe_repr_provider.convert_to_hex = False
         self.send_response(request, **response)
 
     @async_handler
@@ -865,6 +901,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
         vsc_fid = int(args['frameId'])
         pyd_tid, pyd_fid = self.frame_map.to_pydevd(vsc_fid)
+
+        safe_repr_provider.convert_to_hex = args.get('format', {}).get('hex', False)
 
         cmd_args = (pyd_tid, pyd_fid, 'LOCAL', expr, '1')
         _, _, resp_args = yield self.pydevd_request(
@@ -890,6 +928,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         }
         if bool(xvar['isContainer']):
             response['variablesReference'] = vsc_var
+        
+        # Reset hex format since this is per request.
+        safe_repr_provider.convert_to_hex = False
         self.send_response(request, **response)
 
     @async_handler
@@ -1283,25 +1324,3 @@ def start_client(host, port):
 pydevd_comm.start_server = start_server
 pydevd_comm.start_client = start_client
 
-
-class SafeReprPresentationProvider(pydevd_extapi.StrPresentationProvider):
-    """
-    Computes string representation of Python values by delegating them
-    to SafeRepr.
-    """
-
-    def __init__(self):
-        from ptvsd.safe_repr import SafeRepr
-        self.safe_repr = SafeRepr()
-
-    def can_provide(self, type_object, type_name):
-        return True
-
-    def get_str(self, val):
-        return self.safe_repr(val)
-
-
-# Register our presentation provider as the first item on the list,
-# so that we're in full control of presentation.
-str_handlers = pydevd_extutil.EXTENSION_MANAGER_INSTANCE.type_to_instance.setdefault(pydevd_extapi.StrPresentationProvider, [])  # noqa
-str_handlers.insert(0, SafeReprPresentationProvider())

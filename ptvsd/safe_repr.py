@@ -29,10 +29,12 @@ class SafeRepr(object):
         string_types = (str, bytes)
         set_info = (set, '{', '}', False)
         frozenset_info = (frozenset, 'frozenset({', '})', False)
+        int_types = (int,)
     else:
         string_types = (str, unicode)
         set_info = (set, 'set([', '])', False)
         frozenset_info = (frozenset, 'frozenset([', '])', False)
+        int_types = (int, long)
 
     # Collection types are recursively iterated for each limit in
     # maxcollection.
@@ -67,16 +69,16 @@ class SafeRepr(object):
     maxother_outer = 2 ** 16
     maxother_inner = 30
 
-    def __call__(self, obj):
+    def __call__(self, obj, convert_to_hex=False):
         try:
-            return ''.join(self._repr(obj, 0))
+            return ''.join(self._repr(obj, 0, convert_to_hex=convert_to_hex))
         except Exception:
             try:
                 return 'An exception was raised: %r' % sys.exc_info()[1]
             except Exception:
                 return 'An exception was raised'
 
-    def _repr(self, obj, level):
+    def _repr(self, obj, level, convert_to_hex=False):
         '''Returns an iterable of the parts in the final repr string.'''
 
         try:
@@ -93,21 +95,21 @@ class SafeRepr(object):
 
         for t, prefix, suffix, comma in self.collection_types:
             if isinstance(obj, t) and has_obj_repr(t):
-                return self._repr_iter(obj, level, prefix, suffix, comma)
+                return self._repr_iter(obj, level, prefix, suffix, comma, convert_to_hex=convert_to_hex)
 
         for t, prefix, suffix, item_prefix, item_sep, item_suffix in self.dict_types:  # noqa
             if isinstance(obj, t) and has_obj_repr(t):
                 return self._repr_dict(obj, level, prefix, suffix,
-                                       item_prefix, item_sep, item_suffix)
+                                       item_prefix, item_sep, item_suffix, convert_to_hex=convert_to_hex)
 
         for t in self.string_types:
             if isinstance(obj, t) and has_obj_repr(t):
-                return self._repr_str(obj, level)
+                return self._repr_str(obj, level, convert_to_hex=convert_to_hex)
 
         if self._is_long_iter(obj):
-            return self._repr_long_iter(obj)
+            return self._repr_long_iter(obj, convert_to_hex=convert_to_hex)
 
-        return self._repr_other(obj, level)
+        return self._repr_other(obj, level, convert_to_hex=convert_to_hex)
 
     # Determines whether an iterable exceeds the limits set in
     # maxlimits, and is therefore unsafe to repr().
@@ -164,7 +166,7 @@ class SafeRepr(object):
             return True
 
     def _repr_iter(self, obj, level, prefix, suffix,
-                   comma_after_single_element=False):
+                   comma_after_single_element=False, convert_to_hex=False):
         yield prefix
 
         if level >= len(self.maxcollection):
@@ -182,7 +184,7 @@ class SafeRepr(object):
                     yield '...'
                     break
 
-                for p in self._repr(item, 100 if item is obj else level + 1):
+                for p in self._repr(item, 100 if item is obj else level + 1, convert_to_hex=convert_to_hex):
                     yield p
             else:
                 if comma_after_single_element:
@@ -190,9 +192,10 @@ class SafeRepr(object):
                         yield ','
         yield suffix
 
-    def _repr_long_iter(self, obj):
+    def _repr_long_iter(self, obj, convert_to_hex=False):
         try:
-            obj_repr = '<%s, len() = %s>' % (type(obj).__name__, len(obj))
+            length = hex(len(obj)) if convert_to_hex else len(obj)
+            obj_repr = '<%s, len() = %s>' % (type(obj).__name__, length)
         except Exception:
             try:
                 obj_repr = '<' + type(obj).__name__ + '>'
@@ -201,7 +204,7 @@ class SafeRepr(object):
         yield obj_repr
 
     def _repr_dict(self, obj, level, prefix, suffix,
-                   item_prefix, item_sep, item_suffix):
+                   item_prefix, item_sep, item_suffix, convert_to_hex=False):
         if not obj:
             yield prefix + suffix
             return
@@ -230,7 +233,7 @@ class SafeRepr(object):
                 break
 
             yield item_prefix
-            for p in self._repr(key, level + 1):
+            for p in self._repr(key, level + 1, convert_to_hex=convert_to_hex):
                 yield p
 
             yield item_sep
@@ -240,23 +243,26 @@ class SafeRepr(object):
             except Exception:
                 yield '<?>'
             else:
-                for p in self._repr(item, 100 if item is obj else level + 1):
+                for p in self._repr(item, 100 if item is obj else level + 1, convert_to_hex=convert_to_hex):
                     yield p
             yield item_suffix
 
         yield suffix
 
-    def _repr_str(self, obj, level):
+    def _repr_str(self, obj, level, convert_to_hex=False):
         return self._repr_obj(obj, level,
-                              self.maxstring_inner, self.maxstring_outer)
+                              self.maxstring_inner, self.maxstring_outer, convert_to_hex=convert_to_hex)
 
-    def _repr_other(self, obj, level):
+    def _repr_other(self, obj, level, convert_to_hex=False):
         return self._repr_obj(obj, level,
-                              self.maxother_inner, self.maxother_outer)
+                              self.maxother_inner, self.maxother_outer, convert_to_hex=convert_to_hex)
 
-    def _repr_obj(self, obj, level, limit_inner, limit_outer):
+    def _repr_obj(self, obj, level, limit_inner, limit_outer, convert_to_hex=False):
         try:
-            obj_repr = repr(obj)
+            if isinstance(obj, self.int_types) and convert_to_hex:
+                obj_repr = hex(obj)
+            else:
+                obj_repr = repr(obj)
         except Exception:
             try:
                 obj_repr = object.__repr__(obj)
