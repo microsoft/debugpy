@@ -913,7 +913,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         # Reset hex format since this is per request.
         safe_repr_provider.convert_to_hex = False
         self.send_response(request, **response)
-
+    
     @async_handler
     def on_evaluate(self, request, args):
         # pydevd message format doesn't permit tabs in expressions
@@ -923,11 +923,12 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         pyd_tid, pyd_fid = self.frame_map.to_pydevd(vsc_fid)
 
         safe_repr_provider.convert_to_hex = args.get('format', {}).get('hex', False)
-
+        
         cmd_args = (pyd_tid, pyd_fid, 'LOCAL', expr, '1')
+        msg = '\t'.join(str(s) for s in cmd_args)
         _, _, resp_args = yield self.pydevd_request(
             pydevd_comm.CMD_EVALUATE_EXPRESSION,
-            '\t'.join(str(s) for s in cmd_args))
+            msg)
         xml = untangle.parse(resp_args).xml
         xvar = xml.var
 
@@ -937,6 +938,27 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             self.send_response(
                 request,
                 result=None,
+                variablesReference=0)
+            return
+
+        if context == 'repl' and is_eval_error == 'True':
+            # try exec for repl requests
+            cmd_args = (pyd_tid, pyd_fid, 'LOCAL', expr, '1')
+            _, _, resp_args = yield self.pydevd_request(
+                pydevd_comm.CMD_EXEC_EXPRESSION,
+                msg)
+            try:
+                xml2 = untangle.parse(resp_args).xml
+                xvar2 = xml2.var
+                result_type  = unquote(xvar2['type'])
+                result = unquote(xvar2['value'])
+            except:
+                # if resp_args is not xml then it contains the error traceback
+                result_type  = unquote(xvar['type'])
+                result = unquote(xvar['value'])
+            self.send_response(request,
+                result=None if result=='None' and result_type=='NoneType' else result,
+                type=result_type,
                 variablesReference=0)
             return
 
