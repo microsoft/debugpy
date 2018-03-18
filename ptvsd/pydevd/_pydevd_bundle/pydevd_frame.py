@@ -36,7 +36,7 @@ TRACE_PROPERTY = 'pydevd_traceproperty.py'
 get_file_type = DONT_TRACE.get
 
 
-def handle_breakpoint_condition(py_db, info, breakpoint, new_frame, default_return_value=None):
+def handle_breakpoint_condition(py_db, info, breakpoint, new_frame):
     condition = breakpoint.condition
     try:
         return eval(condition, new_frame.f_globals, new_frame.f_locals)
@@ -50,7 +50,7 @@ def handle_breakpoint_condition(py_db, info, breakpoint, new_frame, default_retu
         sys.stderr.write(msg)
         traceback.print_exc()
         if not py_db.suspend_on_breakpoint_exception:
-            return default_return_value
+            return
         else:
             stop = True
             try:
