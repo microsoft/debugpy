@@ -1,5 +1,6 @@
 import contextlib
 import threading
+import warnings
 
 from tests.helpers import protocol, socket
 from ._vsc import encode_message, iter_messages, parse_message
@@ -21,14 +22,14 @@ def _bind(address):
     return connect, remote
 
 
-class Started(protocol.Started):
+class Started(protocol.MessageDaemonStarted):
 
     def send_request(self, msg):
         self.wait_until_connected()
         return self.fake.send_request(msg)
 
 
-class FakeVSC(protocol.Daemon):
+class FakeVSC(protocol.MessageDaemon):
     """A testing double for a VSC debugger protocol client.
 
     This class facilitates sending VSC debugger protocol messages over
@@ -148,15 +149,19 @@ class FakeVSC(protocol.Daemon):
         lock.acquire()
 
         def handle_message(msg, send_message):
-            if match(msg):
-                lock.release()
-                if handler is not None:
-                    handler(msg, send_message)
-            else:
+            if not match(msg):
                 return False
+            lock.release()
+            if handler is not None:
+                handler(msg, send_message)
+            return True
         self.add_handler(handle_message, handlername)
 
         yield req
 
-        lock.acquire(timeout=timeout)  # Wait for the message to match.
-        lock.release()
+        # Wait for the message to match.
+        if lock.acquire(timeout=timeout):
+            lock.release()
+        else:
+            msg = 'timed out after {} seconds waiting for message ({})'
+            warnings.warn(msg.format(timeout, handlername))

@@ -247,6 +247,18 @@ class PydevdSocket(object):
     def shutdown(self, mode):
         """Called when pydevd has stopped."""
 
+    def getpeername(self):
+        """Return the remote address to which the socket is connected."""
+        if self._vscprocessor is None:
+            raise NotImplementedError
+        return self._vscprocessor.socket.getpeername()
+
+    def getsockname(self):
+        """Return the socket’s own address."""
+        if self._vscprocessor is None:
+            raise NotImplementedError
+        return self._vscprocessor.socket.getsockname()
+
     def recv(self, count):
         """Return the requested number of bytes.
 
@@ -501,11 +513,25 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.disconnect_request_event = threading.Event()
         pydevd._vscprocessor = self
         self._closed = False
+        self._exited = False
         self.path_casing = PathUnNormcase()
         self.event_loop_thread = threading.Thread(target=self.loop.run_forever,
                                                   name='ptvsd.EventLoop')
         self.event_loop_thread.daemon = True
         self.event_loop_thread.start()
+
+    def _handle_exit(self):
+        if self._exited:
+            return
+        self._exited = True
+
+        self.send_event('exited', exitCode=ptvsd_sys_exit_code)
+        self.send_event('terminated')
+
+        self.disconnect_request_event.wait(WAIT_FOR_DISCONNECT_REQUEST_TIMEOUT)
+        if self.disconnect_request is not None:
+            self.send_response(self.disconnect_request)
+            self.disconnect_request = None
 
     def close(self):
         """Stop the message processor and release its resources."""
@@ -518,14 +544,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         pydevd.shutdown(socket.SHUT_RDWR)
         pydevd.close()
 
-        global ptvsd_sys_exit_code
-        self.send_event('exited', exitCode=ptvsd_sys_exit_code)
-        self.send_event('terminated')
-
-        self.disconnect_request_event.wait(WAIT_FOR_DISCONNECT_REQUEST_TIMEOUT)
-        if self.disconnect_request is not None:
-            self.send_response(self.disconnect_request)
-            self.disconnect_request = None
+        self._handle_exit()
 
         self.set_exit()
         self.loop.stop()
@@ -1293,7 +1312,7 @@ def _new_sock():
     return sock
 
 
-def _start(client, server, killonclose=True):
+def _start(client, server, killonclose=True, addhandlers=True):
     name = 'ptvsd.Client' if server is None else 'ptvsd.Server'
 
     pydevd = PydevdSocket(lambda *args: proc.on_pydevd_event(*args))
@@ -1305,24 +1324,35 @@ def _start(client, server, killonclose=True):
     server_thread.daemon = True
     server_thread.start()
 
-    return pydevd, proc, server_thread
+    if addhandlers:
+        _add_atexit_handler(proc, server_thread)
+        _set_signal_handlers(proc)
+
+    return pydevd
+
+
+def _add_atexit_handler(proc, server_thread):
+    def handler(proc, server_thread):
+        proc.close()
+        if server_thread.is_alive():
+            server_thread.join(WAIT_FOR_THREAD_FINISH_TIMEOUT)
+    atexit.register(handler)
+
+
+def _set_signal_handlers(proc):
+    if platform.system() == 'Windows':
+        return None
+
+    def handler(signum, frame):
+        proc.close()
+        sys.exit(0)
+    signal.signal(signal.SIGHUP, handler)
 
 
 ########################
 # pydevd hooks
 
-def exit_handler(proc, server_thread):
-    proc.close()
-    if server_thread.is_alive():
-        server_thread.join(WAIT_FOR_THREAD_FINISH_TIMEOUT)
-
-
-def signal_handler(signum, frame, proc):
-    proc.close()
-    sys.exit(0)
-
-
-def start_server(port):
+def start_server(port, addhandlers=True):
     """Return a socket to a (new) local pydevd-handling daemon.
 
     The daemon supports the pydevd client wire protocol, sending
@@ -1332,17 +1362,11 @@ def start_server(port):
     """
     server = _create_server(port)
     client, _ = server.accept()
-    pydevd, proc, server_thread = _start(client, server)
-    atexit.register(lambda: exit_handler(proc, server_thread))
-    if platform.system() != 'Windows':
-        signal.signal(
-            signal.SIGHUP,
-            (lambda signum, frame: signal_handler(signum, frame, proc)),
-        )
+    pydevd = _start(client, server)
     return pydevd
 
 
-def start_client(host, port):
+def start_client(host, port, addhandlers=True):
     """Return a socket to an existing "remote" pydevd-handling daemon.
 
     The daemon supports the pydevd client wire protocol, sending
@@ -1352,13 +1376,7 @@ def start_client(host, port):
     """
     client = _create_client()
     client.connect((host, port))
-    pydevd, proc, server_thread = _start(client, None)
-    atexit.register(lambda: exit_handler(proc, server_thread))
-    if platform.system() != 'Windows':
-        signal.signal(
-            signal.SIGHUP,
-            (lambda signum, frame: signal_handler(signum, frame, proc)),
-        )
+    pydevd = _start(client, None)
     return pydevd
 
 

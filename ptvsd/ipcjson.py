@@ -99,6 +99,9 @@ class SocketIO(object):
             self.__socket.send(content)
         except BrokenPipeError:
             pass
+        except OSError as exc:
+            if exc.errno not in (errno.ENOTCONN, errno.EBADF):
+                raise
 
     def _buffered_read_line_as_ascii(self):
         """Return the next line from the buffer as a string.
@@ -239,7 +242,7 @@ class IpcChannel(object):
         self.__exit = False
         self.__lock = thread.allocate_lock()
         self.__message = []
-        self.__exit_on_unknown_command = True
+        self._exit_on_unknown_command = True
 
     def close(self):
         # TODO: docstring
@@ -352,7 +355,9 @@ class IpcChannel(object):
     def on_invalid_request(self, request, args):
         # TODO: docstring
         self.send_response(request, success=False, message='Unknown command')
-        if self.__exit_on_unknown_command:
+        if self._exit_on_unknown_command:
+            # TODO: Shouldn't we let VSC decide how to handle this
+            # instead of exiting?
             self.__exit = True
 
     def _receive_message(self, message):

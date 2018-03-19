@@ -19,12 +19,15 @@ def _bind(address):
 
     def connect(_connect=connect):
         client, server = _connect()
-        pydevd, _, _ = _ptvsd._start(client, server, killonclose=False)
+        pydevd = _ptvsd._start(client, server,
+                               killonclose=False,
+                               addhandlers=False)
+        pydevd._vscprocessor._exit_on_unknown_command = False
         return socket.Connection(pydevd, server)
     return connect, remote
 
 
-class Started(protocol.Started):
+class Started(protocol.MessageDaemonStarted):
 
     def send_response(self, msg):
         self.wait_until_connected()
@@ -35,7 +38,7 @@ class Started(protocol.Started):
         return self.fake.send_event(msg)
 
 
-class FakePyDevd(protocol.Daemon):
+class FakePyDevd(protocol.MessageDaemon):
     """A testing double for PyDevd.
 
     Note that you have the option to provide a handler function.  This

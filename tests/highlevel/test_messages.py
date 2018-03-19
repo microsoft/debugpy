@@ -1875,7 +1875,7 @@ class ThreadEventTest(PyDevdEventTest):
         return self._tid
 
 
-class ThreadCreateTests(ThreadEventTest, unittest.TestCase):
+class ThreadCreateEventTests(ThreadEventTest, unittest.TestCase):
 
     CMD = CMD_THREAD_CREATE
     EVENT = 'thread'
@@ -1904,6 +1904,7 @@ class ThreadCreateTests(ThreadEventTest, unittest.TestCase):
         ])
         self.assert_received(self.debugger, [])
 
+    @unittest.skip('currently not supported')
     def test_attached(self):
         with self.attached(8888, process=False):
             with self.wait_for_event('process'):
@@ -1963,6 +1964,7 @@ class ThreadCreateTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
     def test_pydevd_name(self):
+        self.EVENT = None
         with self.launched():
             self.send_event(10, 'pydevd.spam')
             received = self.vsc.received
@@ -1971,6 +1973,7 @@ class ThreadCreateTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
     def test_ptvsd_name(self):
+        self.EVENT = None
         with self.launched():
             self.send_event(10, 'ptvsd.spam')
             received = self.vsc.received
@@ -2004,6 +2007,7 @@ class ThreadKillEventTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
     def test_unknown(self):
+        self.EVENT = None
         with self.launched():
             self.send_event(10)
             received = self.vsc.received
@@ -2012,6 +2016,7 @@ class ThreadKillEventTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
     def test_pydevd_name(self):
+        self.EVENT = None
         thread = (10, 'pydevd.spam')
         with self.launched():
             with self.hidden():
@@ -2023,6 +2028,7 @@ class ThreadKillEventTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
     def test_ptvsd_name(self):
+        self.EVENT = None
         thread = (10, 'ptvsd.spam')
         with self.launched():
             with self.hidden():
@@ -2049,7 +2055,7 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
         return self.debugger_msgs.format_frames(threadid, reason, *frames)
 
     def test_step_into(self):
-        thread = (10, '')
+        thread = (10, 'x')
         with self.launched():
             with self.hidden():
                 self.set_thread(thread)
@@ -2067,7 +2073,7 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
     def test_step_over(self):
-        thread = (10, '')
+        thread = (10, 'x')
         with self.launched():
             with self.hidden():
                 self.set_thread(thread)
@@ -2085,7 +2091,7 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
     def test_step_return(self):
-        thread = (10, '')
+        thread = (10, 'x')
         with self.launched():
             with self.hidden():
                 self.set_thread(thread)
@@ -2104,7 +2110,7 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
 
     def test_caught_exception(self):
         exc = RuntimeError('something went wrong')
-        thread = (10, '')
+        thread = (10, 'x')
         with self.launched():
             with self.hidden():
                 self.set_thread(thread)
@@ -2137,7 +2143,7 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
 
     def test_exception_break(self):
         exc = RuntimeError('something went wrong')
-        thread = (10, '')
+        thread = (10, 'x')
         with self.launched():
             with self.hidden():
                 self.set_thread(thread)
@@ -2169,7 +2175,7 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
         ])
 
     def test_suspend(self):
-        thread = (10, '')
+        thread = (10, 'x')
         with self.launched():
             with self.hidden():
                 self.set_thread(thread)
@@ -2187,7 +2193,7 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
     def test_unknown_reason(self):
-        thread = (10, '')
+        thread = (10, 'x')
         with self.launched():
             with self.hidden():
                 self.set_thread(thread)
@@ -2208,11 +2214,11 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
     # TODO: verify behavior
     @unittest.skip('poorly specified')
     def test_no_reason(self):
-        thread = (10, '')
+        thread = (10, 'x')
         with self.launched():
             with self.hidden():
                 self.set_thread(thread)
-            tid = self.send_event(10, '')
+            tid = self.send_event(10, 'x')
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
@@ -2228,7 +2234,7 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
     # TODO: verify behavior
     @unittest.skip('poorly specified')
     def test_str_reason(self):
-        thread = (10, '')
+        thread = (10, 'x')
         with self.launched():
             with self.hidden():
                 self.set_thread(thread)
@@ -2256,7 +2262,7 @@ class ThreadRunEventTests(ThreadEventTest, unittest.TestCase):
         return '{}\t{}'.format(threadid, reason)
 
     def test_basic(self):
-        thread = (10, '')
+        thread = (10, 'x')
         with self.launched():
             with self.hidden():
                 self.pause(thread, *[
