@@ -3,7 +3,7 @@
 # for license information.
 
 __author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
-__version__ = "4.0.0a1"
+__version__ = "4.0.0a2"
 
 import sys
 import os.path

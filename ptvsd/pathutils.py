@@ -10,7 +10,7 @@ import platform
 
 
 __author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
-__version__ = "4.0.0a1"
+__version__ = "4.0.0a2"
 
 MAX_FILES_TO_CACHE = 1000
 
