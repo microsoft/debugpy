@@ -85,8 +85,8 @@ class LivePyDevd(protocol.Daemon):
         if kind == 'file':
             return name, None, False
         elif kind == 'module':
-            parts = (name + '.py').split('.')
-            filename = os.path.join(*parts)
+            parts = (name).split('.')
+            filename = os.path.join(*parts) + '.py'
             return filename, name, False
         else:
             # TODO: Write source code to temp module?
