@@ -35,7 +35,7 @@ def get_pydevd_package_data():
                        if d.startswith('pydev') or d.startswith('_pydev')]
             files[:] = [f
                         for f in files
-                        if f.endswith('.py') and 'pydev' in f]
+                        if f.endswith('.py') and (f in ['setup_cython.py'] or 'pydev' in f)]
         dirs[:] = [d for d in dirs if d != '__pycache__']
         for f in files:
             yield os.path.join(root[len(ptvsd_prefix) + 1:], f)
