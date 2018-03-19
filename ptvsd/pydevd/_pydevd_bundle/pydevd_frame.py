@@ -50,7 +50,7 @@ def handle_breakpoint_condition(py_db, info, breakpoint, new_frame):
         sys.stderr.write(msg)
         traceback.print_exc()
         if not py_db.suspend_on_breakpoint_exception:
-            return default_return_value
+            return False
         else:
             stop = True
             try:

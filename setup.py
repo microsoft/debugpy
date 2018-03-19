@@ -6,13 +6,17 @@
 
 import os
 import os.path
+import subprocess
 import sys
 
 from setuptools import setup, Extension
 
+if not os.getenv('SKIP_CYTHON_BUILD'):
+    print('Compiling extension modules (set SKIP_CYTHON_BUILD=1 to omit)')
+    subprocess.check_call(
+        [sys.executable, 'ptvsd/pydevd/setup_cython.py', 'build_ext', '-i'])
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-
 
 # Add pydevd files as data files for this package. They are not treated
 # as a package of their own, because we don't actually want to provide
@@ -32,22 +36,13 @@ def get_pydevd_package_data():
             files[:] = [f
                         for f in files
                         if f.endswith('.py') and 'pydev' in f]
+        dirs[:] = [d for d in dirs if d != '__pycache__']
         for f in files:
             yield os.path.join(root[len(ptvsd_prefix) + 1:], f)
 
-
-cmdclass = {}
-
-if sys.version_info[0] == 2:
-    from setuptools.command.build_ext import build_ext
-
-    class build_optional_ext(build_ext):
-        def build_extension(self, ext):
-            try:
-                super(build_optional_ext, self).build_extension(ext)
-            except Exception:
-                pass
-    cmdclass = {'build_ext': build_optional_ext}
+PACKAGE_DATA = {
+    'ptvsd': list(get_pydevd_package_data()) + ['ThirdPartyNotices.txt']
+}
 
 setup(
     name='ptvsd',
@@ -65,15 +60,5 @@ setup(
         'License :: OSI Approved :: MIT License',
     ],
     packages=['ptvsd'],
-    package_data={
-        'ptvsd': list(get_pydevd_package_data()) + [
-            'ThirdPartyNotices.txt',
-         ],
-    },
-    ext_modules=[
-        Extension('ptvsd.pydevd._pydevd_bundle.pydevd_cython',
-                  ['ptvsd/pydevd/_pydevd_bundle/pydevd_cython.c'],
-                  optional=True),
-    ],
-    cmdclass=cmdclass,
+    package_data=PACKAGE_DATA,
 )
