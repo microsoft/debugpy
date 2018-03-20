@@ -9,7 +9,8 @@ import os.path
 import subprocess
 import sys
 
-from setuptools import setup, Extension
+from setuptools import setup
+
 
 if not os.getenv('SKIP_CYTHON_BUILD'):
     print('Compiling extension modules (set SKIP_CYTHON_BUILD=1 to omit)')
@@ -17,6 +18,7 @@ if not os.getenv('SKIP_CYTHON_BUILD'):
         [sys.executable, 'ptvsd/pydevd/setup_cython.py', 'build_ext', '-i'])
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
+
 
 # Add pydevd files as data files for this package. They are not treated
 # as a package of their own, because we don't actually want to provide
@@ -35,13 +37,14 @@ def get_pydevd_package_data():
                        if d.startswith('pydev') or d.startswith('_pydev')]
             files[:] = [f
                         for f in files
-                        if f.endswith('.py') and (f in ['setup_cython.py'] or 'pydev' in f)]
+                        if f.endswith('.py') and (f in ['setup_cython.py'] or 'pydev' in f)]  # noqa
         dirs[:] = [d for d in dirs if d != '__pycache__']
         for f in files:
             yield os.path.join(root[len(ptvsd_prefix) + 1:], f)
 
+
 PACKAGE_DATA = {
-    'ptvsd': list(get_pydevd_package_data()) + ['ThirdPartyNotices.txt']
+    'ptvsd': list(get_pydevd_package_data()) + ['ThirdPartyNotices.txt'],
 }
 
 setup(

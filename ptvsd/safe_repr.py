@@ -34,7 +34,7 @@ class SafeRepr(object):
         string_types = (str, unicode)
         set_info = (set, 'set([', '])', False)
         frozenset_info = (frozenset, 'frozenset([', '])', False)
-        int_types = (int, long)
+        int_types = (int, long)  # noqa
 
     # Collection types are recursively iterated for each limit in
     # maxcollection.
@@ -95,16 +95,19 @@ class SafeRepr(object):
 
         for t, prefix, suffix, comma in self.collection_types:
             if isinstance(obj, t) and has_obj_repr(t):
-                return self._repr_iter(obj, level, prefix, suffix, comma, convert_to_hex=convert_to_hex)
+                return self._repr_iter(obj, level, prefix, suffix, comma,
+                                       convert_to_hex=convert_to_hex)
 
         for t, prefix, suffix, item_prefix, item_sep, item_suffix in self.dict_types:  # noqa
             if isinstance(obj, t) and has_obj_repr(t):
                 return self._repr_dict(obj, level, prefix, suffix,
-                                       item_prefix, item_sep, item_suffix, convert_to_hex=convert_to_hex)
+                                       item_prefix, item_sep, item_suffix,
+                                       convert_to_hex=convert_to_hex)
 
         for t in self.string_types:
             if isinstance(obj, t) and has_obj_repr(t):
-                return self._repr_str(obj, level, convert_to_hex=convert_to_hex)
+                return self._repr_str(obj, level,
+                                      convert_to_hex=convert_to_hex)
 
         if self._is_long_iter(obj):
             return self._repr_long_iter(obj, convert_to_hex=convert_to_hex)
@@ -184,7 +187,7 @@ class SafeRepr(object):
                     yield '...'
                     break
 
-                for p in self._repr(item, 100 if item is obj else level + 1, convert_to_hex=convert_to_hex):
+                for p in self._repr(item, 100 if item is obj else level + 1, convert_to_hex=convert_to_hex):  # noqa
                     yield p
             else:
                 if comma_after_single_element:
@@ -243,7 +246,7 @@ class SafeRepr(object):
             except Exception:
                 yield '<?>'
             else:
-                for p in self._repr(item, 100 if item is obj else level + 1, convert_to_hex=convert_to_hex):
+                for p in self._repr(item, 100 if item is obj else level + 1, convert_to_hex=convert_to_hex):  # noqa
                     yield p
             yield item_suffix
 
@@ -251,13 +254,16 @@ class SafeRepr(object):
 
     def _repr_str(self, obj, level, convert_to_hex=False):
         return self._repr_obj(obj, level,
-                              self.maxstring_inner, self.maxstring_outer, convert_to_hex=convert_to_hex)
+                              self.maxstring_inner, self.maxstring_outer,
+                              convert_to_hex=convert_to_hex)
 
     def _repr_other(self, obj, level, convert_to_hex=False):
         return self._repr_obj(obj, level,
-                              self.maxother_inner, self.maxother_outer, convert_to_hex=convert_to_hex)
+                              self.maxother_inner, self.maxother_outer,
+                              convert_to_hex=convert_to_hex)
 
-    def _repr_obj(self, obj, level, limit_inner, limit_outer, convert_to_hex=False):
+    def _repr_obj(self, obj, level, limit_inner, limit_outer,
+                  convert_to_hex=False):
         try:
             if isinstance(obj, self.int_types) and convert_to_hex:
                 obj_repr = hex(obj)
