@@ -1350,7 +1350,7 @@ def _start(client, server, killonclose=True, addhandlers=True):
 
 
 def _add_atexit_handler(proc, server_thread):
-    def handler(proc, server_thread):
+    def handler():
         proc.close()
         if server_thread.is_alive():
             server_thread.join(WAIT_FOR_THREAD_FINISH_TIMEOUT)
