@@ -6,6 +6,13 @@ from . import socket
 from .counter import Counter
 
 
+try:
+    BrokenPipeError
+except NameError:
+    class BrokenPipeError(Exception):
+        pass
+
+
 class StreamFailure(Exception):
     """Something went wrong while handling messages to/from a stream."""
 
@@ -250,6 +257,8 @@ class MessageDaemon(Daemon):
             # TODO: try reconnecting?
             raise
         except OSError as exc:
+            if exc.errno in (errno.EPIPE, errno.ESHUTDOWN):  # BrokenPipeError
+                return
             if exc.errno == 9:  # socket closed
                 return
             if exc.errno == errno.EBADF:  # socket closed
