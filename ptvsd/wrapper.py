@@ -258,7 +258,7 @@ class PydevdSocket(object):
         return self._vscprocessor.socket.getpeername()
 
     def getsockname(self):
-        """Return the socket’s own address."""
+        """Return the socket's own address."""
         if self._vscprocessor is None:
             raise NotImplementedError
         return self._vscprocessor.socket.getsockname()
