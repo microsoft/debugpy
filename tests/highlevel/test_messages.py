@@ -182,7 +182,7 @@ class NormalRequestTest(RunningTest):
             self._next_request(),
             err,
             seq=None,
-            **body,
+            **body
         )
 
     def expected_pydevd_request(self, *args):
