@@ -1016,6 +1016,36 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.send_response(request, **response)
 
     @async_handler
+    def on_setExpression(self, request, args):
+        # TODO: docstring
+
+        vsc_fid = int(args['frameId'])
+        pyd_tid, pyd_fid = self.frame_map.to_pydevd(vsc_fid)
+
+        safe_repr_provider.set_format(
+            self._extract_format(args))
+
+        lhs_expr = args.get('expression')
+        rhs_expr = args.get('value')
+        expr = '%s = %s' % (lhs_expr, rhs_expr)
+
+        # pydevd message format doesn't permit tabs in expressions
+        expr = expr.replace('\t', ' ')
+
+        cmd_args = (pyd_tid, pyd_fid, 'LOCAL', expr, '1')
+        msg = '\t'.join(str(s) for s in cmd_args)
+        _, _, _ = yield self.pydevd_request(
+            pydevd_comm.CMD_EXEC_EXPRESSION,
+            msg)
+
+        # Reset hex format since this is per request.
+        safe_repr_provider.convert_to_hex = False
+        # Return 'None' here, VS will call getVariables to retrieve
+        # updated values anyway. Doing eval on the left-hand-side
+        # expression may have side-effects
+        self.send_response(request, value=None)
+
+    @async_handler
     def on_pause(self, request, args):
         # TODO: docstring
 
