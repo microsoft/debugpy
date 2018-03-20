@@ -6,6 +6,7 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_ADD_EXCEPTION_BREAK,
     CMD_CHANGE_VARIABLE,
     CMD_EVALUATE_EXPRESSION,
+    CMD_EXEC_EXPRESSION,
     CMD_EXIT,
     CMD_GET_BREAKPOINT_EXCEPTION,
     CMD_GET_FRAME,
@@ -181,7 +182,7 @@ class NormalRequestTest(RunningTest):
             self._next_request(),
             err,
             seq=None,
-            **body,
+            **body
         )
 
     def expected_pydevd_request(self, *args):
@@ -466,16 +467,19 @@ class VariablesTests(NormalRequestTest, unittest.TestCase):
                         'name': 'x',
                         'type': 'int',
                         'value': '1',
+                        'evaluateName': 'spam.x',
                     },
                     {
                         'name': 'y',
                         'type': 'int',
                         'value': '2',
+                        'evaluateName': 'spam.y',
                     },
                     {
                         'name': 'z',
                         'type': 'int',
                         'value': '3',
+                        'evaluateName': 'spam.z',
                     },
                 ],
             ),
@@ -518,6 +522,14 @@ class SetVariableTests(NormalRequestTest, unittest.TestCase):
                     1,  # matches frame locals
                     ('spam', 42),
                 )
+            self.PYDEVD_CMD = CMD_EXEC_EXPRESSION
+            self.PYDEVD_RESP = CMD_EVALUATE_EXPRESSION
+            expected = self.expected_pydevd_request(
+                '10\t2\tLOCAL\tspam = eggs\t1')
+            self.set_debugger_response(
+                ('spam', 'eggs'),
+            )
+            self.PYDEVD_CMD = CMD_EVALUATE_EXPRESSION
             self.set_debugger_response(
                 ('spam', 'eggs'),
             )
@@ -536,7 +548,8 @@ class SetVariableTests(NormalRequestTest, unittest.TestCase):
             # no events
         ])
         self.assert_received(self.debugger, [
-            self.expected_pydevd_request('10\t2\tFRAME\tspam\teggs'),
+            expected,
+            self.expected_pydevd_request('10\t2\tLOCAL\tspam\t1'),
         ])
 
     def test_container(self):
@@ -552,6 +565,14 @@ class SetVariableTests(NormalRequestTest, unittest.TestCase):
                     1,  # matches frame locals
                     ('spam', {'x': 1}),
                 )
+            self.PYDEVD_CMD = CMD_EXEC_EXPRESSION
+            self.PYDEVD_RESP = CMD_EVALUATE_EXPRESSION
+            expected = self.expected_pydevd_request(
+                '10\t2\tLOCAL\tspam.x = 2\t1')
+            self.set_debugger_response(
+                ('x', 2),
+            )
+            self.PYDEVD_CMD = CMD_EVALUATE_EXPRESSION
             self.set_debugger_response(
                 ('x', 2),
             )
@@ -570,7 +591,8 @@ class SetVariableTests(NormalRequestTest, unittest.TestCase):
             # no events
         ])
         self.assert_received(self.debugger, [
-            self.expected_pydevd_request('10\t2\tFRAME\tspam\tx\t2'),
+            expected,
+            self.expected_pydevd_request('10\t2\tLOCAL\tspam.x\t1'),
         ])
 
 

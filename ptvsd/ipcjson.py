@@ -41,6 +41,9 @@ else:
     def to_bytes(cmd_str):
         return cmd_str
 
+    class BrokenPipeError(Exception):
+        pass
+
 
 def _trace(*msg):
     if _TRACE:
@@ -100,7 +103,9 @@ class SocketIO(object):
         except BrokenPipeError:
             pass
         except OSError as exc:
-            if exc.errno not in (errno.ENOTCONN, errno.EBADF):
+            if exc.errno in (errno.EPIPE, errno.ESHUTDOWN):  # BrokenPipeError
+                pass
+            elif exc.errno not in (errno.ENOTCONN, errno.EBADF):
                 raise
 
     def _buffered_read_line_as_ascii(self):

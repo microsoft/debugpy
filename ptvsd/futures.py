@@ -154,7 +154,7 @@ def wrap_async(f):
                         x = it.send(fut.result())
             except StopIteration:
                 result.set_result(None)
-            except BaseException as ex:
+            except BaseException:
                 result.set_exc_info(sys.exc_info())
             else:
                 if isinstance(x, Result):

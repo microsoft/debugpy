@@ -64,7 +64,11 @@ class SafeReprPresentationProvider(pydevd_extapi.StrPresentationProvider):
 
     def get_str(self, val):
         return self.safe_repr(val, self.convert_to_hex)
-            
+
+    def set_format(self, fmt):
+        self.convert_to_hex = fmt['hex']
+
+
 # Register our presentation provider as the first item on the list,
 # so that we're in full control of presentation.
 str_handlers = pydevd_extutil.EXTENSION_MANAGER_INSTANCE.type_to_instance.setdefault(pydevd_extapi.StrPresentationProvider, [])  # noqa
@@ -254,7 +258,7 @@ class PydevdSocket(object):
         return self._vscprocessor.socket.getpeername()
 
     def getsockname(self):
-        """Return the socket’s own address."""
+        """Return the socket's own address."""
         if self._vscprocessor is None:
             raise NotImplementedError
         return self._vscprocessor.socket.getsockname()
@@ -799,13 +803,19 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         }
         self.send_response(request, scopes=[scope])
 
+    def _extract_format(self, args):
+        fmt = args.get('format', {})
+        fmt.setdefault('hex', False)
+        return fmt
+
     @async_handler
     def on_variables(self, request, args):
         # TODO: docstring
         vsc_var = int(args['variablesReference'])
         pyd_var = self.var_map.to_pydevd(vsc_var)
-        
-        safe_repr_provider.convert_to_hex = args.get('format', {}).get('hex', False)
+
+        safe_repr_provider.set_format(
+            self._extract_format(args))
 
         if len(pyd_var) == 3:
             cmd = pydevd_comm.CMD_GET_FRAME
@@ -851,33 +861,35 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         eval_name = None
         if len(pyd_var_parent) > 3:
             # This means the current variable has a parent i.e, it is not a
-            # FRAME variable. These require evaluateName to work in VS 
+            # FRAME variable. These require evaluateName to work in VS
             # watch window
             var = pyd_var_parent + (var_name,)
             eval_name = var[3]
             for s in var[4:]:
                 try:
                     # Check and get the dictionary key or list index.
-                    # Note: this is best effort, keys that are object references
-                    # will not work
+                    # Note: this is best effort, keys that are object
+                    # references will not work
                     i = self.__get_index_or_key(s)
                     eval_name += '[{}]'.format(i)
-                except:
+                except Exception:
                     eval_name += '.' + s
 
         return eval_name
 
     def __get_index_or_key(self, text):
-        # Dictionary resolver in pydevd provides key in '<repr> (<hash>)' format
-        result = re.match(r"(.*)\ \(([0-9]*)\)", text, re.IGNORECASE | re.UNICODE)
+        # Dictionary resolver in pydevd provides key
+        # in '<repr> (<hash>)' format
+        result = re.match(r"(.*)\ \(([0-9]*)\)", text,
+                          re.IGNORECASE | re.UNICODE)
         if result and len(result.groups()) == 2:
             try:
                 # check if group 2 is a hash
                 int(result.group(2))
                 return result.group(1)
-            except:
+            except Exception:
                 pass
-        # In the result XML from pydevd list indexes appear 
+        # In the result XML from pydevd list indexes appear
         # as names. If the name is a number then it is a index.
         return int(text)
 
@@ -885,10 +897,10 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     def on_setVariable(self, request, args):
         vsc_var = int(args['variablesReference'])
         pyd_var = self.var_map.to_pydevd(vsc_var)
-        
+
         var_name = args['name']
         var_value = args['value']
-        
+
         lhs_expr = self.__get_variable_evaluate_name(pyd_var, var_name)
         if not lhs_expr:
             lhs_expr = var_name
@@ -899,7 +911,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         pyd_tid = str(pyd_var[0])
         pyd_fid = str(pyd_var[1])
 
-        safe_repr_provider.convert_to_hex = args.get('format', {}).get('hex', False)
+        safe_repr_provider.set_format(
+            self._extract_format(args))
 
         # VSC gives us variablesReference to the parent of the variable
         # being set, and variable name; but pydevd wants the ID
@@ -928,11 +941,11 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         }
         if bool(xvar['isContainer']):
             response['variablesReference'] = vsc_var
-        
+
         # Reset hex format since this is per request.
         safe_repr_provider.convert_to_hex = False
         self.send_response(request, **response)
-    
+
     @async_handler
     def on_evaluate(self, request, args):
         # pydevd message format doesn't permit tabs in expressions
@@ -941,8 +954,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         vsc_fid = int(args['frameId'])
         pyd_tid, pyd_fid = self.frame_map.to_pydevd(vsc_fid)
 
-        safe_repr_provider.convert_to_hex = args.get('format', {}).get('hex', False)
-        
+        safe_repr_provider.set_format(
+            self._extract_format(args))
+
         cmd_args = (pyd_tid, pyd_fid, 'LOCAL', expr, '1')
         msg = '\t'.join(str(s) for s in cmd_args)
         _, _, resp_args = yield self.pydevd_request(
@@ -971,14 +985,18 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 xvar2 = xml2.var
                 result_type  = unquote(xvar2['type'])
                 result = unquote(xvar2['value'])
-            except:
+            except Exception:
                 # if resp_args is not xml then it contains the error traceback
                 result_type  = unquote(xvar['type'])
                 result = unquote(xvar['value'])
-            self.send_response(request,
-                result=None if result=='None' and result_type=='NoneType' else result,
+            self.send_response(
+                request,
+                result=(None
+                        if result == 'None' and result_type == 'NoneType'
+                        else result),
                 type=result_type,
-                variablesReference=0)
+                variablesReference=0,
+            )
             return
 
         pyd_var = (pyd_tid, pyd_fid, 'EXPRESSION', expr)
@@ -989,7 +1007,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         }
         if bool(xvar['isContainer']):
             response['variablesReference'] = vsc_var
-        
+
         # Reset hex format since this is per request.
         safe_repr_provider.convert_to_hex = False
         self.send_response(request, **response)
@@ -1383,4 +1401,3 @@ def start_client(host, port, addhandlers=True):
 # These are the functions pydevd invokes to get a socket to the client.
 pydevd_comm.start_server = start_server
 pydevd_comm.start_client = start_client
-

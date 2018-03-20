@@ -55,6 +55,7 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
                 supportsConfigurationDoneRequest=True,
                 supportsConditionalBreakpoints=True,
                 supportsSetVariable=True,
+                supportsValueFormattingOptions=True,
                 supportsExceptionOptions=True,
                 exceptionBreakpointFilters=[
                     {
@@ -117,6 +118,7 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
                 supportsConfigurationDoneRequest=True,
                 supportsConditionalBreakpoints=True,
                 supportsSetVariable=True,
+                supportsValueFormattingOptions=True,
                 supportsExceptionOptions=True,
                 exceptionBreakpointFilters=[
                     {
