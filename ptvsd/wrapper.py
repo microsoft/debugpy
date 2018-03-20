@@ -312,7 +312,7 @@ class PydevdSocket(object):
 
     def pydevd_notify(self, cmd_id, args):
         # TODO: docstring
-        seq, s = self.make_packet(cmd_id, args)
+        _, s = self.make_packet(cmd_id, args)
         os.write(self.pipe_w, s.encode('utf8'))
 
     def pydevd_request(self, loop, cmd_id, args):
@@ -627,6 +627,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             supportsExceptionOptions=True,
             supportsEvaluateForHovers=True,
             supportsValueFormattingOptions=True,
+            supportsSetExpression=True,
             exceptionBreakpointFilters=[
                 {
                     'filter': 'raised',
@@ -979,7 +980,6 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
         if context == 'repl' and is_eval_error == 'True':
             # try exec for repl requests
-            cmd_args = (pyd_tid, pyd_fid, 'LOCAL', expr, '1')
             _, _, resp_args = yield self.pydevd_request(
                 pydevd_comm.CMD_EXEC_EXPRESSION,
                 msg)
@@ -1254,7 +1254,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_RUN)
     def on_pydevd_thread_run(self, seq, args):
         # TODO: docstring
-        pyd_tid, reason = args.split('\t')
+        pyd_tid, _ = args.split('\t')
         pyd_tid = pyd_tid.strip()
 
         # Stack trace, active exception, all frames, and variables for

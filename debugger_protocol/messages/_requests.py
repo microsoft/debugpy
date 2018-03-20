@@ -79,6 +79,7 @@ class Capabilities(FieldsNamespace):
         Field('supportTerminateDebuggee', bool),
         Field('supportsDelayedStackTraceLoading', bool),
         Field('supportsLoadedSourcesRequest', bool),
+        Field('supportsSetExpression', bool),
     ]
 
 
