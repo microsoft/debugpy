@@ -4,7 +4,7 @@
 
 
 __author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
-__version__ = "4.0.0a2"
+__version__ = "4.0.0a3"
 
 
 if __name__ == '__main__':

@@ -49,7 +49,7 @@ PACKAGE_DATA = {
 
 setup(
     name='ptvsd',
-    version='4.0.0a2',
+    version='4.0.0a3',
     description='Visual Studio remote debugging server for Python',
     license='MIT',
     author='Microsoft Corporation',
