@@ -7,6 +7,7 @@ import unittest
 
 TEST_ROOT = os.path.dirname(__file__)
 PROJECT_ROOT = os.path.dirname(TEST_ROOT)
+PYDEVD_ROOT = os.path.join(PROJECT_ROOT, 'ptvsd', 'pydevd')
 
 
 def convert_argv(argv):
@@ -87,11 +88,10 @@ def convert_argv(argv):
 
 
 def fix_sys_path():
-    pydevdroot = os.path.join(PROJECT_ROOT, 'ptvsd', 'pydevd')
     if not sys.path[0] or sys.path[0] == '.':
-        sys.path.insert(1, pydevdroot)
+        sys.path.insert(1, PYDEVD_ROOT)
     else:
-        sys.path.insert(0, pydevdroot)
+        sys.path.insert(0, PYDEVD_ROOT)
 
 
 def check_lint():
@@ -121,6 +121,8 @@ def run_tests(argv, env, coverage=False):
             '--omit', 'ptvsd/pydevd/*.py',
             '-m', 'unittest',
         ] + argv[1:]
+        assert 'PYTHONPATH' not in env
+        env['PYTHONPATH'] = PYDEVD_ROOT
         rc = subprocess.call(args, env=env)
         if rc != 0:
             print('...coverage failed!')
