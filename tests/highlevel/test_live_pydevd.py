@@ -124,6 +124,7 @@ class LifecycleTests(TestBase, unittest.TestCase):
                     },
                 ],
                 supportsEvaluateForHovers=True,
+                supportsSetExpression=True,
             )),
             self.new_event('initialized'),
             self.new_response(req_attach),
