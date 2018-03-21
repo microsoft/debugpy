@@ -140,6 +140,10 @@
 								"type": "integer",
 								"description": "The thread which was stopped."
 							},
+							"preserveFocusHint": {
+								"type": "boolean",
+								"description": "A value of true hints to the frontend that this event should not change the focus."
+							},
 							"text": {
 								"type": "string",
 								"description": "Additional information. E.g. if reason is 'exception', text contains the exception name. This string is shown in the UI."
@@ -222,7 +226,7 @@
 						"properties": {
 							"restart": {
 								"type": [ "array", "boolean", "integer", "null", "number", "object", "string" ],
-								"description": "A debug adapter may set 'restart' to true (or to an arbitrary object) to request that the front end restarts the session.\nThe value is not interpreted by the client and passed unmodified as an attribute '__restart' to the launchRequest."
+								"description": "A debug adapter may set 'restart' to true (or to an arbitrary object) to request that the front end restarts the session.\nThe value is not interpreted by the client and passed unmodified as an attribute '__restart' to the 'launch' and 'attach' requests."
 							}
 						}
 					}
@@ -578,6 +582,10 @@
 					"type": "string",
 					"description": "The ID of the (frontend) client using this adapter."
 				},
+				"clientName": {
+					"type": "string",
+					"description": "The human readable name of the (frontend) client using this adapter."
+				},
 				"adapterID": {
 					"type": "string",
 					"description": "The ID of the debug adapter."
@@ -672,11 +680,15 @@
 		},
 		"LaunchRequestArguments": {
 			"type": "object",
-			"description": "Arguments for 'launch' request.",
+			"description": "Arguments for 'launch' request. Additional attributes are implementation specific.",
 			"properties": {
 				"noDebug": {
 					"type": "boolean",
 					"description": "If noDebug is true the launch request should launch the program without enabling debugging."
+				},
+				"__restart": {
+					"type": [ "array", "boolean", "integer", "null", "number", "object", "string" ],
+					"description": "Optional data from the previous, restarted session.\nThe data is sent as the 'restart' attribute of the 'terminated' event.\nThe client should leave the data intact."
 				}
 			}
 		},
@@ -705,7 +717,13 @@
 		},
 		"AttachRequestArguments": {
 			"type": "object",
-			"description": "Arguments for 'attach' request.\nThe attach request has no standardized attributes."
+			"description": "Arguments for 'attach' request. Additional attributes are implementation specific.",
+			"properties": {
+				"__restart": {
+					"type": [ "array", "boolean", "integer", "null", "number", "object", "string" ],
+					"description": "Optional data from the previous, restarted session.\nThe data is sent as the 'restart' attribute of the 'terminated' event.\nThe client should leave the data intact."
+				}
+			}
 		},
 		"AttachResponse": {
 			"allOf": [ { "$ref": "#/definitions/Response" }, {
@@ -1113,7 +1131,7 @@
 			"properties": {
 				"threadId": {
 					"type": "integer",
-					"description": "Exceute 'stepBack' for this thread."
+					"description": "Execute 'stepBack' for this thread."
 				}
 			},
 			"required": [ "threadId" ]
@@ -1147,7 +1165,7 @@
 			"properties": {
 				"threadId": {
 					"type": "integer",
-					"description": "Exceute 'reverseContinue' for this thread."
+					"description": "Execute 'reverseContinue' for this thread."
 				}
 			},
 			"required": [ "threadId" ]
@@ -1614,6 +1632,42 @@
 			}]
 		},
 
+		"TerminateThreadsRequest": {
+			"allOf": [ { "$ref": "#/definitions/Request" }, {
+				"type": "object",
+				"description": "Terminate thread request; value of command field is 'terminateThreads'.\nThe request terminates the threads with the given ids.",
+				"properties": {
+					"command": {
+						"type": "string",
+						"enum": [ "terminateThreads" ]
+					},
+					"arguments": {
+						"$ref": "#/definitions/TerminateThreadsArguments"
+					}
+				},
+				"required": [ "command", "arguments" ]
+			}]
+		},
+		"TerminateThreadsArguments": {
+			"type": "object",
+			"description": "Arguments for 'terminateThreads' request.",
+			"properties": {
+				"threadIds": {
+					"type": "array",
+					"items": {
+						"type": "integer"
+					},
+					"description": "Ids of threads to be terminated."
+				}
+			}
+		},
+		"TerminateThreadsResponse": {
+			"allOf": [ { "$ref": "#/definitions/Response" }, {
+				"type": "object",
+				"description": "Response to 'terminateThreads' request. This is just an acknowledgement, so no body field is required."
+			}]
+		},
+
 		"ModulesRequest": {
 			"allOf": [ { "$ref": "#/definitions/Request" }, {
 				"type": "object",
@@ -1627,7 +1681,7 @@
 						"$ref": "#/definitions/ModulesArguments"
 					}
 				},
-				"required": [ "command", "arguments"  ]
+				"required": [ "command", "arguments" ]
 			}]
 		},
 		"ModulesArguments": {
@@ -1793,6 +1847,85 @@
 							}
 						},
 						"required": [ "result", "variablesReference" ]
+					}
+				},
+				"required": [ "body" ]
+			}]
+		},
+
+		"SetExpressionRequest": {
+			"allOf": [ { "$ref": "#/definitions/Request" }, {
+				"type": "object",
+				"description": "SetExpression request; value of command field is 'setExpression'.\nEvaluates the given 'value' expression and assigns it to the 'expression' which must be a modifiable l-value.\nThe expressions have access to any variables and arguments that are in scope of the specified frame.",
+				"properties": {
+					"command": {
+						"type": "string",
+						"enum": [ "setExpression" ]
+					},
+					"arguments": {
+						"$ref": "#/definitions/SetExpressionArguments"
+					}
+				},
+				"required": [ "command", "arguments"  ]
+			}]
+		},
+		"SetExpressionArguments": {
+			"type": "object",
+			"description": "Arguments for 'setExpression' request.",
+			"properties": {
+				"expression": {
+					"type": "string",
+					"description": "The l-value expression to assign to."
+				},
+				"value": {
+					"type": "string",
+					"description": "The value expression to assign to the l-value expression."
+				},
+				"frameId": {
+					"type": "integer",
+					"description": "Evaluate the expressions in the scope of this stack frame. If not specified, the expressions are evaluated in the global scope."
+				},
+				"format": {
+					"$ref": "#/definitions/ValueFormat",
+					"description": "Specifies how the resulting value should be formatted."
+				}
+			},
+			"required": [ "expression", "value" ]
+		},
+		"SetExpressionResponse": {
+			"allOf": [ { "$ref": "#/definitions/Response" }, {
+				"type": "object",
+				"description": "Response to 'setExpression' request.",
+				"properties": {
+					"body": {
+						"type": "object",
+						"properties": {
+							"value": {
+								"type": "string",
+								"description": "The new value of the expression."
+							},
+							"type": {
+								"type": "string",
+								"description": "The optional type of the value."
+							},
+							"presentationHint": {
+								"$ref": "#/definitions/VariablePresentationHint",
+								"description": "Properties of a value that can be used to determine how to render the result in the UI."
+							},
+							"variablesReference": {
+								"type": "number",
+								"description": "If variablesReference is > 0, the value is structured and its children can be retrieved by passing variablesReference to the VariablesRequest."
+							},
+							"namedVariables": {
+								"type": "number",
+								"description": "The number of named child variables.\nThe client can use this optional information to present the variables in a paged UI and fetch them in chunks."
+							},
+							"indexedVariables": {
+								"type": "number",
+								"description": "The number of indexed child variables.\nThe client can use this optional information to present the variables in a paged UI and fetch them in chunks."
+							}
+						},
+						"required": [ "value" ]
 					}
 				},
 				"required": [ "body" ]
@@ -2034,7 +2167,7 @@
 			"properties": {
 				"supportsConfigurationDoneRequest": {
 					"type": "boolean",
-					"description": "The debug adapter supports the configurationDoneRequest."
+					"description": "The debug adapter supports the 'configurationDone' request."
 				},
 				"supportsFunctionBreakpoints": {
 					"type": "boolean",
@@ -2061,7 +2194,7 @@
 				},
 				"supportsStepBack": {
 					"type": "boolean",
-					"description": "The debug adapter supports stepping back via the stepBack and reverseContinue requests."
+					"description": "The debug adapter supports stepping back via the 'stepBack' and 'reverseContinue' requests."
 				},
 				"supportsSetVariable": {
 					"type": "boolean",
@@ -2073,19 +2206,19 @@
 				},
 				"supportsGotoTargetsRequest": {
 					"type": "boolean",
-					"description": "The debug adapter supports the gotoTargetsRequest."
+					"description": "The debug adapter supports the 'gotoTargets' request."
 				},
 				"supportsStepInTargetsRequest": {
 					"type": "boolean",
-					"description": "The debug adapter supports the stepInTargetsRequest."
+					"description": "The debug adapter supports the 'stepInTargets' request."
 				},
 				"supportsCompletionsRequest": {
 					"type": "boolean",
-					"description": "The debug adapter supports the completionsRequest."
+					"description": "The debug adapter supports the 'completions' request."
 				},
 				"supportsModulesRequest": {
 					"type": "boolean",
-					"description": "The debug adapter supports the modules request."
+					"description": "The debug adapter supports the 'modules' request."
 				},
 				"additionalModuleColumns": {
 					"type": "array",
@@ -2103,7 +2236,7 @@
 				},
 				"supportsRestartRequest": {
 					"type": "boolean",
-					"description": "The debug adapter supports the RestartRequest. In this case a client should not implement 'restart' by terminating and relaunching the adapter but by calling the RestartRequest."
+					"description": "The debug adapter supports the 'restart' request. In this case a client should not implement 'restart' by terminating and relaunching the adapter but by calling the RestartRequest."
 				},
 				"supportsExceptionOptions": {
 					"type": "boolean",
@@ -2115,7 +2248,7 @@
 				},
 				"supportsExceptionInfoRequest": {
 					"type": "boolean",
-					"description": "The debug adapter supports the exceptionInfo request."
+					"description": "The debug adapter supports the 'exceptionInfo' request."
 				},
 				"supportTerminateDebuggee": {
 					"type": "boolean",
@@ -2132,6 +2265,14 @@
 				"supportsLogPoints": {
 					"type": "boolean",
 					"description": "The debug adapter supports logpoints by interpreting the 'logMessage' attribute of the SourceBreakpoint."
+				},
+				"supportsTerminateThreadsRequest": {
+					"type": "boolean",
+					"description": "The debug adapter supports the 'terminateThreads' request."
+				},
+				"supportsSetExpression": {
+					"type": "boolean",
+					"description": "The debug adapter supports the 'setExpression' request."
 				}
 			}
 		},
