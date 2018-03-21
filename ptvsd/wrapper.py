@@ -5,6 +5,7 @@
 from __future__ import print_function, absolute_import
 
 import atexit
+import contextlib
 import errno
 import os
 import platform
@@ -33,6 +34,7 @@ import ptvsd.ipcjson as ipcjson  # noqa
 import ptvsd.futures as futures  # noqa
 import ptvsd.untangle as untangle  # noqa
 from ptvsd.pathutils import PathUnNormcase  # noqa
+from ptvsd.safe_repr import SafeRepr # noqa
 
 
 __author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
@@ -54,26 +56,47 @@ class SafeReprPresentationProvider(pydevd_extapi.StrPresentationProvider):
     to SafeRepr.
     """
 
+    _lock = threading.Lock()
+
     def __init__(self):
-        from ptvsd.safe_repr import SafeRepr
-        self.safe_repr = SafeRepr()
-        self.convert_to_hex = False
+        self.set_format({})
 
     def can_provide(self, type_object, type_name):
+        """Implements StrPresentationProvider."""
         return True
 
     def get_str(self, val):
-        return self.safe_repr(val, self.convert_to_hex)
+        """Implements StrPresentationProvider."""
+        return self._repr(val)
 
     def set_format(self, fmt):
-        self.convert_to_hex = fmt['hex']
+        """
+        Use fmt for all future formatting operations done by this provider.
+        """
+        safe_repr = SafeRepr()
+        safe_repr.convert_to_hex = fmt.get('hex', False)
+        safe_repr.raw_value = fmt.get('rawString', False)
+        self._repr = safe_repr
 
+    @contextlib.contextmanager
+    def using_format(self, fmt):
+        """
+        Returns a context manager that invokes set_format(fmt) on enter,
+        and restores the old format on exit.
+        """
+        old_repr = self._repr
+        self.set_format(fmt)
+        yield
+        self._repr = old_repr
+
+
+# Do not access directly - use safe_repr_provider() instead!
+SafeReprPresentationProvider._instance = SafeReprPresentationProvider()
 
 # Register our presentation provider as the first item on the list,
 # so that we're in full control of presentation.
 str_handlers = pydevd_extutil.EXTENSION_MANAGER_INSTANCE.type_to_instance.setdefault(pydevd_extapi.StrPresentationProvider, [])  # noqa
-safe_repr_provider = SafeReprPresentationProvider()
-str_handlers.insert(0, safe_repr_provider)
+str_handlers.insert(0, SafeReprPresentationProvider._instance)
 
 
 class UnsupportedPyDevdCommandError(Exception):
@@ -594,8 +617,17 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             raise UnsupportedPyDevdCommandError(cmd_id)
         return f(self, seq, args)
 
+    def async_method(m):
+        """Converts a generator method into an async one."""
+        m = futures.wrap_async(m)
+
+        def f(self, *args, **kwargs):
+            return m(self, self.loop, *args, **kwargs)
+
+        return f
+
     def async_handler(m):
-        # TODO: docstring
+        """Converts a generator method into a fire-and-forget async one."""
         m = futures.wrap_async(m)
 
         def f(self, *args, **kwargs):
@@ -610,6 +642,24 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             fut.add_done_callback(done)
 
         return f
+
+    def sleep(self):
+        fut = futures.Future(self.loop)
+        self.loop.call_soon(lambda: fut.set_result(None))
+        return fut
+
+    @async_method
+    def using_format(self, fmt):
+        while not SafeReprPresentationProvider._lock.acquire(False):
+            yield self.sleep()
+        provider = SafeReprPresentationProvider._instance
+
+        @contextlib.contextmanager
+        def context():
+            with provider.using_format(fmt):
+                yield
+            provider._lock.release()
+        yield futures.Result(context())
 
     @async_handler
     def on_initialize(self, request, args):
@@ -807,19 +857,14 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         }
         self.send_response(request, scopes=[scope])
 
-    def _extract_format(self, args):
-        fmt = args.get('format', {})
-        fmt.setdefault('hex', False)
-        return fmt
-
     @async_handler
     def on_variables(self, request, args):
-        # TODO: docstring
-        vsc_var = int(args['variablesReference'])
-        pyd_var = self.var_map.to_pydevd(vsc_var)
+        """Handles DAP VariablesRequest."""
 
-        safe_repr_provider.set_format(
-            self._extract_format(args))
+        vsc_var = int(args['variablesReference'])
+        fmt = args.get('format', {})
+
+        pyd_var = self.var_map.to_pydevd(vsc_var)
 
         if len(pyd_var) == 3:
             cmd = pydevd_comm.CMD_GET_FRAME
@@ -827,7 +872,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             cmd = pydevd_comm.CMD_GET_VARIABLE
         cmdargs = (str(s) for s in pyd_var)
         msg = '\t'.join(cmdargs)
-        _, _, resp_args = yield self.pydevd_request(cmd, msg)
+        with (yield self.using_format(fmt)):
+            _, _, resp_args = yield self.pydevd_request(cmd, msg)
+
         xml = untangle.parse(resp_args).xml
         try:
             xvars = xml.var
@@ -845,6 +892,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 'value': var_value,
             }
 
+            if var_type in ('str', 'unicode', 'bytes', 'bytearray'):
+                var['presentationHint'] = {'attributes': ['rawString']}
+
             if bool(xvar['isContainer']):
                 pyd_child = pyd_var + (var_name,)
                 var['variablesReference'] = self.var_map.to_vscode(
@@ -856,8 +906,6 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
             variables.append(var)
 
-        # Reset hex format since this is per request.
-        safe_repr_provider.convert_to_hex = False
         self.send_response(request, variables=variables.get_sorted_variables())
 
     def __get_variable_evaluate_name(self, pyd_var_parent, var_name):
@@ -899,11 +947,14 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     @async_handler
     def on_setVariable(self, request, args):
+        """Handles DAP SetVariableRequest."""
+
         vsc_var = int(args['variablesReference'])
         pyd_var = self.var_map.to_pydevd(vsc_var)
 
         var_name = args['name']
         var_value = args['value']
+        fmt = args.get('format', {})
 
         lhs_expr = self.__get_variable_evaluate_name(pyd_var, var_name)
         if not lhs_expr:
@@ -915,9 +966,6 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         pyd_tid = str(pyd_var[0])
         pyd_fid = str(pyd_var[1])
 
-        safe_repr_provider.set_format(
-            self._extract_format(args))
-
         # VSC gives us variablesReference to the parent of the variable
         # being set, and variable name; but pydevd wants the ID
         # (or rather path) of the variable itself.
@@ -925,16 +973,18 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         vsc_var = self.var_map.to_vscode(pyd_var, autogen=True)
 
         cmd_args = [pyd_tid, pyd_fid, 'LOCAL', expr, '1']
-        yield self.pydevd_request(
-            pydevd_comm.CMD_EXEC_EXPRESSION,
-            '\t'.join(cmd_args),
-        )
+        with (yield self.using_format(fmt)):
+            yield self.pydevd_request(
+                pydevd_comm.CMD_EXEC_EXPRESSION,
+                '\t'.join(cmd_args),
+            )
 
         cmd_args = [pyd_tid, pyd_fid, 'LOCAL', lhs_expr, '1']
-        _, _, resp_args = yield self.pydevd_request(
-            pydevd_comm.CMD_EVALUATE_EXPRESSION,
-            '\t'.join(cmd_args),
-        )
+        with (yield self.using_format(fmt)):
+            _, _, resp_args = yield self.pydevd_request(
+                pydevd_comm.CMD_EVALUATE_EXPRESSION,
+                '\t'.join(cmd_args),
+            )
 
         xml = untangle.parse(resp_args).xml
         xvar = xml.var
@@ -946,26 +996,25 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         if bool(xvar['isContainer']):
             response['variablesReference'] = vsc_var
 
-        # Reset hex format since this is per request.
-        safe_repr_provider.convert_to_hex = False
         self.send_response(request, **response)
 
     @async_handler
     def on_evaluate(self, request, args):
+        """Handles DAP EvaluateRequest."""
+
         # pydevd message format doesn't permit tabs in expressions
         expr = args['expression'].replace('\t', ' ')
+        fmt = args.get('format', {})
 
         vsc_fid = int(args['frameId'])
         pyd_tid, pyd_fid = self.frame_map.to_pydevd(vsc_fid)
 
-        safe_repr_provider.set_format(
-            self._extract_format(args))
-
         cmd_args = (pyd_tid, pyd_fid, 'LOCAL', expr, '1')
         msg = '\t'.join(str(s) for s in cmd_args)
-        _, _, resp_args = yield self.pydevd_request(
-            pydevd_comm.CMD_EVALUATE_EXPRESSION,
-            msg)
+        with (yield self.using_format(fmt)):
+            _, _, resp_args = yield self.pydevd_request(
+                pydevd_comm.CMD_EVALUATE_EXPRESSION,
+                msg)
         xml = untangle.parse(resp_args).xml
         xvar = xml.var
 
@@ -980,9 +1029,10 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
         if context == 'repl' and is_eval_error == 'True':
             # try exec for repl requests
-            _, _, resp_args = yield self.pydevd_request(
-                pydevd_comm.CMD_EXEC_EXPRESSION,
-                msg)
+            with (yield self.using_format(fmt)):
+                _, _, resp_args = yield self.pydevd_request(
+                    pydevd_comm.CMD_EXEC_EXPRESSION,
+                    msg)
             try:
                 xml2 = untangle.parse(resp_args).xml
                 xvar2 = xml2.var
@@ -1011,8 +1061,6 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         if bool(xvar['isContainer']):
             response['variablesReference'] = vsc_var
 
-        # Reset hex format since this is per request.
-        safe_repr_provider.convert_to_hex = False
         self.send_response(request, **response)
 
     @async_handler

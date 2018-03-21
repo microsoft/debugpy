@@ -405,6 +405,9 @@ class VariablesTests(NormalRequestTest, unittest.TestCase):
                         'name': 'spam',
                         'type': 'str',
                         'value': "'eggs'",
+                        'presentationHint': {
+                            'attributes': ['rawString'],
+                        },
                     },
                     {
                         'name': 'x',

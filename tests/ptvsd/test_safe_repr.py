@@ -184,6 +184,25 @@ class StringTests(TestBase):
         raise NotImplementedError
 
 
+class RawValueTests(TestBase):
+
+    def setUp(self):
+        super(RawValueTests, self).setUp()
+        self.saferepr.raw_value = True
+
+    def test_unicode_raw(self):
+        value = u'A' * 5
+        self.assert_saferepr(value, 'AAAAA')
+
+    def test_bytes_raw(self):
+        value = b'A' * 5
+        self.assert_saferepr(value, 'AAAAA')
+
+    def test_bytearray_raw(self):
+        value = bytearray(b'A' * 5)
+        self.assert_saferepr(value, 'AAAAA')
+
+
 class NumberTests(TestBase):
 
     @unittest.skip('not written')  # TODO: finish!

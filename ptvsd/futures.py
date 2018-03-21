@@ -26,10 +26,15 @@ class Future(object):
         self._exc_info = None
 
     def __del__(self):
-        with self._lock:
-            if self._done and self._exc_info and not self._observed:
-                print('Unobserved exception in a Future:', file=sys.__stderr__)
-                traceback.print_exception(*self._exc_info, file=sys.__stderr__)
+        if self._lock:
+            with self._lock:
+                if self._done and self._exc_info and not self._observed:
+                    print(
+                        'Unobserved exception in a Future:',
+                        file=sys.__stderr__)
+                    traceback.print_exception(
+                        *self._exc_info,
+                        file=sys.__stderr__)
 
     def result(self):
         # TODO: docstring
