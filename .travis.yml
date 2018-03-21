@@ -16,6 +16,8 @@ matrix:
       env: TARGET=ci-coverage
       after_success:
         - bash <(curl -s https://codecov.io/bash)
+    - python: 3.6
+      env: TARGET=check-dap-schema
 
 before_install: |
   export TRAVIS_PYTHON_PATH=`which python`
