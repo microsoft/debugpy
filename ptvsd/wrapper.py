@@ -1027,7 +1027,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
         lhs_expr = args.get('expression')
         rhs_expr = args.get('value')
-        expr = '%s = %s' % (lhs_expr, rhs_expr)
+        expr = '%s = (%s)' % (lhs_expr, rhs_expr)
 
         # pydevd message format doesn't permit tabs in expressions
         expr = expr.replace('\t', ' ')
