@@ -14,8 +14,8 @@ def convert_argv(argv):
     help  = False
     quick = False
     network = True
-    lint = False
     runtests = True
+    lint = False
     args = []
     modules = set()
     for arg in argv:

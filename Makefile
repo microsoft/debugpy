@@ -27,6 +27,10 @@ test-quick:
 ci-test:
 	$(PYTHON) -m tests --full --no-network
 
+.PHONY: check-dap-schema
+check-dap-schema:
+	$(PYTHON) -m debugger_protocol.schema check
+
 .PHONY: coverage
 coverage:  ## Check line coverage.
 	#$(PYTHON) -m coverage run --include 'ptvsd/*.py' --omit 'ptvsd/pydevd/*.py' -m tests
