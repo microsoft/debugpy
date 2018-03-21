@@ -555,8 +555,11 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.event_loop_thread.join(WAIT_FOR_THREAD_FINISH_TIMEOUT)
 
         if self.socket:
-            self.socket.shutdown(socket.SHUT_RDWR)
-            self.socket.close()
+            try:
+                self.socket.shutdown(socket.SHUT_RDWR)
+                self.socket.close()
+            except Exception:
+                pass
 
     def pydevd_notify(self, cmd_id, args):
         # TODO: docstring
