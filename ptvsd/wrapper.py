@@ -508,6 +508,28 @@ class VariablesSorter(object):
         return self.variables + self.single_underscore + self.double_underscore + self.dunder  # noqa
 
 
+class ModulesManager(object):
+    def __init__(self):
+        self._module_to_details = {}
+        self._path_to_module = {}
+
+    def add_from_path(self, module_path):
+        try:
+            self._path_to_module[module_path]
+            return
+        except KeyError:
+            pass
+
+    def get(self, module_name):
+        return self.module_to_details[module_name]
+
+    def get_all(self):
+        for _, value in self.module_to_details.items():
+            yield value
+
+    def check_unloaded_modules(self, module_event):
+        pass
+
 class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     """IPC JSON message processor for VSC debugger protocol.
 
