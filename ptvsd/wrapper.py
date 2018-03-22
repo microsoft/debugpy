@@ -524,35 +524,42 @@ class ModulesManager(object):
             pass
         return self.__add_and_get_module_from_path(module_path)
 
-    def __generate_module_id(self):
-        with self._lock:
-            module_id = self._next_id
-            self._next_id += 1
-            return module_id
+    def __get_platform_file_path(self, path):
+        if platform.system() == 'Windows':
+            return path.lower()
+        return path
 
     def __add_and_get_module_from_path(self, module_path):
-        for key, value in sys.modules.items():
+        mpath = self.__get_platform_file_path(module_path);
+        for _, value in list(sys.modules.items()):
             try:
-                path = value.__file__
+                path = self.__get_platform_file_path(value.__file__)
             except AttributeError:
                 path = None
 
-            if module_path == path:
-                module_id = self.__generate_module_id()
-                self.path_to_module_id[module_path] = module_id
-                module = {
-                    'id': module_id,
-                    'name': value.__name__,
-                    'package': value.__package__,
-                    'path': module_path,
-                }
-                try:
-                    module['version'] = value.__version__
-                except AttributeError:
-                    pass
-                self.module_id_to_details[module_id] = module
-                self.proc.send_event('module', reason='new', module=module)
-                return module
+            if path and mpath == path:
+                with self._lock:
+                    module_id = self._next_id
+                    self._next_id += 1
+
+                    self.path_to_module_id[module_path] = module_id
+
+                    module = {
+                        'id': module_id,
+                        'name': value.__name__,
+                        'package': value.__package__,
+                        'path': module_path,
+                    }
+
+                    try:
+                        module['version'] = value.__version__
+                    except AttributeError:
+                        pass
+
+                    self.module_id_to_details[module_id] = module
+
+                    self.proc.send_event('module', reason='new', module=module)
+                    return module
 
         return None
 
@@ -888,9 +895,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             key = (pyd_tid, int(xframe['id']))
             fid = self.frame_map.to_vscode(key, autogen=True)
             name = unquote(xframe['name'])
-            path = unquote(xframe['file'])
-            norm_path = self.path_casing.un_normcase(path)
-            module = self.modules_mgr.add_or_get_from_path(path)
+            norm_path = self.path_casing.un_normcase(unquote(xframe['file']))
+            module = self.modules_mgr.add_or_get_from_path(norm_path)
             line = int(xframe['line'])
             stackFrames.append({
                 'id': fid,
@@ -909,10 +915,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             if fmt.get('module', False):
                 frame_name = '%s in %s' % (name, module['name'])
         else:
-            # we could use the file name here 
-            frame_name = name
+            _, tail = os.path.split(path)
+            frame_name = '%s in %s' % (name, tail)
 
-        
         if fmt.get('line', False):
             frame_name = '%s : %d' % (frame_name, line)
 
