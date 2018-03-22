@@ -1,6 +1,5 @@
 from collections import namedtuple
 import contextlib
-import itertools
 import platform
 try:
     import urllib.parse as urllib
@@ -343,7 +342,7 @@ class VSCLifecycle(object):
                 start()
                 yield
 
-    def _handshake(self, command, threads=None, config=None,
+    def _handshake(self, command, threadnames=None, config=None,
                    default_threads=True, process=True, reset=True,
                    **kwargs):
         initargs = dict(
@@ -354,8 +353,8 @@ class VSCLifecycle(object):
             self._initialize(**initargs)
             self._fix.send_request(command, **kwargs)
 
-        if threads:
-            self._fix.set_threads(*threads,
+        if threadnames:
+            self._fix.set_threads(*threadnames,
                                   **dict(default_threads=default_threads))
 
         self._handle_config(**config or {})
@@ -473,13 +472,16 @@ class PyDevdFixture(FixtureBase):
         if new_fake is None:
             new_fake = self.FAKE
         super(PyDevdFixture, self).__init__(new_fake, self.MSGS)
-        self._default_threads = None
+        self._threads = Threads()
+
+    @property
+    def threads(self):
+        return self._threads
 
     def notify_main_thread(self):
-        main = (1, 'MainThead')
         self.send_event(
             CMD_THREAD_CREATE,
-            self.msgs.format_threads(main),
+            self.msgs.format_threads(self._threads.main),
         )
 
     @contextlib.contextmanager
@@ -497,39 +499,9 @@ class PyDevdFixture(FixtureBase):
         event = self.msgs.new_event(cmdid, payload)
         self.fake.send_event(event)
 
-    def set_threads_response(self, threads, default_threads=True):
-        threads = [Thread.from_raw(t) for t in threads]
-        if default_threads:
-            threads = self._add_default_threads(threads)
-
-        text = self.msgs.format_threads(*threads)
+    def set_threads_response(self):
+        text = self.msgs.format_threads(*self._threads.alive)
         self.set_response(CMD_RETURN, text, reqid=CMD_LIST_THREADS)
-        return threads
-
-    def _add_default_threads(self, threads):
-        if self._default_threads is not None:
-            return threads
-        defaults = {
-            'MainThread',
-            'ptvsd.Server',
-            'pydevd.thread1',
-            'pydevd.thread2',
-        }
-        seen = set()
-        for thread in threads:
-            tid, tname = thread
-            seen.add(tid)
-            if tname in defaults:
-                defaults.remove(tname)
-        ids = (id for id in itertools.count(1) if id not in seen)
-        allthreads = []
-        for tname in defaults:
-            tid = next(ids)
-            thread = Thread(tid, tname)
-            allthreads.append(thread)
-        self._default_threads = list(allthreads)
-        allthreads.extend(threads)
-        return allthreads
 
     def send_suspend_event(self, thread, reason, *stack):
         thread = Thread.from_raw(thread)
@@ -664,7 +636,13 @@ class HighlevelFixture(object):
     DAEMON = FakeVSC
     DEBUGGER = FakePyDevd
 
-    def __init__(self, vsc=None, pydevd=None):
+    DEFAULT_THREADS = [
+        'ptvsd.Server',
+        'pydevd.thread1',
+        'pydevd.thread2',
+    ]
+
+    def __init__(self, vsc=None, pydevd=None, mainthread=True):
         if vsc is None:
             self._new_vsc = self.DAEMON
             vsc = VSCFixture(new_fake=self._new_fake_vsc)
@@ -685,6 +663,11 @@ class HighlevelFixture(object):
             pydevd = PyDevdLifecycle(self._pydevd)
             return _cls(fix, pydevd, self.hidden)
         vsc.LIFECYCLE = highlevel_lifecycle
+
+        self._default_threads = None
+        self._known_threads = set()
+        if mainthread:
+            self._known_threads.add(self._pydevd.threads.main)
 
     def _new_fake_vsc(self, start_adapter=None, handler=None):
         if start_adapter is None:
@@ -718,6 +701,10 @@ class HighlevelFixture(object):
         return self._vsc.lifecycle
 
     @property
+    def threads(self):
+        return self._pydevd.threads
+
+    @property
     def ishidden(self):
         return self._vsc.ishidden and self._pydevd.ishidden
 
@@ -743,6 +730,14 @@ class HighlevelFixture(object):
         self._debugger.reset()
 
     # wrappers
+
+    def set_default_threads(self):
+        if self._default_threads is not None:
+            return
+        self._default_threads = {}
+        for name in self.DEFAULT_THREADS:
+            thread = self._pydevd.threads.add(name)
+            self._default_threads[name] = thread
 
     def send_request(self, command, args=None, handle_response=None):
         return self._vsc.send_request(command, args, handle_response)
@@ -778,46 +773,54 @@ class HighlevelFixture(object):
             self.send_debugger_event(cmdid, text)
             return None
 
-    def set_threads(self, _thread, *threads, **kwargs):
-        first = Thread.from_raw(_thread)
-        threads = [first] + [Thread.from_raw(t) for t in threads]
-        return self._set_threads(threads, **kwargs)
+    def set_threads(self, _threadname, *threadnames, **kwargs):
+        threadnames = (_threadname,) + threadnames
+        return self._set_threads(threadnames, **kwargs)
 
-    def set_thread(self, thread):
-        thread = Thread.from_raw(thread)
-        threads = (thread,)
-        return self._set_threads(threads)[thread]
+    def set_thread(self, threadname):
+        threadnames = (threadname,)
+        return self._set_threads(threadnames)[0]
 
-    def _set_threads(self, threads, default_threads=True):
-        # Set up and send messages.
-        allthreads = self._pydevd.set_threads_response(
-            threads,
-            default_threads=default_threads,
-        )
+    def _set_threads(self, threadnames, default_threads=True):
+        # Update the list of "alive" threads.
+        self._pydevd.threads.clear(keep=self.DEFAULT_THREADS)
+        if default_threads:
+            self.set_default_threads()
+        request = {}
+        threads = []
+        for i, name in enumerate(threadnames):
+            thread = self._pydevd.threads.add(name)
+            threads.append(thread)
+            request[thread.name] = i
         ignored = ('ptvsd.', 'pydevd.')
-        supported = [t for t in allthreads if not t.name.startswith(ignored)]
-        with self._vsc._wait_for_events(['thread' for _ in supported]):
+        newthreads = [t
+                      for t in self._pydevd.threads.alive
+                      if not t.name.startswith(ignored) and
+                      t not in self._known_threads]
+
+        # Send and handle messages.
+        self._pydevd.set_threads_response()
+        with self._vsc._wait_for_events(['thread' for _ in newthreads]):
             self.send_request('threads')
+        self._known_threads.update(newthreads)
 
         # Extract thread info from the response.
-        request = {t.name: t for t in threads}
-        response = {t: None for t in threads}
         for msg in reversed(self.vsc.received):
             if msg.type == 'response':
                 if msg.command == 'threads':
                     break
         else:
             assert False, 'we waited for the response in send_request()'
+        response = [(None, t) for t in threads]
         for tinfo in msg.body['threads']:
             try:
-                thread = request[tinfo['name']]
+                i = request.pop(tinfo['name'])
             except KeyError:
                 continue
-            response[thread] = tinfo['id']
+            response[i] = (tinfo['id'], threads[i])
         return response
 
     def suspend(self, thread, reason, *stack):
-        ptid, _ = thread
         with self.wait_for_event('stopped'):
             if isinstance(reason, Exception):
                 exc = reason
@@ -826,21 +829,19 @@ class HighlevelFixture(object):
             else:
                 self._pydevd.send_suspend_event(thread, reason, *stack)
 
-    def pause(self, thread, *stack):
-        thread = Thread.from_raw(thread)
-        tid = self.set_thread(thread)
+    def pause(self, threadname, *stack):
+        tid, thread = self.set_thread(threadname)
         self._pydevd.send_pause_event(thread, *stack)
         if self._vsc._hidden:
             self._vsc.msgs.next_event()
         self.send_request('stackTrace', {'threadId': tid})
         self.send_request('scopes', {'frameId': 1})
-        return tid
+        return tid, thread
 
-    def error(self, thread, exc, frame):
-        thread = Thread.from_raw(thread)
-        tid = self.set_thread(thread)
+    def error(self, threadname, exc, frame):
+        tid, thread = self.set_thread(threadname)
         self.suspend(thread, exc, frame)
-        return tid
+        return tid, thread
 
 
 class VSCTest(object):
@@ -873,7 +874,10 @@ class VSCTest(object):
                 vsc = self._new_daemon(*args, **kwargs)
                 self.addCleanup(vsc.close)
                 return vsc
-            self._fix = self._new_fixture(new_daemon)
+            try:
+                self._fix = self._new_fixture(new_daemon)
+            except AttributeError:
+                raise Exception
         return self._fix
 
     @property

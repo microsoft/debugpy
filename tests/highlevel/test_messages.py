@@ -217,9 +217,10 @@ class ThreadsTests(NormalRequestTest, unittest.TestCase):
     def test_few(self):
         with self.launched(default_threads=False):
             self.set_debugger_response(
+                (1, 'MainThread'),
                 (10, 'spam'),
                 (11, 'pydevd.eggs'),
-                (12, ''),
+                (12, 'Thread-12'),
             )
             self.send_request()
             received = self.vsc.received
@@ -230,9 +231,10 @@ class ThreadsTests(NormalRequestTest, unittest.TestCase):
             self.new_event('thread', threadId=3, reason='started'),
             self.expected_response(
                 threads=[
+                    {'id': 1, 'name': 'MainThread'},
                     {'id': 2, 'name': 'spam'},
                     # Threads named 'pydevd.*' are ignored.
-                    {'id': 3, 'name': ''},
+                    {'id': 3, 'name': 'Thread-12'},
                 ],
             ),
             # no events
@@ -263,10 +265,9 @@ class StackTraceTests(NormalRequestTest, unittest.TestCase):
     COMMAND = 'stackTrace'
 
     def test_basic(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                tid = self.set_thread(thread)
+                tid, thread = self.set_thread('x')
                 self.suspend(thread, CMD_THREAD_SUSPEND, *[
                     # (pfid, func, file, line)
                     (2, 'spam', 'abc.py', 10),
@@ -314,10 +315,9 @@ class StackTraceTests(NormalRequestTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
     def test_unknown_thread(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                tid = self.set_threads(thread)[thread]
+                tid, _ = self.set_thread('x')
             req = self.send_request(
                 threadId=tid + 1,
             )
@@ -332,10 +332,9 @@ class ScopesTests(NormalRequestTest, unittest.TestCase):
     COMMAND = 'scopes'
 
     def test_basic(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                self.pause(thread, *[
+                self.pause('x', *[
                     # (pfid, func, file, line)
                     (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
                     (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
@@ -372,11 +371,10 @@ class VariablesTests(NormalRequestTest, unittest.TestCase):
         class MyType(object):
             pass
         obj = MyType()
-        thread = (10, 'x')
         self.PYDEVD_CMD = CMD_GET_FRAME
         with self.launched():
             with self.hidden():
-                self.pause(thread, *[
+                _, thread = self.pause('t', *[
                     # (pfid, func, file, line)
                     (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
                     (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
@@ -429,15 +427,14 @@ class VariablesTests(NormalRequestTest, unittest.TestCase):
             # no events
         ])
         self.assert_received(self.debugger, [
-            self.expected_pydevd_request('10\t2\tFRAME'),
+            self.expected_pydevd_request('{}\t2\tFRAME'.format(thread.id)),
         ])
 
     def test_container(self):
-        thread = (10, 'x')
         self.PYDEVD_CMD = CMD_GET_FRAME
         with self.launched():
             with self.hidden():
-                self.pause(thread, *[
+                _, thread = self.pause('t', *[
                     # (pfid, func, file, line)
                     (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
                     (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
@@ -487,7 +484,8 @@ class VariablesTests(NormalRequestTest, unittest.TestCase):
             # no events
         ])
         self.assert_received(self.debugger, [
-            self.expected_pydevd_request('10\t2\tFRAME\tspam'),
+            self.expected_pydevd_request(
+                '{}\t2\tFRAME\tspam'.format(thread.id)),
         ])
 
 
@@ -511,10 +509,9 @@ class SetVariableTests(NormalRequestTest, unittest.TestCase):
             ))
 
     def test_local(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                self.pause(thread, *[
+                _, thread = self.pause('t', *[
                     # (pfid, func, file, line)
                     (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
                     (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
@@ -526,7 +523,7 @@ class SetVariableTests(NormalRequestTest, unittest.TestCase):
             self.PYDEVD_CMD = CMD_EXEC_EXPRESSION
             self.PYDEVD_RESP = CMD_EVALUATE_EXPRESSION
             expected = self.expected_pydevd_request(
-                '10\t2\tLOCAL\tspam = eggs\t1')
+                '{}\t2\tLOCAL\tspam = eggs\t1'.format(thread.id))
             self.set_debugger_response(
                 ('spam', 'eggs'),
             )
@@ -550,14 +547,14 @@ class SetVariableTests(NormalRequestTest, unittest.TestCase):
         ])
         self.assert_received(self.debugger, [
             expected,
-            self.expected_pydevd_request('10\t2\tLOCAL\tspam\t1'),
+            self.expected_pydevd_request(
+                '{}\t2\tLOCAL\tspam\t1'.format(thread.id)),
         ])
 
     def test_container(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                self.pause(thread, *[
+                _, thread = self.pause('t', *[
                     # (pfid, func, file, line)
                     (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
                     (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
@@ -569,7 +566,7 @@ class SetVariableTests(NormalRequestTest, unittest.TestCase):
             self.PYDEVD_CMD = CMD_EXEC_EXPRESSION
             self.PYDEVD_RESP = CMD_EVALUATE_EXPRESSION
             expected = self.expected_pydevd_request(
-                '10\t2\tLOCAL\tspam.x = 2\t1')
+                '{}\t2\tLOCAL\tspam.x = 2\t1'.format(thread.id))
             self.set_debugger_response(
                 ('x', 2),
             )
@@ -593,7 +590,8 @@ class SetVariableTests(NormalRequestTest, unittest.TestCase):
         ])
         self.assert_received(self.debugger, [
             expected,
-            self.expected_pydevd_request('10\t2\tLOCAL\tspam.x\t1'),
+            self.expected_pydevd_request(
+                '{}\t2\tLOCAL\tspam.x\t1'.format(thread.id)),
         ])
 
 
@@ -606,10 +604,9 @@ class EvaluateTests(NormalRequestTest, unittest.TestCase):
         return self.debugger_msgs.format_variables(variable)
 
     def test_basic(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                self.pause(thread, *[
+                _, thread = self.pause('x', *[
                     # (pfid, func, file, line)
                     (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
                     (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
@@ -632,14 +629,14 @@ class EvaluateTests(NormalRequestTest, unittest.TestCase):
             # no events
         ])
         self.assert_received(self.debugger, [
-            self.expected_pydevd_request('10\t5\tLOCAL\tspam + 1\t1'),
+            self.expected_pydevd_request(
+                '{}\t5\tLOCAL\tspam + 1\t1'.format(thread.id)),
         ])
 
     def test_hover(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                self.pause(thread, *[
+                _, thread = self.pause('x', *[
                     # (pfid, func, file, line)
                     (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
                     (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
@@ -662,7 +659,8 @@ class EvaluateTests(NormalRequestTest, unittest.TestCase):
             # no events
         ])
         self.assert_received(self.debugger, [
-            self.expected_pydevd_request('10\t5\tLOCAL\tspam + 1\t1'),
+            self.expected_pydevd_request(
+                '{}\t5\tLOCAL\tspam + 1\t1'.format(thread.id)),
         ])
 
 
@@ -673,15 +671,12 @@ class PauseTests(NormalRequestTest, unittest.TestCase):
     PYDEVD_RESP = None
 
     def test_pause_one(self):
-        thread = (10, 'spam')
         with self.launched():
             with self.hidden():
-                tids = self.set_threads(
-                    thread,
-                    (11, 'eggs'),
-                )
+                threads = self.set_threads('spam', 'eggs')
+            tid, thread = threads[0]
             self.send_request(
-                threadId=tids[thread],
+                threadId=tid,
             )
             received = self.vsc.received
 
@@ -690,7 +685,7 @@ class PauseTests(NormalRequestTest, unittest.TestCase):
             # no events
         ])
         self.assert_received(self.debugger, [
-            self.expected_pydevd_request('10'),
+            self.expected_pydevd_request(str(thread.id)),
         ])
 
     # TODO: finish!
@@ -706,10 +701,9 @@ class ContinueTests(NormalRequestTest, unittest.TestCase):
     PYDEVD_RESP = None
 
     def test_basic(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                tid = self.pause(thread, *[
+                tid, thread = self.pause('x', *[
                     (2, 'spam', 'abc.py', 10),
                 ])
             self.send_request(
@@ -722,7 +716,7 @@ class ContinueTests(NormalRequestTest, unittest.TestCase):
             # no events
         ])
         self.assert_received(self.debugger, [
-            self.expected_pydevd_request('10'),
+            self.expected_pydevd_request(str(thread.id)),
         ])
 
 
@@ -733,10 +727,9 @@ class NextTests(NormalRequestTest, unittest.TestCase):
     PYDEVD_RESP = None
 
     def test_basic(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                tid = self.pause(thread, *[
+                tid, thread = self.pause('x', *[
                     (2, 'spam', 'abc.py', 10),
                 ])
             self.send_request(
@@ -749,7 +742,7 @@ class NextTests(NormalRequestTest, unittest.TestCase):
             # no events
         ])
         self.assert_received(self.debugger, [
-            self.expected_pydevd_request('10'),
+            self.expected_pydevd_request(str(thread.id)),
         ])
 
 
@@ -760,10 +753,9 @@ class StepInTests(NormalRequestTest, unittest.TestCase):
     PYDEVD_RESP = None
 
     def test_basic(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                tid = self.pause(thread, *[
+                tid, thread = self.pause('x', *[
                     (2, 'spam', 'abc.py', 10),
                 ])
             self.send_request(
@@ -776,7 +768,7 @@ class StepInTests(NormalRequestTest, unittest.TestCase):
             # no events
         ])
         self.assert_received(self.debugger, [
-            self.expected_pydevd_request('10'),
+            self.expected_pydevd_request(str(thread.id)),
         ])
 
 
@@ -787,10 +779,9 @@ class StepOutTests(NormalRequestTest, unittest.TestCase):
     PYDEVD_RESP = None
 
     def test_basic(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                tid = self.pause(thread, *[
+                tid, thread = self.pause('x', *[
                     (2, 'spam', 'abc.py', 10),
                 ])
             self.send_request(
@@ -803,7 +794,7 @@ class StepOutTests(NormalRequestTest, unittest.TestCase):
             # no events
         ])
         self.assert_received(self.debugger, [
-            self.expected_pydevd_request('10'),
+            self.expected_pydevd_request(str(thread.id)),
         ])
 
 
@@ -1600,12 +1591,11 @@ class ExceptionInfoTests(NormalRequestTest, unittest.TestCase):
     #   ),
 
     def test_active_exception(self):
-        thread = (10, 'x')
         exc = RuntimeError('something went wrong')
         frame = (2, 'spam', 'abc.py', 10)  # (pfid, func, file, line)
         with self.launched():
             with self.hidden():
-                tid = self.error(thread, exc, frame)
+                tid, _ = self.error('x', exc, frame)
             self.send_request(
                 threadId=tid,
             )
@@ -1637,10 +1627,9 @@ class ExceptionInfoTests(NormalRequestTest, unittest.TestCase):
     # TODO: verify behavior
     @unittest.skip('poorly specified (broken?)')
     def test_no_exception(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                tid = self.pause(thread)
+                tid, _ = self.pause('x')
             self.send_request(
                 threadId=tid,
             )
@@ -1655,15 +1644,14 @@ class ExceptionInfoTests(NormalRequestTest, unittest.TestCase):
     # TODO: verify behavior
     @unittest.skip('poorly specified (broken?)')
     def test_exception_cleared(self):
-        thread = (10, 'x')
         exc = RuntimeError('something went wrong')
         frame = (2, 'spam', 'abc.py', 10)  # (pfid, func, file, line)
         with self.launched():
             with self.hidden():
-                tid = self.error(thread, exc, frame)
+                tid, thread = self.error('x', exc, frame)
                 self.send_debugger_event(
                     CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED,
-                    str(thread[0]),
+                    str(thread.id),
                 )
             self.send_request(
                 threadId=tid,
@@ -1976,11 +1964,10 @@ class ThreadCreateEventTests(ThreadEventTest, unittest.TestCase):
     # TODO: verify behavior
     @unittest.skip('poorly specified')
     def test_exists(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                self.set_thread(thread)
-            self.send_event(10, 'spam')
+                _, thread = self.set_thread('x')
+            self.send_event(thread.id, 'spam')
             received = self.vsc.received
 
         self.assert_vsc_received(received, [])
@@ -2014,11 +2001,10 @@ class ThreadKillEventTests(ThreadEventTest, unittest.TestCase):
         return str(threadid)
 
     def test_known(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                tid = self.set_thread(thread)
-            self.send_event(10)
+                tid, thread = self.set_thread('x')
+            self.send_event(thread.id)
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
@@ -2040,11 +2026,10 @@ class ThreadKillEventTests(ThreadEventTest, unittest.TestCase):
 
     def test_pydevd_name(self):
         self.EVENT = None
-        thread = (10, 'pydevd.spam')
         with self.launched():
             with self.hidden():
-                self.set_thread(thread)
-            self.send_event(10)
+                _, thread = self.set_thread('pydevd.spam')
+            self.send_event(thread.id)
             received = self.vsc.received
 
         self.assert_vsc_received(received, [])
@@ -2052,11 +2037,10 @@ class ThreadKillEventTests(ThreadEventTest, unittest.TestCase):
 
     def test_ptvsd_name(self):
         self.EVENT = None
-        thread = (10, 'ptvsd.spam')
         with self.launched():
             with self.hidden():
-                self.set_thread(thread)
-            self.send_event(10)
+                _, thread = self.set_thread('ptvsd.spam')
+            self.send_event(thread.id)
             received = self.vsc.received
 
         self.assert_vsc_received(received, [])
@@ -2078,11 +2062,10 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
         return self.debugger_msgs.format_frames(threadid, reason, *frames)
 
     def test_step_into(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                self.set_thread(thread)
-            tid = self.send_event(10, CMD_STEP_INTO)
+                _, thread = self.set_thread('x')
+            tid = self.send_event(thread.id, CMD_STEP_INTO)
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
@@ -2096,11 +2079,10 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
     def test_step_over(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                self.set_thread(thread)
-            tid = self.send_event(10, CMD_STEP_OVER)
+                _, thread = self.set_thread('x')
+            tid = self.send_event(thread.id, CMD_STEP_OVER)
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
@@ -2114,11 +2096,10 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
     def test_step_return(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                self.set_thread(thread)
-            tid = self.send_event(10, CMD_STEP_RETURN)
+                _, thread = self.set_thread('x')
+            tid = self.send_event(thread.id, CMD_STEP_RETURN)
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
@@ -2133,10 +2114,9 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
 
     def test_caught_exception(self):
         exc = RuntimeError('something went wrong')
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                self.set_thread(thread)
+                _, thread = self.set_thread('x')
             self.set_debugger_response(
                 CMD_GET_VARIABLE,
                 self.debugger_msgs.format_variables(
@@ -2144,7 +2124,7 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
                     ('???', exc),
                 ),
             )
-            tid = self.send_event(10, CMD_STEP_CAUGHT_EXCEPTION)
+            tid = self.send_event(thread.id, CMD_STEP_CAUGHT_EXCEPTION)
             received = self.vsc.received
 
         # TODO: Is this the right str?
@@ -2161,15 +2141,15 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
         ])
         self.assert_received(self.debugger, [
             self.debugger_msgs.new_request(
-                CMD_GET_VARIABLE, '10', '2', 'FRAME', '__exception__'),
+                CMD_GET_VARIABLE,
+                str(thread.id), '2', 'FRAME', '__exception__'),
         ])
 
     def test_exception_break(self):
         exc = RuntimeError('something went wrong')
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                self.set_thread(thread)
+                _, thread = self.set_thread('x')
             self.set_debugger_response(
                 CMD_GET_VARIABLE,
                 self.debugger_msgs.format_variables(
@@ -2177,7 +2157,7 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
                     ('???', exc),
                 ),
             )
-            tid = self.send_event(10, CMD_ADD_EXCEPTION_BREAK)
+            tid = self.send_event(thread.id, CMD_ADD_EXCEPTION_BREAK)
             received = self.vsc.received
 
         # TODO: Is this the right str?
@@ -2194,15 +2174,15 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
         ])
         self.assert_received(self.debugger, [
             self.debugger_msgs.new_request(
-                CMD_GET_VARIABLE, '10', '2', 'FRAME', '__exception__'),
+                CMD_GET_VARIABLE,
+                str(thread.id), '2', 'FRAME', '__exception__'),
         ])
 
     def test_suspend(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                self.set_thread(thread)
-            tid = self.send_event(10, CMD_THREAD_SUSPEND)
+                _, thread = self.set_thread('x')
+            tid = self.send_event(thread.id, CMD_THREAD_SUSPEND)
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
@@ -2216,11 +2196,10 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
     def test_unknown_reason(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                self.set_thread(thread)
-            tid = self.send_event(10, 99999)
+                _, thread = self.set_thread('x')
+            tid = self.send_event(thread.id, 99999)
             received = self.vsc.received
 
         # TODO: Should this fail instead?
@@ -2237,11 +2216,10 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
     # TODO: verify behavior
     @unittest.skip('poorly specified')
     def test_no_reason(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                self.set_thread(thread)
-            tid = self.send_event(10, 'x')
+                _, thread = self.set_thread('x')
+            tid = self.send_event(thread.id, 'x')
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
@@ -2257,11 +2235,10 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
     # TODO: verify behavior
     @unittest.skip('poorly specified')
     def test_str_reason(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                self.set_thread(thread)
-            tid = self.send_event(10, '???')
+                _, thread = self.set_thread('x')
+            tid = self.send_event(thread.id, '???')
             received = self.vsc.received
 
         # TODO: Should this fail instead?
@@ -2285,15 +2262,14 @@ class ThreadRunEventTests(ThreadEventTest, unittest.TestCase):
         return '{}\t{}'.format(threadid, reason)
 
     def test_basic(self):
-        thread = (10, 'x')
         with self.launched():
             with self.hidden():
-                self.pause(thread, *[
+                _, thread = self.pause('x', *[
                     # (pfid, func, file, line)
                     (2, 'spam', 'abc.py', 10),
                     (5, 'eggs', 'xyz.py', 2),
                 ])
-            tid = self.send_event(10, '???')
+            tid = self.send_event(thread.id, '???')
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
@@ -2315,12 +2291,11 @@ class SendCurrExcTraceEventTests(PyDevdEventTest, unittest.TestCase):
     # TODO: Is this right?
     @unittest.skip('now a no-op')
     def test_basic(self):
-        thread = (10, 'x')
         exc = RuntimeError('something went wrong')
         frame = (2, 'spam', 'abc.py', 10)  # (pfid, func, file, line)
         with self.launched():
             with self.hidden():
-                tid = self.set_thread(thread)
+                tid, thread = self.set_thread('x')
             self.send_event(thread, exc, frame)
             received = self.vsc.received
 
@@ -2352,21 +2327,20 @@ class SendCurrExcTraceProceededEventTests(PyDevdEventTest, unittest.TestCase):
         return str(threadid)
 
     def test_basic(self):
-        thread = (10, 'x')
         exc = RuntimeError('something went wrong')
         frame = (2, 'spam', 'abc.py', 10)  # (pfid, func, file, line)
         #text = self.debugger_msgs.format_exception(thread[0], exc, frame)
         with self.launched():
             with self.hidden():
-                #tid = self.set_thread(thread)
+                #tid, thread = self.set_thread('x')
                 #self.fix.send_event(CMD_SEND_CURR_EXCEPTION_TRACE, text)
-                tid = self.error(thread, exc, frame)
+                tid, thread = self.error('x', exc, frame)
                 self.send_request('exceptionInfo', dict(
                     threadId=tid,
                 ))
                 before = self.vsc.received[-1]
 
-            self.send_event(10)
+            self.send_event(thread.id)
             received = self.vsc.received
 
             self.send_request('exceptionInfo', dict(
@@ -2387,16 +2361,16 @@ class GetExceptionBreakpointEventTests(PyDevdEventTest, unittest.TestCase):
     CMD = CMD_GET_BREAKPOINT_EXCEPTION
     EVENT = None
 
-    def pydevd_payload(self, thread, exc, frame):
-        return self.debugger_msgs.format_exception(thread[0], exc, frame)
+    def pydevd_payload(self, tid, exc, frame):
+        return self.debugger_msgs.format_exception(tid, exc, frame)
 
     def test_unsupported(self):
-        thread = (10, 'x')
+        ptid = 10
         exc = RuntimeError('something went wrong')
         frame = (2, 'spam', 'abc.py', 10)  # (pfid, func, file, line)
         with self.launched():
             with self.assertRaises(UnsupportedPyDevdCommandError):
-                self.send_event(thread, exc, frame)
+                self.send_event(ptid, exc, frame)
             received = self.vsc.received
 
         self.assert_vsc_received(received, [])
@@ -2413,8 +2387,7 @@ class ShowConsoleEventTests(PyDevdEventTest, unittest.TestCase):
         return self.debugger_msgs.format_frames(threadid, reason, *frames)
 
     def test_unsupported(self):
-        thread = (10, 'x')
-        ptid, _ = thread
+        ptid = 10
         frame = (2, 'spam', 'abc.py', 10)  # (pfid, func, file, line)
         with self.launched():
             with self.assertRaises(UnsupportedPyDevdCommandError):
