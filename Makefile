@@ -12,7 +12,7 @@ depends:
 	$(PYTHON) -m pip install coverage
 
 .PHONY: lint
-lint:
+lint:  ## Lint the Python source code.
 	#$(PYTHON) -m flake8 --ignore E24,E121,E123,E125,E126,E221,E226,E266,E704,E265,E501 --exclude ptvsd/pydevd $(CURDIR)
 	$(PYTHON) -m tests --lint-only
 
@@ -24,23 +24,29 @@ test:  ## Run the test suite.
 test-quick:
 	$(PYTHON) -m tests --quick
 
-.PHONY: ci-test
-ci-test:
-	$(PYTHON) -m tests --full --no-network
-
-.PHONY: check-dap-schema
-check-dap-schema:
-	$(PYTHON) -m debugger_protocol.schema check
-
 .PHONY: coverage
 coverage:  ## Check line coverage.
 	#$(PYTHON) -m coverage run --include 'ptvsd/*.py' --omit 'ptvsd/pydevd/*.py' -m tests
 	$(PYTHON) -m tests --full --coverage
 
+.PHONY: check-schemafile
+check-schemafile:  ## Validate the vendored DAP schema file.
+	$(PYTHON) -m debugger_protocol.schema check
+
+
+##################################
+# CI
+
+.PHONY: ci-lint
+ci-lint: depends lint
+
+.PHONY: ci-test
+ci-test: depends
+	$(PYTHON) -m tests --full --no-network
+
 .PHONY: ci-coverage
-ci-coverage:
+ci-coverage: depends
 	$(PYTHON) -m tests --full --coverage --no-network
 
-.PHONY: check-schemafile
-check-schemafile:  ## Validate the vendored schema file.
-	python3 -m debugger_protocol.schema check
+.PHONY: ci-check-schemafile
+ci-check-schemafile: check-schemafile
