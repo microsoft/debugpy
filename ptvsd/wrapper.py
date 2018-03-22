@@ -1069,9 +1069,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
         vsc_fid = int(args['frameId'])
         pyd_tid, pyd_fid = self.frame_map.to_pydevd(vsc_fid)
-
-        safe_repr_provider.set_format(
-            self._extract_format(args))
+        fmt = args.get('format', {})
 
         lhs_expr = args.get('expression')
         rhs_expr = args.get('value')
@@ -1082,12 +1080,11 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
         cmd_args = (pyd_tid, pyd_fid, 'LOCAL', expr, '1')
         msg = '\t'.join(str(s) for s in cmd_args)
-        _, _, _ = yield self.pydevd_request(
-            pydevd_comm.CMD_EXEC_EXPRESSION,
-            msg)
+        with (yield self.using_format(fmt)):
+            _, _, _ = yield self.pydevd_request(
+                pydevd_comm.CMD_EXEC_EXPRESSION,
+                msg)
 
-        # Reset hex format since this is per request.
-        safe_repr_provider.convert_to_hex = False
         # Return 'None' here, VS will call getVariables to retrieve
         # updated values anyway. Doing eval on the left-hand-side
         # expression may have side-effects
