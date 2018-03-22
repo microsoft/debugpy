@@ -678,6 +678,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             supportsEvaluateForHovers=True,
             supportsValueFormattingOptions=True,
             supportsSetExpression=True,
+            supportsModulesRequest=True,
             exceptionBreakpointFilters=[
                 {
                     'filter': 'raised',
@@ -1081,7 +1082,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         cmd_args = (pyd_tid, pyd_fid, 'LOCAL', expr, '1')
         msg = '\t'.join(str(s) for s in cmd_args)
         with (yield self.using_format(fmt)):
-            _, _, _ = yield self.pydevd_request(
+            yield self.pydevd_request(
                 pydevd_comm.CMD_EXEC_EXPRESSION,
                 msg)
 

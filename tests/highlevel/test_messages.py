@@ -124,6 +124,7 @@ class InitializeTests(LifecycleTest, unittest.TestCase):
                 ],
                 supportsEvaluateForHovers=True,
                 supportsSetExpression=True,
+                supportsModulesRequest=True,
             )),
             self.new_event(1, 'initialized'),
         ])

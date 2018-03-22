@@ -80,6 +80,7 @@ class Capabilities(FieldsNamespace):
         Field('supportsDelayedStackTraceLoading', bool),
         Field('supportsLoadedSourcesRequest', bool),
         Field('supportsSetExpression', bool),
+        Field('supportsModulesRequest', bool),
     ]
 
 
