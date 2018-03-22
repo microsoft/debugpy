@@ -58,6 +58,69 @@ class Thread(namedtuple('Thread', 'id name')):
             raise TypeError('missing id')
 
 
+class ThreadAlreadyExistsError(RuntimeError):
+    pass
+
+
+class Threads(object):
+
+    MAIN = 'MainThread'
+
+    def __init__(self):
+        self._history = []
+        self._alive = {}
+        self._names = set()
+
+        self._main = self.add(self.MAIN)
+
+    def __repr__(self):
+        return '<{}(alive={!r}, numkilled={!r})>'.format(
+            type(self).__name__,
+            self.alive,
+            len(self._history) - len(self._alive),
+        )
+
+    @property
+    def history(self):
+        return list(self._history)
+
+    @property
+    def alive(self):
+        return set(self._alive.values())
+
+    @property
+    def main(self):
+        return self._main
+
+    def add(self, name=None):
+        tid = len(self._history) + 1
+        if name and name in self._names:
+            raise ThreadAlreadyExistsError(name)
+        thread = Thread(tid, name)
+        self._history.append(thread)
+        self._alive[tid] = thread
+        self._names.add(name)
+        return thread
+
+    def remove(self, thread):
+        if not hasattr(thread, 'id'):
+            thread = self._alive[thread]
+        if thread.name == self.MAIN:
+            raise RuntimeError('cannot remove main thread')
+        self._remove(thread)
+        return thread
+
+    def _remove(self, thread):
+        del self._alive[thread.id]
+        self._names.remove(thread.name)
+
+    def clear(self, keep=None):
+        keep = {self.MAIN} | set(keep or ())
+        for t in self.alive:
+            if t.name not in keep:
+                self._remove(t)
+
+
 class PyDevdMessages(object):
 
     protocol = FakePyDevd.PROTOCOL
