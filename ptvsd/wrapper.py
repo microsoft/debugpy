@@ -509,22 +509,55 @@ class VariablesSorter(object):
 
 
 class ModulesManager(object):
-    def __init__(self):
-        self._module_to_details = {}
-        self._path_to_module = {}
+    def __init__(self, proc):
+        self.module_id_to_details = {}
+        self.path_to_module_id = {}
+        self._lock = threading.Lock()
+        self.proc = proc
+        self._next_id = 1
 
-    def add_from_path(self, module_path):
+    def add_or_get_from_path(self, module_path):
         try:
-            self._path_to_module[module_path]
-            return
+            module_id = self.path_to_module_id[module_path]
+            return self.module_id_to_details[module_id]
         except KeyError:
             pass
+        return self.__add_and_get_module_from_path(module_path)
 
-    def get(self, module_name):
-        return self.module_to_details[module_name]
+    def __generate_module_id(self):
+        with self._lock:
+            module_id = self._next_id
+            self._next_id += 1
+            return module_id
+
+    def __add_and_get_module_from_path(self, module_path):
+        for key, value in sys.modules.items():
+            try:
+                path = value.__file__
+            except AttributeError:
+                path = None
+
+            if module_path == path:
+                module_id = self.__generate_module_id()
+                self.path_to_module_id[module_path] = module_id
+                module = {
+                    'id': module_id,
+                    'name': value.__name__,
+                    'package': value.__package__,
+                    'path': module_path,
+                }
+                try:
+                    module['version'] = value.__version__
+                except AttributeError:
+                    pass
+                self.module_id_to_details[module_id] = module
+                self.proc.send_event('module', reason='new', module=module)
+                return module
+
+        return None
 
     def get_all(self):
-        for _, value in self.module_to_details.items():
+        for _, value in self.module_id_to_details.items():
             yield value
 
     def check_unloaded_modules(self, module_event):
@@ -557,6 +590,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.next_var_ref = 0
         self.loop = futures.EventLoop()
         self.exceptions_mgr = ExceptionsManager(self)
+        self.modules_mgr = ModulesManager(self)
         self.disconnect_request = None
         self.launch_arguments = None
         self.disconnect_request_event = threading.Event()
@@ -828,6 +862,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         vsc_tid = int(args['threadId'])
         startFrame = int(args.get('startFrame', 0))
         levels = int(args.get('levels', 0))
+        fmt = args.get('format', {})
 
         pyd_tid = self.thread_map.to_pydevd(vsc_tid)
         with self.stack_traces_lock:
@@ -853,18 +888,35 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             key = (pyd_tid, int(xframe['id']))
             fid = self.frame_map.to_vscode(key, autogen=True)
             name = unquote(xframe['name'])
-            file = self.path_casing.un_normcase(unquote(xframe['file']))
+            path = unquote(xframe['file'])
+            norm_path = self.path_casing.un_normcase(path)
+            module = self.modules_mgr.add_or_get_from_path(path)
             line = int(xframe['line'])
             stackFrames.append({
                 'id': fid,
-                'name': name,
-                'source': {'path': file},
+                'name': self.__format_frame_name(fmt, name, module, line, norm_path),
+                'source': {'path': norm_path},
                 'line': line, 'column': 1,
             })
 
         self.send_response(request,
                            stackFrames=stackFrames,
                            totalFrames=totalFrames)
+
+    def __format_frame_name(self, fmt, name, module, line, path):
+        frame_name = name
+        if module:
+            if fmt.get('module', False):
+                frame_name = '%s in %s' % (name, module['name'])
+        else:
+            # we could use the file name here 
+            frame_name = name
+
+        
+        if fmt.get('line', False):
+            frame_name = '%s : %d' % (frame_name, line)
+
+        return frame_name
 
     @async_handler
     def on_scopes(self, request, args):
@@ -1112,6 +1164,12 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         # updated values anyway. Doing eval on the left-hand-side
         # expression may have side-effects
         self.send_response(request, value=None)
+
+    @async_handler
+    def on_modules(self, request, args):
+        modules = list(self.get_all())
+        self.send_response(request, modules=modules, totalModules=len(modules))
+
 
     @async_handler
     def on_pause(self, request, args):
