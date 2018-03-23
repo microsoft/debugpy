@@ -1,5 +1,4 @@
-#import os
-#import sys
+import ptvsd
 import unittest
 
 from _pydevd_bundle.pydevd_comm import (
@@ -8,7 +7,11 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_VERSION,
 )
 
-from . import OS_ID, HighlevelTest, HighlevelFixture
+from . import (
+    OS_ID,
+    HighlevelTest,
+    HighlevelFixture,
+)
 
 
 # TODO: Make sure we are handling the following properly:
@@ -30,6 +33,9 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
         version = self.debugger.VERSION
         addr = (None, 8888)
         with self.vsc.start(addr):
+            with self.vsc.wait_for_event('output'):
+                pass
+
             with self.vsc.wait_for_event('initialized'):
                 # initialize
                 self.set_debugger_response(CMD_VERSION, version)
@@ -50,6 +56,11 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
         # An "exited" event comes once self.vsc closes.
 
         self.assert_received(self.vsc, [
+            self.new_event(
+                'output',
+                category='telemetry',
+                output='ptvsd',
+                data={'version': ptvsd.__version__}),
             self.new_response(req_initialize, **dict(
                 supportsExceptionInfoRequest=True,
                 supportsConfigurationDoneRequest=True,
@@ -96,6 +107,9 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
         version = self.debugger.VERSION
         addr = (None, 8888)
         with self.vsc.start(addr):
+            with self.vsc.wait_for_event('output'):
+                pass
+
             with self.vsc.wait_for_event('initialized'):
                 # initialize
                 self.set_debugger_response(CMD_VERSION, version)
@@ -116,6 +130,11 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
         # An "exited" event comes once self.vsc closes.
 
         self.assert_received(self.vsc, [
+            self.new_event(
+                'output',
+                category='telemetry',
+                output='ptvsd',
+                data={'version': ptvsd.__version__}),
             self.new_response(req_initialize, **dict(
                 supportsExceptionInfoRequest=True,
                 supportsConfigurationDoneRequest=True,

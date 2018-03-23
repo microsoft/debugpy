@@ -57,7 +57,10 @@ def bind(address):
 
 def close(sock):
     """Shutdown and close the socket."""
-    sock.shutdown(socket.SHUT_RDWR)
+    try:
+        sock.shutdown(socket.SHUT_RDWR)
+    except Exception:
+        pass
     sock.close()
 
 

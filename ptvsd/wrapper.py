@@ -7,6 +7,7 @@ from __future__ import print_function, absolute_import
 import atexit
 import contextlib
 import errno
+import getpass
 import os
 import platform
 import re
@@ -628,6 +629,12 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.event_loop_thread.daemon = True
         self.event_loop_thread.start()
         self.wait_on_exit_func = waitonexitfunc
+
+        self.send_event(
+            'output',
+            category='telemetry',
+            output='ptvsd',
+            data={'version': __version__})
 
     def _handle_exit(self):
         wait_on_normal_exit = self.debug_options.get(
@@ -1398,6 +1405,52 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                      'stackTrace': exc.stack,
                      'source': exc.source},
         )
+
+    # Custom ptvsd message
+    def on_ptvsd_systemInfo(self, request, args):
+        try:
+            pid = os.getpid()
+        except AttributeError:
+            pid = None
+
+        try:
+            username = getpass.getuser()
+        except AttributeError:
+            username = None
+
+        try:
+            impl_desc = platform.python_implementation()
+        except AttributeError:
+            try:
+                impl_desc = sys.implementation.name
+            except AttributeError:
+                impl_desc = 'Python'
+
+        sys_info = {
+            'ptvsd': {
+                'version': __version__,
+            },
+            'python': {
+                'version': list(sys.version_info),
+                'implementation': {
+                    'name': sys.implementation.name,
+                    'version': list(sys.implementation.version),
+                    'description': impl_desc,
+                },
+            },
+            'platform': {
+                'name': sys.platform,
+            },
+            'process': {
+                'pid': pid,
+                'executable': sys.executable,
+                'bitness': 64 if sys.maxsize > 2**32 else 32,
+            },
+            'user': {
+                'name': username,
+            },
+        }
+        self.send_response(request, **sys_info)
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_CREATE)
     def on_pydevd_thread_create(self, seq, args):

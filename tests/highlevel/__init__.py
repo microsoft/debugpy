@@ -345,10 +345,15 @@ class VSCLifecycle(object):
     def _handshake(self, command, threadnames=None, config=None,
                    default_threads=True, process=True, reset=True,
                    **kwargs):
+        with self._hidden():
+            with self._fix.wait_for_event('output'):
+                pass
+
         initargs = dict(
             kwargs.pop('initargs', None) or {},
             disconnect=kwargs.pop('disconnect', True),
         )
+
         with self._fix.wait_for_event('initialized'):
             self._initialize(**initargs)
             self._fix.send_request(command, **kwargs)

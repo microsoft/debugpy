@@ -1,9 +1,14 @@
 import contextlib
 import unittest
 
+import ptvsd
 from tests.helpers.pydevd._live import LivePyDevd
 from tests.helpers.workspace import PathEntry
-from . import VSCFixture, VSCTest
+
+from . import (
+    VSCFixture,
+    VSCTest,
+)
 
 
 class Fixture(VSCFixture):
@@ -104,6 +109,11 @@ class LifecycleTests(TestBase, unittest.TestCase):
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
+            self.new_event(
+                'output',
+                category='telemetry',
+                output='ptvsd',
+                data={'version': ptvsd.__version__}),
             self.new_response(req_initialize, **dict(
                 supportsExceptionInfoRequest=True,
                 supportsConfigurationDoneRequest=True,
