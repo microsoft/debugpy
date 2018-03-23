@@ -508,6 +508,70 @@ class VariablesSorter(object):
         return self.variables + self.single_underscore + self.double_underscore + self.dunder  # noqa
 
 
+class ModulesManager(object):
+    def __init__(self, proc):
+        self.module_id_to_details = {}
+        self.path_to_module_id = {}
+        self._lock = threading.Lock()
+        self.proc = proc
+        self._next_id = 1
+
+    def add_or_get_from_path(self, module_path):
+        with self._lock:
+            try:
+                module_id = self.path_to_module_id[module_path]
+                return self.module_id_to_details[module_id]
+            except KeyError:
+                pass
+
+            search_path = self.__get_platform_file_path(module_path)
+            for _, value in list(sys.modules.items()):
+                try:
+                    path = self.__get_platform_file_path(value.__file__)
+                except AttributeError:
+                    path = None
+
+                if path and search_path == path:
+                    module_id = self._next_id
+                    self._next_id += 1
+
+                    module = {
+                        'id': module_id,
+                        'package': value.__package__,
+                        'path': module_path,
+                    }
+
+                    try:
+                        module['name'] = value.__qualname__
+                    except AttributeError:
+                        module['name'] = value.__name__
+
+                    try:
+                        module['version'] = value.__version__
+                    except AttributeError:
+                        pass
+
+                    self.path_to_module_id[module_path] = module_id
+                    self.module_id_to_details[module_id] = module
+
+                    self.proc.send_event('module', reason='new', module=module)
+                    return module
+
+        return None
+
+    def __get_platform_file_path(self, path):
+        if platform.system() == 'Windows':
+            return path.lower()
+        return path
+
+    def get_all(self):
+        with self._lock:
+            return list(self.module_id_to_details.values())
+
+    def check_unloaded_modules(self, module_event):
+        pass
+
+
 class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     """IPC JSON message processor for VSC debugger protocol.
 
@@ -535,6 +599,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.next_var_ref = 0
         self.loop = futures.EventLoop()
         self.exceptions_mgr = ExceptionsManager(self)
+        self.modules_mgr = ModulesManager(self)
         self.disconnect_request = None
         self.launch_arguments = None
         self.disconnect_request_event = threading.Event()
@@ -678,6 +743,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             supportsEvaluateForHovers=True,
             supportsValueFormattingOptions=True,
             supportsSetExpression=True,
+            supportsModulesRequest=True,
             exceptionBreakpointFilters=[
                 {
                     'filter': 'raised',
@@ -805,6 +871,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         vsc_tid = int(args['threadId'])
         startFrame = int(args.get('startFrame', 0))
         levels = int(args.get('levels', 0))
+        fmt = args.get('format', {})
 
         pyd_tid = self.thread_map.to_pydevd(vsc_tid)
         with self.stack_traces_lock:
@@ -824,24 +891,55 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             if startFrame > 0:
                 startFrame -= 1
                 continue
+
             if levels <= 0:
                 break
             levels -= 1
+
             key = (pyd_tid, int(xframe['id']))
             fid = self.frame_map.to_vscode(key, autogen=True)
             name = unquote(xframe['name'])
-            file = self.path_casing.un_normcase(unquote(xframe['file']))
+            norm_path = self.path_casing.un_normcase(unquote(xframe['file']))
+            module = self.modules_mgr.add_or_get_from_path(norm_path)
             line = int(xframe['line'])
+            frame_name = self.__format_frame_name(
+                fmt,
+                name,
+                module,
+                line,
+                norm_path)
+
             stackFrames.append({
                 'id': fid,
-                'name': name,
-                'source': {'path': file},
+                'name': frame_name,
+                'source': {'path': norm_path},
                 'line': line, 'column': 1,
             })
 
         self.send_response(request,
                            stackFrames=stackFrames,
                            totalFrames=totalFrames)
+
+    def __format_frame_name(self, fmt, name, module, line, path):
+        frame_name = name
+        if fmt.get('module', False):
+            if module:
+                if name == '<module>':
+                    frame_name = module['name']
+                else:
+                    frame_name = '%s.%s' % (module['name'], name)
+            else:
+                _, tail = os.path.split(path)
+                tail = tail[0:-3] if tail.lower().endswith('.py') else tail
+                if name == '<module>':
+                    frame_name = '%s in %s' % (name, tail)
+                else:
+                    frame_name = '%s.%s' % (tail, name)
+
+        if fmt.get('line', False):
+            frame_name = '%s : %d' % (frame_name, line)
+
+        return frame_name
 
     @async_handler
     def on_scopes(self, request, args):
@@ -1081,7 +1179,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         cmd_args = (pyd_tid, pyd_fid, 'LOCAL', expr, '1')
         msg = '\t'.join(str(s) for s in cmd_args)
         with (yield self.using_format(fmt)):
-            _, _, _ = yield self.pydevd_request(
+            yield self.pydevd_request(
                 pydevd_comm.CMD_EXEC_EXPRESSION,
                 msg)
 
@@ -1089,6 +1187,11 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         # updated values anyway. Doing eval on the left-hand-side
         # expression may have side-effects
         self.send_response(request, value=None)
+
+    @async_handler
+    def on_modules(self, request, args):
+        modules = list(self.modules_mgr.get_all())
+        self.send_response(request, modules=modules, totalModules=len(modules))
 
     @async_handler
     def on_pause(self, request, args):
