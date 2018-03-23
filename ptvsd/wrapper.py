@@ -546,10 +546,14 @@ class ModulesManager(object):
 
                     module = {
                         'id': module_id,
-                        'name': value.__name__,
                         'package': value.__package__,
                         'path': module_path,
                     }
+
+                    try:
+                        module['name'] = value.__qualname__
+                    except AttributeError:
+                        module['name'] = value.__name__
 
                     try:
                         module['version'] = value.__version__
@@ -564,8 +568,7 @@ class ModulesManager(object):
         return None
 
     def get_all(self):
-        for _, value in self.module_id_to_details.items():
-            yield value
+        return list(self.module_id_to_details.values())
 
     def check_unloaded_modules(self, module_event):
         pass
@@ -911,12 +914,19 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     def __format_frame_name(self, fmt, name, module, line, path):
         frame_name = name
-        if module:
-            if fmt.get('module', False):
-                frame_name = '%s in %s' % (name, module['name'])
-        else:
-            _, tail = os.path.split(path)
-            frame_name = '%s in %s' % (name, tail)
+        if fmt.get('module', False):
+            if module:
+                if name == '<module>':
+                    frame_name = module['name']
+                else:
+                    frame_name = '%s.%s' % (module['name'], name)
+            else:
+                _, tail = os.path.split(path)
+                tail = tail[0:-3] if tail.lower().endswith('.py') else tail
+                if name == '<module>':
+                    frame_name = '%s in %s' % (name, tail)
+                else:
+                    frame_name = '%s.%s' % (tail, name)
 
         if fmt.get('line', False):
             frame_name = '%s : %d' % (frame_name, line)
@@ -1172,9 +1182,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     @async_handler
     def on_modules(self, request, args):
-        modules = list(self.get_all())
+        modules = list(self.modules_mgr.get_all())
         self.send_response(request, modules=modules, totalModules=len(modules))
-
 
     @async_handler
     def on_pause(self, request, args):
