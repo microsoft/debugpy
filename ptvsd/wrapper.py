@@ -559,7 +559,6 @@ class ModulesManager(object):
 
         return None
 
-
     def __get_platform_file_path(self, path):
         if platform.system() == 'Windows':
             return path.lower()

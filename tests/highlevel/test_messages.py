@@ -305,6 +305,50 @@ class StackTraceTests(NormalRequestTest, unittest.TestCase):
         ])
         self.assert_received(self.debugger, [])
 
+    def test_with_frame_format(self):
+        with self.launched():
+            with self.hidden():
+                tid, thread = self.set_thread('x')
+                self.suspend(thread, CMD_THREAD_SUSPEND, *[
+                    # (pfid, func, file, line)
+                    (2, 'spam', 'abc.py', 10),
+                    (5, 'eggs', 'xyz.py', 2),
+                ])
+            self.send_request(
+                threadId=tid,
+                format={
+                    'module': True,
+                    'line': True,
+                }
+                #startFrame=1,
+                #levels=1,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                stackFrames=[
+                    {
+                        'id': 1,
+                        'name': 'abc.spam : 10',
+                        'source': {'path': 'abc.py'},
+                        'line': 10,
+                        'column': 1,
+                    },
+                    {
+                        'id': 2,
+                        'name': 'xyz.eggs : 2',
+                        'source': {'path': 'xyz.py'},
+                        'line': 2,
+                        'column': 1,
+                    },
+                ],
+                totalFrames=2,
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [])
+
     def test_no_threads(self):
         with self.launched():
             req = self.send_request(
@@ -1708,7 +1752,7 @@ class ModulesTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'modules'
 
-    def test_unsupported(self):
+    def test_no_modules(self):
         with self.launched():
             self.send_request()
             received = self.vsc.received
