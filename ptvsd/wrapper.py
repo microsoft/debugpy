@@ -517,32 +517,23 @@ class ModulesManager(object):
         self._next_id = 1
 
     def add_or_get_from_path(self, module_path):
-        try:
-            module_id = self.path_to_module_id[module_path]
-            return self.module_id_to_details[module_id]
-        except KeyError:
-            pass
-        return self.__add_and_get_module_from_path(module_path)
-
-    def __get_platform_file_path(self, path):
-        if platform.system() == 'Windows':
-            return path.lower()
-        return path
-
-    def __add_and_get_module_from_path(self, module_path):
-        mpath = self.__get_platform_file_path(module_path)
-        for _, value in list(sys.modules.items()):
+        with self._lock:
             try:
-                path = self.__get_platform_file_path(value.__file__)
-            except AttributeError:
-                path = None
+                module_id = self.path_to_module_id[module_path]
+                return self.module_id_to_details[module_id]
+            except KeyError:
+                pass
 
-            if path and mpath == path:
-                with self._lock:
+            search_path = self.__get_platform_file_path(module_path)
+            for _, value in list(sys.modules.items()):
+                try:
+                    path = self.__get_platform_file_path(value.__file__)
+                except AttributeError:
+                    path = None
+
+                if path and search_path == path:
                     module_id = self._next_id
                     self._next_id += 1
-
-                    self.path_to_module_id[module_path] = module_id
 
                     module = {
                         'id': module_id,
@@ -560,6 +551,7 @@ class ModulesManager(object):
                     except AttributeError:
                         pass
 
+                    self.path_to_module_id[module_path] = module_id
                     self.module_id_to_details[module_id] = module
 
                     self.proc.send_event('module', reason='new', module=module)
@@ -567,8 +559,15 @@ class ModulesManager(object):
 
         return None
 
+
+    def __get_platform_file_path(self, path):
+        if platform.system() == 'Windows':
+            return path.lower()
+        return path
+
     def get_all(self):
-        return list(self.module_id_to_details.values())
+        with self._lock:
+            return list(self.module_id_to_details.values())
 
     def check_unloaded_modules(self, module_event):
         pass
