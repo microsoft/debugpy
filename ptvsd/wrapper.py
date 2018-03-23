@@ -530,7 +530,7 @@ class ModulesManager(object):
         return path
 
     def __add_and_get_module_from_path(self, module_path):
-        mpath = self.__get_platform_file_path(module_path);
+        mpath = self.__get_platform_file_path(module_path)
         for _, value in list(sys.modules.items()):
             try:
                 path = self.__get_platform_file_path(value.__file__)
@@ -572,6 +572,7 @@ class ModulesManager(object):
 
     def check_unloaded_modules(self, module_event):
         pass
+
 
 class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     """IPC JSON message processor for VSC debugger protocol.
@@ -892,18 +893,27 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             if startFrame > 0:
                 startFrame -= 1
                 continue
+
             if levels <= 0:
                 break
             levels -= 1
+
             key = (pyd_tid, int(xframe['id']))
             fid = self.frame_map.to_vscode(key, autogen=True)
             name = unquote(xframe['name'])
             norm_path = self.path_casing.un_normcase(unquote(xframe['file']))
             module = self.modules_mgr.add_or_get_from_path(norm_path)
             line = int(xframe['line'])
+            frame_name = self.__format_frame_name(
+                fmt,
+                name,
+                module,
+                line,
+                norm_path)
+
             stackFrames.append({
                 'id': fid,
-                'name': self.__format_frame_name(fmt, name, module, line, norm_path),
+                'name': frame_name,
                 'source': {'path': norm_path},
                 'line': line, 'column': 1,
             })

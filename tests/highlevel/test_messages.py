@@ -1714,7 +1714,10 @@ class ModulesTests(NormalRequestTest, unittest.TestCase):
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
-            self.expected_failure('Unknown command'),
+            self.expected_response(
+                modules=[],
+                totalModules=0
+            ),
         ])
         self.assert_received(self.debugger, [])
 
