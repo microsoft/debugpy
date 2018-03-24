@@ -1019,8 +1019,6 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
                 '5\tpython-line\tspam.py\t10\tNone\tNone\tNone'),
         ])
 
-    # TODO: fix!
-    @unittest.skip('broken: https://github.com/Microsoft/ptvsd/issues/126')
     def test_multiple_files(self):
         with self.launched():
             self.send_request(
@@ -1057,6 +1055,80 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
                 '1\tpython-line\tspam.py\t10\tNone\tNone\tNone'),
             self.expected_pydevd_request(
                 '2\tpython-line\teggs.py\t17\tNone\tNone\tNone'),
+        ])
+
+    def test_vs_django(self):
+        with self.launched(args={'options': 'DJANGO_DEBUG=True'}):
+            self.send_request(
+                source={'path': 'spam.py'},
+                breakpoints=[{'line': '10'}],
+            )
+            self.send_request(
+                source={'path': 'eggs.html'},
+                breakpoints=[{'line': '17'}],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                breakpoints=[
+                    {'id': 1,
+                     'verified': True,
+                     'line': '10'},
+                ],
+            ),
+            self.expected_response(
+                breakpoints=[
+                    {'id': 2,
+                     'verified': True,
+                     'line': '17'},
+                ],
+            ),
+        ])
+
+        self.PYDEVD_CMD = CMD_SET_BREAK
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request(
+                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone'),
+            self.expected_pydevd_request(
+                '2\tdjango-line\teggs.html\t17\tNone\tNone\tNone'),
+        ])
+
+    def test_vs_flask_jinja2(self):
+        with self.launched(args={'options': 'FLASK_DEBUG=True'}):
+            self.send_request(
+                source={'path': 'spam.py'},
+                breakpoints=[{'line': '10'}],
+            )
+            self.send_request(
+                source={'path': 'eggs.html'},
+                breakpoints=[{'line': '17'}],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                breakpoints=[
+                    {'id': 1,
+                     'verified': True,
+                     'line': '10'},
+                ],
+            ),
+            self.expected_response(
+                breakpoints=[
+                    {'id': 2,
+                     'verified': True,
+                     'line': '17'},
+                ],
+            ),
+        ])
+
+        self.PYDEVD_CMD = CMD_SET_BREAK
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request(
+                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone'),
+            self.expected_pydevd_request(
+                '2\tjinja2-line\teggs.html\t17\tNone\tNone\tNone'),
         ])
 
 
