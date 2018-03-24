@@ -777,14 +777,6 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             name:'friendly name for debug config',
             // Custom attributes supported by PTVSD.
             redirectOutput:true|false,
-            options:'VS options semicolon separated key=value pairs'
-                    WAIT_ON_ABNORMAL_EXIT=True|False
-                    WAIT_ON_NORMAL_EXIT=True|False
-                    REDIRECT_OUTPUT=True|False
-                    VERSION=string
-                    INTERPRETER_OPTIONS=string
-                    WEB_BROWSER_URL=string url
-                    DJANGO_DEBUG=True|False
         }
         """  # noqa
         if self.launch_arguments is None:
@@ -799,15 +791,21 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             redirect_output = ''
         self.pydevd_request(pydevd_comm.CMD_REDIRECT_OUTPUT, redirect_output)
 
-        self.launch_options = self.__parse_launch_options(
-            self.launch_arguments.get('options', ''))
-
     def __parse_launch_option_value(self, value):
         if value == 'True' or value == 'False':
             return bool(value)
         return unquote(value)
 
     def __parse_launch_options(self, launch_options):
+        """VS options semicolon separated key=value pairs
+            WAIT_ON_ABNORMAL_EXIT=True|False
+            WAIT_ON_NORMAL_EXIT=True|False
+            REDIRECT_OUTPUT=True|False
+            VERSION=string
+            INTERPRETER_OPTIONS=string
+            WEB_BROWSER_URL=string url
+            DJANGO_DEBUG=True|False
+        """
         options = {}
         for opt in launch_options.split(';'):
             try:
@@ -840,6 +838,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         # TODO: docstring
         self.start_reason = 'launch'
         self.launch_arguments = request.get('arguments', None)
+        self.launch_options = self.__parse_launch_options(
+            args.get('options', ''))
         self.send_response(request)
 
     def send_process_event(self, start_method):
