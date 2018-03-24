@@ -602,6 +602,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.modules_mgr = ModulesManager(self)
         self.disconnect_request = None
         self.launch_arguments = None
+        self.launch_options = {}
         self.disconnect_request_event = threading.Event()
         pydevd._vscprocessor = self
         self._closed = False
@@ -776,6 +777,14 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             name:'friendly name for debug config',
             // Custom attributes supported by PTVSD.
             redirectOutput:true|false,
+            options:'VS options semicolon separated key=value pairs'
+                    WAIT_ON_ABNORMAL_EXIT=True|False
+                    WAIT_ON_NORMAL_EXIT=True|False
+                    REDIRECT_OUTPUT=True|False
+                    VERSION=string
+                    INTERPRETER_OPTIONS=string
+                    WEB_BROWSER_URL=string url
+                    DJANGO_DEBUG=True|False
         }
         """  # noqa
         if self.launch_arguments is None:
@@ -789,6 +798,24 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         else:
             redirect_output = ''
         self.pydevd_request(pydevd_comm.CMD_REDIRECT_OUTPUT, redirect_output)
+
+        self.launch_options = self.__parse_launch_options(
+            self.launch_arguments.get('options', ''))
+
+    def __parse_launch_option_value(self, value):
+        if value == 'True' or value == 'False':
+            return bool(value)
+        return unquote(value)
+
+    def __parse_launch_options(self, launch_options):
+        options = {}
+        for opt in launch_options.split(';'):
+            try:
+                key, value = opt.split('=')
+            except ValueError:
+                continue
+            options[key] = self.__parse_launch_option_value(value)
+        return options
 
     def on_disconnect(self, request, args):
         # TODO: docstring
@@ -1252,22 +1279,29 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.path_casing.track_file_path_case(path)
         src_bps = args.get('breakpoints', [])
 
+        bp_type = 'python-line'
+        if not path.lower().endswith('.py'):
+            if self.launch_options.get('DJANGO_DEBUG', False):
+                bp_type = 'django-line'
+            elif self.launch_options.get('FLASK_DEBUG', False):
+                bp_type = 'jinja2-line'
+
         # First, we must delete all existing breakpoints in that source.
         cmd = pydevd_comm.CMD_REMOVE_BREAK
         for pyd_bpid, vsc_bpid in self.bp_map.pairs():
             if pyd_bpid[0] == path:
-                msg = 'python-line\t{}\t{}'.format(path, vsc_bpid)
+                msg = '{}\t{}\t{}'.format(bp_type, path, vsc_bpid)
                 self.pydevd_notify(cmd, msg)
                 self.bp_map.remove(pyd_bpid, vsc_bpid)
 
         cmd = pydevd_comm.CMD_SET_BREAK
-        msgfmt = '{}\tpython-line\t{}\t{}\tNone\t{}\tNone'
+        msgfmt = '{}\t{}\t{}\t{}\tNone\t{}\tNone'
         for src_bp in src_bps:
             line = src_bp['line']
             vsc_bpid = self.bp_map.add(
                     lambda vsc_bpid: (path, vsc_bpid))
             self.path_casing.track_file_path_case(path)
-            msg = msgfmt.format(vsc_bpid, path, line,
+            msg = msgfmt.format(vsc_bpid, bp_type, path, line,
                                 src_bp.get('condition', None))
             self.pydevd_notify(cmd, msg)
             bps.append({
@@ -1275,7 +1309,6 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 'verified': True,
                 'line': line,
             })
-
         self.send_response(request, breakpoints=bps)
 
     @async_handler
