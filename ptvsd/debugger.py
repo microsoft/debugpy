@@ -27,7 +27,7 @@ def debug(filename, port_num, debug_id, debug_options, run_as):
 def _run_module(address, modname):
     filename = modname + ':'
     argv = _run_argv(address, filename)
-    argv.append('--module')
+    argv.insert(argv.index('--file'), '--module')
     _run(argv)
 
 
