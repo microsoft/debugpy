@@ -3,7 +3,7 @@ import os.path
 import threading
 import warnings
 
-from ptvsd import debugger, wrapper
+import ptvsd.__main__
 from tests.helpers import protocol
 from ._binder import BinderBase
 
@@ -21,14 +21,18 @@ class Binder(BinderBase):
         def new_pydevd_sock(*args):
             self._start_ptvsd()
             return self.ptvsd.fakesock
-        wrapper.install(
+        if self.module is None:
+            run = ptvsd.__main__.run_file
+            name = self.filename
+        else:
+            run = ptvsd.__main__.run_module
+            name = self.module
+        run(
+            self.address,
+            name,
             start_server=new_pydevd_sock,
             start_client=new_pydevd_sock,
         )
-        if self.module is None:
-            debugger._run_file(self.address, self.filename)
-        else:
-            debugger._run_module(self.address, self.module)
 
         # Block until "done" debugging.
         if not self._lock.acquire(timeout=3):
