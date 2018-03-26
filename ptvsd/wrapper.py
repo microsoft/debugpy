@@ -602,7 +602,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.modules_mgr = ModulesManager(self)
         self.disconnect_request = None
         self.launch_arguments = None
-        self.launch_options = {}
+        self.debug_options = {}
         self.disconnect_request_event = threading.Event()
         pydevd._vscprocessor = self
         self._closed = False
@@ -791,13 +791,13 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             redirect_output = ''
         self.pydevd_request(pydevd_comm.CMD_REDIRECT_OUTPUT, redirect_output)
 
-    def __parse_launch_option_value(self, value):
+    def __parse_debug_option_value(self, value):
         if value == 'True' or value == 'False':
             return bool(value)
         return unquote(value)
 
-    def __parse_launch_options(self, launch_options):
-        """VS options semicolon separated key=value pairs
+    def __parse_debug_options(self, debug_options):
+        """Debug options are semicolon separated key=value pairs
             WAIT_ON_ABNORMAL_EXIT=True|False
             WAIT_ON_NORMAL_EXIT=True|False
             REDIRECT_OUTPUT=True|False
@@ -807,12 +807,12 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             DJANGO_DEBUG=True|False
         """
         options = {}
-        for opt in launch_options.split(';'):
+        for opt in debug_options.split(';'):
             try:
                 key, value = opt.split('=')
             except ValueError:
                 continue
-            options[key] = self.__parse_launch_option_value(value)
+            options[key] = self.__parse_debug_option_value(value)
         return options
 
     def on_disconnect(self, request, args):
@@ -838,7 +838,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         # TODO: docstring
         self.start_reason = 'launch'
         self.launch_arguments = request.get('arguments', None)
-        self.launch_options = self.__parse_launch_options(
+        self.debug_options = self.__parse_debug_options(
             args.get('options', ''))
         self.send_response(request)
 
@@ -1281,9 +1281,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
         bp_type = 'python-line'
         if not path.lower().endswith('.py'):
-            if self.launch_options.get('DJANGO_DEBUG', False):
+            if self.debug_options.get('DJANGO_DEBUG', False):
                 bp_type = 'django-line'
-            elif self.launch_options.get('FLASK_DEBUG', False):
+            elif self.debug_options.get('FLASK_DEBUG', False):
                 bp_type = 'jinja2-line'
 
         # First, we must delete all existing breakpoints in that source.
