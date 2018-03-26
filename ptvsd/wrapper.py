@@ -50,6 +50,20 @@ WAIT_FOR_DISCONNECT_REQUEST_TIMEOUT = 2
 WAIT_FOR_THREAD_FINISH_TIMEOUT = 1
 
 
+def _wait_on_exit():
+    if sys.__stdout__ is not None:
+        try:
+            import msvcrt
+        except ImportError:
+            sys.__stdout__.write('Press Enter to continue . . . ')
+            sys.__stdout__.flush()
+            sys.__stdin__.read(1)
+        else:
+            sys.__stdout__.write('Press any key to continue . . . ')
+            sys.__stdout__.flush()
+            msvcrt.getch()
+
+
 class SafeReprPresentationProvider(pydevd_extapi.StrPresentationProvider):
     """
     Computes string representation of Python values by delegating them
@@ -361,7 +375,7 @@ class ExceptionsManager(object):
                                         'python-{}'.format(exception))
             self.exceptions = {}
 
-    def __find_exception(self, name):
+    def _find_exception(self, name):
         if name in self.exceptions:
             return name
 
@@ -377,7 +391,7 @@ class ExceptionsManager(object):
     def get_break_mode(self, name):
         with self.lock:
             try:
-                return self.exceptions[self.__find_exception(name)]
+                return self.exceptions[self._find_exception(name)]
             except KeyError:
                 pass
         return 'unhandled'
@@ -426,7 +440,7 @@ class ExceptionsManager(object):
         self.remove_all_exception_breaks()
         pyex_options = (opt
                         for opt in exception_options
-                        if self.__is_python_exception_category(opt))
+                        if self._is_python_exception_category(opt))
         for option in pyex_options:
             exception_paths = option['path']
             if not exception_paths:
@@ -458,7 +472,7 @@ class ExceptionsManager(object):
                     self.add_exception_break(
                         exception_name, break_raised, break_uncaught)
 
-    def __is_python_exception_category(self, option):
+    def _is_python_exception_category(self, option):
         """
         Check if the option has entires and that the first entry
         is 'Python Exceptions'.
@@ -524,10 +538,10 @@ class ModulesManager(object):
             except KeyError:
                 pass
 
-            search_path = self.__get_platform_file_path(module_path)
+            search_path = self._get_platform_file_path(module_path)
             for _, value in list(sys.modules.items()):
                 try:
-                    path = self.__get_platform_file_path(value.__file__)
+                    path = self._get_platform_file_path(value.__file__)
                 except AttributeError:
                     path = None
 
@@ -559,7 +573,7 @@ class ModulesManager(object):
 
         return None
 
-    def __get_platform_file_path(self, path):
+    def _get_platform_file_path(self, path):
         if platform.system() == 'Windows':
             return path.lower()
         return path
@@ -579,7 +593,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     protocol.
     """
 
-    def __init__(self, socket, pydevd, logfile=None, killonclose=True):
+    def __init__(self, socket, pydevd, logfile=None, killonclose=True, waitonexitfunc=_wait_on_exit):
         super(VSCodeMessageProcessor, self).__init__(socket=socket,
                                                      own_socket=False,
                                                      logfile=logfile)
@@ -612,19 +626,17 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                                                   name='ptvsd.EventLoop')
         self.event_loop_thread.daemon = True
         self.event_loop_thread.start()
-
-    def __input(self, message):
-        try:
-            raw_input(message)
-        except NameError:
-            input(message)
+        self.wait_on_exit_func = waitonexitfunc
 
     def _handle_exit(self):
-        wait_on_normal_exit = self.debug_options.get('WAIT_ON_NORMAL_EXIT', False)
-        wait_on_abnormal_exit = self.debug_options.get('WAIT_ON_ABNORMAL_EXIT', False)
+        wait_on_normal_exit = self.debug_options.get(
+            'WAIT_ON_NORMAL_EXIT', False)
+        wait_on_abnormal_exit = self.debug_options.get(
+            'WAIT_ON_ABNORMAL_EXIT', False)
+
         if (wait_on_normal_exit and not ptvsd_sys_exit_code) \
             or (wait_on_abnormal_exit and ptvsd_sys_exit_code):
-            self.__input('Press any key to continue…')
+            self.wait_on_exit_func()
         else:
             pass
 
@@ -806,12 +818,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             redirect_output = ''
         self.pydevd_request(pydevd_comm.CMD_REDIRECT_OUTPUT, redirect_output)
 
-    def __parse_debug_option_value(self, value):
-        if value == 'True' or value == 'False':
-            return bool(value)
-        return unquote(value)
-
-    def __parse_debug_options(self, debug_options):
+    def _parse_debug_options(self, debug_options):
         """Debug options are semicolon separated key=value pairs
             WAIT_ON_ABNORMAL_EXIT=True|False
             WAIT_ON_NORMAL_EXIT=True|False
@@ -821,13 +828,24 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             WEB_BROWSER_URL=string url
             DJANGO_DEBUG=True|False
         """
+        DEBUG_OPTIONS_PARSER = {
+            'WAIT_ON_ABNORMAL_EXIT': bool,
+            'WAIT_ON_NORMAL_EXIT': bool,
+            'REDIRECT_OUTPUT': bool,
+            'VERSION': unquote,
+            'INTERPRETER_OPTIONS': unquote,
+            'WEB_BROWSER_URL': unquote,
+            'DJANGO_DEBUG': bool,
+            'FLASK_DEBUG': bool,
+        }
+
         options = {}
         for opt in debug_options.split(';'):
             try:
                 key, value = opt.split('=')
             except ValueError:
                 continue
-            options[key] = self.__parse_debug_option_value(value)
+            options[key] = DEBUG_OPTIONS_PARSER[key](value)
         return options
 
     def on_disconnect(self, request, args):
@@ -853,7 +871,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         # TODO: docstring
         self.start_reason = 'launch'
         self.launch_arguments = request.get('arguments', None)
-        self.debug_options = self.__parse_debug_options(
+        self.debug_options = self._parse_debug_options(
             args.get('options', ''))
         self.send_response(request)
 
@@ -944,7 +962,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             norm_path = self.path_casing.un_normcase(unquote(xframe['file']))
             module = self.modules_mgr.add_or_get_from_path(norm_path)
             line = int(xframe['line'])
-            frame_name = self.__format_frame_name(
+            frame_name = self._format_frame_name(
                 fmt,
                 name,
                 module,
@@ -962,7 +980,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                            stackFrames=stackFrames,
                            totalFrames=totalFrames)
 
-    def __format_frame_name(self, fmt, name, module, line, path):
+    def _format_frame_name(self, fmt, name, module, line, path):
         frame_name = name
         if fmt.get('module', False):
             if module:
@@ -1040,7 +1058,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 var['variablesReference'] = self.var_map.to_vscode(
                     pyd_child, autogen=True)
 
-            eval_name = self.__get_variable_evaluate_name(pyd_var, var_name)
+            eval_name = self._get_variable_evaluate_name(pyd_var, var_name)
             if eval_name:
                 var['evaluateName'] = eval_name
 
@@ -1048,7 +1066,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
         self.send_response(request, variables=variables.get_sorted_variables())
 
-    def __get_variable_evaluate_name(self, pyd_var_parent, var_name):
+    def _get_variable_evaluate_name(self, pyd_var_parent, var_name):
         # TODO: docstring
         eval_name = None
         if len(pyd_var_parent) > 3:
@@ -1062,14 +1080,14 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                     # Check and get the dictionary key or list index.
                     # Note: this is best effort, keys that are object
                     # references will not work
-                    i = self.__get_index_or_key(s)
+                    i = self._get_index_or_key(s)
                     eval_name += '[{}]'.format(i)
                 except Exception:
                     eval_name += '.' + s
 
         return eval_name
 
-    def __get_index_or_key(self, text):
+    def _get_index_or_key(self, text):
         # Dictionary resolver in pydevd provides key
         # in '<repr> (<hash>)' format
         result = re.match(r"(.*)\ \(([0-9]*)\)", text,
@@ -1096,7 +1114,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         var_value = args['value']
         fmt = args.get('format', {})
 
-        lhs_expr = self.__get_variable_evaluate_name(pyd_var, var_name)
+        lhs_expr = self._get_variable_evaluate_name(pyd_var, var_name)
         if not lhs_expr:
             lhs_expr = var_name
         expr = '%s = %s' % (lhs_expr, var_value)
