@@ -87,7 +87,11 @@ class Connection(namedtuple('Connection', 'client server')):
 
     def shutdown(self, *args, **kwargs):
         if self.server is not None:
-            self.server.shutdown(*args, **kwargs)
+            try:
+                self.server.shutdown(*args, **kwargs)
+            except OSError as exc:
+                if exc.errno not in (errno.ENOTCONN, errno.EBADF):
+                    raise
         try:
             self.client.shutdown(*args, **kwargs)
         except OSError as exc:
