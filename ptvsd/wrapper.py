@@ -613,7 +613,21 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.event_loop_thread.daemon = True
         self.event_loop_thread.start()
 
+    def __input(self, message):
+        try:
+            raw_input(message)
+        except NameError:
+            input(message)
+
     def _handle_exit(self):
+        wait_on_normal_exit = self.debug_options.get('WAIT_ON_NORMAL_EXIT', False)
+        wait_on_abnormal_exit = self.debug_options.get('WAIT_ON_ABNORMAL_EXIT', False)
+        if (wait_on_normal_exit and not ptvsd_sys_exit_code) \
+            or (wait_on_abnormal_exit and ptvsd_sys_exit_code):
+            self.__input('Press any key to continue…')
+        else:
+            pass
+
         if self._exited:
             return
         self._exited = True
