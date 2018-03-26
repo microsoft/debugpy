@@ -48,7 +48,7 @@ def _run_argv(address, filename):
 
 
 def _run(argv):
-    import pydevd
+    pydevd = ptvsd.wrapper.install(argv)
     sys.argv[1:0] = argv
     try:
         pydevd.main()

@@ -1,12 +1,9 @@
 import os
 import os.path
-import sys
 import threading
 import warnings
 
-import _pydevd_bundle.pydevd_comm as pydevd_comm
-
-from ptvsd import debugger
+from ptvsd import debugger, wrapper
 from tests.helpers import protocol
 from ._binder import BinderBase
 
@@ -24,10 +21,10 @@ class Binder(BinderBase):
         def new_pydevd_sock(*args):
             self._start_ptvsd()
             return self.ptvsd.fakesock
-        pydevd_comm.start_server = new_pydevd_sock
-        pydevd_comm.start_client = new_pydevd_sock
-        # Force a fresh pydevd.
-        sys.modules.pop('pydevd', None)
+        wrapper.install(
+            start_server=new_pydevd_sock,
+            start_client=new_pydevd_sock,
+        )
         if self.module is None:
             debugger._run_file(self.address, self.filename)
         else:
