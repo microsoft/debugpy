@@ -785,7 +785,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         if self.launch_arguments.get('fixFilePathCase', False):
             self.path_casing.enable()
 
-        if self.launch_arguments.get('redirectOutput', False):
+        if self.launch_arguments.get('redirectOutput', False) \
+            or self.debug_options.get('REDIRECT_OUTPUT', False):
             redirect_output = 'STDOUT\tSTDERR'
         else:
             redirect_output = ''
