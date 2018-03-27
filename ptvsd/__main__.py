@@ -66,6 +66,13 @@ def _run(argv, **kwargs):
 ##################################
 # the script
 
+"""
+For the PyDevd CLI handling see:
+
+  https://github.com/fabioz/PyDev.Debugger/blob/master/_pydevd_bundle/pydevd_command_line_handling.py
+  https://github.com/fabioz/PyDev.Debugger/blob/master/pydevd.py#L1450  (main func)
+"""  # noqa
+
 PYDEVD_OPTS = {
     '--file',
     '--client',
