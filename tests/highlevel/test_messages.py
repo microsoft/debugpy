@@ -1131,6 +1131,80 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
                 '2\tjinja2-line\teggs.html\t17\tNone\tNone\tNone'),
         ])
 
+    def test_vsc_flask_jinja2(self):
+        with self.launched(args={'debugOptions': ['Flask']}):
+            self.send_request(
+                source={'path': 'spam.py'},
+                breakpoints=[{'line': '10'}],
+            )
+            self.send_request(
+                source={'path': 'eggs.html'},
+                breakpoints=[{'line': '17'}],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                breakpoints=[
+                    {'id': 1,
+                     'verified': True,
+                     'line': '10'},
+                ],
+            ),
+            self.expected_response(
+                breakpoints=[
+                    {'id': 2,
+                     'verified': True,
+                     'line': '17'},
+                ],
+            ),
+        ])
+
+        self.PYDEVD_CMD = CMD_SET_BREAK
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request(
+                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone'),
+            self.expected_pydevd_request(
+                '2\tjinja2-line\teggs.html\t17\tNone\tNone\tNone'),
+        ])
+
+    def test_vsc_jinja2(self):
+        with self.launched(args={'debugOptions': ['Jinja']}):
+            self.send_request(
+                source={'path': 'spam.py'},
+                breakpoints=[{'line': '10'}],
+            )
+            self.send_request(
+                source={'path': 'eggs.html'},
+                breakpoints=[{'line': '17'}],
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                breakpoints=[
+                    {'id': 1,
+                     'verified': True,
+                     'line': '10'},
+                ],
+            ),
+            self.expected_response(
+                breakpoints=[
+                    {'id': 2,
+                     'verified': True,
+                     'line': '17'},
+                ],
+            ),
+        ])
+
+        self.PYDEVD_CMD = CMD_SET_BREAK
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request(
+                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone'),
+            self.expected_pydevd_request(
+                '2\tjinja2-line\teggs.html\t17\tNone\tNone\tNone'),
+        ])
+
 
 class SetFunctionBreakpointsTests(NormalRequestTest, unittest.TestCase):
 

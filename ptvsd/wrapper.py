@@ -34,7 +34,7 @@ import ptvsd.ipcjson as ipcjson  # noqa
 import ptvsd.futures as futures  # noqa
 import ptvsd.untangle as untangle  # noqa
 from ptvsd.pathutils import PathUnNormcase  # noqa
-from ptvsd.safe_repr import SafeRepr # noqa
+from ptvsd.safe_repr import SafeRepr  # noqa
 
 
 __author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
@@ -617,7 +617,6 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.exceptions_mgr = ExceptionsManager(self)
         self.modules_mgr = ModulesManager(self)
         self.disconnect_request = None
-        self.launch_arguments = None
         self.debug_options = {}
         self.disconnect_request_event = threading.Event()
         pydevd._vscprocessor = self
@@ -792,33 +791,48 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     def on_configurationDone(self, request, args):
         # TODO: docstring
         self.send_response(request)
-        self.process_launch_arguments()
+        self.process_debug_options()
         self.pydevd_request(pydevd_comm.CMD_RUN, '')
 
-    def process_launch_arguments(self):
+    def process_debug_options(self):
         """
         Process the launch arguments to configure the debugger.
+        """  # noqa
+        if self.debug_options.get('FIX_FILE_PATH_CASE', False):
+            self.path_casing.enable()
+
+        if self.debug_options.get('REDIRECT_OUTPUT', False):
+            redirect_output = 'STDOUT\tSTDERR'
+        else:
+            redirect_output = ''
+        self.pydevd_request(pydevd_comm.CMD_REDIRECT_OUTPUT, redirect_output)
+
+    def build_debug_options(self, debug_options):
+        """
+        Build string representation of debug options from launch config (as provided by VSC)
         Further information can be found here https://code.visualstudio.com/docs/editor/debugging#_launchjson-attributes
         {
             type:'python',
             request:'launch'|'attach',
             name:'friendly name for debug config',
-            // Custom attributes supported by PTVSD.
-            redirectOutput:true|false,
+            debugOptions:[
+                'RedirectOutput', 'Django'
+            ]
         }
         """  # noqa
-        if self.launch_arguments is None:
-            return
-
-        if self.launch_arguments.get('fixFilePathCase', False):
-            self.path_casing.enable()
-
-        if self.launch_arguments.get('redirectOutput', False) \
-            or self.debug_options.get('REDIRECT_OUTPUT', False):
-            redirect_output = 'STDOUT\tSTDERR'
-        else:
-            redirect_output = ''
-        self.pydevd_request(pydevd_comm.CMD_REDIRECT_OUTPUT, redirect_output)
+        debug_option_mapping = {
+            'RedirectOutput': 'REDIRECT_OUTPUT=True',
+            'WaitOnNormalExit': 'WAIT_ON_NORMAL_EXIT=True',
+            'WaitOnAbnormalExit': 'WAIT_ON_ABNORMAL_EXIT=True',
+            'Django': 'DJANGO_DEBUG=True',
+            'Flask': 'FLASK_DEBUG=True',
+            'Jinja': 'FLASK_DEBUG=True',
+            'FixFilePathCase': 'FIX_FILE_PATH_CASE=True',
+            'DebugStdLib': 'DEBUG_STD_LIB=True'
+        }
+        return ';'.join(debug_option_mapping[option]
+                        for option in debug_options
+                        if option in debug_option_mapping)
 
     def _parse_debug_options(self, debug_options):
         """Debug options are semicolon separated key=value pairs
@@ -872,9 +886,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     def on_launch(self, request, args):
         # TODO: docstring
         self.start_reason = 'launch'
-        self.launch_arguments = request.get('arguments', None)
+        options = self.build_debug_options(args.get('debugOptions', []))
         self.debug_options = self._parse_debug_options(
-            args.get('options', ''))
+            args.get('options', options))
         self.send_response(request)
 
     def send_process_event(self, start_method):
@@ -1196,11 +1210,11 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             try:
                 xml2 = untangle.parse(resp_args).xml
                 xvar2 = xml2.var
-                result_type  = unquote(xvar2['type'])
+                result_type = unquote(xvar2['type'])
                 result = unquote(xvar2['value'])
             except Exception:
                 # if resp_args is not xml then it contains the error traceback
-                result_type  = unquote(xvar['type'])
+                result_type = unquote(xvar['type'])
                 result = unquote(xvar['value'])
             self.send_response(
                 request,
