@@ -593,7 +593,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     protocol.
     """
 
-    def __init__(self, socket, pydevd, logfile=None, killonclose=True, waitonexitfunc=_wait_on_exit):
+    def __init__(self, socket, pydevd, logfile=None,
+                 killonclose=True,
+                 waitonexitfunc=_wait_on_exit):
         super(VSCodeMessageProcessor, self).__init__(socket=socket,
                                                      own_socket=False,
                                                      logfile=logfile)
