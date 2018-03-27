@@ -34,6 +34,7 @@ def _run_argv(address, filename, *extra):
         extra = list(extra[len(pydevd) + 1:])
     else:
         pydevd = []
+        extra = list(extra)
 
     host, port = address
     #if host is None:
