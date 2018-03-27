@@ -6,6 +6,8 @@ import argparse
 import os.path
 import sys
 
+import pydevd
+
 import ptvsd.wrapper
 
 
@@ -54,8 +56,27 @@ def _run_argv(address, filename, *extra):
 
 def _run(argv, **kwargs):
     """Start pydevd with the given commandline args."""
-    pydevd = ptvsd.wrapper.install(**kwargs)
     #print(' '.join(argv))
+
+    # Pydevd assumes that the "__main__" module is the "pydevd" module
+    # and does some tricky stuff under that assumption.  For example,
+    # when the debugger starts up it calls save_main_module()
+    # (in pydevd_bundle/pydevd_utils.py).  That function explicitly sets
+    # sys.modules["pydevd"] to sys.modules["__main__"] and then sets
+    # the __main__ module to a new one.  This makes some sense since
+    # it gives the debugged script a fresh __main__ module.
+    #
+    # This complicates things for us since we are running a different
+    # file (i.e. this one) as the __main__ module.  Consequently,
+    # sys.modules["pydevd"] gets set to ptvsd/__main__.py.  Subsequent
+    # imports of the "pydevd" module then return the wrong module.  We
+    # work around this by avoiding lazy imports of the "pydevd" module.
+    # We also replace the __main__ module with the "pydevd" module here.
+    if sys.modules['__main__'].__file__ != pydevd.__file__:
+        sys.modules['__main___orig'] = sys.modules['__main__']
+        sys.modules['__main__'] = pydevd
+
+    ptvsd.wrapper.install(pydevd, **kwargs)
     sys.argv[:] = argv
     try:
         pydevd.main()
