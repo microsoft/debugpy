@@ -263,13 +263,16 @@ class SafeRepr(object):
     def _repr_obj(self, obj, level, limit_inner, limit_outer):
         try:
             if self.raw_value:
+                # For raw value retrieval, ignore all limits.
                 try:
                     mv = memoryview(obj)
                 except Exception:
-                    obj_repr = unicode(obj)
+                    yield unicode(obj)
+                    return
                 else:
                     # Map bytes to Unicode codepoints with same values.
-                    obj_repr = mv.tobytes().decode('latin-1')
+                    yield mv.tobytes().decode('latin-1')
+                    return
             elif self.convert_to_hex and isinstance(obj, self.int_types):
                 obj_repr = hex(obj)
             else:

@@ -23,9 +23,11 @@ try:
 except Exception:
     import urllib.parse as urllib
 
-# Disable this, since we aren't packaging the Cython modules at the moment.
 import _pydevd_bundle.pydevd_constants as pydevd_constants
+# Disable this, since we aren't packaging the Cython modules at the moment.
 pydevd_constants.CYTHON_SUPPORTED = False
+# We limit representation size in our representation provider when needed.
+pydevd_constants.MAXIMUM_VARIABLE_REPRESENTATION_SIZE = 2**32
 
 import _pydevd_bundle.pydevd_comm as pydevd_comm  # noqa
 import _pydevd_bundle.pydevd_extension_api as pydevd_extapi  # noqa
