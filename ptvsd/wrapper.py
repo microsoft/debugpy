@@ -8,6 +8,7 @@ import atexit
 import contextlib
 import errno
 import getpass
+import io
 import os
 import platform
 import re
@@ -315,6 +316,18 @@ class PydevdSocket(object):
     def recv_into(self, buf):
         return os.readv(self.pipe_r, [buf])
 
+    # In Python 2, we must unquote before we decode, because UTF-8 codepoints
+    # are encoded first and then quoted as individual bytes. In Python 3,
+    # however, we just get a properly UTF-8-encoded string.
+    if sys.version_info < (3,):
+        @staticmethod
+        def _decode_and_unquote(data):
+            return unquote(data).decode('utf8')
+    else:
+        @staticmethod
+        def _decode_and_unquote(data):
+            return unquote(data.decode('utf8'))
+
     def send(self, data):
         """Handle the given bytes.
 
@@ -322,7 +335,7 @@ class PydevdSocket(object):
         follow the pydevd line protocol.
         """
         result = len(data)
-        data = unquote(data.decode('utf8'))
+        data = self._decode_and_unquote(data)
         #self.log.write('<<<[' + data + ']\n\n')
         #self.log.flush()
         cmd_id, seq, args = data.split('\t', 2)
@@ -748,6 +761,10 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.loop.call_soon(lambda: fut.set_result(None))
         return fut
 
+    @staticmethod
+    def parse_xml_response(args):
+        return untangle.parse(io.BytesIO(args.encode('utf8'))).xml
+
     @async_method
     def using_format(self, fmt):
         while not SafeReprPresentationProvider._lock.acquire(False):
@@ -921,7 +938,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         # TODO: docstring
         cmd = pydevd_comm.CMD_LIST_THREADS
         _, _, resp_args = yield self.pydevd_request(cmd, '')
-        xml = untangle.parse(resp_args).xml
+        xml = self.parse_xml_response(resp_args)
         try:
             xthreads = xml.thread
         except AttributeError:
@@ -1056,7 +1073,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         with (yield self.using_format(fmt)):
             _, _, resp_args = yield self.pydevd_request(cmd, msg)
 
-        xml = untangle.parse(resp_args).xml
+        xml = self.parse_xml_response(resp_args)
         try:
             xvars = xml.var
         except AttributeError:
@@ -1167,7 +1184,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 '\t'.join(cmd_args),
             )
 
-        xml = untangle.parse(resp_args).xml
+        xml = self.parse_xml_response(resp_args)
         xvar = xml.var
 
         response = {
@@ -1196,7 +1213,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             _, _, resp_args = yield self.pydevd_request(
                 pydevd_comm.CMD_EVALUATE_EXPRESSION,
                 msg)
-        xml = untangle.parse(resp_args).xml
+        xml = self.parse_xml_response(resp_args)
         xvar = xml.var
 
         context = args.get('context', '')
@@ -1215,7 +1232,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                     pydevd_comm.CMD_EXEC_EXPRESSION,
                     msg)
             try:
-                xml2 = untangle.parse(resp_args).xml
+                xml2 = self.parse_xml_response(resp_args)
                 xvar2 = xml2.var
                 result_type = unquote(xvar2['type'])
                 result = unquote(xvar2['value'])
@@ -1462,7 +1479,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 self.send_process_event(self.start_reason)
 
         # TODO: docstring
-        xml = untangle.parse(args).xml
+        xml = self.parse_xml_response(args)
         try:
             name = unquote(xml.thread['name'])
         except KeyError:
@@ -1488,7 +1505,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     @async_handler
     def on_pydevd_thread_suspend(self, seq, args):
         # TODO: docstring
-        xml = untangle.parse(args).xml
+        xml = self.parse_xml_response(args)
         pyd_tid = xml.thread['id']
         reason = int(xml.thread['stop_reason'])
         STEP_REASONS = {
@@ -1534,7 +1551,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                                                                 pyd_fid)
                 cmdid = pydevd_comm.CMD_GET_VARIABLE
                 _, _, resp_args = yield self.pydevd_request(cmdid, cmdargs)
-                xml = untangle.parse(resp_args).xml
+                xml = self.parse_xml_response(resp_args)
                 text = unquote(xml.var[1]['type'])
                 description = unquote(xml.var[1]['value'])
                 frame_data = ((
@@ -1617,7 +1634,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     @pydevd_events.handler(pydevd_comm.CMD_WRITE_TO_CONSOLE)
     def on_pydevd_cmd_write_to_console2(self, seq, args):
         """Handle console output"""
-        xml = untangle.parse(args).xml
+        xml = self.parse_xml_response(args)
         ctx = xml.io['ctx']
         category = 'stdout' if ctx == '1' else 'stderr'
         content = unquote(xml.io['s'])
