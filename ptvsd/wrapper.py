@@ -310,13 +310,19 @@ class PydevdSocket(object):
         This is where the "socket" sends requests to pydevd.  The data
         must follow the pydevd line protocol.
         """
-        data = os.read(self.pipe_r, count)
+        pipe_r = self.pipe_r
+        if pipe_r is None:
+            return b''
+        data = os.read(pipe_r, count)
         #self.log.write('>>>[' + data.decode('utf8') + ']\n\n')
         #self.log.flush()
         return data
 
     def recv_into(self, buf):
-        return os.readv(self.pipe_r, [buf])
+        pipe_r = self.pipe_r
+        if pipe_r is None:
+            return 0
+        return os.readv(pipe_r, [buf])
 
     # In Python 2, we must unquote before we decode, because UTF-8 codepoints
     # are encoded first and then quoted as individual bytes. In Python 3,
