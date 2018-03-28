@@ -44,13 +44,18 @@ def get_pydevd_package_data():
 
 
 PACKAGE_DATA = {
-    'ptvsd': list(get_pydevd_package_data()) + ['ThirdPartyNotices.txt'],
+    'ptvsd': (list(get_pydevd_package_data()) +
+        ['ThirdPartyNotices.txt'] +
+        ['dummy.txt'] if sys.version_info < (3,) else []
+    )
 }
 
 setup(
     name='ptvsd',
     version='4.0.0a5',
-    description='Visual Studio remote debugging server for Python',
+    description='Remote debugging server for Python support in Visual Studio and Visual Studio Code', # noqa
+    long_description=open('DESCRIPTION.md').read(),
+    long_description_content_type='text/markdown',
     license='MIT',
     author='Microsoft Corporation',
     author_email='ptvshelp@microsoft.com',
