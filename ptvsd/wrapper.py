@@ -21,6 +21,7 @@ try:
     urllib.unquote
 except Exception:
     import urllib.parse as urllib
+import warnings
 
 import _pydevd_bundle.pydevd_constants as pydevd_constants
 # Disable this, since we aren't packaging the Cython modules at the moment.
@@ -672,13 +673,31 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             return
         self._exited = True
 
+        # Notify the editor that the "debuggee" (e.g. script, app) exited.
         self.send_event('exited', exitCode=ptvsd_sys_exit_code)
+        # Notify the editor that the debugger has stopped.
         self.send_event('terminated')
 
-        self.disconnect_request_event.wait(WAIT_FOR_DISCONNECT_REQUEST_TIMEOUT)
+        # The editor will send a "disconnect" request at this point.
+        self._wait_for_disconnect()
+
+    def _wait_for_disconnect(self, timeout=None):
+        if timeout is None:
+            timeout = WAIT_FOR_DISCONNECT_REQUEST_TIMEOUT
+
+        if not self.disconnect_request_event.wait(timeout):
+            warnings.warn('timed out waiting for disconnect request')
         if self.disconnect_request is not None:
             self.send_response(self.disconnect_request)
             self.disconnect_request = None
+
+    def _handle_disconnect(self, request):
+        self.disconnect_request = request
+        self.disconnect_request_event.set()
+        killProcess = not self._closed
+        self.close()
+        if killProcess and self.killonclose:
+            os.kill(os.getpid(), signal.SIGTERM)
 
     def close(self):
         """Stop the message processor and release its resources."""
@@ -686,11 +705,13 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             return
         self._closed = True
 
+        # Stop the pydevd message handler first.
         pydevd = self.pydevd
         self.pydevd = None
         pydevd.shutdown(socket.SHUT_RDWR)
         pydevd.close()
 
+        # Wait for pydevd to "exit".
         self._handle_exit()
 
         self.set_exit()
@@ -899,12 +920,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     def on_disconnect(self, request, args):
         # TODO: docstring
         if self.start_reason == 'launch':
-            self.disconnect_request = request
-            self.disconnect_request_event.set()
-            killProcess = not self._closed
-            self.close()
-            if killProcess and self.killonclose:
-                os.kill(os.getpid(), signal.SIGTERM)
+            self._handle_disconnect()
         else:
             self.send_response(request)
 
