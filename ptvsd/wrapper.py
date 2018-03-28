@@ -906,6 +906,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     def on_attach(self, request, args):
         # TODO: docstring
         self.start_reason = 'attach'
+        options = self.build_debug_options(args.get('debugOptions', []))
+        self.debug_options = self._parse_debug_options(
+            args.get('options', options))
         self.send_response(request)
 
     @async_handler
