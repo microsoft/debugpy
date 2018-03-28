@@ -657,6 +657,34 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             output='ptvsd',
             data={'version': __version__})
 
+    # closing the adapter
+
+    def close(self):
+        """Stop the message processor and release its resources."""
+        if self._closed:
+            return
+        self._closed = True
+
+        # Stop the pydevd message handler first.
+        pydevd = self.pydevd
+        self.pydevd = None
+        pydevd.shutdown(socket.SHUT_RDWR)
+        pydevd.close()
+
+        # Wait for pydevd to "exit".
+        self._handle_exit()
+
+        self.set_exit()
+        self.loop.stop()
+        self.event_loop_thread.join(WAIT_FOR_THREAD_FINISH_TIMEOUT)
+
+        if self.socket:
+            try:
+                self.socket.shutdown(socket.SHUT_RDWR)
+                self.socket.close()
+            except Exception:
+                pass
+
     def _handle_exit(self):
         wait_on_normal_exit = self.debug_options.get(
             'WAIT_ON_NORMAL_EXIT', False)
@@ -699,31 +727,40 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         if killProcess and self.killonclose:
             os.kill(os.getpid(), signal.SIGTERM)
 
-    def close(self):
-        """Stop the message processor and release its resources."""
-        if self._closed:
-            return
-        self._closed = True
+    # async helpers
 
-        # Stop the pydevd message handler first.
-        pydevd = self.pydevd
-        self.pydevd = None
-        pydevd.shutdown(socket.SHUT_RDWR)
-        pydevd.close()
+    def async_method(m):
+        """Converts a generator method into an async one."""
+        m = futures.wrap_async(m)
 
-        # Wait for pydevd to "exit".
-        self._handle_exit()
+        def f(self, *args, **kwargs):
+            return m(self, self.loop, *args, **kwargs)
 
-        self.set_exit()
-        self.loop.stop()
-        self.event_loop_thread.join(WAIT_FOR_THREAD_FINISH_TIMEOUT)
+        return f
 
-        if self.socket:
-            try:
-                self.socket.shutdown(socket.SHUT_RDWR)
-                self.socket.close()
-            except Exception:
-                pass
+    def async_handler(m):
+        """Converts a generator method into a fire-and-forget async one."""
+        m = futures.wrap_async(m)
+
+        def f(self, *args, **kwargs):
+            fut = m(self, self.loop, *args, **kwargs)
+
+            def done(fut):
+                try:
+                    fut.result()
+                except BaseException:
+                    traceback.print_exc(file=sys.__stderr__)
+
+            fut.add_done_callback(done)
+
+        return f
+
+    def sleep(self):
+        fut = futures.Future(self.loop)
+        self.loop.call_soon(lambda: fut.set_result(None))
+        return fut
+
+    # PyDevd "socket" entry points (and related helpers)
 
     def pydevd_notify(self, cmd_id, args):
         # TODO: docstring
@@ -758,37 +795,6 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             raise UnsupportedPyDevdCommandError(cmd_id)
         return f(self, seq, args)
 
-    def async_method(m):
-        """Converts a generator method into an async one."""
-        m = futures.wrap_async(m)
-
-        def f(self, *args, **kwargs):
-            return m(self, self.loop, *args, **kwargs)
-
-        return f
-
-    def async_handler(m):
-        """Converts a generator method into a fire-and-forget async one."""
-        m = futures.wrap_async(m)
-
-        def f(self, *args, **kwargs):
-            fut = m(self, self.loop, *args, **kwargs)
-
-            def done(fut):
-                try:
-                    fut.result()
-                except BaseException:
-                    traceback.print_exc(file=sys.__stderr__)
-
-            fut.add_done_callback(done)
-
-        return f
-
-    def sleep(self):
-        fut = futures.Future(self.loop)
-        self.loop.call_soon(lambda: fut.set_result(None))
-        return fut
-
     @staticmethod
     def parse_xml_response(args):
         return untangle.parse(io.BytesIO(args.encode('utf8'))).xml
@@ -805,6 +811,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 yield
             provider._lock.release()
         yield futures.Result(context())
+
+    # VSC protocol handlers
 
     @async_handler
     def on_initialize(self, request, args):
@@ -917,13 +925,6 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             options[key] = DEBUG_OPTIONS_PARSER[key](value)
         return options
 
-    def on_disconnect(self, request, args):
-        # TODO: docstring
-        if self.start_reason == 'launch':
-            self._handle_disconnect()
-        else:
-            self.send_response(request)
-
     @async_handler
     def on_attach(self, request, args):
         # TODO: docstring
@@ -941,6 +942,13 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.debug_options = self._parse_debug_options(
             args.get('options', options))
         self.send_response(request)
+
+    def on_disconnect(self, request, args):
+        # TODO: docstring
+        if self.start_reason == 'launch':
+            self._handle_disconnect()
+        else:
+            self.send_response(request)
 
     def send_process_event(self, start_method):
         # TODO: docstring
@@ -1505,6 +1513,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             },
         }
         self.send_response(request, **sys_info)
+
+    # PyDevd protocol event handlers
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_CREATE)
     def on_pydevd_thread_create(self, seq, args):
