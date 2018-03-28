@@ -191,8 +191,8 @@ class RawValueTests(TestBase):
         self.saferepr.raw_value = True
 
     def test_unicode_raw(self):
-        value = u'A' * 5
-        self.assert_saferepr(value, 'AAAAA')
+        value = u'A\u2000' * 5
+        self.assert_saferepr(value, u'A\u2000A\u2000A\u2000A\u2000A\u2000')
 
     def test_bytes_raw(self):
         value = b'A' * 5

@@ -266,7 +266,7 @@ class SafeRepr(object):
                 try:
                     mv = memoryview(obj)
                 except Exception:
-                    obj_repr = str(obj)
+                    obj_repr = unicode(obj)
                 else:
                     # Map bytes to Unicode codepoints with same values.
                     obj_repr = mv.tobytes().decode('latin-1')
