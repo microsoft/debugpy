@@ -114,12 +114,12 @@ class InitializeTests(LifecycleTest, unittest.TestCase):
                     {
                         'filter': 'raised',
                         'label': 'Raised Exceptions',
-                        'default': 'true'
+                        'default': True
                     },
                     {
                         'filter': 'uncaught',
                         'label': 'Uncaught Exceptions',
-                        'default': 'true'
+                        'default': True
                     },
                 ],
                 supportsEvaluateForHovers=True,

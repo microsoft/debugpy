@@ -802,12 +802,12 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 {
                     'filter': 'raised',
                     'label': 'Raised Exceptions',
-                    'default': 'false'
+                    'default': False
                 },
                 {
                     'filter': 'uncaught',
                     'label': 'Uncaught Exceptions',
-                    'default': 'true'
+                    'default': True
                 },
             ],
         )
