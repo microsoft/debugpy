@@ -24,6 +24,7 @@ def save_main_module(file, module_name):
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=DeprecationWarning)
+        warnings.simplefilter("ignore", category=PendingDeprecationWarning)
         from imp import new_module
 
     m = new_module('__main__')
