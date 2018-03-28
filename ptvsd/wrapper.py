@@ -879,6 +879,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             'WEB_BROWSER_URL': unquote,
             'DJANGO_DEBUG': bool,
             'FLASK_DEBUG': bool,
+            'FIX_FILE_PATH_CASE': bool
         }
 
         options = {}
