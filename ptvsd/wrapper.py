@@ -665,19 +665,23 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             return
         self._closed = True
 
-        # Stop the pydevd message handler first.
+        # Stop the PyDevd message handler first.
+        self._stop_pydevd_message_loop()
+        # Treat PyDevd as effectively exited.
+        self._handle_pydevd_stopped()
+        # Close the editor-side socket.
+        self._stop_vsc_message_loop()
+
+    def _stop_pydevd_message_loop(self):
         pydevd = self.pydevd
         self.pydevd = None
         pydevd.shutdown(socket.SHUT_RDWR)
         pydevd.close()
 
-        # Wait for pydevd to "exit".
-        self._handle_exit()
-
+    def _stop_vsc_message_loop(self):
         self.set_exit()
         self.loop.stop()
         self.event_loop_thread.join(WAIT_FOR_THREAD_FINISH_TIMEOUT)
-
         if self.socket:
             try:
                 self.socket.shutdown(socket.SHUT_RDWR)
@@ -685,7 +689,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             except Exception:
                 pass
 
-    def _handle_exit(self):
+    def _handle_pydevd_stopped(self):
         wait_on_normal_exit = self.debug_options.get(
             'WAIT_ON_NORMAL_EXIT', False)
         wait_on_abnormal_exit = self.debug_options.get(
@@ -724,6 +728,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.disconnect_request_event.set()
         killProcess = not self._closed
         self.close()
+        # TODO: Move killing the process to close()?
         if killProcess and self.killonclose:
             os.kill(os.getpid(), signal.SIGTERM)
 
@@ -946,7 +951,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     def on_disconnect(self, request, args):
         # TODO: docstring
         if self.start_reason == 'launch':
-            self._handle_disconnect()
+            self._handle_disconnect(request)
         else:
             self.send_response(request)
 
