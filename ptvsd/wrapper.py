@@ -42,7 +42,7 @@ from ptvsd.safe_repr import SafeRepr  # noqa
 
 
 __author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
-__version__ = "4.0.0a4"
+__version__ = "4.0.0a5"
 
 
 #def ipcjson_trace(s):
