@@ -54,8 +54,8 @@ setup(
     name='ptvsd',
     version='4.0.0a5',
     description='Remote debugging server for Python support in Visual Studio and Visual Studio Code', # noqa
-    long_description=open('DESCRIPTION.md').read(),
-    long_description_content_type='text/markdown',
+    #long_description=open('DESCRIPTION.md').read(),
+    #long_description_content_type='text/markdown',
     license='MIT',
     author='Microsoft Corporation',
     author_email='ptvshelp@microsoft.com',
