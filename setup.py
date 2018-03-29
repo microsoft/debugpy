@@ -46,7 +46,7 @@ def get_pydevd_package_data():
 PACKAGE_DATA = {
     'ptvsd': (list(get_pydevd_package_data()) +
         ['ThirdPartyNotices.txt'] +
-        ['dummy.txt'] if sys.version_info < (3,) else []
+        (['dummy.txt'] if sys.version_info < (3,) else [])
     )
 }
 
