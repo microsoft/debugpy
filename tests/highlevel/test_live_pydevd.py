@@ -107,7 +107,7 @@ class LifecycleTests(TestBase, unittest.TestCase):
             # Normal ops would go here.
 
             # end
-            with self._wait_for_events(['exited', 'terminated']):
+            with self.wait_for_events(['exited', 'terminated']):
                 pass
             self.fix.binder.wait_until_done()
             received = self.vsc.received
