@@ -1,10 +1,12 @@
+import threading
+
 from _pydevd_bundle.pydevd_comm import (
     CMD_VERSION,
 )
 
-import ptvsd.wrapper as _ptvsd
 from ._pydevd import parse_message, encode_message, iter_messages, Message
 from tests.helpers import protocol, socket
+from ._binder import BinderBase
 
 
 PROTOCOL = protocol.MessageProtocol(
@@ -14,28 +16,34 @@ PROTOCOL = protocol.MessageProtocol(
 )
 
 
-def _bind(address):
-    connect, remote = socket.bind(address)
+class Binder(BinderBase):
 
-    def connect(_connect=connect):
-        client, server = _connect()
-        pydevd = _ptvsd._start(client, server,
-                               killonclose=False,
-                               addhandlers=False)
-        pydevd._vscprocessor._exit_on_unknown_command = False
-        return socket.Connection(pydevd, server)
-    return connect, remote
+    def __init__(self):
+        super(Binder, self).__init__()
+        self._lock = threading.Lock()
+        self._lock.acquire()
+
+    def _run_debugger(self):
+        self._start_ptvsd()
+        # Block until "done" debugging.
+        self._lock.acquire()
+
+    def _wrap_sock(self):
+        return socket.Connection(self.ptvsd.fakesock, self.ptvsd.server)
+
+    def _done(self):
+        self._lock.release()
 
 
 class Started(protocol.MessageDaemonStarted):
 
     def send_response(self, msg):
         self.wait_until_connected()
-        return self.fake.send_response(msg)
+        return self.daemon.send_response(msg)
 
     def send_event(self, msg):
         self.wait_until_connected()
-        return self.fake.send_event(msg)
+        return self.daemon.send_event(msg)
 
 
 class FakePyDevd(protocol.MessageDaemon):
@@ -99,8 +107,10 @@ class FakePyDevd(protocol.MessageDaemon):
             return None
 
     def __init__(self, handler=None):
+        self.binder = Binder()
+
         super(FakePyDevd, self).__init__(
-            _bind,
+            self.binder.bind,
             PROTOCOL,
             (lambda msg, send: self.handle_request(msg, send, handler)),
         )
@@ -136,3 +146,7 @@ class FakePyDevd(protocol.MessageDaemon):
             send_message(resp)
             return True
         self.add_handler(handle_request, handlername)
+
+    def _close(self):
+        self.binder._done()
+        super(FakePyDevd, self)._close()
