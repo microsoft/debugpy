@@ -26,7 +26,7 @@ class Started(protocol.MessageDaemonStarted):
 
     def send_request(self, msg):
         self.wait_until_connected()
-        return self.fake.send_request(msg)
+        return self.daemon.send_request(msg)
 
 
 class FakeVSC(protocol.MessageDaemon):
@@ -59,6 +59,7 @@ class FakeVSC(protocol.MessageDaemon):
     """  # noqa
 
     STARTED = Started
+    EXTERNAL = True
 
     PROTOCOL = PROTOCOL
 

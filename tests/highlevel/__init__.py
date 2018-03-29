@@ -433,6 +433,9 @@ class FixtureBase(object):
             return self._fake
         except AttributeError:
             self._fake = self.new_fake()
+            # Uncomment the following 2 lines to see all messages.
+            #self._fake.PRINT_SENT_MESSAGES = True
+            #self._fake.PRINT_RECEIVED_MESSAGES = True
             return self._fake
 
     @property

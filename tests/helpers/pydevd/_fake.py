@@ -74,6 +74,7 @@ class FakePyDevd(protocol.MessageDaemon):
     """  # noqa
 
     STARTED = Started
+    EXTERNAL = False
 
     PROTOCOL = PROTOCOL
     VERSION = '1.1.1'
