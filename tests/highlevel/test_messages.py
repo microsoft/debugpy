@@ -94,14 +94,12 @@ class InitializeTests(LifecycleTest, unittest.TestCase):
     @unittest.skip('tested via test_lifecycle.py')
     def test_basic(self):
         version = self.debugger.VERSION
-        addr = (None, 8888)
-        with self.vsc.start(addr):
-            with self.disconnect_when_done():
-                self.set_debugger_response(CMD_VERSION, version)
-                req = self.send_request('initialize', {
-                    'adapterID': 'spam',
-                })
-                received = self.vsc.received
+        with self.lifecycle.demon_running(port=8888):
+            self.set_debugger_response(CMD_VERSION, version)
+            req = self.send_request('initialize', {
+                'adapterID': 'spam',
+            })
+            received = self.vsc.received
 
         self.assert_vsc_received(received, [
             self.new_response(req, **dict(
