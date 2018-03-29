@@ -357,7 +357,9 @@ class VSCLifecycle(object):
             port = self.PORT
         addr = (None, port)
         daemon = self._fix.fake.start(addr)
-        daemon.wait_until_connected()
+        with self._hidden():
+            with self._fix.wait_for_event('output'):
+                daemon.wait_until_connected()
         return daemon
 
     def _stop_daemon(self, daemon):
@@ -378,10 +380,6 @@ class VSCLifecycle(object):
     def _handshake(self, command, threadnames=None, config=None,
                    default_threads=True, process=True, reset=True,
                    **kwargs):
-        with self._hidden():
-            with self._fix.wait_for_event('output'):
-                pass
-
         initargs = dict(
             kwargs.pop('initargs', None) or {},
             disconnect=kwargs.pop('disconnect', True),
