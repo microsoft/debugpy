@@ -1453,7 +1453,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             try:
                 impl_desc = sys.implementation.name
             except AttributeError:
-                impl_desc = 'Python'
+                impl_desc = None
 
         def version_str(v):
             return '{}.{}.{}{}{}'.format(
@@ -1466,12 +1466,12 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         try:
             impl_name = sys.implementation.name
         except AttributeError:
-            impl_name = 'Python'
+            impl_name = None
 
         try:
             impl_version = version_str(sys.implementation.version)
         except AttributeError: 
-            impl_version =  version_str(sys.version_info)
+            impl_version =  None
 
         sys_info = {
             'ptvsd': {
