@@ -108,7 +108,8 @@ class LifecycleTests(TestBase, unittest.TestCase):
 
             # end
             with self.wait_for_events(['exited', 'terminated']):
-                pass
+                self.fix.binder.done()
+            # TODO: Send a "disconnect" request?
             self.fix.binder.wait_until_done()
             received = self.vsc.received
 
@@ -200,6 +201,7 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
         with self.launched():
             # Allow the script to run to completion.
             received = self.vsc.received
+            self.fix.binder.done()
 
         self.assert_received(self.vsc, [])
         self.assert_vsc_received(received, [])

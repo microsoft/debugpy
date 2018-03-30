@@ -1,6 +1,8 @@
 import os
 import os.path
 import sys
+import threading
+import warnings
 
 import _pydevd_bundle.pydevd_comm as pydevd_comm
 
@@ -15,6 +17,8 @@ class Binder(BinderBase):
         super(Binder, self).__init__()
         self.filename = filename
         self.module = module
+        self._lock = threading.Lock()
+        self._lock.acquire()
 
     def _run_debugger(self):
         def new_pydevd_sock(*args):
@@ -28,6 +32,15 @@ class Binder(BinderBase):
             debugger._run_file(self.address, self.filename)
         else:
             debugger._run_module(self.address, self.module)
+
+        # Block until "done" debugging.
+        if not self._lock.acquire(timeout=3):
+            # This shouldn't happen since the timeout on event waiting
+            # is this long.
+            warnings.warn('timeout out waiting for "done"')
+
+    def done(self):
+        self._lock.release()
 
 
 class LivePyDevd(protocol.Daemon):
@@ -54,6 +67,9 @@ class LivePyDevd(protocol.Daemon):
         super(LivePyDevd, self).__init__(self.binder.bind)
 
     def _close(self):
+        # Note that we do not call self.binder.done() here, though it
+        # might make sense as a fallback.  Instead, we do so directly
+        # in the relevant test cases.
         super(LivePyDevd, self)._close()
         # TODO: Close pydevd somehow?
 
