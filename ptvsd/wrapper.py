@@ -1455,15 +1455,33 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             except AttributeError:
                 impl_desc = 'Python'
 
+        def version_str(v):
+            return '{}.{}.{}{}{}'.format(
+                v.major,
+                v.minor,
+                v.micro,
+                v.releaselevel,
+                v.serial)
+
+        try:
+            impl_name = sys.implementation.name
+        except AttributeError:
+            impl_name = 'Python'
+
+        try:
+            impl_version = version_str(sys.implementation.version)
+        except AttributeError: 
+            impl_version =  version_str(sys.version_info)
+
         sys_info = {
             'ptvsd': {
                 'version': __version__,
             },
             'python': {
-                'version': list(sys.version_info),
+                'version': version_str(sys.version_info),
                 'implementation': {
-                    'name': sys.implementation.name,
-                    'version': list(sys.implementation.version),
+                    'name': impl_name,
+                    'version': impl_version,
                     'description': impl_desc,
                 },
             },
@@ -1474,9 +1492,6 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 'pid': pid,
                 'executable': sys.executable,
                 'bitness': 64 if sys.maxsize > 2**32 else 32,
-            },
-            'user': {
-                'name': username,
             },
         }
         self.send_response(request, **sys_info)
