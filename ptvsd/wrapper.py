@@ -7,7 +7,6 @@ from __future__ import print_function, absolute_import
 import atexit
 import contextlib
 import errno
-import getpass
 import io
 import os
 import platform
@@ -1441,11 +1440,6 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             pid = os.getpid()
         except AttributeError:
             pid = None
-
-        try:
-            username = getpass.getuser()
-        except AttributeError:
-            username = None
 
         try:
             impl_desc = platform.python_implementation()
