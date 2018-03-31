@@ -1470,8 +1470,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
         try:
             impl_version = version_str(sys.implementation.version)
-        except AttributeError: 
-            impl_version =  None
+        except AttributeError:
+            impl_version = None
 
         sys_info = {
             'ptvsd': {
