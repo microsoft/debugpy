@@ -7,7 +7,6 @@ from __future__ import print_function, absolute_import
 import atexit
 import contextlib
 import errno
-import getpass
 import io
 import os
 import platform
@@ -1443,27 +1442,40 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             pid = None
 
         try:
-            username = getpass.getuser()
-        except AttributeError:
-            username = None
-
-        try:
             impl_desc = platform.python_implementation()
         except AttributeError:
             try:
                 impl_desc = sys.implementation.name
             except AttributeError:
-                impl_desc = 'Python'
+                impl_desc = None
+
+        def version_str(v):
+            return '{}.{}.{}{}{}'.format(
+                v.major,
+                v.minor,
+                v.micro,
+                v.releaselevel,
+                v.serial)
+
+        try:
+            impl_name = sys.implementation.name
+        except AttributeError:
+            impl_name = None
+
+        try:
+            impl_version = version_str(sys.implementation.version)
+        except AttributeError:
+            impl_version = None
 
         sys_info = {
             'ptvsd': {
                 'version': __version__,
             },
             'python': {
-                'version': list(sys.version_info),
+                'version': version_str(sys.version_info),
                 'implementation': {
-                    'name': sys.implementation.name,
-                    'version': list(sys.implementation.version),
+                    'name': impl_name,
+                    'version': impl_version,
                     'description': impl_desc,
                 },
             },
@@ -1474,9 +1486,6 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 'pid': pid,
                 'executable': sys.executable,
                 'bitness': 64 if sys.maxsize > 2**32 else 32,
-            },
-            'user': {
-                'name': username,
             },
         }
         self.send_response(request, **sys_info)
