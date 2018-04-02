@@ -4,6 +4,8 @@ try:
 except ImportError:
     from urllib import quote, unquote
 
+from _pydevd_bundle import pydevd_comm
+
 from tests.helpers.protocol import StreamFailure
 
 # TODO: Everything here belongs in a proper pydevd package.
@@ -77,6 +79,24 @@ class RawMessage(namedtuple('RawMessage', 'bytes')):
         return self.bytes
 
 
+class CMDID(int):
+    """A PyDevd command ID."""
+
+    @classmethod
+    def from_raw(cls, raw):
+        if isinstance(raw, cls):
+            return raw
+        else:
+            return cls(raw)
+
+    def __repr__(self):
+        return '<{} {}>'.format(self.name, self)
+
+    @property
+    def name(self):
+        return pydevd_comm.ID_TO_MEANING.get(str(self), '???')
+
+
 class Message(namedtuple('Message', 'cmdid seq payload')):
     """A de-seralized PyDevd message."""
 
@@ -106,7 +126,10 @@ class Message(namedtuple('Message', 'cmdid seq payload')):
         return text
 
     def __new__(cls, cmdid, seq, payload):
-        cmdid = int(cmdid) if cmdid or cmdid == 0 else None
+        if cmdid or cmdid == 0:
+            cmdid = CMDID.from_raw(cmdid)
+        else:
+            cmdid = None
         seq = int(seq) if seq or seq == 0 else None
         payload = cls.parse_payload(payload)
         self = super(Message, cls).__new__(cls, cmdid, seq, payload)
