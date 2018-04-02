@@ -1,3 +1,4 @@
+import contextlib
 import threading
 
 from _pydevd_bundle.pydevd_comm import (
@@ -115,6 +116,27 @@ class FakePyDevd(protocol.MessageDaemon):
             PROTOCOL,
             (lambda msg, send: self.handle_request(msg, send, handler)),
         )
+
+    @contextlib.contextmanager
+    def wait_for_command(self, cmdid, seq=None, **kwargs):
+        def match(msg):
+            #msg = parse_message(msg)
+            try:
+                actual = msg.cmdid
+            except AttributeError:
+                return False
+            if actual != cmdid:
+                return False
+            if seq is not None:
+                try:
+                    actual = msg.seq
+                except AttributeError:
+                    return False
+                if actual != seq:
+                    return False
+            return True
+        with self.wait_for_message(match, req=None, **kwargs):
+            yield
 
     def send_response(self, msg):
         """Send a response message to the adapter (ptvsd)."""

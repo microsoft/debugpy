@@ -287,8 +287,8 @@ class PyDevdLifecycle(object):
 
     @contextlib.contextmanager
     def _wait_for_initialized(self):
-        with self._fix.expect_command(CMD_REDIRECT_OUTPUT):
-            with self._fix.expect_command(CMD_RUN):
+        with self._fix.wait_for_command(CMD_REDIRECT_OUTPUT):
+            with self._fix.wait_for_command(CMD_RUN):
                 yield
 
     def _initialize(self):
@@ -528,6 +528,13 @@ class PyDevdFixture(FixtureBase):
     @contextlib.contextmanager
     def expect_command(self, cmdid):
         yield
+        if self._hidden:
+            self.msgs.next_request()
+
+    @contextlib.contextmanager
+    def wait_for_command(self, cmdid, *args, **kwargs):
+        with self.fake.wait_for_command(cmdid, *args, **kwargs):
+            yield
         if self._hidden:
             self.msgs.next_request()
 
