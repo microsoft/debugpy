@@ -18,16 +18,16 @@ lint:  ## Lint the Python source code.
 
 .PHONY: test
 test:  ## Run the test suite.
-	$(PYTHON) -m tests --full
+	$(PYTHON) -m tests -v --full
 
 .PHONY: test-quick
 test-quick:
-	$(PYTHON) -m tests --quick
+	$(PYTHON) -m tests -v --quick
 
 .PHONY: coverage
 coverage:  ## Check line coverage.
 	#$(PYTHON) -m coverage run --include 'ptvsd/*.py' --omit 'ptvsd/pydevd/*.py' -m tests
-	$(PYTHON) -m tests --full --coverage
+	$(PYTHON) -m tests -v --full --coverage
 
 .PHONY: check-schemafile
 check-schemafile:  ## Validate the vendored DAP schema file.
@@ -42,11 +42,11 @@ ci-lint: depends lint
 
 .PHONY: ci-test
 ci-test: depends
-	$(PYTHON) -m tests --full --no-network
+	$(PYTHON) -m tests -v --full --no-network
 
 .PHONY: ci-coverage
 ci-coverage: depends
-	$(PYTHON) -m tests --full --coverage --no-network
+	$(PYTHON) -m tests -v --full --coverage --no-network
 
 .PHONY: ci-check-schemafile
 ci-check-schemafile: check-schemafile
