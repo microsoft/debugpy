@@ -356,9 +356,11 @@ class VSCLifecycle(object):
         if port is None:
             port = self.PORT
         addr = (None, port)
-        daemon = self._fix.fake.start(addr)
         with self._hidden():
+            # Anything that gets sent in VSCodeMessageProcessor.__init__()
+            # must be waited for here.
             with self._fix.wait_for_event('output'):
+                daemon = self._fix.fake.start(addr)
                 daemon.wait_until_connected()
         return daemon
 
