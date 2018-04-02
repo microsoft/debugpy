@@ -796,6 +796,9 @@ class HighlevelFixture(object):
     def send_debugger_event(self, cmdid, payload):
         self._pydevd.send_event(cmdid, payload)
 
+    def close_ptvsd(self):
+        self._vsc.close_ptvsd()
+
     # combinations
 
     def send_event(self, cmdid, text, event=None, handler=None):
