@@ -126,8 +126,8 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
             # Normal ops would go here.
 
             # end
-            req_disconnect = self.send_request('disconnect')
-        # An "exited" event comes once self.vsc closes.
+            with self.fix.wait_for_events(['exited', 'terminated']):
+                req_disconnect = self.send_request('disconnect')
 
         self.assert_received(self.vsc, [
             self.new_event(
