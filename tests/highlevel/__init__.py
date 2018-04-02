@@ -781,6 +781,11 @@ class HighlevelFixture(object):
             yield
 
     @contextlib.contextmanager
+    def wait_for_events(self, events):
+        with self._vsc.wait_for_events(events):
+            yield
+
+    @contextlib.contextmanager
     def expect_debugger_command(self, cmdid):
         with self._pydevd.expected_command(cmdid):
             yield
@@ -828,7 +833,7 @@ class HighlevelFixture(object):
 
         # Send and handle messages.
         self._pydevd.set_threads_response()
-        with self._vsc.wait_for_events(['thread' for _ in newthreads]):
+        with self.wait_for_events(['thread' for _ in newthreads]):
             self.send_request('threads')
         self._known_threads.update(newthreads)
 
