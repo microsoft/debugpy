@@ -8,18 +8,21 @@ __version__ = "4.0.0a5"
 import sys
 import os.path
 
-# ptvsd must always be imported before pydevd
-if 'pydevd' in sys.modules:
-    raise ImportError('ptvsd must be imported before pydevd')
 
-# Add our vendored pydevd directory to path, so that it gets found first.
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'pydevd'))
+PYDEVD_ROOT = os.path.join(os.path.dirname(__file__), 'pydevd')
 del os
 
-# Load our wrapper module, which will detour various functionality
-# inside pydevd.  This must be done before the imports below, otherwise
-# some modules will end up with local copies of pre-detour functions.
-import ptvsd.wrapper  # noqa
+# Ensure that pydevd is our vendored copy.
+for modname in sys.modules:
+    if not modname.startswith('pydev') and not modname.startswith('_pydev'):
+        continue
+    mod = sys.modules[modname]
+    if hasattr(mod, '__file__') and not mod.__file__.startswith(PYDEVD_ROOT):
+        print(mod.__file__)
+        #raise ImportError('incompatible copy of pydevd already imported')
+
+# Add our vendored pydevd directory to path, so that it gets found first.
+sys.path.insert(0, PYDEVD_ROOT)
 
 # Now make sure all the top-level modules and packages in pydevd are loaded.
 import _pydev_bundle  # noqa
