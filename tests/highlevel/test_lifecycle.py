@@ -32,10 +32,10 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
     def test_attach(self):
         version = self.debugger.VERSION
         addr = (None, 8888)
-        with self.vsc.start(addr):
-            with self.vsc.wait_for_event('output'):
-                pass
-
+        daemon = self.vsc.start(addr)
+        with self.vsc.wait_for_event('output'):
+            daemon.wait_until_connected()
+        try:
             with self.vsc.wait_for_event('initialized'):
                 # initialize
                 self.set_debugger_response(CMD_VERSION, version)
@@ -53,7 +53,10 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
 
             # end
             req_disconnect = self.send_request('disconnect')
-        # An "exited" event comes once self.vsc closes.
+        finally:
+            with self._fix.wait_for_events(['exited', 'terminated']):
+                self.fix.close_ptvsd()
+            daemon.close()
 
         self.assert_received(self.vsc, [
             self.new_event(
@@ -95,6 +98,7 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
             #)),
             self.new_response(req_disconnect),
             self.new_event('exited', exitCode=0),
+            self.new_event('terminated'),
         ])
         self.assert_received(self.debugger, [
             self.debugger_msgs.new_request(CMD_VERSION,
@@ -126,8 +130,8 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
             # Normal ops would go here.
 
             # end
-            req_disconnect = self.send_request('disconnect')
-        # An "exited" event comes once self.vsc closes.
+            with self.fix.wait_for_events(['exited', 'terminated']):
+                req_disconnect = self.send_request('disconnect')
 
         self.assert_received(self.vsc, [
             self.new_event(

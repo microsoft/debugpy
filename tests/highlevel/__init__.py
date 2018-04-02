@@ -1,10 +1,12 @@
 from collections import namedtuple
 import contextlib
 import platform
+import threading
 try:
     import urllib.parse as urllib
 except ImportError:
     import urllib
+import warnings
 
 from _pydevd_bundle import pydevd_xml
 from _pydevd_bundle.pydevd_comm import (
@@ -27,6 +29,11 @@ from tests.helpers.vsc import FakeVSC
 
 
 OS_ID = 'WINDOWS' if platform.system() == 'Windows' else 'UNIX'
+
+
+@contextlib.contextmanager
+def noop_cm(*args, **kwargs):
+    yield
 
 
 class Thread(namedtuple('Thread', 'id name')):
@@ -305,15 +312,27 @@ class VSCLifecycle(object):
         self._pydevd = pydevd
         self._hidden = hidden or fix.hidden
 
-    def launched(self, port=None, hidedisconnect=False, **kwargs):
-        def start():
-            self.launch(**kwargs)
-        return self._started(start, port, hidedisconnect=hidedisconnect)
+    @contextlib.contextmanager
+    def daemon_running(self, port=None, hide=False):
+        with self._fix.hidden() if hide else noop_cm():
+            daemon = self._start_daemon(port)
+        try:
+            yield
+        finally:
+            with self._fix.hidden() if hide else noop_cm():
+                self._stop_daemon(daemon)
 
-    def attached(self, port=None, hidedisconnect=False, **kwargs):
-        def start():
+    @contextlib.contextmanager
+    def launched(self, port=None, hide=False, **kwargs):
+        with self.daemon_running(port, hide=hide):
+            self.launch(**kwargs)
+            yield
+
+    @contextlib.contextmanager
+    def attached(self, port=None, hide=False, **kwargs):
+        with self.daemon_running(port, hide=hide):
             self.attach(**kwargs)
-        return self._started(start, port, hidedisconnect=hidedisconnect)
+            yield
 
     def launch(self, **kwargs):
         """Initialize the debugger protocol and then launch."""
@@ -325,30 +344,42 @@ class VSCLifecycle(object):
         with self._hidden():
             self._handshake('attach', **kwargs)
 
-    def disconnect(self, **reqargs):
-        self._send_request('disconnect', reqargs)
+    def disconnect(self, exitcode=0, **reqargs):
+        wrapper.ptvsd_sys_exit_code = exitcode
+        self._fix.send_request('disconnect', reqargs)
         # TODO: wait for an exit event?
         # TODO: call self._fix.vsc.close()?
 
     # internal methods
 
-    @contextlib.contextmanager
-    def _started(self, start, port, hidedisconnect=False):
+    def _start_daemon(self, port):
         if port is None:
             port = self.PORT
         addr = (None, port)
-        with self._fix.fake.start(addr):
-            with self._fix.disconnect_when_done(hide=hidedisconnect):
-                start()
-                yield
+        daemon = self._fix.fake.start(addr)
+        with self._hidden():
+            with self._fix.wait_for_event('output'):
+                daemon.wait_until_connected()
+        return daemon
+
+    def _stop_daemon(self, daemon):
+        # We must close ptvsd directly (rather than closing the external
+        # socket (i.e. "daemon").  This is because cloing ptvsd blocks,
+        # keeping us from sending the disconnect request we need to send
+        # at the end.
+        t = threading.Thread(target=self._fix.close_ptvsd)
+        with self._fix.wait_for_events(['exited', 'terminated']):
+            # The thread runs close_ptvsd(), which sends the two
+            # events and then waits for a "disconnect" request.  We send
+            # that after we receive the events.
+            t.start()
+        self.disconnect()
+        t.join()
+        daemon.close()
 
     def _handshake(self, command, threadnames=None, config=None,
                    default_threads=True, process=True, reset=True,
                    **kwargs):
-        with self._hidden():
-            with self._fix.wait_for_event('output'):
-                pass
-
         initargs = dict(
             kwargs.pop('initargs', None) or {},
             disconnect=kwargs.pop('disconnect', True),
@@ -433,6 +464,9 @@ class FixtureBase(object):
             return self._fake
         except AttributeError:
             self._fake = self.new_fake()
+            # Uncomment the following 2 lines to see all messages.
+            #self._fake.PRINT_SENT_MESSAGES = True
+            #self._fake.PRINT_RECEIVED_MESSAGES = True
             return self._fake
 
     @property
@@ -583,6 +617,15 @@ class VSCFixture(FixtureBase):
             self._lifecycle = self.LIFECYCLE(self)
             return self._lifecycle
 
+    @property
+    def _proc(self):
+        # This is used below in close_ptvsd().
+        # TODO: This is a horrendous use of internal details!
+        try:
+            return self.fake._adapter.daemon.binder.ptvsd.proc
+        except AttributeError:
+            return None
+
     def send_request(self, command, args=None, handle_response=None):
         kwargs = dict(args or {}, handler=handle_response)
         with self._wait_for_response(command, **kwargs) as req:
@@ -606,34 +649,19 @@ class VSCFixture(FixtureBase):
             self.msgs.next_event()
 
     @contextlib.contextmanager
-    def _wait_for_events(self, events):
+    def wait_for_events(self, events):
         if not events:
             yield
             return
-        with self._wait_for_events(events[1:]):
+        with self.wait_for_events(events[1:]):
             with self.wait_for_event(events[0]):
                 yield
 
-    @contextlib.contextmanager
-    def disconnect_when_done(self, hide=True):
-        try:
-            yield
-        finally:
-            if hide:
-                with self.hidden():
-                    self._disconnect()
-            else:
-                self._disconnect()
-
-    def _disconnect(self):
-        with self.exits_after(exitcode=0):
-            self.send_request('disconnect')
-
-    @contextlib.contextmanager
-    def exits_after(self, exitcode):
-        wrapper.ptvsd_sys_exit_code = exitcode
-        with self._wait_for_events(['exited', 'terminated']):
-            yield
+    def close_ptvsd(self):
+        if self._proc is None:
+            warnings.warn('"proc" not bound')
+        else:
+            self._proc.close()
 
 
 class HighlevelFixture(object):
@@ -753,6 +781,11 @@ class HighlevelFixture(object):
             yield
 
     @contextlib.contextmanager
+    def wait_for_events(self, events):
+        with self._vsc.wait_for_events(events):
+            yield
+
+    @contextlib.contextmanager
     def expect_debugger_command(self, cmdid):
         with self._pydevd.expected_command(cmdid):
             yield
@@ -763,10 +796,8 @@ class HighlevelFixture(object):
     def send_debugger_event(self, cmdid, payload):
         self._pydevd.send_event(cmdid, payload)
 
-    @contextlib.contextmanager
-    def disconnect_when_done(self):
-        with self._vsc.disconnect_when_done():
-            yield
+    def close_ptvsd(self):
+        self._vsc.close_ptvsd()
 
     # combinations
 
@@ -805,7 +836,7 @@ class HighlevelFixture(object):
 
         # Send and handle messages.
         self._pydevd.set_threads_response()
-        with self._vsc._wait_for_events(['thread' for _ in newthreads]):
+        with self.wait_for_events(['thread' for _ in newthreads]):
             self.send_request('threads')
         self._known_threads.update(newthreads)
 

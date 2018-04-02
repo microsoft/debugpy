@@ -2,79 +2,45 @@ import os
 import os.path
 import sys
 import threading
+import warnings
 
 import _pydevd_bundle.pydevd_comm as pydevd_comm
 
-from ptvsd import wrapper, debugger
-from tests.helpers import protocol, socket
+from ptvsd import debugger
+from tests.helpers import protocol
+from ._binder import BinderBase
 
 
-class Binder(object):
+class Binder(BinderBase):
 
     def __init__(self, filename, module):
+        super(Binder, self).__init__()
         self.filename = filename
         self.module = module
+        self._lock = threading.Lock()
+        self._lock.acquire()
 
-        self.address = None
-        self._waiter = None
-        self._connect = None
-
-        self._thread = None
-        self.client = None
-        self.server = None
-        self.fakesock = None
-        self.proc = None
-
-    def bind(self, address):
-        if self._connect is not None:
-            raise RuntimeError('already bound')
-        self.address = address
-        self._connect, remote = socket.bind(address)
-        self._waiter = threading.Lock()
-        self._waiter.acquire()
-
-        def connect():
-            self._thread = threading.Thread(target=self.run_pydevd)
-            self._thread.start()
-            if self._waiter.acquire(timeout=1):
-                self._waiter.release()
-            else:
-                raise RuntimeError('timed out')
-            return socket.Connection(self.client, self.server)
-            #return socket.Connection(self.fakesock, self.server)
-        return connect, remote
-
-    def new_pydevd_sock(self, *args):
-        if self.client is not None:
-            raise RuntimeError('already connected')
-        self.client, self.server = self._connect()
-        self.fakesock = wrapper._start(self.client, self.server,
-                                       killonclose=False,
-                                       addhandlers=False)
-        self.proc = self.fakesock._vscprocessor
-        self._waiter.release()
-        return self.fakesock
-
-    def run_pydevd(self):
-        pydevd_comm.start_server = self.new_pydevd_sock
-        pydevd_comm.start_client = self.new_pydevd_sock
+    def _run_debugger(self):
+        def new_pydevd_sock(*args):
+            self._start_ptvsd()
+            return self.ptvsd.fakesock
+        pydevd_comm.start_server = new_pydevd_sock
+        pydevd_comm.start_client = new_pydevd_sock
         # Force a fresh pydevd.
         sys.modules.pop('pydevd', None)
-        try:
-            if self.module is None:
-                debugger._run_file(self.address, self.filename)
-            else:
-                debugger._run_module(self.address, self.module)
-        except SystemExit as exc:
-            wrapper.ptvsd_sys_exit_code = int(exc.code)
-            raise
-        wrapper.ptvsd_sys_exit_code = 0
-        self.proc.close()
+        if self.module is None:
+            debugger._run_file(self.address, self.filename)
+        else:
+            debugger._run_module(self.address, self.module)
 
-    def wait_until_done(self):
-        if self._thread is None:
-            return
-        self._thread.join()
+        # Block until "done" debugging.
+        if not self._lock.acquire(timeout=3):
+            # This shouldn't happen since the timeout on event waiting
+            # is this long.
+            warnings.warn('timeout out waiting for "done"')
+
+    def done(self):
+        self._lock.release()
 
 
 class LivePyDevd(protocol.Daemon):
@@ -101,6 +67,9 @@ class LivePyDevd(protocol.Daemon):
         super(LivePyDevd, self).__init__(self.binder.bind)
 
     def _close(self):
+        # Note that we do not call self.binder.done() here, though it
+        # might make sense as a fallback.  Instead, we do so directly
+        # in the relevant test cases.
         super(LivePyDevd, self)._close()
         # TODO: Close pydevd somehow?
 

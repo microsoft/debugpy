@@ -21,6 +21,10 @@ class Fixture(VSCFixture):
         )
 
     @property
+    def _proc(self):
+        return self._pydevd.binder.ptvsd.proc
+
+    @property
     def binder(self):
         return self._pydevd.binder
 
@@ -103,8 +107,9 @@ class LifecycleTests(TestBase, unittest.TestCase):
             # Normal ops would go here.
 
             # end
-            with self._wait_for_events(['exited', 'terminated']):
-                pass
+            with self.wait_for_events(['exited', 'terminated']):
+                self.fix.binder.done()
+            # TODO: Send a "disconnect" request?
             self.fix.binder.wait_until_done()
             received = self.vsc.received
 
@@ -153,7 +158,7 @@ class VSCFlowTest(TestBase):
     @contextlib.contextmanager
     def launched(self, port=8888, **kwargs):
         kwargs.setdefault('process', False)
-        with self.lifecycle.launched(port=port, hidedisconnect=True, **kwargs):
+        with self.lifecycle.launched(port=port, hide=True, **kwargs):
             #with self.fix.install_sig_handler():
                 yield
 
@@ -194,8 +199,9 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
 
     def test_no_breakpoints(self):
         with self.launched():
-            # All the script to run to completion.
+            # Allow the script to run to completion.
             received = self.vsc.received
+            self.fix.binder.done()
 
         self.assert_received(self.vsc, [])
         self.assert_vsc_received(received, [])

@@ -180,6 +180,10 @@ class MessageDaemon(Daemon):
 
     STARTED = MessageDaemonStarted
 
+    EXTERNAL = None
+    PRINT_SENT_MESSAGES = False
+    PRINT_RECEIVED_MESSAGES = False
+
     @classmethod
     def validate_message(cls, msg):
         """Ensure the message is legitimate."""
@@ -267,6 +271,8 @@ class MessageDaemon(Daemon):
             raise
 
     def _add_received(self, msg):
+        if self.PRINT_RECEIVED_MESSAGES:
+            print('<--' if self.EXTERNAL else '-->', msg)
         self._received.append(msg)
         self._handle_message(msg)
 
@@ -290,6 +296,8 @@ class MessageDaemon(Daemon):
         return
 
     def _send_message(self, msg):
+        if self.PRINT_SENT_MESSAGES:
+            print('-->' if self.EXTERNAL else '<--', msg)
         msg = self._protocol.parse(msg)
         raw = self._protocol.encode(msg)
         try:
