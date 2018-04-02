@@ -1,7 +1,3 @@
-import contextlib
-import threading
-import warnings
-
 from tests.helpers import protocol, socket
 from ._vsc import encode_message, iter_messages, parse_message
 
@@ -103,7 +99,7 @@ class FakeVSC(protocol.MessageDaemon):
 
         kwargs.setdefault('handlername',
                           '<request cmd={} seq={}>'.format(command, reqseq))
-        return self._wait_for_message(match, req, **kwargs)
+        return self.wait_for_message(match, req, **kwargs)
 
     def wait_for_event(self, event, **kwargs):
         def match(msg):
@@ -118,7 +114,7 @@ class FakeVSC(protocol.MessageDaemon):
 
         kwargs.setdefault('handlername',
                           '<event {}>'.format(event))
-        return self._wait_for_message(match, req=None, **kwargs)
+        return self.wait_for_message(match, req=None, **kwargs)
 
     # internal methods
 
@@ -142,27 +138,3 @@ class FakeVSC(protocol.MessageDaemon):
             self._adapter.close()
             self._adapter = None
         super(FakeVSC, self)._close()
-
-    @contextlib.contextmanager
-    def _wait_for_message(self, match, req=None, handler=None,
-                          handlername=None, timeout=1):
-        lock = threading.Lock()
-        lock.acquire()
-
-        def handle_message(msg, send_message):
-            if not match(msg):
-                return False
-            lock.release()
-            if handler is not None:
-                handler(msg, send_message)
-            return True
-        self.add_handler(handle_message, handlername)
-
-        yield req
-
-        # Wait for the message to match.
-        if lock.acquire(timeout=timeout):
-            lock.release()
-        else:
-            msg = 'timed out after {} seconds waiting for message ({})'
-            warnings.warn(msg.format(timeout, handlername))

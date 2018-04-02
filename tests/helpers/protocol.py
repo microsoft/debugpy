@@ -1,6 +1,8 @@
 from collections import namedtuple
+import contextlib
 import errno
 import threading
+import warnings
 
 from . import socket
 from .counter import Counter
@@ -235,6 +237,31 @@ class MessageDaemon(Daemon):
         )
         self._handlers.append(entry)
         return handler
+
+    @contextlib.contextmanager
+    def wait_for_message(self, match, req=None, handler=None,
+                         handlername=None, timeout=1):
+        """Return a context manager that will wait for a matching message."""
+        lock = threading.Lock()
+        lock.acquire()
+
+        def handle_message(msg, send_message):
+            if not match(msg):
+                return False
+            lock.release()
+            if handler is not None:
+                handler(msg, send_message)
+            return True
+        self.add_handler(handle_message, handlername)
+
+        yield req
+
+        # Wait for the message to match.
+        if lock.acquire(timeout=timeout):
+            lock.release()
+        else:
+            msg = 'timed out after {} seconds waiting for message ({})'
+            warnings.warn(msg.format(timeout, handlername))
 
     def reset(self, *initial, **kwargs):
         """Clear the recorded messages."""
