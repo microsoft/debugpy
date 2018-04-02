@@ -159,8 +159,9 @@ class VSCFlowTest(TestBase):
     def launched(self, port=8888, **kwargs):
         kwargs.setdefault('process', False)
         with self.lifecycle.launched(port=port, hide=True, **kwargs):
-            #with self.fix.install_sig_handler():
-                yield
+            yield
+            self.fix.binder.done()
+        self.fix.binder.wait_until_done()
 
 
 class BreakpointTests(VSCFlowTest, unittest.TestCase):
@@ -201,7 +202,6 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
         with self.launched():
             # Allow the script to run to completion.
             received = self.vsc.received
-            self.fix.binder.done()
 
         self.assert_received(self.vsc, [])
         self.assert_vsc_received(received, [])
