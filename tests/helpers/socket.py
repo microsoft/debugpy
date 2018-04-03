@@ -4,7 +4,7 @@ from collections import namedtuple
 import errno
 import socket
 
-import ptvsd.wrapper as _ptvsd
+import ptvsd.daemon as _ptvsd
 
 
 def create_server(address):

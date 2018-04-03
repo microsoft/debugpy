@@ -1,11 +1,11 @@
 import threading
 import time
 
-from ptvsd import wrapper
+import ptvsd.daemon
 from tests.helpers import socket
 
 
-class PTVSD(wrapper.Daemon):
+class PTVSD(ptvsd.daemon.Daemon):
     """A wrapper around a running "instance" of PTVSD.
 
     "client" and "server" are the two ends of socket that PTVSD uses

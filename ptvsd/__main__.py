@@ -8,7 +8,7 @@ import sys
 
 import pydevd
 
-import ptvsd.wrapper
+import ptvsd.daemon
 
 
 __author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
@@ -58,7 +58,7 @@ def _run_argv(address, filename, extra, _prog=sys.argv[0]):
     ] + extra
 
 
-def _run(argv, _pydevd=pydevd, _install=ptvsd.wrapper.install, **kwargs):
+def _run(argv, _pydevd=pydevd, _install=ptvsd.daemon.install, **kwargs):
     """Start pydevd with the given commandline args."""
     #print(' '.join(argv))
 
