@@ -80,12 +80,12 @@ def _run(argv, _pydevd=pydevd, _install=ptvsd.wrapper.install, **kwargs):
         sys.modules['__main___orig'] = sys.modules['__main__']
         sys.modules['__main__'] = _pydevd
 
-    _install(_pydevd, **kwargs)
+    daemon = _install(_pydevd, **kwargs)
     sys.argv[:] = argv
     try:
         _pydevd.main()
     except SystemExit as ex:
-        ptvsd.wrapper.ptvsd_sys_exit_code = int(ex.code)
+        daemon.exitcode = int(ex.code)
         raise
 
 
