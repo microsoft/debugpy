@@ -1,10 +1,40 @@
+import contextlib
+try:
+    from io import StringIO
+except ImportError:
+    from StringIO import StringIO
 import sys
 import unittest
 
 from _pydevd_bundle import pydevd_comm
 
 import ptvsd.wrapper
-from ptvsd.__main__ import run_module, run_file
+from ptvsd.__main__ import run_module, run_file, parse_args
+
+
+@contextlib.contextmanager
+def captured_stdio(out=None, err=None):
+    if out is None:
+        if err is None:
+            out = err = StringIO()
+        elif err is False:
+            out = StringIO()
+    elif err is None and out is False:
+        err = StringIO()
+    if out is False:
+        out = None
+    if err is False:
+        err = None
+
+    orig = sys.stdout, sys.stderr
+    if out is not None:
+        sys.stdout = out
+    if err is not None:
+        sys.stderr = err
+    try:
+        yield out, err
+    finally:
+        sys.stdout, sys.stderr = orig
 
 
 class FakePyDevd(object):
@@ -232,3 +262,151 @@ class IntegratedRunTests(unittest.TestCase):
         __main__ = sys.modules['__main__']
         self.assertIs(__main__.start_server, ptvsd.wrapper.start_server)
         self.assertIs(__main__.start_client, ptvsd.wrapper.start_client)
+
+
+class ParseArgsTests(unittest.TestCase):
+
+    def test_module(self):
+        args, extra = parse_args([
+            'eggs',
+            '--port', '8888',
+            '-m', 'spam',
+        ])
+
+        self.assertEqual(vars(args), {
+            'kind': 'module',
+            'name': 'spam',
+            'address': (None, 8888),
+        })
+        self.assertEqual(extra, [])
+
+    def test_script(self):
+        args, extra = parse_args([
+            'eggs',
+            '--port', '8888',
+            'spam.py',
+        ])
+
+        self.assertEqual(vars(args), {
+            'kind': 'script',
+            'name': 'spam.py',
+            'address': (None, 8888),
+        })
+        self.assertEqual(extra, [])
+
+    def test_remote(self):
+        args, extra = parse_args([
+            'eggs',
+            '--host', '1.2.3.4',
+            '--port', '8888',
+            'spam.py',
+        ])
+
+        self.assertEqual(vars(args), {
+            'kind': 'script',
+            'name': 'spam.py',
+            'address': ('1.2.3.4', 8888),
+        })
+        self.assertEqual(extra, [])
+
+    def test_extra(self):
+        args, extra = parse_args([
+            'eggs',
+            '--DEBUG',
+            '--port', '8888',
+            '--vm_type', '???',
+            'spam.py',
+            '--xyz', '123',
+            'abc',
+            '--cmd-line',
+            '--',
+            'foo',
+            '--server',
+            '--bar'
+        ])
+
+        self.assertEqual(vars(args), {
+            'kind': 'script',
+            'name': 'spam.py',
+            'address': (None, 8888),
+        })
+        self.assertEqual(extra, [
+            '--DEBUG',
+            '--vm_type', '???',
+            '--',
+            '--xyz', '123',
+            'abc',
+            '--cmd-line',
+            'foo',
+            '--server',
+            '--bar',
+        ])
+
+    def test_unsupported_arg(self):
+        with self.assertRaises(SystemExit):
+            with captured_stdio():
+                parse_args([
+                    'eggs',
+                    '--port', '8888',
+                    '--xyz', '123',
+                    'spam.py',
+                ])
+
+    def test_backward_compatibility_host(self):
+        args, extra = parse_args([
+            'eggs',
+            '--client', '1.2.3.4',
+            '--port', '8888',
+            '-m', 'spam',
+        ])
+
+        self.assertEqual(vars(args), {
+            'kind': 'module',
+            'name': 'spam',
+            'address': ('1.2.3.4', 8888),
+        })
+        self.assertEqual(extra, [])
+
+    def test_backward_compatibility_module(self):
+        args, extra = parse_args([
+            'eggs',
+            '--port', '8888',
+            '--module',
+            '--file', 'spam:',
+        ])
+
+        self.assertEqual(vars(args), {
+            'kind': 'module',
+            'name': 'spam',
+            'address': (None, 8888),
+        })
+        self.assertEqual(extra, [])
+
+    def test_backward_compatibility_script(self):
+        args, extra = parse_args([
+            'eggs',
+            '--port', '8888',
+            '--file', 'spam.py',
+        ])
+
+        self.assertEqual(vars(args), {
+            'kind': 'script',
+            'name': 'spam.py',
+            'address': (None, 8888),
+        })
+        self.assertEqual(extra, [])
+
+    def test_pseudo_backward_compatibility(self):
+        args, extra = parse_args([
+            'eggs',
+            '--port', '8888',
+            '--module',
+            '--file', 'spam',
+        ])
+
+        self.assertEqual(vars(args), {
+            'kind': 'script',
+            'name': 'spam',
+            'address': (None, 8888),
+        })
+        self.assertEqual(extra, ['--module'])

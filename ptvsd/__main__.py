@@ -183,9 +183,9 @@ def _group_args(argv):
         if arg == '--client':
             arg = '--host'
         elif arg == '--file':
-            if nextarg is None:
+            if nextarg is None:  # The filename is missing...
                 pydevd.append(arg)
-                continue
+                continue  # This will get handled later.
             if nextarg.endswith(':') and '--module' in pydevd:
                 pydevd.remove('--module')
                 arg = '-m'
