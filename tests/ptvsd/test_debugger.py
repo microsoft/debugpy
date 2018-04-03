@@ -1,3 +1,4 @@
+import sys
 import unittest
 
 from ptvsd.debugger import debug
@@ -7,11 +8,13 @@ class DebugTests(unittest.TestCase):
 
     def setUp(self):
         super(DebugTests, self).setUp()
+        def _make_run(kind):
+            def run(addr, name, *args, **kwargs):
+                self._run(kind, addr, name, *args, **kwargs)
+            return run
         self.runners = {}
         for kind in ('module', 'script', 'code', None):
-            def run(addr, name, kind=kind, **kwargs):
-                self._run(kind, addr, name, **kwargs)
-            self.runners[kind] = run
+            self.runners[kind] = _make_run(kind)
         self.kind = None
         self.args = None
         self.kwargs = None
@@ -27,7 +30,7 @@ class DebugTests(unittest.TestCase):
         debug_id = 1
         debug_options = {'x': 'y'}
         debug(filename, port, debug_id, debug_options, 'module',
-              _runners=self.runners)
+              _runners=self.runners, _extra=())
 
         self.assertEqual(self.kind, 'module')
         self.assertEqual(self.args, (addr, filename))
@@ -39,7 +42,7 @@ class DebugTests(unittest.TestCase):
         debug_id = 1
         debug_options = {'x': 'y'}
         debug(filename, port, debug_id, debug_options, 'script',
-              _runners=self.runners)
+              _runners=self.runners, _extra=())
 
         self.assertEqual(self.kind, 'script')
         self.assertEqual(self.args, (addr, filename))
@@ -51,7 +54,7 @@ class DebugTests(unittest.TestCase):
         debug_id = 1
         debug_options = {'x': 'y'}
         debug(filename, port, debug_id, debug_options, 'code',
-              _runners=self.runners)
+              _runners=self.runners, _extra=())
 
         self.assertEqual(self.kind, 'code')
         self.assertEqual(self.args, (addr, filename))
@@ -63,11 +66,22 @@ class DebugTests(unittest.TestCase):
         debug_id = 1
         debug_options = {'x': 'y'}
         debug(filename, port, debug_id, debug_options, '???',
-              _runners=self.runners)
+              _runners=self.runners, _extra=())
 
         self.assertIs(self.kind, None)
         self.assertEqual(self.args, (addr, filename))
         self.assertEqual(self.kwargs, {})
+
+    def test_extra_sys_argv(self):
+        filename = 'spam.py'
+        _, port = addr = (None, 8888)
+        debug_id = 1
+        debug_options = {'x': 'y'}
+        extra = ['--eggs', 'abc']
+        debug(filename, port, debug_id, debug_options, 'script',
+              _runners=self.runners, _extra=extra)
+
+        self.assertEqual(self.args, (addr, filename, '--eggs', 'abc'))
 
 
 class IntegrationTests(unittest.TestCase):
@@ -76,6 +90,11 @@ class IntegrationTests(unittest.TestCase):
         super(IntegrationTests, self).setUp()
         self.argv = None
         self.kwargs = None
+        self._sys_argv = list(sys.argv)
+
+    def tearDown(self):
+        sys.argv[:] = self._sys_argv
+        super(IntegrationTests, self).tearDown()
 
     def _run(self, argv, **kwargs):
         self.argv = argv
@@ -86,6 +105,7 @@ class IntegrationTests(unittest.TestCase):
         port = 8888
         debug_id = 1
         debug_options = {'x': 'y'}
+        sys.argv = [filename]
         debug(filename, port, debug_id, debug_options, 'module',
               _run=self._run, _prog='eggs')
 
@@ -102,6 +122,7 @@ class IntegrationTests(unittest.TestCase):
         port = 8888
         debug_id = 1
         debug_options = {'x': 'y'}
+        sys.argv = [filename]
         debug(filename, port, debug_id, debug_options, 'script',
               _run=self._run, _prog='eggs')
 
@@ -117,6 +138,7 @@ class IntegrationTests(unittest.TestCase):
         port = 8888
         debug_id = 1
         debug_options = {'x': 'y'}
+        sys.argv = [filename]
         debug(filename, port, debug_id, debug_options, 'code',
               _run=self._run, _prog='eggs')
 
@@ -132,6 +154,7 @@ class IntegrationTests(unittest.TestCase):
         port = 8888
         debug_id = 1
         debug_options = {'x': 'y'}
+        sys.argv = [filename]
         debug(filename, port, debug_id, debug_options, '???',
               _run=self._run, _prog='eggs')
 
@@ -139,5 +162,23 @@ class IntegrationTests(unittest.TestCase):
             'eggs',
             '--port', '8888',
             '--file', 'spam',
+        ])
+        self.assertEqual(self.kwargs, {})
+
+    def test_extra_sys_argv(self):
+        filename = 'spam.py'
+        port = 8888
+        debug_id = 1
+        debug_options = {'x': 'y'}
+        sys.argv = [filename, '--abc', 'xyz', '42']
+        debug(filename, port, debug_id, debug_options, 'script',
+              _run=self._run, _prog='eggs')
+
+        self.assertEqual(self.argv, [
+            'eggs',
+            '--port', '8888',
+            '--file', 'spam.py',
+            '--abc', 'xyz',
+            '42',
         ])
         self.assertEqual(self.kwargs, {})
