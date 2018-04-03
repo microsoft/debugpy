@@ -92,7 +92,8 @@ class Daemon(object):
 
         self._adapter = wrapper.VSCodeMessageProcessor(
             client,
-            self._pydevd,
+            self._pydevd.pydevd_notify,
+            self._pydevd.pydevd_request,
             self._handle_vsc_disconnect,
             self._handle_vsc_close,
         )

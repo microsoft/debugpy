@@ -594,14 +594,16 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     protocol.
     """
 
-    def __init__(self, socket, pydevd, notify_disconnecting, notify_closing,
+    def __init__(self, socket, pydevd_notify, pydevd_request,
+                 notify_disconnecting, notify_closing,
                  logfile=None,
                  ):
         super(VSCodeMessageProcessor, self).__init__(socket=socket,
                                                      own_socket=False,
                                                      logfile=logfile)
         self.socket = socket
-        self.pydevd = pydevd
+        self._pydevd_notify = pydevd_notify
+        self._pydevd_request = pydevd_request
         self._notify_disconnecting = notify_disconnecting
         self._notify_closing = notify_closing
 
@@ -763,14 +765,14 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     def pydevd_notify(self, cmd_id, args):
         # TODO: docstring
         try:
-            return self.pydevd.pydevd_notify(cmd_id, args)
+            return self._pydevd_notify(cmd_id, args)
         except BaseException:
             traceback.print_exc(file=sys.__stderr__)
             raise
 
     def pydevd_request(self, cmd_id, args):
         # TODO: docstring
-        return self.pydevd.pydevd_request(self.loop, cmd_id, args)
+        return self._pydevd_request(self.loop, cmd_id, args)
 
     # Instances of this class provide decorators to mark methods as
     # handlers for various # pydevd messages - a decorated method is
