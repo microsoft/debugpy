@@ -26,11 +26,13 @@ def _wait_on_exit():
 
 
 class DaemonClosedError(RuntimeError):
+    """Indicates that a Daemon was unexpectedly closed."""
     def __init__(self, msg='closed'):
         super(DaemonClosedError, self).__init__(msg)
 
 
 class Daemon(object):
+    """The process-level manager for the VSC protocol debug adapter."""
 
     exitcode = 0
 
@@ -64,6 +66,7 @@ class Daemon(object):
         return self._adapter
 
     def start(self, server=None):
+        """Return the "socket" to use for pydevd after setting it up."""
         if self._closed:
             raise DaemonClosedError()
         if self._pydevd is not None:
@@ -78,6 +81,10 @@ class Daemon(object):
         return self._pydevd
 
     def set_connection(self, client):
+        """Set the client socket to use for the debug adapter.
+
+        A VSC message loop is started for the client.
+        """
         if self._closed:
             raise DaemonClosedError()
         if self._pydevd is None:
@@ -100,6 +107,7 @@ class Daemon(object):
         return self._adapter
 
     def close(self):
+        """Stop all loops and release all resources."""
         if self._closed:
             raise DaemonClosedError('already closed')
         self._closed = True
