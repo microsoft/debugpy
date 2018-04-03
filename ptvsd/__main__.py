@@ -139,7 +139,10 @@ def parse_args(argv=None):
 
     supported, pydevd, script = _group_args(argv)
     args = _parse_args(prog, supported)
-    return args, pydevd + ['--'] + script
+    extra = pydevd
+    if script:
+        extra += ['--'] + script
+    return args, extra
 
 
 def _group_args(argv):
