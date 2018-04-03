@@ -1,14 +1,11 @@
 import atexit
-import errno
 import os
 import platform
 import signal
-import socket
 import sys
 
-from _pydevd_bundle import pydevd_comm
-
 from ptvsd import wrapper
+from ptvsd.socket import close_socket
 
 
 def _wait_on_exit():
@@ -118,8 +115,7 @@ class Daemon(object):
                 self.wait_on_exit_func()
 
         if self._pydevd is not None:
-            self._pydevd.shutdown(socket.SHUT_RDWR)
-            self._pydevd.close()
+            close_socket(self._pydevd)
         if self._client is not None:
             self._release_connection()
 
@@ -149,12 +145,7 @@ class Daemon(object):
             # TODO: This is not correct in the "attach" case.
             self._adapter.handle_pydevd_stopped(self.exitcode)
             self._adapter.close()
-        try:
-            self._client.shutdown(socket.SHUT_RDWR)
-        except OSError as exc:
-            if exc.errno not in (errno.ENOTCONN, errno.EBADF):
-                raise
-        self._client.close()
+        close_socket(self._client)
 
     # internal methods for PyDevdSocket().
 
@@ -189,81 +180,3 @@ class Daemon(object):
         if self._closed:
             return
         self.close()
-
-
-########################
-# pydevd hooks
-
-def _create_server(port):
-    server = _new_sock()
-    server.bind(('127.0.0.1', port))
-    server.listen(1)
-    return server
-
-
-def _create_client():
-    return _new_sock()
-
-
-def _new_sock():
-    sock = socket.socket(socket.AF_INET,
-                         socket.SOCK_STREAM,
-                         socket.IPPROTO_TCP)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    return sock
-
-
-def start_server(daemon, port):
-    """Return a socket to a (new) local pydevd-handling daemon.
-
-    The daemon supports the pydevd client wire protocol, sending
-    requests and handling responses (and events).
-
-    This is a replacement for _pydevd_bundle.pydevd_comm.start_server.
-    """
-    server = _create_server(port)
-    client, _ = server.accept()
-
-    pydevd = daemon.start(server)
-    daemon.set_connection(client)
-    return pydevd
-
-
-def start_client(daemon, host, port):
-    """Return a socket to an existing "remote" pydevd-handling daemon.
-
-    The daemon supports the pydevd client wire protocol, sending
-    requests and handling responses (and events).
-
-    This is a replacement for _pydevd_bundle.pydevd_comm.start_client.
-    """
-    client = _create_client()
-    client.connect((host, port))
-
-    pydevd = daemon.start()
-    daemon.set_connection(client)
-    return pydevd
-
-
-def install(pydevd, start_server=start_server, start_client=start_client):
-    """Configure pydevd to use our wrapper.
-
-    This is a bit of a hack to allow us to run our VSC debug adapter
-    in the same process as pydevd.  Note that, as with most hacks,
-    this is somewhat fragile (since the monkeypatching sites may
-    change).
-    """
-    daemon = Daemon()
-
-    # These are the functions pydevd invokes to get a socket to the client.
-    pydevd_comm.start_server = (lambda p: start_server(daemon, p))
-    pydevd_comm.start_client = (lambda h, p: start_client(daemon, h, p))
-
-    # Ensure that pydevd is using our functions.
-    pydevd.start_server = start_server
-    pydevd.start_client = start_client
-    __main__ = sys.modules['__main__']
-    if __main__ is not pydevd and __main__.__file__ == pydevd.__file__:
-        __main__.start_server = start_server
-        __main__.start_client = start_client
-    return daemon

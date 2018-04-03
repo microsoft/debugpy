@@ -1,21 +1,19 @@
 from __future__ import absolute_import
 
 from collections import namedtuple
-import errno
-import socket
 
-import ptvsd.daemon as _ptvsd
+import ptvsd.socket as _ptvsd
 
 
 def create_server(address):
     """Return a server socket after binding."""
     host, port = address
-    return _ptvsd._create_server(port)
+    return _ptvsd.create_server(port)
 
 
 def create_client():
     """Return a new (unconnected) client socket."""
-    return _ptvsd._create_client()
+    return _ptvsd.create_client()
 
 
 def connect(sock, address):
@@ -57,11 +55,7 @@ def bind(address):
 
 def close(sock):
     """Shutdown and close the socket."""
-    try:
-        sock.shutdown(socket.SHUT_RDWR)
-    except Exception:
-        pass
-    sock.close()
+    _ptvsd.close_socket(sock)
 
 
 class Connection(namedtuple('Connection', 'client server')):
@@ -90,16 +84,8 @@ class Connection(namedtuple('Connection', 'client server')):
 
     def shutdown(self, *args, **kwargs):
         if self.server is not None:
-            try:
-                self.server.shutdown(*args, **kwargs)
-            except OSError as exc:
-                if exc.errno not in (errno.ENOTCONN, errno.EBADF):
-                    raise
-        try:
-            self.client.shutdown(*args, **kwargs)
-        except OSError as exc:
-            if exc.errno not in (errno.ENOTCONN, errno.EBADF):
-                raise
+            _ptvsd.shut_down(self.server, *args, **kwargs)
+        _ptvsd.shut_down(self.client, *args, **kwargs)
 
     def close(self):
         if self.server is not None:
