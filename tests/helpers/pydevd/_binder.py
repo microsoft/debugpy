@@ -47,7 +47,10 @@ class PTVSD(ptvsd.daemon.Daemon):
         the editor (e.g. a "disconnect" request).  PTVSD also closes all
         of its background threads and closes any sockets it controls.
         """
-        super(PTVSD, self).close()
+        try:
+            super(PTVSD, self).close()
+        except ptvsd.daemon.DaemonClosedError:
+            pass
 
 
 class BinderBase(object):

@@ -1,4 +1,5 @@
 import atexit
+import errno
 import os
 import platform
 import signal
@@ -22,6 +23,11 @@ def _wait_on_exit():
             sys.__stdout__.write('Press any key to continue . . . ')
             sys.__stdout__.flush()
             msvcrt.getch()
+
+
+class DaemonClosedError(RuntimeError):
+    def __init__(self, msg='closed'):
+        super(DaemonClosedError, self).__init__(msg)
 
 
 class Daemon(object):
@@ -59,7 +65,7 @@ class Daemon(object):
 
     def start(self, server=None):
         if self._closed:
-            raise RuntimeError('closed')
+            raise DaemonClosedError()
         if self._pydevd is not None:
             raise RuntimeError('already started')
         self._pydevd = wrapper.PydevdSocket(
@@ -73,7 +79,7 @@ class Daemon(object):
 
     def set_connection(self, client):
         if self._closed:
-            raise RuntimeError('closed')
+            raise DaemonClosedError()
         if self._pydevd is None:
             raise RuntimeError('not started yet')
         if self._client is not None:
@@ -95,7 +101,7 @@ class Daemon(object):
 
     def close(self):
         if self._closed:
-            raise RuntimeError('already closed')
+            raise DaemonClosedError('already closed')
         self._closed = True
 
         if self._adapter is not None:
@@ -135,7 +141,11 @@ class Daemon(object):
             # TODO: This is not correct in the "attach" case.
             self._adapter.handle_pydevd_stopped(self.exitcode)
             self._adapter.close()
-        self._client.shutdown(socket.SHUT_RDWR)
+        try:
+            self._client.shutdown(socket.SHUT_RDWR)
+        except OSError as exc:
+            if exc.errno not in (errno.ENOTCONN, errno.EBADF):
+                raise
         self._client.close()
 
     # internal methods for PyDevdSocket().
