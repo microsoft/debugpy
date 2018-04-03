@@ -718,6 +718,13 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         if not self._closed:
             self.close()
 
+    def _wait_for_server_thread(self):
+        if self.server_thread is None:
+            return
+        if not self.server_thread.is_alive():
+            return
+        self.server_thread.join(WAIT_FOR_THREAD_FINISH_TIMEOUT)
+
     # async helpers
 
     def async_method(m):

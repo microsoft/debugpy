@@ -129,9 +129,9 @@ class Daemon(object):
         def handler():
             if not self._closed:
                 self.close()
-            if self._adapter.server_thread.is_alive():
-                self._adapter.server_thread.join(
-                    wrapper.WAIT_FOR_THREAD_FINISH_TIMEOUT)
+            if self._adapter is not None:
+                # TODO: Do this in VSCodeMessageProcessor.close()?
+                self._adapter._wait_for_server_thread()
         atexit.register(handler)
 
     def _set_signal_handlers(self):
