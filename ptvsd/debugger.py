@@ -13,6 +13,8 @@ __version__ = "4.0.0a5"
 # TODO: not needed?
 DONT_DEBUG = []
 
+LOCALHOST = '127.0.0.1'
+
 RUNNERS = {
     'module': run_module,  # python -m spam
     'script': run_file,  # python spam.py
@@ -26,7 +28,7 @@ def debug(filename, port_num, debug_id, debug_options, run_as,
     # TODO: docstring
     if _extra is None:
         _extra = sys.argv[1:]
-    address = (None, port_num)
+    address = (LOCALHOST, port_num)
     try:
         run = _runners[run_as]
     except KeyError:

@@ -1,7 +1,7 @@
 import sys
 import unittest
 
-from ptvsd.debugger import debug
+from ptvsd.debugger import debug, LOCALHOST
 
 
 class DebugTests(unittest.TestCase):
@@ -26,7 +26,7 @@ class DebugTests(unittest.TestCase):
 
     def test_module(self):
         filename = 'spam'
-        _, port = addr = (None, 8888)
+        _, port = addr = (LOCALHOST, 8888)
         debug_id = 1
         debug_options = {'x': 'y'}
         debug(filename, port, debug_id, debug_options, 'module',
@@ -38,7 +38,7 @@ class DebugTests(unittest.TestCase):
 
     def test_script(self):
         filename = 'spam.py'
-        _, port = addr = (None, 8888)
+        _, port = addr = (LOCALHOST, 8888)
         debug_id = 1
         debug_options = {'x': 'y'}
         debug(filename, port, debug_id, debug_options, 'script',
@@ -50,7 +50,7 @@ class DebugTests(unittest.TestCase):
 
     def test_code(self):
         filename = "print('spam')"
-        _, port = addr = (None, 8888)
+        _, port = addr = (LOCALHOST, 8888)
         debug_id = 1
         debug_options = {'x': 'y'}
         debug(filename, port, debug_id, debug_options, 'code',
@@ -62,7 +62,7 @@ class DebugTests(unittest.TestCase):
 
     def test_unsupported(self):
         filename = 'spam'
-        _, port = addr = (None, 8888)
+        _, port = addr = (LOCALHOST, 8888)
         debug_id = 1
         debug_options = {'x': 'y'}
         debug(filename, port, debug_id, debug_options, '???',
@@ -74,7 +74,7 @@ class DebugTests(unittest.TestCase):
 
     def test_extra_sys_argv(self):
         filename = 'spam.py'
-        _, port = addr = (None, 8888)
+        _, port = addr = (LOCALHOST, 8888)
         debug_id = 1
         debug_options = {'x': 'y'}
         extra = ['--eggs', 'abc']
@@ -112,6 +112,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(self.argv, [
             'eggs',
             '--port', '8888',
+            '--client', LOCALHOST,
             '--module',
             '--file', 'spam:',
         ])
@@ -129,6 +130,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(self.argv, [
             'eggs',
             '--port', '8888',
+            '--client', LOCALHOST,
             '--file', 'spam.py',
         ])
         self.assertEqual(self.kwargs, {})
@@ -145,6 +147,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(self.argv, [
             'eggs',
             '--port', '8888',
+            '--client', LOCALHOST,
             '--file', filename,
         ])
         self.assertEqual(self.kwargs, {})
@@ -161,6 +164,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(self.argv, [
             'eggs',
             '--port', '8888',
+            '--client', LOCALHOST,
             '--file', 'spam',
         ])
         self.assertEqual(self.kwargs, {})
@@ -177,6 +181,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(self.argv, [
             'eggs',
             '--port', '8888',
+            '--client', LOCALHOST,
             '--file', 'spam.py',
             '--abc', 'xyz',
             '42',
