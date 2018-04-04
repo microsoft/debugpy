@@ -1,8 +1,5 @@
 import contextlib
-try:
-    from io import StringIO
-except ImportError:
-    from StringIO import StringIO
+from io import StringIO
 import sys
 import unittest
 
@@ -10,6 +7,9 @@ from _pydevd_bundle import pydevd_comm
 
 import ptvsd.wrapper
 from ptvsd.__main__ import run_module, run_file, parse_args
+
+if sys.version_info < (3,):
+    from io import BytesIO as StringIO  # noqa
 
 
 @contextlib.contextmanager
