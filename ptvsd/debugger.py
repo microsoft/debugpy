@@ -13,7 +13,7 @@ __version__ = "4.0.0a5"
 # TODO: not needed?
 DONT_DEBUG = []
 
-LOCALHOST = '127.0.0.1'
+LOCALHOST = 'localhost'
 
 RUNNERS = {
     'module': run_module,  # python -m spam
