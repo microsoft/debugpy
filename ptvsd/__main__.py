@@ -17,19 +17,23 @@ __version__ = "4.0.0a5"
 
 def run_module(address, modname, *extra, **kwargs):
     """Run pydevd for the given module."""
+    run = kwargs.pop('_run', _run)
+    prog = kwargs.pop('_prog', sys.argv[0])
     filename = modname + ':'
-    argv = _run_argv(address, filename, *extra)
+    argv = _run_argv(address, filename, extra, _prog=prog)
     argv.insert(argv.index('--file'), '--module')
-    _run(argv, **kwargs)
+    run(argv, **kwargs)
 
 
 def run_file(address, filename, *extra, **kwargs):
     """Run pydevd for the given Python file."""
-    argv = _run_argv(address, filename, *extra)
-    _run(argv, **kwargs)
+    run = kwargs.pop('_run', _run)
+    prog = kwargs.pop('_prog', sys.argv[0])
+    argv = _run_argv(address, filename, extra, _prog=prog)
+    run(argv, **kwargs)
 
 
-def _run_argv(address, filename, *extra):
+def _run_argv(address, filename, extra, _prog=sys.argv[0]):
     """Convert the given values to an argv that pydevd.main() supports."""
     if '--' in extra:
         pydevd = list(extra[:extra.index('--')])
@@ -42,7 +46,7 @@ def _run_argv(address, filename, *extra):
     #if host is None:
     #    host = '127.0.0.1'
     argv = [
-        sys.argv[0],
+        _prog,
         '--port', str(port),
     ]
     if host is not None:
@@ -54,7 +58,7 @@ def _run_argv(address, filename, *extra):
     ] + extra
 
 
-def _run(argv, **kwargs):
+def _run(argv, _pydevd=pydevd, _install=ptvsd.wrapper.install, **kwargs):
     """Start pydevd with the given commandline args."""
     #print(' '.join(argv))
 
@@ -72,14 +76,14 @@ def _run(argv, **kwargs):
     # imports of the "pydevd" module then return the wrong module.  We
     # work around this by avoiding lazy imports of the "pydevd" module.
     # We also replace the __main__ module with the "pydevd" module here.
-    if sys.modules['__main__'].__file__ != pydevd.__file__:
+    if sys.modules['__main__'].__file__ != _pydevd.__file__:
         sys.modules['__main___orig'] = sys.modules['__main__']
-        sys.modules['__main__'] = pydevd
+        sys.modules['__main__'] = _pydevd
 
-    ptvsd.wrapper.install(pydevd, **kwargs)
+    _install(_pydevd, **kwargs)
     sys.argv[:] = argv
     try:
-        pydevd.main()
+        _pydevd.main()
     except SystemExit as ex:
         ptvsd.wrapper.ptvsd_sys_exit_code = int(ex.code)
         raise
@@ -135,7 +139,10 @@ def parse_args(argv=None):
 
     supported, pydevd, script = _group_args(argv)
     args = _parse_args(prog, supported)
-    return args, pydevd + ['--'] + script
+    extra = pydevd
+    if script:
+        extra += ['--'] + script
+    return args, extra
 
 
 def _group_args(argv):
@@ -176,9 +183,9 @@ def _group_args(argv):
         if arg == '--client':
             arg = '--host'
         elif arg == '--file':
-            if nextarg is None:
+            if nextarg is None:  # The filename is missing...
                 pydevd.append(arg)
-                continue
+                continue  # This will get handled later.
             if nextarg.endswith(':') and '--module' in pydevd:
                 pydevd.remove('--module')
                 arg = '-m'
