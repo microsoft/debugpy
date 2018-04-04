@@ -5,7 +5,7 @@ import unittest
 
 from _pydevd_bundle import pydevd_comm
 
-import ptvsd.wrapper
+import ptvsd.pydevd_hooks
 from ptvsd.__main__ import run_module, run_file, parse_args
 
 if sys.version_info < (3,):
@@ -42,6 +42,10 @@ class FakePyDevd(object):
     def __init__(self, __file__, handle_main):
         self.__file__ = __file__
         self.handle_main = handle_main
+
+    @property
+    def __name__(self):
+        return object.__repr__(self)
 
     def main(self):
         self.handle_main()
@@ -169,30 +173,30 @@ class IntegratedRunTests(unittest.TestCase):
 
     def setUp(self):
         super(IntegratedRunTests, self).setUp()
-        self.__main__ = sys.modules['__main__']
-        self.argv = sys.argv
-        ptvsd.wrapper.ptvsd_sys_exit_code = 0
-        self.start_server = pydevd_comm.start_server
-        self.start_client = pydevd_comm.start_client
+        self.___main__ = sys.modules['__main__']
+        self._argv = sys.argv
+        self._start_server = pydevd_comm.start_server
+        self._start_client = pydevd_comm.start_client
 
         self.pydevd = None
         self.kwargs = None
         self.maincalls = 0
         self.mainexc = None
+        self.exitcode = -1
 
     def tearDown(self):
-        sys.argv[:] = self.argv
-        sys.modules['__main__'] = self.__main__
+        sys.argv[:] = self._argv
+        sys.modules['__main__'] = self.___main__
         sys.modules.pop('__main___orig', None)
-        ptvsd.wrapper.ptvsd_sys_exit_code = 0
-        pydevd_comm.start_server = self.start_server
-        pydevd_comm.start_client = self.start_client
+        pydevd_comm.start_server = self._start_server
+        pydevd_comm.start_client = self._start_client
         # We shouldn't need to restore __main__.start_*.
         super(IntegratedRunTests, self).tearDown()
 
     def _install(self, pydevd, **kwargs):
         self.pydevd = pydevd
         self.kwargs = kwargs
+        return self
 
     def _main(self):
         self.maincalls += 1
@@ -212,7 +216,7 @@ class IntegratedRunTests(unittest.TestCase):
             '--port', '8888',
             '--file', 'spam.py',
         ])
-        self.assertEqual(ptvsd.wrapper.ptvsd_sys_exit_code, 0)
+        self.assertEqual(self.exitcode, -1)
 
     def test_failure(self):
         self.mainexc = RuntimeError('boom!')
@@ -230,7 +234,7 @@ class IntegratedRunTests(unittest.TestCase):
             '--port', '8888',
             '--file', 'spam.py',
         ])
-        self.assertEqual(ptvsd.wrapper.ptvsd_sys_exit_code, 0)
+        self.assertEqual(self.exitcode, -1)  # TODO: Is this right?
         self.assertIs(exc, self.mainexc)
 
     def test_exit(self):
@@ -248,20 +252,28 @@ class IntegratedRunTests(unittest.TestCase):
             '--port', '8888',
             '--file', 'spam.py',
         ])
-        self.assertEqual(ptvsd.wrapper.ptvsd_sys_exit_code, 1)
+        self.assertEqual(self.exitcode, 1)
 
     def test_installed(self):
         pydevd = FakePyDevd('pydevd/pydevd.py', self._main)
         addr = (None, 8888)
         run_file(addr, 'spam.py', _pydevd=pydevd)
 
-        self.assertIs(pydevd_comm.start_server, ptvsd.wrapper.start_server)
-        self.assertIs(pydevd_comm.start_client, ptvsd.wrapper.start_client)
-        self.assertIs(pydevd.start_server, ptvsd.wrapper.start_server)
-        self.assertIs(pydevd.start_client, ptvsd.wrapper.start_client)
         __main__ = sys.modules['__main__']
-        self.assertIs(__main__.start_server, ptvsd.wrapper.start_server)
-        self.assertIs(__main__.start_client, ptvsd.wrapper.start_client)
+        expected_server = ptvsd.pydevd_hooks.start_server
+        expected_client = ptvsd.pydevd_hooks.start_client
+        for mod in (pydevd_comm, pydevd, __main__):
+            start_server = getattr(mod, 'start_server')
+            if hasattr(start_server, 'orig'):
+                start_server = start_server.orig
+            start_client = getattr(mod, 'start_client')
+            if hasattr(start_client, 'orig'):
+                start_client = start_client.orig
+
+            self.assertIs(start_server, expected_server,
+                          '(module {})'.format(mod.__name__))
+            self.assertIs(start_client, expected_client,
+                          '(module {})'.format(mod.__name__))
 
 
 class ParseArgsTests(unittest.TestCase):
