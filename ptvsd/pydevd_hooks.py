@@ -48,15 +48,18 @@ def install(pydevd, start_server=start_server, start_client=start_client):
     """
     daemon = Daemon()
 
+    _start_server = (lambda p: start_server(daemon, p))
+    _start_client = (lambda h, p: start_client(daemon, h, p))
+
     # These are the functions pydevd invokes to get a socket to the client.
-    pydevd_comm.start_server = (lambda p: start_server(daemon, p))
-    pydevd_comm.start_client = (lambda h, p: start_client(daemon, h, p))
+    pydevd_comm.start_server = _start_server
+    pydevd_comm.start_client = _start_client
 
     # Ensure that pydevd is using our functions.
-    pydevd.start_server = start_server
-    pydevd.start_client = start_client
+    pydevd.start_server = _start_server
+    pydevd.start_client = _start_client
     __main__ = sys.modules['__main__']
     if __main__ is not pydevd and __main__.__file__ == pydevd.__file__:
-        __main__.start_server = start_server
-        __main__.start_client = start_client
+        __main__.start_server = _start_server
+        __main__.start_client = _start_client
     return daemon
