@@ -9,6 +9,7 @@ import errno
 import io
 import os
 import platform
+import pydevd_file_utils
 import re
 import socket
 import sys
@@ -925,10 +926,22 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             options[key] = DEBUG_OPTIONS_PARSER[key](value)
         return options
 
+    def _initialize_path_maps(self, args):
+        pathMaps = []
+        for pathMapping in args.get('pathMappings', []):
+            localRoot = pathMapping.get('localRoot', '')
+            remoteRoot = pathMapping.get('remoteRoot', '')
+            if (len(localRoot) > 0 and len(remoteRoot) > 0):
+                pathMaps.append((localRoot, remoteRoot))
+
+        if len(pathMaps) > 0:
+            pydevd_file_utils.setup_client_server_paths(pathMaps)
+
     @async_handler
     def on_attach(self, request, args):
         # TODO: docstring
         self.start_reason = 'attach'
+        self._initialize_path_maps(args)
         options = self.build_debug_options(args.get('debugOptions', []))
         self.debug_options = self._parse_debug_options(
             args.get('options', options))
