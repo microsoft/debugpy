@@ -8,7 +8,7 @@ import sys
 
 import pydevd
 
-import ptvsd.wrapper
+from ptvsd.pydevd_hooks import install
 
 
 __author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
@@ -58,7 +58,7 @@ def _run_argv(address, filename, extra, _prog=sys.argv[0]):
     ] + extra
 
 
-def _run(argv, _pydevd=pydevd, _install=ptvsd.wrapper.install, **kwargs):
+def _run(argv, _pydevd=pydevd, _install=install, **kwargs):
     """Start pydevd with the given commandline args."""
     #print(' '.join(argv))
 
@@ -80,12 +80,12 @@ def _run(argv, _pydevd=pydevd, _install=ptvsd.wrapper.install, **kwargs):
         sys.modules['__main___orig'] = sys.modules['__main__']
         sys.modules['__main__'] = _pydevd
 
-    _install(_pydevd, **kwargs)
+    daemon = _install(_pydevd, **kwargs)
     sys.argv[:] = argv
     try:
         _pydevd.main()
     except SystemExit as ex:
-        ptvsd.wrapper.ptvsd_sys_exit_code = int(ex.code)
+        daemon.exitcode = int(ex.code)
         raise
 
 

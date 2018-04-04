@@ -1,12 +1,11 @@
-from collections import namedtuple
 import threading
 import time
 
-from ptvsd import wrapper
+import ptvsd.daemon
 from tests.helpers import socket
 
 
-class PTVSD(namedtuple('PTVSD', 'client server proc fakesock')):
+class PTVSD(ptvsd.daemon.Daemon):
     """A wrapper around a running "instance" of PTVSD.
 
     "client" and "server" are the two ends of socket that PTVSD uses
@@ -20,16 +19,24 @@ class PTVSD(namedtuple('PTVSD', 'client server proc fakesock')):
     @classmethod
     def from_connect_func(cls, connect):
         """Return a new instance using the socket returned by connect()."""
-        client, server = connect()
-        fakesock = wrapper._start(
-            client,
-            server,
-            killonclose=False,
+        self = cls(
+            wait_on_exit=(lambda: None),
             addhandlers=False,
+            killonclose=False,
         )
-        proc = fakesock._vscprocessor
-        proc._exit_on_unknown_command = False
-        return cls(client, server, proc, fakesock)
+        client, server = connect()
+        self.start(server)
+        proc = self.set_connection(client)
+        proc._exit_on_unknown_command = False  # TODO: hack alert!
+        return self
+
+    @property
+    def fakesock(self):
+        return self.pydevd
+
+    @property
+    def proc(self):
+        return self.adapter
 
     def close(self):
         """Stop PTVSD and clean up.
@@ -40,7 +47,10 @@ class PTVSD(namedtuple('PTVSD', 'client server proc fakesock')):
         the editor (e.g. a "disconnect" request).  PTVSD also closes all
         of its background threads and closes any sockets it controls.
         """
-        self.proc.close()
+        try:
+            super(PTVSD, self).close()
+        except ptvsd.daemon.DaemonClosedError:
+            pass
 
 
 class BinderBase(object):
@@ -141,10 +151,10 @@ class BinderBase(object):
         try:
             self._run_debugger()
         except SystemExit as exc:
-            wrapper.ptvsd_sys_exit_code = int(exc.code)
+            self.ptvsd.exitcode = int(exc.code)
             raise
-        wrapper.ptvsd_sys_exit_code = 0
-        self.ptvsd.proc.close()
+        self.ptvsd.exitcode = 0
+        self.ptvsd.close()
 
 
 class Binder(BinderBase):
