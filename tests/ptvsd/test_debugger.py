@@ -8,6 +8,7 @@ class DebugTests(unittest.TestCase):
 
     def setUp(self):
         super(DebugTests, self).setUp()
+
         def _make_run(kind):
             def run(addr, name, *args, **kwargs):
                 self._run(kind, addr, name, *args, **kwargs)
