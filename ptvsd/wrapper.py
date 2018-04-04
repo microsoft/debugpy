@@ -986,7 +986,13 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         # TODO: docstring
         cmd = pydevd_comm.CMD_LIST_THREADS
         _, _, resp_args = yield self.pydevd_request(cmd, '')
-        xml = self.parse_xml_response(resp_args)
+
+        try:
+            xml = self.parse_xml_response(resp_args)
+        except Exception:
+            self.send_response(request, success=False)
+            return
+
         try:
             xthreads = xml.thread
         except AttributeError:
@@ -1121,7 +1127,12 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         with (yield self.using_format(fmt)):
             _, _, resp_args = yield self.pydevd_request(cmd, msg)
 
-        xml = self.parse_xml_response(resp_args)
+        try:
+            xml = self.parse_xml_response(resp_args)
+        except Exception:
+            self.send_response(request, success=False)
+            return
+
         try:
             xvars = xml.var
         except AttributeError:
@@ -1232,8 +1243,12 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 '\t'.join(cmd_args),
             )
 
-        xml = self.parse_xml_response(resp_args)
-        xvar = xml.var
+        try:
+            xml = self.parse_xml_response(resp_args)
+            xvar = xml.var
+        except Exception:
+            self.send_response(request, success=False)
+            return
 
         response = {
             'type': unquote(xvar['type']),
@@ -1261,8 +1276,12 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             _, _, resp_args = yield self.pydevd_request(
                 pydevd_comm.CMD_EVALUATE_EXPRESSION,
                 msg)
-        xml = self.parse_xml_response(resp_args)
-        xvar = xml.var
+        try:
+            xml = self.parse_xml_response(resp_args)
+            xvar = xml.var
+        except Exception:
+            self.send_response(request, success=False)
+            return
 
         context = args.get('context', '')
         is_eval_error = xvar['isErrorOnEval']
@@ -1538,7 +1557,6 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 self.is_process_created = True
                 self.send_process_event(self.start_reason)
 
-        # TODO: docstring
         xml = self.parse_xml_response(args)
         try:
             name = unquote(xml.thread['name'])
