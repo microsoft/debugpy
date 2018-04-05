@@ -998,9 +998,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         try:
             xml = self.parse_xml_response(resp_args)
         except SAXParseException as ex:
-            self.send_error_response(
-                request,
-                message=ex.getMessage())
+            self.send_error_response(request)
             return
 
         try:
@@ -1140,9 +1138,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         try:
             xml = self.parse_xml_response(resp_args)
         except SAXParseException as ex:
-            self.send_error_response(
-                request,
-                message=ex.getMessage())
+            self.send_error_response(request)
             return
 
         try:
@@ -1258,9 +1254,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         try:
             xml = self.parse_xml_response(resp_args)
         except SAXParseException as ex:
-            self.send_error_response(
-                request,
-                message=ex.getMessage())
+            self.send_error_response(request)
             return
 
         try:
@@ -1299,9 +1293,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         try:
             xml = self.parse_xml_response(resp_args)
         except SAXParseException as ex:
-            self.send_error_response(
-                request,
-                message=ex.getMessage())
+            self.send_error_response(request)
             return
 
         try:
