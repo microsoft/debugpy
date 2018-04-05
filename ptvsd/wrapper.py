@@ -21,6 +21,7 @@ try:
 except Exception:
     import urllib.parse as urllib
 import warnings
+from xml.sax import SAXParseException
 
 import _pydevd_bundle.pydevd_constants as pydevd_constants
 # Disable this, since we aren't packaging the Cython modules at the moment.
@@ -973,6 +974,13 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         }
         self.send_event('process', **evt)
 
+    def send_error_response(self, request, message=None):
+        self.send_response(
+            request,
+            success=False,
+            message=message
+        )
+
     def is_debugger_internal_thread(self, thread_name):
         if thread_name:
             if thread_name.startswith('pydevd.'):
@@ -986,7 +994,13 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         # TODO: docstring
         cmd = pydevd_comm.CMD_LIST_THREADS
         _, _, resp_args = yield self.pydevd_request(cmd, '')
-        xml = self.parse_xml_response(resp_args)
+
+        try:
+            xml = self.parse_xml_response(resp_args)
+        except SAXParseException as ex:
+            self.send_error_response(request)
+            return
+
         try:
             xthreads = xml.thread
         except AttributeError:
@@ -1121,7 +1135,12 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         with (yield self.using_format(fmt)):
             _, _, resp_args = yield self.pydevd_request(cmd, msg)
 
-        xml = self.parse_xml_response(resp_args)
+        try:
+            xml = self.parse_xml_response(resp_args)
+        except SAXParseException as ex:
+            self.send_error_response(request)
+            return
+
         try:
             xvars = xml.var
         except AttributeError:
@@ -1232,8 +1251,17 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 '\t'.join(cmd_args),
             )
 
-        xml = self.parse_xml_response(resp_args)
-        xvar = xml.var
+        try:
+            xml = self.parse_xml_response(resp_args)
+        except SAXParseException as ex:
+            self.send_error_response(request)
+            return
+
+        try:
+            xvar = xml.var
+        except AttributeError:
+            self.send_response(request, success=False)
+            return
 
         response = {
             'type': unquote(xvar['type']),
@@ -1261,8 +1289,18 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             _, _, resp_args = yield self.pydevd_request(
                 pydevd_comm.CMD_EVALUATE_EXPRESSION,
                 msg)
-        xml = self.parse_xml_response(resp_args)
-        xvar = xml.var
+
+        try:
+            xml = self.parse_xml_response(resp_args)
+        except SAXParseException as ex:
+            self.send_error_response(request)
+            return
+
+        try:
+            xvar = xml.var
+        except AttributeError:
+            self.send_response(request, success=False)
+            return
 
         context = args.get('context', '')
         is_eval_error = xvar['isErrorOnEval']
@@ -1538,7 +1576,6 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 self.is_process_created = True
                 self.send_process_event(self.start_reason)
 
-        # TODO: docstring
         xml = self.parse_xml_response(args)
         try:
             name = unquote(xml.thread['name'])
