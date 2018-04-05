@@ -8,7 +8,7 @@ from ptvsd.__main__ import run_module, run_file
 
 
 __author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
-__version__ = "4.0.0a5"
+__version__ = "4.0.0a6"
 
 # TODO: not needed?
 DONT_DEBUG = []

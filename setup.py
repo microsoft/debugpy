@@ -49,7 +49,7 @@ PACKAGE_DATA = {
 
 setup(
     name='ptvsd',
-    version='4.0.0a5',
+    version='4.0.0a6',
     description='Remote debugging server for Python support in Visual Studio and Visual Studio Code', # noqa
     #long_description=open('DESCRIPTION.md').read(),
     #long_description_content_type='text/markdown',

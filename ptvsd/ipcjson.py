@@ -21,7 +21,7 @@ import traceback
 
 
 __author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
-__version__ = "4.0.0a5"
+__version__ = "4.0.0a6"
 
 _TRACE = None
 

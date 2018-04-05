@@ -12,7 +12,7 @@ from ptvsd.pydevd_hooks import install
 
 
 __author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
-__version__ = "4.0.0a5"
+__version__ = "4.0.0a6"
 
 
 def run_module(address, modname, *extra, **kwargs):
