@@ -974,6 +974,13 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         }
         self.send_event('process', **evt)
 
+    def send_error_response(self, request, message=None):
+        self.send_response(
+            request,
+            success=False,
+            message=message
+        )
+
     def is_debugger_internal_thread(self, thread_name):
         if thread_name:
             if thread_name.startswith('pydevd.'):
@@ -991,9 +998,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         try:
             xml = self.parse_xml_response(resp_args)
         except SAXParseException as ex:
-            self.send_response(
+            self.send_error_response(
                 request,
-                success=False,
                 message=ex.getMessage())
             return
 
@@ -1134,9 +1140,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         try:
             xml = self.parse_xml_response(resp_args)
         except SAXParseException as ex:
-            self.send_response(
+            self.send_error_response(
                 request,
-                success=False,
                 message=ex.getMessage())
             return
 
@@ -1253,9 +1258,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         try:
             xml = self.parse_xml_response(resp_args)
         except SAXParseException as ex:
-            self.send_response(
+            self.send_error_response(
                 request,
-                success=False,
                 message=ex.getMessage())
             return
 
@@ -1291,15 +1295,15 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             _, _, resp_args = yield self.pydevd_request(
                 pydevd_comm.CMD_EVALUATE_EXPRESSION,
                 msg)
+
         try:
             xml = self.parse_xml_response(resp_args)
         except SAXParseException as ex:
-            self.send_response(
+            self.send_error_response(
                 request,
-                success=False,
                 message=ex.getMessage())
             return
-        
+
         try:
             xvar = xml.var
         except AttributeError:
