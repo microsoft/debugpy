@@ -21,6 +21,7 @@ try:
 except Exception:
     import urllib.parse as urllib
 import warnings
+from xml.sax import SAXParseException
 
 import _pydevd_bundle.pydevd_constants as pydevd_constants
 # Disable this, since we aren't packaging the Cython modules at the moment.
@@ -989,7 +990,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
         try:
             xml = self.parse_xml_response(resp_args)
-        except Exception:
+        except SAXParseException:
             self.send_response(request, success=False)
             return
 
@@ -1129,7 +1130,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
         try:
             xml = self.parse_xml_response(resp_args)
-        except Exception:
+        except SAXParseException:
             self.send_response(request, success=False)
             return
 
@@ -1245,8 +1246,13 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
         try:
             xml = self.parse_xml_response(resp_args)
+        except SAXParseException:
+            self.send_response(request, success=False)
+            return
+
+        try:
             xvar = xml.var
-        except Exception:
+        except AttributeError:
             self.send_response(request, success=False)
             return
 
@@ -1278,8 +1284,13 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 msg)
         try:
             xml = self.parse_xml_response(resp_args)
+        except SAXParseException:
+            self.send_response(request, success=False)
+            return
+        
+        try:
             xvar = xml.var
-        except Exception:
+        except AttributeError:
             self.send_response(request, success=False)
             return
 
