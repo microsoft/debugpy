@@ -93,9 +93,7 @@ class InitializeTests(LifecycleTest, unittest.TestCase):
 
     @unittest.skip('tested via test_lifecycle.py')
     def test_basic(self):
-        version = self.debugger.VERSION
         with self.lifecycle.demon_running(port=8888):
-            self.set_debugger_response(CMD_VERSION, version)
             req = self.send_request('initialize', {
                 'adapterID': 'spam',
             })
@@ -126,10 +124,7 @@ class InitializeTests(LifecycleTest, unittest.TestCase):
             )),
             self.new_event(1, 'initialized'),
         ])
-        self.assert_received(self.debugger, [
-            self.new_debugger_request(CMD_VERSION,
-                                      *['1.1', OS_ID, 'ID']),
-        ])
+        self.assert_received(self.debugger, [])
 
 
 ##################################
@@ -1882,11 +1877,13 @@ class SourceTests(NormalRequestTest, unittest.TestCase):
     def test_unsupported(self):
         with self.launched():
             self.send_request(
-                sourceReference=1,
+                sourceReference=0,
             )
             received = self.vsc.received
 
-        self.assert_vsc_received(received, [])
+        self.assert_vsc_received(received, [
+            self.expected_failure('Source unavailable'),
+        ])
         self.assert_received(self.debugger, [])
 
 

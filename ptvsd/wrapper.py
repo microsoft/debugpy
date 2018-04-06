@@ -828,10 +828,6 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     @async_handler
     def on_initialize(self, request, args):
         # TODO: docstring
-        cmd = pydevd_comm.CMD_VERSION
-        os_id = 'WINDOWS' if platform.system() == 'Windows' else 'UNIX'
-        msg = '1.1\t{}\tID'.format(os_id)
-        yield self.pydevd_request(cmd, msg)
         self.send_response(
             request,
             supportsExceptionInfoRequest=True,
@@ -900,6 +896,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             'Jinja': 'FLASK_DEBUG=True',
             'FixFilePathCase': 'FIX_FILE_PATH_CASE=True',
             'DebugStdLib': 'DEBUG_STD_LIB=True',
+            'FilePathIsCaseSensitive': 'FILE_PATH_IS_CASE_SENSITIVE=True',
         }
         return ';'.join(debug_option_mapping[option]
                         for option in debug_options
@@ -914,17 +911,20 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             INTERPRETER_OPTIONS=string
             WEB_BROWSER_URL=string url
             DJANGO_DEBUG=True|False
+            FILE_PATH_IS_CASE_SENSITIVE=True|False
         """
+        bool_parser = lambda str: str in ("True", "true", "1")
         DEBUG_OPTIONS_PARSER = {
-            'WAIT_ON_ABNORMAL_EXIT': bool,
-            'WAIT_ON_NORMAL_EXIT': bool,
-            'REDIRECT_OUTPUT': bool,
+            'WAIT_ON_ABNORMAL_EXIT': bool_parser,
+            'WAIT_ON_NORMAL_EXIT': bool_parser,
+            'REDIRECT_OUTPUT': bool_parser,
             'VERSION': unquote,
             'INTERPRETER_OPTIONS': unquote,
             'WEB_BROWSER_URL': unquote,
-            'DJANGO_DEBUG': bool,
-            'FLASK_DEBUG': bool,
-            'FIX_FILE_PATH_CASE': bool,
+            'DJANGO_DEBUG': bool_parser,
+            'FLASK_DEBUG': bool_parser,
+            'FIX_FILE_PATH_CASE': bool_parser,
+            'FILE_PATH_IS_CASE_SENSITIVE': bool_parser,
         }
 
         options = {}
@@ -934,6 +934,11 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             except ValueError:
                 continue
             options[key] = DEBUG_OPTIONS_PARSER[key](value)
+
+        if 'FILE_PATH_IS_CASE_SENSITIVE' not in options:
+            file_path_is_case_sensitive = platform.system() != 'Windows'
+            options['FILE_PATH_IS_CASE_SENSITIVE'] = file_path_is_case_sensitive # noqa
+
         return options
 
     def _initialize_path_maps(self, args):
@@ -947,6 +952,12 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         if len(pathMaps) > 0:
             pydevd_file_utils.setup_client_server_paths(pathMaps)
 
+    def _send_cmd_version_command(self, file_path_is_case_sensitive):
+        cmd = pydevd_comm.CMD_VERSION
+        os_id = 'UNIX' if file_path_is_case_sensitive else 'WINDOWS'
+        msg = '1.1\t{}\tID'.format(os_id)
+        return self.pydevd_request(cmd, msg)
+        
     @async_handler
     def on_attach(self, request, args):
         # TODO: docstring
@@ -955,6 +966,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         options = self.build_debug_options(args.get('debugOptions', []))
         self.debug_options = self._parse_debug_options(
             args.get('options', options))
+        file_path_is_case_sensitive = self.debug_options.get('FILE_PATH_IS_CASE_SENSITIVE', False)
+        yield self._send_cmd_version_command(file_path_is_case_sensitive)
         self.send_response(request)
 
     @async_handler
@@ -964,6 +977,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         options = self.build_debug_options(args.get('debugOptions', []))
         self.debug_options = self._parse_debug_options(
             args.get('options', options))
+        file_path_is_case_sensitive = platform.system() != 'Windows'
+        yield self._send_cmd_version_command(file_path_is_case_sensitive)
         self.send_response(request)
 
     def on_disconnect(self, request, args):

@@ -29,7 +29,7 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
     class FIXTURE(HighlevelFixture):
         lifecycle = None  # Make sure we don't cheat.
 
-    def test_attach(self):
+    def attach(self, expected_os_id, attach_args):
         version = self.debugger.VERSION
         addr = (None, 8888)
         daemon = self.vsc.start(addr)
@@ -44,7 +44,7 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
                 })
 
                 # attach
-                req_attach = self.send_request('attach')
+                req_attach = self.send_request('attach', attach_args)
 
             # configuration
             req_config = self.send_request('configurationDone')
@@ -102,10 +102,21 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
         ])
         self.assert_received(self.debugger, [
             self.debugger_msgs.new_request(CMD_VERSION,
-                                           *['1.1', OS_ID, 'ID']),
+                                           *['1.1', expected_os_id, 'ID']),
             self.debugger_msgs.new_request(CMD_REDIRECT_OUTPUT),
             self.debugger_msgs.new_request(CMD_RUN),
         ])
+
+    def test_attach(self):
+        self.attach(expected_os_id=OS_ID, attach_args={})
+
+    def test_attach_from_unix_os(self):
+        attach_args = {'options':'FILE_PATH_IS_CASE_SENSITIVE=True'}
+        self.attach(expected_os_id='UNIX', attach_args=attach_args)
+
+    def test_attach_from_windows_os(self):
+        attach_args = {'options': 'FILE_PATH_IS_CASE_SENSITIVE=False'}
+        self.attach(expected_os_id='WINDOWS', attach_args=attach_args)
 
     def test_launch(self):
         version = self.debugger.VERSION
