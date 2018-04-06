@@ -113,7 +113,7 @@ class Daemon(object):
         if self._adapter is not None:
             normal, abnormal = self._adapter._wait_options()
             if (normal and not self.exitcode) or (abnormal and self.exitcode):
-                self.wait_on_exit_func()
+                self.wait_on_exit()
 
         if self._pydevd is not None:
             close_socket(self._pydevd)
