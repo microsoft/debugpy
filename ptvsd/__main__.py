@@ -138,7 +138,7 @@ def parse_args(argv=None):
     args = _parse_args(prog, supported)
     extra = pydevd
     if script:
-        extra += ['--'] + script
+        extra += script
     return args, extra
 
 
