@@ -111,11 +111,11 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
         self.attach(expected_os_id=OS_ID, attach_args={})
 
     def test_attach_from_unix_os(self):
-        attach_args = {'options':'FILE_PATH_IS_CASE_SENSITIVE=True'}
+        attach_args = {'options': 'WINDOWS_CLIENT=False'}
         self.attach(expected_os_id='UNIX', attach_args=attach_args)
 
     def test_attach_from_windows_os(self):
-        attach_args = {'options': 'FILE_PATH_IS_CASE_SENSITIVE=False'}
+        attach_args = {'options': 'WINDOWS_CLIENT=True'}
         self.attach(expected_os_id='WINDOWS', attach_args=attach_args)
 
     def test_launch(self):

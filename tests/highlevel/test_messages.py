@@ -28,11 +28,10 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_THREAD_KILL,
     CMD_THREAD_RUN,
     CMD_THREAD_SUSPEND,
-    CMD_VERSION,
     CMD_WRITE_TO_CONSOLE,
 )
 
-from . import OS_ID, RunningTest
+from . import RunningTest
 from ptvsd.wrapper import UnsupportedPyDevdCommandError
 
 
