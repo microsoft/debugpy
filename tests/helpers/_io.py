@@ -94,6 +94,7 @@ def read_buffered(read, numbytes, initial=b'', stop=noop):
         except EOFError as exc:
             exc.buffered = buf
             raise
+        buf += data
     return buf[:numbytes], buf[numbytes:]
 
 
