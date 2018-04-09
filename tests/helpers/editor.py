@@ -21,8 +21,12 @@ class DebugSessionConnection(Closeable):
 
     VERBOSE = False
 
+    TIMEOUT = 1.0
+
     @classmethod
-    def create(cls, addr, timeout=2.0):
+    def create(cls, addr, timeout=TIMEOUT):
+        if timeout is None:
+            timeout = cls.TIMEOUT
         sock = create_client()
         for _ in range(int(timeout * 10)):
             try:
@@ -79,10 +83,11 @@ class DebugSession(Closeable):
         conn = DebugSessionConnection.create(addr)
         return cls(conn, owned=True, **kwargs)
 
-    def __init__(self, conn, seq=1000, handlers=(), owned=False):
+    def __init__(self, conn, seq=1000, handlers=(), timeout=None, owned=False):
         super(DebugSession, self).__init__()
         self._conn = conn
         self._seq = seq
+        self._timeout = timeout
         self._owned = owned
 
         self._handlers = []
@@ -129,11 +134,15 @@ class DebugSession(Closeable):
 
     @contextlib.contextmanager
     def wait_for_response(self, req, **kwargs):
+        try:
+            command, seq = req.command, req.seq
+        except AttributeError:
+            command, seq = req['command'], req['seq']
         def match(msg):
             if msg.type != 'response':
                 return False
-            return msg.requestSeq == req.seq
-        handlername = 'response ({} {})'.format(req.command, req.seq)
+            return msg.request_seq == seq
+        handlername = 'response (cmd:{} seq:{})'.format(command, seq)
         with self._wait_for_message(match, handlername, **kwargs):
             yield
 
@@ -182,7 +191,7 @@ class DebugSession(Closeable):
             raise RuntimeError('unhandled: {}'.format(unhandled))
 
     @contextlib.contextmanager
-    def _wait_for_message(self, match, handlername, timeout=1.0):
+    def _wait_for_message(self, match, handlername, timeout=None):
         lock, wait = get_locked_and_waiter()
 
         def handler(msg):
@@ -194,7 +203,7 @@ class DebugSession(Closeable):
         try:
             yield
         finally:
-            wait(timeout, handlername)
+            wait(timeout or self._timeout, handlername)
 
 
 class DebugAdapter(Closeable):
@@ -291,6 +300,7 @@ class FakeEditor(Closeable):
         if self._adapter is not None:
             raise RuntimeError('debugger already running')
         self._adapter = DebugAdapter.start(argv, port=self._port)
+        return self._adapter
 
     def launch_script(self, filename, *argv, **kwargs):
         if self._adapter is not None:
