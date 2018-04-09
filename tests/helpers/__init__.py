@@ -1,4 +1,8 @@
 
+def noop(*args, **kwargs):
+    """Do nothing."""
+
+
 class Closeable(object):
 
     def __init__(self):
