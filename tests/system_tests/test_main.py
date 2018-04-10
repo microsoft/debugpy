@@ -78,7 +78,7 @@ class CLITests(TestsBase, unittest.TestCase):
             lifecycle_handshake(session, 'launch')
             adapter.wait()
         out = adapter.output.decode('utf-8')
-        rc = adapter.returncode
+        rc = adapter.exitcode
 
         self.assertIn('done', out.splitlines())
         self.assertEqual(rc, 0)
@@ -94,7 +94,7 @@ class CLITests(TestsBase, unittest.TestCase):
             )
             lifecycle_handshake(session, 'launch')
             adapter.wait()
-        rc = adapter.returncode
+        rc = adapter.exitcode
 
         self.assertEqual(rc, 42)
 

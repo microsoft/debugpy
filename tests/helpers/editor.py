@@ -2,7 +2,6 @@ from __future__ import absolute_import
 
 import contextlib
 import json
-import subprocess
 import sys
 import threading
 import time
@@ -13,6 +12,7 @@ from .message import (
     raw_read_all as read_messages,
     raw_write_one as write_message
 )
+from .proc import Proc
 from .socket import create_client, close, recv_as_read, send_as_write
 from .threading import get_locked_and_waiter
 from .vsc import parse_message
@@ -241,40 +241,23 @@ class DebugAdapter(Closeable):
         if '--port' not in argv:
             argv.insert(0, str(port))
             argv.insert(0, '--port')
-        proc = cls._start(argv)
+        proc = Proc.start_python_module('ptvsd', argv)
         return cls(proc, addr, owned=True)
-
-    @classmethod
-    def _start(cls, argv):
-        argv = [
-            sys.executable,
-            '-m', 'ptvsd',
-        ] + argv
-        proc = subprocess.Popen(
-            argv,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-        )
-        return proc
 
     def __init__(self, proc, addr, owned=False):
         super(DebugAdapter, self).__init__()
+        assert isinstance(proc, Proc)
         self._proc = proc
         self._addr = addr
         self._session = None
 
     @property
     def output(self):
-        try:
-            # TODO: Could there be more?
-            return self._output
-        except AttributeError:
-            self._output = self._proc.stdout.read()
-            return self._output
+        return self._proc.output
 
     @property
-    def returncode(self):
-        return self._proc.returncode
+    def exitcode(self):
+        return self._proc.exitcode
 
     def attach(self, **kwargs):
         if self._session is not None:
@@ -299,7 +282,7 @@ class DebugAdapter(Closeable):
         if self._session is not None:
             self._session.close()
         if self._proc is not None:
-            self._proc.kill()
+            self._proc.close()
         if self.VERBOSE:
             lines = self.output.decode('utf-8').splitlines()
             print(' + ' + '\n + '.join(lines))
