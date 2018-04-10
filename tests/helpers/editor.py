@@ -6,6 +6,7 @@ import subprocess
 import sys
 import threading
 import time
+import warnings
 
 from . import Closeable
 from .message import (
@@ -20,6 +21,7 @@ from .vsc import parse_message
 class DebugSessionConnection(Closeable):
 
     VERBOSE = False
+    #VERBOSE = True
 
     TIMEOUT = 1.0
 
@@ -77,6 +79,7 @@ class DebugSessionConnection(Closeable):
 class DebugSession(Closeable):
 
     VERBOSE = False
+    #VERBOSE = True
 
     @classmethod
     def create(cls, addr=('localhost', 8888), **kwargs):
@@ -138,6 +141,7 @@ class DebugSession(Closeable):
             command, seq = req.command, req.seq
         except AttributeError:
             command, seq = req['command'], req['seq']
+
         def match(msg):
             if msg.type != 'response':
                 return False
@@ -151,14 +155,17 @@ class DebugSession(Closeable):
     def _close(self):
         if self._owned:
             self._conn.close()
-        self._listenerthread.join()  # TODO: timeout
+        if self._listenerthread != threading.current_thread():
+            self._listenerthread.join(timeout=1.0)
+            if self._listenerthread.is_alive():
+                warnings.warn('session listener still running')
         self._check_handlers()
 
     def _listen(self):
         try:
             for msg in self._conn.iter_messages():
                 if self.VERBOSE:
-                    print('received', msg)
+                    print(' ->', msg)
                 self._receive_message(msg)
         except EOFError:
             self.close()
@@ -167,12 +174,12 @@ class DebugSession(Closeable):
         for i, handler in enumerate(list(self._handlers)):
             handle_message, _, _ = handler
             handled = handle_message(msg)
+            try:
+                msg, handled = handled
+            except TypeError:
+                pass
             if handled:
-                try:
-                    msg, handled = handled
-                except TypeError:
-                    pass
-                del self._handlers[i]
+                self._handlers.remove(handler)
                 break
         self._received.append(msg)
 
@@ -187,7 +194,6 @@ class DebugSession(Closeable):
                 continue
             unhandled.append(name or repr(handle_msg))
         if unhandled:
-            return
             raise RuntimeError('unhandled: {}'.format(unhandled))
 
     @contextlib.contextmanager
@@ -209,6 +215,7 @@ class DebugSession(Closeable):
 class DebugAdapter(Closeable):
 
     VERBOSE = False
+    #VERBOSE = True
 
     @classmethod
     def for_script(cls, filename, *argv, **kwargs):
@@ -258,7 +265,12 @@ class DebugAdapter(Closeable):
 
     @property
     def output(self):
-        return self._proc.stdout.read()
+        try:
+            # TODO: Could there be more?
+            return self._output
+        except AttributeError:
+            self._output = self._proc.stdout.read()
+            return self._output
 
     def attach(self, **kwargs):
         if self._session is not None:

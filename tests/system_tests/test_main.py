@@ -6,7 +6,18 @@ from tests.helpers.vsc import parse_message
 from tests.helpers.workspace import PathEntry
 
 
-class CLITests(unittest.TestCase):
+def lifecycle_handshake(session, command='launch', options=None):
+    with session.wait_for_event('initialized'):
+        session.send_request(
+            'initialize',
+            adapterID='spam',
+        )
+        session.send_request(command, **options or {})
+    # TODO: pre-set breakpoints
+    session.send_request('configurationDone')
+
+
+class TestsBase(object):
 
     @property
     def workspace(self):
@@ -26,6 +37,37 @@ class CLITests(unittest.TestCase):
         expected = [parse_message(msg) for msg in expected]
         self.assertEqual(received, expected)
 
+
+class CLITests(TestsBase, unittest.TestCase):
+
+    def test_script_args(self):
+        lockfile, lockwait = self.workspace.lockfile('done.lock')
+        filename = self.add_module('spam', """
+            import sys
+            print(sys.argv)
+            sys.stdout.flush()
+
+            with open({!r}, 'w'):
+                pass
+            import time
+            time.sleep(10000)
+            """.format(lockfile))
+        with FakeEditor() as editor:
+            adapter, session = editor.launch_script(
+                filename,
+                '--eggs',
+            )
+            lifecycle_handshake(session, 'launch')
+            lockwait(timeout=2.0)
+            session.send_request('disconnect')
+        out = adapter.output
+
+        self.assertEqual(out.decode('utf-8'),
+                         "[{!r}, '--eggs']\n".format(filename))
+
+
+class LifecycleTests(TestsBase, unittest.TestCase):
+
     def test_pre_init(self):
         lock, wait = get_locked_and_waiter()
 
@@ -40,7 +82,6 @@ class CLITests(unittest.TestCase):
         with FakeEditor() as editor:
             adapter, session = editor.launch_script(
                 filename,
-                '--eggs',
                 handlers=[
                     (handle_msg, "event 'output'"),
                 ],
