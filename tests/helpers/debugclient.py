@@ -3,13 +3,17 @@ from .debugadapter import DebugAdapter
 from .debugsession import DebugSession
 
 
-class FakeEditor(Closeable):
+class DebugClient(Closeable):
+    """A high-level abstraction of a debug client (i.e. editor)."""
 
     def __init__(self, port=8888):
-        super(FakeEditor, self).__init__()
+        super(DebugClient, self).__init__()
         self._port = port
         self._adapter = None
         self._session = None
+
+    # TODO: Support starting a remote debugger for testing
+    # remote debugging?
 
     def start_debugger(self, argv):
         if self._adapter is not None:

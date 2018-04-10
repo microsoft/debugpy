@@ -1,6 +1,7 @@
 import unittest
 
-from tests.helpers.editor import FakeEditor
+from tests.helpers.debugadapter import DebugAdapter
+from tests.helpers.debugclient import DebugClient
 from tests.helpers.threading import get_locked_and_waiter
 from tests.helpers.vsc import parse_message
 from tests.helpers.workspace import Workspace, PathEntry
@@ -53,7 +54,7 @@ class CLITests(TestsBase, unittest.TestCase):
             import time
             time.sleep(10000)
             """.format(lockfile))
-        with FakeEditor() as editor:
+        with DebugClient() as editor:
             adapter, session = editor.launch_script(
                 filename,
                 '--eggs',
@@ -72,7 +73,7 @@ class CLITests(TestsBase, unittest.TestCase):
             print('done')
             sys.stdout.flush()
             """)
-        with FakeEditor() as editor:
+        with DebugClient() as editor:
             adapter, session = editor.launch_script(
                 filename,
             )
@@ -89,7 +90,7 @@ class CLITests(TestsBase, unittest.TestCase):
             import sys
             sys.exit(42)
             """)
-        with FakeEditor() as editor:
+        with DebugClient() as editor:
             adapter, session = editor.launch_script(
                 filename,
             )
@@ -118,7 +119,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             lock.release()
             return True
         filename = self.pathentry.write_module('spam', '')
-        with FakeEditor() as editor:
+        with DebugClient() as editor:
             adapter, session = editor.launch_script(
                 filename,
                 handlers=[
