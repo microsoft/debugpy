@@ -4,6 +4,8 @@ import os.path
 import shutil
 import sys
 import tempfile
+import time
+import warnings
 
 
 class Workspace(object):
@@ -39,6 +41,21 @@ class Workspace(object):
 
     def write(self, *path, **kwargs):
         return self._write(path, **kwargs)
+
+    def lockfile(self, filename, timeout=1.0):
+        _timeout = timeout
+        filename = self.resolve(filename)
+
+        def wait(timeout=_timeout):
+            if timeout is None:
+                timeout = _timeout
+            for _ in range(int(timeout * 10) + 1):
+                if os.path.exists(filename):
+                    break
+                time.sleep(0.1)
+            else:
+                warnings.warn('timed out')
+        return filename, wait
 
     def _write(self, path, content='', fixup=True):
         if fixup:
