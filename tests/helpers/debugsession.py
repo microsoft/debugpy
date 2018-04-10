@@ -80,8 +80,13 @@ class DebugSession(Closeable):
     VERBOSE = False
     #VERBOSE = True
 
+    HOST = 'localhost'
+    PORT = 8888
+
     @classmethod
-    def create(cls, addr=('localhost', 8888), **kwargs):
+    def create(cls, addr=None, **kwargs):
+        if addr is None:
+            addr = (cls.HOST, cls.PORT)
         conn = DebugSessionConnection.create(addr)
         return cls(conn, owned=True, **kwargs)
 
