@@ -272,6 +272,10 @@ class DebugAdapter(Closeable):
             self._output = self._proc.stdout.read()
             return self._output
 
+    @property
+    def returncode(self):
+        return self._proc.returncode
+
     def attach(self, **kwargs):
         if self._session is not None:
             raise RuntimeError('already attached')

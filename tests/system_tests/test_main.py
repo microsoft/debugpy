@@ -119,5 +119,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             lifecycle_handshake(session, 'launch')
             adapter.wait()
         out = adapter.output.decode('utf-8')
+        rc = adapter.returncode
 
         self.assertIn('done', out.splitlines())
+        self.assertEqual(rc, 0)
