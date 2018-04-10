@@ -65,6 +65,39 @@ class CLITests(TestsBase, unittest.TestCase):
         self.assertEqual(out.decode('utf-8'),
                          "[{!r}, '--eggs']\n".format(filename))
 
+    def test_run_to_completion(self):
+        filename = self.add_module('spam', """
+            import sys
+            print('done')
+            sys.stdout.flush()
+            """)
+        with FakeEditor() as editor:
+            adapter, session = editor.launch_script(
+                filename,
+            )
+            lifecycle_handshake(session, 'launch')
+            adapter.wait()
+        out = adapter.output.decode('utf-8')
+        rc = adapter.returncode
+
+        self.assertIn('done', out.splitlines())
+        self.assertEqual(rc, 0)
+
+    def test_failure(self):
+        filename = self.add_module('spam', """
+            import sys
+            sys.exit(42)
+            """)
+        with FakeEditor() as editor:
+            adapter, session = editor.launch_script(
+                filename,
+            )
+            lifecycle_handshake(session, 'launch')
+            adapter.wait()
+        rc = adapter.returncode
+
+        self.assertEqual(rc, 42)
+
 
 class LifecycleTests(TestsBase, unittest.TestCase):
 
@@ -104,22 +137,3 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             },
         ])
         self.assertEqual(out, b'')
-
-    def test_run_to_completion(self):
-        filename = self.add_module('spam', """
-            import sys
-            print('done')
-            sys.stdout.flush()
-            """)
-        with FakeEditor() as editor:
-            adapter, session = editor.launch_script(
-                filename,
-                '--eggs',
-            )
-            lifecycle_handshake(session, 'launch')
-            adapter.wait()
-        out = adapter.output.decode('utf-8')
-        rc = adapter.returncode
-
-        self.assertIn('done', out.splitlines())
-        self.assertEqual(rc, 0)
