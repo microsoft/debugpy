@@ -1,7 +1,6 @@
 import unittest
 
-from tests.helpers.debugadapter import DebugAdapter
-from tests.helpers.debugclient import DebugClient
+from tests.helpers.debugclient import EasyDebugClient as DebugClient
 from tests.helpers.threading import get_locked_and_waiter
 from tests.helpers.vsc import parse_message
 from tests.helpers.workspace import Workspace, PathEntry

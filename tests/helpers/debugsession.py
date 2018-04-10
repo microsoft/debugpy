@@ -12,7 +12,10 @@ from .message import (
     raw_read_all as read_messages,
     raw_write_one as write_message
 )
-from .socket import create_client, close, recv_as_read, send_as_write
+from .socket import (
+    Connection, create_server, create_client, close,
+    recv_as_read, send_as_write,
+    timeout as socket_timeout)
 from .threading import get_locked_and_waiter
 from .vsc import parse_message
 
@@ -25,22 +28,38 @@ class DebugSessionConnection(Closeable):
     TIMEOUT = 1.0
 
     @classmethod
-    def create(cls, addr, timeout=TIMEOUT):
+    def create_client(cls, addr, **kwargs):
+        def connect(addr, timeout):
+            sock = create_client()
+            for _ in range(int(timeout * 10)):
+                try:
+                    sock.connect(addr)
+                except OSError:
+                    if cls.VERBOSE:
+                        print('+', end='')
+                    sys.stdout.flush()
+                    time.sleep(0.1)
+                else:
+                    break
+            else:
+                raise RuntimeError('could not connect')
+            return sock
+        return cls._create(connect, addr, **kwargs)
+
+    @classmethod
+    def create_server(cls, addr, **kwargs):
+        def connect(addr, timeout):
+            server = create_server(addr)
+            with socket_timeout(server, timeout):
+                client = server.accept()
+            return Connection(client, server)
+        return cls._create(connect, addr, **kwargs)
+
+    @classmethod
+    def _create(cls, connect, addr, timeout=None):
         if timeout is None:
             timeout = cls.TIMEOUT
-        sock = create_client()
-        for _ in range(int(timeout * 10)):
-            try:
-                sock.connect(addr)
-            except OSError:
-                if cls.VERBOSE:
-                    print('+', end='')
-                sys.stdout.flush()
-                time.sleep(0.1)
-            else:
-                break
-        else:
-            raise RuntimeError('could not connect')
+        sock = connect(addr, timeout)
         if cls.VERBOSE:
             print('connected')
         self = cls(sock, ownsock=True)
@@ -52,7 +71,14 @@ class DebugSessionConnection(Closeable):
         self._sock = sock
         self._ownsock = ownsock
 
+    @property
+    def is_client(self):
+        return self._server is None
+
     def iter_messages(self):
+        if self.closed:
+            raise RuntimeError('connection closed')
+
         def stop():
             return self.closed
         read = recv_as_read(self._sock)
@@ -62,6 +88,9 @@ class DebugSessionConnection(Closeable):
             yield parse_message(msg)
 
     def send(self, req):
+        if self.closed:
+            raise RuntimeError('connection closed')
+
         def stop():
             return self.closed
         write = send_as_write(self._sock)
@@ -84,10 +113,17 @@ class DebugSession(Closeable):
     PORT = 8888
 
     @classmethod
-    def create(cls, addr=None, **kwargs):
+    def create_client(cls, addr=None, **kwargs):
         if addr is None:
             addr = (cls.HOST, cls.PORT)
-        conn = DebugSessionConnection.create(addr)
+        conn = DebugSessionConnection.create_client(addr)
+        return cls(conn, owned=True, **kwargs)
+
+    @classmethod
+    def create_server(cls, addr=None, **kwargs):
+        if addr is None:
+            addr = (cls.HOST, cls.PORT)
+        conn = DebugSessionConnection.create_server(addr)
         return cls(conn, owned=True, **kwargs)
 
     def __init__(self, conn, seq=1000, handlers=(), timeout=None, owned=False):
@@ -108,10 +144,17 @@ class DebugSession(Closeable):
         self._listenerthread.start()
 
     @property
+    def is_client(self):
+        return self._conn.is_client
+
+    @property
     def received(self):
         return list(self._received)
 
     def send_request(self, command, **args):
+        if self.closed:
+            raise RuntimeError('session closed')
+
         wait = args.pop('wait', True)
         seq = self._seq
         self._seq += 1
@@ -129,10 +172,16 @@ class DebugSession(Closeable):
         return req
 
     def add_handler(self, handler, **kwargs):
+        if self.closed:
+            raise RuntimeError('session closed')
+
         self._add_handler(handler, **kwargs)
 
     @contextlib.contextmanager
     def wait_for_event(self, event, **kwargs):
+        if self.closed:
+            raise RuntimeError('session closed')
+
         def match(msg):
             return msg.type == 'event' and msg.event == event
         handlername = 'event {!r}'.format(event)
@@ -141,6 +190,9 @@ class DebugSession(Closeable):
 
     @contextlib.contextmanager
     def wait_for_response(self, req, **kwargs):
+        if self.closed:
+            raise RuntimeError('session closed')
+
         try:
             command, seq = req.command, req.seq
         except AttributeError:
