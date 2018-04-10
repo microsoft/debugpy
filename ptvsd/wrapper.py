@@ -953,8 +953,11 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         if len(pathMaps) > 0:
             pydevd_file_utils.setup_client_server_paths(pathMaps)
 
-    def _send_cmd_version_command(self, windows_client):
+    def _send_cmd_version_command(self):
         cmd = pydevd_comm.CMD_VERSION
+        windows_client = self.debug_options.get(
+            'WINDOWS_CLIENT',
+            platform.system() == 'Windows')
         os_id = 'WINDOWS' if windows_client else 'UNIX'
         msg = '1.1\t{}\tID'.format(os_id)
         return self.pydevd_request(cmd, msg)
@@ -967,19 +970,18 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         options = self.build_debug_options(args.get('debugOptions', []))
         self.debug_options = self._parse_debug_options(
             args.get('options', options))
-        windows_client = self.debug_options.get('WINDOWS_CLIENT', False)
-        yield self._send_cmd_version_command(windows_client)
+        yield self._send_cmd_version_command()
         self.send_response(request)
 
     @async_handler
     def on_launch(self, request, args):
         # TODO: docstring
         self.start_reason = 'launch'
+        self._initialize_path_maps(args)
         options = self.build_debug_options(args.get('debugOptions', []))
         self.debug_options = self._parse_debug_options(
             args.get('options', options))
-        windows_client = platform.system() == 'Windows'
-        yield self._send_cmd_version_command(windows_client)
+        yield self._send_cmd_version_command()
         self.send_response(request)
 
     def on_disconnect(self, request, args):
