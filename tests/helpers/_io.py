@@ -62,6 +62,7 @@ def iter_lines_buffered(read, sep=b'\n', initial=b'', stop=noop):
             try:
                 if stop():
                     raise EOFError()
+                # TODO: handle ConnectionResetError (errno 104)
                 data = read(1024)
                 if not data:
                     raise EOFError()
