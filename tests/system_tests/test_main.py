@@ -1,3 +1,4 @@
+import os
 import unittest
 
 from tests.helpers.debugclient import EasyDebugClient as DebugClient
@@ -37,6 +38,9 @@ class TestsBase(object):
             self.addCleanup(self._pathentry.cleanup)
             self._pathentry.install()
             return self._pathentry
+
+    def write_script(self, name, content):
+        return self.workspace.write_python_script(name, content=content)
 
 
 class CLITests(TestsBase, unittest.TestCase):
@@ -98,6 +102,49 @@ class CLITests(TestsBase, unittest.TestCase):
         rc = adapter.exitcode
 
         self.assertEqual(rc, 42)
+
+
+class DebugTests(TestsBase, unittest.TestCase):
+
+    def write_debugger(self, filename, port, run_as):
+        cwd = os.getcwd()
+        kwargs = {
+            'filename': filename,
+            'port_num': port,
+            'debug_id': None,
+            'debug_options': None,
+            'run_as': run_as,
+        }
+        return self.write_script('debugger.py', """
+            import sys
+            sys.path.insert(0, {!r})
+            from ptvsd.debugger import debug
+            debug(
+                {filename!r},
+                {port_num!r},
+                {debug_id!r},
+                {debug_options!r},
+                {run_as!r},
+            )
+            """.format(cwd, **kwargs))
+
+    def test_script(self):
+        argv = []
+        filename = self.write_script('spam.py', """
+            import sys
+            print('done')
+            sys.stdout.flush()
+            """)
+        debugger = self.write_debugger(filename, port=9876, run_as='script')
+        with DebugClient(port=9876) as editor:
+            adapter, session = editor.host_local_debugger(argv, debugger)
+            lifecycle_handshake(session, 'launch')
+            adapter.wait()
+        out = adapter.output.decode('utf-8')
+        rc = adapter.exitcode
+
+        self.assertIn('done', out.splitlines())
+        self.assertEqual(rc, 0)
 
 
 class LifecycleTests(TestsBase, unittest.TestCase):
