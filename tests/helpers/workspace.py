@@ -42,6 +42,9 @@ class Workspace(object):
     def write(self, *path, **kwargs):
         return self._write(path, **kwargs)
 
+    def write_script(self, *path, **kwargs):
+        return self._write_script(path, **kwargs)
+
     def lockfile(self, filename, timeout=1.0):
         _timeout = timeout
         filename = self.resolve(filename)
@@ -57,12 +60,25 @@ class Workspace(object):
                 warnings.warn('timed out')
         return filename, wait
 
+    # internal methods
+
     def _write(self, path, content='', fixup=True):
         if fixup:
             content = dedent(content)
         filename = self.resolve(*path)
         with open(filename, 'w') as outfile:
             outfile.write(content)
+        return filename
+
+    def _write_script(self, path, executable, mode='0755', content='',
+                      fixup=True):
+        if isinstance(mode, str):
+            mode = int(mode, base=8)
+        if fixup:
+            content = dedent(content)
+        content = '#!/usr/bin/env {}\n'.format(executable) + content
+        filename = self._write(path, content, fixup=False)
+        os.chmod(filename, mode)
         return filename
 
 
@@ -102,6 +118,8 @@ class PathEntry(Workspace):
             dirname = self._ensure_package(parent)
             filename = os.path.join(dirname, filename)
         return self.write(filename, content=content)
+
+    # internal methods
 
     def _ensure_package(self, name, root=None):
         parent, sep, name = name.rpartition('.')
