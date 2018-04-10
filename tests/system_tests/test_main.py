@@ -1,6 +1,7 @@
 import unittest
 
-from tests.helpers.editor import FakeEditor, get_locked_and_waiter
+from tests.helpers.editor import FakeEditor
+from tests.helpers.threading import get_locked_and_waiter
 from tests.helpers.vsc import parse_message
 from tests.helpers.workspace import Workspace, PathEntry
 
