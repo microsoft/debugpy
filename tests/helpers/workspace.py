@@ -45,6 +45,9 @@ class Workspace(object):
     def write_script(self, *path, **kwargs):
         return self._write_script(path, **kwargs)
 
+    def write_python_script(self, *path, **kwargs):
+        return self._write_script(path, executable=sys.executable, **kwargs)
+
     def lockfile(self, filename, timeout=1.0):
         _timeout = timeout
         filename = self.resolve(filename)
