@@ -12,9 +12,10 @@ from .debugsession import DebugSession
 
 class _LifecycleClient(Closeable):
 
-    def __init__(self, port=8888, breakpoints=None):
+    def __init__(self, port=8888, breakpoints=None, connecttimeout=1.0):
         super(_LifecycleClient, self).__init__()
         self._port = port
+        self._connecttimeout = connecttimeout
         self._adapter = None
         self._session = None
 
