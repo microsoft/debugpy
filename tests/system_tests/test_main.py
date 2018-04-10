@@ -104,3 +104,20 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             },
         ])
         self.assertEqual(out, b'')
+
+    def test_run_to_completion(self):
+        filename = self.add_module('spam', """
+            import sys
+            print('done')
+            sys.stdout.flush()
+            """)
+        with FakeEditor() as editor:
+            adapter, session = editor.launch_script(
+                filename,
+                '--eggs',
+            )
+            lifecycle_handshake(session, 'launch')
+            adapter.wait()
+        out = adapter.output.decode('utf-8')
+
+        self.assertIn('done', out.splitlines())
