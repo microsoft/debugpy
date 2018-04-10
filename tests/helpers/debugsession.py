@@ -51,7 +51,7 @@ class DebugSessionConnection(Closeable):
         def connect(addr, timeout):
             server = create_server(addr)
             with socket_timeout(server, timeout):
-                client = server.accept()
+                client, _ = server.accept()
             return Connection(client, server)
         return cls._create(connect, addr, **kwargs)
 

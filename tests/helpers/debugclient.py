@@ -79,16 +79,22 @@ class _LifecycleClient(Closeable):
         if self._adapter is not None:
             self._adapter.close()
 
-    def _launch(self, argv, script=None, wait_for_attach=None,
+    def _launch(self, argv, script=None, wait_for_connect=None,
                 detachable=True, **kwargs):
-        self._adapter = DebugAdapter.start(
+        if script is not None:
+            def start(*args, **kwargs):
+                return DebugAdapter.start_wrapper_script(script,
+                                                         *args, **kwargs)
+        else:
+            start = DebugAdapter.start
+        self._adapter = start(
             argv,
             host='localhost' if detachable else None,
             port=self._port,
-            script=script,
         )
-        if wait_for_attach:
-            wait_for_attach()
+
+        if wait_for_connect:
+            wait_for_connect()
         else:
             self._attach(**kwargs)
 
@@ -105,6 +111,7 @@ class DebugClient(_LifecycleClient):
     """A high-level abstraction of a debug client (i.e. editor)."""
 
     # TODO: Manage breakpoints, etc.
+    # TODO: Add debugger methods here (e.g. "pause").
 
 
 class EasyDebugClient(DebugClient):
@@ -140,12 +147,11 @@ class EasyDebugClient(DebugClient):
                 warnings.warn('timed out waiting for connection')
             if self._session is None:
                 raise RuntimeError('unable to connect')
-            # Close the adapter when the session closes.
-            self._session.manage_adapter(self._adapter)
+            # The adapter will close when the connection does.
         self._launch(
             argv,
             script=script,
-            wait_for_attach=wait,
+            wait_for_connect=wait,
             detachable=False,
         )
 

@@ -10,16 +10,25 @@ class DebugAdapter(Closeable):
     PORT = 8888
 
     @classmethod
-    def start(cls, argv, host='localhost', port=None, script=None):
+    def start(cls, argv, **kwargs):
+        def new_proc(argv, host, port):
+            argv = list(argv)
+            cls._ensure_addr(argv, host, port)
+            return Proc.start_python_module('ptvsd', argv)
+        return cls._start(new_proc, argv, **kwargs)
+
+    @classmethod
+    def start_wrapper_script(cls, filename, argv, **kwargs):
+        def new_proc(argv, host, port):
+            return Proc.start_python_script(filename, argv)
+        return cls._start(new_proc, argv, **kwargs)
+
+    @classmethod
+    def _start(cls, new_proc, argv, host='localhost', port=None):
         if port is None:
             port = cls.PORT
         addr = (host, port)
-        argv = list(argv)
-        cls._ensure_addr(argv, host, port)
-        if script is not None:
-            proc = Proc.start_python_script(script, argv)
-        else:
-            proc = Proc.start_python_module('ptvsd', argv)
+        proc = new_proc(argv, host, port)
         return cls(proc, addr, owned=True)
 
     @classmethod
