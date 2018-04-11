@@ -73,7 +73,10 @@ class DebugSessionConnection(Closeable):
 
     @property
     def is_client(self):
-        return self._server is None
+        try:
+            return self._sock.server is None
+        except AttributeError:
+            return True
 
     def iter_messages(self):
         if self.closed:
