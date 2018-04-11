@@ -11,6 +11,8 @@ import sys
 
 from setuptools import setup
 
+import versioneer
+
 
 if not os.getenv('SKIP_CYTHON_BUILD'):
     print('Compiling extension modules (set SKIP_CYTHON_BUILD=1 to omit)')
@@ -49,7 +51,7 @@ PACKAGE_DATA = {
 
 setup(
     name='ptvsd',
-    version='4.0.0a6',
+    version=versioneer.get_version(),
     description='Remote debugging server for Python support in Visual Studio and Visual Studio Code', # noqa
     #long_description=open('DESCRIPTION.md').read(),
     #long_description_content_type='text/markdown',
@@ -66,4 +68,5 @@ setup(
     ],
     packages=['ptvsd'],
     package_data=PACKAGE_DATA,
+    cmdclass=versioneer.get_cmdclass(),
 )

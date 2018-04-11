@@ -11,7 +11,3 @@ if sys.version_info >= (3,):
     from ptvsd.reraise3 import reraise  # noqa: F401
 else:
     from ptvsd.reraise2 import reraise  # noqa: F401
-
-
-__author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
-__version__ = "4.0.0a6"

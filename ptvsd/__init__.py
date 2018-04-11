@@ -2,11 +2,10 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-__author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
-__version__ = "4.0.0a6"
-
 import sys
 import os.path
+
+from ptvsd.version import __version__, __author__
 
 
 PYDEVD_ROOT = os.path.join(os.path.dirname(__file__), 'pydevd')
@@ -40,3 +39,4 @@ import pydevd  # noqa
 # __path__.
 del sys.path[0]
 del sys
+

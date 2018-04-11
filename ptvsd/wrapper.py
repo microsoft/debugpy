@@ -41,10 +41,6 @@ from ptvsd.pathutils import PathUnNormcase  # noqa
 from ptvsd.safe_repr import SafeRepr  # noqa
 
 
-__author__ = "Microsoft Corporation <ptvshelp@microsoft.com>"
-__version__ = "4.0.0a6"
-
-
 #def ipcjson_trace(s):
 #    print(s)
 #ipcjson._TRACE = ipcjson_trace
