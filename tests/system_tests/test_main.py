@@ -202,7 +202,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
                 'body': {
                     'output': 'ptvsd',
                     'data': {
-                        'version': '4.0.0a5',
+                        'version': ptvsd.__version__,
                     },
                     'category': 'telemetry',
                 },
