@@ -211,15 +211,34 @@ class LifecycleTests(TestsBase, unittest.TestCase):
         self.assertEqual(out, b'')
 
     def test_launch_ptvsd_client(self):
+        lock, wait = get_locked_and_waiter()
+
+        def handle_msg(msg):
+            if msg.type != 'event':
+                return False
+            if msg.event != 'output':
+                return False
+            lock.release()
+            return True
         argv = []
         lockfile = self.workspace.lockfile()
         done, waitscript = lockfile.wait_in_script()
         filename = self.write_script('spam.py', waitscript)
         script = self.write_debugger_script(filename, 9876, run_as='script')
         with DebugClient(port=9876) as editor:
-            adapter, session = editor.host_local_debugger(argv, script)
+            adapter, session = editor.host_local_debugger(
+                argv,
+                script,
+                handlers=[
+                    (handle_msg, "event 'output'"),
+                ],
+            )
+            # TODO: There's a race with the initial "output" event.
+            wait(reason="event 'output'")
+
             (req_initialize, req_launch, req_config
              ) = lifecycle_handshake(session, 'launch')
+
             done()
             adapter.wait()
 
