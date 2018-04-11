@@ -39,7 +39,7 @@ import ptvsd.futures as futures  # noqa
 import ptvsd.untangle as untangle  # noqa
 from ptvsd.pathutils import PathUnNormcase  # noqa
 from ptvsd.safe_repr import SafeRepr  # noqa
-from ptvsd.version import __version__
+from ptvsd.version import __version__  # noqa
 
 
 #def ipcjson_trace(s):

@@ -9,7 +9,7 @@ import sys
 import pydevd
 
 from ptvsd.pydevd_hooks import install
-from ptvsd.version import __version__, __author__
+from ptvsd.version import __version__, __author__  # noqa
 
 
 def run_module(address, modname, *extra, **kwargs):
