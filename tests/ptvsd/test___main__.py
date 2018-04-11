@@ -345,7 +345,6 @@ class ParseArgsTests(unittest.TestCase):
         self.assertEqual(extra, [
             '--DEBUG',
             '--vm_type', '???',
-            '--',
             '--xyz', '123',
             'abc',
             '--cmd-line',

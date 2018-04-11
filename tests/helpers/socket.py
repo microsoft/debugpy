@@ -1,9 +1,33 @@
 from __future__ import absolute_import
 
 from collections import namedtuple
+import contextlib
+import errno
 
 import ptvsd.socket as _ptvsd
 
+
+try:
+    BrokenPipeError  # noqa
+except NameError:
+    class BrokenPipeError(Exception):
+        pass
+
+
+NOT_CONNECTED = (
+    errno.ENOTCONN,
+    errno.EBADF,
+)
+
+CLOSED = (
+    errno.EPIPE,
+    errno.ESHUTDOWN,
+)
+
+EOF = NOT_CONNECTED + CLOSED
+
+
+# TODO: Add timeouts to the functions.
 
 def create_server(address):
     """Return a server socket after binding."""
@@ -51,6 +75,45 @@ def bind(address):
         client = _connect(sock, connect_to)
         return client, server
     return connect, remote
+
+
+def recv_as_read(sock):
+    """Return a wrapper ardoung sock.read that arises EOFError when closed."""
+    def read(numbytes, _recv=sock.recv):
+        try:
+            return _recv(numbytes)
+        except BrokenPipeError:
+            raise EOFError
+        except OSError as exc:
+            if exc.errno in EOF:
+                raise EOFError
+            raise
+    return read
+
+
+def send_as_write(sock):
+    """Return a wrapper ardoung sock.send that arises EOFError when closed."""
+    def write(data, _send=sock.send):
+        try:
+            return _send(data)
+        except BrokenPipeError:
+            raise EOFError
+        except OSError as exc:
+            if exc.errno in EOF:
+                raise EOFError
+            raise
+    return write
+
+
+@contextlib.contextmanager
+def timeout(sock, timeout):
+    """A context manager that sets a timeout on blocking socket ops."""
+    orig = sock.gettimeout()
+    sock.settimeout(timeout)
+    try:
+        yield
+    finally:
+        sock.settimeout(orig)
 
 
 def close(sock):

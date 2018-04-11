@@ -5,7 +5,7 @@
 import sys
 import os.path
 
-from ptvsd.version import __version__, __author__
+from ptvsd.version import __version__, __author__  # noqa
 
 
 PYDEVD_ROOT = os.path.join(os.path.dirname(__file__), 'pydevd')
@@ -39,4 +39,3 @@ import pydevd  # noqa
 # __path__.
 del sys.path[0]
 del sys
-
