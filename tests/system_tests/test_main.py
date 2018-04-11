@@ -42,21 +42,43 @@ class TestsBase(object):
     def write_script(self, name, content):
         return self.workspace.write_python_script(name, content=content)
 
+    def write_debugger_script(self, filename, port, run_as):
+        cwd = os.getcwd()
+        kwargs = {
+            'filename': filename,
+            'port_num': port,
+            'debug_id': None,
+            'debug_options': None,
+            'run_as': run_as,
+        }
+        return self.write_script('debugger.py', """
+            import sys
+            sys.path.insert(0, {!r})
+            from ptvsd.debugger import debug
+            debug(
+                {filename!r},
+                {port_num!r},
+                {debug_id!r},
+                {debug_options!r},
+                {run_as!r},
+            )
+            """.format(cwd, **kwargs))
+
 
 class CLITests(TestsBase, unittest.TestCase):
 
     def test_script_args(self):
-        lockfile, lockwait = self.workspace.lockfile('done.lock')
+        lockfile = self.workspace.lockfile()
+        donescript, lockwait = lockfile.wait_for_script()
         filename = self.pathentry.write_module('spam', """
             import sys
             print(sys.argv)
             sys.stdout.flush()
 
-            with open({!r}, 'w'):
-                pass
+            {}
             import time
             time.sleep(10000)
-            """.format(lockfile))
+            """.format(donescript.replace('\n', '\n            ')))
         with DebugClient() as editor:
             adapter, session = editor.launch_script(
                 filename,
@@ -106,28 +128,6 @@ class CLITests(TestsBase, unittest.TestCase):
 
 class DebugTests(TestsBase, unittest.TestCase):
 
-    def write_debugger(self, filename, port, run_as):
-        cwd = os.getcwd()
-        kwargs = {
-            'filename': filename,
-            'port_num': port,
-            'debug_id': None,
-            'debug_options': None,
-            'run_as': run_as,
-        }
-        return self.write_script('debugger.py', """
-            import sys
-            sys.path.insert(0, {!r})
-            from ptvsd.debugger import debug
-            debug(
-                {filename!r},
-                {port_num!r},
-                {debug_id!r},
-                {debug_options!r},
-                {run_as!r},
-            )
-            """.format(cwd, **kwargs))
-
     def test_script(self):
         argv = []
         filename = self.write_script('spam.py', """
@@ -135,9 +135,9 @@ class DebugTests(TestsBase, unittest.TestCase):
             print('done')
             sys.stdout.flush()
             """)
-        debugger = self.write_debugger(filename, port=9876, run_as='script')
+        script = self.write_debugger_script(filename, 9876, run_as='script')
         with DebugClient(port=9876) as editor:
-            adapter, session = editor.host_local_debugger(argv, debugger)
+            adapter, session = editor.host_local_debugger(argv, script)
             lifecycle_handshake(session, 'launch')
             adapter.wait()
         out = adapter.output.decode('utf-8')
