@@ -26,8 +26,7 @@ class PTVSD(ptvsd.daemon.Daemon):
         )
         client, server = connect()
         self.start(server)
-        proc = self.set_connection(client)
-        proc._exit_on_unknown_command = False  # TODO: hack alert!
+        self.set_connection(client)
         return self
 
     @property
