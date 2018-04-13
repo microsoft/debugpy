@@ -1078,7 +1078,10 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         try:
             return self.source_map.to_vscode(filename, autogen=False)
         except KeyError:
-            pass
+            # If attaching to a local process (then remote and local are same)
+            for local_prefix, remote_prefix in pydevd_file_utils.PATHS_FROM_ECLIPSE_TO_PYTHON: # noqa
+                if local_prefix == remote_prefix and filename.startswith(local_prefix): # noqa
+                    return 0
 
         server_filename = pydevd_file_utils.norm_file_to_server(filename)
 
