@@ -40,6 +40,7 @@ class Daemon(object):
         self.killonclose = killonclose
 
         self._closed = False
+        self._exiting_via_atexit_handler = False
 
         self._pydevd = None
         self._server = None
@@ -124,6 +125,7 @@ class Daemon(object):
 
     def _add_atexit_handler(self):
         def handler():
+            self._exiting_via_atexit_handler = True
             if not self._closed:
                 self.close()
             if self._adapter is not None:
@@ -174,7 +176,7 @@ class Daemon(object):
     def _handle_vsc_disconnect(self, kill=False):
         if not self._closed:
             self.close()
-        if kill and self.killonclose:
+        if kill and self.killonclose and not self._exiting_via_atexit_handler:
             os.kill(os.getpid(), signal.SIGTERM)
 
     def _handle_vsc_close(self):
