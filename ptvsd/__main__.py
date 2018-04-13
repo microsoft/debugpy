@@ -10,6 +10,7 @@ import pydevd
 
 from ptvsd.pydevd_hooks import install
 from ptvsd.version import __version__, __author__  # noqa
+from ptvsd.runner import run as no_debug_runner
 
 
 def run_module(address, modname, *extra, **kwargs):
@@ -118,8 +119,8 @@ PYDEVD_FLAGS = {
 }
 
 USAGE = """
-  {0} [-h] [--host HOST] --port PORT -m MODULE [arg ...]
-  {0} [-h] [--host HOST] --port PORT FILENAME [arg ...]
+  {0} [-h] [--nodebug] [--host HOST] --port PORT -m MODULE [arg ...]
+  {0} [-h] [--nodebug] [--host HOST] --port PORT FILENAME [arg ...]
 """
 
 
@@ -197,6 +198,8 @@ def _group_args(argv):
             skip += 1
         elif arg in PYDEVD_FLAGS:
             pydevd.append(arg)
+        elif arg == '--nodebug':
+            supported.append(arg)
 
         # ptvsd support
         elif arg in ('--host', '--port', '-m'):
@@ -223,6 +226,7 @@ def _parse_args(prog, argv):
         prog=prog,
         usage=USAGE.format(prog),
     )
+    parser.add_argument('--nodebug', action='store_true')
     parser.add_argument('--host')
     parser.add_argument('--port', type=int, required=True)
 
@@ -249,13 +253,20 @@ def _parse_args(prog, argv):
     return args
 
 
-def main(address, name, kind, *extra, **kwargs):
+def debug_main(address, name, kind, *extra, **kwargs):
     if kind == 'module':
         run_module(address, name, *extra, **kwargs)
     else:
         run_file(address, name, *extra, **kwargs)
 
 
+def run_main(address, name, kind, *extra, **kwargs):
+    no_debug_runner(address, name, kind == 'module', *extra, **kwargs)
+
+
 if __name__ == '__main__':
     args, extra = parse_args()
-    main(args.address, args.name, args.kind, *extra)
+    if args.nodebug:
+        run_main(args.address, args.name, args.kind, *extra)
+    else:
+        debug_main(args.address, args.name, args.kind, *extra)
