@@ -80,25 +80,26 @@ class Address(namedtuple('Address', 'host port')):
     @classmethod
     def as_server(cls, host, port):
         """Return an address to use as a server address."""
-        self = cls(host, port)
-        self._isserver = True
-        return self
+        return cls(host, port, isserver=True)
 
     @classmethod
     def as_client(cls, host, port):
         """Return an address to use as a server address."""
-        self = cls(host, port)
-        self._isserver = False
-        return self
+        return cls(host, port, isserver=False)
 
-    def __new__(cls, host, port):
-        isserver = (host is None or host == '')
+    def __new__(cls, host, port, **kwargs):
+        isserver = kwargs.pop('isserver', None)
+        if isserver is None:
+            isserver = (host is None or host == '')
+        else:
+            isserver = bool(isserver)
         if host is None:
             host = 'localhost'
         self = super(Address, cls).__new__(
             cls,
             str(host),
             int(port) if port is not None else None,
+            **kwargs
         )
         self._isserver = isserver
         return self
@@ -108,6 +109,10 @@ class Address(namedtuple('Address', 'host port')):
             raise TypeError('missing port')
         if self.port <= 0 or self.port > 65535:
             raise ValueError('port must be positive int < 65535')
+
+    def __repr__(self):
+        orig = super(Address, self).__repr__()
+        return '{}, isserver={})'.format(orig[:-1], self._isserver)
 
     def __eq__(self, other):
         if not super(Address, self).__eq__(other):

@@ -81,6 +81,19 @@ class RunModuleTests(RunBase, unittest.TestCase):
         self.assertEqual(self.addr, Address.as_server(*addr))
         self.assertEqual(self.kwargs, {})
 
+    def test_server(self):
+        addr = Address.as_server('10.0.1.1', 8888)
+        run_module(addr, 'spam', _run=self._run, _prog='eggs')
+
+        self.assertEqual(self.argv, [
+            'eggs',
+            '--port', '8888',
+            '--module',
+            '--file', 'spam:',
+        ])
+        self.assertEqual(self.addr, Address.as_server(*addr))
+        self.assertEqual(self.kwargs, {})
+
     def test_remote(self):
         addr = ('1.2.3.4', 8888)
         run_module(addr, 'spam', _run=self._run, _prog='eggs')
@@ -89,6 +102,20 @@ class RunModuleTests(RunBase, unittest.TestCase):
             'eggs',
             '--port', '8888',
             '--client', '1.2.3.4',
+            '--module',
+            '--file', 'spam:',
+        ])
+        self.assertEqual(self.addr, Address.as_client(*addr))
+        self.assertEqual(self.kwargs, {})
+
+    def test_remote_localhost(self):
+        addr = Address.as_client(None, 8888)
+        run_module(addr, 'spam', _run=self._run, _prog='eggs')
+
+        self.assertEqual(self.argv, [
+            'eggs',
+            '--port', '8888',
+            '--client', 'localhost',
             '--module',
             '--file', 'spam:',
         ])
@@ -139,6 +166,18 @@ class RunScriptTests(RunBase, unittest.TestCase):
         self.assertEqual(self.addr, Address.as_server(*addr))
         self.assertEqual(self.kwargs, {})
 
+    def test_server(self):
+        addr = Address.as_server('10.0.1.1', 8888)
+        run_file(addr, 'spam.py', _run=self._run, _prog='eggs')
+
+        self.assertEqual(self.argv, [
+            'eggs',
+            '--port', '8888',
+            '--file', 'spam.py',
+        ])
+        self.assertEqual(self.addr, Address.as_server(*addr))
+        self.assertEqual(self.kwargs, {})
+
     def test_remote(self):
         addr = ('1.2.3.4', 8888)
         run_file(addr, 'spam.py', _run=self._run, _prog='eggs')
@@ -147,6 +186,19 @@ class RunScriptTests(RunBase, unittest.TestCase):
             'eggs',
             '--port', '8888',
             '--client', '1.2.3.4',
+            '--file', 'spam.py',
+        ])
+        self.assertEqual(self.addr, Address.as_client(*addr))
+        self.assertEqual(self.kwargs, {})
+
+    def test_remote_localhost(self):
+        addr = Address.as_client(None, 8888)
+        run_file(addr, 'spam.py', _run=self._run, _prog='eggs')
+
+        self.assertEqual(self.argv, [
+            'eggs',
+            '--port', '8888',
+            '--client', 'localhost',
             '--file', 'spam.py',
         ])
         self.assertEqual(self.addr, Address.as_client(*addr))
@@ -309,6 +361,22 @@ class ParseArgsTests(unittest.TestCase):
         })
         self.assertEqual(extra, [])
 
+    def test_module_server(self):
+        args, extra = parse_args([
+            'eggs',
+            '--server-host', '10.0.1.1',
+            '--port', '8888',
+            '-m', 'spam',
+        ])
+
+        self.assertEqual(vars(args), {
+            'kind': 'module',
+            'name': 'spam',
+            'address': Address.as_server('10.0.1.1', 8888),
+            'nodebug': False,
+        })
+        self.assertEqual(extra, [])
+
     def test_module_nodebug(self):
         args, extra = parse_args([
             'eggs',
@@ -336,6 +404,22 @@ class ParseArgsTests(unittest.TestCase):
             'kind': 'script',
             'name': 'spam.py',
             'address': Address.as_server(None, 8888),
+            'nodebug': False,
+        })
+        self.assertEqual(extra, [])
+
+    def test_script_server(self):
+        args, extra = parse_args([
+            'eggs',
+            '--server-host', '10.0.1.1',
+            '--port', '8888',
+            'spam.py',
+        ])
+
+        self.assertEqual(vars(args), {
+            'kind': 'script',
+            'name': 'spam.py',
+            'address': Address.as_server('10.0.1.1', 8888),
             'nodebug': False,
         })
         self.assertEqual(extra, [])
@@ -368,6 +452,22 @@ class ParseArgsTests(unittest.TestCase):
             'kind': 'script',
             'name': 'spam.py',
             'address': Address.as_client('1.2.3.4', 8888),
+            'nodebug': False,
+        })
+        self.assertEqual(extra, [])
+
+    def test_remote_localhost(self):
+        args, extra = parse_args([
+            'eggs',
+            '--host', 'localhost',
+            '--port', '8888',
+            'spam.py',
+        ])
+
+        self.assertEqual(vars(args), {
+            'kind': 'script',
+            'name': 'spam.py',
+            'address': Address.as_client('localhost', 8888),
             'nodebug': False,
         })
         self.assertEqual(extra, [])
@@ -455,6 +555,22 @@ class ParseArgsTests(unittest.TestCase):
             '--server',
             '--bar',
         ])
+
+    def test_empty_host(self):
+        args, extra = parse_args([
+            'eggs',
+            '--host', '',
+            '--port', '8888',
+            'spam.py',
+        ])
+
+        self.assertEqual(vars(args), {
+            'kind': 'script',
+            'name': 'spam.py',
+            'address': Address.as_server('', 8888),
+            'nodebug': False,
+        })
+        self.assertEqual(extra, [])
 
     def test_unsupported_arg(self):
         with self.assertRaises(SystemExit):

@@ -50,7 +50,7 @@ def _run_argv(address, filename, extra, _prog=sys.argv[0]):
     ]
     if not address.isserver:
         argv.extend([
-            '--client', host,
+            '--client', host or 'localhost',
         ])
     return argv + pydevd + [
         '--file', filename,
@@ -120,9 +120,9 @@ PYDEVD_FLAGS = {
 }
 
 USAGE = """
-  {0} [-h] [--nodebug] [--host HOST] --port PORT -m MODULE [arg ...]
-  {0} [-h] [--nodebug] [--host HOST] --port PORT FILENAME [arg ...]
-"""
+  {0} [-h] [--nodebug] [--host HOST | --server-host HOST] --port PORT -m MODULE [arg ...]
+  {0} [-h] [--nodebug] [--host HOST | --server-host HOST] --port PORT FILENAME [arg ...]
+"""  # noqa
 
 
 def parse_args(argv=None):
@@ -192,6 +192,7 @@ def _group_args(argv):
             else:
                 arg = nextarg
                 skip += 1
+
         if arg in PYDEVD_OPTS:
             pydevd.append(arg)
             if nextarg is not None:
@@ -203,7 +204,7 @@ def _group_args(argv):
             supported.append(arg)
 
         # ptvsd support
-        elif arg in ('--host', '--port', '-m'):
+        elif arg in ('--host', '--server-host', '--port', '-m'):
             if arg == '-m':
                 gottarget = True
             supported.append(arg)
@@ -228,7 +229,9 @@ def _parse_args(prog, argv):
         usage=USAGE.format(prog),
     )
     parser.add_argument('--nodebug', action='store_true')
-    parser.add_argument('--host')
+    host = parser.add_mutually_exclusive_group()
+    host.add_argument('--host')
+    host.add_argument('--server-host')
     parser.add_argument('--port', type=int, required=True)
 
     target = parser.add_mutually_exclusive_group(required=True)
@@ -238,10 +241,17 @@ def _parse_args(prog, argv):
     args = parser.parse_args(argv)
     ns = vars(args)
 
-    if not args.host and not args.nodebug:
-        args.address = Address.as_server(ns.pop('host'), ns.pop('port'))
+    serverhost = ns.pop('server_host', None)
+    clienthost = ns.pop('host', None)
+    if serverhost:
+        args.address = Address.as_server(serverhost, ns.pop('port'))
+    elif not clienthost:
+        if args.nodebug:
+            args.address = Address.as_client(clienthost, ns.pop('port'))
+        else:
+            args.address = Address.as_server(clienthost, ns.pop('port'))
     else:
-        args.address = Address.as_client(ns.pop('host'), ns.pop('port'))
+        args.address = Address.as_client(clienthost, ns.pop('port'))
 
     module = ns.pop('module')
     filename = ns.pop('filename')
