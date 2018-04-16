@@ -12,10 +12,12 @@ NOT_CONNECTED = (
 )
 
 
-def create_server(port):
+def create_server(host, port):
     """Return a local server socket listening on the given port."""
+    if host is None:
+        host = 'localhost'
     server = _new_sock()
-    server.bind(('127.0.0.1', port))
+    server.bind((host, port))
     server.listen(1)
     return server
 

@@ -27,6 +27,7 @@ OUTPUT_POLL_PERIOD = 0.3
 
 
 def run(address, filename, is_module, *args, **kwargs):
+    # TODO: client/server -> address
     if not start_message_processor(*address):
         return
 

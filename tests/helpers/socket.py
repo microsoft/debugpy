@@ -31,8 +31,7 @@ EOF = NOT_CONNECTED + CLOSED
 
 def create_server(address):
     """Return a server socket after binding."""
-    host, port = address
-    return _ptvsd.create_server(port)
+    return _ptvsd.create_server(*address)
 
 
 def create_client():

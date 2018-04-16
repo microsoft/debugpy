@@ -9,26 +9,29 @@ import sys
 import pydevd
 
 from ptvsd.pydevd_hooks import install
+from ptvsd.socket import Address
 from ptvsd.version import __version__, __author__  # noqa
 from ptvsd.runner import run as no_debug_runner
 
 
 def run_module(address, modname, *extra, **kwargs):
     """Run pydevd for the given module."""
+    addr = Address.from_raw(address)
     run = kwargs.pop('_run', _run)
     prog = kwargs.pop('_prog', sys.argv[0])
     filename = modname + ':'
-    argv = _run_argv(address, filename, extra, _prog=prog)
+    argv = _run_argv(addr, filename, extra, _prog=prog)
     argv.insert(argv.index('--file'), '--module')
-    run(argv, **kwargs)
+    run(argv, addr, **kwargs)
 
 
 def run_file(address, filename, *extra, **kwargs):
     """Run pydevd for the given Python file."""
+    addr = Address.from_raw(address)
     run = kwargs.pop('_run', _run)
     prog = kwargs.pop('_prog', sys.argv[0])
-    argv = _run_argv(address, filename, extra, _prog=prog)
-    run(argv, **kwargs)
+    argv = _run_argv(addr, filename, extra, _prog=prog)
+    run(argv, addr, **kwargs)
 
 
 def _run_argv(address, filename, extra, _prog=sys.argv[0]):
@@ -41,13 +44,11 @@ def _run_argv(address, filename, extra, _prog=sys.argv[0]):
         extra = list(extra)
 
     host, port = address
-    #if host is None:
-    #    host = '127.0.0.1'
     argv = [
         _prog,
         '--port', str(port),
     ]
-    if host is not None:
+    if not address.isserver:
         argv.extend([
             '--client', host,
         ])
@@ -56,7 +57,7 @@ def _run_argv(address, filename, extra, _prog=sys.argv[0]):
     ] + extra
 
 
-def _run(argv, _pydevd=pydevd, _install=install, **kwargs):
+def _run(argv, addr, _pydevd=pydevd, _install=install, **kwargs):
     """Start pydevd with the given commandline args."""
     #print(' '.join(argv))
 
@@ -78,7 +79,7 @@ def _run(argv, _pydevd=pydevd, _install=install, **kwargs):
         sys.modules['__main___orig'] = sys.modules['__main__']
         sys.modules['__main__'] = _pydevd
 
-    daemon = _install(_pydevd, **kwargs)
+    daemon = _install(_pydevd, addr, **kwargs)
     sys.argv[:] = argv
     try:
         _pydevd.main()
@@ -237,7 +238,10 @@ def _parse_args(prog, argv):
     args = parser.parse_args(argv)
     ns = vars(args)
 
-    args.address = (ns.pop('host'), ns.pop('port'))
+    if not args.host and not args.nodebug:
+        args.address = Address.as_server(ns.pop('host'), ns.pop('port'))
+    else:
+        args.address = Address.as_client(ns.pop('host'), ns.pop('port'))
 
     module = ns.pop('module')
     filename = ns.pop('filename')
