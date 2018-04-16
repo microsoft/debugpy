@@ -2,6 +2,7 @@ import sys
 import unittest
 
 from ptvsd.debugger import debug, LOCALHOST
+from ptvsd.socket import Address
 
 
 class DebugTests(unittest.TestCase):
@@ -90,6 +91,7 @@ class IntegrationTests(unittest.TestCase):
     def setUp(self):
         super(IntegrationTests, self).setUp()
         self.argv = None
+        self.addr = None
         self.kwargs = None
         self._sys_argv = list(sys.argv)
 
@@ -97,8 +99,9 @@ class IntegrationTests(unittest.TestCase):
         sys.argv[:] = self._sys_argv
         super(IntegrationTests, self).tearDown()
 
-    def _run(self, argv, **kwargs):
+    def _run(self, argv, addr, **kwargs):
         self.argv = argv
+        self.addr = addr
         self.kwargs = kwargs
 
     def test_module(self):
@@ -117,6 +120,7 @@ class IntegrationTests(unittest.TestCase):
             '--module',
             '--file', 'spam:',
         ])
+        self.assertEqual(self.addr, Address.as_client(None, port))
         self.assertEqual(self.kwargs, {})
 
     def test_script(self):
@@ -134,6 +138,7 @@ class IntegrationTests(unittest.TestCase):
             '--client', LOCALHOST,
             '--file', 'spam.py',
         ])
+        self.assertEqual(self.addr, Address.as_client(None, port))
         self.assertEqual(self.kwargs, {})
 
     def test_code(self):
@@ -151,6 +156,7 @@ class IntegrationTests(unittest.TestCase):
             '--client', LOCALHOST,
             '--file', filename,
         ])
+        self.assertEqual(self.addr, Address.as_client(None, port))
         self.assertEqual(self.kwargs, {})
 
     def test_unsupported(self):
@@ -168,6 +174,7 @@ class IntegrationTests(unittest.TestCase):
             '--client', LOCALHOST,
             '--file', 'spam',
         ])
+        self.assertEqual(self.addr, Address.as_client(None, port))
         self.assertEqual(self.kwargs, {})
 
     def test_extra_sys_argv(self):
@@ -187,4 +194,5 @@ class IntegrationTests(unittest.TestCase):
             '--abc', 'xyz',
             '42',
         ])
+        self.assertEqual(self.addr, Address.as_client(None, port))
         self.assertEqual(self.kwargs, {})

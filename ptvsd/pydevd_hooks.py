@@ -2,11 +2,11 @@ import sys
 
 from _pydevd_bundle import pydevd_comm
 
-from ptvsd.socket import create_server, create_client
+from ptvsd.socket import create_server, create_client, Address
 from ptvsd.daemon import Daemon
 
 
-def start_server(daemon, port):
+def start_server(daemon, host, port):
     """Return a socket to a (new) local pydevd-handling daemon.
 
     The daemon supports the pydevd client wire protocol, sending
@@ -14,7 +14,7 @@ def start_server(daemon, port):
 
     This is a replacement for _pydevd_bundle.pydevd_comm.start_server.
     """
-    server = create_server(port)
+    server = create_server(host, port)
     client, _ = server.accept()
 
     pydevd = daemon.start(server)
@@ -38,7 +38,8 @@ def start_client(daemon, host, port):
     return pydevd
 
 
-def install(pydevd, start_server=start_server, start_client=start_client):
+def install(pydevd, address,
+            start_server=start_server, start_client=start_client):
     """Configure pydevd to use our wrapper.
 
     This is a bit of a hack to allow us to run our VSC debug adapter
@@ -46,9 +47,10 @@ def install(pydevd, start_server=start_server, start_client=start_client):
     this is somewhat fragile (since the monkeypatching sites may
     change).
     """
+    addr = Address.from_raw(address)
     daemon = Daemon()
 
-    _start_server = (lambda p: start_server(daemon, p))
+    _start_server = (lambda p: start_server(daemon, addr.host, p))
     _start_server.orig = start_server
     _start_client = (lambda h, p: start_client(daemon, h, p))
     _start_client.orig = start_client
