@@ -39,7 +39,8 @@ def start_client(daemon, host, port):
 
 
 def install(pydevd, address,
-            start_server=start_server, start_client=start_client):
+            start_server=start_server, start_client=start_client,
+            **kwargs):
     """Configure pydevd to use our wrapper.
 
     This is a bit of a hack to allow us to run our VSC debug adapter
@@ -48,7 +49,7 @@ def install(pydevd, address,
     change).
     """
     addr = Address.from_raw(address)
-    daemon = Daemon()
+    daemon = Daemon(**kwargs)
 
     _start_server = (lambda p: start_server(daemon, addr.host, p))
     _start_server.orig = start_server

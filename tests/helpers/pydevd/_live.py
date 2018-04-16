@@ -32,6 +32,9 @@ class Binder(BinderBase):
             name,
             start_server=new_pydevd_sock,
             start_client=new_pydevd_sock,
+            wait_on_exit=(lambda: None),
+            addhandlers=False,
+            killonclose=False,
         )
 
         # Block until "done" debugging.
