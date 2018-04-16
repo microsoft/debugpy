@@ -2,6 +2,7 @@ import os
 import unittest
 
 import ptvsd
+from ptvsd.wrapper import INITIALIZE_RESPONSE # noqa
 from tests.helpers.debugclient import EasyDebugClient as DebugClient
 from tests.helpers.threading import get_locked_and_waiter
 from tests.helpers.vsc import parse_message, VSCMessages
@@ -244,29 +245,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
                 category='telemetry',
                 output='ptvsd',
                 data={'version': ptvsd.__version__}),
-            self.new_response(req_initialize, **dict(
-                supportsExceptionInfoRequest=True,
-                supportsConfigurationDoneRequest=True,
-                supportsConditionalBreakpoints=True,
-                supportsSetVariable=True,
-                supportsValueFormattingOptions=True,
-                supportsExceptionOptions=True,
-                exceptionBreakpointFilters=[
-                    {
-                        'filter': 'raised',
-                        'label': 'Raised Exceptions',
-                        'default': False
-                    },
-                    {
-                        'filter': 'uncaught',
-                        'label': 'Uncaught Exceptions',
-                        'default': True
-                    },
-                ],
-                supportsEvaluateForHovers=True,
-                supportsSetExpression=True,
-                supportsModulesRequest=True,
-            )),
+            self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
             self.new_response(req_launch),
             self.new_response(req_config),
@@ -298,29 +277,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
                 category='telemetry',
                 output='ptvsd',
                 data={'version': ptvsd.__version__}),
-            self.new_response(req_initialize, **dict(
-                supportsExceptionInfoRequest=True,
-                supportsConfigurationDoneRequest=True,
-                supportsConditionalBreakpoints=True,
-                supportsSetVariable=True,
-                supportsValueFormattingOptions=True,
-                supportsExceptionOptions=True,
-                exceptionBreakpointFilters=[
-                    {
-                        'filter': 'raised',
-                        'label': 'Raised Exceptions',
-                        'default': False
-                    },
-                    {
-                        'filter': 'uncaught',
-                        'label': 'Uncaught Exceptions',
-                        'default': True
-                    },
-                ],
-                supportsEvaluateForHovers=True,
-                supportsSetExpression=True,
-                supportsModulesRequest=True,
-            )),
+            self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
             self.new_response(req_launch),
             self.new_response(req_config),
@@ -363,29 +320,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
                 category='telemetry',
                 output='ptvsd',
                 data={'version': ptvsd.__version__}),
-            self.new_response(req_initialize, **dict(
-                supportsExceptionInfoRequest=True,
-                supportsConfigurationDoneRequest=True,
-                supportsConditionalBreakpoints=True,
-                supportsSetVariable=True,
-                supportsValueFormattingOptions=True,
-                supportsExceptionOptions=True,
-                exceptionBreakpointFilters=[
-                    {
-                        'filter': 'raised',
-                        'label': 'Raised Exceptions',
-                        'default': False
-                    },
-                    {
-                        'filter': 'uncaught',
-                        'label': 'Uncaught Exceptions',
-                        'default': True
-                    },
-                ],
-                supportsEvaluateForHovers=True,
-                supportsSetExpression=True,
-                supportsModulesRequest=True,
-            )),
+            self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
             self.new_response(req_launch),
             self.new_response(req_config),

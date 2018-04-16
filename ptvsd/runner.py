@@ -18,7 +18,7 @@ from ptvsd import ipcjson, __version__
 from ptvsd.daemon import DaemonClosedError
 from ptvsd.pydevd_hooks import start_client
 from ptvsd.socket import close_socket
-from ptvsd.wrapper import WAIT_FOR_DISCONNECT_REQUEST_TIMEOUT, WAIT_FOR_THREAD_FINISH_TIMEOUT # noqa
+from ptvsd.wrapper import WAIT_FOR_DISCONNECT_REQUEST_TIMEOUT, WAIT_FOR_THREAD_FINISH_TIMEOUT, INITIALIZE_RESPONSE # noqa
 from pydevd import init_stdout_redirect, init_stderr_redirect
 
 HOSTNAME = 'localhost'
@@ -321,30 +321,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     # VSC protocol handlers
 
     def on_initialize(self, request, args):
-        self.send_response(
-            request,
-            supportsExceptionInfoRequest=True,
-            supportsConfigurationDoneRequest=True,
-            supportsConditionalBreakpoints=True,
-            supportsSetVariable=True,
-            supportsExceptionOptions=True,
-            supportsEvaluateForHovers=True,
-            supportsValueFormattingOptions=True,
-            supportsSetExpression=True,
-            supportsModulesRequest=True,
-            exceptionBreakpointFilters=[
-                {
-                    'filter': 'raised',
-                    'label': 'Raised Exceptions',
-                    'default': False
-                },
-                {
-                    'filter': 'uncaught',
-                    'label': 'Uncaught Exceptions',
-                    'default': True
-                },
-            ],
-        )
+        self.send_response(request, **INITIALIZE_RESPONSE)
         self.send_event('initialized')
 
     def on_configurationDone(self, request, args):

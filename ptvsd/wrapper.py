@@ -49,6 +49,31 @@ from ptvsd.version import __version__  # noqa
 WAIT_FOR_DISCONNECT_REQUEST_TIMEOUT = 2
 WAIT_FOR_THREAD_FINISH_TIMEOUT = 1
 
+INITIALIZE_RESPONSE = dict(
+    supportsExceptionInfoRequest=True,
+    supportsConfigurationDoneRequest=True,
+    supportsConditionalBreakpoints=True,
+    supportsHitConditionalBreakpoints=True,
+    supportsSetVariable=True,
+    supportsExceptionOptions=True,
+    supportsEvaluateForHovers=True,
+    supportsValueFormattingOptions=True,
+    supportsSetExpression=True,
+    supportsModulesRequest=True,
+    exceptionBreakpointFilters=[
+        {
+            'filter': 'raised',
+            'label': 'Raised Exceptions',
+            'default': False
+        },
+        {
+            'filter': 'uncaught',
+            'label': 'Uncaught Exceptions',
+            'default': True
+        },
+    ],
+)
+
 
 class SafeReprPresentationProvider(pydevd_extapi.StrPresentationProvider):
     """
@@ -825,30 +850,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     @async_handler
     def on_initialize(self, request, args):
         # TODO: docstring
-        self.send_response(
-            request,
-            supportsExceptionInfoRequest=True,
-            supportsConfigurationDoneRequest=True,
-            supportsConditionalBreakpoints=True,
-            supportsSetVariable=True,
-            supportsExceptionOptions=True,
-            supportsEvaluateForHovers=True,
-            supportsValueFormattingOptions=True,
-            supportsSetExpression=True,
-            supportsModulesRequest=True,
-            exceptionBreakpointFilters=[
-                {
-                    'filter': 'raised',
-                    'label': 'Raised Exceptions',
-                    'default': False
-                },
-                {
-                    'filter': 'uncaught',
-                    'label': 'Uncaught Exceptions',
-                    'default': True
-                },
-            ],
-        )
+        self.send_response(request, **INITIALIZE_RESPONSE)
         self.send_event('initialized')
 
     @async_handler
@@ -1508,6 +1510,35 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.pydevd_notify(pydevd_comm.CMD_STEP_RETURN, tid)
         self.send_response(request)
 
+    def _get_hit_condition_expression(self, hit_condition):
+        """Following hit condition values are supported
+
+        * x or == x when breakpoint is hit x times
+        * >= x when breakpoint is hit more than or equal to x times
+        * % x when breakpoint is hit multiple of x times
+
+        Returns '@HIT@ == x' where @HIT@ will be replaced by number of hits
+        """
+        if not hit_condition:
+            return None
+
+        expr = hit_condition.strip()
+        try:
+            int(expr)
+            return '@HIT@ == {}'.format(expr)
+        except ValueError:
+            pass
+
+        if expr.startswith('%'):
+            return '@HIT@ {} == 0'.format(expr)
+
+        if expr.startswith('==') or \
+            expr.startswith('>') or \
+            expr.startswith('<'):
+            return '@HIT@ {}'.format(expr)
+
+        return hit_condition
+
     @async_handler
     def on_setBreakpoints(self, request, args):
         # TODO: docstring
@@ -1532,14 +1563,17 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 self.bp_map.remove(pyd_bpid, vsc_bpid)
 
         cmd = pydevd_comm.CMD_SET_BREAK
-        msgfmt = '{}\t{}\t{}\t{}\tNone\t{}\tNone'
+        msgfmt = '{}\t{}\t{}\t{}\tNone\t{}\tNone\t{}'
         for src_bp in src_bps:
             line = src_bp['line']
             vsc_bpid = self.bp_map.add(
                     lambda vsc_bpid: (path, vsc_bpid))
             self.path_casing.track_file_path_case(path)
+            hit_condition = self._get_hit_condition_expression(
+                                src_bp.get('hitCondition', None))
             msg = msgfmt.format(vsc_bpid, bp_type, path, line,
-                                src_bp.get('condition', None))
+                                src_bp.get('condition', None),
+                                hit_condition)
             self.pydevd_notify(cmd, msg)
             bps.append({
                 'id': vsc_bpid,

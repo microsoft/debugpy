@@ -2,6 +2,7 @@ import contextlib
 import unittest
 
 import ptvsd
+from ptvsd.wrapper import INITIALIZE_RESPONSE # noqa
 from tests.helpers.pydevd._live import LivePyDevd
 from tests.helpers.workspace import PathEntry
 
@@ -123,29 +124,7 @@ class LifecycleTests(TestBase, unittest.TestCase):
                 category='telemetry',
                 output='ptvsd',
                 data={'version': ptvsd.__version__}),
-            self.new_response(req_initialize, **dict(
-                supportsExceptionInfoRequest=True,
-                supportsConfigurationDoneRequest=True,
-                supportsConditionalBreakpoints=True,
-                supportsSetVariable=True,
-                supportsValueFormattingOptions=True,
-                supportsExceptionOptions=True,
-                exceptionBreakpointFilters=[
-                    {
-                        'filter': 'raised',
-                        'label': 'Raised Exceptions',
-                        'default': False
-                    },
-                    {
-                        'filter': 'uncaught',
-                        'label': 'Uncaught Exceptions',
-                        'default': True
-                    },
-                ],
-                supportsEvaluateForHovers=True,
-                supportsSetExpression=True,
-                supportsModulesRequest=True,
-            )),
+            self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
             self.new_response(req_attach),
             self.new_response(req_config),
