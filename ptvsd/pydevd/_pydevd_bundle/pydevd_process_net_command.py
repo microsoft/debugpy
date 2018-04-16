@@ -249,8 +249,12 @@ def process_net_command(py_db, cmd_id, seq, text):
                 # command to add some breakpoint.
                 # text is file\tline. Add to breakpoints dictionary
                 suspend_policy = "NONE"
+                hit_condition = None
                 if py_db._set_breakpoints_with_id:
-                    breakpoint_id, type, file, line, func_name, condition, expression = text.split('\t', 6)
+                    try:
+                        breakpoint_id, type, file, line, func_name, condition, expression, hit_condition = text.split('\t', 7)
+                    except:
+                        breakpoint_id, type, file, line, func_name, condition, expression = text.split('\t', 6)
 
                     breakpoint_id = int(breakpoint_id)
                     line = int(line)
@@ -294,7 +298,7 @@ def process_net_command(py_db, cmd_id, seq, text):
                     expression = None
 
                 if type == 'python-line':
-                    breakpoint = LineBreakpoint(line, condition, func_name, expression, suspend_policy)
+                    breakpoint = LineBreakpoint(line, condition, func_name, expression, suspend_policy, hit_condition=hit_condition)
                     breakpoints = py_db.breakpoints
                     file_to_id_to_breakpoint = py_db.file_to_id_to_line_breakpoint
                     supported_type = True
@@ -302,7 +306,7 @@ def process_net_command(py_db, cmd_id, seq, text):
                     result = None
                     plugin = py_db.get_plugin_lazy_init()
                     if plugin is not None:
-                        result = plugin.add_breakpoint('add_line_breakpoint', py_db, type, file, line, condition, expression, func_name)
+                        result = plugin.add_breakpoint('add_line_breakpoint', py_db, type, file, line, condition, expression, func_name, hit_condition=hit_condition)
                     if result is not None:
                         supported_type = True
                         breakpoint, breakpoints = result
