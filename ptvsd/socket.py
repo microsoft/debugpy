@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+from collections import namedtuple
 import contextlib
 import errno
 import socket
@@ -55,3 +56,66 @@ def close_socket(sock):
     except Exception:
         pass
     sock.close()
+
+
+class Address(namedtuple('Address', 'host port')):
+    """An IP address to use for sockets."""
+
+    @classmethod
+    def from_raw(cls, raw):
+        """Return an address corresponding to the given data."""
+        if isinstance(raw, cls):
+            return raw
+        if isinstance(raw, str):
+            raise NotImplementedError
+        try:
+            kwargs = dict(**raw)
+        except TypeError:
+            return cls(*raw)
+        else:
+            return cls(**kwargs)
+
+    @classmethod
+    def as_server(cls, host, port):
+        """Return an address to use as a server address."""
+        self = cls(host, port)
+        self._isserver = True
+        return self
+
+    @classmethod
+    def as_client(cls, host, port):
+        """Return an address to use as a server address."""
+        self = cls(host, port)
+        self._isserver = False
+        return self
+
+    def __new__(cls, host, port):
+        isserver = (host is None or host == '')
+        if host is None:
+            host = 'localhost'
+        self = super(Address, cls).__new__(
+            cls,
+            str(host),
+            int(port) if port is not None else None,
+        )
+        self._isserver = isserver
+        return self
+
+    def __init__(self, *args, **kwargs):
+        if self.port is None:
+            raise TypeError('missing port')
+        if self.port <= 0 or self.port > 65535:
+            raise ValueError('port must be positive int < 65535')
+
+    def __eq__(self, other):
+        if not super(Address, self).__eq__(other):
+            return False
+        try:
+            other = self.from_raw(other)
+        except Exception:
+            return False
+        return self._isserver == other._isserver
+
+    @property
+    def isserver(self):
+        return self._isserver
