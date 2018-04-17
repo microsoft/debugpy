@@ -297,6 +297,9 @@ def process_net_command(py_db, cmd_id, seq, text):
                 if len(expression) <= 0 or expression is None or expression == "None":
                     expression = None
 
+                if len(hit_condition) <= 0 or hit_condition is None or hit_condition == "None":
+                    hit_condition = None
+
                 if type == 'python-line':
                     breakpoint = LineBreakpoint(line, condition, func_name, expression, suspend_policy, hit_condition=hit_condition)
                     breakpoints = py_db.breakpoints
