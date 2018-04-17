@@ -293,13 +293,13 @@ def process_net_command(py_db, cmd_id, seq, text):
                     sys.stderr.flush()
 
 
-                if len(condition) <= 0 or condition is None or condition == "None":
+                if condition is not None and (len(condition) <= 0 or condition == "None"):
                     condition = None
 
-                if len(expression) <= 0 or expression is None or expression == "None":
+                if expression is None and (len(expression) <= 0 or expression == "None"):
                     expression = None
 
-                if len(hit_condition) <= 0 or hit_condition is None or hit_condition == "None":
+                if hit_condition is not None and (len(hit_condition) <= 0 or hit_condition == "None"):
                     hit_condition = None
 
                 if type == 'python-line':
