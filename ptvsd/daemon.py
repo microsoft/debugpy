@@ -87,12 +87,14 @@ class Daemon(object):
         """Set the placeholder handlers."""
         if self._signal_handlers is not None:
             raise RuntimeError('exit handlers already installed')
-        self._signal_handlers = {
-            signal.SIGHUP: [],
-        }
         self._atexit_handlers = []
 
-        if platform.system() != 'Windows':
+        if platform.system() == 'Windows':
+            self._signal_handlers = {}
+        else:
+            self._signal_handlers = {
+                signal.SIGHUP: [],
+            }
             try:
                 for sig in self._signal_handlers:
                     signal.signal(sig, self._signal_handler)
