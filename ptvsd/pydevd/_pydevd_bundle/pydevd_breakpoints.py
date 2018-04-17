@@ -45,7 +45,7 @@ class ExceptionBreakpoint:
 
 
 class LineBreakpoint(object):
-    def __init__(self, line, condition, func_name, expression, suspend_policy="NONE", hit_condition=None):
+    def __init__(self, line, condition, func_name, expression, suspend_policy="NONE", hit_condition=None, is_logpoint=False):
         self.line = line
         self.condition = condition
         self.func_name = func_name
@@ -56,6 +56,7 @@ class LineBreakpoint(object):
         self._hit_condition_lock = threading.Lock()
         # need for frame evaluation: list of code objects, which bytecode was modified by this breakpoint
         self.code_objects = set()
+        self.is_logpoint = is_logpoint
 
     @property
     def has_condition(self):
