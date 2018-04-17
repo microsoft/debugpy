@@ -168,6 +168,9 @@ class Daemon(object):
         self._atexit_handlers.append(handler)
 
     def _add_signal_handlers(self):
+        if platform.system() == 'Windows':
+            return
+
         def handler(signum, frame):
             if not self._closed:
                 self.close()
