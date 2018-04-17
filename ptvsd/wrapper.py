@@ -20,6 +20,10 @@ try:
     urllib.unquote
 except Exception:
     import urllib.parse as urllib
+try:
+    from functools import reduce
+except Exception:
+    pass
 import warnings
 from xml.sax import SAXParseException
 
@@ -61,6 +65,7 @@ INITIALIZE_RESPONSE = dict(
     supportsValueFormattingOptions=True,
     supportsSetExpression=True,
     supportsModulesRequest=True,
+    supportsLogPoints=True,
     exceptionBreakpointFilters=[
         {
             'filter': 'raised',
@@ -1580,17 +1585,34 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 self.bp_map.remove(pyd_bpid, vsc_bpid)
 
         cmd = pydevd_comm.CMD_SET_BREAK
-        msgfmt = '{}\t{}\t{}\t{}\tNone\t{}\tNone\t{}'
+        msgfmt = '{}\t{}\t{}\t{}\tNone\t{}\t{}\t{}\t{}'
         for src_bp in src_bps:
             line = src_bp['line']
             vsc_bpid = self.bp_map.add(
                     lambda vsc_bpid: (path, vsc_bpid))
             self.path_casing.track_file_path_case(path)
+
             hit_condition = self._get_hit_condition_expression(
                                 src_bp.get('hitCondition', None))
-            msg = msgfmt.format(vsc_bpid, bp_type, path, line,
-                                src_bp.get('condition', None),
-                                hit_condition)
+            logMessage = src_bp.get('logMessage', '')
+            if len(logMessage) == 0:
+                is_logpoint = None
+                condition = src_bp.get('condition', None)
+                expression = None
+            else:
+                is_logpoint = True
+                condition = None
+                expressions = re.findall('\{.*?\}', logMessage)
+                if len(expressions) == 0:
+                    expression = 'print({})'.format(repr(logMessage)) # noqa
+                else:
+                    raw_text = reduce(lambda a, b: a.replace(b, '{}'), expressions, logMessage) # noqa
+                    raw_text = raw_text.replace('"', '\\"')
+                    expression_list = ', '.join([s.strip('{').strip('}').strip() for s in expressions]) # noqa
+                    expression = 'print("{}".format({}))'.format(raw_text, expression_list) # noqa
+
+            msg = msgfmt.format(vsc_bpid, bp_type, path, line, condition,
+                                expression, hit_condition, is_logpoint)
             self.pydevd_notify(cmd, msg)
             bps.append({
                 'id': vsc_bpid,

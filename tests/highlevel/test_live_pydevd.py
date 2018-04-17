@@ -58,6 +58,10 @@ class TestBase(VSCTest):
     def workspace(self):
         return self._workspace
 
+    @property
+    def filename(self):
+        return None if self._filename is None else self._filePath
+
     def _new_fixture(self, new_daemon):
         self.assertIsNotNone(self._filename)
         return self.FIXTURE(self._filename, new_daemon)
@@ -67,6 +71,7 @@ class TestBase(VSCTest):
         if content is not None:
             filename = self.workspace.write(filename, content=content)
         self.workspace.install()
+        self._filePath = filename
         self._filename = 'file:' + filename
 
     def set_module(self, name, content=None):
@@ -196,3 +201,73 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
 
         self.assert_received(self.vsc, [])
         self.assert_vsc_received(received, [])
+
+
+class LogpointTests(TestBase, unittest.TestCase):
+    FILENAME = 'spam.py'
+    SOURCE = """
+        a = 1
+        b = 2
+        c = 3
+        d = 4
+        """
+
+    @contextlib.contextmanager
+    def running(self):
+        addr = (None, 8888)
+        with self.fake.start(addr):
+                yield
+
+    def test_basic(self):
+        addr = (None, 8888)
+        with self.fake.start(addr):
+            with self.vsc.wait_for_event('output'):
+                pass
+
+            with self.vsc.wait_for_event('initialized'):
+                req_initialize = self.send_request('initialize', {
+                    'adapterID': 'spam',
+                })
+                req_attach = self.send_request('attach', {
+                    'debugOptions': ['RedirectOutput']
+                })
+                req_breakpoints = self.send_request('setBreakpoints', {
+                    'source': {'path': self.filename},
+                    'breakpoints': [
+                        {
+                            'line': '4',
+                            'logMessage': '{a}+{b}=3'
+                        },
+                    ],
+                })
+
+            req_config = self.send_request('configurationDone')
+
+            with self.wait_for_events(['exited', 'terminated']):
+                self.fix.binder.done()
+            self.fix.binder.wait_until_done()
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.new_event(
+                'output',
+                category='telemetry',
+                output='ptvsd',
+                data={'version': ptvsd.__version__}),
+            self.new_response(req_initialize, **INITIALIZE_RESPONSE),
+            self.new_event('initialized'),
+            self.new_response(req_attach),
+            self.new_response(req_breakpoints, **dict(
+                breakpoints=[{'id': 1, 'verified': True, 'line': '4'}]
+            )),
+            self.new_response(req_config),
+            self.new_event('process', **dict(
+                name=sys.argv[0],
+                systemProcessId=os.getpid(),
+                isLocalProcess=True,
+                startMethod='attach',
+            )),
+            self.new_event('exited', exitCode=0),
+            self.new_event('terminated'),
+            self.new_event('output', **dict(category='stdout', output='1+2=3' + os.linesep)), # noqa
+        ])

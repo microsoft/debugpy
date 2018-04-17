@@ -76,6 +76,7 @@ class Capabilities(FieldsNamespace):
         Field('supportsExceptionOptions', bool),
         Field('supportsValueFormattingOptions', bool),
         Field('supportsExceptionInfoRequest', bool),
+        Field('supportsLogPoints', bool),
         Field('supportTerminateDebuggee', bool),
         Field('supportsDelayedStackTraceLoading', bool),
         Field('supportsLoadedSourcesRequest', bool),
