@@ -5,13 +5,16 @@
 import argparse
 import os.path
 import sys
+import time
+import threading
 
 import pydevd
 
 from ptvsd.pydevd_hooks import install
-from ptvsd.socket import Address
+from ptvsd.socket import Address, create_server
 from ptvsd.version import __version__, __author__  # noqa
 from ptvsd.runner import run as no_debug_runner
+from _pydevd_bundle.pydevd_comm import get_global_debugger
 
 
 def run_module(address, modname, *extra, **kwargs):
@@ -88,8 +91,46 @@ def _run(argv, addr, _pydevd=pydevd, _install=install, **kwargs):
         raise
 
 
+def enable_attach(address, redirect_output=True,
+                  _pydevd=pydevd, _install=install,
+                  on_attach=lambda: None, **kwargs):
+    host, port = address
+
+    def wait_for_connection(daemon, host, port):
+        debugger = get_global_debugger()
+        while debugger is None:
+            time.sleep(0.1)
+            debugger = get_global_debugger()
+
+        debugger.ready_to_run = True
+        server = create_server(host, port)
+        client, _ = server.accept()
+        daemon.set_connection(client)
+
+        daemon.re_build_breakpoints()
+        on_attach()
+
+    daemon = _install(_pydevd,
+                      address,
+                      start_server=None,
+                      start_client=(lambda daemon, h, port: daemon.start()),
+                      **kwargs)
+
+    connection_thread = threading.Thread(target=wait_for_connection,
+                                         args=(daemon, host, port),
+                                         name='ptvsd.listen_for_connection')
+    connection_thread.daemon = True
+    connection_thread.start()
+
+    _pydevd.settrace(host=host,
+                     stdoutToServer=redirect_output,
+                     stderrToServer=redirect_output,
+                     port=port,
+                     suspend=False)
+
 ##################################
 # the script
+
 
 """
 For the PyDevd CLI handling see:

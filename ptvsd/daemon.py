@@ -144,6 +144,9 @@ class Daemon(object):
         if self._client is not None:
             self._release_connection()
 
+    def re_build_breakpoints(self):
+        self.adapter.re_build_breakpoints()
+
     # internal methods
 
     def _signal_handler(self, signum, frame):
