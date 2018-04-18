@@ -3,7 +3,7 @@ import os.path
 import threading
 import warnings
 
-import ptvsd.__main__
+import ptvsd._main
 from tests.helpers import protocol
 from ._binder import BinderBase
 
@@ -22,10 +22,10 @@ class Binder(BinderBase):
             self._start_ptvsd()
             return self.ptvsd.fakesock
         if self.module is None:
-            run = ptvsd.__main__.run_file
+            run = ptvsd._main.run_file
             name = self.filename
         else:
-            run = ptvsd.__main__.run_module
+            run = ptvsd._main.run_module
             name = self.module
         run(
             self.address,

@@ -2,10 +2,12 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+__all__ = [
+    'enable_attach', 'wait_for_attach', 'break_into_debugger', 'is_attached',
+]
+
 import sys
 import os.path
-
-__all__ = ['enable_attach', 'wait_for_attach', 'break_into_debugger', 'is_attached'] # noqa
 
 from ptvsd.version import __version__, __author__  # noqa
 
@@ -35,7 +37,9 @@ import pydevd_concurrency_analyser  # noqa
 import pydevd_plugins  # noqa
 import pydevd  # noqa
 
-from ptvsd.attach_server import enable_attach, wait_for_attach, break_into_debugger, is_attached # noqa
+from ptvsd.attach_server import (
+    enable_attach, wait_for_attach, break_into_debugger, is_attached,
+)  # noqa
 
 # Remove sys.path entry added above - any pydevd modules that aren't
 # loaded at this point, will be loaded using their parent package's

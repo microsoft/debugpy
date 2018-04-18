@@ -4,7 +4,7 @@
 
 import sys
 
-from ptvsd.__main__ import run_module, run_file
+from ptvsd._main import run_module, run_file
 
 
 # TODO: not needed?
