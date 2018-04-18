@@ -224,14 +224,11 @@ class LifecycleTests(TestsBase, unittest.TestCase):
         done, waitscript = lockfile.wait_in_script()
         filename = self.write_script('spam.py', waitscript)
         script = self.write_debugger_script(filename, 9876, run_as='script')
-        handlers, wait_for_started = self._wait_for_started()
         with DebugClient(port=9876) as editor:
             adapter, session = editor.host_local_debugger(
                 argv,
                 script,
-                handlers=handlers,
             )
-            wait_for_started()
 
             (req_initialize, req_launch, req_config
              ) = lifecycle_handshake(session, 'launch')
@@ -257,14 +254,11 @@ class LifecycleTests(TestsBase, unittest.TestCase):
         lockfile = self.workspace.lockfile()
         done, waitscript = lockfile.wait_in_script()
         filename = self.write_script('spam.py', waitscript)
-        handlers, wait_for_started = self._wait_for_started()
         with DebugClient() as editor:
             adapter, session = editor.launch_script(
                 filename,
-                handlers=handlers,
                 timeout=3.0,
             )
-            wait_for_started()
 
             (req_initialize, req_launch, req_config
              ) = lifecycle_handshake(session, 'launch')
@@ -290,7 +284,6 @@ class LifecycleTests(TestsBase, unittest.TestCase):
         lockfile = self.workspace.lockfile()
         done, waitscript = lockfile.wait_in_script()
         filename = self.write_script('spam.py', waitscript)
-        handlers, wait_for_started = self._wait_for_started()
         with DebugClient() as editor:
             # Launch and detach.
             # TODO: This is not an ideal way to spin up a process
@@ -299,9 +292,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             # running isn't an option currently.
             adapter, session = editor.launch_script(
                 filename,
-                handlers=handlers,
             )
-            wait_for_started()
 
             lifecycle_handshake(session, 'launch')
             editor.detach()

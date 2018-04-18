@@ -661,6 +661,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.modules_mgr = ModulesManager(self)
 
         # adapter state
+        self.readylock = threading.Lock()
+        self.readylock.acquire()  # Unlock at the end of start().
         self.disconnect_request = None
         self.debug_options = {}
         self.disconnect_request_event = threading.Event()
@@ -679,8 +681,11 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.event_loop_thread.start()
 
         # VSC msg processing loop
+        def process_messages():
+            self.readylock.acquire()
+            self.process_messages()
         self.server_thread = threading.Thread(
-            target=self.process_messages,
+            target=process_messages,
             name=threadname,
         )
         self.server_thread.daemon = True
@@ -693,6 +698,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             output='ptvsd',
             data={'version': __version__},
         )
+        self.readylock.release()
 
     # closing the adapter
 

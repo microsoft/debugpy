@@ -100,10 +100,6 @@ class LifecycleTests(TestBase, unittest.TestCase):
     def test_launch(self):
         addr = (None, 8888)
         with self.fake.start(addr):
-            # TODO: There's a race with the initial "output" event.
-            with self.vsc.wait_for_event('output'):
-                pass
-
             with self.vsc.wait_for_event('initialized'):
                 # initialize
                 req_initialize = self.send_request('initialize', {

@@ -200,6 +200,7 @@ class VSCLifecycle(object):
         with self._hidden():
             # Anything that gets sent in VSCodeMessageProcessor.__init__()
             # must be waited for here.
+            # TODO: Is this necessary any more since we added the "readylock"?
             with self._fix.wait_for_event('output'):
                 daemon = self._fix.fake.start(addr)
                 daemon.wait_until_connected()

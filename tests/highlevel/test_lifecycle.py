@@ -104,10 +104,6 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
         version = self.debugger.VERSION
         addr = (None, 8888)
         with self.vsc.start(addr):
-            # TODO: There's a race with the initial "output" event.
-            with self.vsc.wait_for_event('output'):
-                pass
-
             with self.vsc.wait_for_event('initialized'):
                 # initialize
                 self.set_debugger_response(CMD_VERSION, version)
