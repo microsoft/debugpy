@@ -916,7 +916,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             'Flask': 'FLASK_DEBUG=True',
             'Jinja': 'FLASK_DEBUG=True',
             'FixFilePathCase': 'FIX_FILE_PATH_CASE=True',
-            'DebugStdLib': 'DEBUG_STD_LIB=True',
+            'DebugStdLib': 'DEBUG_STDLIB=True',
             'WindowsClient': 'WINDOWS_CLIENT=True',
         }
         return ';'.join(debug_option_mapping[option]
@@ -933,6 +933,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             WEB_BROWSER_URL=string url
             DJANGO_DEBUG=True|False
             WINDOWS_CLIENT=True|False
+            DEBUG_STDLIB=True|False
         """
         def bool_parser(str):
             return str in ("True", "true", "1")
@@ -948,6 +949,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             'FLASK_DEBUG': bool_parser,
             'FIX_FILE_PATH_CASE': bool_parser,
             'WINDOWS_CLIENT': bool_parser,
+            'DEBUG_STDLIB': bool_parser,
         }
 
         options = {}
