@@ -12,61 +12,61 @@ import sys
 from setuptools import setup
 
 import versioneer
+import ptvsd
+import ptvsd._vendored
 
 
-if not os.getenv('SKIP_CYTHON_BUILD'):
+PYDEVD_ROOT = ptvsd._vendored.project_root('pydevd')
+PTVSD_ROOT = os.path.dirname(os.path.abspath(ptvsd.__file__))
+
+
+def cython_build():
     print('Compiling extension modules (set SKIP_CYTHON_BUILD=1 to omit)')
-    subprocess.call(
-        [sys.executable, 'ptvsd/pydevd/setup_cython.py', 'build_ext', '-i'])
-
-ROOT = os.path.dirname(os.path.abspath(__file__))
-
-
-# Add pydevd files as data files for this package. They are not treated
-# as a package of their own, because we don't actually want to provide
-# pydevd - just use our own copy internally.
-def get_pydevd_package_data():
-    ptvsd_prefix = os.path.join(ROOT, 'ptvsd')
-    pydevd_prefix = os.path.join(ptvsd_prefix, 'pydevd')
-    for root, dirs, files in os.walk(pydevd_prefix):
-        # From the root of pydevd repo, we want only scripts and
-        # subdirectories that constitute the package itself (not helper
-        # scripts, tests etc). But when walking down into those
-        # subdirectories, we want everything below.
-        if os.path.normcase(root) == os.path.normcase(pydevd_prefix):
-            dirs[:] = [d
-                       for d in dirs
-                       if d.startswith('pydev') or d.startswith('_pydev')]
-            files[:] = [f
-                        for f in files
-                        if f.endswith('.py') and (f in ['setup_cython.py'] or 'pydev' in f)]  # noqa
-        dirs[:] = [d for d in dirs if d != '__pycache__']
-        for f in files:
-            yield os.path.join(root[len(ptvsd_prefix) + 1:], f)
+    subprocess.call([
+        sys.executable,
+        os.path.join(PYDEVD_ROOT, 'setup_cython.py'),
+        'build_ext',
+        '-i',
+    ])
 
 
-PACKAGE_DATA = {
-    'ptvsd': list(get_pydevd_package_data()) + ['ThirdPartyNotices.txt'],
-}
+def iter_vendored_files():
+    # Add pydevd files as data files for this package. They are not
+    # treated as a package of their own, because we don't actually
+    # want to provide pydevd - just use our own copy internally.
+    for project in ptvsd._vendored.list_all():
+        for filename in ptvsd._vendored.iter_packaging_files(project):
+            yield filename
 
-setup(
-    name='ptvsd',
-    version=versioneer.get_version(),
-    description='Remote debugging server for Python support in Visual Studio and Visual Studio Code', # noqa
-    #long_description=open('DESCRIPTION.md').read(),
-    #long_description_content_type='text/markdown',
-    license='MIT',
-    author='Microsoft Corporation',
-    author_email='ptvshelp@microsoft.com',
-    url='https://aka.ms/ptvs',
-    classifiers=[
-        'Development Status :: 3 - Alpha',
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 3',
-        'License :: OSI Approved :: MIT License',
-    ],
-    packages=['ptvsd'],
-    package_data=PACKAGE_DATA,
-    cmdclass=versioneer.get_cmdclass(),
-)
+
+if __name__ == '__main__':
+    if not os.getenv('SKIP_CYTHON_BUILD'):
+        cython_build()
+
+    setup(
+        name='ptvsd',
+        version=versioneer.get_version(),
+        description='Remote debugging server for Python support in Visual Studio and Visual Studio Code', # noqa
+        #long_description=open('DESCRIPTION.md').read(),
+        #long_description_content_type='text/markdown',
+        license='MIT',
+        author='Microsoft Corporation',
+        author_email='ptvshelp@microsoft.com',
+        url='https://aka.ms/ptvs',
+        classifiers=[
+            'Development Status :: 3 - Alpha',
+            'Programming Language :: Python',
+            'Programming Language :: Python :: 2',
+            'Programming Language :: Python :: 3',
+            'License :: OSI Approved :: MIT License',
+        ],
+        packages=[
+            'ptvsd',
+            'ptvsd._vendored',
+        ],
+        package_data={
+            'ptvsd': ['ThirdPartyNotices.txt'],
+            'ptvsd._vendored': list(iter_vendored_files()),
+        },
+        cmdclass=versioneer.get_cmdclass(),
+    )

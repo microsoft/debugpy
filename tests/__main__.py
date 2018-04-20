@@ -1,13 +1,17 @@
+from __future__ import absolute_import
+
 import os
 import os.path
 import subprocess
 import sys
 import unittest
 
+from ptvsd._vendored import list_all as vendored
+
 
 TEST_ROOT = os.path.dirname(__file__)
 PROJECT_ROOT = os.path.dirname(TEST_ROOT)
-PYDEVD_ROOT = os.path.join(PROJECT_ROOT, 'ptvsd', 'pydevd')
+VENDORED_ROOTS = vendored(resolve=True)
 
 
 def convert_argv(argv):
@@ -88,10 +92,9 @@ def convert_argv(argv):
 
 
 def fix_sys_path():
-    if not sys.path[0] or sys.path[0] == '.':
-        sys.path.insert(1, PYDEVD_ROOT)
-    else:
-        sys.path.insert(0, PYDEVD_ROOT)
+    pos = 1 if (not sys.path[0] or sys.path[0] == '.') else 0
+    for projectroot in VENDORED_ROOTS:
+        sys.path.insert(pos, projectroot)
 
 
 def check_lint():
@@ -100,7 +103,7 @@ def check_lint():
         sys.executable,
         '-m', 'flake8',
         '--ignore', 'E24,E121,E123,E125,E126,E221,E226,E266,E704,E265',
-        '--exclude', 'ptvsd/pydevd',
+        '--exclude', ','.join(VENDORED_ROOTS),
         PROJECT_ROOT,
     ]
     rc = subprocess.call(args)
@@ -113,16 +116,22 @@ def check_lint():
 def run_tests(argv, env, coverage=False):
     print('running tests...')
     if coverage:
+        omissions = [os.path.join(root, '*') for root in VENDORED_ROOTS]
+        # TODO: Drop the explicit pydevd omit once we move the subtree.
+        omissions.append(os.path.join('ptvsd', 'pydevd', '*'))
+        ver = 3 if sys.version_info < (3,) else 2
+        omissions.append(os.path.join('ptvsd', 'reraise{}.py'.format(ver)))
         args = [
             sys.executable,
             '-m', 'coverage',
             'run',
-            '--include', 'ptvsd/*.py',
-            '--omit', 'ptvsd/pydevd/*.py',
+            # We use --source instead of "--include ptvsd/*".
+            '--source', 'ptvsd',
+            '--omit', ','.join(omissions),
             '-m', 'unittest',
         ] + argv[1:]
         assert 'PYTHONPATH' not in env
-        env['PYTHONPATH'] = PYDEVD_ROOT
+        env['PYTHONPATH'] = os.pathsep.join(VENDORED_ROOTS)
         rc = subprocess.call(args, env=env)
         if rc != 0:
             print('...coverage failed!')
