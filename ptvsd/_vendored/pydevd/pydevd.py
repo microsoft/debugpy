@@ -992,7 +992,7 @@ class PyDB:
 
             # I think this is an ugly hack, bug it works (seems to) for the bug that says that sys.path should be the same in
             # debug and run.
-            if m.__file__.startswith(sys.path[0]):
+            if sys.path[0] != '' and m.__file__.startswith(sys.path[0]):
                 # print >> sys.stderr, 'Deleting: ', sys.path[0]
                 del sys.path[0]
 
