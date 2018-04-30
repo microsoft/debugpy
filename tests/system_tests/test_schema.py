@@ -45,6 +45,14 @@ class DownloadCommandTests(unittest.TestCase):
         self._tempdir.cleanup()
         super().tearDown()
 
+    def get_expected_stdout(self, lines):
+        with io.StringIO() as txt:
+            for line in lines:
+                txt.write(line)
+                txt.write(os.linesep)
+            txt.flush()
+            return txt.getvalue()
+
     @unittest.skipUnless(os.environ.get('HAS_NETWORK'), 'no network')
     def test_default_source(self):
         res = subprocess.run(self.args,
@@ -52,12 +60,11 @@ class DownloadCommandTests(unittest.TestCase):
                              stderr=subprocess.PIPE)
 
         self.assertEqual(res.returncode, 0)
-        self.assertEqual(res.stdout.decode(), dedent("""\
-                downloading the schema file from https://github.com/Microsoft/vscode-debugadapter-node/raw/master/debugProtocol.json...
-                ...schema file written to {}.
-                saving the schema metadata...
-                ...metadata written to {}.
-                """).format(self.schemafile, self.metadata))  # noqa
+        self.assertEqual(res.stdout.decode(), self.get_expected_stdout([
+            'downloading the schema file from https://github.com/Microsoft/vscode-debugadapter-node/raw/master/debugProtocol.json...',  # noqa
+            '...schema file written to {}.'.format(self.schemafile),
+            'saving the schema metadata...',
+            '...metadata written to {}.'.format(self.metadata)]))
         self.assertEqual(res.stderr, b'')
 
     def test_custom_source(self):
@@ -72,12 +79,11 @@ class DownloadCommandTests(unittest.TestCase):
 
         # Check the command result.
         self.assertEqual(res.returncode, 0)
-        self.assertEqual(stdout, dedent("""\
-                downloading the schema file from http://localhost:8000/schema.json...
-                ...schema file written to {}.
-                saving the schema metadata...
-                ...metadata written to {}.
-                """).format(self.schemafile, self.metadata))  # noqa
+        self.assertEqual(stdout, self.get_expected_stdout([
+            'downloading the schema file from http://localhost:8000/schema.json...',  # noqa
+            '...schema file written to {}.'.format(self.schemafile),
+            'saving the schema metadata...',
+            '...metadata written to {}.'.format(self.metadata)]))
         self.assertEqual(stderr, '')
 
         # Check the downloaded files.
@@ -124,6 +130,14 @@ class CheckCommandTests(unittest.TestCase):
             outfile.write(content)
         return filename
 
+    def get_expected_stdout(self, lines):
+        with io.StringIO() as txt:
+            for line in lines:
+                txt.write(line)
+                txt.write(os.linesep)
+            txt.flush()
+            return txt.getvalue()
+
     def test_match(self):
         schemafile = self.add_file('schema.json', '<a schema>')
         self.add_file('UPSTREAM', dedent("""\
@@ -147,11 +161,10 @@ class CheckCommandTests(unittest.TestCase):
 
         # Check the command result.
         self.assertEqual(res.returncode, 0)
-        self.assertEqual(stdout, dedent("""\
-                checking local schema file...
-                comparing with upstream schema file...
-                schema file okay
-                """))
+        self.assertEqual(stdout, self.get_expected_stdout([
+            'checking local schema file...',
+            'comparing with upstream schema file...',
+            'schema file okay']))
         self.assertEqual(stderr, '')
 
     def test_schema_missing(self):
@@ -174,9 +187,8 @@ class CheckCommandTests(unittest.TestCase):
 
         # Check the command result.
         self.assertEqual(res.returncode, 1)
-        self.assertEqual(stdout, dedent("""\
-                checking local schema file...
-                """))
+        self.assertEqual(stdout, self.get_expected_stdout([
+            'checking local schema file...']))
         self.assertRegex(stderr.strip(), r"ERROR: schema file '[^']*schema.json' not found")  # noqa
 
     def test_metadata_missing(self):
@@ -193,9 +205,8 @@ class CheckCommandTests(unittest.TestCase):
 
         # Check the command result.
         self.assertEqual(res.returncode, 1)
-        self.assertEqual(stdout, dedent("""\
-                checking local schema file...
-                """))
+        self.assertEqual(stdout, self.get_expected_stdout([
+            'checking local schema file...']))
         self.assertRegex(stderr.strip(), r"ERROR: metadata file for '[^']*schema.json' not found")  # noqa
 
     def test_metadata_mismatch(self):
@@ -218,9 +229,8 @@ class CheckCommandTests(unittest.TestCase):
 
         # Check the command result.
         self.assertEqual(res.returncode, 1)
-        self.assertEqual(stdout, dedent("""\
-                checking local schema file...
-                """))
+        self.assertEqual(stdout, self.get_expected_stdout([
+            'checking local schema file...']))
         self.assertRegex(stderr.strip(), r"ERROR: schema file '[^']*schema.json' does not match metadata file .*")  # noqa
 
     def test_upstream_not_found(self):
@@ -246,10 +256,9 @@ class CheckCommandTests(unittest.TestCase):
 
         # Check the command result.
         self.assertEqual(res.returncode, 1)
-        self.assertEqual(stdout, dedent("""\
-                checking local schema file...
-                comparing with upstream schema file...
-                """))
+        self.assertEqual(stdout, self.get_expected_stdout([
+                'checking local schema file...',
+                'comparing with upstream schema file...']))
         self.assertEqual(stderr.strip(), "ERROR: schema file at 'http://localhost:8000/schema.json' not found")  # noqa
 
     def test_upstream_mismatch(self):
@@ -275,8 +284,7 @@ class CheckCommandTests(unittest.TestCase):
 
         # Check the command result.
         self.assertEqual(res.returncode, 1)
-        self.assertEqual(stdout, dedent("""\
-                checking local schema file...
-                comparing with upstream schema file...
-                """))
+        self.assertEqual(stdout, self.get_expected_stdout([
+                'checking local schema file...',
+                'comparing with upstream schema file...']))
         self.assertRegex(stderr.strip(), r"ERROR: local schema file '[^']*schema.json' does not match upstream .*")  # noqa
