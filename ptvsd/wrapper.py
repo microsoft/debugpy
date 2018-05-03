@@ -1009,7 +1009,10 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 key, value = opt.split('=')
             except ValueError:
                 continue
-            options[key] = DEBUG_OPTIONS_PARSER[key](value)
+            try:
+                options[key] = DEBUG_OPTIONS_PARSER[key](value)
+            except KeyError:
+                continue
 
         if 'WINDOWS_CLIENT' not in options:
             options['WINDOWS_CLIENT'] = platform.system() == 'Windows' # noqa
