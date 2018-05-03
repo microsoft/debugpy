@@ -3,11 +3,8 @@ import os.path
 import unittest
 import sys
 
+from . import TEST_ROOT, PROJECT_ROOT
 from .__main__ import convert_argv
-
-
-TEST_ROOT = os.path.dirname(__file__)
-PROJECT_ROOT = os.path.dirname(TEST_ROOT)
 
 
 class ConvertArgsTests(unittest.TestCase):

@@ -1,4 +1,5 @@
 from collections import namedtuple
+import sys
 try:
     from urllib.parse import quote, unquote
 except ImportError:
@@ -9,6 +10,10 @@ from _pydevd_bundle import pydevd_comm
 from tests.helpers.protocol import StreamFailure
 
 # TODO: Everything here belongs in a proper pydevd package.
+
+
+if sys.version_info[0] > 2:
+    basestring = str
 
 
 def parse_message(msg):
@@ -112,7 +117,7 @@ class Message(namedtuple('Message', 'cmdid seq payload')):
         """Return the de-serialized payload."""
         if isinstance(payload, bytes):
             payload = payload.decode('utf-8')
-        if isinstance(payload, str):
+        if isinstance(payload, basestring):
             text = unquote(payload)
             return cls._parse_payload_text(text)
         elif hasattr(payload, 'as_text'):

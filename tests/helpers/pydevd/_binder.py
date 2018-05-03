@@ -3,6 +3,7 @@ import time
 
 import ptvsd.daemon
 from tests.helpers import socket
+from tests.helpers.threading import acquire_with_timeout
 
 
 class PTVSD(ptvsd.daemon.Daemon):
@@ -112,7 +113,7 @@ class BinderBase(object):
             self._thread = threading.Thread(target=self._run)
             self._thread.start()
             # Wait for ptvsd to start up.
-            if self._waiter.acquire(timeout=1):
+            if acquire_with_timeout(self._waiter, timeout=1):
                 self._waiter.release()
             else:
                 raise RuntimeError('timed out')

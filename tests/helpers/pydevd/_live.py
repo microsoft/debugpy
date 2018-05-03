@@ -5,6 +5,7 @@ import warnings
 
 import ptvsd._main
 from tests.helpers import protocol
+from tests.helpers.threading import acquire_with_timeout
 from ._binder import BinderBase
 
 
@@ -38,7 +39,7 @@ class Binder(BinderBase):
         )
 
         # Block until "done" debugging.
-        if not self._lock.acquire(timeout=3):
+        if not acquire_with_timeout(self._lock, timeout=3):
             # This shouldn't happen since the timeout on event waiting
             # is this long.
             warnings.warn('timeout out waiting for "done"')

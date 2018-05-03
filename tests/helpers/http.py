@@ -1,6 +1,9 @@
 from __future__ import absolute_import
 
-import http.server
+try:
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+except ImportError:
+    from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import threading
 
 
@@ -23,7 +26,7 @@ class Server:
     def start(self):
         if self._server is not None:
             raise RuntimeError('already started')
-        self._server = http.server.HTTPServer(self._addr, self.handler)
+        self._server = HTTPServer(self._addr, self.handler)
         self._thread = threading.Thread(
                 target=lambda: self._server.serve_forever())
         self._thread.start()
@@ -48,7 +51,7 @@ class Server:
 def json_file_handler(data):
     """Return an HTTP handler that always serves the given JSON bytes."""
 
-    class HTTPHandler(http.server.BaseHTTPRequestHandler):
+    class HTTPHandler(BaseHTTPRequestHandler):
         def do_GET(self):
             self.send_response(200)
             self.send_header('Content-Type', b'application/json')
@@ -66,7 +69,7 @@ def json_file_handler(data):
 def error_handler(code, msg):
     """Return an HTTP handler that always returns the given error code."""
 
-    class HTTPHandler(http.server.BaseHTTPRequestHandler):
+    class HTTPHandler(BaseHTTPRequestHandler):
         def do_GET(self):
             self.send_error(code, msg)
 

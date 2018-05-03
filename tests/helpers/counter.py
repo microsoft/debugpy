@@ -1,3 +1,5 @@
+import sys
+
 
 class Counter(object):
     """An introspectable, dynamic alternative to itertools.count()."""
@@ -22,6 +24,9 @@ class Counter(object):
         except AttributeError:
             self._last = self._start
         return self._last
+
+    if sys.version_info[0] == 2:
+        next = __next__
 
     @property
     def start(self):

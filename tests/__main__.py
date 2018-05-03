@@ -6,17 +6,13 @@ import subprocess
 import sys
 import unittest
 
-from ptvsd._vendored import list_all as vendored
-
-
-TEST_ROOT = os.path.dirname(__file__)
-PROJECT_ROOT = os.path.dirname(TEST_ROOT)
-VENDORED_ROOTS = vendored(resolve=True)
+from . import TEST_ROOT, PROJECT_ROOT, VENDORED_ROOTS
 
 
 def convert_argv(argv):
     help  = False
     quick = False
+    quickpy2 = False
     network = True
     runtests = True
     lint = False
@@ -25,6 +21,9 @@ def convert_argv(argv):
     for arg in argv:
         if arg == '--quick':
             quick = True
+            continue
+        if arg == '--quick-py2':
+            quickpy2 = True
             continue
         elif arg == '--full':
             quick = False
@@ -76,7 +75,7 @@ def convert_argv(argv):
             quickroot = os.path.join(TEST_ROOT, 'ptvsd')
             if quick:
                 start = quickroot
-            elif sys.version_info[0] != 3:
+            elif quickpy2 and sys.version_info[0] == 2:
                 start = quickroot
             else:
                 start = PROJECT_ROOT

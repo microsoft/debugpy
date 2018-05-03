@@ -1,5 +1,8 @@
 from collections import namedtuple
-from collections.abc import Sequence
+try:
+    from collections.abc import Sequence
+except ImportError:
+    from collections import Sequence
 
 from debugger_protocol._base import Readonly
 from ._common import sentinel, NOT_SET, ANY, SIMPLE_TYPES

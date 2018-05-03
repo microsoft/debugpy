@@ -73,7 +73,11 @@ class Proc(Closeable):
 
     def _close(self):
         if self._proc is not None:
-            self._proc.kill()
+            try:
+                self._proc.kill()
+            except OSError:
+                # Already killed.
+                pass
         if self.VERBOSE:
             lines = self.output.decode('utf-8').splitlines()
             print(' + ' + '\n + '.join(lines))

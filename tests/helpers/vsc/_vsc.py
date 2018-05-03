@@ -1,10 +1,15 @@
 from collections import namedtuple
 import json
+import sys
 
 from debugger_protocol.messages import wireformat
 from tests.helpers.protocol import StreamFailure
 
 # TODO: Use more of the code from debugger_protocol.
+
+
+if sys.version_info[0] > 2:
+    unicode = str
 
 
 class ProtocolMessageError(Exception): pass  # noqa
@@ -15,7 +20,7 @@ class UnsupportedMessageTypeError(ProtocolMessageError): pass  # noqa
 
 def parse_message(msg):
     """Return a message object for the given "msg" data."""
-    if type(msg) is str:
+    if type(msg) is str or type(msg) is unicode:
         data = json.loads(msg)
     elif isinstance(msg, bytes):
         data = json.loads(msg.decode('utf-8'))

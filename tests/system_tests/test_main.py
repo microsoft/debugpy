@@ -9,6 +9,13 @@ from tests.helpers.vsc import parse_message, VSCMessages
 from tests.helpers.workspace import Workspace, PathEntry
 
 
+def _strip_pydevd_output(out):
+    # TODO: Leave relevant lines from before the marker?
+    pre, sep, out = out.partition(
+        'pydev debugger: starting' + os.linesep + os.linesep)
+    return out if sep else pre
+
+
 def lifecycle_handshake(session, command='launch', options=None):
     with session.wait_for_event('initialized'):
         req_initialize = session.send_request(
@@ -92,8 +99,8 @@ class CLITests(TestsBase, unittest.TestCase):
             session.send_request('disconnect')
         out = adapter.output
 
-        self.assertEqual(out.decode('utf-8'),
-                         "[{!r}, '--eggs']\n".format(filename))
+        self.assertEqual(out.decode('utf-8').strip().splitlines()[-1],
+                         u"[{!r}, '--eggs']".format(filename))
 
     def test_run_to_completion(self):
         filename = self.pathentry.write_module('spam', """
@@ -199,7 +206,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
                 timeout=3.0,
             )
             wait_for_started()
-        out = adapter.output
+        out = adapter.output.decode('utf-8')
 
         self.assert_received(session.received, [
             # TODO: Use self.new_event()...
@@ -216,7 +223,8 @@ class LifecycleTests(TestsBase, unittest.TestCase):
                 },
             },
         ])
-        self.assertEqual(out, b'')
+        out = _strip_pydevd_output(out)
+        self.assertEqual(out, '')
 
     def test_launch_ptvsd_client(self):
         argv = []

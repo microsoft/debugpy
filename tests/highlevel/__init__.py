@@ -477,17 +477,18 @@ class VSCFixture(FixtureBase):
         except AttributeError:
             return None
 
-    def send_request(self, command, args=None, handle_response=None):
+    def send_request(self, cmd, args=None, handle_response=None, timeout=1):
         kwargs = dict(args or {}, handler=handle_response)
-        with self._wait_for_response(command, **kwargs) as req:
+        with self._wait_for_response(cmd, timeout=timeout, **kwargs) as req:
             self.fake.send_request(req)
         return req
 
     @contextlib.contextmanager
     def _wait_for_response(self, command, *args, **kwargs):
-        handler = kwargs.pop('handler', None)
+        handle = kwargs.pop('handler', None)
+        timeout = kwargs.pop('timeout', 1)
         req = self.msgs.new_request(command, *args, **kwargs)
-        with self.fake.wait_for_response(req, handler=handler):
+        with self.fake.wait_for_response(req, handler=handle, timeout=timeout):
             yield req
         if self._hidden:
             self.msgs.next_response()
@@ -623,8 +624,9 @@ class HighlevelFixture(object):
             thread = self._pydevd.threads.add(name)
             self._default_threads[name] = thread
 
-    def send_request(self, command, args=None, handle_response=None):
-        return self._vsc.send_request(command, args, handle_response)
+    def send_request(self, command, args=None, handle_response=None, **kwargs):
+        return self._vsc.send_request(command, args, handle_response,
+                                      **kwargs)
 
     @contextlib.contextmanager
     def wait_for_event(self, event, *args, **kwargs):

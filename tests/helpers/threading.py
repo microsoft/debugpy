@@ -8,11 +8,12 @@ import warnings
 
 if sys.version_info < (3,):
     def acquire_with_timeout(lock, timeout):
-        segments = int(timeout * 10) + 1
-        for _ in range(segments):
+        if lock.acquire(False):
+            return True
+        for _ in range(int(timeout * 10)):
+            time.sleep(0.1)
             if lock.acquire(False):
                 return True
-            time.sleep(0.1)
         else:
             return False
 else:

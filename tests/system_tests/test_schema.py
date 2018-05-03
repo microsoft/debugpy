@@ -7,6 +7,8 @@ import tempfile
 from textwrap import dedent
 import unittest
 
+from tests import skip_py2
+skip_py2()  # noqa
 from tests.helpers import http
 from debugger_protocol.schema.__main__ import handle_check
 

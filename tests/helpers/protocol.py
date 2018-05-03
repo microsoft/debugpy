@@ -8,6 +8,7 @@ import warnings
 
 from . import socket
 from .counter import Counter
+from .threading import acquire_with_timeout
 
 
 try:
@@ -259,7 +260,7 @@ class MessageDaemon(Daemon):
         yield req
 
         # Wait for the message to match.
-        if lock.acquire(timeout=timeout):
+        if acquire_with_timeout(lock, timeout=timeout):
             lock.release()
         else:
             msg = 'timed out after {} seconds waiting for message ({})'
@@ -278,7 +279,7 @@ class MessageDaemon(Daemon):
 
     def _listen(self):
         try:
-            with self._sock.makefile('rb') as sockfile:
+            with contextlib.closing(self._sock.makefile('rb')) as sockfile:
                 for msg in self._protocol.iter(sockfile, lambda: self._closed):
                     if isinstance(msg, StreamFailure):
                         self._failures.append(msg)
