@@ -3,6 +3,7 @@ import unittest
 import ptvsd.untangle
 
 from ptvsd.wrapper import InternalsFilter
+from ptvsd.wrapper import filter_ptvsd_files
 
 
 class InternalsFilterTests(unittest.TestCase):
@@ -29,3 +30,22 @@ class InternalsFilterTests(unittest.TestCase):
         ]
         for fp in files:
             self.assertFalse(int_filter.is_internal_path(fp))
+
+
+class PtvsdFileTraceFilter(unittest.TestCase):
+    def test_basic(self):
+        test_paths = {
+            os.path.join('C:', 'ptvsd', 'wrapper.py'): True,
+            os.path.join('C:', 'abcd', 'ptvsd', 'wrapper.py'): True,
+            os.path.join('usr', 'ptvsd', 'wrapper.py'): True,
+            os.path.join('ptvsd', 'wrapper.py'): True,
+            os.path.join('usr', 'abcd', 'ptvsd', 'wrapper.py'): True,
+            os.path.join('C:', 'ptvsd', 'wrapper1.py'): False,
+            os.path.join('C:', 'abcd', 'ptvsd', 'ptvsd.py'): False,
+            os.path.join('usr', 'ptvsd', 'w.py'): False,
+            os.path.join('ptvsd', 'w.py'): False,
+            os.path.join('usr', 'abcd', 'ptvsd', 'tangle.py'): False,
+        }
+
+        for path, val in test_paths.items():
+            self.assertTrue(val == filter_ptvsd_files(path))

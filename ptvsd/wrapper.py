@@ -36,6 +36,7 @@ pydevd_constants.MAXIMUM_VARIABLE_REPRESENTATION_SIZE = 2**32
 import _pydevd_bundle.pydevd_comm as pydevd_comm  # noqa
 import _pydevd_bundle.pydevd_extension_api as pydevd_extapi  # noqa
 import _pydevd_bundle.pydevd_extension_utils as pydevd_extutil  # noqa
+import _pydevd_bundle.pydevd_frame as pydevd_frame # noqa
 #from _pydevd_bundle.pydevd_comm import pydevd_log
 
 import ptvsd.ipcjson as ipcjson  # noqa
@@ -128,6 +129,43 @@ SafeReprPresentationProvider._instance = SafeReprPresentationProvider()
 # so that we're in full control of presentation.
 str_handlers = pydevd_extutil.EXTENSION_MANAGER_INSTANCE.type_to_instance.setdefault(pydevd_extapi.StrPresentationProvider, [])  # noqa
 str_handlers.insert(0, SafeReprPresentationProvider._instance)
+
+DONT_TRACE_FILES = set((os.path.join(*elem) for elem in [
+    ('ptvsd', 'attach_server.py'),
+    ('ptvsd', 'daemon.py'),
+    ('ptvsd', 'debugger.py'),
+    ('ptvsd', 'futures.py'),
+    ('ptvsd', 'ipcjson.py'),
+    ('ptvsd', 'pathutils.py'),
+    ('ptvsd', 'pydevd_hooks.py'),
+    ('ptvsd', 'reraise.py'),
+    ('ptvsd', 'reraise2.py'),
+    ('ptvsd', 'reraise3.py'),
+    ('ptvsd', 'runner.py'),
+    ('ptvsd', 'safe_repr.py'),
+    ('ptvsd', 'socket.py'),
+    ('ptvsd', 'untangle.py'),
+    ('ptvsd', 'version.py'),
+    ('ptvsd', 'wrapper.py'),
+    ('ptvsd', '_main.py'),
+    ('ptvsd', '_version.py'),
+    ('ptvsd', '__init__.py'),
+    ('ptvsd', '__main__.py'),
+]))
+
+
+def filter_ptvsd_files(file_path):
+    """
+    Returns true if the file should not be traced.
+    """
+    ptvsd_path_re = r"(ptvsd[\\\/].*\.py)"
+    matches = re.finditer(ptvsd_path_re, file_path)
+    return any((g in DONT_TRACE_FILES
+                for m in matches
+                for g in m.groups()))
+
+
+pydevd_frame.file_tracing_filter = filter_ptvsd_files
 
 
 class UnsupportedPyDevdCommandError(Exception):
