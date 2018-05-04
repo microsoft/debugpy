@@ -36,6 +36,10 @@ TRACE_PROPERTY = 'pydevd_traceproperty.py'
 get_file_type = DONT_TRACE.get
 
 
+def file_tracing_filter(path):
+    return False
+
+
 def handle_breakpoint_condition(py_db, info, breakpoint, new_frame):
     condition = breakpoint.condition
     try:
@@ -719,7 +723,7 @@ class PyDBFrame:
                     if f_code is not None:
                         back_filename = os.path.basename(f_code.co_filename)
                         file_type = get_file_type(back_filename)
-                        if file_type == PYDEV_FILE:
+                        if file_type == PYDEV_FILE or file_tracing_filter(f_code.co_filename):
                             stop = False
 
                 if plugin_stop:
