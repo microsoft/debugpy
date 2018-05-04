@@ -1292,7 +1292,11 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         vsc_var = int(args['variablesReference'])
         fmt = args.get('format', {})
 
-        pyd_var = self.var_map.to_pydevd(vsc_var)
+        try:
+            pyd_var = self.var_map.to_pydevd(vsc_var)
+        except KeyError:
+            self.send_error_response(request)
+            return
 
         if len(pyd_var) == 3:
             cmd = pydevd_comm.CMD_GET_FRAME
@@ -1383,7 +1387,11 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         """Handles DAP SetVariableRequest."""
 
         vsc_var = int(args['variablesReference'])
-        pyd_var = self.var_map.to_pydevd(vsc_var)
+        try:
+            pyd_var = self.var_map.to_pydevd(vsc_var)
+        except KeyError:
+            self.send_error_response(request)
+            return
 
         var_name = args['name']
         var_value = args['value']

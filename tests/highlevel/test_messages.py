@@ -449,6 +449,25 @@ class VariablesTests(NormalRequestTest, unittest.TestCase):
             self.expected_pydevd_request('{}\t2\tFRAME'.format(thread.id)),
         ])
 
+    def test_invalid_var_ref(self):
+        with self.launched():
+            with self.hidden():
+                _, thread = self.pause('t', *[
+                    # (pfid, func, file, line)
+                    (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
+                    (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
+                ])
+            self.send_request(
+                # should NOT match variable or frame ID
+                variablesReference=12345,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_failure(''),
+            # no events
+        ])
+
     def test_container(self):
         self.PYDEVD_CMD = CMD_GET_FRAME
         with self.launched():
@@ -568,6 +587,27 @@ class SetVariableTests(NormalRequestTest, unittest.TestCase):
             expected,
             self.expected_pydevd_request(
                 '{}\t2\tLOCAL\tspam\t1'.format(thread.id)),
+        ])
+
+    def test_invalid_var_ref(self):
+        with self.launched():
+            with self.hidden():
+                _, thread = self.pause('t', *[
+                    # (pfid, func, file, line)
+                    (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
+                    (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
+                ])
+            self.send_request(
+                # should NOT match any variable or frame ID
+                variablesReference=12345,
+                name='spam',
+                value='eggs',
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_failure(''),
+            # no events
         ])
 
     def test_container(self):
