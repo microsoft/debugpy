@@ -18,7 +18,8 @@ from _pydevd_bundle.pydevd_comm import CMD_RUN, CMD_VERSION, CMD_LIST_THREADS, C
     CMD_REMOVE_EXCEPTION_BREAK, CMD_LOAD_SOURCE, CMD_ADD_DJANGO_EXCEPTION_BREAK, CMD_REMOVE_DJANGO_EXCEPTION_BREAK, \
     CMD_EVALUATE_CONSOLE_EXPRESSION, InternalEvaluateConsoleExpression, InternalConsoleGetCompletions, \
     CMD_RUN_CUSTOM_OPERATION, InternalRunCustomOperation, CMD_IGNORE_THROWN_EXCEPTION_AT, CMD_ENABLE_DONT_TRACE, \
-    CMD_SHOW_RETURN_VALUES, ID_TO_MEANING, CMD_GET_DESCRIPTION, InternalGetDescription, CMD_REDIRECT_OUTPUT
+    CMD_SHOW_RETURN_VALUES, ID_TO_MEANING, CMD_GET_DESCRIPTION, InternalGetDescription, CMD_REDIRECT_OUTPUT, \
+    CMD_GET_NEXT_STATEMENT_TARGETS, InternalGetNextStatementTargets
 from _pydevd_bundle.pydevd_constants import get_thread_id, IS_PY3K, DebugInfoHolder, dict_keys, \
     STATE_RUN
 
@@ -691,6 +692,12 @@ def process_net_command(py_db, cmd_id, seq, text):
             elif cmd_id == CMD_REDIRECT_OUTPUT:
                 if text:
                     py_db.enable_output_redirection('STDOUT' in text, 'STDERR' in text)
+
+            elif cmd_id == CMD_GET_NEXT_STATEMENT_TARGETS:
+                thread_id, frame_id = text.split('\t', 1)
+
+                int_cmd = InternalGetNextStatementTargets(seq, thread_id, frame_id)
+                py_db.post_internal_command(int_cmd, thread_id)
 
             else:
                 #I have no idea what this is all about
