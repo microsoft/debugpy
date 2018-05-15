@@ -41,7 +41,7 @@ class IOBuf:
         self.encoding = os.environ.get('PYTHONIOENCODING', 'utf-8')
 
     def getvalue(self):
-        b = self.buflist
+        b = (bytes.decode(v, self.encoding) if isinstance(v, bytes) else v for v in self.buflist)
         self.buflist = [] #clear it
         return ''.join(b)
     

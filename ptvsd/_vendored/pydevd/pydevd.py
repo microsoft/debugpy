@@ -387,7 +387,8 @@ class PyDB:
             v = out.getvalue()
 
             if v:
-                self.cmd_factory.make_io_message(v, outCtx, self)
+                cmd = self.cmd_factory.make_io_message(v, outCtx)
+                self.writer.add_command(cmd)
         except:
             traceback.print_exc()
 

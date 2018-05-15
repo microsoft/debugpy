@@ -625,11 +625,10 @@ class NetCommandFactory:
         # notify debugger that value was changed successfully
         return NetCommand(CMD_RETURN, seq, payload)
 
-    def make_io_message(self, v, ctx, dbg=None):
+    def make_io_message(self, v, ctx):
         '''
         @param v: the message to pass to the debug server
         @param ctx: 1 for stdio 2 for stderr
-        @param dbg: If not none, add to the writer
         '''
 
         try:
@@ -638,14 +637,9 @@ class NetCommandFactory:
                 v += '...'
 
             v = pydevd_xml.make_valid_xml_value(quote(v, '/>_= \t'))
-            net = NetCommand(str(CMD_WRITE_TO_CONSOLE), 0, '<xml><io s="%s" ctx="%s"/></xml>' % (v, ctx))
+            return NetCommand(str(CMD_WRITE_TO_CONSOLE), 0, '<xml><io s="%s" ctx="%s"/></xml>' % (v, ctx))
         except:
-            net = self.make_error_message(0, get_exception_traceback_str())
-
-        if dbg:
-            dbg.writer.add_command(net)
-
-        return net
+            return self.make_error_message(0, get_exception_traceback_str())
 
     def make_version_message(self, seq):
         try:
