@@ -1,6 +1,7 @@
+from importlib import import_module
 import warnings
 
-from . import check_modules, prefix_matcher, preimport
+from . import check_modules, prefix_matcher, preimport, vendored
 
 
 # Ensure that pydevd is our vendored copy.
@@ -11,6 +12,16 @@ if _unvendored:
     msg = 'incompatible copy of pydevd already imported'
     #raise ImportError(msg)
     warnings.warn(msg + ':\n {}'.format('\n  '.join(_unvendored)))
+
+
+# Constants must be set before importing any other pydevd module
+# # due to heavy use of "from" in them.
+with vendored('pydevd'):
+    pydevd_constants = import_module('_pydevd_bundle.pydevd_constants')
+# Disable this, since we aren't packaging the Cython modules at the moment.
+pydevd_constants.CYTHON_SUPPORTED = False
+# We limit representation size in our representation provider when needed.
+pydevd_constants.MAXIMUM_VARIABLE_REPRESENTATION_SIZE = 2**32
 
 
 # Now make sure all the top-level modules and packages in pydevd are

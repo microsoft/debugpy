@@ -113,7 +113,6 @@ def vendored(project, root=None):
     try:
         yield root
     finally:
-        #del sys.path[0]
         sys.path.remove(root)
 
 

@@ -27,12 +27,6 @@ except Exception:
 import warnings
 from xml.sax import SAXParseException
 
-import _pydevd_bundle.pydevd_constants as pydevd_constants
-# Disable this, since we aren't packaging the Cython modules at the moment.
-pydevd_constants.CYTHON_SUPPORTED = False
-# We limit representation size in our representation provider when needed.
-pydevd_constants.MAXIMUM_VARIABLE_REPRESENTATION_SIZE = 2**32
-
 import _pydevd_bundle.pydevd_comm as pydevd_comm  # noqa
 import _pydevd_bundle.pydevd_extension_api as pydevd_extapi  # noqa
 import _pydevd_bundle.pydevd_extension_utils as pydevd_extutil  # noqa
@@ -67,6 +61,7 @@ INITIALIZE_RESPONSE = dict(
     supportsSetExpression=True,
     supportsModulesRequest=True,
     supportsLogPoints=True,
+    supportTerminateDebuggee=True,
     exceptionBreakpointFilters=[
         {
             'filter': 'raised',
@@ -853,7 +848,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.disconnect_request_event.set()
         self._notify_disconnecting(not self._closed)
         if not self._closed:
-            self.close()
+            # Closing the socket causes pydevd to resume all threads,
+            # so just terminate the process altogether.
+            sys.exit(0)
 
     def _wait_for_server_thread(self):
         if self.server_thread is None:
