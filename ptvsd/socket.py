@@ -4,6 +4,10 @@ from collections import namedtuple
 import contextlib
 import errno
 import socket
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
 
 
 NOT_CONNECTED = (
@@ -12,13 +16,22 @@ NOT_CONNECTED = (
 )
 
 
+class TimeoutError(socket.timeout):
+    """A socket timeout happened."""
+
+
+def is_socket(sock):
+    """Return True if the object can be used as a socket."""
+    return isinstance(sock, socket.socket)
+
+
 def create_server(host, port):
     """Return a local server socket listening on the given port."""
     if host is None:
         host = 'localhost'
     server = _new_sock()
     server.bind((host, port))
-    server.listen(1)
+    server.listen(0)
     return server
 
 
@@ -45,6 +58,83 @@ def ignored_errno(*ignored):
             raise
 
 
+class KeepAlive(namedtuple('KeepAlive', 'interval idle maxfails')):
+    """TCP keep-alive settings."""
+
+    INTERVAL = 3  # seconds
+    IDLE = 1  # seconds after idle
+    MAX_FAILS = 5
+
+    @classmethod
+    def from_raw(cls, raw):
+        """Return the corresponding KeepAlive."""
+        if raw is None:
+            return None
+        elif isinstance(raw, cls):
+            return raw
+        elif isinstance(raw, (str, int, float)):
+            return cls(raw)
+        else:
+            try:
+                raw = dict(raw)
+            except TypeError:
+                return cls(*raw)
+            else:
+                return cls(**raw)
+
+    def __new__(cls, interval=None, idle=None, maxfails=None):
+        self = super(KeepAlive, cls).__new__(
+            cls,
+            float(interval) if interval or interval == 0 else cls.INTERVAL,
+            float(idle) if idle or idle == 0 else cls.IDLE,
+            float(maxfails) if maxfails or maxfails == 0 else cls.MAX_FAILS,
+        )
+        return self
+
+    def apply(self, sock):
+        """Set the keepalive values on the socket."""
+        sock.setsockopt(socket.SOL_SOCKET,
+                        socket.SO_KEEPALIVE,
+                        1)
+        interval = self.interval
+        idle = self.idle
+        maxfails = self.maxfails
+        try:
+            if interval > 0:
+                sock.setsockopt(socket.IPPROTO_TCP,
+                                socket.TCP_KEEPINTVL,
+                                interval)
+            if idle > 0:
+                sock.setsockopt(socket.IPPROTO_TCP,
+                                socket.TCP_KEEPIDLE,
+                                idle)
+            if maxfails >= 0:
+                sock.setsockopt(socket.IPPROTO_TCP,
+                                socket.TCP_KEEPCNT,
+                                maxfails)
+        except AttributeError:
+            # mostly linux-only
+            pass
+
+
+def connect(sock, addr, keepalive=None):
+    """Return the client socket for the next connection."""
+    if addr is None:
+        if keepalive is None or keepalive is True:
+            keepalive = KeepAlive()
+        elif keepalive:
+            keepalive = KeepAlive.from_raw(keepalive)
+        client, _ = sock.accept()
+        if keepalive:
+            keepalive.apply(client)
+        return client
+    else:
+        if keepalive:
+            raise NotImplementedError
+        sock.connect(addr)
+        return sock
+
+
 def shut_down(sock, how=socket.SHUT_RDWR, ignored=NOT_CONNECTED):
     """Shut down the given socket."""
     with ignored_errno(*ignored or ()):
@@ -56,6 +146,7 @@ def close_socket(sock):
     try:
         shut_down(sock)
     except Exception:
+        # TODO: Log errors?
         pass
     sock.close()
 
@@ -64,18 +155,35 @@ class Address(namedtuple('Address', 'host port')):
     """An IP address to use for sockets."""
 
     @classmethod
-    def from_raw(cls, raw):
+    def from_raw(cls, raw, defaultport=None):
         """Return an address corresponding to the given data."""
         if isinstance(raw, cls):
             return raw
-        if isinstance(raw, str):
-            raise NotImplementedError
-        try:
-            kwargs = dict(**raw)
-        except TypeError:
-            return cls(*raw)
+        elif isinstance(raw, int):
+            return cls(None, raw)
+        elif isinstance(raw, str):
+            if raw == '':
+                return cls('', defaultport)
+            parsed = urlparse(raw)
+            if not parsed.netloc:
+                if parsed.scheme:
+                    raise ValueError('invalid address {!r}'.format(raw))
+                return cls.from_raw('x://' + raw, defaultport=defaultport)
+            return cls(
+                parsed.hostname or '',
+                parsed.port if parsed.port else defaultport,
+            )
+        elif not raw:
+            return cls(None, defaultport)
         else:
-            return cls(**kwargs)
+            try:
+                kwargs = dict(**raw)
+            except TypeError:
+                return cls(*raw)
+            else:
+                kwargs.setdefault('host', None)
+                kwargs.setdefault('port', defaultport)
+                return cls(**kwargs)
 
     @classmethod
     def as_server(cls, host, port):
@@ -88,6 +196,8 @@ class Address(namedtuple('Address', 'host port')):
         return cls(host, port, isserver=False)
 
     def __new__(cls, host, port, **kwargs):
+        if host == '*':
+            host = ''
         isserver = kwargs.pop('isserver', None)
         if isserver is None:
             isserver = (host is None or host == '')

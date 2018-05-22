@@ -1,41 +1,8 @@
-import contextlib
-from io import StringIO, BytesIO
-import sys
 import unittest
 
 from ptvsd.socket import Address
 from ptvsd.__main__ import parse_args
-
-
-if sys.version_info < (3,):
-    Buffer = BytesIO
-else:
-    Buffer = StringIO
-
-
-@contextlib.contextmanager
-def captured_stdio(out=None, err=None):
-    if out is None:
-        if err is None:
-            out = err = Buffer()
-        elif err is False:
-            out = Buffer()
-    elif err is None and out is False:
-        err = Buffer()
-    if out is False:
-        out = None
-    if err is False:
-        err = None
-
-    orig = sys.stdout, sys.stderr
-    if out is not None:
-        sys.stdout = out
-    if err is not None:
-        sys.stderr = err
-    try:
-        yield out, err
-    finally:
-        sys.stdout, sys.stderr = orig
+from tests.helpers._io import captured_stdio
 
 
 class ParseArgsTests(unittest.TestCase):

@@ -1,9 +1,11 @@
 import sys
+import threading
 
 from _pydevd_bundle import pydevd_comm
 
-from ptvsd.socket import create_server, create_client, Address
-from ptvsd.daemon import Daemon
+from ptvsd.socket import Address
+from ptvsd.daemon import Daemon, DaemonStoppedError, DaemonClosedError
+from ptvsd._util import debug
 
 
 def start_server(daemon, host, port):
@@ -14,11 +16,41 @@ def start_server(daemon, host, port):
 
     This is a replacement for _pydevd_bundle.pydevd_comm.start_server.
     """
-    server = create_server(host, port)
-    client, _ = server.accept()
+    pydevd, next_session = daemon.start_server((host, port))
 
-    pydevd = daemon.start(server)
-    daemon.set_connection(client)
+    def handle_next():
+        try:
+            session = next_session()
+            debug('done waiting')
+            return session
+        except (DaemonClosedError, DaemonStoppedError):
+            # Typically won't happen.
+            debug('stopped')
+            raise
+        except Exception as exc:
+            # TODO: log this?
+            debug('failed:', exc, tb=True)
+            return None
+
+    while True:
+        debug('waiting on initial connection')
+        handle_next()
+        break
+
+    def serve_forever():
+        while True:
+            debug('waiting on next connection')
+            try:
+                handle_next()
+            except (DaemonClosedError, DaemonStoppedError):
+                break
+        debug('done')
+    t = threading.Thread(
+        target=serve_forever,
+        name='ptvsd.sessions',
+        )
+    t.daemon = True,
+    t.start()
     return pydevd
 
 
@@ -30,11 +62,8 @@ def start_client(daemon, host, port):
 
     This is a replacement for _pydevd_bundle.pydevd_comm.start_client.
     """
-    client = create_client()
-    client.connect((host, port))
-
-    pydevd = daemon.start()
-    daemon.set_connection(client)
+    pydevd, start_session = daemon.start_client((host, port))
+    start_session()
     return pydevd
 
 

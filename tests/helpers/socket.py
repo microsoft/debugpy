@@ -8,9 +8,16 @@ import ptvsd.socket as _ptvsd
 
 
 try:
+    ConnectionError  # noqa
     BrokenPipeError  # noqa
+    ConnectionResetError  # noqa
 except NameError:
     class BrokenPipeError(Exception):
+        # EPIPE and ESHUTDOWN
+        pass
+
+    class ConnectionResetError(Exception):
+        # ECONNRESET
         pass
 
 
@@ -22,9 +29,25 @@ NOT_CONNECTED = (
 CLOSED = (
     errno.EPIPE,
     errno.ESHUTDOWN,
+    errno.ECONNRESET,
 )
 
 EOF = NOT_CONNECTED + CLOSED
+
+
+@contextlib.contextmanager
+def convert_eof():
+    """A context manager to convert some socket errors into EOFError."""
+    try:
+        yield
+    except ConnectionResetError:
+        raise EOFError
+    except BrokenPipeError:
+        raise EOFError
+    except OSError as exc:
+        if exc.errno in EOF:
+            raise EOFError
+        raise
 
 
 # TODO: Add timeouts to the functions.
@@ -79,28 +102,16 @@ def bind(address):
 def recv_as_read(sock):
     """Return a wrapper ardoung sock.read that arises EOFError when closed."""
     def read(numbytes, _recv=sock.recv):
-        try:
+        with convert_eof():
             return _recv(numbytes)
-        except BrokenPipeError:
-            raise EOFError
-        except OSError as exc:
-            if exc.errno in EOF:
-                raise EOFError
-            raise
     return read
 
 
 def send_as_write(sock):
     """Return a wrapper ardoung sock.send that arises EOFError when closed."""
     def write(data, _send=sock.send):
-        try:
+        with convert_eof():
             return _send(data)
-        except BrokenPipeError:
-            raise EOFError
-        except OSError as exc:
-            if exc.errno in EOF:
-                raise EOFError
-            raise
     return write
 
 

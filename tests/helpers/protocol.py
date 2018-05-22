@@ -88,6 +88,21 @@ class MessageCounters(namedtuple('MessageCounters',
     def next_event(self):
         return next(self.event)
 
+    def reset(self, request=None, response=None, event=None):
+        if request is None and response is None and event is None:
+            raise ValueError('missing at least one counter')
+        if request is not None:
+            self.request.reset(start=request)
+        if response is not None:
+            self.response.reset(start=response)
+        if event is not None:
+            self.event.reset(start=event)
+
+    def reset_all(self, start=0):
+        self.request.reset(start)
+        self.response.reset(start)
+        self.event.reset(start)
+
 
 class DaemonStarted(object):
     """A simple wrapper around a started protocol daemon."""

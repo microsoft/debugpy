@@ -9,7 +9,8 @@ class Closeable(object):
         self._closed = False
 
     def __del__(self):
-        self.close()
+        if not self._closed:
+            self.close()
 
     def __enter__(self):
         return self

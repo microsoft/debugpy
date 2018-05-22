@@ -42,6 +42,8 @@ _ACQUIRE_LOCKFILE = """
 # <- START ACQUIRE LOCKFILE SCRIPT ->
 import os.path
 import time
+class LockTimeoutError(RuntimeError):
+    pass
 %s
 _acquire_lockfile({!r}, {!r})
 # <- END ACQUIRE LOCKFILE SCRIPT ->
@@ -76,10 +78,10 @@ class Lockfile(object):
     def filename(self):
         return self._filename
 
-    def acquire(self, timeout=1.0):
+    def acquire(self, timeout=5.0):
         _acquire_lockfile(self._filename, timeout)
 
-    def acquire_script(self, timeout=1.0):
+    def acquire_script(self, timeout=5.0):
         return _ACQUIRE_LOCKFILE.format(self._filename, timeout)
 
     def release(self):

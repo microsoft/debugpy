@@ -152,7 +152,7 @@ class VSCFlowTest(TestBase):
         kwargs.setdefault('process', False)
         with self.lifecycle.launched(port=port, hide=True, **kwargs):
             yield
-            self.fix.binder.done()
+            self.fix.binder.done(close=False)
         self.fix.binder.wait_until_done()
 
 
@@ -209,12 +209,29 @@ class LogpointTests(TestBase, unittest.TestCase):
         """
 
     @contextlib.contextmanager
+    def closing(self, exit=True):
+        def handle_msg(msg, _):
+            with self.wait_for_event('output'):
+                self.req_disconnect = self.send_request('disconnect')
+        with self.wait_for_event('terminated', handler=handle_msg):
+            if exit:
+                with self.wait_for_event('exited'):
+                    yield
+            else:
+                yield
+
+    @contextlib.contextmanager
     def running(self):
         addr = (None, 8888)
         with self.fake.start(addr):
                 yield
 
     def test_basic(self):
+        with open(self.filename) as scriptfile:
+            script = scriptfile.read()
+        done, waitscript = self.workspace.lockfile().wait_in_script()
+        with open(self.filename, 'w') as scriptfile:
+            scriptfile.write(script + waitscript)
         addr = (None, 8888)
         with self.fake.start(addr):
             with self.vsc.wait_for_event('output'):
@@ -236,12 +253,14 @@ class LogpointTests(TestBase, unittest.TestCase):
                         },
                     ],
                 })
+            with self.vsc.wait_for_event('output'):
+                req_config = self.send_request('configurationDone')
+                done()
 
-            req_config = self.send_request('configurationDone')
-
-            with self.wait_for_events(['exited', 'terminated']):
-                self.fix.binder.done()
+            self.fix.binder.done(close=False)
             self.fix.binder.wait_until_done()
+            with self.closing():
+                self.fix.binder.ptvsd.close()
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
@@ -263,7 +282,10 @@ class LogpointTests(TestBase, unittest.TestCase):
                 isLocalProcess=True,
                 startMethod='attach',
             )),
+            self.new_event('output', **dict(
+                category='stdout',
+                output='1+2=3' + os.linesep,
+            )),
             self.new_event('exited', exitCode=0),
             self.new_event('terminated'),
-            self.new_event('output', **dict(category='stdout', output='1+2=3' + os.linesep)), # noqa
         ])

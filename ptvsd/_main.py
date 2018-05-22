@@ -115,7 +115,7 @@ def enable_attach(address, redirect_output=True,
         debugger.ready_to_run = True
         server = create_server(host, port)
         client, _ = server.accept()
-        daemon.set_connection(client)
+        daemon.start_session(client, 'ptvsd.Server')
 
         daemon.re_build_breakpoints()
         on_attach()

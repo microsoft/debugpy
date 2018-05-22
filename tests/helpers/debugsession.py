@@ -120,7 +120,10 @@ class DebugSession(Closeable):
     def create_client(cls, addr=None, **kwargs):
         if addr is None:
             addr = (cls.HOST, cls.PORT)
-        conn = DebugSessionConnection.create_client(addr)
+        conn = DebugSessionConnection.create_client(
+            addr,
+            timeout=kwargs.get('timeout'),
+        )
         return cls(conn, owned=True, **kwargs)
 
     @classmethod

@@ -1,12 +1,19 @@
 import os
+from textwrap import dedent
 import unittest
 
 import ptvsd
+from ptvsd.socket import Address
 from ptvsd.wrapper import INITIALIZE_RESPONSE # noqa
+from tests.helpers.debugadapter import DebugAdapter
 from tests.helpers.debugclient import EasyDebugClient as DebugClient
 from tests.helpers.threading import get_locked_and_waiter
 from tests.helpers.vsc import parse_message, VSCMessages
 from tests.helpers.workspace import Workspace, PathEntry
+
+
+#VERSION = '0+unknown'
+VERSION = ptvsd.__version__
 
 
 def _strip_pydevd_output(out):
@@ -217,7 +224,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
                 'body': {
                     'output': 'ptvsd',
                     'data': {
-                        'version': ptvsd.__version__,
+                        'version': VERSION,
                     },
                     'category': 'telemetry',
                 },
@@ -249,7 +256,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
                 'output',
                 category='telemetry',
                 output='ptvsd',
-                data={'version': ptvsd.__version__}),
+                data={'version': VERSION}),
             self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
             self.new_response(req_launch),
@@ -273,12 +280,13 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             done()
             adapter.wait()
 
+        self.maxDiff = None
         self.assert_received(session.received, [
             self.new_event(
                 'output',
                 category='telemetry',
                 output='ptvsd',
-                data={'version': ptvsd.__version__}),
+                data={'version': VERSION}),
             self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
             self.new_response(req_launch),
@@ -287,8 +295,156 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             self.new_event('terminated'),
         ])
 
+    def test_attach_started_separately(self):
+        lockfile = self.workspace.lockfile()
+        done, waitscript = lockfile.wait_in_script()
+        filename = self.write_script('spam.py', waitscript)
+        addr = Address('localhost', 8888)
+        with DebugAdapter.start_for_attach(addr, filename) as adapter:
+            with DebugClient() as editor:
+                session = editor.attach_socket(addr, adapter)
+
+                (req_initialize, req_launch, req_config
+                 ) = lifecycle_handshake(session, 'attach')
+                done()
+                adapter.wait()
+
+        self.assert_received(session.received, [
+            self.new_event(
+                'output',
+                category='telemetry',
+                output='ptvsd',
+                data={'version': VERSION}),
+            self.new_response(req_initialize, **INITIALIZE_RESPONSE),
+            self.new_event('initialized'),
+            self.new_response(req_launch),
+            self.new_response(req_config),
+            self.new_event('process', **{
+                'isLocalProcess': True,
+                'systemProcessId': adapter.pid,
+                'startMethod': 'attach',
+                'name': filename,
+            }),
+            self.new_event('exited', exitCode=0),
+            self.new_event('terminated'),
+        ])
+
+    def test_attach_embedded(self):
+        lockfile = self.workspace.lockfile()
+        done, waitscript = lockfile.wait_in_script()
+        addr = Address('localhost', 8888)
+        script = dedent("""
+            from __future__ import print_function
+            import sys
+            sys.path.insert(0, {!r})
+            import ptvsd
+            ptvsd.enable_attach({}, redirect_output={})
+
+            %s
+
+            print('success!', end='')
+            """).format(os.getcwd(), tuple(addr), True)
+        filename = self.write_script('spam.py', script % waitscript)
+        with DebugAdapter.start_embedded(addr, filename) as adapter:
+            with DebugClient() as editor:
+                session = editor.attach_socket(addr, adapter)
+
+                (req_initialize, req_launch, req_config
+                 ) = lifecycle_handshake(session, 'attach')
+                done()
+                adapter.wait()
+        out = adapter.output.decode('utf-8')
+
+        self.assert_received(session.received, [
+            self.new_event(
+                'output',
+                category='telemetry',
+                output='ptvsd',
+                data={'version': VERSION}),
+            self.new_response(req_initialize, **INITIALIZE_RESPONSE),
+            self.new_event('initialized'),
+            self.new_response(req_launch),
+            self.new_response(req_config),
+            self.new_event('process', **{
+                'isLocalProcess': True,
+                'systemProcessId': adapter.pid,
+                'startMethod': 'attach',
+                'name': filename,
+            }),
+            self.new_event('output', output='success!', category='stdout'),
+            self.new_event('exited', exitCode=0),
+            self.new_event('terminated'),
+        ])
+        self.assertIn('success!', out)
+
+    def test_reattach(self):
+        lockfile1 = self.workspace.lockfile()
+        done1, waitscript1 = lockfile1.wait_in_script(timeout=5)
+        lockfile2 = self.workspace.lockfile()
+        done2, waitscript2 = lockfile2.wait_in_script(timeout=5)
+        filename = self.write_script('spam.py', waitscript1 + waitscript2)
+        addr = Address('localhost', 8888)
+        with DebugAdapter.start_for_attach(addr, filename) as adapter:
+            with DebugClient() as editor:
+                # Attach initially.
+                session1 = editor.attach_socket(addr, adapter)
+                reqs = lifecycle_handshake(session1, 'attach')
+                done1()
+                req_disconnect = session1.send_request('disconnect')
+                editor.detach(adapter)
+
+                # Re-attach
+                session2 = editor.attach_socket(addr, adapter)
+                (req_initialize, req_launch, req_config
+                 ) = lifecycle_handshake(session2, 'attach')
+                done2()
+
+                adapter.wait()
+
+        #self.maxDiff = None
+        self.assert_received(session1.received, [
+            self.new_event(
+                'output',
+                category='telemetry',
+                output='ptvsd',
+                data={'version': VERSION}),
+            self.new_response(reqs[0], **INITIALIZE_RESPONSE),
+            self.new_event('initialized'),
+            self.new_response(reqs[1]),
+            self.new_response(reqs[2]),
+            self.new_event('process', **{
+                'isLocalProcess': True,
+                'systemProcessId': adapter.pid,
+                'startMethod': 'attach',
+                'name': filename,
+            }),
+            self.new_response(req_disconnect),
+            # TODO: Shouldn't there be a "terminated" event?
+            #self.new_event('terminated'),
+        ])
+        self.messages.reset_all()
+        self.assert_received(session2.received, [
+            self.new_event(
+                'output',
+                category='telemetry',
+                output='ptvsd',
+                data={'version': VERSION}),
+            self.new_response(req_initialize, **INITIALIZE_RESPONSE),
+            self.new_event('initialized'),
+            self.new_response(req_launch),
+            self.new_response(req_config),
+            self.new_event('process', **{
+                'isLocalProcess': True,
+                'systemProcessId': adapter.pid,
+                'startMethod': 'attach',
+                'name': filename,
+            }),
+            self.new_event('exited', exitCode=0),
+            self.new_event('terminated'),
+        ])
+
     @unittest.skip('re-attach needs fixing')
-    def test_attach(self):
+    def test_attach_unknown(self):
         lockfile = self.workspace.lockfile()
         done, waitscript = lockfile.wait_in_script()
         filename = self.write_script('spam.py', waitscript)
@@ -318,7 +474,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
                 'output',
                 category='telemetry',
                 output='ptvsd',
-                data={'version': ptvsd.__version__}),
+                data={'version': VERSION}),
             self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
             self.new_response(req_launch),

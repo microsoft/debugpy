@@ -11,12 +11,13 @@ from ._binder import BinderBase
 
 class Binder(BinderBase):
 
-    def __init__(self, filename, module):
-        super(Binder, self).__init__()
+    def __init__(self, filename, module, **kwargs):
+        super(Binder, self).__init__(**kwargs)
         self.filename = filename
         self.module = module
         self._lock = threading.Lock()
         self._lock.acquire()
+        self._closeondone = True
 
     def _run_debugger(self):
         def new_pydevd_sock(*args):
@@ -43,8 +44,10 @@ class Binder(BinderBase):
             # This shouldn't happen since the timeout on event waiting
             # is this long.
             warnings.warn('timeout out waiting for "done"')
+        return self._closeondone
 
-    def done(self):
+    def done(self, close=True):
+        self._closeondone = close
         self._lock.release()
 
 
@@ -63,11 +66,11 @@ class LivePyDevd(protocol.Daemon):
             # TODO: Write source code to temp module?
             raise NotImplementedError
 
-    def __init__(self, source):
+    def __init__(self, source, **kwargs):
         filename, module, owned = self.parse_source(source)
         self._filename = filename
         self._owned = owned
-        self.binder = Binder(filename, module)
+        self.binder = Binder(filename, module, **kwargs)
 
         super(LivePyDevd, self).__init__(self.binder.bind)
 
@@ -80,3 +83,5 @@ class LivePyDevd(protocol.Daemon):
 
         if self._owned:
             os.unlink(self._filename)
+        if self.binder.ptvsd is not None:
+            self.binder.ptvsd.close()

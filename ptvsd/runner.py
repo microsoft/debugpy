@@ -101,6 +101,8 @@ class OutputRedirection(object):
             traceback.print_exc()
 
 
+# TODO: Inherit from ptvsd.daemon.Daemon.
+
 class Daemon(object):
     """The process-level manager for the VSC protocol debug adapter."""
 
@@ -120,7 +122,7 @@ class Daemon(object):
         self._client = None
         self._adapter = None
 
-    def start(self, server=None):
+    def start(self):
         if self._closed:
             raise DaemonClosedError()
 
@@ -129,7 +131,7 @@ class Daemon(object):
 
         return None
 
-    def set_connection(self, client):
+    def start_session(self, client):
         """Set the client socket to use for the debug adapter.
 
         A VSC message loop is started for the client.

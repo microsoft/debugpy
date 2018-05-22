@@ -58,4 +58,7 @@ class Counter(object):
         """
         if start is not None:
             self._start = int(start)
-        self._next = self._start
+        try:
+            del self._last
+        except AttributeError:
+            pass

@@ -1,4 +1,39 @@
+import contextlib
+from io import StringIO, BytesIO
+import sys
+
 from . import noop
+
+
+if sys.version_info < (3,):
+    Buffer = BytesIO
+else:
+    Buffer = StringIO
+
+
+@contextlib.contextmanager
+def captured_stdio(out=None, err=None):
+    if out is None:
+        if err is None:
+            out = err = Buffer()
+        elif err is False:
+            out = Buffer()
+    elif err is None and out is False:
+        err = Buffer()
+    if out is False:
+        out = None
+    if err is False:
+        err = None
+
+    orig = sys.stdout, sys.stderr
+    if out is not None:
+        sys.stdout = out
+    if err is not None:
+        sys.stderr = err
+    try:
+        yield out, err
+    finally:
+        sys.stdout, sys.stderr = orig
 
 
 def iter_lines(read, sep=b'\n', stop=noop):
@@ -62,7 +97,9 @@ def iter_lines_buffered(read, sep=b'\n', initial=b'', stop=noop):
             try:
                 if stop():
                     raise EOFError()
-                # TODO: handle ConnectionResetError (errno 104)
+                # ConnectionResetError (errno 104) likely means the
+                # client was never able to establish a connection.
+                # TODO: Handle ConnectionResetError gracefully.
                 data = read(1024)
                 if not data:
                     raise EOFError()

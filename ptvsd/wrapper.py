@@ -32,6 +32,7 @@ import _pydevd_bundle.pydevd_extension_api as pydevd_extapi  # noqa
 import _pydevd_bundle.pydevd_extension_utils as pydevd_extutil  # noqa
 import _pydevd_bundle.pydevd_frame as pydevd_frame # noqa
 #from _pydevd_bundle.pydevd_comm import pydevd_log
+from _pydevd_bundle.pydevd_additional_thread_info import PyDBAdditionalThreadInfo # noqa
 
 import ptvsd.ipcjson as ipcjson  # noqa
 import ptvsd.futures as futures  # noqa
@@ -39,7 +40,8 @@ import ptvsd.untangle as untangle  # noqa
 from ptvsd.pathutils import PathUnNormcase  # noqa
 from ptvsd.safe_repr import SafeRepr  # noqa
 from ptvsd.version import __version__  # noqa
-from _pydevd_bundle.pydevd_additional_thread_info import PyDBAdditionalThreadInfo # noqa
+from ptvsd._util import debug  # noqa
+from ptvsd.socket import TimeoutError  # noqa
 
 
 #def ipcjson_trace(s):
@@ -709,10 +711,11 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     def __init__(self, socket, pydevd_notify, pydevd_request,
                  notify_disconnecting, notify_closing,
-                 logfile=None,
+                 timeout=None, logfile=None,
                  ):
         super(VSCodeMessageProcessor, self).__init__(socket=socket,
                                                      own_socket=False,
+                                                     timeout=timeout,
                                                      logfile=logfile)
         self.socket = socket
         self._pydevd_notify = pydevd_notify
@@ -767,7 +770,11 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         # VSC msg processing loop
         def process_messages():
             self.readylock.acquire()
-            self.process_messages()
+            try:
+                self.process_messages()
+            except TimeoutError:
+                debug('client socket closed')
+                self.close()
         self.server_thread = threading.Thread(
             target=process_messages,
             name=threadname,
@@ -776,18 +783,21 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.server_thread.start()
 
         # special initialization
+        debug('sending output')
         self.send_event(
             'output',
             category='telemetry',
             output='ptvsd',
             data={'version': __version__},
         )
+        debug('output sent')
         self.readylock.release()
 
     # closing the adapter
 
     def close(self):
         """Stop the message processor and release its resources."""
+        debug('raw closing')
         if self._closed:
             return
         self._closed = True
@@ -819,14 +829,15 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         abnormal = self.debug_options.get('WAIT_ON_ABNORMAL_EXIT', False)
         return normal, abnormal
 
-    def handle_pydevd_stopped(self, exitcode):
+    def handle_session_stopped(self, exitcode=None):
         """Finalize the protocol connection."""
         if self._exited:
             return
         self._exited = True
 
-        # Notify the editor that the "debuggee" (e.g. script, app) exited.
-        self.send_event('exited', exitCode=exitcode)
+        if exitcode is not None:
+            # Notify the editor that the "debuggee" (e.g. script, app) exited.
+            self.send_event('exited', exitCode=exitcode)
         # Notify the editor that the debugger has stopped.
         self.send_event('terminated')
 
@@ -846,7 +857,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
     def _handle_disconnect(self, request):
         self.disconnect_request = request
         self.disconnect_request_event.set()
-        self._notify_disconnecting(not self._closed)
+        self._notify_disconnecting(kill=not self._closed)
         if not self._closed:
             # Closing the socket causes pydevd to resume all threads,
             # so just terminate the process altogether.
@@ -1102,6 +1113,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             self._handle_disconnect(request)
         else:
             self.send_response(request)
+            self._notify_disconnecting(kill=False)
 
     def send_process_event(self, start_method):
         # TODO: docstring

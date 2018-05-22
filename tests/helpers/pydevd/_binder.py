@@ -26,8 +26,9 @@ class PTVSD(ptvsd.daemon.Daemon):
             killonclose=False,
         )
         client, server = connect()
-        self.start(server)
-        self.set_connection(client)
+        self.start()
+        self.start_session(client, 'ptvsd.Server')
+        self.server = server
         return self
 
     @property
@@ -36,7 +37,9 @@ class PTVSD(ptvsd.daemon.Daemon):
 
     @property
     def proc(self):
-        return self.adapter
+        if self.session is None:
+            return None
+        return self.session.msgprocessor
 
     def close(self):
         """Stop PTVSD and clean up.
@@ -135,8 +138,7 @@ class BinderBase(object):
         raise NotImplementedError
 
     def _wrap_sock(self):
-        return socket.Connection(self.ptvsd.client, self.ptvsd.server)
-        #return socket.Connection(self.ptvsd.fakesock, self.ptvsd.server)
+        return socket.Connection(self.ptvsd.session.socket, self.ptvsd.server)
 
     ####################
     # internal methods
@@ -149,12 +151,13 @@ class BinderBase(object):
 
     def _run(self):
         try:
-            self._run_debugger()
+            close = self._run_debugger()
         except SystemExit as exc:
             self.ptvsd.exitcode = int(exc.code)
             raise
         self.ptvsd.exitcode = 0
-        self.ptvsd.close()
+        if close or close is None:
+            self.ptvsd.close()
 
 
 class Binder(BinderBase):
@@ -168,15 +171,15 @@ class Binder(BinderBase):
     finished.
     """
 
-    def __init__(self, do_debugging=None):
+    def __init__(self, do_debugging=None, **kwargs):
         if do_debugging is None:
             def do_debugging(external, internal):
                 time.sleep(5)
-        super(Binder, self).__init__()
+        super(Binder, self).__init__(**kwargs)
         self._do_debugging = do_debugging
 
     def _run_debugger(self):
         self._start_ptvsd()
-        external = self.ptvsd.server
+        external = self.ptvsd.session.server
         internal = self.ptvsd.fakesock
         self._do_debugging(external, internal)
