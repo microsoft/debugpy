@@ -34,3 +34,4 @@ coverage.xml
 
 snippet.py
 build/*
+.pytest_cache
