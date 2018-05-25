@@ -805,6 +805,15 @@ class VSCTest(object):
         expected = list(daemon.protocol.parse_each(expected))
         self.assertEqual(received, expected)
 
+    def assert_received_unordered_payload(self, daemon, expected):
+        """Ensure that the received messages match the expected ones
+        regardless of payload order."""
+        received = sorted(m.payload for m in
+                          daemon.protocol.parse_each(daemon.received))
+        expected = sorted(m.payload for m in
+                          daemon.protocol.parse_each(expected))
+        self.assertEqual(received, expected)
+
 
 class HighlevelTest(VSCTest):
     """The base mixin class for high-level ptvsd tests."""

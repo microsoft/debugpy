@@ -729,10 +729,10 @@ class PauseTests(NormalRequestTest, unittest.TestCase):
     PYDEVD_CMD = CMD_THREAD_SUSPEND
     PYDEVD_RESP = None
 
-    def test_pause_one(self):
+    def test_pause(self):
         with self.launched():
             with self.hidden():
-                threads = self.set_threads('spam', 'eggs')
+                threads = self.set_threads('spam', 'eggs', 'abc')
             tid, thread = threads[0]
             self.send_request(
                 threadId=tid,
@@ -743,14 +743,12 @@ class PauseTests(NormalRequestTest, unittest.TestCase):
             self.expected_response(),
             # no events
         ])
-        self.assert_received(self.debugger, [
-            self.expected_pydevd_request(str(thread.id)),
-        ])
 
-    # TODO: finish!
-    @unittest.skip('not finished')
-    def test_pause_all(self):
-        raise NotImplementedError
+        expected = [self.expected_pydevd_request('1')]
+        for _, t in threads:
+            expected.append(self.expected_pydevd_request(str(t.id)))
+
+        self.assert_received_unordered_payload(self.debugger, expected)
 
 
 class ContinueTests(NormalRequestTest, unittest.TestCase):

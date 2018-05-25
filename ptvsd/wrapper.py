@@ -1631,12 +1631,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 )
                 return
 
-        vsc_tid = int(args['threadId'])
-        if vsc_tid == 0:  # VS does this to mean "stop all threads":
-            for pyd_tid in self.thread_map.pydevd_ids():
-                self.pydevd_notify(pydevd_comm.CMD_THREAD_SUSPEND, pyd_tid)
-        else:
-            pyd_tid = self.thread_map.to_pydevd(vsc_tid)
+        # Always suspend all threads.
+        for pyd_tid in self.thread_map.pydevd_ids():
             self.pydevd_notify(pydevd_comm.CMD_THREAD_SUSPEND, pyd_tid)
         self.send_response(request)
 
