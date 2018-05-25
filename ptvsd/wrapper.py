@@ -1376,7 +1376,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 'value': var_value,
             }
 
-            if var_type in ('str', 'unicode', 'bytes', 'bytearray'):
+            if self._is_raw_string(var_type):
                 var['presentationHint'] = {'attributes': ['rawString']}
 
             if bool(xvar['isContainer']):
@@ -1391,6 +1391,9 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             variables.append(var)
 
         self.send_response(request, variables=variables.get_sorted_variables())
+
+    def _is_raw_string(self, var_type):
+        return var_type in ('str', 'unicode', 'bytes', 'bytearray')
 
     def _get_variable_evaluate_name(self, pyd_var_parent, var_name):
         # TODO: docstring
@@ -1561,10 +1564,16 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
         pyd_var = (pyd_tid, pyd_fid, 'EXPRESSION', expr)
         vsc_var = self.var_map.to_vscode(pyd_var, autogen=True)
+        var_type = unquote(xvar['type'])
+        var_value = unquote(xvar['value'])
         response = {
-            'type': unquote(xvar['type']),
-            'result': unquote(xvar['value']),
+            'type': var_type,
+            'result': var_value,
         }
+
+        if self._is_raw_string(var_type):
+            response['presentationHint'] = {'attributes': ['rawString']}
+
         if bool(xvar['isContainer']):
             response['variablesReference'] = vsc_var
 
