@@ -1,5 +1,6 @@
 from collections import namedtuple
 import contextlib
+import inspect
 import platform
 import threading
 import warnings
@@ -28,6 +29,15 @@ OS_ID = 'WINDOWS' if platform.system() == 'Windows' else 'UNIX'
 @contextlib.contextmanager
 def noop_cm(*args, **kwargs):
     yield
+
+
+def _get_caller():
+    caller = inspect.currentframe()
+    filename = caller.f_code.co_filename
+    while filename == __file__ or filename == contextlib.__file__:
+        caller = caller.f_back
+        filename = caller.f_code.co_filename
+    return caller
 
 
 class Thread(namedtuple('Thread', 'id name')):
@@ -152,6 +162,7 @@ class VSCLifecycle(object):
         self._fix = fix
         self._pydevd = pydevd
         self._hidden = hidden or fix.hidden
+        self.requests = None
 
     @contextlib.contextmanager
     def daemon_running(self, port=None, hide=False):
@@ -187,11 +198,26 @@ class VSCLifecycle(object):
 
     def disconnect(self, exitcode=0, **reqargs):
         wrapper.ptvsd_sys_exit_code = exitcode
-        self._fix.send_request('disconnect', reqargs)
+        self._send_request('disconnect', reqargs)
         # TODO: wait for an exit event?
         # TODO: call self._fix.vsc.close()?
 
     # internal methods
+
+    def _send_request(self, command, args=None, handle_response=None):
+        if self.requests is None:
+            return self._fix.send_request(command, args, handle_response)
+
+        txn = [None, None]
+        self.requests.append(txn)
+
+        def handler(msg, send, _handle_resp=handle_response):
+            txn[1] = msg
+            if _handle_resp is not None:
+                _handle_resp(msg, send)
+        req = self._fix.send_request(command, args, handler)
+        txn[0] = req
+        return req
 
     def _start_daemon(self, port):
         if port is None:
@@ -221,7 +247,7 @@ class VSCLifecycle(object):
         t.join()
         daemon.close()
 
-    def _handshake(self, command, threadnames=None, config=None,
+    def _handshake(self, command, threadnames=None, config=None, requests=None,
                    default_threads=True, process=True, reset=True,
                    **kwargs):
         initargs = dict(
@@ -231,7 +257,7 @@ class VSCLifecycle(object):
 
         with self._fix.wait_for_event('initialized'):
             self._initialize(**initargs)
-            self._fix.send_request(command, **kwargs)
+            self._send_request(command, **kwargs)
 
         if threadnames:
             self._fix.set_threads(*threadnames,
@@ -239,7 +265,7 @@ class VSCLifecycle(object):
 
         self._handle_config(**config or {})
         with self._wait_for_debugger_init():
-            self._fix.send_request('configurationDone')
+            self._send_request('configurationDone')
 
         if process:
             with self._fix.wait_for_event('process'):
@@ -268,27 +294,70 @@ class VSCLifecycle(object):
             self._capabilities = resp.body
         if self._pydevd:
             self._pydevd._initialize()
-        self._fix.send_request(
+        self._send_request(
             'initialize',
             dict(self.MIN_INITIALIZE_ARGS, **reqargs),
             handle_response,
         )
 
     def _handle_config(self, breakpoints=None, excbreakpoints=None):
-        if breakpoints:
-            self._fix.send_request(
+        for req in breakpoints or ():
+            self._send_request(
                 'setBreakpoints',
-                self._parse_breakpoints(breakpoints),
+                self._parse_breakpoints(req),
             )
-        if excbreakpoints:
-            self._fix.send_request(
+        for req in excbreakpoints or ():
+            self._send_request(
                 'setExceptionBreakpoints',
-                self._parse_breakpoints(excbreakpoints),
+                self._parse_exception_breakpoints(req),
             )
 
-    def _parse_breakpoints(self, breakpoints):
-        for bp in breakpoints or ():
-            raise NotImplementedError
+    def _parse_breakpoints(self, req):
+        # setBreakpoints request:
+        #   source : <Source>
+        #   ---
+        #   breakpoints : [<SourceBreakpoint>]
+        #   lines : [int]
+        #   sourceModified : bool
+        # <Source>:
+        #   ---
+        #   name : str
+        #   path : str
+        #   sourceReference : num
+        #   presentationHint : enum
+        #   origin : str
+        #   sources : [<Source>]
+        #   adapterData : *
+        #   checksums : [<Checksum>]
+        # <Checksum>:
+        #   algorithm : enum
+        #   checksum : str
+        #   ---
+        # <SourceBreakpoint>:
+        #   line : int
+        #   ---
+        #   column : int
+        #   condition : str
+        #   hitCondition : str
+        #   logMessage : str
+        # TODO: validate?
+        return req
+
+    def _parse_exception_breakpoints(self, req):
+        # setExceptionBreakpoints request:
+        #   filters : [str]
+        #   ---
+        #   exceptionOptions : [<ExceptionOptions>]
+        # <ExceptionOptions>:
+        #   breakMode : enum
+        #   ---
+        #   path : [<ExceptionPathSegment>]
+        # <ExceptionPathSegment>:
+        #   names : [str]
+        #   ---
+        #   negate : bool
+        # TODO: validate?
+        return req
 
 
 class FixtureBase(object):
@@ -495,6 +564,9 @@ class VSCFixture(FixtureBase):
 
     @contextlib.contextmanager
     def wait_for_event(self, event, *args, **kwargs):
+        if 'caller' not in kwargs:
+            caller = _get_caller()
+            kwargs['caller'] = (caller.f_code.co_filename, caller.f_lineno)
         with self.fake.wait_for_event(event, *args, **kwargs):
             yield
         if self._hidden:
@@ -508,6 +580,17 @@ class VSCFixture(FixtureBase):
         with self.wait_for_events(events[1:]):
             with self.wait_for_event(events[0]):
                 yield
+
+    def get_threads(self, name='MainThread'):
+        threads = {}
+
+        def handle_response(msg, _):
+            for t in msg.body['threads']:
+                threads[t['id']] = t['name']
+                if t['name'] == name:
+                    threads[None] = t['id']
+        self.send_request('threads', handle_response=handle_response)
+        return threads, threads.pop(None)
 
     def close_ptvsd(self):
         if self._proc is None:

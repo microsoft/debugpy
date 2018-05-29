@@ -1,12 +1,14 @@
 import contextlib
 import os
 import sys
+from textwrap import dedent
 import unittest
 
 import ptvsd
 from ptvsd.wrapper import INITIALIZE_RESPONSE # noqa
+from tests.helpers._io import captured_stdio
 from tests.helpers.pydevd._live import LivePyDevd
-from tests.helpers.workspace import PathEntry
+from tests.helpers.workspace import Workspace, PathEntry
 
 from . import (
     VSCFixture,
@@ -31,6 +33,10 @@ class Fixture(VSCFixture):
     def binder(self):
         return self._pydevd.binder
 
+    @property
+    def thread(self):
+        return self._pydevd.thread
+
     def install_sig_handler(self):
         self._pydevd._ptvsd.install_sig_handler()
 
@@ -44,7 +50,7 @@ class TestBase(VSCTest):
 
     def setUp(self):
         super(TestBase, self).setUp()
-        self._workspace = PathEntry()
+        self._pathentry = PathEntry()
 
         self._filename = None
         if self.FILENAME is not None:
@@ -52,11 +58,21 @@ class TestBase(VSCTest):
 
     def tearDown(self):
         super(TestBase, self).tearDown()
-        self._workspace.cleanup()
+        self._pathentry.cleanup()
+
+    @property
+    def pathentry(self):
+        return self._pathentry
 
     @property
     def workspace(self):
-        return self._workspace
+        try:
+            return vars(self)['_workspace']
+            #return self._workspace
+        except KeyError:
+            self._workspace = Workspace()
+            self.addCleanup(self._workspace.cleanup)
+            return self._workspace
 
     @property
     def filename(self):
@@ -69,8 +85,8 @@ class TestBase(VSCTest):
     def set_source_file(self, filename, content=None):
         self.assertIsNone(self._fix)
         if content is not None:
-            filename = self.workspace.write(filename, content=content)
-        self.workspace.install()
+            filename = self.pathentry.write(filename, content=content)
+        self.pathentry.install()
         self._filePath = filename
         self._filename = 'file:' + filename
 
@@ -78,7 +94,7 @@ class TestBase(VSCTest):
         self.assertIsNone(self._fix)
         if content is not None:
             self.write_module(name, content)
-        self.workspace.install()
+        self.pathentry.install()
         self._filename = 'module:' + name
 
 
@@ -159,8 +175,11 @@ class VSCFlowTest(TestBase):
 class BreakpointTests(VSCFlowTest, unittest.TestCase):
 
     FILENAME = 'spam.py'
-    SOURCE = """
+    SOURCE = dedent("""
         from __future__ import print_function
+
+        class MyError(RuntimeError):
+            pass
 
         #class Counter(object):
         #    def __init__(self, start=0):
@@ -180,23 +199,260 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
         #    def inc(self, diff=1):
         #        self._next += diff
 
+        # <a>
         def inc(value, count=1):
+            # <b>
             return value + count
 
+        # <c>
         x = 1
+        # <d>
         x = inc(x)
+        # <e>
         y = inc(x, 2)
+        # <f>
         z = inc(3)
+        # <g>
         print(x, y, z)
-        """
+        # <h>
+        raise MyError('ka-boom')
+        """)
+
+    def _add_proc(self, expected, method='launch'):
+        expected.extend([
+            self.new_event(
+                'process',
+                name=sys.argv[0],
+                systemProcessId=os.getpid(),
+                isLocalProcess=True,
+                startMethod=method,
+            ),
+            self.new_event(
+                'thread',
+                threadId=1,
+                reason='started',
+            ),
+            self.new_event(
+                'thread',
+                threadId=2,
+                reason='started',
+            ),
+            self.new_event(
+                'thread',
+                threadId=3,
+                reason='started',
+            ),
+        ])
+
+    def _inject_proc(self, received, specs):
+        expected = []
+        if not specs:
+            self._add_proc(expected)
+        else:
+            for i, spec in enumerate(specs):
+                if received[i].type == 'event':
+                    if received[i].event == 'process':
+                        self._add_proc(expected)
+                if isinstance(spec, tuple):
+                    event, body = spec
+                    msg = self.new_event(event, **body)
+                else:
+                    msg = self.new_response(spec)
+                expected.append(msg)
+        return expected
+
+    def _iter_until_label(self, lines, label):
+        expected = '# <{}>'.format(label)
+        for line in lines:
+            if line.strip() == expected:
+                yield line, True
+                break
+            yield line, False
+        else:
+            raise RuntimeError('not found')
+
+    def _find_line(self, script, label):
+        lines = iter(script.splitlines())
+        # Line numbers start with 1.
+        for lineno, _ in enumerate(self._iter_until_label(lines, label), 1):
+            pass
+        return lineno + 1  # the line after
+
+    def _set_lock(self, label=None, script=None):
+        if script is None:
+            if os.path.exists(self.filename):
+                with open(self.filename) as scriptfile:
+                    script = scriptfile.read()
+            else:
+                script = self.SOURCE
+        lockfile = self.workspace.lockfile()
+        done, waitscript = lockfile.wait_in_script()
+
+        if label is None:
+            script += waitscript
+        else:
+            leading = []
+            lines = iter(script.splitlines())
+            for line, last in self._iter_until_label(lines, label):
+                if last:
+                    leading.extend([
+                        waitscript,
+                        line,
+                        '',
+                    ])
+                    break
+                leading.append(line)
+            script = os.linesep.join(leading) + os.linesep.join(lines)
+
+        with open(self.filename, 'w') as scriptfile:
+            scriptfile.write(script)
+        return done, script
 
     def test_no_breakpoints(self):
-        with self.launched():
-            # Allow the script to run to completion.
-            received = self.vsc.received
+        self.lifecycle.requests = []
+        config = {
+            'breakpoints': [],
+            'excbreakpoints': [],
+        }
+        with captured_stdio() as (stdout, _):
+            with self.launched(config=config):
+                # Allow the script to run to completion.
+                received = self.vsc.received
+        out = stdout.getvalue()
 
+        for req, _ in self.lifecycle.requests:
+            self.assertNotEqual(req['command'], 'setBreakpoints')
+            self.assertNotEqual(req['command'], 'setExceptionBreakpoints')
         self.assert_received(self.vsc, [])
         self.assert_vsc_received(received, [])
+        self.assertIn('2 4 4', out)
+        self.assertIn('ka-boom', out)
+
+    def test_breakpoints_single_file(self):
+        done1, _ = self._set_lock('d')
+        done2, script = self._set_lock('h')
+        lineno = self._find_line(script, 'b')
+        self.lifecycle.requests = []  # Trigger capture.
+        config = {
+            'breakpoints': [{
+                'source': {'path': self.filename},
+                'breakpoints': [
+                    {'line': lineno},
+                ],
+            }],
+            'excbreakpoints': [],
+        }
+        with captured_stdio(out=True, err=True) as (stdout, stderr):
+            #with self.wait_for_event('exited', timeout=3):
+            with self.launched(config=config):
+                with self.fix.hidden():
+                    _, tid = self.get_threads(self.thread.name)
+                with self.wait_for_event('stopped'):
+                    done1()
+                with self.wait_for_event('stopped'):
+                    with self.wait_for_event('continued'):
+                        req_continue1 = self.send_request('continue', {
+                            'threadId': tid,
+                        })
+                with self.wait_for_event('stopped'):
+                    with self.wait_for_event('continued'):
+                        req_continue2 = self.send_request('continue', {
+                            'threadId': tid,
+                        })
+                with self.wait_for_event('continued'):
+                    req_continue_last = self.send_request('continue', {
+                        'threadId': tid,
+                    })
+
+                # Allow the script to run to completion.
+                received = self.vsc.received
+                done2()
+        out = stdout.getvalue()
+        err = stderr.getvalue()
+
+        got = []
+        for req, resp in self.lifecycle.requests:
+            if req['command'] == 'setBreakpoints':
+                got.append(req['arguments'])
+            self.assertNotEqual(req['command'], 'setExceptionBreakpoints')
+        self.assertEqual(got, config['breakpoints'])
+        self.assert_vsc_received(received, self._inject_proc(received, [
+            ('stopped', dict(
+                reason='breakpoint',
+                threadId=tid,
+                text=None,
+                description=None,
+            )),
+            req_continue1,
+            ('continued', dict(
+                threadId=tid,
+            )),
+            ('stopped', dict(
+                reason='breakpoint',
+                threadId=tid,
+                text=None,
+                description=None,
+            )),
+            req_continue2,
+            ('continued', dict(
+                threadId=tid,
+            )),
+            ('stopped', dict(
+                reason='breakpoint',
+                threadId=tid,
+                text=None,
+                description=None,
+            )),
+            req_continue_last,
+            ('continued', dict(
+                threadId=tid,
+            )),
+        ]))
+        self.assertIn('2 4 4', out)
+        self.assertIn('ka-boom', err)
+
+    # TODO: fix this
+    @unittest.skip('not working right')
+    def test_exception_breakpoints(self):
+        self.vsc.PRINT_RECEIVED_MESSAGES = True
+        done, script = self._set_lock('h')
+        self.lifecycle.requests = []  # Trigger capture.
+        config = {
+            'breakpoints': [],
+            'excbreakpoints': [
+                #{'filters': ['raised']},
+                {'filters': ['uncaught']},
+            ],
+        }
+        with captured_stdio() as (stdout, _):
+            with self.launched(config=config):
+                with self.fix.hidden():
+                    _, tid = self.get_threads(self.thread.name)
+                with self.wait_for_event('stopped'):
+                    done()
+
+                # Allow the script to run to completion.
+                received = self.vsc.received
+        out = stdout.getvalue()
+        #print(' + ' + '\n + '.join(out.splitlines()))
+
+        got = []
+        for req, resp in self.lifecycle.requests:
+            if req['command'] == 'setExceptionBreakpoints':
+                got.append(req['arguments'])
+            self.assertNotEqual(req['command'], 'setBreakpoints')
+        self.assertEqual(got, config['excbreakpoints'])
+        self.assert_vsc_received(received, [
+            self.new_event(
+                'stopped',
+                reason='exception',
+                threadId=tid,
+                text=None,
+                description=None,
+            ),
+        ])
+        self.assertIn('2 4 4', out)
+        self.assertIn('ka-boom', out)
 
 
 class LogpointTests(TestBase, unittest.TestCase):

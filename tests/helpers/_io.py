@@ -13,17 +13,17 @@ else:
 
 @contextlib.contextmanager
 def captured_stdio(out=None, err=None):
-    if out is None:
-        if err is None:
-            out = err = Buffer()
-        elif err is False:
+    if out is None and err is None:
+        out = err = Buffer()
+    else:
+        if out is True:
             out = Buffer()
-    elif err is None and out is False:
-        err = Buffer()
-    if out is False:
-        out = None
-    if err is False:
-        err = None
+        elif out is False:
+            out = None
+        if err is True:
+            err = Buffer()
+        elif err is False:
+            err = None
 
     orig = sys.stdout, sys.stderr
     if out is not None:

@@ -246,11 +246,12 @@ class MessageDaemon(Daemon):
         self._validate_message(msg)
         self._send_message(msg)
 
-    def add_handler(self, handler, handlername=None, oneoff=True):
+    def add_handler(self, handler, handlername=None, caller=None, oneoff=True):
         """Add the given handler to the list of possible handlers."""
         entry = (
             handler,
             handlername or repr(handler),
+            caller,
             1 if oneoff else None,
         )
         self._handlers.append(entry)
@@ -258,7 +259,7 @@ class MessageDaemon(Daemon):
 
     @contextlib.contextmanager
     def wait_for_message(self, match, req=None, handler=None,
-                         handlername=None, timeout=1):
+                         handlername=None, caller=None, timeout=1):
         """Return a context manager that will wait for a matching message."""
         lock = threading.Lock()
         lock.acquire()
@@ -270,7 +271,7 @@ class MessageDaemon(Daemon):
             if handler is not None:
                 handler(msg, send_message)
             return True
-        self.add_handler(handle_message, handlername)
+        self.add_handler(handle_message, handlername, caller)
 
         yield req
 
@@ -323,14 +324,15 @@ class MessageDaemon(Daemon):
 
     def _handle_message(self, msg):
         for i, entry in enumerate(list(self._handlers)):
-            handle_message, name, remaining = entry
-            handled = handle_message(msg, self._send_message)
+            handle_msg, name, caller, remaining = entry
+            handled = handle_msg(msg, self._send_message)
             if handled or handled is None:
                 if remaining is not None:
                     if remaining == 1:
                         self._handlers.pop(i)
                     else:
-                        self._handlers[i] = (handle_message, name, remaining-1)
+                        self._handlers[i] = (handle_msg, name, caller,
+                                             remaining-1)
                 return handled
         else:
             if self._default_handler is not None:
@@ -373,6 +375,20 @@ class MessageDaemon(Daemon):
             if force:
                 self._handlers = []
             else:
-                names = ', '.join(name for _, name, _ in self._handlers)
+                names = []
+                for _, name, caller, _ in self._handlers:
+                    if caller:
+                        try:
+                            filename, lineno = caller
+                        except (ValueError, TypeError):
+                            # TODO: Support str, tracebacks?
+                            raise NotImplementedError
+                        else:
+                            caller = '{}, line {}'.format(filename, lineno)
+                        names.append('{} ({})'.format(name, caller))
+
+                    else:
+                        names.append(name)
+                names = ', '.join(names)
                 raise RuntimeError('have pending handlers: [{}]'.format(names))
         self._received = list(self._protocol.parse_each(initial))

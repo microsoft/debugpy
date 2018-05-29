@@ -90,6 +90,10 @@ class BinderBase(object):
             self.ptvsd,
         )
 
+    @property
+    def thread(self):
+        return self._thread
+
     def bind(self, address):
         """Return (connect func, remote addr) after binding a socket.
 

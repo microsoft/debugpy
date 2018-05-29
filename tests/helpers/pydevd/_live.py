@@ -74,6 +74,10 @@ class LivePyDevd(protocol.Daemon):
 
         super(LivePyDevd, self).__init__(self.binder.bind)
 
+    @property
+    def thread(self):
+        return self.binder.thread
+
     def _close(self):
         # Note that we do not call self.binder.done() here, though it
         # might make sense as a fallback.  Instead, we do so directly
