@@ -27,11 +27,15 @@ class SafeRepr(object):
         set_info = (set, '{', '}', False)
         frozenset_info = (frozenset, 'frozenset({', '})', False)
         int_types = (int,)
+        long_iter_types = (list, tuple, bytearray, range,
+                           dict, set, frozenset)
     else:
         string_types = (str, unicode)
         set_info = (set, 'set([', '])', False)
         frozenset_info = (frozenset, 'frozenset([', '])', False)
         int_types = (int, long)  # noqa
+        long_iter_types = (list, tuple, bytearray, xrange,
+                           dict, set, frozenset, buffer)  # noqa
 
     # Collection types are recursively iterated for each limit in
     # maxcollection.
@@ -123,6 +127,12 @@ class SafeRepr(object):
 
             # If it's not an iterable (and not a string), it's fine.
             if not hasattr(obj, '__iter__'):
+                return False
+
+            # If it's not an instance of these collection types then it
+            # is fine. Note: this is a fix for
+            # https://github.com/Microsoft/ptvsd/issues/406
+            if not isinstance(obj, self.long_iter_types):
                 return False
 
             # Iterable is its own iterator - this is a one-off iterable
