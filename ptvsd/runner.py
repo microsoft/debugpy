@@ -57,6 +57,7 @@ def start_message_processor(host, port_num):
 
 
 class OutputRedirection(object):
+
     def __init__(self, on_output=lambda category, output: None):
         self._on_output = on_output
         self._stopped = False
@@ -67,6 +68,8 @@ class OutputRedirection(object):
         init_stderr_redirect()
         self._thread = threading.Thread(
             target=self._run, name='ptvsd.output.redirection')
+        self._thread.pydev_do_not_trace = True
+        self._thread.is_pydev_daemon_thread = True
         self._thread.daemon = True
         self._thread.start()
 
@@ -167,6 +170,7 @@ class Daemon(object):
     # internal methods
 
     def _add_atexit_handler(self):
+
         def handler():
             self.exiting_via_exit_handler = True
             if not self._closed:
@@ -246,6 +250,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             target=self.process_messages,
             name='ptvsd.Client',
         )
+        self.server_thread.pydev_do_not_trace = True
+        self.server_thread.is_pydev_daemon_thread = True
         self.server_thread.daemon = True
         self.server_thread.start()
 

@@ -9,9 +9,9 @@ from ptvsd.pydevd_hooks import install
 from ptvsd.runner import run as no_debug_runner
 from ptvsd.socket import Address, create_server
 
-
 ########################
 # high-level functions
+
 
 def debug_main(address, name, kind, *extra, **kwargs):
     if kind == 'module':
@@ -23,9 +23,9 @@ def debug_main(address, name, kind, *extra, **kwargs):
 def run_main(address, name, kind, *extra, **kwargs):
     no_debug_runner(address, name, kind == 'module', *extra, **kwargs)
 
-
 ########################
 # low-level functions
+
 
 def run_module(address, modname, *extra, **kwargs):
     """Run pydevd for the given module."""
@@ -129,6 +129,8 @@ def enable_attach(address, redirect_output=True,
     connection_thread = threading.Thread(target=wait_for_connection,
                                          args=(daemon, host, port),
                                          name='ptvsd.listen_for_connection')
+    connection_thread.pydev_do_not_trace = True
+    connection_thread.is_pydev_daemon_thread = True
     connection_thread.daemon = True
     connection_thread.start()
 

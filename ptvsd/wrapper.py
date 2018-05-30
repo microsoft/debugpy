@@ -764,6 +764,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             target=self.loop.run_forever,
             name='ptvsd.EventLoop',
         )
+        self.event_loop_thread.pydev_do_not_trace = True
+        self.event_loop_thread.is_pydev_daemon_thread = True
         self.event_loop_thread.daemon = True
         self.event_loop_thread.start()
 
@@ -779,6 +781,8 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             target=process_messages,
             name=threadname,
         )
+        self.server_thread.pydev_do_not_trace = True
+        self.server_thread.is_pydev_daemon_thread = True
         self.server_thread.daemon = True
         self.server_thread.start()
 

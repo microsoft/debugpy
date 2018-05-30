@@ -4,13 +4,12 @@ import unittest
 
 import ptvsd
 from ptvsd.socket import Address
-from ptvsd.wrapper import INITIALIZE_RESPONSE # noqa
+from ptvsd.wrapper import INITIALIZE_RESPONSE  # noqa
 from tests.helpers.debugadapter import DebugAdapter
 from tests.helpers.debugclient import EasyDebugClient as DebugClient
 from tests.helpers.threading import get_locked_and_waiter
 from tests.helpers.vsc import parse_message, VSCMessages
 from tests.helpers.workspace import Workspace, PathEntry
-
 
 #VERSION = '0+unknown'
 VERSION = ptvsd.__version__
@@ -193,6 +192,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
                 return False
             lock.release()
             return True
+
         handlers = [
             (handle_msg, "event 'output'"),
         ]
@@ -244,9 +244,9 @@ class LifecycleTests(TestsBase, unittest.TestCase):
                 argv,
                 script,
             )
-
-            (req_initialize, req_launch, req_config
-             ) = lifecycle_handshake(session, 'launch')
+            with session.wait_for_event('thread'):
+                (req_initialize, req_launch, req_config
+                 ) = lifecycle_handshake(session, 'launch')
 
             done()
             adapter.wait()
@@ -261,6 +261,13 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             self.new_event('initialized'),
             self.new_response(req_launch),
             self.new_response(req_config),
+            self.new_event('process', **{
+                'isLocalProcess': True,
+                'systemProcessId': adapter.pid,
+                'startMethod': 'launch',
+                'name': filename,
+            }),
+            self.new_event('thread', reason='started', threadId=1),
             self.new_event('exited', exitCode=0),
             self.new_event('terminated'),
         ])
@@ -275,8 +282,10 @@ class LifecycleTests(TestsBase, unittest.TestCase):
                 timeout=3.0,
             )
 
-            (req_initialize, req_launch, req_config
-             ) = lifecycle_handshake(session, 'launch')
+            with session.wait_for_event('thread'):
+                (req_initialize, req_launch, req_config
+                 ) = lifecycle_handshake(session, 'launch')
+
             done()
             adapter.wait()
 
@@ -291,6 +300,13 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             self.new_event('initialized'),
             self.new_response(req_launch),
             self.new_response(req_config),
+            self.new_event('process', **{
+                'isLocalProcess': True,
+                'systemProcessId': adapter.pid,
+                'startMethod': 'launch',
+                'name': filename,
+            }),
+            self.new_event('thread', reason='started', threadId=1),
             self.new_event('exited', exitCode=0),
             self.new_event('terminated'),
         ])
@@ -304,8 +320,10 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             with DebugClient() as editor:
                 session = editor.attach_socket(addr, adapter)
 
-                (req_initialize, req_launch, req_config
-                 ) = lifecycle_handshake(session, 'attach')
+                with session.wait_for_event('thread'):
+                    (req_initialize, req_launch, req_config
+                     ) = lifecycle_handshake(session, 'attach')
+
                 done()
                 adapter.wait()
 
@@ -325,6 +343,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
                 'startMethod': 'attach',
                 'name': filename,
             }),
+            self.new_event('thread', reason='started', threadId=1),
             self.new_event('exited', exitCode=0),
             self.new_event('terminated'),
         ])
@@ -388,8 +407,9 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             with DebugClient() as editor:
                 # Attach initially.
                 session1 = editor.attach_socket(addr, adapter)
-                reqs = lifecycle_handshake(session1, 'attach')
-                done1()
+                with session1.wait_for_event('thread'):
+                    reqs = lifecycle_handshake(session1, 'attach')
+                    done1()
                 req_disconnect = session1.send_request('disconnect')
                 editor.detach(adapter)
 
@@ -401,7 +421,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
 
                 adapter.wait()
 
-        #self.maxDiff = None
+        # self.maxDiff = None
         self.assert_received(session1.received, [
             self.new_event(
                 'output',
@@ -418,9 +438,10 @@ class LifecycleTests(TestsBase, unittest.TestCase):
                 'startMethod': 'attach',
                 'name': filename,
             }),
+            self.new_event('thread', reason='started', threadId=1),
             self.new_response(req_disconnect),
             # TODO: Shouldn't there be a "terminated" event?
-            #self.new_event('terminated'),
+            # self.new_event('terminated'),
         ])
         self.messages.reset_all()
         self.assert_received(session2.received, [

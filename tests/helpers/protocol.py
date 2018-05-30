@@ -175,6 +175,8 @@ class Daemon(object):
             self._sock = connect()
             self._handle_connected()
         t = threading.Thread(target=run)
+        t.pydev_do_not_trace = True
+        t.is_pydev_daemon_thread  = True
         t.start()
         return addr, t
 
@@ -291,6 +293,8 @@ class MessageDaemon(Daemon):
     def _handle_connected(self):
         # TODO: make it a daemon thread?
         self._listener = threading.Thread(target=self._listen)
+        self._listener.pydev_do_not_trace = True
+        self._listener.is_pydev_daemon_thread = True
         self._listener.start()
 
     def _listen(self):

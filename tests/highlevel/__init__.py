@@ -22,7 +22,6 @@ from ptvsd import wrapper
 from tests.helpers.pydevd import FakePyDevd, PyDevdMessages
 from tests.helpers.vsc import FakeVSC, VSCMessages
 
-
 OS_ID = 'WINDOWS' if platform.system() == 'Windows' else 'UNIX'
 
 
@@ -215,6 +214,7 @@ class VSCLifecycle(object):
             txn[1] = msg
             if _handle_resp is not None:
                 _handle_resp(msg, send)
+
         req = self._fix.send_request(command, args, handler)
         txn[0] = req
         return req
@@ -242,6 +242,8 @@ class VSCLifecycle(object):
             # The thread runs close_ptvsd(), which sends the two
             # events and then waits for a "disconnect" request.  We send
             # that after we receive the events.
+            t.pydev_do_not_trace = True
+            t.is_pydev_daemon_thread = True
             t.start()
         self.disconnect()
         t.join()
@@ -290,8 +292,10 @@ class VSCLifecycle(object):
         """
         See https://code.visualstudio.com/docs/extensionAPI/api-debugging#_the-vs-code-debug-protocol-in-a-nutshell
         """  # noqa
+
         def handle_response(resp, _):
             self._capabilities = resp.body
+
         if self._pydevd:
             self._pydevd._initialize()
         self._send_request(
@@ -519,6 +523,7 @@ class VSCFixture(FixtureBase):
         def new_fake(start_adapter=start_adapter, handler=None,
                      _new_fake=new_fake):
             return _new_fake(start_adapter, handler=handler)
+
         super(VSCFixture, self).__init__(new_fake, self.MSGS)
 
     @property
@@ -589,6 +594,7 @@ class VSCFixture(FixtureBase):
                 threads[t['id']] = t['name']
                 if t['name'] == name:
                     threads[None] = t['id']
+
         self.send_request('threads', handle_response=handle_response)
         return threads, threads.pop(None)
 
@@ -630,6 +636,7 @@ class HighlevelFixture(object):
         def highlevel_lifecycle(fix, _cls=vsc.LIFECYCLE):
             pydevd = PyDevdLifecycle(self._pydevd)
             return _cls(fix, pydevd, self.hidden)
+
         vsc.LIFECYCLE = highlevel_lifecycle
 
         self._default_threads = None
@@ -842,10 +849,12 @@ class VSCTest(object):
     @property
     def fix(self):
         if self._fix is None:
+
             def new_daemon(*args, **kwargs):
                 vsc = self._new_daemon(*args, **kwargs)
                 self.addCleanup(vsc.close)
                 return vsc
+
             try:
                 self._fix = self._new_fixture(new_daemon)
             except AttributeError:
@@ -868,9 +877,33 @@ class VSCTest(object):
         return self.FIXTURE(new_daemon)
 
     def assert_vsc_received(self, received, expected):
+        try:
+            from itertools import zip_longest
+        except ImportError:
+            from itertools import izip_longest as zip_longest
         received = list(self.vsc.protocol.parse_each(received))
         expected = list(self.vsc.protocol.parse_each(expected))
-        self.assertEqual(received, expected)
+        if received != expected:
+            msg = ['']
+            msg.append('Received:')
+            for r in received:
+                msg.append(str(r))
+            msg.append('')
+
+            msg.append('Expected:')
+            for r in expected:
+                msg.append(str(r))
+            msg.append('')
+
+            msg.append('Diff by line')
+            for i, (a, b) in enumerate(
+                zip_longest(received, expected, fillvalue=None)):
+                if a == b:
+                    msg.append(' %2d:  %s' % (i, a,))
+                else:
+                    msg.append('!%2d: %s != %s' % (i, a, b))
+
+            self.fail('\n'.join(msg))
 
     def assert_vsc_failure(self, received, expected, req):
         received = list(self.vsc.protocol.parse_each(received))

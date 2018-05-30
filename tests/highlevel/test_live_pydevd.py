@@ -97,14 +97,16 @@ class TestBase(VSCTest):
         self.pathentry.install()
         self._filename = 'module:' + name
 
-
 ##################################
 # lifecycle tests
+
 
 class LifecycleTests(TestBase, unittest.TestCase):
 
     FILENAME = 'spam.py'
-    SOURCE = ''
+
+    # Give some time for thread notification to arrive before finishing.
+    SOURCE = 'import time;time.sleep(.5)'
 
     @contextlib.contextmanager
     def running(self):
@@ -126,7 +128,8 @@ class LifecycleTests(TestBase, unittest.TestCase):
                 req_attach = self.send_request('attach')
 
             # configuration
-            req_config = self.send_request('configurationDone')
+            with self.vsc.wait_for_event('thread'):
+                req_config = self.send_request('configurationDone')
 
             # Normal ops would go here.
 
@@ -153,13 +156,14 @@ class LifecycleTests(TestBase, unittest.TestCase):
                 isLocalProcess=True,
                 startMethod='attach',
             )),
+            self.new_event('thread', reason='started', threadId=1),
             self.new_event('exited', exitCode=0),
             self.new_event('terminated'),
         ])
 
-
 ##################################
 # "normal operation" tests
+
 
 class VSCFlowTest(TestBase):
 
@@ -218,48 +222,45 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
         raise MyError('ka-boom')
         """)
 
-    def _add_proc(self, expected, method='launch'):
-        expected.extend([
-            self.new_event(
-                'process',
-                name=sys.argv[0],
-                systemProcessId=os.getpid(),
-                isLocalProcess=True,
-                startMethod=method,
-            ),
-            self.new_event(
-                'thread',
-                threadId=1,
-                reason='started',
-            ),
-            self.new_event(
-                'thread',
-                threadId=2,
-                reason='started',
-            ),
-            self.new_event(
-                'thread',
-                threadId=3,
-                reason='started',
-            ),
-        ])
+    def assert_vsc_received_fixing_events(self, received, specs):
+        '''
+        Assert that the received messages match the spec but considering that
+        some events may be unordered.
+        '''
+        iter_specs = iter(specs)
+        expected_msgs = []
+        new_received = []
+        for msg in received:
+            if msg.type == 'event':
+                if msg.event == 'process':
+                    # Just check that 'process' is correct, don't add to the
+                    # check list later on.
+                    self.assertEqual(msg.body['name'], sys.argv[0])
+                    self.assertEqual(msg.body['systemProcessId'], os.getpid())
+                    self.assertEqual(msg.body['isLocalProcess'], True)
+                    self.assertEqual(msg.body['startMethod'], 'launch')
+                    continue
 
-    def _inject_proc(self, received, specs):
-        expected = []
-        if not specs:
-            self._add_proc(expected)
-        else:
-            for i, spec in enumerate(specs):
-                if received[i].type == 'event':
-                    if received[i].event == 'process':
-                        self._add_proc(expected)
-                if isinstance(spec, tuple):
-                    event, body = spec
-                    msg = self.new_event(event, **body)
-                else:
-                    msg = self.new_response(spec)
-                expected.append(msg)
-        return expected
+                if msg.event == 'thread':
+                    # When thread is found, just consider it ok, no
+                    # matter where it was found.
+                    continue
+
+            new_received.append(msg)
+
+            try:
+                spec = next(iter_specs)
+            except StopIteration:
+                continue
+
+            if isinstance(spec, tuple):
+                event, body = spec
+                expected = self.new_event(event, seq=msg.seq, **body)
+            else:
+                expected = self.new_response(spec, seq=msg.seq)
+            expected_msgs.append(expected)
+
+        self.assert_vsc_received(new_received, expected_msgs)
 
     def _iter_until_label(self, lines, label):
         expected = '# <{}>'.format(label)
@@ -347,8 +348,9 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
             with self.launched(config=config):
                 with self.fix.hidden():
                     _, tid = self.get_threads(self.thread.name)
-                with self.wait_for_event('stopped'):
-                    done1()
+                with self.wait_for_event('thread'):
+                    with self.wait_for_event('stopped'):
+                        done1()
                 with self.wait_for_event('stopped'):
                     with self.wait_for_event('continued'):
                         req_continue1 = self.send_request('continue', {
@@ -376,7 +378,8 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
                 got.append(req['arguments'])
             self.assertNotEqual(req['command'], 'setExceptionBreakpoints')
         self.assertEqual(got, config['breakpoints'])
-        self.assert_vsc_received(received, self._inject_proc(received, [
+
+        self.assert_vsc_received_fixing_events(received, [
             ('stopped', dict(
                 reason='breakpoint',
                 threadId=tid,
@@ -407,7 +410,7 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
             ('continued', dict(
                 threadId=tid,
             )),
-        ]))
+        ])
         self.assertIn('2 4 4', out)
         self.assertIn('ka-boom', err)
 
@@ -466,9 +469,11 @@ class LogpointTests(TestBase, unittest.TestCase):
 
     @contextlib.contextmanager
     def closing(self, exit=True):
+
         def handle_msg(msg, _):
             with self.wait_for_event('output'):
                 self.req_disconnect = self.send_request('disconnect')
+
         with self.wait_for_event('terminated', handler=handle_msg):
             if exit:
                 with self.wait_for_event('exited'):
@@ -510,8 +515,10 @@ class LogpointTests(TestBase, unittest.TestCase):
                     ],
                 })
             with self.vsc.wait_for_event('output'):
-                req_config = self.send_request('configurationDone')
-                done()
+                with self.vsc.wait_for_event('thread'):
+                    req_config = self.send_request('configurationDone')
+
+            done()
 
             self.fix.binder.done(close=False)
             self.fix.binder.wait_until_done()
@@ -538,6 +545,7 @@ class LogpointTests(TestBase, unittest.TestCase):
                 isLocalProcess=True,
                 startMethod='attach',
             )),
+            self.new_event('thread', reason='started', threadId=1),
             self.new_event('output', **dict(
                 category='stdout',
                 output='1+2=3' + os.linesep,

@@ -45,11 +45,14 @@ def start_server(daemon, host, port):
             except (DaemonClosedError, DaemonStoppedError):
                 break
         debug('done')
+
     t = threading.Thread(
         target=serve_forever,
         name='ptvsd.sessions',
         )
-    t.daemon = True,
+    t.pydev_do_not_trace = True
+    t.is_pydev_daemon_thread = True
+    t.daemon = True
     t.start()
     return pydevd
 
