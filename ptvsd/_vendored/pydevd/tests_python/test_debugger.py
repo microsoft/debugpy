@@ -1286,6 +1286,29 @@ class WriterThreadCaseEventExt(debugger_unittest.AbstractWriterThread):
         return env
 
 #=======================================================================================================================
+# WriterThreadCaseSkipBreakpointInExceptions - fix case where breakpoint is skipped after an exception is raised over it 
+#======================================================================================================================
+class WriterThreadCaseSkipBreakpointInExceptions(debugger_unittest.AbstractWriterThread):
+
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_skip_breakpoint_in_exceptions.py')
+
+    def run(self):
+        self.start_socket()
+        self.write_add_breakpoint(5, None)
+        self.write_make_initial_run()
+
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
+        assert line == 5, 'Expected return to be in line 5, was: %s' % line
+        self.write_run_thread(thread_id)
+
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
+        assert line == 5, 'Expected return to be in line 5, was: %s' % line
+        self.write_run_thread(thread_id)
+
+
+        self.finished_ok = True
+
+#=======================================================================================================================
 # Test
 #=======================================================================================================================
 class Test(unittest.TestCase, debugger_unittest.DebuggerRunner):
@@ -1462,6 +1485,9 @@ class Test(unittest.TestCase, debugger_unittest.DebuggerRunner):
     @pytest.mark.skipif(IS_IRONPYTHON, reason='Failing on IronPython (needs to be investigated).')
     def test_case_event_ext(self):
         self.check_case(WriterThreadCaseEventExt)
+
+    def test_case_skip_breakpoints_in_exceptions(self):
+        self.check_case(WriterThreadCaseSkipBreakpointInExceptions)
 
 @pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
 class TestPythonRemoteDebugger(unittest.TestCase, debugger_unittest.DebuggerRunner):
