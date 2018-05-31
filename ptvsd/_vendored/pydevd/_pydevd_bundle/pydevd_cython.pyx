@@ -164,12 +164,20 @@ TRACE_PROPERTY = 'pydevd_traceproperty.py'
 get_file_type = DONT_TRACE.get
 
 
-def handle_breakpoint_condition(py_db, info, breakpoint, new_frame, default_return_value):
+def file_tracing_filter(path):
+    return False
+
+
+def handle_breakpoint_condition(py_db, info, breakpoint, new_frame):
     condition = breakpoint.condition
     try:
-        val = eval(condition, new_frame.f_globals, new_frame.f_locals)
-        if not val:
-            return default_return_value
+        if breakpoint.handle_hit_condition(new_frame):
+            return True
+
+        if condition is None:
+            return False
+
+        return eval(condition, new_frame.f_globals, new_frame.f_locals)
 
     except:
         if type(condition) != type(''):
@@ -180,7 +188,7 @@ def handle_breakpoint_condition(py_db, info, breakpoint, new_frame, default_retu
         sys.stderr.write(msg)
         traceback.print_exc()
         if not py_db.suspend_on_breakpoint_exception:
-            return default_return_value
+            return False
         else:
             stop = True
             try:
@@ -685,15 +693,15 @@ cdef class PyDBFrame:
                     #ok, hit breakpoint, now, we have to discover if it is a conditional breakpoint
                     # lets do the conditional stuff here
                     if stop or exist_result:
-                        condition = breakpoint.condition
-                        if condition is not None:
-                            result = handle_breakpoint_condition(main_debugger, info, breakpoint, new_frame,
-                                                                 self.trace_dispatch)
-                            if result is not None:
-                                return result
+                        if breakpoint.has_condition:
+                            result = handle_breakpoint_condition(main_debugger, info, breakpoint, new_frame)
+                            if not result:
+                                return self.trace_dispatch
 
                         if breakpoint.expression is not None:
                             handle_breakpoint_expression(breakpoint, info, new_frame)
+                            if breakpoint.is_logpoint:
+                                return self.trace_dispatch
 
                         if not main_debugger.first_breakpoint_reached:
                             if is_call:
@@ -741,7 +749,7 @@ cdef class PyDBFrame:
                     self.do_wait_suspend(thread, frame, event, arg)
                     return self.trace_dispatch
                 else:
-                    if not breakpoint and not is_return:
+                    if not breakpoint and is_line:
                         # No stop from anyone and no breakpoint found in line (cache that).
                         frame_skips_cache[line_cache_key] = 0
 
@@ -843,7 +851,7 @@ cdef class PyDBFrame:
                     if f_code is not None:
                         back_filename = os.path.basename(f_code.co_filename)
                         file_type = get_file_type(back_filename)
-                        if file_type == PYDEV_FILE:
+                        if file_type == PYDEV_FILE or file_tracing_filter(f_code.co_filename):
                             stop = False
 
                 if plugin_stop:
@@ -906,7 +914,6 @@ cdef class PyDBFrame:
             info.is_tracing = False
 
         #end trace_dispatch
-
 import traceback
 
 from _pydev_bundle.pydev_is_thread_alive import is_thread_alive
@@ -1035,14 +1042,9 @@ cdef class ThreadTracer:
 
             # if thread is not alive, cancel trace_dispatch processing
             if not is_thread_alive(t):
-                py_db._process_thread_not_alive(get_thread_id(t))
+                py_db.notify_thread_not_alive(get_thread_id(t))
                 return None  # suspend tracing
 
-            try:
-                # Make fast path faster!
-                abs_path_real_path_and_base = NORM_PATHS_AND_BASE_CONTAINER[frame.f_code.co_filename]
-            except:
-                abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(frame)
 
             if py_db.thread_analyser is not None:
                 py_db.thread_analyser.log_event(frame)
@@ -1050,14 +1052,20 @@ cdef class ThreadTracer:
             if py_db.asyncio_analyser is not None:
                 py_db.asyncio_analyser.log_event(frame)
                 
-            filename = abs_path_real_path_and_base[1]
             # Note: it's important that the context name is also given because we may hit something once
             # in the global context and another in the local context.
-            cache_key = (frame.f_lineno, frame.f_code.co_name, filename)
+            cache_key = (frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename)
             if not is_stepping and cache_key in cache_skips:
                 # print('skipped: trace_dispatch (cache hit)', cache_key, frame.f_lineno, event, frame.f_code.co_name)
                 return None
 
+            try:
+                # Make fast path faster!
+                abs_path_real_path_and_base = NORM_PATHS_AND_BASE_CONTAINER[frame.f_code.co_filename]
+            except:
+                abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(frame)
+                
+            filename = abs_path_real_path_and_base[1]
             file_type = get_file_type(abs_path_real_path_and_base[-1]) #we don't want to debug threading or anything related to pydevd
 
             if file_type is not None:
