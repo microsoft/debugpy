@@ -17,7 +17,7 @@ if (-not $pack) {
     (gci $packages\python* -Directory) | %{ gi $_\tools\python.exe } | ?{ Test-Path $_ } | %{
         Write-Host "Building with $_"
         & $_ -m pip install -U pyfindvs setuptools wheel cython
-        pushd "$root\..\ptvsd\pydevd"
+        pushd "$root\..\ptvsd\_vendored\pydevd"
         & $_ setup_cython.py enable_msbuildcompiler build_ext -b "$bin" -t "$obj"
         popd
     }
