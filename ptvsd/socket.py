@@ -10,10 +10,50 @@ except ImportError:
     from urlparse import urlparse
 
 
+try:
+    ConnectionError  # noqa
+    BrokenPipeError  # noqa
+    ConnectionResetError  # noqa
+except NameError:
+    class BrokenPipeError(Exception):
+        # EPIPE and ESHUTDOWN
+        pass
+
+    class ConnectionResetError(Exception):
+        # ECONNRESET
+        pass
+
+
 NOT_CONNECTED = (
     errno.ENOTCONN,
     errno.EBADF,
 )
+
+CLOSED = (
+    errno.EPIPE,
+    errno.ESHUTDOWN,
+    errno.ECONNRESET,
+    # Windows
+    10038,  # "An operation was attempted on something that is not a socket"
+    10058,
+)
+
+EOF = NOT_CONNECTED + CLOSED
+
+
+@contextlib.contextmanager
+def convert_eof():
+    """A context manager to convert some socket errors into EOFError."""
+    try:
+        yield
+    except ConnectionResetError:
+        raise EOFError
+    except BrokenPipeError:
+        raise EOFError
+    except OSError as exc:
+        if exc.errno in EOF:
+            raise EOFError
+        raise
 
 
 class TimeoutError(socket.timeout):

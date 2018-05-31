@@ -1,3 +1,4 @@
+import os.path
 import unittest
 
 from setup import iter_vendored_files
@@ -11,7 +12,7 @@ class IterVendoredFilesTests(unittest.TestCase):
         self.assertEqual(filenames, VENDORED)
 
 
-VENDORED = {
+VENDORED = {file.replace('/', os.path.sep) for file in [
     'pydevd/pydev_run_in_console.py',
     'pydevd/setup_cython.py',
     'pydevd/pydev_app_engine_debug_startup.py',
@@ -211,4 +212,4 @@ VENDORED = {
     'pydevd/_pydevd_bundle/pydevd_save_locals.py',
     'pydevd/pydev_sitecustomize/sitecustomize.py',
     'pydevd/pydev_sitecustomize/__not_in_default_pythonpath.txt',
-}
+]}

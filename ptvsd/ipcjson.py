@@ -21,7 +21,7 @@ import sys
 import time
 import traceback
 
-from .socket import TimeoutError
+from .socket import TimeoutError, convert_eof
 
 
 _TRACE = None
@@ -300,25 +300,22 @@ class IpcChannel(object):
         # TODO: docstring
         if self._timeout is not None:
             self._fail_after = time.time() + self._timeout
-        while True:
-            if self.process_one_message():
-                return
+        while not self.__exit:
+            try:
+                self.process_one_message()
+                _trace('self.__exit is ', self.__exit)
+            except Exception:
+                if not self.__exit:
+                    raise
+                # TODO: log the error?
 
     def process_one_message(self):
         # TODO: docstring
         try:
             msg = self.__message.pop(0)
         except IndexError:
-            try:
+            with convert_eof():
                 self._wait_for_message()
-            except OSError as exc:
-                if exc.errno == errno.EBADF or self.__exit:  # socket closed
-                    return self.__exit
-                raise
-            except Exception:
-                if self.__exit:
-                    return True
-                raise
             try:
                 msg = self.__message.pop(0)
             except IndexError:
@@ -326,7 +323,7 @@ class IpcChannel(object):
                 if self._fail_after is not None:
                     if time.time() < self._fail_after:
                         raise TimeoutError('connection closed?')
-                return self.__exit
+                raise EOFError('no more messages')
         if self._fail_after is not None:
             self._fail_after = time.time() + self._timeout
 
@@ -346,9 +343,6 @@ class IpcChannel(object):
         except Exception:
             _trace('Error ', traceback.format_exc)
             traceback.print_exc()
-
-        _trace('self.__exit is ', self.__exit)
-        return self.__exit
 
     def on_request(self, request):
         # TODO: docstring

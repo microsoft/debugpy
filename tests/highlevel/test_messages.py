@@ -35,6 +35,10 @@ from . import RunningTest
 from ptvsd.wrapper import UnsupportedPyDevdCommandError, INITIALIZE_RESPONSE
 
 
+def fail(msg):
+    raise RuntimeError(msg)
+
+
 # TODO: Make sure we are handling all args properly and sending the
 # correct response/event bpdies.
 
@@ -1073,9 +1077,9 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
         with self.launched():
             with self.hidden():
                 self.PYDEVD_CMD = CMD_SET_BREAK
-                self.expected_pydevd_request(
+                p1 = self.expected_pydevd_request(
                     '1\tpython-line\tspam.py\t10\tNone\tNone\tNone\tNone\tNone') # noqa
-                self.expected_pydevd_request(
+                p2 = self.expected_pydevd_request(
                     '2\tpython-line\tspam.py\t17\tNone\tNone\tNone\tNone\tNone') # noqa
                 self.fix.send_request('setBreakpoints', dict(
                     source={'path': 'spam.py'},
@@ -1084,6 +1088,7 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
                         {'line': '17'},
                     ],
                 ))
+                self.wait_for_pydevd(p1, p2)
             self.send_request(
                 source={'path': 'spam.py'},
                 breakpoints=[
@@ -1643,12 +1648,15 @@ class SetExceptionBreakpointsTests(NormalRequestTest, unittest.TestCase):
         with self.launched():
             with self.hidden():
                 self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
-                self.expected_pydevd_request('python-BaseException\t0\t1\t0')
+                p1 = self.expected_pydevd_request(
+                    'python-BaseException\t0\t1\t0',
+                )
                 self.fix.send_request('setExceptionBreakpoints', dict(
                     filters=[
                         'uncaught',
                     ],
                 ))
+                self.wait_for_pydevd(p1)
             self.send_request(
                 filters=[],
                 exceptionOptions=[
@@ -1683,8 +1691,12 @@ class SetExceptionBreakpointsTests(NormalRequestTest, unittest.TestCase):
         with self.launched():
             with self.hidden():
                 self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
-                self.expected_pydevd_request('python-ImportError\t0\t1\t0')
-                self.expected_pydevd_request('python-BaseException\t3\t0\t0')
+                p1 = self.expected_pydevd_request(
+                    'python-ImportError\t0\t1\t0',
+                )
+                p2 = self.expected_pydevd_request(
+                    'python-BaseException\t3\t0\t0',
+                )
                 self.fix.send_request('setExceptionBreakpoints', dict(
                     filters=[],
                     exceptionOptions=[
@@ -1699,6 +1711,7 @@ class SetExceptionBreakpointsTests(NormalRequestTest, unittest.TestCase):
                          'breakMode': 'always'},
                     ],
                 ))
+                self.wait_for_pydevd(p1, p2)
             self.send_request(
                 filters=[],
                 exceptionOptions=[
@@ -1826,12 +1839,15 @@ class SetExceptionBreakpointsTests(NormalRequestTest, unittest.TestCase):
         with self.launched():
             with self.hidden():
                 self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
-                self.expected_pydevd_request('python-BaseException\t0\t1\t0')
+                p1 = self.expected_pydevd_request(
+                    'python-BaseException\t0\t1\t0',
+                )
                 self.fix.send_request('setExceptionBreakpoints', dict(
                     filters=[
                         'uncaught',
                     ],
                 ))
+                self.wait_for_pydevd(p1)
             self.send_request(
                 filters=[
                     'raised',
@@ -1855,8 +1871,12 @@ class SetExceptionBreakpointsTests(NormalRequestTest, unittest.TestCase):
         with self.launched():
             with self.hidden():
                 self.PYDEVD_CMD = CMD_ADD_EXCEPTION_BREAK
-                self.expected_pydevd_request('python-ImportError\t0\t1\t0')
-                self.expected_pydevd_request('python-BaseException\t3\t0\t0')
+                p1 = self.expected_pydevd_request(
+                    'python-ImportError\t0\t1\t0',
+                )
+                p2 = self.expected_pydevd_request(
+                    'python-BaseException\t3\t0\t0',
+                )
                 self.fix.send_request('setExceptionBreakpoints', dict(
                     filters=[],
                     exceptionOptions=[
@@ -1871,6 +1891,7 @@ class SetExceptionBreakpointsTests(NormalRequestTest, unittest.TestCase):
                          'breakMode': 'always'},
                     ],
                 ))
+                self.wait_for_pydevd(p1, p2)
             self.send_request(
                 filters=[
                     'raised',
@@ -1972,7 +1993,8 @@ class ExceptionInfoTests(NormalRequestTest, unittest.TestCase):
 
     def test_active_exception(self):
         exc = RuntimeError('something went wrong')
-        frame = (2, 'spam', 'abc.py', 10)  # (pfid, func, file, line)
+        lineno = fail.__code__.co_firstlineno + 1
+        frame = (2, 'fail', __file__, lineno)  # (pfid, func, file, line)
         with self.launched():
             with self.hidden():
                 tid, _ = self.error('x', exc, frame)
@@ -1993,10 +2015,11 @@ class ExceptionInfoTests(NormalRequestTest, unittest.TestCase):
                 details=dict(
                     message=excstr,
                     typeName='RuntimeError',
-                    source='abc.py',
+                    source=__file__,
                     stackTrace='\n'.join([
-                        '  File "abc.py", line 10, in spam',
-                        '    """A decorator indicating abstract methods.',
+                        '  File "{}", line {}, in fail'.format(__file__,
+                                                               lineno),
+                        '    raise RuntimeError(msg)',
                         '',
                     ]),
                 ),

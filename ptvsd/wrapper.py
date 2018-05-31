@@ -774,7 +774,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             self.readylock.acquire()
             try:
                 self.process_messages()
-            except TimeoutError:
+            except (EOFError, TimeoutError):
                 debug('client socket closed')
                 self.close()
         self.server_thread = threading.Thread(

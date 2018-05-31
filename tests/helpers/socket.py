@@ -2,52 +2,11 @@ from __future__ import absolute_import
 
 from collections import namedtuple
 import contextlib
-import errno
 
 import ptvsd.socket as _ptvsd
 
 
-try:
-    ConnectionError  # noqa
-    BrokenPipeError  # noqa
-    ConnectionResetError  # noqa
-except NameError:
-    class BrokenPipeError(Exception):
-        # EPIPE and ESHUTDOWN
-        pass
-
-    class ConnectionResetError(Exception):
-        # ECONNRESET
-        pass
-
-
-NOT_CONNECTED = (
-    errno.ENOTCONN,
-    errno.EBADF,
-)
-
-CLOSED = (
-    errno.EPIPE,
-    errno.ESHUTDOWN,
-    errno.ECONNRESET,
-)
-
-EOF = NOT_CONNECTED + CLOSED
-
-
-@contextlib.contextmanager
-def convert_eof():
-    """A context manager to convert some socket errors into EOFError."""
-    try:
-        yield
-    except ConnectionResetError:
-        raise EOFError
-    except BrokenPipeError:
-        raise EOFError
-    except OSError as exc:
-        if exc.errno in EOF:
-            raise EOFError
-        raise
+convert_eof = _ptvsd.convert_eof
 
 
 # TODO: Add timeouts to the functions.

@@ -206,7 +206,8 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
         # <a>
         def inc(value, count=1):
             # <b>
-            return value + count
+            result = value + count
+            return result
 
         # <c>
         x = 1
@@ -303,7 +304,7 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
                     ])
                     break
                 leading.append(line)
-            script = os.linesep.join(leading) + os.linesep.join(lines)
+            script = '\n'.join(leading) + '\n'.join(lines)
 
         with open(self.filename, 'w') as scriptfile:
             scriptfile.write(script)
@@ -490,9 +491,10 @@ class LogpointTests(TestBase, unittest.TestCase):
     def test_basic(self):
         with open(self.filename) as scriptfile:
             script = scriptfile.read()
+        donescript, wait = self.workspace.lockfile().wait_for_script()
         done, waitscript = self.workspace.lockfile().wait_in_script()
         with open(self.filename, 'w') as scriptfile:
-            scriptfile.write(script + waitscript)
+            scriptfile.write(script + donescript + waitscript)
         addr = (None, 8888)
         with self.fake.start(addr):
             with self.vsc.wait_for_event('output'):
@@ -518,13 +520,14 @@ class LogpointTests(TestBase, unittest.TestCase):
                 with self.vsc.wait_for_event('thread'):
                     req_config = self.send_request('configurationDone')
 
+            wait()
+            received = self.vsc.received
             done()
 
             self.fix.binder.done(close=False)
             self.fix.binder.wait_until_done()
             with self.closing():
                 self.fix.binder.ptvsd.close()
-            received = self.vsc.received
 
         self.assert_vsc_received(received, [
             self.new_event(
@@ -548,8 +551,6 @@ class LogpointTests(TestBase, unittest.TestCase):
             self.new_event('thread', reason='started', threadId=1),
             self.new_event('output', **dict(
                 category='stdout',
-                output='1+2=3' + os.linesep,
+                output='1+2=3\n',
             )),
-            self.new_event('exited', exitCode=0),
-            self.new_event('terminated'),
         ])

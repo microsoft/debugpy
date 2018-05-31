@@ -1,6 +1,64 @@
+import os
+
 from ptvsd.socket import Address
 from . import Closeable
 from .proc import Proc
+
+
+COPIED_ENV = [
+    'PYTHONHASHSEED',
+
+    # Windows
+    #'ALLUSERSPROFILE',
+    #'APPDATA',
+    #'CLIENTNAME',
+    #'COMMONPROGRAMFILES',
+    #'COMMONPROGRAMFILES(X86)',
+    #'COMMONPROGRAMW6432',
+    #'COMPUTERNAME',
+    #'COMSPEC',
+    #'DRIVERDATA',
+    #'HOMEDRIVE',
+    #'HOMEPATH',
+    #'LOCALAPPDATA',
+    #'LOGONSERVER',
+    #'NUMBER_OF_PROCESSORS',
+    #'OS',
+    #'PATH',
+    #'PATHEXT',
+    #'PROCESSOR_ARCHITECTURE',
+    #'PROCESSOR_IDENTIFIER',
+    #'PROCESSOR_LEVEL',
+    #'PROCESSOR_REVISION',
+    #'PROGRAMDATA',
+    #'PROGRAMFILES',
+    #'PROGRAMFILES(X86)',
+    #'PROGRAMW6432',
+    #'PSMODULEPATH',
+    #'PUBLIC',
+    #'SESSIONNAME',
+    'SYSTEMDRIVE',
+    'SYSTEMROOT',
+    #'TEMP',
+    #'TMP',
+    #'USERDOMAIN',
+    #'USERDOMAIN_ROAMINGPROFILE',
+    #'USERNAME',
+    #'USERPROFILE',
+    'WINDIR',
+]
+
+
+def _copy_env(verbose=False):
+    env = {k: v for k, v in os.environ.items() if k in COPIED_ENV}
+    # TODO: Be smarter about the seed?
+    env.setdefault('PYTHONHASHSEED', '1234')
+    if verbose:
+        env.update({
+            'PTVSD_DEBUG': '1',
+            'PTVSD_SOCKET_TIMEOUT': '1',
+        })
+    return env
 
 
 class DebugAdapter(Closeable):
@@ -15,13 +73,7 @@ class DebugAdapter(Closeable):
     @classmethod
     def start(cls, argv, **kwargs):
         def new_proc(argv, addr):
-            if cls.VERBOSE:
-                env = {
-                    'PTVSD_DEBUG': '1',
-                    'PTVSD_SOCKET_TIMEOUT': '1',
-                }
-            else:
-                env = {}
+            env = _copy_env(verbose=cls.VERBOSE)
             argv = list(argv)
             cls._ensure_addr(argv, addr)
             return Proc.start_python_module('ptvsd', argv, env=env)
@@ -30,7 +82,8 @@ class DebugAdapter(Closeable):
     @classmethod
     def start_wrapper_script(cls, filename, argv, **kwargs):
         def new_proc(argv, addr):
-            return Proc.start_python_script(filename, argv)
+            env = _copy_env(verbose=cls.VERBOSE)
+            return Proc.start_python_script(filename, argv, env=env)
         return cls._start(new_proc, argv, **kwargs)
 
     # specific factory cases

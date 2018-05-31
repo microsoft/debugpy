@@ -11,9 +11,6 @@ from tests.helpers.threading import get_locked_and_waiter
 from tests.helpers.vsc import parse_message, VSCMessages
 from tests.helpers.workspace import Workspace, PathEntry
 
-#VERSION = '0+unknown'
-VERSION = ptvsd.__version__
-
 
 def _strip_pydevd_output(out):
     # TODO: Leave relevant lines from before the marker?
@@ -105,8 +102,8 @@ class CLITests(TestsBase, unittest.TestCase):
             session.send_request('disconnect')
         out = adapter.output
 
-        self.assertEqual(out.decode('utf-8').strip().splitlines()[-1],
-                         u"[{!r}, '--eggs']".format(filename))
+        self.assertIn(u"[{!r}, '--eggs']".format(filename),
+                      out.decode('utf-8').strip().splitlines())
 
     def test_run_to_completion(self):
         filename = self.pathentry.write_module('spam', """
@@ -203,6 +200,17 @@ class LifecycleTests(TestsBase, unittest.TestCase):
         expected = [parse_message(msg) for msg in expected]
         self.assertEqual(received, expected)
 
+    def new_version_event(self, received):
+        version = ptvsd.__version__
+        if received[0].body['data']['version'] != version:
+            version = '0+unknown'
+        return self.new_event(
+            'output',
+            category='telemetry',
+            output='ptvsd',
+            data={'version': version},
+        )
+
     def test_pre_init(self):
         filename = self.pathentry.write_module('spam', '')
         handlers, wait_for_started = self._wait_for_started()
@@ -216,19 +224,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
         out = adapter.output.decode('utf-8')
 
         self.assert_received(session.received, [
-            # TODO: Use self.new_event()...
-            {
-                'type': 'event',
-                'seq': 0,
-                'event': 'output',
-                'body': {
-                    'output': 'ptvsd',
-                    'data': {
-                        'version': VERSION,
-                    },
-                    'category': 'telemetry',
-                },
-            },
+            self.new_version_event(session.received),
         ])
         out = _strip_pydevd_output(out)
         self.assertEqual(out, '')
@@ -252,11 +248,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             adapter.wait()
 
         self.assert_received(session.received, [
-            self.new_event(
-                'output',
-                category='telemetry',
-                output='ptvsd',
-                data={'version': VERSION}),
+            self.new_version_event(session.received),
             self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
             self.new_response(req_launch),
@@ -291,11 +283,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
 
         self.maxDiff = None
         self.assert_received(session.received, [
-            self.new_event(
-                'output',
-                category='telemetry',
-                output='ptvsd',
-                data={'version': VERSION}),
+            self.new_version_event(session.received),
             self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
             self.new_response(req_launch),
@@ -328,11 +316,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
                 adapter.wait()
 
         self.assert_received(session.received, [
-            self.new_event(
-                'output',
-                category='telemetry',
-                output='ptvsd',
-                data={'version': VERSION}),
+            self.new_version_event(session.received),
             self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
             self.new_response(req_launch),
@@ -375,11 +359,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
         out = adapter.output.decode('utf-8')
 
         self.assert_received(session.received, [
-            self.new_event(
-                'output',
-                category='telemetry',
-                output='ptvsd',
-                data={'version': VERSION}),
+            self.new_version_event(session.received),
             self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
             self.new_response(req_launch),
@@ -423,11 +403,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
 
         # self.maxDiff = None
         self.assert_received(session1.received, [
-            self.new_event(
-                'output',
-                category='telemetry',
-                output='ptvsd',
-                data={'version': VERSION}),
+            self.new_version_event(session1.received),
             self.new_response(reqs[0], **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
             self.new_response(reqs[1]),
@@ -445,11 +421,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
         ])
         self.messages.reset_all()
         self.assert_received(session2.received, [
-            self.new_event(
-                'output',
-                category='telemetry',
-                output='ptvsd',
-                data={'version': VERSION}),
+            self.new_version_event(session2.received),
             self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
             self.new_response(req_launch),
@@ -491,11 +463,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             adapter.wait()
 
         self.assert_received(session.received, [
-            self.new_event(
-                'output',
-                category='telemetry',
-                output='ptvsd',
-                data={'version': VERSION}),
+            self.new_version_event(session.received),
             self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
             self.new_response(req_launch),

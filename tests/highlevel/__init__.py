@@ -3,6 +3,7 @@ import contextlib
 import inspect
 import platform
 import threading
+import time
 import warnings
 
 from _pydevd_bundle.pydevd_comm import (
@@ -413,9 +414,9 @@ class FixtureBase(object):
     def assert_no_failures(self):
         assert self.fake.failures == [], self.fake.failures
 
-    def reset(self):
+    def reset(self, **kwargs):
         self.assert_no_failures()
-        self.fake.reset()
+        self.fake.reset(**kwargs)
 
 
 class PyDevdFixture(FixtureBase):
@@ -700,9 +701,9 @@ class HighlevelFixture(object):
         self._vsc.assert_no_failures()
         self._pydevd.assert_no_failures()
 
-    def reset(self):
-        self._vsc.reset()
-        self._debugger.reset()
+    def reset(self, **kwargs):
+        self._vsc.reset(**kwargs)
+        self._debugger.reset(**kwargs)
 
     # wrappers
 
@@ -948,6 +949,19 @@ class HighlevelTest(VSCTest):
         """Return a new fake VSC that may be used in tests."""
         vsc, debugger = self.fix.new_fake(debugger, handler)
         return vsc, debugger
+
+    def wait_for_pydevd(self, *msgs, **kwargs):
+        timeout = kwargs.pop('timeout', 10.0)
+        assert not kwargs
+        steps = int(timeout * 100) + 1
+        for _ in range(steps):
+            # TODO: Watch for the specific messages.
+            if len(self.pydevd.received) >= len(msgs):
+                break
+            time.sleep(0.01)
+        else:
+            if len(self.pydevd.received) < len(msgs):
+                raise RuntimeError('timed out')
 
 
 class RunningTest(HighlevelTest):
