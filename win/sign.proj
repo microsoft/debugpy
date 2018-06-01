@@ -23,12 +23,12 @@
 
   <ItemGroup>
     <SourceFiles Include="$(RootDir)_pydevd_bundle\*.pyd">
-      <TargetPath>$(MSBuildThisFileDirectory)..\ptvsd\pydevd\_pydevd_bundle\%(Filename)%(Extension)</TargetPath>
+      <TargetPath>$(MSBuildThisFileDirectory)..\ptvsd\_vendored\pydevd\_pydevd_bundle\%(Filename)%(Extension)</TargetPath>
     </SourceFiles>
     <SourceFiles Include="$(RootDir)_pydevd_frame_eval\*.pyd">
-      <TargetPath>$(MSBuildThisFileDirectory)..\ptvsd\pydevd\_pydevd_frame_eval\%(Filename)%(Extension)</TargetPath>
+      <TargetPath>$(MSBuildThisFileDirectory)..\ptvsd\_vendored\pydevd\_pydevd_frame_eval\%(Filename)%(Extension)</TargetPath>
     </SourceFiles>
-    <SourceFiles Include="$(MSBuildThisFileDirectory)..\ptvsd\pydevd\pydevd_attach_to_process\*.dll">
+    <SourceFiles Include="$(MSBuildThisFileDirectory)..\ptvsd\_vendored\pydevd\pydevd_attach_to_process\*.dll">
       <TargetPath>%(FullPath)</TargetPath>
     </SourceFiles>
   </ItemGroup>
