@@ -127,6 +127,7 @@ def get_referrer_info(searched_obj):
                 'Referrers of obj with id="%s"' % (obj_id,)))
             ret.append('</for>\n')
 
+            curr_frame = sys._getframe()
             all_objects = None
 
             for r in referrers:
@@ -137,6 +138,9 @@ def get_referrer_info(searched_obj):
                     pass  #Ok: unhashable type checked...
 
                 if r is referrers:
+                    continue
+
+                if r is curr_frame.f_locals:
                     continue
 
                 r_type = type(r)

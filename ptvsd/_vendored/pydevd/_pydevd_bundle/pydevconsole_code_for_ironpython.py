@@ -340,7 +340,7 @@ class InteractiveInterpreter:
         list = traceback.format_exception_only(type, value)
         map(self.write, list)
 
-    def showtraceback(self):
+    def showtraceback(self, *args, **kwargs):
         """Display the exception that just occurred.
 
         We remove the first stack item because it is our own code.

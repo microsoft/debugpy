@@ -14,7 +14,7 @@ def get_localhost():
 
     Using the IP directly solves the problem.
     '''
-    #TODO: Needs better investigation!
+    # TODO: Needs better investigation!
 
     global _cache
     if _cache is None:
@@ -25,7 +25,7 @@ def get_localhost():
                     _cache = '127.0.0.1'
                     return _cache
         except:
-            #Ok, some versions of Python don't have getaddrinfo or SOL_TCP... Just consider it 127.0.0.1 in this case.
+            # Ok, some versions of Python don't have getaddrinfo or SOL_TCP... Just consider it 127.0.0.1 in this case.
             _cache = '127.0.0.1'
         else:
             _cache = 'localhost'

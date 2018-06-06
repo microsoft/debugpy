@@ -158,7 +158,13 @@ class DebugConsole(InteractiveConsole, BaseInterpreterInterface):
         except SystemExit:
             raise
         except:
-            self.showtraceback()
+            # In case sys.excepthook called, use original excepthook #PyDev-877: Debug console freezes with Python 3.5+
+            # (showtraceback does it on python 3.5 onwards)
+            sys.excepthook = sys.__excepthook__
+            try:
+                self.showtraceback()
+            finally:
+                sys.__excepthook__ = sys.excepthook
 
     def get_namespace(self):
         dbg_namespace = {}

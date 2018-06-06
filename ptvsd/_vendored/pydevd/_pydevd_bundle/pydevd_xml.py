@@ -4,7 +4,8 @@ from _pydevd_bundle import pydevd_extension_utils
 from _pydevd_bundle import pydevd_resolver
 import sys
 from _pydevd_bundle.pydevd_constants import dict_iter_items, dict_keys, IS_PY3K, \
-    MAXIMUM_VARIABLE_REPRESENTATION_SIZE, RETURN_VALUES_DICT
+    BUILTINS_MODULE_NAME, MAXIMUM_VARIABLE_REPRESENTATION_SIZE, RETURN_VALUES_DICT, LOAD_VALUES_ASYNC, \
+    DEFAULT_VALUE
 from _pydev_bundle.pydev_imports import quote
 from _pydevd_bundle.pydevd_extension_api import TypeResolveProvider, StrPresentationProvider
 
@@ -15,16 +16,9 @@ try:
 except:
     frame_type = None
 
-try:
-    from xml.sax.saxutils import escape
-
-
-    def make_valid_xml_value(s):
-        return escape(s, {'"': '&quot;'})
-except:
-    # Simple replacement if it's not there.
-    def make_valid_xml_value(s):
-        return s.replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+def make_valid_xml_value(s):
+    # Same thing as xml.sax.saxutils.escape but also escaping double quotes.
+    return s.replace("&", "&amp;").replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
 
 
 class ExceptionOnEvaluate:
@@ -225,6 +219,14 @@ get_type = _TYPE_RESOLVE_HANDLER.get_type
 _str_from_providers = _TYPE_RESOLVE_HANDLER.str_from_providers
 
 
+def is_builtin(x):
+    return getattr(x, '__module__', None) == BUILTINS_MODULE_NAME
+
+
+def should_evaluate_full_value(val):
+    return not LOAD_VALUES_ASYNC or (is_builtin(type(val)) and not isinstance(val, (list, tuple, dict)))
+
+
 def return_values_from_dict_to_xml(return_dict):
     res = ""
     for name, val in dict_iter_items(return_dict):
@@ -249,15 +251,18 @@ def frame_vars_to_xml(frame_f_locals, hidden_ns=None):
     for k in keys:
         try:
             v = frame_f_locals[k]
+            eval_full_val = should_evaluate_full_value(v)
+
             if k == RETURN_VALUES_DICT:
                 for name, val in dict_iter_items(v):
                     return_values_xml += var_to_xml(val, name, additional_in_xml=' isRetVal="True"')
 
             else:
                 if hidden_ns is not None and k in hidden_ns:
-                    xml += var_to_xml(v, str(k), additional_in_xml=' isIPythonHidden="True"')
+                    xml += var_to_xml(v, str(k), additional_in_xml=' isIPythonHidden="True"',
+                                      evaluate_full_value=eval_full_val)
                 else:
-                    xml += var_to_xml(v, str(k))
+                    xml += var_to_xml(v, str(k), evaluate_full_value=eval_full_val)
         except Exception:
             traceback.print_exc()
             pydev_log.error("Unexpected error, recovered safely.\n")
@@ -266,7 +271,7 @@ def frame_vars_to_xml(frame_f_locals, hidden_ns=None):
     return return_values_xml + xml
 
 
-def var_to_xml(val, name, doTrim=True, additional_in_xml=''):
+def var_to_xml(val, name, doTrim=True, additional_in_xml='', evaluate_full_value=True):
     """ single variable or dictionary to xml representation """
 
     try:
@@ -282,41 +287,44 @@ def var_to_xml(val, name, doTrim=True, additional_in_xml=''):
 
     _type, typeName, resolver = get_type(v)
     type_qualifier = getattr(_type, "__module__", "")
-    try:
-        str_from_provider = _str_from_providers(v, _type, typeName)
-        if str_from_provider is not None:
-            value = str_from_provider
-        elif hasattr(v, '__class__'):
-            if v.__class__ == frame_type:
-                value = pydevd_resolver.frameResolver.get_frame_name(v)
-
-            elif v.__class__ in (list, tuple):
-                if len(v) > 300:
-                    value = '%s: %s' % (str(v.__class__), '<Too big to print. Len: %s>' % (len(v),))
-                else:
-                    value = '%s: %s' % (str(v.__class__), v)
-            else:
-                try:
-                    cName = str(v.__class__)
-                    if cName.find('.') != -1:
-                        cName = cName.split('.')[-1]
-
-                    elif cName.find("'") != -1:  # does not have '.' (could be something like <type 'int'>)
-                        cName = cName[cName.index("'") + 1:]
-
-                    if cName.endswith("'>"):
-                        cName = cName[:-2]
-                except:
-                    cName = str(v.__class__)
-
-                value = '%s: %s' % (cName, v)
-        else:
-            value = str(v)
-    except:
+    if not evaluate_full_value:
+        value = DEFAULT_VALUE
+    else:
         try:
-            value = repr(v)
+            str_from_provider = _str_from_providers(v, _type, typeName)
+            if str_from_provider is not None:
+                value = str_from_provider
+            elif hasattr(v, '__class__'):
+                if v.__class__ == frame_type:
+                    value = pydevd_resolver.frameResolver.get_frame_name(v)
+
+                elif v.__class__ in (list, tuple):
+                    if len(v) > 300:
+                        value = '%s: %s' % (str(v.__class__), '<Too big to print. Len: %s>' % (len(v),))
+                    else:
+                        value = '%s: %s' % (str(v.__class__), v)
+                else:
+                    try:
+                        cName = str(v.__class__)
+                        if cName.find('.') != -1:
+                            cName = cName.split('.')[-1]
+
+                        elif cName.find("'") != -1:  # does not have '.' (could be something like <type 'int'>)
+                            cName = cName[cName.index("'") + 1:]
+
+                        if cName.endswith("'>"):
+                            cName = cName[:-2]
+                    except:
+                        cName = str(v.__class__)
+
+                    value = '%s: %s' % (cName, v)
+            else:
+                value = str(v)
         except:
-            value = 'Unable to get repr for %s' % v.__class__
+            try:
+                value = repr(v)
+            except:
+                value = 'Unable to get repr for %s' % v.__class__
 
     try:
         name = quote(name, '/>_= ')  # TODO: Fix PY-5834 without using quote

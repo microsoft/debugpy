@@ -14,13 +14,8 @@ from pydevd_tracing import SetTrace
 # ELSE
 from _pydevd_bundle.pydevd_additional_thread_info import PyDBAdditionalThreadInfo
 from _pydevd_bundle.pydevd_frame import PyDBFrame
-# ENDIF
 
-try:
-    from _pydevd_bundle.pydevd_signature import send_signature_call_trace
-except ImportError:
-    def send_signature_call_trace(*args, **kwargs):
-        pass
+# ENDIF
 
 threadingCurrentThread = threading.currentThread
 get_file_type = DONT_TRACE.get
@@ -115,7 +110,7 @@ class ThreadTracer:
         try:
             if py_db._finish_debugging_session:
                 if not py_db._termination_event_set:
-                    #that was not working very well because jython gave some socket errors
+                    # that was not working very well because jython gave some socket errors
                     try:
                         if py_db.output_checker is None:
                             kill_all_pydev_threads()
@@ -173,11 +168,7 @@ class ThreadTracer:
 
             # print('trace_dispatch', base, frame.f_lineno, event, frame.f_code.co_name, file_type)
             if additional_info.is_tracing:
-                return None  #we don't wan't to trace code invoked from pydevd_frame.trace_dispatch
-
-            if event == 'call' and py_db.signature_factory:
-                # We can only have a call when entering a context, so, check at this level, not at the PyDBFrame.
-                send_signature_call_trace(py_db, frame, filename)
+                return None  # we don't wan't to trace code invoked from pydevd_frame.trace_dispatch
 
             # Just create PyDBFrame directly (removed support for Python versions < 2.5, which required keeping a weak
             # reference to the frame).

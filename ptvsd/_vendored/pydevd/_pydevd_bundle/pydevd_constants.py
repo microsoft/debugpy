@@ -20,8 +20,15 @@ class DebugInfoHolder:
 
 #Hold a reference to the original _getframe (because psyco will change that as soon as it's imported)
 import sys #Note: the sys import must be here anyways (others depend on it)
+IS_IRONPYTHON = sys.platform == 'cli'
 try:
     get_frame = sys._getframe
+    if IS_IRONPYTHON:
+        def get_frame():
+            try:
+                return sys._getframe()
+            except ValueError:
+                pass
 except AttributeError:
     def get_frame():
         raise AssertionError('sys._getframe not available (possible causes: enable -X:Frames on IronPython?)')
@@ -38,8 +45,6 @@ import os
 from _pydevd_bundle import pydevd_vm_type
 
 IS_JYTHON = pydevd_vm_type.get_vm_type() == pydevd_vm_type.PydevdVmType.JYTHON
-IS_IRONPYTHON = sys.platform == 'cli'
-
 IS_JYTH_LESS25 = False
 if IS_JYTHON:
     if sys.version_info[0] == 2 and sys.version_info[1] < 5:
@@ -57,11 +62,11 @@ else:
     if python_implementation == 'CPython' and not IS_PYTHON_STACKLESS:
         # Only available for CPython!
         if (
-            (sys.version_info[0] == 2 and sys.version_info[1] >= 7)
+            (sys.version_info[0] == 2 and sys.version_info[1] >= 6)
             or (sys.version_info[0] == 3 and sys.version_info[1] >= 3)
             or (sys.version_info[0] > 3)
             ):
-            # Supported in 2.7 or 3.3 onwards (32 or 64)
+            # Supported in 2.6,2.7 or 3.3 onwards (32 or 64)
             CYTHON_SUPPORTED = True
 
 
@@ -69,7 +74,8 @@ else:
 # Python 3?
 #=======================================================================================================================
 IS_PY3K = False
-IS_PY34_OLDER = False
+IS_PY34_OR_GREATER = False
+IS_PY36_OR_GREATER = False
 IS_PY2 = True
 IS_PY27 = False
 IS_PY24 = False
@@ -77,8 +83,8 @@ try:
     if sys.version_info[0] >= 3:
         IS_PY3K = True
         IS_PY2 = False
-        if (sys.version_info[0] == 3 and sys.version_info[1] >= 4) or sys.version_info[0] > 3:
-            IS_PY34_OLDER = True
+        IS_PY34_OR_GREATER = sys.version_info >= (3, 4)
+        IS_PY36_OR_GREATER = sys.version_info >= (3, 6)
     elif sys.version_info[0] == 2 and sys.version_info[1] == 7:
         IS_PY27 = True
     elif sys.version_info[0] == 2 and sys.version_info[1] == 4:
@@ -99,6 +105,21 @@ USE_LIB_COPY = SUPPORT_GEVENT and \
 
 
 INTERACTIVE_MODE_AVAILABLE = sys.platform in ('darwin', 'win32') or os.getenv('DISPLAY') is not None
+IS_PYCHARM = False
+
+LOAD_VALUES_ASYNC = os.getenv('PYDEVD_LOAD_VALUES_ASYNC', 'False') == 'True'
+DEFAULT_VALUE = "__pydevd_value_async"
+ASYNC_EVAL_TIMEOUT_SEC = 60
+NEXT_VALUE_SEPARATOR = "__pydev_val__"
+BUILTINS_MODULE_NAME = '__builtin__' if IS_PY2 else 'builtins'
+SHOW_DEBUG_INFO_ENV = os.getenv('PYCHARM_DEBUG') == 'True' or os.getenv('PYDEV_DEBUG') == 'True'
+
+
+if SHOW_DEBUG_INFO_ENV:
+    # show debug info before the debugger start
+    DebugInfoHolder.DEBUG_RECORD_SOCKET_READS = True
+    DebugInfoHolder.DEBUG_TRACE_LEVEL = 3
+    DebugInfoHolder.DEBUG_TRACE_BREAKPOINTS = 1
 
 
 def protect_libraries_from_patching():

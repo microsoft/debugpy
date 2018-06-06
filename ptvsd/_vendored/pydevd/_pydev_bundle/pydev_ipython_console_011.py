@@ -16,7 +16,9 @@
 from __future__ import print_function
 
 import os
+import sys
 import codeop
+import traceback
 
 from IPython.core.error import UsageError
 from IPython.core.completer import IPCompleter
@@ -24,11 +26,7 @@ from IPython.core.interactiveshell import InteractiveShell, InteractiveShellABC
 from IPython.core.usage import default_banner_parts
 from IPython.utils.strdispatch import StrDispatch
 import IPython.core.release as IPythonRelease
-try:
-    from IPython.terminal.interactiveshell import TerminalInteractiveShell
-except ImportError:
-    # Versions of IPython [0.11,1.0) had an extra hierarchy level
-    from IPython.frontend.terminal.interactiveshell import TerminalInteractiveShell
+from IPython.terminal.interactiveshell import TerminalInteractiveShell
 try:
     from traitlets import CBool, Unicode
 except ImportError:
@@ -46,6 +44,9 @@ def show_in_pager(self, strng, *args, **kwargs):
     # On PyDev we just output the string, there are scroll bars in the console
     # to handle "paging". This is the same behaviour as when TERM==dump (see
     # page.py)
+    # for compatibility with mime-bundle form:
+    if isinstance(strng, dict):
+        strng = strng.get('text/plain', strng)
     print(strng)
 
 def create_editor_hook(pydev_host, pydev_client_port):
@@ -74,7 +75,6 @@ def create_editor_hook(pydev_host, pydev_client_port):
     return call_editor
 
 
-
 class PyDevIPCompleter(IPCompleter):
 
     def __init__(self, *args, **kwargs):
@@ -82,7 +82,27 @@ class PyDevIPCompleter(IPCompleter):
             in addition to the completion support provided by IPython """
         IPCompleter.__init__(self, *args, **kwargs)
         # Use PyDev for python matches, see getCompletions below
-        self.matchers.remove(self.python_matches)
+        if self.python_matches in self.matchers:
+            # `self.python_matches` matches attributes or global python names
+            self.matchers.remove(self.python_matches)
+            
+class PyDevIPCompleter6(IPCompleter):
+
+    def __init__(self, *args, **kwargs):
+        """ Create a Completer that reuses the advanced completion support of PyDev
+            in addition to the completion support provided by IPython """
+        IPCompleter.__init__(self, *args, **kwargs)
+
+    @property
+    def matchers(self):
+        """All active matcher routines for completion"""
+        # To remove python_matches we now have to override it as it's now a property in the superclass.
+        return [
+            self.file_matches,
+            self.magic_matches,
+            self.python_func_kw_matches,
+            self.dict_key_matches,
+        ]
 
 class PyDevTerminalInteractiveShell(TerminalInteractiveShell):
     banner1 = Unicode(default_pydev_banner, config=True,
@@ -139,15 +159,24 @@ class PyDevTerminalInteractiveShell(TerminalInteractiveShell):
     # Things related to exceptions
     #-------------------------------------------------------------------------
 
-    def showtraceback(self, exc_tuple=None, filename=None, tb_offset=None,
-                  exception_only=False):
+    def showtraceback(self, exc_tuple=None, *args, **kwargs):
         # IPython does a lot of clever stuff with Exceptions. However mostly
         # it is related to IPython running in a terminal instead of an IDE.
         # (e.g. it prints out snippets of code around the stack trace)
         # PyDev does a lot of clever stuff too, so leave exception handling
         # with default print_exc that PyDev can parse and do its clever stuff
         # with (e.g. it puts links back to the original source code)
-        import traceback;traceback.print_exc()
+        try:
+            if exc_tuple is None:
+                etype, value, tb = sys.exc_info()
+            else:
+                etype, value, tb = exc_tuple
+        except ValueError:
+            return
+
+        if tb is not None:
+            traceback.print_exception(etype, value, tb)
+
 
 
     #-------------------------------------------------------------------------
@@ -156,26 +185,6 @@ class PyDevTerminalInteractiveShell(TerminalInteractiveShell):
 
     # The way to construct an IPCompleter changed in most versions,
     # so we have a custom, per version implementation of the construction
-
-    def _new_completer_011(self):
-        return PyDevIPCompleter(self,
-                             self.user_ns,
-                             self.user_global_ns,
-                             self.readline_omit__names,
-                             self.alias_manager.alias_table,
-                             self.has_readline)
-
-
-    def _new_completer_012(self):
-        completer = PyDevIPCompleter(shell=self,
-                             namespace=self.user_ns,
-                             global_namespace=self.user_global_ns,
-                             alias_table=self.alias_manager.alias_table,
-                             use_readline=self.has_readline,
-                             config=self.config,
-                             )
-        return completer
-
 
     def _new_completer_100(self):
         completer = PyDevIPCompleter(shell=self,
@@ -199,6 +208,15 @@ class PyDevTerminalInteractiveShell(TerminalInteractiveShell):
 
     def _new_completer_500(self):
         completer = PyDevIPCompleter(shell=self,
+                                     namespace=self.user_ns,
+                                     global_namespace=self.user_global_ns,
+                                     use_readline=False,
+                                     parent=self
+                                     )
+        return completer
+
+    def _new_completer_600(self):
+        completer = PyDevIPCompleter6(shell=self,
                                      namespace=self.user_ns,
                                      global_namespace=self.user_global_ns,
                                      use_readline=False,
@@ -239,16 +257,17 @@ class PyDevTerminalInteractiveShell(TerminalInteractiveShell):
         # extra information.
         # See getCompletions for where the two sets of results are merged
 
-        if IPythonRelease._version_major >= 5:
+        if IPythonRelease._version_major >= 6:
+            self.Completer = self._new_completer_600()
+        elif IPythonRelease._version_major >= 5:
             self.Completer = self._new_completer_500()
         elif IPythonRelease._version_major >= 2:
             self.Completer = self._new_completer_234()
         elif IPythonRelease._version_major >= 1:
             self.Completer = self._new_completer_100()
-        elif IPythonRelease._version_minor >= 12:
-            self.Completer = self._new_completer_012()
-        else:
-            self.Completer = self._new_completer_011()
+
+        if hasattr(self.Completer, 'use_jedi'):
+            self.Completer.use_jedi = False
 
         self.add_completer_hooks()
 
@@ -312,30 +331,25 @@ class _PyDevFrontEnd:
 
     version = release.__version__
 
-    def __init__(self, show_banner=True):
+    def __init__(self):
         # Create and initialize our IPython instance.
         if hasattr(PyDevTerminalInteractiveShell, '_instance') and PyDevTerminalInteractiveShell._instance is not None:
             self.ipython = PyDevTerminalInteractiveShell._instance
         else:
             self.ipython = PyDevTerminalInteractiveShell.instance()
 
-        if show_banner:
-            # Display the IPython banner, this has version info and
-            # help info
-            self.ipython.show_banner()
-
         self._curr_exec_line = 0
         self._curr_exec_lines = []
 
+    def show_banner(self):
+        self.ipython.show_banner()
 
     def update(self, globals, locals):
         ns = self.ipython.user_ns
 
-        for ind in ['_oh', '_ih', '_dh', '_sh', 'In', 'Out', 'get_ipython', 'exit', 'quit']:
-            try:
-                locals[ind] = ns[ind]
-            except KeyError:
-                pass # Ignore if it's not there -- #PyDev-817: Error on autocomplete with IPython on interactive console
+        for key in dict_keys(self.ipython.user_ns):
+            if key not in locals:
+                locals[key] = ns[key]
 
         self.ipython.user_global_ns.clear()
         self.ipython.user_global_ns.update(globals)
@@ -466,30 +480,14 @@ class _PyDevFrontEnd:
         return 'PyDev console: using IPython %s\n' % self.version
 
 
-# If we have succeeded in importing this module, then monkey patch inputhook
-# in IPython to redirect to PyDev's version. This is essential to make
-# %gui in 0.11 work (0.12+ fixes it by calling self.enable_gui, which is implemented
-# above, instead of inputhook.enable_gui).
-# See test_gui (test_pydev_ipython_011.TestRunningCode) which fails on 0.11 without
-# this patch
-import IPython.lib.inputhook
-import pydev_ipython.inputhook
-IPython.lib.inputhook.enable_gui = pydev_ipython.inputhook.enable_gui
-# In addition to enable_gui, make all publics in pydev_ipython.inputhook replace
-# the IPython versions. This enables the examples in IPython's examples/lib/gui-*
-# to operate properly because those examples don't use %gui magic and instead
-# rely on using the inputhooks directly.
-for name in pydev_ipython.inputhook.__all__:
-    setattr(IPython.lib.inputhook, name, getattr(pydev_ipython.inputhook, name))
-
-
 class _PyDevFrontEndContainer:
     _instance = None
     _last_host_port = None
 
-def get_pydev_frontend(pydev_host, pydev_client_port, show_banner=True):
+
+def get_pydev_frontend(pydev_host, pydev_client_port):
     if _PyDevFrontEndContainer._instance is None:
-        _PyDevFrontEndContainer._instance = _PyDevFrontEnd(show_banner=show_banner)
+        _PyDevFrontEndContainer._instance = _PyDevFrontEnd()
 
     if _PyDevFrontEndContainer._last_host_port != (pydev_host, pydev_client_port):
         _PyDevFrontEndContainer._last_host_port = pydev_host, pydev_client_port

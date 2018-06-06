@@ -18,10 +18,10 @@ from _pydevd_bundle.pydevd_comm import CMD_RUN, CMD_VERSION, CMD_LIST_THREADS, C
     CMD_REMOVE_EXCEPTION_BREAK, CMD_LOAD_SOURCE, CMD_ADD_DJANGO_EXCEPTION_BREAK, CMD_REMOVE_DJANGO_EXCEPTION_BREAK, \
     CMD_EVALUATE_CONSOLE_EXPRESSION, InternalEvaluateConsoleExpression, InternalConsoleGetCompletions, \
     CMD_RUN_CUSTOM_OPERATION, InternalRunCustomOperation, CMD_IGNORE_THROWN_EXCEPTION_AT, CMD_ENABLE_DONT_TRACE, \
-    CMD_SHOW_RETURN_VALUES, ID_TO_MEANING, CMD_GET_DESCRIPTION, InternalGetDescription, CMD_REDIRECT_OUTPUT, \
-    CMD_GET_NEXT_STATEMENT_TARGETS, InternalGetNextStatementTargets
-from _pydevd_bundle.pydevd_constants import get_thread_id, IS_PY3K, DebugInfoHolder, dict_keys, \
-    STATE_RUN
+    CMD_SHOW_RETURN_VALUES, ID_TO_MEANING, CMD_GET_DESCRIPTION, InternalGetDescription, InternalLoadFullValue, \
+    CMD_LOAD_FULL_VALUE, CMD_REDIRECT_OUTPUT, CMD_GET_NEXT_STATEMENT_TARGETS, InternalGetNextStatementTargets
+from _pydevd_bundle.pydevd_constants import get_thread_id, IS_PY3K, DebugInfoHolder, dict_keys, STATE_RUN, \
+    NEXT_VALUE_SEPARATOR
 
 
 def process_net_command(py_db, cmd_id, seq, text):
@@ -86,7 +86,7 @@ def process_net_command(py_db, cmd_id, seq, text):
             elif cmd_id == CMD_THREAD_SUSPEND:
                 # Yes, thread suspend is still done at this point, not through an internal command!
                 t = pydevd_find_thread_by_id(text)
-                if t and not hasattr(t, 'pydev_do_not_trace'):
+                if t and not getattr(t, 'pydev_do_not_trace', None):
                     additional_info = None
                     try:
                         additional_info = t.additional_info
@@ -216,6 +216,16 @@ def process_net_command(py_db, cmd_id, seq, text):
                             py_db.remove_return_values_flag = True
                         py_db.show_return_values = False
                     pydev_log.debug("Show return values: %s\n" % py_db.show_return_values)
+                except:
+                    traceback.print_exc()
+
+            elif cmd_id == CMD_LOAD_FULL_VALUE:
+                try:
+                    thread_id, frame_id, scopeattrs = text.split('\t', 2)
+                    vars = scopeattrs.split(NEXT_VALUE_SEPARATOR)
+
+                    int_cmd = InternalLoadFullValue(seq, thread_id, frame_id, vars)
+                    py_db.post_internal_command(int_cmd, thread_id)
                 except:
                     traceback.print_exc()
 
@@ -446,6 +456,8 @@ def process_net_command(py_db, cmd_id, seq, text):
 
                         exception_breakpoint = py_db.add_break_on_exception(
                             exception_type,
+                            condition=None,
+                            expression=None,
                             notify_always=break_on_caught,
                             notify_on_terminate=break_on_uncaught,
                             notify_on_first_raise_only=False,
@@ -504,10 +516,25 @@ def process_net_command(py_db, cmd_id, seq, text):
                     pass
 
             elif cmd_id == CMD_ADD_EXCEPTION_BREAK:
+                condition = ""
+                expression = ""
                 if text.find('\t') != -1:
-                    exception, notify_always, notify_on_terminate, ignore_libraries = text.split('\t', 3)
+                    try:
+                        exception, condition, expression, notify_always, notify_on_terminate, ignore_libraries = text.split('\t', 5)
+                    except:
+                        exception, notify_always, notify_on_terminate, ignore_libraries = text.split('\t', 3)
                 else:
                     exception, notify_always, notify_on_terminate, ignore_libraries = text, 0, 0, 0
+
+                condition = condition.replace("@_@NEW_LINE_CHAR@_@", '\n').replace("@_@TAB_CHAR@_@", '\t').strip()
+
+                if condition is None and (len(condition) == 0 or condition == "None"):
+                    condition = None
+
+                expression = expression.replace("@_@NEW_LINE_CHAR@_@", '\n').replace("@_@TAB_CHAR@_@", '\t').strip()
+
+                if expression is None and (len(expression) == 0 or expression == "None"):
+                    expression = None
 
                 if exception.find('-') != -1:
                     breakpoint_type, exception = exception.split('-')
@@ -519,8 +546,10 @@ def process_net_command(py_db, cmd_id, seq, text):
                         pydev_log.warn("Deprecated parameter: 'notify always' policy removed in PyCharm\n")
                     exception_breakpoint = py_db.add_break_on_exception(
                         exception,
+                        condition=condition,
+                        expression=expression,
                         notify_always=int(notify_always) > 0,
-                        notify_on_terminate = int(notify_on_terminate) == 1,
+                        notify_on_terminate=int(notify_on_terminate) == 1,
                         notify_on_first_raise_only=int(notify_always) == 2,
                         ignore_libraries=int(ignore_libraries) > 0
                     )

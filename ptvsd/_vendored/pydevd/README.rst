@@ -20,16 +20,11 @@ Recent versions contain speedup modules using Cython, which are generated with a
 to `cythonize` the files. To update and compile the cython sources (and generate some other auto-generated files),
 `build_tools/build.py` should be run -- note that the resulting .pyx and .c files should be commited.
 
-To see performance changes, see:
-
-https://www.speedtin.com/reports/7_pydevd_cython (performance results with cython).
-https://www.speedtin.com/reports/8_pydevd_pure_python (performance results without cython).
-
 To generate a distribution with the precompiled binaries for the IDE, `build_binaries_windows.py` should be run (
 note that the environments must be pre-created as specified in that file).
 
 To generate a distribution to upload to PyPi, `python setup.py sdist bdist_wheel` should be run for each python version
-which should have a wheel and afterwards `twine upload -s dist/pydevd-*` shoud be run to actually upload the contents
+which should have a wheel and afterwards `twine upload -s dist/pydevd-*` should be run to actually upload the contents
 to PyPi.
 
 Travis (Linux CI):

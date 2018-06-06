@@ -127,7 +127,7 @@ args = dict(
         'pydevd',
         'pydevd_tracing',
         # 'runfiles', -- Not needed for debugger
-        # 'setup_cython', -- Should not be included as a module
+        'setup_cython',  # Distributed to clients. See: https://github.com/fabioz/PyDev.Debugger/issues/102
         # 'setup', -- Should not be included as a module
     ],
     classifiers=[
