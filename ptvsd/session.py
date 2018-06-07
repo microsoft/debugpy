@@ -44,7 +44,7 @@ class DebugSession(Startable, Closeable):
             def handle_closing(before):
                 if not before:
                     return
-                notify_closing(kill=self._killrequested)
+                notify_closing(self, kill=self._killrequested)
             self.add_close_handler(handle_closing)
 
         self._msgprocessor = None
@@ -81,6 +81,18 @@ class DebugSession(Startable, Closeable):
             return
         # TODO: Do this in VSCodeMessageProcessor.close()?
         self._msgprocessor._wait_for_server_thread()
+
+    def get_wait_on_exit(self):
+        """Return a wait_on_exit(exitcode) func.
+
+        The func returns True if process should wait for the user
+        before exiting.
+        """
+        normal, abnormal = self.wait_options()
+
+        def wait_on_exit(exitcode):
+            return (normal and not exitcode) or (abnormal and exitcode)
+        return wait_on_exit
 
     # internal methods
 

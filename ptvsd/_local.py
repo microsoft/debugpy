@@ -1,17 +1,14 @@
 import sys
-import threading
-import time
 
 import pydevd
-from _pydevd_bundle.pydevd_comm import get_global_debugger
 
 from ptvsd.pydevd_hooks import install
 from ptvsd.runner import run as no_debug_runner
-from ptvsd.socket import Address, create_server
+from ptvsd.socket import Address
+
 
 ########################
 # high-level functions
-
 
 def debug_main(address, name, kind, *extra, **kwargs):
     if kind == 'module':
@@ -23,13 +20,15 @@ def debug_main(address, name, kind, *extra, **kwargs):
 def run_main(address, name, kind, *extra, **kwargs):
     no_debug_runner(address, name, kind == 'module', *extra, **kwargs)
 
+
 ########################
 # low-level functions
-
 
 def run_module(address, modname, *extra, **kwargs):
     """Run pydevd for the given module."""
     addr = Address.from_raw(address)
+    if not addr.isserver:
+        kwargs['singlesession'] = True
     run = kwargs.pop('_run', _run)
     prog = kwargs.pop('_prog', sys.argv[0])
     filename = modname + ':'
@@ -41,6 +40,8 @@ def run_module(address, modname, *extra, **kwargs):
 def run_file(address, filename, *extra, **kwargs):
     """Run pydevd for the given Python file."""
     addr = Address.from_raw(address)
+    if not addr.isserver:
+        kwargs['singlesession'] = True
     run = kwargs.pop('_run', _run)
     prog = kwargs.pop('_prog', sys.argv[0])
     argv = _run_argv(addr, filename, extra, _prog=prog)
@@ -99,43 +100,3 @@ def _run(argv, addr, _pydevd=pydevd, _install=install, **kwargs):
     except SystemExit as ex:
         daemon.exitcode = int(ex.code)
         raise
-
-
-def enable_attach(address, redirect_output=True,
-                  _pydevd=pydevd, _install=install,
-                  on_attach=lambda: None, **kwargs):
-    host, port = address
-
-    def wait_for_connection(daemon, host, port):
-        debugger = get_global_debugger()
-        while debugger is None:
-            time.sleep(0.1)
-            debugger = get_global_debugger()
-
-        debugger.ready_to_run = True
-        server = create_server(host, port)
-        client, _ = server.accept()
-        daemon.start_session(client, 'ptvsd.Server')
-
-        daemon.re_build_breakpoints()
-        on_attach()
-
-    daemon = _install(_pydevd,
-                      address,
-                      start_server=None,
-                      start_client=(lambda daemon, h, port: daemon.start()),
-                      **kwargs)
-
-    connection_thread = threading.Thread(target=wait_for_connection,
-                                         args=(daemon, host, port),
-                                         name='ptvsd.listen_for_connection')
-    connection_thread.pydev_do_not_trace = True
-    connection_thread.is_pydev_daemon_thread = True
-    connection_thread.daemon = True
-    connection_thread.start()
-
-    _pydevd.settrace(host=host,
-                     stdoutToServer=redirect_output,
-                     stderrToServer=redirect_output,
-                     port=port,
-                     suspend=False)

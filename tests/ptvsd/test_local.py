@@ -5,7 +5,7 @@ from _pydevd_bundle import pydevd_comm
 
 import ptvsd.pydevd_hooks
 from ptvsd.socket import Address
-from ptvsd._main import run_module, run_file
+from ptvsd._local import run_module, run_file
 
 
 class FakePyDevd(object):
@@ -76,7 +76,9 @@ class RunModuleTests(RunBase, unittest.TestCase):
             '--file', 'spam:',
         ])
         self.assertEqual(self.addr, Address.as_client(*addr))
-        self.assertEqual(self.kwargs, {})
+        self.assertEqual(self.kwargs, {
+            'singlesession': True,
+        })
 
     def test_remote_localhost(self):
         addr = Address.as_client(None, 8888)
@@ -90,7 +92,9 @@ class RunModuleTests(RunBase, unittest.TestCase):
             '--file', 'spam:',
         ])
         self.assertEqual(self.addr, Address.as_client(*addr))
-        self.assertEqual(self.kwargs, {})
+        self.assertEqual(self.kwargs, {
+            'singlesession': True,
+        })
 
     def test_extra(self):
         addr = (None, 8888)
@@ -159,7 +163,9 @@ class RunScriptTests(RunBase, unittest.TestCase):
             '--file', 'spam.py',
         ])
         self.assertEqual(self.addr, Address.as_client(*addr))
-        self.assertEqual(self.kwargs, {})
+        self.assertEqual(self.kwargs, {
+            'singlesession': True,
+        })
 
     def test_remote_localhost(self):
         addr = Address.as_client(None, 8888)
@@ -172,7 +178,9 @@ class RunScriptTests(RunBase, unittest.TestCase):
             '--file', 'spam.py',
         ])
         self.assertEqual(self.addr, Address.as_client(*addr))
-        self.assertEqual(self.kwargs, {})
+        self.assertEqual(self.kwargs, {
+            'singlesession': True,
+        })
 
     def test_extra(self):
         addr = (None, 8888)

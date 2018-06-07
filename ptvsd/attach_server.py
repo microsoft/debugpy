@@ -4,12 +4,7 @@
 
 import threading
 
-# TODO: Why import run_module & run_file?
-from ptvsd._main import (  # noqa
-    run_module, run_file, enable_attach as ptvsd_enable_attach,
-)
 import pydevd
-
 # TODO: Why import these?
 from _pydevd_bundle.pydevd_custom_frames import (  # noqa
     CustomFramesContainer, custom_frames_container_init,
@@ -20,6 +15,11 @@ from _pydevd_bundle.pydevd_additional_thread_info import (
 from _pydevd_bundle.pydevd_comm import (
     get_global_debugger, CMD_THREAD_SUSPEND,
 )
+
+# TODO: Why import run_module & run_file?
+from ptvsd._local import run_module, run_file  # noqa
+from ptvsd._remote import enable_attach as ptvsd_enable_attach
+
 
 DEFAULT_HOST = '0.0.0.0'
 DEFAULT_PORT = 5678
@@ -72,6 +72,9 @@ def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True):
         return
     _attached.clear()
     ptvsd_enable_attach(address, redirect_output, on_attach=_attached.set)
+
+
+# TODO: Add disable_attach()?
 
 
 def is_attached():

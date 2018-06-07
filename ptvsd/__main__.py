@@ -6,7 +6,7 @@ import argparse
 import os.path
 import sys
 
-from ptvsd._main import debug_main, run_main
+from ptvsd._local import debug_main, run_main
 from ptvsd.socket import Address
 from ptvsd.version import __version__, __author__  # noqa
 
@@ -134,6 +134,8 @@ def _group_args(argv):
             if nextarg is not None:
                 supported.append(nextarg)
             skip += 1
+        elif arg in ('--single-session',):
+            supported.append(arg)
         elif not arg.startswith('-'):
             supported.append(arg)
             gottarget = True
@@ -160,6 +162,8 @@ def _parse_args(prog, argv):
     target = parser.add_mutually_exclusive_group(required=True)
     target.add_argument('-m', dest='module')
     target.add_argument('filename', nargs='?')
+
+    parser.add_argument('--single-session', action='store_true')
 
     args = parser.parse_args(argv)
     ns = vars(args)
@@ -190,13 +194,14 @@ def _parse_args(prog, argv):
     return args
 
 
-def main(addr, name, kind, extra=(), nodebug=False):
+def main(addr, name, kind, extra=(), nodebug=False, **kwargs):
     if nodebug:
-        run_main(addr, name, kind, *extra)
+        run_main(addr, name, kind, *extra, **kwargs)
     else:
-        debug_main(addr, name, kind, *extra)
+        debug_main(addr, name, kind, *extra, **kwargs)
 
 
 if __name__ == '__main__':
     args, extra = parse_args()
-    main(args.address, args.name, args.kind, extra, nodebug=args.nodebug)
+    main(args.address, args.name, args.kind, extra, nodebug=args.nodebug,
+         singlesession=args.single_session)

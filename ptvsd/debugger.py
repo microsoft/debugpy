@@ -4,7 +4,7 @@
 
 import sys
 
-from ptvsd._main import run_module, run_file
+from ptvsd._local import run_module, run_file
 
 
 # TODO: not needed?
@@ -33,4 +33,5 @@ def debug(filename, port_num, debug_id, debug_options, run_as,
         run = _runners[None]
     if _extra:
         args = _extra + list(args)
+    kwargs.setdefault('singlesession', True)
     run(address, filename, *args, **kwargs)

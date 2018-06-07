@@ -3,7 +3,7 @@ import os.path
 import threading
 import warnings
 
-import ptvsd._main
+import ptvsd._local
 from tests.helpers import protocol
 from tests.helpers.threading import acquire_with_timeout
 from ._binder import BinderBase
@@ -24,17 +24,17 @@ class Binder(BinderBase):
             self._start_ptvsd()
             return self.ptvsd.fakesock
         if self.module is None:
-            run = ptvsd._main.run_file
+            run = ptvsd._local.run_file
             name = self.filename
         else:
-            run = ptvsd._main.run_module
+            run = ptvsd._local.run_module
             name = self.module
         run(
             self.address,
             name,
             start_server=new_pydevd_sock,
             start_client=new_pydevd_sock,
-            wait_on_exit=(lambda: None),
+            wait_for_user=(lambda: None),
             addhandlers=False,
             killonclose=False,
         )

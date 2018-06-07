@@ -19,6 +19,7 @@ class ParseArgsTests(unittest.TestCase):
             'name': 'spam',
             'address': Address.as_server(None, 8888),
             'nodebug': False,
+            'single_session': False,
         })
         self.assertEqual(extra, [])
 
@@ -35,6 +36,7 @@ class ParseArgsTests(unittest.TestCase):
             'name': 'spam',
             'address': Address.as_server('10.0.1.1', 8888),
             'nodebug': False,
+            'single_session': False,
         })
         self.assertEqual(extra, [])
 
@@ -51,6 +53,7 @@ class ParseArgsTests(unittest.TestCase):
             'name': 'spam',
             'address': Address.as_client(None, 8888),
             'nodebug': True,
+            'single_session': False,
         })
         self.assertEqual(extra, [])
 
@@ -66,6 +69,7 @@ class ParseArgsTests(unittest.TestCase):
             'name': 'spam.py',
             'address': Address.as_server(None, 8888),
             'nodebug': False,
+            'single_session': False,
         })
         self.assertEqual(extra, [])
 
@@ -82,6 +86,7 @@ class ParseArgsTests(unittest.TestCase):
             'name': 'spam.py',
             'address': Address.as_server('10.0.1.1', 8888),
             'nodebug': False,
+            'single_session': False,
         })
         self.assertEqual(extra, [])
 
@@ -98,6 +103,7 @@ class ParseArgsTests(unittest.TestCase):
             'name': 'spam.py',
             'address': Address.as_client(None, 8888),
             'nodebug': True,
+            'single_session': False,
         })
         self.assertEqual(extra, [])
 
@@ -114,6 +120,7 @@ class ParseArgsTests(unittest.TestCase):
             'name': 'spam.py',
             'address': Address.as_client('1.2.3.4', 8888),
             'nodebug': False,
+            'single_session': False,
         })
         self.assertEqual(extra, [])
 
@@ -130,6 +137,7 @@ class ParseArgsTests(unittest.TestCase):
             'name': 'spam.py',
             'address': Address.as_client('localhost', 8888),
             'nodebug': False,
+            'single_session': False,
         })
         self.assertEqual(extra, [])
 
@@ -147,6 +155,42 @@ class ParseArgsTests(unittest.TestCase):
             'name': 'spam.py',
             'address': Address.as_client('1.2.3.4', 8888),
             'nodebug': True,
+            'single_session': False,
+        })
+        self.assertEqual(extra, [])
+
+    def test_remote_single_session(self):
+        args, extra = parse_args([
+            'eggs',
+            '--single-session',
+            '--port', '8888',
+            'spam.py',
+        ])
+
+        self.assertEqual(vars(args), {
+            'kind': 'script',
+            'name': 'spam.py',
+            'address': Address.as_server('localhost', 8888),
+            'nodebug': False,
+            'single_session': True,
+        })
+        self.assertEqual(extra, [])
+
+    def test_local_single_session(self):
+        args, extra = parse_args([
+            'eggs',
+            '--single-session',
+            '--server-host', '1.2.3.4',
+            '--port', '8888',
+            'spam.py',
+        ])
+
+        self.assertEqual(vars(args), {
+            'kind': 'script',
+            'name': 'spam.py',
+            'address': Address.as_server('1.2.3.4', 8888),
+            'nodebug': False,
+            'single_session': True,
         })
         self.assertEqual(extra, [])
 
@@ -171,6 +215,7 @@ class ParseArgsTests(unittest.TestCase):
             'name': 'spam.py',
             'address': Address.as_server(None, 8888),
             'nodebug': False,
+            'single_session': False,
         })
         self.assertEqual(extra, [
             '--DEBUG',
@@ -205,6 +250,7 @@ class ParseArgsTests(unittest.TestCase):
             'name': 'spam.py',
             'address': Address.as_client(None, 8888),
             'nodebug': True,
+            'single_session': False,
         })
         self.assertEqual(extra, [
             '--DEBUG',
@@ -230,6 +276,7 @@ class ParseArgsTests(unittest.TestCase):
             'name': 'spam.py',
             'address': Address.as_server('', 8888),
             'nodebug': False,
+            'single_session': False,
         })
         self.assertEqual(extra, [])
 
@@ -256,6 +303,7 @@ class ParseArgsTests(unittest.TestCase):
             'name': 'spam',
             'address': Address.as_client('1.2.3.4', 8888),
             'nodebug': False,
+            'single_session': False,
         })
         self.assertEqual(extra, [])
 
@@ -273,6 +321,7 @@ class ParseArgsTests(unittest.TestCase):
             'name': 'spam',
             'address': Address.as_client('1.2.3.4', 8888),
             'nodebug': True,
+            'single_session': False,
         })
         self.assertEqual(extra, [])
 
@@ -289,6 +338,7 @@ class ParseArgsTests(unittest.TestCase):
             'name': 'spam',
             'address': Address.as_server(None, 8888),
             'nodebug': False,
+            'single_session': False,
         })
         self.assertEqual(extra, [])
 
@@ -306,6 +356,7 @@ class ParseArgsTests(unittest.TestCase):
             'name': 'spam',
             'address': Address.as_client(None, 8888),
             'nodebug': True,
+            'single_session': False,
         })
         self.assertEqual(extra, [])
 
@@ -321,6 +372,7 @@ class ParseArgsTests(unittest.TestCase):
             'name': 'spam.py',
             'address': Address.as_server(None, 8888),
             'nodebug': False,
+            'single_session': False,
         })
         self.assertEqual(extra, [])
 
@@ -337,6 +389,7 @@ class ParseArgsTests(unittest.TestCase):
             'name': 'spam.py',
             'address': Address.as_client(None, 8888),
             'nodebug': True,
+            'single_session': False,
         })
         self.assertEqual(extra, [])
 
@@ -353,6 +406,7 @@ class ParseArgsTests(unittest.TestCase):
             'name': 'spam',
             'address': Address.as_server(None, 8888),
             'nodebug': False,
+            'single_session': False,
         })
         self.assertEqual(extra, ['--module'])
 
@@ -370,5 +424,6 @@ class ParseArgsTests(unittest.TestCase):
             'name': 'spam',
             'address': Address.as_client(None, 8888),
             'nodebug': True,
+            'single_session': False,
         })
         self.assertEqual(extra, ['--module'])

@@ -36,7 +36,9 @@ class DebugTests(unittest.TestCase):
 
         self.assertEqual(self.kind, 'module')
         self.assertEqual(self.args, (addr, filename))
-        self.assertEqual(self.kwargs, {})
+        self.assertEqual(self.kwargs, {
+            'singlesession': True,
+        })
 
     def test_script(self):
         filename = 'spam.py'
@@ -48,7 +50,9 @@ class DebugTests(unittest.TestCase):
 
         self.assertEqual(self.kind, 'script')
         self.assertEqual(self.args, (addr, filename))
-        self.assertEqual(self.kwargs, {})
+        self.assertEqual(self.kwargs, {
+            'singlesession': True,
+        })
 
     def test_code(self):
         filename = "print('spam')"
@@ -60,7 +64,9 @@ class DebugTests(unittest.TestCase):
 
         self.assertEqual(self.kind, 'code')
         self.assertEqual(self.args, (addr, filename))
-        self.assertEqual(self.kwargs, {})
+        self.assertEqual(self.kwargs, {
+            'singlesession': True,
+        })
 
     def test_unsupported(self):
         filename = 'spam'
@@ -72,7 +78,9 @@ class DebugTests(unittest.TestCase):
 
         self.assertIs(self.kind, None)
         self.assertEqual(self.args, (addr, filename))
-        self.assertEqual(self.kwargs, {})
+        self.assertEqual(self.kwargs, {
+            'singlesession': True,
+        })
 
     def test_extra_sys_argv(self):
         filename = 'spam.py'
@@ -84,6 +92,9 @@ class DebugTests(unittest.TestCase):
               _runners=self.runners, _extra=extra)
 
         self.assertEqual(self.args, (addr, filename, '--eggs', 'abc'))
+        self.assertEqual(self.kwargs, {
+            'singlesession': True,
+        })
 
 
 class IntegrationTests(unittest.TestCase):
@@ -121,7 +132,9 @@ class IntegrationTests(unittest.TestCase):
             '--file', 'spam:',
         ])
         self.assertEqual(self.addr, Address.as_client(None, port))
-        self.assertEqual(self.kwargs, {})
+        self.assertEqual(self.kwargs, {
+            'singlesession': True,
+        })
 
     def test_script(self):
         filename = 'spam.py'
@@ -139,7 +152,9 @@ class IntegrationTests(unittest.TestCase):
             '--file', 'spam.py',
         ])
         self.assertEqual(self.addr, Address.as_client(None, port))
-        self.assertEqual(self.kwargs, {})
+        self.assertEqual(self.kwargs, {
+            'singlesession': True,
+        })
 
     def test_code(self):
         filename = "print('spam')"
@@ -157,7 +172,9 @@ class IntegrationTests(unittest.TestCase):
             '--file', filename,
         ])
         self.assertEqual(self.addr, Address.as_client(None, port))
-        self.assertEqual(self.kwargs, {})
+        self.assertEqual(self.kwargs, {
+            'singlesession': True,
+        })
 
     def test_unsupported(self):
         filename = 'spam'
@@ -175,7 +192,9 @@ class IntegrationTests(unittest.TestCase):
             '--file', 'spam',
         ])
         self.assertEqual(self.addr, Address.as_client(None, port))
-        self.assertEqual(self.kwargs, {})
+        self.assertEqual(self.kwargs, {
+            'singlesession': True,
+        })
 
     def test_extra_sys_argv(self):
         filename = 'spam.py'
@@ -195,4 +214,6 @@ class IntegrationTests(unittest.TestCase):
             '42',
         ])
         self.assertEqual(self.addr, Address.as_client(None, port))
-        self.assertEqual(self.kwargs, {})
+        self.assertEqual(self.kwargs, {
+            'singlesession': True,
+        })

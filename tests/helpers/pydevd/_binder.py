@@ -21,7 +21,7 @@ class PTVSD(ptvsd.daemon.Daemon):
     def from_connect_func(cls, connect):
         """Return a new instance using the socket returned by connect()."""
         self = cls(
-            wait_on_exit=(lambda: None),
+            wait_for_user=(lambda: None),
             addhandlers=False,
             killonclose=False,
         )

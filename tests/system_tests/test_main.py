@@ -247,7 +247,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             done()
             adapter.wait()
 
-        self.assert_received(session.received, [
+        self.assert_received(session.received[:9], [
             self.new_version_event(session.received),
             self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
