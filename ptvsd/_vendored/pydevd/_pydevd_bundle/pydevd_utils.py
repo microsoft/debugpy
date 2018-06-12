@@ -119,16 +119,37 @@ def get_clsname_for_code(code, frame):
 
     return clsname
 
+_PROJECT_ROOTS_CACHE = []
+_FILENAME_TO_IN_SCOPE_CACHE = {}
 
-def _get_project_roots(project_roots_cache=[]):
+def set_project_roots(project_roots):
+    from _pydevd_bundle.pydevd_comm import get_global_debugger
+    if sys.version_info[0] <= 2:
+        # In py2 we need bytes for the files.
+        project_roots = [
+            root if not isinstance(root, unicode) else root.encode(sys.getfilesystemencoding()) 
+            for root in project_roots
+        ]
+    pydev_log.debug("IDE_PROJECT_ROOTS %s\n" % project_roots)
+    new_roots = []
+    for root in project_roots:
+        new_roots.append(os.path.normcase(root))
+    
+    # Leave only the last one added.
+    _PROJECT_ROOTS_CACHE.append(new_roots)
+    del _PROJECT_ROOTS_CACHE[:-1]
+
+    # Clear related caches.
+    _FILENAME_TO_IN_SCOPE_CACHE.clear()
+    debugger = get_global_debugger()
+    if debugger is not None:
+        debugger.clear_skip_caches()
+
+def _get_project_roots(project_roots_cache=_PROJECT_ROOTS_CACHE):
     # Note: the project_roots_cache is the same instance among the many calls to the method
     if not project_roots_cache:
         roots = os.getenv('IDE_PROJECT_ROOTS', '').split(os.pathsep)
-        pydev_log.debug("IDE_PROJECT_ROOTS %s\n" % roots)
-        new_roots = []
-        for root in roots:
-            new_roots.append(os.path.normcase(root))
-        project_roots_cache.append(new_roots)
+        set_project_roots(roots)
     return project_roots_cache[-1] # returns the project roots with case normalized
 
 
@@ -144,10 +165,10 @@ def _get_library_roots(library_roots_cache=[]):
     return library_roots_cache[-1] # returns the project roots with case normalized
 
 
-def not_in_project_roots(filename, filename_to_not_in_scope_cache={}):
-    # Note: the filename_to_not_in_scope_cache is the same instance among the many calls to the method
+def in_project_roots(filename, filename_to_in_scope_cache=_FILENAME_TO_IN_SCOPE_CACHE):
+    # Note: the filename_to_in_scope_cache is the same instance among the many calls to the method
     try:
-        return filename_to_not_in_scope_cache[filename]
+        return filename_to_in_scope_cache[filename]
     except:
         project_roots = _get_project_roots()
         original_filename = filename
@@ -155,21 +176,22 @@ def not_in_project_roots(filename, filename_to_not_in_scope_cache={}):
             filename = os.path.abspath(filename)
         filename = os.path.normcase(filename)
         for root in project_roots:
-            if len(root) > 0 and filename.startswith(root):
-                filename_to_not_in_scope_cache[original_filename] = False
+            if root and filename.startswith(root):
+                filename_to_in_scope_cache[original_filename] = True
                 break
         else: # for else (only called if the break wasn't reached).
-            filename_to_not_in_scope_cache[original_filename] = True
+            filename_to_in_scope_cache[original_filename] = False
 
-        if not filename_to_not_in_scope_cache[original_filename]:
+        if filename_to_in_scope_cache[original_filename]:
             # additional check if interpreter is situated in a project directory
             library_roots = _get_library_roots()
             for root in library_roots:
-                if root != '' and filename.startswith(root):
-                    filename_to_not_in_scope_cache[original_filename] = True
+                if root and filename.startswith(root):
+                    filename_to_in_scope_cache[original_filename] = False
+                    break
 
         # at this point it must be loaded.
-        return filename_to_not_in_scope_cache[original_filename]
+        return filename_to_in_scope_cache[original_filename]
 
 
 def is_filter_enabled():

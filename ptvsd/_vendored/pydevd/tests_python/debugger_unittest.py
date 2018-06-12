@@ -72,6 +72,7 @@ CMD_STEP_INTO_MY_CODE = 144
 CMD_GET_CONCURRENCY_EVENT = 145
 
 CMD_GET_NEXT_STATEMENT_TARGETS = 201
+CMD_SET_PROJECT_ROOTS = 202
 
 CMD_VERSION = 501
 CMD_RETURN = 502
@@ -552,8 +553,31 @@ class AbstractWriterThread(threading.Thread):
         self.write("122\t%s\t%s" % (self.next_seq(), exception))
         self.log.append('write_add_exception_breakpoint: %s' % (exception,))
 
-    def write_add_exception_breakpoint_with_policy(self, exception, notify_always, notify_on_terminate, ignore_libraries):
-        self.write("122\t%s\t%s" % (self.next_seq(), '\t'.join([exception, notify_always, notify_on_terminate, ignore_libraries])))
+    def write_set_py_exception_globals(
+            self, 
+            break_on_uncaught,
+            break_on_caught,
+            break_on_exceptions_thrown_in_same_context, 
+            ignore_exceptions_thrown_in_lines_with_ignore_exception,
+            ignore_libraries,
+            exceptions=()
+        ):
+        # Only set the globals, others
+        self.write("131\t%s\t%s" % (self.next_seq(), '%s;%s;%s;%s;%s;%s' % (
+            'true' if break_on_uncaught else 'false', 
+            'true' if break_on_caught else 'false', 
+            'true' if break_on_exceptions_thrown_in_same_context else 'false', 
+            'true' if ignore_exceptions_thrown_in_lines_with_ignore_exception else 'false',
+            'true' if ignore_libraries else 'false',
+            ';'.join(exceptions)
+        )))
+        self.log.append('write_set_py_exception_globals')
+
+    def write_set_project_roots(self, project_roots):
+        self.write("%s\t%s\t%s" % (CMD_SET_PROJECT_ROOTS, self.next_seq(), '\t'.join(str(x) for x in project_roots)))
+        
+    def write_add_exception_breakpoint_with_policy(self, exception, notify_on_handled_exceptions, notify_on_unhandled_exceptions, ignore_libraries):
+        self.write("122\t%s\t%s" % (self.next_seq(), '\t'.join(str(x) for x in [exception, notify_on_handled_exceptions, notify_on_unhandled_exceptions, ignore_libraries])))
         self.log.append('write_add_exception_breakpoint: %s' % (exception,))
 
     def write_remove_breakpoint(self, breakpoint_id):

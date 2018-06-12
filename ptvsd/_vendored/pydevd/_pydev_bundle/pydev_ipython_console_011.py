@@ -34,6 +34,7 @@ except ImportError:
 from IPython.core import release
 
 from _pydev_bundle.pydev_imports import xmlrpclib
+from _pydevd_bundle.pydevd_constants import dict_keys
 
 default_pydev_banner_parts = default_banner_parts
 

@@ -172,6 +172,7 @@ CMD_LOAD_FULL_VALUE = 151
 
 CMD_REDIRECT_OUTPUT = 200
 CMD_GET_NEXT_STATEMENT_TARGETS = 201
+CMD_SET_PROJECT_ROOTS = 202
 
 CMD_VERSION = 501
 CMD_RETURN = 502
@@ -395,16 +396,16 @@ class ReaderThread(PyDBDaemonThread):
 
                 read_buffer += r
                 if DebugInfoHolder.DEBUG_RECORD_SOCKET_READS:
-                    sys.stderr.write('debugger: received >>%s<<\n' % (read_buffer,))
+                    sys.stderr.write(u'debugger: received >>%s<<\n' % (read_buffer,))
                     sys.stderr.flush()
 
                 if len(read_buffer) == 0:
                     self.handle_except()
                     break
-                while read_buffer.find('\n') != -1:
-                    command, read_buffer = read_buffer.split('\n', 1)
+                while read_buffer.find(u'\n') != -1:
+                    command, read_buffer = read_buffer.split(u'\n', 1)
 
-                    args = command.split('\t', 2)
+                    args = command.split(u'\t', 2)
                     try:
                         cmd_id = int(args[0])
                         pydev_log.debug('Received command: %s %s\n' % (ID_TO_MEANING.get(str(cmd_id), '???'), command,))
@@ -725,7 +726,7 @@ class NetCommandFactory:
 
                 abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(curr_frame)
 
-                myFile = pydevd_file_utils.norm_file_to_client(abs_path_real_path_and_base[0])
+                myFile = norm_file_to_client(abs_path_real_path_and_base[0])
                 if file_system_encoding.lower() != "utf-8" and hasattr(myFile, "decode"):
                     # myFile is a byte string encoded using the file system encoding
                     # convert it to utf8

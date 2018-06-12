@@ -901,6 +901,34 @@ class WriterThreadCase3(debugger_unittest.AbstractWriterThread):
         self.finished_ok = True
 
 #=======================================================================================================================
+# WriterThreadCaseUnhandledExceptions
+#=======================================================================================================================
+class WriterThreadCaseUnhandledExceptions(debugger_unittest.AbstractWriterThread):
+
+    # Note: expecting unhandled exceptions to be printed to stdout.
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_unhandled_exceptions.py')
+
+    def run(self):
+        self.start_socket()
+        self.write_add_exception_breakpoint_with_policy('Exception', "0", "1", "0")
+        self.write_make_initial_run()
+
+        # Will stop in 2 background threads
+        thread_id1, frame_id = self.wait_for_breakpoint_hit('122')
+        thread_id2, frame_id = self.wait_for_breakpoint_hit('122')
+
+        self.write_run_thread(thread_id1)
+        self.write_run_thread(thread_id2)
+
+        # Will stop in main thread
+        thread_id3, frame_id = self.wait_for_breakpoint_hit('122')
+        self.write_run_thread(thread_id3)
+
+        self.log.append('Marking finished ok.')
+        self.finished_ok = True
+        
+        
+#=======================================================================================================================
 # WriterThreadCase2
 #=======================================================================================================================
 class WriterThreadCase2(debugger_unittest.AbstractWriterThread):
@@ -1298,6 +1326,29 @@ class WriterThreadCaseEventExt(debugger_unittest.AbstractWriterThread):
         return env
 
 #=======================================================================================================================
+# WriterThreadCaseThreadCreationDeadlock - check case where there was a deadlock evaluating expressions
+#======================================================================================================================
+class WriterThreadCaseThreadCreationDeadlock(debugger_unittest.AbstractWriterThread):
+
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_thread_creation_deadlock.py')
+
+    def run(self):
+        self.start_socket()
+        self.write_add_breakpoint(26, None)
+        self.write_make_initial_run()
+
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
+
+        assert line == 26, 'Expected return to be in line 26, was: %s' % line
+
+        self.write_evaluate_expression('%s\t%s\t%s' % (thread_id, frame_id, 'LOCAL'), 'create_thread()')
+        self.wait_for_evaluation('<var name="create_thread()" type="str" qualifier="{0}" value="str: create_thread:ok'.format(builtin_qualifier))
+        self.write_run_thread(thread_id)
+
+
+        self.finished_ok = True
+
+#=======================================================================================================================
 # WriterThreadCaseSkipBreakpointInExceptions - fix case where breakpoint is skipped after an exception is raised over it 
 #======================================================================================================================
 class WriterThreadCaseSkipBreakpointInExceptions(debugger_unittest.AbstractWriterThread):
@@ -1319,6 +1370,125 @@ class WriterThreadCaseSkipBreakpointInExceptions(debugger_unittest.AbstractWrite
 
 
         self.finished_ok = True
+
+#=======================================================================================================================
+# WriterThreadCaseHandledExceptions - Stop only once per handled exception.
+#======================================================================================================================
+class WriterThreadCaseHandledExceptions(debugger_unittest.AbstractWriterThread):
+
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_exceptions.py')
+
+    def run(self):
+        self.start_socket()
+        self.write_set_project_roots([os.path.dirname(self.TEST_FILE)])
+        self.write_add_exception_breakpoint_with_policy(
+            'IndexError',
+            notify_on_handled_exceptions=2,  # Notify only once
+            notify_on_unhandled_exceptions=0,
+            ignore_libraries=1
+        )
+        self.write_make_initial_run()
+
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit('137', True)
+        assert line == 2, 'Expected return to be in line 2, was: %s' % line
+        self.write_run_thread(thread_id)
+
+        self.finished_ok = True
+
+#=======================================================================================================================
+# WriterThreadCaseHandledExceptions1 - Stop multiple times for the same handled exception.
+#======================================================================================================================
+class WriterThreadCaseHandledExceptions1(debugger_unittest.AbstractWriterThread):
+
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_exceptions.py')
+
+    def get_environ(self):
+        env = os.environ.copy()
+
+        env["IDE_PROJECT_ROOTS"] = os.path.dirname(self.TEST_FILE)
+        return env
+    
+    def run(self):
+        self.start_socket()
+        self.write_add_exception_breakpoint_with_policy(
+            'IndexError',
+            notify_on_handled_exceptions=1,  # Notify multiple times
+            notify_on_unhandled_exceptions=0,
+            ignore_libraries=1
+        )
+        self.write_make_initial_run()
+
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit('137', True)
+        assert line == 2, 'Expected return to be in line 2, was: %s' % line
+        self.write_run_thread(thread_id)
+        
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit('137', True)
+        assert line == 5, 'Expected return to be in line 5, was: %s' % line
+        self.write_run_thread(thread_id)
+        
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit('137', True)
+        assert line == 9, 'Expected return to be in line 9, was: %s' % line
+        self.write_run_thread(thread_id)
+
+        self.finished_ok = True
+
+#=======================================================================================================================
+# WriterThreadCaseHandledExceptions2 - no IDE_PROJECT_ROOTS set.
+#======================================================================================================================
+class WriterThreadCaseHandledExceptions2(debugger_unittest.AbstractWriterThread):
+
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_exceptions.py')
+
+    def get_environ(self):
+        env = os.environ.copy()
+
+        env["IDE_PROJECT_ROOTS"] = '' # Don't stop anywhere because IDE_PROJECT_ROOTS is not set.
+        return env
+    
+    def run(self):
+        self.start_socket()
+        self.write_add_exception_breakpoint_with_policy(
+            'IndexError',
+            notify_on_handled_exceptions=1,  # Notify multiple times
+            notify_on_unhandled_exceptions=0,
+            ignore_libraries=1
+        )
+        self.write_make_initial_run()
+
+        self.finished_ok = True
+
+#=======================================================================================================================
+# WriterThreadCaseHandledExceptions3 -- don't stop on exception thrown in the same context (only at caller).
+#======================================================================================================================
+class WriterThreadCaseHandledExceptions3(debugger_unittest.AbstractWriterThread):
+
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_exceptions.py')
+
+    def get_environ(self):
+        env = os.environ.copy()
+
+        env["IDE_PROJECT_ROOTS"] = os.path.dirname(self.TEST_FILE)
+        return env
+    
+    def run(self):
+        self.start_socket()
+        # Note: in this mode we'll only stop once.
+        self.write_set_py_exception_globals(
+            break_on_uncaught=False,
+            break_on_caught=True,
+            break_on_exceptions_thrown_in_same_context=False, # Because of this we'll only stop at line 5, not 2
+            ignore_exceptions_thrown_in_lines_with_ignore_exception=True,
+            ignore_libraries=True, 
+            exceptions=('IndexError',)
+        )
+            
+        self.write_make_initial_run()
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit('137', True)
+        assert line == 2, 'Expected return to be in line 2, was: %s' % line
+        self.write_run_thread(thread_id)
+
+        self.finished_ok = True
+
 
 #=======================================================================================================================
 # Test
@@ -1482,6 +1652,9 @@ class Test(unittest.TestCase, debugger_unittest.DebuggerRunner):
     def test_module_entry_point(self):
         self.check_case(WriterThreadCaseModuleWithEntryPoint)
 
+    def test_unhandled_exceptions(self):
+        self.check_case(WriterThreadCaseUnhandledExceptions)
+
     @pytest.mark.skipif(not IS_CPYTHON or (IS_PY36 and sys.platform != 'win32'), reason='Only for Python (failing on 3.6 on travis (linux) -- needs to be investigated).')
     def test_case_set_next_statement(self):
         self.check_case(WriterThreadCaseSetNextStatement)
@@ -1489,6 +1662,7 @@ class Test(unittest.TestCase, debugger_unittest.DebuggerRunner):
     @pytest.mark.skipif(not IS_CPYTHON, reason='Only for Python.')
     def test_case_get_next_statement_targets(self):
         self.check_case(WriterThreadCaseGetNextStatementTargets)
+
     @pytest.mark.skipif(IS_IRONPYTHON, reason='Failing on IronPython (needs to be investigated).')
     def test_case_type_ext(self):
         self.check_case(WriterThreadCaseTypeExt)
@@ -1497,8 +1671,23 @@ class Test(unittest.TestCase, debugger_unittest.DebuggerRunner):
     def test_case_event_ext(self):
         self.check_case(WriterThreadCaseEventExt)
 
+    def test_case_writer_thread_creation_deadlock(self):
+        self.check_case(WriterThreadCaseThreadCreationDeadlock)
+
     def test_case_skip_breakpoints_in_exceptions(self):
         self.check_case(WriterThreadCaseSkipBreakpointInExceptions)
+
+    def test_case_handled_exceptions(self):
+        self.check_case(WriterThreadCaseHandledExceptions)
+        
+    def test_case_handled_exceptions1(self):
+        self.check_case(WriterThreadCaseHandledExceptions1)
+        
+    def test_case_handled_exceptions2(self):
+        self.check_case(WriterThreadCaseHandledExceptions2)
+        
+    def test_case_handled_exceptions3(self):
+        self.check_case(WriterThreadCaseHandledExceptions3)
 
 @pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
 class TestPythonRemoteDebugger(unittest.TestCase, debugger_unittest.DebuggerRunner):

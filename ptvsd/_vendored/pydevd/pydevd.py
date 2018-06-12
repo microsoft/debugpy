@@ -27,7 +27,7 @@ import pydevd_tracing
 from _pydevd_bundle import pydevd_utils
 from _pydevd_bundle import pydevd_vars
 from _pydevd_bundle.pydevd_additional_thread_info import PyDBAdditionalThreadInfo
-from _pydevd_bundle.pydevd_breakpoints import ExceptionBreakpoint, update_exception_hook
+from _pydevd_bundle.pydevd_breakpoints import ExceptionBreakpoint
 from _pydevd_bundle.pydevd_comm import CMD_SET_BREAK, CMD_SET_NEXT_STATEMENT, CMD_STEP_INTO, CMD_STEP_OVER, \
     CMD_STEP_RETURN, CMD_STEP_INTO_MY_CODE, CMD_THREAD_SUSPEND, CMD_RUN_TO_LINE, \
     CMD_ADD_EXCEPTION_BREAK, CMD_SMART_STEP_INTO, InternalConsoleExec, NetCommandFactory, \
@@ -44,7 +44,7 @@ from _pydevd_bundle.pydevd_utils import save_main_module
 from pydevd_concurrency_analyser.pydevd_concurrency_logger import ThreadingLogger, AsyncioLogger, send_message, cur_time
 from pydevd_concurrency_analyser.pydevd_thread_wrappers import wrap_threads
 from pydevd_file_utils import get_fullname, rPath
-
+import pydev_ipython
 
 __version_info__ = (1, 2, 0)
 __version_info_str__ = []
@@ -267,20 +267,19 @@ class PyDB:
             self.plugin = PluginManager(self)
         return self.plugin
 
-    def not_in_scope(self, filename):
-        return pydevd_utils.not_in_project_roots(filename)
+    def in_project_scope(self, filename):
+        return pydevd_utils.in_project_roots(filename)
 
     def is_ignored_by_filters(self, filename):
         return pydevd_utils.is_ignored_by_filter(filename)
 
-    def first_appearance_in_scope(self, trace):
-        if trace is None or self.not_in_scope(trace.tb_frame.f_code.co_filename):
+    def is_exception_trace_in_project_scope(self, trace):
+        if trace is None or not self.in_project_scope(trace.tb_frame.f_code.co_filename):
             return False
         else:
             trace = trace.tb_next
             while trace is not None:
-                frame = trace.tb_frame
-                if not self.not_in_scope(frame.f_code.co_filename):
+                if not self.in_project_scope(trace.tb_frame.f_code.co_filename):
                     return False
                 trace = trace.tb_next
             return True
@@ -471,6 +470,7 @@ class PyDB:
             # when processing internal commands, albeit it may take longer and in general this should
             # not be usual as it's expected that the debugger is live before other threads are created).
             return
+
         if use_lock:
             self._lock_running_thread_ids.acquire()
         try:
@@ -481,14 +481,24 @@ class PyDB:
                 # see http://sourceforge.net/tracker/index.php?func=detail&aid=1955428&group_id=85796&atid=577329
                 # Let's create the additional info right away!
                 thread.additional_info = PyDBAdditionalThreadInfo()
+
+            elif thread.additional_info.pydev_notify_kill:
+                # After we notify it should be killed, make sure we don't notify it's alive (on a racing condition
+                # this could happen as we may notify before the thread is stopped internally).
+                return  
+
             self._running_thread_ids[thread_id] = thread
-            self.writer.add_command(self.cmd_factory.make_thread_created_message(thread))
         finally:
             if use_lock:
                 self._lock_running_thread_ids.release()
+
+        self.writer.add_command(self.cmd_factory.make_thread_created_message(thread))
                 
     def notify_thread_not_alive(self, thread_id, use_lock=True):
         """ if thread is not alive, cancel trace_dispatch processing """
+        if self.writer is None:
+            return
+
         if use_lock:
             self._lock_running_thread_ids.acquire()
             
@@ -500,22 +510,19 @@ class PyDB:
             was_notified = thread.additional_info.pydev_notify_kill
             if not was_notified:
                 thread.additional_info.pydev_notify_kill = True
-                cmd = self.cmd_factory.make_thread_killed_message(thread_id)
-                self.writer.add_command(cmd)
         finally:
             if use_lock:
                 self._lock_running_thread_ids.release()
 
+        self.writer.add_command(self.cmd_factory.make_thread_killed_message(thread_id))
 
     def process_internal_commands(self):
         '''This function processes internal commands
         '''
         self._main_lock.acquire()
         try:
-
             self.check_output_redirect()
 
-            curr_thread_id = get_thread_id(threadingCurrentThread())
             program_threads_alive = {}
             all_threads = threadingEnumerate()
             program_threads_dead = []
@@ -535,68 +542,33 @@ class PyDB:
                             # get new id with its process number and the debugger loses access to both threads.
                             # Therefore we should update thread_id for every main thread in the new process.
 
-                            # TODO: Investigate: should we do this for all threads in threading.enumerate()?
-                            # (i.e.: if a fork happens on Linux, this seems likely).
-                            old_thread_id = get_thread_id(t)
-                            if old_thread_id != 'console_main':
-                                # The console_main is a special thread id used in the console and its id should never be reset
-                                # (otherwise we may no longer be able to get its variables -- see: https://www.brainwy.com/tracker/PyDev/776).
-                                clear_cached_thread_id(t)
-                                clear_cached_thread_id(threadingCurrentThread())
+                            # Fix it for all existing threads.
+                            for existing_thread in all_threads:
+                                old_thread_id = get_thread_id(existing_thread)
+                                if old_thread_id != 'console_main':
+                                    # The console_main is a special thread id used in the console and its id should never be reset
+                                    # (otherwise we may no longer be able to get its variables -- see: https://www.brainwy.com/tracker/PyDev/776).
+                                    clear_cached_thread_id(t)
 
-                            thread_id = get_thread_id(t)
-                            curr_thread_id = get_thread_id(threadingCurrentThread())
-                            if pydevd_vars.has_additional_frames_by_id(old_thread_id):
-                                frames_by_id = pydevd_vars.get_additional_frames_by_id(old_thread_id)
-                                pydevd_vars.add_additional_frame_by_id(thread_id, frames_by_id)
-                        else:
-                            thread_id = get_thread_id(t)
+                                thread_id = get_thread_id(t)
+                                if thread_id != old_thread_id:
+                                    if pydevd_vars.has_additional_frames_by_id(old_thread_id):
+                                        frames_by_id = pydevd_vars.get_additional_frames_by_id(old_thread_id)
+                                        pydevd_vars.add_additional_frame_by_id(thread_id, frames_by_id)
+
+                        thread_id = get_thread_id(t)
                         program_threads_alive[thread_id] = t
 
                         self.notify_thread_created(thread_id, t, use_lock=False)
-
-                        queue = self.get_internal_queue(thread_id)
-                        cmdsToReadd = []  # some commands must be processed by the thread itself... if that's the case,
-                                            # we will re-add the commands to the queue after executing.
-                        try:
-                            while True:
-                                int_cmd = queue.get(False)
-
-                                if not self.mpl_hooks_in_debug_console and isinstance(int_cmd, InternalConsoleExec):
-                                    # add import hooks for matplotlib patches if only debug console was started
-                                    try:
-                                        self.init_matplotlib_in_debug_console()
-                                        self.mpl_in_use = True
-                                    except:
-                                        pydevd_log(2, "Matplotlib support in debug console failed", traceback.format_exc())
-                                    self.mpl_hooks_in_debug_console = True
-
-                                if int_cmd.can_be_executed_by(curr_thread_id):
-                                    pydevd_log(2, "processing internal command ", str(int_cmd))
-                                    int_cmd.do_it(self)
-                                else:
-                                    pydevd_log(2, "NOT processing internal command ", str(int_cmd))
-                                    cmdsToReadd.append(int_cmd)
-
-
-                        except _queue.Empty: #@UndefinedVariable
-                            for int_cmd in cmdsToReadd:
-                                queue.put(int_cmd)
-                            # this is how we exit
-
-
+                
+                # Compute and notify about threads which are no longer alive.
                 thread_ids = list(self._running_thread_ids.keys())
                 for thread_id in thread_ids:
                     if thread_id not in program_threads_alive:
                         program_threads_dead.append(thread_id)
                         
                 for thread_id in program_threads_dead:
-                    try:
-                        self.notify_thread_not_alive(thread_id, use_lock=False)
-                    except:
-                        sys.stderr.write('Error iterating through %s (%s) - %s\n' % (
-                            program_threads_alive, program_threads_alive.__class__, dir(program_threads_alive)))
-                        raise
+                    self.notify_thread_not_alive(thread_id, use_lock=False)
             finally:
                 self._lock_running_thread_ids.release()
 
@@ -605,6 +577,45 @@ class PyDB:
                 for t in all_threads:
                     if hasattr(t, 'do_kill_pydev_thread'):
                         t.do_kill_pydev_thread()
+            else:
+                # Actually process the commands now (make sure we don't have a lock for _lock_running_thread_ids 
+                # acquired at this point as it could lead to a deadlock if some command evaluated tried to
+                # create a thread and wait for it -- which would try to notify about it getting that lock).
+                curr_thread_id = None
+                for thread_id in program_threads_alive:
+                    queue = self.get_internal_queue(thread_id)
+                    cmdsToReadd = []  # some commands must be processed by the thread itself... if that's the case,
+                                        # we will re-add the commands to the queue after executing.
+                    try:
+                        while True:
+                            int_cmd = queue.get(False)
+
+                            if not self.mpl_hooks_in_debug_console and isinstance(int_cmd, InternalConsoleExec):
+                                # add import hooks for matplotlib patches if only debug console was started
+                                try:
+                                    self.init_matplotlib_in_debug_console()
+                                    self.mpl_in_use = True
+                                except:
+                                    pydevd_log(2, "Matplotlib support in debug console failed", traceback.format_exc())
+                                self.mpl_hooks_in_debug_console = True
+                                
+                            if curr_thread_id is None:
+                                # Lazily get the current thread id.
+                                curr_thread_id = get_thread_id(threadingCurrentThread())
+
+                            if int_cmd.can_be_executed_by(curr_thread_id):
+                                pydevd_log(2, "processing internal command ", str(int_cmd))
+                                int_cmd.do_it(self)
+                            else:
+                                pydevd_log(2, "NOT processing internal command ", str(int_cmd))
+                                cmdsToReadd.append(int_cmd)
+
+
+                    except _queue.Empty: #@UndefinedVariable
+                        # this is how we exit
+                        for int_cmd in cmdsToReadd:
+                            queue.put(int_cmd)
+
 
         finally:
             self._main_lock.release()
@@ -656,6 +667,9 @@ class PyDB:
             break_dict[pybreakpoint.line] = pybreakpoint
 
         breakpoints[file] = break_dict
+        self.clear_skip_caches()
+        
+    def clear_skip_caches(self):
         global_cache_skips.clear()
         global_cache_frame_skips.clear()
 
@@ -664,8 +678,8 @@ class PyDB:
         exception,
         condition,
         expression,
-        notify_always,
-        notify_on_terminate,
+        notify_on_handled_exceptions,
+        notify_on_unhandled_exceptions,
         notify_on_first_raise_only,
         ignore_libraries=False
         ):
@@ -674,8 +688,8 @@ class PyDB:
                 exception,
                 condition,
                 expression,
-                notify_always,
-                notify_on_terminate,
+                notify_on_handled_exceptions,
+                notify_on_unhandled_exceptions,
                 notify_on_first_raise_only,
                 ignore_libraries
             )
@@ -683,14 +697,14 @@ class PyDB:
             pydev_log.error("Error unable to add break on exception for: %s (exception could not be imported)\n" % (exception,))
             return None
 
-        if eb.notify_on_terminate:
+        if eb.notify_on_unhandled_exceptions:
             cp = self.break_on_uncaught_exceptions.copy()
             cp[exception] = eb
             if DebugInfoHolder.DEBUG_TRACE_BREAKPOINTS > 0:
                 pydev_log.error("Exceptions to hook on terminate: %s\n" % (cp,))
             self.break_on_uncaught_exceptions = cp
 
-        if eb.notify_always:
+        if eb.notify_on_handled_exceptions:
             cp = self.break_on_caught_exceptions.copy()
             cp[exception] = eb
             if DebugInfoHolder.DEBUG_TRACE_BREAKPOINTS > 0:
@@ -698,19 +712,6 @@ class PyDB:
             self.break_on_caught_exceptions = cp
 
         return eb
-
-    def update_after_exceptions_added(self, added):
-        updated_on_caught = False
-        updated_on_uncaught = False
-
-        for eb in added:
-            if not updated_on_uncaught and eb.notify_on_terminate:
-                updated_on_uncaught = True
-                update_exception_hook(self)
-
-            if not updated_on_caught and eb.notify_always:
-                updated_on_caught = True
-                self.set_tracing_for_untraced_contexts_if_not_frame_eval()
 
 
     def set_suspend(self, thread, stop_reason):
@@ -930,7 +931,7 @@ class PyDB:
         finally:
             CustomFramesContainer.custom_frames_lock.release()  # @UndefinedVariable
 
-    def handle_post_mortem_stop(self, thread, frame, frames_byid, exception):
+    def stop_on_unhandled_exception(self, thread, frame, frames_byid, exception):
         pydev_log.debug("We are stopping in post-mortem\n")
         thread_id = get_thread_id(thread)
         pydevd_vars.add_additional_frame_by_id(thread_id, frames_byid)
@@ -978,9 +979,6 @@ class PyDB:
     def prepare_to_run(self):
         ''' Shared code to prepare debugging by installing traces and registering threads '''
         self.patch_threads()
-        pydevd_tracing.SetTrace(self.trace_dispatch, self.frame_eval_func, self.dummy_trace_dispatch)
-        # There is no need to set tracing function if frame evaluation is available. Moreover, there is no need to patch thread
-        # functions, because frame evaluation function is set to all threads by default.
 
         PyDBCommandThread(self).start()
         if self.redirect_output or self.signature_factory is not None or self.thread_analyser is not None:
@@ -1001,6 +999,7 @@ class PyDB:
 
     def run(self, file, globals=None, locals=None, is_module=False, set_trace=True):
         module_name = None
+        entry_point_fn = ''
         if is_module:
             file, _,  entry_point_fn = file.partition(':')
             module_name = file
@@ -1081,11 +1080,20 @@ class PyDB:
         if hasattr(sys, 'exc_clear'):
             # we should clean exception information in Python 2, before user's code execution
             sys.exc_clear()
-
+            
         # Notify that the main thread is created.
         thread_id = get_thread_id(t)
         self.notify_thread_created(thread_id, t)
 
+        # Note: important: set the tracing right before calling _exec.
+        pydevd_tracing.SetTrace(self.trace_dispatch, self.frame_eval_func, self.dummy_trace_dispatch)
+        
+        return self._exec(is_module, entry_point_fn, module_name, file, globals, locals)
+        
+    def _exec(self, is_module, entry_point_fn, module_name, file, globals, locals):
+        '''
+        This function should have frames tracked by unhandled exceptions (the `_exec` name is important).
+        '''
         if not is_module:
             pydev_imports.execfile(file, globals, locals)  # execute the script
         else:
