@@ -6,6 +6,8 @@ from ._util import Closeable, Startable, debug
 class DebugSession(Startable, Closeable):
     """A single DAP session for a network client socket."""
 
+    MESSAGE_PROCESSOR = None
+
     NAME = 'debug session'
     FAIL_ON_ALREADY_CLOSED = False
     FAIL_ON_ALREADY_STOPPED = False
@@ -57,18 +59,6 @@ class DebugSession(Startable, Closeable):
     def msgprocessor(self):
         return self._msgprocessor
 
-    def handle_pydevd_message(self, cmdid, seq, text):
-        if self._msgprocessor is None:
-            # TODO: Do more than ignore?
-            return
-        return self._msgprocessor.on_pydevd_event(cmdid, seq, text)
-
-    def re_build_breakpoints(self):
-        """Restore the breakpoints to their last values."""
-        if self._msgprocessor is None:
-            return
-        return self._msgprocessor.re_build_breakpoints()
-
     def wait_options(self):
         """Return (normal, abnormal) based on the session's launch config."""
         if self._msgprocessor is None:
@@ -96,19 +86,17 @@ class DebugSession(Startable, Closeable):
 
     # internal methods
 
-    def _start(self, threadname, pydevd_notify, pydevd_request, timeout=None):
-        """Start the message handling for the session.
-
-        A VSC message loop is started.
-        """
-        self._msgprocessor = VSCodeMessageProcessor(
+    def _new_msg_processor(self, **kwargs):
+        return self.MESSAGE_PROCESSOR(
             self._sock,
-            pydevd_notify,
-            pydevd_request,
             notify_disconnecting=self._handle_vsc_disconnect,
             notify_closing=self._handle_vsc_close,
-            timeout=timeout,
+            **kwargs
         )
+
+    def _start(self, threadname, **kwargs):
+        """Start the message handling for the session."""
+        self._msgprocessor = self._new_msg_processor(**kwargs)
         self.add_resource_to_close(self._msgprocessor)
         self._msgprocessor.start(threadname)
         return self._msgprocessor_running
@@ -142,3 +130,21 @@ class DebugSession(Startable, Closeable):
     def _handle_vsc_close(self):
         debug('processor closing')
         self.close()
+
+
+class PyDevdDebugSession(DebugSession):
+    """A single DAP session for a network client socket."""
+
+    MESSAGE_PROCESSOR = VSCodeMessageProcessor
+
+    def handle_pydevd_message(self, cmdid, seq, text):
+        if self._msgprocessor is None:
+            # TODO: Do more than ignore?
+            return
+        return self._msgprocessor.on_pydevd_event(cmdid, seq, text)
+
+    def re_build_breakpoints(self):
+        """Restore the breakpoints to their last values."""
+        if self._msgprocessor is None:
+            return
+        return self._msgprocessor.re_build_breakpoints()

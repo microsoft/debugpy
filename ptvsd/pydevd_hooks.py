@@ -8,7 +8,7 @@ from ptvsd.daemon import Daemon, DaemonStoppedError, DaemonClosedError
 from ptvsd._util import debug
 
 
-def start_server(daemon, host, port):
+def start_server(daemon, host, port, **kwargs):
     """Return a socket to a (new) local pydevd-handling daemon.
 
     The daemon supports the pydevd client wire protocol, sending
@@ -16,11 +16,11 @@ def start_server(daemon, host, port):
 
     This is a replacement for _pydevd_bundle.pydevd_comm.start_server.
     """
-    pydevd, next_session = daemon.start_server((host, port))
+    sock, next_session = daemon.start_server((host, port))
 
     def handle_next():
         try:
-            session = next_session()
+            session = next_session(**kwargs)
             debug('done waiting')
             return session
         except (DaemonClosedError, DaemonStoppedError):
@@ -54,10 +54,10 @@ def start_server(daemon, host, port):
     t.is_pydev_daemon_thread = True
     t.daemon = True
     t.start()
-    return pydevd
+    return sock
 
 
-def start_client(daemon, host, port):
+def start_client(daemon, host, port, **kwargs):
     """Return a socket to an existing "remote" pydevd-handling daemon.
 
     The daemon supports the pydevd client wire protocol, sending
@@ -65,9 +65,9 @@ def start_client(daemon, host, port):
 
     This is a replacement for _pydevd_bundle.pydevd_comm.start_client.
     """
-    pydevd, start_session = daemon.start_client((host, port))
-    start_session()
-    return pydevd
+    sock, start_session = daemon.start_client((host, port))
+    start_session(**kwargs)
+    return sock
 
 
 def install(pydevd, address,

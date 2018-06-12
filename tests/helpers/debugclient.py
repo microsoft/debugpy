@@ -189,6 +189,8 @@ class EasyDebugClient(DebugClient):
         argv = [
             filename,
         ] + list(argv)
+        if kwargs.pop('nodebug', False):
+            argv.insert(0, '--nodebug')
         self._launch(argv, **kwargs)
         return self._adapter, self._session
 
@@ -202,5 +204,7 @@ class EasyDebugClient(DebugClient):
         argv = [
             '-m', module,
         ] + list(argv)
+        if kwargs.pop('nodebug', False):
+            argv.insert(0, '--nodebug')
         self._launch(argv, **kwargs)
         return self._adapter, self._session

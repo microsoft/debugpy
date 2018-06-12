@@ -471,3 +471,40 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             self.new_event('exited', exitCode=0),
             self.new_event('terminated'),
         ])
+
+    def test_nodebug(self):
+        lockfile = self.workspace.lockfile()
+        done, waitscript = lockfile.wait_in_script()
+        filename = self.write_script('spam.py', dedent("""
+            print('+ before')
+
+            {}
+
+            print('+ after')
+            """).format(waitscript))
+        with DebugClient(port=9876) as editor:
+            adapter, session = editor.host_local_debugger(
+                argv=[
+                    '--nodebug',
+                    filename,
+                ],
+            )
+
+            (req_initialize, req_launch, req_config
+             ) = lifecycle_handshake(session, 'launch')
+
+            done()
+            adapter.wait()
+
+        self.assert_received(session.received, [
+            self.new_version_event(session.received),
+            self.new_response(req_initialize, **INITIALIZE_RESPONSE),
+            self.new_event('initialized'),
+            self.new_response(req_launch),
+            self.new_response(req_config),
+            self.new_event('output',
+                           output='+ before\n+ after\n',
+                           category='stdout'),
+            self.new_event('exited', exitCode=0),
+            self.new_event('terminated'),
+        ])

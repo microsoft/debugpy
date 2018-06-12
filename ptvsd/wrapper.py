@@ -48,35 +48,19 @@ from ptvsd.socket import TimeoutError  # noqa
 #    print(s)
 #ipcjson._TRACE = ipcjson_trace
 
+
 WAIT_FOR_DISCONNECT_REQUEST_TIMEOUT = 2
 WAIT_FOR_THREAD_FINISH_TIMEOUT = 1
 
-INITIALIZE_RESPONSE = dict(
-    supportsExceptionInfoRequest=True,
-    supportsConfigurationDoneRequest=True,
-    supportsConditionalBreakpoints=True,
-    supportsHitConditionalBreakpoints=True,
-    supportsSetVariable=True,
-    supportsExceptionOptions=True,
-    supportsEvaluateForHovers=True,
-    supportsValueFormattingOptions=True,
-    supportsSetExpression=True,
-    supportsModulesRequest=True,
-    supportsLogPoints=True,
-    supportTerminateDebuggee=True,
-    exceptionBreakpointFilters=[
-        {
-            'filter': 'raised',
-            'label': 'Raised Exceptions',
-            'default': False
-        },
-        {
-            'filter': 'uncaught',
-            'label': 'Uncaught Exceptions',
-            'default': True
-        },
-    ],
-)
+
+def is_debugger_internal_thread(thread_name):
+    # TODO: docstring
+    if thread_name:
+        if thread_name.startswith('pydevd.'):
+            return True
+        elif thread_name.startswith('ptvsd.'):
+            return True
+    return False
 
 
 class SafeReprPresentationProvider(pydevd_extapi.StrPresentationProvider):
@@ -702,72 +686,137 @@ class InternalsFilter(object):
         return False
 
 
-class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
-    """IPC JSON message processor for VSC debugger protocol.
+########################
+# the debug config
 
-    This translates between the VSC debugger protocol and the pydevd
-    protocol.
+def bool_parser(str):
+    return str in ("True", "true", "1")
+
+
+DEBUG_OPTIONS_PARSER = {
+    'WAIT_ON_ABNORMAL_EXIT': bool_parser,
+    'WAIT_ON_NORMAL_EXIT': bool_parser,
+    'REDIRECT_OUTPUT': bool_parser,
+    'VERSION': unquote,
+    'INTERPRETER_OPTIONS': unquote,
+    'WEB_BROWSER_URL': unquote,
+    'DJANGO_DEBUG': bool_parser,
+    'FLASK_DEBUG': bool_parser,
+    'FIX_FILE_PATH_CASE': bool_parser,
+    'WINDOWS_CLIENT': bool_parser,
+    'DEBUG_STDLIB': bool_parser,
+}
+
+
+DEBUG_OPTIONS_BY_FLAG = {
+    'RedirectOutput': 'REDIRECT_OUTPUT=True',
+    'WaitOnNormalExit': 'WAIT_ON_NORMAL_EXIT=True',
+    'WaitOnAbnormalExit': 'WAIT_ON_ABNORMAL_EXIT=True',
+    'Django': 'DJANGO_DEBUG=True',
+    'Flask': 'FLASK_DEBUG=True',
+    'Jinja': 'FLASK_DEBUG=True',
+    'FixFilePathCase': 'FIX_FILE_PATH_CASE=True',
+    'DebugStdLib': 'DEBUG_STDLIB=True',
+    'WindowsClient': 'WINDOWS_CLIENT=True',
+}
+
+
+def _extract_debug_options(opts, flags=None):
+    """Return the debug options encoded in the given value.
+
+    "opts" is a semicolon-separated string of "key=value" pairs.
+    "flags" is a list of strings.
+
+    If flags is provided then it is used as a fallback.
+
+    The values come from the launch config:
+
+     {
+         type:'python',
+         request:'launch'|'attach',
+         name:'friendly name for debug config',
+         debugOptions:[
+             'RedirectOutput', 'Django'
+         ],
+         options:'REDIRECT_OUTPUT=True;DJANGO_DEBUG=True'
+     }
+
+    Further information can be found here:
+
+     https://code.visualstudio.com/docs/editor/debugging#_launchjson-attributes
     """
+    if not opts:
+        opts = _build_debug_options(flags)
+    return _parse_debug_options(opts)
 
-    def __init__(self, socket, pydevd_notify, pydevd_request,
-                 notify_disconnecting, notify_closing,
+
+def _build_debug_options(flags):
+    """Build string representation of debug options from the launch config."""
+    return ';'.join(DEBUG_OPTIONS_BY_FLAG[flag]
+                    for flag in flags or []
+                    if flag in DEBUG_OPTIONS_BY_FLAG)
+
+
+def _parse_debug_options(opts):
+    """Debug options are semicolon separated key=value pairs
+        WAIT_ON_ABNORMAL_EXIT=True|False
+        WAIT_ON_NORMAL_EXIT=True|False
+        REDIRECT_OUTPUT=True|False
+        VERSION=string
+        INTERPRETER_OPTIONS=string
+        WEB_BROWSER_URL=string url
+        DJANGO_DEBUG=True|False
+        WINDOWS_CLIENT=True|False
+        DEBUG_STDLIB=True|False
+    """
+    options = {}
+    if not opts:
+        return options
+
+    for opt in opts.split(';'):
+        try:
+            key, value = opt.split('=')
+        except ValueError:
+            continue
+        try:
+            options[key] = DEBUG_OPTIONS_PARSER[key](value)
+        except KeyError:
+            continue
+
+    if 'WINDOWS_CLIENT' not in options:
+        options['WINDOWS_CLIENT'] = platform.system() == 'Windows' # noqa
+
+    return options
+
+
+########################
+# the message processor
+
+# TODO: Embed instead of extend (inheritance -> composition).
+
+class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
+    """The base class for VSC message processors."""
+
+    def __init__(self, socket, notify_closing,
                  timeout=None, logfile=None,
                  ):
-        super(VSCodeMessageProcessor, self).__init__(socket=socket,
-                                                     own_socket=False,
-                                                     timeout=timeout,
-                                                     logfile=logfile)
+        super(VSCodeMessageProcessorBase, self).__init__(
+            socket=socket,
+            own_socket=False,
+            timeout=timeout,
+            logfile=logfile,
+        )
         self.socket = socket
-        self._pydevd_notify = pydevd_notify
-        self._pydevd_request = pydevd_request
-        self._notify_disconnecting = notify_disconnecting
         self._notify_closing = notify_closing
 
-        self.loop = None
-        self.event_loop_thread = None
         self.server_thread = None
         self._closed = False
-        self.bkpoints = None
-
-        # debugger state
-        self.is_process_created = False
-        self.is_process_created_lock = threading.Lock()
-        self.stack_traces = {}
-        self.stack_traces_lock = threading.Lock()
-        self.active_exceptions = {}
-        self.active_exceptions_lock = threading.Lock()
-        self.thread_map = IDMap()
-        self.frame_map = IDMap()
-        self.var_map = IDMap()
-        self.bp_map = IDMap()
-        self.source_map = IDMap()
-        self.enable_source_references = False
-        self.next_var_ref = 0
-        self.exceptions_mgr = ExceptionsManager(self)
-        self.modules_mgr = ModulesManager(self)
-        self.internals_filter = InternalsFilter()
-
-        # adapter state
         self.readylock = threading.Lock()
         self.readylock.acquire()  # Unlock at the end of start().
-        self.disconnect_request = None
-        self.debug_options = {}
-        self.disconnect_request_event = threading.Event()
-        self._exited = False
-        self.path_casing = PathUnNormcase()
-        self.start_reason = None
 
     def start(self, threadname):
         # event loop
-        self.loop = futures.EventLoop()
-        self.event_loop_thread = threading.Thread(
-            target=self.loop.run_forever,
-            name='ptvsd.EventLoop',
-        )
-        self.event_loop_thread.pydev_do_not_trace = True
-        self.event_loop_thread.is_pydev_daemon_thread = True
-        self.event_loop_thread.daemon = True
-        self.event_loop_thread.start()
+        self._start_event_loop()
 
         # VSC msg processing loop
         def process_messages():
@@ -797,8 +846,6 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         debug('output sent')
         self.readylock.release()
 
-    # closing the adapter
-
     def close(self):
         """Stop the message processor and release its resources."""
         debug('raw closing')
@@ -810,10 +857,27 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         # Close the editor-side socket.
         self._stop_vsc_message_loop()
 
+    # VSC protocol handlers
+
+    def send_error_response(self, request, message=None):
+        self.send_response(
+            request,
+            success=False,
+            message=message
+        )
+
+    # internal methods
+
+    def _wait_for_server_thread(self):
+        if self.server_thread is None:
+            return
+        if not self.server_thread.is_alive():
+            return
+        self.server_thread.join(WAIT_FOR_THREAD_FINISH_TIMEOUT)
+
     def _stop_vsc_message_loop(self):
         self.set_exit()
-        self.loop.stop()
-        self.event_loop_thread.join(WAIT_FOR_THREAD_FINISH_TIMEOUT)
+        self._stop_event_loop()
         if self.socket:
             try:
                 self.socket.shutdown(socket.SHUT_RDWR)
@@ -822,16 +886,66 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                 # TODO: log the error
                 pass
 
-    def _wait_options(self):
-        # In attach scenarios, we can't assume that the process is actually
-        # interactive and has a console, so ignore these options.
-        # In launch scenarios, we only want "press any key" to show up when
-        # program terminates by itself, not when user explicitly stops it.
-        if self.disconnect_request or self.start_reason != 'launch':
-            return False, False
-        normal = self.debug_options.get('WAIT_ON_NORMAL_EXIT', False)
-        abnormal = self.debug_options.get('WAIT_ON_ABNORMAL_EXIT', False)
-        return normal, abnormal
+    # methods for subclasses to override
+
+    def _start_event_loop(self):
+        pass
+
+    def _stop_event_loop(self):
+        pass
+
+
+INITIALIZE_RESPONSE = dict(
+    supportsExceptionInfoRequest=True,
+    supportsConfigurationDoneRequest=True,
+    supportsConditionalBreakpoints=True,
+    supportsHitConditionalBreakpoints=True,
+    supportsSetVariable=True,
+    supportsExceptionOptions=True,
+    supportsEvaluateForHovers=True,
+    supportsValueFormattingOptions=True,
+    supportsSetExpression=True,
+    supportsModulesRequest=True,
+    supportsLogPoints=True,
+    supportTerminateDebuggee=True,
+    exceptionBreakpointFilters=[
+        {
+            'filter': 'raised',
+            'label': 'Raised Exceptions',
+            'default': False
+        },
+        {
+            'filter': 'uncaught',
+            'label': 'Uncaught Exceptions',
+            'default': True
+        },
+    ],
+)
+
+
+class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
+    """Handles adapter lifecycle messages of the VSC debugger protocol."""
+
+    def __init__(self, socket,
+                 notify_disconnecting, notify_closing, notify_launch=None,
+                 timeout=None, logfile=None,
+                 ):
+        super(VSCLifecycleMsgProcessor, self).__init__(
+            socket=socket,
+            notify_closing=notify_closing,
+            timeout=timeout,
+            logfile=logfile,
+        )
+        self._notify_launch = notify_launch or (lambda: None)
+        self._notify_disconnecting = notify_disconnecting
+
+        self._exited = False
+
+        # adapter state
+        self.disconnect_request = None
+        self.debug_options = {}
+        self.disconnect_request_event = threading.Event()
+        self.start_reason = None
 
     def handle_session_stopped(self, exitcode=None):
         """Finalize the protocol connection."""
@@ -848,6 +962,52 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         # The editor will send a "disconnect" request at this point.
         self._wait_for_disconnect()
 
+    # VSC protocol handlers
+
+    def on_initialize(self, request, args):
+        # TODO: docstring
+        self.send_response(request, **INITIALIZE_RESPONSE)
+        self.send_event('initialized')
+
+    def on_configurationDone(self, request, args):
+        # TODO: docstring
+        self.send_response(request)
+        self._process_debug_options(self.debug_options)
+        self._handle_configurationDone(args)
+
+    def on_attach(self, request, args):
+        # TODO: docstring
+        self.start_reason = 'attach'
+        self._set_debug_options(args)
+        self._handle_attach(args)
+        self.send_response(request)
+
+    def on_launch(self, request, args):
+        # TODO: docstring
+        self.start_reason = 'launch'
+        self._set_debug_options(args)
+        self._notify_launch()
+        self._handle_launch(args)
+        self.send_response(request)
+
+    def on_disconnect(self, request, args):
+        # TODO: docstring
+        if self.start_reason == 'launch':
+            self._handle_disconnect(request)
+        else:
+            self.send_response(request)
+            self._notify_disconnecting(kill=False)
+
+    # internal methods
+
+    def _set_debug_options(self, args):
+        self.debug_options = _extract_debug_options(
+            args.get('options'),
+            args.get('debugOptions'),
+        )
+
+    # methods related to shutdown
+
     def _wait_for_disconnect(self, timeout=None):
         if timeout is None:
             timeout = WAIT_FOR_DISCONNECT_REQUEST_TIMEOUT
@@ -859,6 +1019,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             self.disconnect_request = None
 
     def _handle_disconnect(self, request):
+        assert self.start_reason == 'launch'
         self.disconnect_request = request
         self.disconnect_request_event.set()
         self._notify_disconnecting(kill=not self._closed)
@@ -867,12 +1028,92 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             # so just terminate the process altogether.
             sys.exit(0)
 
-    def _wait_for_server_thread(self):
-        if self.server_thread is None:
-            return
-        if not self.server_thread.is_alive():
-            return
-        self.server_thread.join(WAIT_FOR_THREAD_FINISH_TIMEOUT)
+    def _wait_options(self):
+        # In attach scenarios, we can't assume that the process is actually
+        # interactive and has a console, so ignore these options.
+        # In launch scenarios, we only want "press any key" to show up when
+        # program terminates by itself, not when user explicitly stops it.
+        if self.disconnect_request or self.start_reason != 'launch':
+            return False, False
+        normal = self.debug_options.get('WAIT_ON_NORMAL_EXIT', False)
+        abnormal = self.debug_options.get('WAIT_ON_ABNORMAL_EXIT', False)
+        return normal, abnormal
+
+    # methods for subclasses to override
+
+    def _process_debug_options(self, opts):
+        pass
+
+    def _handle_configurationDone(self, args):
+        pass
+
+    def _handle_attach(self, args):
+        pass
+
+    def _handle_launch(self, args):
+        pass
+
+
+class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
+    """IPC JSON message processor for VSC debugger protocol.
+
+    This translates between the VSC debugger protocol and the pydevd
+    protocol.
+    """
+
+    def __init__(self, socket, pydevd_notify, pydevd_request,
+                 notify_disconnecting, notify_closing,
+                 timeout=None, logfile=None,
+                 ):
+        super(VSCodeMessageProcessor, self).__init__(
+            socket=socket,
+            notify_disconnecting=notify_disconnecting,
+            notify_closing=notify_closing,
+            timeout=timeout,
+            logfile=logfile,
+        )
+        self._pydevd_notify = pydevd_notify
+        self._pydevd_request = pydevd_request
+
+        self.loop = None
+        self.event_loop_thread = None
+        self.bkpoints = None
+
+        # debugger state
+        self.is_process_created = False
+        self.is_process_created_lock = threading.Lock()
+        self.stack_traces = {}
+        self.stack_traces_lock = threading.Lock()
+        self.active_exceptions = {}
+        self.active_exceptions_lock = threading.Lock()
+        self.thread_map = IDMap()
+        self.frame_map = IDMap()
+        self.var_map = IDMap()
+        self.bp_map = IDMap()
+        self.source_map = IDMap()
+        self.enable_source_references = False
+        self.next_var_ref = 0
+        self.exceptions_mgr = ExceptionsManager(self)
+        self.modules_mgr = ModulesManager(self)
+        self.internals_filter = InternalsFilter()
+
+        # adapter state
+        self.path_casing = PathUnNormcase()
+
+    def _start_event_loop(self):
+        self.loop = futures.EventLoop()
+        self.event_loop_thread = threading.Thread(
+            target=self.loop.run_forever,
+            name='ptvsd.EventLoop',
+        )
+        self.event_loop_thread.pydev_do_not_trace = True
+        self.event_loop_thread.is_pydev_daemon_thread = True
+        self.event_loop_thread.daemon = True
+        self.event_loop_thread.start()
+
+    def _stop_event_loop(self):
+        self.loop.stop()
+        self.event_loop_thread.join(WAIT_FOR_THREAD_FINISH_TIMEOUT)
 
     # async helpers
 
@@ -961,17 +1202,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     # VSC protocol handlers
 
-    @async_handler
-    def on_initialize(self, request, args):
-        # TODO: docstring
-        self.send_response(request, **INITIALIZE_RESPONSE)
-        self.send_event('initialized')
-
-    @async_handler
-    def on_configurationDone(self, request, args):
-        # TODO: docstring
-        self.send_response(request)
-        self.process_debug_options()
+    def _handle_configurationDone(self, args):
         self.pydevd_request(pydevd_comm.CMD_RUN, '')
 
         if self.start_reason == 'attach':
@@ -983,91 +1214,16 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
                     self.is_process_created = True
                     self.send_process_event(self.start_reason)
 
-    def process_debug_options(self):
-        """
-        Process the launch arguments to configure the debugger.
-        """  # noqa
-        if self.debug_options.get('FIX_FILE_PATH_CASE', False):
+    def _process_debug_options(self, opts):
+        """Process the launch arguments to configure the debugger."""
+        if opts.get('FIX_FILE_PATH_CASE', False):
             self.path_casing.enable()
 
-        if self.debug_options.get('REDIRECT_OUTPUT', False):
+        if opts.get('REDIRECT_OUTPUT', False):
             redirect_output = 'STDOUT\tSTDERR'
         else:
             redirect_output = ''
         self.pydevd_request(pydevd_comm.CMD_REDIRECT_OUTPUT, redirect_output)
-
-    def build_debug_options(self, debug_options):
-        """
-        Build string representation of debug options from launch config (as provided by VSC)
-        Further information can be found here https://code.visualstudio.com/docs/editor/debugging#_launchjson-attributes
-        {
-            type:'python',
-            request:'launch'|'attach',
-            name:'friendly name for debug config',
-            debugOptions:[
-                'RedirectOutput', 'Django'
-            ]
-        }
-        """  # noqa
-        debug_option_mapping = {
-            'RedirectOutput': 'REDIRECT_OUTPUT=True',
-            'WaitOnNormalExit': 'WAIT_ON_NORMAL_EXIT=True',
-            'WaitOnAbnormalExit': 'WAIT_ON_ABNORMAL_EXIT=True',
-            'Django': 'DJANGO_DEBUG=True',
-            'Flask': 'FLASK_DEBUG=True',
-            'Jinja': 'FLASK_DEBUG=True',
-            'FixFilePathCase': 'FIX_FILE_PATH_CASE=True',
-            'DebugStdLib': 'DEBUG_STDLIB=True',
-            'WindowsClient': 'WINDOWS_CLIENT=True',
-        }
-        return ';'.join(debug_option_mapping[option]
-                        for option in debug_options
-                        if option in debug_option_mapping)
-
-    def _parse_debug_options(self, debug_options):
-        """Debug options are semicolon separated key=value pairs
-            WAIT_ON_ABNORMAL_EXIT=True|False
-            WAIT_ON_NORMAL_EXIT=True|False
-            REDIRECT_OUTPUT=True|False
-            VERSION=string
-            INTERPRETER_OPTIONS=string
-            WEB_BROWSER_URL=string url
-            DJANGO_DEBUG=True|False
-            WINDOWS_CLIENT=True|False
-            DEBUG_STDLIB=True|False
-        """
-        def bool_parser(str):
-            return str in ("True", "true", "1")
-
-        DEBUG_OPTIONS_PARSER = {
-            'WAIT_ON_ABNORMAL_EXIT': bool_parser,
-            'WAIT_ON_NORMAL_EXIT': bool_parser,
-            'REDIRECT_OUTPUT': bool_parser,
-            'VERSION': unquote,
-            'INTERPRETER_OPTIONS': unquote,
-            'WEB_BROWSER_URL': unquote,
-            'DJANGO_DEBUG': bool_parser,
-            'FLASK_DEBUG': bool_parser,
-            'FIX_FILE_PATH_CASE': bool_parser,
-            'WINDOWS_CLIENT': bool_parser,
-            'DEBUG_STDLIB': bool_parser,
-        }
-
-        options = {}
-        for opt in debug_options.split(';'):
-            try:
-                key, value = opt.split('=')
-            except ValueError:
-                continue
-            try:
-                options[key] = DEBUG_OPTIONS_PARSER[key](value)
-            except KeyError:
-                continue
-
-        if 'WINDOWS_CLIENT' not in options:
-            options['WINDOWS_CLIENT'] = platform.system() == 'Windows' # noqa
-
-        return options
 
     def _initialize_path_maps(self, args):
         pathMaps = []
@@ -1090,34 +1246,14 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
         return self.pydevd_request(cmd, msg)
 
     @async_handler
-    def on_attach(self, request, args):
-        # TODO: docstring
-        self.start_reason = 'attach'
+    def _handle_attach(self, args):
         self._initialize_path_maps(args)
-        options = self.build_debug_options(args.get('debugOptions', []))
-        self.debug_options = self._parse_debug_options(
-            args.get('options', options))
         yield self._send_cmd_version_command()
-        self.send_response(request)
 
     @async_handler
-    def on_launch(self, request, args):
-        # TODO: docstring
-        self.start_reason = 'launch'
+    def _handle_launch(self, args):
         self._initialize_path_maps(args)
-        options = self.build_debug_options(args.get('debugOptions', []))
-        self.debug_options = self._parse_debug_options(
-            args.get('options', options))
         yield self._send_cmd_version_command()
-        self.send_response(request)
-
-    def on_disconnect(self, request, args):
-        # TODO: docstring
-        if self.start_reason == 'launch':
-            self._handle_disconnect(request)
-        else:
-            self.send_response(request)
-            self._notify_disconnecting(kill=False)
 
     def send_process_event(self, start_method):
         # TODO: docstring
@@ -1128,21 +1264,6 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             'startMethod': start_method,
         }
         self.send_event('process', **evt)
-
-    def send_error_response(self, request, message=None):
-        self.send_response(
-            request,
-            success=False,
-            message=message
-        )
-
-    def is_debugger_internal_thread(self, thread_name):
-        if thread_name:
-            if thread_name.startswith('pydevd.'):
-                return True
-            elif thread_name.startswith('ptvsd.'):
-                return True
-        return False
 
     @async_handler
     def on_threads(self, request, args):
@@ -1168,7 +1289,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             except KeyError:
                 name = None
 
-            if not self.is_debugger_internal_thread(name):
+            if not is_debugger_internal_thread(name):
                 pyd_tid = xthread['id']
                 try:
                     vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=False)
@@ -1880,7 +2001,7 @@ class VSCodeMessageProcessor(ipcjson.SocketIO, ipcjson.IpcChannel):
             name = unquote(xml.thread['name'])
         except KeyError:
             name = None
-        if not self.is_debugger_internal_thread(name):
+        if not is_debugger_internal_thread(name):
             # Any internal pydevd or ptvsd threads will be ignored everywhere
             tid = self.thread_map.to_vscode(xml.thread['id'], autogen=True)
             self.send_event('thread', reason='started', threadId=tid)
