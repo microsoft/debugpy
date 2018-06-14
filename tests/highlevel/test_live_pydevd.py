@@ -170,6 +170,7 @@ class VSCFlowTest(TestBase):
     @contextlib.contextmanager
     def launched(self, port=8888, **kwargs):
         kwargs.setdefault('process', False)
+        kwargs.setdefault('disconnect', False)
         with self.lifecycle.launched(port=port, hide=True, **kwargs):
             yield
             self.fix.binder.done(close=False)

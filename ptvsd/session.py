@@ -1,6 +1,6 @@
 from .socket import is_socket, close_socket
 from .wrapper import VSCodeMessageProcessor
-from ._util import Closeable, Startable, debug
+from ._util import TimeoutError, ClosedError, Closeable, Startable, debug
 
 
 class DebugSession(Startable, Closeable):
@@ -33,23 +33,29 @@ class DebugSession(Startable, Closeable):
     def __init__(self, sock, notify_closing=None, ownsock=False):
         super(DebugSession, self).__init__()
 
+        if notify_closing is not None:
+            def handle_closing(before):
+                if before:
+                    notify_closing(self, can_disconnect=self._can_disconnect)
+            self.add_close_handler(handle_closing)
+
         self._sock = sock
         if ownsock:
+            # Close the socket *after* calling sys.exit() (via notify_closing).
             def handle_closing(before):
                 if before:
                     return
+                proc = self._msgprocessor
+                if proc is not None:
+                    try:
+                        proc.wait_while_connected(10)  # seconds
+                    except TimeoutError:
+                        debug('timed out waiting for disconnect')
                 close_socket(self._sock)
             self.add_close_handler(handle_closing)
 
-        self._killrequested = False
-        if notify_closing is not None:
-            def handle_closing(before):
-                if not before:
-                    return
-                notify_closing(self, kill=self._killrequested)
-            self.add_close_handler(handle_closing)
-
         self._msgprocessor = None
+        self._can_disconnect = None
 
     @property
     def socket(self):
@@ -61,16 +67,18 @@ class DebugSession(Startable, Closeable):
 
     def wait_options(self):
         """Return (normal, abnormal) based on the session's launch config."""
-        if self._msgprocessor is None:
+        proc = self._msgprocessor
+        if proc is None:
             return (False, False)
-        return self._msgprocessor._wait_options()
+        return proc._wait_options()
 
     def wait_until_stopped(self):
         """Block until all resources (e.g. message processor) have stopped."""
-        if self._msgprocessor is None:
+        proc = self._msgprocessor
+        if proc is None:
             return
         # TODO: Do this in VSCodeMessageProcessor.close()?
-        self._msgprocessor._wait_for_server_thread()
+        proc._wait_for_server_thread()
 
     def get_wait_on_exit(self):
         """Return a wait_on_exit(exitcode) func.
@@ -105,7 +113,7 @@ class DebugSession(Startable, Closeable):
         if self._msgprocessor is None:
             return
 
-        # TODO: This is not correct in the "attach" case.
+        debug('proc stopping')
         self._msgprocessor.handle_session_stopped(exitcode)
         self._msgprocessor.close()
         self._msgprocessor = None
@@ -122,10 +130,13 @@ class DebugSession(Startable, Closeable):
 
     # internal methods for VSCodeMessageProcessor
 
-    def _handle_vsc_disconnect(self, kill=False):
-        if kill:
-            self._killrequested = kill
-        self.close()
+    def _handle_vsc_disconnect(self, can_disconnect=None):
+        debug('disconnecting')
+        self._can_disconnect = can_disconnect
+        try:
+            self.close()
+        except ClosedError:
+            pass
 
     def _handle_vsc_close(self):
         debug('processor closing')

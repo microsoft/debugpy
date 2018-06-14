@@ -11,8 +11,11 @@ from ._binder import BinderBase
 
 class Binder(BinderBase):
 
-    def __init__(self, filename, module, **kwargs):
-        super(Binder, self).__init__(**kwargs)
+    def __init__(self, filename, module, singlesession=True, **kwargs):
+        super(Binder, self).__init__(
+            singlesession=singlesession,
+            **kwargs
+        )
         self.filename = filename
         self.module = module
         self._lock = threading.Lock()

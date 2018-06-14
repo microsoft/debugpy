@@ -18,14 +18,17 @@ class PTVSD(ptvsd.daemon.Daemon):
     """
 
     @classmethod
-    def from_connect_func(cls, connect):
+    def from_connect_func(cls, connect, singlesession=None):
         """Return a new instance using the socket returned by connect()."""
+        client, server = connect()
+        if singlesession is None:
+            singlesession = (server is None)
         self = cls(
             wait_for_user=(lambda: None),
             addhandlers=False,
             killonclose=False,
+            singlesession=singlesession,
         )
-        client, server = connect()
         self.start()
         self.start_session(client, 'ptvsd.Server')
         self.server = server
@@ -70,9 +73,11 @@ class BinderBase(object):
     runs the debugger in the background.
     """
 
-    def __init__(self, address=None, ptvsd=None):
+    def __init__(self, address=None, ptvsd=None, singlesession=None):
         if address is not None or ptvsd is not None:
             raise NotImplementedError
+
+        self.singlesession = singlesession
 
         # Set when bind() called:
         self.address = None
@@ -117,6 +122,8 @@ class BinderBase(object):
         def connect():
             if self._thread is not None:
                 raise RuntimeError('already connected')
+            # We do not give this thread a name because we actually do
+            # want ptvsd to track it.
             self._thread = threading.Thread(target=self._run)
             self._thread.start()
             # Wait for ptvsd to start up.
@@ -150,7 +157,10 @@ class BinderBase(object):
     def _start_ptvsd(self):
         if self.ptvsd is not None:
             raise RuntimeError('already connected')
-        self.ptvsd = PTVSD.from_connect_func(self._connect)
+        self.ptvsd = PTVSD.from_connect_func(
+            self._connect,
+            singlesession=self.singlesession,
+        )
         self._waiter.release()
 
     def _run(self):

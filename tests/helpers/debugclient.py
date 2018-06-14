@@ -160,7 +160,7 @@ class EasyDebugClient(DebugClient):
 
         def run():
             self._session = DebugSession.create_server(addr, **kwargs)
-        t = threading.Thread(target=run)
+        t = threading.Thread(target=run, name='ptvsd.test.client')
         t.start()
 
         def wait():

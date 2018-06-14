@@ -28,7 +28,9 @@ class Server:
             raise RuntimeError('already started')
         self._server = HTTPServer(self._addr, self.handler)
         self._thread = threading.Thread(
-                target=lambda: self._server.serve_forever())
+            target=(lambda: self._server.serve_forever()),
+            name='ptvsd.test.http',
+        )
         self._thread.start()
 
     def stop(self):

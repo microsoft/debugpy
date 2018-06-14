@@ -47,6 +47,7 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
 
     def attach(self, expected_os_id, attach_args):
         version = self.debugger.VERSION
+        self.fix.debugger.binder.singlesession = False
         addr = (None, 8888)
         daemon = self.vsc.start(addr)
         with self.vsc.wait_for_event('output'):
@@ -70,11 +71,13 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
             # end
             req_disconnect = self.send_request('disconnect')
         finally:
+            received = self.vsc.received
             with self._fix.wait_for_events(['exited', 'terminated']):
                 self.fix.close_ptvsd()
             daemon.close()
+            #self.fix.close_ptvsd()
 
-        self.assert_received(self.vsc, [
+        self.assert_vsc_received(received, [
             self.new_event(
                 'output',
                 category='telemetry',
@@ -91,8 +94,6 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
                startMethod='attach',
             )),
             self.new_response(req_disconnect),
-            self.new_event('exited', exitCode=0),
-            self.new_event('terminated'),
         ])
         self.assert_received(self.debugger, [
             self.debugger_msgs.new_request(CMD_VERSION,
@@ -105,6 +106,11 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
 
     def test_attach(self):
         self.attach(expected_os_id=OS_ID, attach_args={})
+
+    @unittest.skip('not implemented')
+    def test_attach_exit_during_session(self):
+        # TODO: Ensure we see the "terminated" and "exited" events.
+        raise NotImplementedError
 
     def test_attach_from_unix_os(self):
         attach_args = {'options': 'WINDOWS_CLIENT=False'}

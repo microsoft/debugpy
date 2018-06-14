@@ -19,8 +19,10 @@ PROTOCOL = protocol.MessageProtocol(
 
 class Binder(BinderBase):
 
-    def __init__(self):
-        super(Binder, self).__init__()
+    def __init__(self, singlesession=True):
+        super(Binder, self).__init__(
+            singlesession=singlesession,
+        )
         self._lock = threading.Lock()
         self._lock.acquire()
 
@@ -108,8 +110,8 @@ class FakePyDevd(protocol.MessageDaemon):
         else:
             return None
 
-    def __init__(self, handler=None):
-        self.binder = Binder()
+    def __init__(self, handler=None, **kwargs):
+        self.binder = Binder(**kwargs)
 
         super(FakePyDevd, self).__init__(
             self.binder.bind,

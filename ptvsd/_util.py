@@ -3,6 +3,7 @@ from __future__ import print_function
 import contextlib
 import os
 import threading
+import time
 import sys
 
 
@@ -44,6 +45,62 @@ def call_all(callables, *args, **kwargs):
         else:
             results.append((call, None))
     return results
+
+
+########################
+# threading stuff
+
+try:
+    TimeoutError = __builtins__.TimeoutError
+except AttributeError:
+    class TimeoutError(OSError):
+        """Timeout expired."""
+
+
+def is_locked(lock):
+    """Return True if the lock is locked."""
+    if lock is None:
+        return False
+    if not lock.acquire(False):
+        return True
+    lock_release(lock)
+    return False
+
+
+def lock_release(lock):
+    """Ensure that the lock is released."""
+    if lock is None:
+        return
+    try:
+        lock.release()
+    except RuntimeError:  # already unlocked
+        pass
+
+
+def lock_wait(lock, timeout=None):
+    """Wait until the lock is not locked."""
+    if not _lock_acquire(lock, timeout):
+        raise TimeoutError
+    lock_release(lock)
+
+
+if sys.version_info > (2,):
+    def _lock_acquire(lock, timeout):
+        if timeout is None:
+            timeout = -1
+        return lock.acquire(timeout=timeout)
+else:
+    def _lock_acquire(lock, timeout):
+        if timeout is None or timeout <= 0:
+            return lock.acquire()
+        if lock.acquire(False):
+            return True
+        for _ in range(int(timeout * 100)):
+            time.sleep(0.01)
+            if lock.acquire(False):
+                return True
+        else:
+            return False
 
 
 ########################

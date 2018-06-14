@@ -41,7 +41,7 @@ import ptvsd.untangle as untangle  # noqa
 from ptvsd.pathutils import PathUnNormcase  # noqa
 from ptvsd.safe_repr import SafeRepr  # noqa
 from ptvsd.version import __version__  # noqa
-from ptvsd._util import debug  # noqa
+from ptvsd._util import debug, is_locked, lock_release, lock_wait  # noqa
 from ptvsd.socket import TimeoutError  # noqa
 
 
@@ -789,7 +789,7 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
     """The base class for VSC message processors."""
 
     def __init__(self, socket, notify_closing,
-                 timeout=None, logfile=None,
+                 timeout=None, logfile=None, own_socket=False
                  ):
         super(VSCodeMessageProcessorBase, self).__init__(
             socket=socket,
@@ -798,12 +798,44 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
             logfile=logfile,
         )
         self.socket = socket
+        self._own_socket = own_socket
         self._notify_closing = notify_closing
 
         self.server_thread = None
         self._closed = False
         self.readylock = threading.Lock()
         self.readylock.acquire()  # Unlock at the end of start().
+
+        self._connected = threading.Lock()
+        self._listening = None
+        self._connlock = threading.Lock()
+
+    @property
+    def connected(self):  # may send responses/events
+        with self._connlock:
+            return is_locked(self._connected)
+
+    @property
+    def listening(self):
+        # TODO: must be disconnected?
+        with self._connlock:
+            if self._listening is None:
+                return False
+            return is_locked(self._listening)
+
+    def wait_while_connected(self, timeout=None):
+        """Wait until the client socket is disconnected."""
+        with self._connlock:
+            lock = self._listening
+        lock_wait(lock, timeout)  # Wait until no longer connected.
+
+    def wait_while_listening(self, timeout=None):
+        """Wait until no longer listening for incoming messages."""
+        with self._connlock:
+            lock = self._listening
+            if lock is None:
+                raise RuntimeError('not listening yet')
+        lock_wait(lock, timeout)  # Wait until no longer listening.
 
     def start(self, threadname):
         # event loop
@@ -812,10 +844,15 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
         # VSC msg processing loop
         def process_messages():
             self.readylock.acquire()
+            with self._connlock:
+                self._listening = threading.Lock()
             try:
                 self.process_messages()
             except (EOFError, TimeoutError):
                 debug('client socket closed')
+                with self._connlock:
+                    lock_release(self._listening)
+                    lock_release(self._connected)
                 self.close()
         self.server_thread = threading.Thread(
             target=process_messages,
@@ -839,14 +876,19 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     def close(self):
         """Stop the message processor and release its resources."""
-        debug('raw closing')
         if self._closed:
             return
         self._closed = True
+        debug('raw closing')
 
         self._notify_closing()
         # Close the editor-side socket.
         self._stop_vsc_message_loop()
+
+        # Ensure that the connection is marked as closed.
+        with self._connlock:
+            lock_release(self._listening)
+            lock_release(self._connected)
 
     # VSC protocol handlers
 
@@ -859,6 +901,10 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     # internal methods
 
+    def _set_disconnected(self):
+        with self._connlock:
+            lock_release(self._connected)
+
     def _wait_for_server_thread(self):
         if self.server_thread is None:
             return
@@ -869,10 +915,11 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
     def _stop_vsc_message_loop(self):
         self.set_exit()
         self._stop_event_loop()
-        if self.socket:
+        if self.socket is not None and self._own_socket:
             try:
                 self.socket.shutdown(socket.SHUT_RDWR)
                 self.socket.close()
+                self._set_disconnected()
             except Exception:
                 # TODO: log the error
                 pass
@@ -931,25 +978,25 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         self._notify_launch = notify_launch or (lambda: None)
         self._notify_disconnecting = notify_disconnecting
 
-        self._exited = False
+        self._stopped = False
 
         # adapter state
         self.disconnect_request = None
-        self.debug_options = {}
         self.disconnect_request_event = threading.Event()
         self.start_reason = None
+        self.debug_options = {}
 
     def handle_session_stopped(self, exitcode=None):
         """Finalize the protocol connection."""
-        if self._exited:
+        if self._stopped:
             return
-        self._exited = True
+        self._stopped = True
 
         if exitcode is not None:
             # Notify the editor that the "debuggee" (e.g. script, app) exited.
             self.send_event('exited', exitCode=exitcode)
-        # Notify the editor that the debugger has stopped.
-        self.send_event('terminated')
+            # Notify the editor that the debugger has stopped.
+            self.send_event('terminated')
 
         # The editor will send a "disconnect" request at this point.
         self._wait_for_disconnect()
@@ -984,11 +1031,15 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
 
     def on_disconnect(self, request, args):
         # TODO: docstring
-        if self.start_reason == 'launch':
-            self._handle_disconnect(request)
-        else:
-            self.send_response(request)
-            self._notify_disconnecting(kill=False)
+        def done():
+            self.disconnect_request = request
+            self.disconnect_request_event.set()
+        self._notify_disconnecting(done)
+        # TODO: We should be able drop the remaining lines.
+        if not self._closed and self.start_reason == 'launch':
+            # Closing the socket causes pydevd to resume all threads,
+            # so just terminate the process altogether.
+            sys.exit(0)
 
     # internal methods
 
@@ -1005,20 +1056,13 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
             timeout = WAIT_FOR_DISCONNECT_REQUEST_TIMEOUT
 
         if not self.disconnect_request_event.wait(timeout):
-            warnings.warn('timed out waiting for disconnect request')
+            warnings.warn(('timed out (after {} seconds) '
+                           'waiting for disconnect request'
+                           ).format(timeout))
         if self.disconnect_request is not None:
             self.send_response(self.disconnect_request)
             self.disconnect_request = None
-
-    def _handle_disconnect(self, request):
-        assert self.start_reason == 'launch'
-        self.disconnect_request = request
-        self.disconnect_request_event.set()
-        self._notify_disconnecting(kill=not self._closed)
-        if not self._closed:
-            # Closing the socket causes pydevd to resume all threads,
-            # so just terminate the process altogether.
-            sys.exit(0)
+            self._set_disconnected()
 
     def _wait_options(self):
         # In attach scenarios, we can't assume that the process is actually

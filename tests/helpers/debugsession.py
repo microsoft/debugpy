@@ -116,6 +116,8 @@ class DebugSession(Closeable):
     HOST = 'localhost'
     PORT = 8888
 
+    TIMEOUT = None
+
     @classmethod
     def create_client(cls, addr=None, **kwargs):
         if addr is None:
@@ -147,7 +149,10 @@ class DebugSession(Closeable):
             else:
                 self._add_handler(*handler)
         self._received = []
-        self._listenerthread = threading.Thread(target=self._listen)
+        self._listenerthread = threading.Thread(
+            target=self._listen,
+            name='ptvsd.test.session',
+        )
         self._listenerthread.start()
 
     @property
@@ -261,6 +266,8 @@ class DebugSession(Closeable):
 
     @contextlib.contextmanager
     def _wait_for_message(self, match, handlername, timeout=None):
+        if timeout is None:
+            timeout = self.TIMEOUT
         lock, wait = get_locked_and_waiter()
 
         def handler(msg):
@@ -272,4 +279,4 @@ class DebugSession(Closeable):
         try:
             yield
         finally:
-            wait(timeout or self._timeout, handlername)
+            wait(timeout or self._timeout, handlername, fail=True)
