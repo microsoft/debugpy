@@ -516,9 +516,10 @@ class LogpointTests(TestBase, unittest.TestCase):
                         },
                     ],
                 })
-            with self.vsc.wait_for_event('output'):
-                with self.vsc.wait_for_event('thread'):
-                    req_config = self.send_request('configurationDone')
+            with self.vsc.wait_for_event('output'):  # 1+2=3
+                with self.vsc.wait_for_event('output'):  # \n
+                    with self.vsc.wait_for_event('thread'):
+                        req_config = self.send_request('configurationDone')
 
             wait()
             received = self.vsc.received
@@ -551,6 +552,10 @@ class LogpointTests(TestBase, unittest.TestCase):
             self.new_event('thread', reason='started', threadId=1),
             self.new_event('output', **dict(
                 category='stdout',
-                output='1+2=3\n',
+                output='1+2=3',
+            )),
+            self.new_event('output', **dict(
+                category='stdout',
+                output='\n',
             )),
         ])

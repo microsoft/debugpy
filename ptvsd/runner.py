@@ -3,15 +3,12 @@
 # for license information.
 
 import pydevd
-import sys
 import time
 import threading
-import traceback
 
 from ptvsd.daemon import DaemonBase
 from ptvsd.session import DebugSession
-from ptvsd.wrapper import (
-    WAIT_FOR_THREAD_FINISH_TIMEOUT, VSCLifecycleMsgProcessor)
+from ptvsd.wrapper import VSCLifecycleMsgProcessor
 from pydevd import init_stdout_redirect, init_stderr_redirect
 
 
@@ -40,56 +37,6 @@ def run(address, filename, is_module, *args, **kwargs):
     time.sleep(OUTPUT_POLL_PERIOD + 0.1)
 
 
-class OutputRedirection(object):
-    # TODO: docstring
-
-    def __init__(self, on_output=lambda category, output: None):
-        self._on_output = on_output
-        self._stopped = False
-        self._thread = None
-
-    def start(self):
-        # TODO: docstring
-        init_stdout_redirect()
-        init_stderr_redirect()
-        self._thread = threading.Thread(
-            target=self._run, name='ptvsd.output.redirection')
-        self._thread.pydev_do_not_trace = True
-        self._thread.is_pydev_daemon_thread = True
-        self._thread.daemon = True
-        self._thread.start()
-
-    def stop(self):
-        # TODO: docstring
-        if self._stopped:
-            return
-
-        self._stopped = True
-        self._thread.join(WAIT_FOR_THREAD_FINISH_TIMEOUT)
-
-    def _run(self):
-        while not self._stopped:
-            self._check_output(sys.stdoutBuf, 'stdout')
-            self._check_output(sys.stderrBuf, 'stderr')
-            time.sleep(OUTPUT_POLL_PERIOD)
-
-    def _check_output(self, out, category):
-        '''Checks the output to see if we have to send some buffered,
-        output to the debug server
-
-        @param out: sys.stdout or sys.stderr
-        @param category: stdout or stderr
-        '''
-
-        try:
-            v = out.getvalue()
-
-            if v:
-                self._on_output(category, v)
-        except Exception:
-            traceback.print_exc()
-
-
 class Daemon(DaemonBase):
     """The process-level manager for the VSC protocol debug adapter."""
 
@@ -110,12 +57,24 @@ class Daemon(DaemonBase):
         return launched.wait(timeout)
 
     def _start(self):
-        self._output_monitor = OutputRedirection(self._send_output)
-        self._output_monitor.start()
+        import weakref
+        weak_self = weakref.ref(self)  # Avoid cyclic ref
+
+        def on_stdout(msg):
+            self = weak_self()
+            if self is not None:
+                self._send_output('stdout', msg)
+
+        def on_stderr(msg):
+            self = weak_self()
+            if self is not None:
+                self._send_output('stderr', msg)
+
+        init_stdout_redirect(on_stdout)
+        init_stderr_redirect(on_stderr)
         return NoSocket()
 
     def _close(self):
-        self._output_monitor.stop()
         super(Daemon, self)._close()
 
     def _send_output(self, category, output):

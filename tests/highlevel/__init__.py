@@ -878,33 +878,11 @@ class VSCTest(object):
         return self.FIXTURE(new_daemon)
 
     def assert_vsc_received(self, received, expected):
-        try:
-            from itertools import zip_longest
-        except ImportError:
-            from itertools import izip_longest as zip_longest
+        from tests.helpers.message import assert_messages_equal
+
         received = list(self.vsc.protocol.parse_each(received))
         expected = list(self.vsc.protocol.parse_each(expected))
-        if received != expected:
-            msg = ['']
-            msg.append('Received:')
-            for r in received:
-                msg.append(str(r))
-            msg.append('')
-
-            msg.append('Expected:')
-            for r in expected:
-                msg.append(str(r))
-            msg.append('')
-
-            msg.append('Diff by line')
-            for i, (a, b) in enumerate(
-                zip_longest(received, expected, fillvalue=None)):
-                if a == b:
-                    msg.append(' %2d:  %s' % (i, a,))
-                else:
-                    msg.append('!%2d: %s != %s' % (i, a, b))
-
-            self.fail('\n'.join(msg))
+        assert_messages_equal(received, expected)
 
     def assert_vsc_failure(self, received, expected, req):
         received = list(self.vsc.protocol.parse_each(received))

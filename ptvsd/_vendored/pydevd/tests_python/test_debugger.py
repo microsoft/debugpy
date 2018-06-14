@@ -1,3 +1,4 @@
+#coding: utf-8
 '''
     The idea is that we record the commands sent to the debugger and reproduce them from this script
     (so, this works as the client, which spawns the debugger as a separate process and communicates
@@ -106,7 +107,7 @@ class WriterThreadCaseGetNextStatementTargets(debugger_unittest.AbstractWriterTh
 
         self.write_get_next_statement_targets(thread_id, frame_id)
         targets = self.wait_for_get_next_statement_targets()
-        expected = {2, 3, 5, 8, 9, 10, 12, 13, 14, 15, 17, 18, 19, 21}
+        expected = set((2, 3, 5, 8, 9, 10, 12, 13, 14, 15, 17, 18, 19, 21))
         assert targets == expected, 'Expected targets to be %s, was: %s' % (expected, targets)
 
         self.write_remove_breakpoint(breakpoint_id)
@@ -1489,6 +1490,56 @@ class WriterThreadCaseHandledExceptions3(debugger_unittest.AbstractWriterThread)
 
         self.finished_ok = True
 
+#=======================================================================================================================
+# WriterThreadCaseRedirectOutput
+#======================================================================================================================
+class WriterThreadCaseRedirectOutput(debugger_unittest.AbstractWriterThread):
+
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_redirect.py')
+
+    def get_environ(self):
+        env = os.environ.copy()
+
+        env["PYTHONIOENCODING"] = 'utf-8'
+        return env
+    
+    def run(self):
+        # Note: writes to stdout and stderr are now synchronous (so, the order
+        # must always be consistent and there's a message for each write).
+        expected = [
+            'text\n',
+            'binary or text\n',
+            'ação1\n',
+        ]
+        
+        if sys.version_info[0] >= 3:
+            expected.extend((
+                'binary\n',
+                'ação2\n'.encode(encoding='latin1').decode('utf-8', 'replace'),
+                'ação3\n',
+            ))
+        
+        new_expected = [(x, 'stdout') for x in expected]
+        new_expected.extend([(x, 'stderr') for x in expected])
+        
+        
+        self.start_socket()
+        self.write_start_redirect()
+            
+        self.write_make_initial_run()
+        msgs = []
+        while len(msgs) < len(new_expected):
+            msg = self.wait_for_output()
+            if msg not in new_expected:
+                continue
+            msgs.append(msg)
+        
+        if msgs != new_expected:
+            print(msgs)
+            print(new_expected)
+        assert msgs == new_expected
+        self.finished_ok = True
+
 
 #=======================================================================================================================
 # Test
@@ -1688,6 +1739,9 @@ class Test(unittest.TestCase, debugger_unittest.DebuggerRunner):
         
     def test_case_handled_exceptions3(self):
         self.check_case(WriterThreadCaseHandledExceptions3)
+        
+    def test_redirect_output(self):
+        self.check_case(WriterThreadCaseRedirectOutput)
 
 @pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
 class TestPythonRemoteDebugger(unittest.TestCase, debugger_unittest.DebuggerRunner):

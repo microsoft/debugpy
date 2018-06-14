@@ -196,9 +196,10 @@ class LifecycleTests(TestsBase, unittest.TestCase):
         return handlers, (lambda: wait(reason="event 'output'"))
 
     def assert_received(self, received, expected):
+        from tests.helpers.message import assert_messages_equal
         received = [parse_message(msg) for msg in received]
         expected = [parse_message(msg) for msg in expected]
-        self.assertEqual(received, expected)
+        assert_messages_equal(received, expected)
 
     def new_version_event(self, received):
         version = ptvsd.__version__
@@ -240,14 +241,18 @@ class LifecycleTests(TestsBase, unittest.TestCase):
                 argv,
                 script,
             )
-            with session.wait_for_event('thread'):
-                (req_initialize, req_launch, req_config
-                 ) = lifecycle_handshake(session, 'launch')
+            with session.wait_for_event('exited'):
+                with session.wait_for_event('thread'):
+                    (req_initialize, req_launch, req_config
+                     ) = lifecycle_handshake(session, 'launch')
 
-            done()
-            adapter.wait()
+                done()
+                adapter.wait()
 
-        self.assert_received(session.received[:9], [
+        # Skipping the 'thread exited' and 'terminated' messages which
+        # may appear randomly in the received list.
+        received = session.received[:8]
+        self.assert_received(received, [
             self.new_version_event(session.received),
             self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
@@ -261,7 +266,6 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             }),
             self.new_event('thread', reason='started', threadId=1),
             self.new_event('exited', exitCode=0),
-            self.new_event('terminated'),
         ])
 
     def test_launch_ptvsd_server(self):
@@ -501,9 +505,18 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
             self.new_response(req_launch),
+            self.new_event('output',
+                           output='+ before',
+                           category='stdout'),
+            self.new_event('output',
+                           output='\n',
+                           category='stdout'),
             self.new_response(req_config),
             self.new_event('output',
-                           output='+ before\n+ after\n',
+                           output='+ after',
+                           category='stdout'),
+            self.new_event('output',
+                           output='\n',
                            category='stdout'),
             self.new_event('exited', exitCode=0),
             self.new_event('terminated'),
