@@ -7,6 +7,7 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_REDIRECT_OUTPUT,
     CMD_RUN,
     CMD_VERSION,
+    CMD_SET_PROJECT_ROOTS,
 )
 
 from . import (
@@ -23,6 +24,17 @@ from ptvsd.wrapper import INITIALIZE_RESPONSE
 #  * capabilities (sent in a response)
 #  * setting breakpoints during config
 #  * sending an "exit" event.
+
+
+def _get_project_dirs():
+    cwd = os.getcwd()
+    pyd_path = os.path.join('ptvsd', '_vendored', 'pydevd')
+    paths = []
+    if cwd.endswith('ptvsd') or \
+       cwd.endswith(pyd_path):
+        return ''
+    paths.append(cwd)
+    return '\t'.join(paths)
 
 
 class LifecycleTests(HighlevelTest, unittest.TestCase):
@@ -86,6 +98,8 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
             self.debugger_msgs.new_request(CMD_VERSION,
                                            *['1.1', expected_os_id, 'ID']),
             self.debugger_msgs.new_request(CMD_REDIRECT_OUTPUT),
+            self.debugger_msgs.new_request(CMD_SET_PROJECT_ROOTS,
+                                           _get_project_dirs()),
             self.debugger_msgs.new_request(CMD_RUN),
         ])
 
@@ -116,7 +130,8 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
 
             # configuration
             req_config = self.send_request('configurationDone')
-            self.wait_for_pydevd('version', 'redirect-output', 'run')
+            self.wait_for_pydevd('version', 'redirect-output',
+                                 'run', 'set_project_roots')
 
             # Normal ops would go here.
 
@@ -148,5 +163,7 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
             self.debugger_msgs.new_request(CMD_VERSION,
                                            *['1.1', OS_ID, 'ID']),
             self.debugger_msgs.new_request(CMD_REDIRECT_OUTPUT),
+            self.debugger_msgs.new_request(CMD_SET_PROJECT_ROOTS,
+                                           _get_project_dirs()),
             self.debugger_msgs.new_request(CMD_RUN),
         ])

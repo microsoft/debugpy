@@ -3,7 +3,7 @@ import unittest
 import ptvsd.untangle
 
 from ptvsd.wrapper import InternalsFilter
-from ptvsd.wrapper import filter_ptvsd_files
+from ptvsd.wrapper import dont_trace_ptvsd_files
 
 
 class InternalsFilterTests(unittest.TestCase):
@@ -34,12 +34,15 @@ class InternalsFilterTests(unittest.TestCase):
 
 class PtvsdFileTraceFilter(unittest.TestCase):
     def test_basic(self):
+        internal_dir = os.path.dirname(
+            os.path.abspath(ptvsd.untangle.__file__))
+
         test_paths = {
-            os.path.join('C:', 'ptvsd', 'wrapper.py'): True,
-            os.path.join('C:', 'abcd', 'ptvsd', 'wrapper.py'): True,
-            os.path.join('usr', 'ptvsd', 'wrapper.py'): True,
-            os.path.join('ptvsd', 'wrapper.py'): True,
-            os.path.join('usr', 'abcd', 'ptvsd', 'wrapper.py'): True,
+            os.path.join(internal_dir, 'wrapper.py'): True,
+            os.path.join(internal_dir, 'abcd', 'ptvsd', 'wrapper.py'): True,
+            os.path.join(internal_dir, 'ptvsd', 'wrapper.py'): True,
+            os.path.join(internal_dir, 'abcd', 'wrapper.py'): True,
+            os.path.join('usr', 'abcd', 'ptvsd', 'wrapper.py'): False,
             os.path.join('C:', 'ptvsd', 'wrapper1.py'): False,
             os.path.join('C:', 'abcd', 'ptvsd', 'ptvsd.py'): False,
             os.path.join('usr', 'ptvsd', 'w.py'): False,
@@ -48,4 +51,6 @@ class PtvsdFileTraceFilter(unittest.TestCase):
         }
 
         for path, val in test_paths.items():
-            self.assertTrue(val == filter_ptvsd_files(path))
+            self.assertTrue(val == dont_trace_ptvsd_files(path),
+                            msg='Path  : %s\nActual: %s' % (path,
+                                                            internal_dir))
