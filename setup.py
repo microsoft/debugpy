@@ -39,6 +39,10 @@ def iter_vendored_files():
             yield filename
 
 
+with open('DESCRIPTION.md', 'r') as fh:
+    long_description = fh.read()
+
+
 if __name__ == '__main__':
     if not os.getenv('SKIP_CYTHON_BUILD'):
         cython_build()
@@ -47,17 +51,22 @@ if __name__ == '__main__':
         name='ptvsd',
         version=versioneer.get_version(),
         description='Remote debugging server for Python support in Visual Studio and Visual Studio Code', # noqa
-        #long_description=open('DESCRIPTION.md').read(),
-        #long_description_content_type='text/markdown',
+        long_description=long_description,
+        long_description_content_type='text/markdown',
         license='MIT',
         author='Microsoft Corporation',
         author_email='ptvshelp@microsoft.com',
         url='https://aka.ms/ptvs',
+        python_requires=">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*",
         classifiers=[
             'Development Status :: 3 - Alpha',
-            'Programming Language :: Python',
-            'Programming Language :: Python :: 2',
-            'Programming Language :: Python :: 3',
+            'Programming Language :: Python :: 2.7',
+            'Programming Language :: Python :: 3.5',
+            'Programming Language :: Python :: 3.6',
+            'Programming Language :: Python :: 3.7',
+            'Topic :: Software Development :: Debuggers',
+            'Operating System :: OS Independent',
+            'License :: OSI Approved :: Eclipse Public License 2.0 (EPL-2.0)',
             'License :: OSI Approved :: MIT License',
         ],
         packages=[
