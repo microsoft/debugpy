@@ -1621,8 +1621,6 @@ def main():
             finally:
                 dispatcher.close()
         else:
-            pydev_log.info("pydev debugger: starting\n")
-
             try:
                 pydev_monkey.patch_new_process_functions_with_warning()
             except:
