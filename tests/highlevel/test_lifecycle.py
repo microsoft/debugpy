@@ -69,7 +69,7 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
             # Normal ops would go here.
 
             # end
-            req_disconnect = self.send_request('disconnect')
+            #req_disconnect = self.send_request('disconnect')
         finally:
             received = self.vsc.received
             with self._fix.wait_for_events(['exited', 'terminated']):
@@ -93,7 +93,6 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
                isLocalProcess=True,
                startMethod='attach',
             )),
-            self.new_response(req_disconnect),
         ])
         self.assert_received(self.debugger, [
             self.debugger_msgs.new_request(CMD_VERSION,
@@ -142,8 +141,8 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
             # Normal ops would go here.
 
             # end
-            with self.fix.wait_for_events(['exited', 'terminated']):
-                req_disconnect = self.send_request('disconnect')
+            #with self.fix.wait_for_events(['exited', 'terminated']):
+            req_disconnect = self.send_request('disconnect')
 
         self.assert_received(self.vsc, [
             self.new_event(
@@ -161,8 +160,8 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
             #    isLocalProcess=True,
             #    startMethod='launch',
             #)),
-            self.new_event('exited', exitCode=0),
-            self.new_event('terminated'),
+            #self.new_event('exited', exitCode=0),
+            #self.new_event('terminated'),
             self.new_response(req_disconnect),
         ])
         self.assert_received(self.debugger, [

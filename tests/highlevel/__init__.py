@@ -243,7 +243,8 @@ class VSCLifecycle(object):
             target=self._fix.close_ptvsd,
             name='ptvsd.test.lifecycle',
         )
-        with self._fix.wait_for_events(['exited', 'terminated']):
+        #with self._fix.wait_for_events(['exited', 'terminated']):
+        if True:
             # The thread runs close_ptvsd(), which sends the two
             # events and then waits for a "disconnect" request.  We send
             # that after we receive the events.

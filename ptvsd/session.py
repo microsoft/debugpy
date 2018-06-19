@@ -30,14 +30,19 @@ class DebugSession(Startable, Closeable):
         client, _ = server.accept()
         return cls(client, ownsock=True, **kwargs)
 
-    def __init__(self, sock, notify_closing=None, ownsock=False):
+    def __init__(self, sock, notify_closing=None, notify_disconnecting=None,
+                 ownsock=False):
         super(DebugSession, self).__init__()
 
         if notify_closing is not None:
             def handle_closing(before):
                 if before:
-                    notify_closing(self, can_disconnect=self._can_disconnect)
+                    notify_closing(self)
             self.add_close_handler(handle_closing)
+
+        if notify_disconnecting is None:
+            notify_disconnecting = (lambda _: None)
+        self._notify_disconnecting = notify_disconnecting
 
         self._sock = sock
         if ownsock:
@@ -55,7 +60,6 @@ class DebugSession(Startable, Closeable):
             self.add_close_handler(handle_closing)
 
         self._msgprocessor = None
-        self._can_disconnect = None
 
     @property
     def socket(self):
@@ -65,12 +69,19 @@ class DebugSession(Startable, Closeable):
     def msgprocessor(self):
         return self._msgprocessor
 
-    def wait_options(self):
-        """Return (normal, abnormal) based on the session's launch config."""
+    def handle_debugger_stopped(self, wait=None):
+        """Deal with the debugger exiting."""
         proc = self._msgprocessor
         if proc is None:
-            return (False, False)
-        return proc._wait_options()
+            return
+        proc.handle_debugger_stopped(wait)
+
+    def handle_exiting(self, exitcode=None, wait=None):
+        """Deal with the debuggee exiting."""
+        proc = self._msgprocessor
+        if proc is None:
+            return
+        proc.handle_exiting(exitcode, wait)
 
     def wait_until_stopped(self):
         """Block until all resources (e.g. message processor) have stopped."""
@@ -79,18 +90,6 @@ class DebugSession(Startable, Closeable):
             return
         # TODO: Do this in VSCodeMessageProcessor.close()?
         proc._wait_for_server_thread()
-
-    def get_wait_on_exit(self):
-        """Return a wait_on_exit(exitcode) func.
-
-        The func returns True if process should wait for the user
-        before exiting.
-        """
-        normal, abnormal = self.wait_options()
-
-        def wait_on_exit(exitcode):
-            return (normal and not exitcode) or (abnormal and exitcode)
-        return wait_on_exit
 
     # internal methods
 
@@ -109,13 +108,16 @@ class DebugSession(Startable, Closeable):
         self._msgprocessor.start(threadname)
         return self._msgprocessor_running
 
-    def _stop(self, exitcode=None):
-        if self._msgprocessor is None:
+    def _stop(self):
+        proc = self._msgprocessor
+        if proc is None:
             return
 
         debug('proc stopping')
-        self._msgprocessor.handle_session_stopped(exitcode)
-        self._msgprocessor.close()
+        # TODO: We should not need to wait if not exiting.
+        # The editor will send a "disconnect" request at this point.
+        proc._wait_for_disconnect()
+        proc.close()
         self._msgprocessor = None
 
     def _close(self):
@@ -130,17 +132,16 @@ class DebugSession(Startable, Closeable):
 
     # internal methods for VSCodeMessageProcessor
 
-    def _handle_vsc_disconnect(self, can_disconnect=None):
+    def _handle_vsc_disconnect(self):
         debug('disconnecting')
-        self._can_disconnect = can_disconnect
+        self._notify_disconnecting(self)
+
+    def _handle_vsc_close(self):
+        debug('processor closing')
         try:
             self.close()
         except ClosedError:
             pass
-
-    def _handle_vsc_close(self):
-        debug('processor closing')
-        self.close()
 
 
 class PyDevdDebugSession(DebugSession):

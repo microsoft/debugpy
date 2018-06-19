@@ -51,10 +51,44 @@ def call_all(callables, *args, **kwargs):
 # threading stuff
 
 try:
-    TimeoutError = __builtins__.TimeoutError
+    ThreadError = threading.ThreadError
 except AttributeError:
-    class TimeoutError(OSError):
-        """Timeout expired."""
+    ThreadError = RuntimeError
+
+
+try:
+    base = __builtins__.TimeoutError
+except AttributeError:
+    base = OSError
+class TimeoutError(base):  # noqa
+    """Timeout expired."""
+    timeout = None
+    reason = None
+
+    @classmethod
+    def from_timeout(cls, timeout, reason=None):
+        """Return a TimeoutError with the given timeout."""
+        msg = 'timed out (after {} seconds)'.format(timeout)
+        if reason is not None:
+            msg += ' ' + reason
+        self = cls(msg)
+        self.timeout = timeout
+        self.reason = reason
+        return self
+del base  # noqa
+
+
+def wait(check, timeout=None, reason=None):
+    """Wait for the given func to return True.
+
+    If a timeout is given and reached then raise TimeoutError.
+    """
+    if timeout is None or timeout <= 0:
+        while not check():
+            time.sleep(0.01)
+    else:
+        if not _wait(check, timeout):
+            raise TimeoutError.from_timeout(timeout, reason)
 
 
 def is_locked(lock):
@@ -73,18 +107,18 @@ def lock_release(lock):
         return
     try:
         lock.release()
-    except RuntimeError:  # already unlocked
+    except ThreadError:  # already unlocked
         pass
 
 
-def lock_wait(lock, timeout=None):
+def lock_wait(lock, timeout=None, reason='waiting for lock'):
     """Wait until the lock is not locked."""
     if not _lock_acquire(lock, timeout):
-        raise TimeoutError
+        raise TimeoutError.from_timeout(timeout, reason)
     lock_release(lock)
 
 
-if sys.version_info > (2,):
+if sys.version_info >= (3,):
     def _lock_acquire(lock, timeout):
         if timeout is None:
             timeout = -1
@@ -93,14 +127,21 @@ else:
     def _lock_acquire(lock, timeout):
         if timeout is None or timeout <= 0:
             return lock.acquire()
-        if lock.acquire(False):
+
+        def check():
+            return lock.acquire(False)
+        return _wait(check, timeout)
+
+
+def _wait(check, timeout):
+    if check():
+        return True
+    for _ in range(int(timeout * 100)):
+        time.sleep(0.01)
+        if check():
             return True
-        for _ in range(int(timeout * 100)):
-            time.sleep(0.01)
-            if lock.acquire(False):
-                return True
-        else:
-            return False
+    else:
+        return False
 
 
 ########################

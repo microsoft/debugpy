@@ -35,23 +35,25 @@ import _pydevd_bundle.pydevd_frame as pydevd_frame # noqa
 #from _pydevd_bundle.pydevd_comm import pydevd_log
 from _pydevd_bundle.pydevd_additional_thread_info import PyDBAdditionalThreadInfo # noqa
 
+from ptvsd import _util
 import ptvsd.ipcjson as ipcjson  # noqa
 import ptvsd.futures as futures  # noqa
 import ptvsd.untangle as untangle  # noqa
 from ptvsd.pathutils import PathUnNormcase  # noqa
 from ptvsd.safe_repr import SafeRepr  # noqa
 from ptvsd.version import __version__  # noqa
-from ptvsd._util import debug, is_locked, lock_release, lock_wait  # noqa
 from ptvsd.socket import TimeoutError  # noqa
+
+
+WAIT_FOR_THREAD_FINISH_TIMEOUT = 1  # seconds
+
+
+debug = _util.debug
 
 
 #def ipcjson_trace(s):
 #    print(s)
 #ipcjson._TRACE = ipcjson_trace
-
-
-WAIT_FOR_DISCONNECT_REQUEST_TIMEOUT = 2
-WAIT_FOR_THREAD_FINISH_TIMEOUT = 1
 
 
 def is_debugger_internal_thread(thread_name):
@@ -813,7 +815,7 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
     @property
     def connected(self):  # may send responses/events
         with self._connlock:
-            return is_locked(self._connected)
+            return _util.is_locked(self._connected)
 
     @property
     def listening(self):
@@ -821,13 +823,13 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
         with self._connlock:
             if self._listening is None:
                 return False
-            return is_locked(self._listening)
+            return _util.is_locked(self._listening)
 
     def wait_while_connected(self, timeout=None):
         """Wait until the client socket is disconnected."""
         with self._connlock:
             lock = self._listening
-        lock_wait(lock, timeout)  # Wait until no longer connected.
+        _util.lock_wait(lock, timeout)  # Wait until no longer connected.
 
     def wait_while_listening(self, timeout=None):
         """Wait until no longer listening for incoming messages."""
@@ -835,7 +837,7 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
             lock = self._listening
             if lock is None:
                 raise RuntimeError('not listening yet')
-        lock_wait(lock, timeout)  # Wait until no longer listening.
+        _util.lock_wait(lock, timeout)  # Wait until no longer listening.
 
     def start(self, threadname):
         # event loop
@@ -851,8 +853,8 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
             except (EOFError, TimeoutError):
                 debug('client socket closed')
                 with self._connlock:
-                    lock_release(self._listening)
-                    lock_release(self._connected)
+                    _util.lock_release(self._listening)
+                    _util.lock_release(self._connected)
                 self.close()
         self.server_thread = threading.Thread(
             target=process_messages,
@@ -887,8 +889,8 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
 
         # Ensure that the connection is marked as closed.
         with self._connlock:
-            lock_release(self._listening)
-            lock_release(self._connected)
+            _util.lock_release(self._listening)
+            _util.lock_release(self._connected)
 
     # VSC protocol handlers
 
@@ -903,7 +905,7 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     def _set_disconnected(self):
         with self._connlock:
-            lock_release(self._connected)
+            _util.lock_release(self._connected)
 
     def _wait_for_server_thread(self):
         if self.server_thread is None:
@@ -965,9 +967,11 @@ INITIALIZE_RESPONSE = dict(
 class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
     """Handles adapter lifecycle messages of the VSC debugger protocol."""
 
+    EXITWAIT = 1
+
     def __init__(self, socket,
                  notify_disconnecting, notify_closing, notify_launch=None,
-                 timeout=None, logfile=None,
+                 timeout=None, logfile=None, debugging=True,
                  ):
         super(VSCLifecycleMsgProcessor, self).__init__(
             socket=socket,
@@ -981,25 +985,57 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         self._stopped = False
 
         # adapter state
-        self.disconnect_request = None
-        self.disconnect_request_event = threading.Event()
         self.start_reason = None
         self.debug_options = {}
+        self._statelock = threading.Lock()
+        self._debugging = debugging
+        self._debuggerstopped = False
+        self._exitlock = threading.Lock()
+        self._exitlock.acquire()  # released in handle_exiting()
+        self._exiting = False
 
-    def handle_session_stopped(self, exitcode=None):
-        """Finalize the protocol connection."""
-        if self._stopped:
+    def handle_debugger_stopped(self, wait=None):
+        """Deal with the debugger exiting."""
+        # Notify the editor that the debugger has stopped.
+        if not self._debugging:
+            # TODO: Fail?  If this gets called then we must be debugging.
             return
-        self._stopped = True
 
-        if exitcode is not None:
-            # Notify the editor that the "debuggee" (e.g. script, app) exited.
-            self.send_event('exited', exitCode=exitcode)
-            # Notify the editor that the debugger has stopped.
-            self.send_event('terminated')
+        # We run this in a thread to allow handle_exiting() to be called
+        # at the same time.
+        def stop():
+            if wait is not None:
+                wait()
+            # Since pydevd is embedded in the debuggee process, always
+            # make sure the exited event is sent first.
+            self._wait_until_exiting(self.EXITWAIT)
+            self._ensure_debugger_stopped()
+        t = threading.Thread(target=stop, name='ptvsd.stopping')
+        t.start()
 
-        # The editor will send a "disconnect" request at this point.
-        self._wait_for_disconnect()
+    def handle_exiting(self, exitcode=None, wait=None):
+        """Deal with the debuggee exiting."""
+        # Notify the editor that the "debuggee" (e.g. script, app) exited.
+        with self._statelock:
+            if self._exiting:
+                return
+            self._exiting = True
+
+        self.send_event('exited', exitCode=exitcode or 0)
+
+        self._waiting = True
+        if wait is not None:
+            normal, abnormal = self._wait_options()
+            cfg = (normal and not exitcode) or (abnormal and exitcode)
+            # This must be done before we send a disconnect response
+            # (which implies before we close the client socket).
+            wait(cfg)
+
+        # If we are exiting then pydevd must have stopped.
+        self._ensure_debugger_stopped()
+
+        if self._exitlock is not None:
+            _util.lock_release(self._exitlock)
 
     # VSC protocol handlers
 
@@ -1031,10 +1067,12 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
 
     def on_disconnect(self, request, args):
         # TODO: docstring
-        def done():
-            self.disconnect_request = request
-            self.disconnect_request_event.set()
-        self._notify_disconnecting(done)
+        if self._debuggerstopped:  # A "terminated" event must have been sent.
+            self._wait_until_exiting(self.EXITWAIT)
+        self._notify_disconnecting()
+        self.send_response(request)
+        self._set_disconnected()
+
         # TODO: We should be able drop the remaining lines.
         if not self._closed and self.start_reason == 'launch':
             # Closing the socket causes pydevd to resume all threads,
@@ -1049,28 +1087,27 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
             args.get('debugOptions'),
         )
 
+    def _ensure_debugger_stopped(self):
+        if not self._debugging:
+            return
+        with self._statelock:
+            if self._debuggerstopped:
+                return
+            self._debuggerstopped = True
+        self.send_event('terminated')
+
+    def _wait_until_exiting(self, timeout):
+        lock = self._exitlock
+        if lock is None:
+            return
+        try:
+            _util.lock_wait(lock, timeout, 'waiting for process exit')
+        except _util.TimeoutError as exc:
+            warnings.warn(str(exc))
+
     # methods related to shutdown
 
-    def _wait_for_disconnect(self, timeout=None):
-        if timeout is None:
-            timeout = WAIT_FOR_DISCONNECT_REQUEST_TIMEOUT
-
-        if not self.disconnect_request_event.wait(timeout):
-            warnings.warn(('timed out (after {} seconds) '
-                           'waiting for disconnect request'
-                           ).format(timeout))
-        if self.disconnect_request is not None:
-            self.send_response(self.disconnect_request)
-            self.disconnect_request = None
-            self._set_disconnected()
-
     def _wait_options(self):
-        # In attach scenarios, we can't assume that the process is actually
-        # interactive and has a console, so ignore these options.
-        # In launch scenarios, we only want "press any key" to show up when
-        # program terminates by itself, not when user explicitly stops it.
-        if self.disconnect_request or self.start_reason != 'launch':
-            return False, False
         normal = self.debug_options.get('WAIT_ON_NORMAL_EXIT', False)
         abnormal = self.debug_options.get('WAIT_ON_ABNORMAL_EXIT', False)
         return normal, abnormal
