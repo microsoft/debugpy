@@ -2121,6 +2121,15 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     # PyDevd protocol event handlers
 
+    @pydevd_events.handler(pydevd_comm.CMD_INPUT_REQUESTED)
+    def on_pydevd_input_requested(self, seq, args):
+        '''
+        no-op: if stdin is requested, right now the user is expected to enter
+        text in the terminal and the debug adapter doesn't really do anything
+        (although in the future it could see that stdin is being requested and
+        redirect any evaluation request to stdin).
+        '''
+
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_CREATE)
     def on_pydevd_thread_create(self, seq, args):
         # If this is the first thread reported, report process creation
