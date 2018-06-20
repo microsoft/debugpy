@@ -7,6 +7,8 @@ from tests.helpers._io import captured_stdio
 
 class ParseArgsTests(unittest.TestCase):
 
+    EXPECTED_EXTRA = ['--qt-support=auto', '--']
+
     def test_module(self):
         args, extra = parse_args([
             'eggs',
@@ -21,7 +23,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
         })
-        self.assertEqual(extra, [])
+        self.assertEqual(extra, self.EXPECTED_EXTRA)
 
     def test_module_server(self):
         args, extra = parse_args([
@@ -38,7 +40,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
         })
-        self.assertEqual(extra, [])
+        self.assertEqual(extra, self.EXPECTED_EXTRA)
 
     def test_module_nodebug(self):
         args, extra = parse_args([
@@ -55,7 +57,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': True,
             'single_session': False,
         })
-        self.assertEqual(extra, [])
+        self.assertEqual(extra, self.EXPECTED_EXTRA)
 
     def test_script(self):
         args, extra = parse_args([
@@ -71,7 +73,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
         })
-        self.assertEqual(extra, [])
+        self.assertEqual(extra, self.EXPECTED_EXTRA)
 
     def test_script_server(self):
         args, extra = parse_args([
@@ -88,7 +90,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
         })
-        self.assertEqual(extra, [])
+        self.assertEqual(extra, self.EXPECTED_EXTRA)
 
     def test_script_nodebug(self):
         args, extra = parse_args([
@@ -105,7 +107,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': True,
             'single_session': False,
         })
-        self.assertEqual(extra, [])
+        self.assertEqual(extra, self.EXPECTED_EXTRA)
 
     def test_remote(self):
         args, extra = parse_args([
@@ -122,7 +124,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
         })
-        self.assertEqual(extra, [])
+        self.assertEqual(extra, self.EXPECTED_EXTRA)
 
     def test_remote_localhost(self):
         args, extra = parse_args([
@@ -139,7 +141,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
         })
-        self.assertEqual(extra, [])
+        self.assertEqual(extra, self.EXPECTED_EXTRA)
 
     def test_remote_nodebug(self):
         args, extra = parse_args([
@@ -157,7 +159,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': True,
             'single_session': False,
         })
-        self.assertEqual(extra, [])
+        self.assertEqual(extra, self.EXPECTED_EXTRA)
 
     def test_remote_single_session(self):
         args, extra = parse_args([
@@ -174,7 +176,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': True,
         })
-        self.assertEqual(extra, [])
+        self.assertEqual(extra, self.EXPECTED_EXTRA)
 
     def test_local_single_session(self):
         args, extra = parse_args([
@@ -192,7 +194,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': True,
         })
-        self.assertEqual(extra, [])
+        self.assertEqual(extra, self.EXPECTED_EXTRA)
 
     def test_extra(self):
         args, extra = parse_args([
@@ -220,6 +222,7 @@ class ParseArgsTests(unittest.TestCase):
         self.assertEqual(extra, [
             '--DEBUG',
             '--vm_type', '???',
+            '--qt-support=auto', '--',  # Expected pydevd defaults
             '--xyz', '123',
             'abc',
             '--cmd-line',
@@ -255,6 +258,7 @@ class ParseArgsTests(unittest.TestCase):
         self.assertEqual(extra, [
             '--DEBUG',
             '--vm_type', '???',
+            '--qt-support=auto', '--',  # Expected pydevd defaults
             '--xyz', '123',
             'abc',
             '--cmd-line',
@@ -278,7 +282,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
         })
-        self.assertEqual(extra, [])
+        self.assertEqual(extra, self.EXPECTED_EXTRA)
 
     def test_unsupported_arg(self):
         with self.assertRaises(SystemExit):
@@ -305,7 +309,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
         })
-        self.assertEqual(extra, [])
+        self.assertEqual(extra, self.EXPECTED_EXTRA)
 
     def test_backward_compatibility_host_nodebug(self):
         args, extra = parse_args([
@@ -323,7 +327,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': True,
             'single_session': False,
         })
-        self.assertEqual(extra, [])
+        self.assertEqual(extra, self.EXPECTED_EXTRA)
 
     def test_backward_compatibility_module(self):
         args, extra = parse_args([
@@ -340,7 +344,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
         })
-        self.assertEqual(extra, [])
+        self.assertEqual(extra, self.EXPECTED_EXTRA)
 
     def test_backward_compatibility_module_nodebug(self):
         args, extra = parse_args([
@@ -358,7 +362,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': True,
             'single_session': False,
         })
-        self.assertEqual(extra, [])
+        self.assertEqual(extra, self.EXPECTED_EXTRA)
 
     def test_backward_compatibility_script(self):
         args, extra = parse_args([
@@ -374,7 +378,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
         })
-        self.assertEqual(extra, [])
+        self.assertEqual(extra, self.EXPECTED_EXTRA)
 
     def test_backward_compatibility_script_nodebug(self):
         args, extra = parse_args([
@@ -391,7 +395,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': True,
             'single_session': False,
         })
-        self.assertEqual(extra, [])
+        self.assertEqual(extra, self.EXPECTED_EXTRA)
 
     def test_pseudo_backward_compatibility(self):
         args, extra = parse_args([
@@ -408,7 +412,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
         })
-        self.assertEqual(extra, ['--module'])
+        self.assertEqual(extra, ['--module'] + self.EXPECTED_EXTRA)
 
     def test_pseudo_backward_compatibility_nodebug(self):
         args, extra = parse_args([
@@ -426,4 +430,4 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': True,
             'single_session': False,
         })
-        self.assertEqual(extra, ['--module'])
+        self.assertEqual(extra, ['--module'] + self.EXPECTED_EXTRA)

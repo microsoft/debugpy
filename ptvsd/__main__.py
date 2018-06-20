@@ -40,12 +40,26 @@ PYDEVD_FLAGS = {
     '--save-threading',
     '--save-asyncio',
     '--server',
+    '--qt-support=auto',
 }
 
 USAGE = """
-  {0} [-h] [--nodebug] [--host HOST | --server-host HOST] --port PORT -m MODULE [arg ...]
-  {0} [-h] [--nodebug] [--host HOST | --server-host HOST] --port PORT FILENAME [arg ...]
+  {0} [-h] [-V] [--nodebug] [--host HOST | --server-host HOST] --port PORT -m MODULE [arg ...]
+  {0} [-h] [-V] [--nodebug] [--host HOST | --server-host HOST] --port PORT FILENAME [arg ...]
 """  # noqa
+
+
+PYDEVD_DEFAULTS = {
+    '--qt-support=auto',
+}
+
+
+def _set_pydevd_defaults(pydevd_args):
+    args_to_append = []
+    for arg in PYDEVD_DEFAULTS:
+        if arg not in pydevd_args:
+            args_to_append.append(arg)
+    return pydevd_args + args_to_append
 
 
 def parse_args(argv=None):
@@ -61,7 +75,8 @@ def parse_args(argv=None):
 
     supported, pydevd, script = _group_args(argv)
     args = _parse_args(prog, supported)
-    extra = pydevd
+    pydevd = _set_pydevd_defaults(pydevd)
+    extra = pydevd + ['--']
     if script:
         extra += script
     return args, extra
@@ -164,6 +179,8 @@ def _parse_args(prog, argv):
     target.add_argument('filename', nargs='?')
 
     parser.add_argument('--single-session', action='store_true')
+    parser.add_argument('-V', '--version', action='version')
+    parser.version = __version__
 
     args = parser.parse_args(argv)
     ns = vars(args)
