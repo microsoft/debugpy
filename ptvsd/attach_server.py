@@ -5,21 +5,13 @@
 import threading
 
 import pydevd
-# TODO: Why import these?
-from _pydevd_bundle.pydevd_custom_frames import (  # noqa
-    CustomFramesContainer, custom_frames_container_init,
-)
-from _pydevd_bundle.pydevd_additional_thread_info import (
-    PyDBAdditionalThreadInfo,
-)
 from _pydevd_bundle.pydevd_comm import (
-    get_global_debugger, CMD_THREAD_SUSPEND,
+    get_global_debugger,
 )
 
 # TODO: Why import run_module & run_file?
 from ptvsd._local import run_module, run_file  # noqa
 from ptvsd._remote import enable_attach as ptvsd_enable_attach
-
 
 DEFAULT_HOST = '0.0.0.0'
 DEFAULT_PORT = 5678
@@ -73,7 +65,6 @@ def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True):
     _attached.clear()
     ptvsd_enable_attach(address, redirect_output, on_attach=_attached.set)
 
-
 # TODO: Add disable_attach()?
 
 
@@ -90,11 +81,9 @@ def break_into_debugger():
     if not _attached.isSet() or debugger is None:
         return
 
-    thread = pydevd.threadingCurrentThread()
-    try:
-        additional_info = thread.additional_info
-    except AttributeError:
-        additional_info = PyDBAdditionalThreadInfo()
-        thread.additional_info = additional_info
-
-    debugger.set_suspend(thread, CMD_THREAD_SUSPEND)
+    import sys
+    pydevd.settrace(
+        suspend=True,
+        trace_only_current_thread=True,
+        patch_multiprocessing=False,
+        stop_at_frame=sys._getframe().f_back)

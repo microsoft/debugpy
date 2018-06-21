@@ -696,8 +696,14 @@ class PyDB:
 
 
     def set_suspend(self, thread, stop_reason):
-        thread.additional_info.suspend_type = PYTHON_SUSPEND
-        thread.additional_info.pydev_state = STATE_SUSPEND
+        info = thread.additional_info
+        info.suspend_type = PYTHON_SUSPEND
+        info.pydev_state = STATE_SUSPEND
+        if info.pydev_step_cmd == -1:
+            # If the step command is not specified, set it to step into
+            # to make sure it'll break as soon as possible.
+            info.pydev_step_cmd = CMD_STEP_INTO
+
         thread.stop_reason = stop_reason
 
         # If conditional breakpoint raises any exception during evaluation send details to Java
@@ -1187,7 +1193,8 @@ class _CustomWriter(object):
             if IS_PY2:
                 # Need s in bytes
                 if isinstance(s, unicode):
-                    s = s.encode('utf-8', errors='replace')
+                    # Note: python 2.6 does not accept the "errors" keyword.
+                    s = s.encode('utf-8', 'replace')
             else:
                 # Need s in str
                 if isinstance(s, bytes):
@@ -1230,6 +1237,7 @@ def settrace(
     trace_only_current_thread=False,
     overwrite_prev_trace=False,
     patch_multiprocessing=False,
+    stop_at_frame=None,
     ):
     '''Sets the tracing function with the pydev debug function and initializes needed facilities.
 
@@ -1253,6 +1261,9 @@ def settrace(
 
     @param patch_multiprocessing: if True we'll patch the functions which create new processes so that launched
         processes are debugged.
+
+    @param stop_at_frame: if passed it'll stop at the given frame, otherwise it'll stop in the function which 
+        called this method.
     '''
     _set_trace_lock.acquire()
     try:
@@ -1265,6 +1276,7 @@ def settrace(
             trace_only_current_thread,
             overwrite_prev_trace,
             patch_multiprocessing,
+            stop_at_frame,
         )
     finally:
         _set_trace_lock.release()
@@ -1282,6 +1294,7 @@ def _locked_settrace(
     trace_only_current_thread,
     overwrite_prev_trace,
     patch_multiprocessing,
+    stop_at_frame,
     ):
     if patch_multiprocessing:
         try:
@@ -1370,16 +1383,11 @@ def _locked_settrace(
         PyDBCommandThread(debugger).start()
         CheckOutputThread(debugger).start()
 
-        #Suspend as the last thing after all tracing is in place.
-        if suspend:
-            debugger.set_suspend(t, CMD_THREAD_SUSPEND)
-
-
     else:
         # ok, we're already in debug mode, with all set, so, let's just set the break
         debugger = get_global_debugger()
 
-        debugger.set_trace_for_frame_and_parents(get_frame(), False)
+        debugger.set_trace_for_frame_and_parents(get_frame(), also_add_to_passed_frame=False, overwrite_prev_trace=True)
 
         t = threadingCurrentThread()
         try:
@@ -1394,8 +1402,17 @@ def _locked_settrace(
             # Trace future threads?
             debugger.patch_threads()
 
-
-        if suspend:
+    # Suspend as the last thing after all tracing is in place.
+    if suspend:
+        if stop_at_frame is not None:
+            # If the step was set we have to go to run state and
+            # set the proper frame for it to stop.
+            additional_info.pydev_state = STATE_RUN
+            additional_info.pydev_step_cmd = CMD_STEP_OVER
+            additional_info.pydev_step_stop = stop_at_frame
+            additional_info.suspend_type = PYTHON_SUSPEND
+        else:
+            # Ask to break as soon as possible.
             debugger.set_suspend(t, CMD_THREAD_SUSPEND)
 
 
