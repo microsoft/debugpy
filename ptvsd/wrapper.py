@@ -2198,7 +2198,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=autogen)
 
         with self.stack_traces_lock:
-            self.stack_traces[pyd_tid] = xml.thread.frame
+            self.stack_traces[pyd_tid] = list(xml.thread.frame)
 
         description = None
         text = None

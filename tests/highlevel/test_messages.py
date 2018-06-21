@@ -281,6 +281,36 @@ class StackTraceTests(NormalRequestTest, unittest.TestCase):
         ])
         self.assert_received(self.debugger, [])
 
+    def test_one_frame(self):
+        with self.launched():
+            with self.hidden():
+                tid, thread = self.set_thread('x')
+                self.suspend(thread, CMD_THREAD_SUSPEND, *[
+                    # (pfid, func, file, line)
+                    (2, 'spam', 'abc.py', 10),
+                ])
+            self.send_request(
+                threadId=tid,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                stackFrames=[
+                    {
+                        'id': 1,
+                        'name': 'spam',
+                        'source': {'path': 'abc.py', 'sourceReference': 0},
+                        'line': 10,
+                        'column': 1,
+                    },
+                ],
+                totalFrames=1,
+            ),
+            # no events
+        ])
+        self.assert_received(self.debugger, [])
+
     def test_with_frame_format(self):
         with self.launched():
             with self.hidden():
