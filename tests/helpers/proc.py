@@ -1,7 +1,127 @@
+from __future__ import absolute_import
+
+try:
+    import queue
+except ImportError:
+    import Queue as queue  # Python 2.7
 import subprocess
 import sys
+import threading
 
 from . import Closeable
+
+
+_NOT_SET = object()
+
+
+def process_lines(stream, notify_received, notify_done=None, check_done=None,
+                  close=True):
+    # (inspired by https://stackoverflow.com/questions/375427)
+    if check_done is None:
+        check_done = (lambda: False)
+    line = stream.readline()
+    while line and not check_done():  # Break on EOF.
+        notify_received(line)
+        try:
+            line = stream.readline()
+        except ValueError:  # stream closed
+            line = ''
+    if notify_done is not None:
+        notify_done()
+    if close:
+        # TODO: What if stream doesn't have close()?
+        stream.close()
+
+
+def collect_lines(stream, buf=None, notify_received=None, **kwargs):
+    # (inspired by https://stackoverflow.com/questions/375427)
+    if buf is None:
+        buf = queue.Queue()
+
+    if notify_received is None:
+        notify_received = buf.put
+    else:
+        def notify_received(line, _notify=notify_received):
+            _notify(line)
+            buf.put(line)
+
+    t = threading.Thread(
+        target=process_lines,
+        args=(stream, notify_received),
+        kwargs=kwargs,
+        name='ptvsd.test.proc.output',
+    )
+    t.daemon = True
+    t.start()
+
+    return buf, t
+
+
+class ProcOutput(object):
+    """A tracker for a process's std* output."""
+
+    # TODO: Support stderr?
+    # TODO: Support buffer max size?
+    # TODO: Support cache max size?
+
+    def __init__(self, proc):
+        if proc.stdout is None:
+            raise ValueError('proc.stdout is None')
+
+        self._proc = proc
+        self._output = b''
+
+        def notify_received(line):
+            self._output += line
+        self._buffer, _ = collect_lines(
+            proc.stdout,
+            notify_received=notify_received,
+        )
+
+    def __str__(self):
+        self._flush()
+        return self._output.decode('utf-8')
+
+    def __bytes__(self):
+        self._flush()
+        return self._output
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        while True:
+            try:
+                return self._buffer.get(timeout=0.01)
+            except queue.Empty:
+                if self._proc.poll() is not None:
+                    raise StopIteration
+
+    next = __next__  # for Python 2.7
+
+    def readline(self):
+        try:
+            self._buffer.get_nowait()
+        except queue.Empty:
+            return b''
+
+    def decode(self, *args, **kwargs):
+        self._flush()
+        return self._output.decode(*args, **kwargs)
+
+    def reset(self):
+        # TODO: There's a small race here.
+        self._flush()
+        self._output = b''
+
+    # internal methods
+
+    def _flush(self):
+        for _ in range(self._buffer.qsize()):
+            try:
+                self._buffer.get_nowait()
+            except queue.Empty:
+                break
 
 
 class Proc(Closeable):
@@ -10,24 +130,27 @@ class Proc(Closeable):
     VERBOSE = False
     #VERBOSE = True
 
+    ARGV = [
+        sys.executable,
+        '-u',  # stdout/stderr unbuffered
+        ]
+
     @classmethod
     def start_python_script(cls, filename, argv, **kwargs):
-        argv = [
-            sys.executable,
+        argv = list(cls.ARGV) + [
             filename,
         ] + argv
         return cls.start(argv, **kwargs)
 
     @classmethod
     def start_python_module(cls, module, argv, **kwargs):
-        argv = [
-            sys.executable,
+        argv = list(cls.ARGV) + [
             '-m', module,
         ] + argv
         return cls.start(argv, **kwargs)
 
     @classmethod
-    def start(cls, argv, env=None, stdout=None, stderr=None):
+    def start(cls, argv, env=None, stdout=_NOT_SET, stderr=_NOT_SET):
         if env is None:
             env = {}
         if cls.VERBOSE:
@@ -37,14 +160,15 @@ class Proc(Closeable):
 
     @classmethod
     def _start(cls, argv, env, stdout, stderr):
-        if stdout is None:
+        if stdout is _NOT_SET:
             stdout = subprocess.PIPE
-        if stderr is None:
+        if stderr is _NOT_SET:
             stderr = subprocess.STDOUT
         proc = subprocess.Popen(
             argv,
             stdout=stdout,
             stderr=stderr,
+            #close_fds=('posix' in sys.builtin_module_names),
             env=env,
         )
         return proc
@@ -55,6 +179,8 @@ class Proc(Closeable):
         self._proc = proc
         if proc.stdout is sys.stdout or proc.stdout is None:
             self._output = None
+        else:
+            self._output = ProcOutput(proc)
 
     # TODO: Emulate class-only methods?
     #def __getattribute__(self, name):
@@ -69,19 +195,15 @@ class Proc(Closeable):
 
     @property
     def output(self):
-        try:
-            # TODO: Could there be more?
-            return self._output
-        except AttributeError:
-            # TODO: Wait until proc done?  (piped output blocks)
-            self._output = self._proc.stdout.read()
-            return self._output
+        return self._output
 
     @property
     def exitcode(self):
+        # TODO: Use proc.poll()?
         return self._proc.returncode
 
     def wait(self):
+        # TODO: Use proc.communicate()?
         self._proc.wait()
 
     # internal methods

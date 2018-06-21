@@ -72,31 +72,41 @@ class DebugAdapter(Closeable):
 
     @classmethod
     def start(cls, argv, **kwargs):
-        def new_proc(argv, addr):
+        def new_proc(argv, addr, **kwds):
             env = _copy_env(verbose=cls.VERBOSE)
             argv = list(argv)
             cls._ensure_addr(argv, addr)
-            return Proc.start_python_module('ptvsd', argv, env=env)
+            return Proc.start_python_module(
+                'ptvsd',
+                argv,
+                env=env,
+                **kwds
+            )
         return cls._start(new_proc, argv, **kwargs)
 
     @classmethod
     def start_wrapper_script(cls, filename, argv, **kwargs):
-        def new_proc(argv, addr):
+        def new_proc(argv, addr, **kwds):
             env = _copy_env(verbose=cls.VERBOSE)
-            return Proc.start_python_script(filename, argv, env=env)
+            return Proc.start_python_script(
+                filename,
+                argv,
+                env=env,
+                **kwds
+            )
         return cls._start(new_proc, argv, **kwargs)
 
     # specific factory cases
 
     @classmethod
-    def start_nodebug(cls, addr, name, kind='script'):
+    def start_nodebug(cls, addr, name, kind='script', **kwargs):
         if kind == 'script':
             argv = ['--nodebug', name]
         elif kind == 'module':
             argv = ['--nodebug', '-m', name]
         else:
             raise NotImplementedError
-        return cls.start(argv, addr=addr)
+        return cls.start(argv, addr=addr, **kwargs)
 
     @classmethod
     def start_as_server(cls, addr, *args, **kwargs):
@@ -114,7 +124,8 @@ class DebugAdapter(Closeable):
         return cls._start_as(addr, *args, server=True, **kwargs)
 
     @classmethod
-    def _start_as(cls, addr, name, kind='script', extra=None, server=False):
+    def _start_as(cls, addr, name, kind='script', extra=None, server=False,
+                  **kwargs):
         argv = []
         if server:
             argv += ['--server']
@@ -126,21 +137,26 @@ class DebugAdapter(Closeable):
             raise NotImplementedError
         if extra:
             argv += list(extra)
-        return cls.start(argv, addr=addr)
+        return cls.start(argv, addr=addr, **kwargs)
 
     @classmethod
-    def start_embedded(cls, addr, filename, redirect_output=True):
+    def start_embedded(cls, addr, filename, **kwargs):
         addr = Address.as_server(*addr)
         with open(filename, 'r+') as scriptfile:
             content = scriptfile.read()
             # TODO: Handle this case somehow?
             assert 'ptvsd.enable_attach' in content
-        return cls.start_wrapper_script(filename, argv=[], addr=addr)
+        return cls.start_wrapper_script(
+            filename,
+            argv=[],
+            addr=addr,
+            **kwargs
+        )
 
     @classmethod
-    def _start(cls, new_proc, argv, addr=None):
+    def _start(cls, new_proc, argv, addr=None, **kwargs):
         addr = Address.from_raw(addr, defaultport=cls.PORT)
-        proc = new_proc(argv, addr)
+        proc = new_proc(argv, addr, **kwargs)
         return cls(proc, addr, owned=True)
 
     @classmethod

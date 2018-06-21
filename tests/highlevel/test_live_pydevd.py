@@ -8,6 +8,7 @@ import ptvsd
 from ptvsd.wrapper import INITIALIZE_RESPONSE # noqa
 from tests.helpers._io import captured_stdio
 from tests.helpers.pydevd._live import LivePyDevd
+from tests.helpers.script import set_lock, find_line
 from tests.helpers.workspace import Workspace, PathEntry
 
 from . import (
@@ -264,52 +265,12 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
 
         self.assert_vsc_received(new_received, expected_msgs)
 
-    def _iter_until_label(self, lines, label):
-        expected = '# <{}>'.format(label)
-        for line in lines:
-            if line.strip() == expected:
-                yield line, True
-                break
-            yield line, False
-        else:
-            raise RuntimeError('not found')
-
-    def _find_line(self, script, label):
-        lines = iter(script.splitlines())
-        # Line numbers start with 1.
-        for lineno, _ in enumerate(self._iter_until_label(lines, label), 1):
-            pass
-        return lineno + 1  # the line after
-
     def _set_lock(self, label=None, script=None):
         if script is None:
-            if os.path.exists(self.filename):
-                with open(self.filename) as scriptfile:
-                    script = scriptfile.read()
-            else:
+            if not os.path.exists(self.filename):
                 script = self.SOURCE
         lockfile = self.workspace.lockfile()
-        done, waitscript = lockfile.wait_in_script()
-
-        if label is None:
-            script += waitscript
-        else:
-            leading = []
-            lines = iter(script.splitlines())
-            for line, last in self._iter_until_label(lines, label):
-                if last:
-                    leading.extend([
-                        waitscript,
-                        line,
-                        '',
-                    ])
-                    break
-                leading.append(line)
-            script = '\n'.join(leading) + '\n'.join(lines)
-
-        with open(self.filename, 'w') as scriptfile:
-            scriptfile.write(script)
-        return done, script
+        return set_lock(self.filename, lockfile, label, script)
 
     def test_no_breakpoints(self):
         self.lifecycle.requests = []
@@ -334,7 +295,7 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
     def test_breakpoints_single_file(self):
         done1, _ = self._set_lock('d')
         done2, script = self._set_lock('h')
-        lineno = self._find_line(script, 'b')
+        lineno = find_line(script, 'b')
         self.lifecycle.requests = []  # Trigger capture.
         config = {
             'breakpoints': [{

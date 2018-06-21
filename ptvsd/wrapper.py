@@ -989,6 +989,8 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         self.debug_options = {}
         self._statelock = threading.Lock()
         self._debugging = debugging
+        self._handshakelock = threading.Lock()
+        self._handshakelock.acquire()  # released in on_configurationDone()
         self._debuggerstopped = False
         self._exitlock = threading.Lock()
         self._exitlock.acquire()  # released in handle_exiting()
@@ -1037,6 +1039,10 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         if self._exitlock is not None:
             _util.lock_release(self._exitlock)
 
+    def wait_until_ready(self):
+        """Wait until the protocol handshake is complete."""
+        _util.lock_wait(self._handshakelock)
+
     # VSC protocol handlers
 
     def on_initialize(self, request, args):
@@ -1049,6 +1055,7 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         self.send_response(request)
         self._process_debug_options(self.debug_options)
         self._handle_configurationDone(args)
+        _util.lock_release(self._handshakelock)
 
     def on_attach(self, request, args):
         # TODO: docstring
@@ -1944,6 +1951,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         return hit_condition
 
     def re_build_breakpoints(self):
+        self.wait_until_ready()
         if self.bkpoints is None:
             return
         self.on_setBreakpoints(None, self.bkpoints)

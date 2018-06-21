@@ -193,12 +193,14 @@ class DebugSession(Closeable):
     def wait_for_event(self, event, **kwargs):
         if self.closed:
             raise RuntimeError('session closed')
+        result = {'msg': None}
 
         def match(msg):
+            result['msg'] = msg
             return msg.type == 'event' and msg.event == event
         handlername = 'event {!r}'.format(event)
         with self._wait_for_message(match, handlername, **kwargs):
-            yield
+            yield result
 
     @contextlib.contextmanager
     def wait_for_response(self, req, **kwargs):

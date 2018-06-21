@@ -1,4 +1,5 @@
 import os
+import os.path
 from textwrap import dedent
 import unittest
 
@@ -7,9 +8,118 @@ from ptvsd.socket import Address
 from ptvsd.wrapper import INITIALIZE_RESPONSE  # noqa
 from tests.helpers.debugadapter import DebugAdapter
 from tests.helpers.debugclient import EasyDebugClient as DebugClient
+from tests.helpers.script import find_line, set_lock
 from tests.helpers.threading import get_locked_and_waiter
 from tests.helpers.vsc import parse_message, VSCMessages
 from tests.helpers.workspace import Workspace, PathEntry
+
+
+ROOT = os.path.dirname(os.path.dirname(ptvsd.__file__))
+
+
+class ANYType(object):
+    def __repr__(self):
+        return 'ANY'
+ANY = ANYType()  # noqa
+
+
+def _match_value(value, expected, allowextra=True):
+    if expected is ANY:
+        return True
+
+    if isinstance(expected, dict):  # TODO: Support any mapping?
+        if not isinstance(value, dict):
+            return False
+        if not allowextra and sorted(value) != sorted(expected):
+            return False
+        for key, val in expected.items():
+            if key not in value:
+                return False
+            if not _match_value(value[key], val):
+                return False
+        return True
+    elif isinstance(expected, str):  # str is a special case of sequence.
+        if not isinstance(value, str):
+            return False
+        return value == expected
+    elif isinstance(expected, (list, tuple)):  # TODO: Support any sequence?
+        if not isinstance(value, (list, tuple)):
+            return False
+        if not allowextra and len(value) < len(expected):
+            return False
+        for val, exp in zip(value, expected):
+            if not _match_value(val, exp):
+                return False
+        return True
+    else:
+        return value == expected
+
+
+def _match_event(msg, event, **body):
+    if msg.type != 'event':
+        return False
+    if msg.event != event:
+        return False
+    return _match_value(msg.body, body)
+
+
+def _get_version(received, actual=ptvsd.__version__):
+    version = actual
+    for msg in received:
+        if _match_event(msg, 'output', data={'version': ANY}):
+            if msg.body['data']['version'] != actual:
+                version = '0+unknown'
+            break
+    return version
+
+
+def _find_events(received, event, **body):
+    for i, msg in enumerate(received):
+        if _match_event(msg, event, **body):
+            yield i, msg
+
+
+def _strip_messages(received, match_msg):
+    msgs = iter(received)
+    for msg in msgs:
+        if match_msg(msg):
+            break
+        yield msg
+    stripped = 1
+    for msg in msgs:
+        if match_msg(msg):
+            stripped += 1
+        else:
+            yield msg._replace(seq=msg.seq - stripped)
+
+
+def _strip_exit(received):
+    def match(msg):
+        if _match_event(msg, 'exited'):
+            return True
+        if _match_event(msg, 'terminated'):
+            return True
+        if _match_event(msg, 'thread', reason=u'exited'):
+            return True
+        return False
+    return _strip_messages(received, match)
+
+
+def _strip_output_event(received, output):
+    matched = False
+
+    def match(msg):
+        if matched:
+            return False
+        else:
+            return _match_event(msg, 'output', output=output)
+    return _strip_messages(received, match)
+
+
+def _strip_newline_output_events(received):
+    def match(msg):
+        return _match_event(msg, 'output', output=u'\n')
+    return _strip_messages(received, match)
 
 
 def _strip_pydevd_output(out):
@@ -19,16 +129,29 @@ def _strip_pydevd_output(out):
     return out if sep else pre
 
 
-def lifecycle_handshake(session, command='launch', options=None):
+def lifecycle_handshake(session, command='launch', options=None,
+                        breakpoints=None, excbreakpoints=None,
+                        threads=False):
     with session.wait_for_event('initialized'):
         req_initialize = session.send_request(
             'initialize',
             adapterID='spam',
         )
-        req_command = session.send_request(command, **options or {})
-    # TODO: pre-set breakpoints
+    req_command = session.send_request(command, **options or {})
+    req_threads = session.send_request('threads') if threads else None
+
+    reqs_bps = []
+    reqs_exc = []
+    for req in breakpoints or ():
+        reqs_bps.append(
+            session.send_request('setBreakpoints', **req))
+    for req in excbreakpoints or ():
+        reqs_bps.append(
+            session.send_request('setExceptionBreakpoints', **req))
+
     req_done = session.send_request('configurationDone')
-    return req_initialize, req_command, req_done
+    return (req_initialize, req_command, req_done,
+            reqs_bps, reqs_exc, req_threads)
 
 
 class TestsBase(object):
@@ -99,10 +222,10 @@ class CLITests(TestsBase, unittest.TestCase):
             )
             lifecycle_handshake(session, 'launch')
             lockwait(timeout=2.0)
-        out = adapter.output
+        out = adapter.output.decode('utf-8')
 
         self.assertIn(u"[{!r}, '--eggs']".format(filename),
-                      out.decode('utf-8').strip().splitlines())
+                      out.strip().splitlines())
 
     def test_run_to_completion(self):
         filename = self.pathentry.write_module('spam', """
@@ -201,9 +324,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
         assert_messages_equal(received, expected)
 
     def new_version_event(self, received):
-        version = ptvsd.__version__
-        if received[0].body['data']['version'] != version:
-            version = '0+unknown'
+        version = _get_version(received)
         return self.new_event(
             'output',
             category='telemetry',
@@ -223,7 +344,8 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             wait_for_started()
         out = adapter.output.decode('utf-8')
 
-        self.assert_received(session.received, [
+        received = list(_strip_newline_output_events(session.received))
+        self.assert_received(received, [
             self.new_version_event(session.received),
         ])
         out = _strip_pydevd_output(out)
@@ -242,7 +364,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             )
             with session.wait_for_event('exited'):
                 with session.wait_for_event('thread'):
-                    (req_initialize, req_launch, req_config
+                    (req_initialize, req_launch, req_config, _, _, _
                      ) = lifecycle_handshake(session, 'launch')
 
                 done()
@@ -250,7 +372,8 @@ class LifecycleTests(TestsBase, unittest.TestCase):
 
         # Skipping the 'thread exited' and 'terminated' messages which
         # may appear randomly in the received list.
-        self.assert_received(session.received[:7], [
+        received = list(_strip_newline_output_events(session.received))
+        self.assert_received(received[:7], [
             self.new_version_event(session.received),
             self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
@@ -276,14 +399,14 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             )
 
             with session.wait_for_event('thread'):
-                (req_initialize, req_launch, req_config
+                (req_initialize, req_launch, req_config, _, _, _
                  ) = lifecycle_handshake(session, 'launch')
 
             done()
             adapter.wait()
 
-        self.maxDiff = None
-        self.assert_received(session.received[:7], [
+        received = list(_strip_newline_output_events(session.received))
+        self.assert_received(received[:7], [
             self.new_version_event(session.received),
             self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
@@ -311,13 +434,14 @@ class LifecycleTests(TestsBase, unittest.TestCase):
                 session = editor.attach_socket(addr, adapter)
 
                 with session.wait_for_event('thread'):
-                    (req_initialize, req_launch, req_config
+                    (req_initialize, req_launch, req_config, _, _, _
                      ) = lifecycle_handshake(session, 'attach')
 
                 done()
                 adapter.wait()
 
-        self.assert_received(session.received[:7], [
+        received = list(_strip_newline_output_events(session.received))
+        self.assert_received(received[:7], [
             self.new_version_event(session.received),
             self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
@@ -355,13 +479,14 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             with DebugClient() as editor:
                 session = editor.attach_socket(addr, adapter)
 
-                (req_initialize, req_launch, req_config
+                (req_initialize, req_launch, req_config, _, _, _
                  ) = lifecycle_handshake(session, 'attach')
                 done()
                 adapter.wait()
         out = adapter.output.decode('utf-8')
 
-        self.assert_received(session.received, [
+        received = list(_strip_newline_output_events(session.received))
+        self.assert_received(received, [
             self.new_version_event(session.received),
             self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
@@ -398,13 +523,14 @@ class LifecycleTests(TestsBase, unittest.TestCase):
 
                 # Re-attach
                 session2 = editor.attach_socket(addr, adapter)
-                (req_initialize, req_launch, req_config
+                (req_initialize, req_launch, req_config, _, _, _
                  ) = lifecycle_handshake(session2, 'attach')
                 done2()
 
                 adapter.wait()
 
-        self.assert_received(session1.received, [
+        received = list(_strip_newline_output_events(session1.received))
+        self.assert_received(received, [
             self.new_version_event(session1.received),
             self.new_response(reqs[0], **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
@@ -420,7 +546,8 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             self.new_response(req_disconnect),
         ])
         self.messages.reset_all()
-        self.assert_received(session2.received, [
+        received = list(_strip_newline_output_events(session2.received))
+        self.assert_received(received, [
             self.new_version_event(session2.received),
             self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
@@ -461,13 +588,14 @@ class LifecycleTests(TestsBase, unittest.TestCase):
 
             # Re-attach.
             session = editor.attach()
-            (req_initialize, req_launch, req_config
+            (req_initialize, req_launch, req_config, _, _, _
              ) = lifecycle_handshake(session, 'attach')
 
             done()
             adapter.wait()
 
-        self.assert_received(session.received, [
+        received = list(_strip_newline_output_events(session.received))
+        self.assert_received(received, [
             self.new_version_event(session.received),
             self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
@@ -476,6 +604,246 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             self.new_event('exited', exitCode=0),
             self.new_event('terminated'),
         ])
+
+    def test_attach_breakpoints(self):
+        # See https://github.com/Microsoft/ptvsd/issues/448.
+        addr = Address('localhost', 8888)
+        filename = self.write_script('spam.py', """
+            import time
+            import sys
+            sys.path.insert(0, {!r})
+            import ptvsd
+
+            addr = {}
+            ptvsd.enable_attach(addr)
+            print('waiting for attach')
+            time.sleep(0.1)
+            # <waiting>
+            ptvsd.wait_for_attach()
+            # <attached>
+            print('attached!')
+            # <bp 2>
+            print('done waiting')
+            """.format(ROOT, tuple(addr)))
+        lockfile1 = self.workspace.lockfile()
+        done1, _ = set_lock(filename, lockfile1, 'waiting')
+        lockfile2 = self.workspace.lockfile()
+        done2, script = set_lock(filename, lockfile2, 'bp 2')
+
+        bp1 = find_line(script, 'attached')
+        bp2 = find_line(script, 'bp 2')
+        breakpoints = [{
+            'source': {'path': filename},
+            'breakpoints': [
+                {'line': bp1},
+                {'line': bp2},
+            ],
+        }]
+
+        adapter = DebugAdapter.start_embedded(addr, filename)
+        with adapter:
+            out1 = next(adapter.output)
+            line = adapter.output.readline()
+            while line:
+                out1 += line
+                line = adapter.output.readline()
+            done1()
+
+            with DebugClient() as editor:
+                session = editor.attach_socket(addr, adapter)
+
+                # TODO: There appears to be a small race that may
+                # cause the test to fail here.
+                with session.wait_for_event('stopped'):
+                    with session.wait_for_event('thread') as result:
+                        with session.wait_for_event('process'):
+                            (req_init, req_attach, req_config,
+                             reqs_bps, _, req_threads1,
+                             ) = lifecycle_handshake(session, 'attach',
+                                                     breakpoints=breakpoints,
+                                                     threads=True)
+                        req_bps, = reqs_bps  # There should only be one.
+                    tid = result['msg'].body['threadId']
+                req_threads2 = session.send_request('threads')
+                req_stacktrace1 = session.send_request(
+                    'stackTrace',
+                    threadId=tid,
+                )
+                out2 = str(adapter.output)
+
+                done2()
+                with session.wait_for_event('stopped'):
+                    with session.wait_for_event('continued'):
+                        req_continue1 = session.send_request(
+                            'continue',
+                            threadId=tid,
+                        )
+                req_threads3 = session.send_request('threads')
+                req_stacktrace2 = session.send_request(
+                    'stackTrace',
+                    threadId=tid,
+                )
+                out3 = str(adapter.output)
+
+                with session.wait_for_event('continued'):
+                    req_continue2 = session.send_request(
+                        'continue',
+                        threadId=tid,
+                    )
+
+                adapter.wait()
+            out4 = str(adapter.output)
+
+        # Output between enable_attach() and wait_for_attach() may
+        # be sent at a relatively arbitrary time (or not at all).
+        # So we ignore it by removing it from the message list.
+        received = list(_strip_output_event(session.received,
+                                            u'waiting for attach'))
+        received = list(_strip_newline_output_events(received))
+        # There's an ordering race with continue/continued that pops
+        # up occasionally.  We work around that by manually fixing the
+        # order.
+        for pos, msg in _find_events(received, 'continued'):
+            prev = received[pos-1]
+            if prev.type != 'response' or prev.command != 'continue':
+                received.pop(pos-1)
+                received.insert(pos + 1, prev)
+        # Sometimes the proc ends before the exited and terminated
+        # events are received.
+        received = list(_strip_exit(received))
+        self.assert_received(received, [
+            self.new_version_event(session.received),
+            self.new_response(req_init, **INITIALIZE_RESPONSE),
+            self.new_event('initialized'),
+            self.new_response(req_attach),
+            self.new_event(
+                'thread',
+                threadId=tid,
+                reason='started',
+            ),
+            self.new_response(req_threads1, **{
+                'threads': [{
+                    'id': 1,
+                    'name': 'MainThread',
+                }],
+            }),
+            self.new_response(req_bps, **{
+                'breakpoints': [{
+                    'id': 1,
+                    'line': bp1,
+                    'verified': True,
+                }, {
+                    'id': 2,
+                    'line': bp2,
+                    'verified': True,
+                }],
+            }),
+            self.new_response(req_config),
+            self.new_event('process', **{
+                'isLocalProcess': True,
+                'systemProcessId': adapter.pid,
+                'startMethod': 'attach',
+                'name': filename,
+            }),
+            self.new_event(
+                'thread',
+                threadId=tid,
+                reason='started',
+            ),
+            self.new_event(
+                'stopped',
+                threadId=tid,
+                reason='breakpoint',
+                description=None,
+                text=None,
+            ),
+            self.new_response(req_threads2, **{
+                'threads': [{
+                    'id': 1,
+                    'name': 'MainThread',
+                }],
+            }),
+            self.new_event(
+                'module',
+                module={
+                    'id': 1,
+                    'name': '__main__',
+                    'path': filename,
+                    'package': None,
+                },
+                reason='new',
+            ),
+            self.new_response(req_stacktrace1, **{
+                'totalFrames': 1,
+                'stackFrames': [{
+                    'id': 1,
+                    'name': '<module>',
+                    'source': {
+                        'path': filename,
+                        'sourceReference': 1,
+                    },
+                    'line': bp1,
+                    'column': 1,
+                }],
+            }),
+            self.new_response(req_continue1),
+            self.new_event('continued', threadId=tid),
+            self.new_event(
+                'output',
+                category='stdout',
+                output='attached!',
+            ),
+            self.new_event(
+                'stopped',
+                threadId=tid,
+                reason='breakpoint',
+                description=None,
+                text=None,
+            ),
+            self.new_response(req_threads3, **{
+                'threads': [{
+                    'id': 1,
+                    'name': 'MainThread',
+                }],
+            }),
+            self.new_response(req_stacktrace2, **{
+                'totalFrames': 1,
+                'stackFrames': [{
+                    'id': 2,  # TODO: Isn't this the same frame as before?
+                    'name': '<module>',
+                    'source': {
+                        'path': filename,
+                        'sourceReference': 1,
+                    },
+                    'line': bp2,
+                    'column': 1,
+                }],
+            }),
+            self.new_response(req_continue2),
+            self.new_event('continued', threadId=tid),
+            self.new_event(
+                'output',
+                category='stdout',
+                output='done waiting',
+            ),
+            #self.new_event(
+            #    'thread',
+            #    threadId=tid,
+            #    reason='exited',
+            #),
+            #self.new_event('exited', exitCode=0),
+            #self.new_event('terminated'),
+        ])
+        # before attaching
+        self.assertIn(b'waiting for attach', out1)
+        self.assertNotIn(b'attached!', out1)
+        # after attaching
+        self.assertNotIn('attached!', out2)
+        # after bp1 continue
+        self.assertIn('attached!', out3)
+        self.assertNotIn('done waiting', out3)
+        # after bp2 continue
+        self.assertIn('done waiting', out4)
 
     def test_nodebug(self):
         lockfile = self.workspace.lockfile()
@@ -495,13 +863,14 @@ class LifecycleTests(TestsBase, unittest.TestCase):
                 ],
             )
 
-            (req_initialize, req_launch, req_config
+            (req_initialize, req_launch, req_config, _, _, _
              ) = lifecycle_handshake(session, 'launch')
 
             done()
             adapter.wait()
 
-        self.assert_received(session.received[:11], [
+        received = list(_strip_newline_output_events(session.received))
+        self.assert_received(received[:9], [
             self.new_version_event(session.received),
             self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
@@ -509,15 +878,9 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             self.new_event('output',
                            output='+ before',
                            category='stdout'),
-            self.new_event('output',
-                           output='\n',
-                           category='stdout'),
             self.new_response(req_config),
             self.new_event('output',
                            output='+ after',
-                           category='stdout'),
-            self.new_event('output',
-                           output='\n',
                            category='stdout'),
             self.new_event('exited', exitCode=0),
             self.new_event('terminated'),
