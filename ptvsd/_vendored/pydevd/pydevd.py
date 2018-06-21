@@ -353,7 +353,7 @@ class PyDB:
     def enable_output_redirection(self, redirect_stdout, redirect_stderr):
         global bufferStdOutToServer
         global bufferStdErrToServer
-        
+
         bufferStdOutToServer = redirect_stdout
         bufferStdErrToServer = redirect_stderr
         self.redirect_output = redirect_stdout or redirect_stderr
@@ -443,7 +443,7 @@ class PyDB:
                     self.set_suspend(t, CMD_THREAD_SUSPEND)
                 else:
                     sys.stderr.write("Can't suspend thread: %s\n" % (t,))
-                    
+
     def notify_thread_created(self, thread_id, thread, use_lock=True):
         if self.writer is None:
             # Protect about threads being created before the communication structure is in place
@@ -457,7 +457,7 @@ class PyDB:
         try:
             if thread_id in self._running_thread_ids:
                 return
-            
+
             if not hasattr(thread, 'additional_info'):
                 # see http://sourceforge.net/tracker/index.php?func=detail&aid=1955428&group_id=85796&atid=577329
                 # Let's create the additional info right away!
@@ -466,7 +466,7 @@ class PyDB:
             elif thread.additional_info.pydev_notify_kill:
                 # After we notify it should be killed, make sure we don't notify it's alive (on a racing condition
                 # this could happen as we may notify before the thread is stopped internally).
-                return  
+                return
 
             self._running_thread_ids[thread_id] = thread
         finally:
@@ -474,7 +474,7 @@ class PyDB:
                 self._lock_running_thread_ids.release()
 
         self.writer.add_command(self.cmd_factory.make_thread_created_message(thread))
-                
+
     def notify_thread_not_alive(self, thread_id, use_lock=True):
         """ if thread is not alive, cancel trace_dispatch processing """
         if self.writer is None:
@@ -482,7 +482,7 @@ class PyDB:
 
         if use_lock:
             self._lock_running_thread_ids.acquire()
-            
+
         try:
             thread = self._running_thread_ids.pop(thread_id, None)
             if thread is None:
@@ -541,13 +541,13 @@ class PyDB:
                         program_threads_alive[thread_id] = t
 
                         self.notify_thread_created(thread_id, t, use_lock=False)
-                
+
                 # Compute and notify about threads which are no longer alive.
                 thread_ids = list(self._running_thread_ids.keys())
                 for thread_id in thread_ids:
                     if thread_id not in program_threads_alive:
                         program_threads_dead.append(thread_id)
-                        
+
                 for thread_id in program_threads_dead:
                     self.notify_thread_not_alive(thread_id, use_lock=False)
             finally:
@@ -559,7 +559,7 @@ class PyDB:
                     if hasattr(t, 'do_kill_pydev_thread'):
                         t.do_kill_pydev_thread()
             else:
-                # Actually process the commands now (make sure we don't have a lock for _lock_running_thread_ids 
+                # Actually process the commands now (make sure we don't have a lock for _lock_running_thread_ids
                 # acquired at this point as it could lead to a deadlock if some command evaluated tried to
                 # create a thread and wait for it -- which would try to notify about it getting that lock).
                 curr_thread_id = None
@@ -579,7 +579,7 @@ class PyDB:
                                 except:
                                     pydevd_log(2, "Matplotlib support in debug console failed", traceback.format_exc())
                                 self.mpl_hooks_in_debug_console = True
-                                
+
                             if curr_thread_id is None:
                                 # Lazily get the current thread id.
                                 curr_thread_id = get_thread_id(threadingCurrentThread())
@@ -649,7 +649,7 @@ class PyDB:
 
         breakpoints[file] = break_dict
         self.clear_skip_caches()
-        
+
     def clear_skip_caches(self):
         global_cache_skips.clear()
         global_cache_frame_skips.clear()
@@ -1041,7 +1041,7 @@ class PyDB:
             self.prepare_to_run()
 
         t = threadingCurrentThread()
-        
+
         if self.thread_analyser is not None:
             wrap_threads()
             self.thread_analyser.set_start_time(cur_time())
@@ -1061,7 +1061,7 @@ class PyDB:
         if hasattr(sys, 'exc_clear'):
             # we should clean exception information in Python 2, before user's code execution
             sys.exc_clear()
-            
+
         # Notify that the main thread is created.
         thread_id = get_thread_id(t)
         self.notify_thread_created(thread_id, t)
@@ -1069,9 +1069,9 @@ class PyDB:
         # Note: important: set the tracing right before calling _exec.
         if set_trace:
             pydevd_tracing.SetTrace(self.trace_dispatch, self.frame_eval_func, self.dummy_trace_dispatch)
-        
+
         return self._exec(is_module, entry_point_fn, module_name, file, globals, locals)
-        
+
     def _exec(self, is_module, entry_point_fn, module_name, file, globals, locals):
         '''
         This function should have frames tracked by unhandled exceptions (the `_exec` name is important).
@@ -1151,15 +1151,15 @@ def usage(doExit=0):
 
 
 class _CustomWriter(object):
-    
+
     def __init__(self, out_ctx, wrap_stream, wrap_buffer, on_write=None):
         '''
         :param out_ctx:
             1=stdout and 2=stderr
-            
+
         :param wrap_stream:
             Either sys.stdout or sys.stderr.
-            
+
         :param bool wrap_buffer:
             If True the buffer attribute (which wraps writing bytes) should be
             wrapped.
@@ -1174,10 +1174,10 @@ class _CustomWriter(object):
         if wrap_buffer:
             self.buffer = _CustomWriter(out_ctx, wrap_stream, wrap_buffer=False, on_write=on_write)
         self._on_write = on_write
-            
+
     def flush(self):
         pass  # no-op here
-    
+
     def write(self, s):
         if self._on_write is not None:
             self._on_write(s)
@@ -1192,7 +1192,7 @@ class _CustomWriter(object):
                 # Need s in str
                 if isinstance(s, bytes):
                     s = s.decode(self.encoding, errors='replace')
-            
+
             py_db = get_global_debugger()
             if py_db is not None:
                 # Note that the actual message contents will be a xml with utf-8, although

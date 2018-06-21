@@ -262,8 +262,6 @@ def main():
 
             argv.append('-p')
             argv.append('_pydev_runfiles.pydev_runfiles_pytest2')
-            if 'unittest' in sys.modules or 'unittest2' in sys.modules:
-                sys.stderr.write('pydev test runner error: imported unittest before running pytest.main\n')
             return pytest.main(argv)
 
         else:
