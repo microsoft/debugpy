@@ -9,6 +9,8 @@ help:  ## Print help about available targets.
 depends:
 	$(PYTHON) -m pip install setuptools
 	$(PYTHON) -m pip install flake8
+	$(PYTHON) -m pip install flake8_formatter_junit_xml
+	$(PYTHON) -m pip install unittest-xml-reporting
 	$(PYTHON) -m pip install coverage
 
 .PHONY: lint

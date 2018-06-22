@@ -2454,7 +2454,7 @@
 				},
 				"path": {
 					"type": "string",
-					"description": "The path of the source to be shown in the UI. It is only used to locate and load the content of the source if no sourceReference is specified (or its vaule is 0)."
+					"description": "The path of the source to be shown in the UI. It is only used to locate and load the content of the source if no sourceReference is specified (or its value is 0)."
 				},
 				"sourceReference": {
 					"type": "number",

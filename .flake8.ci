@@ -1,0 +1,3 @@
+[flake8]
+format = junit-xml
+output-file = .\linter-test.xml

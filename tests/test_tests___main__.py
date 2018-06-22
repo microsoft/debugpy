@@ -10,7 +10,7 @@ from .__main__ import convert_argv
 class ConvertArgsTests(unittest.TestCase):
 
     def test_no_args(self):
-        argv, env, runtests, lint = convert_argv([])
+        config, argv, env = convert_argv([])
 
         self.assertEqual(argv, [
             sys.executable + ' -m unittest',
@@ -21,11 +21,11 @@ class ConvertArgsTests(unittest.TestCase):
         self.assertEqual(env, {
             'HAS_NETWORK': '1',
         })
-        self.assertTrue(runtests)
-        self.assertFalse(lint)
+        self.assertFalse(config.lint_only)
+        self.assertFalse(config.lint)
 
     def test_discovery_full(self):
-        argv, env, runtests, lint = convert_argv([
+        config, argv, env = convert_argv([
             '-v', '--failfast', '--full',
         ])
 
@@ -39,11 +39,11 @@ class ConvertArgsTests(unittest.TestCase):
         self.assertEqual(env, {
             'HAS_NETWORK': '1',
         })
-        self.assertTrue(runtests)
-        self.assertFalse(lint)
+        self.assertFalse(config.lint_only)
+        self.assertFalse(config.lint)
 
     def test_discovery_quick(self):
-        argv, env, runtests, lint = convert_argv([
+        config, argv, env = convert_argv([
             '-v', '--failfast', '--quick',
         ])
 
@@ -57,11 +57,11 @@ class ConvertArgsTests(unittest.TestCase):
         self.assertEqual(env, {
             'HAS_NETWORK': '1',
         })
-        self.assertTrue(runtests)
-        self.assertFalse(lint)
+        self.assertFalse(config.lint_only)
+        self.assertFalse(config.lint)
 
     def test_modules(self):
-        argv, env, runtests, lint = convert_argv([
+        config, argv, env = convert_argv([
             '-v', '--failfast',
             'w',
             'x/y.py:Spam.test_spam'.replace('/', os.sep),
@@ -78,11 +78,13 @@ class ConvertArgsTests(unittest.TestCase):
         self.assertEqual(env, {
             'HAS_NETWORK': '1',
         })
-        self.assertTrue(runtests)
-        self.assertFalse(lint)
+        self.assertFalse(config.lint_only)
+        self.assertFalse(config.lint)
 
     def test_no_network(self):
-        argv, env, runtests, lint = convert_argv(['--no-network'])
+        config, argv, env = convert_argv([
+            '--no-network'
+            ])
 
         self.assertEqual(argv, [
             sys.executable + ' -m unittest',
@@ -91,11 +93,15 @@ class ConvertArgsTests(unittest.TestCase):
             '--start-directory', PROJECT_ROOT,
             ])
         self.assertEqual(env, {})
-        self.assertTrue(runtests)
-        self.assertFalse(lint)
+        self.assertFalse(config.lint_only)
+        self.assertFalse(config.lint)
 
     def test_lint(self):
-        argv, env, runtests, lint = convert_argv(['-v', '--quick', '--lint'])
+        config, argv, env = convert_argv([
+            '-v',
+            '--quick',
+            '--lint'
+            ])
 
         self.assertEqual(argv, [
             sys.executable + ' -m unittest',
@@ -107,21 +113,24 @@ class ConvertArgsTests(unittest.TestCase):
         self.assertEqual(env, {
             'HAS_NETWORK': '1',
         })
-        self.assertTrue(runtests)
-        self.assertTrue(lint)
+
+        self.assertFalse(config.lint_only)
+        self.assertTrue(config.lint)
+        self.assertTrue(config.quick)
 
     def test_lint_only(self):
-        argv, env, runtests, lint = convert_argv([
+        config, _, _ = convert_argv([
             '--quick', '--lint-only', '-v',
         ])
 
-        self.assertIsNone(argv)
-        self.assertIsNone(env)
-        self.assertFalse(runtests)
-        self.assertTrue(lint)
+        self.assertTrue(config.lint_only)
+        self.assertFalse(config.lint)
+        self.assertTrue(config.quick)
 
     def test_coverage(self):
-        argv, env, runtests, lint = convert_argv(['--coverage'])
+        config, argv, env = convert_argv([
+            '--coverage'
+            ])
 
         self.assertEqual(argv, [
             sys.executable + ' -m unittest',
@@ -132,5 +141,24 @@ class ConvertArgsTests(unittest.TestCase):
         self.assertEqual(env, {
             'HAS_NETWORK': '1',
         })
-        self.assertEqual(runtests, 'coverage')
-        self.assertFalse(lint)
+        self.assertFalse(config.lint_only)
+        self.assertFalse(config.lint)
+        self.assertTrue(config.coverage)
+
+    def test_specify_junit_file(self):
+        config, argv, env = convert_argv([
+            '--junit-xml=./my-test-file'
+        ])
+
+        self.assertEqual(argv, [
+            sys.executable + ' -m unittest',
+            'discover',
+            '--top-level-directory', PROJECT_ROOT,
+            '--start-directory', PROJECT_ROOT,
+        ])
+        self.assertEqual(env, {
+            'HAS_NETWORK': '1',
+        })
+        self.assertFalse(config.lint_only)
+        self.assertFalse(config.lint)
+        self.assertEqual(config.junit_xml, './my-test-file')
