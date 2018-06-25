@@ -144,6 +144,22 @@ def _wait(check, timeout):
         return False
 
 
+def new_hidden_thread(name, target, prefix='ptvsd.', daemon=True, **kwargs):
+    """Return a thread that will be ignored by pydevd."""
+    if prefix is not None and not name.startswith(prefix):
+        name = prefix + name
+    t = threading.Thread(
+        name=name,
+        target=target,
+        **kwargs
+    )
+    t.pydev_do_not_trace = True
+    if daemon:
+        t.is_pydev_daemon_thread = True
+        t.daemon = True
+    return t
+
+
 ########################
 # closing stuff
 

@@ -30,7 +30,9 @@ class DebugSession(Startable, Closeable):
         client, _ = server.accept()
         return cls(client, ownsock=True, **kwargs)
 
-    def __init__(self, sock, notify_closing=None, notify_disconnecting=None,
+    def __init__(self, sock,
+                 notify_closing=None,
+                 notify_disconnecting=None,
                  ownsock=False):
         super(DebugSession, self).__init__()
 
@@ -149,14 +151,36 @@ class PyDevdDebugSession(DebugSession):
 
     MESSAGE_PROCESSOR = VSCodeMessageProcessor
 
+    def __init__(self, sock,
+                 notify_debugger_ready=None,
+                 **kwargs):
+        super(PyDevdDebugSession, self).__init__(sock, **kwargs)
+
+        def notify_debugger_ready(session, _notify=notify_debugger_ready):
+            if self._notified_debugger_ready:
+                return
+            self._notified_debugger_ready = True
+            if _notify is not None:
+                _notify(session)
+        self._notified_debugger_ready = False
+        self._notify_debugger_ready = notify_debugger_ready
+
     def handle_pydevd_message(self, cmdid, seq, text):
         if self._msgprocessor is None:
             # TODO: Do more than ignore?
             return
         return self._msgprocessor.on_pydevd_event(cmdid, seq, text)
 
-    def re_build_breakpoints(self):
-        """Restore the breakpoints to their last values."""
-        if self._msgprocessor is None:
-            return
-        return self._msgprocessor.re_build_breakpoints()
+    # internal methods
+
+    def _new_msg_processor(self, **kwargs):
+        return super(PyDevdDebugSession, self)._new_msg_processor(
+            notify_debugger_ready=self._handle_vsc_debugger_ready,
+            **kwargs
+        )
+
+    # internal methods for VSCodeMessageProcessor
+
+    def _handle_vsc_debugger_ready(self):
+        debug('ready to debug')
+        self._notify_debugger_ready(self)

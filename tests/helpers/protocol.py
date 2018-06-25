@@ -6,6 +6,7 @@ import errno
 import threading
 import warnings
 
+from ptvsd._util import new_hidden_thread
 from . import socket
 from .counter import Counter
 from .threading import acquire_with_timeout
@@ -174,12 +175,10 @@ class Daemon(object):
         def run():
             self._sock = connect()
             self._handle_connected()
-        t = threading.Thread(
+        t = new_hidden_thread(
             target=run,
-            name='ptvsd.test.daemon',
+            name='test.daemon',
         )
-        t.pydev_do_not_trace = True
-        t.is_pydev_daemon_thread  = True
         t.start()
         return addr, t
 
@@ -295,12 +294,11 @@ class MessageDaemon(Daemon):
 
     def _handle_connected(self):
         # TODO: make it a daemon thread?
-        self._listener = threading.Thread(
+        self._listener = new_hidden_thread(
             target=self._listen,
-            name='ptvsd.test.msgdaemon',
+            name='test.msgdaemon',
+            daemon=False,
         )
-        self._listener.pydev_do_not_trace = True
-        self._listener.is_pydev_daemon_thread = True
         self._listener.start()
 
     def _listen(self):

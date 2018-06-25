@@ -609,7 +609,6 @@ class LifecycleTests(TestsBase, unittest.TestCase):
         # See https://github.com/Microsoft/ptvsd/issues/448.
         addr = Address('localhost', 8888)
         filename = self.write_script('spam.py', """
-            import time
             import sys
             sys.path.insert(0, {!r})
             import ptvsd
@@ -617,7 +616,6 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             addr = {}
             ptvsd.enable_attach(addr)
             print('waiting for attach')
-            time.sleep(0.1)
             # <waiting>
             ptvsd.wait_for_attach()
             # <attached>
@@ -640,17 +638,11 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             ],
         }]
 
+        #DebugAdapter.VERBOSE = True
         adapter = DebugAdapter.start_embedded(addr, filename)
         with adapter:
-            out1 = next(adapter.output)
-            line = adapter.output.readline()
-            while line:
-                out1 += line
-                line = adapter.output.readline()
-            done1()
-
             with DebugClient() as editor:
-                session = editor.attach_socket(addr, adapter)
+                session = editor.attach_socket(addr, adapter, timeout=1)
 
                 # TODO: There appears to be a small race that may
                 # cause the test to fail here.
@@ -662,6 +654,14 @@ class LifecycleTests(TestsBase, unittest.TestCase):
                              ) = lifecycle_handshake(session, 'attach',
                                                      breakpoints=breakpoints,
                                                      threads=True)
+
+                            # Grab the initial output.
+                            out1 = next(adapter.output)  # "waiting for attach"
+                            line = adapter.output.readline()
+                            while line:
+                                out1 += line
+                                line = adapter.output.readline()
+                            done1()
                         req_bps, = reqs_bps  # There should only be one.
                     tid = result['msg'].body['threadId']
                 req_threads2 = session.send_request('threads')

@@ -7,8 +7,6 @@ import subprocess
 import sys
 import unittest
 
-from xmlrunner import XMLTestRunner
-
 from . import TEST_ROOT, PROJECT_ROOT, VENDORED_ROOTS
 
 
@@ -190,12 +188,13 @@ def run_tests(argv, env, coverage, junit_xml):
             sys.exit(rc)
         print('...done')
     elif junit_xml:
+        from xmlrunner import XMLTestRunner  # noqa
         os.environ.update(env)
         with open(junit_xml, 'wb') as output:
             unittest.main(
                 testRunner=XMLTestRunner(output=output),
                 module=None,
-                argv=argv
+                argv=argv,
             )
     else:
         os.environ.update(env)

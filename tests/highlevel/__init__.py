@@ -2,7 +2,6 @@ from collections import namedtuple
 import contextlib
 import inspect
 import platform
-import threading
 import time
 import warnings
 
@@ -20,6 +19,7 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_SET_PROJECT_ROOTS,
 )
 
+from ptvsd._util import new_hidden_thread
 from tests.helpers.pydevd import FakePyDevd, PyDevdMessages
 from tests.helpers.vsc import FakeVSC, VSCMessages
 
@@ -239,17 +239,15 @@ class VSCLifecycle(object):
         # socket (i.e. "daemon").  This is because cloing ptvsd blocks,
         # keeping us from sending the disconnect request we need to send
         # at the end.
-        t = threading.Thread(
+        t = new_hidden_thread(
             target=self._fix.close_ptvsd,
-            name='ptvsd.test.lifecycle',
+            name='test.lifecycle',
         )
         #with self._fix.wait_for_events(['exited', 'terminated']):
         if True:
             # The thread runs close_ptvsd(), which sends the two
             # events and then waits for a "disconnect" request.  We send
             # that after we receive the events.
-            t.pydev_do_not_trace = True
-            t.is_pydev_daemon_thread = True
             t.start()
         if disconnect:
             self.disconnect()

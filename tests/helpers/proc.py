@@ -6,8 +6,8 @@ except ImportError:
     import Queue as queue  # Python 2.7
 import subprocess
 import sys
-import threading
 
+from ptvsd._util import new_hidden_thread
 from . import Closeable
 
 
@@ -45,13 +45,12 @@ def collect_lines(stream, buf=None, notify_received=None, **kwargs):
             _notify(line)
             buf.put(line)
 
-    t = threading.Thread(
+    t = new_hidden_thread(
         target=process_lines,
         args=(stream, notify_received),
         kwargs=kwargs,
-        name='ptvsd.test.proc.output',
+        name='test.proc.output',
     )
-    t.daemon = True
     t.start()
 
     return buf, t

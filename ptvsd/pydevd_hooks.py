@@ -1,11 +1,10 @@
 import sys
-import threading
 
 from _pydevd_bundle import pydevd_comm
 
 from ptvsd.socket import Address
 from ptvsd.daemon import Daemon, DaemonStoppedError, DaemonClosedError
-from ptvsd._util import debug
+from ptvsd._util import debug, new_hidden_thread
 
 
 def start_server(daemon, host, port, **kwargs):
@@ -46,13 +45,10 @@ def start_server(daemon, host, port, **kwargs):
                 break
         debug('done')
 
-    t = threading.Thread(
+    t = new_hidden_thread(
         target=serve_forever,
-        name='ptvsd.sessions',
-        )
-    t.pydev_do_not_trace = True
-    t.is_pydev_daemon_thread = True
-    t.daemon = True
+        name='sessions',
+    )
     t.start()
     return sock
 

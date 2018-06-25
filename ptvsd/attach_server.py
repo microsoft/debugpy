@@ -5,17 +5,16 @@
 import threading
 
 import pydevd
-from _pydevd_bundle.pydevd_comm import (
-    get_global_debugger,
-)
 
 # TODO: Why import run_module & run_file?
 from ptvsd._local import run_module, run_file  # noqa
 from ptvsd._remote import enable_attach as ptvsd_enable_attach
 
+
 DEFAULT_HOST = '0.0.0.0'
 DEFAULT_PORT = 5678
 
+_enabled = False
 _attached = threading.Event()
 
 
@@ -60,10 +59,17 @@ def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True):
     attached. Any threads that are already running before this function is
     called will not be visible.
     """
-    if get_global_debugger() is not None:
+    global _enabled
+    if _enabled:
         return
+    _enabled = True
     _attached.clear()
-    ptvsd_enable_attach(address, redirect_output, on_attach=_attached.set)
+
+    ptvsd_enable_attach(
+        address,
+        on_attach=_attached.set,
+        redirect_output=redirect_output,
+    )
 
 # TODO: Add disable_attach()?
 
@@ -77,8 +83,7 @@ def break_into_debugger():
     """If a remote debugger is attached, pauses execution of all threads,
     and breaks into the debugger with current thread as active.
     """
-    debugger = get_global_debugger()
-    if not _attached.isSet() or debugger is None:
+    if not _attached.isSet() or not _enabled:
         return
 
     import sys
@@ -86,4 +91,5 @@ def break_into_debugger():
         suspend=True,
         trace_only_current_thread=True,
         patch_multiprocessing=False,
-        stop_at_frame=sys._getframe().f_back)
+        stop_at_frame=sys._getframe().f_back,
+    )

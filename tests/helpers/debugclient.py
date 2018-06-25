@@ -1,9 +1,9 @@
 from __future__ import absolute_import
 
-import threading
 import warnings
 
 from ptvsd.socket import Address
+from ptvsd._util import new_hidden_thread
 from . import Closeable
 from .debugadapter import DebugAdapter
 from .debugsession import DebugSession
@@ -160,7 +160,10 @@ class EasyDebugClient(DebugClient):
 
         def run():
             self._session = DebugSession.create_server(addr, **kwargs)
-        t = threading.Thread(target=run, name='ptvsd.test.client')
+        t = new_hidden_thread(
+            target=run,
+            name='test.client',
+        )
         t.start()
 
         def wait():

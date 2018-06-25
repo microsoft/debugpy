@@ -1,11 +1,7 @@
-import threading
-import time
-
 import pydevd
-from _pydevd_bundle.pydevd_comm import get_global_debugger
 
-from ptvsd.pydevd_hooks import install
-from ptvsd.socket import create_server
+from ptvsd.pydevd_hooks import install, start_server
+from ptvsd.socket import Address
 
 
 # TODO: Split up enable_attach() to align with module organization.
@@ -14,42 +10,27 @@ from ptvsd.socket import create_server
 # Then move at least some parts to the appropriate modules.  This module
 # is focused on running the debugger.
 
-def enable_attach(address, redirect_output=True,
+def enable_attach(address,
+                  on_attach=(lambda: None),
+                  redirect_output=True,
                   _pydevd=pydevd, _install=install,
-                  on_attach=lambda: None, **kwargs):
-    host, port = address
-
-    def wait_for_connection(daemon, host, port):
-        debugger = get_global_debugger()
-        while debugger is None:
-            time.sleep(0.1)
-            debugger = get_global_debugger()
-
-        debugger.ready_to_run = True
-        server = create_server(host, port)
-        client, _ = server.accept()
-        daemon.start_session(client, 'ptvsd.Server')
-
-        daemon.re_build_breakpoints()
-        on_attach()
-
-    daemon = _install(_pydevd,
-                      address,
-                      start_server=None,
-                      start_client=(lambda daemon, h, port: daemon.start()),
-                      singlesession=False,
-                      **kwargs)
-
-    connection_thread = threading.Thread(target=wait_for_connection,
-                                         args=(daemon, host, port),
-                                         name='ptvsd.listen_for_connection')
-    connection_thread.pydev_do_not_trace = True
-    connection_thread.is_pydev_daemon_thread = True
-    connection_thread.daemon = True
-    connection_thread.start()
-
-    _pydevd.settrace(host=host,
-                     stdoutToServer=redirect_output,
-                     stderrToServer=redirect_output,
-                     port=port,
-                     suspend=False)
+                  **kwargs):
+    addr = Address.as_server(*address)
+    # pydevd.settrace() forces a "client" connection, so we trick it
+    # by setting start_client to start_server..
+    daemon = _install(
+        _pydevd,
+        addr,
+        start_client=start_server,
+        notify_session_debugger_ready=(lambda s: on_attach()),
+        singlesession=False,
+        **kwargs
+    )
+    # Only pass the port so start_server() gets triggered.
+    _pydevd.settrace(
+        stdoutToServer=redirect_output,
+        stderrToServer=redirect_output,
+        port=addr.port,
+        suspend=False,
+    )
+    return daemon

@@ -338,11 +338,13 @@ class DaemonBase(object):
     # internal session-related methods
 
     def _bind_session(self, session):
+        # TODO: Pass notify_* to session.start() instead.
         session = self.SESSION.from_raw(
             session,
             notify_closing=self._handle_session_closing,
             notify_disconnecting=self._handle_session_disconnecting,
             ownsock=True,
+            **self._session_kwargs() or {}
         )
         self._session = session
         self._numsessions += 1
@@ -457,21 +459,25 @@ class DaemonBase(object):
             **kwargs
         )
 
+    def _session_kwargs(self):
+        return None
+
 
 class Daemon(DaemonBase):
     """The process-level manager for the VSC protocol debug adapter."""
 
     SESSION = PyDevdDebugSession
 
+    def __init__(self, wait_for_user=_wait_for_user,
+                 notify_session_debugger_ready=None,
+                 **kwargs):
+        super(Daemon, self).__init__(wait_for_user, **kwargs)
+
+        self._notify_session_debugger_ready = notify_session_debugger_ready
+
     @property
     def pydevd(self):
         return self._sock
-
-    def re_build_breakpoints(self):
-        """Restore the breakpoints to their last values."""
-        if self.session is None:
-            return
-        return self.session.re_build_breakpoints()
 
     # internal methods
 
@@ -489,6 +495,15 @@ class Daemon(DaemonBase):
             pydevd_notify=self.pydevd.pydevd_notify,
             pydevd_request=self.pydevd.pydevd_request,
             **kwargs
+        )
+
+    def _session_kwargs(self):
+        def debugger_ready(session):
+            if self._notify_session_debugger_ready is not None:
+                self._notify_session_debugger_ready(session)
+
+        return dict(
+            notify_debugger_ready=debugger_ready,
         )
 
     # internal methods for PyDevdSocket().

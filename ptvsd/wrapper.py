@@ -56,6 +56,10 @@ debug = _util.debug
 #ipcjson._TRACE = ipcjson_trace
 
 
+def NOOP(*args, **kwargs):
+    pass
+
+
 def is_debugger_internal_thread(thread_name):
     # TODO: docstring
     if thread_name:
@@ -856,13 +860,10 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
                     _util.lock_release(self._listening)
                     _util.lock_release(self._connected)
                 self.close()
-        self.server_thread = threading.Thread(
+        self.server_thread = _util.new_hidden_thread(
             target=process_messages,
             name=threadname,
         )
-        self.server_thread.pydev_do_not_trace = True
-        self.server_thread.is_pydev_daemon_thread = True
-        self.server_thread.daemon = True
         self.server_thread.start()
 
         # special initialization
@@ -970,7 +971,8 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
     EXITWAIT = 1
 
     def __init__(self, socket,
-                 notify_disconnecting, notify_closing, notify_launch=None,
+                 notify_disconnecting, notify_closing,
+                 notify_launch=None, notify_ready=None,
                  timeout=None, logfile=None, debugging=True,
                  ):
         super(VSCLifecycleMsgProcessor, self).__init__(
@@ -979,7 +981,8 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
             timeout=timeout,
             logfile=logfile,
         )
-        self._notify_launch = notify_launch or (lambda: None)
+        self._notify_launch = notify_launch or NOOP
+        self._notify_ready = notify_ready or NOOP
         self._notify_disconnecting = notify_disconnecting
 
         self._stopped = False
@@ -989,8 +992,6 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         self.debug_options = {}
         self._statelock = threading.Lock()
         self._debugging = debugging
-        self._handshakelock = threading.Lock()
-        self._handshakelock.acquire()  # released in on_configurationDone()
         self._debuggerstopped = False
         self._exitlock = threading.Lock()
         self._exitlock.acquire()  # released in handle_exiting()
@@ -1012,7 +1013,11 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
             # make sure the exited event is sent first.
             self._wait_until_exiting(self.EXITWAIT)
             self._ensure_debugger_stopped()
-        t = threading.Thread(target=stop, name='ptvsd.stopping')
+        t = _util.new_hidden_thread(
+            target=stop,
+            name='stopping',
+            daemon=False,
+        )
         t.start()
 
     def handle_exiting(self, exitcode=None, wait=None):
@@ -1039,23 +1044,12 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         if self._exitlock is not None:
             _util.lock_release(self._exitlock)
 
-    def wait_until_ready(self):
-        """Wait until the protocol handshake is complete."""
-        _util.lock_wait(self._handshakelock)
-
     # VSC protocol handlers
 
     def on_initialize(self, request, args):
         # TODO: docstring
         self.send_response(request, **INITIALIZE_RESPONSE)
         self.send_event('initialized')
-
-    def on_configurationDone(self, request, args):
-        # TODO: docstring
-        self.send_response(request)
-        self._process_debug_options(self.debug_options)
-        self._handle_configurationDone(args)
-        _util.lock_release(self._handshakelock)
 
     def on_attach(self, request, args):
         # TODO: docstring
@@ -1072,6 +1066,13 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         self._handle_launch(args)
         self.send_response(request)
 
+    def on_configurationDone(self, request, args):
+        # TODO: docstring
+        self.send_response(request)
+        self._process_debug_options(self.debug_options)
+        self._handle_configurationDone(args)
+        self._notify_ready()
+
     def on_disconnect(self, request, args):
         # TODO: docstring
         if self._debuggerstopped:  # A "terminated" event must have been sent.
@@ -1080,11 +1081,14 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         self.send_response(request)
         self._set_disconnected()
 
-        # TODO: We should be able drop the remaining lines.
-        if not self._closed and self.start_reason == 'launch':
-            # Closing the socket causes pydevd to resume all threads,
-            # so just terminate the process altogether.
-            sys.exit(0)
+        if self.start_reason == 'attach' and not self._debuggerstopped:
+            self._handle_detach()
+        # TODO: We should be able drop the "launch" branch.
+        elif self.start_reason == 'launch':
+            if not self._closed:
+                # Closing the socket causes pydevd to resume all threads,
+                # so just terminate the process altogether.
+                sys.exit(0)
 
     # internal methods
 
@@ -1133,6 +1137,9 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
     def _handle_launch(self, args):
         pass
 
+    def _handle_detach(self):
+        pass
+
 
 class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     """IPC JSON message processor for VSC debugger protocol.
@@ -1142,6 +1149,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     """
 
     def __init__(self, socket, pydevd_notify, pydevd_request,
+                 notify_debugger_ready,
                  notify_disconnecting, notify_closing,
                  timeout=None, logfile=None,
                  ):
@@ -1154,10 +1162,10 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         )
         self._pydevd_notify = pydevd_notify
         self._pydevd_request = pydevd_request
+        self._notify_debugger_ready = notify_debugger_ready
 
         self.loop = None
         self.event_loop_thread = None
-        self.bkpoints = None
 
         # debugger state
         self.is_process_created = False
@@ -1182,13 +1190,10 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     def _start_event_loop(self):
         self.loop = futures.EventLoop()
-        self.event_loop_thread = threading.Thread(
+        self.event_loop_thread = _util.new_hidden_thread(
             target=self.loop.run_forever,
-            name='ptvsd.EventLoop',
+            name='EventLoop',
         )
-        self.event_loop_thread.pydev_do_not_trace = True
-        self.event_loop_thread.is_pydev_daemon_thread = True
-        self.event_loop_thread.daemon = True
         self.event_loop_thread.start()
 
     def _stop_event_loop(self):
@@ -1280,10 +1285,17 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             provider._lock.release()
         yield futures.Result(context())
 
+    def _wait_for_pydevd_ready(self):
+        # TODO: Possibly send a request and wait for a response.
+        # See GH-448.
+        pass
+
     # VSC protocol handlers
 
     def _handle_configurationDone(self, args):
         self.pydevd_request(pydevd_comm.CMD_RUN, '')
+        self._wait_for_pydevd_ready()
+        self._notify_debugger_ready()
 
         if self.start_reason == 'attach':
             # Send event notifying the creation of the process.
@@ -1379,6 +1391,10 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     def _handle_launch(self, args):
         self._initialize_path_maps(args)
         yield self._send_cmd_version_command()
+
+    # TODO: Implement _handle_detach() (see GH-285):
+    #   Remove all breakpoints.
+    #   Resume if stopped.
 
     def send_process_event(self, start_method):
         # TODO: docstring
@@ -1950,16 +1966,9 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         return hit_condition
 
-    def re_build_breakpoints(self):
-        self.wait_until_ready()
-        if self.bkpoints is None:
-            return
-        self.on_setBreakpoints(None, self.bkpoints)
-
     @async_handler
     def on_setBreakpoints(self, request, args):
         # TODO: docstring
-        self.bkpoints = args
         bps = []
         path = args['source']['path']
         self.path_casing.track_file_path_case(path)

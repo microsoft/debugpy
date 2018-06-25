@@ -8,6 +8,7 @@ import time
 import threading
 import warnings
 
+from ptvsd._util import new_hidden_thread
 from . import Closeable
 from .message import (
     raw_read_all as read_messages,
@@ -149,9 +150,9 @@ class DebugSession(Closeable):
             else:
                 self._add_handler(*handler)
         self._received = []
-        self._listenerthread = threading.Thread(
+        self._listenerthread = new_hidden_thread(
             target=self._listen,
-            name='ptvsd.test.session',
+            name='test.session',
         )
         self._listenerthread.start()
 

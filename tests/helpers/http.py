@@ -4,7 +4,8 @@ try:
     from http.server import BaseHTTPRequestHandler, HTTPServer
 except ImportError:
     from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
-import threading
+
+from ptvsd._util import new_hidden_thread
 
 
 class Server:
@@ -27,9 +28,9 @@ class Server:
         if self._server is not None:
             raise RuntimeError('already started')
         self._server = HTTPServer(self._addr, self.handler)
-        self._thread = threading.Thread(
+        self._thread = new_hidden_thread(
             target=(lambda: self._server.serve_forever()),
-            name='ptvsd.test.http',
+            name='test.http',
         )
         self._thread.start()
 
