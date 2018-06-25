@@ -2009,12 +2009,12 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 condition = None
                 expressions = re.findall('\{.*?\}', logMessage)
                 if len(expressions) == 0:
-                    expression = 'print({})'.format(repr(logMessage)) # noqa
+                    expression = '{}'.format(repr(logMessage)) # noqa
                 else:
                     raw_text = reduce(lambda a, b: a.replace(b, '{}'), expressions, logMessage) # noqa
                     raw_text = raw_text.replace('"', '\\"')
                     expression_list = ', '.join([s.strip('{').strip('}').strip() for s in expressions]) # noqa
-                    expression = 'print("{}".format({}))'.format(raw_text, expression_list) # noqa
+                    expression = '"{}".format({})'.format(raw_text, expression_list) # noqa
 
             msg = msgfmt.format(vsc_bpid, bp_type, path, line, condition,
                                 expression, hit_condition, is_logpoint)

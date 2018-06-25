@@ -33,7 +33,9 @@ def handle_breakpoint(frame, thread, global_debugger, breakpoint):
 
     if breakpoint.expression is not None:
         handle_breakpoint_expression(breakpoint, info, new_frame)
-        if breakpoint.is_logpoint:
+        if breakpoint.is_logpoint and info.pydev_message is not None and len(info.pydev_message) > 0:
+            cmd = global_debugger.cmd_factory.make_io_message(info.pydev_message + os.linesep, '1')
+            global_debugger.writer.add_command(cmd)
             return False
 
     if breakpoint.suspend_policy == "ALL":
