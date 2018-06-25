@@ -337,3 +337,15 @@ class Startable(object):
 
     def _stop(self):
         raise NotImplementedError
+
+
+def is_py34():
+    return sys.version_info >= (3, 4,) and sys.version_info < (3, 5,)
+
+
+def get_line_for_traceback(file_path, line_no):
+    try:
+        with open(file_path, 'r') as f:
+            return f.readlines()[line_no - 1]
+    except Exception:
+        return None

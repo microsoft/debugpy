@@ -2234,15 +2234,22 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 xml = self.parse_xml_response(resp_args)
                 text = unquote(xml.var[1]['type'])
                 description = unquote(xml.var[1]['value'])
-                frame_data = ((
-                        unquote(f['file']),
-                        int(f['line']),
-                        unquote(f['name']),
-                        None)
-                    for f in xframes
-                    if not self.internals_filter.is_internal_path(
-                        unquote(f['file']))
-                )
+                frame_data = []
+                for f in xframes:
+                    file_path = unquote(f['file'])
+                    if not self.internals_filter.is_internal_path(file_path):
+                        line_no = int(f['line'])
+                        func_name = unquote(f['name'])
+                        if _util.is_py34():
+                            # NOTE: In 3.4.* format_list requires the text
+                            # to be passed in the tuple list.
+                            line_text = _util.get_line_for_traceback(file_path,
+                                                                     line_no)
+                            frame_data.append((file_path, line_no,
+                                               func_name, line_text))
+                        else:
+                            frame_data.append((file_path, line_no,
+                                               func_name, None))
                 stack = ''.join(traceback.format_list(frame_data))
                 source = unquote(xframe['file'])
                 if self.internals_filter.is_internal_path(source):

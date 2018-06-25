@@ -13,6 +13,33 @@ from tests.helpers import http
 from debugger_protocol.schema.__main__ import handle_check
 
 
+class InternalSubprocessResult:
+    def __init__(self):
+        self.stdout = b''
+        self.stderr = b''
+        self.returncode = 0
+
+
+def _run_subprocess(args, stdout, stderr):
+    if hasattr(subprocess, 'run'):
+        res = subprocess.run(args,
+                             stdout=stdout,
+                             stderr=stderr)
+        return res
+    else:
+        with tempfile.TemporaryFile() as tempf:
+            res = InternalSubprocessResult()
+            try:
+                res.stdout = subprocess.check_output(args, stderr=tempf)
+            except subprocess.CalledProcessError as err:
+                res.returncode = err.returncode
+                res.stdout = err.output
+            tempf.flush()
+            tempf.seek(0)
+            res.stderr = tempf.read()
+            return res
+
+
 class VendoredSchemaTests(unittest.TestCase):
     """Tests to make sure our vendored schema is up-to-date."""
 
@@ -57,9 +84,9 @@ class DownloadCommandTests(unittest.TestCase):
 
     @unittest.skipUnless(os.environ.get('HAS_NETWORK'), 'no network')
     def test_default_source(self):
-        res = subprocess.run(self.args,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
+        res = _run_subprocess(self.args,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE)
 
         self.assertEqual(res.returncode, 0)
         self.assertEqual(res.stdout.decode(), self.get_expected_stdout([
@@ -73,9 +100,9 @@ class DownloadCommandTests(unittest.TestCase):
         handler = http.json_file_handler(b'<a schema>')
         with http.Server(handler) as srv:
             upstream = 'http://{}/schema.json'.format(srv.address)
-            res = subprocess.run(self.args + ['--source', upstream],
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE)
+            res = _run_subprocess(self.args + ['--source', upstream],
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE)
         stdout = res.stdout.decode() if res.stdout else ''
         stderr = res.stderr.decode() if res.stderr else ''
 
@@ -155,9 +182,9 @@ class CheckCommandTests(unittest.TestCase):
                 '--schemafile', schemafile,
                 '--upstream', upstream,
             ]
-            res = subprocess.run(args,
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE)
+            res = _run_subprocess(args,
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE)
         stdout = res.stdout.decode() if res.stdout else ''
         stderr = res.stderr.decode() if res.stderr else ''
 
@@ -181,9 +208,9 @@ class CheckCommandTests(unittest.TestCase):
             '--schemafile', schemafile,
             '--upstream', '<a URL>',
         ]
-        res = subprocess.run(args,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
+        res = _run_subprocess(args,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE)
         stdout = res.stdout.decode() if res.stdout else ''
         stderr = res.stderr.decode() if res.stderr else ''
 
@@ -199,9 +226,9 @@ class CheckCommandTests(unittest.TestCase):
             '--schemafile', schemafile,
             '--upstream', '<a URL>',
         ]
-        res = subprocess.run(args,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
+        res = _run_subprocess(args,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE)
         stdout = res.stdout.decode() if res.stdout else ''
         stderr = res.stderr.decode() if res.stderr else ''
 
@@ -223,9 +250,9 @@ class CheckCommandTests(unittest.TestCase):
             '--schemafile', schemafile,
             '--upstream', '<a URL>',
         ]
-        res = subprocess.run(args,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
+        res = _run_subprocess(args,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE)
         stdout = res.stdout.decode() if res.stdout else ''
         stderr = res.stderr.decode() if res.stderr else ''
 
@@ -250,9 +277,9 @@ class CheckCommandTests(unittest.TestCase):
                 '--schemafile', schemafile,
                 '--upstream', upstream,
             ]
-            res = subprocess.run(args,
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE)
+            res = _run_subprocess(args,
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE)
         stdout = res.stdout.decode() if res.stdout else ''
         stderr = res.stderr.decode() if res.stderr else ''
 
@@ -278,9 +305,9 @@ class CheckCommandTests(unittest.TestCase):
                 '--schemafile', schemafile,
                 '--upstream', upstream,
             ]
-            res = subprocess.run(args,
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE)
+            res = _run_subprocess(args,
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE)
         stdout = res.stdout.decode() if res.stdout else ''
         stderr = res.stderr.decode() if res.stderr else ''
 
