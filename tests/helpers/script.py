@@ -66,6 +66,59 @@ def find_line(script, label):
 ########################
 # wait points
 
+def insert_release(script, lockfile, label=None):
+    """Return (script, wait func) after adding a done script to the original.
+
+    If a label is provided then the done script is inserted just before
+    the label.  Otherwise it is added to the end of the script.
+
+    The script will unblock the wait func at the label (or the end).
+    """
+    if isinstance(lockfile, str):
+        lockfile = Lockfile(lockfile)
+
+    donescript, wait = lockfile.wait_for_script()
+    if label is None:
+        script += donescript
+    else:
+        leading = []
+        lines = iter(script.splitlines())
+        for line, matched in iter_until_label(lines, label):
+            if matched:
+                leading.extend([
+                    donescript,
+                    line,
+                    '',  # Make sure the label is on its own line.
+                ])
+                break
+            leading.append(line)
+        # TODO: Use os.linesep?
+        script = '\n'.join(leading) + '\n'.join(lines)
+    return script, wait
+
+
+def set_release(filename, lockfile, label=None, script=None):
+    """Return (script, wait func) after adding a done script to the original.
+
+    In addition to the functionality of insert_release(), this function
+    writes the resulting script to the given file.  If no original
+    script is given then it is read from the file.
+    """
+    if script is None:
+        if not os.path.exists(filename):
+            raise ValueError(
+                'invalid filename {!r} (file missing)'.format(filename))
+        with open(filename) as scriptfile:
+            script = scriptfile.read()
+
+    script, wait = insert_release(script, lockfile, label)
+
+    with open(filename, 'w') as scriptfile:
+        scriptfile.write(script)
+
+    return script, wait
+
+
 def insert_lock(script, lockfile, label=None, timeout=5):
     """Return (done func, script) after adding a wait script to the original.
 

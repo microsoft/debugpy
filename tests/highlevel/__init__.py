@@ -747,7 +747,7 @@ class HighlevelFixture(object):
 
     @contextlib.contextmanager
     def expect_debugger_command(self, cmdid):
-        with self._pydevd.expected_command(cmdid):
+        with self._pydevd.expect_command(cmdid):
             yield
 
     def set_debugger_response(self, cmdid, payload, **kwargs):
@@ -820,8 +820,8 @@ class HighlevelFixture(object):
         with self.wait_for_event('stopped'):
             if isinstance(reason, Exception):
                 exc = reason
-                self._pydevd.send_caught_exception_events(thread, exc, *stack)
                 self._pydevd.set_exception_var_response(exc)
+                self._pydevd.send_caught_exception_events(thread, exc, *stack)
             else:
                 self._pydevd.send_suspend_event(thread, reason, *stack)
 

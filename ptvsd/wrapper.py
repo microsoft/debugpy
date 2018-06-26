@@ -383,6 +383,7 @@ class PydevdSocket(object):
         cmd_id, seq, args = data.split('\t', 2)
         cmd_id = int(cmd_id)
         seq = int(seq)
+        _util.log_pydevd_msg(cmd_id, seq, args, inbound=True)
         with self.lock:
             loop, fut = self.requests.pop(seq, (None, None))
         if fut is None:
@@ -405,12 +406,14 @@ class PydevdSocket(object):
 
     def pydevd_notify(self, cmd_id, args):
         # TODO: docstring
-        _, s = self.make_packet(cmd_id, args)
+        seq, s = self.make_packet(cmd_id, args)
+        _util.log_pydevd_msg(cmd_id, seq, args, inbound=False)
         os.write(self.pipe_w, s.encode('utf8'))
 
     def pydevd_request(self, loop, cmd_id, args):
         # TODO: docstring
         seq, s = self.make_packet(cmd_id, args)
+        _util.log_pydevd_msg(cmd_id, seq, args, inbound=False)
         fut = loop.create_future()
         with self.lock:
             self.requests[seq] = loop, fut
@@ -854,7 +857,7 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
                 self._listening = threading.Lock()
             try:
                 self.process_messages()
-            except (EOFError, TimeoutError):
+            except (EOFError, TimeoutError) as exc:
                 debug('client socket closed')
                 with self._connlock:
                     _util.lock_release(self._listening)
@@ -1081,8 +1084,9 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         self.send_response(request)
         self._set_disconnected()
 
-        if self.start_reason == 'attach' and not self._debuggerstopped:
-            self._handle_detach()
+        if self.start_reason == 'attach':
+            if not self._debuggerstopped:
+                self._handle_detach()
         # TODO: We should be able drop the "launch" branch.
         elif self.start_reason == 'launch':
             if not self._closed:
@@ -1187,6 +1191,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         # adapter state
         self.path_casing = PathUnNormcase()
+        self._detached = False
 
     def _start_event_loop(self):
         self.loop = futures.EventLoop()
@@ -1262,11 +1267,14 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     def on_pydevd_event(self, cmd_id, seq, args):
         # TODO: docstring
-        try:
-            f = self.pydevd_events[cmd_id]
-        except KeyError:
-            raise UnsupportedPyDevdCommandError(cmd_id)
-        return f(self, seq, args)
+        if not self._detached:
+            try:
+                f = self.pydevd_events[cmd_id]
+            except KeyError:
+                raise UnsupportedPyDevdCommandError(cmd_id)
+            return f(self, seq, args)
+        else:
+            return None
 
     @staticmethod
     def parse_xml_response(args):
@@ -1286,9 +1294,17 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         yield futures.Result(context())
 
     def _wait_for_pydevd_ready(self):
-        # TODO: Possibly send a request and wait for a response.
-        # See GH-448.
+        # TODO: Call self._ensure_pydevd_requests_handled?
         pass
+
+    def _ensure_pydevd_requests_handled(self):
+        # PyDevd guarantees that a response means all previous requests
+        # have been handled.  (PyDevd handles messages sequentially.)
+        # See GH-448.
+        #
+        # This is particularly useful for those requests that do not
+        # have responses (e.g. CMD_SET_BREAK).
+        return self._send_cmd_version_command()
 
     # VSC protocol handlers
 
@@ -1392,9 +1408,39 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self._initialize_path_maps(args)
         yield self._send_cmd_version_command()
 
-    # TODO: Implement _handle_detach() (see GH-285):
-    #   Remove all breakpoints.
-    #   Resume if stopped.
+    def _handle_detach(self):
+        debug('detaching')
+        # TODO: Skip if already detached?
+        self._detached = True
+
+        self._clear_output_redirection()
+        self._reset_project_roots()
+        self._clear_breakpoints()
+        self.exceptions_mgr.remove_all_exception_breaks()
+        self._resume_all_threads()
+
+    def _clear_output_redirection(self):
+        self.pydevd_request(pydevd_comm.CMD_REDIRECT_OUTPUT, '')
+
+    def _reset_project_roots(self):
+        # We leave the "project roots" alone (see CMD_SET_PROJECT_ROOTS).
+        pass
+
+    def _clear_breakpoints(self, filename=None):
+        cmd = pydevd_comm.CMD_REMOVE_BREAK
+        for pyd_bpid, vsc_bpid in self.bp_map.pairs():
+            if filename is None:
+                filename = pyd_bpid[0]
+            elif pyd_bpid[0] != filename:
+                continue
+            msg = '{}\t{}\t{}'.format('python-line', filename, vsc_bpid)
+            self.pydevd_notify(cmd, msg)
+            self.bp_map.remove(pyd_bpid, vsc_bpid)
+        # TODO: Wait until the last request has been handled?
+
+    def _resume_all_threads(self):
+        for tid in self.stack_traces:
+            self.pydevd_notify(pydevd_comm.CMD_THREAD_RUN, tid)
 
     def send_process_event(self, start_method):
         # TODO: docstring
@@ -1982,6 +2028,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 bp_type = 'jinja2-line'
 
         # First, we must delete all existing breakpoints in that source.
+        # TODO: Call self._clear_breakpoints(path) instead?
         cmd = pydevd_comm.CMD_REMOVE_BREAK
         for pyd_bpid, vsc_bpid in self.bp_map.pairs():
             if pyd_bpid[0] == path:
@@ -2024,6 +2071,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 'verified': True,
                 'line': line,
             })
+        yield self._ensure_pydevd_requests_handled()
 
         if request is not None:
             self.send_response(request, breakpoints=bps)

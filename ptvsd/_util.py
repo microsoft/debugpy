@@ -48,6 +48,36 @@ def call_all(callables, *args, **kwargs):
 
 
 ########################
+# pydevd stuff
+
+from _pydevd_bundle import pydevd_comm  # noqa
+
+
+def log_pydevd_msg(cmdid, seq, args, inbound,
+                   log=debug, prefix=None, verbose=False):
+    """Log a representation of the given pydevd msg."""
+    if log is None or (log is debug and not DEBUG):
+        return
+    if not verbose and cmdid == pydevd_comm.CMD_WRITE_TO_CONSOLE:
+        return
+
+    if prefix is None:
+        prefix = '-> ' if inbound else '<- '
+    try:
+        cmdname = pydevd_comm.ID_TO_MEANING[str(cmdid)]
+    except KeyError:
+        for cmdname, value in vars(pydevd_comm).items():
+            if cmdid == value:
+                break
+        else:
+            cmdname = '???'
+    cmd = '{} ({})'.format(cmdid, cmdname)
+    args = args.replace('\n', '\\n')
+    msg = '{}{:28} [{:>10}]: |{}|'.format(prefix, cmd, seq, args)
+    log(msg)
+
+
+########################
 # threading stuff
 
 try:

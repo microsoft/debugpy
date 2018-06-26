@@ -8,7 +8,8 @@ from ptvsd.socket import Address
 from ptvsd.wrapper import INITIALIZE_RESPONSE  # noqa
 from tests.helpers.debugadapter import DebugAdapter
 from tests.helpers.debugclient import EasyDebugClient as DebugClient
-from tests.helpers.script import find_line, set_lock
+from tests.helpers.lock import LockTimeoutError
+from tests.helpers.script import find_line, set_lock, set_release
 from tests.helpers.threading import get_locked_and_waiter
 from tests.helpers.vsc import parse_message, VSCMessages
 from tests.helpers.workspace import Workspace, PathEntry
@@ -562,6 +563,215 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             self.new_event('exited', exitCode=0),
             self.new_event('terminated'),
         ])
+
+    def test_detach_clear_and_resume(self):
+        addr = Address('localhost', 8888)
+        filename = self.write_script('spam.py', """
+            import sys
+            sys.path.insert(0, {!r})
+            import ptvsd
+
+            # <start>
+
+            addr = {}
+            ptvsd.enable_attach(addr)
+
+            # <before>
+            print('==before==')
+
+            # <after>
+            print('==after==')
+
+            # <done>
+            """.format(ROOT, tuple(addr)))
+        lockfile1 = self.workspace.lockfile()
+        _, wait1 = set_release(filename, lockfile1, 'start')
+        lockfile2 = self.workspace.lockfile()
+        done1, _ = set_lock(filename, lockfile2, 'before')
+        lockfile3 = self.workspace.lockfile()
+        _, wait2 = set_release(filename, lockfile3, 'done')
+        lockfile4 = self.workspace.lockfile()
+        done2, script = set_lock(filename, lockfile4, 'done')
+
+        bp1 = find_line(script, 'before')
+        bp2 = find_line(script, 'after')
+
+        #DebugAdapter.VERBOSE = True
+        adapter = DebugAdapter.start_embedded(addr, filename)
+        with adapter:
+            wait1()
+            with DebugClient() as editor:
+                session1 = editor.attach_socket(addr, adapter, timeout=1)
+                #session1.VERBOSE = True
+                with session1.wait_for_event('thread') as result:
+                    with session1.wait_for_event('process'):
+                        (req_init1, req_attach1, req_config1,
+                         _, _, req_threads1,
+                         ) = lifecycle_handshake(session1, 'attach',
+                                                 threads=True)
+                tid1 = result['msg'].body['threadId']
+
+                req_bps = session1.send_request('setBreakpoints', **{
+                    'source': {'path': filename},
+                    'breakpoints': [
+                        {'line': bp1},
+                        {'line': bp2},
+                    ],
+                })
+                with session1.wait_for_event('stopped'):
+                    done1()
+                req_threads2 = session1.send_request('threads')
+                req_stacktrace1 = session1.send_request(
+                    'stackTrace',
+                    threadId=tid1,
+                )
+                out1 = str(adapter.output)
+
+                # Detach with execution stopped and 1 breakpoint left.
+                req_disconnect = session1.send_request('disconnect')
+                editor.detach(adapter)
+                try:
+                    wait2()
+                except LockTimeoutError:
+                    self.fail('execution never resumed upon detach '
+                              'or breakpoints never cleared')
+                out2 = str(adapter.output)
+
+                session2 = editor.attach_socket(addr, adapter, timeout=1)
+                #session2.VERBOSE = True
+                with session2.wait_for_event('thread') as result:
+                    with session2.wait_for_event('process'):
+                        (req_init2, req_attach2, req_config2,
+                         _, _, req_threads3,
+                         ) = lifecycle_handshake(session2, 'attach',
+                                                 threads=True)
+                tid2 = result['msg'].body['threadId']
+
+                done2()
+                adapter.wait()
+            out3 = str(adapter.output)
+
+        received = list(_strip_newline_output_events(session1.received))
+        self.assert_received(received, [
+            self.new_version_event(session1.received),
+            self.new_response(req_init1, **INITIALIZE_RESPONSE),
+            self.new_event('initialized'),
+            self.new_response(req_attach1),
+            self.new_event(
+                'thread',
+                threadId=tid1,
+                reason='started',
+            ),
+            self.new_response(req_threads1, **{
+                'threads': [{
+                    'id': 1,
+                    'name': 'MainThread',
+                }],
+            }),
+            self.new_response(req_config1),
+            self.new_event('process', **{
+                'isLocalProcess': True,
+                'systemProcessId': adapter.pid,
+                'startMethod': 'attach',
+                'name': filename,
+            }),
+            self.new_response(req_bps, **{
+                'breakpoints': [{
+                    'id': 1,
+                    'line': bp1,
+                    'verified': True,
+                }, {
+                    'id': 2,
+                    'line': bp2,
+                    'verified': True,
+                }],
+            }),
+            self.new_event(
+                'thread',
+                threadId=tid1,
+                reason='started',
+            ),
+            self.new_event(
+                'stopped',
+                threadId=tid1,
+                reason='breakpoint',
+                description=None,
+                text=None,
+            ),
+            self.new_response(req_threads2, **{
+                'threads': [{
+                    'id': 1,
+                    'name': 'MainThread',
+                }],
+            }),
+            self.new_event(
+                'module',
+                module={
+                    'id': 1,
+                    'name': '__main__',
+                    'path': filename,
+                    'package': None,
+                },
+                reason='new',
+            ),
+            self.new_response(req_stacktrace1, **{
+                'totalFrames': 1,
+                'stackFrames': [{
+                    'id': 1,
+                    'name': '<module>',
+                    'source': {
+                        'path': filename,
+                        'sourceReference': 1,
+                    },
+                    'line': bp1,
+                    'column': 1,
+                }],
+            }),
+            self.new_response(req_disconnect),
+        ])
+        self.messages.reset_all()
+        received = list(_strip_newline_output_events(session2.received))
+        # Sometimes the proc ends before the exited and terminated
+        # events are received.
+        received = list(_strip_exit(received))
+        self.assert_received(received, [
+            self.new_version_event(session2.received),
+            self.new_response(req_init2, **INITIALIZE_RESPONSE),
+            self.new_event('initialized'),
+            self.new_response(req_attach2),
+            self.new_event(
+                'thread',
+                threadId=tid2,
+                reason='started',
+            ),
+            self.new_response(req_threads3, **{
+                'threads': [{
+                    'id': 1,
+                    'name': 'MainThread',
+                }],
+            }),
+            self.new_response(req_config2),
+            self.new_event('process', **{
+                'isLocalProcess': True,
+                'systemProcessId': adapter.pid,
+                'startMethod': 'attach',
+                'name': filename,
+            }),
+            #self.new_event(
+            #    'thread',
+            #    threadId=tid2,
+            #    reason='exited',
+            #),
+            #self.new_event('exited', exitCode=0),
+            #self.new_event('terminated'),
+        ])
+        # at breakpoint
+        self.assertEqual(out1, '')
+        # after detaching
+        self.assertIn('==before==', out2)
+        self.assertIn('==after==', out2)
+        # after reattach
+        self.assertEqual(out3, out2)
 
     @unittest.skip('not implemented')
     def test_attach_exit_during_session(self):
