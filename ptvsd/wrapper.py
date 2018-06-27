@@ -811,6 +811,7 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
         self._notify_closing = notify_closing
 
         self.server_thread = None
+        self._closing = False
         self._closed = False
         self.readylock = threading.Lock()
         self.readylock.acquire()  # Unlock at the end of start().
@@ -823,6 +824,10 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
     def connected(self):  # may send responses/events
         with self._connlock:
             return _util.is_locked(self._connected)
+
+    @property
+    def closed(self):
+        return self._closed or self._closing
 
     @property
     def listening(self):
@@ -882,9 +887,9 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
 
     def close(self):
         """Stop the message processor and release its resources."""
-        if self._closed:
+        if self.closed:
             return
-        self._closed = True
+        self._closing = True
         debug('raw closing')
 
         self._notify_closing()
@@ -895,6 +900,7 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
         with self._connlock:
             _util.lock_release(self._listening)
             _util.lock_release(self._connected)
+        self._closed = True
 
     # VSC protocol handlers
 
@@ -1080,8 +1086,20 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         # TODO: docstring
         if self._debuggerstopped:  # A "terminated" event must have been sent.
             self._wait_until_exiting(self.EXITWAIT)
-        self._notify_disconnecting()
-        self.send_response(request)
+
+        status = {'sent': False}
+
+        def disconnect_response():
+            if status['sent']:
+                return
+            self.send_response(request)
+            status['sent'] = True
+
+        self._notify_disconnecting(
+            pre_socket_close=disconnect_response,
+        )
+        disconnect_response()
+
         self._set_disconnected()
 
         if self.start_reason == 'attach':
@@ -1089,7 +1107,7 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
                 self._handle_detach()
         # TODO: We should be able drop the "launch" branch.
         elif self.start_reason == 'launch':
-            if not self._closed:
+            if not self.closed:
                 # Closing the socket causes pydevd to resume all threads,
                 # so just terminate the process altogether.
                 sys.exit(0)

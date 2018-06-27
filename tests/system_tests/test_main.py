@@ -512,6 +512,7 @@ class LifecycleTests(TestsBase, unittest.TestCase):
         done2, waitscript2 = lockfile2.wait_in_script(timeout=5)
         filename = self.write_script('spam.py', waitscript1 + waitscript2)
         addr = Address('localhost', 8888)
+        #DebugAdapter.VERBOSE = True
         with DebugAdapter.start_for_attach(addr, filename) as adapter:
             with DebugClient() as editor:
                 # Attach initially.

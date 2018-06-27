@@ -47,12 +47,16 @@ class DebugSession(Startable, Closeable):
         self._notify_disconnecting = notify_disconnecting
 
         self._sock = sock
+        self._pre_socket_close = None
         if ownsock:
             # Close the socket *after* calling sys.exit() (via notify_closing).
             def handle_closing(before):
                 if before:
                     return
+                debug('closing session socket')
                 proc = self._msgprocessor
+                if self._pre_socket_close is not None:
+                    self._pre_socket_close()
                 if proc is not None:
                     try:
                         proc.wait_while_connected(10)  # seconds
@@ -134,8 +138,9 @@ class DebugSession(Startable, Closeable):
 
     # internal methods for VSCodeMessageProcessor
 
-    def _handle_vsc_disconnect(self):
+    def _handle_vsc_disconnect(self, pre_socket_close=None):
         debug('disconnecting')
+        self._pre_socket_close = pre_socket_close  # TODO: Fail if already set?
         self._notify_disconnecting(self)
 
     def _handle_vsc_close(self):
