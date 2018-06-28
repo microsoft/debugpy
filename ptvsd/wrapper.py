@@ -1212,6 +1212,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self.exceptions_mgr = ExceptionsManager(self)
         self.modules_mgr = ModulesManager(self)
         self.internals_filter = InternalsFilter()
+        self.new_thread_lock = threading.Lock()
 
         # adapter state
         self.path_casing = PathUnNormcase()
@@ -1494,23 +1495,26 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             xthreads = []
 
         threads = []
-        for xthread in xthreads:
-            try:
-                name = unquote(xthread['name'])
-            except KeyError:
-                name = None
-
-            if not is_debugger_internal_thread(name):
-                pyd_tid = xthread['id']
+        with self.new_thread_lock:
+            for xthread in xthreads:
                 try:
-                    vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=False)
+                    name = unquote(xthread['name'])
                 except KeyError:
-                    # This is a previously unseen thread
-                    vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=True)
-                    self.send_event('thread', reason='started',
-                                    threadId=vsc_tid)
+                    name = None
 
-                threads.append({'id': vsc_tid, 'name': name})
+                if not is_debugger_internal_thread(name):
+                    pyd_tid = xthread['id']
+                    try:
+                        vsc_tid = self.thread_map.to_vscode(pyd_tid,
+                                                            autogen=False)
+                    except KeyError:
+                        # This is a previously unseen thread
+                        vsc_tid = self.thread_map.to_vscode(pyd_tid,
+                                                            autogen=True)
+                        self.send_event('thread', reason='started',
+                                        threadId=vsc_tid)
+
+                    threads.append({'id': vsc_tid, 'name': name})
 
         self.send_response(request, threads=threads)
 
@@ -2234,9 +2238,17 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         except KeyError:
             name = None
         if not is_debugger_internal_thread(name):
-            # Any internal pydevd or ptvsd threads will be ignored everywhere
-            tid = self.thread_map.to_vscode(xml.thread['id'], autogen=True)
-            self.send_event('thread', reason='started', threadId=tid)
+            with self.new_thread_lock:
+                pyd_tid = xml.thread['id']
+                # Any internal pydevd or ptvsd threads will be ignored
+                # everywhere
+                try:
+                    tid = self.thread_map.to_vscode(pyd_tid,
+                                                    autogen=False)
+                except KeyError:
+                    tid = self.thread_map.to_vscode(pyd_tid,
+                                                    autogen=True)
+                    self.send_event('thread', reason='started', threadId=tid)
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_KILL)
     def on_pydevd_thread_kill(self, seq, args):
