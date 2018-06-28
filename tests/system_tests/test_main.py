@@ -471,9 +471,9 @@ class LifecycleTests(TestsBase, unittest.TestCase):
             import ptvsd
             ptvsd.enable_attach({}, redirect_output={})
 
-            %s
-
             print('success!', end='')
+
+            %s
             """).format(os.getcwd(), tuple(addr), True)
         filename = self.write_script('spam.py', script % waitscript)
         with DebugAdapter.start_embedded(addr, filename) as adapter:
@@ -484,7 +484,16 @@ class LifecycleTests(TestsBase, unittest.TestCase):
                  ) = lifecycle_handshake(session, 'attach')
                 done()
                 adapter.wait()
-        out = adapter.output.decode('utf-8')
+
+        for i in range(10):
+            # It could take some additional time for the adapter
+            # to actually get the success output, so, wait for the
+            # expected condition in a busy loop.
+            out = adapter.output.decode('utf-8')
+            if 'success!' in out:
+                break
+            import time
+            time.sleep(.1)
 
         received = list(_strip_newline_output_events(session.received))
         self.assert_received(received, [
