@@ -149,16 +149,16 @@ class Proc(Closeable):
         return cls.start(argv, **kwargs)
 
     @classmethod
-    def start(cls, argv, env=None, stdout=_NOT_SET, stderr=_NOT_SET):
+    def start(cls, argv, env=None, cwd=None, stdout=_NOT_SET, stderr=_NOT_SET):
         if env is None:
             env = {}
         if cls.VERBOSE:
             env.setdefault('PTVSD_DEBUG', '1')
-        proc = cls._start(argv, env, stdout, stderr)
+        proc = cls._start(argv, env, cwd, stdout, stderr)
         return cls(proc, owned=True)
 
     @classmethod
-    def _start(cls, argv, env, stdout, stderr):
+    def _start(cls, argv, env, cwd, stdout, stderr):
         if stdout is _NOT_SET:
             stdout = subprocess.PIPE
         if stderr is _NOT_SET:
@@ -169,6 +169,7 @@ class Proc(Closeable):
             stderr=stderr,
             #close_fds=('posix' in sys.builtin_module_names),
             env=env,
+            cwd=cwd
         )
         return proc
 

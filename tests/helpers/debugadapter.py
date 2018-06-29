@@ -1,8 +1,10 @@
 import os
+import os.path
 
 from ptvsd.socket import Address
 from . import Closeable
 from .proc import Proc
+from .. import PROJECT_ROOT
 
 
 COPIED_ENV = [
@@ -49,16 +51,26 @@ COPIED_ENV = [
 ]
 
 
-def _copy_env(verbose=False):
-    env = {k: v for k, v in os.environ.items() if k in COPIED_ENV}
+def _copy_env(verbose=False, env=None):
+    variables = {k: v for k, v in os.environ.items() if k in COPIED_ENV}
     # TODO: Be smarter about the seed?
-    env.setdefault('PYTHONHASHSEED', '1234')
+    variables.setdefault('PYTHONHASHSEED', '1234')
     if verbose:
-        env.update({
+        variables.update({
             'PTVSD_DEBUG': '1',
             'PTVSD_SOCKET_TIMEOUT': '1',
         })
-    return env
+    if env is not None:
+        variables.update(env)
+
+    # Ensure Project root is always in current path.
+    python_path = variables.get('PYTHONPATH', None)
+    if python_path is None:
+        variables['PYTHONPATH'] = PROJECT_ROOT
+    else:
+        variables['PYTHONPATH'] = os.pathsep.join([PROJECT_ROOT, python_path])
+
+    return variables
 
 
 class DebugAdapter(Closeable):
@@ -71,27 +83,29 @@ class DebugAdapter(Closeable):
     # generic factories
 
     @classmethod
-    def start(cls, argv, **kwargs):
+    def start(cls, argv, env=None, cwd=None, **kwargs):
         def new_proc(argv, addr, **kwds):
-            env = _copy_env(verbose=cls.VERBOSE)
+            env_vars = _copy_env(verbose=cls.VERBOSE, env=env)
             argv = list(argv)
             cls._ensure_addr(argv, addr)
             return Proc.start_python_module(
                 'ptvsd',
                 argv,
-                env=env,
+                env=env_vars,
+                cwd=cwd,
                 **kwds
             )
         return cls._start(new_proc, argv, **kwargs)
 
     @classmethod
-    def start_wrapper_script(cls, filename, argv, **kwargs):
+    def start_wrapper_script(cls, filename, argv, env=None, cwd=None, **kwargs): # noqa
         def new_proc(argv, addr, **kwds):
-            env = _copy_env(verbose=cls.VERBOSE)
+            env_vars = _copy_env(verbose=cls.VERBOSE, env=env)
             return Proc.start_python_script(
                 filename,
                 argv,
-                env=env,
+                env=env_vars,
+                cwd=cwd,
                 **kwds
             )
         return cls._start(new_proc, argv, **kwargs)

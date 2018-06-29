@@ -102,7 +102,7 @@ class _LifecycleClient(Closeable):
             self._adapter.close()
 
     def _launch(self, argv, script=None, wait_for_connect=None,
-                detachable=True, **kwargs):
+                detachable=True, env=None, cwd=None, **kwargs):
         if script is not None:
             def start(*args, **kwargs):
                 return DebugAdapter.start_wrapper_script(script,
@@ -111,7 +111,7 @@ class _LifecycleClient(Closeable):
             start = DebugAdapter.start
         new_addr = Address.as_server if detachable else Address.as_client
         addr = new_addr(None, self._addr.port)
-        self._adapter = start(argv, addr=addr)
+        self._adapter = start(argv, addr=addr, env=env, cwd=cwd)
 
         if wait_for_connect:
             wait_for_connect()
@@ -150,7 +150,7 @@ class EasyDebugClient(DebugClient):
         self._adapter = DebugAdapter.start(argv, port=self._port)
         return self._adapter
 
-    def host_local_debugger(self, argv, script=None, **kwargs):
+    def host_local_debugger(self, argv, script=None, env=None, cwd=None, **kwargs): # noqa
         if self.closed:
             raise RuntimeError('debug client closed')
         if self._adapter is not None:
@@ -178,6 +178,8 @@ class EasyDebugClient(DebugClient):
             script=script,
             wait_for_connect=wait,
             detachable=False,
+            env=env,
+            cwd=cwd
         )
 
         return self._adapter, self._session
