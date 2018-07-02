@@ -7,7 +7,7 @@ from tests.helpers._io import captured_stdio
 
 class ParseArgsTests(unittest.TestCase):
 
-    EXPECTED_EXTRA = ['--qt-support=auto', '--']
+    EXPECTED_EXTRA = ['--']
 
     def test_module(self):
         args, extra = parse_args([
@@ -222,7 +222,7 @@ class ParseArgsTests(unittest.TestCase):
         self.assertEqual(extra, [
             '--DEBUG',
             '--vm_type', '???',
-            '--qt-support=auto', '--',  # Expected pydevd defaults
+            '--',  # Expected pydevd defaults separator
             '--xyz', '123',
             'abc',
             '--cmd-line',
@@ -258,7 +258,7 @@ class ParseArgsTests(unittest.TestCase):
         self.assertEqual(extra, [
             '--DEBUG',
             '--vm_type', '???',
-            '--qt-support=auto', '--',  # Expected pydevd defaults
+            '--',  # Expected pydevd defaults separator
             '--xyz', '123',
             'abc',
             '--cmd-line',

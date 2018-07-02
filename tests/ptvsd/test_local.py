@@ -5,7 +5,8 @@ from _pydevd_bundle import pydevd_comm
 
 import ptvsd.pydevd_hooks
 from ptvsd.socket import Address
-from ptvsd._local import run_module, run_file
+from ptvsd._local import run_module, run_file, run_main
+from tests.helpers.argshelper import _get_args
 
 
 class FakePyDevd(object):
@@ -35,6 +36,14 @@ class RunBase(object):
         self.addr = addr
         self.kwargs = kwargs
 
+    def _no_debug_runner(self, addr, filename, is_module, *extras, **kwargs):
+        self.addr = addr
+        self.argv = sys.argv
+        self.filename = filename
+        self.is_module = is_module
+        self.args = extras
+        self.kwargs = kwargs
+
 
 class RunModuleTests(RunBase, unittest.TestCase):
 
@@ -42,12 +51,9 @@ class RunModuleTests(RunBase, unittest.TestCase):
         addr = (None, 8888)
         run_module(addr, 'spam', _run=self._run, _prog='eggs')
 
-        self.assertEqual(self.argv, [
-            'eggs',
-            '--port', '8888',
-            '--module',
-            '--file', 'spam:',
-        ])
+        self.assertEqual(self.argv,
+                         _get_args('--module', '--file', 'spam:'))
+
         self.assertEqual(self.addr, Address.as_server(*addr))
         self.assertEqual(self.kwargs, {})
 
@@ -55,12 +61,9 @@ class RunModuleTests(RunBase, unittest.TestCase):
         addr = Address.as_server('10.0.1.1', 8888)
         run_module(addr, 'spam', _run=self._run, _prog='eggs')
 
-        self.assertEqual(self.argv, [
-            'eggs',
-            '--port', '8888',
-            '--module',
-            '--file', 'spam:',
-        ])
+        self.assertEqual(self.argv,
+                         _get_args('--module', '--file', 'spam:'))
+
         self.assertEqual(self.addr, Address.as_server(*addr))
         self.assertEqual(self.kwargs, {})
 
@@ -68,13 +71,10 @@ class RunModuleTests(RunBase, unittest.TestCase):
         addr = ('1.2.3.4', 8888)
         run_module(addr, 'spam', _run=self._run, _prog='eggs')
 
-        self.assertEqual(self.argv, [
-            'eggs',
-            '--port', '8888',
-            '--client', '1.2.3.4',
-            '--module',
-            '--file', 'spam:',
-        ])
+        self.assertEqual(self.argv,
+                         _get_args('--module', '--file', 'spam:',
+                                   ptvsd_extras=['--client', '1.2.3.4']))
+
         self.assertEqual(self.addr, Address.as_client(*addr))
         self.assertEqual(self.kwargs, {
             'singlesession': True,
@@ -84,13 +84,11 @@ class RunModuleTests(RunBase, unittest.TestCase):
         addr = Address.as_client(None, 8888)
         run_module(addr, 'spam', _run=self._run, _prog='eggs')
 
-        self.assertEqual(self.argv, [
-            'eggs',
-            '--port', '8888',
-            '--client', 'localhost',
-            '--module',
-            '--file', 'spam:',
-        ])
+        self.assertEqual(self.argv,
+                         _get_args(
+                             '--module', '--file', 'spam:',
+                             ptvsd_extras=['--client', 'localhost']))
+
         self.assertEqual(self.addr, Address.as_client(*addr))
         self.assertEqual(self.kwargs, {
             'singlesession': True,
@@ -101,14 +99,11 @@ class RunModuleTests(RunBase, unittest.TestCase):
         run_module(addr, 'spam', '--vm_type', 'xyz', '--', '--DEBUG',
                    _run=self._run, _prog='eggs')
 
-        self.assertEqual(self.argv, [
-            'eggs',
-            '--port', '8888',
-            '--vm_type', 'xyz',
-            '--module',
-            '--file', 'spam:',
-            '--DEBUG',
-        ])
+        self.assertEqual(self.argv,
+                         _get_args(
+                             '--module', '--file', 'spam:', '--DEBUG',
+                             ptvsd_extras=['--vm_type', 'xyz']))
+
         self.assertEqual(self.addr, Address.as_server(*addr))
         self.assertEqual(self.kwargs, {})
 
@@ -116,12 +111,11 @@ class RunModuleTests(RunBase, unittest.TestCase):
         addr = (None, 8888)
         run_module(addr, 'spam', _run=self._run)
 
-        self.assertEqual(self.argv, [
-            sys.argv[0],
-            '--port', '8888',
-            '--module',
-            '--file', 'spam:',
-        ])
+        self.assertEqual(self.argv,
+                         _get_args(
+                             '--module', '--file', 'spam:',
+                             prog=sys.argv[0]))
+
         self.assertEqual(self.addr, Address.as_server(*addr))
         self.assertEqual(self.kwargs, {})
 
@@ -132,11 +126,9 @@ class RunScriptTests(RunBase, unittest.TestCase):
         addr = (None, 8888)
         run_file(addr, 'spam.py', _run=self._run, _prog='eggs')
 
-        self.assertEqual(self.argv, [
-            'eggs',
-            '--port', '8888',
-            '--file', 'spam.py',
-        ])
+        self.assertEqual(self.argv,
+                         _get_args('--file', 'spam.py'))
+
         self.assertEqual(self.addr, Address.as_server(*addr))
         self.assertEqual(self.kwargs, {})
 
@@ -144,11 +136,9 @@ class RunScriptTests(RunBase, unittest.TestCase):
         addr = Address.as_server('10.0.1.1', 8888)
         run_file(addr, 'spam.py', _run=self._run, _prog='eggs')
 
-        self.assertEqual(self.argv, [
-            'eggs',
-            '--port', '8888',
-            '--file', 'spam.py',
-        ])
+        self.assertEqual(self.argv,
+                         _get_args('--file', 'spam.py'))
+
         self.assertEqual(self.addr, Address.as_server(*addr))
         self.assertEqual(self.kwargs, {})
 
@@ -156,12 +146,11 @@ class RunScriptTests(RunBase, unittest.TestCase):
         addr = ('1.2.3.4', 8888)
         run_file(addr, 'spam.py', _run=self._run, _prog='eggs')
 
-        self.assertEqual(self.argv, [
-            'eggs',
-            '--port', '8888',
-            '--client', '1.2.3.4',
-            '--file', 'spam.py',
-        ])
+        self.assertEqual(self.argv,
+                         _get_args(
+                             '--file', 'spam.py',
+                             ptvsd_extras=['--client', '1.2.3.4']))
+
         self.assertEqual(self.addr, Address.as_client(*addr))
         self.assertEqual(self.kwargs, {
             'singlesession': True,
@@ -171,12 +160,11 @@ class RunScriptTests(RunBase, unittest.TestCase):
         addr = Address.as_client(None, 8888)
         run_file(addr, 'spam.py', _run=self._run, _prog='eggs')
 
-        self.assertEqual(self.argv, [
-            'eggs',
-            '--port', '8888',
-            '--client', 'localhost',
-            '--file', 'spam.py',
-        ])
+        self.assertEqual(self.argv,
+                         _get_args(
+                             '--file', 'spam.py',
+                             ptvsd_extras=['--client', 'localhost']))
+
         self.assertEqual(self.addr, Address.as_client(*addr))
         self.assertEqual(self.kwargs, {
             'singlesession': True,
@@ -187,13 +175,11 @@ class RunScriptTests(RunBase, unittest.TestCase):
         run_file(addr, 'spam.py', '--vm_type', 'xyz', '--', '--DEBUG',
                  _run=self._run, _prog='eggs')
 
-        self.assertEqual(self.argv, [
-            'eggs',
-            '--port', '8888',
-            '--vm_type', 'xyz',
-            '--file', 'spam.py',
-            '--DEBUG',
-        ])
+        self.assertEqual(self.argv,
+                         _get_args(
+                             '--file', 'spam.py', '--DEBUG',
+                             ptvsd_extras=['--vm_type', 'xyz']))
+
         self.assertEqual(self.addr, Address.as_server(*addr))
         self.assertEqual(self.kwargs, {})
 
@@ -201,11 +187,9 @@ class RunScriptTests(RunBase, unittest.TestCase):
         addr = (None, 8888)
         run_file(addr, 'spam.py', _run=self._run)
 
-        self.assertEqual(self.argv, [
-            sys.argv[0],
-            '--port', '8888',
-            '--file', 'spam.py',
-        ])
+        self.assertEqual(self.argv,
+                         _get_args('--file', 'spam.py', prog=sys.argv[0]))
+
         self.assertEqual(self.addr, Address.as_server(*addr))
         self.assertEqual(self.kwargs, {})
 
@@ -255,11 +239,8 @@ class IntegratedRunTests(unittest.TestCase):
         self.assertEqual(self.addr, Address.as_server(*addr))
         self.assertEqual(self.kwargs, {})
         self.assertEqual(self.maincalls, 1)
-        self.assertEqual(sys.argv, [
-            sys.argv[0],
-            '--port', '8888',
-            '--file', 'spam.py',
-        ])
+        self.assertEqual(sys.argv,
+                         _get_args('--file', 'spam.py', prog=sys.argv[0]))
         self.assertEqual(self.exitcode, -1)
 
     def test_failure(self):
@@ -274,11 +255,8 @@ class IntegratedRunTests(unittest.TestCase):
         self.assertEqual(self.addr, Address.as_server(*addr))
         self.assertEqual(self.kwargs, {})
         self.assertEqual(self.maincalls, 1)
-        self.assertEqual(sys.argv, [
-            sys.argv[0],
-            '--port', '8888',
-            '--file', 'spam.py',
-        ])
+        self.assertEqual(sys.argv,
+                         _get_args('--file', 'spam.py', prog=sys.argv[0]))
         self.assertEqual(self.exitcode, -1)  # TODO: Is this right?
         self.assertIs(exc, self.mainexc)
 
@@ -293,11 +271,8 @@ class IntegratedRunTests(unittest.TestCase):
         self.assertEqual(self.addr, Address.as_server(*addr))
         self.assertEqual(self.kwargs, {})
         self.assertEqual(self.maincalls, 1)
-        self.assertEqual(sys.argv, [
-            sys.argv[0],
-            '--port', '8888',
-            '--file', 'spam.py',
-        ])
+        self.assertEqual(sys.argv,
+                         _get_args('--file', 'spam.py', prog=sys.argv[0]))
         self.assertEqual(self.exitcode, 1)
 
     def test_installed(self):
@@ -320,3 +295,55 @@ class IntegratedRunTests(unittest.TestCase):
                           '(module {})'.format(mod.__name__))
             self.assertIs(start_client, expected_client,
                           '(module {})'.format(mod.__name__))
+
+
+class NoDebugRunTests(RunBase, unittest.TestCase):
+    def test_nodebug_script_args(self):
+        addr = (None, 8888)
+        args = ('--one', '--two', '--three')
+        run_main(addr, 'spam.py', 'script', *args,
+                 _runner=self._no_debug_runner)
+
+        self.assertEqual(self.argv, ['spam.py'] + list(args))
+
+        self.assertEqual(self.addr, Address.as_server(*addr))
+        self.assertFalse(self.is_module)
+        self.assertEqual(self.args, args)
+        self.assertEqual(self.kwargs, {})
+
+    def test_nodebug_script_no_args(self):
+        addr = Address.as_server('10.0.1.1', 8888)
+        run_main(addr, 'spam.py', 'script',
+                 _runner=self._no_debug_runner)
+
+        self.assertEqual(self.argv, ['spam.py'])
+
+        self.assertEqual(self.addr, Address.as_server(*addr))
+        self.assertFalse(self.is_module)
+        self.assertEqual(self.args, ())
+        self.assertEqual(self.kwargs, {})
+
+    def test_nodebug_module_args(self):
+        addr = (None, 8888)
+        args = ('--one', '--two', '--three')
+        run_main(addr, 'spam.py', 'module', *args,
+                 _runner=self._no_debug_runner)
+
+        self.assertEqual(self.argv, ['spam.py'] + list(args))
+
+        self.assertEqual(self.addr, Address.as_server(*addr))
+        self.assertTrue(self.is_module)
+        self.assertEqual(self.args, args)
+        self.assertEqual(self.kwargs, {})
+
+    def test_nodebug_module_no_args(self):
+        addr = Address.as_server('10.0.1.1', 8888)
+        run_main(addr, 'spam.py', 'module',
+                 _runner=self._no_debug_runner)
+
+        self.assertEqual(self.argv, ['spam.py'])
+
+        self.assertEqual(self.addr, Address.as_server(*addr))
+        self.assertTrue(self.is_module)
+        self.assertEqual(self.args, ())
+        self.assertEqual(self.kwargs, {})

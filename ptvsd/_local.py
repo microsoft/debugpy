@@ -7,6 +7,19 @@ from ptvsd.runner import run as no_debug_runner
 from ptvsd.socket import Address
 
 
+PYDEVD_DEFAULTS = {
+    '--qt-support=auto',
+}
+
+
+def _set_pydevd_defaults(pydevd_args):
+    args_to_append = []
+    for arg in PYDEVD_DEFAULTS:
+        if arg not in pydevd_args:
+            args_to_append.append(arg)
+    return pydevd_args + args_to_append
+
+
 ########################
 # high-level functions
 
@@ -18,7 +31,10 @@ def debug_main(address, name, kind, *extra, **kwargs):
 
 
 def run_main(address, name, kind, *extra, **kwargs):
-    no_debug_runner(address, name, kind == 'module', *extra, **kwargs)
+    addr = Address.from_raw(address)
+    sys.argv[:] = _run_main_argv(name, extra)
+    runner = kwargs.pop('_runner', no_debug_runner)
+    runner(addr, name, kind == 'module', *extra, **kwargs)
 
 
 ########################
@@ -57,6 +73,7 @@ def _run_argv(address, filename, extra, _prog=sys.argv[0]):
         pydevd = []
         extra = list(extra)
 
+    pydevd = _set_pydevd_defaults(pydevd)
     host, port = address
     argv = [
         _prog,
@@ -69,6 +86,15 @@ def _run_argv(address, filename, extra, _prog=sys.argv[0]):
     return argv + pydevd + [
         '--file', filename,
     ] + extra
+
+
+def _run_main_argv(filename, extra):
+    if '--' in extra:
+        pydevd = list(extra[:extra.index('--')])
+        extra = list(extra[len(pydevd) + 1:])
+    else:
+        extra = list(extra)
+    return [filename] + extra
 
 
 def _run(argv, addr, _pydevd=pydevd, _install=install, **kwargs):
