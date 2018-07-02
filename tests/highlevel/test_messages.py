@@ -1,6 +1,7 @@
 import os
 import sys
 import unittest
+from textwrap import dedent
 
 from _pydevd_bundle.pydevd_comm import (
     CMD_ADD_EXCEPTION_BREAK,
@@ -726,6 +727,42 @@ class EvaluateTests(NormalRequestTest, unittest.TestCase):
         self.assert_received(self.debugger, [
             self.expected_pydevd_request(
                 '{}\t5\tLOCAL\tspam + 1\t1'.format(thread.id)),
+        ])
+
+    def test_multiline(self):
+        with self.launched():
+            with self.hidden():
+                _, thread = self.pause('x', *[
+                    # (pfid, func, file, line)
+                    (2, 'spam', 'abc.py', 10),  # VSC frame ID 1
+                    (5, 'eggs', 'xyz.py', 2),  # VSC frame ID 2
+                ])
+            expr = dedent("""
+            def my_sqr(x):
+                return x*x
+            my_sqr(7)""")
+            self.set_debugger_response(
+                (expr, 49),
+            )
+            self.send_request(
+                frameId=2,
+                expression=expr,
+                context=None,
+            )
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [
+            self.expected_response(
+                type='int',
+                result='49',
+            ),
+            # no events
+        ])
+
+        expr_rec = '@LINE@def my_sqr(x):@LINE@    return x*x@LINE@my_sqr(7)'
+        self.assert_received(self.debugger, [
+            self.expected_pydevd_request(
+                '{}\t5\tLOCAL\t{}\t1'.format(thread.id, expr_rec)),
         ])
 
     def test_hover(self):

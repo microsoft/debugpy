@@ -1858,7 +1858,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         """Handles DAP EvaluateRequest."""
 
         # pydevd message format doesn't permit tabs in expressions
-        expr = args['expression'].replace('\t', ' ')
+        expr = args['expression'].replace('\n', '@LINE@').replace('\t', ' ')
         fmt = args.get('format', {})
 
         vsc_fid = int(args['frameId'])
