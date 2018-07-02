@@ -6,8 +6,6 @@ import unittest
 import ptvsd
 from ptvsd.wrapper import INITIALIZE_RESPONSE  # noqa
 from tests.helpers.debugclient import EasyDebugClient as DebugClient
-from tests.helpers.script import find_line
-from tests.helpers.vsc import Response, Event
 from tests.helpers.debugsession import Awaitable
 
 from . import (
@@ -23,45 +21,6 @@ CONNECT_TIMEOUT = 3.0
 
 class FileLifecycleTests(LifecycleTestsBase):
     IS_MODULE = False
-
-    def create_source_file(self, file_name, source):
-        return self.write_script(file_name, source)
-
-    def get_cwd(self):
-        return None
-
-    def find_line(self, filepath, label):
-        with open(filepath) as scriptfile:
-            script = scriptfile.read()
-        return find_line(script, label)
-
-    def get_test_info(self, source):
-        filepath = self.create_source_file("spam.py", source)
-        env = None
-        expected_module = filepath
-        argv = [filepath]
-        return ("spam.py", filepath, env, expected_module, argv,
-                self.get_cwd())
-
-    def reset_seq(self, responses):
-        for i, msg in enumerate(responses):
-            responses[i] = msg._replace(seq=i)
-
-    def find_events(self, responses, event, condition=lambda body: True):
-        return list(
-            response for response in responses if isinstance(response, Event)
-            and response.event == event and condition(response.body))  # noqa
-
-    def find_responses(self, responses, command, condition=lambda x: True):
-        return list(
-                    response for response in responses
-                    if isinstance(response, Response) and
-                    response.command == command and
-                    condition(response.body))
-
-    def remove_messages(self, responses, messages):
-        for msg in messages:
-            responses.remove(msg)
 
     def test_with_output(self):
         source = dedent("""
@@ -228,7 +187,7 @@ class FileLifecycleTests(LifecycleTestsBase):
         received = list(_strip_newline_output_events(session.received))
 
         self.assertGreaterEqual(stacktrace.resp.body["totalFrames"], 1)
-        self.assert_is_subset(stacktrace.resp, self.new_response(
+        self.assert_message_is_subset(stacktrace.resp, self.new_response(
                     stacktrace.req,
                     **{
                         # We get Python and PTVSD frames as well.
@@ -355,7 +314,7 @@ class FileLifecycleTests(LifecycleTestsBase):
         module_events = self.find_events(received, 'module')
         self.assertGreaterEqual(len(module_events), 2)
 
-        self.assert_is_subset(module_events[0], self.new_event(
+        self.assert_message_is_subset(module_events[0], self.new_event(
                     "module",
                     module={
                         "id": 1,
@@ -367,7 +326,7 @@ class FileLifecycleTests(LifecycleTestsBase):
         # TODO: Check for foo.
 
         self.assertGreaterEqual(stacktrace.resp.body["totalFrames"], 1)
-        self.assert_is_subset(stacktrace.resp, self.new_response(
+        self.assert_message_is_subset(stacktrace.resp, self.new_response(
                     stacktrace.req,
                     **{
                         # We get Python and PTVSD frames as well.
@@ -572,7 +531,7 @@ class FileLifecycleTests(LifecycleTestsBase):
         received = list(_strip_newline_output_events(session.received))
 
         self.assertGreaterEqual(stacktrace.resp.body["totalFrames"], 1)
-        self.assert_is_subset(stacktrace.resp, self.new_response(
+        self.assert_message_is_subset(stacktrace.resp, self.new_response(
                     stacktrace.req,
                     **{
                         "stackFrames": [{

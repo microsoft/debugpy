@@ -76,9 +76,9 @@ def assert_contains_messages(received, expected):
         raise AssertionError('\n'.join(error_message))
 
 
-def assert_message_is_subset(received_message, expected_message):
+def assert_is_subset(received_message, expected_message):
     message = [
-        'Message subset comparison failed',
+        'Subset comparison failed',
         'Received: {}'.format(received_message),
         'Expected: {}'.format(expected_message),
     ]
@@ -117,6 +117,6 @@ def assert_message_is_subset(received_message, expected_message):
             message.append('Index not found: body'.format(current_path))
             raise AssertionError('\n'.join(message))
 
-    received = received_message.body
-    expected = expected_message.body
+    received = received_message.body if hasattr(received_message, 'body') else received_message # noqa
+    expected = expected_message.body if hasattr(expected_message, 'body') else expected_message # noqa
     assert_is_subset(received, expected)

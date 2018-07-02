@@ -2,9 +2,10 @@ import os
 import ptvsd
 import unittest
 
+from tests.helpers.script import find_line
 from tests.helpers.threading import get_locked_and_waiter
 from tests.helpers.workspace import Workspace, PathEntry
-from tests.helpers.vsc import parse_message, VSCMessages
+from tests.helpers.vsc import parse_message, VSCMessages, Response, Event # noqa
 
 
 class ANYType(object):
@@ -201,6 +202,45 @@ class LifecycleTestsBase(TestsBase, unittest.TestCase):
             self._messages = VSCMessages()
             return self._messages
 
+    def create_source_file(self, file_name, source):
+        return self.write_script(file_name, source)
+
+    def get_cwd(self):
+        return None
+
+    def find_line(self, filepath, label):
+        with open(filepath) as scriptfile:
+            script = scriptfile.read()
+        return find_line(script, label)
+
+    def get_test_info(self, source):
+        filepath = self.create_source_file("spam.py", source)
+        env = None
+        expected_module = filepath
+        argv = [filepath]
+        return ("spam.py", filepath, env, expected_module, argv,
+                self.get_cwd())
+
+    def reset_seq(self, responses):
+        for i, msg in enumerate(responses):
+            responses[i] = msg._replace(seq=i)
+
+    def find_events(self, responses, event, condition=lambda body: True):
+        return list(
+            response for response in responses if isinstance(response, Event)
+            and response.event == event and condition(response.body))  # noqa
+
+    def find_responses(self, responses, command, condition=lambda x: True):
+        return list(
+                    response for response in responses
+                    if isinstance(response, Response) and
+                    response.command == command and
+                    condition(response.body))
+
+    def remove_messages(self, responses, messages):
+        for msg in messages:
+            responses.remove(msg)
+
     def new_response(self, *args, **kwargs):
         return self.messages.new_response(*args, **kwargs)
 
@@ -236,11 +276,15 @@ class LifecycleTestsBase(TestsBase, unittest.TestCase):
         expected = [parse_message(msg) for msg in expected]
         assert_contains_messages(received, expected)
 
-    def assert_is_subset(self, received, expected):
-        from tests.helpers.message import assert_message_is_subset
+    def assert_message_is_subset(self, received, expected):
+        from tests.helpers.message import assert_is_subset
         received = parse_message(received)
         expected = parse_message(expected)
-        assert_message_is_subset(received, expected)
+        assert_is_subset(received, expected)
+
+    def assert_is_subset(self, received, expected):
+        from tests.helpers.message import assert_is_subset
+        assert_is_subset(received, expected)
 
     def new_version_event(self, received):
         version = _get_version(received)
