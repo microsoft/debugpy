@@ -589,7 +589,7 @@ class FileLifecycleTests(LifecycleTestsBase):
             ],
         )
 
-    @unittest.skip("termination needs fixing")
+    @unittest.skip('To be fixed in #530')
     def test_terminating_program(self):
         source = dedent("""
             import time
@@ -602,13 +602,18 @@ class FileLifecycleTests(LifecycleTestsBase):
 
         with DebugClient(port=PORT, connecttimeout=CONNECT_TIMEOUT) as editor:
             adapter, session = editor.host_local_debugger(argv)
-            with session.wait_for_event("terminated"):
-                (req_initialize, req_launch, req_config, _, _,
-                 _) = lifecycle_handshake(  # noqa
-                     session, "launch")
 
-                session.send_request("disconnect")
+            exited = session.get_awaiter_for_event('exited')
+            terminated = session.get_awaiter_for_event('terminated')
 
+            (req_initialize, req_launch, req_config, _, _,
+                _) = lifecycle_handshake(  # noqa
+                    session, "launch")
+
+            Awaitable.wait_all(req_launch, session.get_awaiter_for_event('thread')) # noqa
+            disconnect = session.send_request("disconnect")
+
+            Awaitable.wait_all(exited, terminated, disconnect)
             adapter.wait()
 
 
