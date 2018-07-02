@@ -230,6 +230,18 @@ class LifecycleTestsBase(TestsBase, unittest.TestCase):
         expected = [parse_message(msg) for msg in expected]
         assert_messages_equal(received, expected)
 
+    def assert_contains(self, received, expected):
+        from tests.helpers.message import assert_contains_messages
+        received = [parse_message(msg) for msg in received]
+        expected = [parse_message(msg) for msg in expected]
+        assert_contains_messages(received, expected)
+
+    def assert_is_subset(self, received, expected):
+        from tests.helpers.message import assert_message_is_subset
+        received = parse_message(received)
+        expected = parse_message(expected)
+        assert_message_is_subset(received, expected)
+
     def new_version_event(self, received):
         version = _get_version(received)
         return self.new_event(

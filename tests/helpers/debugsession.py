@@ -133,7 +133,7 @@ class DebugSession(Closeable):
     def create_server(cls, addr=None, **kwargs):
         if addr is None:
             addr = (cls.HOST, cls.PORT)
-        conn = DebugSessionConnection.create_server(addr)
+        conn = DebugSessionConnection.create_server(addr, **kwargs)
         return cls(conn, owned=True, **kwargs)
 
     def __init__(self, conn, seq=1000, handlers=(), timeout=None, owned=False):
@@ -164,25 +164,31 @@ class DebugSession(Closeable):
     def received(self):
         return list(self._received)
 
-    def send_request(self, command, **args):
-        if self.closed:
-            raise RuntimeError('session closed')
-
-        wait = args.pop('wait', True)
+    def _create_request(self, command, **args):
         seq = self._seq
         self._seq += 1
-        req = {
+        return {
             'type': 'request',
             'seq': seq,
             'command': command,
             'arguments': args,
         }
+
+    def send_request(self, command, **args):
+        if self.closed:
+            raise RuntimeError('session closed')
+
+        wait = args.pop('wait', False)
+        req = self._create_request(command, **args)
+
         if wait:
-            with self.wait_for_response(req):
+            with self.wait_for_response(req) as resp:
                 self._conn.send(req)
+            resp_awaiter = AwaitableResponse(req, lambda: resp["msg"])
         else:
+            resp_awaiter = self._get_awaiter_for_request(req, **args)
             self._conn.send(req)
-        return req
+        return resp_awaiter
 
     def add_handler(self, handler, **kwargs):
         if self.closed:
@@ -203,6 +209,39 @@ class DebugSession(Closeable):
         with self._wait_for_message(match, handlername, **kwargs):
             yield result
 
+    def get_awaiter_for_event(self, event, condition=lambda msg: True, **kwargs): # noqa
+        if self.closed:
+            raise RuntimeError('session closed')
+        result = {'msg': None}
+
+        def match(msg):
+            result['msg'] = msg
+            return msg.type == 'event' and msg.event == event and condition(msg) # noqa
+        handlername = 'event {!r}'.format(event)
+        evt = self._get_message_handle(match, handlername)
+
+        return AwaitableEvent(event, lambda: result["msg"], evt)
+
+    def _get_awaiter_for_request(self, req, **kwargs):
+        if self.closed:
+            raise RuntimeError('session closed')
+
+        try:
+            command, seq = req.command, req.seq
+        except AttributeError:
+            command, seq = req['command'], req['seq']
+        result = {'msg': None}
+
+        def match(msg):
+            if msg.type != 'response':
+                return False
+            result['msg'] = msg
+            return msg.request_seq == seq
+        handlername = 'response (cmd:{} seq:{})'.format(command, seq)
+        evt = self._get_message_handle(match, handlername)
+
+        return AwaitableResponse(req, lambda: result["msg"], evt)
+
     @contextlib.contextmanager
     def wait_for_response(self, req, **kwargs):
         if self.closed:
@@ -212,14 +251,16 @@ class DebugSession(Closeable):
             command, seq = req.command, req.seq
         except AttributeError:
             command, seq = req['command'], req['seq']
+        result = {'msg': None}
 
         def match(msg):
             if msg.type != 'response':
                 return False
+            result['msg'] = msg
             return msg.request_seq == seq
         handlername = 'response (cmd:{} seq:{})'.format(command, seq)
         with self._wait_for_message(match, handlername, **kwargs):
-            yield
+            yield result
 
     # internal methods
 
@@ -283,3 +324,73 @@ class DebugSession(Closeable):
             yield
         finally:
             wait(timeout or self._timeout, handlername, fail=True)
+
+    def _get_message_handle(self, match, handlername):
+        event = threading.Event()
+
+        def handler(msg):
+            if not match(msg):
+                return msg, False
+            event.set()
+            return msg, True
+        self._add_handler(handler, handlername, False)
+        return event
+
+
+class Awaitable(object):
+
+    @classmethod
+    def wait_all(cls, *awaitables):
+        timeout = 3.0
+        messages = []
+        for _ in range(int(timeout * 10)):
+            time.sleep(0.1)
+            messages = []
+            not_ready = (a for a in awaitables if a._event is not None and not a._event.is_set()) # noqa
+            for awaitable in not_ready:
+                if isinstance(awaitable, AwaitableEvent):
+                    messages.append('Event {}'.format(awaitable.name))
+                else:
+                    messages.append('Response {}'.format(awaitable.name))
+            if len(messages) == 0:
+                return
+        else:
+            raise TimeoutError('Timeout waiting for {}'.format(','.join(messages))) # noqa
+
+    def __init__(self, name, event=None):
+        self._event = event
+        self.name = name
+
+    def wait(self, timeout=1.0):
+        if self._event is None:
+            return
+        if not self._event.wait(timeout):
+            message = 'Timeout waiting for '
+            if isinstance(self, AwaitableEvent):
+                message += 'Event {}'.format(self.name)
+            else:
+                message += 'Response {}'.format(self.name)
+            raise TimeoutError(message)
+
+
+class AwaitableResponse(Awaitable):
+
+    def __init__(self, req, result_getter, event=None):
+        super(AwaitableResponse, self).__init__(req["command"], event)
+        self.req = req
+        self._result_getter = result_getter
+
+    @property
+    def resp(self):
+        return self._result_getter()
+
+
+class AwaitableEvent(Awaitable):
+
+    def __init__(self, name, result_getter, event=None):
+        super(AwaitableEvent, self).__init__(name, event)
+        self._result_getter = result_getter
+
+    @property
+    def event(self):
+        return self._result_getter()
