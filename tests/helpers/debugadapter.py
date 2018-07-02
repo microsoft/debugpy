@@ -1,5 +1,7 @@
 import os
 import os.path
+import socket
+import time
 
 from ptvsd.socket import Address
 from . import Closeable
@@ -71,6 +73,20 @@ def _copy_env(verbose=False, env=None):
         variables['PYTHONPATH'] = os.pathsep.join([PROJECT_ROOT, python_path])
 
     return variables
+
+
+def _wait_for_socket_server(addr, timeout=3.0, **kwargs):
+    start_time = time.time()
+    while True:
+        try:
+            sock = socket.create_connection(addr)
+            sock.close()
+            return
+        except ConnectionRefusedError:
+            pass
+        time.sleep(0.1)
+        if time.time() - start_time > timeout:
+            raise ConnectionRefusedError('Timeout waiting for connection')
 
 
 class DebugAdapter(Closeable):
@@ -160,12 +176,14 @@ class DebugAdapter(Closeable):
             content = scriptfile.read()
             # TODO: Handle this case somehow?
             assert 'ptvsd.enable_attach' in content
-        return cls.start_wrapper_script(
+        adapter = cls.start_wrapper_script(
             filename,
             argv=[],
             addr=addr,
             **kwargs
         )
+        _wait_for_socket_server(addr, **kwargs)
+        return adapter
 
     @classmethod
     def _start(cls, new_proc, argv, addr=None, **kwargs):
