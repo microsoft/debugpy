@@ -29,7 +29,7 @@ class AttachLifecycleTests(LifecycleTestsBase):
         script = dedent("""
             import ptvsd
             ptvsd.enable_attach({})
-
+            ptvsd.wait_for_attach()
             import sys
             sys.stdout.write('ok')
             sys.stderr.write('ex')

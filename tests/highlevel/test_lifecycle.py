@@ -27,14 +27,27 @@ from ptvsd.wrapper import INITIALIZE_RESPONSE
 
 
 def _get_project_dirs():
-    cwd = os.getcwd()
-    pyd_path = os.path.join('ptvsd', '_vendored', 'pydevd')
-    paths = []
-    if cwd.endswith('ptvsd') or \
-       cwd.endswith(pyd_path):
-        return ''
-    paths.append(cwd)
-    return '\t'.join(paths)
+    vendored_pydevd = os.path.sep + \
+                      os.path.join('ptvsd', '_vendored', 'pydevd')
+    ptvsd_path = os.path.sep + 'ptvsd'
+
+    project_dirs = []
+    for path in sys.path + [os.getcwd()]:
+        is_stdlib = False
+        norm_path = os.path.normcase(path)
+        if path.endswith(ptvsd_path) or \
+            path.endswith(vendored_pydevd):
+            is_stdlib = True
+        else:
+            for prefix in ptvsd.wrapper.STDLIB_PATH_PREFIXES:
+                if norm_path.startswith(prefix):
+                    is_stdlib = True
+                    break
+
+        if not is_stdlib and len(path) > 0:
+            project_dirs.append(path)
+
+    return '\t'.join(project_dirs)
 
 
 class LifecycleTests(HighlevelTest, unittest.TestCase):
