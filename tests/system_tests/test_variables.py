@@ -50,15 +50,14 @@ class VariableLifecycleTests(LifecycleTestsBase):
 
             with session.wait_for_event("stopped") as result:
                 (
-                    req_initialize,
-                    req_launch,
-                    req_config,
-                    reqs_bps,
+                    _,
+                    _,
+                    _,
+                    _,
                     _,
                     _,
                 ) = lifecycle_handshake(
                     session, "launch", breakpoints=breakpoints)
-            req_bps, = reqs_bps  # There should only be one.
             tid = result["msg"].body["threadId"]
 
             stacktrace = session.send_request("stackTrace", threadId=tid)
@@ -101,22 +100,24 @@ class VariableLifecycleTests(LifecycleTestsBase):
                                     "name": "a",
                                     "type": "int",
                                     "value": "1",
-                                    # "evaluateName": "a"
+                                    "evaluateName": "a"
                                 },
                                 {
                                     "name": "b",
                                     "type": "dict",
-                                    "value": "{'one': 1, 'two': 2}"
-                                    # "evaluateName": "b"
+                                    "value": "{'one': 1, 'two': 2}",
+                                    "evaluateName": "b"
                                 },
                                 {
                                     "name": "__builtins__",
                                     "type": "dict",
+                                    "evaluateName": "__builtins__"
                                 },
                                 {
                                     "name": "__doc__",
                                     "type": "NoneType",
-                                    "value": "None"
+                                    "value": "None",
+                                    "evaluateName": "__doc__"
                                 },
                                 {
                                     "name": "__file__",
@@ -125,12 +126,13 @@ class VariableLifecycleTests(LifecycleTestsBase):
                                         "attributes": [
                                             "rawString"
                                         ]
-                                    }
-                                    # "evaluateName": "__file__"
+                                    },
+                                    "evaluateName": "__file__"
                                 },
                                 {
                                     "name": "__loader__",
                                     "type": "SourceFileLoader",
+                                    "evaluateName": "__loader__"
                                 },
                                 {
                                     "name": "__name__",
@@ -138,17 +140,20 @@ class VariableLifecycleTests(LifecycleTestsBase):
                                     "value": "'__main__'",
                                     "presentationHint": {
                                         "attributes": ["rawString"]
-                                    }
+                                    },
+                                    "evaluateName": "__name__"
                                 },
                                 {
                                     "name": "__package__",
                                     "type": "NoneType",
-                                    "value": "None"
+                                    "value": "None",
+                                    "evaluateName": "__package__"
                                 },
                                 {
                                     "name": "__spec__",
                                     "type": "NoneType",
-                                    "value": "None"
+                                    "value": "None",
+                                    "evaluateName": "__spec__"
                                 }
                             ]
         self.assert_is_subset(variables.resp.body["variables"], expected_variables) # noqa
