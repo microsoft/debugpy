@@ -5,7 +5,7 @@ import warnings
 from ptvsd.socket import Address
 from ptvsd._util import new_hidden_thread
 from . import Closeable
-from .debugadapter import DebugAdapter
+from .debugadapter import DebugAdapter, wait_for_socket_server
 from .debugsession import DebugSession
 
 
@@ -116,6 +116,7 @@ class _LifecycleClient(Closeable):
         if wait_for_connect:
             wait_for_connect()
         else:
+            wait_for_socket_server(addr)
             self._attach(addr, **kwargs)
 
     def _attach(self, addr, **kwargs):

@@ -75,14 +75,14 @@ def _copy_env(verbose=False, env=None):
     return variables
 
 
-def _wait_for_socket_server(addr, timeout=3.0, **kwargs):
+def wait_for_socket_server(addr, timeout=3.0, **kwargs):
     start_time = time.time()
     while True:
         try:
-            sock = socket.create_connection(addr)
+            sock = socket.create_connection((addr.host, addr.port))
             sock.close()
             return
-        except ConnectionRefusedError:
+        except Exception:
             pass
         time.sleep(0.1)
         if time.time() - start_time > timeout:
@@ -151,7 +151,9 @@ class DebugAdapter(Closeable):
     @classmethod
     def start_for_attach(cls, addr, *args, **kwargs):
         addr = Address.as_server(*addr)
-        return cls._start_as(addr, *args, server=True, **kwargs)
+        adapter = cls._start_as(addr, *args, server=True, **kwargs)
+        wait_for_socket_server(addr)
+        return adapter
 
     @classmethod
     def _start_as(cls, addr, name, kind='script', extra=None, server=False,
@@ -182,7 +184,7 @@ class DebugAdapter(Closeable):
             addr=addr,
             **kwargs
         )
-        _wait_for_socket_server(addr, **kwargs)
+        wait_for_socket_server(addr, **kwargs)
         return adapter
 
     @classmethod
