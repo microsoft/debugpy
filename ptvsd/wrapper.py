@@ -1753,7 +1753,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     def _get_variable_evaluate_name(self, pyd_var_parent, var_name):
         # TODO: docstring
         eval_name = None
-        if len(pyd_var_parent) > 3:
+        pyd_var_len = len(pyd_var_parent)
+        if pyd_var_len > 3:
             # This means the current variable has a parent i.e, it is not a
             # FRAME variable. These require evaluateName to work in VS
             # watch window
@@ -1768,6 +1769,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                     eval_name += '[{}]'.format(i)
                 except Exception:
                     eval_name += '.' + s
+        elif pyd_var_len == 3:
+            return var_name
 
         return eval_name
 
