@@ -13,7 +13,6 @@ from tests.helpers.script import find_line, set_lock, set_release
 from tests.helpers.debugsession import Awaitable
 
 from . import (
-    _strip_pydevd_output,
     _strip_newline_output_events, lifecycle_handshake, TestsBase,
     LifecycleTestsBase, _strip_output_event, _strip_exit, _find_events)
 
@@ -104,25 +103,6 @@ class DebugTests(TestsBase, unittest.TestCase):
 
 
 class LifecycleTests(LifecycleTestsBase):
-
-    def test_pre_init(self):
-        filename = self.pathentry.write_module('spam', '')
-        handlers, wait_for_started = self._wait_for_started()
-        with DebugClient() as editor:
-            adapter, session = editor.launch_script(
-                filename,
-                handlers=handlers,
-                timeout=3.0,
-            )
-            wait_for_started()
-        out = adapter.output.decode('utf-8')
-
-        received = list(_strip_newline_output_events(session.received))
-        self.assert_received(received, [
-            self.new_version_event(session.received),
-        ])
-        out = _strip_pydevd_output(out)
-        self.assertEqual(out, '')
 
     def test_launch_ptvsd_client(self):
         argv = []
@@ -300,6 +280,7 @@ class LifecycleTests(LifecycleTestsBase):
                 session1 = editor.attach_socket(addr, adapter)
                 with session1.wait_for_event('thread'):
                     reqs = lifecycle_handshake(session1, 'attach')
+                    reqs[1].wait()
                     done1()
                 req_disconnect = session1.send_request('disconnect')
                 req_disconnect.wait()
