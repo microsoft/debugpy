@@ -1556,7 +1556,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             return self.source_map.to_vscode(filename, autogen=False)
         except KeyError:
             # If attaching to a local process (then remote and local are same)
-            for local_prefix, remote_prefix in pydevd_file_utils.PATHS_FROM_ECLIPSE_TO_PYTHON: # noqa
+            for local_prefix, remote_prefix in pydevd_file_utils.PATHS_FROM_ECLIPSE_TO_PYTHON:  # noqa
                 if local_prefix != remote_prefix:
                     continue
                 if filename.startswith(local_prefix): # noqa
@@ -1564,23 +1564,22 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 if platform.system() == 'Windows' and filename.upper().startswith(local_prefix.upper()): # noqa
                     return 0
 
-        server_filename = pydevd_file_utils.norm_file_to_server(filename)
+        client_filename = pydevd_file_utils.norm_file_to_client(filename)
 
         # If the mapped file is the same as the file we provided,
         # then we can generate a soure reference.
-        if server_filename == filename and os.path.exists(server_filename):
-            return self.source_map.to_vscode(filename, autogen=True)
+        if client_filename == filename:
+            return 0
         elif platform.system() == 'Windows' and \
-            server_filename.upper() == filename.upper() and \
-            os.path.exists(server_filename):
-            return self.source_map.to_vscode(filename, autogen=True)
-        elif server_filename.replace('\\', '/') == filename.replace('\\', '/'):
+            client_filename.upper() == filename.upper():
+            return 0
+        elif client_filename.replace('\\', '/') == filename.replace('\\', '/'):
             # If remote is Unix and local is Windows, then PyDevD will
             #   replace the path separator in remote with with
             #   the os path separator of remote client
-            return self.source_map.to_vscode(filename, autogen=True)
-        else:
             return 0
+        else:
+            return self.source_map.to_vscode(filename, autogen=True)
 
     @async_handler
     def on_stackTrace(self, request, args):
