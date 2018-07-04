@@ -107,8 +107,8 @@ def assert_is_subset(received_message, expected_message):
                 return True
         except ValueError:
             message.append('Path: body{}'.format(current_path))
-            message.append('Expected:{}'.format(received))
-            message.append('Receievd:{}'.format(expected))
+            message.append('Received:{}'.format(received))
+            message.append('Expected:{}'.format(expected))
             raise AssertionError('\n'.join(message))
         except KeyError:
             message.append('Key not found: body{}'.format(current_path))

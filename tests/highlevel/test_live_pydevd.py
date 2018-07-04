@@ -378,8 +378,7 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
         self.assertIn('2 4 4', out)
         self.assertIn('ka-boom', err)
 
-    # TODO: fix this
-    @unittest.skip('not working right')
+    # @unittest.skip('not working right')
     def test_exception_breakpoints(self):
         self.vsc.PRINT_RECEIVED_MESSAGES = True
         done, script = self._set_lock('h')
@@ -387,8 +386,7 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
         config = {
             'breakpoints': [],
             'excbreakpoints': [
-                #{'filters': ['raised']},
-                {'filters': ['uncaught']},
+                {'filters': ['raised']},
             ],
         }
         with captured_stdio() as (stdout, _):
@@ -409,14 +407,17 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
                 got.append(req['arguments'])
             self.assertNotEqual(req['command'], 'setBreakpoints')
         self.assertEqual(got, config['excbreakpoints'])
-        self.assert_vsc_received(received, [
-            self.new_event(
-                'stopped',
+        if sys.version_info >= (3, 7):
+            description = "MyError('ka-boom')"
+        else:
+            description = "MyError('ka-boom',)"
+        self.assert_vsc_received_fixing_events(received, [
+            ('stopped', dict(
                 reason='exception',
                 threadId=tid,
-                text=None,
-                description=None,
-            ),
+                text='MyError',
+                description=description
+            )),
         ])
         self.assertIn('2 4 4', out)
         self.assertIn('ka-boom', out)
