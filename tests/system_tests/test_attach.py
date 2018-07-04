@@ -1,5 +1,7 @@
 import os
 import os.path
+import unittest
+
 from textwrap import dedent
 
 import ptvsd
@@ -176,3 +178,37 @@ class AttachLifecycleTests(LifecycleTestsBase):
     #             self.new_event("continued", threadId=tid),
     #         ],
     #     )
+
+    @unittest.skip('Needs fixing')
+    def test_with_handled_exceptions(self):
+        addr = Address('localhost', PORT)
+        script = dedent("""
+            import ptvsd
+            ptvsd.enable_attach({})
+            ptvsd.wait_for_attach()
+
+            try:
+                raise ArithmeticError('Hello')
+            except Exception:
+                pass
+            import sys
+            sys.stdout.write('end')
+            """).format(tuple(addr))
+        filename = self.write_script('spam.py', script)
+        excbreakpoints = [{"filters": ["uncaught"]}]
+
+        with DebugAdapter.start_embedded(addr, filename, env=ENV) as adapter:
+            with DebugClient() as editor:
+                session = editor.attach_socket(addr, adapter)
+
+                terminated = session.get_awaiter_for_event('terminated')
+                exited = session.get_awaiter_for_event('exited')
+                output = session.get_awaiter_for_event('output', lambda e: e.body["category"] == "stdout") # noqa
+
+                (
+                    _, req_attach, _, _, _, _
+                ) = lifecycle_handshake(session, 'attach',
+                                        excbreakpoints=excbreakpoints)
+
+                Awaitable.wait_all(req_attach, output, terminated, exited)
+                adapter.wait()
