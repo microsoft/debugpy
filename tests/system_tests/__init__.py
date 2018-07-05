@@ -1,16 +1,36 @@
+import contextlib
 import os
 import ptvsd
+import signal
 import unittest
 
+from collections import namedtuple
+from ptvsd.socket import Address
+from tests.helpers.debugadapter import DebugAdapter
+from tests.helpers.debugclient import EasyDebugClient as DebugClient
 from tests.helpers.script import find_line
 from tests.helpers.threading import get_locked_and_waiter
 from tests.helpers.workspace import Workspace, PathEntry
-from tests.helpers.vsc import parse_message, VSCMessages, Response, Event # noqa
+from tests.helpers.vsc import parse_message, VSCMessages, Response, Event  # noqa
+
+
+ROOT = os.path.dirname(os.path.dirname(ptvsd.__file__))
+PORT = 9876
+CONNECT_TIMEOUT = 3.0
+
+
+DebugInfo = namedtuple('DebugInfo', 'port starttype argv filename modulename env cwd attachtype')  # noqa
+DebugInfo.__new__.__defaults__ = (9876, 'launch', []) + ((None, ) * (len(DebugInfo._fields) - 3))  # noqa
+
+
+Debugger = namedtuple('Debugger', 'session adapter')
 
 
 class ANYType(object):
     def __repr__(self):
         return 'ANY'
+
+
 ANY = ANYType()  # noqa
 
 
@@ -193,6 +213,95 @@ class TestsBase(object):
 
 
 class LifecycleTestsBase(TestsBase, unittest.TestCase):
+    @contextlib.contextmanager
+    def start_debugging(self, debug_info):
+        addr = Address('localhost', debug_info.port)
+        cwd = debug_info.cwd
+        env = debug_info.env
+
+        def _kill_proc(pid):
+            """If debugger does not end gracefully, then kill proc and
+            wait for socket connections to die out. """
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except Exception:
+                pass
+            import time
+            time.sleep(1) # wait for socket connections to die out. # noqa
+
+        if debug_info.attachtype == 'import' and \
+            debug_info.modulename is not None:
+            argv = debug_info.argv
+            with DebugAdapter.start_wrapper_module(
+                    debug_info.modulename,
+                    argv,
+                    env=env,
+                    cwd=cwd) as adapter:
+                with DebugClient() as editor:
+                    session = editor.attach_socket(addr, adapter)
+                    try:
+                        yield Debugger(session=session, adapter=adapter)
+                        adapter.wait()
+                    except Exception:
+                        _kill_proc(adapter.pid)
+                        raise
+        elif debug_info.attachtype == 'import' and \
+            debug_info.starttype == 'attach' and \
+            debug_info.filename is not None:
+            argv = debug_info.argv
+            with DebugAdapter.start_embedded(
+                    addr,
+                    debug_info.filename,
+                    argv=argv,
+                    env=env,
+                    cwd=cwd) as adapter:
+                with DebugClient() as editor:
+                    session = editor.attach_socket(addr, adapter)
+                    try:
+                        yield Debugger(session=session, adapter=adapter)
+                        adapter.wait()
+                    except Exception:
+                        _kill_proc(adapter.pid)
+                        raise
+        elif debug_info.starttype == 'attach':
+            if debug_info.modulename is None:
+                name = debug_info.filename
+                kind = 'script'
+            else:
+                name = debug_info.modulename
+                kind = 'module'
+            argv = debug_info.argv
+            with DebugAdapter.start_for_attach(
+                    addr,
+                    name=name,
+                    extra=argv,
+                    kind=kind,
+                    env=env,
+                    cwd=cwd) as adapter:
+                with DebugClient() as editor:
+                    session = editor.attach_socket(addr, adapter)
+                    try:
+                        yield Debugger(session=session, adapter=adapter)
+                        adapter.wait()
+                    except Exception:
+                        _kill_proc(adapter.pid)
+                        raise
+        else:
+            if debug_info.filename is None:
+                argv = ["-m", debug_info.modulename] + debug_info.argv
+            else:
+                argv = [debug_info.filename] + debug_info.argv
+            with DebugClient(
+                    port=debug_info.port,
+                    connecttimeout=CONNECT_TIMEOUT) as editor:
+                adapter, session = editor.host_local_debugger(
+                    argv, cwd=cwd, env=env)
+                try:
+                    yield Debugger(session=session, adapter=adapter)
+                    adapter.wait()
+                except Exception:
+                    _kill_proc(adapter.pid)
+                    raise
 
     @property
     def messages(self):
@@ -205,21 +314,10 @@ class LifecycleTestsBase(TestsBase, unittest.TestCase):
     def create_source_file(self, file_name, source):
         return self.write_script(file_name, source)
 
-    def get_cwd(self):
-        return None
-
     def find_line(self, filepath, label):
         with open(filepath) as scriptfile:
             script = scriptfile.read()
         return find_line(script, label)
-
-    def get_test_info(self, source):
-        filepath = self.create_source_file("spam.py", source)
-        env = None
-        expected_module = filepath
-        argv = [filepath]
-        return ("spam.py", filepath, env, expected_module, argv,
-                self.get_cwd())
 
     def reset_seq(self, responses):
         for i, msg in enumerate(responses):
@@ -232,10 +330,10 @@ class LifecycleTestsBase(TestsBase, unittest.TestCase):
 
     def find_responses(self, responses, command, condition=lambda x: True):
         return list(
-                    response for response in responses
-                    if isinstance(response, Response) and
-                    response.command == command and
-                    condition(response.body))
+            response for response in responses
+            if isinstance(response, Response) and
+            response.command == command and
+            condition(response.body))
 
     def remove_messages(self, responses, messages):
         for msg in messages:

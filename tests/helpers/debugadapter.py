@@ -126,6 +126,19 @@ class DebugAdapter(Closeable):
             )
         return cls._start(new_proc, argv, **kwargs)
 
+    @classmethod
+    def start_wrapper_module(cls, modulename, argv, env=None, cwd=None, **kwargs): # noqa
+        def new_proc(argv, addr, **kwds):
+            env_vars = _copy_env(verbose=cls.VERBOSE, env=env)
+            return Proc.start_python_module(
+                modulename,
+                argv,
+                env=env_vars,
+                cwd=cwd,
+                **kwds
+            )
+        return cls._start(new_proc, argv, **kwargs)
+
     # specific factory cases
 
     @classmethod
@@ -172,7 +185,7 @@ class DebugAdapter(Closeable):
         return cls.start(argv, addr=addr, **kwargs)
 
     @classmethod
-    def start_embedded(cls, addr, filename, **kwargs):
+    def start_embedded(cls, addr, filename, argv=[], **kwargs):
         addr = Address.as_server(*addr)
         with open(filename, 'r+') as scriptfile:
             content = scriptfile.read()
@@ -180,7 +193,7 @@ class DebugAdapter(Closeable):
             assert 'ptvsd.enable_attach' in content
         adapter = cls.start_wrapper_script(
             filename,
-            argv=[],
+            argv=argv,
             addr=addr,
             **kwargs
         )
@@ -235,8 +248,8 @@ class DebugAdapter(Closeable):
     def exitcode(self):
         return self._proc.exitcode
 
-    def wait(self):
-        self._proc.wait()
+    def wait(self, *argv):
+        self._proc.wait(*argv)
 
     # internal methods
 
