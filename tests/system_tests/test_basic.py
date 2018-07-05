@@ -36,6 +36,32 @@ class LaunchLifecycleTests(LifecycleTestsBase):
         cwd = os.path.dirname(filename)
         self.run_test_output(DebugInfo(filename=filename, cwd=cwd))
 
+    def run_test_arguments(self, debug_info, expected_args):
+        options = {"debugOptions": ["RedirectOutput"]}
+
+        with self.start_debugging(debug_info) as dbg:
+            (_, _, _, _, _, _) = lifecycle_handshake(
+                dbg.session, debug_info.starttype, options=options)
+
+        received = list(_strip_newline_output_events(dbg.session.received))
+        expected_output = "{}, {}".format(len(expected_args), expected_args)
+        self.assert_contains(
+            received,
+            [
+                self.new_event(
+                    "output", category="stdout", output=expected_output)
+            ],
+        )
+
+    def test_arguments(self):
+        filename = os.path.join(TEST_FILES_DIR, 'test_args',
+                                'launch_with_args.py')
+        cwd = os.path.dirname(filename)
+        argv = ['arg1', 'arg2']
+        self.run_test_arguments(
+            DebugInfo(filename=filename, cwd=cwd, argv=argv),
+            [filename] + argv)
+
     def run_test_termination(self, debug_info):
         with self.start_debugging(debug_info) as dbg:
             session = dbg.session
@@ -107,6 +133,16 @@ class LaunchModuleLifecycleTests(LaunchLifecycleTests):
             DebugInfo(modulename=module_name, env=env, cwd=cwd))
         self.run_test_termination(DebugInfo(modulename=module_name, cwd=cwd))
 
+    @unittest.skip('Broken')
+    def test_arguments(self):
+        module_name = 'mymod_launch1'
+        cwd = os.path.join(TEST_FILES_DIR, 'test_args')
+        env = {"PYTHONPATH": cwd}
+        argv = ['arg1', 'arg2']
+        self.run_test_arguments(
+            DebugInfo(modulename=module_name, env=env, cwd=cwd, argv=argv),
+            ['-m'] + argv)
+
 
 class ServerAttachLifecycleTests(LaunchLifecycleTests):
     def test_with_output(self):
@@ -132,6 +168,10 @@ class ServerAttachLifecycleTests(LaunchLifecycleTests):
 
     @unittest.skip('No need to test')
     def test_termination(self):
+        pass
+
+    @unittest.skip('No need to test')
+    def test_arguments(self):
         pass
 
 
@@ -166,6 +206,10 @@ class PTVSDAttachLifecycleTests(LaunchLifecycleTests):
     def test_termination(self):
         pass
 
+    @unittest.skip('No need to test')
+    def test_arguments(self):
+        pass
+
 
 class ServerAttachModuleLifecycleTests(LaunchLifecycleTests):  # noqa
     def test_with_output(self):
@@ -196,6 +240,10 @@ class ServerAttachModuleLifecycleTests(LaunchLifecycleTests):  # noqa
 
     @unittest.skip('No need to test')
     def test_termination(self):
+        pass
+
+    @unittest.skip('No need to test')
+    def test_arguments(self):
         pass
 
 
@@ -231,4 +279,8 @@ class PTVSDAttachModuleLifecycleTests(LaunchLifecycleTests):  # noqa
 
     @unittest.skip('No need to test')
     def test_termination(self):
+        pass
+
+    @unittest.skip('No need to test')
+    def test_arguments(self):
         pass
