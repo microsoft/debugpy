@@ -9,6 +9,7 @@ from collections import namedtuple
 from ptvsd.socket import Address
 from tests.helpers.debugadapter import DebugAdapter, wait_for_port_to_free
 from tests.helpers.debugclient import EasyDebugClient as DebugClient
+from tests.helpers.message import assert_is_subset
 from tests.helpers.script import find_line
 from tests.helpers.threading import get_locked_and_waiter
 from tests.helpers.workspace import Workspace, PathEntry
@@ -344,10 +345,16 @@ class LifecycleTestsBase(TestsBase, unittest.TestCase):
         for i, msg in enumerate(responses):
             responses[i] = msg._replace(seq=i)
 
-    def find_events(self, responses, event, condition=lambda body: True):
+    def find_events(self, responses, event, body_contents={}):
+        def is_subset(body):
+            try:
+                assert_is_subset(body, body_contents)
+                return True
+            except Exception:
+                return False
         return list(
             response for response in responses if isinstance(response, Event)
-            and response.event == event and condition(response.body))  # noqa
+            and response.event == event and is_subset(response.body))  # noqa
 
     def find_responses(self, responses, command, condition=lambda x: True):
         return list(

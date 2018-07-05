@@ -12,65 +12,6 @@ TEST_FILES_DIR = os.path.join(ROOT, 'tests', 'resources', 'system_tests',
 
 
 class LaunchLifecycleTests(LifecycleTestsBase):
-    # def test_with_arguments(self):
-    #     source = dedent("""
-    #         import sys
-    #         print(len(sys.argv))
-    #         for arg in sys.argv:
-    #             print(arg)
-    #         """)
-    #     options = {"debugOptions": ["RedirectOutput"]}
-    #     (filename, filepath, env, expected_module, argv,
-    #      cwd) = self.get_test_info(source)
-
-    #     with DebugClient(port=PORT, connecttimeout=CONNECT_TIMEOUT) as editor: # noqa
-    #         adapter, session = editor.host_local_debugger(
-    #             argv=argv + ["1", "Hello", "World"], env=env,
-    #             cwd=cwd, timeout=CONNECT_TIMEOUT)
-    #         terminated = session.get_awaiter_for_event('terminated')
-    #         thread_exit = session.get_awaiter_for_event('thread', lambda msg: msg.body.get("reason", "") == "exited") # noqa
-    #         with session.wait_for_event("exited"):
-    #             with session.wait_for_event("thread"):
-    #                 (
-    #                     req_initialize,
-    #                     req_launch,
-    #                     req_config,
-    #                     _,
-    #                     _,
-    #                     _,
-    #                 ) = lifecycle_handshake(
-    #                     session, "launch", options=options)
-
-    #         adapter.wait()
-    #         Awaitable.wait_all(terminated, thread_exit)
-
-    #     # Skipping the 'thread exited' and 'terminated' messages which
-    #     # may appear randomly in the received list.
-    #     received = list(_strip_newline_output_events(session.received))
-    #     self.assert_contains(
-    #         received,
-    #         [
-    #             self.new_version_event(session.received),
-    #             self.new_response(req_initialize.req, **INITIALIZE_RESPONSE),
-    #             self.new_event("initialized"),
-    #             self.new_response(req_launch.req),
-    #             self.new_response(req_config.req),
-    #             self.new_event(
-    #                 "process", **{
-    #                     "isLocalProcess": True,
-    #                     "systemProcessId": adapter.pid,
-    #                     "startMethod": "launch",
-    #                     "name": expected_module,
-    #                 }),
-    #             self.new_event("thread", reason="started", threadId=1),
-    #             self.new_event("output", category="stdout", output="4"),
-    #             self.new_event("output", category="stdout", output=expected_module), # noqa
-    #             self.new_event("output", category="stdout", output="1"),
-    #             self.new_event("output", category="stdout", output="Hello"),
-    #             self.new_event("output", category="stdout", output="World"),
-    #         ],
-    #     )
-
     def test_with_break_points(self):
         filename = os.path.join(TEST_FILES_DIR, 'output.py')
         cwd = os.path.dirname(filename)
@@ -149,164 +90,95 @@ class LaunchLifecycleTests(LifecycleTestsBase):
             ],
         )
 
-    # def test_with_break_points_across_files(self):
-    #     source = dedent("""
-    #         def do_something():
-    #             # <Token>
-    #             print("inside bar")
-    #         """)
-    #     bar_filepath = self.create_source_file("bar.py", source)
-    #     bp_line = self.find_line(bar_filepath, 'Token')
+    def test_with_break_points_across_files(self):
+        first_file = os.path.join(TEST_FILES_DIR, 'foo.py')
+        second_file = os.path.join(TEST_FILES_DIR, 'bar.py')
+        cwd = os.path.dirname(first_file)
+        expected_modules = [{
+            "reason": "new",
+            "module": {
+                "path": second_file,
+                "name": "bar"
+            }
+        }, {
+            "reason": "new",
+            "module": {
+                "path": first_file,
+                "name": "__main__"
+            }
+        }]
+        expected_stacktrace = {
+            "stackFrames": [{
+                "name": "do_bar",
+                "source": {
+                    "path": second_file,
+                    "sourceReference": 0
+                },
+                "line": 2,
+                "column": 1
+            }, {
+                "name": "do_foo",
+                "source": {
+                    "path": first_file,
+                    "sourceReference": 0
+                },
+                "line": 5,
+                "column": 1
+            }, {
+                "id": 3,
+                "name": "<module>",
+                "source": {
+                    "path": first_file,
+                    "sourceReference": 0
+                },
+                "line": 8,
+                "column": 1
+            }],
+        }
+        self.run_test_with_break_points_across_files(
+            DebugInfo(filename=first_file, cwd=cwd), first_file, second_file,
+            2, expected_modules, expected_stacktrace)
 
-    #     source_module = dedent("""
-    #         from . import bar
-    #         def foo():
-    #             # <Token>
-    #             bar.do_something()
-    #         foo()
-    #         """)
-    #     source_file = dedent("""
-    #         import bar
-    #         def foo():
-    #             # <Token>
-    #             bar.do_something()
-    #         foo()
-    #         """)
-    #     (filename, filepath, env, expected_module, argv,
-    #      cwd) = self.get_test_info(source_module
-    #                                if self.IS_MODULE else source_file)  # noqa
-    #     foo_line = self.find_line(filepath, 'Token')
+    def run_test_with_break_points_across_files(
+            self, debug_info, first_file, second_file, second_file_line,
+            expected_modules, expected_stacktrace):
+        breakpoints = [{
+            "source": {
+                "path": second_file
+            },
+            "breakpoints": [{
+                "line": second_file_line
+            }]
+        }]
 
-    #     breakpoints = [{
-    #         "source": {
-    #             "path": bar_filepath
-    #         },
-    #         "breakpoints": [{
-    #             "line": bp_line
-    #         }],
-    #         "lines": [bp_line]
-    #     }]
+        with self.start_debugging(debug_info) as dbg:
+            session = dbg.session
+            with session.wait_for_event("stopped") as result:
+                (
+                    _,
+                    req_launch_attach,
+                    _,
+                    _,
+                    _,
+                    _,
+                ) = lifecycle_handshake(
+                    session, debug_info.starttype, breakpoints=breakpoints)
 
-    #     with DebugClient(port=PORT, connecttimeout=CONNECT_TIMEOUT) as editor: # noqa
-    #         adapter, session = editor.host_local_debugger(
-    #             argv, env=env, cwd=cwd, timeout=CONNECT_TIMEOUT)
+                req_launch_attach.wait()
 
-    #         terminated = session.get_awaiter_for_event('terminated')
-    #         exited = session.get_awaiter_for_event('exited')
-    #         thread_exit = session.get_awaiter_for_event(
-    #             'thread',
-    #             lambda msg: msg.body.get("reason", "") == "exited")  # noqa
+            tid = result["msg"].body["threadId"]
+            stacktrace = session.send_request("stackTrace", threadId=tid)
+            stacktrace.wait()
+            session.send_request("continue", threadId=tid)
 
-    #         with session.wait_for_event("stopped") as result:
-    #             (
-    #                 req_initialize,
-    #                 req_launch,
-    #                 req_config,
-    #                 reqs_bps,
-    #                 _,
-    #                 _,
-    #             ) = lifecycle_handshake(
-    #                 session, "launch", breakpoints=breakpoints)
+        received = list(_strip_newline_output_events(session.received))
 
-    #         req_bps, = reqs_bps  # There should only be one.
-    #         tid = result["msg"].body["threadId"]
+        for mod in expected_modules:
+            found_mod = self.find_events(received, 'module', mod)
+            self.assertEqual(
+                len(found_mod), 1, 'Modul not found {}'.format(mod))
 
-    #         stacktrace = session.send_request("stackTrace", threadId=tid)
-    #         with session.wait_for_event("continued"):
-    #             cont = session.send_request("continue", threadId=tid)
-
-    #         adapter.wait()
-    #         Awaitable.wait_all(exited, terminated, stacktrace, exited,
-    #                            thread_exit)  # noqa
-
-    #     received = list(_strip_newline_output_events(session.received))
-
-    #     # One for foo and one for bar, others for Python/ptvsd stuff.
-    #     module_events = self.find_events(received, 'module')
-    #     self.assertGreaterEqual(len(module_events), 2)
-
-    #     self.assert_message_is_subset(
-    #         module_events[0],
-    #         self.new_event(
-    #             "module",
-    #             module={
-    #                 "id": 1,
-    #                 "name": "mymod.bar" if self.IS_MODULE else "bar",
-    #             },
-    #             reason="new",
-    #         ))
-
-    #     # TODO: Check for foo.
-
-    #     self.assertGreaterEqual(stacktrace.resp.body["totalFrames"], 1)
-    #     self.assert_message_is_subset(
-    #         stacktrace.resp,
-    #         self.new_response(
-    #             stacktrace.req,
-    #             **{
-    #                 # We get Python and PTVSD frames as well.
-    #                 # "totalFrames": 2,
-    #                 "stackFrames": [
-    #                     {
-    #                         "id": 1,
-    #                         "name": "do_something",
-    #                         "source": {
-    #                             # "path": bar_filepath,
-    #                             "sourceReference": 0
-    #                         },
-    #                         "line": bp_line,
-    #                         "column": 1,
-    #                     },
-    #                     {
-    #                         "id": 2,
-    #                         "name": "foo",
-    #                         "source": {
-    #                             # "path": filepath,
-    #                             "sourceReference": 0
-    #                         },
-    #                         "line": foo_line,
-    #                         "column": 1,
-    #                     }
-    #                 ],
-    #             }))
-
-    #     # Skipping the 'thread exited' and 'terminated' messages which
-    #     # may appear randomly in the received list.
-    #     self.assert_contains(
-    #         received,
-    #         [
-    #             self.new_version_event(session.received),
-    #             self.new_response(req_initialize.req, **INITIALIZE_RESPONSE),
-    #             self.new_event("initialized"),
-    #             self.new_response(req_launch.req),
-    #             self.new_response(
-    #                 req_bps.req, **{
-    #                     "breakpoints": [{
-    #                         "id": 1,
-    #                         "line": bp_line,
-    #                         "verified": True
-    #                     }]
-    #                 }),
-    #             self.new_response(req_config.req),
-    #             self.new_event(
-    #                 "process", **{
-    #                     "isLocalProcess": True,
-    #                     "systemProcessId": adapter.pid,
-    #                     "startMethod": "launch",
-    #                     "name": expected_module,
-    #                 }),
-    #             self.new_event("thread", reason="started", threadId=tid),
-    #             self.new_event(
-    #                 "stopped",
-    #                 reason="breakpoint",
-    #                 threadId=tid,
-    #                 text=None,
-    #                 description=None,
-    #             ),
-    #             self.new_response(cont.req),
-    #             self.new_event("continued", threadId=tid),
-    #         ],
-    #     )
+        self.assert_is_subset(stacktrace.resp, expected_stacktrace)
 
     # def test_with_log_points(self):
     #     source = dedent("""
@@ -557,6 +429,58 @@ class LaunchModuleLifecycleTests(LaunchLifecycleTests):
             bp_filename,
             bp_line=3)
 
+    def test_with_break_points_across_files(self):
+        module_name = 'mymod_foo'
+        first_file = os.path.join(TEST_FILES_DIR, module_name, '__init__.py')
+        second_file = os.path.join(TEST_FILES_DIR, 'mymod_bar', 'bar.py')
+        cwd = os.path.join(TEST_FILES_DIR)
+        env = {"PYTHONPATH": cwd}
+        expected_modules = [{
+            "reason": "new",
+            "module": {
+                "package": "mymod_bar",
+                "path": second_file,
+                "name": "mymod_bar.bar"
+            }
+        }, {
+            "reason": "new",
+            "module": {
+                "path": first_file,
+                "name": "__main__"
+            }
+        }]
+        expected_stacktrace = {
+            "stackFrames": [{
+                "name": "do_bar",
+                "source": {
+                    "path": second_file,
+                    "sourceReference": 0
+                },
+                "line": 2,
+                "column": 1
+            }, {
+                "name": "do_foo",
+                "source": {
+                    "path": first_file,
+                    "sourceReference": 0
+                },
+                "line": 5,
+                "column": 1
+            }, {
+                "id": 3,
+                "name": "<module>",
+                "source": {
+                    "path": first_file,
+                    "sourceReference": 0
+                },
+                "line": 8,
+                "column": 1
+            }],
+        }
+        self.run_test_with_break_points_across_files(
+            DebugInfo(modulename=module_name, cwd=cwd, env=env), first_file,
+            second_file, 2, expected_modules, expected_stacktrace)
+
 
 class ServerAttachLifecycleTests(LaunchLifecycleTests):
     def test_with_break_points(self):
@@ -569,11 +493,14 @@ class ServerAttachLifecycleTests(LaunchLifecycleTests):
             filename,
             bp_line=3)
 
+    @unittest.skip('Not required')
+    def test_with_break_points_across_files(self):
+        pass
+
 
 class PTVSDAttachLifecycleTests(LaunchLifecycleTests):
     def test_with_break_points(self):
-        filename = os.path.join(TEST_FILES_DIR,
-                                'attach_output.py')
+        filename = os.path.join(TEST_FILES_DIR, 'attach_output.py')
         cwd = os.path.dirname(filename)
         argv = ['localhost', str(PORT)]
         self.run_test_with_break_points(
@@ -585,6 +512,10 @@ class PTVSDAttachLifecycleTests(LaunchLifecycleTests):
                 argv=argv),
             filename,
             bp_line=6)
+
+    @unittest.skip('Not required')
+    def test_with_break_points_across_files(self):
+        pass
 
 
 class ServerAttachModuleLifecycleTests(LaunchLifecycleTests):  # noqa
@@ -603,6 +534,10 @@ class ServerAttachModuleLifecycleTests(LaunchLifecycleTests):  # noqa
                 starttype='attach'),
             bp_filename,
             bp_line=3)
+
+    @unittest.skip('Not required')
+    def test_with_break_points_across_files(self):
+        pass
 
 
 @unittest.skip('Needs fixing')
@@ -623,3 +558,7 @@ class PTVSDAttachModuleLifecycleTests(LaunchLifecycleTests):  # noqa
                 starttype='attach'),
             bp_filename,
             bp_line=6)
+
+    @unittest.skip('Not required')
+    def test_with_break_points_across_files(self):
+        pass

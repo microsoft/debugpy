@@ -96,11 +96,9 @@ class LaunchLifecycleTests(LifecycleTestsBase):
 
         received = list(_strip_newline_output_events(dbg.session.received))
 
-        def output_filter(body):
-            return body.get('category', '') in ('stdout', 'stderr')
-
-        output_events = self.find_events(received, 'output', output_filter)
-        self.assertEqual(len(output_events), 0)
+        out = self.find_events(received, 'output', {'category': 'stdout'})
+        err = self.find_events(received, 'output', {'category': 'stderr'})
+        self.assertEqual(len(out + err), 0)
 
     def test_without_output(self):
         filename = os.path.join(TEST_FILES_DIR, 'test_without_output',
