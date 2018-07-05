@@ -45,6 +45,7 @@ class LaunchExceptionLifecycleTests(LifecycleTestsBase):
         options = {"debugOptions": ["RedirectOutput"]}
 
         with self.start_debugging(debug_info) as dbg:
+            stopped = dbg.session.get_awaiter_for_event('stopped')
             (_, req_launch_attach, _, _, _, _) = lifecycle_handshake(
                 dbg.session,
                 debug_info.starttype,
@@ -52,10 +53,7 @@ class LaunchExceptionLifecycleTests(LifecycleTestsBase):
                 options=options,
                 threads=True)
 
-            req_launch_attach.wait()
-
-            stopped = dbg.session.get_awaiter_for_event('stopped')
-            stopped.wait()
+            Awaitable.wait_all(req_launch_attach, stopped)
             self.assertEqual(stopped.event.body["text"], "ArithmeticError")
             self.assertIn("ArithmeticError('Hello'",
                           stopped.event.body["description"])

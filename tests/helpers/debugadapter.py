@@ -89,6 +89,19 @@ def wait_for_socket_server(addr, timeout=3.0, **kwargs):
             raise ConnectionRefusedError('Timeout waiting for connection')
 
 
+def wait_for_port_to_free(port, timeout=3.0):
+    start_time = time.time()
+    while True:
+        try:
+            sock = socket.create_connection(('localhost', port))
+            sock.close()
+        except Exception:
+            return
+        time.sleep(0.1)
+        if time.time() - start_time > timeout:
+            raise ConnectionRefusedError('Timeout waiting for port to be free')
+
+
 class DebugAdapter(Closeable):
 
     VERBOSE = False
@@ -105,38 +118,32 @@ class DebugAdapter(Closeable):
             argv = list(argv)
             cls._ensure_addr(argv, addr)
             return Proc.start_python_module(
-                'ptvsd',
-                argv,
-                env=env_vars,
-                cwd=cwd,
-                **kwds
-            )
+                'ptvsd', argv, env=env_vars, cwd=cwd, **kwds)
+
         return cls._start(new_proc, argv, **kwargs)
 
     @classmethod
-    def start_wrapper_script(cls, filename, argv, env=None, cwd=None, **kwargs): # noqa
+    def start_wrapper_script(cls, filename, argv, env=None, cwd=None,
+                             **kwargs):  # noqa
         def new_proc(argv, addr, **kwds):
             env_vars = _copy_env(verbose=cls.VERBOSE, env=env)
             return Proc.start_python_script(
-                filename,
-                argv,
-                env=env_vars,
-                cwd=cwd,
-                **kwds
-            )
+                filename, argv, env=env_vars, cwd=cwd, **kwds)
+
         return cls._start(new_proc, argv, **kwargs)
 
     @classmethod
-    def start_wrapper_module(cls, modulename, argv, env=None, cwd=None, **kwargs): # noqa
+    def start_wrapper_module(cls,
+                             modulename,
+                             argv,
+                             env=None,
+                             cwd=None,
+                             **kwargs):  # noqa
         def new_proc(argv, addr, **kwds):
             env_vars = _copy_env(verbose=cls.VERBOSE, env=env)
             return Proc.start_python_module(
-                modulename,
-                argv,
-                env=env_vars,
-                cwd=cwd,
-                **kwds
-            )
+                modulename, argv, env=env_vars, cwd=cwd, **kwds)
+
         return cls._start(new_proc, argv, **kwargs)
 
     # specific factory cases
@@ -169,7 +176,12 @@ class DebugAdapter(Closeable):
         return adapter
 
     @classmethod
-    def _start_as(cls, addr, name, kind='script', extra=None, server=False,
+    def _start_as(cls,
+                  addr,
+                  name,
+                  kind='script',
+                  extra=None,
+                  server=False,
                   **kwargs):
         argv = []
         if server:
@@ -192,11 +204,7 @@ class DebugAdapter(Closeable):
             # TODO: Handle this case somehow?
             assert 'ptvsd.enable_attach' in content
         adapter = cls.start_wrapper_script(
-            filename,
-            argv=argv,
-            addr=addr,
-            **kwargs
-        )
+            filename, argv=argv, addr=addr, **kwargs)
         wait_for_socket_server(addr, **kwargs)
         return adapter
 

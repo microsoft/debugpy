@@ -8,14 +8,15 @@ from . import Closeable
 from .debugadapter import DebugAdapter, wait_for_socket_server
 from .debugsession import DebugSession
 
-
 # TODO: Add a helper function to start a remote debugger for testing
 # remote debugging?
 
 
 class _LifecycleClient(Closeable):
-
-    def __init__(self, addr=None, port=8888, breakpoints=None,
+    def __init__(self,
+                 addr=None,
+                 port=8888,
+                 breakpoints=None,
                  connecttimeout=1.0):
         super(_LifecycleClient, self).__init__()
         self._addr = Address.from_raw(addr, defaultport=port)
@@ -101,12 +102,19 @@ class _LifecycleClient(Closeable):
         if self._adapter is not None:
             self._adapter.close()
 
-    def _launch(self, argv, script=None, wait_for_connect=None,
-                detachable=True, env=None, cwd=None, **kwargs):
+    def _launch(self,
+                argv,
+                script=None,
+                wait_for_connect=None,
+                detachable=True,
+                env=None,
+                cwd=None,
+                **kwargs):
         if script is not None:
+
             def start(*args, **kwargs):
-                return DebugAdapter.start_wrapper_script(script,
-                                                         *args, **kwargs)
+                return DebugAdapter.start_wrapper_script(
+                    script, *args, **kwargs)
         else:
             start = DebugAdapter.start
         new_addr = Address.as_server if detachable else Address.as_client
@@ -138,7 +146,6 @@ class DebugClient(_LifecycleClient):
 
 
 class EasyDebugClient(DebugClient):
-
     def start_detached(self, argv):
         """Start an adapter in a background process."""
         if self.closed:
@@ -151,7 +158,12 @@ class EasyDebugClient(DebugClient):
         self._adapter = DebugAdapter.start(argv, port=self._port)
         return self._adapter
 
-    def host_local_debugger(self, argv, script=None, env=None, cwd=None, **kwargs): # noqa
+    def host_local_debugger(self,
+                            argv,
+                            script=None,
+                            env=None,
+                            cwd=None,
+                            **kwargs):  # noqa
         if self.closed:
             raise RuntimeError('debug client closed')
         if self._adapter is not None:
@@ -161,6 +173,7 @@ class EasyDebugClient(DebugClient):
 
         def run():
             self._session = DebugSession.create_server(addr, **kwargs)
+
         t = new_hidden_thread(
             target=run,
             name='test.client',
@@ -172,16 +185,17 @@ class EasyDebugClient(DebugClient):
             if t.is_alive():
                 warnings.warn('timed out waiting for connection')
             if self._session is None:
-                raise RuntimeError('unable to connect')
+                raise RuntimeError('unable to connect after {} secs'.format(
+                    self._connecttimeout))
             # The adapter will close when the connection does.
+
         self._launch(
             argv,
             script=script,
             wait_for_connect=wait,
             detachable=False,
             env=env,
-            cwd=cwd
-        )
+            cwd=cwd)
 
         return self._adapter, self._session
 
@@ -208,7 +222,8 @@ class EasyDebugClient(DebugClient):
         assert self._session is None
 
         argv = [
-            '-m', module,
+            '-m',
+            module,
         ] + list(argv)
         if kwargs.pop('nodebug', False):
             argv.insert(0, '--nodebug')

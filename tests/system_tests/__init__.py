@@ -2,11 +2,12 @@ import contextlib
 import os
 import ptvsd
 import signal
+import time
 import unittest
 
 from collections import namedtuple
 from ptvsd.socket import Address
-from tests.helpers.debugadapter import DebugAdapter
+from tests.helpers.debugadapter import DebugAdapter, wait_for_port_to_free
 from tests.helpers.debugclient import EasyDebugClient as DebugClient
 from tests.helpers.script import find_line
 from tests.helpers.threading import get_locked_and_waiter
@@ -17,7 +18,7 @@ from tests.helpers.vsc import parse_message, VSCMessages, Response, Event  # noq
 ROOT = os.path.dirname(os.path.dirname(ptvsd.__file__))
 PORT = 9876
 CONNECT_TIMEOUT = 3.0
-
+DELAY_WAITING_FOR_SOCKETS = 1.0
 
 DebugInfo = namedtuple('DebugInfo', 'port starttype argv filename modulename env cwd attachtype')  # noqa
 DebugInfo.__new__.__defaults__ = (9876, 'launch', []) + ((None, ) * (len(DebugInfo._fields) - 3))  # noqa
@@ -218,6 +219,7 @@ class LifecycleTestsBase(TestsBase, unittest.TestCase):
         addr = Address('localhost', debug_info.port)
         cwd = debug_info.cwd
         env = debug_info.env
+        wait_for_port_to_free(debug_info.port)
 
         def _kill_proc(pid):
             """If debugger does not end gracefully, then kill proc and
@@ -229,6 +231,25 @@ class LifecycleTestsBase(TestsBase, unittest.TestCase):
             import time
             time.sleep(1) # wait for socket connections to die out. # noqa
 
+        def _wrap_and_reraise(ex, session):
+            messages = []
+            try:
+                messages = [str(msg) for msg in
+                            _strip_newline_output_events(session.received)]
+            except Exception:
+                pass
+
+            messages = os.linesep.join(messages)
+            try:
+                raise Exception(messages) from ex
+            except Exception:
+                print(messages)
+                raise ex
+
+        def _handle_exception(ex, adapter, session):
+            _kill_proc(adapter.pid)
+            _wrap_and_reraise(ex, session)
+
         if debug_info.attachtype == 'import' and \
             debug_info.modulename is not None:
             argv = debug_info.argv
@@ -238,13 +259,13 @@ class LifecycleTestsBase(TestsBase, unittest.TestCase):
                     env=env,
                     cwd=cwd) as adapter:
                 with DebugClient() as editor:
+                    time.sleep(DELAY_WAITING_FOR_SOCKETS)
                     session = editor.attach_socket(addr, adapter)
                     try:
                         yield Debugger(session=session, adapter=adapter)
                         adapter.wait()
-                    except Exception:
-                        _kill_proc(adapter.pid)
-                        raise
+                    except Exception as ex:
+                        _handle_exception(ex, adapter, session)
         elif debug_info.attachtype == 'import' and \
             debug_info.starttype == 'attach' and \
             debug_info.filename is not None:
@@ -256,13 +277,13 @@ class LifecycleTestsBase(TestsBase, unittest.TestCase):
                     env=env,
                     cwd=cwd) as adapter:
                 with DebugClient() as editor:
+                    time.sleep(DELAY_WAITING_FOR_SOCKETS)
                     session = editor.attach_socket(addr, adapter)
                     try:
                         yield Debugger(session=session, adapter=adapter)
                         adapter.wait()
-                    except Exception:
-                        _kill_proc(adapter.pid)
-                        raise
+                    except Exception as ex:
+                        _handle_exception(ex, adapter, session)
         elif debug_info.starttype == 'attach':
             if debug_info.modulename is None:
                 name = debug_info.filename
@@ -279,13 +300,13 @@ class LifecycleTestsBase(TestsBase, unittest.TestCase):
                     env=env,
                     cwd=cwd) as adapter:
                 with DebugClient() as editor:
+                    time.sleep(DELAY_WAITING_FOR_SOCKETS)
                     session = editor.attach_socket(addr, adapter)
                     try:
                         yield Debugger(session=session, adapter=adapter)
                         adapter.wait()
-                    except Exception:
-                        _kill_proc(adapter.pid)
-                        raise
+                    except Exception as ex:
+                        _handle_exception(ex, adapter, session)
         else:
             if debug_info.filename is None:
                 argv = ["-m", debug_info.modulename] + debug_info.argv
@@ -294,14 +315,14 @@ class LifecycleTestsBase(TestsBase, unittest.TestCase):
             with DebugClient(
                     port=debug_info.port,
                     connecttimeout=CONNECT_TIMEOUT) as editor:
+                time.sleep(DELAY_WAITING_FOR_SOCKETS)
                 adapter, session = editor.host_local_debugger(
                     argv, cwd=cwd, env=env)
                 try:
                     yield Debugger(session=session, adapter=adapter)
                     adapter.wait()
-                except Exception:
-                    _kill_proc(adapter.pid)
-                    raise
+                except Exception as ex:
+                    _handle_exception(ex, adapter, session)
 
     @property
     def messages(self):
