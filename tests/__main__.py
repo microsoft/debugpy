@@ -190,9 +190,12 @@ def run_tests(argv, env, coverage, junit_xml):
     elif junit_xml:
         from xmlrunner import XMLTestRunner  # noqa
         os.environ.update(env)
+        verbosity = 1
+        if '-v' in argv or '--verbose' in argv:
+            verbosity = 2
         with open(junit_xml, 'wb') as output:
             unittest.main(
-                testRunner=XMLTestRunner(output=output),
+                testRunner=XMLTestRunner(output=output, verbosity=verbosity),
                 module=None,
                 argv=argv,
             )
