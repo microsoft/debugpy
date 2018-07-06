@@ -685,7 +685,7 @@ class PyDB:
             # If the step command is not specified, set it to step into
             # to make sure it'll break as soon as possible.
             info.pydev_step_cmd = CMD_STEP_INTO
-        
+
         thread.stop_reason = stop_reason
 
         # If conditional breakpoint raises any exception during evaluation send details to Java
@@ -1244,7 +1244,7 @@ def settrace(
     @param patch_multiprocessing: if True we'll patch the functions which create new processes so that launched
         processes are debugged.
 
-    @param stop_at_frame: if passed it'll stop at the given frame, otherwise it'll stop in the function which 
+    @param stop_at_frame: if passed it'll stop at the given frame, otherwise it'll stop in the function which
         called this method.
     '''
     _set_trace_lock.acquire()
