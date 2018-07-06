@@ -61,9 +61,12 @@ class PathUtilTests(unittest.TestCase):
                      "Windows OS specific test")
     def test_path_names_uppercase_disabled(self):
         tool = PathUnNormcase()
-        result = tool.un_normcase(FILENAME.upper())
+        expected = FILENAME.upper()
+        result = tool.un_normcase(expected)
 
-        self.assertEqual(result, FILENAME)
+        # Since path tool is disabled we should get the same
+        # path back
+        self.assertEqual(result, expected)
 
     @unittest.skipIf(platform.system() != 'Windows',
                      "Windows OS specific test")
@@ -78,9 +81,12 @@ class PathUtilTests(unittest.TestCase):
                      "Windows OS specific test")
     def test_path_names_lowercase_disabled(self):
         tool = PathUnNormcase()
-        result = tool.un_normcase(FILENAME.lower())
+        expected = FILENAME.lower()
+        result = tool.un_normcase(expected)
 
-        self.assertEqual(result, FILENAME)
+        # Since path tool is disabled we should get the same
+        # path back
+        self.assertEqual(result, expected)
 
     @unittest.skipIf(platform.system() != 'Windows',
                      "Windows OS specific test")
