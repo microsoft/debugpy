@@ -180,6 +180,74 @@ class LaunchLifecycleTests(LifecycleTestsBase):
 
         self.assert_is_subset(stacktrace.resp, expected_stacktrace)
 
+    def test_conditional_break_points(self):
+        filename = os.path.join(TEST_FILES_DIR, 'loopy.py')
+        cwd = os.path.dirname(filename)
+        self.run_test_conditional_break_points(
+            DebugInfo(filename=filename, cwd=cwd))
+
+    def run_test_conditional_break_points(self, debug_info):
+        breakpoints = [{
+            "source": {
+                "path": debug_info.filename
+            },
+            "breakpoints": [{
+                "line": 4,
+                "condition": "i == 2"
+            }],
+            "lines": [4]
+        }]
+
+        with self.start_debugging(debug_info) as dbg:
+            session = dbg.session
+            with session.wait_for_event("stopped") as result:
+                (
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                ) = lifecycle_handshake(
+                    session, debug_info.starttype, breakpoints=breakpoints)
+
+            tid = result["msg"].body["threadId"]
+            stacktrace = session.send_request("stackTrace", threadId=tid)
+            stacktrace.wait()
+
+            frame_id = stacktrace.resp.body["stackFrames"][0]["id"]
+            scopes = session.send_request('scopes', frameId=frame_id)
+            scopes.wait()
+            variables_reference = scopes.resp.body["scopes"][0][
+                "variablesReference"]
+            variables = session.send_request(
+                'variables', variablesReference=variables_reference)
+            variables.wait()
+            session.send_request("continue", threadId=tid)
+
+        self.assert_is_subset(variables.resp.body["variables"],
+                              [{
+                                  "name": "a",
+                                  "type": "int",
+                                  "value": "1",
+                                  "evaluateName": "a"
+                              }, {
+                                  "name": "b",
+                                  "type": "int",
+                                  "value": "2",
+                                  "evaluateName": "b"
+                              }, {
+                                  "name": "c",
+                                  "type": "int",
+                                  "value": "1",
+                                  "evaluateName": "c"
+                              }, {
+                                  "name": "i",
+                                  "type": "int",
+                                  "value": "2",
+                                  "evaluateName": "i"
+                              }])
+
     # def test_with_log_points(self):
     #     source = dedent("""
     #         print('foo')
@@ -481,6 +549,10 @@ class LaunchModuleLifecycleTests(LaunchLifecycleTests):
             DebugInfo(modulename=module_name, cwd=cwd, env=env), first_file,
             second_file, 2, expected_modules, expected_stacktrace)
 
+    @unittest.skip('Not required')
+    def test_conditional_break_points(self):
+        pass
+
 
 class ServerAttachLifecycleTests(LaunchLifecycleTests):
     def test_with_break_points(self):
@@ -495,6 +567,10 @@ class ServerAttachLifecycleTests(LaunchLifecycleTests):
 
     @unittest.skip('Not required')
     def test_with_break_points_across_files(self):
+        pass
+
+    @unittest.skip('Not required')
+    def test_conditional_break_points(self):
         pass
 
 
@@ -515,6 +591,10 @@ class PTVSDAttachLifecycleTests(LaunchLifecycleTests):
 
     @unittest.skip('Not required')
     def test_with_break_points_across_files(self):
+        pass
+
+    @unittest.skip('Not required')
+    def test_conditional_break_points(self):
         pass
 
 
@@ -539,6 +619,10 @@ class ServerAttachModuleLifecycleTests(LaunchLifecycleTests):  # noqa
     def test_with_break_points_across_files(self):
         pass
 
+    @unittest.skip('Not required')
+    def test_conditional_break_points(self):
+        pass
+
 
 @unittest.skip('Needs fixing')
 class PTVSDAttachModuleLifecycleTests(LaunchLifecycleTests):  # noqa
@@ -561,4 +645,8 @@ class PTVSDAttachModuleLifecycleTests(LaunchLifecycleTests):  # noqa
 
     @unittest.skip('Not required')
     def test_with_break_points_across_files(self):
+        pass
+
+    @unittest.skip('Not required')
+    def test_conditional_break_points(self):
         pass
