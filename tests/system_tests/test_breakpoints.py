@@ -248,242 +248,49 @@ class LaunchLifecycleTests(LifecycleTestsBase):
                                   "evaluateName": "i"
                               }])
 
-    # def test_with_log_points(self):
-    #     source = dedent("""
-    #         print('foo')
-    #         a = 1
-    #         for i in range(2):
-    #             # <Token>
-    #             b = i
-    #         print('bar')
-    #         """)
-    #     (filename, filepath, env, expected_module, argv,
-    #      cwd) = self.get_test_info(source)
-    #     bp_line = self.find_line(filepath, 'Token')
-    #     breakpoints = [{
-    #         "source": {
-    #             "path": filepath,
-    #             "name": filename
-    #         },
-    #         "breakpoints": [{
-    #             "line": bp_line,
-    #             "logMessage": "{a + i}"
-    #         }],
-    #         "lines": [bp_line]
-    #     }]
-    #     options = {"debugOptions": ["RedirectOutput"]}
+    def test_logpoints(self):
+        filename = os.path.join(TEST_FILES_DIR, 'loopy.py')
+        cwd = os.path.dirname(filename)
+        self.run_test_logpoints(DebugInfo(filename=filename, cwd=cwd))
 
-    #     with DebugClient(port=PORT, connecttimeout=CONNECT_TIMEOUT) as editor: # noqa
-    #         adapter, session = editor.host_local_debugger(
-    #             argv, env=env, cwd=cwd, timeout=CONNECT_TIMEOUT)
-    #         exited = session.get_awaiter_for_event('exited')
-    #         thread_exit = session.get_awaiter_for_event(
-    #             'thread',
-    #             lambda msg: msg.body.get("reason", "") == "exited")  # noqa
-    #         with session.wait_for_event("terminated"):
-    #             (
-    #                 req_initialize,
-    #                 req_launch,
-    #                 req_config,
-    #                 reqs_bps,
-    #                 _,
-    #                 _,
-    #             ) = lifecycle_handshake(
-    #                 session,
-    #                 "launch",
-    #                 breakpoints=breakpoints,
-    #                 options=options)
-    #             req_bps, = reqs_bps  # There should only be one.
+    def run_test_logpoints(self, debug_info):
+        options = {"debugOptions": ["RedirectOutput"]}
+        breakpoints = [{
+            "source": {
+                "path": debug_info.filename
+            },
+            "breakpoints": [{
+                "line": 4,
+                "logMessage": "Sum of a + i = {a + i}"
+            }],
+            "lines": [4]
+        }]
 
-    #         adapter.wait()
-    #         Awaitable.wait_all(exited, thread_exit)
+        with self.start_debugging(debug_info) as dbg:
+            session = dbg.session
+            (
+                _,
+                _,
+                _,
+                _,
+                _,
+                _,
+            ) = lifecycle_handshake(
+                session,
+                debug_info.starttype,
+                options=options,
+                breakpoints=breakpoints)
 
-    #     # Skipping the 'thread exited' and 'terminated' messages which
-    #     # may appear randomly in the received list.
-    #     received = list(_strip_newline_output_events(session.received))
-    #     self.assert_contains(
-    #         received,
-    #         [
-    #             self.new_version_event(session.received),
-    #             self.new_response(req_initialize.req, **INITIALIZE_RESPONSE),
-    #             self.new_event("initialized"),
-    #             self.new_response(req_launch.req),
-    #             self.new_response(
-    #                 req_bps.req, **{
-    #                     "breakpoints": [{
-    #                         "id": 1,
-    #                         "line": bp_line,
-    #                         "verified": True
-    #                     }]
-    #                 }),
-    #             self.new_response(req_config.req),
-    #             self.new_event(
-    #                 "process", **{
-    #                     "isLocalProcess": True,
-    #                     "systemProcessId": adapter.pid,
-    #                     "startMethod": "launch",
-    #                     "name": expected_module,
-    #                 }),
-    #             self.new_event("thread", reason="started", threadId=1),
-    #             self.new_event("output", category="stdout", output="foo"),
-    #             self.new_event(
-    #                 "output", category="stdout",
-    #                 output="1" + os.linesep),  # noqa
-    #             self.new_event(
-    #                 "output", category="stdout",
-    #                 output="2" + os.linesep),  # noqa
-    #             self.new_event("output", category="stdout", output="bar"),
-    #         ],
-    #     )
+        received = list(_strip_newline_output_events(session.received))
+        expected_events = [
+            self.new_event(
+                "output",
+                category="stdout",
+                output="Sum of a + i = {}{}".format(i + 1, os.linesep))
+            for i in range(5)
+        ]
 
-    # def test_with_conditional_break_points(self):
-    #     source = dedent("""
-    #         a = 1
-    #         b = 2
-    #         for i in range(5):
-    #             # <Token>
-    #             print(i)
-    #         """)
-    #     (filename, filepath, env, expected_module, argv,
-    #      cwd) = self.get_test_info(source)
-    #     bp_line = self.find_line(filepath, 'Token')
-    #     breakpoints = [{
-    #         "source": {
-    #             "path": filepath,
-    #             "name": filename
-    #         },
-    #         "breakpoints": [{
-    #             "line": bp_line,
-    #             "condition": "i == 2"
-    #         }],
-    #         "lines": [bp_line]
-    #     }]
-    #     options = {"debugOptions": ["RedirectOutput"]}
-
-    #     with DebugClient(port=PORT, connecttimeout=CONNECT_TIMEOUT) as editor: # noqa
-    #         adapter, session = editor.host_local_debugger(
-    #             argv, env=env, cwd=cwd, timeout=CONNECT_TIMEOUT)
-
-    #         exited = session.get_awaiter_for_event('exited')
-    #         terminated = session.get_awaiter_for_event('terminated')
-    #         thread_exit = session.get_awaiter_for_event(
-    #             'thread',
-    #             lambda msg: msg.body.get("reason", "") == "exited")  # noqa
-
-    #         with session.wait_for_event("stopped") as result:
-    #             (
-    #                 req_initialize,
-    #                 req_launch,
-    #                 req_config,
-    #                 reqs_bps,
-    #                 _,
-    #                 _,
-    #             ) = lifecycle_handshake(
-    #                 session,
-    #                 "launch",
-    #                 breakpoints=breakpoints,
-    #                 options=options)
-    #         req_bps, = reqs_bps  # There should only be one.
-    #         tid = result["msg"].body["threadId"]
-
-    #         stacktrace = session.send_request(
-    #             "stackTrace", threadId=tid, wait=True)  # noqa
-
-    #         with session.wait_for_event("continued"):
-    #             cont = session.send_request("continue", threadId=tid)
-
-    #         adapter.wait()
-    #         Awaitable.wait_all(terminated, exited, thread_exit)
-
-    #     received = list(_strip_newline_output_events(session.received))
-
-    #     self.assertGreaterEqual(stacktrace.resp.body["totalFrames"], 1)
-    #     self.assert_message_is_subset(
-    #         stacktrace.resp,
-    #         self.new_response(
-    #             stacktrace.req, **{
-    #                 "stackFrames": [{
-    #                     "id": 1,
-    #                     "name": "<module>",
-    #                     "source": {
-    #                         "path": filepath,
-    #                         "sourceReference": 0
-    #                     },
-    #                     "line": bp_line,
-    #                     "column": 1,
-    #                 }],
-    #             }))
-
-    #     # Skipping the 'thread exited' and 'terminated' messages which
-    #     # may appear randomly in the received list.
-    #     self.assert_contains(
-    #         received,
-    #         [
-    #             self.new_version_event(session.received),
-    #             self.new_response(req_initialize.req, **INITIALIZE_RESPONSE),
-    #             self.new_event("initialized"),
-    #             self.new_response(req_launch.req),
-    #             self.new_response(
-    #                 req_bps.req, **{
-    #                     "breakpoints": [{
-    #                         "id": 1,
-    #                         "line": bp_line,
-    #                         "verified": True
-    #                     }]
-    #                 }),
-    #             self.new_response(req_config.req),
-    #             self.new_event(
-    #                 "process", **{
-    #                     "isLocalProcess": True,
-    #                     "systemProcessId": adapter.pid,
-    #                     "startMethod": "launch",
-    #                     "name": expected_module,
-    #                 }),
-    #             self.new_event("thread", reason="started", threadId=tid),
-    #             self.new_event("output", category="stdout", output="0"),
-    #             self.new_event("output", category="stdout", output="1"),
-    #             self.new_event(
-    #                 "stopped",
-    #                 reason="breakpoint",
-    #                 threadId=tid,
-    #                 text=None,
-    #                 description=None,
-    #             ),
-    #             self.new_response(cont.req),
-    #             self.new_event("continued", threadId=tid),
-    #             self.new_event("output", category="stdout", output="2"),
-    #             self.new_event("output", category="stdout", output="3"),
-    #             self.new_event("output", category="stdout", output="4"),
-    #         ],
-    #     )
-
-    # @unittest.skip('To be fixed in #530')
-    # def test_terminating_program(self):
-    #     source = dedent("""
-    #         import time
-
-    #         while True:
-    #             time.sleep(0.1)
-    #         """)
-    #     (filename, filepath, env, expected_module, argv,
-    #      module_name) = self.get_test_info(source)
-
-    #     with DebugClient(port=PORT, connecttimeout=CONNECT_TIMEOUT) as editor: # noqa
-    #         adapter, session = editor.host_local_debugger(argv)
-
-    #         exited = session.get_awaiter_for_event('exited')
-    #         terminated = session.get_awaiter_for_event('terminated')
-
-    #         (req_initialize, req_launch, req_config, _, _,
-    #          _) = lifecycle_handshake(  # noqa
-    #              session, "launch")
-
-    #         Awaitable.wait_all(req_launch,
-    #                            session.get_awaiter_for_event('thread'))  # noqa
-    #         disconnect = session.send_request("disconnect")
-
-    #         Awaitable.wait_all(exited, terminated, disconnect)
-    #         adapter.wait()
+        self.assert_contains(received, expected_events)
 
 
 class LaunchModuleLifecycleTests(LaunchLifecycleTests):
@@ -553,6 +360,10 @@ class LaunchModuleLifecycleTests(LaunchLifecycleTests):
     def test_conditional_break_points(self):
         pass
 
+    @unittest.skip('Not required')
+    def test_logpoints(self):
+        pass
+
 
 class ServerAttachLifecycleTests(LaunchLifecycleTests):
     def test_with_break_points(self):
@@ -571,6 +382,10 @@ class ServerAttachLifecycleTests(LaunchLifecycleTests):
 
     @unittest.skip('Not required')
     def test_conditional_break_points(self):
+        pass
+
+    @unittest.skip('Not required')
+    def test_logpoints(self):
         pass
 
 
@@ -595,6 +410,10 @@ class PTVSDAttachLifecycleTests(LaunchLifecycleTests):
 
     @unittest.skip('Not required')
     def test_conditional_break_points(self):
+        pass
+
+    @unittest.skip('Not required')
+    def test_logpoints(self):
         pass
 
 
@@ -623,6 +442,10 @@ class ServerAttachModuleLifecycleTests(LaunchLifecycleTests):  # noqa
     def test_conditional_break_points(self):
         pass
 
+    @unittest.skip('Not required')
+    def test_logpoints(self):
+        pass
+
 
 @unittest.skip('Needs fixing')
 class PTVSDAttachModuleLifecycleTests(LaunchLifecycleTests):  # noqa
@@ -649,4 +472,8 @@ class PTVSDAttachModuleLifecycleTests(LaunchLifecycleTests):  # noqa
 
     @unittest.skip('Not required')
     def test_conditional_break_points(self):
+        pass
+
+    @unittest.skip('Not required')
+    def test_logpoints(self):
         pass
