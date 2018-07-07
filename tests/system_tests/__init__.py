@@ -21,8 +21,8 @@ PORT = 9876
 CONNECT_TIMEOUT = 3.0
 DELAY_WAITING_FOR_SOCKETS = 1.0
 
-DebugInfo = namedtuple('DebugInfo', 'port starttype argv filename modulename env cwd attachtype')  # noqa
-DebugInfo.__new__.__defaults__ = (9876, 'launch', []) + ((None, ) * (len(DebugInfo._fields) - 3))  # noqa
+DebugInfo = namedtuple('DebugInfo', 'host port starttype argv filename modulename env cwd attachtype')  # noqa
+DebugInfo.__new__.__defaults__ = ('localhost', 9876, 'launch', []) + ((None, ) * (len(DebugInfo._fields) - 4))  # noqa
 
 
 Debugger = namedtuple('Debugger', 'session adapter')

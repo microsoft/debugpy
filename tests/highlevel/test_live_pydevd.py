@@ -378,7 +378,7 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
         self.assertIn('2 4 4', out)
         self.assertIn('ka-boom', err)
 
-    # @unittest.skip('not working right')
+    @unittest.skip('not working right #614')
     def test_exception_breakpoints(self):
         self.vsc.PRINT_RECEIVED_MESSAGES = True
         done, script = self._set_lock('h')
