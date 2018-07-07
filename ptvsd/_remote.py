@@ -28,6 +28,7 @@ def enable_attach(address,
     )
     # Only pass the port so start_server() gets triggered.
     _pydevd.settrace(
+        host=addr.host,
         stdoutToServer=redirect_output,
         stderrToServer=redirect_output,
         port=addr.port,
