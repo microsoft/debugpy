@@ -11,13 +11,7 @@ TEST_FILES_DIR = os.path.join(ROOT, 'tests', 'resources', 'system_tests',
                               'test_breakpoints')
 
 
-class LaunchLifecycleTests(LifecycleTestsBase):
-    def test_with_break_points(self):
-        filename = os.path.join(TEST_FILES_DIR, 'output.py')
-        cwd = os.path.dirname(filename)
-        self.run_test_with_break_points(
-            DebugInfo(filename=filename, cwd=cwd), filename, bp_line=3)
-
+class BreakpointTests(LifecycleTestsBase):
     def run_test_with_break_points(self, debug_info, bp_filename, bp_line):
         options = {"debugOptions": ["RedirectOutput"]}
         breakpoints = [{
@@ -90,55 +84,6 @@ class LaunchLifecycleTests(LifecycleTestsBase):
             ],
         )
 
-    def test_with_break_points_across_files(self):
-        first_file = os.path.join(TEST_FILES_DIR, 'foo.py')
-        second_file = os.path.join(TEST_FILES_DIR, 'bar.py')
-        cwd = os.path.dirname(first_file)
-        expected_modules = [{
-            "reason": "new",
-            "module": {
-                "path": second_file,
-                "name": "bar"
-            }
-        }, {
-            "reason": "new",
-            "module": {
-                "path": first_file,
-                "name": "__main__"
-            }
-        }]
-        expected_stacktrace = {
-            "stackFrames": [{
-                "name": "do_bar",
-                "source": {
-                    "path": second_file,
-                    "sourceReference": 0
-                },
-                "line": 2,
-                "column": 1
-            }, {
-                "name": "do_foo",
-                "source": {
-                    "path": first_file,
-                    "sourceReference": 0
-                },
-                "line": 5,
-                "column": 1
-            }, {
-                "id": 3,
-                "name": "<module>",
-                "source": {
-                    "path": first_file,
-                    "sourceReference": 0
-                },
-                "line": 8,
-                "column": 1
-            }],
-        }
-        self.run_test_with_break_points_across_files(
-            DebugInfo(filename=first_file, cwd=cwd), first_file, second_file,
-            2, expected_modules, expected_stacktrace)
-
     def run_test_with_break_points_across_files(
             self, debug_info, first_file, second_file, second_file_line,
             expected_modules, expected_stacktrace):
@@ -179,12 +124,6 @@ class LaunchLifecycleTests(LifecycleTestsBase):
                 len(found_mod), 1, 'Modul not found {}'.format(mod))
 
         self.assert_is_subset(stacktrace.resp, expected_stacktrace)
-
-    def test_conditional_break_points(self):
-        filename = os.path.join(TEST_FILES_DIR, 'loopy.py')
-        cwd = os.path.dirname(filename)
-        self.run_test_conditional_break_points(
-            DebugInfo(filename=filename, cwd=cwd))
 
     def run_test_conditional_break_points(self, debug_info):
         breakpoints = [{
@@ -248,11 +187,6 @@ class LaunchLifecycleTests(LifecycleTestsBase):
                                   "evaluateName": "i"
                               }])
 
-    def test_logpoints(self):
-        filename = os.path.join(TEST_FILES_DIR, 'loopy.py')
-        cwd = os.path.dirname(filename)
-        self.run_test_logpoints(DebugInfo(filename=filename, cwd=cwd))
-
     def run_test_logpoints(self, debug_info):
         options = {"debugOptions": ["RedirectOutput"]}
         breakpoints = [{
@@ -293,7 +227,75 @@ class LaunchLifecycleTests(LifecycleTestsBase):
         self.assert_contains(received, expected_events)
 
 
-class LaunchModuleLifecycleTests(LaunchLifecycleTests):
+class LaunchFileTests(BreakpointTests):
+    def test_with_break_points(self):
+        filename = os.path.join(TEST_FILES_DIR, 'output.py')
+        cwd = os.path.dirname(filename)
+        self.run_test_with_break_points(
+            DebugInfo(filename=filename, cwd=cwd), filename, bp_line=3)
+
+    def test_with_break_points_across_files(self):
+        first_file = os.path.join(TEST_FILES_DIR, 'foo.py')
+        second_file = os.path.join(TEST_FILES_DIR, 'bar.py')
+        cwd = os.path.dirname(first_file)
+        expected_modules = [{
+            "reason": "new",
+            "module": {
+                "path": second_file,
+                "name": "bar"
+            }
+        }, {
+            "reason": "new",
+            "module": {
+                "path": first_file,
+                "name": "__main__"
+            }
+        }]
+        expected_stacktrace = {
+            "stackFrames": [{
+                "name": "do_bar",
+                "source": {
+                    "path": second_file,
+                    "sourceReference": 0
+                },
+                "line": 2,
+                "column": 1
+            }, {
+                "name": "do_foo",
+                "source": {
+                    "path": first_file,
+                    "sourceReference": 0
+                },
+                "line": 5,
+                "column": 1
+            }, {
+                "id": 3,
+                "name": "<module>",
+                "source": {
+                    "path": first_file,
+                    "sourceReference": 0
+                },
+                "line": 8,
+                "column": 1
+            }],
+        }
+        self.run_test_with_break_points_across_files(
+            DebugInfo(filename=first_file, cwd=cwd), first_file, second_file,
+            2, expected_modules, expected_stacktrace)
+
+    def test_conditional_break_points(self):
+        filename = os.path.join(TEST_FILES_DIR, 'loopy.py')
+        cwd = os.path.dirname(filename)
+        self.run_test_conditional_break_points(
+            DebugInfo(filename=filename, cwd=cwd))
+
+    def test_logpoints(self):
+        filename = os.path.join(TEST_FILES_DIR, 'loopy.py')
+        cwd = os.path.dirname(filename)
+        self.run_test_logpoints(DebugInfo(filename=filename, cwd=cwd))
+
+
+class LaunchModuleTests(BreakpointTests):
     def test_with_break_points(self):
         module_name = 'mymod_launch1'
         cwd = os.path.join(TEST_FILES_DIR)
@@ -356,16 +358,8 @@ class LaunchModuleLifecycleTests(LaunchLifecycleTests):
             DebugInfo(modulename=module_name, cwd=cwd, env=env), first_file,
             second_file, 2, expected_modules, expected_stacktrace)
 
-    @unittest.skip('Not required')
-    def test_conditional_break_points(self):
-        pass
 
-    @unittest.skip('Not required')
-    def test_logpoints(self):
-        pass
-
-
-class ServerAttachLifecycleTests(LaunchLifecycleTests):
+class ServerAttachTests(BreakpointTests):
     def test_with_break_points(self):
         filename = os.path.join(TEST_FILES_DIR, 'output.py')
         cwd = os.path.dirname(filename)
@@ -376,20 +370,8 @@ class ServerAttachLifecycleTests(LaunchLifecycleTests):
             filename,
             bp_line=3)
 
-    @unittest.skip('Not required')
-    def test_with_break_points_across_files(self):
-        pass
 
-    @unittest.skip('Not required')
-    def test_conditional_break_points(self):
-        pass
-
-    @unittest.skip('Not required')
-    def test_logpoints(self):
-        pass
-
-
-class PTVSDAttachLifecycleTests(LaunchLifecycleTests):
+class PTVSDAttachTests(BreakpointTests):
     def test_with_break_points(self):
         filename = os.path.join(TEST_FILES_DIR, 'attach_output.py')
         cwd = os.path.dirname(filename)
@@ -404,20 +386,8 @@ class PTVSDAttachLifecycleTests(LaunchLifecycleTests):
             filename,
             bp_line=6)
 
-    @unittest.skip('Not required')
-    def test_with_break_points_across_files(self):
-        pass
 
-    @unittest.skip('Not required')
-    def test_conditional_break_points(self):
-        pass
-
-    @unittest.skip('Not required')
-    def test_logpoints(self):
-        pass
-
-
-class ServerAttachModuleLifecycleTests(LaunchLifecycleTests):  # noqa
+class ServerAttachModuleTests(BreakpointTests):  # noqa
     def test_with_break_points(self):
         module_name = 'mymod_launch1'
         cwd = os.path.join(TEST_FILES_DIR)
@@ -434,21 +404,9 @@ class ServerAttachModuleLifecycleTests(LaunchLifecycleTests):  # noqa
             bp_filename,
             bp_line=3)
 
-    @unittest.skip('Not required')
-    def test_with_break_points_across_files(self):
-        pass
-
-    @unittest.skip('Not required')
-    def test_conditional_break_points(self):
-        pass
-
-    @unittest.skip('Not required')
-    def test_logpoints(self):
-        pass
-
 
 @unittest.skip('Needs fixing')
-class PTVSDAttachModuleLifecycleTests(LaunchLifecycleTests):  # noqa
+class PTVSDAttachModuleTests(BreakpointTests):  # noqa
     def test_with_break_points(self):
         module_name = 'mymod_attach1'
         cwd = os.path.join(TEST_FILES_DIR)
@@ -465,15 +423,3 @@ class PTVSDAttachModuleLifecycleTests(LaunchLifecycleTests):  # noqa
                 starttype='attach'),
             bp_filename,
             bp_line=6)
-
-    @unittest.skip('Not required')
-    def test_with_break_points_across_files(self):
-        pass
-
-    @unittest.skip('Not required')
-    def test_conditional_break_points(self):
-        pass
-
-    @unittest.skip('Not required')
-    def test_logpoints(self):
-        pass

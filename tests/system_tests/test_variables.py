@@ -10,7 +10,7 @@ TEST_FILES_DIR = os.path.join(ROOT, 'tests', 'resources', 'system_tests',
                               'test_variables')
 
 
-class VariableLifecycleTests(LifecycleTestsBase):
+class VariableTests(LifecycleTestsBase):
     def test_variables(self):
         filename = os.path.join(TEST_FILES_DIR, 'simple.py')
         cwd = os.path.dirname(filename)
