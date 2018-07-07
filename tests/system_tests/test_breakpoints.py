@@ -187,6 +187,61 @@ class BreakpointTests(LifecycleTestsBase):
                                   "evaluateName": "i"
                               }])
 
+    def run_test_hit_conditional_break_points(self, debug_info, **kwargs):
+        breakpoints = [{
+            "source": {
+                "path": debug_info.filename
+            },
+            "breakpoints": [{
+                "line": 4,
+                "hitCondition": kwargs['hit_condition']
+            }],
+            "lines": [4]
+        }]
+
+        i_values = []
+        with self.start_debugging(debug_info) as dbg:
+            session = dbg.session
+            hits = kwargs['hits']
+            count = 0
+            while count < hits:
+                if count == 0:
+                    with session.wait_for_event("stopped") as result:
+                        (
+                            _,
+                            _,
+                            _,
+                            _,
+                            _,
+                            _,
+                        ) = lifecycle_handshake(
+                            session, debug_info.starttype,
+                            breakpoints=breakpoints)
+
+                tid = result["msg"].body["threadId"]
+                stacktrace = session.send_request("stackTrace", threadId=tid)
+                stacktrace.wait()
+
+                frame_id = stacktrace.resp.body["stackFrames"][0]["id"]
+                scopes = session.send_request('scopes', frameId=frame_id)
+                scopes.wait()
+                variables_reference = scopes.resp.body["scopes"][0][
+                    "variablesReference"]
+                variables = session.send_request(
+                    'variables', variablesReference=variables_reference)
+                variables.wait()
+                i_value = list(int(v['value'])
+                               for v in variables.resp.body["variables"]
+                               if v['name'] == 'i')
+                i_values.append(i_value[0] if len(i_value) > 0 else None)
+                count = count + 1
+                if count < hits:
+                    with session.wait_for_event("stopped") as result:
+                        session.send_request("continue", threadId=tid)
+                else:
+                    session.send_request("continue", threadId=tid)
+        self.assertEqual(i_values, kwargs['expected'])
+
     def run_test_logpoints(self, debug_info):
         options = {"debugOptions": ["RedirectOutput"]}
         breakpoints = [{
@@ -293,6 +348,69 @@ class LaunchFileTests(BreakpointTests):
         filename = os.path.join(TEST_FILES_DIR, 'loopy.py')
         cwd = os.path.dirname(filename)
         self.run_test_logpoints(DebugInfo(filename=filename, cwd=cwd))
+
+    def test_hit_conditional_break_points_equal(self):
+        filename = os.path.join(TEST_FILES_DIR, 'loopy.py')
+        cwd = os.path.dirname(filename)
+        self.run_test_hit_conditional_break_points(
+            DebugInfo(filename=filename, cwd=cwd),
+            hit_condition='== 5',
+            hits=1,
+            expected=[4])
+
+    def test_hit_conditional_break_points_equal2(self):
+        filename = os.path.join(TEST_FILES_DIR, 'loopy.py')
+        cwd = os.path.dirname(filename)
+        self.run_test_hit_conditional_break_points(
+            DebugInfo(filename=filename, cwd=cwd),
+            hit_condition='5',
+            hits=1,
+            expected=[4])
+
+    def test_hit_conditional_break_points_greater(self):
+        filename = os.path.join(TEST_FILES_DIR, 'loopy.py')
+        cwd = os.path.dirname(filename)
+        self.run_test_hit_conditional_break_points(
+            DebugInfo(filename=filename, cwd=cwd),
+            hit_condition='> 5',
+            hits=5,
+            expected=[5, 6, 7, 8, 9])
+
+    def test_hit_conditional_break_points_greater_or_equal(self):
+        filename = os.path.join(TEST_FILES_DIR, 'loopy.py')
+        cwd = os.path.dirname(filename)
+        self.run_test_hit_conditional_break_points(
+            DebugInfo(filename=filename, cwd=cwd),
+            hit_condition='>= 5',
+            hits=6,
+            expected=[4, 5, 6, 7, 8, 9])
+
+    def test_hit_conditional_break_points_lesser(self):
+        filename = os.path.join(TEST_FILES_DIR, 'loopy.py')
+        cwd = os.path.dirname(filename)
+        self.run_test_hit_conditional_break_points(
+            DebugInfo(filename=filename, cwd=cwd),
+            hit_condition='< 5',
+            hits=4,
+            expected=[0, 1, 2, 3])
+
+    def test_hit_conditional_break_points_lesser_or_equal(self):
+        filename = os.path.join(TEST_FILES_DIR, 'loopy.py')
+        cwd = os.path.dirname(filename)
+        self.run_test_hit_conditional_break_points(
+            DebugInfo(filename=filename, cwd=cwd),
+            hit_condition='<= 5',
+            hits=5,
+            expected=[0, 1, 2, 3, 4])
+
+    def test_hit_conditional_break_points_mod(self):
+        filename = os.path.join(TEST_FILES_DIR, 'loopy.py')
+        cwd = os.path.dirname(filename)
+        self.run_test_hit_conditional_break_points(
+            DebugInfo(filename=filename, cwd=cwd),
+            hit_condition='% 4',
+            hits=2,
+            expected=[3, 7])
 
 
 class LaunchModuleTests(BreakpointTests):
