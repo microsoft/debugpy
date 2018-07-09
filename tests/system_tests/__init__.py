@@ -188,6 +188,9 @@ class TestsBase(object):
             self._pathentry.install()
             return self._pathentry
 
+    def enable_verbose(self):
+        DebugAdapter.VERBOSE = True
+
     def write_script(self, name, content):
         return self.workspace.write_python_script(name, content=content)
 

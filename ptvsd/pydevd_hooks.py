@@ -92,7 +92,8 @@ def install(pydevd, address,
     pydevd.start_server = _start_server
     pydevd.start_client = _start_client
     __main__ = sys.modules['__main__']
-    if __main__ is not pydevd and __main__.__file__ == pydevd.__file__:
-        __main__.start_server = _start_server
-        __main__.start_client = _start_client
+    if __main__ is not pydevd:
+        if getattr(__main__, '__file__', None) == pydevd.__file__:
+            __main__.start_server = _start_server
+            __main__.start_client = _start_client
     return daemon
