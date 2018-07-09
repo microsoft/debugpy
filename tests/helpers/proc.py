@@ -8,8 +8,7 @@ import subprocess
 import sys
 import time
 
-from ptvsd._util import new_hidden_thread
-from . import Closeable
+from ptvsd._util import new_hidden_thread, Closeable
 
 
 _NOT_SET = object()

@@ -124,7 +124,7 @@ class DownloadCommandTests(unittest.TestCase):
         metadata = '\n'.join(line
                              for line in metadata.split('\n')
                              if not line.startswith('downloaded: '))
-        self.assertEqual(data, "<a schema>")
+        self.assertEqual(data, '<a schema>')
         self.assertEqual(metadata, dedent("""\
                 upstream:   http://localhost:8000/schema.json
                 revision:   <unknown>

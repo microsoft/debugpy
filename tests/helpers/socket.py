@@ -2,11 +2,26 @@ from __future__ import absolute_import
 
 from collections import namedtuple
 import contextlib
+import socket
 
 import ptvsd.socket as _ptvsd
 
 
 convert_eof = _ptvsd.convert_eof
+
+
+def resolve_hostname():
+    hostname = socket.gethostname()
+    try:
+        return socket.gethostbyname(hostname)
+    except socket.gaierror:
+        addr = ('8.8.8.8', 80)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            sock.connect(addr)
+            return sock.getsockname()[0]
+        finally:
+            sock.close()
 
 
 # TODO: Add timeouts to the functions.

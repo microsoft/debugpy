@@ -2,26 +2,27 @@ import os
 import os.path
 import unittest
 
-from ptvsd.wrapper import INITIALIZE_RESPONSE  # noqa
+from tests.helpers.resource import TestResources
+from . import (
+    _strip_newline_output_events, lifecycle_handshake,
+    LifecycleTestsBase, DebugInfo,
+)
 
-from . import (_strip_newline_output_events, lifecycle_handshake,
-               LifecycleTestsBase, DebugInfo, ROOT)
 
-TEST_FILES_DIR = os.path.join(ROOT, 'tests', 'resources', 'system_tests',
-                              'test_forever')
+TEST_FILES = TestResources.from_module('tests.system_tests.test_forever')
 
 
 @unittest.skip('Needs fixing in #530')
 class RestartVSCTests(LifecycleTestsBase):
+
     def test_disconnect_without_restart(self):
-        filename = os.path.join(TEST_FILES_DIR, 'launch_forever.py')
+        filename = TEST_FILES.resolve('launch_forever.py')
         cwd = os.path.dirname(filename)
         debug_info = DebugInfo(filename=filename, cwd=cwd)
 
         with self.start_debugging(debug_info) as dbg:
-            (_, req_launch, _, _, _, _) = lifecycle_handshake(
-                dbg.session, debug_info.starttype)
-
+            (_, req_launch, _, _, _, _
+             ) = lifecycle_handshake(dbg.session, debug_info.starttype)
             req_launch.wait()
 
             dbg.session.send_request('disconnect', restart=False)
@@ -31,14 +32,13 @@ class RestartVSCTests(LifecycleTestsBase):
         self.assertEqual(len(evts), 1)
 
     def test_disconnect_with_restart(self):
-        filename = os.path.join(TEST_FILES_DIR, 'launch_forever.py')
+        filename = TEST_FILES.resolve('launch_forever.py')
         cwd = os.path.dirname(filename)
         debug_info = DebugInfo(filename=filename, cwd=cwd)
 
         with self.start_debugging(debug_info) as dbg:
-            (_, req_launch, _, _, _, _) = lifecycle_handshake(
-                dbg.session, debug_info.starttype)
-
+            (_, req_launch, _, _, _, _
+             ) = lifecycle_handshake(dbg.session, debug_info.starttype)
             req_launch.wait()
 
             dbg.session.send_request('disconnect', restart=True)

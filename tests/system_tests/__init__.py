@@ -13,7 +13,7 @@ from tests.helpers.message import assert_is_subset
 from tests.helpers.script import find_line
 from tests.helpers.threading import get_locked_and_waiter
 from tests.helpers.workspace import Workspace, PathEntry
-from tests.helpers.vsc import parse_message, VSCMessages, Response, Event  # noqa
+from tests.helpers.vsc import parse_message, VSCMessages, Response, Event
 
 
 ROOT = os.path.dirname(os.path.dirname(ptvsd.__file__))
@@ -232,8 +232,7 @@ class LifecycleTestsBase(TestsBase, unittest.TestCase):
                 os.kill(pid, signal.SIGTERM)
             except Exception:
                 pass
-            import time
-            time.sleep(1) # wait for socket connections to die out. # noqa
+            time.sleep(1)  # wait for socket connections to die out.
 
         def _wrap_and_reraise(ex, session):
             messages = []
@@ -313,7 +312,7 @@ class LifecycleTestsBase(TestsBase, unittest.TestCase):
                         _handle_exception(ex, adapter, session)
         else:
             if debug_info.filename is None:
-                argv = ["-m", debug_info.modulename] + debug_info.argv
+                argv = ['-m', debug_info.modulename] + debug_info.argv
             else:
                 argv = [debug_info.filename] + debug_info.argv
             with DebugClient(
@@ -355,9 +354,10 @@ class LifecycleTestsBase(TestsBase, unittest.TestCase):
                 return True
             except Exception:
                 return False
-        return list(
-            response for response in responses if isinstance(response, Event)
-            and response.event == event and is_subset(response.body))  # noqa
+        return list(resp
+                    for resp in responses
+                    if (isinstance(resp, Event) and resp.event == event and
+                        is_subset(resp.body)))
 
     def find_responses(self, responses, command, condition=lambda x: True):
         return list(

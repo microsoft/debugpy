@@ -8,8 +8,7 @@ import time
 import threading
 import warnings
 
-from ptvsd._util import new_hidden_thread
-from . import Closeable
+from ptvsd._util import new_hidden_thread, Closeable, ClosedError
 from .message import (
     raw_read_all as read_messages,
     raw_write_one as write_message
@@ -266,7 +265,10 @@ class DebugSession(Closeable):
 
     def _close(self):
         if self._owned:
-            self._conn.close()
+            try:
+                self._conn.close()
+            except ClosedError:
+                pass
         if self._listenerthread != threading.current_thread():
             self._listenerthread.join(timeout=1.0)
             if self._listenerthread.is_alive():
@@ -280,7 +282,10 @@ class DebugSession(Closeable):
                     print(' ->', msg)
                 self._receive_message(msg)
         except EOFError:
-            self.close()
+            try:
+                self.close()
+            except ClosedError:
+                pass
 
     def _receive_message(self, msg):
         for i, handler in enumerate(list(self._handlers)):
