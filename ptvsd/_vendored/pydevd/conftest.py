@@ -1,7 +1,13 @@
 import pytest
 import sys
 from _pydevd_bundle.pydevd_constants import IS_JYTHON, IS_IRONPYTHON
+from tests_python.debug_constants import TEST_CYTHON
+from tests_python.debug_constants import TEST_JYTHON
 
+
+def pytest_report_header(config):
+    print('PYDEVD_USE_CYTHON: %s' % (TEST_CYTHON,))
+    print('PYDEVD_TEST_JYTHON: %s' % (TEST_JYTHON,))
 
 # see: http://goo.gl/kTQMs
 SYMBOLS = {

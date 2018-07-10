@@ -1,3 +1,4 @@
+#coding: utf-8
 import os.path
 
 
@@ -8,12 +9,14 @@ def test_convert_utilities(tmpdir):
     test_dir = str(tmpdir.mkdir("Test_Convert_Utilities"))
     if sys.platform == 'win32':
         normalized = pydevd_file_utils.normcase(test_dir)
+        assert isinstance(normalized, str) # bytes on py2, unicode on py3
         assert normalized.lower() == normalized
          
         assert '~' not in normalized
         assert '~' in pydevd_file_utils.convert_to_short_pathname(normalized)
          
         real_case = pydevd_file_utils.get_path_with_real_case(normalized)
+        assert isinstance(real_case, str) # bytes on py2, unicode on py3
         # Note test_dir itself cannot be compared with because pytest may
         # have passed the case normalized.
         assert real_case.endswith("Test_Convert_Utilities")
@@ -27,6 +30,10 @@ def test_convert_utilities(tmpdir):
 
 def test_to_server_and_to_client(tmpdir):
     try:
+        def check(obtained, expected):
+            assert obtained == expected
+            assert isinstance(obtained, str)# bytes on py2, unicode on py3
+            assert isinstance(expected, str)# bytes on py2, unicode on py3
         import pydevd_file_utils
         import sys
         if sys.platform == 'win32':
@@ -40,9 +47,9 @@ def test_to_server_and_to_client(tmpdir):
                 (in_eclipse, in_python)
             ]
             pydevd_file_utils.setup_client_server_paths(PATHS_FROM_ECLIPSE_TO_PYTHON)
-            assert pydevd_file_utils.norm_file_to_server('c:\\foo\\my') == 'c:\\bar\\my'
-            assert pydevd_file_utils.norm_file_to_server('c:\\foo\\my'.upper()) == 'c:\\bar\\my'
-            assert pydevd_file_utils.norm_file_to_client('c:\\bar\\my') == 'c:\\foo\\my'
+            check(pydevd_file_utils.norm_file_to_server('c:\\foo\\my'), 'c:\\bar\\my')
+            check(pydevd_file_utils.norm_file_to_server('c:\\foo\\áéíóú'.upper()), 'c:\\bar\\áéíóú')
+            check(pydevd_file_utils.norm_file_to_client('c:\\bar\\my'), 'c:\\foo\\my')
             
             # Client on unix and server on windows
             pydevd_file_utils.set_ide_os('UNIX')
@@ -52,8 +59,8 @@ def test_to_server_and_to_client(tmpdir):
                 (in_eclipse, in_python)
             ]
             pydevd_file_utils.setup_client_server_paths(PATHS_FROM_ECLIPSE_TO_PYTHON)
-            assert pydevd_file_utils.norm_file_to_server('/foo/my') == 'c:\\bar\\my'
-            assert pydevd_file_utils.norm_file_to_client('c:\\bar\\my') == '/foo/my'
+            check(pydevd_file_utils.norm_file_to_server('/foo/my'), 'c:\\bar\\my')
+            check(pydevd_file_utils.norm_file_to_client('c:\\bar\\my'), '/foo/my')
             
             # Test with 'real' files
             # Client and server are on windows. 
