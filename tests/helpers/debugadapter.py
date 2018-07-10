@@ -53,6 +53,13 @@ COPIED_ENV = [
 ]
 
 
+try:
+    ConnectionRefusedError
+except Exception:
+    class ConnectionRefusedError(Exception):
+        pass
+
+
 def _copy_env(verbose=False, env=None):
     variables = {k: v for k, v in os.environ.items() if k in COPIED_ENV}
     # TODO: Be smarter about the seed?

@@ -15,7 +15,17 @@ TEST_FILES = TestResources.from_module(__name__)
 class BreakpointTests(LifecycleTestsBase):
 
     def run_test_with_break_points(self, debug_info, bp_filename, bp_line):
-        options = {'debugOptions': ['RedirectOutput']}
+        pathMappings = []
+        # Required to ensure sourceReference = 0
+        if (debug_info.starttype == 'attach'):
+            pathMappings.append({
+                'localRoot': debug_info.cwd,
+                'remoteRoot': debug_info.cwd
+            })
+        options = {
+            'debugOptions': ['RedirectOutput'],
+            'pathMappings': pathMappings
+        }
         breakpoints = [{
             'source': {
                 'path': bp_filename
@@ -82,7 +92,7 @@ class BreakpointTests(LifecycleTestsBase):
 
     def run_test_with_break_points_across_files(
             self, debug_info, first_file, second_file, second_file_line,
-            expected_modules, expected_stacktrace):
+            expected_stacktrace):
         breakpoints = [{
             'source': {
                 'path': second_file
@@ -110,14 +120,6 @@ class BreakpointTests(LifecycleTestsBase):
             stacktrace = req_stacktrace.resp.body
 
             session.send_request('continue', threadId=tid)
-
-        received = list(_strip_newline_output_events(session.received))
-
-        for mod in expected_modules:
-            found_mod = self.find_events(received, 'module', mod)
-            self.assertEqual(len(found_mod),
-                             1,
-                             'Modul not found {}'.format(mod))
 
         self.assert_is_subset(stacktrace, expected_stacktrace)
 
@@ -289,19 +291,6 @@ class LaunchFileTests(BreakpointTests):
         first_file = TEST_FILES.resolve('foo.py')
         second_file = TEST_FILES.resolve('bar.py')
         cwd = os.path.dirname(first_file)
-        expected_modules = [{
-            'reason': 'new',
-            'module': {
-                'path': second_file,
-                'name': 'bar'
-            }
-        }, {
-            'reason': 'new',
-            'module': {
-                'path': first_file,
-                'name': '__main__'
-            }
-        }]
         expected_stacktrace = {
             'stackFrames': [{
                 'name': 'do_bar',
@@ -335,7 +324,6 @@ class LaunchFileTests(BreakpointTests):
             first_file,
             second_file,
             2,
-            expected_modules,
             expected_stacktrace,
         )
 
@@ -422,10 +410,10 @@ class LaunchFileTests(BreakpointTests):
         )
 
 
-class LaunchModuleTests(BreakpointTests):
+class LaunchPackageTests(BreakpointTests):
 
     def test_with_break_points(self):
-        module_name = 'mymod_launch1'
+        module_name = 'mypkg_launch1'
         env = TEST_FILES.env_with_py_path()
         cwd = TEST_FILES.root
         bp_filename = os.path.join(cwd, module_name, '__init__.py')
@@ -436,25 +424,11 @@ class LaunchModuleTests(BreakpointTests):
         )
 
     def test_with_break_points_across_files(self):
-        module_name = 'mymod_foo'
+        module_name = 'mypkg_foo'
         first_file = TEST_FILES.resolve(module_name, '__init__.py')
-        second_file = TEST_FILES.resolve('mymod_bar', 'bar.py')
+        second_file = TEST_FILES.resolve('mypkg_bar', 'bar.py')
         env = TEST_FILES.env_with_py_path()
         cwd = TEST_FILES.root
-        expected_modules = [{
-            'reason': 'new',
-            'module': {
-                'package': 'mymod_bar',
-                'path': second_file,
-                'name': 'mymod_bar.bar'
-            }
-        }, {
-            'reason': 'new',
-            'module': {
-                'path': first_file,
-                'name': '__main__'
-            }
-        }]
         expected_stacktrace = {
             'stackFrames': [{
                 'name': 'do_bar',
@@ -488,7 +462,6 @@ class LaunchModuleTests(BreakpointTests):
             first_file,
             second_file,
             2,
-            expected_modules,
             expected_stacktrace,
         )
 
@@ -530,10 +503,10 @@ class PTVSDAttachTests(BreakpointTests):
         )
 
 
-class ServerAttachModuleTests(BreakpointTests):
+class ServerAttachPackageTests(BreakpointTests):
 
     def test_with_break_points(self):
-        module_name = 'mymod_launch1'
+        module_name = 'mypkg_launch1'
         env = TEST_FILES.env_with_py_path()
         cwd = TEST_FILES.root
         argv = ['localhost', str(PORT)]
@@ -552,10 +525,10 @@ class ServerAttachModuleTests(BreakpointTests):
 
 
 @unittest.skip('Needs fixing')
-class PTVSDAttachModuleTests(BreakpointTests):
+class PTVSDAttachPackageTests(BreakpointTests):
 
     def test_with_break_points(self):
-        module_name = 'mymod_attach1'
+        module_name = 'mypkg_attach1'
         env = TEST_FILES.env_with_py_path()
         cwd = TEST_FILES.root
         argv = ['localhost', str(PORT)]

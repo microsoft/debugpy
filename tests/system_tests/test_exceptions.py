@@ -100,14 +100,14 @@ class LaunchFileTests(ExceptionTests):
 class LaunchModuleExceptionLifecycleTests(ExceptionTests):
 
     def test_breaking_into_handled_exceptions(self):
-        module_name = 'mymod_launch1'
+        module_name = 'mypkg_launch1'
         env = TEST_FILES.env_with_py_path()
         cwd = TEST_FILES.parent.root
         self.run_test_breaking_into_handled_exceptions(
             DebugInfo(modulename=module_name, env=env, cwd=cwd))
 
     def test_not_breaking_into_handled_exceptions(self):
-        module_name = 'mymod_launch1'
+        module_name = 'mypkg_launch1'
         env = TEST_FILES.env_with_py_path()
         cwd = TEST_FILES.parent.root
         self.run_test_not_breaking_into_handled_exceptions(
@@ -174,7 +174,7 @@ class PTVSDAttachExceptionLifecycleTests(ExceptionTests):
 class ServerAttachModuleExceptionLifecycleTests(ExceptionTests):
 
     def test_breaking_into_handled_exceptions(self):
-        module_name = 'mymod_launch1'
+        module_name = 'mypkg_launch1'
         env = TEST_FILES.env_with_py_path()
         cwd = TEST_FILES.root
         argv = ['localhost', str(PORT)]
@@ -188,7 +188,7 @@ class ServerAttachModuleExceptionLifecycleTests(ExceptionTests):
             ))
 
     def test_not_breaking_into_handled_exceptions(self):
-        module_name = 'mymod_launch1'
+        module_name = 'mypkg_launch1'
         env = TEST_FILES.env_with_py_path()
         cwd = TEST_FILES.root
         argv = ['localhost', str(PORT)]
@@ -206,7 +206,7 @@ class ServerAttachModuleExceptionLifecycleTests(ExceptionTests):
 class PTVSDAttachModuleExceptionLifecycleTests(ExceptionTests):
 
     def test_breaking_into_handled_exceptions(self):
-        module_name = 'mymod_attach1'
+        module_name = 'mypkg_attach1'
         env = TEST_FILES.env_with_py_path()
         cwd = TEST_FILES.root
         argv = ['localhost', str(PORT)]
@@ -221,7 +221,7 @@ class PTVSDAttachModuleExceptionLifecycleTests(ExceptionTests):
             ))
 
     def test_not_breaking_into_handled_exceptions(self):
-        module_name = 'mymod_attach1'
+        module_name = 'mypkg_attach1'
         env = TEST_FILES.env_with_py_path()
         cwd = TEST_FILES.root
         argv = ['localhost', str(PORT)]
