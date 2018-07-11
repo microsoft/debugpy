@@ -5,7 +5,9 @@ import threading
 from ptvsd import wrapper
 from ptvsd.socket import (
     close_socket, create_server, create_client, connect, Address)
-from .exit_handlers import ExitHandlers, UnsupportedSignalError
+from .exit_handlers import (
+    ExitHandlers, UnsupportedSignalError,
+    kill_current_proc)
 from .session import PyDevdDebugSession
 from ._util import (
     ClosedError, NotRunningError, ignore_errors, debug, lock_wait)
@@ -82,7 +84,7 @@ class DaemonBase(object):
         self._wait_for_user = wait_for_user
         self._killonclose = killonclose
 
-        self._exiting = False
+        self._exiting_via_atexit_handler = False
 
         self._exithandlers = ExitHandlers()
         if addhandlers:
@@ -282,29 +284,42 @@ class DaemonBase(object):
         with ignore_errors():
             self._stop()
 
-    def _kill_after_single_session(self):
-        if self._killonclose:
-            if not self._exiting:
-                # Ensure the proc is exiting before closing socket.
-                # Note that this will trigger the atexit handler.
-                self._exiting = True
-                sys.exit(0)
-        else:
-            try:
-                self.close()
-            except DaemonClosedError:
-                pass
-
     def _handle_session_disconnecting(self, session):
         debug('handling disconnecting session')
         if self._singlesession:
-            self._kill_after_single_session()
+            if self._killonclose:
+                with self._lock:
+                    if not self._exiting_via_atexit_handler:
+                        # Ensure the proc is exiting before closing
+                        # socket.  Note that we kill the proc instead
+                        # of calling sys.exit(0).
+                        # Note that this will trigger either the atexit
+                        # handler or the signal handler.
+                        kill_current_proc()
+            else:
+                try:
+                    self.close()
+                except DaemonClosedError:
+                    pass
 
     def _handle_session_closing(self, session):
         debug('handling closing session')
 
         if self._singlesession:
-            self._kill_after_single_session()
+            if self._killonclose:
+                with self._lock:
+                    if not self._exiting_via_atexit_handler:
+                        # Ensure the proc is exiting before closing
+                        # socket.  Note that we kill the proc instead
+                        # of calling sys.exit(0).
+                        # Note that this will trigger either the atexit
+                        # handler or the signal handler.
+                        kill_current_proc()
+            else:
+                try:
+                    self.close()
+                except DaemonClosedError:
+                    pass
         else:
             self._finish_session()
 
@@ -397,7 +412,8 @@ class DaemonBase(object):
 
     def _handle_atexit(self):
         debug('handling atexit')
-        self._exiting = True
+        with self._lock:
+            self._exiting_via_atexit_handler = True
         session = self.session
 
         if session is not None:
@@ -428,8 +444,7 @@ class DaemonBase(object):
             self.close()
         except DaemonClosedError:
             pass
-        if not self._exiting:
-            self._exiting = True
+        if not self._exiting_via_atexit_handler:
             sys.exit(0)
 
     # methods for subclasses to override

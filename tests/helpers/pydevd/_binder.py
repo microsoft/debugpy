@@ -30,8 +30,7 @@ class PTVSD(ptvsd.daemon.Daemon):
             singlesession=singlesession,
         )
         self.start()
-        session = self.start_session(client, 'ptvsd.Server')
-        session._msgprocessor._kill_current_proc = (lambda: None)
+        self.start_session(client, 'ptvsd.Server')
         self.server = server
         return self
 

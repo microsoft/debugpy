@@ -39,7 +39,6 @@ from ptvsd import _util
 import ptvsd.ipcjson as ipcjson  # noqa
 import ptvsd.futures as futures  # noqa
 import ptvsd.untangle as untangle  # noqa
-from ptvsd.exit_handlers import kill_current_proc
 from ptvsd.pathutils import PathUnNormcase  # noqa
 from ptvsd.safe_repr import SafeRepr  # noqa
 from ptvsd.version import __version__  # noqa
@@ -1008,9 +1007,6 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
 
         self._stopped = False
 
-        # This is overridden in tests.
-        self._kill_current_proc = kill_current_proc
-
         # adapter state
         self.start_reason = None
         self.debug_options = {}
@@ -1108,30 +1104,28 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
 
         status = {'sent': False}
 
-        def finish_disconnect():
+        def disconnect_response():
             if status['sent']:
                 return
             self.send_response(request)
             status['sent'] = True
 
-            if self.start_reason == 'launch':
-                if not self.closed:
-                    # Closing the socket causes pydevd to resume all
-                    # threads, so just terminate the process altogether.
-                    # TODO: The wrapper should not be responsible for
-                    # managing the process (e.g. killing it).
-                    self._kill_current_proc()
-
-            self._set_disconnected()
-            if self.start_reason == 'attach':
-                if not self._debuggerstopped:
-                    self._handle_detach()
         self._notify_disconnecting(
-            pre_socket_close=finish_disconnect,
+            pre_socket_close=disconnect_response,
         )
-        # The callback might never get called in notify_disconnecting,
-        # so we call it again here to make sure it is called.
-        finish_disconnect()
+        disconnect_response()
+
+        self._set_disconnected()
+
+        if self.start_reason == 'attach':
+            if not self._debuggerstopped:
+                self._handle_detach()
+        # TODO: We should be able drop the "launch" branch.
+        elif self.start_reason == 'launch':
+            if not self.closed:
+                # Closing the socket causes pydevd to resume all threads,
+                # so just terminate the process altogether.
+                sys.exit(0)
 
     # internal methods
 
