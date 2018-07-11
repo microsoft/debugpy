@@ -19,12 +19,12 @@ from tests.helpers.vsc import parse_message, VSCMessages, Response, Event
 
 
 ROOT = os.path.dirname(os.path.dirname(ptvsd.__file__))
-PORT = 9876
+PORT = 9879
 CONNECT_TIMEOUT = 3.0
 DELAY_WAITING_FOR_SOCKETS = 1.0
 
 DebugInfo = namedtuple('DebugInfo', 'host port starttype argv filename modulename env cwd attachtype')  # noqa
-DebugInfo.__new__.__defaults__ = ('localhost', 9876, 'launch', []) + ((None, ) * (len(DebugInfo._fields) - 4))  # noqa
+DebugInfo.__new__.__defaults__ = ('localhost', PORT, 'launch', []) + ((None, ) * (len(DebugInfo._fields) - 4))  # noqa
 
 
 Debugger = namedtuple('Debugger', 'session adapter')

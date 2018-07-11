@@ -14,7 +14,8 @@ from tests.helpers.debugsession import Awaitable
 
 from . import (
     _strip_newline_output_events, lifecycle_handshake, TestsBase,
-    LifecycleTestsBase, _strip_output_event, _strip_exit, _find_events)
+    LifecycleTestsBase, _strip_output_event, _strip_exit, _find_events,
+    PORT)
 
 ROOT = os.path.dirname(os.path.dirname(ptvsd.__file__))
 
@@ -88,8 +89,8 @@ class DebugTests(TestsBase, unittest.TestCase):
             print('done')
             sys.stdout.flush()
             """)
-        script = self.write_debugger_script(filename, 9876, run_as='script')
-        with DebugClient(port=9876) as editor:
+        script = self.write_debugger_script(filename, PORT, run_as='script')
+        with DebugClient(port=PORT) as editor:
             adapter, session = editor.host_local_debugger(argv, script)
             lifecycle_handshake(session, 'launch')
             adapter.wait()
@@ -109,8 +110,8 @@ class LifecycleTests(LifecycleTestsBase):
         lockfile = self.workspace.lockfile()
         done, waitscript = lockfile.wait_in_script()
         filename = self.write_script('spam.py', waitscript)
-        script = self.write_debugger_script(filename, 9876, run_as='script')
-        with DebugClient(port=9876) as editor:
+        script = self.write_debugger_script(filename, PORT, run_as='script')
+        with DebugClient(port=PORT) as editor:
             adapter, session = editor.host_local_debugger(
                 argv,
                 script,
@@ -825,7 +826,7 @@ class LifecycleTests(LifecycleTestsBase):
 
             print('+ after')
             """).format(waitscript))
-        with DebugClient(port=9876) as editor:
+        with DebugClient(port=PORT) as editor:
             adapter, session = editor.host_local_debugger(
                 argv=[
                     '--nodebug',
