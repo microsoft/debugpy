@@ -1641,6 +1641,7 @@ class WriterThreadCaseScapy(debugger_unittest.AbstractWriterThread):
     
     def run(self):
         self.start_socket()
+        self.reader_thread.set_timeout(30)  # Starting scapy may be slow (timed out with 15 seconds on appveyor).
         self.write_add_breakpoint(2, None)
         self.write_make_initial_run()
         

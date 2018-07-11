@@ -107,3 +107,4 @@ ENV/
 # PyDev
 .project
 .pydevproject
+.settings

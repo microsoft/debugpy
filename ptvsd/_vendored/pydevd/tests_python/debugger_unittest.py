@@ -101,6 +101,8 @@ except:
 #=======================================================================================================================
 class ReaderThread(threading.Thread):
 
+    TIMEOUT = 15
+    
     def __init__(self, sock):
         threading.Thread.__init__(self)
         try:
@@ -114,11 +116,14 @@ class ReaderThread(threading.Thread):
         self.all_received = []
         self._kill = False
         
+    def set_timeout(self, timeout):
+        self.TIMEOUT = timeout
+
     def get_next_message(self, context_messag):
         try:
-            msg = self._queue.get(block=True, timeout=15)
+            msg = self._queue.get(block=True, timeout=self.TIMEOUT)
         except:
-            raise AssertionError('No message was written in 15 seconds. Error message:\n%s' % (context_messag,))
+            raise AssertionError('No message was written in %s seconds. Error message:\n%s' % (self.TIMEOUT, context_messag,))
         else:
             frame = sys._getframe().f_back
             frame_info = ' --  File "%s", line %s, in %s\n' % (frame.f_code.co_filename, frame.f_lineno, frame.f_code.co_name)
