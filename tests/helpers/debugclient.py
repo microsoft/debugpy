@@ -127,7 +127,6 @@ class _LifecycleClient(Closeable):
                 cwd=None,
                 **kwargs):
         if script is not None:
-
             def start(*args, **kwargs):
                 return DebugAdapter.start_wrapper_script(
                     script, *args, **kwargs)

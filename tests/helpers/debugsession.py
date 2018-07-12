@@ -26,7 +26,7 @@ class DebugSessionConnection(Closeable):
     VERBOSE = False
     #VERBOSE = True
 
-    TIMEOUT = 1.0
+    TIMEOUT = 5.0
 
     @classmethod
     def create_client(cls, addr, **kwargs):
