@@ -49,13 +49,16 @@ class PathUnNormcase(object):
         parts = os.path.normpath(name).split(sep)
         dirs = parts[0:-1]
         filename = '{}[{}]'.format(parts[-1][:-1], parts[-1][-1:])
+        path_fragment1 = dirs[0].upper()
         if dirs[0] == os.path.splitdrive(name)[0]:
-            test_name = [dirs[0].upper()]
+            fragments = [path_fragment1]
         else:
-            test_name = [sep + dirs[0]]
+            dir_names = os.listdir(os.getcwd())
+            fragments = list(filter(
+                            lambda x: x.upper() == path_fragment1, dir_names))
         for d in dirs[1:]:
-            test_name += ["{}[{}]".format(d[:-1], d[-1])]
-        path = glob(sep.join(test_name))
+            fragments += ["{}[{}]".format(d[:-1], d[-1])]
+        path = glob(sep.join(fragments))
         if not path:
             return name
         res = glob(sep.join((path[0], filename)))
