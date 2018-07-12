@@ -4,10 +4,11 @@ import contextlib
 import os
 import sys
 from textwrap import dedent
+import traceback
 import unittest
 
 import ptvsd
-from ptvsd.wrapper import INITIALIZE_RESPONSE # noqa
+from ptvsd.wrapper import INITIALIZE_RESPONSE  # noqa
 from tests.helpers._io import captured_stdio
 from tests.helpers.pydevd._live import LivePyDevd
 from tests.helpers.script import set_lock, find_line
@@ -20,7 +21,6 @@ from . import (
 
 
 class Fixture(VSCFixture):
-
     def __init__(self, source, new_fake=None):
         self._pydevd = LivePyDevd(source)
         super(Fixture, self).__init__(
@@ -100,6 +100,7 @@ class TestBase(VSCTest):
         self.pathentry.install()
         self._filename = 'module:' + name
 
+
 ##################################
 # lifecycle tests
 
@@ -116,7 +117,7 @@ class LifecycleTests(TestBase, unittest.TestCase):
         addr = (None, 8888)
         with self.fake.start(addr):
             #with self.fix.install_sig_handler():
-                yield
+            yield
 
     def test_launch(self):
         addr = (None, 8888)
@@ -143,33 +144,37 @@ class LifecycleTests(TestBase, unittest.TestCase):
             self.fix.binder.wait_until_done()
             received = self.vsc.received
 
-        self.assert_vsc_received(received, [
-            self.new_event(
-                'output',
-                category='telemetry',
-                output='ptvsd',
-                data={'version': ptvsd.__version__}),
-            self.new_response(req_initialize, **INITIALIZE_RESPONSE),
-            self.new_event('initialized'),
-            self.new_response(req_attach),
-            self.new_response(req_config),
-            self.new_event('process', **dict(
-                name=sys.argv[0],
-                systemProcessId=os.getpid(),
-                isLocalProcess=True,
-                startMethod='attach',
-            )),
-            self.new_event('thread', reason='started', threadId=1),
-            #self.new_event('exited', exitCode=0),
-            #self.new_event('terminated'),
-        ])
+        self.assert_vsc_received(
+            received,
+            [
+                self.new_event(
+                    'output',
+                    category='telemetry',
+                    output='ptvsd',
+                    data={'version': ptvsd.__version__}),
+                self.new_response(req_initialize, **INITIALIZE_RESPONSE),
+                self.new_event('initialized'),
+                self.new_response(req_attach),
+                self.new_response(req_config),
+                self.new_event(
+                    'process',
+                    **dict(
+                        name=sys.argv[0],
+                        systemProcessId=os.getpid(),
+                        isLocalProcess=True,
+                        startMethod='attach',
+                    )),
+                self.new_event('thread', reason='started', threadId=1),
+                #self.new_event('exited', exitCode=0),
+                #self.new_event('terminated'),
+            ])
+
 
 ##################################
 # "normal operation" tests
 
 
 class VSCFlowTest(TestBase):
-
     @contextlib.contextmanager
     def launched(self, port=8888, **kwargs):
         kwargs.setdefault('process', False)
@@ -177,7 +182,23 @@ class VSCFlowTest(TestBase):
         with self.lifecycle.launched(port=port, hide=True, **kwargs):
             yield
             self.fix.binder.done(close=False)
-        self.fix.binder.wait_until_done()
+
+        try:
+            self.fix.binder.wait_until_done()
+        except Exception as ex:
+            formatted_ex = traceback.format_exc()
+            if hasattr(self, 'vsc') and hasattr(self.vsc, 'received'):
+                message = """
+    Session Messages:
+    -----------------
+    {}
+
+    Original Error:
+    ---------------
+    {}""".format(os.linesep.join(self.vsc.received), formatted_ex)
+                raise Exception(message)
+            else:
+                raise
 
 
 class BreakpointTests(VSCFlowTest, unittest.TestCase):
@@ -301,9 +322,13 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
         self.lifecycle.requests = []  # Trigger capture.
         config = {
             'breakpoints': [{
-                'source': {'path': self.filename},
+                'source': {
+                    'path': self.filename
+                },
                 'breakpoints': [
-                    {'line': lineno},
+                    {
+                        'line': lineno
+                    },
                 ],
             }],
             'excbreakpoints': [],
@@ -317,18 +342,21 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
                     done1()
                 with self.wait_for_event('stopped'):
                     with self.wait_for_event('continued'):
-                        req_continue1 = self.send_request('continue', {
-                            'threadId': tid,
-                        })
+                        req_continue1 = self.send_request(
+                            'continue', {
+                                'threadId': tid,
+                            })
                 with self.wait_for_event('stopped'):
                     with self.wait_for_event('continued'):
-                        req_continue2 = self.send_request('continue', {
+                        req_continue2 = self.send_request(
+                            'continue', {
+                                'threadId': tid,
+                            })
+                with self.wait_for_event('continued'):
+                    req_continue_last = self.send_request(
+                        'continue', {
                             'threadId': tid,
                         })
-                with self.wait_for_event('continued'):
-                    req_continue_last = self.send_request('continue', {
-                        'threadId': tid,
-                    })
 
                 # Allow the script to run to completion.
                 received = self.vsc.received
@@ -344,36 +372,33 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
         self.assertEqual(got, config['breakpoints'])
 
         self.assert_vsc_received_fixing_events(received, [
-            ('stopped', dict(
-                reason='breakpoint',
-                threadId=tid,
-                text=None,
-                description=None,
-            )),
+            ('stopped',
+             dict(
+                 reason='breakpoint',
+                 threadId=tid,
+                 text=None,
+                 description=None,
+             )),
             req_continue1,
-            ('continued', dict(
-                threadId=tid,
-            )),
-            ('stopped', dict(
-                reason='breakpoint',
-                threadId=tid,
-                text=None,
-                description=None,
-            )),
+            ('continued', dict(threadId=tid, )),
+            ('stopped',
+             dict(
+                 reason='breakpoint',
+                 threadId=tid,
+                 text=None,
+                 description=None,
+             )),
             req_continue2,
-            ('continued', dict(
-                threadId=tid,
-            )),
-            ('stopped', dict(
-                reason='breakpoint',
-                threadId=tid,
-                text=None,
-                description=None,
-            )),
+            ('continued', dict(threadId=tid, )),
+            ('stopped',
+             dict(
+                 reason='breakpoint',
+                 threadId=tid,
+                 text=None,
+                 description=None,
+             )),
             req_continue_last,
-            ('continued', dict(
-                threadId=tid,
-            )),
+            ('continued', dict(threadId=tid, )),
         ])
         self.assertIn('2 4 4', out)
         self.assertIn('ka-boom', err)
@@ -386,7 +411,9 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
         config = {
             'breakpoints': [],
             'excbreakpoints': [
-                {'filters': ['raised']},
+                {
+                    'filters': ['raised']
+                },
             ],
         }
         with captured_stdio() as (stdout, _):
@@ -412,12 +439,12 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
         else:
             description = "MyError('ka-boom',)"
         self.assert_vsc_received_fixing_events(received, [
-            ('stopped', dict(
-                reason='exception',
-                threadId=tid,
-                text='MyError',
-                description=description
-            )),
+            ('stopped',
+             dict(
+                 reason='exception',
+                 threadId=tid,
+                 text='MyError',
+                 description=description)),
         ])
         self.assertIn('2 4 4', out)
         self.assertIn('ka-boom', out)
@@ -439,7 +466,6 @@ class LogpointTests(TestBase, unittest.TestCase):
 
     @contextlib.contextmanager
     def closing(self, exit=True):
-
         def handle_msg(msg, _):
             with self.wait_for_event('output'):
                 self.req_disconnect = self.send_request('disconnect')
@@ -455,7 +481,7 @@ class LogpointTests(TestBase, unittest.TestCase):
     def running(self):
         addr = (None, 8888)
         with self.fake.start(addr):
-                yield
+            yield
 
     def test_basic(self):
         with open(self.filename) as scriptfile:
@@ -473,18 +499,20 @@ class LogpointTests(TestBase, unittest.TestCase):
                 req_initialize = self.send_request('initialize', {
                     'adapterID': 'spam',
                 })
-                req_attach = self.send_request('attach', {
-                    'debugOptions': ['RedirectOutput']
-                })
-                req_breakpoints = self.send_request('setBreakpoints', {
-                    'source': {'path': self.filename},
-                    'breakpoints': [
-                        {
-                            'line': '4',
-                            'logMessage': '{a}+{b}=3'
+                req_attach = self.send_request(
+                    'attach', {'debugOptions': ['RedirectOutput']})
+                req_breakpoints = self.send_request(
+                    'setBreakpoints', {
+                        'source': {
+                            'path': self.filename
                         },
-                    ],
-                })
+                        'breakpoints': [
+                            {
+                                'line': '4',
+                                'logMessage': '{a}+{b}=3'
+                            },
+                        ],
+                    })
             with self.vsc.wait_for_event('output'):  # 1+2=3
                 with self.vsc.wait_for_event('thread'):
                     req_config = self.send_request('configurationDone')
@@ -507,19 +535,27 @@ class LogpointTests(TestBase, unittest.TestCase):
             self.new_response(req_initialize, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
             self.new_response(req_attach),
-            self.new_response(req_breakpoints, **dict(
-                breakpoints=[{'id': 1, 'verified': True, 'line': '4'}]
-            )),
+            self.new_response(
+                req_breakpoints,
+                **dict(breakpoints=[{
+                    'id': 1,
+                    'verified': True,
+                    'line': '4'
+                }])),
             self.new_response(req_config),
-            self.new_event('process', **dict(
-                name=sys.argv[0],
-                systemProcessId=os.getpid(),
-                isLocalProcess=True,
-                startMethod='attach',
-            )),
+            self.new_event(
+                'process',
+                **dict(
+                    name=sys.argv[0],
+                    systemProcessId=os.getpid(),
+                    isLocalProcess=True,
+                    startMethod='attach',
+                )),
             self.new_event('thread', reason='started', threadId=1),
-            self.new_event('output', **dict(
-                category='stdout',
-                output='1+2=3' + os.linesep,
-            )),
+            self.new_event(
+                'output',
+                **dict(
+                    category='stdout',
+                    output='1+2=3' + os.linesep,
+                )),
         ])

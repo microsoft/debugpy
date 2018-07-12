@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+import os
+import traceback
 import warnings
 
 from ptvsd.socket import Address
@@ -15,12 +17,13 @@ class _LifecycleClient(Closeable):
 
     SESSION = DebugSession
 
-    def __init__(self,
-                 addr=None,
-                 port=8888,
-                 breakpoints=None,
-                 connecttimeout=1.0,
-                 ):
+    def __init__(
+            self,
+            addr=None,
+            port=8888,
+            breakpoints=None,
+            connecttimeout=1.0,
+    ):
         super(_LifecycleClient, self).__init__()
         self._addr = Address.from_raw(addr, defaultport=port)
         self._connecttimeout = connecttimeout
@@ -165,7 +168,6 @@ class DebugClient(_LifecycleClient):
 
 
 class EasyDebugClient(DebugClient):
-
     def start_detached(self, argv):
         """Start an adapter in a background process."""
         if self.closed:
@@ -191,8 +193,14 @@ class EasyDebugClient(DebugClient):
         assert self._session is None
         addr = ('localhost', self._addr.port)
 
+        self._run_server_ex = None
+
         def run():
-            self._session = self.SESSION.create_server(addr, **kwargs)
+            try:
+                self._session = self.SESSION.create_server(addr, **kwargs)
+            except Exception as ex:
+                self._run_server_ex = traceback.format_exc()
+
         t = new_hidden_thread(
             target=run,
             name='test.client',
@@ -204,8 +212,14 @@ class EasyDebugClient(DebugClient):
             if t.is_alive():
                 warnings.warn('timed out waiting for connection')
             if self._session is None:
-                raise RuntimeError('unable to connect after {} secs'.format(
-                    self._connecttimeout))
+                message = 'unable to connect after {} secs'.format(  # noqa
+                    self._connecttimeout)
+                if self._run_server_ex is None:
+                    raise Exception(message)
+                else:
+                    message = message + os.linesep + self._run_server_ex # noqa
+                    raise Exception(message)
+
             # The adapter will close when the connection does.
 
         self._launch(

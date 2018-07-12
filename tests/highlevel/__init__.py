@@ -234,7 +234,7 @@ class VSCLifecycle(object):
                 daemon.wait_until_connected()
         return daemon
 
-    def _stop_daemon(self, daemon, disconnect=True):
+    def _stop_daemon(self, daemon, disconnect=True, timeout=10.0):
         # We must close ptvsd directly (rather than closing the external
         # socket (i.e. "daemon").  This is because cloing ptvsd blocks,
         # keeping us from sending the disconnect request we need to send
@@ -251,7 +251,10 @@ class VSCLifecycle(object):
             t.start()
         if disconnect:
             self.disconnect()
-        t.join()
+        t.join(timeout)
+        if t.isAlive():
+            raise Exception(
+                '_stop_daemon timed out after {} secs'.format(timeout))
         daemon.close()
 
     def _handshake(self, command, threadnames=None, config=None, requests=None,

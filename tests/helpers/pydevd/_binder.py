@@ -132,13 +132,17 @@ class BinderBase(object):
             else:
                 raise RuntimeError('timed out')
             return self._wrap_sock()
+
         return connect, remote
 
-    def wait_until_done(self):
+    def wait_until_done(self, timeout=10.0):
         """Wait for the started debugger operation to finish."""
         if self._thread is None:
             return
-        self._thread.join()
+        self._thread.join(timeout)
+        if self._thread.isAlive():
+            raise Exception(
+                'wait_until_done timed out after {} secs'.format(timeout))
 
     ####################
     # for subclassing
@@ -187,8 +191,10 @@ class Binder(BinderBase):
 
     def __init__(self, do_debugging=None, **kwargs):
         if do_debugging is None:
+
             def do_debugging(external, internal):
                 time.sleep(5)
+
         super(Binder, self).__init__(**kwargs)
         self._do_debugging = do_debugging
 
