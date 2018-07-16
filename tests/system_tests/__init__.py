@@ -23,8 +23,8 @@ PORT = 9879
 CONNECT_TIMEOUT = 5.0
 DELAY_WAITING_FOR_SOCKETS = 1.0
 
-DebugInfo = namedtuple('DebugInfo', 'host port starttype argv filename modulename env cwd attachtype')  # noqa
-DebugInfo.__new__.__defaults__ = ('localhost', PORT, 'launch', []) + ((None, ) * (len(DebugInfo._fields) - 4))  # noqa
+DebugInfo = namedtuple('DebugInfo', 'host port starttype argv filename modulename env cwd attachtype verbose')  # noqa
+DebugInfo.__new__.__defaults__ = ('localhost', PORT, 'launch', [], None, None, None, None, None, False)  # noqa
 
 
 Debugger = namedtuple('Debugger', 'session adapter')
@@ -153,20 +153,48 @@ def lifecycle_handshake(session, command='launch', options=None,
             adapterID='spam',
         )
     req_command = session.send_request(command, **options or {})
+    req_command.wait()
     req_threads = session.send_request('threads') if threads else None
 
+    reqs_bps, reqs_exc, req_done = _configure(
+        session,
+        breakpoints,
+        excbreakpoints,
+    )
+
+    return (req_initialize, req_command, req_done,
+            reqs_bps, reqs_exc, req_threads)
+
+
+def _configure(session, breakpoints, excbreakpoints):
     reqs_bps = []
-    reqs_exc = []
     for req in breakpoints or ():
         reqs_bps.append(
             session.send_request('setBreakpoints', **req))
+
+    reqs_exc = []
     for req in excbreakpoints or ():
-        reqs_bps.append(
+        reqs_exc.append(
             session.send_request('setExceptionBreakpoints', **req))
 
+    # All config requests must be done before sending "configurationDone".
+    for req in reqs_bps + reqs_exc:
+        req.wait()
     req_done = session.send_request('configurationDone')
-    return (req_initialize, req_command, req_done,
-            reqs_bps, reqs_exc, req_threads)
+    return reqs_bps, reqs_exc, req_done
+
+
+def react_to_stopped(session, tid):
+    req_threads = session.send_request('threads')
+    req_threads.wait()
+
+    req_stacktrace = session.send_request(
+        'stackTrace',
+        threadId=tid,
+    )
+    req_stacktrace.wait()
+
+    return req_threads, req_stacktrace
 
 
 class TestsBase(object):
@@ -265,6 +293,8 @@ Original Error:
             _kill_proc(adapter.pid)
             _wrap_and_reraise(session, ex, exc_type, exc_value, exc_traceback)
 
+        if debug_info.verbose:
+            DebugAdapter.VERBOSE = True
         if debug_info.attachtype == 'import' and \
             debug_info.modulename is not None:
             argv = debug_info.argv
@@ -285,12 +315,15 @@ Original Error:
             debug_info.starttype == 'attach' and \
             debug_info.filename is not None:
             argv = debug_info.argv
-            with DebugAdapter.start_embedded(
-                    addr,
-                    debug_info.filename,
-                    argv=argv,
-                    env=env,
-                    cwd=cwd) as adapter:
+            adapter = DebugAdapter.start_embedded(
+                addr,
+                debug_info.filename,
+                argv=argv,
+                env=env,
+                cwd=cwd,
+                waitforserver=True,
+            )
+            with adapter:
                 with DebugClient() as editor:
                     time.sleep(DELAY_WAITING_FOR_SOCKETS)
                     session = editor.attach_socket(addr, adapter)
@@ -307,13 +340,16 @@ Original Error:
                 name = debug_info.modulename
                 kind = 'module'
             argv = debug_info.argv
-            with DebugAdapter.start_for_attach(
-                    addr,
-                    name=name,
-                    extra=argv,
-                    kind=kind,
-                    env=env,
-                    cwd=cwd) as adapter:
+            adapter = DebugAdapter.start_for_attach(
+                addr,
+                name=name,
+                extra=argv,
+                kind=kind,
+                env=env,
+                cwd=cwd,
+                waitforserver=True,
+            )
+            with adapter:
                 with DebugClient() as editor:
                     time.sleep(DELAY_WAITING_FOR_SOCKETS)
                     session = editor.attach_socket(addr, adapter)

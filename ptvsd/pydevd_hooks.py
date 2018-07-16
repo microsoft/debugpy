@@ -31,12 +31,9 @@ def start_server(daemon, host, port, **kwargs):
             debug('failed:', exc, tb=True)
             return None
 
-    while True:
+    def serve_forever():
         debug('waiting on initial connection')
         handle_next()
-        break
-
-    def serve_forever():
         while True:
             debug('waiting on next connection')
             try:

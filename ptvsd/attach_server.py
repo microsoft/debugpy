@@ -4,18 +4,22 @@
 
 import threading
 
-import pydevd
-
 # TODO: Why import run_module & run_file?
 from ptvsd._local import run_module, run_file  # noqa
-from ptvsd._remote import enable_attach as ptvsd_enable_attach
+from ptvsd._remote import (
+    enable_attach as ptvsd_enable_attach, _pydevd_settrace,
+)
 
+
+WAIT_TIMEOUT = 1.0  # TODO: Use a smaller value during tests?
 
 DEFAULT_HOST = '0.0.0.0'
 DEFAULT_PORT = 5678
 
 _enabled = False
 _attached = threading.Event()
+_debug_current_thread = None
+_pending_threads = set()
 
 
 def wait_for_attach(timeout=None):
@@ -29,6 +33,14 @@ def wait_for_attach(timeout=None):
         The timeout for the operation in seconds (or fractions thereof).
     """
     _attached.wait(timeout)
+
+    tid = threading.current_thread().ident
+    if tid in _pending_threads:
+        _pending_threads.remove(tid)
+        # Enable pydevd in the current thread.  This is necessary because
+        # we started pydevd in a new thread.  We must do it here because
+        # that previous invocation must have finished already.
+        _debug_current_thread()
 
 
 def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True):
@@ -65,11 +77,29 @@ def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True):
     _enabled = True
     _attached.clear()
 
-    ptvsd_enable_attach(
+    # Note: this only starts pydevd (e.g. sets it up) and enables
+    # debugging for *future* threads.  It does not actually enable
+    # debugging in the *current* thread.  That is done in
+    # wait_for_attach().  Thus this approach is problematic if
+    # wait_for_attach() is never called.
+    # TODO: Is there any way to ensure that debug_current_thread()
+    # gets called in the current thread, regardless of if
+    # wait_for_attach() gets called?
+    _, wait, debug_current_thread = ptvsd_enable_attach(
         address,
         on_attach=_attached.set,
         redirect_output=redirect_output,
     )
+    global _debug_current_thread
+    _debug_current_thread = debug_current_thread
+
+    # Give it a chance to finish starting.  This helps reduce possible
+    # issues due to relying on wait_for_attach().
+    if wait(WAIT_TIMEOUT):
+        debug_current_thread()
+    else:
+        _pending_threads.add(threading.current_thread().ident)
+
 
 # TODO: Add disable_attach()?
 
@@ -87,7 +117,7 @@ def break_into_debugger():
         return
 
     import sys
-    pydevd.settrace(
+    _pydevd_settrace(
         suspend=True,
         trace_only_current_thread=True,
         patch_multiprocessing=False,
