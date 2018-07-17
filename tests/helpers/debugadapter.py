@@ -52,6 +52,7 @@ COPIED_ENV = [
     'WINDIR',
 ]
 
+SERVER_READY_TIMEOUT = 3.0  # seconds
 
 try:
     ConnectionRefusedError
@@ -82,7 +83,7 @@ def _copy_env(verbose=False, env=None):
     return variables
 
 
-def wait_for_socket_server(addr, timeout=3.0, **kwargs):
+def wait_for_socket_server(addr, timeout=SERVER_READY_TIMEOUT):
     start_time = time.time()
     while True:
         try:
@@ -177,9 +178,11 @@ class DebugAdapter(Closeable):
 
     @classmethod
     def start_for_attach(cls, addr, *args, **kwargs):
+        srvtimeout = kwargs.pop('srvtimeout', SERVER_READY_TIMEOUT)
         addr = Address.as_server(*addr)
         adapter = cls._start_as(addr, *args, server=True, **kwargs)
-        wait_for_socket_server(addr)
+        if srvtimeout is not None:
+            wait_for_socket_server(addr, timeout=srvtimeout)
         return adapter
 
     @classmethod
@@ -205,6 +208,8 @@ class DebugAdapter(Closeable):
 
     @classmethod
     def start_embedded(cls, addr, filename, argv=[], **kwargs):
+        # ptvsd.enable_attach() slows things down, so we must wait longer.
+        srvtimeout = kwargs.pop('srvtimeout', SERVER_READY_TIMEOUT + 2)
         addr = Address.as_server(*addr)
         with open(filename, 'r+') as scriptfile:
             content = scriptfile.read()
@@ -212,7 +217,8 @@ class DebugAdapter(Closeable):
             assert 'ptvsd.enable_attach' in content
         adapter = cls.start_wrapper_script(
             filename, argv=argv, addr=addr, **kwargs)
-        wait_for_socket_server(addr, **kwargs)
+        if srvtimeout is not None:
+            wait_for_socket_server(addr, timeout=srvtimeout)
         return adapter
 
     @classmethod

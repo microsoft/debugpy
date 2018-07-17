@@ -179,6 +179,9 @@ class DebugSession(Closeable):
 
         wait = args.pop('wait', False)
         req = self._create_request(command, **args)
+        if self.VERBOSE:
+            msg = parse_message(req)
+            print(' <-', msg)
 
         if wait:
             with self.wait_for_response(req) as resp:
