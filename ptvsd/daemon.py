@@ -147,7 +147,6 @@ class DaemonBase(object):
             assert self._sessionlock is None
             assert self.session is None
             self._server = create_server(addr.host, addr.port)
-            debug('server socket created')
             self._sessionlock = threading.Lock()
         sock = self._sock
 

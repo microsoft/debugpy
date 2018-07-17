@@ -177,11 +177,9 @@ class DebugAdapter(Closeable):
 
     @classmethod
     def start_for_attach(cls, addr, *args, **kwargs):
-        wait = kwargs.pop('waitforserver', False)
         addr = Address.as_server(*addr)
         adapter = cls._start_as(addr, *args, server=True, **kwargs)
-        if wait:
-            wait_for_socket_server(addr)
+        wait_for_socket_server(addr)
         return adapter
 
     @classmethod
@@ -207,7 +205,6 @@ class DebugAdapter(Closeable):
 
     @classmethod
     def start_embedded(cls, addr, filename, argv=[], **kwargs):
-        wait = kwargs.pop('waitforserver', False)
         addr = Address.as_server(*addr)
         with open(filename, 'r+') as scriptfile:
             content = scriptfile.read()
@@ -215,8 +212,7 @@ class DebugAdapter(Closeable):
             assert 'ptvsd.enable_attach' in content
         adapter = cls.start_wrapper_script(
             filename, argv=argv, addr=addr, **kwargs)
-        if wait:
-            wait_for_socket_server(addr, **kwargs)
+        wait_for_socket_server(addr, **kwargs)
         return adapter
 
     @classmethod

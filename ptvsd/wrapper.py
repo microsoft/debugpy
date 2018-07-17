@@ -416,16 +416,12 @@ class PydevdSocket(object):
 
     def pydevd_notify(self, cmd_id, args):
         # TODO: docstring
-        if self.pipe_w is None:
-            raise EOFError
         seq, s = self.make_packet(cmd_id, args)
         _util.log_pydevd_msg(cmd_id, seq, args, inbound=False)
         os.write(self.pipe_w, s.encode('utf8'))
 
     def pydevd_request(self, loop, cmd_id, args):
         # TODO: docstring
-        if self.pipe_w is None:
-            raise EOFError
         seq, s = self.make_packet(cmd_id, args)
         _util.log_pydevd_msg(cmd_id, seq, args, inbound=False)
         fut = loop.create_future()

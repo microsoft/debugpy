@@ -15,9 +15,7 @@ from tests.helpers.debugsession import Awaitable
 from . import (
     _strip_newline_output_events, lifecycle_handshake, TestsBase,
     LifecycleTestsBase, _strip_output_event, _strip_exit, _find_events,
-    PORT, react_to_stopped,
-)
-
+    PORT)
 
 ROOT = os.path.dirname(os.path.dirname(ptvsd.__file__))
 
@@ -225,7 +223,6 @@ class LifecycleTests(LifecycleTestsBase):
             sys.path.insert(0, {!r})
             import ptvsd
             ptvsd.enable_attach({}, redirect_output={})
-            ptvsd.wait_for_attach()
 
             print('success!', end='')
 
@@ -346,7 +343,6 @@ class LifecycleTests(LifecycleTestsBase):
 
             addr = {}
             ptvsd.enable_attach(addr)
-            ptvsd.wait_for_attach()
 
             # <before>
             print('==before==')
@@ -577,13 +573,13 @@ class LifecycleTests(LifecycleTestsBase):
 
             addr = {}
             ptvsd.enable_attach(addr)
-            print('== waiting for attach ==')
+            print('waiting for attach')
             # <waiting>
             ptvsd.wait_for_attach()
             # <attached>
-            print('== attached! ==')
+            print('attached!')
             # <bp 2>
-            print('== done waiting ==')
+            print('done waiting')
             """.format(ROOT, tuple(addr)))
         lockfile1 = self.workspace.lockfile()
         done1, _ = set_lock(filename, lockfile1, 'waiting')
@@ -622,35 +618,35 @@ class LifecycleTests(LifecycleTestsBase):
             with DebugClient() as editor:
                 session = editor.attach_socket(addr, adapter, timeout=1)
 
-                with session.wait_for_event('thread') as result:
-                    with session.wait_for_event('process'):
-                        (req_init, req_attach, req_config,
-                         reqs_bps, _, req_threads1,
-                         ) = lifecycle_handshake(session, 'attach',
-                                                 breakpoints=breakpoints,
-                                                 options=options,
-                                                 threads=True)
-                        req_bps, = reqs_bps  # There should only be one.
-                event = result['msg']
-                tid = event.body['threadId']
-
-                # Grab the initial output.
-                out1 = next(adapter.output)  # "waiting for attach"
-                line = adapter.output.readline()
-                while line:
-                    out1 += line
-                    line = adapter.output.readline()
-
+                # TODO: There appears to be a small race that may
+                # cause the test to fail here.
                 with session.wait_for_event('stopped'):
-                    # Tell the script to proceed (at "# <waiting>").
-                    # This leads to the first breakpoint.
-                    done1()
-                req_threads2, req_stacktrace1 = react_to_stopped(session, tid)
-                out2 = str(adapter.output)  # ""
+                    with session.wait_for_event('thread') as result:
+                        with session.wait_for_event('process'):
+                            (req_init, req_attach, req_config,
+                             reqs_bps, _, req_threads1,
+                             ) = lifecycle_handshake(session, 'attach',
+                                                     breakpoints=breakpoints,
+                                                     options=options,
+                                                     threads=True)
 
-                # Tell the script to proceed (at "# <bp 2>").  This
-                # leads to the second breakpoint.  At this point
-                # execution is still stopped at the first breakpoint.
+                            # Grab the initial output.
+                            out1 = next(adapter.output)  # 'waiting for attach'
+                            line = adapter.output.readline()
+                            while line:
+                                out1 += line
+                                line = adapter.output.readline()
+                            done1()
+                        req_bps, = reqs_bps  # There should only be one.
+                    event = result['msg']
+                    tid = event.body['threadId']
+                req_threads2 = session.send_request('threads')
+                req_stacktrace1 = session.send_request(
+                    'stackTrace',
+                    threadId=tid,
+                )
+                out2 = str(adapter.output)
+
                 done2()
                 with session.wait_for_event('stopped'):
                     with session.wait_for_event('continued'):
@@ -658,25 +654,27 @@ class LifecycleTests(LifecycleTestsBase):
                             'continue',
                             threadId=tid,
                         )
-                        req_continue1.wait()
-                req_threads3, req_stacktrace2 = react_to_stopped(session, tid)
-                out3 = str(adapter.output)  # "attached!"
+                req_threads3 = session.send_request('threads')
+                req_stacktrace2 = session.send_request(
+                    'stackTrace',
+                    threadId=tid,
+                )
+                out3 = str(adapter.output)
 
                 with session.wait_for_event('continued'):
                     req_continue2 = session.send_request(
                         'continue',
                         threadId=tid,
                     )
-                    req_continue2.wait()
 
                 adapter.wait()
-            out4 = str(adapter.output)  # "done waiting"
+            out4 = str(adapter.output)
 
         # Output between enable_attach() and wait_for_attach() may
         # be sent at a relatively arbitrary time (or not at all).
         # So we ignore it by removing it from the message list.
         received = list(_strip_output_event(session.received,
-                                            u'== waiting for attach =='))
+                                            u'waiting for attach'))
         received = list(_strip_newline_output_events(received))
         # There's an ordering race with continue/continued that pops
         # up occasionally.  We work around that by manually fixing the
@@ -764,7 +762,7 @@ class LifecycleTests(LifecycleTestsBase):
             self.new_event(
                 'output',
                 category='stdout',
-                output='== attached! ==',
+                output='attached!',
             ),
             self.new_event(
                 'stopped',
@@ -797,7 +795,7 @@ class LifecycleTests(LifecycleTestsBase):
             self.new_event(
                 'output',
                 category='stdout',
-                output='== done waiting ==',
+                output='done waiting',
             ),
             #self.new_event(
             #    'thread',

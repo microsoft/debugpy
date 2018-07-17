@@ -66,13 +66,6 @@ def find_line(script, label):
 ########################
 # wait points
 
-def _indent(script, line):
-    indent = ' ' * (len(line) - len(line.lstrip(' ')))
-    if not indent:
-        return script
-    return indent + (os.linesep + indent).join(script.splitlines())
-
-
 def insert_release(script, lockfile, label=None):
     """Return (script, wait func) after adding a done script to the original.
 
@@ -92,7 +85,6 @@ def insert_release(script, lockfile, label=None):
         lines = iter(script.splitlines())
         for line, matched in iter_until_label(lines, label):
             if matched:
-                donescript = _indent(donescript, line)
                 leading.extend([
                     donescript,
                     line,
@@ -151,7 +143,6 @@ def insert_lock(script, lockfile, label=None, timeout=5):
         lines = iter(script.splitlines())
         for line, matched in iter_until_label(lines, label):
             if matched:
-                waitscript = _indent(waitscript, line)
                 leading.extend([
                     waitscript,
                     line,
