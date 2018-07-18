@@ -16,10 +16,8 @@ import unittest
 import pytest
 
 from tests_python import debugger_unittest
-from tests_python.debugger_unittest import get_free_port
-
-
-CMD_SET_PROPERTY_TRACE, CMD_EVALUATE_CONSOLE_EXPRESSION, CMD_RUN_CUSTOM_OPERATION, CMD_ENABLE_DONT_TRACE = 133, 134, 135, 141
+from tests_python.debugger_unittest import get_free_port, CMD_SET_PROPERTY_TRACE, REASON_CAUGHT_EXCEPTION, \
+    REASON_UNCAUGHT_EXCEPTION, REASON_STOP_ON_BREAKPOINT, REASON_THREAD_SUSPEND, overrides
 
 IS_CPYTHON = platform.python_implementation() == 'CPython'
 IS_IRONPYTHON = platform.python_implementation() == 'IronPython'
@@ -71,7 +69,7 @@ class WriterThreadCaseSetNextStatement(debugger_unittest.AbstractWriterThread):
         breakpoint_id = self.write_add_breakpoint(6, None)
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
 
         assert line == 6, 'Expected return to be in line 6, was: %s' % line
 
@@ -104,7 +102,7 @@ class WriterThreadCaseGetNextStatementTargets(debugger_unittest.AbstractWriterTh
         breakpoint_id = self.write_add_breakpoint(21, None)
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
 
         assert line == 21, 'Expected return to be in line 21, was: %s' % line
 
@@ -123,6 +121,15 @@ class WriterThreadCaseGetNextStatementTargets(debugger_unittest.AbstractWriterTh
 #======================================================================================================================
 class AbstractWriterThreadCaseDjango(debugger_unittest.AbstractWriterThread):
     FORCE_KILL_PROCESS_WHEN_FINISHED_OK = True
+    
+    def _ignore_stderr_line(self, line):
+        if debugger_unittest.AbstractWriterThread._ignore_stderr_line(self, line):
+            return True
+        
+        if 'GET /my_app' in line:
+            return True
+        
+        return False
 
     def get_command_line_args(self):
         free_port = get_free_port()
@@ -174,7 +181,7 @@ class WriterThreadCaseDjango(AbstractWriterThreadCaseDjango):
         time.sleep(5)  # Give django some time to get to startup before requesting the page
         t.start()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
         assert line == 5, 'Expected return to be in line 5, was: %s' % line
         self.write_get_variable(thread_id, frame_id, 'entry')
         self.wait_for_vars([
@@ -184,7 +191,7 @@ class WriterThreadCaseDjango(AbstractWriterThreadCaseDjango):
 
         self.write_run_thread(thread_id)
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
         assert line == 5, 'Expected return to be in line 5, was: %s' % line
         self.write_get_variable(thread_id, frame_id, 'entry')
         self.wait_for_vars([
@@ -221,7 +228,7 @@ class WriterThreadCaseDjango2(AbstractWriterThreadCaseDjango):
         time.sleep(5)  # Give django some time to get to startup before requesting the page
         t.start()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
         assert line == 4, 'Expected return to be in line 4, was: %s' % line
 
         self.write_get_frame(thread_id, frame_id)
@@ -241,7 +248,7 @@ class WriterThreadCase19(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(8, None)
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
 
         assert line == 8, 'Expected return to be in line 8, was: %s' % line
 
@@ -281,7 +288,7 @@ class WriterThreadCase18(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(5, 'm2')
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
         assert line == 5, 'Expected return to be in line 2, was: %s' % line
 
         self.write_change_variable(thread_id, frame_id, 'a', '40')
@@ -307,7 +314,7 @@ class WriterThreadCase17(debugger_unittest.AbstractWriterThread):
         self.write_make_initial_run()
 
         for i in range(4):
-            thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
+            thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
 
             self.write_step_in(thread_id)
             thread_id, frame_id, line = self.wait_for_breakpoint_hit('107', True)
@@ -331,7 +338,7 @@ class WriterThreadCase17a(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(2, 'm1')
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
         assert line == 2, 'Expected return to be in line 2, was: %s' % line
 
         self.write_step_in(thread_id)
@@ -357,7 +364,7 @@ class WriterThreadCase16(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(9, 'main')
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
 
         # In this test we check that the three arrays of different shapes, sizes and types
         # are all resolved properly as ndarrays.
@@ -455,7 +462,7 @@ class WriterThreadCase15(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(22, 'main')
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
 
         # Access some variable
         self.write_custom_operation("%s\t%s\tEXPRESSION\tcarObj.color" % (thread_id, frame_id), "EXEC", "f=lambda x: 'val=%s' % x", "f")
@@ -912,20 +919,174 @@ class WriterThreadCaseUnhandledExceptions(debugger_unittest.AbstractWriterThread
     # Note: expecting unhandled exceptions to be printed to stdout.
     TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_unhandled_exceptions.py')
 
+    @overrides(debugger_unittest.AbstractWriterThread.additional_output_checks)
+    def additional_output_checks(self, stdout, stderr):
+        if 'raise Exception' not in stderr:
+            raise AssertionError('Expected test to have an unhandled exception.')
+        # Don't call super (we have an unhandled exception in the stack trace).
+        
     def run(self):
         self.start_socket()
         self.write_add_exception_breakpoint_with_policy('Exception', "0", "1", "0")
         self.write_make_initial_run()
 
         # Will stop in 2 background threads
-        thread_id1, frame_id = self.wait_for_breakpoint_hit('122')
-        thread_id2, frame_id = self.wait_for_breakpoint_hit('122')
+        thread_id1, frame_id = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
+        thread_id2, frame_id = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
 
         self.write_run_thread(thread_id1)
         self.write_run_thread(thread_id2)
 
         # Will stop in main thread
-        thread_id3, frame_id = self.wait_for_breakpoint_hit('122')
+        thread_id3, frame_id = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
+        self.write_run_thread(thread_id3)
+
+        self.log.append('Marking finished ok.')
+        self.finished_ok = True
+
+#=======================================================================================================================
+# WriterThreadCaseUnhandledExceptionsOnTopLevel
+#=======================================================================================================================
+class WriterThreadCaseUnhandledExceptionsOnTopLevel(debugger_unittest.AbstractWriterThread):
+
+    # Note: expecting unhandled exception to be printed to stderr.
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_unhandled_exceptions_on_top_level.py')
+
+    @overrides(debugger_unittest.AbstractWriterThread.check_test_suceeded_msg)
+    def check_test_suceeded_msg(self, stdout, stderr):
+        return 'TEST SUCEEDED' in ''.join(stderr)
+    
+    @overrides(debugger_unittest.AbstractWriterThread.additional_output_checks)
+    def additional_output_checks(self, stdout, stderr):
+        # Don't call super as we have an expected exception
+        assert 'ValueError: TEST SUCEEDED' in stderr
+
+    def run(self):
+        self.start_socket()
+        self.write_add_exception_breakpoint_with_policy('Exception', "0", "1", "0")
+        self.write_make_initial_run()
+
+        # Will stop in main thread
+        thread_id3, frame_id = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
+        self.write_run_thread(thread_id3)
+
+        self.log.append('Marking finished ok.')
+        self.finished_ok = True
+
+#=======================================================================================================================
+# WriterThreadCaseUnhandledExceptionsOnTopLevel2
+#=======================================================================================================================
+class WriterThreadCaseUnhandledExceptionsOnTopLevel2(debugger_unittest.AbstractWriterThread):
+
+    # Note: expecting unhandled exception to be printed to stderr.
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_unhandled_exceptions_on_top_level.py')
+
+    @overrides(debugger_unittest.AbstractWriterThread.check_test_suceeded_msg)
+    def check_test_suceeded_msg(self, stdout, stderr):
+        return 'TEST SUCEEDED' in ''.join(stderr)
+    
+    @overrides(debugger_unittest.AbstractWriterThread.additional_output_checks)
+    def additional_output_checks(self, stdout, stderr):
+        # Don't call super as we have an expected exception
+        assert 'ValueError: TEST SUCEEDED' in stderr
+        
+    @overrides(debugger_unittest.AbstractWriterThread.get_environ)
+    def get_environ(self):
+        env = os.environ.copy()
+        curr_pythonpath = env.get('PYTHONPATH', '')
+
+        pydevd_dirname = os.path.dirname(self.get_pydevd_file())
+
+        curr_pythonpath = pydevd_dirname + os.pathsep + curr_pythonpath
+        env['PYTHONPATH'] = curr_pythonpath
+        return env
+        
+    def update_command_line_args(self, args):
+        # Start pydevd with '-m' to see how it deal with being called with
+        # runpy at the start.
+        assert args[0].endswith('pydevd.py')
+        args = ['-m', 'pydevd'] + args[1:]
+        return args
+
+    def run(self):
+        self.start_socket()
+        self.write_add_exception_breakpoint_with_policy('Exception', "0", "1", "0")
+        self.write_make_initial_run()
+
+        # Should stop (only once) in the main thread.
+        thread_id3, frame_id = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
+        self.write_run_thread(thread_id3)
+
+        self.log.append('Marking finished ok.')
+        self.finished_ok = True
+        
+
+#=======================================================================================================================
+# WriterThreadCaseUnhandledExceptionsOnTopLevel3
+#=======================================================================================================================
+class WriterThreadCaseUnhandledExceptionsOnTopLevel3(debugger_unittest.AbstractWriterThread):
+
+    # Note: expecting unhandled exception to be printed to stderr.
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_unhandled_exceptions_on_top_level.py')
+
+    @overrides(debugger_unittest.AbstractWriterThread.check_test_suceeded_msg)
+    def check_test_suceeded_msg(self, stdout, stderr):
+        return 'TEST SUCEEDED' in ''.join(stderr)
+    
+    @overrides(debugger_unittest.AbstractWriterThread.additional_output_checks)
+    def additional_output_checks(self, stdout, stderr):
+        # Don't call super as we have an expected exception
+        assert 'ValueError: TEST SUCEEDED' in stderr
+
+    def run(self):
+        self.start_socket()
+        # Handled and unhandled
+        self.write_add_exception_breakpoint_with_policy('Exception', "1", "1", "0")
+        self.write_make_initial_run()
+
+        # Will stop in main thread twice: once one we find that the exception is being
+        # thrown and another in postmortem mode when we discover it's uncaught.
+        thread_id3, frame_id = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION)
+        self.write_run_thread(thread_id3)
+        
+        thread_id3, frame_id = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
+        self.write_run_thread(thread_id3)
+
+        self.log.append('Marking finished ok.')
+        self.finished_ok = True
+        
+
+#=======================================================================================================================
+# WriterThreadCaseUnhandledExceptionsOnTopLevel4
+#=======================================================================================================================
+class WriterThreadCaseUnhandledExceptionsOnTopLevel4(debugger_unittest.AbstractWriterThread):
+
+    # Note: expecting unhandled exception to be printed to stderr.
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_unhandled_exceptions_on_top_level2.py')
+
+    @overrides(debugger_unittest.AbstractWriterThread.check_test_suceeded_msg)
+    def check_test_suceeded_msg(self, stdout, stderr):
+        return 'TEST SUCEEDED' in ''.join(stderr)
+    
+    @overrides(debugger_unittest.AbstractWriterThread.additional_output_checks)
+    def additional_output_checks(self, stdout, stderr):
+        # Don't call super as we have an expected exception
+        assert 'ValueError: TEST SUCEEDED' in stderr
+
+    def run(self):
+        self.start_socket()
+        # Handled and unhandled
+        self.write_add_exception_breakpoint_with_policy('Exception', "1", "1", "0")
+        self.write_make_initial_run()
+
+        # We have an exception thrown and handled and another which is thrown and is then unhandled. 
+        thread_id3, frame_id = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION)
+        self.write_run_thread(thread_id3)
+
+        thread_id3, frame_id = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION)
+        self.write_run_thread(thread_id3)
+        
+        thread_id3, frame_id = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
         self.write_run_thread(thread_id3)
 
         self.log.append('Marking finished ok.')
@@ -946,7 +1107,7 @@ class WriterThreadCase2(debugger_unittest.AbstractWriterThread):
 
         thread_id, frame_id = self.wait_for_breakpoint_hit()
 
-        self.write_get_frame(thread_id, frame_id)
+        self.write_get_frame(thread_id, frame_id)  # Note: write get frame but not waiting for it to be gotten.
 
         self.write_add_breakpoint(14, 'Call2')
 
@@ -954,7 +1115,7 @@ class WriterThreadCase2(debugger_unittest.AbstractWriterThread):
 
         thread_id, frame_id = self.wait_for_breakpoint_hit()
 
-        self.write_get_frame(thread_id, frame_id)
+        self.write_get_frame(thread_id, frame_id)  # Note: write get frame but not waiting for it to be gotten.
 
         self.write_run_thread(thread_id)
 
@@ -1056,7 +1217,9 @@ class WriterThreadCaseQThread4(debugger_unittest.AbstractWriterThread):
         self.log.append('Marking finished ok.')
         self.finished_ok = True
 
+    @overrides(debugger_unittest.AbstractWriterThread.additional_output_checks)
     def additional_output_checks(self, stdout, stderr):
+        debugger_unittest.AbstractWriterThread.additional_output_checks(self, stdout, stderr)
         if 'On start called' not in stdout:
             raise AssertionError('Expected "On start called" to be in stdout:\n%s' % (stdout,))
         if 'Done sleeping' not in stdout:
@@ -1113,6 +1276,7 @@ class WriterThreadCaseMSwitch(debugger_unittest.AbstractWriterThread):
     TEST_FILE = 'tests_python.resources._debugger_case_m_switch'
     IS_MODULE = True
 
+    @overrides(debugger_unittest.AbstractWriterThread.get_environ)
     def get_environ(self):
         env = os.environ.copy()
         curr_pythonpath = env.get('PYTHONPATH', '')
@@ -1123,6 +1287,7 @@ class WriterThreadCaseMSwitch(debugger_unittest.AbstractWriterThread):
         env['PYTHONPATH'] = curr_pythonpath
         return env
 
+    @overrides(debugger_unittest.AbstractWriterThread.get_main_filename)
     def get_main_filename(self):
         return debugger_unittest._get_debugger_test_file('_debugger_case_m_switch.py')
 
@@ -1161,9 +1326,9 @@ class WriterThreadCaseModuleWithEntryPoint(WriterThreadCaseMSwitch):
     TEST_FILE = 'tests_python.resources._debugger_case_module_entry_point:main'
     IS_MODULE = True
 
+    @overrides(WriterThreadCaseMSwitch.get_main_filename)
     def get_main_filename(self):
         return debugger_unittest._get_debugger_test_file('_debugger_case_module_entry_point.py')
-
 
 
 
@@ -1181,7 +1346,7 @@ class WriterThreadCaseRemoteDebugger(debugger_unittest.AbstractWriterThread):
         self.write_make_initial_run()
 
         self.log.append('waiting for breakpoint hit')
-        thread_id, frame_id = self.wait_for_breakpoint_hit('105')
+        thread_id, frame_id = self.wait_for_breakpoint_hit(REASON_THREAD_SUSPEND)
 
         self.log.append('run thread')
         self.write_run_thread(thread_id)
@@ -1194,6 +1359,88 @@ class WriterThreadCaseRemoteDebugger(debugger_unittest.AbstractWriterThread):
             raise
         self.log.append('asserted')
 
+        self.finished_ok = True
+        
+#=======================================================================================================================
+# WriterThreadCaseRemoteDebuggerUnhandledExceptions
+#=======================================================================================================================
+class WriterThreadCaseRemoteDebuggerUnhandledExceptions(debugger_unittest.AbstractWriterThread):
+
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_remote_unhandled_exceptions.py')
+    
+    @overrides(debugger_unittest.AbstractWriterThread.check_test_suceeded_msg)
+    def check_test_suceeded_msg(self, stdout, stderr):
+        return 'TEST SUCEEDED' in ''.join(stderr)
+    
+    @overrides(debugger_unittest.AbstractWriterThread.additional_output_checks)
+    def additional_output_checks(self, stdout, stderr):
+        # Don't call super as we have an expected exception
+        assert 'ValueError: TEST SUCEEDED' in stderr
+
+    def run(self):
+        self.start_socket(8787)  # Wait for it to connect back at this port.
+
+        self.log.append('making initial run')
+        self.write_make_initial_run()
+
+        self.log.append('waiting for breakpoint hit')
+        thread_id, frame_id = self.wait_for_breakpoint_hit(REASON_THREAD_SUSPEND)
+        
+        self.write_add_exception_breakpoint_with_policy('Exception', '0', '1', '0')
+
+        self.log.append('run thread')
+        self.write_run_thread(thread_id)
+        
+        self.log.append('waiting for uncaught exception')
+        thread_id, frame_id = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
+        self.write_run_thread(thread_id)
+
+        self.log.append('finished ok')
+        self.finished_ok = True
+
+#=======================================================================================================================
+# WriterThreadCaseRemoteDebuggerUnhandledExceptions2
+#=======================================================================================================================
+class WriterThreadCaseRemoteDebuggerUnhandledExceptions2(debugger_unittest.AbstractWriterThread):
+
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_remote_unhandled_exceptions2.py')
+    
+    @overrides(debugger_unittest.AbstractWriterThread.check_test_suceeded_msg)
+    def check_test_suceeded_msg(self, stdout, stderr):
+        return 'TEST SUCEEDED' in ''.join(stderr)
+    
+    @overrides(debugger_unittest.AbstractWriterThread.additional_output_checks)
+    def additional_output_checks(self, stdout, stderr):
+        # Don't call super as we have an expected exception
+        assert 'ValueError: TEST SUCEEDED' in stderr
+
+    def run(self):
+        self.start_socket(8787)  # Wait for it to connect back at this port.
+
+        self.log.append('making initial run')
+        self.write_make_initial_run()
+
+        self.log.append('waiting for breakpoint hit')
+        thread_id, frame_id = self.wait_for_breakpoint_hit(REASON_THREAD_SUSPEND)
+        
+        self.write_add_exception_breakpoint_with_policy('ValueError', '0', '1', '0')
+
+        self.log.append('run thread')
+        self.write_run_thread(thread_id)
+        
+        self.log.append('waiting for uncaught exception')
+        for _ in range(3):
+            # Note: this isn't ideal, but in the remote attach case, if the
+            # exception is raised at the topmost frame, we consider the exception to
+            # be an uncaught exception even if it'll be handled at that point.
+            # See: https://github.com/Microsoft/ptvsd/issues/580
+            # To properly fix this, we'll need to identify that this exception
+            # will be handled later on with the information we have at hand (so,
+            # no back frame but within a try..except block).
+            thread_id, frame_id = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
+            self.write_run_thread(thread_id)
+
+        self.log.append('finished ok')
         self.finished_ok = True
 
 #=======================================================================================================================
@@ -1243,7 +1490,7 @@ class WriterThreadCaseRemoteDebuggerMultiProc(debugger_unittest.AbstractWriterTh
         self.write_make_initial_run()
 
         self.log.append('waiting for breakpoint hit')
-        thread_id, frame_id = self.wait_for_breakpoint_hit('105')
+        thread_id, frame_id = self.wait_for_breakpoint_hit(REASON_THREAD_SUSPEND)
 
         self.secondary_multi_proc_process_writer_thread  = secondary_multi_proc_process_writer_thread = \
             _SecondaryMultiProcProcessWriterThread(self.server_socket)
@@ -1296,6 +1543,7 @@ class WriterThreadCaseTypeExt(debugger_unittest.AbstractWriterThread):
         self.finished_ok = True
 
 
+    @overrides(debugger_unittest.AbstractWriterThread.get_environ)
     def get_environ(self):
         env = os.environ.copy()
 
@@ -1316,10 +1564,13 @@ class WriterThreadCaseEventExt(debugger_unittest.AbstractWriterThread):
         self.write_make_initial_run()
         self.finished_ok = True
 
+    @overrides(debugger_unittest.AbstractWriterThread.additional_output_checks)
     def additional_output_checks(self, stdout, stderr):
+        debugger_unittest.AbstractWriterThread.additional_output_checks(self, stdout, stderr)
         if 'INITIALIZE EVENT RECEIVED' not in stdout:
             raise AssertionError('No initialize event received')
 
+    @overrides(debugger_unittest.AbstractWriterThread.get_environ)
     def get_environ(self):
         env = os.environ.copy()
 
@@ -1393,7 +1644,7 @@ class WriterThreadCaseHandledExceptions(debugger_unittest.AbstractWriterThread):
         )
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('137', True)
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, True)
         assert line == 2, 'Expected return to be in line 2, was: %s' % line
         self.write_run_thread(thread_id)
 
@@ -1406,6 +1657,7 @@ class WriterThreadCaseHandledExceptions1(debugger_unittest.AbstractWriterThread)
 
     TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_exceptions.py')
 
+    @overrides(debugger_unittest.AbstractWriterThread.get_environ)
     def get_environ(self):
         env = os.environ.copy()
 
@@ -1422,15 +1674,15 @@ class WriterThreadCaseHandledExceptions1(debugger_unittest.AbstractWriterThread)
         )
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('137', True)
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, True)
         assert line == 2, 'Expected return to be in line 2, was: %s' % line
         self.write_run_thread(thread_id)
         
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('137', True)
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, True)
         assert line == 5, 'Expected return to be in line 5, was: %s' % line
         self.write_run_thread(thread_id)
         
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('137', True)
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, True)
         assert line == 9, 'Expected return to be in line 9, was: %s' % line
         self.write_run_thread(thread_id)
 
@@ -1443,6 +1695,7 @@ class WriterThreadCaseHandledExceptions2(debugger_unittest.AbstractWriterThread)
 
     TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_exceptions.py')
 
+    @overrides(debugger_unittest.AbstractWriterThread.get_environ)
     def get_environ(self):
         env = os.environ.copy()
 
@@ -1468,6 +1721,7 @@ class WriterThreadCaseHandledExceptions3(debugger_unittest.AbstractWriterThread)
 
     TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_exceptions.py')
 
+    @overrides(debugger_unittest.AbstractWriterThread.get_environ)
     def get_environ(self):
         env = os.environ.copy()
 
@@ -1487,7 +1741,7 @@ class WriterThreadCaseHandledExceptions3(debugger_unittest.AbstractWriterThread)
         )
             
         self.write_make_initial_run()
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('137', True)
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, True)
         assert line == 2, 'Expected return to be in line 2, was: %s' % line
         self.write_run_thread(thread_id)
 
@@ -1509,7 +1763,7 @@ class WriterCaseSetTrace(debugger_unittest.AbstractWriterThread):
         assert line == 12, 'Expected return to be in line 12, was: %s' % line
         self.write_run_thread(thread_id)
         
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('105', True)
+        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_THREAD_SUSPEND, True)
         assert line == 7, 'Expected return to be in line 7, was: %s' % line
         self.write_run_thread(thread_id)
 
@@ -1522,6 +1776,16 @@ class WriterThreadCaseRedirectOutput(debugger_unittest.AbstractWriterThread):
 
     TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_redirect.py')
 
+    def _ignore_stderr_line(self, line):
+        if debugger_unittest.AbstractWriterThread._ignore_stderr_line(self, line):
+            return True
+        return line.startswith((
+            'text',
+            'binary',
+            'a' 
+        ))
+
+    @overrides(debugger_unittest.AbstractWriterThread.get_environ)
     def get_environ(self):
         env = os.environ.copy()
 
@@ -1579,6 +1843,7 @@ class WriterThreadCasePathTranslation(debugger_unittest.AbstractWriterThread):
         file_in_client = os.path.dirname(os.path.dirname(self.TEST_FILE))
         return os.path.join(os.path.dirname(file_in_client), 'foo', '_debugger_case_path_translation.py')
     
+    @overrides(debugger_unittest.AbstractWriterThread.get_environ)
     def get_environ(self):
         import json
         env = os.environ.copy()
@@ -1750,6 +2015,7 @@ class WriterDebugZipFiles(debugger_unittest.AbstractWriterThread):
         zip_file.writestr('zipped2/zipped_contents2.py', 'def call_in_zip2():\n    return 1')
         zip_file.close()
 
+    @overrides(debugger_unittest.AbstractWriterThread.get_environ)
     def get_environ(self):
         env = os.environ.copy()
         curr_pythonpath = env.get('PYTHONPATH', '')
@@ -1951,6 +2217,18 @@ class Test(unittest.TestCase, debugger_unittest.DebuggerRunner):
 
     def test_unhandled_exceptions(self):
         self.check_case(WriterThreadCaseUnhandledExceptions)
+        
+    def test_unhandled_exceptions_in_top_level(self):
+        self.check_case(WriterThreadCaseUnhandledExceptionsOnTopLevel)
+        
+    def test_unhandled_exceptions_in_top_level2(self):
+        self.check_case(WriterThreadCaseUnhandledExceptionsOnTopLevel2)
+        
+    def test_unhandled_exceptions_in_top_level3(self):
+        self.check_case(WriterThreadCaseUnhandledExceptionsOnTopLevel3)
+        
+    def test_unhandled_exceptions_in_top_level4(self):
+        self.check_case(WriterThreadCaseUnhandledExceptionsOnTopLevel4)
 
     @pytest.mark.skipif(not IS_CPYTHON or (IS_PY36 and sys.platform != 'win32'), reason='Only for Python (failing on 3.6 on travis (linux) -- needs to be investigated).')
     def test_case_set_next_statement(self):
@@ -2034,6 +2312,11 @@ class TestPythonRemoteDebugger(unittest.TestCase, debugger_unittest.DebuggerRunn
     def test_remote_debugger2(self):
         self.check_case(WriterThreadCaseRemoteDebuggerMultiProc)
 
+    def test_remote_unhandled_exceptions(self):
+        self.check_case(WriterThreadCaseRemoteDebuggerUnhandledExceptions)
+
+    def test_remote_unhandled_exceptions2(self):
+        self.check_case(WriterThreadCaseRemoteDebuggerUnhandledExceptions2)
 
         
 def get_java_location():

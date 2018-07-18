@@ -78,6 +78,11 @@ CMD_RETURN = 502
 CMD_ERROR = 901
 
 
+REASON_CAUGHT_EXCEPTION = CMD_STEP_CAUGHT_EXCEPTION
+REASON_UNCAUGHT_EXCEPTION = CMD_ADD_EXCEPTION_BREAK
+REASON_STOP_ON_BREAKPOINT = CMD_SET_BREAK
+REASON_THREAD_SUSPEND = CMD_THREAD_SUSPEND
+
 
 # Always True (because otherwise when we do have an error, it's hard to diagnose).
 SHOW_WRITES_AND_READS = True
@@ -95,6 +100,22 @@ try:
 except:
     xrange = range
 
+def overrides(method):
+    '''
+    Helper to check that one method overrides another (redeclared in unit-tests to avoid importing pydevd).
+    '''
+    def wrapper(func):
+        if func.__name__ != method.__name__:
+            msg = "Wrong @override: %r expected, but overwriting %r."
+            msg = msg % (func.__name__, method.__name__)
+            raise AssertionError(msg)
+
+        if func.__doc__ is None:
+            func.__doc__ = method.__doc__
+
+        return func
+
+    return wrapper
 
 #=======================================================================================================================
 # ReaderThread
@@ -126,10 +147,16 @@ class ReaderThread(threading.Thread):
             raise AssertionError('No message was written in %s seconds. Error message:\n%s' % (self.TIMEOUT, context_messag,))
         else:
             frame = sys._getframe().f_back
-            frame_info = ' --  File "%s", line %s, in %s\n' % (frame.f_code.co_filename, frame.f_lineno, frame.f_code.co_name)
-            frame_info += ' --  File "%s", line %s, in %s\n' % (frame.f_back.f_code.co_filename, frame.f_back.f_lineno, frame.f_back.f_code.co_name)
+            frame_info = ''
+            while frame:
+                stack_msg = ' --  File "%s", line %s, in %s\n' % (frame.f_code.co_filename, frame.f_lineno, frame.f_code.co_name)
+                if 'run' == frame.f_code.co_name:
+                    frame_info = stack_msg  # Ok, found the writer thread 'run' method (show only that).
+                    break
+                frame_info += stack_msg
+                frame = frame.f_back
             frame = None
-            sys.stdout.write('Message returned in get_next_message(): %s --  ctx: %s, returned to:\n%s\n' % (unquote_plus(unquote_plus(msg)), context_messag, frame_info))
+            sys.stdout.write('Message returned in get_next_message(): %s --  ctx: %s, asked at:\n%s\n' % (unquote_plus(unquote_plus(msg)), context_messag, frame_info))
         return msg
 
     def run(self):
@@ -176,7 +203,7 @@ class DebuggerRunner(object):
         port = int(writer_thread.port)
 
         localhost = pydev_localhost.get_localhost()
-        ret = args + [
+        ret = [
             writer_thread.get_pydevd_file(),
             '--DEBUG_RECORD_SOCKET_READS',
             '--qt-support',
@@ -189,8 +216,9 @@ class DebuggerRunner(object):
         if writer_thread.IS_MODULE:
             ret += ['--module']
         
-        ret = ret + ['--file'] + writer_thread.get_command_line_args()
-        return ret
+        ret += ['--file'] + writer_thread.get_command_line_args()
+        ret = writer_thread.update_command_line_args(ret)  # Provide a hook for the writer
+        return args + ret
 
     def check_case(self, writer_thread_class):
         if callable(writer_thread_class):
@@ -226,7 +254,7 @@ class DebuggerRunner(object):
         process = subprocess.Popen(
             args,
             stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
+            stderr=subprocess.PIPE,
             cwd=writer_thread.get_cwd() if writer_thread is not None else '.',
             env=writer_thread.get_environ() if writer_thread is not None else None,
         )
@@ -239,7 +267,7 @@ class DebuggerRunner(object):
         finish = [False]
 
         try:
-            def read(stream, buffer):
+            def read(stream, buffer, debug_stream, stream_name):
                 for line in stream.readlines():
                     if finish[0]:
                         return
@@ -247,10 +275,11 @@ class DebuggerRunner(object):
                         line = line.decode('utf-8', errors='replace')
 
                     if SHOW_STDOUT:
-                        sys.stdout.write('stdout: %s' % (line,))
+                        debug_stream.write('%s: %s' % (stream_name, line,))
                     buffer.append(line)
 
-            start_new_thread(read, (process.stdout, stdout))
+            start_new_thread(read, (process.stdout, stdout, sys.stdout, 'stdout'))
+            start_new_thread(read, (process.stderr, stderr, sys.stderr, 'stderr'))
 
 
             if SHOW_OTHER_DEBUG_INFO:
@@ -297,10 +326,10 @@ class DebuggerRunner(object):
                             "The other process may still be running -- and didn't give any output.", stdout, stderr, writer_thread)
 
                     check = 0
-                    while 'TEST SUCEEDED' not in ''.join(stdout):
+                    while not writer_thread.check_test_suceeded_msg(stdout, stderr):
                         check += 1
                         if check == 50:
-                            self.fail_with_message("TEST SUCEEDED not found in stdout.", stdout, stderr, writer_thread)
+                            self.fail_with_message("TEST SUCEEDED not found.", stdout, stderr, writer_thread)
                         time.sleep(.1)
 
                 for _i in xrange(100):
@@ -338,8 +367,35 @@ class AbstractWriterThread(threading.Thread):
         self._next_breakpoint_id = 0
         self.log = []
         
+    def check_test_suceeded_msg(self, stdout, stderr):
+        return 'TEST SUCEEDED' in ''.join(stdout)
+    
+    def update_command_line_args(self, args):
+        return args
+        
+    def _ignore_stderr_line(self, line):
+        if line.startswith((
+            'debugger: ', 
+            '>>', 
+            '<<', 
+            'warning: Debugger speedups',
+            'pydev debugger: New process is launching',
+            'pydev debugger: To debug that process'
+            )):
+            return True
+        
+        if re.match(r'^(\d+)\t(\d)+', line):
+            return True
+        
+        return False
+        
     def additional_output_checks(self, stdout, stderr):
-        pass
+        for line in stderr.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            if not self._ignore_stderr_line(line):
+                raise AssertionError('Did not expect to have line in stderr:\n\n%s\n\nFull stderr:\n\n%s' % (line, stderr))
 
     def get_environ(self):
         return None
@@ -384,14 +440,15 @@ class AbstractWriterThread(threading.Thread):
             socket_name = get_socket_name(close=True)
         else:
             socket_name = (pydev_localhost.get_localhost(), port)
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(socket_name)
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server_socket.bind(socket_name)
         self.port = socket_name[1]
-        s.listen(1)
+        server_socket.listen(1)
         if SHOW_WRITES_AND_READS:
             print('Waiting in socket.accept()')
-        self.server_socket = s
-        new_sock, addr = s.accept()
+        self.server_socket = server_socket
+        new_sock, addr = server_socket.accept()
         if SHOW_WRITES_AND_READS:
             print('Test Writer Thread Socket:', new_sock, addr)
 
@@ -443,7 +500,7 @@ class AbstractWriterThread(threading.Thread):
     def wait_for_breakpoint_hit(self, *args, **kwargs):
         return self.wait_for_breakpoint_hit_with_suspend_type(*args, **kwargs)[:-1]
 
-    def wait_for_breakpoint_hit_with_suspend_type(self, reason='111', get_line=False, get_name=False):
+    def wait_for_breakpoint_hit_with_suspend_type(self, reason=REASON_STOP_ON_BREAKPOINT, get_line=False, get_name=False):
         '''
             108 is over
             109 is return
@@ -451,9 +508,10 @@ class AbstractWriterThread(threading.Thread):
         '''
         self.log.append('Start: wait_for_breakpoint_hit')
         # wait for hit breakpoint
-        last = ''
+        last = self.reader_thread.get_next_message('wait_for_breakpoint_hit. reason=%s' % (reason,))
         while not ('stop_reason="%s"' % reason) in last:
             last = self.reader_thread.get_next_message('wait_for_breakpoint_hit. reason=%s' % (reason,))
+            
 
         # we have something like <xml><thread id="12152656" stop_reason="111"><frame id="12453120" name="encode" ...
         splitted = last.split('"')
@@ -603,8 +661,10 @@ class AbstractWriterThread(threading.Thread):
     def write_set_project_roots(self, project_roots):
         self.write("%s\t%s\t%s" % (CMD_SET_PROJECT_ROOTS, self.next_seq(), '\t'.join(str(x) for x in project_roots)))
         
-    def write_add_exception_breakpoint_with_policy(self, exception, notify_on_handled_exceptions, notify_on_unhandled_exceptions, ignore_libraries):
-        self.write("%s\t%s\t%s" % (CMD_ADD_EXCEPTION_BREAK, self.next_seq(), '\t'.join(str(x) for x in [exception, notify_on_handled_exceptions, notify_on_unhandled_exceptions, ignore_libraries])))
+    def write_add_exception_breakpoint_with_policy(
+            self, exception, notify_on_handled_exceptions, notify_on_unhandled_exceptions, ignore_libraries):
+        self.write("%s\t%s\t%s" % (CMD_ADD_EXCEPTION_BREAK, self.next_seq(), '\t'.join(str(x) for x in [
+            exception, notify_on_handled_exceptions, notify_on_unhandled_exceptions, ignore_libraries])))
         self.log.append('write_add_exception_breakpoint: %s' % (exception,))
 
     def write_remove_breakpoint(self, breakpoint_id):

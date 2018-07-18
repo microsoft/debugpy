@@ -66,7 +66,7 @@ class ConsoleMessage:
 #=======================================================================================================================
 class DebugConsoleStdIn(BaseStdIn):
 
-    overrides(BaseStdIn.readline)
+    @overrides(BaseStdIn.readline)
     def readline(self, *args, **kwargs):
         sys.stderr.write('Warning: Reading from stdin is still not supported in this console.\n')
         return '\n'
@@ -79,7 +79,7 @@ class DebugConsole(InteractiveConsole, BaseInterpreterInterface):
     errors and outputs to the debug console
     """
 
-    overrides(BaseInterpreterInterface.create_std_in)
+    @overrides(BaseInterpreterInterface.create_std_in)
     def create_std_in(self, *args, **kwargs):
         try:
             if not self.__buffer_output:
@@ -90,7 +90,7 @@ class DebugConsole(InteractiveConsole, BaseInterpreterInterface):
         return DebugConsoleStdIn() #If buffered, raw_input is not supported in this console.
 
 
-    overrides(InteractiveConsole.push)
+    @overrides(InteractiveConsole.push)
     def push(self, line, frame, buffer_output=True):
         """Change built-in stdout and stderr methods by the
         new custom StdMessage.
@@ -134,12 +134,12 @@ class DebugConsole(InteractiveConsole, BaseInterpreterInterface):
             return more, [], []
 
 
-    overrides(BaseInterpreterInterface.do_add_exec)
+    @overrides(BaseInterpreterInterface.do_add_exec)
     def do_add_exec(self, line):
         return InteractiveConsole.push(self, line)
 
 
-    overrides(InteractiveConsole.runcode)
+    @overrides(InteractiveConsole.runcode)
     def runcode(self, code):
         """Execute a code object.
 
