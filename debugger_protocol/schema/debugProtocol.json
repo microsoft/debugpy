@@ -797,6 +797,33 @@
 			}]
 		},
 
+		"TerminateRequest": {
+			"allOf": [ { "$ref": "#/definitions/Request" }, {
+				"type": "object",
+				"description": "The 'terminate' request is sent from the client to the debug adapter in order to give the debuggee a chance for terminating itself.",
+				"properties": {
+					"command": {
+						"type": "string",
+						"enum": [ "terminate" ]
+					},
+					"arguments": {
+						"$ref": "#/definitions/TerminateArguments"
+					}
+				},
+				"required": [ "command" ]
+			}]
+		},
+		"TerminateArguments": {
+			"type": "object",
+			"description": "Arguments for 'terminate' request."
+		},
+		"TerminateResponse": {
+			"allOf": [ { "$ref": "#/definitions/Response" }, {
+				"type": "object",
+				"description": "Response to 'terminate' request. This is just an acknowledgement, so no body field is required."
+			}]
+		},
+
 		"SetBreakpointsRequest": {
 			"allOf": [ { "$ref": "#/definitions/Request" }, {
 				"type": "object",
@@ -2279,6 +2306,10 @@
 				"supportsSetExpression": {
 					"type": "boolean",
 					"description": "The debug adapter supports the 'setExpression' request."
+				},
+				"supportsTerminateRequest": {
+					"type": "boolean",
+					"description": "The debug adapter supports the 'terminate' request."
 				}
 			}
 		},
