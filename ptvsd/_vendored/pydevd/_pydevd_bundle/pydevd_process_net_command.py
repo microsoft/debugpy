@@ -19,7 +19,8 @@ from _pydevd_bundle.pydevd_comm import CMD_RUN, CMD_VERSION, CMD_LIST_THREADS, C
     CMD_EVALUATE_CONSOLE_EXPRESSION, InternalEvaluateConsoleExpression, InternalConsoleGetCompletions, \
     CMD_RUN_CUSTOM_OPERATION, InternalRunCustomOperation, CMD_IGNORE_THROWN_EXCEPTION_AT, CMD_ENABLE_DONT_TRACE, \
     CMD_SHOW_RETURN_VALUES, ID_TO_MEANING, CMD_GET_DESCRIPTION, InternalGetDescription, InternalLoadFullValue, \
-    CMD_LOAD_FULL_VALUE, CMD_REDIRECT_OUTPUT, CMD_GET_NEXT_STATEMENT_TARGETS, InternalGetNextStatementTargets, CMD_SET_PROJECT_ROOTS
+    CMD_LOAD_FULL_VALUE, CMD_REDIRECT_OUTPUT, CMD_GET_NEXT_STATEMENT_TARGETS, InternalGetNextStatementTargets, CMD_SET_PROJECT_ROOTS, \
+    CMD_GET_THREAD_STACK, CMD_THREAD_DUMP_TO_STDERR
 from _pydevd_bundle.pydevd_constants import get_thread_id, IS_PY3K, DebugInfoHolder, dict_keys, STATE_RUN, \
     NEXT_VALUE_SEPARATOR
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
@@ -79,6 +80,20 @@ def process_net_command(py_db, cmd_id, seq, text):
                 # response is a list of threads
                 cmd = py_db.cmd_factory.make_list_threads_message(seq)
 
+            elif cmd_id == CMD_GET_THREAD_STACK:
+                thread_id = text
+            
+                t = pydevd_find_thread_by_id(thread_id)
+                frame = None
+                if t and not getattr(t, 'pydev_do_not_trace', None):
+                    additional_info = set_additional_thread_info(t)
+                    frame = additional_info.get_topmost_frame(t)
+                try:
+                    cmd = py_db.cmd_factory.make_get_thread_stack_message(seq, thread_id, frame)
+                finally:
+                    frame = None
+                    t = None
+
             elif cmd_id == CMD_THREAD_KILL:
                 int_cmd = InternalTerminateThread(text)
                 py_db.post_internal_command(int_cmd, text)
@@ -88,9 +103,12 @@ def process_net_command(py_db, cmd_id, seq, text):
                 t = pydevd_find_thread_by_id(text)
                 if t and not getattr(t, 'pydev_do_not_trace', None):
                     additional_info = set_additional_thread_info(t)
-                    for frame in additional_info.iter_frames(t):
-                        py_db.set_trace_for_frame_and_parents(frame, overwrite_prev_trace=True)
-                        del frame
+                    frame = additional_info.get_topmost_frame(t)
+                    if frame is not None:
+                        try:
+                            py_db.set_trace_for_frame_and_parents(frame, overwrite_prev_trace=True)
+                        finally:
+                            frame = None
 
                     py_db.set_suspend(t, CMD_THREAD_SUSPEND)
                 elif text.startswith('__frame__:'):
@@ -253,14 +271,18 @@ def process_net_command(py_db, cmd_id, seq, text):
                 # func name: 'None': match anything. Empty: match global, specified: only method context.
                 # command to add some breakpoint.
                 # text is file\tline. Add to breakpoints dictionary
-                suspend_policy = "NONE"
+                suspend_policy = "NONE" # Can be 'NONE' or 'ALL'
                 is_logpoint = False
                 hit_condition = None
                 if py_db._set_breakpoints_with_id:
                     try:
-                        breakpoint_id, type, file, line, func_name, condition, expression, hit_condition, is_logpoint = text.split('\t', 8)
+                        try:
+                            breakpoint_id, type, file, line, func_name, condition, expression, hit_condition, is_logpoint, suspend_policy = text.split('\t', 9)
+                        except ValueError: # not enough values to unpack
+                            # No suspend_policy passed (use default).
+                            breakpoint_id, type, file, line, func_name, condition, expression, hit_condition, is_logpoint = text.split('\t', 8)
                         is_logpoint = is_logpoint == 'True'
-                    except Exception:
+                    except ValueError: # not enough values to unpack
                         breakpoint_id, type, file, line, func_name, condition, expression = text.split('\t', 6)
 
                     breakpoint_id = int(breakpoint_id)
@@ -274,8 +296,8 @@ def process_net_command(py_db, cmd_id, seq, text):
                     expression = expression.replace("@_@NEW_LINE_CHAR@_@", '\n').\
                         replace("@_@TAB_CHAR@_@", '\t').strip()
                 else:
-                    #Note: this else should be removed after PyCharm migrates to setting
-                    #breakpoints by id (and ideally also provides func_name).
+                    # Note: this else should be removed after PyCharm migrates to setting
+                    # breakpoints by id (and ideally also provides func_name).
                     type, file, line, func_name, suspend_policy, condition, expression = text.split('\t', 6)
                     # If we don't have an id given for each breakpoint, consider
                     # the id to be the line.
@@ -760,6 +782,9 @@ def process_net_command(py_db, cmd_id, seq, text):
             elif cmd_id == CMD_SET_PROJECT_ROOTS:
                 pydevd_utils.set_project_roots(text.split(u'\t'))
 
+            elif cmd_id == CMD_THREAD_DUMP_TO_STDERR:
+                pydevd_utils.dump_threads()
+                
             else:
                 #I have no idea what this is all about
                 cmd = py_db.cmd_factory.make_error_message(seq, "unexpected command " + str(cmd_id))

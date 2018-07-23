@@ -14,7 +14,7 @@ import traceback
 
 from _pydevd_bundle.pydevd_constants import IS_JYTH_LESS25, IS_PYCHARM, get_thread_id, \
     dict_keys, dict_iter_items, DebugInfoHolder, PYTHON_SUSPEND, STATE_SUSPEND, STATE_RUN, get_frame, xrange, \
-    clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, IS_PY34_OR_GREATER, IS_PY2
+    clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, IS_PY34_OR_GREATER, IS_PY2, NULL
 from _pydev_bundle import fix_getpass
 from _pydev_bundle import pydev_imports, pydev_log
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
@@ -44,7 +44,7 @@ from _pydevd_bundle.pydevd_utils import save_main_module
 from pydevd_concurrency_analyser.pydevd_concurrency_logger import ThreadingLogger, AsyncioLogger, send_message, cur_time
 from pydevd_concurrency_analyser.pydevd_thread_wrappers import wrap_threads
 from pydevd_file_utils import get_fullname, rPath
-import pydev_ipython
+import pydev_ipython  # @UnusedImport
 
 __version_info__ = (1, 2, 0)
 __version_info_str__ = []
@@ -430,9 +430,12 @@ class PyDB:
                 if t is thread_suspended_at_bp:
                     continue
                 additional_info = set_additional_thread_info(t)
-                for frame in additional_info.iter_frames(t):
-                    self.set_trace_for_frame_and_parents(frame, overwrite_prev_trace=True)
-                    del frame
+                frame = additional_info.get_topmost_frame(t)
+                if frame is not None:
+                    try:
+                        self.set_trace_for_frame_and_parents(frame, overwrite_prev_trace=True)
+                    finally:
+                        frame = None
 
                 self.set_suspend(t, CMD_THREAD_SUSPEND)
 
@@ -444,9 +447,7 @@ class PyDB:
             # not be usual as it's expected that the debugger is live before other threads are created).
             return
 
-        if use_lock:
-            self._lock_running_thread_ids.acquire()
-        try:
+        with self._lock_running_thread_ids if use_lock else NULL:
             if thread_id in self._running_thread_ids:
                 return
 
@@ -457,9 +458,6 @@ class PyDB:
                 return
 
             self._running_thread_ids[thread_id] = thread
-        finally:
-            if use_lock:
-                self._lock_running_thread_ids.release()
 
         self.writer.add_command(self.cmd_factory.make_thread_created_message(thread))
 
@@ -468,10 +466,7 @@ class PyDB:
         if self.writer is None:
             return
 
-        if use_lock:
-            self._lock_running_thread_ids.acquire()
-
-        try:
+        with self._lock_running_thread_ids if use_lock else NULL:
             thread = self._running_thread_ids.pop(thread_id, None)
             if thread is None:
                 return
@@ -479,24 +474,19 @@ class PyDB:
             was_notified = thread.additional_info.pydev_notify_kill
             if not was_notified:
                 thread.additional_info.pydev_notify_kill = True
-        finally:
-            if use_lock:
-                self._lock_running_thread_ids.release()
 
         self.writer.add_command(self.cmd_factory.make_thread_killed_message(thread_id))
 
     def process_internal_commands(self):
         '''This function processes internal commands
         '''
-        self._main_lock.acquire()
-        try:
+        with self._main_lock:
             self.check_output_redirect()
 
             program_threads_alive = {}
             all_threads = threadingEnumerate()
             program_threads_dead = []
-            self._lock_running_thread_ids.acquire()
-            try:
+            with self._lock_running_thread_ids:
                 for t in all_threads:
                     if getattr(t, 'is_pydev_daemon_thread', False):
                         pass # I.e.: skip the DummyThreads created from pydev daemon threads
@@ -514,10 +504,7 @@ class PyDB:
                             # Fix it for all existing threads.
                             for existing_thread in all_threads:
                                 old_thread_id = get_thread_id(existing_thread)
-                                if old_thread_id != 'console_main':
-                                    # The console_main is a special thread id used in the console and its id should never be reset
-                                    # (otherwise we may no longer be able to get its variables -- see: https://www.brainwy.com/tracker/PyDev/776).
-                                    clear_cached_thread_id(t)
+                                clear_cached_thread_id(t)
 
                                 thread_id = get_thread_id(t)
                                 if thread_id != old_thread_id:
@@ -538,9 +525,8 @@ class PyDB:
 
                 for thread_id in program_threads_dead:
                     self.notify_thread_not_alive(thread_id, use_lock=False)
-            finally:
-                self._lock_running_thread_ids.release()
 
+            # Without self._lock_running_thread_ids
             if len(program_threads_alive) == 0:
                 self.finish_debugging_session()
                 for t in all_threads:
@@ -585,10 +571,6 @@ class PyDB:
                         for int_cmd in cmdsToReadd:
                             queue.put(int_cmd)
 
-
-        finally:
-            self._main_lock.release()
-
     def disable_tracing_while_running_if_frame_eval(self):
         pydevd_tracing.settrace_while_running_if_frame_eval(self, self.dummy_trace_dispatch)
 
@@ -611,12 +593,13 @@ class PyDB:
                 if getattr(t, 'is_pydev_daemon_thread', False):
                     continue
 
-                # TODO: optimize so that we only actually add that tracing if it's in
-                # the new breakpoint context.
                 additional_info = set_additional_thread_info(t)
-                for frame in additional_info.iter_frames(t):
-                    if frame is not ignore_frame:
+                frame = additional_info.get_topmost_frame(t)
+                try:
+                    if frame is not None and frame is not ignore_frame:
                         self.set_trace_for_frame_and_parents(frame, overwrite_prev_trace=overwrite_prev_trace)
+                finally:
+                    frame = None
         finally:
             frame = None
             t = None
@@ -1132,37 +1115,9 @@ def enable_qt_support(qt_support_mode):
 
 def dump_threads(stream=None):
     '''
-    Helper to dump thread info.
+    Helper to dump thread info (default is printing to stderr).
     '''
-    if stream is None:
-        stream = sys.stderr
-    thread_id_to_name = {}
-    try:
-        for t in threading.enumerate():
-            thread_id_to_name[t.ident] = '%s  (daemon: %s, pydevd thread: %s)' % (
-                t.name, t.daemon, getattr(t, 'is_pydev_daemon_thread', False))
-    except:
-        pass
-    
-    stack_trace = [
-        '===============================================================================',
-        'Threads running',
-        '================================= Thread Dump =================================']
-    
-    for thread_id, stack in sys._current_frames().items():
-        stack_trace.append('\n-------------------------------------------------------------------------------')
-        stack_trace.append(" Thread %s" % thread_id_to_name.get(thread_id, thread_id))
-        stack_trace.append('')
-    
-        if 'self' in stack.f_locals:
-            stream.write(str(stack.f_locals['self']) + '\n')
-    
-        for filename, lineno, name, line in traceback.extract_stack(stack):
-            stack_trace.append(' File "%s", line %d, in %s' % (filename, lineno, name))
-            if line:
-                stack_trace.append("   %s" % (line.strip()))
-    stack_trace.append('\n=============================== END Thread Dump ===============================')
-    stream.write('\n'.join(stack_trace))
+    pydevd_utils.dump_threads(stream)
 
 
 def usage(doExit=0):
