@@ -653,6 +653,7 @@ class InternalsFilter(object):
     """Identifies debugger internal artifacts.
     """
     # TODO: Move the internal thread identifier here
+
     def __init__(self):
         if platform.system() == 'Windows':
             self._init_windows()
@@ -1407,6 +1408,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                                 '\t'.join(project_dirs))
 
     def _is_stdlib(self, filepath):
+        filepath = os.path.normcase(os.path.normpath(filepath))
         for prefix in STDLIB_PATH_PREFIXES:
             if prefix != '' and filepath.startswith(prefix):
                 return True
@@ -2090,7 +2092,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 condition = None
                 expressions = re.findall('\{.*?\}', logMessage)
                 if len(expressions) == 0:
-                    expression = '{}'.format(repr(logMessage)) # noqa
+                    expression = '{}'.format(repr(logMessage))  # noqa
                 else:
                     raw_text = reduce(lambda a, b: a.replace(b, '{}'), expressions, logMessage) # noqa
                     raw_text = raw_text.replace('"', '\\"')

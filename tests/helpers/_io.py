@@ -103,6 +103,9 @@ def iter_lines_buffered(read, sep=b'\n', initial=b'', stop=noop):
                 data = read(1024)
                 if not data:
                     raise EOFError()
+                if buf and buf[-1:] == b'\r':
+                    data = buf + data
+                    buf = b''
             except EOFError as exc:
                 exc.remainder = buf
                 raise
