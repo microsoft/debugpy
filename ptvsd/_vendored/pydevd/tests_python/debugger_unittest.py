@@ -1,3 +1,4 @@
+from _pydevd_bundle.pydevd_constants import IS_JYTHON
 try:
     from urllib import quote, quote_plus, unquote_plus
 except ImportError:
@@ -403,6 +404,20 @@ class AbstractWriterThread(threading.Thread):
         if re.match(r'^(\d+)\t(\d)+', line):
             return True
         
+        if IS_JYTHON:
+            for expected in (
+                'org.python.netty.util.concurrent.DefaultPromise', 
+                'org.python.netty.util.concurrent.SingleThreadEventExecutor', 
+                'Failed to submit a listener notification task. Event loop shut down?',
+                'java.util.concurrent.RejectedExecutionException',
+                'An event executor terminated with non-empty task',
+                ):
+                if expected in line:
+                    return True
+
+            if line.strip().startswith('at '):
+                return True        
+            
         return False
         
     def additional_output_checks(self, stdout, stderr):
@@ -605,6 +620,8 @@ class AbstractWriterThread(threading.Thread):
             expected_vars = [expected_vars]
             
         all_found = []
+        ignored = []
+        
         while True:
             try:
                 last = self.reader_thread.get_next_message('wait_for_multiple_vars: %s' % (expected_vars,))
@@ -613,23 +630,36 @@ class AbstractWriterThread(threading.Thread):
                 for v in expected_vars:
                     if v not in all_found:
                         missing.append(v)
-                raise ValueError('Not Found:\n%s\nNot found messages: %s\nFound messages: %s\nExpected messages: %s' % (
-                    '\n'.join(missing), len(missing), len(all_found), len(expected_vars)))
-            found = 0
+                raise ValueError('Not Found:\n%s\nNot found messages: %s\nFound messages: %s\nExpected messages: %s\nIgnored messages:\n%s' % (
+                    '\n'.join(missing), len(missing), len(all_found), len(expected_vars), '\n'.join(ignored)))
+                
+            was_message_used = False
+            new_expected = []
             for expected in expected_vars:
+                found_expected = False
                 if isinstance(expected, (tuple, list)):
                     for e in expected:
                         if self._is_var_in_last(e, last):
+                            was_message_used = True
+                            found_expected = True
                             all_found.append(expected)
-                            found += 1
                             break
                 else:
                     if self._is_var_in_last(expected, last):
+                        was_message_used = True
+                        found_expected = True
                         all_found.append(expected)
-                        found += 1
                         
-            if found == len(expected_vars):
+                if not found_expected:
+                    new_expected.append(expected)
+
+            expected_vars = new_expected
+                        
+            if not expected_vars:
                 return True
+            
+            if not was_message_used:
+                ignored.append(last)
                         
     wait_for_var = wait_for_multiple_vars
     wait_for_vars = wait_for_multiple_vars

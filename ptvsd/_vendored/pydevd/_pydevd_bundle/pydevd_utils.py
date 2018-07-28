@@ -324,12 +324,14 @@ def dump_threads(stream=None):
                 t.name, t.daemon, getattr(t, 'is_pydev_daemon_thread', False))
     except:
         pass
+    
+    from _pydevd_bundle.pydevd_additional_thread_info_regular import _current_frames
 
     stream.write('===============================================================================\n')
     stream.write('Threads running\n')
     stream.write('================================= Thread Dump =================================\n')
 
-    for thread_id, stack in sys._current_frames().items():
+    for thread_id, stack in _current_frames().items():
         stream.write('\n-------------------------------------------------------------------------------\n')
         stream.write(" Thread %s" % thread_id_to_name.get(thread_id, thread_id))
         stream.write('\n\n')

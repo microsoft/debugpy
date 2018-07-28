@@ -8,6 +8,80 @@ from tests_python.debug_constants import TEST_JYTHON
 def pytest_report_header(config):
     print('PYDEVD_USE_CYTHON: %s' % (TEST_CYTHON,))
     print('PYDEVD_TEST_JYTHON: %s' % (TEST_JYTHON,))
+    try:
+        import multiprocessing
+    except ImportError:
+        pass
+    else:
+        print('Number of processors: %s' % (multiprocessing.cpu_count(),))
+
+
+_started_monitoring_threads = False
+
+
+def _start_monitoring_threads():
+    # After the session finishes, wait 20 seconds to see if everything finished properly
+    # and if it doesn't report an error.
+    global _started_monitoring_threads
+    if _started_monitoring_threads:
+        return
+
+    _started_monitoring_threads = True
+    import threading
+    if hasattr(sys, '_current_frames') and hasattr(threading, 'enumerate'):
+        import time
+        import traceback
+
+        class DumpThreads(threading.Thread):
+
+            def run(self):
+                time.sleep(20)
+
+                thread_id_to_name = {}
+                try:
+                    for t in threading.enumerate():
+                        thread_id_to_name[t.ident] = '%s  (daemon: %s)' % (t.name, t.daemon)
+                except:
+                    pass
+
+                stack_trace = [
+                    '===============================================================================',
+                    'pydev pyunit runner: Threads still found running after tests finished',
+                    '================================= Thread Dump =================================']
+
+                for thread_id, stack in sys._current_frames().items():
+                    stack_trace.append('\n-------------------------------------------------------------------------------')
+                    stack_trace.append(" Thread %s" % thread_id_to_name.get(thread_id, thread_id))
+                    stack_trace.append('')
+
+                    if 'self' in stack.f_locals:
+                        sys.stderr.write(str(stack.f_locals['self']) + '\n')
+
+                    for filename, lineno, name, line in traceback.extract_stack(stack):
+                        stack_trace.append(' File "%s", line %d, in %s' % (filename, lineno, name))
+                        if line:
+                            stack_trace.append("   %s" % (line.strip()))
+                stack_trace.append('\n=============================== END Thread Dump ===============================')
+                sys.stderr.write('\n'.join(stack_trace))
+
+                # Force thread run to finish
+                import os
+                os._exit(123)
+
+        dump_current_frames_thread = DumpThreads()
+        dump_current_frames_thread.setDaemon(True)  # Daemon so that this thread doesn't halt it!
+        dump_current_frames_thread.start()
+
+
+def pytest_unconfigure():
+    _start_monitoring_threads()
+
+
+@pytest.yield_fixture(scope="session", autouse=True)
+def check_no_threads():
+    yield
+    _start_monitoring_threads()
+
 
 # see: http://goo.gl/kTQMs
 SYMBOLS = {
@@ -18,6 +92,7 @@ SYMBOLS = {
     'iec_ext'       : ('byte', 'kibi', 'mebi', 'gibi', 'tebi', 'pebi', 'exbi',
                        'zebi', 'yobi'),
 }
+
 
 def bytes2human(n, format='%(value).1f %(symbol)s', symbols='customary'):
     """
@@ -71,23 +146,27 @@ def bytes2human(n, format='%(value).1f %(symbol)s', symbols='customary'):
     symbols = SYMBOLS[symbols]
     prefix = {}
     for i, s in enumerate(symbols[1:]):
-        prefix[s] = 1 << (i+1)*10
+        prefix[s] = 1 << (i + 1) * 10
     for symbol in reversed(symbols[1:]):
         if n >= prefix[symbol]:
             value = float(n) / prefix[symbol]
             return format % locals()
     return format % dict(symbol=symbols[0], value=n)
 
+
 def format_memory_info(memory_info, curr_proc_memory_info):
     return 'Total: %s, Available: %s, Used: %s %%, Curr process: %s' % (
         bytes2human(memory_info.total), bytes2human(memory_info.available), memory_info.percent, format_process_memory_info(curr_proc_memory_info))
 
+
 def format_process_memory_info(proc_memory_info):
     return bytes2human(proc_memory_info.rss)
+
 
 DEBUG_MEMORY_INFO = False
 
 _global_collect_info = False
+
 
 @pytest.yield_fixture(autouse=True)
 def before_after_each_function(request):
@@ -160,10 +239,12 @@ Memory after: %s
 ''' % (
     request.function,
     format_memory_info(psutil.virtual_memory(), after_curr_proc_memory_info),
-    '' if not processes_info else '\nLeaked processes:\n'+'\n'.join(processes_info)),
+    '' if not processes_info else '\nLeaked processes:\n' + '\n'.join(processes_info)),
     )
 
+
 if IS_JYTHON or IS_IRONPYTHON:
+
     # On Jython and IronPython, it's a no-op.
     def before_after_each_function():
         pass

@@ -1,19 +1,31 @@
 # coding: utf-8
 import os.path
+from _pydevd_bundle.pydevd_constants import IS_WINDOWS, IS_JYTHON
 
 
 def test_convert_utilities(tmpdir):
     import pydevd_file_utils
-    import sys
 
     test_dir = str(tmpdir.mkdir("Test_Convert_Utilities"))
-    if sys.platform == 'win32':
+
+    if IS_WINDOWS:
         normalized = pydevd_file_utils.normcase(test_dir)
         assert isinstance(normalized, str)  # bytes on py2, unicode on py3
         assert normalized.lower() == normalized
 
+        upper_version = os.path.join(test_dir, 'ÁÉÍÓÚ')
+        with open(upper_version, 'w') as stream:
+            stream.write('test')
+
+        with open(upper_version, 'r') as stream:
+            assert stream.read() == 'test'
+
+        with open(pydevd_file_utils.normcase(upper_version), 'r') as stream:
+            assert stream.read() == 'test'
+
         assert '~' not in normalized
-        assert '~' in pydevd_file_utils.convert_to_short_pathname(normalized)
+        if not IS_JYTHON:
+            assert '~' in pydevd_file_utils.convert_to_short_pathname(normalized)
 
         real_case = pydevd_file_utils.get_path_with_real_case(normalized)
         assert isinstance(real_case, str)  # bytes on py2, unicode on py3
@@ -32,13 +44,12 @@ def test_to_server_and_to_client(tmpdir):
     try:
 
         def check(obtained, expected):
-            assert obtained == expected
+            assert obtained == expected, '%s (%s) != %s (%s)' % (obtained, type(obtained), expected, type(expected))
             assert isinstance(obtained, str)  # bytes on py2, unicode on py3
             assert isinstance(expected, str)  # bytes on py2, unicode on py3
 
         import pydevd_file_utils
-        import sys
-        if sys.platform == 'win32':
+        if IS_WINDOWS:
             # Check with made-up files
 
             # Client and server are on windows.
@@ -159,7 +170,7 @@ def test_zip_paths(tmpdir):
         # Check that we can deal with the zip path.
         assert pydevd_file_utils.exists(zipfile_path)
         abspath, realpath, basename = pydevd_file_utils.get_abs_path_real_path_and_base_from_file(zipfile_path)
-        if sys.platform == 'win32':
+        if IS_WINDOWS:
             assert abspath == zipfile_path.lower()
             assert basename == zip_basename.lower()
         else:

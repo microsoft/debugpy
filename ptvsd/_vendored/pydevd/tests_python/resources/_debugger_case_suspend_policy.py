@@ -1,7 +1,6 @@
 import threading
 
 semaphore1 = threading.Semaphore(0)
-lock = threading.Lock()
 proceed = False
 
 
@@ -10,9 +9,8 @@ def thread_target():
     import time
     
     while True:
-        with lock:
-            if proceed:
-                break
+        if proceed:
+            break
         time.sleep(1 / 30.)
 
 
@@ -26,7 +24,6 @@ semaphore1.acquire()  # let second thread run
 # At this point we know both other threads are already running.
 print('break here')
 
-with lock:
-    proceed = True
+proceed = True
 
 print('TEST SUCEEDED!')

@@ -41,7 +41,7 @@ r'''
         machine for the paths that'll actually have breakpoints).
 '''
 
-from _pydevd_bundle.pydevd_constants import IS_PY2, IS_PY3K, DebugInfoHolder
+from _pydevd_bundle.pydevd_constants import IS_PY2, IS_PY3K, DebugInfoHolder, IS_WINDOWS, IS_JYTHON
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
 import json
 import os.path
@@ -144,24 +144,40 @@ if sys.platform == 'win32':
         convert_to_long_pathname = _convert_to_long_pathname
         convert_to_short_pathname = _convert_to_short_pathname
         get_path_with_real_case = _get_path_with_real_case
+        
+elif IS_JYTHON and IS_WINDOWS:
+    def get_path_with_real_case(filename):
+        from java.io import File
+        f = File(filename)
+        ret = f.getCanonicalPath()
+        if IS_PY2 and not isinstance(ret, str):
+            return ret.encode(getfilesystemencoding())
+        return ret
+    
 
-if sys.platform == 'win32':
+if IS_WINDOWS:
 
-    def normcase(filename):
-        # `normcase` doesn't lower case on Python 2 for non-English locale, but Java
-        # side does it, so we should do it manually.
-        if '~' in filename:
-            filename = convert_to_long_pathname(filename)
+    if IS_JYTHON:
+        def normcase(filename):
+            return filename.lower()
+        
+    else:
 
-        filename = _os_normcase(filename)
-        return filename.lower()
+        def normcase(filename):
+            # `normcase` doesn't lower case on Python 2 for non-English locale, but Java
+            # side does it, so we should do it manually.
+            if '~' in filename:
+                filename = convert_to_long_pathname(filename)
+    
+            filename = _os_normcase(filename)
+            return filename.lower()
 
 else:
 
     def normcase(filename):
         return filename  # no-op
 
-_ide_os = 'WINDOWS' if sys.platform == 'win32' else 'UNIX'
+_ide_os = 'WINDOWS' if IS_WINDOWS else 'UNIX'
 
 
 def set_ide_os(os):
@@ -382,7 +398,7 @@ def setup_client_server_paths(paths):
         return
 
     # Work on the client and server slashes.
-    python_sep = '\\' if sys.platform == 'win32' else '/'
+    python_sep = '\\' if IS_WINDOWS else '/'
     eclipse_sep = '\\' if _ide_os == 'WINDOWS' else '/'
 
     # only setup translation functions if absolutely needed!
@@ -430,7 +446,7 @@ def setup_client_server_paths(paths):
             translated_proper_case = get_path_with_real_case(translated)
             translated = _NormFile(translated_proper_case)
 
-            if sys.platform == 'win32':
+            if IS_WINDOWS:
                 if translated.lower() != translated_proper_case.lower():
                     translated_proper_case = translated
                     if DEBUG_CLIENT_SERVER_TRANSLATION:
