@@ -247,7 +247,7 @@ def in_project_roots(filename, filename_to_in_scope_cache=_FILENAME_TO_IN_SCOPE_
     except:
         project_roots = _get_project_roots()
         original_filename = filename
-        if not filename.startswith('<'):
+        if not filename.endswith('>'):
             filename = _normpath(filename)
         
         found_in_project = []
@@ -260,15 +260,24 @@ def in_project_roots(filename, filename_to_in_scope_cache=_FILENAME_TO_IN_SCOPE_
         for root in library_roots:
             if root and filename.startswith(root):
                 found_in_library.append(root)
-        
-        in_project = False
-        if found_in_project:
-            if not found_in_library:
-                in_project = True
+
+        if not project_roots:
+            # If we have no project roots configured, consider it being in the project
+            # roots if it's not found in site-packages (because we have defaults for those
+            # and not the other way around).
+            if filename.endswith('>'):
+                in_project = False
             else:
-                # Found in both, let's see which one has the bigger path matched.
-                if max(len(x) for x in found_in_project) > max(len(x) for x in found_in_library):
+                in_project = not found_in_library
+        else:                
+            in_project = False
+            if found_in_project:
+                if not found_in_library:
                     in_project = True
+                else:
+                    # Found in both, let's see which one has the bigger path matched.
+                    if max(len(x) for x in found_in_project) > max(len(x) for x in found_in_library):
+                        in_project = True
                     
         filename_to_in_scope_cache[original_filename] = in_project
         return in_project

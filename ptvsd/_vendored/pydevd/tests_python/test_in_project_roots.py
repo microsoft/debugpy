@@ -31,3 +31,21 @@ def test_in_project_roots(tmpdir):
         
     for check_path, find in check:
         assert pydevd_utils.in_project_roots(check_path) == find
+
+    pydevd_utils.set_project_roots([])
+    pydevd_utils.set_library_roots([site_packages, site_packages_inside_project_dir])
+    
+    # If the IDE did not set the project roots, consider anything not in the site
+    # packages as being in a project root (i.e.: we can calculate default values for 
+    # site-packages but not for project roots).
+    check = [
+        (tmpdir, True),
+        (site_packages, False),
+        (site_packages_inside_project_dir, False),
+        (project_dir, True),
+        (project_dir_inside_site_packages, False),
+        (os.path.join(tmpdir, '<foo>'), False),
+    ]
+    
+    for check_path, find in check:
+        assert pydevd_utils.in_project_roots(check_path) == find

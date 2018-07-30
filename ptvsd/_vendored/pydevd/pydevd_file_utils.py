@@ -189,6 +189,9 @@ def set_ide_os(os):
     :param os:
         'UNIX' or 'WINDOWS'
     '''
+    if os == 'WIN':  # Apparently PyCharm uses 'WIN' (https://github.com/fabioz/PyDev.Debugger/issues/116)
+        os = 'WINDOWS'
+    
     assert os in ('WINDOWS', 'UNIX')
 
     global _ide_os
@@ -399,7 +402,6 @@ def setup_client_server_paths(paths):
 
     # Work on the client and server slashes.
     python_sep = '\\' if IS_WINDOWS else '/'
-    eclipse_sep = '\\' if _ide_os == 'WINDOWS' else '/'
 
     # only setup translation functions if absolutely needed!
     def _norm_file_to_server(filename):
@@ -408,6 +410,9 @@ def setup_client_server_paths(paths):
         try:
             return norm_filename_to_server_container[filename]
         except KeyError:
+            # Note: compute eclipse_sep lazily so that _ide_os is taken into account.
+            # (https://www.brainwy.com/tracker/PyDev/930)
+            eclipse_sep = '\\' if _ide_os == 'WINDOWS' else '/'
             # used to translate a path from the client to the debug server
             translated = normcase(filename)
             for eclipse_prefix, server_prefix in paths_from_eclipse_to_python:
@@ -437,6 +442,10 @@ def setup_client_server_paths(paths):
         try:
             return norm_filename_to_client_container[filename]
         except KeyError:
+            # Note: compute eclipse_sep lazily so that _ide_os is taken into account.
+            # (https://www.brainwy.com/tracker/PyDev/930)
+            eclipse_sep = '\\' if _ide_os == 'WINDOWS' else '/'
+            
             # used to translate a path from the debug server to the client
             translated = _NormFile(filename)
 

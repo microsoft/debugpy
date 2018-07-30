@@ -18,7 +18,7 @@ import pytest
 from tests_python import debugger_unittest
 from tests_python.debugger_unittest import (get_free_port, CMD_SET_PROPERTY_TRACE, REASON_CAUGHT_EXCEPTION, 
     REASON_UNCAUGHT_EXCEPTION, REASON_STOP_ON_BREAKPOINT, REASON_THREAD_SUSPEND, overrides, CMD_THREAD_CREATE,
-    CMD_GET_THREAD_STACK)
+    CMD_GET_THREAD_STACK, REASON_STEP_INTO_MY_CODE)
 from _pydevd_bundle.pydevd_constants import IS_WINDOWS
 
 IS_CPYTHON = platform.python_implementation() == 'CPython'
@@ -71,24 +71,21 @@ class WriterThreadCaseSetNextStatement(debugger_unittest.AbstractWriterThread):
         breakpoint_id = self.write_add_breakpoint(6, None)
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
+        hit = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, line=6)
 
-        assert line == 6, 'Expected return to be in line 6, was: %s' % line
-
-        self.write_evaluate_expression('%s\t%s\t%s' % (thread_id, frame_id, 'LOCAL'), 'a')
+        self.write_evaluate_expression('%s\t%s\t%s' % (hit.thread_id, hit.frame_id, 'LOCAL'), 'a')
         self.wait_for_evaluation('<var name="a" type="int" qualifier="{0}" value="int: 2"'.format(builtin_qualifier))
-        self.write_set_next_statement(thread_id, 2, 'method')
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('127', True)
-        assert line == 2, 'Expected return to be in line 2, was: %s' % line
+        self.write_set_next_statement(hit.thread_id, 2, 'method')
+        hit = self.wait_for_breakpoint_hit('127', line=2)
 
-        self.write_step_over(thread_id)
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('108', True)
+        self.write_step_over(hit.thread_id)
+        hit = self.wait_for_breakpoint_hit('108')
 
-        self.write_evaluate_expression('%s\t%s\t%s' % (thread_id, frame_id, 'LOCAL'), 'a')
+        self.write_evaluate_expression('%s\t%s\t%s' % (hit.thread_id, hit.frame_id, 'LOCAL'), 'a')
         self.wait_for_evaluation('<var name="a" type="int" qualifier="{0}" value="int: 1"'.format(builtin_qualifier))
 
         self.write_remove_breakpoint(breakpoint_id)
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
 
         self.finished_ok = True
 
@@ -104,17 +101,15 @@ class WriterThreadCaseGetNextStatementTargets(debugger_unittest.AbstractWriterTh
         breakpoint_id = self.write_add_breakpoint(21, None)
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
+        hit = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, line=21)
 
-        assert line == 21, 'Expected return to be in line 21, was: %s' % line
-
-        self.write_get_next_statement_targets(thread_id, frame_id)
+        self.write_get_next_statement_targets(hit.thread_id, hit.frame_id)
         targets = self.wait_for_get_next_statement_targets()
         expected = set((2, 3, 5, 8, 9, 10, 12, 13, 14, 15, 17, 18, 19, 21))
         assert targets == expected, 'Expected targets to be %s, was: %s' % (expected, targets)
 
         self.write_remove_breakpoint(breakpoint_id)
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
 
         self.finished_ok = True
 
@@ -183,25 +178,23 @@ class WriterThreadCaseDjango(AbstractWriterThreadCaseDjango):
         time.sleep(5)  # Give django some time to get to startup before requesting the page
         t.start()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
-        assert line == 5, 'Expected return to be in line 5, was: %s' % line
-        self.write_get_variable(thread_id, frame_id, 'entry')
+        hit = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, line=5)
+        self.write_get_variable(hit.thread_id, hit.frame_id, 'entry')
         self.wait_for_vars([
             '<var name="key" type="str"',
             'v1'
         ])
 
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
-        assert line == 5, 'Expected return to be in line 5, was: %s' % line
-        self.write_get_variable(thread_id, frame_id, 'entry')
+        hit = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, line=5)
+        self.write_get_variable(hit.thread_id, hit.frame_id, 'entry')
         self.wait_for_vars([
             '<var name="key" type="str"',
             'v2'
         ])
 
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
 
         for _ in xrange(10):
             if hasattr(t, 'contents'):
@@ -230,12 +223,11 @@ class WriterThreadCaseDjango2(AbstractWriterThreadCaseDjango):
         time.sleep(5)  # Give django some time to get to startup before requesting the page
         t.start()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
-        assert line == 4, 'Expected return to be in line 4, was: %s' % line
+        hit = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, line=4)
 
-        self.write_get_frame(thread_id, frame_id)
+        self.write_get_frame(hit.thread_id, hit.frame_id)
         self.wait_for_var('<var name="form" type="NameForm" qualifier="my_app.forms" value="NameForm%253A')
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
         self.finished_ok = True
 
 #=======================================================================================================================
@@ -250,18 +242,16 @@ class WriterThreadCase19(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(8, None)
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
+        hit = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, line=8)
 
-        assert line == 8, 'Expected return to be in line 8, was: %s' % line
-
-        self.write_evaluate_expression('%s\t%s\t%s' % (thread_id, frame_id, 'LOCAL'), 'a.__var')
+        self.write_evaluate_expression('%s\t%s\t%s' % (hit.thread_id, hit.frame_id, 'LOCAL'), 'a.__var')
         self.wait_for_evaluation([
             [
                 '<var name="a.__var" type="int" qualifier="{0}" value="int'.format(builtin_qualifier),
                 '<var name="a.__var" type="int"  value="int', # jython
             ]
         ])
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
 
 
         self.finished_ok = True
@@ -295,12 +285,11 @@ class WriterThreadCase18(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(5, 'm2')
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
-        assert line == 5, 'Expected return to be in line 2, was: %s' % line
+        hit = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, line=5)
 
-        self.write_change_variable(thread_id, frame_id, 'a', '40')
+        self.write_change_variable(hit.thread_id, hit.frame_id, 'a', '40')
         self.wait_for_var('<xml><var name="" type="int" qualifier="{0}" value="int%253A 40" />%0A</xml>'.format(builtin_qualifier,))
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
 
         self.finished_ok = True
 
@@ -320,14 +309,13 @@ class WriterThreadCase17(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(33, 'main')
         self.write_make_initial_run()
 
-        for i in range(4):
-            thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
+        for _i in range(4):
+            hit = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT)
 
-            self.write_step_in(thread_id)
-            thread_id, frame_id, line = self.wait_for_breakpoint_hit('107', True)
+            self.write_step_in(hit.thread_id)
+            hit = self.wait_for_breakpoint_hit('107', line=2)
             # Should Skip step into properties setter
-            assert line == 2, 'Expected return to be in line 2, was: %s' % line
-            self.write_run_thread(thread_id)
+            self.write_run_thread(hit.thread_id)
 
 
         self.finished_ok = True
@@ -345,17 +333,14 @@ class WriterThreadCase17a(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(2, 'm1')
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
-        assert line == 2, 'Expected return to be in line 2, was: %s' % line
+        hit = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, line=2)
 
-        self.write_step_in(thread_id)
-        thread_id, frame_id, line, name = self.wait_for_breakpoint_hit('107', get_line=True, get_name=True)
+        self.write_step_in(hit.thread_id)
+        hit = self.wait_for_breakpoint_hit('107', line=10)
 
         # Should Skip step into properties setter
-        assert name == 'm3'
-        assert line == 10, 'Expected return to be in line 10, was: %s' % line
-        self.write_run_thread(thread_id)
-
+        assert hit.name == 'm3'
+        self.write_run_thread(hit.thread_id)
 
         self.finished_ok = True
 
@@ -371,13 +356,13 @@ class WriterThreadCase16(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(9, 'main')
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
+        hit = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT)
 
         # In this test we check that the three arrays of different shapes, sizes and types
         # are all resolved properly as ndarrays.
 
         # First pass check is that we have all three expected variables defined
-        self.write_get_frame(thread_id, frame_id)
+        self.write_get_frame(hit.thread_id, hit.frame_id)
         self.wait_for_multiple_vars((
             (
                 '<var name="smallarray" type="ndarray" qualifier="numpy" value="ndarray%253A %255B 0.%252B1.j  1.%252B1.j  2.%252B1.j  3.%252B1.j  4.%252B1.j  5.%252B1.j  6.%252B1.j  7.%252B1.j  8.%252B1.j%250A  9.%252B1.j 10.%252B1.j 11.%252B1.j 12.%252B1.j 13.%252B1.j 14.%252B1.j 15.%252B1.j 16.%252B1.j 17.%252B1.j%250A 18.%252B1.j 19.%252B1.j 20.%252B1.j 21.%252B1.j 22.%252B1.j 23.%252B1.j 24.%252B1.j 25.%252B1.j 26.%252B1.j%250A 27.%252B1.j 28.%252B1.j 29.%252B1.j 30.%252B1.j 31.%252B1.j 32.%252B1.j 33.%252B1.j 34.%252B1.j 35.%252B1.j%250A 36.%252B1.j 37.%252B1.j 38.%252B1.j 39.%252B1.j 40.%252B1.j 41.%252B1.j 42.%252B1.j 43.%252B1.j 44.%252B1.j%250A 45.%252B1.j 46.%252B1.j 47.%252B1.j 48.%252B1.j 49.%252B1.j 50.%252B1.j 51.%252B1.j 52.%252B1.j 53.%252B1.j%250A 54.%252B1.j 55.%252B1.j 56.%252B1.j 57.%252B1.j 58.%252B1.j 59.%252B1.j 60.%252B1.j 61.%252B1.j 62.%252B1.j%250A 63.%252B1.j 64.%252B1.j 65.%252B1.j 66.%252B1.j 67.%252B1.j 68.%252B1.j 69.%252B1.j 70.%252B1.j 71.%252B1.j%250A 72.%252B1.j 73.%252B1.j 74.%252B1.j 75.%252B1.j 76.%252B1.j 77.%252B1.j 78.%252B1.j 79.%252B1.j 80.%252B1.j%250A 81.%252B1.j 82.%252B1.j 83.%252B1.j 84.%252B1.j 85.%252B1.j 86.%252B1.j 87.%252B1.j 88.%252B1.j 89.%252B1.j%250A 90.%252B1.j 91.%252B1.j 92.%252B1.j 93.%252B1.j 94.%252B1.j 95.%252B1.j 96.%252B1.j 97.%252B1.j 98.%252B1.j%250A 99.%252B1.j%255D" isContainer="True" />',
@@ -397,7 +382,7 @@ class WriterThreadCase16(debugger_unittest.AbstractWriterThread):
         ))
 
         # For each variable, check each of the resolved (meta data) attributes...
-        self.write_get_variable(thread_id, frame_id, 'smallarray')
+        self.write_get_variable(hit.thread_id, hit.frame_id, 'smallarray')
         self.wait_for_multiple_vars((
             '<var name="min" type="complex128"',
             '<var name="max" type="complex128"',
@@ -406,10 +391,10 @@ class WriterThreadCase16(debugger_unittest.AbstractWriterThread):
             '<var name="size" type="int"',
         ))
         # ...and check that the internals are resolved properly
-        self.write_get_variable(thread_id, frame_id, 'smallarray\t__internals__')
+        self.write_get_variable(hit.thread_id, hit.frame_id, 'smallarray\t__internals__')
         self.wait_for_var('<var name="%27size%27')
 
-        self.write_get_variable(thread_id, frame_id, 'bigarray')
+        self.write_get_variable(hit.thread_id, hit.frame_id, 'bigarray')
         # isContainer could be true on some numpy versions, so, we only check for the var begin.
         self.wait_for_multiple_vars((
             [
@@ -427,12 +412,12 @@ class WriterThreadCase16(debugger_unittest.AbstractWriterThread):
             '<var name="dtype" type="dtype"',
             '<var name="size" type="int"'
         ))
-        self.write_get_variable(thread_id, frame_id, 'bigarray\t__internals__')
+        self.write_get_variable(hit.thread_id, hit.frame_id, 'bigarray\t__internals__')
         self.wait_for_var('<var name="%27size%27')
 
         # this one is different because it crosses the magic threshold where we don't calculate
         # the min/max
-        self.write_get_variable(thread_id, frame_id, 'hugearray')
+        self.write_get_variable(hit.thread_id, hit.frame_id, 'hugearray')
         self.wait_for_var((
             [
                 '<var name="min" type="str" qualifier={0} value="str%253A ndarray too big%252C calculating min would slow down debugging" />'.format(builtin_qualifier),
@@ -450,10 +435,10 @@ class WriterThreadCase16(debugger_unittest.AbstractWriterThread):
             '<var name="dtype" type="dtype"',
             '<var name="size" type="int"',
         ))
-        self.write_get_variable(thread_id, frame_id, 'hugearray\t__internals__')
+        self.write_get_variable(hit.thread_id, hit.frame_id, 'hugearray\t__internals__')
         self.wait_for_var('<var name="%27size%27')
 
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
         self.finished_ok = True
 
 
@@ -469,18 +454,18 @@ class WriterThreadCase15(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(22, 'main')
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, True)
+        hit = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT)
 
         # Access some variable
-        self.write_custom_operation("%s\t%s\tEXPRESSION\tcarObj.color" % (thread_id, frame_id), "EXEC", "f=lambda x: 'val=%s' % x", "f")
+        self.write_custom_operation("%s\t%s\tEXPRESSION\tcarObj.color" % (hit.thread_id, hit.frame_id), "EXEC", "f=lambda x: 'val=%s' % x", "f")
         self.wait_for_custom_operation('val=Black')
         assert 7 == self._sequence, 'Expected 7. Had: %s' % self._sequence
 
-        self.write_custom_operation("%s\t%s\tEXPRESSION\tcarObj.color" % (thread_id, frame_id), "EXECFILE", debugger_unittest._get_debugger_test_file('_debugger_case15_execfile.py'), "f")
+        self.write_custom_operation("%s\t%s\tEXPRESSION\tcarObj.color" % (hit.thread_id, hit.frame_id), "EXECFILE", debugger_unittest._get_debugger_test_file('_debugger_case15_execfile.py'), "f")
         self.wait_for_custom_operation('val=Black')
         assert 9 == self._sequence, 'Expected 9. Had: %s' % self._sequence
 
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
         self.finished_ok = True
 
 
@@ -497,34 +482,34 @@ class WriterThreadCase14(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(22, 'main')
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
-        assert thread_id, '%s not valid.' % thread_id
-        assert frame_id, '%s not valid.' % frame_id
+        hit = self.wait_for_breakpoint_hit('111')
+        assert hit.thread_id, '%s not valid.' % hit.thread_id
+        assert hit.frame_id, '%s not valid.' % hit.frame_id
 
         # Access some variable
-        self.write_debug_console_expression("%s\t%s\tEVALUATE\tcarObj.color" % (thread_id, frame_id))
+        self.write_debug_console_expression("%s\t%s\tEVALUATE\tcarObj.color" % (hit.thread_id, hit.frame_id))
         self.wait_for_var(['<more>False</more>', '%27Black%27'])
         assert 7 == self._sequence, 'Expected 9. Had: %s' % self._sequence
 
         # Change some variable
-        self.write_debug_console_expression("%s\t%s\tEVALUATE\tcarObj.color='Red'" % (thread_id, frame_id))
-        self.write_debug_console_expression("%s\t%s\tEVALUATE\tcarObj.color" % (thread_id, frame_id))
+        self.write_debug_console_expression("%s\t%s\tEVALUATE\tcarObj.color='Red'" % (hit.thread_id, hit.frame_id))
+        self.write_debug_console_expression("%s\t%s\tEVALUATE\tcarObj.color" % (hit.thread_id, hit.frame_id))
         self.wait_for_var(['<more>False</more>', '%27Red%27'])
         assert 11 == self._sequence, 'Expected 13. Had: %s' % self._sequence
 
         # Iterate some loop
-        self.write_debug_console_expression("%s\t%s\tEVALUATE\tfor i in range(3):" % (thread_id, frame_id))
+        self.write_debug_console_expression("%s\t%s\tEVALUATE\tfor i in range(3):" % (hit.thread_id, hit.frame_id))
         self.wait_for_var(['<xml><more>True</more></xml>'])
-        self.write_debug_console_expression("%s\t%s\tEVALUATE\t    print(i)" % (thread_id, frame_id))
+        self.write_debug_console_expression("%s\t%s\tEVALUATE\t    print(i)" % (hit.thread_id, hit.frame_id))
         self.wait_for_var(['<xml><more>True</more></xml>'])
-        self.write_debug_console_expression("%s\t%s\tEVALUATE\t" % (thread_id, frame_id))
+        self.write_debug_console_expression("%s\t%s\tEVALUATE\t" % (hit.thread_id, hit.frame_id))
         self.wait_for_var(
             [
                 '<xml><more>False</more><output message="0"></output><output message="1"></output><output message="2"></output></xml>'            ]
             )
         assert 17 == self._sequence, 'Expected 19. Had: %s' % self._sequence
 
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
         self.finished_ok = True
 
 
@@ -553,41 +538,37 @@ class WriterThreadCase13(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(35, 'main')
         self.write("%s\t%s\t%s" % (CMD_SET_PROPERTY_TRACE, self.next_seq(), "true;false;false;true"))
         self.write_make_initial_run()
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
+        hit = self.wait_for_breakpoint_hit('111')
 
-        self.write_get_frame(thread_id, frame_id)
+        self.write_get_frame(hit.thread_id, hit.frame_id)
 
-        self.write_step_in(thread_id)
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('107', True)
+        self.write_step_in(hit.thread_id)
+        hit = self.wait_for_breakpoint_hit('107', line=25)
         # Should go inside setter method
-        assert line == 25, 'Expected return to be in line 25, was: %s' % line
 
-        self.write_step_in(thread_id)
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('107', True)
+        self.write_step_in(hit.thread_id)
+        hit = self.wait_for_breakpoint_hit('107')
 
-        self.write_step_in(thread_id)
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('107', True)
+        self.write_step_in(hit.thread_id)
+        hit = self.wait_for_breakpoint_hit('107', line=21)
         # Should go inside getter method
-        assert line == 21, 'Expected return to be in line 21, was: %s' % line
 
-        self.write_step_in(thread_id)
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('107', True)
+        self.write_step_in(hit.thread_id)
+        hit = self.wait_for_breakpoint_hit('107')
 
         # Disable property tracing
         self.write("%s\t%s\t%s" % (CMD_SET_PROPERTY_TRACE, self.next_seq(), "true;true;true;true"))
-        self.write_step_in(thread_id)
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('107', True)
+        self.write_step_in(hit.thread_id)
+        hit = self.wait_for_breakpoint_hit('107', line=39)
         # Should Skip step into properties setter
-        assert line == 39, 'Expected return to be in line 39, was: %s' % line
 
         # Enable property tracing
         self.write("%s\t%s\t%s" % (CMD_SET_PROPERTY_TRACE, self.next_seq(), "true;false;false;true"))
-        self.write_step_in(thread_id)
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('107', True)
+        self.write_step_in(hit.thread_id)
+        hit = self.wait_for_breakpoint_hit('107', line=8)
         # Should go inside getter method
-        assert line == 8, 'Expected return to be in line 8, was: %s' % line
 
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
 
         self.finished_ok = True
 
@@ -596,7 +577,7 @@ class WriterThreadCase13(debugger_unittest.AbstractWriterThread):
 #======================================================================================================================
 class WriterThreadCase12(debugger_unittest.AbstractWriterThread):
 
-    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case10.py')
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_simple_calls.py')
 
     def run(self):
         self.start_socket()
@@ -605,17 +586,13 @@ class WriterThreadCase12(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(11, 'Method2')
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
+        hit = self.wait_for_breakpoint_hit('111', line=11)
 
-        assert line == 11, 'Expected return to be in line 11, was: %s' % line
+        self.write_step_return(hit.thread_id)
 
-        self.write_step_return(thread_id)
+        hit = self.wait_for_breakpoint_hit('111', line=6)  # not a return (it stopped in the other breakpoint)
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)  # not a return (it stopped in the other breakpoint)
-
-        assert line == 6, 'Expected return to be in line 6, was: %s' % line
-
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
 
         assert 13 == self._sequence, 'Expected 13. Had: %s' % self._sequence
 
@@ -628,36 +605,28 @@ class WriterThreadCase12(debugger_unittest.AbstractWriterThread):
 #======================================================================================================================
 class WriterThreadCase11(debugger_unittest.AbstractWriterThread):
 
-    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case10.py')
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_simple_calls.py')
 
     def run(self):
         self.start_socket()
         self.write_add_breakpoint(2, 'Method1')
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
+        hit = self.wait_for_breakpoint_hit('111', line=2)
 
-        assert line == 2, 'Expected return to be in line 2, was: %s' % line
+        self.write_step_over(hit.thread_id)
 
-        self.write_step_over(thread_id)
+        hit = self.wait_for_breakpoint_hit('108', line=3)
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('108', True)
+        self.write_step_over(hit.thread_id)
 
-        assert line == 3, 'Expected return to be in line 3, was: %s' % line
+        hit = self.wait_for_breakpoint_hit('108', line=11)
 
-        self.write_step_over(thread_id)
+        self.write_step_over(hit.thread_id)
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('108', True)
+        hit = self.wait_for_breakpoint_hit('108', line=12)
 
-        assert line == 11, 'Expected return to be in line 11, was: %s' % line
-
-        self.write_step_over(thread_id)
-
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('108', True)
-
-        assert line == 12, 'Expected return to be in line 12, was: %s' % line
-
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
 
         assert 13 == self._sequence, 'Expected 13. Had: %s' % self._sequence
 
@@ -670,28 +639,24 @@ class WriterThreadCase11(debugger_unittest.AbstractWriterThread):
 #======================================================================================================================
 class WriterThreadCase10(debugger_unittest.AbstractWriterThread):
 
-    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case10.py')
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_simple_calls.py')
 
     def run(self):
         self.start_socket()
         self.write_add_breakpoint(2, 'None')  # None or Method should make hit.
         self.write_make_initial_run()
 
-        thread_id, frame_id = self.wait_for_breakpoint_hit('111')
+        hit = self.wait_for_breakpoint_hit('111')
 
-        self.write_step_return(thread_id)
+        self.write_step_return(hit.thread_id)
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('109', True)
+        hit = self.wait_for_breakpoint_hit('109', line=11)
 
-        assert line == 11, 'Expected return to be in line 11, was: %s' % line
+        self.write_step_over(hit.thread_id)
 
-        self.write_step_over(thread_id)
+        hit = self.wait_for_breakpoint_hit('108', line=12)
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('108', True)
-
-        assert line == 12, 'Expected return to be in line 12, was: %s' % line
-
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
 
         assert 11 == self._sequence, 'Expected 11. Had: %s' % self._sequence
 
@@ -711,21 +676,17 @@ class WriterThreadCase9(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(10, 'Method3')
         self.write_make_initial_run()
 
-        thread_id, frame_id = self.wait_for_breakpoint_hit('111')
+        hit = self.wait_for_breakpoint_hit('111')
 
-        self.write_step_over(thread_id)
+        self.write_step_over(hit.thread_id)
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('108', True)
+        hit = self.wait_for_breakpoint_hit('108', line=11)
 
-        assert line == 11, 'Expected return to be in line 11, was: %s' % line
+        self.write_step_over(hit.thread_id)
 
-        self.write_step_over(thread_id)
+        hit = self.wait_for_breakpoint_hit('108', line=12)
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('108', True)
-
-        assert line == 12, 'Expected return to be in line 12, was: %s' % line
-
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
 
         assert 11 == self._sequence, 'Expected 11. Had: %s' % self._sequence
 
@@ -744,15 +705,13 @@ class WriterThreadCase8(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(10, 'Method3')
         self.write_make_initial_run()
 
-        thread_id, frame_id = self.wait_for_breakpoint_hit('111')
+        hit = self.wait_for_breakpoint_hit('111')
 
-        self.write_step_return(thread_id)
+        self.write_step_return(hit.thread_id)
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('109', True)
+        hit = self.wait_for_breakpoint_hit('109', line=15)
 
-        assert line == 15, 'Expected return to be in line 15, was: %s' % line
-
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
 
         assert 9 == self._sequence, 'Expected 9. Had: %s' % self._sequence
 
@@ -773,17 +732,17 @@ class WriterThreadCase7(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(2, 'Call')
         self.write_make_initial_run()
 
-        thread_id, frame_id = self.wait_for_breakpoint_hit('111')
+        hit = self.wait_for_breakpoint_hit('111')
 
-        self.write_get_frame(thread_id, frame_id)
+        self.write_get_frame(hit.thread_id, hit.frame_id)
 
         self.wait_for_vars('<xml></xml>')  # no vars at this point
 
-        self.write_step_over(thread_id)
+        self.write_step_over(hit.thread_id)
 
         self.wait_for_breakpoint_hit('108')
 
-        self.write_get_frame(thread_id, frame_id)
+        self.write_get_frame(hit.thread_id, hit.frame_id)
 
         self.wait_for_vars([
             [
@@ -792,12 +751,11 @@ class WriterThreadCase7(debugger_unittest.AbstractWriterThread):
             ]
         ])
 
-        self.write_step_over(thread_id)
+        self.write_step_over(hit.thread_id)
 
         self.wait_for_breakpoint_hit('108')
 
-
-        self.write_get_frame(thread_id, frame_id)
+        self.write_get_frame(hit.thread_id, hit.frame_id)
 
         self.wait_for_vars([
             [
@@ -806,7 +764,7 @@ class WriterThreadCase7(debugger_unittest.AbstractWriterThread):
             ]
         ])
 
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
 
         assert 17 == self._sequence, 'Expected 17. Had: %s' % self._sequence
 
@@ -826,19 +784,28 @@ class WriterThreadCase6(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(2, 'Call2')
         self.write_make_initial_run()
 
-        thread_id, frame_id = self.wait_for_breakpoint_hit()
+        hit = self.wait_for_breakpoint_hit()
+        thread_id = hit.thread_id
+        frame_id = hit.frame_id 
 
         self.write_get_frame(thread_id, frame_id)
 
         self.write_step_return(thread_id)
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('109', True)
+        hit = self.wait_for_breakpoint_hit('109')
+        thread_id = hit.thread_id
+        frame_id = hit.frame_id 
+        line = hit.line
+
 
         assert line == 8, 'Expecting it to go to line 8. Went to: %s' % line
 
         self.write_step_in(thread_id)
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('107', True)
+        hit = self.wait_for_breakpoint_hit('107')
+        thread_id = hit.thread_id
+        frame_id = hit.frame_id 
+        line = hit.line
 
         # goes to line 4 in jython (function declaration line)
         assert line in (4, 5), 'Expecting it to go to line 4 or 5. Went to: %s' % line
@@ -861,7 +828,9 @@ class WriterThreadCase5(debugger_unittest.AbstractWriterThread):
         breakpoint_id = self.write_add_breakpoint(2, 'Call2')
         self.write_make_initial_run()
 
-        thread_id, frame_id = self.wait_for_breakpoint_hit()
+        hit = self.wait_for_breakpoint_hit()
+        thread_id = hit.thread_id
+        frame_id = hit.frame_id 
 
         self.write_get_frame(thread_id, frame_id)
 
@@ -869,13 +838,19 @@ class WriterThreadCase5(debugger_unittest.AbstractWriterThread):
 
         self.write_step_return(thread_id)
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('109', True)
+        hit = self.wait_for_breakpoint_hit('109')
+        thread_id = hit.thread_id
+        frame_id = hit.frame_id 
+        line = hit.line
 
         assert line == 8, 'Expecting it to go to line 8. Went to: %s' % line
 
         self.write_step_in(thread_id)
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('107', True)
+        hit = self.wait_for_breakpoint_hit('107')
+        thread_id = hit.thread_id
+        frame_id = hit.frame_id 
+        line = hit.line
 
         # goes to line 4 in jython (function declaration line)
         assert line in (4, 5), 'Expecting it to go to line 4 or 5. Went to: %s' % line
@@ -902,8 +877,8 @@ class WriterThreadCase4(debugger_unittest.AbstractWriterThread):
 
         self.write_suspend_thread(thread_id)
 
-        thread_id2, frame_id, suspend_type = self.wait_for_breakpoint_hit_with_suspend_type(REASON_THREAD_SUSPEND)
-        assert thread_id2 == thread_id
+        hit = self.wait_for_breakpoint_hit(REASON_THREAD_SUSPEND)
+        assert hit.thread_id == thread_id
 
         self.write_run_thread(thread_id)
 
@@ -924,13 +899,17 @@ class WriterThreadCase3(debugger_unittest.AbstractWriterThread):
         breakpoint_id = self.write_add_breakpoint(4, '')
         self.write_add_breakpoint(5, 'FuncNotAvailable')  # Check that it doesn't get hit in the global when a function is available
 
-        thread_id, frame_id = self.wait_for_breakpoint_hit()
+        hit = self.wait_for_breakpoint_hit()
+        thread_id = hit.thread_id
+        frame_id = hit.frame_id 
 
         self.write_get_frame(thread_id, frame_id)
 
         self.write_run_thread(thread_id)
 
-        thread_id, frame_id = self.wait_for_breakpoint_hit()
+        hit = self.wait_for_breakpoint_hit()
+        thread_id = hit.thread_id
+        frame_id = hit.frame_id 
 
         self.write_get_frame(thread_id, frame_id)
 
@@ -950,6 +929,10 @@ class WriterThreadCaseUnhandledExceptionsBasic(debugger_unittest.AbstractWriterT
     # Note: expecting unhandled exceptions to be printed to stdout.
     TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_unhandled_exceptions.py')
 
+    @overrides(debugger_unittest.AbstractWriterThread.check_test_suceeded_msg)
+    def check_test_suceeded_msg(self, stdout, stderr):
+        return 'TEST SUCEEDED' in ''.join(stdout) and 'TEST SUCEEDED' in ''.join(stderr)
+
     @overrides(debugger_unittest.AbstractWriterThread.additional_output_checks)
     def additional_output_checks(self, stdout, stderr):
         if 'raise Exception' not in stderr:
@@ -963,14 +946,17 @@ class WriterThreadCaseUnhandledExceptionsBasic(debugger_unittest.AbstractWriterT
         self.write_make_initial_run()
 
         # Will stop in 2 background threads
-        thread_id1, frame_id = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
-        thread_id2, frame_id = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
+        hit = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
+        thread_id1 = hit.thread_id
+        hit = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
+        thread_id2 = hit.thread_id
 
         self.write_run_thread(thread_id1)
         self.write_run_thread(thread_id2)
 
         # Will stop in main thread
-        thread_id3, frame_id = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
+        hit = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
+        thread_id3 = hit.thread_id
         self.write_run_thread(thread_id3)
 
         self.log.append('Marking finished ok.')
@@ -1001,8 +987,8 @@ class WriterThreadCaseUnhandledExceptionsOnTopLevel(debugger_unittest.AbstractWr
         self.write_make_initial_run()
 
         # Will stop in main thread
-        thread_id3, frame_id = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
-        self.write_run_thread(thread_id3)
+        hit = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
+        self.write_run_thread(hit.thread_id)
 
         self.log.append('Marking finished ok.')
         self.finished_ok = True
@@ -1051,8 +1037,8 @@ class WriterThreadCaseUnhandledExceptionsOnTopLevel2(debugger_unittest.AbstractW
         self.write_make_initial_run()
 
         # Should stop (only once) in the main thread.
-        thread_id3, frame_id = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
-        self.write_run_thread(thread_id3)
+        hit = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
+        self.write_run_thread(hit.thread_id)
 
         self.log.append('Marking finished ok.')
         self.finished_ok = True
@@ -1085,11 +1071,11 @@ class WriterThreadCaseUnhandledExceptionsOnTopLevel3(debugger_unittest.AbstractW
 
         # Will stop in main thread twice: once one we find that the exception is being
         # thrown and another in postmortem mode when we discover it's uncaught.
-        thread_id3, frame_id = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION)
-        self.write_run_thread(thread_id3)
+        hit = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION)
+        self.write_run_thread(hit.thread_id)
         
-        thread_id3, frame_id = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
-        self.write_run_thread(thread_id3)
+        hit = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
+        self.write_run_thread(hit.thread_id)
 
         self.log.append('Marking finished ok.')
         self.finished_ok = True
@@ -1119,14 +1105,14 @@ class WriterThreadCaseUnhandledExceptionsOnTopLevel4(debugger_unittest.AbstractW
         self.write_make_initial_run()
 
         # We have an exception thrown and handled and another which is thrown and is then unhandled. 
-        thread_id3, frame_id = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION)
-        self.write_run_thread(thread_id3)
+        hit = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION)
+        self.write_run_thread(hit.thread_id)
 
-        thread_id3, frame_id = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION)
-        self.write_run_thread(thread_id3)
+        hit = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION)
+        self.write_run_thread(hit.thread_id)
         
-        thread_id3, frame_id = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
-        self.write_run_thread(thread_id3)
+        hit = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
+        self.write_run_thread(hit.thread_id)
 
         self.log.append('Marking finished ok.')
         self.finished_ok = True
@@ -1144,7 +1130,9 @@ class WriterThreadCase2(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(3, 'Call4')  # seq = 3
         self.write_make_initial_run()
 
-        thread_id, frame_id = self.wait_for_breakpoint_hit()
+        hit = self.wait_for_breakpoint_hit()
+        thread_id = hit.thread_id
+        frame_id = hit.frame_id 
 
         self.write_get_frame(thread_id, frame_id)  # Note: write get frame but not waiting for it to be gotten.
 
@@ -1152,7 +1140,9 @@ class WriterThreadCase2(debugger_unittest.AbstractWriterThread):
 
         self.write_run_thread(thread_id)
 
-        thread_id, frame_id = self.wait_for_breakpoint_hit()
+        hit = self.wait_for_breakpoint_hit()
+        thread_id = hit.thread_id
+        frame_id = hit.frame_id 
 
         self.write_get_frame(thread_id, frame_id)  # Note: write get frame but not waiting for it to be gotten.
 
@@ -1176,10 +1166,10 @@ class WriterThreadCaseQThread1(debugger_unittest.AbstractWriterThread):
         breakpoint_id = self.write_add_breakpoint(19, 'run')
         self.write_make_initial_run()
 
-        thread_id, frame_id = self.wait_for_breakpoint_hit()
+        hit = self.wait_for_breakpoint_hit()
 
         self.write_remove_breakpoint(breakpoint_id)
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
 
         self.log.append('Checking sequence. Found: %s' % (self._sequence))
         assert 9 == self._sequence, 'Expected 9. Had: %s' % self._sequence
@@ -1199,7 +1189,8 @@ class WriterThreadCaseQThread2(debugger_unittest.AbstractWriterThread):
         breakpoint_id = self.write_add_breakpoint(24, 'long_running')
         self.write_make_initial_run()
 
-        thread_id, frame_id = self.wait_for_breakpoint_hit()
+        hit = self.wait_for_breakpoint_hit()
+        thread_id = hit.thread_id
 
         self.write_remove_breakpoint(breakpoint_id)
         self.write_run_thread(thread_id)
@@ -1222,7 +1213,9 @@ class WriterThreadCaseQThread3(debugger_unittest.AbstractWriterThread):
         breakpoint_id = self.write_add_breakpoint(22, 'run')
         self.write_make_initial_run()
 
-        thread_id, frame_id = self.wait_for_breakpoint_hit()
+        hit = self.wait_for_breakpoint_hit()
+        thread_id = hit.thread_id
+        frame_id = hit.frame_id 
 
         self.write_remove_breakpoint(breakpoint_id)
         self.write_run_thread(thread_id)
@@ -1245,10 +1238,10 @@ class WriterThreadCaseQThread4(debugger_unittest.AbstractWriterThread):
         breakpoint_id = self.write_add_breakpoint(28, 'on_start') # breakpoint on print('On start called2').
         self.write_make_initial_run()
 
-        thread_id, frame_id = self.wait_for_breakpoint_hit()
+        hit = self.wait_for_breakpoint_hit()
 
         self.write_remove_breakpoint(breakpoint_id)
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
 
         self.log.append('Checking sequence. Found: %s' % (self._sequence))
         assert 9 == self._sequence, 'Expected 9. Had: %s' % self._sequence
@@ -1283,7 +1276,9 @@ class WriterThreadCase1(debugger_unittest.AbstractWriterThread):
         self.write_make_initial_run()
 
         self.log.append('waiting for breakpoint hit')
-        thread_id, frame_id = self.wait_for_breakpoint_hit()
+        hit = self.wait_for_breakpoint_hit()
+        thread_id = hit.thread_id
+        frame_id = hit.frame_id 
 
         self.log.append('get frame')
         self.write_get_frame(thread_id, frame_id)
@@ -1340,12 +1335,12 @@ class WriterThreadCaseMSwitch(debugger_unittest.AbstractWriterThread):
         self.write_make_initial_run()
 
         self.log.append('waiting for breakpoint hit')
-        thread_id, frame_id = self.wait_for_breakpoint_hit()
+        hit = self.wait_for_breakpoint_hit()
 
         self.write_remove_breakpoint(breakpoint_id)
 
         self.log.append('run thread')
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
 
         self.log.append('asserting')
         try:
@@ -1362,6 +1357,7 @@ class WriterThreadCaseMSwitch(debugger_unittest.AbstractWriterThread):
 # WriterThreadCaseModuleWithEntryPoint
 # =======================================================================================================================
 class WriterThreadCaseModuleWithEntryPoint(WriterThreadCaseMSwitch):
+    
     TEST_FILE = 'tests_python.resources._debugger_case_module_entry_point:main'
     IS_MODULE = True
 
@@ -1369,6 +1365,9 @@ class WriterThreadCaseModuleWithEntryPoint(WriterThreadCaseMSwitch):
     def get_main_filename(self):
         return debugger_unittest._get_debugger_test_file('_debugger_case_module_entry_point.py')
 
+#=======================================================================================================================
+# AbstractRemoteWriterThread
+#=======================================================================================================================
 class AbstractRemoteWriterThread(debugger_unittest.AbstractWriterThread):
 
     def update_command_line_args(self, args):
@@ -1390,10 +1389,10 @@ class WriterThreadCaseRemoteDebugger(AbstractRemoteWriterThread):
         self.write_make_initial_run()
 
         self.log.append('waiting for breakpoint hit')
-        thread_id, frame_id = self.wait_for_breakpoint_hit(REASON_THREAD_SUSPEND)
+        hit = self.wait_for_breakpoint_hit(REASON_THREAD_SUSPEND)
 
         self.log.append('run thread')
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
 
         self.log.append('asserting')
         try:
@@ -1428,16 +1427,16 @@ class WriterThreadCaseRemoteDebuggerUnhandledExceptions(AbstractRemoteWriterThre
         self.write_make_initial_run()
 
         self.log.append('waiting for breakpoint hit')
-        thread_id, frame_id = self.wait_for_breakpoint_hit(REASON_THREAD_SUSPEND)
+        hit = self.wait_for_breakpoint_hit(REASON_THREAD_SUSPEND)
         
         self.write_add_exception_breakpoint_with_policy('Exception', '0', '1', '0')
 
         self.log.append('run thread')
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
         
         self.log.append('waiting for uncaught exception')
-        thread_id, frame_id = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
-        self.write_run_thread(thread_id)
+        hit = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
+        self.write_run_thread(hit.thread_id)
 
         self.log.append('finished ok')
         self.finished_ok = True
@@ -1465,12 +1464,12 @@ class WriterThreadCaseRemoteDebuggerUnhandledExceptions2(AbstractRemoteWriterThr
         self.write_make_initial_run()
 
         self.log.append('waiting for breakpoint hit')
-        thread_id, frame_id = self.wait_for_breakpoint_hit(REASON_THREAD_SUSPEND)
+        hit = self.wait_for_breakpoint_hit(REASON_THREAD_SUSPEND)
         
         self.write_add_exception_breakpoint_with_policy('ValueError', '0', '1', '0')
 
         self.log.append('run thread')
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
         
         self.log.append('waiting for uncaught exception')
         for _ in range(3):
@@ -1481,8 +1480,8 @@ class WriterThreadCaseRemoteDebuggerUnhandledExceptions2(AbstractRemoteWriterThr
             # To properly fix this, we'll need to identify that this exception
             # will be handled later on with the information we have at hand (so,
             # no back frame but within a try..except block).
-            thread_id, frame_id = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
-            self.write_run_thread(thread_id)
+            hit = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
+            self.write_run_thread(hit.thread_id)
 
         self.log.append('finished ok')
         self.finished_ok = True
@@ -1534,14 +1533,14 @@ class WriterThreadCaseRemoteDebuggerMultiProc(AbstractRemoteWriterThread):
         self.write_make_initial_run()
 
         self.log.append('waiting for breakpoint hit')
-        thread_id, frame_id = self.wait_for_breakpoint_hit(REASON_THREAD_SUSPEND)
+        hit = self.wait_for_breakpoint_hit(REASON_THREAD_SUSPEND)
 
         self.secondary_multi_proc_process_writer_thread  = secondary_multi_proc_process_writer_thread = \
             _SecondaryMultiProcProcessWriterThread(self.server_socket)
         secondary_multi_proc_process_writer_thread.start()
 
         self.log.append('run thread')
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
 
         for _i in xrange(400):
             if secondary_multi_proc_process_writer_thread.finished_ok:
@@ -1578,17 +1577,17 @@ class WriterThreadCaseTypeExt(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(7, None)
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
-        self.write_get_frame(thread_id, frame_id)
+        hit = self.wait_for_breakpoint_hit('111')
+        self.write_get_frame(hit.thread_id, hit.frame_id)
         assert self.wait_for_var([
             [
                 r'<var name="my_rect" type="Rect" qualifier="__main__" value="Rectangle%255BLength%253A 5%252C Width%253A 10 %252C Area%253A 50%255D" isContainer="True" />',
                 r'<var name="my_rect" type="Rect"  value="Rect: <__main__.Rect object at',  # Jython
             ]
         ])
-        self.write_get_variable(thread_id, frame_id, 'my_rect')
+        self.write_get_variable(hit.thread_id, hit.frame_id, 'my_rect')
         assert self.wait_for_var(r'<var name="area" type="int" qualifier="{0}" value="int%253A 50" />'.format(builtin_qualifier))
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
         self.finished_ok = True
 
 
@@ -1641,13 +1640,13 @@ class WriterThreadCaseThreadCreationDeadlock(debugger_unittest.AbstractWriterThr
         self.write_add_breakpoint(26, None)
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
+        hit = self.wait_for_breakpoint_hit('111')
 
-        assert line == 26, 'Expected return to be in line 26, was: %s' % line
+        assert hit.line == 26, 'Expected return to be in line 26, was: %s' % (hit.line,)
 
-        self.write_evaluate_expression('%s\t%s\t%s' % (thread_id, frame_id, 'LOCAL'), 'create_thread()')
+        self.write_evaluate_expression('%s\t%s\t%s' % (hit.thread_id, hit.frame_id, 'LOCAL'), 'create_thread()')
         self.wait_for_evaluation('<var name="create_thread()" type="str" qualifier="{0}" value="str: create_thread:ok'.format(builtin_qualifier))
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
 
 
         self.finished_ok = True
@@ -1664,13 +1663,11 @@ class WriterThreadCaseSkipBreakpointInExceptions(debugger_unittest.AbstractWrite
         self.write_add_breakpoint(5, None)
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
-        assert line == 5, 'Expected return to be in line 5, was: %s' % line
-        self.write_run_thread(thread_id)
+        hit = self.wait_for_breakpoint_hit('111', line=5)
+        self.write_run_thread(hit.thread_id)
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('111', True)
-        assert line == 5, 'Expected return to be in line 5, was: %s' % line
-        self.write_run_thread(thread_id)
+        hit = self.wait_for_breakpoint_hit('111', line=5)
+        self.write_run_thread(hit.thread_id)
 
 
         self.finished_ok = True
@@ -1693,9 +1690,8 @@ class WriterThreadCaseHandledExceptions(debugger_unittest.AbstractWriterThread):
         )
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, True)
-        assert line == 2, 'Expected return to be in line 2, was: %s' % line
-        self.write_run_thread(thread_id)
+        hit = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, line=2)
+        self.write_run_thread(hit.thread_id)
 
         self.finished_ok = True
 
@@ -1723,17 +1719,14 @@ class WriterThreadCaseHandledExceptions1(debugger_unittest.AbstractWriterThread)
         )
         self.write_make_initial_run()
 
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, True)
-        assert line == 2, 'Expected return to be in line 2, was: %s' % line
-        self.write_run_thread(thread_id)
+        hit = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, line=2)
+        self.write_run_thread(hit.thread_id)
         
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, True)
-        assert line == 5, 'Expected return to be in line 5, was: %s' % line
-        self.write_run_thread(thread_id)
+        hit = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, line=5)
+        self.write_run_thread(hit.thread_id)
         
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, True)
-        assert line == 9, 'Expected return to be in line 9, was: %s' % line
-        self.write_run_thread(thread_id)
+        hit = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, line=9)
+        self.write_run_thread(hit.thread_id)
 
         self.finished_ok = True
 
@@ -1748,7 +1741,9 @@ class WriterThreadCaseHandledExceptions2(debugger_unittest.AbstractWriterThread)
     def get_environ(self):
         env = os.environ.copy()
 
-        env["IDE_PROJECT_ROOTS"] = '' # Don't stop anywhere because IDE_PROJECT_ROOTS is not set.
+        # Don't stop anywhere (note: having IDE_PROJECT_ROOTS = '' will consider
+        # having anything not under site-packages as being in the project).
+        env["IDE_PROJECT_ROOTS"] = '["empty"]' 
         return env
     
     def run(self):
@@ -1790,9 +1785,8 @@ class WriterThreadCaseHandledExceptions3(debugger_unittest.AbstractWriterThread)
         )
             
         self.write_make_initial_run()
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, True)
-        assert line == 2, 'Expected return to be in line 2, was: %s' % line
-        self.write_run_thread(thread_id)
+        hit = self.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, line=2)
+        self.write_run_thread(hit.thread_id)
 
         self.finished_ok = True
 
@@ -1808,13 +1802,11 @@ class WriterCaseSetTrace(debugger_unittest.AbstractWriterThread):
             
         self.write_make_initial_run()
         
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit('108', True)
-        assert line == 12, 'Expected return to be in line 12, was: %s' % line
-        self.write_run_thread(thread_id)
+        hit = self.wait_for_breakpoint_hit('108', line=12)
+        self.write_run_thread(hit.thread_id)
         
-        thread_id, frame_id, line = self.wait_for_breakpoint_hit(REASON_THREAD_SUSPEND, True)
-        assert line == 7, 'Expected return to be in line 7, was: %s' % line
-        self.write_run_thread(thread_id)
+        hit = self.wait_for_breakpoint_hit(REASON_THREAD_SUSPEND, line=7)
+        self.write_run_thread(hit.thread_id)
 
         self.finished_ok = True
 
@@ -1959,7 +1951,9 @@ class WriterThreadCaseScapy(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(2, None)
         self.write_make_initial_run()
         
-        thread_id, frame_id = self.wait_for_breakpoint_hit()
+        hit = self.wait_for_breakpoint_hit()
+        thread_id = hit.thread_id
+        frame_id = hit.frame_id 
         
         self.write_run_thread(thread_id)
         self.finished_ok = True
@@ -1976,7 +1970,9 @@ class WriterThreadCaseEvaluateErrors(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(4, 'Call')
         self.write_make_initial_run()
         
-        thread_id, frame_id = self.wait_for_breakpoint_hit()
+        hit = self.wait_for_breakpoint_hit()
+        thread_id = hit.thread_id
+        frame_id = hit.frame_id 
         
         self.write_evaluate_expression('%s\t%s\t%s' % (thread_id, frame_id, 'LOCAL'), 'name_error')
         self.wait_for_evaluation('<var name="name_error" type="NameError"')
@@ -1995,7 +1991,9 @@ class WriterThreadCaseListThreads(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(4, 'Call')
         self.write_make_initial_run()
         
-        thread_id, frame_id = self.wait_for_breakpoint_hit()
+        hit = self.wait_for_breakpoint_hit()
+        thread_id = hit.thread_id
+        frame_id = hit.frame_id 
         
         seq = self.write_list_threads()
         msg = self.wait_for_list_threads(seq)
@@ -2016,7 +2014,9 @@ class WriterCasePrint(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(1, 'None')
         self.write_make_initial_run()
         
-        thread_id, _frame_id = self.wait_for_breakpoint_hit()
+        hit = self.wait_for_breakpoint_hit()
+        thread_id = hit.thread_id
+        frame_id = hit.frame_id 
         
         self.write_run_thread(thread_id)
         
@@ -2035,9 +2035,9 @@ class WriterCaseLamda(debugger_unittest.AbstractWriterThread):
         self.write_make_initial_run()
         
         for _ in range(3): # We'll hit the same breakpoint 3 times.
-            thread_id, _frame_id = self.wait_for_breakpoint_hit()
+            hit = self.wait_for_breakpoint_hit()
             
-            self.write_run_thread(thread_id)
+            self.write_run_thread(hit.thread_id)
         
         self.finished_ok = True
         
@@ -2092,13 +2092,13 @@ class WriterDebugZipFiles(debugger_unittest.AbstractWriterThread):
         )
 
         self.write_make_initial_run()
-        thread_id, _frame_id, name, _suspend_type = self.wait_for_breakpoint_hit_with_suspend_type(get_name=True)
-        assert name == 'call_in_zip'
-        self.write_run_thread(thread_id)
+        hit = self.wait_for_breakpoint_hit()
+        assert hit.name == 'call_in_zip'
+        self.write_run_thread(hit.thread_id)
         
-        thread_id, _frame_id, name, _suspend_type = self.wait_for_breakpoint_hit_with_suspend_type(get_name=True)
-        assert name == 'call_in_zip2'
-        self.write_run_thread(thread_id)
+        hit = self.wait_for_breakpoint_hit()
+        assert hit.name == 'call_in_zip2'
+        self.write_run_thread(hit.thread_id)
         
         self.finished_ok = True
 
@@ -2118,8 +2118,8 @@ class WriterCaseBreakpointSuspensionPolicy(debugger_unittest.AbstractWriterThrea
         for i in range(3):
             self.log.append('Waiting for thread %s of 3 to stop' % (i + 1,))
             # One thread is suspended with a breakpoint hit and the other 2 as thread suspended.
-            thread_id, _frame_id = self.wait_for_breakpoint_hit((REASON_STOP_ON_BREAKPOINT, REASON_THREAD_SUSPEND))
-            thread_ids.append(thread_id)
+            hit = self.wait_for_breakpoint_hit((REASON_STOP_ON_BREAKPOINT, REASON_THREAD_SUSPEND))
+            thread_ids.append(hit.thread_id)
             
         for thread_id in thread_ids:
             self.write_run_thread(thread_id)
@@ -2158,8 +2158,8 @@ class WriterCaseGetThreadStack(debugger_unittest.AbstractWriterThread):
             thread_id_to_name[msg.thread['id']] = msg.thread['name']
         assert len(thread_id_to_name) == 2
 
-        thread_id, _frame_id = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT)
-        assert thread_id in thread_id_to_name
+        hit = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT)
+        assert hit.thread_id in thread_id_to_name
 
         for request_thread_id in thread_id_to_name:
             self.write_get_thread_stack(request_thread_id)
@@ -2171,14 +2171,14 @@ class WriterCaseGetThreadStack(debugger_unittest.AbstractWriterThread):
 
             if ([filename for filename in files if filename.endswith('pydevd.py')]):
                 raise AssertionError('Did not expect to find pydevd.py. Found: %s' % ('\n'.join(files),))
-            if request_thread_id == thread_id:
+            if request_thread_id == hit.thread_id:
                 assert len(msg.thread.frame) == 0 # In main thread (must have no back frames).
                 assert msg.thread.frame['name'] == '<module>'
             else:
                 assert len(msg.thread.frame) > 1 # Stopped in threading (must have back frames).
                 assert msg.thread.frame[0]['name'] == 'method'
 
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
 
         self.finished_ok = True
 
@@ -2199,10 +2199,62 @@ class WriterCaseDumpThreadsToStderr(debugger_unittest.AbstractWriterThread):
         self.write_add_breakpoint(12, None)
         self.write_make_initial_run()
 
-        thread_id, _frame_id = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT)
+        hit = self.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT)
 
         self.write_dump_threads()
-        self.write_run_thread(thread_id)
+        self.write_run_thread(hit.thread_id)
+
+        self.finished_ok = True
+        
+#=======================================================================================================================
+# WriterCaseStopOnStartRegular
+#=======================================================================================================================
+class WriterCaseStopOnStartRegular(debugger_unittest.AbstractWriterThread):
+
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_simple_calls.py')
+
+    def run(self):
+        self.start_socket()
+        self.write_stop_on_start()
+        self.write_make_initial_run()
+
+        hit = self.wait_for_breakpoint_hit(REASON_STEP_INTO_MY_CODE, file='_debugger_case_simple_calls.py', line=1)
+
+        self.write_run_thread(hit.thread_id)
+
+        self.finished_ok = True
+
+
+# ======================================================================================================================
+# WriterCaseStopOnStartMSwitch
+# ======================================================================================================================
+class WriterCaseStopOnStartMSwitch(WriterThreadCaseMSwitch):
+    
+    def run(self):
+        self.start_socket()
+        self.write_stop_on_start()
+        self.write_make_initial_run()
+
+        hit = self.wait_for_breakpoint_hit(REASON_STEP_INTO_MY_CODE, file='_debugger_case_m_switch.py', line=1)
+
+        self.write_run_thread(hit.thread_id)
+
+        self.finished_ok = True
+
+
+# ======================================================================================================================
+# WriterCaseStopOnStartEntryPoint
+# ======================================================================================================================
+class WriterCaseStopOnStartEntryPoint(WriterThreadCaseModuleWithEntryPoint):
+    
+    def run(self):
+        self.start_socket()
+        self.write_stop_on_start()
+        self.write_make_initial_run()
+
+        hit = self.wait_for_breakpoint_hit(REASON_STEP_INTO_MY_CODE, file='_debugger_case_module_entry_point.py', line=1)
+
+        self.write_run_thread(hit.thread_id)
 
         self.finished_ok = True
 
@@ -2470,6 +2522,15 @@ class Test(unittest.TestCase, debugger_unittest.DebuggerRunner):
 
     def test_case_dump_threads_to_stderr(self):
         self.check_case(WriterCaseDumpThreadsToStderr)
+        
+    def test_stop_on_start_regular(self):
+        self.check_case(WriterCaseStopOnStartRegular)
+        
+    def test_stop_on_start_m_switch(self):
+        self.check_case(WriterCaseStopOnStartMSwitch)
+        
+    def test_stop_on_start_entry_point(self):
+        self.check_case(WriterCaseStopOnStartEntryPoint)
 
 @pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
 class TestPythonRemoteDebugger(unittest.TestCase, debugger_unittest.DebuggerRunner):

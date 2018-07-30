@@ -16,7 +16,7 @@ IS_APPVEYOR = os.environ.get('APPVEYOR', '') in ('True', 'true', '1')
 
 class WriterThreadStepAndResume(debugger_unittest.AbstractWriterThread):
 
-    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case10.py')
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_simple_calls.py')
 
     def run(self):
         self.start_socket()
@@ -121,7 +121,7 @@ class WriterThreadAddLineBreakWhileRun(debugger_unittest.AbstractWriterThread):
 
 class WriterThreadExceptionBreak(debugger_unittest.AbstractWriterThread):
 
-    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case10.py')
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_simple_calls.py')
 
     def run(self):
         self.start_socket()
@@ -143,7 +143,7 @@ class WriterThreadExceptionBreak(debugger_unittest.AbstractWriterThread):
 
 class WriterThreadAddExceptionBreakWhileRunning(debugger_unittest.AbstractWriterThread):
 
-    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case10.py')
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_simple_calls.py')
 
     def run(self):
         self.start_socket()
@@ -176,7 +176,7 @@ class WriterThreadAddExceptionBreakWhileRunning(debugger_unittest.AbstractWriter
 
 class WriterThreadAddTerminationExceptionBreak(debugger_unittest.AbstractWriterThread):
 
-    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case10.py')
+    TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_simple_calls.py')
 
     def run(self):
         self.start_socket()

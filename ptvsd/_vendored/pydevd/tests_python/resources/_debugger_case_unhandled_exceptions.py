@@ -1,4 +1,4 @@
-import threading, atexit
+import threading, atexit, sys
 
 try:
     from thread import start_new_thread
@@ -8,6 +8,9 @@ except:
     
 def _atexit():
     print('TEST SUCEEDED')
+    sys.stderr.write('TEST SUCEEDED\n')
+    sys.stderr.flush()
+    sys.stdout.flush()
 
 
 # Register the TEST SUCEEDED msg to the exit of the process.
