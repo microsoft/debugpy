@@ -54,6 +54,7 @@ def enable_attach(address,
         # As noted above, we also have to trick settrace() because it
         # *always* forces a client connection.
         _settrace(
+            host=addr.host,
             stdoutToServer=redirect_output,
             stderrToServer=redirect_output,
             port=addr.port,
