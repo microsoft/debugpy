@@ -1468,14 +1468,10 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         # We leave the "project roots" alone (see CMD_SET_PROJECT_ROOTS).
         pass
 
-    def _clear_breakpoints(self, filename=None):
+    def _clear_breakpoints(self):
         cmd = pydevd_comm.CMD_REMOVE_BREAK
         for pyd_bpid, vsc_bpid in self.bp_map.pairs():
-            if filename is None:
-                filename = pyd_bpid[0]
-            elif pyd_bpid[0] != filename:
-                continue
-            msg = '{}\t{}\t{}'.format('python-line', filename, vsc_bpid)
+            msg = '{}\t{}\t{}'.format('python-line', pyd_bpid[0], vsc_bpid)
             self.pydevd_notify(cmd, msg)
             self.bp_map.remove(pyd_bpid, vsc_bpid)
         # TODO: Wait until the last request has been handled?
