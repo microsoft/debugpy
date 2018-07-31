@@ -719,6 +719,7 @@ DEBUG_OPTIONS_PARSER = {
     'FIX_FILE_PATH_CASE': bool_parser,
     'CLIENT_OS_TYPE': unquote,
     'DEBUG_STDLIB': bool_parser,
+    'STOP_ON_ENTRY': bool_parser,
 }
 
 
@@ -733,6 +734,7 @@ DEBUG_OPTIONS_BY_FLAG = {
     'DebugStdLib': 'DEBUG_STDLIB=True',
     'WindowsClient': 'CLIENT_OS_TYPE=WINDOWS',
     'UnixClient': 'CLIENT_OS_TYPE=UNIX',
+    'StopOnEntry': 'STOP_ON_ENTRY=True',
 }
 
 
@@ -1373,6 +1375,10 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         else:
             redirect_output = ''
         self.pydevd_request(pydevd_comm.CMD_REDIRECT_OUTPUT, redirect_output)
+
+        if opts.get('STOP_ON_ENTRY', False) and self.start_reason == 'launch':
+            self.pydevd_request(pydevd_comm.CMD_STOP_ON_START, '1')
+
         self._apply_code_stepping_settings()
 
     def _is_just_my_code_stepping_enabled(self):
