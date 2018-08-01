@@ -21,6 +21,7 @@ class EnableAttachTests(LifecycleTestsBase, unittest.TestCase):
         super(EnableAttachTests, self).tearDown()
         attach_server.WAIT_TIMEOUT = self._orig_wait_timeout
 
+    @unittest.skip('Fix test #721')
     def test_does_not_block(self):
         addr = Address('localhost', PORT)
         filename = self.write_script('spam.py', """
@@ -40,7 +41,7 @@ class EnableAttachTests(LifecycleTestsBase, unittest.TestCase):
             wait(timeout=3)
             adapter.wait()
 
-    @unittest.skip('fails due to "stopped" event never happening')
+    @unittest.skip('fails due to "stopped" event never happening, #722')
     def test_never_call_wait_for_attach(self):
         addr = Address('localhost', PORT)
         filename = self.write_script('spam.py', """

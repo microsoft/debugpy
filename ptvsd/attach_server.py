@@ -2,14 +2,12 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-import threading
-
 # TODO: Why import run_module & run_file?
 from ptvsd._local import run_module, run_file  # noqa
 from ptvsd._remote import (
     enable_attach as ptvsd_enable_attach, _pydevd_settrace,
 )
-
+from ptvsd.wrapper import debugger_attached
 
 WAIT_TIMEOUT = 1.0
 
@@ -17,7 +15,6 @@ DEFAULT_HOST = '0.0.0.0'
 DEFAULT_PORT = 5678
 
 _enabled = False
-_attached = threading.Event()
 _debug_current_thread = None
 _pending_threads = set()
 
@@ -32,15 +29,7 @@ def wait_for_attach(timeout=None):
     timeout : float, optional
         The timeout for the operation in seconds (or fractions thereof).
     """
-    _attached.wait(timeout)
-
-    tid = threading.current_thread().ident
-    if tid in _pending_threads:
-        _pending_threads.remove(tid)
-        # Enable pydevd in the current thread.  This is necessary because
-        # we started pydevd in a new thread.  We must do it here because
-        # that previous invocation must have finished already.
-        _debug_current_thread()
+    debugger_attached.wait(timeout)
 
 
 def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True):
@@ -75,30 +64,16 @@ def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True):
     if _enabled:
         return
     _enabled = True
-    _attached.clear()
+    debugger_attached.clear()
 
-    # Note: this only starts pydevd (e.g. sets it up) and enables
-    # debugging for *future* threads.  It does not actually enable
-    # debugging in the *current* thread.  That is done in
-    # wait_for_attach().  Thus this approach is problematic if
-    # wait_for_attach() is never called.
-    # TODO: Is there any way to ensure that debug_current_thread()
-    # gets called in the current thread, regardless of if
-    # wait_for_attach() gets called?
-    _, wait, debug_current_thread = ptvsd_enable_attach(
+    # Ensure port is int
+    port = address[1]
+    address = (address[0], port if type(port) is int else int(port))
+
+    ptvsd_enable_attach(
         address,
-        on_attach=_attached.set,
         redirect_output=redirect_output,
     )
-    global _debug_current_thread
-    _debug_current_thread = debug_current_thread
-
-    # Give it a chance to finish starting.  This helps reduce possible
-    # issues due to relying on wait_for_attach().
-    if wait(WAIT_TIMEOUT):
-        debug_current_thread()
-    else:
-        _pending_threads.add(threading.current_thread().ident)
 
 
 # TODO: Add disable_attach()?
@@ -106,16 +81,15 @@ def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True):
 
 def is_attached():
     """Returns ``True`` if debugger is attached, ``False`` otherwise."""
-    return _attached.isSet()
+    return debugger_attached.isSet()
 
 
 def break_into_debugger():
     """If a remote debugger is attached, pauses execution of all threads,
     and breaks into the debugger with current thread as active.
     """
-    if not _attached.isSet() or not _enabled:
+    if not debugger_attached.isSet() or not _enabled:
         return
-
     import sys
     _pydevd_settrace(
         suspend=True,

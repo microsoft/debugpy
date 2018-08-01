@@ -89,6 +89,7 @@ def wait_for_socket_server(addr, timeout=SERVER_READY_TIMEOUT):
         try:
             sock = socket.create_connection((addr.host, addr.port))
             sock.close()
+            time.sleep(0.1)  # wait for daemon to detect to socket close.
             return
         except Exception:
             pass
@@ -101,6 +102,7 @@ def wait_for_port_to_free(port, timeout=3.0):
     start_time = time.time()
     while True:
         try:
+            time.sleep(0.5)
             sock = socket.create_connection(('localhost', port))
             sock.close()
         except Exception:

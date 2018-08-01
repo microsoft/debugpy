@@ -13,6 +13,10 @@ from ._util import (
     ClosedError, NotRunningError, ignore_errors, debug, lock_wait)
 
 
+session_not_bound = threading.Event()
+session_not_bound.set()
+
+
 def _wait_for_user():
     if sys.__stdout__ is not None:
         try:
@@ -339,6 +343,7 @@ class DaemonBase(object):
     # internal session-related methods
 
     def _bind_session(self, session):
+        session_not_bound.clear()
         # TODO: Pass notify_* to session.start() instead.
         session = self.SESSION.from_raw(
             session,
@@ -359,6 +364,8 @@ class DaemonBase(object):
             raise
 
     def _finish_session(self):
+        self._numsessions -= 1
+        session_not_bound.set()
         try:
             session = self._release_session()
             debug('session stopped')

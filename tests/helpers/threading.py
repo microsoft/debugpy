@@ -23,7 +23,7 @@ else:
         return lock.acquire(timeout=timeout)
 
 
-def get_locked_and_waiter(timeout=1.0):
+def get_locked_and_waiter(timeout=5.0):
     _timeout = timeout
     lock = threading.Lock()
     lock.acquire()

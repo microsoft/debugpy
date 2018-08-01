@@ -65,7 +65,10 @@ def assert_messages_equal(received, expected):
 def assert_contains_messages(received, expected):
     error_message = ['']
     received_copy = list(msg._replace(seq=0) for msg in received)
-    for msg in (msg._replace(seq=0) for msg in expected):
+    expected_copy = list(msg._replace(seq=0) for msg in expected)
+    received_messages = '\nReceievd:\n' + \
+                        '\n'.join(str(msg) for msg in received_copy)
+    for msg in expected_copy:
         if msg in received_copy:
             del received_copy[received_copy.index(msg)]
         else:
@@ -73,7 +76,11 @@ def assert_contains_messages(received, expected):
             error_message.append(str(msg))
 
     if len(error_message) > 1:
-        raise AssertionError('\n'.join(error_message))
+        expected_messages = '\nExpected:\n' + \
+                            '\n'.join(str(msg) for msg in expected_copy)
+        raise AssertionError('\n'.join(error_message) +
+                             received_messages +
+                             expected_messages)
 
 
 def assert_is_subset(received_message, expected_message):
