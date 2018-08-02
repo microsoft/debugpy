@@ -1480,7 +1480,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     def _clear_breakpoints(self):
         cmd = pydevd_comm.CMD_REMOVE_BREAK
         for pyd_bpid, vsc_bpid in self.bp_map.pairs():
-            msg = '{}\t{}\t{}'.format('python-line', pyd_bpid[0], vsc_bpid)
+            bp_type = self._get_bp_type(pyd_bpid[0])
+            msg = '{}\t{}\t{}'.format(bp_type, pyd_bpid[0], vsc_bpid)
             self.pydevd_notify(cmd, msg)
             self.bp_map.remove(pyd_bpid, vsc_bpid)
         # TODO: Wait until the last request has been handled?
@@ -2051,6 +2052,15 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         return hit_condition
 
+    def _get_bp_type(self, path):
+        bp_type = 'python-line'
+        if not path.lower().endswith('.py'):
+            if self.debug_options.get('DJANGO_DEBUG', False):
+                bp_type = 'django-line'
+            elif self.debug_options.get('FLASK_DEBUG', False):
+                bp_type = 'jinja2-line'
+        return bp_type
+
     @async_handler
     def on_setBreakpoints(self, request, args):
         # TODO: docstring
@@ -2059,12 +2069,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self.path_casing.track_file_path_case(path)
         src_bps = args.get('breakpoints', [])
 
-        bp_type = 'python-line'
-        if not path.lower().endswith('.py'):
-            if self.debug_options.get('DJANGO_DEBUG', False):
-                bp_type = 'django-line'
-            elif self.debug_options.get('FLASK_DEBUG', False):
-                bp_type = 'jinja2-line'
+        bp_type = self._get_bp_type(path)
 
         # First, we must delete all existing breakpoints in that source.
         # TODO: Call self._clear_breakpoints(path) instead?
