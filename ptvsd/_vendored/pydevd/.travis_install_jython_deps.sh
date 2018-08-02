@@ -1,6 +1,5 @@
 #!/bin/bash
 set -ev
 
-pip install pytest
-pip install pytest-xdist
+pip install pytest==3.6
 pip install untangle

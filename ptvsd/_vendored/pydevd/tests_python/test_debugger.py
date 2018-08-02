@@ -956,7 +956,16 @@ class WriterThreadCaseUnhandledExceptionsBasic(debugger_unittest.AbstractWriterT
 
         # Will stop in main thread
         hit = self.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
+        assert hit.name == '<module>'
         thread_id3 = hit.thread_id
+
+        # Requesting the stack in an unhandled exception should provide the stack of the exception,
+        # not the current location of the program).        
+        self.write_get_thread_stack(thread_id3)
+        msg = self.wait_for_message(lambda msg:msg.startswith('%s\t' % (CMD_GET_THREAD_STACK,)))
+        assert len(msg.thread.frame) == 0 # In main thread (must have no back frames).
+        assert msg.thread.frame['name'] == '<module>'
+        
         self.write_run_thread(thread_id3)
 
         self.log.append('Marking finished ok.')
