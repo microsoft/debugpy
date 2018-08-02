@@ -378,7 +378,7 @@ class FlaskLaunchFileTests(WebFrameworkTests):
                     'FLASK_ENV': 'development',
                     'FLASK_DEBUG': '0',
                     'LC_ALL': 'C.UTF-8',
-                    'LANG': 'C.UTF-8'
+                    'LANG': 'C.UTF-8',
                 },
                 cwd=cwd),
             framework='Jinja',
@@ -399,7 +399,7 @@ class FlaskLaunchFileTests(WebFrameworkTests):
                     'FLASK_ENV': 'development',
                     'FLASK_DEBUG': '0',
                     'LC_ALL': 'C.UTF-8',
-                    'LANG': 'C.UTF-8'
+                    'LANG': 'C.UTF-8',
                 },
                 cwd=cwd),
             framework='Jinja',
@@ -418,7 +418,7 @@ class FlaskLaunchFileTests(WebFrameworkTests):
                     'FLASK_ENV': 'development',
                     'FLASK_DEBUG': '0',
                     'LC_ALL': 'C.UTF-8',
-                    'LANG': 'C.UTF-8'
+                    'LANG': 'C.UTF-8',
                 },
                 cwd=cwd), 'Jinja', filename)
 
@@ -434,7 +434,7 @@ class FlaskLaunchFileTests(WebFrameworkTests):
                     'FLASK_ENV': 'development',
                     'FLASK_DEBUG': '0',
                     'LC_ALL': 'C.UTF-8',
-                    'LANG': 'C.UTF-8'
+                    'LANG': 'C.UTF-8',
                 },
                 cwd=cwd), 'Jinja', filename)
 

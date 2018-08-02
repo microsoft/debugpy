@@ -1397,13 +1397,13 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             vendored_pydevd = os.path.sep + \
                               os.path.join('ptvsd', '_vendored', 'pydevd')
             ptvsd_path = os.path.sep + 'ptvsd'
+            site_path = os.path.sep + 'site-packages'
 
             project_dirs = []
             for path in sys.path + [os.getcwd()]:
                 is_stdlib = False
                 norm_path = os.path.normcase(path)
-                if path.endswith(ptvsd_path) or \
-                   path.endswith(vendored_pydevd):
+                if path.endswith((ptvsd_path, vendored_pydevd, site_path)):
                     is_stdlib = True
                 else:
                     for prefix in STDLIB_PATH_PREFIXES:
@@ -2301,7 +2301,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         xframe = xframes[0]
         filepath = unquote(xframe['file'])
         if reason in STEP_REASONS or reason in EXCEPTION_REASONS:
-            if not self._should_debug(filepath):
+            if self.internals_filter.is_internal_path(filepath) or \
+                not self._should_debug(filepath):
                 self.pydevd_notify(pydevd_comm.CMD_THREAD_RUN, pyd_tid)
                 return
 

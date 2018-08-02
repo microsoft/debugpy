@@ -908,7 +908,7 @@ class VSCTest(object):
         expected = list(self.vsc.protocol.parse_each(expected))
         self.assertEqual(received[:-1], expected)
 
-        failure = received[-1]
+        failure = received[-1] if len(received) > 0 else []
         expected = self.vsc.protocol.parse(
             self.fix.vsc_msgs.new_failure(req, failure.message))
         self.assertEqual(failure, expected)
