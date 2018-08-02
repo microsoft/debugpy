@@ -313,10 +313,11 @@ def monkey_patch_os(funcname, create_func):
 
 
 def warn_multiproc():
-    log_error_once(
-        "pydev debugger: New process is launching (breakpoints won't work in the new process).\n"
-        "pydev debugger: To debug that process please enable 'Attach to subprocess automatically while debugging?' option in the debugger settings.\n")
-
+    pass  # TODO: Provide logging as messages to the IDE.
+    # log_error_once(
+    #     "pydev debugger: New process is launching (breakpoints won't work in the new process).\n"
+    #     "pydev debugger: To debug that process please enable 'Attach to subprocess automatically while debugging?' option in the debugger settings.\n")
+    # 
 
 def create_warn_multiproc(original_name):
 
