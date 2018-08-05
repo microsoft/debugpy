@@ -142,8 +142,15 @@ def convert_argv(argv=None):
     return config, args, env
 
 
+def is_cwd(path):
+    p1 = os.path.normcase(os.path.abspath(path))
+    p2 = os.path.normcase(os.getcwd())
+    return p1 == p2
+
+
 def fix_sys_path():
-    pos = 1 if (not sys.path[0] or sys.path[0] == '.') else 0
+    pos = 1 if (not sys.path[0] or sys.path[0] == '.' or
+                is_cwd(sys.path[0])) else 0
     for projectroot in VENDORED_ROOTS:
         sys.path.insert(pos, projectroot)
 
