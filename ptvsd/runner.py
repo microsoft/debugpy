@@ -3,7 +3,6 @@
 # for license information.
 
 import pydevd
-import time
 import threading
 
 from ptvsd.daemon import DaemonBase
@@ -13,7 +12,6 @@ from pydevd import init_stdout_redirect, init_stderr_redirect
 
 
 HOSTNAME = 'localhost'
-OUTPUT_POLL_PERIOD = 0.3
 
 
 def run(address, filename, is_module, *args, **kwargs):
@@ -32,9 +30,6 @@ def run(address, filename, is_module, *args, **kwargs):
         locals=None,
         is_module=is_module,
         set_trace=False)
-    # Wait for some time (a little longer than output redirection polling).
-    # This is necessary to ensure all output is captured and redirected.
-    time.sleep(OUTPUT_POLL_PERIOD + 0.1)
 
 
 class Daemon(DaemonBase):
