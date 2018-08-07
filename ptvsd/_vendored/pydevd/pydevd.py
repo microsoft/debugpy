@@ -36,7 +36,7 @@ from _pydevd_bundle.pydevd_comm import CMD_SET_BREAK, CMD_SET_NEXT_STATEMENT, CM
     start_client, start_server, InternalGetBreakpointException, InternalSendCurrExceptionTrace, \
     InternalSendCurrExceptionTraceProceeded
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
-from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame
+from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, remove_exception_from_frame
 from _pydevd_bundle.pydevd_kill_all_pydevd_threads import kill_all_pydev_threads
 from _pydevd_bundle.pydevd_trace_dispatch import trace_dispatch as _trace_dispatch, global_cache_skips, global_cache_frame_skips
 from _pydevd_frame_eval.pydevd_frame_eval_main import frame_eval_func, stop_frame_eval, enable_cache_frames_without_breaks, dummy_trace_dispatch
@@ -215,7 +215,7 @@ class PyDB:
         self._termination_event_set = False
         self.signature_factory = None
         self.SetTrace = pydevd_tracing.SetTrace
-        self.break_on_exceptions_thrown_in_same_context = False
+        self.skip_on_exceptions_thrown_in_same_context = False
         self.ignore_exceptions_thrown_in_lines_with_ignore_exception = True
 
         # Suspend debugger even if breakpoint condition raises an exception
@@ -882,19 +882,21 @@ class PyDB:
         finally:
             CustomFramesContainer.custom_frames_lock.release()  # @UndefinedVariable
 
-    def stop_on_unhandled_exception(self, thread, frame, frames_byid, exception):
+    def stop_on_unhandled_exception(self, thread, frame, frames_byid, arg):
         pydev_log.debug("We are stopping in post-mortem\n")
         thread_id = get_thread_id(thread)
         pydevd_vars.add_additional_frame_by_id(thread_id, frames_byid)
         try:
             try:
-                add_exception_to_frame(frame, exception)
+                add_exception_to_frame(frame, arg)
                 self.set_suspend(thread, CMD_ADD_EXCEPTION_BREAK)
-                self.do_wait_suspend(thread, frame, 'exception', None, "trace")
+                self.do_wait_suspend(thread, frame, 'exception', arg, "trace")
             except:
-                pydev_log.error("We've got an error while stopping in post-mortem: %s\n"%sys.exc_info()[0])
+                pydev_log.error("We've got an error while stopping in post-mortem: %s\n" % (arg[0],))
         finally:
+            remove_exception_from_frame(frame)
             pydevd_vars.remove_additional_frame_by_id(thread_id)
+            frame = None
 
 
     def set_trace_for_frame_and_parents(self, frame, also_add_to_passed_frame=True, overwrite_prev_trace=False, dispatch_func=None):

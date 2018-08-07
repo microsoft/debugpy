@@ -1,3 +1,4 @@
+import sys
 def method3():
     raise IndexError('foo')
 
@@ -9,6 +10,7 @@ def method1():
         method2()
     except:
         pass  # Ok, handled
+    assert '__exception__' not in sys._getframe().f_locals
         
 if __name__ == '__main__':
     method1()

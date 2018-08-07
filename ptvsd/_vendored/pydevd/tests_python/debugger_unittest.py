@@ -75,6 +75,7 @@ CMD_GET_CONCURRENCY_EVENT = 145
 CMD_GET_THREAD_STACK = 152
 CMD_THREAD_DUMP_TO_STDERR = 153  # This is mostly for unit-tests to diagnose errors on ci.
 CMD_STOP_ON_START = 154
+CMD_GET_EXCEPTION_DETAILS = 155
 
 CMD_REDIRECT_OUTPUT = 200
 CMD_GET_NEXT_STATEMENT_TARGETS = 201
@@ -709,12 +710,15 @@ class AbstractWriterThread(threading.Thread):
     def write_add_exception_breakpoint(self, exception):
         self.write("%s\t%s\t%s" % (CMD_ADD_EXCEPTION_BREAK, self.next_seq(), exception))
         self.log.append('write_add_exception_breakpoint: %s' % (exception,))
+        
+    def write_get_current_exception(self, thread_id):
+        self.write("%s\t%s\t%s" % (CMD_GET_EXCEPTION_DETAILS, self.next_seq(), thread_id))
 
     def write_set_py_exception_globals(
             self, 
             break_on_uncaught,
             break_on_caught,
-            break_on_exceptions_thrown_in_same_context, 
+            skip_on_exceptions_thrown_in_same_context, 
             ignore_exceptions_thrown_in_lines_with_ignore_exception,
             ignore_libraries,
             exceptions=()
@@ -723,7 +727,7 @@ class AbstractWriterThread(threading.Thread):
         self.write("131\t%s\t%s" % (self.next_seq(), '%s;%s;%s;%s;%s;%s' % (
             'true' if break_on_uncaught else 'false', 
             'true' if break_on_caught else 'false', 
-            'true' if break_on_exceptions_thrown_in_same_context else 'false', 
+            'true' if skip_on_exceptions_thrown_in_same_context else 'false', 
             'true' if ignore_exceptions_thrown_in_lines_with_ignore_exception else 'false',
             'true' if ignore_libraries else 'false',
             ';'.join(exceptions)

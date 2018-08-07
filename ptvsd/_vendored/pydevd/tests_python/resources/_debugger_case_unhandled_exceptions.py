@@ -18,7 +18,7 @@ atexit.register(_atexit)
 
 
 def thread_func(n):
-    raise Exception('argh')
+    raise Exception('in thread 1')
 
 
 th = threading.Thread(target=lambda: thread_func(1))
@@ -30,7 +30,7 @@ event = threading.Event()
 
 def thread_func2():
     event.set()
-    raise Exception('argh')
+    raise ValueError('in thread 2')
     
 
 start_new_thread(thread_func2, ())
@@ -44,4 +44,4 @@ th.join()
 import time
 time.sleep(.3) 
 
-raise Exception('argh')
+raise IndexError('in main')
