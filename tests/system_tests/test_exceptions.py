@@ -266,10 +266,9 @@ class ExceptionTests(LifecycleTestsBase):
             Awaitable.wait_all(stopped2, continued)
 
             # Second hit on uncaught exception
-            # TODO: Fix in #725
-            # self.assertEqual(stopped2.event.body['text'], 'ArithmeticError')
-            # self.assertIn("ArithmeticError('Hello'",
-            #               stopped2.event.body['description'])
+            self.assertEqual(stopped2.event.body['text'], 'ArithmeticError')
+            self.assertIn("ArithmeticError('Hello'",
+                          stopped2.event.body['description'])
             req_exc_info2 = dbg.session.send_request(
                 'exceptionInfo',
                 threadId=thread_id,
