@@ -17,6 +17,7 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_THREAD_CREATE,
     CMD_GET_VARIABLE,
     CMD_SET_PROJECT_ROOTS,
+    CMD_GET_THREAD_STACK,
 )
 
 from ptvsd._util import new_hidden_thread
@@ -833,6 +834,8 @@ class HighlevelFixture(object):
         self._pydevd.send_pause_event(thread, *stack)
         if self._vsc._hidden:
             self._vsc.msgs.next_event()
+        payload = self.debugger_msgs.format_frames(thread.id, 'pause', *stack)
+        self.set_debugger_response(CMD_GET_THREAD_STACK, payload)
         self.send_request('stackTrace', {'threadId': tid})
         self.send_request('scopes', {'frameId': 1})
         return tid, thread
@@ -909,8 +912,9 @@ class VSCTest(object):
         self.assertEqual(received[:-1], expected)
 
         failure = received[-1] if len(received) > 0 else []
-        expected = self.vsc.protocol.parse(
-            self.fix.vsc_msgs.new_failure(req, failure.message))
+        if failure:
+            expected = self.vsc.protocol.parse(
+                self.fix.vsc_msgs.new_failure(req, failure.message))
         self.assertEqual(failure, expected)
 
     def assert_received(self, daemon, expected):
@@ -919,10 +923,11 @@ class VSCTest(object):
         expected = list(daemon.protocol.parse_each(expected))
         self.assertEqual(received, expected)
 
-    def assert_contains(self, received, expected):
+    def assert_contains(self, received, expected, parser='vsc'):
+        parser = self.vsc.protocol if parser == 'vsc' else parser
         from tests.helpers.message import assert_contains_messages
-        received = list(self.vsc.protocol.parse_each(received))
-        expected = list(self.vsc.protocol.parse_each(expected))
+        received = list(parser.parse_each(received))
+        expected = list(parser.parse_each(expected))
         assert_contains_messages(received, expected)
 
     def assert_received_unordered_payload(self, daemon, expected):

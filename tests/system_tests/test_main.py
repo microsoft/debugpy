@@ -756,7 +756,9 @@ class LifecycleTests(LifecycleTestsBase):
                     'column': 1,
                 }],
             }),
-            self.new_response(req_continue1.req),
+            self.new_response(req_continue1.req, **{
+                'allThreadsContinued': True
+            }),
             self.new_event('continued', threadId=tid),
             self.new_event(
                 'output',
@@ -789,7 +791,9 @@ class LifecycleTests(LifecycleTestsBase):
                     'column': 1,
                 }],
             }),
-            self.new_response(req_continue2.req),
+            self.new_response(req_continue2.req, **{
+                'allThreadsContinued': True
+            }),
             self.new_event('continued', threadId=tid),
             self.new_event(
                 'output',

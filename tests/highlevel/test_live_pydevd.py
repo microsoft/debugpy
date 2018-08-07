@@ -249,46 +249,6 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
         raise MyError('ka-boom')
         """)
 
-    def assert_vsc_received_fixing_events(self, received, specs):
-        '''
-        Assert that the received messages match the spec but considering that
-        some events may be unordered.
-        '''
-        iter_specs = iter(specs)
-        expected_msgs = []
-        new_received = []
-        for msg in received:
-            if msg.type == 'event':
-                if msg.event == 'process':
-                    # Just check that 'process' is correct, don't add to the
-                    # check list later on.
-                    self.assertEqual(msg.body['name'], sys.argv[0])
-                    self.assertEqual(msg.body['systemProcessId'], os.getpid())
-                    self.assertEqual(msg.body['isLocalProcess'], True)
-                    self.assertEqual(msg.body['startMethod'], 'launch')
-                    continue
-
-                if msg.event == 'thread':
-                    # When thread is found, just consider it ok, no
-                    # matter where it was found.
-                    continue
-
-            new_received.append(msg)
-
-            try:
-                spec = next(iter_specs)
-            except StopIteration:
-                continue
-
-            if isinstance(spec, tuple):
-                event, body = spec
-                expected = self.new_event(event, seq=msg.seq, **body)
-            else:
-                expected = self.new_response(spec, seq=msg.seq)
-            expected_msgs.append(expected)
-
-        self.assert_vsc_received(new_received, expected_msgs)
-
     def _set_lock(self, label=None, script=None):
         if script is None:
             if not os.path.exists(self.filename):
@@ -370,34 +330,31 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
             self.assertNotEqual(req['command'], 'setExceptionBreakpoints')
         self.assertEqual(got, config['breakpoints'])
 
-        self.assert_vsc_received_fixing_events(received, [
-            ('stopped',
-             dict(
-                 reason='breakpoint',
-                 threadId=tid,
-                 text=None,
-                 description=None,
-             )),
-            req_continue1,
-            ('continued', dict(threadId=tid, )),
-            ('stopped',
-             dict(
-                 reason='breakpoint',
-                 threadId=tid,
-                 text=None,
-                 description=None,
-             )),
-            req_continue2,
-            ('continued', dict(threadId=tid, )),
-            ('stopped',
-             dict(
-                 reason='breakpoint',
-                 threadId=tid,
-                 text=None,
-                 description=None,
-             )),
-            req_continue_last,
-            ('continued', dict(threadId=tid, )),
+        self.assert_contains(received, [
+            self.new_event('stopped',
+                           reason='breakpoint',
+                           threadId=tid,
+                           text=None,
+                           description=None,
+                           ),
+            self.new_response(req_continue1, allThreadsContinued=True),
+            self.new_event('continued', threadId=tid),
+            self.new_event('stopped',
+                           reason='breakpoint',
+                           threadId=tid,
+                           text=None,
+                           description=None,
+                           ),
+            self.new_response(req_continue2, allThreadsContinued=True),
+            self.new_event('continued', threadId=tid),
+            self.new_event('stopped',
+                           reason='breakpoint',
+                           threadId=tid,
+                           text=None,
+                           description=None,
+                           ),
+            self.new_response(req_continue_last, allThreadsContinued=True),
+            self.new_event('continued', threadId=tid),
         ])
         self.assertIn('2 4 4', out)
         self.assertIn('ka-boom', err)
@@ -444,7 +401,7 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
                  threadId=tid,
                  text='MyError',
                  description=description)),
-            self.new_response(req_continue_last),
+            self.new_response(req_continue_last, allThreadsContinued=True),
             self.new_event('continued', **dict(threadId=tid, )),
         ])
         self.assertIn('2 4 4', out)

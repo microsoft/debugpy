@@ -563,16 +563,12 @@ class VariablesSorter(object):
         if var_name.startswith('__'):
             if var_name.endswith('__'):
                 self.dunder.append(var)
-                #print('Apended dunder: %s' % var_name)
             else:
                 self.double_underscore.append(var)
-                #print('Apended double under: %s' % var_name)
         elif var_name.startswith('_'):
             self.single_underscore.append(var)
-            #print('Apended single under: %s' % var_name)
         else:
             self.variables.append(var)
-            #print('Apended variable: %s' % var_name)
 
     def get_sorted_variables(self):
         def get_sort_key(o):
@@ -581,7 +577,6 @@ class VariablesSorter(object):
         self.single_underscore.sort(key=get_sort_key)
         self.double_underscore.sort(key=get_sort_key)
         self.dunder.sort(key=get_sort_key)
-        #print('sorted')
         return self.variables + self.single_underscore + self.double_underscore + self.dunder  # noqa
 
 
@@ -1218,10 +1213,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         # debugger state
         self.is_process_created = False
         self.is_process_created_lock = threading.Lock()
-        self.stack_traces = {}
-        self.stack_traces_lock = threading.Lock()
-        self.active_exceptions = {}
-        self.active_exceptions_lock = threading.Lock()
         self.thread_map = IDMap()
         self.frame_map = IDMap()
         self.var_map = IDMap()
@@ -1487,8 +1478,9 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         # TODO: Wait until the last request has been handled?
 
     def _resume_all_threads(self):
-        for tid in self.stack_traces:
-            self.pydevd_notify(pydevd_comm.CMD_THREAD_RUN, tid)
+        # TODO: Replace this with resume all command after #732 is fixed
+        for pyd_tid in self.thread_map.pydevd_ids():
+            self.pydevd_notify(pydevd_comm.CMD_THREAD_RUN, pyd_tid)
 
     def send_process_event(self, start_method):
         # TODO: docstring
@@ -1588,16 +1580,22 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         levels = int(args.get('levels', 0))
         fmt = args.get('format', {})
 
-        pyd_tid = self.thread_map.to_pydevd(vsc_tid)
-        with self.stack_traces_lock:
-            try:
-                xframes = self.stack_traces[pyd_tid]
-            except KeyError:
-                # This means the stack was requested before the
-                # thread was suspended
-                xframes = []
-        totalFrames = len(xframes)
+        try:
+            pyd_tid = self.thread_map.to_pydevd(vsc_tid)
+        except KeyError:
+            # Unknown thread, nothing much we cna do about it here
+            self.send_error_response(request)
+            return
 
+        try:
+            cmd = pydevd_comm.CMD_GET_THREAD_STACK
+            _, _, resp_args = yield self.pydevd_request(cmd, pyd_tid)
+            xml = self.parse_xml_response(resp_args)
+            xframes = list(xml.thread.frame)
+        except Exception:
+            xframes = []
+
+        totalFrames = len(xframes)
         if levels == 0:
             levels = totalFrames
 
@@ -1641,8 +1639,9 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         user_frames = []
         for frame in stackFrames:
-            if not self.internals_filter.is_internal_path(
-                frame['source']['path']):
+            path = frame['source']['path']
+            if not self.internals_filter.is_internal_path(path) and \
+                self._should_debug(path):
                 user_frames.append(frame)
 
         totalFrames = len(user_frames)
@@ -1988,6 +1987,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 return
 
         # Always suspend all threads.
+        # TODO: Replace this with suspend all command after #732 is fixed
         for pyd_tid in self.thread_map.pydevd_ids():
             self.pydevd_notify(pydevd_comm.CMD_THREAD_SUSPEND, pyd_tid)
         self.send_response(request)
@@ -1995,9 +1995,11 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     @async_handler
     def on_continue(self, request, args):
         # TODO: docstring
-        tid = self.thread_map.to_pydevd(int(args['threadId']))
-        self.pydevd_notify(pydevd_comm.CMD_THREAD_RUN, tid)
-        self.send_response(request)
+        # Always continue all threads.
+        # TODO: Replace this with resume all command after #732 is fixed
+        for pyd_tid in self.thread_map.pydevd_ids():
+            self.pydevd_notify(pydevd_comm.CMD_THREAD_RUN, pyd_tid)
+        self.send_response(request, allThreadsContinued=True)
 
     @async_handler
     def on_next(self, request, args):
@@ -2081,7 +2083,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 self.bp_map.remove(pyd_bpid, vsc_bpid)
 
         cmd = pydevd_comm.CMD_SET_BREAK
-        msgfmt = '{}\t{}\t{}\t{}\tNone\t{}\t{}\t{}\t{}'
+        msgfmt = '{}\t{}\t{}\t{}\tNone\t{}\t{}\t{}\t{}\tALL'
         if needs_unicode(path):
             msgfmt = unicode(msgfmt)   # noqa
         for src_bp in src_bps:
@@ -2147,13 +2149,59 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     def on_exceptionInfo(self, request, args):
         # TODO: docstring
         pyd_tid = self.thread_map.to_pydevd(args['threadId'])
-        with self.active_exceptions_lock:
-            try:
-                exc = self.active_exceptions[pyd_tid]
-            except KeyError:
-                exc = ExceptionInfo('BaseException',
-                                    'exception: no description',
-                                    None, None)
+
+        # For exception cases both raise and uncaught, pydevd adds a
+        # __exception__ object to the top most frame. Extracting the
+        # exception name and description from that frame gives accurate
+        # exception information. Get exception info from frame
+        try:
+            cmd = pydevd_comm.CMD_GET_THREAD_STACK
+            _, _, resp_args = yield self.pydevd_request(cmd, pyd_tid)
+            xml = self.parse_xml_response(resp_args)
+            xframes = list(xml.thread.frame)
+
+            xframe = xframes[0]
+            pyd_fid = xframe['id']
+
+            cmdargs = '{}\t{}\tFRAME\t__exception__'.format(pyd_tid, pyd_fid)
+            cmdid = pydevd_comm.CMD_GET_VARIABLE
+            _, _, resp_args = yield self.pydevd_request(cmdid, cmdargs)
+            xml = self.parse_xml_response(resp_args)
+
+            name = unquote(xml.var[1]['type'])
+            description = unquote(xml.var[1]['value'])
+
+            frame_data = []
+            for f in xframes:
+                file_path = unquote(f['file'])
+                if not self.internals_filter.is_internal_path(file_path) and \
+                    self._should_debug(file_path):
+                    line_no = int(f['line'])
+                    func_name = unquote(f['name'])
+                    if _util.is_py34():
+                        # NOTE: In 3.4.* format_list requires the text
+                        # to be passed in the tuple list.
+                        line_text = _util.get_line_for_traceback(file_path,
+                                                                 line_no)
+                        frame_data.append((file_path, line_no,
+                                           func_name, line_text))
+                    else:
+                        frame_data.append((file_path, line_no,
+                                           func_name, None))
+
+            stack = ''.join(traceback.format_list(frame_data))
+
+            source = unquote(xframe['file'])
+            if self.internals_filter.is_internal_path(source) or \
+                not self._should_debug(source):
+                source = None
+        except Exception:
+            name = 'BaseException'
+            description = 'exception: no description'
+            stack = None
+            source = None
+
+        exc = ExceptionInfo(name, description, stack, source)
         self.send_response(
             request,
             exceptionId=exc.name,
@@ -2318,9 +2366,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         autogen = self.start_reason == 'attach'
         vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=autogen)
 
-        with self.stack_traces_lock:
-            self.stack_traces[pyd_tid] = list(xml.thread.frame)
-
         description = None
         text = None
         if reason in STEP_REASONS:
@@ -2332,12 +2377,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         else:
             reason = 'pause'
 
-        # For exception cases both raise and uncaught, pydevd adds a
-        # __exception__ object to the top most frame. Extracting the
-        # exception name and description from that frame gives accurate
-        # exception information.
         if reason == 'exception':
-            # Get exception info from frame
             try:
                 pyd_fid = xframe['id']
                 cmdargs = '{}\t{}\tFRAME\t__exception__'.format(pyd_tid,
@@ -2345,39 +2385,12 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 cmdid = pydevd_comm.CMD_GET_VARIABLE
                 _, _, resp_args = yield self.pydevd_request(cmdid, cmdargs)
                 xml = self.parse_xml_response(resp_args)
+
                 text = unquote(xml.var[1]['type'])
                 description = unquote(xml.var[1]['value'])
-                frame_data = []
-                for f in xframes:
-                    file_path = unquote(f['file'])
-                    if not self.internals_filter.is_internal_path(file_path):
-                        line_no = int(f['line'])
-                        func_name = unquote(f['name'])
-                        if _util.is_py34():
-                            # NOTE: In 3.4.* format_list requires the text
-                            # to be passed in the tuple list.
-                            line_text = _util.get_line_for_traceback(file_path,
-                                                                     line_no)
-                            frame_data.append((file_path, line_no,
-                                               func_name, line_text))
-                        else:
-                            frame_data.append((file_path, line_no,
-                                               func_name, None))
-                stack = ''.join(traceback.format_list(frame_data))
-                source = unquote(xframe['file'])
-                if self.internals_filter.is_internal_path(source):
-                    source = None
             except Exception:
                 text = 'BaseException'
                 description = 'exception: no description'
-                stack = None
-                source = None
-
-            with self.active_exceptions_lock:
-                self.active_exceptions[pyd_tid] = ExceptionInfo(text,
-                                                                description,
-                                                                stack,
-                                                                source)
 
         self.send_event(
             'stopped',
@@ -2392,20 +2405,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         pyd_tid, _ = args.split('\t')
         pyd_tid = pyd_tid.strip()
 
-        # Stack trace, active exception, all frames, and variables for
+        # All frames, and variables for
         # this thread are now invalid; clear their IDs.
-        with self.stack_traces_lock:
-            try:
-                del self.stack_traces[pyd_tid]
-            except KeyError:
-                pass
-
-        with self.active_exceptions_lock:
-            try:
-                del self.active_exceptions[pyd_tid]
-            except KeyError:
-                pass
-
         for pyd_fid, vsc_fid in self.frame_map.pairs():
             if pyd_fid[0] == pyd_tid:
                 self.frame_map.remove(pyd_fid, vsc_fid)
@@ -2429,12 +2430,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     @pydevd_events.handler(pydevd_comm.CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED)
     def on_pydevd_send_curr_exception_trace_proceeded(self, seq, args):
         # TODO: docstring
-        pyd_tid = args.strip()
-        with self.active_exceptions_lock:
-            try:
-                del self.active_exceptions[pyd_tid]
-            except KeyError:
-                pass
+        pass
 
     @pydevd_events.handler(pydevd_comm.CMD_WRITE_TO_CONSOLE)
     def on_pydevd_cmd_write_to_console2(self, seq, args):

@@ -18,8 +18,6 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_REMOVE_BREAK,
     CMD_REMOVE_EXCEPTION_BREAK,
     CMD_RETURN,
-    CMD_SEND_CURR_EXCEPTION_TRACE,
-    CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED,
     CMD_SET_BREAK,
     CMD_SHOW_CONSOLE,
     CMD_STEP_CAUGHT_EXCEPTION,
@@ -33,6 +31,7 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_VERSION,
     CMD_WRITE_TO_CONSOLE,
     CMD_STEP_INTO_MY_CODE,
+    CMD_GET_THREAD_STACK,
 )
 
 from . import RunningTest
@@ -248,16 +247,22 @@ class ThreadsTests(NormalRequestTest, unittest.TestCase):
 class StackTraceTests(NormalRequestTest, unittest.TestCase):
 
     COMMAND = 'stackTrace'
+    PYDEVD_CMD = CMD_GET_THREAD_STACK
+
+    def pydevd_payload(self, threadid, *frames):
+        return self.debugger_msgs.format_frames(threadid, 'pause', *frames)
 
     def test_basic(self):
+        frames = [
+            # (pfid, func, file, line)
+            (2, 'spam', 'abc.py', 10),
+            (5, 'eggs', 'xyz.py', 2),
+        ]
         with self.launched():
             with self.hidden():
                 tid, thread = self.set_thread('x')
-                self.suspend(thread, CMD_THREAD_SUSPEND, *[
-                    # (pfid, func, file, line)
-                    (2, 'spam', 'abc.py', 10),
-                    (5, 'eggs', 'xyz.py', 2),
-                ])
+                self.suspend(thread, CMD_THREAD_SUSPEND, *frames)
+            self.set_debugger_response(thread.id, *frames)
             self.send_request(
                 threadId=tid,
                 #startFrame=1,
@@ -287,16 +292,20 @@ class StackTraceTests(NormalRequestTest, unittest.TestCase):
             ),
             # no events
         ])
-        self.assert_received(self.debugger, [])
+        self.assert_received(self.debugger, [
+            self.debugger_msgs.new_request(self.PYDEVD_CMD, str(thread.id)),
+        ])
 
     def test_one_frame(self):
+        frames = [
+            # (pfid, func, file, line)
+            (2, 'spam', 'abc.py', 10),
+        ]
         with self.launched():
             with self.hidden():
                 tid, thread = self.set_thread('x')
-                self.suspend(thread, CMD_THREAD_SUSPEND, *[
-                    # (pfid, func, file, line)
-                    (2, 'spam', 'abc.py', 10),
-                ])
+                self.suspend(thread, CMD_THREAD_SUSPEND, *frames)
+            self.set_debugger_response(thread.id, *frames)
             self.send_request(
                 threadId=tid,
             )
@@ -317,17 +326,21 @@ class StackTraceTests(NormalRequestTest, unittest.TestCase):
             ),
             # no events
         ])
-        self.assert_received(self.debugger, [])
+        self.assert_received(self.debugger, [
+            self.debugger_msgs.new_request(self.PYDEVD_CMD, str(thread.id)),
+        ])
 
     def test_with_frame_format(self):
+        frames = [
+            # (pfid, func, file, line)
+            (2, 'spam', 'abc.py', 10),
+            (5, 'eggs', 'xyz.py', 2),
+        ]
         with self.launched():
             with self.hidden():
                 tid, thread = self.set_thread('x')
-                self.suspend(thread, CMD_THREAD_SUSPEND, *[
-                    # (pfid, func, file, line)
-                    (2, 'spam', 'abc.py', 10),
-                    (5, 'eggs', 'xyz.py', 2),
-                ])
+                self.suspend(thread, CMD_THREAD_SUSPEND, *frames)
+            self.set_debugger_response(thread.id, *frames)
             self.send_request(
                 threadId=tid,
                 format={
@@ -361,7 +374,9 @@ class StackTraceTests(NormalRequestTest, unittest.TestCase):
             ),
             # no events
         ])
-        self.assert_received(self.debugger, [])
+        self.assert_received(self.debugger, [
+            self.debugger_msgs.new_request(self.PYDEVD_CMD, str(thread.id)),
+        ])
 
     def test_no_threads(self):
         with self.launched():
@@ -842,23 +857,27 @@ class ContinueTests(NormalRequestTest, unittest.TestCase):
     PYDEVD_RESP = None
 
     def test_basic(self):
+        frames = [
+            (2, 'spam', 'abc.py', 10),
+        ]
         with self.launched():
             with self.hidden():
-                tid, thread = self.pause('x', *[
-                    (2, 'spam', 'abc.py', 10),
-                ])
+                tid, thread = self.pause('x', *frames)
             self.send_request(
                 threadId=tid,
             )
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
-            self.expected_response(),
+            self.expected_response(allThreadsContinued=True),
             # no events
         ])
-        self.assert_received(self.debugger, [
-            self.expected_pydevd_request(str(thread.id)),
-        ])
+        thread_ids = list(t.id for t in self._known_threads)
+        expected = list(self.debugger_msgs.new_request(
+                        self.PYDEVD_CMD, str(t))
+                        for t in thread_ids)
+        self.assert_contains(self.debugger.received, expected,
+                             parser=self.debugger.protocol)
 
 
 class NextTests(NormalRequestTest, unittest.TestCase):
@@ -1045,9 +1064,9 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
         self.PYDEVD_CMD = CMD_SET_BREAK
         self.assert_received(self.debugger, [
             self.expected_pydevd_request(
-                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone\tNone\tNone'),
+                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone\tNone\tNone\tALL'), # noqa
             self.expected_pydevd_request(
-                '2\tpython-line\tspam.py\t15\tNone\ti == 3\tNone\tNone\tNone'),
+                '2\tpython-line\tspam.py\t15\tNone\ti == 3\tNone\tNone\tNone\tALL'), # noqa
             self.debugger_msgs.new_request(CMD_VERSION, _get_cmd_version()),
         ])
 
@@ -1095,15 +1114,15 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
         self.PYDEVD_CMD = CMD_SET_BREAK
         self.assert_received(self.debugger, [
             self.expected_pydevd_request(
-                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone\t@HIT@ == 5\tNone'), # noqa
+                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone\t@HIT@ == 5\tNone\tALL'), # noqa
             self.expected_pydevd_request(
-                '2\tpython-line\tspam.py\t15\tNone\tNone\tNone\t@HIT@ ==5\tNone'), # noqa
+                '2\tpython-line\tspam.py\t15\tNone\tNone\tNone\t@HIT@ ==5\tNone\tALL'), # noqa
             self.expected_pydevd_request(
-                '3\tpython-line\tspam.py\t20\tNone\tNone\tNone\t@HIT@ > 5\tNone'), # noqa
+                '3\tpython-line\tspam.py\t20\tNone\tNone\tNone\t@HIT@ > 5\tNone\tALL'), # noqa
             self.expected_pydevd_request(
-             '4\tpython-line\tspam.py\t25\tNone\tNone\tNone\t@HIT@ % 5 == 0\tNone'), # noqa
+             '4\tpython-line\tspam.py\t25\tNone\tNone\tNone\t@HIT@ % 5 == 0\tNone\tALL'), # noqa
             self.expected_pydevd_request(
-                '5\tpython-line\tspam.py\t30\tNone\tNone\tNone\tx\tNone'),
+                '5\tpython-line\tspam.py\t30\tNone\tNone\tNone\tx\tNone\tALL'),
             self.debugger_msgs.new_request(CMD_VERSION, _get_cmd_version()),
         ])
 
@@ -1146,13 +1165,13 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
         self.PYDEVD_CMD = CMD_SET_BREAK
         self.assert_received(self.debugger, [
             self.expected_pydevd_request(
-                '1\tpython-line\tspam.py\t10\tNone\tNone\t' + repr("5") + '\tNone\tTrue'), # noqa
+                '1\tpython-line\tspam.py\t10\tNone\tNone\t' + repr("5") + '\tNone\tTrue\tALL'), # noqa
             self.expected_pydevd_request(
-                '2\tpython-line\tspam.py\t15\tNone\tNone\t' + repr("Hello World") + '\tNone\tTrue'), # noqa
+                '2\tpython-line\tspam.py\t15\tNone\tNone\t' + repr("Hello World") + '\tNone\tTrue\tALL'), # noqa
             self.expected_pydevd_request(
-                '3\tpython-line\tspam.py\t20\tNone\tNone\t"{}".format(a)\tNone\tTrue'), # noqa
+                '3\tpython-line\tspam.py\t20\tNone\tNone\t"{}".format(a)\tNone\tTrue\tALL'), # noqa
             self.expected_pydevd_request(
-             '4\tpython-line\tspam.py\t25\tNone\tNone\t"{}+{}=Something".format(a, b)\tNone\tTrue'), # noqa
+             '4\tpython-line\tspam.py\t25\tNone\tNone\t"{}+{}=Something".format(a, b)\tNone\tTrue\tALL'), # noqa
             self.debugger_msgs.new_request(CMD_VERSION, _get_cmd_version()),
         ])
 
@@ -1161,9 +1180,9 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
             with self.hidden():
                 self.PYDEVD_CMD = CMD_SET_BREAK
                 p1 = self.expected_pydevd_request(
-                    '1\tpython-line\tspam.py\t10\tNone\tNone\tNone\tNone\tNone') # noqa
+                    '1\tpython-line\tspam.py\t10\tNone\tNone\tNone\tNone\tNone\tALL') # noqa
                 p2 = self.expected_pydevd_request(
-                    '2\tpython-line\tspam.py\t17\tNone\tNone\tNone\tNone\tNone') # noqa
+                    '2\tpython-line\tspam.py\t17\tNone\tNone\tNone\tNone\tNone\tALL') # noqa
                 with self.expect_debugger_command(CMD_VERSION):
                     self.fix.send_request('setBreakpoints', dict(
                         source={'path': 'spam.py'},
@@ -1213,11 +1232,11 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
         self.PYDEVD_CMD = CMD_SET_BREAK
         self.assert_received(self.debugger, removed + [
             self.expected_pydevd_request(
-                '3\tpython-line\tspam.py\t113\tNone\tNone\tNone\tNone\tNone'),
+                '3\tpython-line\tspam.py\t113\tNone\tNone\tNone\tNone\tNone\tALL'), # noqa
             self.expected_pydevd_request(
-                '4\tpython-line\tspam.py\t2\tNone\tNone\tNone\tNone\tNone'),
+                '4\tpython-line\tspam.py\t2\tNone\tNone\tNone\tNone\tNone\tALL'), # noqa
             self.expected_pydevd_request(
-                '5\tpython-line\tspam.py\t10\tNone\tNone\tNone\tNone\tNone'),
+                '5\tpython-line\tspam.py\t10\tNone\tNone\tNone\tNone\tNone\tALL'), # noqa
             self.debugger_msgs.new_request(CMD_VERSION, _get_cmd_version()),
         ])
 
@@ -1254,10 +1273,10 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
         self.PYDEVD_CMD = CMD_SET_BREAK
         self.assert_received(self.debugger, [
             self.expected_pydevd_request(
-                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone\tNone\tNone'),
+                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone\tNone\tNone\tALL'), # noqa
             self.debugger_msgs.new_request(CMD_VERSION, _get_cmd_version()),
             self.expected_pydevd_request(
-                '2\tpython-line\teggs.py\t17\tNone\tNone\tNone\tNone\tNone'),
+                '2\tpython-line\teggs.py\t17\tNone\tNone\tNone\tNone\tNone\tALL'), # noqa
             self.debugger_msgs.new_request(CMD_VERSION, _get_cmd_version()),
         ])
 
@@ -1293,10 +1312,10 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
         self.PYDEVD_CMD = CMD_SET_BREAK
         self.assert_received(self.debugger, [
             self.expected_pydevd_request(
-                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone\tNone\tNone'),
+                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone\tNone\tNone\tALL'), # noqa
             self.debugger_msgs.new_request(CMD_VERSION, _get_cmd_version()),
             self.expected_pydevd_request(
-                '2\tdjango-line\teggs.html\t17\tNone\tNone\tNone\tNone\tNone'), # noqa
+                '2\tdjango-line\teggs.html\t17\tNone\tNone\tNone\tNone\tNone\tALL'), # noqa
             self.debugger_msgs.new_request(CMD_VERSION, _get_cmd_version()),
         ])
 
@@ -1332,10 +1351,10 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
         self.PYDEVD_CMD = CMD_SET_BREAK
         self.assert_received(self.debugger, [
             self.expected_pydevd_request(
-                '1\tpython-line\tspam.py\t10\tNone\tNone\t' + repr("Hello World") + '\tNone\tTrue'), # noqa
+                '1\tpython-line\tspam.py\t10\tNone\tNone\t' + repr("Hello World") + '\tNone\tTrue\tALL'), # noqa
             self.debugger_msgs.new_request(CMD_VERSION, _get_cmd_version()),
             self.expected_pydevd_request(
-                '2\tdjango-line\teggs.html\t17\tNone\tNone\t' + repr("Hello Django World") + '\tNone\tTrue'), # noqa
+                '2\tdjango-line\teggs.html\t17\tNone\tNone\t' + repr("Hello Django World") + '\tNone\tTrue\tALL'), # noqa
             self.debugger_msgs.new_request(CMD_VERSION, _get_cmd_version()),
         ])
 
@@ -1371,10 +1390,10 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
         self.PYDEVD_CMD = CMD_SET_BREAK
         self.assert_received(self.debugger, [
             self.expected_pydevd_request(
-                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone\tNone\tNone'),
+                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone\tNone\tNone\tALL'), # noqa
             self.debugger_msgs.new_request(CMD_VERSION, _get_cmd_version()),
             self.expected_pydevd_request(
-                '2\tjinja2-line\teggs.html\t17\tNone\tNone\tNone\tNone\tNone'), # noqa
+                '2\tjinja2-line\teggs.html\t17\tNone\tNone\tNone\tNone\tNone\tALL'), # noqa
             self.debugger_msgs.new_request(CMD_VERSION, _get_cmd_version()),
         ])
 
@@ -1410,10 +1429,10 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
         self.PYDEVD_CMD = CMD_SET_BREAK
         self.assert_received(self.debugger, [
             self.expected_pydevd_request(
-                '1\tpython-line\tspam.py\t10\tNone\tNone\t' + repr("Hello World") + '\tNone\tTrue'), # noqa
+                '1\tpython-line\tspam.py\t10\tNone\tNone\t' + repr("Hello World") + '\tNone\tTrue\tALL'), # noqa
             self.debugger_msgs.new_request(CMD_VERSION, _get_cmd_version()),
             self.expected_pydevd_request(
-                '2\tjinja2-line\teggs.html\t17\tNone\tNone\t' + repr("Hello Jinja World") + '\tNone\tTrue'), # noqa
+                '2\tjinja2-line\teggs.html\t17\tNone\tNone\t' + repr("Hello Jinja World") + '\tNone\tTrue\tALL'), # noqa
             self.debugger_msgs.new_request(CMD_VERSION, _get_cmd_version()),
         ])
 
@@ -1449,10 +1468,10 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
         self.PYDEVD_CMD = CMD_SET_BREAK
         self.assert_received(self.debugger, [
             self.expected_pydevd_request(
-                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone\tNone\tNone'),
+                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone\tNone\tNone\tALL'), # noqa
             self.debugger_msgs.new_request(CMD_VERSION, _get_cmd_version()),
             self.expected_pydevd_request(
-                '2\tjinja2-line\teggs.html\t17\tNone\tNone\tNone\tNone\tNone'), # noqa
+                '2\tjinja2-line\teggs.html\t17\tNone\tNone\tNone\tNone\tNone\tALL'), # noqa
             self.debugger_msgs.new_request(CMD_VERSION, _get_cmd_version()),
         ])
 
@@ -1488,10 +1507,10 @@ class SetBreakpointsTests(NormalRequestTest, unittest.TestCase):
         self.PYDEVD_CMD = CMD_SET_BREAK
         self.assert_received(self.debugger, [
             self.expected_pydevd_request(
-                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone\tNone\tNone'),
+                '1\tpython-line\tspam.py\t10\tNone\tNone\tNone\tNone\tNone\tALL'), # noqa
             self.debugger_msgs.new_request(CMD_VERSION, _get_cmd_version()),
             self.expected_pydevd_request(
-                '2\tjinja2-line\teggs.html\t17\tNone\tNone\tNone\tNone\tNone'), # noqa
+                '2\tjinja2-line\teggs.html\t17\tNone\tNone\tNone\tNone\tNone\tALL'), # noqa
             self.debugger_msgs.new_request(CMD_VERSION, _get_cmd_version()),
         ])
 
@@ -2094,13 +2113,27 @@ class ExceptionInfoTests(NormalRequestTest, unittest.TestCase):
     #       ],
     #   ),
 
+    PYDEVD_CMD = CMD_GET_THREAD_STACK
+
+    def pydevd_payload(self, threadid, *args):
+        if self.PYDEVD_CMD == CMD_GET_THREAD_STACK:
+            return self.debugger_msgs.format_frames(threadid, 'pause', *args)
+        else:
+            return self.debugger_msgs.format_variables(*args)
+
     def test_active_exception(self):
         exc = RuntimeError('something went wrong')
         lineno = fail.__code__.co_firstlineno + 1
         frame = (2, 'fail', __file__, lineno)  # (pfid, func, file, line)
         with self.launched():
             with self.hidden():
-                tid, _ = self.error('x', exc, frame)
+                tid, thread = self.error('x', exc, frame)
+            self.set_debugger_response(thread.id, frame)
+            self.PYDEVD_CMD = CMD_GET_VARIABLE
+            self.set_debugger_response(
+                thread.id,
+                ('type', exc.__class__.__name__),
+                ('value', exc))
             self.send_request(
                 threadId=tid,
             )
@@ -2108,7 +2141,7 @@ class ExceptionInfoTests(NormalRequestTest, unittest.TestCase):
 
         # TODO: Is this the right str?
         excstr = "RuntimeError('something went wrong')"
-        if sys.version_info[1] < 7:
+        if sys.version_info < (3, 7):
             excstr = excstr[:-1] + ',)'
         self.assert_vsc_received(received, [
             self.expected_response(
@@ -2128,37 +2161,27 @@ class ExceptionInfoTests(NormalRequestTest, unittest.TestCase):
                 ),
             ),
         ])
-        self.assert_received(self.debugger, [])
-
-    # TODO: verify behavior
-    @unittest.skip('poorly specified (broken?)')
-    def test_no_exception(self):
-        with self.launched():
-            with self.hidden():
-                tid, _ = self.pause('x')
-            self.send_request(
-                threadId=tid,
-            )
-            received = self.vsc.received
-
-        self.assert_vsc_received(received, [
-            self.expected_response(
-            ),
+        self.assert_received(self.debugger, [
+            self.debugger_msgs.new_request(
+                CMD_GET_THREAD_STACK,
+                str(thread.id)),
+            self.debugger_msgs.new_request(
+                CMD_GET_VARIABLE,
+                '{}\t2\tFRAME\t__exception__'.format(thread.id)),
         ])
-        self.assert_received(self.debugger, [])
 
-    # TODO: verify behavior
-    @unittest.skip('poorly specified (broken?)')
-    def test_exception_cleared(self):
+    def test_no_exception(self):
         exc = RuntimeError('something went wrong')
-        frame = (2, 'spam', 'abc.py', 10)  # (pfid, func, file, line)
+        lineno = fail.__code__.co_firstlineno + 1
+        frame = (2, 'fail', __file__, lineno)  # (pfid, func, file, line)
         with self.launched():
             with self.hidden():
                 tid, thread = self.error('x', exc, frame)
-                self.send_debugger_event(
-                    CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED,
-                    str(thread.id),
-                )
+            self.set_debugger_response(thread.id, frame)
+            self.PYDEVD_CMD = CMD_GET_VARIABLE
+            # Don't provide exception info to simulate no exception
+            self.set_debugger_response(
+                thread.id)
             self.send_request(
                 threadId=tid,
             )
@@ -2166,9 +2189,25 @@ class ExceptionInfoTests(NormalRequestTest, unittest.TestCase):
 
         self.assert_vsc_received(received, [
             self.expected_response(
+                exceptionId='BaseException',
+                description='exception: no description',
+                breakMode='unhandled',
+                details=dict(
+                    typeName='BaseException',
+                    message='exception: no description',
+                    stackTrace=None,
+                    source=None
+                ),
             ),
         ])
-        self.assert_received(self.debugger, [])
+        self.assert_received(self.debugger, [
+            self.debugger_msgs.new_request(
+                CMD_GET_THREAD_STACK,
+                str(thread.id)),
+            self.debugger_msgs.new_request(
+                CMD_GET_VARIABLE,
+                '{}\t2\tFRAME\t__exception__'.format(thread.id)),
+        ])
 
 
 class RunInTerminalTests(NormalRequestTest, unittest.TestCase):
@@ -2787,82 +2826,6 @@ class ThreadRunEventTests(ThreadEventTest, unittest.TestCase):
             ),
         ])
         self.assert_received(self.debugger, [])
-
-
-class SendCurrExcTraceEventTests(PyDevdEventTest, unittest.TestCase):
-
-    CMD = CMD_SEND_CURR_EXCEPTION_TRACE
-    EVENT = None
-
-    def pydevd_payload(self, thread, exc, frame):
-        return self.debugger_msgs.format_exception(thread[0], exc, frame)
-
-    # TODO: Is this right?
-    @unittest.skip('now a no-op')
-    def test_basic(self):
-        exc = RuntimeError('something went wrong')
-        frame = (2, 'spam', 'abc.py', 10)  # (pfid, func, file, line)
-        with self.launched():
-            with self.hidden():
-                tid, thread = self.set_thread('x')
-            self.send_event(thread, exc, frame)
-            received = self.vsc.received
-
-            self.send_request('exceptionInfo', dict(
-                threadId=tid,
-            ))
-            resp = self.vsc.received[-1]
-
-        self.assert_vsc_received(received, [])
-        self.assert_received(self.debugger, [])
-        self.assertTrue(resp.success, resp.message)
-        self.assertEqual(resp.body, dict(
-            exceptionId='RuntimeError',
-            description='something went wrong',
-            breakMode='unhandled',
-            details=dict(
-                message='something went wrong',
-                typeName='RuntimeError',
-            ),
-        ))
-
-
-class SendCurrExcTraceProceededEventTests(PyDevdEventTest, unittest.TestCase):
-
-    CMD = CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED
-    EVENT = None
-
-    def pydevd_payload(self, threadid):
-        return str(threadid)
-
-    def test_basic(self):
-        exc = RuntimeError('something went wrong')
-        frame = (2, 'spam', 'abc.py', 10)  # (pfid, func, file, line)
-        #text = self.debugger_msgs.format_exception(thread[0], exc, frame)
-        with self.launched():
-            with self.hidden():
-                #tid, thread = self.set_thread('x')
-                #self.fix.send_event(CMD_SEND_CURR_EXCEPTION_TRACE, text)
-                tid, thread = self.error('x', exc, frame)
-                self.send_request('exceptionInfo', dict(
-                    threadId=tid,
-                ))
-                before = self.vsc.received[-1]
-
-            self.send_event(thread.id)
-            received = self.vsc.received
-
-            self.send_request('exceptionInfo', dict(
-                threadId=tid,
-            ))
-            after = self.vsc.received[-1]
-
-        self.assert_vsc_received(received, [])
-        self.assert_received(self.debugger, [])
-        # The exception got cleared so we do not see RuntimeError.
-        self.assertEqual(after.body['exceptionId'], 'BaseException')
-        self.assertNotEqual(after.body['exceptionId'],
-                            before.body['exceptionId'])
 
 
 class GetExceptionBreakpointEventTests(PyDevdEventTest, unittest.TestCase):
