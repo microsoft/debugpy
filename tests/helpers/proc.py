@@ -222,6 +222,14 @@ class Proc(Closeable):
     # internal methods
 
     def _close(self):
+        self.terminate()
+        if self.VERBOSE:
+            out = self.output
+            if out is not None:
+                lines = out.decode('utf-8').splitlines()
+                print(' + ' + '\n + '.join(lines))
+
+    def terminate(self):
         if self._proc is not None:
             try:
                 self._proc.kill()
@@ -231,8 +239,3 @@ class Proc(Closeable):
             else:
                 if self.VERBOSE:
                     print('proc killed')
-        if self.VERBOSE:
-            out = self.output
-            if out is not None:
-                lines = out.decode('utf-8').splitlines()
-                print(' + ' + '\n + '.join(lines))

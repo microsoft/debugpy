@@ -7,7 +7,7 @@ from ptvsd._local import run_module, run_file  # noqa
 from ptvsd._remote import (
     enable_attach as ptvsd_enable_attach, _pydevd_settrace,
 )
-from ptvsd.wrapper import debugger_attached
+from ptvsd.wrapper import debugger_attached, is_launch
 
 WAIT_TIMEOUT = 1.0
 
@@ -88,8 +88,12 @@ def break_into_debugger():
     """If a remote debugger is attached, pauses execution of all threads,
     and breaks into the debugger with current thread as active.
     """
-    if not debugger_attached.isSet() or not _enabled:
-        return
+    if is_launch():
+        if not is_attached():
+            return
+    else:
+        if not is_attached() or not _enabled:
+            return
     import sys
     _pydevd_settrace(
         suspend=True,
