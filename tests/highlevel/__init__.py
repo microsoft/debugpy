@@ -15,9 +15,9 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_STEP_CAUGHT_EXCEPTION,
     CMD_SEND_CURR_EXCEPTION_TRACE,
     CMD_THREAD_CREATE,
-    CMD_GET_VARIABLE,
     CMD_SET_PROJECT_ROOTS,
     CMD_GET_THREAD_STACK,
+    CMD_GET_EXCEPTION_DETAILS,
 )
 
 from ptvsd._util import new_hidden_thread
@@ -503,12 +503,11 @@ class PyDevdFixture(FixtureBase):
         self.send_suspend_event(thread, reason, *stack)
         #self.set_exception_var_response(exc)
 
-    def set_exception_var_response(self, exc):
+    def set_exception_var_response(self, threadid, exc, *frames):
         self.set_response(
-            CMD_GET_VARIABLE,
-            self.msgs.format_variables(
-                ('???', '???'),
-                ('???', exc),
+            CMD_GET_EXCEPTION_DETAILS,
+            self.msgs.format_exception_details(
+                threadid, exc, *frames
             ),
         )
 
@@ -824,7 +823,7 @@ class HighlevelFixture(object):
         with self.wait_for_event('stopped'):
             if isinstance(reason, Exception):
                 exc = reason
-                self._pydevd.set_exception_var_response(exc)
+                self._pydevd.set_exception_var_response(thread.id, exc, *stack)
                 self._pydevd.send_caught_exception_events(thread, exc, *stack)
             else:
                 self._pydevd.send_suspend_event(thread, reason, *stack)

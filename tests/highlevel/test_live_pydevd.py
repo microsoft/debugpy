@@ -391,16 +391,12 @@ class BreakpointTests(VSCFlowTest, unittest.TestCase):
                 got.append(req['arguments'])
             self.assertNotEqual(req['command'], 'setBreakpoints')
         self.assertEqual(got, config['excbreakpoints'])
-        if sys.version_info >= (3, 7):
-            description = "MyError('ka-boom')"
-        else:
-            description = "MyError('ka-boom',)"
         self.assert_contains(received, [
             self.new_event('stopped', **dict(
                  reason='exception',
                  threadId=tid,
-                 text='MyError',
-                 description=description)),
+                 text='__main__.MyError',
+                 description='ka-boom')),
             self.new_response(req_continue_last, allThreadsContinued=True),
             self.new_event('continued', **dict(threadId=tid, )),
         ])

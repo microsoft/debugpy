@@ -77,8 +77,7 @@ class ExceptionTests(LifecycleTestsBase):
 
             Awaitable.wait_all(req_launch_attach, stopped)
             self.assertEqual(stopped.event.body['text'], 'ArithmeticError')
-            self.assertIn("ArithmeticError('Hello'",
-                          stopped.event.body['description'])
+            self.assertEqual(stopped.event.body['description'], 'Hello')
 
             thread_id = stopped.event.body['threadId']
             req_exc_info = dbg.session.send_request(
@@ -129,8 +128,7 @@ class ExceptionTests(LifecycleTestsBase):
 
             Awaitable.wait_all(req_launch_attach, stopped)
             self.assertEqual(stopped.event.body['text'], 'ArithmeticError')
-            self.assertIn("ArithmeticError('Hello'",
-                          stopped.event.body['description'])
+            self.assertEqual(stopped.event.body['description'], 'Hello')
 
             thread_id = stopped.event.body['threadId']
             req_exc_info = dbg.session.send_request(
@@ -191,8 +189,7 @@ class ExceptionTests(LifecycleTestsBase):
 
             Awaitable.wait_all(req_launch_attach, stopped)
             self.assertEqual(stopped.event.body['text'], 'ArithmeticError')
-            self.assertIn("ArithmeticError('Hello'",
-                          stopped.event.body['description'])
+            self.assertEqual(stopped.event.body['description'], 'Hello')
 
             thread_id = stopped.event.body['threadId']
             req_exc_info = dbg.session.send_request(
@@ -247,8 +244,7 @@ class ExceptionTests(LifecycleTestsBase):
 
             Awaitable.wait_all(req_launch_attach, stopped)
             self.assertEqual(stopped.event.body['text'], 'ArithmeticError')
-            self.assertIn("ArithmeticError('Hello'",
-                          stopped.event.body['description'])
+            self.assertEqual(stopped.event.body['description'], 'Hello')
 
             thread_id = stopped.event.body['threadId']
             req_exc_info = dbg.session.send_request(
@@ -267,8 +263,8 @@ class ExceptionTests(LifecycleTestsBase):
 
             # Second hit on uncaught exception
             self.assertEqual(stopped2.event.body['text'], 'ArithmeticError')
-            self.assertIn("ArithmeticError('Hello'",
-                          stopped2.event.body['description'])
+            self.assertEqual(stopped2.event.body['description'], 'Hello')
+
             req_exc_info2 = dbg.session.send_request(
                 'exceptionInfo',
                 threadId=thread_id,

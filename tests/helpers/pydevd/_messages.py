@@ -101,3 +101,19 @@ class PyDevdMessages(object):
                 frame,
             ),
         )
+
+    def format_exception_details(self, threadid, exc, *frames):
+        name = pydevd_xml.make_valid_xml_value(str(type(exc)))
+        if hasattr(exc, 'args') and len(exc.args) > 0:
+            desc = str(exc.args[0])
+        else:
+            desc = str(exc)
+        desc = pydevd_xml.make_valid_xml_value(desc)
+        info = '<xml>'
+        info += '<thread id="{}" exc_type="{}" exc_desc="{}" >'.format(
+            threadid, name, desc)
+        fmt = '<frame id="{}" name="{}" file="{}" line="{}" />'
+        for frame in frames:  # (fid, func, filename, line)
+            info += fmt.format(*frame)
+        info += '</thread></xml>'
+        return info

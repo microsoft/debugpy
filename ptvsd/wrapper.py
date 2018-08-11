@@ -278,16 +278,6 @@ class IDMap(object):
         return ids
 
 
-class ExceptionInfo(object):
-    # TODO: docstring
-
-    def __init__(self, name, description, stack, source):
-        self.name = name
-        self.description = description
-        self.stack = stack
-        self.source = source
-
-
 class PydevdSocket(object):
     """A dummy socket-like object for communicating with pydevd.
 
@@ -459,7 +449,7 @@ class ExceptionsManager(object):
             return name
 
         for ex_name in self.exceptions.keys():
-            # ExceptionInfo.name can be in repr form
+            # exception name can be in repr form
             # here we attempt to find the exception as it
             # is saved in the dictionary
             if ex_name in name:
@@ -2157,72 +2147,71 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         if request is not None:
             self.send_response(request)
 
+    def _parse_exception_details(self, exc_xml, include_stack=True):
+        exc_name = None
+        exc_desc = None
+        exc_source = None
+        exc_stack = None
+        try:
+            xml = self.parse_xml_response(exc_xml)
+            re_name = r"[\'\"](.*)[\'\"]"
+            exc_type = xml.thread['exc_type']
+            exc_desc = xml.thread['exc_desc']
+            try:
+                exc_name = re.findall(re_name, exc_type)[0]
+            except IndexError:
+                exc_name = exc_type
+
+            if include_stack:
+                xframes = list(xml.thread.frame)
+                frame_data = []
+                for f in xframes:
+                    file_path = unquote(f['file'])
+                    if not self.internals_filter.is_internal_path(file_path) \
+                       and self._should_debug(file_path):
+                        line_no = int(f['line'])
+                        func_name = unquote(f['name'])
+                        if _util.is_py34():
+                            # NOTE: In 3.4.* format_list requires the text
+                            # to be passed in the tuple list.
+                            line_text = _util.get_line_for_traceback(file_path,
+                                                                     line_no)
+                            frame_data.append((file_path, line_no,
+                                               func_name, line_text))
+                        else:
+                            frame_data.append((file_path, line_no,
+                                               func_name, None))
+
+                exc_stack = ''.join(traceback.format_list(frame_data))
+                exc_source = unquote(xframes[0]['file'])
+                if self.internals_filter.is_internal_path(exc_source) or \
+                    not self._should_debug(exc_source):
+                    exc_source = None
+        except Exception:
+            exc_name = 'BaseException'
+            exc_desc = 'exception: no description'
+
+        return exc_name, exc_desc, exc_source, exc_stack
+
     @async_handler
     def on_exceptionInfo(self, request, args):
         # TODO: docstring
         pyd_tid = self.thread_map.to_pydevd(args['threadId'])
 
-        # For exception cases both raise and uncaught, pydevd adds a
-        # __exception__ object to the top most frame. Extracting the
-        # exception name and description from that frame gives accurate
-        # exception information. Get exception info from frame
-        try:
-            cmd = pydevd_comm.CMD_GET_THREAD_STACK
-            _, _, resp_args = yield self.pydevd_request(cmd, pyd_tid)
-            xml = self.parse_xml_response(resp_args)
-            xframes = list(xml.thread.frame)
+        cmdid = pydevd_comm.CMD_GET_EXCEPTION_DETAILS
+        _, _, resp_args = yield self.pydevd_request(cmdid, pyd_tid)
+        name, description, source, stack  = \
+            self._parse_exception_details(resp_args)
 
-            xframe = xframes[0]
-            pyd_fid = xframe['id']
-
-            cmdargs = '{}\t{}\tFRAME\t__exception__'.format(pyd_tid, pyd_fid)
-            cmdid = pydevd_comm.CMD_GET_VARIABLE
-            _, _, resp_args = yield self.pydevd_request(cmdid, cmdargs)
-            xml = self.parse_xml_response(resp_args)
-
-            name = unquote(xml.var[1]['type'])
-            description = unquote(xml.var[1]['value'])
-
-            frame_data = []
-            for f in xframes:
-                file_path = unquote(f['file'])
-                if not self.internals_filter.is_internal_path(file_path) and \
-                    self._should_debug(file_path):
-                    line_no = int(f['line'])
-                    func_name = unquote(f['name'])
-                    if _util.is_py34():
-                        # NOTE: In 3.4.* format_list requires the text
-                        # to be passed in the tuple list.
-                        line_text = _util.get_line_for_traceback(file_path,
-                                                                 line_no)
-                        frame_data.append((file_path, line_no,
-                                           func_name, line_text))
-                    else:
-                        frame_data.append((file_path, line_no,
-                                           func_name, None))
-
-            stack = ''.join(traceback.format_list(frame_data))
-
-            source = unquote(xframe['file'])
-            if self.internals_filter.is_internal_path(source) or \
-                not self._should_debug(source):
-                source = None
-        except Exception:
-            name = 'BaseException'
-            description = 'exception: no description'
-            stack = None
-            source = None
-
-        exc = ExceptionInfo(name, description, stack, source)
         self.send_response(
             request,
-            exceptionId=exc.name,
-            description=exc.description,
-            breakMode=self.exceptions_mgr.get_break_mode(exc.name),
-            details={'typeName': exc.name,
-                     'message': exc.description,
-                     'stackTrace': exc.stack,
-                     'source': exc.source},
+            exceptionId=name,
+            description=description,
+            breakMode=self.exceptions_mgr.get_break_mode(name),
+            details={'typeName': name,
+                     'message': description,
+                     'stackTrace': stack,
+                     'source': source},
         )
 
     # Custom ptvsd message
@@ -2378,8 +2367,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         autogen = self.start_reason == 'attach'
         vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=autogen)
 
-        description = None
-        text = None
+        exc_desc = None
+        exc_name = None
         if reason in STEP_REASONS:
             reason = 'step'
         elif reason in EXCEPTION_REASONS:
@@ -2390,26 +2379,17 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             reason = 'pause'
 
         if reason == 'exception':
-            try:
-                pyd_fid = xframe['id']
-                cmdargs = '{}\t{}\tFRAME\t__exception__'.format(pyd_tid,
-                                                                pyd_fid)
-                cmdid = pydevd_comm.CMD_GET_VARIABLE
-                _, _, resp_args = yield self.pydevd_request(cmdid, cmdargs)
-                xml = self.parse_xml_response(resp_args)
-
-                text = unquote(xml.var[1]['type'])
-                description = unquote(xml.var[1]['value'])
-            except Exception:
-                text = 'BaseException'
-                description = 'exception: no description'
+            cmdid = pydevd_comm.CMD_GET_EXCEPTION_DETAILS
+            _, _, resp_args = yield self.pydevd_request(cmdid, pyd_tid)
+            exc_name, exc_desc, _, _  = \
+                self._parse_exception_details(resp_args, include_stack=False)
 
         self.send_event(
             'stopped',
             reason=reason,
             threadId=vsc_tid,
-            text=text,
-            description=description)
+            text=exc_name,
+            description=exc_desc)
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_RUN)
     def on_pydevd_thread_run(self, seq, args):
