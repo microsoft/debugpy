@@ -395,3 +395,17 @@ def get_line_for_traceback(file_path, line_no):
             return f.readlines()[line_no - 1]
     except Exception:
         return None
+
+
+_enable_debug_break = False
+
+
+def _allow_debug_break(enabled=True):
+    """Enable breaking into debugger feature.
+    """
+    global _enable_debug_break
+    _enable_debug_break = enabled
+
+
+def _is_debug_break_allowed():
+    return _enable_debug_break

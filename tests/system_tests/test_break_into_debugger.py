@@ -94,6 +94,51 @@ class BreakIntoDebuggerTests(LifecycleTestsBase):
             self.new_event('terminated'),
         ])
 
+
+class LaunchFileBreakIntoDebuggerTests(BreakIntoDebuggerTests):
+    def test_launch_and_break(self):
+        filename = TEST_FILES.resolve('launch_test.py')
+        cwd = os.path.dirname(filename)
+        debug_info = DebugInfo(filename=filename, cwd=cwd)
+        self.run_test_attach_or_launch(debug_info)
+
+
+class LaunchModuleBreakIntoDebuggerTests(BreakIntoDebuggerTests):
+    def test_launch_and_break(self):
+        module_name = 'mypkg_launch'
+        env = TEST_FILES.env_with_py_path()
+        cwd = TEST_FILES.parent.root
+        self.run_test_attach_or_launch(
+            DebugInfo(modulename=module_name, env=env, cwd=cwd))
+
+
+class ServerAttachBreakIntoDebuggerTests(BreakIntoDebuggerTests):
+    def test_attach_and_break(self):
+        filename = TEST_FILES.resolve('launch_test.py')
+        cwd = os.path.dirname(filename)
+        debug_info = DebugInfo(
+            filename=filename,
+            cwd=cwd,
+            starttype='attach',
+        )
+        self.run_test_attach_or_launch(debug_info)
+
+
+class ServerAttachModuleBreakIntoDebuggerTests(BreakIntoDebuggerTests):
+    def test_attach_and_break(self):
+        module_name = 'mypkg_launch'
+        env = TEST_FILES.env_with_py_path()
+        cwd = TEST_FILES.root
+        debug_info = DebugInfo(
+            modulename=module_name,
+            cwd=cwd,
+            env=env,
+            starttype='attach',
+        )
+        self.run_test_attach_or_launch(debug_info)
+
+
+class PTVSDAttachBreakIntoDebuggerTests(BreakIntoDebuggerTests):
     def test_attach_enable_wait_and_break(self):
         # Uses enable_attach followed by wait_for_attach
         # before calling break_into_debugger
@@ -138,12 +183,6 @@ class BreakIntoDebuggerTests(LifecycleTestsBase):
             )
         self.run_test_attach_or_launch(debug_info, end_loop=True)
 
-    def test_launch(self):
-        filename = TEST_FILES.resolve('launch_test.py')
-        cwd = os.path.dirname(filename)
-        debug_info = DebugInfo(filename=filename, cwd=cwd)
-        self.run_test_attach_or_launch(debug_info)
-
     def test_reattach_enable_wait_and_break(self):
         # Uses enable_attach followed by wait_for_attach
         # before calling break_into_debugger
@@ -181,6 +220,108 @@ class BreakIntoDebuggerTests(LifecycleTestsBase):
         cwd = os.path.dirname(filename)
         debug_info = DebugInfo(
             filename=filename,
+            cwd=cwd,
+            argv=['localhost', str(PORT)],
+            starttype='attach',
+            attachtype='import',
+            )
+        self.run_test_reattach(debug_info)
+
+
+class PTVSDAttachModuleBreakIntoDebuggerTests(BreakIntoDebuggerTests):
+    def test_attach_enable_wait_and_break(self):
+        # Uses enable_attach followed by wait_for_attach
+        # before calling break_into_debugger
+        module_name = 'mypkg_attach'
+        env = TEST_FILES.env_with_py_path()
+        env['PTVSD_WAIT_FOR_ATTACH'] = 'True'
+        cwd = TEST_FILES.root
+        debug_info = DebugInfo(
+            modulename=module_name,
+            env=env,
+            cwd=cwd,
+            argv=['localhost', str(PORT)],
+            starttype='attach',
+            attachtype='import',
+            )
+        self.run_test_attach_or_launch(debug_info)
+
+    def test_attach_enable_check_and_break(self):
+        # Uses enable_attach followed by a loop that checks if the
+        # debugger is attached before calling break_into_debugger
+        module_name = 'mypkg_attach'
+        env = TEST_FILES.env_with_py_path()
+        env['PTVSD_IS_ATTACHED'] = 'True'
+        cwd = TEST_FILES.root
+        debug_info = DebugInfo(
+            modulename=module_name,
+            env=env,
+            cwd=cwd,
+            argv=['localhost', str(PORT)],
+            starttype='attach',
+            attachtype='import',
+            )
+        self.run_test_attach_or_launch(debug_info)
+
+    def test_attach_enable_and_break(self):
+        # Uses enable_attach followed by break_into_debugger
+        # not is_attached check or wait_for_debugger
+        module_name = 'mypkg_attach'
+        env = TEST_FILES.env_with_py_path()
+        cwd = TEST_FILES.root
+        debug_info = DebugInfo(
+            modulename=module_name,
+            env=env,
+            cwd=cwd,
+            argv=['localhost', str(PORT)],
+            starttype='attach',
+            attachtype='import',
+            )
+        self.run_test_attach_or_launch(debug_info, end_loop=True)
+
+    def test_reattach_enable_wait_and_break(self):
+        # Uses enable_attach followed by wait_for_attach
+        # before calling break_into_debugger
+        module_name = 'mypkg_reattach'
+        env = TEST_FILES.env_with_py_path()
+        env['PTVSD_WAIT_FOR_ATTACH'] = 'True'
+        cwd = TEST_FILES.root
+        debug_info = DebugInfo(
+            modulename=module_name,
+            env=env,
+            cwd=cwd,
+            argv=['localhost', str(PORT)],
+            starttype='attach',
+            attachtype='import',
+            )
+        self.run_test_reattach(debug_info)
+
+    def test_reattach_enable_check_and_break(self):
+        # Uses enable_attach followed by a loop that checks if the
+        # debugger is attached before calling break_into_debugger
+        module_name = 'mypkg_reattach'
+        env = TEST_FILES.env_with_py_path()
+        env['PTVSD_IS_ATTACHED'] = 'True'
+        cwd = TEST_FILES.root
+        debug_info = DebugInfo(
+            modulename=module_name,
+            env=env,
+            cwd=cwd,
+            argv=['localhost', str(PORT)],
+            starttype='attach',
+            attachtype='import',
+            )
+        self.run_test_reattach(debug_info)
+
+    def test_reattach_enable_and_break(self):
+        # Uses enable_attach followed by break_into_debugger
+        # not is_attached check or wait_for_debugger
+        module_name = 'mypkg_reattach'
+        env = TEST_FILES.env_with_py_path()
+        cwd = TEST_FILES.root
+        debug_info = DebugInfo(
+            modulename=module_name,
+            env=env,
             cwd=cwd,
             argv=['localhost', str(PORT)],
             starttype='attach',

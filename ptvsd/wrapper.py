@@ -44,18 +44,11 @@ from ptvsd.safe_repr import SafeRepr  # noqa
 from ptvsd.version import __version__  # noqa
 from ptvsd.socket import TimeoutError  # noqa
 
-
 WAIT_FOR_THREAD_FINISH_TIMEOUT = 1  # seconds
 
 
 debug = _util.debug
 debugger_attached = threading.Event()
-
-_debugger_start_reason = None
-
-
-def is_launch():
-    return _debugger_start_reason == 'launch'
 
 #def ipcjson_trace(s):
 #    print(s)
@@ -1090,9 +1083,6 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
     def on_configurationDone(self, request, args):
         # TODO: docstring
         debugger_attached.set()
-        if self.start_reason == 'launch':
-            global _debugger_start_reason
-            _debugger_start_reason = 'launch'
         self.send_response(request)
         self._process_debug_options(self.debug_options)
         self._handle_configurationDone(args)
@@ -1100,9 +1090,6 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
 
     def on_disconnect(self, request, args):
         debugger_attached.clear()
-        if self.start_reason == 'launch':
-            global _debugger_start_reason
-            _debugger_start_reason = None
         self._restart_debugger = args.get('restart', False)
 
         # TODO: docstring
