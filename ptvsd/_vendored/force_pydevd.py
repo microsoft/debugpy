@@ -39,3 +39,17 @@ preimport('pydevd', [
     'pydevd_plugins',
     'pydevd',
 ])
+
+# When pydevd is imported it sets the breakpoint behavior, but it needs to be
+# overridden because the pydevd version will connect to the remote debugger by
+# default, but without using the ptvsd protocol (so, we need to use the ptvsd
+# API to handle things as expected by the debug adapter).
+import pydevd  # noqa
+import ptvsd  # noqa
+
+
+def ptvsd_breakpointhook():
+    ptvsd.break_into_debugger()
+
+
+pydevd.install_breakpointhook(ptvsd_breakpointhook)

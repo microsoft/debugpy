@@ -97,19 +97,20 @@ class BreakIntoDebuggerTests(LifecycleTestsBase):
 
 class LaunchFileBreakIntoDebuggerTests(BreakIntoDebuggerTests):
     def test_launch_and_break(self):
-        filename = TEST_FILES.resolve('launch_test.py')
-        cwd = os.path.dirname(filename)
-        debug_info = DebugInfo(filename=filename, cwd=cwd)
-        self.run_test_attach_or_launch(debug_info)
+        for filename in ('launch_test.py', 'launch_test_breakpoint.py'):
+            filename = TEST_FILES.resolve(filename)
+            cwd = os.path.dirname(filename)
+            debug_info = DebugInfo(filename=filename, cwd=cwd)
+            self.run_test_attach_or_launch(debug_info)
 
 
 class LaunchModuleBreakIntoDebuggerTests(BreakIntoDebuggerTests):
     def test_launch_and_break(self):
-        module_name = 'mypkg_launch'
-        env = TEST_FILES.env_with_py_path()
-        cwd = TEST_FILES.parent.root
-        self.run_test_attach_or_launch(
-            DebugInfo(modulename=module_name, env=env, cwd=cwd))
+        for module_name in ('mypkg_launch', 'mypkg_launch_breakpoint'):
+            env = TEST_FILES.env_with_py_path()
+            cwd = TEST_FILES.parent.root
+            self.run_test_attach_or_launch(
+                DebugInfo(modulename=module_name, env=env, cwd=cwd))
 
 
 class ServerAttachBreakIntoDebuggerTests(BreakIntoDebuggerTests):
@@ -186,17 +187,18 @@ class PTVSDAttachBreakIntoDebuggerTests(BreakIntoDebuggerTests):
     def test_reattach_enable_wait_and_break(self):
         # Uses enable_attach followed by wait_for_attach
         # before calling break_into_debugger
-        filename = TEST_FILES.resolve('reattach_test.py')
-        cwd = os.path.dirname(filename)
-        debug_info = DebugInfo(
-            filename=filename,
-            cwd=cwd,
-            argv=['localhost', str(PORT)],
-            env={'PTVSD_WAIT_FOR_ATTACH': 'True'},
-            starttype='attach',
-            attachtype='import',
-            )
-        self.run_test_reattach(debug_info)
+        for filename in ('reattach_test.py', 'reattach_test_breakpoint.py'):
+            filename = TEST_FILES.resolve(filename)
+            cwd = os.path.dirname(filename)
+            debug_info = DebugInfo(
+                filename=filename,
+                cwd=cwd,
+                argv=['localhost', str(PORT)],
+                env={'PTVSD_WAIT_FOR_ATTACH': 'True'},
+                starttype='attach',
+                attachtype='import',
+                )
+            self.run_test_reattach(debug_info)
 
     def test_reattach_enable_check_and_break(self):
         # Uses enable_attach followed by a loop that checks if the
@@ -299,19 +301,19 @@ class PTVSDAttachModuleBreakIntoDebuggerTests(BreakIntoDebuggerTests):
     def test_reattach_enable_check_and_break(self):
         # Uses enable_attach followed by a loop that checks if the
         # debugger is attached before calling break_into_debugger
-        module_name = 'mypkg_reattach'
-        env = TEST_FILES.env_with_py_path()
-        env['PTVSD_IS_ATTACHED'] = 'True'
-        cwd = TEST_FILES.root
-        debug_info = DebugInfo(
-            modulename=module_name,
-            env=env,
-            cwd=cwd,
-            argv=['localhost', str(PORT)],
-            starttype='attach',
-            attachtype='import',
-            )
-        self.run_test_reattach(debug_info)
+        for module_name in ('mypkg_reattach', 'mypkg_reattach_breakpoint'):
+            env = TEST_FILES.env_with_py_path()
+            env['PTVSD_IS_ATTACHED'] = 'True'
+            cwd = TEST_FILES.root
+            debug_info = DebugInfo(
+                modulename=module_name,
+                env=env,
+                cwd=cwd,
+                argv=['localhost', str(PORT)],
+                starttype='attach',
+                attachtype='import',
+                )
+            self.run_test_reattach(debug_info)
 
     def test_reattach_enable_and_break(self):
         # Uses enable_attach followed by break_into_debugger

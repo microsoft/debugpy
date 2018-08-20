@@ -339,6 +339,7 @@ def dump_threads(stream=None):
     stream.write('===============================================================================\n')
     stream.write('Threads running\n')
     stream.write('================================= Thread Dump =================================\n')
+    stream.flush()
 
     for thread_id, stack in _current_frames().items():
         stream.write('\n-------------------------------------------------------------------------------\n')
@@ -358,5 +359,7 @@ def dump_threads(stream=None):
                 except:
                     stream.write('Unable to get str of: %s' % (type(stack.f_locals['self']),))
                 stream.write('\n')
+        stream.flush()
 
     stream.write('\n=============================== END Thread Dump ===============================')
+    stream.flush()
