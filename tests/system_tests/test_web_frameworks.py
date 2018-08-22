@@ -2,9 +2,8 @@ import os
 import os.path
 import re
 import threading
-import unittest
+import time
 
-from tests.helpers.debugsession import Awaitable
 from tests.helpers.resource import TestResources
 from tests.helpers.webhelper import get_web_string_no_error
 from . import (
@@ -18,6 +17,29 @@ re_link = r"(http(s|)\:\/\/[\w\.]*\:[0-9]{4,6}(\/|))"
 
 
 class WebFrameworkTests(LifecycleTestsBase):
+    def _get_url_from_output(self, session):
+        strings = (e.body['output'] for e in
+                   self.find_events(session.received, 'output'))
+        for s in strings:
+            matches = re.findall(re_link, s)
+            if matches and matches[0]and matches[0][0].strip():
+                return matches[0][0]
+        return None
+
+    def _wait_for_server_url(self, session):
+        # wait for web server start by looking for
+        # server url
+        for _ in range(10):
+            try:
+                # wait for an output event.
+                session.get_awaiter_for_event('output').wait(timeout=3.0)
+                path = self._get_url_from_output(session)
+                if path is not None:
+                    return path
+            except TimeoutError:
+                pass
+        return self._get_url_from_output(session)
+
     def run_test_with_break_points(self, debug_info, **kwargs):
         bp_filename = kwargs.pop('bp_filename')
         bp_line = kwargs.pop('bp_line')
@@ -48,41 +70,32 @@ class WebFrameworkTests(LifecycleTestsBase):
 
         with self.start_debugging(debug_info) as dbg:
             session = dbg.session
-            with session.wait_for_event('stopped') as result:
-                (_, req_launch_attach, _, _, _, _,
-                 ) = lifecycle_handshake(session, debug_info.starttype,
-                                         options=options,
-                                         breakpoints=breakpoints)
-                req_launch_attach.wait()
 
-                # wait for flask web server start
-                count = 0
-                path = None
-                while path is None and count < 10:
-                    outevent = session.get_awaiter_for_event('output')
-                    Awaitable.wait_all(outevent)
-                    events = self.find_events(
-                        session.received, 'output')
-                    count += 1
-                    for e in events:
-                        matches = re.findall(re_link, e.body['output'])
-                        if len(matches) > 0 and len(matches[0]) > 0 and \
-                            len(matches[0][0].strip()) > 0:
-                            path = matches[0][0]
-                            break
+            stopped = session.get_awaiter_for_event(
+                'stopped',
+                condition=lambda msg: msg.body['reason'] == 'breakpoint')
+            (_, req_launch_attach, _, _, _, _,
+             ) = lifecycle_handshake(session, debug_info.starttype,
+                                     options=options,
+                                     breakpoints=breakpoints)
+            req_launch_attach.wait()
 
-                # connect to web server
-                web_result = {}
-                web_client_thread = threading.Thread(
-                    target=get_web_string_no_error,
-                    args=(path, web_result),
-                    name='test.webClient'
-                )
+            path = self._wait_for_server_url(session)
+            # Give web server some time for finish writing output
+            time.sleep(1)
 
-                web_client_thread.start()
+            # connect to web server
+            web_result = {}
+            web_client_thread = threading.Thread(
+                target=get_web_string_no_error,
+                args=(path, web_result),
+                name='test.webClient'
+            )
 
-            event = result['msg']
-            tid = event.body['threadId']
+            web_client_thread.start()
+
+            stopped.wait(timeout=5.0)
+            tid = stopped.event.body['threadId']
 
             req_stacktrace = session.send_request(
                 'stackTrace',
@@ -106,10 +119,12 @@ class WebFrameworkTests(LifecycleTestsBase):
             req_variables.wait()
             variables = req_variables.resp.body['variables']
 
+            continued = session.get_awaiter_for_event('continued')
             session.send_request(
                 'continue',
                 threadId=tid,
             )
+            continued.wait(timeout=3.0)
 
             # wait for flask rendering thread to exit
             web_client_thread.join(timeout=0.1)
@@ -186,45 +201,34 @@ class WebFrameworkTests(LifecycleTestsBase):
         excbreakpoints = [{'filters': ['raised', 'uncaught']}]
         with self.start_debugging(debug_info) as dbg:
             session = dbg.session
-            with session.wait_for_event('stopped') as result:
-                (_, req_launch_attach, _, _, _, _,
-                 ) = lifecycle_handshake(session, debug_info.starttype,
-                                         options=options,
-                                         excbreakpoints=excbreakpoints)
-                req_launch_attach.wait()
 
-                # wait for flask web server start
-                count = 0
-                base_path = None
-                while base_path is None and count < 10:
-                    outevent = session.get_awaiter_for_event('output')
-                    Awaitable.wait_all(outevent)
-                    events = self.find_events(
-                        session.received, 'output')
-                    count += 1
-                    for e in events:
-                        matches = re.findall(re_link, e.body['output'])
-                        if len(matches) > 0 and len(matches[0]) > 0 and \
-                           len(matches[0][0].strip()) > 0:
-                            base_path = matches[0][0]
-                            break
+            stopped = session.get_awaiter_for_event('stopped')
+            (_, req_launch_attach, _, _, _, _,
+             ) = lifecycle_handshake(session, debug_info.starttype,
+                                     options=options,
+                                     excbreakpoints=excbreakpoints)
+            req_launch_attach.wait()
 
-                # connect to web server
-                path = base_path + \
-                    'handled' if base_path.endswith('/') else '/handled'
-                web_result = {}
-                web_client_thread = threading.Thread(
-                    target=get_web_string_no_error,
-                    args=(path, web_result),
-                    name='test.webClient'
-                )
+            base_path = self._wait_for_server_url(session)
+            # Give web server some time for finish writing output
+            time.sleep(1)
 
-                web_client_thread.start()
+            # connect to web server
+            path = base_path + \
+                'handled' if base_path.endswith('/') else '/handled'
+            web_result = {}
+            web_client_thread = threading.Thread(
+                target=get_web_string_no_error,
+                args=(path, web_result),
+                name='test.webClient'
+            )
 
-            event = result['msg']
-            thread_id = event.body['threadId']
+            web_client_thread.start()
 
-            req_exc_info = dbg.session.send_request(
+            stopped.wait(timeout=5.0)
+            thread_id = stopped.event.body['threadId']
+
+            req_exc_info = session.send_request(
                 'exceptionInfo',
                 threadId=thread_id,
             )
@@ -241,12 +245,12 @@ class WebFrameworkTests(LifecycleTestsBase):
                     }
                 })
 
-            continued = dbg.session.get_awaiter_for_event('continued')
-            dbg.session.send_request(
+            continued = session.get_awaiter_for_event('continued')
+            session.send_request(
                 'continue',
                 threadId=thread_id,
-            ).wait()
-            Awaitable.wait_all(continued)
+            )
+            continued.wait(timeout=3.0)
 
             # Shutdown webserver
             path = base_path + 'exit' if base_path.endswith('/') else '/exit'
@@ -284,43 +288,32 @@ class WebFrameworkTests(LifecycleTestsBase):
         excbreakpoints = [{'filters': ['raised', 'uncaught']}]
         with self.start_debugging(debug_info) as dbg:
             session = dbg.session
-            with session.wait_for_event('stopped') as result:
-                (_, req_launch_attach, _, _, _, _,
-                 ) = lifecycle_handshake(session, debug_info.starttype,
-                                         options=options,
-                                         excbreakpoints=excbreakpoints)
-                req_launch_attach.wait()
 
-                # wait for flask web server start
-                count = 0
-                base_path = None
-                while base_path is None and count < 10:
-                    outevent = session.get_awaiter_for_event('output')
-                    Awaitable.wait_all(outevent)
-                    events = self.find_events(
-                        session.received, 'output')
-                    count += 1
-                    for e in events:
-                        matches = re.findall(re_link, e.body['output'])
-                        if len(matches) > 0 and len(matches[0]) > 0 and \
-                           len(matches[0][0].strip()) > 0:
-                            base_path = matches[0][0]
-                            break
+            stopped = session.get_awaiter_for_event('stopped')
+            (_, req_launch_attach, _, _, _, _,
+             ) = lifecycle_handshake(session, debug_info.starttype,
+                                     options=options,
+                                     excbreakpoints=excbreakpoints)
+            req_launch_attach.wait()
 
-                # connect to web server
-                path = base_path + \
-                    'unhandled' if base_path.endswith('/') else '/unhandled'
-                web_result = {}
-                web_client_thread = threading.Thread(
-                    target=get_web_string_no_error,
-                    args=(path, web_result),
-                    name='test.webClient'
-                )
+            base_path = self._wait_for_server_url(session)
+            # Give web server some time for finish writing output
+            time.sleep(1)
 
-                web_client_thread.start()
+            # connect to web server
+            path = base_path + \
+                'unhandled' if base_path.endswith('/') else '/unhandled'
+            web_result = {}
+            web_client_thread = threading.Thread(
+                target=get_web_string_no_error,
+                args=(path, web_result),
+                name='test.webClient'
+            )
 
-            event = result['msg']
-            thread_id = event.body['threadId']
+            web_client_thread.start()
+
+            stopped.wait(timeout=5.0)
+            thread_id = stopped.event.body['threadId']
 
             req_exc_info = dbg.session.send_request(
                 'exceptionInfo',
@@ -339,12 +332,12 @@ class WebFrameworkTests(LifecycleTestsBase):
                     }
                 })
 
-            continued = dbg.session.get_awaiter_for_event('continued')
-            dbg.session.send_request(
+            continued = session.get_awaiter_for_event('continued')
+            session.send_request(
                 'continue',
                 threadId=thread_id,
-            ).wait()
-            Awaitable.wait_all(continued)
+            )
+            continued.wait(timeout=3.0)
 
             # Shutdown webserver
             path = base_path + 'exit' if base_path.endswith('/') else '/exit'
@@ -365,7 +358,7 @@ class WebFrameworkTests(LifecycleTestsBase):
             ])
 
 
-class FlaskLaunchFileTests(WebFrameworkTests):
+class FlaskLaunchTests(WebFrameworkTests):
     def test_with_route_break_points(self):
         filename = TEST_FILES.resolve('flask', 'launch', 'app.py')
         cwd = os.path.dirname(filename)
@@ -439,8 +432,7 @@ class FlaskLaunchFileTests(WebFrameworkTests):
                 cwd=cwd), 'Jinja', filename)
 
 
-class FlaskAttachFileTests(WebFrameworkTests):
-    @unittest.skip('#545')
+class FlaskAttachTests(WebFrameworkTests):
     def test_with_route_break_points(self):
         filename = TEST_FILES.resolve('flask', 'attach', 'app.py')
         cwd = os.path.dirname(filename)
@@ -463,7 +455,6 @@ class FlaskAttachFileTests(WebFrameworkTests):
             bp_filename=filename, bp_line=19, bp_name='home',
             bp_var_value='Flask-Jinja-Test')
 
-    @unittest.skip('#545')
     def test_with_template_break_points(self):
         filename = TEST_FILES.resolve('flask', 'attach', 'app.py')
         template = TEST_FILES.resolve(
@@ -487,7 +478,6 @@ class FlaskAttachFileTests(WebFrameworkTests):
             bp_filename=template, bp_line=8, bp_name='template',
             bp_var_value='Flask-Jinja-Test')
 
-    @unittest.skip('#545')
     def test_with_handled_exceptions(self):
         filename = TEST_FILES.resolve('flask', 'attach', 'app.py')
         cwd = os.path.dirname(filename)
@@ -506,7 +496,6 @@ class FlaskAttachFileTests(WebFrameworkTests):
                 },
                 cwd=cwd), 'Jinja', filename)
 
-    @unittest.skip('#545')
     def test_with_unhandled_exceptions(self):
         filename = TEST_FILES.resolve('flask', 'attach', 'app.py')
         cwd = os.path.dirname(filename)
@@ -526,7 +515,7 @@ class FlaskAttachFileTests(WebFrameworkTests):
                 cwd=cwd), 'Jinja', filename)
 
 
-class DjangoLaunchFileTests(WebFrameworkTests):
+class DjangoLaunchTests(WebFrameworkTests):
     def test_with_route_break_points(self):
         filename = TEST_FILES.resolve('django', 'launch', 'app.py')
         cwd = os.path.dirname(filename)
@@ -572,14 +561,14 @@ class DjangoLaunchFileTests(WebFrameworkTests):
                 cwd=cwd), 'Django', filename)
 
 
-class DjangoAttachFileTests(WebFrameworkTests):
-    @unittest.skip('#545')
+class DjangoAttachTests(WebFrameworkTests):
     def test_with_route_break_points(self):
         filename = TEST_FILES.resolve('django', 'attach', 'app.py')
         cwd = os.path.dirname(filename)
         self.run_test_with_break_points(
             DebugInfo(
                 filename=filename,
+                starttype='attach',
                 argv=['runserver', '--noreload', '--nothreading'],
                 env={
                     'PTVSD_HOST': 'localhost',
@@ -587,18 +576,18 @@ class DjangoAttachFileTests(WebFrameworkTests):
                 },
                 cwd=cwd),
             framework='Django',
-            bp_filename=filename, bp_line=48, bp_name='home',
+            bp_filename=filename, bp_line=47, bp_name='home',
             bp_var_value='Django-Django-Test')
 
-    @unittest.skip('#545')
     def test_with_template_break_points(self):
         filename = TEST_FILES.resolve('django', 'attach', 'app.py')
         template = TEST_FILES.resolve(
-            'django', 'launch', 'templates', 'hello.html')
+            'django', 'attach', 'templates', 'hello.html')
         cwd = os.path.dirname(filename)
         self.run_test_with_break_points(
             DebugInfo(
                 filename=filename,
+                starttype='attach',
                 argv=['runserver', '--noreload', '--nothreading'],
                 env={
                     'PTVSD_HOST': 'localhost',
@@ -609,13 +598,13 @@ class DjangoAttachFileTests(WebFrameworkTests):
             bp_filename=template, bp_line=8, bp_name='Django Template',
             bp_var_value='Django-Django-Test')
 
-    @unittest.skip('#545')
     def test_with_handled_exceptions(self):
         filename = TEST_FILES.resolve('django', 'attach', 'app.py')
         cwd = os.path.dirname(filename)
         self.run_test_with_handled_exception(
             DebugInfo(
                 filename=filename,
+                starttype='attach',
                 argv=['runserver', '--noreload', '--nothreading'],
                 env={
                     'PTVSD_HOST': 'localhost',
@@ -623,13 +612,13 @@ class DjangoAttachFileTests(WebFrameworkTests):
                 },
                 cwd=cwd), 'Django', filename)
 
-    @unittest.skip('#545')
     def test_with_unhandled_exceptions(self):
         filename = TEST_FILES.resolve('django', 'attach', 'app.py')
         cwd = os.path.dirname(filename)
         self.run_test_with_unhandled_exception(
             DebugInfo(
                 filename=filename,
+                starttype='attach',
                 argv=['runserver', '--noreload', '--nothreading'],
                 env={
                     'PTVSD_HOST': 'localhost',

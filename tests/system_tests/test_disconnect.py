@@ -3,7 +3,6 @@ import os.path
 import random
 import unittest
 
-from tests.helpers.debugsession import Awaitable
 from tests.helpers.resource import TestResources
 from . import (
     lifecycle_handshake,
@@ -67,22 +66,22 @@ class ContinueOnDisconnectTests(LifecycleTestsBase):
              ) = lifecycle_handshake(
                  session, debug_info.starttype,
                  options=options, threads=True)
-            Awaitable.wait_all(req_launch_attach, req_threads)
+            req_launch_attach.wait(timeout=3.0)
+            req_threads.wait(timeout=2.0)
 
             # ensure we see a output
             self._wait_for_output(session)
 
             if pause:
                 req_pause = session.send_request('pause', threadId=0)
-                Awaitable.wait_all(req_pause, stopped)
-            else:
-                stopped.wait()
+                req_pause.wait(timeout=3.0)
 
+            stopped.wait(timeout=2.0)
             thread_id = stopped.event.body['threadId']
             self._set_var_to_end_loop(session, thread_id)
 
             req_disconnect = session.send_request('disconnect', restart=False)
-            req_disconnect.wait()
+            req_disconnect.wait(timeout=3.0)
 
         if debug_info.starttype == 'launch':
             self.assertFalse(os.path.exists(path_to_check))
