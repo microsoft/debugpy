@@ -704,6 +704,7 @@ DEBUG_OPTIONS_PARSER = {
     'CLIENT_OS_TYPE': unquote,
     'DEBUG_STDLIB': bool_parser,
     'STOP_ON_ENTRY': bool_parser,
+    'SHOW_RETURN_VALUE': bool_parser,
 }
 
 
@@ -719,6 +720,7 @@ DEBUG_OPTIONS_BY_FLAG = {
     'WindowsClient': 'CLIENT_OS_TYPE=WINDOWS',
     'UnixClient': 'CLIENT_OS_TYPE=UNIX',
     'StopOnEntry': 'STOP_ON_ENTRY=True',
+    'ShowReturnValue': 'SHOW_RETURN_VALUE=True',
 }
 
 
@@ -1362,6 +1364,9 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         if opts.get('STOP_ON_ENTRY', False) and self.start_reason == 'launch':
             self.pydevd_request(pydevd_comm.CMD_STOP_ON_START, '1')
 
+        if opts.get('SHOW_RETURN_VALUE', False):
+            self.pydevd_request(pydevd_comm.CMD_SHOW_RETURN_VALUES, '1\t1')
+
         self._apply_code_stepping_settings()
 
     def _is_just_my_code_stepping_enabled(self):
@@ -1708,6 +1713,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         variables = VariablesSorter()
         for xvar in xvars:
+            attributes = []
             var_name = unquote(xvar['name'])
             var_type = unquote(xvar['type'])
             var_value = unquote(xvar['value'])
@@ -1718,16 +1724,24 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             }
 
             if self._is_raw_string(var_type):
-                var['presentationHint'] = {'attributes': ['rawString']}
+                attributes.append('rawString')
 
-            if bool(xvar['isContainer']):
-                pyd_child = pyd_var + (var_name,)
-                var['variablesReference'] = self.var_map.to_vscode(
-                    pyd_child, autogen=True)
+            if bool(xvar['isRetVal']):
+                attributes.append('readOnly')
+                var['name'] = '(return) %s' % var_name
+            else:
+                if bool(xvar['isContainer']):
+                    pyd_child = pyd_var + (var_name,)
+                    var['variablesReference'] = self.var_map.to_vscode(
+                        pyd_child, autogen=True)
 
-            eval_name = self._get_variable_evaluate_name(pyd_var, var_name)
-            if eval_name:
-                var['evaluateName'] = eval_name
+                eval_name = self._get_variable_evaluate_name(
+                    pyd_var, var_name)
+                if eval_name:
+                    var['evaluateName'] = eval_name
+
+            if len(attributes) > 0:
+                var['presentationHint'] = {'attributes': attributes}
 
             variables.append(var)
 
@@ -1779,17 +1793,22 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     @async_handler
     def on_setVariable(self, request, args):
         """Handles DAP SetVariableRequest."""
-
+        var_name = args['name']
+        var_value = args['value']
         vsc_var = int(args['variablesReference'])
+        fmt = args.get('format', {})
+
+        if var_name.startswith('(return) '):
+            self.send_error_response(
+                request,
+                'Cannot change return value.')
+            return
+
         try:
             pyd_var = self.var_map.to_pydevd(vsc_var)
         except KeyError:
             self.send_error_response(request)
             return
-
-        var_name = args['name']
-        var_value = args['value']
-        fmt = args.get('format', {})
 
         lhs_expr = self._get_variable_evaluate_name(pyd_var, var_name)
         if not lhs_expr:

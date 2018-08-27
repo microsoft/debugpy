@@ -198,3 +198,128 @@ class StopOnEntryLaunchPackageTests(StopOnEntryTests):
                 modulename='mymod',
                 cwd=cwd,
                 env=env))
+
+
+class ShowReturnValueTests(LifecycleTestsBase):
+    def _debugger_step_next(self, session, thread_id):
+        stopped = session.get_awaiter_for_event('stopped')
+        req_next = session.send_request('next', threadId=thread_id)
+        req_next.wait(timeout=2.0)
+        stopped.wait(timeout=2.0)
+
+    def _get_variables(self, session, thread_id):
+        req_stacktrace = session.send_request(
+            'stackTrace',
+            threadId=thread_id,
+        )
+        req_stacktrace.wait(timeout=2.0)
+
+        frames = req_stacktrace.resp.body['stackFrames']
+        frame_id = frames[0]['id']
+
+        req_scopes = session.send_request(
+            'scopes',
+            frameId=frame_id,
+        )
+        req_scopes.wait(timeout=2.0)
+
+        scopes = req_scopes.resp.body['scopes']
+        variables_reference = scopes[0]['variablesReference']
+
+        req_variables = session.send_request(
+            'variables',
+            variablesReference=variables_reference,
+        )
+        req_variables.wait(timeout=2.0)
+
+        return req_variables.resp.body['variables']
+
+    def run_test_return_values(self, debug_info, is_enabled):
+        if is_enabled:
+            options = {'debugOptions': ['RedirectOutput', 'ShowReturnValue']}
+        else:
+            options = {'debugOptions': ['RedirectOutput']}
+
+        breakpoints = [{
+            'source': {
+                'path': debug_info.filename
+            },
+            'breakpoints': [{'line': 10}, {'line': 11}, {'line': 12}],
+            'lines': [10, 11, 12]
+        }]
+        with self.start_debugging(debug_info) as dbg:
+            session = dbg.session
+            stopped = session.get_awaiter_for_event('stopped')
+            (_, req_launch_attach, _, _, _, _
+             ) = lifecycle_handshake(session, debug_info.starttype,
+                                     options=options,
+                                     breakpoints=breakpoints)
+            req_launch_attach.wait(timeout=3.0)
+
+            stopped.wait()
+            thread_id = stopped.event.body['threadId']
+
+            self._debugger_step_next(session, thread_id)
+            variables = self._get_variables(session, thread_id)
+
+            return_values = list(v for v in variables
+                                 if v['name'].startswith('(return) '))
+
+            if is_enabled:
+                self.assertEqual(len(return_values), 1)
+                self.assertEqual(return_values[0]['name'],
+                                 '(return) MyClass.do_something')
+                self.assertEqual(return_values[0]['value'],
+                                 "'did something'")
+                self.assertEqual(return_values[0]['type'],
+                                 'str')
+                attributes = return_values[0]['presentationHint']['attributes']
+                self.assertTrue('readOnly' in attributes)
+            else:
+                self.assertEqual(len(return_values), 0)
+
+            self._debugger_step_next(session, thread_id)
+            variables = self._get_variables(session, thread_id)
+
+            return_values = list(v for v in variables
+                                 if v['name'].startswith('(return) '))
+
+            if is_enabled:
+                self.assertEqual(len(return_values), 2)
+                self.assertEqual(return_values[0]['name'],
+                                 '(return) MyClass.do_something')
+                self.assertEqual(return_values[0]['value'],
+                                 "'did something'")
+                self.assertEqual(return_values[0]['type'],
+                                 'str')
+                attributes = return_values[0]['presentationHint']['attributes']
+                self.assertTrue('readOnly' in attributes)
+
+                self.assertEqual(return_values[1]['name'],
+                                 '(return) my_func')
+                self.assertEqual(return_values[1]['value'],
+                                 "'did more things'")
+                self.assertEqual(return_values[1]['type'],
+                                 'str')
+                attributes = return_values[1]['presentationHint']['attributes']
+                self.assertTrue('readOnly' in attributes)
+            else:
+                self.assertEqual(len(return_values), 0)
+
+            exited = session.get_awaiter_for_event('exited')
+            session.send_request('continue').wait(timeout=2.0)
+            exited.wait(timeout=3.0)
+
+    def test_return_values_enabled(self):
+        filename = TEST_FILES.resolve('returnvalues.py')
+        cwd = os.path.dirname(filename)
+        self.run_test_return_values(
+            DebugInfo(filename=filename, cwd=cwd),
+            is_enabled=True)
+
+    def test_return_values_disabled(self):
+        filename = TEST_FILES.resolve('returnvalues.py')
+        cwd = os.path.dirname(filename)
+        self.run_test_return_values(
+            DebugInfo(filename=filename, cwd=cwd),
+            is_enabled=False)
