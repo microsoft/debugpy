@@ -13,6 +13,8 @@ IS_PY36 = sys.version_info[0] == 3 and sys.version_info[1] == 6
 TEST_CYTHON = os.getenv('PYDEVD_USE_CYTHON', None) == 'YES'
 IS_APPVEYOR = os.environ.get('APPVEYOR', '') in ('True', 'true', '1')
 
+SKIP_FRAME_EVAL_TESTS = False
+
 
 class WriterThreadStepAndResume(debugger_unittest.AbstractWriterThread):
 
@@ -197,7 +199,7 @@ class WriterThreadAddTerminationExceptionBreak(debugger_unittest.AbstractWriterT
 
 
 @pytest.mark.skipif(
-    True, 
+    SKIP_FRAME_EVAL_TESTS, 
     reason='Frame eval is not currently meant to be used in the debugger and tests are flaky.\n'
            'Feature must be reviewed to be included again.\n'
 )

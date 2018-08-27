@@ -59,7 +59,12 @@ def install_breakpointhook(pydevd_breakpointhook=None):
     if pydevd_breakpointhook is None:
         def pydevd_breakpointhook(*args, **kwargs):
             hookname = os.getenv('PYTHONBREAKPOINT')
-            if hookname is not None and len(hookname) > 0 and hasattr(sys, '__breakpointhook__'):
+            if (
+                   hookname is not None 
+                   and len(hookname) > 0 
+                   and hasattr(sys, '__breakpointhook__')
+                   and sys.__breakpointhook__ != pydevd_breakpointhook
+                ):
                 sys.__breakpointhook__(*args, **kwargs)
             else:
                 settrace(*args, **kwargs)
@@ -83,6 +88,7 @@ def install_breakpointhook(pydevd_breakpointhook=None):
         # In older versions, breakpoint() isn't really available, so, install the hook directly
         # in the builtins.
         __builtin__.breakpoint = pydevd_breakpointhook
+        sys.__breakpointhook__ = pydevd_breakpointhook
 
 # Install the breakpoint hook at import time.
 install_breakpointhook()
