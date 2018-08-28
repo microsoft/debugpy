@@ -279,12 +279,19 @@ class DebugSession(Closeable):
         self._check_handlers()
 
     def _listen(self):
+        eof = None
         try:
             for msg in self._conn.iter_messages():
                 if self.VERBOSE:
                     print(' ->', msg)
                 self._receive_message(msg)
-        except EOFError:
+        except EOFError as ex:
+            # Handle EOF outside of except to avoid unnecessary chaining.
+            eof = ex
+        if eof:
+            remainder = getattr(eof, 'remainder', b'')
+            if remainder:
+                self._receive_message(remainder)
             try:
                 self.close()
             except ClosedError:

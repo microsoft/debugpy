@@ -198,6 +198,8 @@ class DebugAdapter(Closeable):
         argv = []
         if server:
             argv += ['--server']
+            if kwargs.pop('wait', True):
+                argv += ['--wait']
         if kind == 'script':
             argv += [name]
         elif kind == 'module':

@@ -1,10 +1,17 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License. See LICENSE in the project root
+# for license information.
+
 import sys
+import time
 
 import pydevd
+from _pydevd_bundle.pydevd_comm import get_global_debugger
 
 from ptvsd.pydevd_hooks import install
 from ptvsd.runner import run as no_debug_runner
 from ptvsd.socket import Address
+from ptvsd._util import new_hidden_thread
 
 
 PYDEVD_DEFAULTS = {
@@ -24,6 +31,14 @@ def _set_pydevd_defaults(pydevd_args):
 # high-level functions
 
 def debug_main(address, name, kind, *extra, **kwargs):
+    if not kwargs.pop('wait', False) and address.isserver:
+        def unblock_debugger():
+            debugger = get_global_debugger()
+            while debugger is None:
+                time.sleep(0.1)
+                debugger = get_global_debugger()
+            debugger.ready_to_run = True
+        new_hidden_thread('ptvsd.unblock_debugger', unblock_debugger).start()
     if kind == 'module':
         run_module(address, name, *extra, **kwargs)
     else:

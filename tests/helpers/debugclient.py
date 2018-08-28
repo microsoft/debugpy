@@ -139,7 +139,12 @@ class _LifecycleClient(Closeable):
         if wait_for_connect:
             wait_for_connect()
         else:
-            wait_for_socket_server(addr)
+            try:
+                wait_for_socket_server(addr)
+            except Exception:
+                # If we fail to connect, print out the adapter output.
+                self._adapter.VERBOSE = True
+                raise
             self._attach(addr, **kwargs)
 
     def _attach(self, addr, **kwargs):
@@ -243,6 +248,8 @@ class EasyDebugClient(DebugClient):
         ] + list(argv)
         if kwargs.pop('nodebug', False):
             argv.insert(0, '--nodebug')
+        if kwargs.pop('wait', True):
+            argv.insert(0, '--wait')
         self._launch(argv, **kwargs)
         return self._adapter, self._session
 

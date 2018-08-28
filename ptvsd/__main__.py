@@ -136,7 +136,7 @@ def _group_args(argv):
             if nextarg is not None:
                 supported.append(nextarg)
             skip += 1
-        elif arg in ('--single-session',):
+        elif arg in ('--single-session', '--wait'):
             supported.append(arg)
         elif not arg.startswith('-'):
             supported.append(arg)
@@ -166,6 +166,8 @@ def _parse_args(prog, argv):
     target.add_argument('filename', nargs='?')
 
     parser.add_argument('--single-session', action='store_true')
+    parser.add_argument('--wait', action='store_true')
+
     parser.add_argument('-V', '--version', action='version')
     parser.version = __version__
 
@@ -208,4 +210,4 @@ def main(addr, name, kind, extra=(), nodebug=False, **kwargs):
 if __name__ == '__main__':
     args, extra = parse_args()
     main(args.address, args.name, args.kind, extra, nodebug=args.nodebug,
-         singlesession=args.single_session)
+         singlesession=args.single_session, wait=args.wait)

@@ -22,6 +22,7 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_server(None, 8888),
             'nodebug': False,
             'single_session': False,
+            'wait': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -39,6 +40,7 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_server('10.0.1.1', 8888),
             'nodebug': False,
             'single_session': False,
+            'wait': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -56,6 +58,7 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_client(None, 8888),
             'nodebug': True,
             'single_session': False,
+            'wait': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -72,6 +75,7 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_server(None, 8888),
             'nodebug': False,
             'single_session': False,
+            'wait': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -89,6 +93,7 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_server('10.0.1.1', 8888),
             'nodebug': False,
             'single_session': False,
+            'wait': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -106,6 +111,7 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_client(None, 8888),
             'nodebug': True,
             'single_session': False,
+            'wait': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -123,6 +129,7 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_client('1.2.3.4', 8888),
             'nodebug': False,
             'single_session': False,
+            'wait': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -140,6 +147,7 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_client('localhost', 8888),
             'nodebug': False,
             'single_session': False,
+            'wait': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -158,6 +166,7 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_client('1.2.3.4', 8888),
             'nodebug': True,
             'single_session': False,
+            'wait': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -175,6 +184,7 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_server('localhost', 8888),
             'nodebug': False,
             'single_session': True,
+            'wait': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -193,6 +203,26 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_server('1.2.3.4', 8888),
             'nodebug': False,
             'single_session': True,
+            'wait': False,
+        })
+        self.assertEqual(extra, self.EXPECTED_EXTRA)
+
+    def test_remote_wait(self):
+        args, extra = parse_args([
+            'eggs',
+            '--host', '1.2.3.4',
+            '--port', '8888',
+            '--wait',
+            'spam.py',
+        ])
+
+        self.assertEqual(vars(args), {
+            'kind': 'script',
+            'name': 'spam.py',
+            'address': Address.as_client('1.2.3.4', 8888),
+            'nodebug': False,
+            'single_session': False,
+            'wait': True,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -218,6 +248,7 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_server(None, 8888),
             'nodebug': False,
             'single_session': False,
+            'wait': False,
         })
         self.assertEqual(extra, [
             '--DEBUG',
@@ -254,6 +285,7 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_client(None, 8888),
             'nodebug': True,
             'single_session': False,
+            'wait': False,
         })
         self.assertEqual(extra, [
             '--DEBUG',
@@ -281,6 +313,7 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_server('', 8888),
             'nodebug': False,
             'single_session': False,
+            'wait': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -308,6 +341,7 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_client('1.2.3.4', 8888),
             'nodebug': False,
             'single_session': False,
+            'wait': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -326,6 +360,7 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_client('1.2.3.4', 8888),
             'nodebug': True,
             'single_session': False,
+            'wait': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -343,6 +378,7 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_server(None, 8888),
             'nodebug': False,
             'single_session': False,
+            'wait': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -361,6 +397,7 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_client(None, 8888),
             'nodebug': True,
             'single_session': False,
+            'wait': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -377,6 +414,7 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_server(None, 8888),
             'nodebug': False,
             'single_session': False,
+            'wait': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -394,6 +432,7 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_client(None, 8888),
             'nodebug': True,
             'single_session': False,
+            'wait': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -411,6 +450,7 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_server(None, 8888),
             'nodebug': False,
             'single_session': False,
+            'wait': False,
         })
         self.assertEqual(extra, ['--module'] + self.EXPECTED_EXTRA)
 
@@ -429,5 +469,6 @@ class ParseArgsTests(unittest.TestCase):
             'address': Address.as_client(None, 8888),
             'nodebug': True,
             'single_session': False,
+            'wait': False,
         })
         self.assertEqual(extra, ['--module'] + self.EXPECTED_EXTRA)

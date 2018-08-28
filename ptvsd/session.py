@@ -1,3 +1,7 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License. See LICENSE in the project root
+# for license information.
+
 from .socket import is_socket, close_socket
 from .wrapper import VSCodeMessageProcessor
 from ._util import TimeoutError, ClosedError, Closeable, Startable, debug

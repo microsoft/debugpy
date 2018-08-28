@@ -114,6 +114,7 @@ class RawConnectionTests(unittest.TestCase):
         self.addCleanup(lambda: os.close(wpipe))
         proc = Proc.start_python_module('ptvsd', [
             '--server',
+            '--wait',
             '--port', '5678',
             '--file', filename,
         ], env={
