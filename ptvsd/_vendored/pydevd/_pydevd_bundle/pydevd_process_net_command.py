@@ -20,7 +20,8 @@ from _pydevd_bundle.pydevd_comm import CMD_RUN, CMD_VERSION, CMD_LIST_THREADS, C
     CMD_RUN_CUSTOM_OPERATION, InternalRunCustomOperation, CMD_IGNORE_THROWN_EXCEPTION_AT, CMD_ENABLE_DONT_TRACE, \
     CMD_SHOW_RETURN_VALUES, ID_TO_MEANING, CMD_GET_DESCRIPTION, InternalGetDescription, InternalLoadFullValue, \
     CMD_LOAD_FULL_VALUE, CMD_REDIRECT_OUTPUT, CMD_GET_NEXT_STATEMENT_TARGETS, InternalGetNextStatementTargets, CMD_SET_PROJECT_ROOTS, \
-    CMD_GET_THREAD_STACK, CMD_THREAD_DUMP_TO_STDERR, CMD_STOP_ON_START, CMD_GET_EXCEPTION_DETAILS
+    CMD_GET_THREAD_STACK, CMD_THREAD_DUMP_TO_STDERR, CMD_STOP_ON_START, CMD_GET_EXCEPTION_DETAILS, NetCommand,\
+    CMD_SET_PROTOCOL
 from _pydevd_bundle.pydevd_constants import get_thread_id, IS_PY3K, DebugInfoHolder, dict_keys, STATE_RUN, \
     NEXT_VALUE_SEPARATOR, IS_WINDOWS
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
@@ -49,10 +50,19 @@ def process_net_command(py_db, cmd_id, seq, text):
             if cmd_id == CMD_RUN:
                 py_db.ready_to_run = True
 
+            elif cmd_id == CMD_SET_PROTOCOL:
+                expected = (NetCommand.HTTP_PROTOCOL, NetCommand.QUOTED_LINE_PROTOCOL)
+                text = text.strip()
+                assert text.strip() in expected, 'Protocol (%s) should be one of: %s' % (
+                    text, expected)
+
+                NetCommand.protocol = text
+                cmd = py_db.cmd_factory.make_protocol_set_message(seq)
+
             elif cmd_id == CMD_VERSION:
                 # response is version number
                 # ide_os should be 'WINDOWS' or 'UNIX'.
-                
+
                 # Default based on server process (although ideally the IDE should
                 # provide it).
                 if IS_WINDOWS:
@@ -88,7 +98,7 @@ def process_net_command(py_db, cmd_id, seq, text):
 
             elif cmd_id == CMD_GET_THREAD_STACK:
                 thread_id = text
-            
+
                 t = pydevd_find_thread_by_id(thread_id)
                 frame = None
                 if t and not getattr(t, 'pydev_do_not_trace', None):
@@ -441,7 +451,7 @@ def process_net_command(py_db, cmd_id, seq, text):
 
             elif cmd_id == CMD_SET_PY_EXCEPTION:
                 # Command which receives set of exceptions on which user wants to break the debugger
-                # text is: 
+                # text is:
                 #
                 # break_on_uncaught;
                 # break_on_caught;
@@ -557,7 +567,7 @@ def process_net_command(py_db, cmd_id, seq, text):
                 # notify_on_handled_exceptions can be 0, 1 or 2
                 # 0 means we should not stop on handled exceptions.
                 # 1 means we should stop on handled exceptions showing it on all frames where the exception passes.
-                # 2 means we should stop on handled exceptions but we should only notify about it once. 
+                # 2 means we should stop on handled exceptions but we should only notify about it once.
                 #
                 # To ignore_libraries properly, besides setting ignore_libraries to 1, the IDE_PROJECT_ROOTS environment
                 # variable must be set (so, we'll ignore anything not below IDE_PROJECT_ROOTS) -- this is not ideal as
@@ -784,16 +794,16 @@ def process_net_command(py_db, cmd_id, seq, text):
 
                 int_cmd = InternalGetNextStatementTargets(seq, thread_id, frame_id)
                 py_db.post_internal_command(int_cmd, thread_id)
-                
+
             elif cmd_id == CMD_SET_PROJECT_ROOTS:
                 pydevd_utils.set_project_roots(text.split(u'\t'))
 
             elif cmd_id == CMD_THREAD_DUMP_TO_STDERR:
                 pydevd_utils.dump_threads()
-                
+
             elif cmd_id == CMD_STOP_ON_START:
                 py_db.stop_on_start = text.strip() in ('True', 'true', '1')
-                
+
             elif cmd_id == CMD_GET_EXCEPTION_DETAILS:
                 thread_id = text
                 t = pydevd_find_thread_by_id(thread_id)
@@ -806,7 +816,7 @@ def process_net_command(py_db, cmd_id, seq, text):
                 finally:
                     frame = None
                     t = None
-                
+
             else:
                 #I have no idea what this is all about
                 cmd = py_db.cmd_factory.make_error_message(seq, "unexpected command " + str(cmd_id))

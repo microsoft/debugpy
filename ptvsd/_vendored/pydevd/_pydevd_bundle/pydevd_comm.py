@@ -191,6 +191,7 @@ CMD_SET_PROJECT_ROOTS = 202
 
 CMD_VERSION = 501
 CMD_RETURN = 502
+CMD_SET_PROTOCOL = 503
 CMD_ERROR = 901
 
 ID_TO_MEANING = {
@@ -257,6 +258,7 @@ ID_TO_MEANING = {
 
     '501': 'CMD_VERSION',
     '502': 'CMD_RETURN',
+    '503': 'CMD_SET_PROTOCOL',
     '901': 'CMD_ERROR',
     }
 
@@ -449,16 +451,11 @@ class WriterThread(PyDBDaemonThread):
         """ just loop and write responses """
 
         self._stop_trace()
-        get_has_timeout = sys.hexversion >= 0x02030000 # 2.3 onwards have it.
         try:
             while True:
                 try:
                     try:
-                        if get_has_timeout:
-                            cmd = self.cmdQueue.get(1, 0.1)
-                        else:
-                            time.sleep(.01)
-                            cmd = self.cmdQueue.get(0)
+                        cmd = self.cmdQueue.get(1, 0.1)
                     except _queue.Empty:
                         if self.killReceived:
                             try:
@@ -475,21 +472,8 @@ class WriterThread(PyDBDaemonThread):
                     #when liberating the thread here, we could have errors because we were shutting down
                     #but the thread was still not liberated
                     return
-                out = cmd.outgoing
-
-                if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 1:
-                    out_message = 'sending cmd --> '
-                    out_message += "%20s" % ID_TO_MEANING.get(out[:3], 'UNKNOWN')
-                    out_message += ' '
-                    out_message += unquote(unquote(out)).replace('\n', ' ')
-                    try:
-                        sys.stderr.write('%s\n' % (out_message,))
-                    except:
-                        pass
-
-                if IS_PY3K:
-                    out = bytearray(out, 'utf-8')
-                self.sock.send(out) #TODO: this does not guarantee that all message are sent (and jython does not have a send all)
+                cmd.send(self.sock)
+                
                 if cmd.id == CMD_EXIT:
                     break
                 if time is None:
@@ -499,7 +483,7 @@ class WriterThread(PyDBDaemonThread):
             GlobalDebuggerHolder.global_dbg.finish_debugging_session()
             if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 0:
                 traceback.print_exc()
-
+                
     def empty(self):
         return self.cmdQueue.empty()
 
@@ -587,19 +571,88 @@ class NetCommand:
     or one to be sent by daemon.
     """
     next_seq = 0 # sequence numbers
+    
+    # Protocol where each line is a new message (text is quoted to prevent new lines).
+    QUOTED_LINE_PROTOCOL = 'quoted-line'
+    
+    # Uses http protocol to provide a new message.
+    # i.e.: Content-Length:xxx\r\n\r\npayload
+    HTTP_PROTOCOL = 'http'
+    
+    protocol = QUOTED_LINE_PROTOCOL
+    
+    _showing_debug_info = 0
+    _show_debug_info_lock = threading.RLock()
 
-    def __init__(self, id, seq, text):
-        """ smart handling of parameters
-        if sequence is 0, new sequence will be generated
-        if text has carriage returns they'll be replaced"""
-        self.id = id
+    def __init__(self, cmd_id, seq, text):
+        """
+        If sequence is 0, new sequence will be generated (otherwise, this was the response
+        to a command from the client).
+        """
+        self.id = cmd_id
         if seq == 0:
             NetCommand.next_seq += 2
             seq = NetCommand.next_seq
         self.seq = seq
-        self.text = text
-        encoded = quote(to_string(text), '/<>_=" \t')
-        self.outgoing = '%s\t%s\t%s\n' % (id, seq, encoded)
+        
+        if IS_PY2:
+            if isinstance(text, unicode):
+                text = text.encode('utf-8')
+            else:
+                assert isinstance(text, str)
+        else:
+            assert isinstance(text, str)
+
+        if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 1:
+            self._show_debug_info(cmd_id, seq, text)
+            
+        if self.protocol == self.HTTP_PROTOCOL:
+            msg = '%s\t%s\t%s\n' % (cmd_id, seq, text)
+        else:
+            encoded = quote(to_string(text), '/<>_=" \t')
+            msg = '%s\t%s\t%s\n' % (cmd_id, seq, encoded)
+        
+
+        if IS_PY2:
+            assert isinstance(msg, str)  # i.e.: bytes
+            as_bytes = msg
+        else:
+            if isinstance(msg, str):
+                msg = msg.encode('utf-8')
+                
+            assert isinstance(msg, bytes)
+            as_bytes = msg
+        self._as_bytes = as_bytes
+            
+    def send(self, sock):
+        as_bytes = self._as_bytes
+        if self.protocol == self.HTTP_PROTOCOL:
+            sock.sendall(('Content-Length: %s\r\n\r\n' % len(as_bytes)).encode('ascii'))
+        
+        sock.sendall(as_bytes)
+        
+    @classmethod
+    def _show_debug_info(cls, cmd_id, seq, text):
+        with cls._show_debug_info_lock:
+            # Only one thread each time (rlock).
+            if cls._showing_debug_info:
+                # avoid recursing in the same thread (just printing could create
+                # a new command when redirecting output).
+                return
+            
+            cls._showing_debug_info += 1
+            try:
+                out_message = 'sending cmd --> '
+                out_message += "%20s" % ID_TO_MEANING.get(str(cmd_id), 'UNKNOWN')
+                out_message += ' '
+                out_message += text.replace('\n', ' ')
+                try:
+                    sys.stderr.write('%s\n' % (out_message,))
+                except:
+                    pass
+            finally:
+                cls._showing_debug_info -= 1
+        
 
 #=======================================================================================================================
 # NetCommandFactory
@@ -617,6 +670,9 @@ class NetCommandFactory:
         if DebugInfoHolder.DEBUG_TRACE_LEVEL > 2:
             sys.stderr.write("Error: %s" % (text,))
         return cmd
+    
+    def make_protocol_set_message(self, seq):
+        return NetCommand(CMD_SET_PROTOCOL, seq, '')
 
     def make_thread_created_message(self, thread):
         cmdText = "<xml>" + self._thread_to_xml(thread) + "</xml>"

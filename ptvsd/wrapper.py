@@ -391,6 +391,8 @@ class PydevdSocket(object):
             loop.call_soon_threadsafe(fut.set_result, (cmd_id, seq, args))
         return result
 
+    sendall = send
+
     def makefile(self, *args, **kwargs):
         """Return a file-like wrapper around the socket."""
         return os.fdopen(self.pipe_r)
