@@ -54,6 +54,22 @@ debugger_attached = threading.Event()
 #    print(s)
 #ipcjson._TRACE = ipcjson_trace
 
+#completion types.
+TYPE_IMPORT = '0'
+TYPE_CLASS = '1'
+TYPE_FUNCTION = '2'
+TYPE_ATTR = '3'
+TYPE_BUILTIN = '4'
+TYPE_PARAM = '5'
+TYPE_LOOK_UP = {
+    TYPE_IMPORT: 'module',
+    TYPE_CLASS: 'class',
+    TYPE_FUNCTION: 'function',
+    TYPE_ATTR: 'field',
+    TYPE_BUILTIN: 'keyword',
+    TYPE_PARAM: 'variable',
+}
+
 
 def NOOP(*args, **kwargs):
     pass
@@ -952,6 +968,7 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
 
 
 INITIALIZE_RESPONSE = dict(
+    supportsCompletionsRequest=True,
     supportsConditionalBreakpoints=True,
     supportsConfigurationDoneRequest=True,
     supportsDebuggerProperties=True,
@@ -2221,6 +2238,34 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                      'stackTrace': stack,
                      'source': source},
         )
+
+    @async_handler
+    def on_completions(self, request, args):
+        text = args['text']
+        vsc_fid = args.get('frameId', None)
+
+        try:
+            pyd_tid, pyd_fid = self.frame_map.to_pydevd(vsc_fid)
+        except KeyError:
+            self.send_error_response(request)
+
+        cmd_args = '{}\t{}\t{}\t{}'.format(pyd_tid, pyd_fid, 'LOCAL', text)
+        _, _, resp_args = yield self.pydevd_request(
+            pydevd_comm.CMD_GET_COMPLETIONS,
+            cmd_args)
+
+        xml = self.parse_xml_response(resp_args)
+        targets = []
+        for item in list(xml.comp):
+            target = {}
+            target['label'] = unquote(item['p0'])
+            try:
+                target['type'] = TYPE_LOOK_UP[item['p3']]
+            except KeyError:
+                pass
+            targets.append(target)
+
+        self.send_response(request, targets=targets)
 
     # Custom ptvsd message
     def on_ptvsd_systemInfo(self, request, args):

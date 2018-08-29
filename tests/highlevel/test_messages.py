@@ -2299,24 +2299,6 @@ class GotoTargetsTests(NormalRequestTest, unittest.TestCase):
         self.assert_received(self.debugger, [])
 
 
-class CompletionsTests(NormalRequestTest, unittest.TestCase):
-
-    COMMAND = 'completions'
-
-    def test_unsupported(self):
-        with self.launched():
-            self.send_request(
-                text='spa',
-                column=3,
-            )
-            received = self.vsc.received
-
-        self.assert_vsc_received(received, [
-            self.expected_failure('Unknown command'),
-        ])
-        self.assert_received(self.debugger, [])
-
-
 ##################################
 # VSC events
 

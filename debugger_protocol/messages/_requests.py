@@ -83,6 +83,7 @@ class Capabilities(FieldsNamespace):
         Field('supportsSetExpression', bool),
         Field('supportsModulesRequest', bool),
         Field('supportsDebuggerProperties', bool),
+        Field('supportsCompletionsRequest', bool),
     ]
 
 
