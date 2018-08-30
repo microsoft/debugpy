@@ -2415,6 +2415,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         exc_desc = None
         exc_name = None
+        extra = {}
         if reason in STEP_REASONS:
             reason = 'step'
         elif reason in EXCEPTION_REASONS:
@@ -2423,6 +2424,9 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             reason = 'breakpoint'
         else:
             reason = 'pause'
+
+        extra['preserveFocusHint'] = \
+            reason not in ['step', 'exception', 'breakpoint']
 
         if reason == 'exception':
             cmdid = pydevd_comm.CMD_GET_EXCEPTION_DETAILS
@@ -2435,7 +2439,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             reason=reason,
             threadId=vsc_tid,
             text=exc_name,
-            description=exc_desc)
+            description=exc_desc,
+            **extra)
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_RUN)
     def on_pydevd_thread_run(self, seq, args):

@@ -82,6 +82,7 @@ class BreakpointTests(LifecycleTestsBase):
                 threadId=tid,
                 text=None,
                 description=None,
+                preserveFocusHint=False,
             ),
             self.new_event('continued', threadId=tid),
             self.new_event('output', category='stdout', output='yes'),

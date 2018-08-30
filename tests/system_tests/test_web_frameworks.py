@@ -172,6 +172,7 @@ class WebFrameworkTests(LifecycleTestsBase):
                 threadId=tid,
                 text=None,
                 description=None,
+                preserveFocusHint=False,
             ),
             self.new_event('continued', threadId=tid),
         ])

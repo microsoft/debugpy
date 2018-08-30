@@ -468,6 +468,7 @@ class LifecycleTests(LifecycleTestsBase):
                 reason='breakpoint',
                 description=None,
                 text=None,
+                preserveFocusHint=False,
             ),
             self.new_response(req_threads2.req, **{
                 'threads': [{
@@ -726,6 +727,7 @@ class LifecycleTests(LifecycleTestsBase):
                 reason='breakpoint',
                 description=None,
                 text=None,
+                preserveFocusHint=False,
             ),
             self.new_response(req_threads2.req, **{
                 'threads': [{
@@ -771,6 +773,7 @@ class LifecycleTests(LifecycleTestsBase):
                 reason='breakpoint',
                 description=None,
                 text=None,
+                preserveFocusHint=False,
             ),
             self.new_response(req_threads3.req, **{
                 'threads': [{
