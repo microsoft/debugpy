@@ -844,9 +844,7 @@ class PauseTests(NormalRequestTest, unittest.TestCase):
             # no events
         ])
 
-        expected = [self.expected_pydevd_request('1')]
-        for _, t in threads:
-            expected.append(self.expected_pydevd_request(str(t.id)))
+        expected = [self.expected_pydevd_request('*')]
 
         self.assert_received_unordered_payload(self.debugger, expected)
 
@@ -873,10 +871,8 @@ class ContinueTests(NormalRequestTest, unittest.TestCase):
             self.expected_response(allThreadsContinued=True),
             # no events
         ])
-        thread_ids = list(t.id for t in self._known_threads)
-        expected = list(self.debugger_msgs.new_request(
-                        self.PYDEVD_CMD, str(t))
-                        for t in thread_ids)
+
+        expected = [self.debugger_msgs.new_request(self.PYDEVD_CMD, '*')]
         self.assert_contains(self.debugger.received, expected,
                              parser=self.debugger.protocol)
 

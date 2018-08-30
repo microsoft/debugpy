@@ -1491,9 +1491,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         # TODO: Wait until the last request has been handled?
 
     def _resume_all_threads(self):
-        # TODO: Replace this with resume all command after #732 is fixed
-        for pyd_tid in self.thread_map.pydevd_ids():
-            self.pydevd_notify(pydevd_comm.CMD_THREAD_RUN, pyd_tid)
+        self.pydevd_notify(pydevd_comm.CMD_THREAD_RUN, '*')
 
     def send_process_event(self, start_method):
         # TODO: docstring
@@ -2014,18 +2012,13 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 return
 
         # Always suspend all threads.
-        # TODO: Replace this with suspend all command after #732 is fixed
-        for pyd_tid in self.thread_map.pydevd_ids():
-            self.pydevd_notify(pydevd_comm.CMD_THREAD_SUSPEND, pyd_tid)
+        self.pydevd_notify(pydevd_comm.CMD_THREAD_SUSPEND, '*')
         self.send_response(request)
 
     @async_handler
     def on_continue(self, request, args):
-        # TODO: docstring
         # Always continue all threads.
-        # TODO: Replace this with resume all command after #732 is fixed
-        for pyd_tid in self.thread_map.pydevd_ids():
-            self.pydevd_notify(pydevd_comm.CMD_THREAD_RUN, pyd_tid)
+        self.pydevd_notify(pydevd_comm.CMD_THREAD_RUN, '*')
         self.send_response(request, allThreadsContinued=True)
 
     @async_handler
