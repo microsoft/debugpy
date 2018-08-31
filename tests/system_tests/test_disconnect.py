@@ -1,7 +1,6 @@
 import os
 import os.path
 import random
-import unittest
 
 from tests.helpers.resource import TestResources
 from . import (
@@ -80,8 +79,7 @@ class ContinueOnDisconnectTests(LifecycleTestsBase):
             thread_id = stopped.event.body['threadId']
             self._set_var_to_end_loop(session, thread_id)
 
-            req_disconnect = session.send_request('disconnect', restart=False)
-            req_disconnect.wait(timeout=3.0)
+            session.send_request('disconnect', restart=False)
 
         if debug_info.starttype == 'launch':
             self.assertFalse(os.path.exists(path_to_check))
@@ -116,7 +114,6 @@ class ContinueOnDisconnectTests(LifecycleTestsBase):
 
 
 class LaunchFileDisconnectLifecycleTests(ContinueOnDisconnectTests):
-    @unittest.skip('needs fixing')
     def test_launch_pause_disconnect(self):
         filename = TEST_FILES.resolve('disconnect_test.py')
         cwd = os.path.dirname(filename)
@@ -132,7 +129,6 @@ class LaunchFileDisconnectLifecycleTests(ContinueOnDisconnectTests):
             self.run_test_attach_disconnect(
                 debug_info, cf.filepath, pause=True)
 
-    @unittest.skip('#712')
     def test_launch_break_disconnect(self):
         filename = TEST_FILES.resolve('disconnect_test.py')
         cwd = os.path.dirname(filename)
@@ -143,15 +139,14 @@ class LaunchFileDisconnectLifecycleTests(ContinueOnDisconnectTests):
                 cwd=cwd,
                 env={
                     'PTVSD_TARGET_FILE': cf.filepath,
-                    'PTVSD_BREAK_INTO_DEBUGGER': True,
+                    'PTVSD_BREAK_INTO_DEBUGGER': 'True',
                 }
             )
             self.run_test_attach_disconnect(
-                debug_info, cf.filepath, pause=True)
+                debug_info, cf.filepath)
 
 
 class LaunchModuleDisconnectLifecycleTests(ContinueOnDisconnectTests):
-    @unittest.skip('needs fixing')
     def test_launch_pause_disconnect(self):
         module_name = 'mypkg'
         env = TEST_FILES.env_with_py_path()
@@ -166,7 +161,6 @@ class LaunchModuleDisconnectLifecycleTests(ContinueOnDisconnectTests):
             self.run_test_attach_disconnect(
                 debug_info, cf.filepath, pause=True)
 
-    @unittest.skip('#712')
     def test_launch_break_disconnect(self):
         module_name = 'mypkg'
         env = TEST_FILES.env_with_py_path()
@@ -177,7 +171,7 @@ class LaunchModuleDisconnectLifecycleTests(ContinueOnDisconnectTests):
             debug_info = DebugInfo(
                 modulename=module_name,
                 cwd=cwd,
-                env=env
+                env=env,
             )
             self.run_test_attach_disconnect(
                 debug_info, cf.filepath)
@@ -204,7 +198,6 @@ class ServerAttachDisconnectLifecycleTests(ContinueOnDisconnectTests):
         env = {}
         self.run_test(env, pause=True)
 
-    @unittest.skip('needs fixing')
     def test_attach_break_disconnect(self):
         env = {
             'PTVSD_BREAK_INTO_DEBUGGER': 'True',
@@ -212,7 +205,6 @@ class ServerAttachDisconnectLifecycleTests(ContinueOnDisconnectTests):
         }
         self.run_test(env)
 
-    @unittest.skip('needs fixing')
     def test_attach_check_disconnect(self):
         env = {
             'PTVSD_BREAK_INTO_DEBUGGER': 'True',
