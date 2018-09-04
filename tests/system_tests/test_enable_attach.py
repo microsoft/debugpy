@@ -41,7 +41,6 @@ class EnableAttachTests(LifecycleTestsBase, unittest.TestCase):
             wait(timeout=3)
             adapter.wait()
 
-    @unittest.skip('fails due to "stopped" event never happening, #722')
     def test_never_call_wait_for_attach(self):
         addr = Address('localhost', PORT)
         filename = self.write_script('spam.py', """
