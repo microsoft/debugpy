@@ -784,6 +784,10 @@
 			"type": "object",
 			"description": "Arguments for 'disconnect' request.",
 			"properties": {
+				"restart": {
+					"type": "boolean",
+					"description": "A value of true indicates that this 'disconnect' request is part of a restart sequence."
+				},
 				"terminateDebuggee": {
 					"type": "boolean",
 					"description": "Indicates whether the debuggee should be terminated when the debugger is disconnected.\nIf unspecified, the debug adapter is free to do whatever it thinks is best.\nA client can only rely on this attribute being properly honored if a debug adapter returns true for the 'supportTerminateDebuggee' capability."
@@ -815,7 +819,13 @@
 		},
 		"TerminateArguments": {
 			"type": "object",
-			"description": "Arguments for 'terminate' request."
+			"description": "Arguments for 'terminate' request.",
+			"properties": {
+				"restart": {
+					"type": "boolean",
+					"description": "A value of true indicates that this 'terminate' request is part of a restart sequence."
+				}
+			}
 		},
 		"TerminateResponse": {
 			"allOf": [ { "$ref": "#/definitions/Response" }, {
