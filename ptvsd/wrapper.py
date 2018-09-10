@@ -1055,12 +1055,12 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
 
     def handle_exiting(self, exitcode=None, wait=None):
         """Deal with the debuggee exiting."""
-        # Notify the editor that the "debuggee" (e.g. script, app) exited.
         with self._statelock:
             if self._exiting:
                 return
             self._exiting = True
 
+        # Notify the editor that the "debuggee" (e.g. script, app) exited.
         self.send_event('exited', exitCode=exitcode or 0)
 
         self._waiting = True
