@@ -4,7 +4,7 @@
 
 import sys
 
-from ptvsd._local import run_module, run_file
+from ptvsd._local import run_module, run_file, run_main
 
 
 # TODO: not needed?
@@ -35,3 +35,9 @@ def debug(filename, port_num, debug_id, debug_options, run_as,
         args = _extra + list(args)
     kwargs.setdefault('singlesession', True)
     run(address, filename, *args, **kwargs)
+
+
+def run(filename, port_num, run_as,
+        *args, **kwargs):
+    address = (LOCALHOST, port_num)
+    run_main(address, filename, run_as, *args, **kwargs)
