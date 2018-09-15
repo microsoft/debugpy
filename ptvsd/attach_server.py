@@ -3,7 +3,9 @@
 # for license information.
 
 from ptvsd._remote import (
-    enable_attach as ptvsd_enable_attach, _pydevd_settrace,
+    attach as ptvsd_attach,
+    enable_attach as ptvsd_enable_attach,
+    _pydevd_settrace,
 )
 from ptvsd.wrapper import debugger_attached
 
@@ -69,6 +71,31 @@ def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True):
         address,
         redirect_output=redirect_output,
     )
+
+
+def attach(address, redirect_output=True):
+    """Attaches this process to the debugger listening on a given address.
+
+    Parameters
+    ----------
+    address : (str, int), optional
+        Specifies the interface and port on which the debugger is listening
+        for TCP connections. It is in the same format as used for
+        regular sockets of the `socket.AF_INET` family, i.e. a tuple of
+        ``(hostname, port)``.
+    redirect_output : bool, optional
+        Specifies whether any output (on both `stdout` and `stderr`) produced
+        by this program should be sent to the debugger. Default is ``True``.
+    """
+    if is_attached():
+        return
+    debugger_attached.clear()
+
+    # Ensure port is int
+    port = address[1]
+    address = (address[0], port if type(port) is int else int(port))
+
+    ptvsd_attach(address, redirect_output=redirect_output)
 
 
 # TODO: Add disable_attach()?

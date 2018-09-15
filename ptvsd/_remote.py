@@ -83,3 +83,21 @@ def enable_attach(address, redirect_output=True,
                      stderrToServer=redirect_output,
                      port=port,
                      suspend=False)
+
+
+def attach(address,
+           redirect_output=True,
+           _pydevd=pydevd,
+           _install=install,
+           **kwargs):
+
+    host, port = address
+    _install(_pydevd,
+             address,
+             singlesession=False,
+             **kwargs)
+    _pydevd.settrace(host=host,
+                     port=port,
+                     stdoutToServer=redirect_output,
+                     stderrToServer=redirect_output,
+                     suspend=False)

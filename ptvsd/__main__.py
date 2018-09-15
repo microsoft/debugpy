@@ -6,6 +6,7 @@ import argparse
 import os.path
 import sys
 
+from ptvsd._attach import attach_main
 from ptvsd._local import debug_main, run_main
 from ptvsd.socket import Address
 from ptvsd.version import __version__, __author__  # noqa
@@ -46,6 +47,7 @@ PYDEVD_FLAGS = {
 USAGE = """
   {0} [-h] [-V] [--nodebug] [--host HOST | --server-host HOST] --port PORT -m MODULE [arg ...]
   {0} [-h] [-V] [--nodebug] [--host HOST | --server-host HOST] --port PORT FILENAME [arg ...]
+  {0} [-h] [-V] --host HOST --port PORT --pid PROCESS_ID
 """  # noqa
 
 
@@ -129,8 +131,8 @@ def _group_args(argv):
             supported.append(arg)
 
         # ptvsd support
-        elif arg in ('--host', '--server-host', '--port', '-m'):
-            if arg == '-m':
+        elif arg in ('--host', '--server-host', '--port', '--pid', '-m'):
+            if arg == '-m' or arg == '--pid':
                 gottarget = True
             supported.append(arg)
             if nextarg is not None:
@@ -155,7 +157,9 @@ def _parse_args(prog, argv):
         prog=prog,
         usage=USAGE.format(prog),
     )
+
     parser.add_argument('--nodebug', action='store_true')
+
     host = parser.add_mutually_exclusive_group()
     host.add_argument('--host')
     host.add_argument('--server-host')
@@ -163,6 +167,7 @@ def _parse_args(prog, argv):
 
     target = parser.add_mutually_exclusive_group(required=True)
     target.add_argument('-m', dest='module')
+    target.add_argument('--pid', type=int)
     target.add_argument('filename', nargs='?')
 
     parser.add_argument('--single-session', action='store_true')
@@ -186,28 +191,37 @@ def _parse_args(prog, argv):
     else:
         args.address = Address.as_client(clienthost, ns.pop('port'))
 
+    pid = ns.pop('pid')
     module = ns.pop('module')
     filename = ns.pop('filename')
-    if module is None:
-        args.name = filename
-        args.kind = 'script'
-    else:
+    if pid is not None:
+        args.name = pid
+        args.kind = 'pid'
+    elif module is not None:
         args.name = module
         args.kind = 'module'
-    #if argv[-1] != args.name or (module and argv[-1] != '-m'):
-    #    parser.error('script/module must be last arg')
+    else:
+        args.name = filename
+        args.kind = 'script'
 
     return args
 
 
-def main(addr, name, kind, extra=(), nodebug=False, **kwargs):
-    if nodebug:
+def handle_args(addr, name, kind, extra=(), nodebug=False, **kwargs):
+    if kind == 'pid':
+        attach_main(addr, name, *extra, **kwargs)
+    elif nodebug:
         run_main(addr, name, kind, *extra, **kwargs)
     else:
         debug_main(addr, name, kind, *extra, **kwargs)
 
 
+def main(argv=None):
+    args, extra = parse_args(argv)
+    handle_args(args.address, args.name, args.kind, extra,
+                nodebug=args.nodebug, singlesession=args.single_session,
+                wait=args.wait)
+
+
 if __name__ == '__main__':
-    args, extra = parse_args()
-    main(args.address, args.name, args.kind, extra, nodebug=args.nodebug,
-         singlesession=args.single_session, wait=args.wait)
+    main()
