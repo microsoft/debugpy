@@ -56,7 +56,8 @@ class PathUnNormcase(object):
             dir_names = os.listdir(os.getcwd())
             fragments = list(filter(
                             lambda x: x.upper() == path_fragment1, dir_names))
-        fragments += list(d for d in dirs[1:] if d)
+        fragments += list('{}[{}]'.format(d[:-1], d[-1])
+                          for d in dirs[1:] if d)
         path = glob(sep.join(fragments))
         if not path:
             return name
