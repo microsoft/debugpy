@@ -27,6 +27,28 @@ class NoOutputTests(LifecycleTestsBase):
             DebugInfo(filename=filename, cwd=cwd))
 
 
+class OutputTests(LifecycleTestsBase):
+    def run_test_output(self, debug_info, expected_output):
+        options = {'debugOptions': ['RedirectOutput']}
+        with self.start_debugging(debug_info) as dbg:
+            session = dbg.session
+            lifecycle_handshake(session, debug_info.starttype,
+                                options=options)
+        out = dbg.adapter._proc.output.decode('utf-8')
+        self.assertTrue(out.startswith(expected_output))
+        received = list(_strip_newline_output_events(session.received))
+        self.assert_contains(received, [
+            self.new_event('output', category='stdout', output=expected_output)
+        ])
+
+    def test_tab_output(self):
+        filename = TEST_FILES.resolve('output_test.py')
+        cwd = os.path.dirname(filename)
+        self.run_test_output(
+            DebugInfo(filename=filename, cwd=cwd),
+            'Hello\tworld')
+
+
 class ThreadCountTests(LifecycleTestsBase):
     def run_test_threads(self, debug_info, bp_filename, bp_line, count):
         breakpoints = [{
