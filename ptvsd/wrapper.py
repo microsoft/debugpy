@@ -890,6 +890,15 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
                     _util.lock_release(self._listening)
                     _util.lock_release(self._connected)
                 self.close()
+            except socket.error as exc:
+                if exc.errno == errno.ECONNRESET:
+                    debug('client socket forcibly closed')
+                    with self._connlock:
+                        _util.lock_release(self._listening)
+                        _util.lock_release(self._connected)
+                    self.close()
+                else:
+                    raise exc
         self.server_thread = _util.new_hidden_thread(
             target=process_messages,
             name=threadname,
