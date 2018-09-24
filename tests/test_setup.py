@@ -175,6 +175,7 @@ VENDORED = {file.replace('/', os.path.sep) for file in [
     'pydevd/_pydevd_bundle/pydevd_reload.py',
     'pydevd/_pydevd_bundle/pydevd_trace_dispatch_regular.py',
     'pydevd/_pydevd_bundle/pydevd_cython.pyx',
+    'pydevd/_pydevd_bundle/pydevd_collect_try_except_info.py',
     'pydevd/_pydevd_bundle/pydevd_extension_utils.py',
     'pydevd/_pydevd_bundle/pydevd_stackless.py',
     'pydevd/_pydevd_bundle/pydevd_constants.py',

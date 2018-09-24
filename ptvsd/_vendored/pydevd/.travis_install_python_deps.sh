@@ -7,6 +7,7 @@ conda install --yes numpy ipython pytest cython psutil
 if [ "$PYDEVD_PYTHON_VERSION" = "2.6" ]; then
     conda install --yes pyqt=4
     pip install pympler==0.5
+    pip install pathlib2
     # Django 1.7 does not support Python 2.7
 else
     # pytest-xdist not available for python 2.6
@@ -17,12 +18,21 @@ fi
 if [ "$PYDEVD_PYTHON_VERSION" = "2.7" ]; then
     conda install --yes pyqt=4
     pip install "django>=1.7,<1.8"
+    pip install pathlib2
 
 fi
 
 if [ "$PYDEVD_PYTHON_VERSION" = "3.5" ]; then
     conda install --yes pyqt=5
     pip install "django>=1.7,<1.8"
+fi
+
+if [ "$PYDEVD_PYTHON_VERSION" = "3.6" ]; then
+    conda install --yes pyqt=5
+fi
+
+if [ "$PYDEVD_PYTHON_VERSION" = "3.7" ]; then
+    conda install --yes pyqt=5
 fi
 
 pip install untangle

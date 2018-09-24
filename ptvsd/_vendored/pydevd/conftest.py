@@ -243,6 +243,8 @@ Memory after: %s
     )
 
 
+from tests_python.regression_check import data_regression, datadir, original_datadir
+
 if IS_JYTHON or IS_IRONPYTHON:
 
     # On Jython and IronPython, it's a no-op.

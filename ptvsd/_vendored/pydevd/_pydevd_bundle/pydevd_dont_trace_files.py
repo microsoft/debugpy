@@ -64,6 +64,7 @@ DONT_TRACE = {
     'pydevd_additional_thread_info.py': PYDEV_FILE,
     'pydevd_additional_thread_info_regular.py': PYDEV_FILE,
     'pydevd_breakpoints.py': PYDEV_FILE,
+    'pydevd_collect_try_except_info.py': PYDEV_FILE,
     'pydevd_comm.py': PYDEV_FILE,
     'pydevd_command_line_handling.py': PYDEV_FILE,
     'pydevd_concurrency_logger.py': PYDEV_FILE,
