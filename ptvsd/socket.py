@@ -7,6 +7,7 @@ from __future__ import absolute_import
 from collections import namedtuple
 import contextlib
 import errno
+import platform
 import socket
 try:
     from urllib.parse import urlparse
@@ -88,7 +89,10 @@ def _new_sock():
     sock = socket.socket(socket.AF_INET,
                          socket.SOCK_STREAM,
                          socket.IPPROTO_TCP)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    if platform.system() == 'Windows':
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+    else:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     return sock
 
 
