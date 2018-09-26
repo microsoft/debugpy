@@ -39,15 +39,15 @@ class DummyPyDb(PyDB):
     def __init__(self):
         PyDB.__init__(self, set_as_global=False)
 
-    def do_wait_suspend(self, thread, frame, event, arg, suspend_type="trace", send_suspend_message=True):
+    def do_wait_suspend(
+            self, thread, frame, event, arg, *args, **kwargs):
         from _pydevd_bundle.pydevd_constants import STATE_RUN
         info = thread.additional_info
         info.pydev_step_cmd = -1
         info.pydev_step_stop = None
         info.pydev_state = STATE_RUN
 
-        return PyDB.do_wait_suspend(
-            self, thread, frame, event, arg, suspend_type=suspend_type, send_suspend_message=send_suspend_message)
+        return PyDB.do_wait_suspend(self, thread, frame, event, arg, *args, **kwargs)
 
 
 class _TraceTopLevel(object):
