@@ -2144,7 +2144,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             else:
                 is_logpoint = True
                 condition = None
-                expressions = re.findall('\{.*?\}', logMessage)
+                expressions = re.findall(r'\{.*?\}', logMessage)
                 if len(expressions) == 0:
                     expression = '{}'.format(repr(logMessage))  # noqa
                 else:

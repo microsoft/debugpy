@@ -22,8 +22,11 @@ matrix:
       #- python: 3.6
       #- env: TARGET=ci-check-schemafile
 
-before_install: |
-  export TRAVIS_PYTHON_PATH=`which python`
+before_install:
+  - export TRAVIS_PYTHON_PATH=`which python`
+    # Travis comes with an ancient version of pytest preinstalled globally,
+    # which breaks automatic dependency checks for setup.py. Force upgrade.
+  - $TRAVIS_PYTHON_PATH -m pip install --upgrade pytest
 
 install:
   - make depends PYTHON=$TRAVIS_PYTHON_PATH
@@ -31,3 +34,4 @@ install:
 script:
   #- make $TARGET PYTHON=python$TRAVIS_PYTHON_VERSION
   - make $TARGET PYTHON=$TRAVIS_PYTHON_PATH
+

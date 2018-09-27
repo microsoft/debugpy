@@ -15,6 +15,7 @@ depends:
 	$(PYTHON) -m pip install requests
 	$(PYTHON) -m pip install flask
 	$(PYTHON) -m pip install django
+	$(PYTHON) -m pip install pytest
 
 .PHONY: lint
 lint:  ## Lint the Python source code.
@@ -49,6 +50,7 @@ ci-lint: depends lint
 ci-test: depends
 	# For now we use --quickpy2.
 	$(PYTHON) -m tests -v --full --no-network --quick-py2
+	$(PYTHON) setup.py test
 
 .PHONY: ci-coverage
 ci-coverage: depends

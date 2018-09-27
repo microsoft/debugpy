@@ -45,6 +45,7 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
+.pytest_cache/
 
 # Translations
 *.mo
@@ -101,8 +102,8 @@ ENV/
 .mypy_cache/
 
 # vs code and vs
-.vscode/
 .vs/
+.vscode/
 
 # PyDev
 .project
