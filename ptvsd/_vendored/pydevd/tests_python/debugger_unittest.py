@@ -142,7 +142,7 @@ def wait_for_condition(condition, msg=None, timeout=TIMEOUT, sleep=.05):
         if condition():
             break
         if time.time() - curtime > timeout:
-            error_msg = 'Condition not reached in %s seconds'
+            error_msg = 'Condition not reached in %s seconds' % (timeout,)
             if msg is not None:
                 error_msg += '\n'
                 if callable(msg):
@@ -390,11 +390,6 @@ class DebuggerRunner(object):
 
             if writer is not None:
                 if not writer.FORCE_KILL_PROCESS_WHEN_FINISHED_OK:
-                    poll = process.poll()
-                    if poll < 0:
-                        self.fail_with_message(
-                            "The other process exited with error code: " + str(poll), stdout, stderr, writer)
-
                     if stdout is None:
                         self.fail_with_message(
                             "The other process may still be running -- and didn't give any output.", stdout, stderr, writer)

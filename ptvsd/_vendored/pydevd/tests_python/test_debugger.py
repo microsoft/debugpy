@@ -48,6 +48,7 @@ if sys.version_info[0] == 2:
     IS_PY2 = True
 
 IS_PY26 = sys.version_info[:2] == (2, 6)
+IS_PY34 = sys.version_info[:2] == (3, 4)
 
 if IS_PY2:
     builtin_qualifier = "__builtin__"
@@ -2117,6 +2118,16 @@ def test_remote_unhandled_exceptions(case_setup_remote):
         writer.finished_ok = True
 
 
+def test_trace_dispatch_correct(case_setup):
+    with case_setup.test_file('_debugger_case_trace_dispatch.py') as writer:
+        breakpoint_id = writer.write_add_breakpoint(5, 'method')
+        writer.write_make_initial_run()
+        hit = writer.wait_for_breakpoint_hit()
+        writer.write_remove_breakpoint(breakpoint_id)
+        writer.write_run_thread(hit.thread_id)
+        writer.finished_ok = True
+
+
 def scenario_uncaught(writer):
     hit = writer.wait_for_breakpoint_hit(REASON_THREAD_SUSPEND)
     writer.write_add_exception_breakpoint_with_policy('ValueError', '0', '1', '0')
@@ -2171,7 +2182,7 @@ def test_top_level_exceptions_on_attach(case_setup_remote, check_scenario):
 
     def check_test_suceeded_msg(writer, stdout, stderr):
         return 'TEST SUCEEDED' in ''.join(stderr)
-
+    
     def additional_output_checks(writer, stdout, stderr):
         # Don't call super as we have an expected exception
         assert 'ValueError: TEST SUCEEDED' in stderr
@@ -2197,4 +2208,4 @@ def test_top_level_exceptions_on_attach(case_setup_remote, check_scenario):
 
 
 if __name__ == '__main__':
-    pytest.main(['-k', 'test_top_level_exceptions_on_attach'])
+    pytest.main(['-k', 'test_unhandled_exceptions_in_top_level2'])
