@@ -393,12 +393,14 @@ class StackTraceTests(NormalRequestTest, unittest.TestCase):
         with self.launched():
             with self.hidden():
                 tid, _ = self.set_thread('x')
-            req = self.send_request(
-                threadId=tid + 1,
+            self.send_request(
+                threadId=12345,
             )
             received = self.vsc.received
 
-        self.assert_vsc_failure(received, [], req)
+        self.assert_vsc_received(received, [
+            self.expected_failure('Thread 12345 not found'),
+        ])
         self.assert_received(self.debugger, [])
 
 
@@ -528,7 +530,7 @@ class VariablesTests(NormalRequestTest, unittest.TestCase):
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
-            self.expected_failure(''),
+            self.expected_failure('Variable 12345 not found in frame'),
             # no events
         ])
 
@@ -670,7 +672,7 @@ class SetVariableTests(NormalRequestTest, unittest.TestCase):
             received = self.vsc.received
 
         self.assert_vsc_received(received, [
-            self.expected_failure(''),
+            self.expected_failure('Variable 12345 not found in frame'),
             # no events
         ])
 
