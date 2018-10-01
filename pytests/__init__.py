@@ -3,3 +3,7 @@
 # for license information.
 
 __doc__ = """pytest-based ptvsd tests."""
+
+import pytest
+
+pytest.register_assert_rewrite('pytests.helpers')

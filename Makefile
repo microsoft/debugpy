@@ -7,6 +7,7 @@ help:  ## Print help about available targets.
 
 .PHONY: depends
 depends:
+	$(PYTHON) -m pip install --upgrade pip
 	$(PYTHON) -m pip install setuptools
 	$(PYTHON) -m pip install flake8
 	$(PYTHON) -m pip install flake8_formatter_junit_xml

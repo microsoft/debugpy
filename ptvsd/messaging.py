@@ -34,6 +34,13 @@ class JsonIOStream(object):
                 msvcrt.setmode(stdout.fileno(), os.O_BINARY)
         return cls(stdin, stdout)
 
+    @classmethod
+    def from_socket(cls, socket):
+        if socket.gettimeout() is not None:
+            raise ValueError('Socket must be in blocking mode')
+        socket_io = socket.makefile('rwb', 0)
+        return cls(socket_io, socket_io)
+
     def __init__(self, reader, writer):
         """Creates a new JsonIOStream.
 
@@ -45,6 +52,12 @@ class JsonIOStream(object):
         """
         self._reader = reader
         self._writer = writer
+        self._is_closing = False
+
+    def close(self):
+        self._is_closing = True
+        self._reader.close()
+        self._writer.close()
 
     def _read_line(self):
         line = b''
@@ -62,20 +75,37 @@ class JsonIOStream(object):
         Returns JSON value as parsed by json.loads(), or raises EOFError
         if there are no more objects to be read.
         """
+
         headers = {}
         while True:
-            line = self._read_line()
+            try:
+                line = self._read_line()
+            except Exception:
+                if self._is_closing:
+                    raise EOFError
+                else:
+                    raise
+
             if line == b'':
                 break
             key, _, value = line.partition(b':')
             headers[key] = value
+
         try:
             length = int(headers[b'Content-Length'])
             if not (0 <= length <= self.MAX_BODY_SIZE):
                 raise ValueError
         except (KeyError, ValueError):
             raise IOError('Content-Length is missing or invalid')
-        body = self._reader.read(length)
+
+        try:
+            body = self._reader.read(length)
+        except Exception:
+            if self._is_closing:
+                raise EOFError
+            else:
+                raise
+
         if isinstance(body, bytes):
             body = body.decode('utf-8')
         return json.loads(body)
@@ -85,42 +115,28 @@ class JsonIOStream(object):
 
         object must be in the format suitable for json.dump().
         """
+
         body = json.dumps(value, sort_keys=True)
         if not isinstance(body, bytes):
             body = body.encode('utf-8')
+
         header = 'Content-Length: %d\r\n\r\n' % len(body)
         if not isinstance(header, bytes):
             header = header.encode('ascii')
+
         self._writer.write(header)
         self._writer.write(body)
-
-
-class JsonMemoryStream(object):
-    """Like JsonIOStream, but without serialization, working directly
-    with values stored as-is in memory.
-
-    For input, values are read from the supplied sequence or iterator.
-    For output, values are appended to the supplied collection.
-    """
-
-    def __init__(self, input, output):
-        self._input = iter(input)
-        self._output = output
-
-    def read_json(self):
-        try:
-            return next(self._input)
-        except StopIteration:
-            raise EOFError
-
-    def write_json(self, value):
-        self._output.append(value)
 
 
 Response = collections.namedtuple('Response', ('success', 'command', 'error_message', 'body'))
 Response.__new__.__defaults__ = (None, None)
 class Response(Response):
     """Represents a received response to a Request."""
+
+
+class RequestFailure(Exception):
+    def __init__(self, message):
+        self.message = message
 
 
 class Request(object):
@@ -134,28 +150,49 @@ class Request(object):
         self.response = None
         self._lock = threading.Lock()
         self._got_response = threading.Event()
-        self._handler = lambda _: None
+        self._callback = lambda _: None
 
     def _handle_response(self, success, command, error_message=None, body=None):
         assert self.response is None
         with self._lock:
             response = Response(success, command, error_message, body)
             self.response = response
-            handler = self._handler
-        handler(response)
+            callback = self._callback
+        callback(response)
         self._got_response.set()
 
-    def wait_for_response(self):
+    def wait_for_response(self, raise_if_failed=True):
+        """Waits until a response is received for this request, records that
+        response as a new Response object accessible via self.response,
+        and returns self.response.body.
+
+        If raise_if_failed is True, and the received response does not indicate
+        success, raises RequestFailure. Otherwise, self.response.success has to
+        be inspected to determine whether the request failed or succeeded, since
+        self.response.body can be None in either case.
+        """
+
         self._got_response.wait()
+        if raise_if_failed and not self.response.success:
+            raise RequestFailure(self.response.error_message)
         return self.response
 
-    def on_response(self, handler):
+    def on_response(self, callback):
+        """Registers a callback to invoke when a response is received for this
+        request. If response was already received, invokes callback immediately.
+        Callback is invoked with Response object as the sole argument.
+
+        The callback is invoked on an unspecified background thread that performs
+        processing of incoming messages; therefore, no further message processing
+        occurs until the callback returns.
+        """
+
         with self._lock:
             response = self.response
             if response is None:
-                self._handler = handler
+                self._callback = callback
                 return
-        handler(response)
+        callback(response)
 
 
 class JsonMessageChannel(object):
@@ -165,16 +202,19 @@ class JsonMessageChannel(object):
     """
 
     def __init__(self, stream, handlers=None):
+        self.stream = stream
         self.send_callback = lambda channel, message: None
         self.receive_callback = lambda channel, message: None
         self._lock = threading.Lock()
         self._stop = threading.Event()
-        self._stream = stream
         self._seq_iter = itertools.count(1)
         self._requests = {}
         self._handlers = handlers
         self._worker = threading.Thread(target=self._process_incoming_messages)
         self._worker.daemon = True
+
+    def close(self):
+        self.stream.close()
 
     def start(self):
         self._worker.start()
@@ -191,7 +231,7 @@ class JsonMessageChannel(object):
         }
         message.update(rest)
         with self._lock:
-            self._stream.write_json(message)
+            self.stream.write_json(message)
         self.send_callback(self, message)
         return seq
 
@@ -283,7 +323,7 @@ class JsonMessageChannel(object):
     def _process_incoming_messages(self):
         while True:
             try:
-                message = self._stream.read_json()
+                message = self.stream.read_json()
             except EOFError:
                 break
             try:
@@ -291,3 +331,14 @@ class JsonMessageChannel(object):
             except Exception:
                 print('Error while processing message:\n%r\n\n' % message, file=sys.__stderr__)
                 raise
+
+
+class MessageHandlers(object):
+    """A simple delegating message handlers object for use with JsonMessageChannel.
+    For every argument provided, the object has an attribute with the corresponding
+    name and value. Example:
+    """
+
+    def __init__(self, **kwargs):
+        for name, func in kwargs.items():
+            setattr(self, name, func)

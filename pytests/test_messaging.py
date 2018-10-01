@@ -12,7 +12,8 @@ import socket
 import threading
 import time
 
-from ptvsd.messaging import JsonIOStream, JsonMemoryStream, JsonMessageChannel, Response
+from ptvsd.messaging import JsonIOStream, JsonMessageChannel, Response
+from .helpers.messaging import JsonMemoryStream, LoggingJsonStream
 
 
 class TestJsonIOStream(object):
@@ -71,23 +72,6 @@ class TestJsonMemoryStream(object):
 
 
 class TestJsonMessageChannel(object):
-    logging_lock = threading.Lock()
-
-    @staticmethod
-    def make_channel_with_logging(stream, handlers):
-        def send_callback(channel, message):
-            with TestJsonMessageChannel.logging_lock:
-                print(id(channel), '->', message)
-
-        def receive_callback(channel, message):
-            with TestJsonMessageChannel.logging_lock:
-                print(id(channel), '<-', message)
-
-        channel = JsonMessageChannel(stream, handlers)
-        channel.send_callback = send_callback
-        channel.receive_callback = receive_callback
-        return channel
-
     @staticmethod
     def iter_with_event(collection):
         """Like iter(), but also exposes a threading.Event that is set
@@ -107,6 +91,7 @@ class TestJsonMessageChannel(object):
         ]
 
         events_received = []
+
         class Handlers(object):
             def stopped_event(self, channel, body):
                 events_received.append((channel, body))
@@ -115,9 +100,8 @@ class TestJsonMessageChannel(object):
                 events_received.append((channel, event, body))
 
         input, input_exhausted = self.iter_with_event(EVENTS)
-        stream = JsonMemoryStream(input, [])
-        handlers = Handlers()
-        channel = self.make_channel_with_logging(stream, handlers)
+        stream = LoggingJsonStream(JsonMemoryStream(input, []))
+        channel = JsonMessageChannel(stream, Handlers())
         channel.start()
         input_exhausted.wait()
 
@@ -134,6 +118,7 @@ class TestJsonMessageChannel(object):
         ]
 
         requests_received = []
+
         class Handlers(object):
             def next_request(self, channel, arguments):
                 requests_received.append((channel, arguments))
@@ -148,8 +133,8 @@ class TestJsonMessageChannel(object):
 
         input, input_exhausted = self.iter_with_event(REQUESTS)
         output = []
-        stream = JsonMemoryStream(input, output)
-        channel = self.make_channel_with_logging(stream, Handlers())
+        stream = LoggingJsonStream(JsonMemoryStream(input, output))
+        channel = JsonMessageChannel(stream, Handlers())
         channel.start()
         input_exhausted.wait()
 
@@ -178,8 +163,8 @@ class TestJsonMessageChannel(object):
             request3_sent.wait()
             yield {'seq': 3, 'type': 'response', 'request_seq': 3, 'command': 'next', 'success': True, 'body': {'threadId': 5}}
 
-        stream = JsonMemoryStream(iter_responses(), [])
-        channel = self.make_channel_with_logging(stream, None)
+        stream = LoggingJsonStream(JsonMemoryStream(iter_responses(), []))
+        channel = JsonMessageChannel(stream, None)
         channel.start()
 
         # Blocking wait.
@@ -319,13 +304,13 @@ class TestJsonMessageChannel(object):
             io1 = socket1.makefile('rwb', 0)
             io2 = socket2.makefile('rwb', 0)
 
-            stream1 = JsonIOStream(io1, io1)
-            channel1 = self.make_channel_with_logging(stream1, fuzzer1)
+            stream1 = LoggingJsonStream(JsonIOStream(io1, io1))
+            channel1 = JsonMessageChannel(stream1, fuzzer1)
             channel1.start()
             fuzzer1.start(channel1)
 
-            stream2 = JsonIOStream(io2, io2)
-            channel2 = self.make_channel_with_logging(stream2, fuzzer2)
+            stream2 = LoggingJsonStream(JsonIOStream(io2, io2))
+            channel2 = JsonMessageChannel(stream2, fuzzer2)
             channel2.start()
             fuzzer2.start(channel2)
 
