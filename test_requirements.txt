@@ -1,0 +1,7 @@
+setuptools
+coverage
+requests
+flask
+django
+pytest
+pytest-timeout
