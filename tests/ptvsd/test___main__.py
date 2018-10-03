@@ -23,6 +23,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -41,6 +42,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -59,6 +61,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': True,
             'single_session': False,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -76,6 +79,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -94,6 +98,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -112,6 +117,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': True,
             'single_session': False,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -130,6 +136,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -148,6 +155,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -167,6 +175,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': True,
             'single_session': False,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -185,6 +194,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': True,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -204,6 +214,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': True,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -223,6 +234,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
             'wait': True,
+            'multiprocess': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -249,6 +261,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, [
             '--DEBUG',
@@ -286,6 +299,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': True,
             'single_session': False,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, [
             '--DEBUG',
@@ -314,6 +328,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -342,6 +357,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -361,6 +377,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': True,
             'single_session': False,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -379,6 +396,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -398,6 +416,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': True,
             'single_session': False,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -415,6 +434,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -433,6 +453,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': True,
             'single_session': False,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, self.EXPECTED_EXTRA)
 
@@ -451,6 +472,7 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': False,
             'single_session': False,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, ['--module'] + self.EXPECTED_EXTRA)
 
@@ -470,5 +492,6 @@ class ParseArgsTests(unittest.TestCase):
             'nodebug': True,
             'single_session': False,
             'wait': False,
+            'multiprocess': False,
         })
         self.assertEqual(extra, ['--module'] + self.EXPECTED_EXTRA)

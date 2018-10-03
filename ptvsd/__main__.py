@@ -6,6 +6,7 @@ import argparse
 import os.path
 import sys
 
+from ptvsd import pydevd_hooks
 from ptvsd._attach import attach_main
 from ptvsd._local import debug_main, run_main
 from ptvsd.socket import Address
@@ -34,7 +35,6 @@ PYDEVD_FLAGS = {
     '--DEBUG_RECORD_SOCKET_READS',
     '--cmd-line',
     '--module',
-    '--multiproc',
     '--multiprocess',
     '--print-in-debugger-startup',
     '--save-signatures',
@@ -43,12 +43,6 @@ PYDEVD_FLAGS = {
     '--server',
     '--qt-support=auto',
 }
-
-USAGE = """
-  {0} [-h] [-V] [--nodebug] [--host HOST | --server-host HOST] --port PORT -m MODULE [arg ...]
-  {0} [-h] [-V] [--nodebug] [--host HOST | --server-host HOST] --port PORT FILENAME [arg ...]
-  {0} [-h] [-V] --host HOST --port PORT --pid PROCESS_ID
-"""  # noqa
 
 
 def parse_args(argv=None):
@@ -131,7 +125,7 @@ def _group_args(argv):
             supported.append(arg)
 
         # ptvsd support
-        elif arg in ('--host', '--server-host', '--port', '--pid', '-m'):
+        elif arg in ('--host', '--server-host', '--port', '--pid', '-m', '--multiprocess-port-range'):
             if arg == '-m' or arg == '--pid':
                 gottarget = True
             supported.append(arg)
@@ -153,10 +147,7 @@ def _group_args(argv):
 
 
 def _parse_args(prog, argv):
-    parser = argparse.ArgumentParser(
-        prog=prog,
-        usage=USAGE.format(prog),
-    )
+    parser = argparse.ArgumentParser(prog=prog)
 
     parser.add_argument('--nodebug', action='store_true')
 
@@ -164,6 +155,15 @@ def _parse_args(prog, argv):
     host.add_argument('--host')
     host.add_argument('--server-host')
     parser.add_argument('--port', type=int, required=True)
+
+    def port_range(arg):
+        arg = tuple(int(s) for s in arg.split('-'))
+        if len(arg) != 2:
+            raise ValueError
+        return arg
+
+    parser.add_argument('--multiprocess', action='store_true')
+    parser.add_argument('--multiprocess-port-range', type=port_range)
 
     target = parser.add_mutually_exclusive_group(required=True)
     target.add_argument('-m', dest='module')
@@ -190,6 +190,10 @@ def _parse_args(prog, argv):
             args.address = Address.as_server(clienthost, ns.pop('port'))
     else:
         args.address = Address.as_client(clienthost, ns.pop('port'))
+
+    multiprocess_port_range = ns.pop('multiprocess_port_range')
+    if multiprocess_port_range is not None:
+        pydevd_hooks.multiprocess_port_range = multiprocess_port_range
 
     pid = ns.pop('pid')
     module = ns.pop('module')

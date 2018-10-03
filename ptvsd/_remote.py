@@ -35,7 +35,7 @@ def _pydevd_settrace(redirect_output=None, _pydevd=pydevd, **kwargs):
 # Then move at least some parts to the appropriate modules.  This module
 # is focused on running the debugger.
 
-global_next_session = None
+global_next_session = lambda: None
 
 
 def enable_attach(address, redirect_output=True,
