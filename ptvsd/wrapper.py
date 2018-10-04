@@ -616,7 +616,7 @@ class ModulesManager(object):
 
                     module = {
                         'id': module_id,
-                        'package': value.__package__,
+                        'package': value.__package__ if hasattr(value, '__package__') else None,
                         'path': module_path,
                     }
 
