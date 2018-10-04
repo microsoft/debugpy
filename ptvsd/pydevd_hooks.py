@@ -10,13 +10,10 @@ from _pydev_bundle import pydev_monkey
 from _pydevd_bundle import pydevd_comm
 
 import ptvsd
+from ptvsd import multiproc
 from ptvsd.socket import Address
 from ptvsd.daemon import Daemon, DaemonStoppedError, DaemonClosedError
 from ptvsd._util import debug, new_hidden_thread
-
-
-# The intersection of default ephemeral port ranges for various common systems.
-multiprocess_port_range = (49152, 61000)
 
 
 def start_server(daemon, host, port, **kwargs):
@@ -78,48 +75,24 @@ def start_client(daemon, host, port, **kwargs):
 # See pydevd/_vendored/pydevd/_pydev_bundle/pydev_monkey.py
 def get_python_c_args(host, port, indC, args, setup):
     runner = '''
-import os
-import random
 import sys
-
 sys.path.append(r'{ptvsd_syspath}')
-
-import ptvsd
-from ptvsd._util import DEBUG
-from ptvsd import pydevd_hooks
-
-pydevd_hooks.multiprocess_port_range = ({first_port}, {last_port})
-
-from _pydev_bundle import pydev_monkey
-pydev_monkey.patch_new_process_functions()
-
-ports = list(range({first_port}, {last_port}))
-random.shuffle(ports)
-for port in ports:
-    try:
-        ptvsd.enable_attach(('localhost', port))
-    except IOError:
-        pass
-    else:
-        if DEBUG:
-            print('Child process %d listening on port %d' % (os.getpid(), port))
-        break
-else:
-    raise Exception('Could not find a free port in range {first_port}-{last_port}')
-
-ptvsd.wait_for_attach()
+from ptvsd import multiproc
+multiproc.init_subprocess({parent_port}, {first_port}, {last_port}, {pydevd_setup})
 {rest}
 '''
 
-    first_port, last_port = multiprocess_port_range
+    first_port, last_port = multiproc.subprocess_port_range
 
     # __file__ will be .../ptvsd/__init__.py, and we want the ...
     ptvsd_syspath = os.path.join(ptvsd.__file__, '../..')
 
     return runner.format(
+        parent_port=multiproc.listener_port,
         first_port=first_port,
         last_port=last_port,
         ptvsd_syspath=ptvsd_syspath,
+        pydevd_setup=setup,
         rest=args[indC + 1])
 
 

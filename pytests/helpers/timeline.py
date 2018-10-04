@@ -6,6 +6,7 @@ from __future__ import print_function, with_statement, absolute_import
 
 import threading
 import time
+import pytest_timeout # noqa
 
 import pytests.helpers.pattern as pattern
 

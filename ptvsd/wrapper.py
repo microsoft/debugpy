@@ -26,6 +26,10 @@ try:
     from functools import reduce
 except Exception:
     pass
+try:
+    import queue
+except ImportError:
+    import Queue as queue
 import warnings
 from xml.sax import SAXParseException
 
@@ -37,6 +41,7 @@ import _pydevd_bundle.pydevd_frame as pydevd_frame # noqa
 from _pydevd_bundle.pydevd_additional_thread_info import PyDBAdditionalThreadInfo # noqa
 
 from ptvsd import _util
+from ptvsd import multiproc
 import ptvsd.ipcjson as ipcjson  # noqa
 import ptvsd.futures as futures  # noqa
 import ptvsd.untangle as untangle  # noqa
@@ -1269,6 +1274,24 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     def _stop_event_loop(self):
         self.loop.stop()
         self.event_loop_thread.join(WAIT_FOR_THREAD_FINISH_TIMEOUT)
+
+    def start(self, threadname):
+        super(VSCodeMessageProcessor, self).start(threadname)
+        self._subprocess_notifier_thread = _util.new_hidden_thread('SubprocessNotifier', self._subprocess_notifier)
+        self._subprocess_notifier_thread.start()
+
+    def close(self):
+        super(VSCodeMessageProcessor, self).close()
+        self._subprocess_notifier_thread.join()
+
+    def _subprocess_notifier(self):
+        while not self.closed:
+            try:
+                subprocess_info = multiproc.subprocess_queue.get(block=False, timeout=0.1)
+            except queue.Empty:
+                pass
+            else:
+                self.send_event('ptvsd_subprocess', **subprocess_info)
 
     # async helpers
 

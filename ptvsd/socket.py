@@ -70,12 +70,14 @@ def is_socket(sock):
     return isinstance(sock, socket.socket)
 
 
-def create_server(host, port):
+def create_server(host, port, timeout=None):
     """Return a local server socket listening on the given port."""
     if host is None:
         host = 'localhost'
     server = _new_sock()
     server.bind((host, port))
+    if timeout is not None:
+        server.settimeout(timeout)
     server.listen(1)
     return server
 

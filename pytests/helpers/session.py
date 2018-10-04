@@ -14,7 +14,7 @@ import time
 
 import ptvsd
 from ptvsd.messaging import JsonIOStream, JsonMessageChannel, MessageHandlers, RequestFailure
-from . import print
+from . import print, watchdog
 from .messaging import LoggingJsonStream
 from .timeline import Timeline, Request, Response, Event
 
@@ -33,11 +33,19 @@ class DebugSession(object):
         print('New debug session with method %r' % method)
 
         self.method = method
-        self.ptvsd_port = ptvsd_port
+        self.ptvsd_port = ptvsd_port or 5678
+        self.multiprocess = False
+        self.multiprocess_port_range = None
+
+        self.is_running = False
         self.process = None
         self.socket = None
         self.server_socket = None
         self.connected = threading.Event()
+        self.backchannel_socket = None
+        self.backchannel_port = None
+        self.backchannel_established = threading.Event()
+        self.debug_options = ['RedirectOutput']
         self.timeline = Timeline()
 
     def stop(self):
@@ -56,6 +64,11 @@ class DebugSession(object):
                 self.server_socket.shutdown(socket.SHUT_RDWR)
             except:
                 self.server_socket = None
+        if self.backchannel_socket:
+            try:
+                self.backchannel_socket.shutdown(socket.SHUT_RDWR)
+            except:
+                self.backchannel_socket = None
 
     def prepare_to_run(self, perform_handshake=True, filename=None, module=None):
         """Spawns ptvsd using the configured method, telling it to execute the
@@ -69,12 +82,16 @@ class DebugSession(object):
             argv += ['-m', 'ptvsd']
 
         if self.method == 'attach_socket':
-            if self.ptvsd_port is None:
-                self.ptvsd_port = 5678
-            argv += ['--port', str(self.ptvsd_port)]
+            argv += ['--port', str(self.ptvsd_port), '--wait']
         else:
-            port = self._listen()
-            argv += ['--host', 'localhost', '--port', str(port)]
+            self._listen()
+            argv += ['--host', 'localhost', '--port', str(self.ptvsd_port)]
+
+        if self.multiprocess:
+            argv += ['--multiprocess']
+
+        if self.multiprocess_port_range:
+            argv += ['--multiprocess-port-range', '%d-%d' % self.multiprocess_port_range]
 
         if filename:
             assert not module
@@ -85,27 +102,20 @@ class DebugSession(object):
 
         env = os.environ.copy()
         env.update({'PYTHONPATH': PTVSD_SYS_PATH})
+        if self.backchannel_port:
+            env['PTVSD_BACKCHANNEL_PORT'] = str(self.backchannel_port)
 
         print('Spawning %r' % argv)
         self.process = subprocess.Popen(argv, env=env, stdin=subprocess.PIPE)
-        if self.ptvsd_port:
-            # ptvsd will take some time to spawn and start listening on the port,
-            # so just hammer at it until it responds (or we time out).
-            while not self.socket:
-                try:
-                    self._connect()
-                except socket.error:
-                    pass
-                time.sleep(0.1)
-        else:
-            self.connected.wait()
-            assert self.socket
+        self.is_running = True
+        watchdog.create(self.process.pid)
 
-        self.stream = LoggingJsonStream(JsonIOStream.from_socket(self.socket))
-
-        handlers = MessageHandlers(request=self._process_request, event=self._process_event)
-        self.channel = JsonMessageChannel(self.stream, handlers)
-        self.channel.start()
+        if self.method == 'attach_socket':
+            self.connect()
+        self.connected.wait()
+        assert self.ptvsd_port
+        assert self.socket
+        print('ptvsd@%d has pid=%d' % (self.ptvsd_port, self.process.pid))
 
         if perform_handshake:
             self.handshake()
@@ -116,47 +126,64 @@ class DebugSession(object):
         exits, validates its return code to match expected_returncode.
         """
 
-        process = self.process
-        if not process:
-            return
-
         def kill():
             time.sleep(self.WAIT_FOR_EXIT_TIMEOUT)
-            print('ptvsd process timed out, killing it')
-            p = process
-            if p:
-                p.kill()
+            print('ptvsd process %d timed out, killing it' % self.process.pid)
+            if self.is_running:
+                self.process.kill()
         kill_thread = threading.Thread(target=kill)
         kill_thread.daemon = True
         kill_thread.start()
 
-        process.wait()
-        assert process.returncode == expected_returncode
+        self.process.wait()
+        self.is_running = False
+        assert self.process.returncode == expected_returncode
+
+    def wait_for_disconnect(self):
+        """Waits for the connected ptvsd process to disconnect.
+        """
+        return self.channel.wait()
 
     def _listen(self):
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.bind(('localhost', 0))
-        _, port = self.server_socket.getsockname()
+        _, self.ptvsd_port = self.server_socket.getsockname()
         self.server_socket.listen(0)
 
         def accept_worker():
-            print('Listening for incoming connection from ptvsd on port %d' % port)
+            print('Listening for incoming connection from ptvsd@%d' % self.ptvsd_port)
             self.socket, _ = self.server_socket.accept()
-            print('Incoming ptvsd connection accepted')
-            self.connected.set()
+            print('Incoming ptvsd@%d connection accepted' % self.ptvsd_port)
+            self._setup_channel()
 
         accept_thread = threading.Thread(target=accept_worker)
         accept_thread.daemon = True
         accept_thread.start()
 
-        return port
+    def connect(self):
+        # ptvsd will take some time to spawn and start listening on the port,
+        # so just hammer at it until it responds (or we time out).
+        while not self.socket:
+            try:
+                self._try_connect()
+            except socket.error:
+                pass
+            time.sleep(0.1)
 
-    def _connect(self):
-        print('Trying to connect to ptvsd on port %d' % self.ptvsd_port)
+    def _try_connect(self):
+        print('Trying to connect to ptvsd@%d' % self.ptvsd_port)
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect(('localhost', self.ptvsd_port))
-        print('Successfully connected to ptvsd')
+        print('Successfully connected to ptvsd@%d' % self.ptvsd_port)
         self.socket = sock
+        self._setup_channel()
+
+    def _setup_channel(self):
+        self.stream = LoggingJsonStream(JsonIOStream.from_socket(self.socket), 'ptvsd@%d' % self.ptvsd_port)
+        handlers = MessageHandlers(request=self._process_request, event=self._process_event)
+        self.channel = JsonMessageChannel(self.stream, handlers)
+        self.channel.start()
+        self.connected.set()
 
     def send_request(self, command, arguments=None):
         request = self.timeline.record_request(command, arguments)
@@ -177,7 +204,8 @@ class DebugSession(object):
         promised_occurrence[:] = (occ,)
 
     def handshake(self):
-        """Performs the handshake that establishes the debug session.
+        """Performs the handshake that establishes the debug session ('initialized'
+        and 'launch' or 'attach').
 
         After this method returns, ptvsd is not running any code yet, but it is
         ready to accept any configuration requests (e.g. for initial breakpoints).
@@ -188,18 +216,16 @@ class DebugSession(object):
         with self.causing(Event('initialized', {})):
             self.send_request('initialize', {'adapterID': 'test'}).wait_for_response()
 
-    def start_debugging(self, arguments=None, force_threads=True):
-        """Finalizes the configuration stage, and issues a 'launch' or an 'attach' request
-        to start running code under debugger, passing arguments through.
+        request = 'launch' if self.method == 'launch' else 'attach'
+        self.send_request(request, {'debugOptions': self.debug_options}).wait_for_response()
+
+    def start_debugging(self):
+        """Finalizes the configuration stage, and issues a 'configurationDone' request
+        to start running code under debugger.
 
         After this method returns, ptvsd is running the code in the script file or module
-        that was specified in run().
+        that was specified in prepare_to_run().
         """
-
-        request = 'launch' if self.method == 'launch' else 'attach'
-        self.send_request(request, arguments).wait_for_response()
-        if force_threads:
-            self.send_request('threads').wait_for_response()
         self.send_request('configurationDone').wait_for_response()
 
     def _process_event(self, channel, event, body):
@@ -220,3 +246,24 @@ class DebugSession(object):
 
     def history(self):
         return self.timeline.history
+
+    def setup_backchannel(self):
+        assert self.process is None, 'setup_backchannel() must be called before prepare_to_run()'
+        self.backchannel_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.backchannel_socket.bind(('localhost', 0))
+        _, self.backchannel_port = self.backchannel_socket.getsockname()
+        self.backchannel_socket.listen(0)
+        backchannel_thread = threading.Thread(target=self._backchannel_worker)
+        backchannel_thread.daemon = True
+        backchannel_thread.start()
+
+    def _backchannel_worker(self):
+        sock, _ = self.backchannel_socket.accept()
+        self._backchannel_stream = LoggingJsonStream(JsonIOStream.from_socket(sock), 'bchan@%d' % self.ptvsd_port)
+        self.backchannel_established.set()
+
+    @property
+    def backchannel(self):
+        assert self.backchannel_port, 'backchannel() must be called after setup_backchannel()'
+        self.backchannel_established.wait()
+        return self._backchannel_stream

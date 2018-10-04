@@ -6,7 +6,7 @@ import argparse
 import os.path
 import sys
 
-from ptvsd import pydevd_hooks
+from ptvsd import multiproc
 from ptvsd._attach import attach_main
 from ptvsd._local import debug_main, run_main
 from ptvsd.socket import Address
@@ -35,7 +35,6 @@ PYDEVD_FLAGS = {
     '--DEBUG_RECORD_SOCKET_READS',
     '--cmd-line',
     '--module',
-    '--multiprocess',
     '--print-in-debugger-startup',
     '--save-signatures',
     '--save-threading',
@@ -126,7 +125,7 @@ def _group_args(argv):
 
         # ptvsd support
         elif arg in ('--host', '--server-host', '--port', '--pid', '-m', '--multiprocess-port-range'):
-            if arg == '-m' or arg == '--pid':
+            if arg in ('-m', '--pid'):
                 gottarget = True
             supported.append(arg)
             if nextarg is not None:
@@ -134,6 +133,9 @@ def _group_args(argv):
             skip += 1
         elif arg in ('--single-session', '--wait'):
             supported.append(arg)
+        elif arg == '--multiprocess':
+            supported.append(arg)
+            pydevd.append(arg)
         elif not arg.startswith('-'):
             supported.append(arg)
             gottarget = True
@@ -193,7 +195,12 @@ def _parse_args(prog, argv):
 
     multiprocess_port_range = ns.pop('multiprocess_port_range')
     if multiprocess_port_range is not None:
-        pydevd_hooks.multiprocess_port_range = multiprocess_port_range
+        if not ns['multiprocess']:
+            parser.error('--multiprocess-port-range requires --multiprocess')
+        multiproc.subprocess_port_range = multiprocess_port_range
+
+    if ns['multiprocess']:
+        multiproc.enable()
 
     pid = ns.pop('pid')
     module = ns.pop('module')

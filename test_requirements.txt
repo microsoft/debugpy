@@ -3,5 +3,6 @@ coverage
 requests
 flask
 django
-pytest
-pytest-timeout
+pytest>=3.8
+pytest-timeout>=1.3
+psutil>=5.4

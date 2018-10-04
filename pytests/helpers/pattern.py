@@ -5,6 +5,9 @@
 from __future__ import print_function, with_statement, absolute_import
 
 from collections import defaultdict
+import numbers
+
+from ptvsd.compat import unicode
 
 
 class BasePattern(object):
@@ -149,6 +152,11 @@ class Success(BasePattern):
         return self.success != isinstance(response_body, Exception)
 
 
-ANY = Any()
 SUCCESS = Success(True)
 FAILURE = Success(False)
+
+ANY = Any()
+ANY.bool = ANY.such_that(lambda x: x is True or x is False)
+ANY.str = ANY.such_that(lambda x: isinstance(x, unicode))
+ANY.num = ANY.such_that(lambda x: isinstance(x, numbers.Real))
+ANY.int = ANY.such_that(lambda x: isinstance(x, numbers.Integral))

@@ -9,14 +9,9 @@ help:  ## Print help about available targets.
 depends:
 	$(PYTHON) -m pip install --upgrade pip
 	$(PYTHON) -m pip install setuptools
-	$(PYTHON) -m pip install flake8
 	$(PYTHON) -m pip install flake8_formatter_junit_xml
 	$(PYTHON) -m pip install unittest-xml-reporting
-	$(PYTHON) -m pip install coverage
-	$(PYTHON) -m pip install requests
-	$(PYTHON) -m pip install flask
-	$(PYTHON) -m pip install django
-	$(PYTHON) -m pip install pytest
+	$(PYTHON) -m pip install -r test_requirements.txt
 
 .PHONY: lint
 lint:  ## Lint the Python source code.

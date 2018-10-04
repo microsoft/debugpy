@@ -40,20 +40,20 @@ class LoggingJsonStream(object):
 
     id_iter = itertools.count()
 
-    def __init__(self, stream):
+    def __init__(self, stream, id=None):
         self.stream = stream
-        self.id = next(self.id_iter)
+        self.id = id or next(self.id_iter)
 
     def close(self):
         self.stream.close()
 
     def read_json(self):
         value = self.stream.read_json()
-        print('%d --> %r' % (self.id, value))
+        print('%s --> %r' % (self.id, value))
         return value
 
     def write_json(self, value):
-        print('%d <-- %r' % (self.id, value))
+        print('%s <-- %r' % (self.id, value))
         self.stream.write_json(value)
 
 

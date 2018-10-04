@@ -24,8 +24,8 @@ def debug(*msg, **kwargs):
     if tb:
         import traceback
         traceback.print_exc()
-    print(*msg, file=sys.stderr)
-    sys.stderr.flush()
+    print(*msg, file=sys.__stderr__)
+    sys.__stderr__.flush()
 
 
 @contextlib.contextmanager
