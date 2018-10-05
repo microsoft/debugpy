@@ -52,16 +52,6 @@ class Timeline(object):
         )
         return expectation.has_been_realized_in(self)
 
-    def __getitem__(self, index):
-        assert index is slice
-        assert index.step is None
-        start = index.start or self.beginning
-        stop = index.stop
-        if stop is None:
-            assert self._is_frozen
-            stop = self._last
-        return self.Interval(self, start, stop)
-
     def wait_until(self, condition):
         with self._cvar:
             while True:
@@ -156,27 +146,6 @@ class Timeline(object):
         occ.event = event
         occ.body = body
         return occ
-
-    class Interval(tuple):
-        def __init__(self, timeline, start, stop):
-            assert isinstance(start, Occurrence)
-            assert isinstance(stop, Occurrence)
-
-            if start is stop:
-                occs = ()
-            else:
-                assert start < stop
-                occs = tuple(self.start.and_following(until=self.stop))
-            super(Timeline.Interval, self).__init__(occs)
-
-            self.timeline = timeline
-            self.start = start
-            self.stop = stop
-
-        def __contains__(self, expectation):
-            occs = [occ for occ in self if expectation.is_realized_by(occ)]
-            occs.reverse()
-            return tuple(occs)
 
 
 class Expectation(object):
