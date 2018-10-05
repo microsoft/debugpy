@@ -31,6 +31,13 @@ listener_port = None
 
 subprocess_queue = queue.Queue()
 
+# The initial 'launch' or 'attach' request that started the first process
+# in the current process tree.
+initial_request = None
+
+# Process ID of the first process in the current process tree.
+initial_pid = None
+
 
 def enable():
     global listener_port, _server
@@ -68,13 +75,15 @@ def _handle_subprocess(n, stream):
     channel.start()
 
 
-def init_subprocess(parent_port, first_port, last_port, pydevd_setup):
+def init_subprocess(initial_pid, initial_request, parent_pid, parent_port, first_port, last_port, pydevd_setup):
     # Called from the code injected into subprocess, before it starts
     # running user code. See pydevd_hooks.get_python_c_args.
 
-    global listener_port, subprocess_port_range
-    listener_port = parent_port
-    subprocess_port_range = (first_port, last_port)
+    from ptvsd import multiproc
+    multiproc.listener_port = parent_port
+    multiproc.subprocess_port_range = (first_port, last_port)
+    multiproc.initial_pid = initial_pid
+    multiproc.initial_request = initial_request
 
     pydevd.SetupHolder.setup = pydevd_setup
     pydev_monkey.patch_new_process_functions()
@@ -100,6 +109,9 @@ def init_subprocess(parent_port, first_port, last_port, pydevd_setup):
     stream = JsonIOStream.from_socket(conn)
     channel = JsonMessageChannel(stream)
     channel.send_event('ptvsd_subprocess', {
+        'initialProcessId': initial_pid,
+        'initialRequest': initial_request,
+        'parentProcessId': parent_pid,
         'processId': os.getpid(),
         'port': port,
     })

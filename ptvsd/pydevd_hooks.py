@@ -78,7 +78,14 @@ def get_python_c_args(host, port, indC, args, setup):
 import sys
 sys.path.append(r'{ptvsd_syspath}')
 from ptvsd import multiproc
-multiproc.init_subprocess({parent_port}, {first_port}, {last_port}, {pydevd_setup})
+multiproc.init_subprocess(
+    {initial_pid},
+    {initial_request},
+    {parent_pid},
+    {parent_port},
+    {first_port},
+    {last_port},
+    {pydevd_setup})
 {rest}
 '''
 
@@ -88,6 +95,9 @@ multiproc.init_subprocess({parent_port}, {first_port}, {last_port}, {pydevd_setu
     ptvsd_syspath = os.path.join(ptvsd.__file__, '../..')
 
     return runner.format(
+        initial_pid=multiproc.initial_pid,
+        initial_request=multiproc.initial_request,
+        parent_pid=os.getpid(),
         parent_port=multiproc.listener_port,
         first_port=first_port,
         last_port=last_port,
