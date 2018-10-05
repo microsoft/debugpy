@@ -15,6 +15,7 @@ import sys
 from _pydev_bundle import pydev_log
 from _pydev_imps._pydev_saved_modules import threading
 
+
 def _normpath(filename):
     return pydevd_file_utils.get_abs_path_real_path_and_base_from_file(filename)[0]
 
@@ -148,7 +149,7 @@ def _convert_to_str_and_clear_empty(roots):
             root if not isinstance(root, unicode) else root.encode(sys.getfilesystemencoding())
             for root in roots
         ]
-    
+
     new_roots = []
     for root in roots:
         assert isinstance(root, str), '%s not str (found: %s)' % (root, type(root))
@@ -217,7 +218,12 @@ def _get_default_library_roots():
                 roots.append(site_path)
         else:
             roots.append(site_paths)
-    return roots
+
+    for path in sys.path:
+        if os.path.exists(path) and os.path.basename(path) == 'site-packages':
+            roots.append(path)
+
+    return sorted(set(roots))
 
 
 # --- Project roots
@@ -235,7 +241,7 @@ def set_library_roots(roots):
     roots = _set_roots(roots, _LIBRARY_ROOTS_CACHE)
     pydev_log.debug("LIBRARY_ROOTS %s\n" % roots)
 
-    
+
 def _get_library_roots(library_roots_cache=_LIBRARY_ROOTS_CACHE):
     return _get_roots(library_roots_cache, 'LIBRARY_ROOTS', set_library_roots, _get_default_library_roots)
 
@@ -249,7 +255,7 @@ def in_project_roots(filename, filename_to_in_scope_cache=_FILENAME_TO_IN_SCOPE_
         original_filename = filename
         if not filename.endswith('>'):
             filename = _normpath(filename)
-        
+
         found_in_project = []
         for root in project_roots:
             if root and filename.startswith(root):
@@ -269,7 +275,7 @@ def in_project_roots(filename, filename_to_in_scope_cache=_FILENAME_TO_IN_SCOPE_
                 in_project = False
             else:
                 in_project = not found_in_library
-        else:                
+        else:
             in_project = False
             if found_in_project:
                 if not found_in_library:
@@ -278,7 +284,7 @@ def in_project_roots(filename, filename_to_in_scope_cache=_FILENAME_TO_IN_SCOPE_
                     # Found in both, let's see which one has the bigger path matched.
                     if max(len(x) for x in found_in_project) > max(len(x) for x in found_in_library):
                         in_project = True
-                    
+
         filename_to_in_scope_cache[original_filename] = in_project
         return in_project
 
@@ -333,7 +339,7 @@ def dump_threads(stream=None):
                 t.name, t.daemon, getattr(t, 'is_pydev_daemon_thread', False))
     except:
         pass
-    
+
     from _pydevd_bundle.pydevd_additional_thread_info_regular import _current_frames
 
     stream.write('===============================================================================\n')
