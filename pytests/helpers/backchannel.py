@@ -14,6 +14,7 @@ import socket
 from ptvsd.messaging import JsonIOStream
 
 port = int(os.getenv('PTVSD_BACKCHANNEL_PORT'))
+# print('Connecting to bchan#%d' % port)
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.connect(('localhost', port))
 stream = JsonIOStream.from_socket(sock)

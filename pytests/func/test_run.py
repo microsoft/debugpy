@@ -11,17 +11,20 @@ from ..helpers.timeline import Event
 def test_run(debug_session, pyfile):
     @pyfile
     def code_to_debug():
-        print('waiting for input')
-        input()
-        print('got input!')
+        from pytests.helpers import backchannel
+        print('before')
+        assert backchannel.read_json() == 1
+        print('after')
 
-    debug_session.prepare_to_run(filename=code_to_debug)
-    debug_session.start_debugging()
+    timeline = debug_session.timeline
+    debug_session.prepare_to_run(filename=code_to_debug, backchannel=True)
+    start = debug_session.start_debugging()
 
-    t = debug_session.wait_until(Event('process') & Event('thread'))
-    assert (
-        Event('thread', {'reason': 'started', 'threadId': ANY})
-        & (
+    first_thread = (start >> Event('thread', {'reason': 'started', 'threadId': ANY})).wait()
+    with timeline.frozen():
+        assert (
+            timeline.beginning
+            >>
             Event('initialized', {})
             >>
             Event('process', {
@@ -30,10 +33,11 @@ def test_run(debug_session, pyfile):
                 'startMethod': 'launch' if debug_session.method == 'launch' else 'attach',
                 'systemProcessId': debug_session.process.pid,
             })
-        )
-    ).has_occurred_by(t)
+            >>
+            first_thread
+        ) in timeline
 
-    with debug_session.causing(Event('terminated', {})):
-        debug_session.process.communicate(b'0\n')
+    t = debug_session.write_json(1)
+    (t >> Event('terminated', {})).wait()
 
     debug_session.wait_for_exit()

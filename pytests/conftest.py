@@ -9,11 +9,34 @@ import pytest
 import threading
 import types
 
+from . import helpers
+from .helpers import print
 from .helpers.session import DebugSession
 
 
+@pytest.hookimpl(hookwrapper=True, tryfirst=True)
+def pytest_runtest_makereport(item, call):
+    # Adds attributes such as setup_result, call_result etc to the item after the
+    # corresponding scope finished running its tests. This can be used in function-level
+    # fixtures to detect failures, e.g.:
+    #
+    #   if request.node.call_result.failed: ...
+
+    outcome = yield
+    result = outcome.get_result()
+    setattr(item, result.when + '_result', result)
+
+
+@pytest.hookimpl(hookwrapper=True, tryfirst=True)
+def pytest_pyfunc_call(pyfuncitem):
+    # Resets the timestamp zero for every new test.
+    print('Timestamp clock reset to zero.', timestamped=False)
+    helpers.timestamp_zero = helpers.timestamp()
+    yield
+
+
 @pytest.fixture
-def daemon():
+def daemon(request):
     """Provides a factory function for daemon threads. The returned thread is
     started immediately, and it must not be alive by the time the test returns.
     """
@@ -30,8 +53,14 @@ def daemon():
 
     yield factory
 
-    for thread in daemons:
-        assert not thread.is_alive()
+    try:
+        failed = request.node.call_result.failed
+    except AttributeError:
+        pass
+    else:
+        if not failed:
+            for thread in daemons:
+                assert not thread.is_alive()
 
 
 @pytest.fixture
@@ -101,6 +130,12 @@ def debug_session(request):
     session = DebugSession(request.param)
     yield session
     try:
-        session.wait_for_exit()
+        try:
+            failed = request.node.call_result.failed
+        except AttributeError:
+            pass
+        else:
+            if not failed:
+                session.wait_for_exit()
     finally:
         session.stop()

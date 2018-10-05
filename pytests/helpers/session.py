@@ -4,7 +4,6 @@
 
 from __future__ import print_function, with_statement, absolute_import
 
-import contextlib
 import os
 import socket
 import subprocess
@@ -16,7 +15,8 @@ import ptvsd
 from ptvsd.messaging import JsonIOStream, JsonMessageChannel, MessageHandlers, RequestFailure
 from . import print, watchdog
 from .messaging import LoggingJsonStream
-from .timeline import Timeline, Request, Response, Event
+from .pattern import Pattern
+from .timeline import Timeline, Request, Event
 
 
 # ptvsd.__file__ will be <dir>/ptvsd/__main__.py - we want <dir>.
@@ -70,9 +70,11 @@ class DebugSession(object):
             except:
                 self.backchannel_socket = None
 
-    def prepare_to_run(self, perform_handshake=True, filename=None, module=None):
+    def prepare_to_run(self, perform_handshake=True, filename=None, module=None, backchannel=False):
         """Spawns ptvsd using the configured method, telling it to execute the
         provided Python file or module, and establishes a message channel to it.
+
+        If backchannel is True, calls self.setup_backchannel() before returning.
 
         If perform_handshake is True, calls self.handshake() before returning.
         """
@@ -102,6 +104,9 @@ class DebugSession(object):
 
         env = os.environ.copy()
         env.update({'PYTHONPATH': PTVSD_SYS_PATH})
+
+        if backchannel:
+            self.setup_backchannel()
         if self.backchannel_port:
             env['PTVSD_BACKCHANNEL_PORT'] = str(self.backchannel_port)
 
@@ -115,10 +120,16 @@ class DebugSession(object):
         self.connected.wait()
         assert self.ptvsd_port
         assert self.socket
-        print('ptvsd@%d has pid=%d' % (self.ptvsd_port, self.process.pid))
+        print('ptvsd#%d has pid=%d' % (self.ptvsd_port, self.process.pid))
+
+        self.timeline.beginning.await_following(Event('output', Pattern({
+            'category': 'telemetry',
+            'output': 'ptvsd',
+            'data': {'version': ptvsd.__version__}
+        })))
 
         if perform_handshake:
-            self.handshake()
+            return self.handshake()
 
     def wait_for_exit(self, expected_returncode=0):
         """Waits for the spawned ptvsd process to exit. If it doesn't exit within
@@ -128,10 +139,10 @@ class DebugSession(object):
 
         def kill():
             time.sleep(self.WAIT_FOR_EXIT_TIMEOUT)
-            print('ptvsd process %d timed out, killing it' % self.process.pid)
+            print('ptvsd#%r (pid=%d) timed out, killing it' % (self.ptvsd_port, self.process.pid))
             if self.is_running:
                 self.process.kill()
-        kill_thread = threading.Thread(target=kill)
+        kill_thread = threading.Thread(target=kill, name='ptvsd#%r watchdog (pid=%d)' % (self.ptvsd_port, self.process.pid))
         kill_thread.daemon = True
         kill_thread.start()
 
@@ -151,12 +162,12 @@ class DebugSession(object):
         self.server_socket.listen(0)
 
         def accept_worker():
-            print('Listening for incoming connection from ptvsd@%d' % self.ptvsd_port)
+            print('Listening for incoming connection from ptvsd#%d' % self.ptvsd_port)
             self.socket, _ = self.server_socket.accept()
-            print('Incoming ptvsd@%d connection accepted' % self.ptvsd_port)
+            print('Incoming ptvsd#%d connection accepted' % self.ptvsd_port)
             self._setup_channel()
 
-        accept_thread = threading.Thread(target=accept_worker)
+        accept_thread = threading.Thread(target=accept_worker, name='ptvsd#%d listener' % self.ptvsd_port)
         accept_thread.daemon = True
         accept_thread.start()
 
@@ -171,15 +182,15 @@ class DebugSession(object):
             time.sleep(0.1)
 
     def _try_connect(self):
-        print('Trying to connect to ptvsd@%d' % self.ptvsd_port)
+        print('Trying to connect to ptvsd#%d' % self.ptvsd_port)
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect(('localhost', self.ptvsd_port))
-        print('Successfully connected to ptvsd@%d' % self.ptvsd_port)
+        print('Successfully connected to ptvsd#%d' % self.ptvsd_port)
         self.socket = sock
         self._setup_channel()
 
     def _setup_channel(self):
-        self.stream = LoggingJsonStream(JsonIOStream.from_socket(self.socket), 'ptvsd@%d' % self.ptvsd_port)
+        self.stream = LoggingJsonStream(JsonIOStream.from_socket(self.socket), 'ptvsd#%d' % self.ptvsd_port)
         handlers = MessageHandlers(request=self._process_request, event=self._process_event)
         self.channel = JsonMessageChannel(self.stream, handlers)
         self.channel.start()
@@ -189,19 +200,12 @@ class DebugSession(object):
         request = self.timeline.record_request(command, arguments)
         request.sent = self.channel.send_request(command, arguments)
         request.sent.on_response(lambda response: self._process_response(request, response))
-        assert Request(command, arguments) in self.timeline
+        request.causing = lambda expectation: request.await_following(expectation) and request
+        assert Request(command, arguments).is_realized_by(request)
         return request
 
     def mark(self, id):
         return self.timeline.mark(id)
-
-    @contextlib.contextmanager
-    def causing(self, expectation):
-        assert expectation not in self.timeline
-        promised_occurrence = ['ONLY VALID AFTER END OF BLOCK!']
-        yield promised_occurrence
-        occ = self.wait_until(expectation)
-        promised_occurrence[:] = (occ,)
 
     def handshake(self):
         """Performs the handshake that establishes the debug session ('initialized'
@@ -213,8 +217,9 @@ class DebugSession(object):
         to finalize the configuration stage, and start running code.
         """
 
-        with self.causing(Event('initialized', {})):
-            self.send_request('initialize', {'adapterID': 'test'}).wait_for_response()
+        (self.send_request('initialize', {'adapterID': 'test'})
+            .causing(Event('initialized', {}))
+            .wait_for_response())
 
         request = 'launch' if self.method == 'launch' else 'attach'
         self.send_request(request, {'debugOptions': self.debug_options}).wait_for_response()
@@ -226,7 +231,7 @@ class DebugSession(object):
         After this method returns, ptvsd is running the code in the script file or module
         that was specified in prepare_to_run().
         """
-        self.send_request('configurationDone').wait_for_response()
+        return self.send_request('configurationDone').wait_for_response()
 
     def _process_event(self, channel, event, body):
         self.timeline.record_event(event, body)
@@ -236,30 +241,24 @@ class DebugSession(object):
     def _process_response(self, request, response):
         body = response.body if response.success else RequestFailure(response.error_message)
         self.timeline.record_response(request, body)
-        assert Response(request, body) in self.timeline
 
     def _process_request(self, channel, command, arguments):
         assert False, 'ptvsd should not be sending requests.'
 
-    def wait_until(self, expectation):
-        return self.timeline.wait_until(expectation)
-
-    def history(self):
-        return self.timeline.history
-
     def setup_backchannel(self):
-        assert self.process is None, 'setup_backchannel() must be called before prepare_to_run()'
         self.backchannel_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.backchannel_socket.bind(('localhost', 0))
         _, self.backchannel_port = self.backchannel_socket.getsockname()
         self.backchannel_socket.listen(0)
-        backchannel_thread = threading.Thread(target=self._backchannel_worker)
+        backchannel_thread = threading.Thread(target=self._backchannel_worker, name='ptvsd#%d backchannel'  % self.ptvsd_port)
         backchannel_thread.daemon = True
         backchannel_thread.start()
 
     def _backchannel_worker(self):
+        print('Listening for incoming backchannel connection for bchan#%d' % self.ptvsd_port)
         sock, _ = self.backchannel_socket.accept()
-        self._backchannel_stream = LoggingJsonStream(JsonIOStream.from_socket(sock), 'bchan@%d' % self.ptvsd_port)
+        print('Incoming bchan#%d backchannel connection accepted' % self.ptvsd_port)
+        self._backchannel_stream = LoggingJsonStream(JsonIOStream.from_socket(sock), 'bchan#%d' % self.ptvsd_port)
         self.backchannel_established.set()
 
     @property
@@ -267,3 +266,11 @@ class DebugSession(object):
         assert self.backchannel_port, 'backchannel() must be called after setup_backchannel()'
         self.backchannel_established.wait()
         return self._backchannel_stream
+
+    def read_json(self):
+        return self.backchannel.read_json()
+
+    def write_json(self, value):
+        t = self.timeline.mark(('sending', value))
+        self.backchannel.write_json(value)
+        return t

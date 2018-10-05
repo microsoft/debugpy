@@ -116,12 +116,14 @@ class Maybe(BasePattern):
     """A pattern that matches if condition is True.
     """
 
+    name = None
+
     def __init__(self, pattern, condition):
         self.pattern = pattern
         self.condition = condition
 
     def __repr__(self):
-        return 'Maybe(%r)' % self.pattern
+        return self.name or 'Maybe(%r)' % self.pattern
 
     def __eq__(self, value):
         return self.condition(value) and value == self.pattern
@@ -159,7 +161,15 @@ SUCCESS = Success(True)
 FAILURE = Success(False)
 
 ANY = Any()
+
 ANY.bool = ANY.such_that(lambda x: x is True or x is False)
+ANY.bool.name = 'ANY.bool'
+
 ANY.str = ANY.such_that(lambda x: isinstance(x, unicode))
+ANY.str.name = 'ANY.str'
+
 ANY.num = ANY.such_that(lambda x: isinstance(x, numbers.Real))
+ANY.num.name = 'ANY.num'
+
 ANY.int = ANY.such_that(lambda x: isinstance(x, numbers.Integral))
+ANY.int.name = 'ANY.int'

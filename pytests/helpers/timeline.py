@@ -4,68 +4,132 @@
 
 from __future__ import print_function, with_statement, absolute_import
 
+import contextlib
+import itertools
 import threading
-import time
+
+# This is only imported to ensure that the module is actually installed and the
+# timeout setting in pytest.ini is active, since otherwise most timeline-based
+# tests will hang indefinitely.
 import pytest_timeout # noqa
 
+from pytests.helpers import print, timestamp
 import pytests.helpers.pattern as pattern
 
 
 class Timeline(object):
     def __init__(self):
         self._cvar = threading.Condition()
-        self._is_frozen = False
+        self.index_iter = itertools.count(1)
         self._last = None
+        self._is_frozen = False
+        self._is_final = False
+        self.beginning = None   # needed for mark() below
         self.beginning = self.mark('begin')
 
+    def assert_frozen(self):
+        assert self.is_frozen, 'Timeline can only be inspected while frozen()'
+
+    @property
     def last(self):
         with self._cvar:
+            self.assert_frozen()
             return self._last
 
     def history(self):
-        result = list(self.last().backtrack())
-        result.reverse()
-        return result
+        self.assert_frozen()
+        return list(self.beginning.and_following())
 
-    def __contains__(self, expectations):
-        try:
-            iter(expectations)
-        except TypeError:
-            expectations = (expectations,)
-        assert all(isinstance(exp, Expectation) for exp in expectations)
-        last = self.last()
-        return all(exp.has_occurred_by(last) for exp in expectations)
+    def all_occurrences_of(self, expectation):
+        occs = [occ for occ in self.history() if occ.realizes(expectation)]
+        return tuple(occs)
 
-    def _record(self, occurrence):
-        assert isinstance(occurrence, Occurrence)
-        assert occurrence.timeline is self
-        assert occurrence.preceding is None
+    def __contains__(self, expectation):
+        assert expectation.has_lower_bound, (
+            'Expectation must have a lower time bound to be used with "in"! '
+            'Use >> to sequence an expectation against an occurrence to establish a lower bound, '
+            'or use has_been_realized_in() to test for unbounded expectations in the timeline.'
+        )
+        return expectation.has_been_realized_in(self)
+
+    def __getitem__(self, index):
+        assert index is slice
+        assert index.step is None
+        start = index.start or self.beginning
+        stop = index.stop
+        if stop is None:
+            assert self._is_frozen
+            stop = self._last
+        return self.Interval(self, start, stop)
+
+    def wait_until(self, condition):
         with self._cvar:
-            assert not self._is_frozen
-            occurrence.timestamp = time.clock()
-            occurrence.preceding = self._last
-            self._last = occurrence
-            self._cvar.notify_all()
-
-    def freeze(self):
-        with self._cvar:
-            self._is_frozen = True
-
-    def wait_until(self, expectation):
-        assert isinstance(expectation, Expectation)
-        with self._cvar:
-            while expectation not in self:
+            while True:
+                with self.frozen():
+                    if condition():
+                        break
+                assert not self._is_final
                 self._cvar.wait()
             return self._last
 
+    def wait_for(self, expectation):
+        assert expectation.has_lower_bound, (
+            'Expectation must have a lower time bound to be used with wait_for()!'
+            'Use >> to sequence an expectation against an occurrence to establish a lower bound.'
+        )
+        print('Waiting for %r' % expectation)
+        return self.wait_until(lambda: expectation in self)
+
+    def _record(self, occurrence):
+        t = timestamp()
+        assert isinstance(occurrence, Occurrence)
+        assert occurrence.timeline is self
+        assert occurrence.timestamp is None
+        with self._cvar:
+            assert not self._is_final
+            occurrence.timestamp = t
+            occurrence.index = next(self.index_iter)
+            if self._last is None:
+                self.beginning = occurrence
+                self._last = occurrence
+            else:
+                occurrence.previous = self._last
+                self._last._next = occurrence
+                self._last = occurrence
+            self._cvar.notify_all()
+
+    @contextlib.contextmanager
+    def frozen(self):
+        with self._cvar:
+            was_frozen = self._is_frozen
+            self._is_frozen = True
+            yield
+            self._is_frozen = was_frozen
+
+    @property
+    def is_frozen(self):
+        return self._is_frozen
+
+    def finalize(self):
+        with self._cvar:
+            self._is_final = True
+            self._is_frozen = True
+
+    @property
+    def is_finalized(self):
+        return self._is_finalized
+
     def __repr__(self):
-        return '|' + ' >> '.join(repr(occ) for occ in self.history()) + '|'
+        with self.frozen():
+            return '|' + ' >> '.join(repr(occ) for occ in self.history()) + '|'
 
     def __str__(self):
-        return '\n'.join(repr(occ) for occ in self.history())
+        with self.frozen():
+            return '\n'.join(repr(occ) for occ in self.history())
 
     def __data__(self):
-        return self.history()
+        with self.frozen():
+            return self.history()
 
     def mark(self, id):
         occ = Occurrence(self, 'Mark', id)
@@ -76,11 +140,7 @@ class Timeline(object):
         occ = Occurrence(self, 'Request', command, arguments)
         occ.command = command
         occ.arguments = arguments
-
-        def wait_for_response():
-            self.wait_until(Response(occ, pattern.ANY))
-
-        occ.wait_for_response = wait_for_response
+        occ.wait_for_response = lambda: Response(occ, pattern.ANY).wait()
         return occ
 
     def record_response(self, request, body):
@@ -97,76 +157,79 @@ class Timeline(object):
         occ.body = body
         return occ
 
+    class Interval(tuple):
+        def __init__(self, timeline, start, stop):
+            assert isinstance(start, Occurrence)
+            assert isinstance(stop, Occurrence)
 
-class Occurrence(object):
-    def __init__(self, timeline, *circumstances):
-        assert circumstances
-        self.timeline = timeline
-        self.preceding = None
-        self.timestamp = None
-        self.circumstances = circumstances
-        timeline._record(self)
-        assert self.timestamp is not None
+            if start is stop:
+                occs = ()
+            else:
+                assert start < stop
+                occs = tuple(self.start.and_following(until=self.stop))
+            super(Timeline.Interval, self).__init__(occs)
 
-    def backtrack(self, until=None):
-        assert until is None or isinstance(until, Occurrence)
-        occ = self
-        while occ is not until:
-            yield occ
-            occ = occ.preceding
+            self.timeline = timeline
+            self.start = start
+            self.stop = stop
 
-    def precedes(self, occurrence):
-        assert isinstance(occurrence, Occurrence)
-        preceding = occurrence.backtrack()
-        next(preceding)
-        return any(occ is self for occ in preceding)
-
-    def follows(self, occurrence):
-        assert isinstance(occurrence, Occurrence)
-        return occurrence.precedes(self)
-
-    def __lt__(self, occurrence):
-        return self.precedes(occurrence)
-
-    def __gt__(self, occurrence):
-        return self.follows(occurrence)
-
-    def __le__(self, occurrence):
-        return self == occurrence or self < occurrence
-
-    def __ge__(self, occurrence):
-        return self == occurrence or self > occurrence
-
-    def __rshift__(self, expectation):
-        assert isinstance(expectation, Expectation)
-        return expectation.after(self)
-
-    def __hash__(self):
-        return hash(id(self))
-
-    def __data__(self):
-        return self.circumstances
-
-    def __repr__(self):
-        timestamp = int(self.timestamp * 100000)
-        return '@%06d:%s%r' % (timestamp, self.circumstances[0], self.circumstances[1:])
+        def __contains__(self, expectation):
+            occs = [occ for occ in self if expectation.is_realized_by(occ)]
+            occs.reverse()
+            return tuple(occs)
 
 
 class Expectation(object):
-    def has_occurred_by(self, occurrence):
+    timeline = None
+    has_lower_bound = False
+
+    def is_realized_by(self, occurrence):
         raise NotImplementedError()
 
-    def after(self, other):
-        return BoundedExpectation(self, must_follow=other)
+    def is_realized_by_any_of(self, occurrences):
+        return any(self.is_realized_by(occ) for occ in occurrences)
 
-    def before(self, other):
-        return BoundedExpectation(self, must_precede=other)
+    def has_been_realized_before(self, occurrence):
+        return self.is_realized_by_any_of(occurrence.preceding())
+
+    def has_been_realized_after(self, occurrence):
+        return self.is_realized_by_any_of(occurrence.following())
+
+    def has_been_realized_at_or_before(self, occurrence):
+        return self.is_realized_by_any_of(occurrence.and_preceding())
+
+    def has_been_realized_at_or_after(self, occurrence):
+        return self.is_realized_by_any_of(occurrence.and_following())
+
+    def has_been_realized_in(self, timeline):
+        return timeline.all_occurrences_of(self) != ()
+
+    def wait(self):
+        assert self.timeline and self.has_lower_bound, (
+            'Expectation must belong to a timeline and have a lower time bound to be used wait()! '
+            'Use >> to sequence an expectation against an occurrence to establish a lower bound.'
+        )
+        return self.timeline.wait_for(self)
+
+    def __eq__(self, other):
+        if self is other:
+            return True
+        elif isinstance(other, Occurrence) and self.is_realized_by(other):
+            return True
+        else:
+            return NotImplemented
+
+    def __ne__(self, other):
+        return not self == other
+
+    def after(self, other):
+        return SequencedExpectation(self, only_after=other)
 
     def when(self, condition):
         return ConditionalExpectation(self, condition)
 
     def __rshift__(self, other):
-        return self.before(other)
+        return self if other is None else other.after(self)
 
     def __and__(self, other):
         assert isinstance(other, Expectation)
@@ -180,80 +243,86 @@ class Expectation(object):
         assert isinstance(other, Expectation)
         return XorExpectation(self, other)
 
+    def __invert__(self):
+        return NotExpectation(self)
+
     def __repr__(self):
         raise NotImplementedError()
 
 
-class BoundedExpectation(Expectation):
-    def __init__(self, expectation, must_follow=None, must_precede=None):
-        self.expectation = expectation
-        self.must_follow = Occurred(must_follow) if isinstance(must_follow, Occurrence) else must_follow
-        self.must_precede = Occurred(must_precede) if isinstance(must_precede, Occurrence) else must_precede
-        assert isinstance(self.expectation, Expectation)
-        assert self.must_follow is None or isinstance(self.must_follow, Expectation)
-        assert self.must_precede is None or isinstance(self.must_precede, Expectation)
-
-    def has_occurred_by(self, occurrence):
-        assert isinstance(occurrence, Occurrence)
-
-        expectation = self.expectation
-        must_follow = self.must_follow
-        must_precede = self.must_precede
-        occ = occurrence
-
-        if must_precede is not None:
-            for occ in occ.backtrack():
-                if not must_precede.has_occurred_by(occ):
-                    break
-            else:
-                return False
-
-        for occ in occ.backtrack():
-            if expectation.has_occurred_by(occ):
-                break
-        else:
-            return False
-
-        return must_follow is None or must_follow.has_occurred_by(occ)
-
-    def __repr__(self):
-        s = '('
-        if self.must_follow is not None:
-            s += repr(self.must_follow) + ' >> '
-        s += repr(self.expectation)
-        if self.must_precede is not None:
-            s += ' >> ' + repr(self.must_precede)
-        s += ')'
-        return s
-
-
-class AndExpectation(Expectation):
+class DerivativeExpectation(Expectation):
     def __init__(self, *expectations):
+        self.expectations = expectations
         assert len(expectations) > 0
         assert all(isinstance(exp, Expectation) for exp in expectations)
-        self.expectations = expectations
 
-    def has_occurred_by(self, occurrence):
+        timelines = {id(exp.timeline): exp.timeline for exp in expectations}
+        timelines.pop(id(None), None)
+        if len(timelines) > 1:
+            print('Cannot mix expectations from multiple timelines:')
+            for tl_id, tl in timelines.items():
+                print('\n    %d: %r' % (tl_id, tl))
+            print()
+            raise ValueError('Cannot mix expectations from multiple timelines')
+        for tl in timelines.values():
+            self.timeline = tl
+
+    @property
+    def has_lower_bound(self):
+        return all(exp.has_lower_bound for exp in self.expectations)
+
+
+class SequencedExpectation(DerivativeExpectation):
+    def __init__(self, expectation, only_after):
+        super(SequencedExpectation, self).__init__(expectation, only_after)
+
+    @property
+    def expectation(self):
+        return self.expectations[0]
+
+    @property
+    def only_after(self):
+        return self.expectations[1]
+
+    def is_realized_by(self, occurrence):
         assert isinstance(occurrence, Occurrence)
-        return all(exp.has_occurred_by(occurrence) for exp in self.expectations)
+        return (
+            occurrence.realizes(self.expectation) and
+            self.only_after.has_been_realized_before(occurrence)
+        )
 
-    def __and__(self, other):
-        assert isinstance(other, Expectation)
-        return AndExpectation(*(self.expectations + (other,)))
+    @property
+    def has_lower_bound(self):
+        return self.expectation.has_lower_bound or self.only_after.has_lower_bound
 
     def __repr__(self):
-        return '(' + ' & '.join(repr(exp) for exp in self.expectations) + ')'
+        return '(%r >> %r)' % (self.only_after, self.expectation)
 
 
-class OrExpectation(Expectation):
-    def __init__(self, *expectations):
-        assert len(expectations) > 0
-        assert all(isinstance(exp, Expectation) for exp in expectations)
-        self.expectations = expectations
+class NotExpectation(DerivativeExpectation):
+    def __init__(self, expectation):
+        super(NotExpectation, self).__init__(expectation)
 
-    def has_occurred_by(self, occurrence):
+    @property
+    def expectation(self):
+        return self.expectations[0]
+
+    def is_realized_by(self, occurrence):
         assert isinstance(occurrence, Occurrence)
-        return any(exp.has_occurred_by(occurrence) for exp in self.expectations)
+        return not occurrence.realizes(self.expectation)
+
+    @property
+    def has_lower_bound(self):
+        return self.expectation.has_lower_bound
+
+    def __repr__(self):
+        return '~%r' % self.expectation
+
+
+class OrExpectation(DerivativeExpectation):
+    def is_realized_by(self, occurrence):
+        assert isinstance(occurrence, Occurrence)
+        return any(occurrence.realizes(exp) for exp in self.expectations)
 
     def __or__(self, other):
         assert isinstance(other, Expectation)
@@ -263,15 +332,55 @@ class OrExpectation(Expectation):
         return '(' + ' | '.join(repr(exp) for exp in self.expectations) + ')'
 
 
-class XorExpectation(Expectation):
-    def __init__(self, *expectations):
-        assert len(expectations) > 0
-        assert all(isinstance(exp, Expectation) for exp in expectations)
-        self.expectations = expectations
-
-    def has_occurred_by(self, occurrence):
+class AndExpectation(DerivativeExpectation):
+    def is_realized_by(self, occurrence):
         assert isinstance(occurrence, Occurrence)
-        return sum(exp.has_occurred_by(occurrence) for exp in self.expectations) == 1
+
+        # At least one expectation must be realized by the occurrence.
+        expectations = list(self.expectations)
+        for exp in expectations:
+            if occurrence.realizes(exp):
+                break
+        else:
+            return False
+
+        # And then all of the remaining expectations must have been realized
+        # at or sometime before that occurrence.
+        expectations.remove(exp)
+        return all(exp.has_been_realized_at_or_before(occurrence) for exp in expectations)
+
+    @property
+    def has_lower_bound(self):
+        return any(exp.has_lower_bound for exp in self.expectations)
+
+    def __and__(self, other):
+        assert isinstance(other, Expectation)
+        return AndExpectation(*(self.expectations + (other,)))
+
+    def __repr__(self):
+        return '(' + ' & '.join(repr(exp) for exp in self.expectations) + ')'
+
+
+class XorExpectation(DerivativeExpectation):
+    def is_realized_by(self, occurrence):
+        assert isinstance(occurrence, Occurrence)
+
+        # At least one expectation must be realized by the occurrence.
+        expectations = list(self.expectations)
+        for exp in expectations:
+            if occurrence.realizes(exp):
+                break
+        else:
+            return False
+
+        # And then none of the remaining expectations must have been realized
+        # at or sometime before that occurrence.
+        expectations.remove(exp)
+        return not any(exp.has_been_realized_at_or_before(occurrence) for exp in expectations)
+
+    @property
+    def has_lower_bound(self):
+        return all(exp.has_lower_bound for exp in self.expectations)
 
     def __xor__(self, other):
         assert isinstance(other, Expectation)
@@ -281,62 +390,153 @@ class XorExpectation(Expectation):
         return '(' + ' ^ '.join(repr(exp) for exp in self.expectations) + ')'
 
 
-class ConditionalExpectation(Expectation):
+class ConditionalExpectation(DerivativeExpectation):
     def __init__(self, expectation, condition):
-        assert isinstance(expectation, Expectation)
-        self.expectation = expectation
         self.condition = condition
+        super(ConditionalExpectation, self).__init__(expectation)
 
-    def has_occurred_by(self, occurrence):
+    @property
+    def expectation(self):
+        return self.expectations[0]
+
+    def is_realized_by(self, occurrence):
         assert isinstance(occurrence, Occurrence)
-        return self.condition(occurrence) and self.expectation.has_occurred_by(occurrence)
+        return self.condition(occurrence) and occurrence.realizes(self.expectation)
 
     def __repr__(self):
         return '%r?' % self.expectation
 
 
-class BasicExpectation(Expectation):
+class PatternExpectation(Expectation):
     def __init__(self, *circumstances):
         self.circumstances = pattern.Pattern(circumstances)
 
-    def has_occurred_by(self, occurrence):
+    def is_realized_by(self, occurrence):
         assert isinstance(occurrence, Occurrence)
-        return any(
-            occ.circumstances
-            in self.circumstances
-            for occ in occurrence.backtrack()
-        )
+        return occurrence.circumstances == self.circumstances
 
     def __repr__(self):
         circumstances = self.circumstances.pattern
         return '%s%r' % (circumstances[0], circumstances[1:])
 
 
-class Occurred(BasicExpectation):
-    def __init__(self, occurrence):
-        assert isinstance(occurrence, Occurrence)
-        self.occurrence = occurrence
-
-    def has_occurred_by(self, occurrence):
-        assert isinstance(occurrence, Occurrence)
-        return any(occ is self.occurrence for occ in occurrence.backtrack())
-
-    def __repr__(self):
-        return 'Occurred(%r)' % self.occurrence
-
-
 def Mark(id):
-    return BasicExpectation('Mark', id)
+    return PatternExpectation('Mark', id)
 
 
 def Request(command, arguments=pattern.ANY):
-    return BasicExpectation('Request', command, arguments)
+    return PatternExpectation('Request', command, arguments)
 
 
 def Response(request, body=pattern.ANY):
     assert isinstance(request, Expectation) or isinstance(request, Occurrence)
-    return BasicExpectation('Response', request, body)
+    exp = PatternExpectation('Response', request, body)
+    exp.timeline = request.timeline
+    exp.has_lower_bound = request.has_lower_bound
+    return exp
 
 
 def Event(event, body=pattern.ANY):
-    return BasicExpectation('Event', event, body)
+    return PatternExpectation('Event', event, body)
+
+
+class Occurrence(Expectation):
+    has_lower_bound = True
+
+    def __init__(self, timeline, *circumstances):
+        assert circumstances
+        self.timeline = timeline
+        self.previous = None
+        self._next = None
+        self.timestamp = None
+        self.index = None
+        self.circumstances = circumstances
+        timeline._record(self)
+        assert self.timestamp is not None
+
+    @property
+    def next(self):
+        with self.timeline.frozen():
+            occ = self._next
+            was_last = occ is self.timeline.last
+        if was_last:
+            # The .next property of the last occurrence in a timeline can change
+            # at any moment when timeline isn't frozen. So if it wasn't frozen by
+            # the caller, this was an unsafe operation, and we should complain.
+            self.timeline.assert_frozen()
+        return occ
+
+    def preceding(self):
+        it = self.and_preceding()
+        next(it)
+        return it
+
+    def and_preceding(self, up_to=None):
+        assert up_to is None or isinstance(up_to, Expectation)
+        if isinstance(up_to, Occurrence):
+            assert self > up_to
+        occ = self
+        while occ != up_to:
+            yield occ
+            occ = occ.previous
+
+    def following(self):
+        self.timeline.assert_frozen()
+        it = self.and_following()
+        next(it)
+        return it
+
+    def and_following(self, up_to=None):
+        assert up_to is None or isinstance(up_to, Expectation)
+        self.timeline.assert_frozen()
+        if isinstance(up_to, Occurrence):
+            assert self < up_to
+        occ = self
+        while occ != up_to:
+            yield occ
+            occ = occ.next
+
+    def precedes(self, occurrence):
+        assert isinstance(occurrence, Occurrence)
+        return any(occ is self for occ in occurrence.preceding())
+
+    def follows(self, occurrence):
+        assert isinstance(occurrence, Occurrence)
+        return any(occ is self for occ in occurrence.following())
+
+    def realizes(self, expectation):
+        assert isinstance(expectation, Expectation)
+        return expectation.is_realized_by(self)
+
+    def await_following(self, expectation):
+        assert isinstance(expectation, Expectation)
+        expectation = self >> expectation
+        return self.timeline.wait_for(expectation)
+
+    def is_realized_by(self, other):
+        return self is other
+
+    def __lt__(self, occurrence):
+        return self.precedes(occurrence)
+
+    def __gt__(self, occurrence):
+        return self.follows(occurrence)
+
+    def __le__(self, occurrence):
+        return self is occurrence or self < occurrence
+
+    def __ge__(self, occurrence):
+        return self is occurrence or self > occurrence
+
+    def __rshift__(self, expectation):
+        assert isinstance(expectation, Expectation)
+        return expectation.after(self)
+
+    def __hash__(self):
+        return hash(id(self))
+
+    def __data__(self):
+        return self.circumstances
+
+    def __repr__(self):
+        return '%d!%s%r' % (self.index, self.circumstances[0], self.circumstances[1:])

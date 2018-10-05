@@ -135,6 +135,14 @@ class RequestFailure(Exception):
     def __init__(self, message):
         self.message = message
 
+    def __eq__(self, other):
+        if isinstance(other, RequestFailure) and other.message == self.message:
+            return True
+        return NotImplemented
+
+    def __ne__(self, other):
+        return not self == other
+
 
 class Request(object):
     """Represents a request that was sent to the other party, and is awaiting or has

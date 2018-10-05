@@ -11,13 +11,29 @@ import time
 import traceback
 
 
+if sys.version_info >= (3, 3):
+    clock = time.perf_counter
+else:
+    clock = time.clock
+
+
+timestamp_zero = clock()
+
+def timestamp():
+    return clock() - timestamp_zero
+
+
 print_lock = threading.Lock()
 real_print = print
 
 def print(*args, **kwargs):
-    """Like builtin print(), but synchronized using a global lock.
+    """Like builtin print(), but synchronized using a global lock,
+    and adds a timestamp
     """
+    timestamped = kwargs.pop('timestamped', True)
     with print_lock:
+        if timestamped:
+            real_print('@%09.6f: ' % timestamp(), end='')
         real_print(*args, **kwargs)
 
 
