@@ -477,11 +477,6 @@ class Occurrence(Expectation):
         assert isinstance(expectation, Expectation)
         return expectation.is_realized_by(self)
 
-    def await_following(self, expectation):
-        assert isinstance(expectation, Expectation)
-        expectation = self >> expectation
-        return self.timeline.wait_for(expectation)
-
     def is_realized_by(self, other):
         return self is other
 

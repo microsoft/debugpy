@@ -122,11 +122,11 @@ class DebugSession(object):
         assert self.socket
         print('ptvsd#%d has pid=%d' % (self.ptvsd_port, self.process.pid))
 
-        self.timeline.beginning.await_following(Event('output', Pattern({
+        (self.timeline.beginning >> (Event('output', Pattern({
             'category': 'telemetry',
             'output': 'ptvsd',
             'data': {'version': ptvsd.__version__}
-        })))
+        })))).wait()
 
         if perform_handshake:
             return self.handshake()
@@ -200,7 +200,7 @@ class DebugSession(object):
         request = self.timeline.record_request(command, arguments)
         request.sent = self.channel.send_request(command, arguments)
         request.sent.on_response(lambda response: self._process_response(request, response))
-        request.causing = lambda expectation: request.await_following(expectation) and request
+        request.causing = lambda expectation: (request >> expectation).wait() and request
         assert Request(command, arguments).is_realized_by(request)
         return request
 

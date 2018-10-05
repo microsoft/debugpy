@@ -175,7 +175,7 @@ def test_simple_mthread(make_timeline, daemon, occurs_before_wait):
     advance_worker()
     expectation = Mark('tada')
     expected_history += [('Mark', 'tada')]
-    t = t.await_following(expectation)
+    t = (t >> expectation).wait()
 
     with timeline.frozen():
         assert expectation.has_been_realized_in(timeline)
@@ -184,7 +184,7 @@ def test_simple_mthread(make_timeline, daemon, occurs_before_wait):
     advance_worker()
     expected_history += [('Request', 'next', {'threadId': 3})]
     expectation = Request('next', {'threadId': 3})
-    t = t.await_following(expectation)
+    t = (t >> expectation).wait()
 
     with timeline.frozen():
         assert expectation.has_been_realized_in(timeline)
@@ -195,7 +195,7 @@ def test_simple_mthread(make_timeline, daemon, occurs_before_wait):
     advance_worker()
     expected_history += [('Response', request, {})]
     expectation = Response(request, {}) & Response(Request('next', {'threadId': 3}), {})
-    t = t.await_following(expectation)
+    t = (t >> expectation).wait()
 
     with timeline.frozen():
         assert expectation.has_been_realized_in(timeline)
@@ -206,7 +206,7 @@ def test_simple_mthread(make_timeline, daemon, occurs_before_wait):
     expectation = Event('stopped', {'reason': 'pause'})
 
     with timeline.frozen():
-        t = t.await_following(expectation)
+        t = (t >> expectation).wait()
         assert expectation.has_been_realized_in(timeline)
         assert timeline.history() == Pattern(expected_history)
 

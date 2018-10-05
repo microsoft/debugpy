@@ -108,13 +108,13 @@ def test_recursive():
             'be': [],
         }
     ] == Pattern([
-            ANY,
-            True,
-            ('Something', {'a': 1}),
-            [1, ANY, 3, {'aa': 4}],
-            ANY.dict_with({
-                'ba': ANY,
-                'bb': [None],
-                'bc': {},
-            }),
+        ANY,
+        True,
+        ('Something', {'a': 1}),
+        [1, ANY, 3, {'aa': 4}],
+        ANY.dict_with({
+            'ba': ANY,
+            'bb': [None],
+            'bc': {},
+        }),
     ])
