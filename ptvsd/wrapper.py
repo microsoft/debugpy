@@ -1109,14 +1109,22 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         self.send_event('initialized')
 
     def on_attach(self, request, args):
-        # TODO: docstring
+        if not multiproc.initial_request:
+            multiproc.initial_request = {
+                'command': 'attach',
+                'arguments': args
+            }
         self.start_reason = 'attach'
         self._set_debug_options(args)
         self._handle_attach(args)
         self.send_response(request)
 
     def on_launch(self, request, args):
-        # TODO: docstring
+        if not multiproc.initial_request:
+            multiproc.initial_request = {
+                'command': 'launch',
+                'arguments': args
+            }
         self.start_reason = 'launch'
         self._set_debug_options(args)
         self._notify_launch()
@@ -1181,6 +1189,7 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
                 return
             self._debuggerstopped = True
         if not self._restart_debugger:
+            multiproc.initial_request = None
             self.send_event('terminated')
 
     def _wait_until_exiting(self, timeout):

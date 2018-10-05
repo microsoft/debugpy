@@ -36,7 +36,7 @@ subprocess_queue = queue.Queue()
 initial_request = None
 
 # Process ID of the first process in the current process tree.
-initial_pid = None
+initial_pid = os.getpid()
 
 
 def enable():
