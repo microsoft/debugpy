@@ -68,7 +68,9 @@ class Timeline(object):
             'Use >> to sequence an expectation against an occurrence to establish a lower bound.'
         )
         print('Waiting for %r' % expectation)
-        return self.wait_until(lambda: expectation in self)
+        occ = self.wait_until(lambda: expectation in self)
+        print('Expectation %r realized by %r' % (expectation, occ))
+        return occ
 
     def _record(self, occurrence):
         t = timestamp()
