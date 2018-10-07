@@ -10,7 +10,6 @@ import threading
 import types
 
 from . import helpers
-from .helpers import print
 from .helpers.session import DebugSession
 
 
@@ -30,8 +29,7 @@ def pytest_runtest_makereport(item, call):
 @pytest.hookimpl(hookwrapper=True, tryfirst=True)
 def pytest_pyfunc_call(pyfuncitem):
     # Resets the timestamp zero for every new test.
-    print('Timestamp clock reset to zero.', timestamped=False)
-    helpers.timestamp_zero = helpers.timestamp()
+    helpers.timestamp_zero = helpers.clock()
     yield
 
 

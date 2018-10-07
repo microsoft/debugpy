@@ -5,8 +5,9 @@
 from __future__ import print_function, with_statement, absolute_import
 
 import itertools
+import json
 
-from . import print
+from . import print, colors
 
 
 class JsonMemoryStream(object):
@@ -49,11 +50,11 @@ class LoggingJsonStream(object):
 
     def read_json(self):
         value = self.stream.read_json()
-        print('%s --> %r' % (self.id, value))
+        s = colors.colorize_json(json.dumps(value))
+        print('%s%s --> %s%s' % (colors.LIGHT_CYAN, self.id, colors.RESET, s))
         return value
 
     def write_json(self, value):
-        print('%s <-- %r' % (self.id, value))
+        s = colors.colorize_json(json.dumps(value))
+        print('%s%s <-- %s%s' % (colors.LIGHT_CYAN, self.id, colors.RESET, s))
         self.stream.write_json(value)
-
-

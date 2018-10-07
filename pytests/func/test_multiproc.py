@@ -6,8 +6,9 @@ from __future__ import print_function, with_statement, absolute_import
 
 import platform
 import pytest
+import sys
 
-from ..helpers.pattern import ANY, Pattern
+from ..helpers.pattern import ANY
 from ..helpers.session import DebugSession
 from ..helpers.timeline import Event, Request
 
@@ -31,9 +32,12 @@ def test_multiprocessing(debug_session, pyfile):
         def child(q):
             print('entering child')
             assert q.get() == 1
+
+            print('spawning child of child')
             p = multiprocessing.Process(target=child_of_child, args=(q,))
             p.start()
             p.join()
+
             assert q.get() == 3
             q.put(4)
             print('leaving child')
@@ -45,30 +49,39 @@ def test_multiprocessing(debug_session, pyfile):
             else:
                 assert platform.system() == 'Windows'
 
+            print('spawning child')
             q = multiprocessing.Queue()
             p = multiprocessing.Process(target=child, args=(q,))
             p.start()
+            print('child spawned')
             backchannel.write_json(p.pid)
+
             q.put(1)
             assert backchannel.read_json() == 'continue'
             q.put(2)
             p.join()
             assert q.get() == 4
             q.close()
+            backchannel.write_json('done')
+
+    debug_session.ignore_unobserved += [
+        # The queue module can spawn helper background threads, depending on Python version
+        # and platform. Since this is an implementation detail, we don't care about those.
+        Event('thread', ANY.dict_with({'reason': 'started'}))
+    ]
 
     debug_session.multiprocess = True
     debug_session.prepare_to_run(filename=code_to_debug, backchannel=True)
-    start = debug_session.start_debugging()
+    debug_session.start_debugging()
 
-    with debug_session.timeline.frozen():
-        initial_request, = debug_session.timeline.all_occurrences_of(Request('launch') | Request('attach'))
-    initial_process = (start >> Event('process')).wait()
+    initial_request, = debug_session.all_occurrences_of(Request('launch') | Request('attach'))
+    initial_process, = debug_session.all_occurrences_of(Event('process'))
     initial_pid = int(initial_process.body['systemProcessId'])
 
-    child_pid = debug_session.backchannel.read_json()
+    child_pid = debug_session.read_json()
 
-    child_subprocess = (start >> Event('ptvsd_subprocess')).wait()
-    assert child_subprocess.body == Pattern({
+    child_subprocess = debug_session.wait_for_next(Event('ptvsd_subprocess'))
+    assert child_subprocess == Event('ptvsd_subprocess', {
         'initialProcessId': initial_pid,
         'parentProcessId': initial_pid,
         'processId': child_pid,
@@ -81,12 +94,13 @@ def test_multiprocessing(debug_session, pyfile):
     child_port = child_subprocess.body['port']
 
     child_session = DebugSession(method='attach_socket', ptvsd_port=child_port)
+    child_session.ignore_unobserved = debug_session.ignore_unobserved
     child_session.connect()
     child_session.handshake()
-    child_start = child_session.start_debugging()
+    child_session.start_debugging()
 
-    child_child_subprocess = (child_start >> Event('ptvsd_subprocess')).wait()
-    assert child_child_subprocess.body == Pattern({
+    child_child_subprocess = child_session.wait_for_next(Event('ptvsd_subprocess'))
+    assert child_child_subprocess == Event('ptvsd_subprocess', {
         'initialProcessId': initial_pid,
         'parentProcessId': child_pid,
         'processId': ANY.int,
@@ -99,17 +113,21 @@ def test_multiprocessing(debug_session, pyfile):
     child_child_port = child_child_subprocess.body['port']
 
     child_child_session = DebugSession(method='attach_socket', ptvsd_port=child_child_port)
+    child_child_session.ignore_unobserved = debug_session.ignore_unobserved
     child_child_session.connect()
     child_child_session.handshake()
-    child_child_start = child_child_session.start_debugging()
-    (child_child_start >> Event('process')).wait()
+    child_child_session.start_debugging(freeze=False)
 
-    debug_session.backchannel.write_json('continue')
+    debug_session.write_json('continue')
 
-    child_child_session.send_request('disconnect')
-    child_child_session.wait_for_disconnect()
+    if sys.version_info >= (3,):
+        child_child_session.wait_for_termination()
+        child_session.wait_for_termination()
+    else:
+        # These should really be wait_for_termination(), but child processes don't send the
+        # usual sequence of events leading to 'terminate' when they exit for some unclear
+        # reason (ptvsd bug?). So, just wait till they drop connection.
+        child_child_session.wait_for_disconnect()
+        child_session.wait_for_disconnect()
 
-    child_session.send_request('disconnect')
-    child_session.wait_for_disconnect()
-
-    debug_session.wait_for_exit()
+    assert debug_session.read_json() == 'done'

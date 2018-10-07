@@ -8,184 +8,463 @@ import contextlib
 import itertools
 import threading
 
-# This is only imported to ensure that the module is actually installed and the
-# timeout setting in pytest.ini is active, since otherwise most timeline-based
-# tests will hang indefinitely.
-import pytest_timeout # noqa
+from ptvsd.compat import queue
 
-from pytests.helpers import print, timestamp
-import pytests.helpers.pattern as pattern
+from pytests.helpers import colors, pattern, print, timestamp
 
 
 class Timeline(object):
-    def __init__(self):
-        self._cvar = threading.Condition()
-        self.index_iter = itertools.count(1)
-        self._last = None
-        self._is_frozen = False
-        self._is_final = False
-        self.beginning = None   # needed for mark() below
-        self.beginning = self.mark('begin')
+    def __init__(self, ignore_unobserved=None):
+        self._ignore_unobserved = ignore_unobserved or []
 
-    def assert_frozen(self):
-        assert self.is_frozen, 'Timeline can only be inspected while frozen()'
+        self._index_iter = itertools.count(1)
+        self._accepting_new = threading.Event()
+        self._finalized = threading.Event()
+        self._recorded_new = threading.Condition()
+        self._record_queue = queue.Queue()
+
+        self._recorder_thread = threading.Thread(target=self._recorder_worker, name='Timeline-%d recorder' % id(self))
+        self._recorder_thread.daemon = True
+        self._recorder_thread.start()
+
+        # Set up initial environment for our first mark()
+        self._last = None
+        self._beginning = None
+        self._accepting_new.set()
+
+        self._beginning = self.mark('begin')
+        assert self._last is self._beginning
+        self._proceeding_from = self._beginning
+
+    def expect_frozen(self):
+        if not self.is_frozen:
+            raise Exception('Timeline can only be inspected while frozen.')
+
+    def __iter__(self):
+        return self._beginning.and_following()
+
+    def __len__(self):
+        return len(self.history())
+
+    @property
+    def beginning(self):
+        return self._beginning
 
     @property
     def last(self):
-        with self._cvar:
-            self.assert_frozen()
-            return self._last
+        self.expect_frozen()
+        return self._last
 
     def history(self):
-        self.assert_frozen()
-        return list(self.beginning.and_following())
-
-    def all_occurrences_of(self, expectation):
-        occs = [occ for occ in self.history() if occ.realizes(expectation)]
-        return tuple(occs)
+        self.expect_frozen()
+        return list(iter(self))
 
     def __contains__(self, expectation):
-        assert expectation.has_lower_bound, (
-            'Expectation must have a lower time bound to be used with "in"! '
-            'Use >> to sequence an expectation against an occurrence to establish a lower bound, '
-            'or use has_been_realized_in() to test for unbounded expectations in the timeline.'
-        )
-        return expectation.has_been_realized_in(self)
+        self.expect_frozen()
+        return expectation.is_realized_in(self)
 
-    def wait_until(self, condition):
-        with self._cvar:
-            while True:
-                with self.frozen():
-                    if condition():
-                        break
-                assert not self._is_final
-                self._cvar.wait()
-            return self._last
+    def all_occurrences_of(self, expectation):
+        return tuple(occ for occ in self if occ == expectation)
 
-    def wait_for(self, expectation):
-        assert expectation.has_lower_bound, (
-            'Expectation must have a lower time bound to be used with wait_for()!'
-            'Use >> to sequence an expectation against an occurrence to establish a lower bound.'
-        )
-        print('Waiting for %r' % expectation)
-        occ = self.wait_until(lambda: expectation in self)
-        print('Expectation %r realized by %r' % (expectation, occ))
-        return occ
+    def __getitem__(self, index):
+        assert isinstance(index, slice)
+        assert index.step is None
+        return Interval(self, index.start, index.stop)
 
-    def _record(self, occurrence):
-        t = timestamp()
-        assert isinstance(occurrence, Occurrence)
-        assert occurrence.timeline is self
-        assert occurrence.timestamp is None
-        with self._cvar:
-            assert not self._is_final
-            occurrence.timestamp = t
-            occurrence.index = next(self.index_iter)
-            if self._last is None:
-                self.beginning = occurrence
-                self._last = occurrence
-            else:
-                occurrence.previous = self._last
-                self._last._next = occurrence
-                self._last = occurrence
-            self._cvar.notify_all()
+    def __reversed__(self):
+        self.expect_frozen()
+        return self.last.and_preceding()
 
-    @contextlib.contextmanager
-    def frozen(self):
-        with self._cvar:
-            was_frozen = self._is_frozen
-            self._is_frozen = True
-            yield
-            self._is_frozen = was_frozen
+    @property
+    def ignore_unobserved(self):
+        return self._ignore_unobserved
+
+    @ignore_unobserved.setter
+    def ignore_unobserved(self, expectations):
+        self.expect_frozen()
+        self._ignore_unobserved = expectations
 
     @property
     def is_frozen(self):
-        return self._is_frozen
+        return not self._accepting_new.is_set()
 
-    def finalize(self):
-        with self._cvar:
-            self._is_final = True
-            self._is_frozen = True
+    def freeze(self):
+        self._accepting_new.clear()
+
+    def unfreeze(self):
+        if not self.is_final:
+            self._accepting_new.set()
+
+    @contextlib.contextmanager
+    def frozen(self):
+        was_frozen = self.is_frozen
+        self.freeze()
+        yield
+        if not was_frozen and not self.is_final:
+            self.unfreeze()
+
+    @contextlib.contextmanager
+    def unfrozen(self):
+        was_frozen = self.is_frozen
+        self.unfreeze()
+        yield
+        if was_frozen or self.is_final:
+            self.freeze()
 
     @property
-    def is_finalized(self):
-        return self._is_finalized
+    def is_final(self):
+        return self._finalized.is_set()
 
-    def __repr__(self):
-        with self.frozen():
-            return '|' + ' >> '.join(repr(occ) for occ in self.history()) + '|'
+    def finalize(self):
+        if self.is_final:
+            return
 
-    def __str__(self):
-        with self.frozen():
-            return '\n'.join(repr(occ) for occ in self.history())
+        print(colors.LIGHT_MAGENTA + 'Finalizing' + colors.RESET)
+        with self.unfrozen():
+            self.mark('finalized')
 
-    def __data__(self):
-        with self.frozen():
-            return self.history()
+        with self.unfrozen():
+            self._finalized.set()
+            # Drain the record queue.
+            self._record_queue.join()
+            # Tell the recorder to shut itself down.
+            self._record_queue.put(None)
+            self._recorder_thread.join()
 
-    def mark(self, id):
-        occ = Occurrence(self, 'Mark', id)
-        occ.id = id
+        assert self._record_queue.empty(), 'Finalized timeline had pending records'
+
+    def close(self):
+        self.finalize()
+        self[:].expect_no_unobserved()
+
+    def __enter__(self):
+        return self
+
+    def __leave__(self, *args):
+        self.close()
+
+    def observe(self, *occurrences):
+        for occ in occurrences:
+            occ.observed = True
+
+    def observe_all(self, expectation):
+        self.expect_frozen()
+        self.observe(*[occ for occ in self if occ == expectation])
+
+    def wait_until(self, condition, freeze=None):
+        freeze = freeze or self.is_frozen
+        self.unfreeze()
+
+        with self._recorded_new:
+            while True:
+                with self.frozen():
+                    if condition():
+                        occ = self.last
+                        break
+
+                assert not self.is_final
+                self._recorded_new.wait()
+
+            if freeze:
+                self.freeze()
+
         return occ
 
-    def record_request(self, command, arguments):
-        occ = Occurrence(self, 'Request', command, arguments)
+    def wait_for(self, expectation, freeze=None, explain=True):
+        assert expectation.has_lower_bound, (
+            'Expectation must have a lower time bound to be used with wait_for()!'
+            'Use >> to sequence an expectation against an occurrence to establish a lower bound,'
+            'or wait_for_next() to wait for the next expectation since the timeline was last '
+            'frozen, or wait_until_realized() when a lower bound is really not necessary.'
+        )
+        return self.wait_until_realized(expectation, freeze, explain=explain)
+
+    def _wait_until_realized(self, expectation, check_past, freeze=None, explain=True, observe=True):
+        reasons = {}
+        check_past = [True] if check_past else []
+
+        def has_been_realized():
+            # First time wait_until() calls us, we have to check the whole timeline.
+            # On subsequent calls, we only need to check the newly added occurrence.
+            if check_past:
+                reasons.update(expectation.test_at_or_before(self.last) or {})
+                del check_past[:]
+                test = expectation.test_at
+            else:
+                test = expectation.test_at_or_before
+
+            reasons.update(test(self.last) or {})
+            if reasons:
+                if observe:
+                    self.expect_realized(expectation, explain=explain, observe=observe)
+                return True
+
+        self.wait_until(has_been_realized, freeze)
+
+        realized_at = reasons[expectation]
+        return realized_at
+
+    def wait_until_realized(self, expectation, freeze=None, explain=True, observe=True):
+        if explain:
+            print(colors.LIGHT_MAGENTA + 'Waiting for ' + colors.RESET + colors.color_repr(expectation))
+        return self._wait_until_realized(expectation, True, freeze, explain, observe)
+
+    def wait_for_next(self, expectation, freeze=True, explain=True, observe=True):
+        if explain:
+            print(colors.LIGHT_MAGENTA + 'Waiting for next ' + colors.RESET + colors.color_repr(expectation))
+        return self._wait_until_realized(expectation, False, freeze, explain, observe)
+
+    def new(self):
+        self.expect_frozen()
+        return self[self._proceeding_from:]
+
+    def proceed(self):
+        self.expect_frozen()
+        self.new().expect_no_unobserved()
+        self._proceeding_from = self.last
+        self.unfreeze()
+
+    def _expect_realized(self, expectation, occurrences, explain=True, observe=True):
+        self.expect_frozen()
+
+        occurrences = list(occurrences)
+        reasons = expectation.test_until_realized(occurrences)
+        if reasons is None:
+            print(colors.LIGHT_RED + 'No matching ' + colors.RESET + colors.color_repr(expectation))
+
+            # The weird always-false assert is to make pytest print occurrences nicely.
+            occurrences = list(occurrences)
+            assert occurrences is ('not matching expectation', expectation)
+
+        if observe:
+            self.observe(*reasons.values())
+
+        realized_at = reasons[expectation]
+        if explain:
+            self._explain_how_realized(realized_at, expectation, reasons)
+        return realized_at
+
+    def expect_realized(self, expectation, explain=True, observe=True):
+        return self._expect_realized(expectation, reversed(self), explain, observe)
+
+    def expect_new(self, expectation, explain=True, observe=True):
+        new = self.new()
+        assert len(new) > 0, 'No new occurrences since last proceed()'
+        return self._expect_realized(expectation, self.new(), explain, observe)
+
+    def expect_not_realized(self, expectation):
+        self.expect_frozen()
+        assert expectation not in self
+
+    def expect_no_new(self, expectation):
+        self.expect_frozen()
+        assert expectation not in self.new()
+
+    def _explain_how_realized(self, occurrence, expectation, reasons):
+        message = (
+            colors.LIGHT_MAGENTA + 'Realized ' + colors.RESET +
+            colors.color_repr(expectation) +
+            colors.LIGHT_MAGENTA + ' via ' + colors.RESET +
+            colors.color_repr(occurrence)
+        )
+
+        # For the breakdown, we want to skip the top-level expectation (since we already
+        # printed that above), and also any expectations that were exact occurrences,
+        # since there's no point explaining that occurrence was realized by itself.
+        skip = [expectation] + [exp for exp in reasons.keys() if isinstance(exp, Occurrence)]
+        for exp in skip:
+            reasons.pop(exp, None)
+
+        if reasons:
+            message += colors.LIGHT_MAGENTA + '; breakdown:' + colors.RESET
+            for exp, reason in reasons.items():
+                message += (
+                    '\n    ' + colors.color_repr(exp) +
+                    colors.LIGHT_MAGENTA + ' by ' + colors.RESET +
+                    colors.color_repr(reason)
+                )
+        print(message)
+
+    def _record(self, occurrence, block=True):
+        assert isinstance(occurrence, Occurrence)
+        assert occurrence.timeline is None
+        assert occurrence.timestamp is None
+        assert not self.is_final, 'Trying to record a new occurrence in a finalized timeline'
+
+        self._record_queue.put(occurrence, block=block)
+        if block:
+            self._record_queue.join()
+
+        return occurrence
+
+    def _recorder_worker(self):
+        while True:
+            occ = self._record_queue.get()
+            if occ is None:
+                self._record_queue.task_done()
+                break
+
+            self._accepting_new.wait()
+            with self._recorded_new:
+                occ.timeline = self
+                occ.timestamp = timestamp()
+                occ.index = next(self._index_iter)
+
+                if self._last is None:
+                    self._beginning = occ
+                    self._last = occ
+                else:
+                    occ.previous = self._last
+                    self._last._next = occ
+                    self._last = occ
+
+                self._recorded_new.notify_all()
+                self._record_queue.task_done()
+
+    def mark(self, id, block=True):
+        occ = Occurrence('Mark', id)
+        occ.id = id
+        occ.observed = True
+        return self._record(occ, block)
+
+    def record_request(self, command, arguments, block=True):
+        occ = Occurrence('Request', command, arguments)
         occ.command = command
         occ.arguments = arguments
-        occ.wait_for_response = lambda: Response(occ, pattern.ANY).wait()
-        return occ
+        occ.observed = True
 
-    def record_response(self, request, body):
+        def wait_for_response(freeze=True):
+            response = Response(occ, pattern.ANY).wait_until_realized(freeze)
+            assert response.observed
+        occ.wait_for_response = wait_for_response
+
+        return self._record(occ, block)
+
+    def record_response(self, request, body, block=True):
         assert isinstance(request, Occurrence)
-        occ = Occurrence(self, 'Response', request, body)
+        occ = Occurrence('Response', request, body)
         occ.request = request
         occ.body = body
         occ.success = not isinstance(occ.body, Exception)
-        return occ
+        return self._record(occ, block)
 
-    def record_event(self, event, body):
-        occ = Occurrence(self, 'Event', event, body)
+    def record_event(self, event, body, block=True):
+        occ = Occurrence('Event', event, body)
         occ.event = event
         occ.body = body
-        return occ
+        return self._record(occ, block)
+
+    def _snapshot(self):
+        last = self._last
+        occ = self._beginning
+        while True:
+            yield occ
+            if occ is last:
+                break
+            occ = occ._next
+
+    def __repr__(self):
+        return '|' + ' >> '.join(repr(occ) for occ in self._snapshot()) + '|'
+
+    def __str__(self):
+        return '\n'.join(repr(occ) for occ in self._snapshot())
+
+
+class Interval(tuple):
+    def __new__(cls, timeline, start, stop):
+        assert start is None or isinstance(start, Expectation)
+        assert stop is None or isinstance(stop, Expectation)
+        if not isinstance(stop, Occurrence):
+            timeline.expect_frozen()
+
+        occs = ()
+        if start is None:
+            start = timeline._beginning
+
+        for occ in start.and_following(up_to=stop):
+            if occ == stop:
+                break
+            if occ == start:
+                occs = occ.and_following(up_to=stop)
+                break
+
+        result = super(Interval, cls).__new__(cls, occs)
+        result.timeline = timeline
+        result.start = start
+        result.stop = stop
+        return result
+
+    def __contains__(self, expectation):
+        return expectation.is_realized_in(self)
+
+    def all_occurrences_of(self, expectation):
+        return tuple(occ for occ in self if occ == expectation)
+
+    def expect_no_unobserved(self):
+        if not self:
+            return
+
+        # print('Checking for unobserved since %s' % colors.color_repr(self[0]))
+        unobserved = [
+            occ for occ in self
+            if not occ.observed and all(
+                exp != occ for exp in self.timeline.ignore_unobserved
+            )
+        ]
+        if not unobserved:
+            return
+
+        print(colors.LIGHT_RED + 'Unobserved occurrences detected:' + colors.RESET)
+        for occ in unobserved:
+            print('   ' + colors.color_repr(occ))
+        raise Exception('Unobserved occurrences detected')
 
 
 class Expectation(object):
     timeline = None
     has_lower_bound = False
 
-    def is_realized_by(self, occurrence):
+    def test_at(self, occurrence):
         raise NotImplementedError()
 
-    def is_realized_by_any_of(self, occurrences):
-        return any(self.is_realized_by(occ) for occ in occurrences)
+    def test_before(self, occurrence):
+        return self.test_until_realized(occurrence.preceding())
 
-    def has_been_realized_before(self, occurrence):
-        return self.is_realized_by_any_of(occurrence.preceding())
+    def test_at_or_before(self, occurrence):
+        return self.test_until_realized(occurrence.and_preceding())
 
-    def has_been_realized_after(self, occurrence):
-        return self.is_realized_by_any_of(occurrence.following())
+    def test_until_realized(self, occurrences):
+        for occ in occurrences:
+            reasons = self.test_at(occ)
+            if reasons:
+                return reasons
+        return None
 
-    def has_been_realized_at_or_before(self, occurrence):
-        return self.is_realized_by_any_of(occurrence.and_preceding())
+    def is_realized_at(self, occurrence):
+        return self.test_at(occurrence) is not None
 
-    def has_been_realized_at_or_after(self, occurrence):
-        return self.is_realized_by_any_of(occurrence.and_following())
+    def is_realized_before(self, occurrence):
+        return self.test_before(occurrence) is not None
 
-    def has_been_realized_in(self, timeline):
-        return timeline.all_occurrences_of(self) != ()
+    def is_realized_at_or_before(self, occurrence):
+        return self.test_at_or_before(occurrence) is not None
 
-    def wait(self):
-        assert self.timeline and self.has_lower_bound, (
-            'Expectation must belong to a timeline and have a lower time bound to be used wait()! '
-            'Use >> to sequence an expectation against an occurrence to establish a lower bound.'
-        )
-        return self.timeline.wait_for(self)
+    def is_realized_in(self, timeline_or_interval):
+        # Go in reverse on the assumption that we're more likely to be looking
+        # for something that happened recently, to find it quicker.
+        return self.test_until_realized(reversed(timeline_or_interval)) is not None
+
+    def wait(self, freeze=None, explain=True):
+        assert self.timeline is not None, 'Expectation must be bound to a timeline to be waited on.'
+        return self.timeline.wait_for(self, freeze, explain)
+
+    def wait_until_realized(self, freeze=None):
+        return self.timeline.wait_until_realized(self, freeze)
 
     def __eq__(self, other):
         if self is other:
             return True
-        elif isinstance(other, Occurrence) and self.is_realized_by(other):
+        elif isinstance(other, Occurrence) and self.is_realized_at(other):
             return True
         else:
             return NotImplemented
@@ -214,8 +493,8 @@ class Expectation(object):
         assert isinstance(other, Expectation)
         return XorExpectation(self, other)
 
-    def __invert__(self):
-        return NotExpectation(self)
+    def __hash__(self):
+        return hash(id(self))
 
     def __repr__(self):
         raise NotImplementedError()
@@ -230,7 +509,7 @@ class DerivativeExpectation(Expectation):
         timelines = {id(exp.timeline): exp.timeline for exp in expectations}
         timelines.pop(id(None), None)
         if len(timelines) > 1:
-            print('Cannot mix expectations from multiple timelines:')
+            print(colors.RED + 'Cannot mix expectations from multiple timelines:' + colors.RESET)
             for tl_id, tl in timelines.items():
                 print('\n    %d: %r' % (tl_id, tl))
             print()
@@ -255,12 +534,20 @@ class SequencedExpectation(DerivativeExpectation):
     def only_after(self):
         return self.expectations[1]
 
-    def is_realized_by(self, occurrence):
+    def test_at(self, occurrence):
         assert isinstance(occurrence, Occurrence)
-        return (
-            occurrence.realizes(self.expectation) and
-            self.only_after.has_been_realized_before(occurrence)
-        )
+
+        reasons = self.expectation.test_at(occurrence)
+        if not reasons:
+            return None
+
+        bound_reasons = self.only_after.test_before(occurrence)
+        if not bound_reasons:
+            return None
+        reasons.update(bound_reasons)
+
+        reasons[self] = occurrence
+        return reasons
 
     @property
     def has_lower_bound(self):
@@ -270,30 +557,15 @@ class SequencedExpectation(DerivativeExpectation):
         return '(%r >> %r)' % (self.only_after, self.expectation)
 
 
-class NotExpectation(DerivativeExpectation):
-    def __init__(self, expectation):
-        super(NotExpectation, self).__init__(expectation)
-
-    @property
-    def expectation(self):
-        return self.expectations[0]
-
-    def is_realized_by(self, occurrence):
-        assert isinstance(occurrence, Occurrence)
-        return not occurrence.realizes(self.expectation)
-
-    @property
-    def has_lower_bound(self):
-        return self.expectation.has_lower_bound
-
-    def __repr__(self):
-        return '~%r' % self.expectation
-
-
 class OrExpectation(DerivativeExpectation):
-    def is_realized_by(self, occurrence):
+    def test_at(self, occurrence):
         assert isinstance(occurrence, Occurrence)
-        return any(occurrence.realizes(exp) for exp in self.expectations)
+        for exp in self.expectations:
+            reasons = exp.test_at(occurrence)
+            if reasons:
+                reasons[self] = occurrence
+                return reasons
+        return None
 
     def __or__(self, other):
         assert isinstance(other, Expectation)
@@ -304,21 +576,29 @@ class OrExpectation(DerivativeExpectation):
 
 
 class AndExpectation(DerivativeExpectation):
-    def is_realized_by(self, occurrence):
+    def test_at(self, occurrence):
         assert isinstance(occurrence, Occurrence)
 
-        # At least one expectation must be realized by the occurrence.
+        # At least one expectation must be realized at the occurrence.
         expectations = list(self.expectations)
         for exp in expectations:
-            if occurrence.realizes(exp):
+            reasons = exp.test_at(occurrence)
+            if reasons:
                 break
         else:
-            return False
+            return None
 
         # And then all of the remaining expectations must have been realized
         # at or sometime before that occurrence.
         expectations.remove(exp)
-        return all(exp.has_been_realized_at_or_before(occurrence) for exp in expectations)
+        for exp in expectations:
+            more_reasons = exp.test_at_or_before(occurrence)
+            if not more_reasons:
+                return None
+            reasons.update(more_reasons)
+
+        reasons[self] = occurrence
+        return reasons
 
     @property
     def has_lower_bound(self):
@@ -333,21 +613,26 @@ class AndExpectation(DerivativeExpectation):
 
 
 class XorExpectation(DerivativeExpectation):
-    def is_realized_by(self, occurrence):
+    def test_at(self, occurrence):
         assert isinstance(occurrence, Occurrence)
 
         # At least one expectation must be realized by the occurrence.
         expectations = list(self.expectations)
         for exp in expectations:
-            if occurrence.realizes(exp):
+            reasons = exp.test_at(occurrence)
+            if reasons:
                 break
         else:
-            return False
+            return None
 
         # And then none of the remaining expectations must have been realized
-        # at or sometime before that occurrence.
+        # at or anytime before that occurrence.
         expectations.remove(exp)
-        return not any(exp.has_been_realized_at_or_before(occurrence) for exp in expectations)
+        if any(exp.is_realized_at_or_before(occurrence) for exp in expectations):
+            return None
+
+        reasons[self] = occurrence
+        return reasons
 
     @property
     def has_lower_bound(self):
@@ -370,9 +655,18 @@ class ConditionalExpectation(DerivativeExpectation):
     def expectation(self):
         return self.expectations[0]
 
-    def is_realized_by(self, occurrence):
+    def test_at(self, occurrence):
         assert isinstance(occurrence, Occurrence)
-        return self.condition(occurrence) and occurrence.realizes(self.expectation)
+
+        if not self.condition(occurrence):
+            return None
+
+        reasons = self.expectation.test_at(occurrence)
+        if not reasons:
+            return None
+
+        reasons[self] = occurrence
+        return reasons
 
     def __repr__(self):
         return '%r?' % self.expectation
@@ -382,9 +676,9 @@ class PatternExpectation(Expectation):
     def __init__(self, *circumstances):
         self.circumstances = pattern.Pattern(circumstances)
 
-    def is_realized_by(self, occurrence):
+    def test_at(self, occurrence):
         assert isinstance(occurrence, Occurrence)
-        return occurrence.circumstances == self.circumstances
+        return {self: occurrence} if occurrence.circumstances == self.circumstances else None
 
     def __repr__(self):
         circumstances = self.circumstances.pattern
@@ -414,27 +708,32 @@ def Event(event, body=pattern.ANY):
 class Occurrence(Expectation):
     has_lower_bound = True
 
-    def __init__(self, timeline, *circumstances):
+    def __init__(self, *circumstances):
         assert circumstances
-        self.timeline = timeline
-        self.previous = None
-        self._next = None
+        self.circumstances = circumstances
+
+        self.timeline = None
         self.timestamp = None
         self.index = None
-        self.circumstances = circumstances
-        timeline._record(self)
-        assert self.timestamp is not None
+        self.previous = None
+        self._next = None
+        self.observed = False
 
     @property
     def next(self):
+        if self.timeline is None:
+            return None
+
         with self.timeline.frozen():
+            was_last = self is self.timeline.last
             occ = self._next
-            was_last = occ is self.timeline.last
+
         if was_last:
             # The .next property of the last occurrence in a timeline can change
             # at any moment when timeline isn't frozen. So if it wasn't frozen by
             # the caller, this was an unsafe operation, and we should complain.
-            self.timeline.assert_frozen()
+            self.timeline.expect_frozen()
+
         return occ
 
     def preceding(self):
@@ -443,25 +742,31 @@ class Occurrence(Expectation):
         return it
 
     def and_preceding(self, up_to=None):
+        assert self.timeline is not None
         assert up_to is None or isinstance(up_to, Expectation)
-        if isinstance(up_to, Occurrence):
-            assert self > up_to
+
+        if isinstance(up_to, Occurrence) and self < up_to:
+            return
+
         occ = self
         while occ != up_to:
             yield occ
             occ = occ.previous
 
     def following(self):
-        self.timeline.assert_frozen()
         it = self.and_following()
         next(it)
         return it
 
     def and_following(self, up_to=None):
+        assert self.timeline is not None
         assert up_to is None or isinstance(up_to, Expectation)
-        self.timeline.assert_frozen()
-        if isinstance(up_to, Occurrence):
-            assert self < up_to
+        if up_to is None:
+            self.timeline.expect_frozen()
+
+        if isinstance(up_to, Occurrence) and up_to < self:
+            return
+
         occ = self
         while occ != up_to:
             yield occ
@@ -472,21 +777,20 @@ class Occurrence(Expectation):
         return any(occ is self for occ in occurrence.preceding())
 
     def follows(self, occurrence):
-        assert isinstance(occurrence, Occurrence)
-        return any(occ is self for occ in occurrence.following())
+        return occurrence.precedes(self)
 
     def realizes(self, expectation):
         assert isinstance(expectation, Expectation)
-        return expectation.is_realized_by(self)
+        return expectation == self
 
-    def is_realized_by(self, other):
-        return self is other
+    def test_at(self, occurrence):
+        return {self: self} if occurrence is self else None
 
     def __lt__(self, occurrence):
         return self.precedes(occurrence)
 
     def __gt__(self, occurrence):
-        return self.follows(occurrence)
+        return occurrence.precedes(self)
 
     def __le__(self, occurrence):
         return self is occurrence or self < occurrence
@@ -505,4 +809,7 @@ class Occurrence(Expectation):
         return self.circumstances
 
     def __repr__(self):
-        return '%d!%s%r' % (self.index, self.circumstances[0], self.circumstances[1:])
+        s = '%s!%s%r' % (self.index, self.circumstances[0], self.circumstances[1:])
+        if not self.observed:
+            s = '*' + s
+        return s

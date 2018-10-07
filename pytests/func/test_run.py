@@ -4,6 +4,9 @@
 
 from __future__ import print_function, with_statement, absolute_import
 
+import os
+import ptvsd
+
 from ..helpers.pattern import ANY
 from ..helpers.timeline import Event
 
@@ -11,33 +14,26 @@ from ..helpers.timeline import Event
 def test_run(debug_session, pyfile):
     @pyfile
     def code_to_debug():
+        import os
+        import sys
         from pytests.helpers import backchannel
-        print('before')
-        assert backchannel.read_json() == 1
-        print('after')
 
-    timeline = debug_session.timeline
+        print('begin')
+        assert backchannel.read_json() == 'continue'
+        backchannel.write_json(os.path.abspath(sys.modules['ptvsd'].__file__))
+        print('end')
+
     debug_session.prepare_to_run(filename=code_to_debug, backchannel=True)
-    start = debug_session.start_debugging()
+    debug_session.start_debugging()
+    assert debug_session.timeline.is_frozen
 
-    first_thread = (start >> Event('thread', {'reason': 'started', 'threadId': ANY})).wait()
-    with timeline.frozen():
-        assert (
-            timeline.beginning
-            >>
-            Event('initialized', {})
-            >>
-            Event('process', {
-                'name': code_to_debug,
-                'isLocalProcess': True,
-                'startMethod': 'launch' if debug_session.method == 'launch' else 'attach',
-                'systemProcessId': debug_session.process.pid,
-            })
-            >>
-            first_thread
-        ) in timeline
+    process_event, = debug_session.all_occurrences_of(Event('process'))
+    assert process_event == Event('process', ANY.dict_with({
+        'name': code_to_debug,
+    }))
 
-    t = debug_session.write_json(1)
-    (t >> Event('terminated', {})).wait()
+    debug_session.write_json('continue')
+    ptvsd_path = debug_session.read_json()
+    assert ptvsd_path == os.path.abspath(ptvsd.__file__)
 
     debug_session.wait_for_exit()

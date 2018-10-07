@@ -107,7 +107,7 @@ class Any(BasePattern):
         """
         class AnyDictWith(defaultdict):
             def __repr__(self):
-                return repr(items)[:-1] + ', ...}'
+                return repr(dict(items))[:-1] + ', ...}'
         items = AnyDictWith(lambda: ANY, items)
         return items
 

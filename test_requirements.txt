@@ -6,3 +6,5 @@ django
 pytest>=3.8
 pytest-timeout>=1.3
 psutil>=5.4
+pygments>=2.2
+colorama>=0.3

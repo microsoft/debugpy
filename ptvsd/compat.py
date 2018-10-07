@@ -7,17 +7,22 @@
 
 try:
     import builtins
-except:
-    import __builtin__ as builtins
+except ImportError:
+    import __builtin__ as builtins # noqa
+
+try:
+    import queue
+except ImportError:
+    import Queue as queue # noqa
 
 try:
     unicode = builtins.unicode
     bytes = builtins.str
-except:
+except AttributeError:
     unicode = builtins.str
     bytes = builtins.bytes
 
 try:
     xrange = builtins.xrange
-except:
+except AttributeError:
     xrange = builtins.range

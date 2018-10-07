@@ -13,10 +13,10 @@ import time
 
 import ptvsd
 from ptvsd.messaging import JsonIOStream, JsonMessageChannel, MessageHandlers, RequestFailure
-from . import print, watchdog
+from . import colors, print, watchdog
 from .messaging import LoggingJsonStream
-from .pattern import Pattern
-from .timeline import Timeline, Request, Event
+from .pattern import ANY
+from .timeline import Timeline, Event, Response
 
 
 # ptvsd.__file__ will be <dir>/ptvsd/__main__.py - we want <dir>.
@@ -24,7 +24,8 @@ PTVSD_SYS_PATH = os.path.basename(os.path.basename(ptvsd.__file__))
 
 
 class DebugSession(object):
-    WAIT_FOR_EXIT_TIMEOUT = 5
+    WAIT_FOR_EXIT_TIMEOUT = 3
+    BACKCHANNEL_TIMEOUT = 10
 
     def __init__(self, method='launch', ptvsd_port=None):
         assert method in ('launch', 'attach_pid', 'attach_socket')
@@ -46,7 +47,35 @@ class DebugSession(object):
         self.backchannel_port = None
         self.backchannel_established = threading.Event()
         self.debug_options = ['RedirectOutput']
-        self.timeline = Timeline()
+
+        self.timeline = Timeline(ignore_unobserved=[
+            Event('output'),
+            Event('thread', ANY.dict_with({'reason': 'exited'}))
+        ])
+        self.timeline.freeze()
+
+        # Expose some common members of timeline directly - these should be the ones
+        # that are the most straightforward to use, and are difficult to use incorrectly.
+        # Conversely, most tests should restrict themselves to this subset of the API,
+        # and avoid calling members of timeline directly unless there is a good reason.
+        self.new = self.timeline.new
+        self.observe = self.timeline.observe
+        self.wait_for_next = self.timeline.wait_for_next
+        self.proceed = self.timeline.proceed
+        self.expect_new = self.timeline.expect_new
+        self.expect_realized = self.timeline.expect_realized
+        self.all_occurrences_of = self.timeline.all_occurrences_of
+
+    def __contains__(self, expectation):
+        return expectation in self.timeline
+
+    @property
+    def ignore_unobserved(self):
+        return self.timeline.ignore_unobserved
+
+    @ignore_unobserved.setter
+    def ignore_unobserved(self, value):
+        self.timeline.ignore_unobserved = value
 
     def stop(self):
         if self.process:
@@ -111,9 +140,12 @@ class DebugSession(object):
             env['PTVSD_BACKCHANNEL_PORT'] = str(self.backchannel_port)
 
         print('Spawning %r' % argv)
-        self.process = subprocess.Popen(argv, env=env, stdin=subprocess.PIPE)
+        self.process = subprocess.Popen(argv, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.is_running = True
         watchdog.create(self.process.pid)
+
+        self._capture_output(self.process.stdout, 'OUT')
+        self._capture_output(self.process.stderr, 'ERR')
 
         if self.method == 'attach_socket':
             self.connect()
@@ -122,14 +154,45 @@ class DebugSession(object):
         assert self.socket
         print('ptvsd#%d has pid=%d' % (self.ptvsd_port, self.process.pid))
 
-        (self.timeline.beginning >> (Event('output', Pattern({
+        telemetry = self.timeline.wait_for_next(Event('output'))
+        assert telemetry == Event('output', {
             'category': 'telemetry',
             'output': 'ptvsd',
             'data': {'version': ptvsd.__version__}
-        })))).wait()
+        })
+        self.proceed()
 
         if perform_handshake:
             return self.handshake()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.wait_for_exit()
+
+    def wait_for_disconnect(self):
+        """Waits for the connected ptvsd process to disconnect.
+        """
+
+        print(colors.LIGHT_MAGENTA + 'Waiting for ptvsd#%d to disconnect' % self.ptvsd_port + colors.RESET)
+
+        self.channel.wait()
+        self.channel.close()
+
+        self.timeline.finalize()
+        self.timeline.close()
+
+    def wait_for_termination(self, expected_returncode=0):
+        print(colors.LIGHT_MAGENTA + 'Waiting for ptvsd#%d to terminate' % self.ptvsd_port + colors.RESET)
+
+        self.wait_for_next(Event('terminated'))
+        self.expect_realized(
+            Event('exited', {'exitCode': expected_returncode}) >>
+            Event('terminated', {})
+        )
+
+        self.wait_for_disconnect()
 
     def wait_for_exit(self, expected_returncode=0):
         """Waits for the spawned ptvsd process to exit. If it doesn't exit within
@@ -139,21 +202,19 @@ class DebugSession(object):
 
         def kill():
             time.sleep(self.WAIT_FOR_EXIT_TIMEOUT)
-            print('ptvsd#%r (pid=%d) timed out, killing it' % (self.ptvsd_port, self.process.pid))
             if self.is_running:
+                print('ptvsd#%r (pid=%d) timed out, killing it' % (self.ptvsd_port, self.process.pid))
                 self.process.kill()
         kill_thread = threading.Thread(target=kill, name='ptvsd#%r watchdog (pid=%d)' % (self.ptvsd_port, self.process.pid))
         kill_thread.daemon = True
         kill_thread.start()
 
+        print(colors.LIGHT_MAGENTA + 'Waiting for ptvsd#%d (pid=%d) to terminate' % (self.ptvsd_port, self.process.pid) + colors.RESET)
         self.process.wait()
+
         self.is_running = False
         assert self.process.returncode == expected_returncode
-
-    def wait_for_disconnect(self):
-        """Waits for the connected ptvsd process to disconnect.
-        """
-        return self.channel.wait()
+        self.wait_for_termination(self.process.returncode)
 
     def _listen(self):
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -196,16 +257,21 @@ class DebugSession(object):
         self.channel.start()
         self.connected.set()
 
-    def send_request(self, command, arguments=None):
+    def send_request(self, command, arguments=None, proceed=True):
+        if self.timeline.is_frozen and proceed:
+            self.proceed()
+
         request = self.timeline.record_request(command, arguments)
         request.sent = self.channel.send_request(command, arguments)
         request.sent.on_response(lambda response: self._process_response(request, response))
-        request.causing = lambda expectation: (request >> expectation).wait() and request
-        assert Request(command, arguments).is_realized_by(request)
-        return request
 
-    def mark(self, id):
-        return self.timeline.mark(id)
+        def causing(*expectations):
+            for exp in expectations:
+                (request >> exp).wait()
+            return request
+        request.causing = causing
+
+        return request
 
     def handshake(self):
         """Performs the handshake that establishes the debug session ('initialized'
@@ -217,47 +283,83 @@ class DebugSession(object):
         to finalize the configuration stage, and start running code.
         """
 
-        (self.send_request('initialize', {'adapterID': 'test'})
-            .causing(Event('initialized', {}))
-            .wait_for_response())
+        self.send_request('initialize', {'adapterID': 'test'}).wait_for_response()
+        self.wait_for_next(Event('initialized', {}))
+        self.proceed()
 
         request = 'launch' if self.method == 'launch' else 'attach'
         self.send_request(request, {'debugOptions': self.debug_options}).wait_for_response()
 
-    def start_debugging(self):
+        # Issue 'threads' so that we get the 'thread' event for the main thread now,
+        # rather than at some random time later during the test.
+        (self.send_request('threads')
+            .causing(Event('thread'))
+            .wait_for_response())
+
+    def start_debugging(self, freeze=True):
         """Finalizes the configuration stage, and issues a 'configurationDone' request
         to start running code under debugger.
 
         After this method returns, ptvsd is running the code in the script file or module
         that was specified in prepare_to_run().
         """
-        return self.send_request('configurationDone').wait_for_response()
+
+        configurationDone_request = self.send_request('configurationDone')
+
+        # The relative ordering of 'process' and 'configurationDone' is not deterministic.
+        # (implementation varies depending on whether it's launch or attach, but in any
+        # case, it is an implementation detail).
+        start = self.wait_for_next(Event('process') & Response(configurationDone_request))
+
+        self.expect_new(Event('process', {
+            'name': ANY.str,
+            'isLocalProcess': True,
+            'startMethod': 'launch' if self.method == 'launch' else 'attach',
+            'systemProcessId': self.process.pid if self.process is not None else ANY.int,
+        }))
+
+        if not freeze:
+            self.proceed()
+
+        if self.backchannel_port:
+            self.backchannel_established.wait()
+
+        return start
 
     def _process_event(self, channel, event, body):
-        self.timeline.record_event(event, body)
-        if event == 'terminated':
-            self.channel.close()
+        self.timeline.record_event(event, body, block=False)
+        # if event == 'terminated':
+        #     self.channel.close()
 
     def _process_response(self, request, response):
         body = response.body if response.success else RequestFailure(response.error_message)
-        self.timeline.record_response(request, body)
+        self.timeline.record_response(request, body, block=False)
 
     def _process_request(self, channel, command, arguments):
         assert False, 'ptvsd should not be sending requests.'
 
     def setup_backchannel(self):
         self.backchannel_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.backchannel_socket.settimeout(self.BACKCHANNEL_TIMEOUT)
         self.backchannel_socket.bind(('localhost', 0))
         _, self.backchannel_port = self.backchannel_socket.getsockname()
         self.backchannel_socket.listen(0)
-        backchannel_thread = threading.Thread(target=self._backchannel_worker, name='ptvsd#%d backchannel'  % self.ptvsd_port)
+
+        backchannel_thread = threading.Thread(target=self._backchannel_worker, name='bchan#%d listener'  % self.ptvsd_port)
         backchannel_thread.daemon = True
         backchannel_thread.start()
 
     def _backchannel_worker(self):
         print('Listening for incoming backchannel connection for bchan#%d' % self.ptvsd_port)
-        sock, _ = self.backchannel_socket.accept()
+        sock = None
+
+        try:
+            sock, _ = self.backchannel_socket.accept()
+        except socket.timeout:
+            assert sock is not None, 'bchan#%r timed out!' % self.ptvsd_port
+
         print('Incoming bchan#%d backchannel connection accepted' % self.ptvsd_port)
+        sock.settimeout(None)
         self._backchannel_stream = LoggingJsonStream(JsonIOStream.from_socket(sock), 'bchan#%d' % self.ptvsd_port)
         self.backchannel_established.set()
 
@@ -271,6 +373,25 @@ class DebugSession(object):
         return self.backchannel.read_json()
 
     def write_json(self, value):
+        self.timeline.unfreeze()
         t = self.timeline.mark(('sending', value))
         self.backchannel.write_json(value)
         return t
+
+    def _capture_output(self, pipe, name):
+        def _output_worker():
+            while True:
+                try:
+                    line = pipe.readline()
+                    if not line:
+                        break
+                except Exception:
+                    break
+                else:
+                    prefix = 'ptvsd#%d %s ' % (self.ptvsd_port, name)
+                    line = colors.LIGHT_BLUE + prefix + colors.RESET + line.decode('utf-8')
+                    print(line, end='')
+
+        thread = threading.Thread(target=_output_worker, name='ptvsd#%r %s' % (self.ptvsd_port, name))
+        thread.daemon = True
+        thread.start()

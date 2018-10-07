@@ -59,7 +59,16 @@ if __name__ == '__main__':
         url='https://aka.ms/ptvs',
         python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*',
         setup_requires=['pytest_runner>=4.2'],
-        tests_require=['pytest>=3.8', 'pytest-timeout>=1.3', 'psutil>=5.4'],
+        tests_require=[
+            'pytest>=3.8',
+            'pytest-timeout>=1.3',
+            'psutil>=5.4',
+            'requests',
+            'flask',
+            'django',
+            'pygments>=2.2',
+            'colorama>=0.3',
+        ],
         classifiers=[
             'Development Status :: 5 - Production/Stable',
             'Programming Language :: Python :: 2.7',

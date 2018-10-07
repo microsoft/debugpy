@@ -11,8 +11,8 @@ import time
 import traceback
 
 
-if sys.version_info >= (3, 3):
-    clock = time.perf_counter
+if sys.version_info >= (3, 5):
+    clock = time.monotonic
 else:
     clock = time.clock
 
@@ -30,10 +30,14 @@ def print(*args, **kwargs):
     """Like builtin print(), but synchronized using a global lock,
     and adds a timestamp
     """
+    from . import colors
     timestamped = kwargs.pop('timestamped', True)
     with print_lock:
         if timestamped:
-            real_print('@%09.6f: ' % timestamp(), end='')
+            t = timestamp()
+            real_print(colors.LIGHT_BLACK, end='')
+            real_print('@%09.6f: ' % t, end='')
+            real_print(colors.RESET, end='')
         real_print(*args, **kwargs)
 
 
