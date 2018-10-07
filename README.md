@@ -69,7 +69,7 @@ while True:
 
 ## Custom Protocol arguments
 ### Launch request arguments
-```json
+```js
 {
     "debugOptions":  [
             "RedirectOutput",       // Whether to redirect stdout and stderr (see pydevd_comm.CMD_REDIRECT_OUTPUT)
@@ -86,7 +86,7 @@ while True:
 ```
 
 ### Attach request arguments
-```json
+```js
 {
     "debugOptions":  [
             "RedirectOutput",       // Whether to redirect stdout and stderr (see pydevd_comm.CMD_REDIRECT_OUTPUT)
