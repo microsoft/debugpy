@@ -84,7 +84,7 @@ def pyfile(request, tmpdir):
         line = source[0]
         indent = len(line) - len(line.lstrip())
         source = [line[indent:] for line in source]
-        source = '\n'.join(source)
+        source = ''.join(source)
 
         tmpfile = tmpdir.join(name + '.py')
         assert not tmpfile.check()
@@ -104,5 +104,3 @@ def debug_session(request):
         session.wait_for_exit()
     finally:
         session.stop()
-
-
