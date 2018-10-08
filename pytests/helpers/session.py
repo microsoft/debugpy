@@ -160,7 +160,6 @@ class DebugSession(object):
             'output': 'ptvsd',
             'data': {'version': ptvsd.__version__}
         })
-        self.proceed()
 
         if perform_handshake:
             return self.handshake()
@@ -285,7 +284,6 @@ class DebugSession(object):
 
         self.send_request('initialize', {'adapterID': 'test'}).wait_for_response()
         self.wait_for_next(Event('initialized', {}))
-        self.proceed()
 
         request = 'launch' if self.method == 'launch' else 'attach'
         self.send_request(request, {'debugOptions': self.debug_options}).wait_for_response()
