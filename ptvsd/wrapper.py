@@ -7,6 +7,7 @@ from __future__ import print_function, absolute_import
 import contextlib
 import errno
 import io
+import json
 import os
 import platform
 import pydevd_file_utils
@@ -1403,6 +1404,12 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         if opts.get('SHOW_RETURN_VALUE', False):
             self.pydevd_request(pydevd_comm.CMD_SHOW_RETURN_VALUES, '1\t1')
 
+        # Print on all but NameError, don't suspend on any.
+        self.pydevd_request(pydevd_comm.CMD_SUSPEND_ON_BREAKPOINT_EXCEPTION, json.dumps(dict(
+            skip_suspend_on_breakpoint_exception=('BaseException',),
+            skip_print_breakpoint_exception=('NameError',),
+        )))
+
         self._apply_code_stepping_settings()
 
     def _is_just_my_code_stepping_enabled(self):
@@ -2525,3 +2532,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         category = 'stdout' if ctx == '1' else 'stderr'
         content = unquote(xml.io['s'])
         self.send_event('output', category=category, output=content)
+
+    @pydevd_events.handler(pydevd_comm.CMD_GET_BREAKPOINT_EXCEPTION)
+    def on_pydevd_get_breakpoint_exception(self, seq, args):
+        # If pydevd sends exception info from a failed breakpoint condition, just ignore.
+        pass

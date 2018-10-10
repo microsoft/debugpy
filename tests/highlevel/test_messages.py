@@ -2798,21 +2798,18 @@ class GetExceptionBreakpointEventTests(PyDevdEventTest, unittest.TestCase):
     CMD = CMD_GET_BREAKPOINT_EXCEPTION
     EVENT = None
 
-    def pydevd_payload(self, tid, exc, frame):
-        return self.debugger_msgs.format_exception(tid, exc, frame)
+    def pydevd_payload(self, tid, exc_type, stacktrace):
+        return self.debugger_msgs.format_breakpoint_exception(tid, exc_type, stacktrace)
 
-    def test_unsupported(self):
-        ptid = 10
-        exc = RuntimeError('something went wrong')
-        frame = (2, 'spam', 'abc.py', 10)  # (pfid, func, file, line)
+    def test_basic(self):
+        trace = [('abc.py', 10, 'spam', 'eggs'), ]  # (file, line, func, obj)
         with self.launched():
-            with self.assertRaises(UnsupportedPyDevdCommandError):
-                self.send_event(ptid, exc, frame)
+            self.send_event(10, 'RuntimeError', trace)
             received = self.vsc.received
 
+        # Note: We don't send any events to client. So this should be empty.
         self.assert_vsc_received(received, [])
         self.assert_received(self.debugger, [])
-
 
 class ShowConsoleEventTests(PyDevdEventTest, unittest.TestCase):
 
@@ -2849,6 +2846,23 @@ class WriteToConsoleEventTests(PyDevdEventTest, unittest.TestCase):
         with self.launched():
             with self.assertRaises(UnsupportedPyDevdCommandError):
                 self.send_event('output')
+            received = self.vsc.received
+
+        self.assert_vsc_received(received, [])
+        self.assert_received(self.debugger, [])
+
+class UnsupportedPyDevdEventTests(PyDevdEventTest, unittest.TestCase):
+
+    CMD = 12345
+    EVENT = None
+
+    def pydevd_paylaod(self, msg):
+        return msg
+
+    def test_unsupported(self):
+        with self.launched():
+            with self.assertRaises(UnsupportedPyDevdCommandError):
+                self.send_event('unsupported')
             received = self.vsc.received
 
         self.assert_vsc_received(received, [])

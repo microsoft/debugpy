@@ -117,3 +117,15 @@ class PyDevdMessages(object):
             info += fmt.format(*frame)
         info += '</thread></xml>'
         return info
+
+    def format_breakpoint_exception(self, threadid, exc_type, stacktrace):
+        info = '<xml>'
+        for filename, line, methodname, methodobj in stacktrace:
+            fn = pydevd_xml.make_valid_xml_value(filename)
+            mn = pydevd_xml.make_valid_xml_value(methodname)
+            obj = pydevd_xml.make_valid_xml_value(methodobj)
+            info += '<frame thread_id = "%s" file="%s" line="%s" name="%s" obj="%s" />' \
+                % (threadid, fn, line, mn, obj)
+        info += "</xml>"
+        return exc_type + '\t' + info
+

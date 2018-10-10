@@ -18,6 +18,7 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_SET_PROJECT_ROOTS,
     CMD_GET_THREAD_STACK,
     CMD_GET_EXCEPTION_DETAILS,
+    CMD_SUSPEND_ON_BREAKPOINT_EXCEPTION,
 )
 
 from ptvsd._util import new_hidden_thread
@@ -140,9 +141,10 @@ class PyDevdLifecycle(object):
     @contextlib.contextmanager
     def _wait_for_initialized(self):
         with self._fix.wait_for_command(CMD_REDIRECT_OUTPUT):
-            with self._fix.wait_for_command(CMD_SET_PROJECT_ROOTS):
-                with self._fix.wait_for_command(CMD_RUN):
-                    yield
+            with self._fix.wait_for_command(CMD_SUSPEND_ON_BREAKPOINT_EXCEPTION):
+                with self._fix.wait_for_command(CMD_SET_PROJECT_ROOTS):
+                    with self._fix.wait_for_command(CMD_RUN):
+                        yield
 
     def _initialize(self):
         version = self._fix.fake.VERSION
