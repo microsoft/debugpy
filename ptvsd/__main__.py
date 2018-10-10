@@ -6,7 +6,7 @@ import argparse
 import os.path
 import sys
 
-from ptvsd import multiproc
+from ptvsd import multiproc, options
 from ptvsd._attach import attach_main
 from ptvsd._local import debug_main, run_main
 from ptvsd.socket import Address
@@ -124,8 +124,8 @@ def _group_args(argv):
             supported.append(arg)
 
         # ptvsd support
-        elif arg in ('--host', '--server-host', '--port', '--pid', '-m', '--multiprocess-port-range'):
-            if arg in ('-m', '--pid'):
+        elif arg in ('--host', '--server-host', '--port', '--pid', '-m', '-c', '--multiprocess-port-range'):
+            if arg in ('-m', '-c', '--pid'):
                 gottarget = True
             supported.append(arg)
             if nextarg is not None:
@@ -169,6 +169,7 @@ def _parse_args(prog, argv):
 
     target = parser.add_mutually_exclusive_group(required=True)
     target.add_argument('-m', dest='module')
+    target.add_argument('-c', dest='code')
     target.add_argument('--pid', type=int)
     target.add_argument('filename', nargs='?')
 
@@ -205,11 +206,16 @@ def _parse_args(prog, argv):
     pid = ns.pop('pid')
     module = ns.pop('module')
     filename = ns.pop('filename')
+    code = ns.pop('code')
     if pid is not None:
         args.name = pid
         args.kind = 'pid'
     elif module is not None:
         args.name = module
+        args.kind = 'module'
+    elif code is not None:
+        options.code = code
+        args.name = 'ptvsd.run_code'
         args.kind = 'module'
     else:
         args.name = filename

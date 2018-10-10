@@ -20,11 +20,11 @@ from .timeline import Timeline, Event, Response
 
 
 # ptvsd.__file__ will be <dir>/ptvsd/__main__.py - we want <dir>.
-PTVSD_SYS_PATH = os.path.basename(os.path.basename(ptvsd.__file__))
+PTVSD_SYS_PATH = os.path.dirname(os.path.dirname(ptvsd.__file__))
 
 
 class DebugSession(object):
-    WAIT_FOR_EXIT_TIMEOUT = 3
+    WAIT_FOR_EXIT_TIMEOUT = 5
     BACKCHANNEL_TIMEOUT = 10
 
     def __init__(self, method='launch', ptvsd_port=None):
@@ -37,6 +37,9 @@ class DebugSession(object):
         self.ptvsd_port = ptvsd_port or 5678
         self.multiprocess = False
         self.multiprocess_port_range = None
+        self.debug_options = ['RedirectOutput']
+        self.env = os.environ.copy()
+        self.env['PYTHONPATH'] = PTVSD_SYS_PATH
 
         self.is_running = False
         self.process = None
@@ -46,7 +49,7 @@ class DebugSession(object):
         self.backchannel_socket = None
         self.backchannel_port = None
         self.backchannel_established = threading.Event()
-        self.debug_options = ['RedirectOutput']
+        self._output_capture_threads = []
 
         self.timeline = Timeline(ignore_unobserved=[
             Event('output'),
@@ -65,6 +68,9 @@ class DebugSession(object):
         self.expect_new = self.timeline.expect_new
         self.expect_realized = self.timeline.expect_realized
         self.all_occurrences_of = self.timeline.all_occurrences_of
+
+    def add_file_to_pythonpath(self, filename):
+        self.env['PYTHONPATH'] += os.pathsep + os.path.dirname(filename)
 
     def __contains__(self, expectation):
         return expectation in self.timeline
@@ -98,10 +104,12 @@ class DebugSession(object):
                 self.backchannel_socket.shutdown(socket.SHUT_RDWR)
             except:
                 self.backchannel_socket = None
+        self._wait_for_remaining_output()
 
-    def prepare_to_run(self, perform_handshake=True, filename=None, module=None, backchannel=False):
+    def prepare_to_run(self, perform_handshake=True, filename=None, module=None, code=None, backchannel=False):
         """Spawns ptvsd using the configured method, telling it to execute the
-        provided Python file or module, and establishes a message channel to it.
+        provided Python file, module, or code, and establishes a message channel
+        to it.
 
         If backchannel is True, calls self.setup_backchannel() before returning.
 
@@ -125,22 +133,24 @@ class DebugSession(object):
             argv += ['--multiprocess-port-range', '%d-%d' % self.multiprocess_port_range]
 
         if filename:
-            assert not module
+            assert not module and not code
             argv += [filename]
         elif module:
-            assert not filename
+            assert not filename and not code
             argv += ['-m', module]
-
-        env = os.environ.copy()
-        env.update({'PYTHONPATH': PTVSD_SYS_PATH})
+        elif code:
+            assert not filename and not module
+            argv += ['-c', code]
 
         if backchannel:
             self.setup_backchannel()
         if self.backchannel_port:
-            env['PTVSD_BACKCHANNEL_PORT'] = str(self.backchannel_port)
+            self.env['PTVSD_BACKCHANNEL_PORT'] = str(self.backchannel_port)
 
+        print('Current directory: %s' % os.getcwd())
+        print('PYTHONPATH: %s' % self.env['PYTHONPATH'])
         print('Spawning %r' % argv)
-        self.process = subprocess.Popen(argv, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.process = subprocess.Popen(argv, env=self.env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.is_running = True
         watchdog.create(self.process.pid)
 
@@ -170,7 +180,7 @@ class DebugSession(object):
     def __exit__(self, *args):
         self.wait_for_exit()
 
-    def wait_for_disconnect(self):
+    def wait_for_disconnect(self, close=True):
         """Waits for the connected ptvsd process to disconnect.
         """
 
@@ -180,18 +190,26 @@ class DebugSession(object):
         self.channel.close()
 
         self.timeline.finalize()
-        self.timeline.close()
+        if close:
+            self.timeline.close()
 
     def wait_for_termination(self, expected_returncode=0):
         print(colors.LIGHT_MAGENTA + 'Waiting for ptvsd#%d to terminate' % self.ptvsd_port + colors.RESET)
 
-        self.wait_for_next(Event('terminated'))
-        self.expect_realized(
-            Event('exited', {'exitCode': expected_returncode}) >>
-            Event('terminated', {})
-        )
+        if sys.version_info < (3,):
+            # On 3.x, ptvsd sometimes exits without sending this, likely due to
+            # https://github.com/Microsoft/ptvsd/issues/530
+            self.wait_for_next(Event('terminated'))
 
-        self.wait_for_disconnect()
+        self.wait_for_disconnect(close=False)
+
+        if sys.version_info < (3,) or Event('exited') in self:
+            self.expect_realized(Event('exited', {'exitCode': expected_returncode}))
+
+        if sys.version_info < (3,) or Event('terminated') in self:
+            self.expect_realized(Event('exited') >> Event('terminated', {}))
+
+        self.timeline.close()
 
     def wait_for_exit(self, expected_returncode=0):
         """Waits for the spawned ptvsd process to exit. If it doesn't exit within
@@ -326,8 +344,6 @@ class DebugSession(object):
 
     def _process_event(self, channel, event, body):
         self.timeline.record_event(event, body, block=False)
-        # if event == 'terminated':
-        #     self.channel.close()
 
     def _process_response(self, request, response):
         body = response.body if response.success else RequestFailure(response.error_message)
@@ -393,3 +409,8 @@ class DebugSession(object):
         thread = threading.Thread(target=_output_worker, name='ptvsd#%r %s' % (self.ptvsd_port, name))
         thread.daemon = True
         thread.start()
+        self._output_capture_threads.append(thread)
+
+    def _wait_for_remaining_output(self):
+        for thread in self._output_capture_threads:
+            thread.join()

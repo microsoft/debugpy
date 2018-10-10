@@ -318,7 +318,7 @@ def test_conditional(make_timeline):
         timeline.expect_realized(t >> something_exciting)
 
 
-@pytest.mark.timeout(1)
+@pytest.mark.timeout(3)
 def test_frozen(make_timeline, daemon):
     timeline, initial_history = make_timeline()
     assert not timeline.is_frozen
@@ -361,7 +361,7 @@ def test_frozen(make_timeline, daemon):
     assert Mark('dee') in timeline
 
 
-@pytest.mark.timeout(1)
+@pytest.mark.timeout(3)
 def test_unobserved(make_timeline, daemon):
     timeline, initial_history = make_timeline()
 
@@ -423,7 +423,7 @@ def test_unobserved(make_timeline, daemon):
     timeline.proceed()
 
 
-@pytest.mark.timeout(1)
+@pytest.mark.timeout(3)
 @pytest.mark.parametrize('order', ['mark_then_wait', 'wait_then_mark'])
 def test_concurrency(make_timeline, daemon, order):
     timeline, initial_history = make_timeline()

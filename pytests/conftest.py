@@ -126,8 +126,8 @@ def pyfile(request, tmpdir):
 ])
 def debug_session(request):
     session = DebugSession(request.param)
-    yield session
     try:
+        yield session
         try:
             failed = request.node.call_result.failed
         except AttributeError:
