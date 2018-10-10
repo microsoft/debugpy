@@ -5,6 +5,7 @@
 from __future__ import print_function, with_statement, absolute_import
 
 import collections
+import contextlib
 import itertools
 import json
 import sys
@@ -222,6 +223,7 @@ class JsonMessageChannel(object):
     def wait(self):
         self._worker.join()
 
+    @contextlib.contextmanager
     def _send_message(self, type, rest={}):
         with self._lock:
             seq = next(self._seq_iter)
@@ -231,17 +233,16 @@ class JsonMessageChannel(object):
         }
         message.update(rest)
         with self._lock:
+            yield seq
             self.stream.write_json(message)
         self.send_callback(self, message)
-        return seq
 
     def send_request(self, command, arguments=None):
         d = {'command': command}
         if arguments is not None:
             d['arguments'] = arguments
-        seq = self._send_message('request', d)
-        request = Request(self, seq)
-        with self._lock:
+        with self._send_message('request', d) as seq:
+            request = Request(self, seq)
             self._requests[seq] = request
         return request
 
@@ -249,7 +250,8 @@ class JsonMessageChannel(object):
         d = {'event': event}
         if body is not None:
             d['body'] = body
-        self._send_message('event', d)
+        with self._send_message('event', d):
+            pass
 
     def send_response(self, request_seq, success, command, error_message=None, body=None):
         d = {
@@ -263,7 +265,8 @@ class JsonMessageChannel(object):
         else:
             if error_message is not None:
                 d['message'] = error_message
-        self._send_message('response', d)
+        with self._send_message('response', d):
+            pass
 
     def on_message(self, message):
         self.receive_callback(self, message)
