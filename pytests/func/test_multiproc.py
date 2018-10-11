@@ -13,7 +13,7 @@ from ..helpers.session import DebugSession
 from ..helpers.timeline import Event, Request
 
 
-@pytest.mark.timeout(40)
+@pytest.mark.timeout(60)
 @pytest.mark.skipif(platform.system() != 'Windows',
                     reason='Debugging multiprocessing module only works on Windows')
 def test_multiprocessing(debug_session, pyfile):
