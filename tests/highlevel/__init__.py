@@ -15,7 +15,6 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_STEP_CAUGHT_EXCEPTION,
     CMD_SEND_CURR_EXCEPTION_TRACE,
     CMD_THREAD_CREATE,
-    CMD_SET_PROJECT_ROOTS,
     CMD_GET_THREAD_STACK,
     CMD_GET_EXCEPTION_DETAILS,
     CMD_SUSPEND_ON_BREAKPOINT_EXCEPTION,
@@ -142,9 +141,8 @@ class PyDevdLifecycle(object):
     def _wait_for_initialized(self):
         with self._fix.wait_for_command(CMD_REDIRECT_OUTPUT):
             with self._fix.wait_for_command(CMD_SUSPEND_ON_BREAKPOINT_EXCEPTION):
-                with self._fix.wait_for_command(CMD_SET_PROJECT_ROOTS):
-                    with self._fix.wait_for_command(CMD_RUN):
-                        yield
+                with self._fix.wait_for_command(CMD_RUN):
+                    yield
 
     def _initialize(self):
         version = self._fix.fake.VERSION

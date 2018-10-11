@@ -1410,8 +1410,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             skip_print_breakpoint_exception=('NameError',),
         )))
 
-        self._apply_code_stepping_settings()
-
     def _is_just_my_code_stepping_enabled(self):
         """Returns true if just-me-code stepping is enabled.
 
@@ -1419,30 +1417,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         """
         dbg_stdlib = self.debug_options.get('DEBUG_STDLIB', False)
         return not dbg_stdlib
-
-    def _apply_code_stepping_settings(self):
-        if self._is_just_my_code_stepping_enabled():
-            vendored_pydevd = os.path.sep + \
-                              os.path.join('ptvsd', '_vendored', 'pydevd')
-            ptvsd_path = os.path.sep + 'ptvsd'
-            site_path = os.path.sep + 'site-packages'
-
-            project_dirs = []
-            for path in sys.path + [os.getcwd()]:
-                is_stdlib = False
-                norm_path = os.path.normcase(path)
-                if path.endswith((ptvsd_path, vendored_pydevd, site_path)):
-                    is_stdlib = True
-                else:
-                    for prefix in STDLIB_PATH_PREFIXES:
-                        if norm_path.startswith(prefix):
-                            is_stdlib = True
-                            break
-
-                if not is_stdlib and len(path) > 0:
-                    project_dirs.append(path)
-            self.pydevd_request(pydevd_comm.CMD_SET_PROJECT_ROOTS,
-                                '\t'.join(project_dirs))
 
     def _is_stdlib(self, filepath):
         filepath = os.path.normcase(os.path.normpath(filepath))
@@ -1493,17 +1467,12 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self._detached = True
 
         self._clear_output_redirection()
-        self._reset_project_roots()
         self._clear_breakpoints()
         self.exceptions_mgr.remove_all_exception_breaks()
         self._resume_all_threads()
 
     def _clear_output_redirection(self):
         self.pydevd_request(pydevd_comm.CMD_REDIRECT_OUTPUT, '')
-
-    def _reset_project_roots(self):
-        # We leave the "project roots" alone (see CMD_SET_PROJECT_ROOTS).
-        pass
 
     def _clear_breakpoints(self):
         cmd = pydevd_comm.CMD_REMOVE_BREAK
@@ -2360,7 +2329,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         if 'JustMyCodeStepping' in args:
             jmc = int(args.get('JustMyCodeStepping', 0)) > 0
             self.debug_options['DEBUG_STDLIB'] = not jmc
-            self._apply_code_stepping_settings()
 
         self.send_response(request)
 
