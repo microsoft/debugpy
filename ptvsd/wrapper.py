@@ -2278,6 +2278,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             self.send_error_response(
                 request,
                 'Frame {} not found'.format(vsc_fid))
+            return
 
         cmd_args = '{}\t{}\t{}\t{}'.format(pyd_tid, pyd_fid, 'LOCAL', text)
         _, _, resp_args = yield self.pydevd_request(
