@@ -196,10 +196,9 @@ class DebugSession(object):
     def wait_for_termination(self, expected_returncode=0):
         print(colors.LIGHT_MAGENTA + 'Waiting for ptvsd#%d to terminate' % self.ptvsd_port + colors.RESET)
 
-        if sys.version_info < (3,):
-            # On 3.x, ptvsd sometimes exits without sending this, likely due to
-            # https://github.com/Microsoft/ptvsd/issues/530
-            self.wait_for_next(Event('terminated'))
+        # BUG: ptvsd sometimes exits without sending 'terminate' or 'exited', likely due to
+        # https://github.com/Microsoft/ptvsd/issues/530. So rather than wait for them, wait until
+        # we disconnect, then check those events for proper body only if they're actually present.
 
         self.wait_for_disconnect(close=False)
 
