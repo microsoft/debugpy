@@ -44,7 +44,12 @@ def test_run(debug_session, pyfile, run_as):
 
     process_event, = debug_session.all_occurrences_of(Event('process'))
     assert process_event == Event('process', ANY.dict_with({
-        'name': ANY if run_as == 'code' else code_to_debug,
+        'name': ANY if run_as == 'code' else ANY.such_that(lambda name: (
+            # There can be a difference in file extension (.py/.pyc/.pyo) on clean runs.
+            name == code_to_debug or
+            name == code_to_debug + 'c' or
+            name == code_to_debug + 'o'
+        )),
     }))
 
     debug_session.write_json('continue')
