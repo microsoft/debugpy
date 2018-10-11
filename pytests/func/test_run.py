@@ -54,6 +54,11 @@ def test_run(debug_session, pyfile, run_as):
 
     debug_session.write_json('continue')
     ptvsd_path = debug_session.read_json()
-    assert ptvsd_path == os.path.abspath(ptvsd.__file__)
+    expected_ptvsd_path = os.path.abspath(ptvsd.__file__)
+    assert (
+        ptvsd_path == expected_ptvsd_path or
+        ptvsd_path == expected_ptvsd_path + 'c' or
+        ptvsd_path == expected_ptvsd_path + 'o'
+    )
 
     debug_session.wait_for_exit()
