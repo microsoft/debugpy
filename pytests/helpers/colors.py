@@ -7,7 +7,7 @@ from __future__ import print_function, with_statement, absolute_import
 import platform
 
 
-if platform.system() == 'Windows':
+if platform.system() != 'Linux':
     # pytest-timeout seems to be buggy wrt colorama when capturing output.
     #
     # TODO: re-enable after enabling proper ANSI sequence handling:
