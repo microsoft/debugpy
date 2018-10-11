@@ -371,10 +371,10 @@ def test_unobserved(make_timeline, daemon):
     @daemon
     def worker():
         worker_can_proceed.wait()
+        worker_can_proceed.clear()
         timeline.record_event('dum', {})
         print('dum')
 
-        worker_can_proceed.clear()
         worker_can_proceed.wait()
         timeline.record_event('dee', {})
         print('dee')
