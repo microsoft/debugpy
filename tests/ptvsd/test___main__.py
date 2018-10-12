@@ -29,7 +29,7 @@ class ParseArgsTests(unittest.TestCase):
     def test_module_server(self):
         args, extra = parse_args([
             'eggs',
-            '--server-host', '10.0.1.1',
+            '--host', '10.0.1.1',
             '--port', '8888',
             '-m', 'spam',
         ])
@@ -48,6 +48,7 @@ class ParseArgsTests(unittest.TestCase):
         args, extra = parse_args([
             'eggs',
             '--nodebug',
+            '--client',
             '--port', '8888',
             '-m', 'spam',
         ])
@@ -82,7 +83,7 @@ class ParseArgsTests(unittest.TestCase):
     def test_script_server(self):
         args, extra = parse_args([
             'eggs',
-            '--server-host', '10.0.1.1',
+            '--host', '10.0.1.1',
             '--port', '8888',
             'spam.py',
         ])
@@ -101,6 +102,7 @@ class ParseArgsTests(unittest.TestCase):
         args, extra = parse_args([
             'eggs',
             '--nodebug',
+            '--client',
             '--port', '8888',
             'spam.py',
         ])
@@ -118,6 +120,7 @@ class ParseArgsTests(unittest.TestCase):
     def test_remote(self):
         args, extra = parse_args([
             'eggs',
+            '--client',
             '--host', '1.2.3.4',
             '--port', '8888',
             'spam.py',
@@ -136,6 +139,7 @@ class ParseArgsTests(unittest.TestCase):
     def test_remote_localhost(self):
         args, extra = parse_args([
             'eggs',
+            '--client',
             '--host', 'localhost',
             '--port', '8888',
             'spam.py',
@@ -155,6 +159,7 @@ class ParseArgsTests(unittest.TestCase):
         args, extra = parse_args([
             'eggs',
             '--nodebug',
+            '--client',
             '--host', '1.2.3.4',
             '--port', '8888',
             'spam.py',
@@ -192,7 +197,7 @@ class ParseArgsTests(unittest.TestCase):
         args, extra = parse_args([
             'eggs',
             '--single-session',
-            '--server-host', '1.2.3.4',
+            '--host', '1.2.3.4',
             '--port', '8888',
             'spam.py',
         ])
@@ -210,6 +215,7 @@ class ParseArgsTests(unittest.TestCase):
     def test_remote_wait(self):
         args, extra = parse_args([
             'eggs',
+            '--client',
             '--host', '1.2.3.4',
             '--port', '8888',
             '--wait',
@@ -267,6 +273,7 @@ class ParseArgsTests(unittest.TestCase):
             'eggs',
             '--DEBUG',
             '--nodebug',
+            '--client',
             '--port', '8888',
             '--vm_type', '???',
             'spam.py',
@@ -327,115 +334,6 @@ class ParseArgsTests(unittest.TestCase):
                     'spam.py',
                 ])
 
-    def test_backward_compatibility_host(self):
-        args, extra = parse_args([
-            'eggs',
-            '--client', '1.2.3.4',
-            '--port', '8888',
-            '-m', 'spam',
-        ])
-
-        self.assertEqual(vars(args), {
-            'kind': 'module',
-            'name': 'spam',
-            'address': Address.as_client('1.2.3.4', 8888),
-            'nodebug': False,
-            'single_session': False,
-            'wait': False,
-        })
-        self.assertEqual(extra, self.EXPECTED_EXTRA)
-
-    def test_backward_compatibility_host_nodebug(self):
-        args, extra = parse_args([
-            'eggs',
-            '--nodebug',
-            '--client', '1.2.3.4',
-            '--port', '8888',
-            '-m', 'spam',
-        ])
-
-        self.assertEqual(vars(args), {
-            'kind': 'module',
-            'name': 'spam',
-            'address': Address.as_client('1.2.3.4', 8888),
-            'nodebug': True,
-            'single_session': False,
-            'wait': False,
-        })
-        self.assertEqual(extra, self.EXPECTED_EXTRA)
-
-    def test_backward_compatibility_module(self):
-        args, extra = parse_args([
-            'eggs',
-            '--port', '8888',
-            '--module',
-            '--file', 'spam:',
-        ])
-
-        self.assertEqual(vars(args), {
-            'kind': 'module',
-            'name': 'spam',
-            'address': Address.as_server(None, 8888),
-            'nodebug': False,
-            'single_session': False,
-            'wait': False,
-        })
-        self.assertEqual(extra, self.EXPECTED_EXTRA)
-
-    def test_backward_compatibility_module_nodebug(self):
-        args, extra = parse_args([
-            'eggs',
-            '--nodebug',
-            '--port', '8888',
-            '--module',
-            '--file', 'spam:',
-        ])
-
-        self.assertEqual(vars(args), {
-            'kind': 'module',
-            'name': 'spam',
-            'address': Address.as_client(None, 8888),
-            'nodebug': True,
-            'single_session': False,
-            'wait': False,
-        })
-        self.assertEqual(extra, self.EXPECTED_EXTRA)
-
-    def test_backward_compatibility_script(self):
-        args, extra = parse_args([
-            'eggs',
-            '--port', '8888',
-            '--file', 'spam.py',
-        ])
-
-        self.assertEqual(vars(args), {
-            'kind': 'script',
-            'name': 'spam.py',
-            'address': Address.as_server(None, 8888),
-            'nodebug': False,
-            'single_session': False,
-            'wait': False,
-        })
-        self.assertEqual(extra, self.EXPECTED_EXTRA)
-
-    def test_backward_compatibility_script_nodebug(self):
-        args, extra = parse_args([
-            'eggs',
-            '--nodebug',
-            '--port', '8888',
-            '--file', 'spam.py',
-        ])
-
-        self.assertEqual(vars(args), {
-            'kind': 'script',
-            'name': 'spam.py',
-            'address': Address.as_client(None, 8888),
-            'nodebug': True,
-            'single_session': False,
-            'wait': False,
-        })
-        self.assertEqual(extra, self.EXPECTED_EXTRA)
-
     def test_pseudo_backward_compatibility(self):
         args, extra = parse_args([
             'eggs',
@@ -458,6 +356,7 @@ class ParseArgsTests(unittest.TestCase):
         args, extra = parse_args([
             'eggs',
             '--nodebug',
+            '--client',
             '--port', '8888',
             '--module',
             '--file', 'spam',

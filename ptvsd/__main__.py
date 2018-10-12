@@ -24,8 +24,6 @@ For the PyDevd CLI handling see:
 
 PYDEVD_OPTS = {
     '--file',
-    '--client',
-    #'--port',
     '--vm_type',
 }
 
@@ -45,8 +43,8 @@ PYDEVD_FLAGS = {
 }
 
 USAGE = """
-  {0} [-h] [-V] [--nodebug] [--host HOST | --server-host HOST] --port PORT -m MODULE [arg ...]
-  {0} [-h] [-V] [--nodebug] [--host HOST | --server-host HOST] --port PORT FILENAME [arg ...]
+  {0} [-h] [-V] [--nodebug] [--client] [--host HOST] --port PORT -m MODULE [arg ...]
+  {0} [-h] [-V] [--nodebug] [--client] [--host HOST] --port PORT FILENAME [arg ...]
   {0} [-h] [-V] --host HOST --port PORT --pid PROCESS_ID
 """  # noqa
 
@@ -106,9 +104,7 @@ def _group_args(argv):
         if gottarget:
             script = argv[i:] + script
             break
-        if arg == '--client':
-            arg = '--host'
-        elif arg == '--file':
+        if arg == '--file':
             if nextarg is None:  # The filename is missing...
                 pydevd.append(arg)
                 continue  # This will get handled later.
@@ -131,14 +127,14 @@ def _group_args(argv):
             supported.append(arg)
 
         # ptvsd support
-        elif arg in ('--host', '--server-host', '--port', '--pid', '-m'):
+        elif arg in ('--host', '--port', '--pid', '-m'):
             if arg == '-m' or arg == '--pid':
                 gottarget = True
             supported.append(arg)
             if nextarg is not None:
                 supported.append(nextarg)
             skip += 1
-        elif arg in ('--single-session', '--wait'):
+        elif arg in ('--single-session', '--wait', '--client'):
             supported.append(arg)
         elif not arg.startswith('-'):
             supported.append(arg)
@@ -159,10 +155,9 @@ def _parse_args(prog, argv):
     )
 
     parser.add_argument('--nodebug', action='store_true')
+    parser.add_argument('--client', action='store_true')
 
-    host = parser.add_mutually_exclusive_group()
-    host.add_argument('--host')
-    host.add_argument('--server-host')
+    parser.add_argument('--host')
     parser.add_argument('--port', type=int, required=True)
 
     target = parser.add_mutually_exclusive_group(required=True)
@@ -179,17 +174,10 @@ def _parse_args(prog, argv):
     args = parser.parse_args(argv)
     ns = vars(args)
 
-    serverhost = ns.pop('server_host', None)
-    clienthost = ns.pop('host', None)
-    if serverhost:
-        args.address = Address.as_server(serverhost, ns.pop('port'))
-    elif not clienthost:
-        if args.nodebug:
-            args.address = Address.as_client(clienthost, ns.pop('port'))
-        else:
-            args.address = Address.as_server(clienthost, ns.pop('port'))
-    else:
-        args.address = Address.as_client(clienthost, ns.pop('port'))
+    host = ns.pop('host', None)
+    port = ns.pop('port')
+    client = ns.pop('client')
+    args.address = (Address.as_client if client else Address.as_server)(host, port) # noqa
 
     pid = ns.pop('pid')
     module = ns.pop('module')
