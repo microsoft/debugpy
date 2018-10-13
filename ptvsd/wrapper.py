@@ -2555,3 +2555,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     def on_pydevd_get_breakpoint_exception(self, seq, args):
         # If pydevd sends exception info from a failed breakpoint condition, just ignore.
         pass
+
+    @pydevd_events.handler(pydevd_comm.CMD_PROCESS_CREATED)
+    def on_pydevd_process_create(self, seq, args):
+        pass
