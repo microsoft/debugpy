@@ -267,8 +267,8 @@ class Address(namedtuple('Address', 'host port')):
     def __init__(self, *args, **kwargs):
         if self.port is None:
             raise TypeError('missing port')
-        if self.port <= 0 or self.port > 65535:
-            raise ValueError('port must be positive int < 65535')
+        if self.port < 0 or self.port > 65535:
+            raise ValueError('port must be non-negative int < 65535')
 
     def __repr__(self):
         orig = super(Address, self).__repr__()
