@@ -124,7 +124,7 @@ def _group_args(argv):
             supported.append(arg)
 
         # ptvsd support
-        elif arg in ('--host', '--server-host', '--port', '--pid', '-m', '-c', '--multiprocess-port-range'):
+        elif arg in ('--host', '--server-host', '--port', '--pid', '-m', '-c'):
             if arg in ('-m', '-c', '--pid'):
                 gottarget = True
             supported.append(arg)
@@ -165,7 +165,6 @@ def _parse_args(prog, argv):
         return arg
 
     parser.add_argument('--multiprocess', action='store_true')
-    parser.add_argument('--multiprocess-port-range', type=port_range)
 
     target = parser.add_mutually_exclusive_group(required=True)
     target.add_argument('-m', dest='module')
@@ -193,12 +192,6 @@ def _parse_args(prog, argv):
             args.address = Address.as_server(clienthost, ns.pop('port'))
     else:
         args.address = Address.as_client(clienthost, ns.pop('port'))
-
-    multiprocess_port_range = ns.pop('multiprocess_port_range')
-    if multiprocess_port_range is not None:
-        if not ns['multiprocess']:
-            parser.error('--multiprocess-port-range requires --multiprocess')
-        multiproc.subprocess_port_range = multiprocess_port_range
 
     if ns['multiprocess']:
         multiproc.enable()
