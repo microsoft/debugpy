@@ -784,7 +784,7 @@ class LifecycleTests(LifecycleTestsBase):
             self.new_response(req_stacktrace2.req, **{
                 'totalFrames': 1,
                 'stackFrames': [{
-                    'id': 2,  # TODO: Isn't this the same frame as before?
+                    'id': 1,
                     'name': '<module>',
                     'source': {
                         'path': filename,
