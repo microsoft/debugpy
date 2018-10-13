@@ -76,6 +76,10 @@ def create_server(host, port, timeout=None):
         host = 'localhost'
     server = _new_sock()
     server.bind((host, port))
+
+    # _, listener_port = server.getsockname()
+    # print('Listening on', listener_port)
+
     if timeout is not None:
         server.settimeout(timeout)
     server.listen(1)

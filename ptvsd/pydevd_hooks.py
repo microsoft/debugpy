@@ -129,7 +129,7 @@ def install(pydevd_module, address,
     pydevd_comm.start_client = _start_client
 
     # This is invoked when a child process is spawned with multiproc debugging enabled.
-    pydev_monkey._get_python_c_args = get_python_c_args
+    pydev_monkey.patch_args = multiproc.patch_and_quote_args
 
     # Ensure that pydevd is using our functions.
     pydevd_module.start_server = _start_server
