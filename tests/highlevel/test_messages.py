@@ -2352,24 +2352,6 @@ class PyDevdEventTest(RunningTest):
         return self.new_event(self.EVENT, seq=None, **body)
 
 
-class ProcessCreatedEventTests(PyDevdEventTest, unittest.TestCase):
-
-    CMD = CMD_PROCESS_CREATED
-    EVENT = None
-
-    def pydevd_payload(self, pid):
-        return '<process/>'
-
-    def test_unsupported(self):
-        with self.launched():
-            with self.assertRaises(UnsupportedPyDevdCommandError):
-                self.send_event(12345)
-            received = self.vsc.received
-
-        self.assert_vsc_received(received, [])
-        self.assert_received(self.debugger, [])
-
-
 class ExitEventTests(PyDevdEventTest, unittest.TestCase):
 
     CMD = CMD_EXIT
