@@ -81,7 +81,7 @@ class AddressTests(unittest.TestCase):
                 with self.assertRaises(TypeError):
                     Address.as_server(host, port)
 
-        for port in ['', -1, 0, 65536]:
+        for port in ['', -1, 65536]:
             for host in [None, '', 'localhost', '1.2.3.4']:
                 with self.subTest((host, port)):
                     with self.assertRaises(ValueError):
@@ -120,7 +120,7 @@ class AddressTests(unittest.TestCase):
                 with self.assertRaises(TypeError):
                     Address.as_client(host, port)
 
-        for port in ['', -1, 0, 65536]:
+        for port in ['', -1, 65536]:
             for host in [None, '', 'localhost', '1.2.3.4']:
                 with self.subTest((host, port)):
                     with self.assertRaises(ValueError):
@@ -167,7 +167,7 @@ class AddressTests(unittest.TestCase):
                 with self.assertRaises(TypeError):
                     Address(host, port)
 
-        for port in ['', -1, 0, 65536]:
+        for port in ['', -1, 65536]:
             for host in [None, '', 'localhost', '1.2.3.4']:
                 with self.subTest((host, port)):
                     with self.assertRaises(ValueError):
