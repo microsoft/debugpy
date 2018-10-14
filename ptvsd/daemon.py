@@ -6,7 +6,7 @@ import contextlib
 import sys
 import threading
 
-from ptvsd import wrapper
+from ptvsd import wrapper, options, multiproc
 from ptvsd.socket import (
     close_socket, create_server, create_client, connect, Address)
 from .exit_handlers import (
@@ -155,7 +155,8 @@ class DaemonBase(object):
             assert self._sessionlock is None
             assert self.session is None
             self._server = create_server(addr.host, addr.port)
-            debug('server socket created')
+            host, port = self._server.getsockname()
+            debug('server socket created on %r:%r' % (host, port))
             self._sessionlock = threading.Lock()
         sock = self._sock
 
@@ -194,6 +195,9 @@ class DaemonBase(object):
                     return None
                 self._stop_quietly()
                 raise
+
+        if options.subprocess_notify:
+            multiproc.notify_root(port)
 
         return sock, next_session
 

@@ -124,7 +124,7 @@ def _group_args(argv):
             supported.append(arg)
 
         # ptvsd support
-        elif arg in ('--host', '--server-host', '--port', '--pid', '-m', '-c'):
+        elif arg in ('--host', '--server-host', '--port', '--pid', '-m', '-c', '--subprocess-of', '--subprocess-notify'):
             if arg in ('-m', '-c', '--pid'):
                 gottarget = True
             supported.append(arg)
@@ -165,6 +165,8 @@ def _parse_args(prog, argv):
         return arg
 
     parser.add_argument('--multiprocess', action='store_true')
+    parser.add_argument('--subprocess-of', type=int, help=argparse.SUPPRESS)
+    parser.add_argument('--subprocess-notify', type=int, help=argparse.SUPPRESS)
 
     target = parser.add_mutually_exclusive_group(required=True)
     target.add_argument('-m', dest='module')
@@ -194,7 +196,11 @@ def _parse_args(prog, argv):
         args.address = Address.as_client(clienthost, ns.pop('port'))
 
     if ns['multiprocess']:
-        multiproc.enable()
+        options.multiprocess = True
+        multiproc.listen_for_subprocesses()
+
+    options.subprocess_of = ns.pop('subprocess_of')
+    options.subprocess_notify = ns.pop('subprocess_notify')
 
     pid = ns.pop('pid')
     module = ns.pop('module')

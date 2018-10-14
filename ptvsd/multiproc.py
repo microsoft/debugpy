@@ -7,119 +7,154 @@ from __future__ import print_function, with_statement, absolute_import
 import atexit
 import itertools
 import os
-import random
 import re
 import socket
+import sys
+import time
 
 try:
     import queue
 except ImportError:
     import Queue as queue
 
-import ptvsd
+from . import options
 from .socket import create_server, create_client
 from .messaging import JsonIOStream, JsonMessageChannel
 from ._util import new_hidden_thread, debug
 
-import pydevd
 from _pydev_bundle import pydev_monkey
+from _pydevd_bundle.pydevd_comm import get_global_debugger
 
 
-# Defaults to the intersection of default ephemeral port ranges for various common systems.
-subprocess_port_range = (49152, 61000)
-
-listener_port = None
+subprocess_listener_socket = None
 
 subprocess_queue = queue.Queue()
+"""A queue of incoming 'ptvsd_subprocess' notifications. Whenenever a new request
+is received, a tuple of (subprocess_request, subprocess_response) is placed in the
+queue.
 
-# The initial 'launch' or 'attach' request that started the first process
-# in the current process tree.
-initial_request = None
+subprocess_request is the body of the 'ptvsd_subprocess' notification request that
+was received, with additional information about the root process added.
 
-# Process ID of the first process in the current process tree.
-initial_pid = os.getpid()
+subprocess_response is the body of the response that will be sent to respond to the
+request. It contains a single item 'incomingConnection', which is initially set to
+False. If, as a result of processing the entry, the subprocess shall receive an
+incoming DAP connection on the port it specified in the request, its value should be
+set to True, indicating that the subprocess should wait for that connection before
+proceeding. If no incoming connection is expected, it is set to False, indicating
+that the subprocess shall proceed executing user code immediately.
+
+subprocess_queue.task_done() must be invoked for every subprocess_queue.get(), for
+the corresponding subprocess_response to be delivered back to the subprocess.
+"""
+
+root_start_request = None
+"""The 'launch' or 'attach' request that started debugging in this process,
+represented by a dict containing the corresponding 'command' and 'arguments'
+(but not 'seq' and 'type'). This information is added to 'ptvsd_subprocess'
+notifications before they're placed in subprocess_queue.
+"""
 
 
-def enable():
-    global listener_port, _server
-    _server = create_server('localhost', 0)
-    atexit.register(disable)
-    _, listener_port = _server.getsockname()
+def listen_for_subprocesses():
+    """Starts a listener for incoming 'ptvsd_subprocess' notifications that
+    enqueues them in subprocess_queue.
+    """
 
-    listener_thread = new_hidden_thread('SubprocessListener', _listener)
-    listener_thread.start()
+    global subprocess_listener_socket
+    assert subprocess_listener_socket is None
+
+    subprocess_listener_socket = create_server('localhost', 0)
+    atexit.register(stop_listening_for_subprocesses)
+    new_hidden_thread('SubprocessListener', _subprocess_listener).start()
 
 
-def disable():
+def stop_listening_for_subprocesses():
+    global subprocess_listener_socket
+    if subprocess_listener_socket is None:
+        return
     try:
-        _server.shutdown(socket.SHUT_RDWR)
+        subprocess_listener_socket.shutdown(socket.SHUT_RDWR)
     except Exception:
         pass
+    subprocess_listener_socket = None
 
 
-def _listener():
+def subprocess_listener_port():
+    if subprocess_listener_socket is None:
+        return None
+    _, port = subprocess_listener_socket.getsockname()
+    return port
+
+
+def _subprocess_listener():
     counter = itertools.count(1)
-    while listener_port:
-        (sock, _) = _server.accept()
+    while subprocess_listener_socket:
+        try:
+            (sock, _) = subprocess_listener_socket.accept()
+        except Exception:
+            break
         stream = JsonIOStream.from_socket(sock)
         _handle_subprocess(next(counter), stream)
 
 
 def _handle_subprocess(n, stream):
     class Handlers(object):
-        def ptvsd_subprocess_event(self, channel, body):
+        def ptvsd_subprocess_request(self, channel, body):
+            # When child process is spawned, the notification it sends only
+            # contains information about itself and its immediate parent.
+            # Add information about the root process before passing it on.
+            body.update({
+                'rootProcessId': os.getpid(),
+                'rootStartRequest': root_start_request,
+            })
+
             debug('ptvsd_subprocess: %r' % body)
-            subprocess_queue.put(body)
-            channel.close()
+            response = {'incomingConnection': False}
+            subprocess_queue.put((body, response))
+            subprocess_queue.join()
+            return response
 
     name = 'SubprocessListener-%d' % n
     channel = JsonMessageChannel(stream, Handlers(), name)
     channel.start()
 
 
-def init_subprocess(initial_pid, initial_request, parent_pid, parent_port, first_port, last_port, pydevd_setup):
-    # Called from the code injected into subprocess, before it starts
-    # running user code. See pydevd_hooks.get_python_c_args.
+def notify_root(port):
+    assert options.subprocess_of
 
-    from ptvsd import multiproc
-    multiproc.listener_port = parent_port
-    multiproc.subprocess_port_range = (first_port, last_port)
-    multiproc.initial_pid = initial_pid
-    multiproc.initial_request = initial_request
-
-    pydevd.SetupHolder.setup = pydevd_setup
-    pydev_monkey.patch_new_process_functions()
-
-    ports = list(range(first_port, last_port))
-    random.shuffle(ports)
-    for port in ports:
-        try:
-            ptvsd.enable_attach(('localhost', port))
-        except IOError:
-            pass
-        else:
-            debug('Child process %d listening on port %d' % (os.getpid(), port))
-            break
-    else:
-        raise Exception('Could not find a free port in range {first_port}-{last_port}')
-
-    enable()
-
-    debug('Child process %d notifying parent process at port %d' % (os.getpid(), parent_port))
+    debug('Subprocess %d notifying root process at port %d' % (os.getpid(), options.subprocess_notify))
     conn = create_client()
-    conn.connect(('localhost', parent_port))
+    conn.connect(('localhost', options.subprocess_notify))
     stream = JsonIOStream.from_socket(conn)
     channel = JsonMessageChannel(stream)
-    channel.send_event('ptvsd_subprocess', {
-        'initialProcessId': initial_pid,
-        'initialRequest': initial_request,
-        'parentProcessId': parent_pid,
+    channel.start()
+
+    # Send the notification about ourselves to root, and wait for it to tell us
+    # whether an incoming connection is anticipated. This will be true if root
+    # had successfully propagated the notification to the IDE, and false if it
+    # couldn't do so (e.g. because the IDE is not attached). There's also the
+    # possibility that connection to root will just drop, e.g. if it crashes -
+    # in that case, just exit immediately.
+
+    request = channel.send_request('ptvsd_subprocess', {
+        'parentProcessId': options.subprocess_of,
         'processId': os.getpid(),
         'port': port,
     })
 
-    debug('Child process %d notified parent process; waiting for connection.' % os.getpid())
-    ptvsd.wait_for_attach()
+    try:
+        response = request.wait_for_response()
+    except Exception:
+        debug('Failed to send subprocess notification; exiting')
+        sys.exit(0)
+
+    if not response['incomingConnection']:
+        debugger = get_global_debugger()
+        while debugger is None:
+            time.sleep(0.1)
+            debugger = get_global_debugger()
+        debugger.ready_to_run = True
 
 
 def patch_args(args):
@@ -131,13 +166,14 @@ def patch_args(args):
 
     the result should be:
 
-        python -R -Q warn -m ptvsd --host localhost --port 0 --multiprocess --wait -m app
+        python -R -Q warn -m ptvsd --host localhost --port 0 ... -m app
 
     Note that the first -m above is interpreted by Python, and the second by ptvsd.
     """
 
+    assert options.multiprocess
+
     args = list(args)
-    print(args)
 
     # First, let's find the target of the invocation. This is one of:
     #
@@ -163,10 +199,12 @@ def patch_args(args):
             return args
 
         if expect_value:
+            # Consume the value and move on.
             expect_value = False
             continue
 
         if not arg.startswith('-') or arg in ('-c', '-m'):
+            # This is the target.
             break
 
         if arg.startswith('--'):
@@ -192,11 +230,10 @@ def patch_args(args):
 
     if not args[i].startswith('-'):
         # If it was a filename, it can be a Python file, a directory, or a zip archive
-        # that is treated as if it were a directory. However, pydevd only supports the
+        # that is treated as if it were a directory. However, ptvsd only supports the
         # first scenario. Distinguishing between these can be tricky, and getting it
         # wrong means that process fails to launch, so be conservative.
         if not args[i].endswith('.py'):
-            print('!!!', args[i])
             return args
 
     # Now we need to inject the ptvsd invocation right before the target. The target
@@ -205,11 +242,12 @@ def patch_args(args):
         '-m', 'ptvsd',
         '--server-host', 'localhost',
         '--port', '0',
+        '--wait',
         '--multiprocess',
-        '--wait'
+        '--subprocess-of', str(os.getpid()),
+        '--subprocess-notify', str(options.subprocess_notify or subprocess_listener_port()),
     ]
 
-    print(args)
     return args
 
 

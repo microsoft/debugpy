@@ -42,6 +42,7 @@ from _pydevd_bundle.pydevd_additional_thread_info import PyDBAdditionalThreadInf
 
 from ptvsd import _util
 from ptvsd import multiproc
+from ptvsd import options
 import ptvsd.ipcjson as ipcjson  # noqa
 import ptvsd.futures as futures  # noqa
 import ptvsd.untangle as untangle  # noqa
@@ -1109,22 +1110,14 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         self.send_event('initialized')
 
     def on_attach(self, request, args):
-        if not multiproc.initial_request:
-            multiproc.initial_request = {
-                'command': 'attach',
-                'arguments': args
-            }
+        multiproc.root_start_request = request
         self.start_reason = 'attach'
         self._set_debug_options(args)
         self._handle_attach(args)
         self.send_response(request)
 
     def on_launch(self, request, args):
-        if not multiproc.initial_request:
-            multiproc.initial_request = {
-                'command': 'launch',
-                'arguments': args
-            }
+        multiproc.root_start_request = request
         self.start_reason = 'launch'
         self._set_debug_options(args)
         self._notify_launch()
@@ -1189,7 +1182,7 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
                 return
             self._debuggerstopped = True
         if not self._restart_debugger:
-            multiproc.initial_request = None
+            # multiproc.initial_request = None
             self.send_event('terminated')
 
     def _wait_until_exiting(self, timeout):
@@ -1286,21 +1279,30 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     def start(self, threadname):
         super(VSCodeMessageProcessor, self).start(threadname)
-        self._subprocess_notifier_thread = _util.new_hidden_thread('SubprocessNotifier', self._subprocess_notifier)
-        self._subprocess_notifier_thread.start()
+        if options.multiprocess:
+            self._subprocess_notifier_thread = _util.new_hidden_thread('SubprocessNotifier', self._subprocess_notifier)
+            self._subprocess_notifier_thread.start()
 
     def close(self):
         super(VSCodeMessageProcessor, self).close()
-        self._subprocess_notifier_thread.join()
+        if options.multiprocess:
+            self._subprocess_notifier_thread.join()
 
     def _subprocess_notifier(self):
         while not self.closed:
             try:
-                subprocess_info = multiproc.subprocess_queue.get(block=False, timeout=0.1)
+                subprocess_request, subprocess_response = multiproc.subprocess_queue.get(block=False, timeout=0.1)
             except queue.Empty:
+                continue
+
+            try:
+                self.send_event('ptvsd_subprocess', **subprocess_request)
+            except Exception:
                 pass
             else:
-                self.send_event('ptvsd_subprocess', **subprocess_info)
+                subprocess_response['incomingConnection'] = True
+
+            multiproc.subprocess_queue.task_done()
 
     # async helpers
 
