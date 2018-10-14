@@ -4,12 +4,12 @@
 
 from __future__ import print_function, with_statement, absolute_import
 
-import collections
 import contextlib
 import itertools
 import json
 import sys
 import threading
+import traceback
 from ._util import new_hidden_thread
 
 class JsonIOStream(object):
@@ -125,10 +125,38 @@ class JsonIOStream(object):
         self._writer.write(body)
 
 
-Response = collections.namedtuple('Response', ('success', 'command', 'error_message', 'body'))
-Response.__new__.__defaults__ = (None, None)
-class Response(Response):
-    """Represents a received response to a Request."""
+class Response(object):
+    """Represents a response to a Request.
+    """
+
+    def __init__(self, request, body):
+        self.request = None
+        """Request object that this is a response to.
+        """
+
+        self.body = body
+        """Body of the response if the request was successful, or an instance
+        of some class derived from Exception it it was not.
+
+        If a response was received from the other side, but it was marked as
+        failure, it is an instance of RequestFailure, capturing the received
+        error message.
+
+        If a response was never received from the other side (e.g. because it
+        disconnected before sending a response), it is EOFError.
+        """
+
+    @property
+    def success(self):
+        return not isinstance(self.body, Exception)
+
+    def __eq__(self, other):
+        if not isinstance(other, Response):
+            return NotImplemented
+        return self.request is other.request and self.body == other.body
+
+    def __ne__(self, other):
+        return not self == other
 
 
 class RequestFailure(Exception):
@@ -149,21 +177,24 @@ class Request(object):
     already received a response.
     """
 
-    def __init__(self, channel, seq):
+    def __init__(self, channel, seq, command, arguments):
         self.channel = channel
         self.seq = seq
+        self.command = command
+        self.arguments = arguments
+
         self.response = None
         self._lock = threading.Lock()
         self._got_response = threading.Event()
         self._callback = lambda _: None
 
-    def _handle_response(self, success, command, error_message=None, body=None):
+    def _handle_response(self, command, body):
         assert self.response is None
         with self._lock:
-            response = Response(success, command, error_message, body)
+            response = Response(self, body)
             self.response = response
             callback = self._callback
-        callback(response)
+        callback(response.body)
         self._got_response.set()
 
     def wait_for_response(self, raise_if_failed=True):
@@ -179,8 +210,8 @@ class Request(object):
 
         self._got_response.wait()
         if raise_if_failed and not self.response.success:
-            raise RequestFailure(self.response.error_message)
-        return self.response
+            raise self.response.body
+        return self.response.body
 
     def on_response(self, callback):
         """Registers a callback to invoke when a response is received for this
@@ -197,7 +228,7 @@ class Request(object):
             if response is None:
                 self._callback = callback
                 return
-        callback(response)
+        callback(response.body)
 
 
 class JsonMessageChannel(object):
@@ -246,7 +277,7 @@ class JsonMessageChannel(object):
         if arguments is not None:
             d['arguments'] = arguments
         with self._send_message('request', d) as seq:
-            request = Request(self, seq)
+            request = Request(self, seq, command, arguments)
             self._requests[seq] = request
         return request
 
@@ -257,7 +288,7 @@ class JsonMessageChannel(object):
         with self._send_message('event', d):
             pass
 
-    def send_response(self, request_seq, success, command, error_message=None, body=None):
+    def _send_response(self, request_seq, success, command, error_message, body):
         d = {
             'request_seq': request_seq,
             'success': success,
@@ -308,9 +339,9 @@ class JsonMessageChannel(object):
         try:
             response_body = handler()
         except Exception as ex:
-            self.send_response(seq, False, command, str(ex))
+            self._send_response(seq, False, command, str(ex), None)
         else:
-            self.send_response(seq, True, command, None, response_body)
+            self._send_response(seq, True, command, None, response_body)
 
     def on_event(self, seq, event, body):
         handler_name = '%s_event' % event
@@ -331,19 +362,29 @@ class JsonMessageChannel(object):
                 request = self._requests.pop(request_seq)
         except KeyError:
             raise KeyError('Received response to unknown request %d', request_seq)
-        return request._handle_response(success, command, error_message, body)
+        if not success:
+            body = RequestFailure(error_message)
+        return request._handle_response(command, body)
 
     def _process_incoming_messages(self):
-        while True:
-            try:
-                message = self.stream.read_json()
-            except EOFError:
-                break
-            try:
-                self.on_message(message)
-            except Exception:
-                print('Error while processing message:\n%r\n\n' % message, file=sys.__stderr__)
-                raise
+        try:
+            while True:
+                try:
+                    message = self.stream.read_json()
+                except EOFError:
+                    break
+                try:
+                    self.on_message(message)
+                except Exception:
+                    print('Error while processing message:\n%r\n\n' % message, file=sys.__stderr__)
+                    traceback.print_exc(file=sys.__stderr__)
+                    raise
+        finally:
+            # There's no more incoming messages, so any requests that are still pending
+            # must be marked as failed to unblock anyone waiting on them.
+            with self._lock:
+                for request in self._requests.values():
+                    request._handle_response(request.command, EOFError('No response'))
 
 
 class MessageHandlers(object):

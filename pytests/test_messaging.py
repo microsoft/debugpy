@@ -12,8 +12,11 @@ import socket
 import threading
 import time
 
-from ptvsd.messaging import JsonIOStream, JsonMessageChannel, Response
+from ptvsd.messaging import JsonIOStream, JsonMessageChannel, Response, RequestFailure
 from .helpers.messaging import JsonMemoryStream, LoggingJsonStream
+
+
+pytestmark = pytest.mark.timeout(1)
 
 
 class TestJsonIOStream(object):
@@ -170,33 +173,47 @@ class TestJsonMessageChannel(object):
         # Blocking wait.
         request1 = channel.send_request('next')
         request1_sent.set()
-        response1 = request1.wait_for_response()
-        assert response1 == Response(True, 'next', body={'threadId': 3})
+        response1_body = request1.wait_for_response()
+        response1 = request1.response
+
+        assert response1 == Response(request1, body={'threadId': 3})
+        assert response1.success
+        assert response1.body == response1_body
 
         # Async callback, registered before response is received.
         request2 = channel.send_request('pause')
-        response2 = [None]
+        response2_body = []
         response2_received = threading.Event()
-        def response2_handler(response):
-            response2[0] = response
+        def response2_handler(body):
+            response2_body.append(body)
             response2_received.set()
         request2.on_response(response2_handler)
         request2_sent.set()
         response2_received.wait()
-        assert response2[0] == Response(False, 'pause', error_message='pause error')
+        response2_body, = response2_body
+        response2 = request2.response
+
+        assert response2 == Response(request2, RequestFailure('pause error'))
+        assert not response2.success
+        assert response2.body == response2_body
 
         # Async callback, registered after response is received.
         request3 = channel.send_request('next')
         request3_sent.set()
         request3.wait_for_response()
-        response3 = [None]
+        response3_body = []
         response3_received = threading.Event()
-        def response3_handler(response):
-            response3[0] = response
+        def response3_handler(body):
+            response3_body.append(body)
             response3_received.set()
         request3.on_response(response3_handler)
         response3_received.wait()
-        assert response3[0] == Response(True, 'next', body={'threadId': 5})
+        response3_body, = response3_body
+        response3 = request3.response
+
+        assert response3 == Response(request3, body={'threadId': 5})
+        assert response3.success
+        assert response3.body == response3_body
 
     def test_fuzz(self):
         # Set up two channels over the same stream that send messages to each other
@@ -232,18 +249,18 @@ class TestJsonMessageChannel(object):
                 with self.lock:
                     self.received.append(('event', event, body))
 
-            def make_and_log_response(self, command):
+            def make_and_log_response(self, request):
                 x = random.randint(-100, 100)
                 if x >= 0:
-                    response = Response(True, command, body=x)
+                    response = Response(request, x)
                 else:
-                    response = Response(False, command, error_message=str(x))
+                    response = Response(request, RequestFailure(str(x)))
                 with self.lock:
                     self.responses_sent.append(response)
                 if response.success:
                     return x
                 else:
-                    raise RuntimeError(response.error_message)
+                    raise response.body
 
             def fizz_request(self, channel, arguments):
                 with self.lock:
@@ -274,9 +291,9 @@ class TestJsonMessageChannel(object):
                         with self.lock:
                             pending_requests[0] += 1
                         req = channel.send_request(name, body)
-                        def response_handler(response):
+                        def response_handler(body):
                             with self.lock:
-                                self.responses_received.append(response)
+                                self.responses_received.append(Response(req, body))
                                 pending_requests[0] -= 1
                         req.on_response(response_handler)
                 # Spin until we get responses to all requests.

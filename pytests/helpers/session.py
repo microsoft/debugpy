@@ -279,7 +279,7 @@ class DebugSession(object):
 
         request = self.timeline.record_request(command, arguments)
         request.sent = self.channel.send_request(command, arguments)
-        request.sent.on_response(lambda response: self._process_response(request, response))
+        request.sent.on_response(lambda body: self._process_response(request, body))
 
         def causing(*expectations):
             for exp in expectations:
@@ -344,8 +344,7 @@ class DebugSession(object):
     def _process_event(self, channel, event, body):
         self.timeline.record_event(event, body, block=False)
 
-    def _process_response(self, request, response):
-        body = response.body if response.success else RequestFailure(response.error_message)
+    def _process_response(self, request, body):
         self.timeline.record_response(request, body, block=False)
 
     def _process_request(self, channel, command, arguments):
