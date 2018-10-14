@@ -182,10 +182,6 @@ class OutgoingRequest(Request):
         request. If response was already received, invokes callback immediately.
         Callback is invoked with Response as the sole arugment.
 
-        To get access to the entire Response object in the callback, the callback
-        should be a lambda capturing the request on which on_response was called.
-        Then, request.response can be inspected inside the callback.
-
         The callback is invoked on an unspecified background thread that performs
         processing of incoming messages; therefore, no further message processing
         occurs until the callback returns.
