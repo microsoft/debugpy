@@ -16,7 +16,7 @@ from ptvsd.messaging import JsonIOStream, JsonMessageChannel, Response, RequestF
 from .helpers.messaging import JsonMemoryStream, LoggingJsonStream
 
 
-pytestmark = pytest.mark.timeout(1)
+pytestmark = pytest.mark.timeout(5)
 
 
 class TestJsonIOStream(object):
