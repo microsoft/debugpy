@@ -14,7 +14,6 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_GET_FRAME,
     CMD_GET_VARIABLE,
     CMD_LIST_THREADS,
-    CMD_PROCESS_CREATED,
     CMD_REMOVE_BREAK,
     CMD_REMOVE_EXCEPTION_BREAK,
     CMD_RETURN,
