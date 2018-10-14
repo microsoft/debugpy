@@ -310,7 +310,7 @@ class DebugSession(object):
 
         request = self.timeline.record_request(command, arguments)
         request.sent = self.channel.send_request(command, arguments)
-        request.sent.on_response(lambda body: self._process_response(request, body))
+        request.sent.on_response(lambda response: self._process_response(request, response))
 
         def causing(*expectations):
             for exp in expectations:
@@ -372,13 +372,13 @@ class DebugSession(object):
 
         return start
 
-    def _process_event(self, channel, event, body):
-        self.timeline.record_event(event, body, block=False)
+    def _process_event(self, event):
+        self.timeline.record_event(event.event, event.body, block=False)
 
-    def _process_response(self, request, body):
-        self.timeline.record_response(request, body, block=False)
+    def _process_response(self, request_occ, response):
+        self.timeline.record_response(request_occ, response.body, block=False)
 
-    def _process_request(self, channel, command, arguments):
+    def _process_request(self, request):
         assert False, 'ptvsd should not be sending requests.'
 
     def setup_backchannel(self):

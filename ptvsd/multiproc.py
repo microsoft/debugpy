@@ -11,6 +11,7 @@ import re
 import socket
 import sys
 import time
+import traceback
 
 try:
     import queue
@@ -99,18 +100,19 @@ def _subprocess_listener():
 
 def _handle_subprocess(n, stream):
     class Handlers(object):
-        def ptvsd_subprocess_request(self, channel, body):
+        def ptvsd_subprocess_request(self, request):
             # When child process is spawned, the notification it sends only
             # contains information about itself and its immediate parent.
             # Add information about the root process before passing it on.
-            body.update({
+            arguments = dict(request.arguments)
+            arguments.update({
                 'rootProcessId': os.getpid(),
                 'rootStartRequest': root_start_request,
             })
 
-            debug('ptvsd_subprocess: %r' % body)
+            debug('ptvsd_subprocess: %r' % arguments)
             response = {'incomingConnection': False}
-            subprocess_queue.put((body, response))
+            subprocess_queue.put((arguments, response))
             subprocess_queue.join()
             return response
 
@@ -145,7 +147,8 @@ def notify_root(port):
     try:
         response = request.wait_for_response()
     except Exception:
-        debug('Failed to send subprocess notification; exiting')
+        print('Failed to send subprocess notification; exiting', file=sys.__stderr__)
+        traceback.print_exc()
         sys.exit(0)
 
     if not response['incomingConnection']:

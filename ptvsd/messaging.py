@@ -125,12 +125,89 @@ class JsonIOStream(object):
         self._writer.write(body)
 
 
+class Request(object):
+    """Represents an incoming or an outgoing request.
+
+    Incoming requests are represented by instances of this class.
+
+    Outgoing requests are represented by instances of OutgoingRequest, which
+    provides additional functionality to handle responses.
+    """
+
+    def __init__(self, channel, seq, command, arguments):
+        self.channel = channel
+        self.seq = seq
+        self.command = command
+        self.arguments = arguments
+
+
+class OutgoingRequest(Request):
+    """Represents an outgoing request, for which it is possible to wait for a
+    response to be received, and register a response callback.
+    """
+
+    def __init__(self, *args):
+        super(OutgoingRequest, self).__init__(*args)
+        self.response = None
+        self._lock = threading.Lock()
+        self._got_response = threading.Event()
+        self._callback = lambda _: None
+
+    def _handle_response(self, seq, command, body):
+        assert self.response is None
+        with self._lock:
+            response = Response(self.channel, seq, self, body)
+            self.response = response
+            callback = self._callback
+        callback(response)
+        self._got_response.set()
+
+    def wait_for_response(self, raise_if_failed=True):
+        """Waits until a response is received for this request, records that
+        response as a new Response object accessible via self.response, and
+        returns self.response.body.
+
+        If raise_if_failed is True, and the received response does not indicate
+        success, raises RequestFailure. Otherwise, self.response.body has to be
+        inspected to determine whether the request failed or succeeded.
+        """
+
+        self._got_response.wait()
+        if raise_if_failed and not self.response.success:
+            raise self.response.body
+        return self.response.body
+
+    def on_response(self, callback):
+        """Registers a callback to invoke when a response is received for this
+        request. If response was already received, invokes callback immediately.
+        Callback is invoked with Response as the sole arugment.
+
+        To get access to the entire Response object in the callback, the callback
+        should be a lambda capturing the request on which on_response was called.
+        Then, request.response can be inspected inside the callback.
+
+        The callback is invoked on an unspecified background thread that performs
+        processing of incoming messages; therefore, no further message processing
+        occurs until the callback returns.
+        """
+
+        with self._lock:
+            response = self.response
+            if response is None:
+                self._callback = callback
+                return
+        callback(response)
+
+
 class Response(object):
     """Represents a response to a Request.
     """
 
-    def __init__(self, request, body):
-        self.request = None
+    def __init__(self, channel, seq, request, body):
+        self.channel = channel
+        self.seq = seq
+
+        self.request = request
         """Request object that this is a response to.
         """
 
@@ -150,13 +227,16 @@ class Response(object):
     def success(self):
         return not isinstance(self.body, Exception)
 
-    def __eq__(self, other):
-        if not isinstance(other, Response):
-            return NotImplemented
-        return self.request is other.request and self.body == other.body
 
-    def __ne__(self, other):
-        return not self == other
+class Event(object):
+    """Represents a received event.
+    """
+
+    def __init__(self, channel, seq, event, body):
+        self.channel = channel
+        self.seq = seq
+        self.event = event
+        self.body = body
 
 
 class RequestFailure(Exception):
@@ -164,71 +244,18 @@ class RequestFailure(Exception):
         self.message = message
 
     def __eq__(self, other):
-        if isinstance(other, RequestFailure) and other.message == self.message:
-            return True
-        return NotImplemented
+        if not isinstance(other, RequestFailure):
+            return NotImplemented
+        return self.message == other.message
 
     def __ne__(self, other):
         return not self == other
 
+    def __repr__(self):
+        return 'RequestFailure(%r)' % self.message
 
-class Request(object):
-    """Represents a request that was sent to the other party, and is awaiting or has
-    already received a response.
-    """
-
-    def __init__(self, channel, seq, command, arguments):
-        self.channel = channel
-        self.seq = seq
-        self.command = command
-        self.arguments = arguments
-
-        self.response = None
-        self._lock = threading.Lock()
-        self._got_response = threading.Event()
-        self._callback = lambda _: None
-
-    def _handle_response(self, command, body):
-        assert self.response is None
-        with self._lock:
-            response = Response(self, body)
-            self.response = response
-            callback = self._callback
-        callback(response.body)
-        self._got_response.set()
-
-    def wait_for_response(self, raise_if_failed=True):
-        """Waits until a response is received for this request, records that
-        response as a new Response object accessible via self.response,
-        and returns self.response.body.
-
-        If raise_if_failed is True, and the received response does not indicate
-        success, raises RequestFailure. Otherwise, self.response.success has to
-        be inspected to determine whether the request failed or succeeded, since
-        self.response.body can be None in either case.
-        """
-
-        self._got_response.wait()
-        if raise_if_failed and not self.response.success:
-            raise self.response.body
-        return self.response.body
-
-    def on_response(self, callback):
-        """Registers a callback to invoke when a response is received for this
-        request. If response was already received, invokes callback immediately.
-        Callback is invoked with Response object as the sole argument.
-
-        The callback is invoked on an unspecified background thread that performs
-        processing of incoming messages; therefore, no further message processing
-        occurs until the callback returns.
-        """
-
-        with self._lock:
-            response = self.response
-            if response is None:
-                self._callback = callback
-                return
-        callback(response.body)
+    def __str__(self):
+        return self.message
 
 
 class JsonMessageChannel(object):
@@ -277,7 +304,7 @@ class JsonMessageChannel(object):
         if arguments is not None:
             d['arguments'] = arguments
         with self._send_message('request', d) as seq:
-            request = Request(self, seq, command, arguments)
+            request = OutgoingRequest(self, seq, command, arguments)
             self._requests[seq] = request
         return request
 
@@ -327,34 +354,32 @@ class JsonMessageChannel(object):
 
     def on_request(self, seq, command, arguments):
         handler_name = '%s_request' % command
-        specific_handler = getattr(self._handlers, handler_name, None)
-        if specific_handler is not None:
-            handler = lambda: specific_handler(self, arguments)
-        else:
+        handler = getattr(self._handlers, handler_name, None)
+        if handler is None:
             try:
-                generic_handler = getattr(self._handlers, 'request')
+                handler = getattr(self._handlers, 'request')
             except AttributeError:
                 raise AttributeError('%r has no handler for request %r' % (self._handlers, command))
-            handler = lambda: generic_handler(self, command, arguments)
+        request = Request(self, seq, command, arguments)
         try:
-            response_body = handler()
+            response_body = handler(request)
         except Exception as ex:
             self._send_response(seq, False, command, str(ex), None)
         else:
-            self._send_response(seq, True, command, None, response_body)
+            if isinstance(response_body, Exception):
+                self._send_response(seq, False, command, str(response_body), None)
+            else:
+                self._send_response(seq, True, command, None, response_body)
 
     def on_event(self, seq, event, body):
         handler_name = '%s_event' % event
-        specific_handler = getattr(self._handlers, handler_name, None)
-        if specific_handler is not None:
-            handler = lambda: specific_handler(self, body)
-        else:
+        handler = getattr(self._handlers, handler_name, None)
+        if handler is None:
             try:
-                generic_handler = getattr(self._handlers, 'event')
+                handler = getattr(self._handlers, 'event')
             except AttributeError:
                 raise AttributeError('%r has no handler for event %r' % (self._handlers, event))
-            handler = lambda: generic_handler(self, event, body)
-        handler()
+        handler(Event(self, seq, event, body))
 
     def on_response(self, seq, request_seq, success, command, error_message, body):
         try:
@@ -364,7 +389,7 @@ class JsonMessageChannel(object):
             raise KeyError('Received response to unknown request %d', request_seq)
         if not success:
             body = RequestFailure(error_message)
-        return request._handle_response(command, body)
+        return request._handle_response(seq, command, body)
 
     def _process_incoming_messages(self):
         try:
@@ -384,7 +409,7 @@ class JsonMessageChannel(object):
             # must be marked as failed to unblock anyone waiting on them.
             with self._lock:
                 for request in self._requests.values():
-                    request._handle_response(request.command, EOFError('No response'))
+                    request._handle_response(None, request.command, EOFError('No response'))
 
 
 class MessageHandlers(object):
