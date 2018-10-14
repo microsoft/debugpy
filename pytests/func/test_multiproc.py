@@ -74,21 +74,23 @@ def test_multiprocessing(debug_session, pyfile):
     debug_session.prepare_to_run(filename=code_to_debug, backchannel=True)
     debug_session.start_debugging()
 
-    initial_request, = debug_session.all_occurrences_of(Request('launch') | Request('attach'))
-    initial_process, = debug_session.all_occurrences_of(Event('process'))
-    initial_pid = int(initial_process.body['systemProcessId'])
+    root_start_request, = debug_session.all_occurrences_of(Request('launch') | Request('attach'))
+    root_process, = debug_session.all_occurrences_of(Event('process'))
+    root_pid = int(root_process.body['systemProcessId'])
 
     child_pid = debug_session.read_json()
 
     child_subprocess = debug_session.wait_for_next(Event('ptvsd_subprocess'))
     assert child_subprocess == Event('ptvsd_subprocess', {
-        'initialProcessId': initial_pid,
-        'parentProcessId': initial_pid,
+        'rootProcessId': root_pid,
+        'parentProcessId': root_pid,
         'processId': child_pid,
         'port': ANY.int,
-        'initialRequest': {
-            'command': initial_request.command,
-            'arguments': initial_request.arguments,
+        'rootStartRequest': {
+            'seq': ANY.int,
+            'type': 'request',
+            'command': root_start_request.command,
+            'arguments': root_start_request.arguments,
         }
     })
     child_port = child_subprocess.body['port']
@@ -99,15 +101,18 @@ def test_multiprocessing(debug_session, pyfile):
     child_session.handshake()
     child_session.start_debugging()
 
-    child_child_subprocess = child_session.wait_for_next(Event('ptvsd_subprocess'))
+    debug_session.proceed()
+    child_child_subprocess = debug_session.wait_for_next(Event('ptvsd_subprocess'))
     assert child_child_subprocess == Event('ptvsd_subprocess', {
-        'initialProcessId': initial_pid,
+        'rootProcessId': root_pid,
         'parentProcessId': child_pid,
         'processId': ANY.int,
         'port': ANY.int,
-        'initialRequest': {
-            'command': initial_request.command,
-            'arguments': initial_request.arguments,
+        'rootStartRequest': {
+            'seq': ANY.int,
+            'type': 'request',
+            'command': root_start_request.command,
+            'arguments': root_start_request.arguments,
         }
     })
     child_child_port = child_child_subprocess.body['port']

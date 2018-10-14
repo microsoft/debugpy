@@ -49,10 +49,9 @@ the corresponding subprocess_response to be delivered back to the subprocess.
 """
 
 root_start_request = None
-"""The 'launch' or 'attach' request that started debugging in this process,
-represented by a dict containing the corresponding 'command' and 'arguments'
-(but not 'seq' and 'type'). This information is added to 'ptvsd_subprocess'
-notifications before they're placed in subprocess_queue.
+"""The 'launch' or 'attach' request that started debugging in this process, in its
+entirety (i.e. dict representation of JSON request). This information is added to
+'ptvsd_subprocess' notifications before they're placed in subprocess_queue.
 """
 
 

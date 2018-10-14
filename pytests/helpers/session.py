@@ -5,14 +5,16 @@
 from __future__ import print_function, with_statement, absolute_import
 
 import os
+import psutil
 import socket
 import subprocess
 import sys
 import threading
 import time
+import traceback
 
 import ptvsd
-from ptvsd.messaging import JsonIOStream, JsonMessageChannel, MessageHandlers, RequestFailure
+from ptvsd.messaging import JsonIOStream, JsonMessageChannel, MessageHandlers
 from . import colors, print, watchdog
 from .messaging import LoggingJsonStream
 from .pattern import ANY
@@ -27,7 +29,7 @@ class DebugSession(object):
     WAIT_FOR_EXIT_TIMEOUT = 5
     BACKCHANNEL_TIMEOUT = 15
 
-    def __init__(self, method='launch', ptvsd_port=None):
+    def __init__(self, method='launch', ptvsd_port=None, pid=None):
         assert method in ('launch', 'attach_pid', 'attach_socket')
         assert ptvsd_port is None or method == 'attach_socket'
 
@@ -43,6 +45,8 @@ class DebugSession(object):
 
         self.is_running = False
         self.process = None
+        self.pid = pid
+        self.psutil_process = psutil.Process(self.pid) if self.pid else None
         self.socket = None
         self.server_socket = None
         self.connected = threading.Event()
@@ -84,26 +88,31 @@ class DebugSession(object):
         self.timeline.ignore_unobserved = value
 
     def stop(self):
-        if self.process:
-            try:
-                self.process.kill()
-            except:
-                pass
         if self.socket:
             try:
                 self.socket.shutdown(socket.SHUT_RDWR)
             except:
                 self.socket = None
+
         if self.server_socket:
             try:
                 self.server_socket.shutdown(socket.SHUT_RDWR)
             except:
                 self.server_socket = None
+
         if self.backchannel_socket:
             try:
                 self.backchannel_socket.shutdown(socket.SHUT_RDWR)
             except:
                 self.backchannel_socket = None
+
+        if self.process:
+            try:
+                self._kill_process_tree()
+            except:
+                traceback.print_exc()
+                pass
+
         self._wait_for_remaining_output()
 
     def prepare_to_run(self, perform_handshake=True, filename=None, module=None, code=None, backchannel=False):
@@ -151,8 +160,10 @@ class DebugSession(object):
         print('PYTHONPATH: %s' % self.env['PYTHONPATH'])
         print('Spawning %r' % argv)
         self.process = subprocess.Popen(argv, env=self.env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.pid = self.process.pid
+        self.psutil_process =  psutil.Process(self.pid)
         self.is_running = True
-        watchdog.create(self.process.pid)
+        watchdog.create(self.pid)
 
         self._capture_output(self.process.stdout, 'OUT')
         self._capture_output(self.process.stderr, 'ERR')
@@ -162,7 +173,7 @@ class DebugSession(object):
         self.connected.wait()
         assert self.ptvsd_port
         assert self.socket
-        print('ptvsd#%d has pid=%d' % (self.ptvsd_port, self.process.pid))
+        print('ptvsd#%d has pid=%d' % (self.ptvsd_port, self.pid))
 
         telemetry = self.timeline.wait_for_next(Event('output'))
         assert telemetry == Event('output', {
@@ -216,21 +227,41 @@ class DebugSession(object):
         exits, validates its return code to match expected_returncode.
         """
 
+        assert self.psutil_process is not None
+
         def kill():
             time.sleep(self.WAIT_FOR_EXIT_TIMEOUT)
             if self.is_running:
-                print('ptvsd#%r (pid=%d) timed out, killing it' % (self.ptvsd_port, self.process.pid))
-                self.process.kill()
-        kill_thread = threading.Thread(target=kill, name='ptvsd#%r watchdog (pid=%d)' % (self.ptvsd_port, self.process.pid))
+                print('ptvsd#%r (pid=%d) timed out, killing it' % (self.ptvsd_port, self.pid))
+                self._kill_process_tree()
+
+        kill_thread = threading.Thread(target=kill, name='ptvsd#%r watchdog (pid=%d)' % (self.ptvsd_port, self.pid))
         kill_thread.daemon = True
         kill_thread.start()
 
-        print(colors.LIGHT_MAGENTA + 'Waiting for ptvsd#%d (pid=%d) to terminate' % (self.ptvsd_port, self.process.pid) + colors.RESET)
-        self.process.wait()
+        print(colors.LIGHT_MAGENTA + 'Waiting for ptvsd#%d (pid=%d) to terminate' % (self.ptvsd_port, self.pid) + colors.RESET)
+        self.psutil_process.wait()
 
         self.is_running = False
-        assert self.process.returncode == expected_returncode
-        self.wait_for_termination(self.process.returncode)
+
+        if self.process is not None:
+            self.process.wait()
+            assert self.process.returncode == expected_returncode
+
+        self.wait_for_termination(expected_returncode)
+
+    def _kill_process_tree(self):
+        assert self.psutil_process is not None
+        procs = [self.psutil_process]
+        try:
+            procs += self.psutil_process.children(recursive=True)
+        except:
+            pass
+        for p in procs:
+            try:
+                p.kill()
+            except:
+                pass
 
     def _listen(self):
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -330,7 +361,7 @@ class DebugSession(object):
             'name': ANY.str,
             'isLocalProcess': True,
             'startMethod': 'launch' if self.method == 'launch' else 'attach',
-            'systemProcessId': self.process.pid if self.process is not None else ANY.int,
+            'systemProcessId': self.pid if self.pid is not None else ANY.int,
         }))
 
         if not freeze:

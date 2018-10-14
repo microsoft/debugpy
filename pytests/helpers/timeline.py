@@ -189,11 +189,10 @@ class Timeline(object):
             if check_past:
                 reasons.update(expectation.test_at_or_before(self.last) or {})
                 del check_past[:]
-                test = expectation.test_at
             else:
-                test = expectation.test_at_or_before
+                if self.last is not self._proceeding_from:
+                    reasons.update(expectation.test_at(self.last) or {})
 
-            reasons.update(test(self.last) or {})
             if reasons:
                 if observe:
                     self.expect_realized(expectation, explain=explain, observe=observe)
@@ -216,7 +215,11 @@ class Timeline(object):
 
     def new(self):
         self.expect_frozen()
-        return self[self._proceeding_from:]
+        first_new = self._proceeding_from.next
+        if first_new is not None:
+            return self[first_new:]
+        else:
+            return self[self.last:self.last]
 
     def proceed(self):
         self.expect_frozen()
