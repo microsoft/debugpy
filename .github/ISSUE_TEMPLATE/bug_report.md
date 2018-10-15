@@ -1,3 +1,9 @@
+---
+name: Bug report
+about: Create a report to help us improve
+
+---
+
 ## Environment data
 
 - PTVSD version: XXX
@@ -15,4 +21,3 @@ XXX
 
 ## Steps to reproduce:
 1. XXX
-
