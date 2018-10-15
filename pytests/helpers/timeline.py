@@ -199,6 +199,13 @@ class Timeline(object):
                 if observe:
                     self.expect_realized(expectation, explain=explain, observe=observe)
                 return True
+            else:
+                if explain:
+                    print(
+                        colors.color_repr(self.last) +
+                        colors.LIGHT_MAGENTA + ' did not realize ' + colors.RESET +
+                        colors.color_repr(expectation)
+                    )
 
         self.wait_until(has_been_realized, freeze)
 
@@ -274,7 +281,7 @@ class Timeline(object):
             reasons.pop(exp, None)
 
         if reasons:
-            message += colors.LIGHT_MAGENTA + '; breakdown:' + colors.RESET
+            message += colors.LIGHT_MAGENTA + ':' + colors.RESET
             for exp, reason in reasons.items():
                 message += (
                     '\n    ' + colors.color_repr(exp) +
