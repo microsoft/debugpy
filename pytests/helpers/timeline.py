@@ -172,16 +172,19 @@ class Timeline(object):
 
     def wait_for(self, expectation, freeze=None, explain=True):
         assert expectation.has_lower_bound, (
-            'Expectation must have a lower time bound to be used with wait_for()!'
-            'Use >> to sequence an expectation against an occurrence to establish a lower bound,'
+            'Expectation must have a lower time bound to be used with wait_for()! '
+            'Use >> to sequence an expectation against an occurrence to establish a lower bound, '
             'or wait_for_next() to wait for the next expectation since the timeline was last '
             'frozen, or wait_until_realized() when a lower bound is really not necessary.'
         )
         return self.wait_until_realized(expectation, freeze, explain=explain)
 
-    def _wait_until_realized(self, expectation, check_past, freeze=None, explain=True, observe=True):
+    def wait_until_realized(self, expectation, freeze=None, explain=True, observe=True):
+        if explain:
+            print(colors.LIGHT_MAGENTA + 'Waiting for ' + colors.RESET + colors.color_repr(expectation))
+
         reasons = {}
-        check_past = [True] if check_past else []
+        check_past = [True]
 
         def has_been_realized():
             # First time wait_until() calls us, we have to check the whole timeline.
@@ -190,8 +193,7 @@ class Timeline(object):
                 reasons.update(expectation.test_at_or_before(self.last) or {})
                 del check_past[:]
             else:
-                if self.last is not self._proceeding_from:
-                    reasons.update(expectation.test_at(self.last) or {})
+                reasons.update(expectation.test_at(self.last) or {})
 
             if reasons:
                 if observe:
@@ -203,15 +205,8 @@ class Timeline(object):
         realized_at = reasons[expectation]
         return realized_at
 
-    def wait_until_realized(self, expectation, freeze=None, explain=True, observe=True):
-        if explain:
-            print(colors.LIGHT_MAGENTA + 'Waiting for ' + colors.RESET + colors.color_repr(expectation))
-        return self._wait_until_realized(expectation, True, freeze, explain, observe)
-
     def wait_for_next(self, expectation, freeze=True, explain=True, observe=True):
-        if explain:
-            print(colors.LIGHT_MAGENTA + 'Waiting for next ' + colors.RESET + colors.color_repr(expectation))
-        return self._wait_until_realized(expectation, False, freeze, explain, observe)
+        return self.wait_until_realized(self._proceeding_from >> expectation, freeze, explain, observe)
 
     def new(self):
         self.expect_frozen()
