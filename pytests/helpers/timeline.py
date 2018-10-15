@@ -152,23 +152,34 @@ class Timeline(object):
         self.observe(*[occ for occ in self if occ == expectation])
 
     def wait_until(self, condition, freeze=None):
-        freeze = freeze or self.is_frozen
-        self.unfreeze()
+        try:
+            # First, test the condition against the timeline as it currently is.
+            with self.frozen():
+                last_seen = self.last
+                if condition(last_seen):
+                    return last_seen
 
-        with self._recorded_new:
-            while True:
-                with self.frozen():
-                    if condition():
-                        occ = self.last
-                        break
+            # Now keep spinning waiting for new occurrences to come, and test the
+            # condition against every new batch in turn.
 
-                assert not self.is_final
-                self._recorded_new.wait()
+            freeze = freeze or self.is_frozen
+            self.unfreeze()
 
+            with self._recorded_new:
+                while True:
+                    with self.frozen():
+                        for occ in last_seen.following():
+                            if condition(occ):
+                                return occ
+                        last_seen = self.last
+
+                    assert not self.is_final
+                    self._recorded_new.wait()
+
+        finally:
             if freeze:
                 self.freeze()
 
-        return occ
 
     def wait_for(self, expectation, freeze=None, explain=True):
         assert expectation.has_lower_bound, (
@@ -186,7 +197,7 @@ class Timeline(object):
         reasons = {}
         check_past = [True]
 
-        def has_been_realized():
+        def has_been_realized(occ):
             # First time wait_until() calls us, we have to check the whole timeline.
             # On subsequent calls, we only need to check the newly added occurrence.
             if check_past:
@@ -195,9 +206,9 @@ class Timeline(object):
                         colors.LIGHT_MAGENTA + 'Testing ' + colors.RESET +
                         colors.color_repr(expectation) +
                         colors.LIGHT_MAGENTA + ' against timeline up to and including ' + colors.RESET +
-                        colors.color_repr(self.last)
+                        colors.color_repr(occ)
                     )
-                reasons.update(expectation.test_at_or_before(self.last) or {})
+                reasons.update(expectation.test_at_or_before(occ) or {})
                 del check_past[:]
             else:
                 if explain:
@@ -205,9 +216,9 @@ class Timeline(object):
                         colors.LIGHT_MAGENTA + 'Testing ' + colors.RESET +
                         colors.color_repr(expectation) +
                         colors.LIGHT_MAGENTA + ' against ' + colors.RESET +
-                        colors.color_repr(self.last)
+                        colors.color_repr(occ)
                     )
-                reasons.update(expectation.test_at(self.last) or {})
+                reasons.update(expectation.test_at(occ) or {})
 
             if reasons:
                 if observe:
@@ -216,7 +227,7 @@ class Timeline(object):
             else:
                 if explain:
                     print(
-                        colors.color_repr(self.last) +
+                        colors.color_repr(occ) +
                         colors.LIGHT_MAGENTA + ' did not realize ' + colors.RESET +
                         colors.color_repr(expectation)
                     )
