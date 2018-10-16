@@ -157,7 +157,7 @@ def _parse_args(prog, argv):
     parser.add_argument('--nodebug', action='store_true')
     parser.add_argument('--client', action='store_true')
 
-    parser.add_argument('--host')
+    parser.add_argument('--host', required=True)
     parser.add_argument('--port', type=int, required=True)
 
     target = parser.add_mutually_exclusive_group(required=True)

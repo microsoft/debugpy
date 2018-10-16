@@ -9,22 +9,13 @@ class ParseArgsTests(unittest.TestCase):
 
     EXPECTED_EXTRA = ['--']
 
-    def test_module(self):
-        args, extra = parse_args([
-            'eggs',
-            '--port', '8888',
-            '-m', 'spam',
-        ])
-
-        self.assertEqual(vars(args), {
-            'kind': 'module',
-            'name': 'spam',
-            'address': Address.as_server(None, 8888),
-            'nodebug': False,
-            'single_session': False,
-            'wait': False,
-        })
-        self.assertEqual(extra, self.EXPECTED_EXTRA)
+    def test_host_required(self):
+        with self.assertRaises(SystemExit):
+            parse_args([
+                'eggs',
+                '--port', '8888',
+                '-m', 'spam',
+            ])
 
     def test_module_server(self):
         args, extra = parse_args([
@@ -49,6 +40,7 @@ class ParseArgsTests(unittest.TestCase):
             'eggs',
             '--nodebug',
             '--client',
+            '--host', 'localhost',
             '--port', '8888',
             '-m', 'spam',
         ])
@@ -56,7 +48,7 @@ class ParseArgsTests(unittest.TestCase):
         self.assertEqual(vars(args), {
             'kind': 'module',
             'name': 'spam',
-            'address': Address.as_client(None, 8888),
+            'address': Address.as_client('localhost', 8888),
             'nodebug': True,
             'single_session': False,
             'wait': False,
@@ -66,6 +58,7 @@ class ParseArgsTests(unittest.TestCase):
     def test_script(self):
         args, extra = parse_args([
             'eggs',
+            '--host', 'localhost',
             '--port', '8888',
             'spam.py',
         ])
@@ -73,7 +66,7 @@ class ParseArgsTests(unittest.TestCase):
         self.assertEqual(vars(args), {
             'kind': 'script',
             'name': 'spam.py',
-            'address': Address.as_server(None, 8888),
+            'address': Address.as_server('localhost', 8888),
             'nodebug': False,
             'single_session': False,
             'wait': False,
@@ -103,6 +96,7 @@ class ParseArgsTests(unittest.TestCase):
             'eggs',
             '--nodebug',
             '--client',
+            '--host', 'localhost',
             '--port', '8888',
             'spam.py',
         ])
@@ -110,7 +104,7 @@ class ParseArgsTests(unittest.TestCase):
         self.assertEqual(vars(args), {
             'kind': 'script',
             'name': 'spam.py',
-            'address': Address.as_client(None, 8888),
+            'address': Address.as_client('localhost', 8888),
             'nodebug': True,
             'single_session': False,
             'wait': False,
@@ -179,6 +173,7 @@ class ParseArgsTests(unittest.TestCase):
         args, extra = parse_args([
             'eggs',
             '--single-session',
+            '--host', 'localhost',
             '--port', '8888',
             'spam.py',
         ])
@@ -236,6 +231,7 @@ class ParseArgsTests(unittest.TestCase):
         args, extra = parse_args([
             'eggs',
             '--DEBUG',
+            '--host', 'localhost',
             '--port', '8888',
             '--vm_type', '???',
             'spam.py',
@@ -251,7 +247,7 @@ class ParseArgsTests(unittest.TestCase):
         self.assertEqual(vars(args), {
             'kind': 'script',
             'name': 'spam.py',
-            'address': Address.as_server(None, 8888),
+            'address': Address.as_server('localhost', 8888),
             'nodebug': False,
             'single_session': False,
             'wait': False,
@@ -274,6 +270,7 @@ class ParseArgsTests(unittest.TestCase):
             '--DEBUG',
             '--nodebug',
             '--client',
+            '--host', 'localhost',
             '--port', '8888',
             '--vm_type', '???',
             'spam.py',
@@ -289,7 +286,7 @@ class ParseArgsTests(unittest.TestCase):
         self.assertEqual(vars(args), {
             'kind': 'script',
             'name': 'spam.py',
-            'address': Address.as_client(None, 8888),
+            'address': Address.as_client('localhost', 8888),
             'nodebug': True,
             'single_session': False,
             'wait': False,
@@ -337,6 +334,7 @@ class ParseArgsTests(unittest.TestCase):
     def test_pseudo_backward_compatibility(self):
         args, extra = parse_args([
             'eggs',
+            '--host', 'localhost',
             '--port', '8888',
             '--module',
             '--file', 'spam',
@@ -345,7 +343,7 @@ class ParseArgsTests(unittest.TestCase):
         self.assertEqual(vars(args), {
             'kind': 'script',
             'name': 'spam',
-            'address': Address.as_server(None, 8888),
+            'address': Address.as_server('localhost', 8888),
             'nodebug': False,
             'single_session': False,
             'wait': False,
@@ -357,6 +355,7 @@ class ParseArgsTests(unittest.TestCase):
             'eggs',
             '--nodebug',
             '--client',
+            '--host', 'localhost',
             '--port', '8888',
             '--module',
             '--file', 'spam',
@@ -365,7 +364,7 @@ class ParseArgsTests(unittest.TestCase):
         self.assertEqual(vars(args), {
             'kind': 'script',
             'name': 'spam',
-            'address': Address.as_client(None, 8888),
+            'address': Address.as_client('localhost', 8888),
             'nodebug': True,
             'single_session': False,
             'wait': False,
