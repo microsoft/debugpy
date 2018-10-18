@@ -136,3 +136,59 @@ def test_multiprocessing(debug_session, pyfile):
         child_session.wait_for_disconnect()
 
     assert debug_session.read_json() == 'done'
+
+@pytest.mark.timeout(60)
+@pytest.mark.skipif(sys.version_info < (3, 0) and (platform.system() != 'Windows'),
+                    reason='Bug #935')
+def test_subprocess(debug_session, pyfile):
+    @pyfile
+    def child():
+        import sys
+        print(' '.join(sys.argv))
+
+    @pyfile
+    def parent():
+        import os
+        import subprocess
+        import sys
+        argv = [sys.executable]
+        argv += [sys.argv[1], '--arg1', '--arg2', '--arg3']
+        env = os.environ.copy()
+        process = subprocess.Popen(argv, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process.wait()
+
+    debug_session.multiprocess = True
+    debug_session.program_args += [child]
+    debug_session.prepare_to_run(filename=parent)
+    debug_session.start_debugging()
+
+    root_start_request, = debug_session.all_occurrences_of(Request('launch') | Request('attach'))
+    root_process, = debug_session.all_occurrences_of(Event('process'))
+    root_pid = int(root_process.body['systemProcessId'])
+
+    child_subprocess = debug_session.wait_for_next(Event('ptvsd_subprocess'))
+    assert child_subprocess == Event('ptvsd_subprocess', {
+        'rootProcessId': root_pid,
+        'parentProcessId': root_pid,
+        'processId': ANY.int,
+        'port': ANY.int,
+        'rootStartRequest': {
+            'seq': ANY.int,
+            'type': 'request',
+            'command': root_start_request.command,
+            'arguments': root_start_request.arguments,
+        }
+    })
+    child_port = child_subprocess.body['port']
+
+    child_session = DebugSession(method='attach_socket', ptvsd_port=child_port)
+    child_session.ignore_unobserved = debug_session.ignore_unobserved
+    child_session.connect()
+    child_session.handshake()
+    child_session.start_debugging()
+    debug_session.proceed()
+
+    child_args_output = child_session.wait_for_next(Event('output'))
+    assert child_args_output.body['output'].endswith('child.py --arg1 --arg2 --arg3')
+
+    debug_session.wait_for_exit()
