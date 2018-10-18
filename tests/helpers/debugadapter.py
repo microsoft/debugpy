@@ -235,20 +235,19 @@ class DebugAdapter(Closeable):
     def _ensure_addr(cls, argv, addr):
         if '--host' in argv:
             raise ValueError("unexpected '--host' in argv")
-        if '--server-host' in argv:
-            raise ValueError("unexpected '--server-host' in argv")
         if '--port' in argv:
             raise ValueError("unexpected '--port' in argv")
+        if '--client' in argv:
+            raise ValueError("unexpected '--client' in argv")
         host, port = addr
 
         argv.insert(0, str(port))
         argv.insert(0, '--port')
 
         argv.insert(0, host)
-        if addr.isserver:
-            argv.insert(0, '--server-host')
-        else:
-            argv.insert(0, '--host')
+        argv.insert(0, '--host')
+        if not addr.isserver:
+            argv.insert(0, '--client')
 
     def __init__(self, proc, addr, owned=False):
         super(DebugAdapter, self).__init__()

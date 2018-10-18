@@ -115,6 +115,7 @@ class RawConnectionTests(unittest.TestCase):
         proc = Proc.start_python_module('ptvsd', [
             '--server',
             '--wait',
+            '--host', 'localhost',
             '--port', '5678',
             '--file', filename,
         ], env={
