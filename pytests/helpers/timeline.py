@@ -366,6 +366,7 @@ class Timeline(object):
         def wait_for_response(freeze=True):
             response = Response(occ, pattern.ANY).wait_until_realized(freeze)
             assert response.observed
+            return response
         occ.wait_for_response = wait_for_response
 
         return self._record(occ, block)

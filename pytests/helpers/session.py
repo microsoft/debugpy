@@ -42,6 +42,9 @@ class DebugSession(object):
         self.debug_options = ['RedirectOutput']
         self.env = os.environ.copy()
         self.env['PYTHONPATH'] = PTVSD_SYS_PATH
+        self.cwd = None
+        self.expected_returncode = 0
+        self.program_args = []
 
         self.is_running = False
         self.process = None
@@ -151,6 +154,9 @@ class DebugSession(object):
             assert not filename and not module
             argv += ['-c', code]
 
+        if self.program_args:
+            argv += list(self.program_args)
+
         if backchannel:
             self.setup_backchannel()
         if self.backchannel_port:
@@ -159,7 +165,7 @@ class DebugSession(object):
         print('Current directory: %s' % os.getcwd())
         print('PYTHONPATH: %s' % self.env['PYTHONPATH'])
         print('Spawning %r' % argv)
-        self.process = subprocess.Popen(argv, env=self.env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.process = subprocess.Popen(argv, env=self.env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.cwd)
         self.pid = self.process.pid
         self.psutil_process =  psutil.Process(self.pid)
         self.is_running = True
@@ -204,7 +210,7 @@ class DebugSession(object):
         if close:
             self.timeline.close()
 
-    def wait_for_termination(self, expected_returncode=0):
+    def wait_for_termination(self):
         print(colors.LIGHT_MAGENTA + 'Waiting for ptvsd#%d to terminate' % self.ptvsd_port + colors.RESET)
 
         # BUG: ptvsd sometimes exits without sending 'terminate' or 'exited', likely due to
@@ -214,14 +220,14 @@ class DebugSession(object):
         self.wait_for_disconnect(close=False)
 
         if sys.version_info < (3,) or Event('exited') in self:
-            self.expect_realized(Event('exited', {'exitCode': expected_returncode}))
+            self.expect_realized(Event('exited', {'exitCode': self.expected_returncode}))
 
         if sys.version_info < (3,) or Event('terminated') in self:
             self.expect_realized(Event('exited') >> Event('terminated', {}))
 
         self.timeline.close()
 
-    def wait_for_exit(self, expected_returncode=0):
+    def wait_for_exit(self):
         """Waits for the spawned ptvsd process to exit. If it doesn't exit within
         WAIT_FOR_EXIT_TIMEOUT seconds, forcibly kills the process. After the process
         exits, validates its return code to match expected_returncode.
@@ -246,9 +252,9 @@ class DebugSession(object):
 
         if self.process is not None:
             self.process.wait()
-            assert self.process.returncode == expected_returncode
+            assert self.process.returncode == self.expected_returncode
 
-        self.wait_for_termination(expected_returncode)
+        self.wait_for_termination()
 
     def _kill_process_tree(self):
         assert self.psutil_process is not None
