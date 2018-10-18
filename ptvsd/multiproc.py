@@ -242,7 +242,7 @@ def patch_args(args):
     # itself can remain as is, because ptvsd is compatible with Python in that respect.
     args[i:i] = [
         '-m', 'ptvsd',
-        '--server-host', 'localhost',
+        '--host', 'localhost',
         '--port', '0',
         '--wait',
         '--multiprocess',
