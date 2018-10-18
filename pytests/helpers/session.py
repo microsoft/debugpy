@@ -133,10 +133,11 @@ class DebugSession(object):
             argv += ['-m', 'ptvsd']
 
         if self.method == 'attach_socket':
-            argv += ['--port', str(self.ptvsd_port), '--wait']
+            argv += ['--wait']
         else:
             self._listen()
-            argv += ['--host', 'localhost', '--port', str(self.ptvsd_port)]
+            argv += ['--client']
+        argv += ['--host', 'localhost', '--port', str(self.ptvsd_port)]
 
         if self.multiprocess:
             argv += ['--multiprocess']
