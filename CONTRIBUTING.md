@@ -34,8 +34,24 @@ VSC Python settings for formating:
 ],
 ```
 
-### Running Tests
-Set `PYTHONPATH` environment variable to the ptvsd root directory. In this example, we `git clone` ptvsd and use the directory to run tests
+### Running `pytest` based tests
+We are currently migrating the tests to use `pytest`. Please run both set of tests. Newer tests must go into the [pytests](pytests) directory. Use [test_requirements.txt](test_requirements.txt) to install packages needed to run the tests.
+#### Windows
+```
+C:\> git clone https://github.com/Microsoft/ptvsd
+C:\> cd ptvsd
+C:\ptvsd> py -3.7 -m pip install -r test_requirements.txt
+C:\ptvsd> py -3.7 -m pytest -v
+```
+#### Linux\Mac
+```
+~: git clone https://github.com/Microsoft/ptvsd
+~: cd ptvsd
+~/ptvsd: python3 -m pip install -r ./test_requirements.txt
+~/ptvsd: python3 -m pytest -v
+```
+### Running `unittest` based tests
+`git clone` ptvsd and change directory to `ptvsd`. Run the `tests` module from there. Newer tests must be written using `pytest` and must go into the [pytests](pytests) directory. Please do not add tests to this directory.
 #### Windows
 ```
 C:\> git clone https://github.com/Microsoft/ptvsd
@@ -61,7 +77,6 @@ Set `PYTHONPATH` to point to cloned version of ptvsd, in `launch.json`, to debug
     "cwd": "${workspaceFolder}",
     "console": "integratedTerminal",
     "env": {"PYTHONPATH":"C:\\GIT\\ptvsd"},
-    "envFile": "${workspaceFolder}/.env",
     "internalConsoleOptions": "neverOpen",
 },
 ```
