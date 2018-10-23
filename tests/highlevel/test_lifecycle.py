@@ -78,7 +78,7 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
                 req_attach = self.send_request('attach', attach_args)
 
             # configuration
-            with self._fix.wait_for_events(['process']):
+            with self._fix.wait_for_events(['process', 'ptvsd_process']):
                 req_config = self.send_request('configurationDone')
 
             # Normal ops would go here.
@@ -103,6 +103,12 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
             self.new_response(req_attach),
             self.new_response(req_config),
             self.new_event('process', **dict(
+               name=sys.argv[0],
+               systemProcessId=os.getpid(),
+               isLocalProcess=True,
+               startMethod='attach',
+            )),
+            self.new_event('ptvsd_process', **dict(
                name=sys.argv[0],
                systemProcessId=os.getpid(),
                isLocalProcess=True,

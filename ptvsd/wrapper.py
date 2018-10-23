@@ -1529,6 +1529,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             'startMethod': start_method,
         }
         self.send_event('process', **evt)
+        self.send_event('ptvsd_process', **evt)
 
     @async_handler
     def on_threads(self, request, args):

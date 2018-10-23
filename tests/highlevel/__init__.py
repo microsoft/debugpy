@@ -280,9 +280,10 @@ class VSCLifecycle(object):
 
         if process:
             with self._fix.wait_for_event('process'):
-                with self._fix.wait_for_event('thread'):
-                    if self._pydevd:
-                        self._pydevd.notify_main_thread()
+                with self._fix.wait_for_event('ptvsd_process'):
+                    with self._fix.wait_for_event('thread'):
+                        if self._pydevd:
+                            self._pydevd.notify_main_thread()
 
         if reset:
             self._fix.reset()

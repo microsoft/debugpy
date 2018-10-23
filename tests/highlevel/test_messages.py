@@ -2403,6 +2403,12 @@ class ThreadCreateEventTests(ThreadEventTest, unittest.TestCase):
                 isLocalProcess=True,
                 startMethod='launch',
             )),
+            self.new_event('ptvsd_process', **dict(
+                name=sys.argv[0],
+                systemProcessId=os.getpid(),
+                isLocalProcess=True,
+                startMethod='launch',
+            )),
             self.expected_event(
                 reason='started',
                 threadId=tid,
@@ -2424,6 +2430,12 @@ class ThreadCreateEventTests(ThreadEventTest, unittest.TestCase):
                 isLocalProcess=True,
                 startMethod='attach',
             )),
+            self.new_event('ptvsd_process', **dict(
+                name=sys.argv[0],
+                systemProcessId=os.getpid(),
+                isLocalProcess=True,
+                startMethod='attach',
+            )),
             self.expected_event(
                 reason='started',
                 threadId=tid,
@@ -2440,6 +2452,12 @@ class ThreadCreateEventTests(ThreadEventTest, unittest.TestCase):
 
         self.assert_vsc_received(received, [
             self.new_event('process', **dict(
+                name=sys.argv[0],
+                systemProcessId=os.getpid(),
+                isLocalProcess=True,
+                startMethod='launch',
+            )),
+            self.new_event('ptvsd_process', **dict(
                 name=sys.argv[0],
                 systemProcessId=os.getpid(),
                 isLocalProcess=True,

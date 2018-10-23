@@ -129,13 +129,19 @@ class LifecycleTests(LifecycleTestsBase):
         # Skipping the "thread exited" and "terminated" messages which
         # may appear randomly in the received list.
         received = list(_strip_newline_output_events(session.received))
-        self.assert_received(received[:7], [
+        self.assert_received(received[:8], [
             self.new_version_event(session.received),
             self.new_response(req_initialize.req, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
             self.new_response(req_launch.req),
             self.new_response(req_config.req),
             self.new_event('process', **{
+                'isLocalProcess': True,
+                'systemProcessId': adapter.pid,
+                'startMethod': 'launch',
+                'name': filename,
+            }),
+            self.new_event('ptvsd_process', **{
                 'isLocalProcess': True,
                 'systemProcessId': adapter.pid,
                 'startMethod': 'launch',
@@ -162,13 +168,19 @@ class LifecycleTests(LifecycleTestsBase):
             adapter.wait()
 
         received = list(_strip_newline_output_events(session.received))
-        self.assert_received(received[:7], [
+        self.assert_received(received[:8], [
             self.new_version_event(session.received),
             self.new_response(req_initialize.req, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
             self.new_response(req_launch.req),
             self.new_response(req_config.req),
             self.new_event('process', **{
+                'isLocalProcess': True,
+                'systemProcessId': adapter.pid,
+                'startMethod': 'launch',
+                'name': filename,
+            }),
+            self.new_event('ptvsd_process', **{
                 'isLocalProcess': True,
                 'systemProcessId': adapter.pid,
                 'startMethod': 'launch',
@@ -197,13 +209,19 @@ class LifecycleTests(LifecycleTestsBase):
                 adapter.wait()
 
         received = list(_strip_newline_output_events(session.received))
-        self.assert_received(received[:7], [
+        self.assert_received(received[:8], [
             self.new_version_event(session.received),
             self.new_response(req_initialize.req, **INITIALIZE_RESPONSE),
             self.new_event('initialized'),
             self.new_response(req_launch.req),
             self.new_response(req_config.req),
             self.new_event('process', **{
+                'isLocalProcess': True,
+                'systemProcessId': adapter.pid,
+                'startMethod': 'attach',
+                'name': filename,
+            }),
+            self.new_event('ptvsd_process', **{
                 'isLocalProcess': True,
                 'systemProcessId': adapter.pid,
                 'startMethod': 'attach',
@@ -265,6 +283,12 @@ class LifecycleTests(LifecycleTestsBase):
                 'startMethod': 'attach',
                 'name': filename,
             }),
+            self.new_event('ptvsd_process', **{
+                'isLocalProcess': True,
+                'systemProcessId': adapter.pid,
+                'startMethod': 'attach',
+                'name': filename,
+            }),
             self.new_event('output', output='success!', category='stdout'),
             self.new_event('exited', exitCode=0),
             self.new_event('terminated'),
@@ -314,6 +338,12 @@ class LifecycleTests(LifecycleTestsBase):
                 'startMethod': 'attach',
                 'name': filename,
             }),
+            self.new_event('ptvsd_process', **{
+                'isLocalProcess': True,
+                'systemProcessId': adapter.pid,
+                'startMethod': 'attach',
+                'name': filename,
+            }),
             self.new_event('thread', reason='started', threadId=1),
             self.new_response(req_disconnect.req),
         ])
@@ -327,6 +357,12 @@ class LifecycleTests(LifecycleTestsBase):
             self.new_response(req_launch.req),
             self.new_response(req_config.req),
             self.new_event('process', **{
+                'isLocalProcess': True,
+                'systemProcessId': adapter.pid,
+                'startMethod': 'attach',
+                'name': filename,
+            }),
+            self.new_event('ptvsd_process', **{
                 'isLocalProcess': True,
                 'systemProcessId': adapter.pid,
                 'startMethod': 'attach',
@@ -451,6 +487,12 @@ class LifecycleTests(LifecycleTestsBase):
                 'startMethod': 'attach',
                 'name': filename,
             }),
+            self.new_event('ptvsd_process', **{
+                'isLocalProcess': True,
+                'systemProcessId': adapter.pid,
+                'startMethod': 'attach',
+                'name': filename,
+            }),
             self.new_response(req_bps.req, **{
                 'breakpoints': [{
                     'id': 1,
@@ -501,6 +543,12 @@ class LifecycleTests(LifecycleTestsBase):
             }),
             self.new_response(req_config2.req),
             self.new_event('process', **{
+                'isLocalProcess': True,
+                'systemProcessId': adapter.pid,
+                'startMethod': 'attach',
+                'name': filename,
+            }),
+            self.new_event('ptvsd_process', **{
                 'isLocalProcess': True,
                 'systemProcessId': adapter.pid,
                 'startMethod': 'attach',
@@ -716,6 +764,12 @@ class LifecycleTests(LifecycleTestsBase):
             }),
             self.new_response(req_config.req),
             self.new_event('process', **{
+                'isLocalProcess': True,
+                'systemProcessId': adapter.pid,
+                'startMethod': 'attach',
+                'name': filename,
+            }),
+            self.new_event('ptvsd_process', **{
                 'isLocalProcess': True,
                 'systemProcessId': adapter.pid,
                 'startMethod': 'attach',
