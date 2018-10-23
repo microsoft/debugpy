@@ -139,8 +139,8 @@ class DebugSession(object):
             argv += ['--client']
         argv += ['--host', 'localhost', '--port', str(self.ptvsd_port)]
 
-        if self.multiprocess:
-            argv += ['--multiprocess']
+        if self.multiprocess and 'Multiprocess' not in self.debug_options:
+            self.debug_options += ['Multiprocess']
 
         if self.multiprocess_port_range:
             argv += ['--multiprocess-port-range', '%d-%d' % self.multiprocess_port_range]

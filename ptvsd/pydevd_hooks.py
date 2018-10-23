@@ -14,6 +14,7 @@ from ptvsd import multiproc
 from ptvsd.socket import Address
 from ptvsd.daemon import Daemon, DaemonStoppedError, DaemonClosedError
 from ptvsd._util import debug, new_hidden_thread
+from ptvsd import options
 
 
 def start_server(daemon, host, port, **kwargs):
@@ -130,6 +131,10 @@ def install(pydevd_module, address,
 
     # This is invoked when a child process is spawned with multiproc debugging enabled.
     pydev_monkey.patch_args = multiproc.patch_and_quote_args
+    if not options.multiprocess:
+        # This means '--multiprocess' flag was not passed via command line args. Patch the
+        # new process functions here to handle multiprocess being enabled via debug options.
+        pydev_monkey.patch_new_process_functions()
 
     # Ensure that pydevd is using our functions.
     pydevd_module.start_server = _start_server

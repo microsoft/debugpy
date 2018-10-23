@@ -172,6 +172,8 @@ def patch_args(args):
 
     Note that the first -m above is interpreted by Python, and the second by ptvsd.
     """
+    if not options.multiprocess:
+        return args
 
     assert options.multiprocess
 

@@ -29,7 +29,7 @@ def _django_no_multiproc_common(debug_session):
         Event('module')
     ]
 
-    debug_session.debug_options = ['RedirectOutput', 'Django']
+    debug_session.debug_options += ['Django']
     debug_session.cwd = DJANGO1_ROOT
     debug_session.expected_returncode = ANY  # No clean way to kill Django server
 
@@ -205,7 +205,7 @@ def test_django_breakpoint_multiproc(debug_session):
         Event('continued')
     ]
 
-    debug_session.debug_options = ['RedirectOutput', 'Django']
+    debug_session.debug_options += ['Django']
     debug_session.cwd = DJANGO1_ROOT
     debug_session.expected_returncode = ANY  # No clean way to kill Django server
     debug_session.prepare_to_run(filename=DJANGO1_MANAGE)

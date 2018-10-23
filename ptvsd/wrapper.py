@@ -730,6 +730,7 @@ DEBUG_OPTIONS_PARSER = {
     'DEBUG_STDLIB': bool_parser,
     'STOP_ON_ENTRY': bool_parser,
     'SHOW_RETURN_VALUE': bool_parser,
+    'MULTIPROCESS': bool_parser,
 }
 
 
@@ -746,6 +747,7 @@ DEBUG_OPTIONS_BY_FLAG = {
     'UnixClient': 'CLIENT_OS_TYPE=UNIX',
     'StopOnEntry': 'STOP_ON_ENTRY=True',
     'ShowReturnValue': 'SHOW_RETURN_VALUE=True',
+    'Multiprocess': 'MULTIPROCESS=True',
 }
 
 
@@ -1280,8 +1282,11 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     def start(self, threadname):
         super(VSCodeMessageProcessor, self).start(threadname)
         if options.multiprocess:
-            self._subprocess_notifier_thread = _util.new_hidden_thread('SubprocessNotifier', self._subprocess_notifier)
-            self._subprocess_notifier_thread.start()
+            self.start_subprocess_notifier()
+
+    def start_subprocess_notifier(self):
+        self._subprocess_notifier_thread = _util.new_hidden_thread('SubprocessNotifier', self._subprocess_notifier)
+        self._subprocess_notifier_thread.start()
 
     def close(self):
         super(VSCodeMessageProcessor, self).close()
@@ -1437,6 +1442,12 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         if opts.get('SHOW_RETURN_VALUE', False):
             self.pydevd_request(pydevd_comm.CMD_SHOW_RETURN_VALUES, '1\t1')
+
+        if opts.get('MULTIPROCESS', False):
+            if not options.multiprocess:
+                options.multiprocess = True
+                multiproc.listen_for_subprocesses()
+                self.start_subprocess_notifier()
 
         # Print on all but NameError, don't suspend on any.
         self.pydevd_request(pydevd_comm.CMD_SUSPEND_ON_BREAKPOINT_EXCEPTION, json.dumps(dict(

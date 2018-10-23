@@ -42,7 +42,7 @@ def _flask_no_multiproc_common(debug_session):
         Event('continued')
     ]
 
-    debug_session.debug_options = ['RedirectOutput', 'Jinja']
+    debug_session.debug_options += ['Jinja']
     debug_session.cwd = FLASK1_ROOT
     debug_session.env.update(env)
     debug_session.expected_returncode = ANY.int  # No clean way to kill Flask server
@@ -230,7 +230,7 @@ def test_flask_breakpoint_multiproc(debug_session):
         Event('continued')
     ]
 
-    debug_session.debug_options = ['RedirectOutput', 'Jinja']
+    debug_session.debug_options += ['Jinja']
     debug_session.cwd = FLASK1_ROOT
     debug_session.env.update(env)
     debug_session.expected_returncode = ANY.int  # No clean way to kill Flask server
