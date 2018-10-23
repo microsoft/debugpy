@@ -3,7 +3,7 @@
 # for license information.
 
 import pytest
-from ptvsd.socket import create_server, shut_down
+from ptvsd.socket import create_server, close_socket
 
 
 class TestSocketServerReuse(object):
@@ -18,7 +18,7 @@ class TestSocketServerReuse(object):
                 create_server(self.HOST1, self.PORT1)
             assert sock1.getsockname() == (self.HOST1, self.PORT1)
         finally:
-            shut_down(sock1)
+            close_socket(sock1)
 
     def test_reuse_same_port(self):
         try:
@@ -27,5 +27,5 @@ class TestSocketServerReuse(object):
             assert sock1.getsockname() == (self.HOST1, self.PORT1)
             assert sock2.getsockname() == (self.HOST2, self.PORT1)
         finally:
-            shut_down(sock1)
-            shut_down(sock2)
+            close_socket(sock1)
+            close_socket(sock2)
