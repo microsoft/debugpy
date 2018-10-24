@@ -202,7 +202,7 @@ class EasyDebugClient(DebugClient):
         def run():
             try:
                 self._session = self.SESSION.create_server(addr, **kwargs)
-            except Exception as ex:
+            except Exception:
                 self._run_server_ex = traceback.format_exc()
 
         t = new_hidden_thread(

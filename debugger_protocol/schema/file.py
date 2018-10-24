@@ -8,7 +8,7 @@ def read_schema(filename, *, _open=open):
     """Return the data (bytes) in the given schema file."""
     try:
         schemafile = _open(filename, 'rb')
-    except FileNotFoundError as exc:
+    except FileNotFoundError:
         raise SchemaFileError(
                 'schema file {!r} not found'.format(filename))
     with schemafile:

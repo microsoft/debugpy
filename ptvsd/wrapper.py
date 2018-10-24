@@ -893,7 +893,7 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
                 self._listening = threading.Lock()
             try:
                 self.process_messages()
-            except (EOFError, TimeoutError) as exc:
+            except (EOFError, TimeoutError):
                 debug('client socket closed')
                 with self._connlock:
                     _util.lock_release(self._listening)
@@ -1550,7 +1550,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         try:
             xml = self.parse_xml_response(resp_args)
-        except SAXParseException as ex:
+        except SAXParseException:
             self.send_error_response(request, resp_args)
             return
 
@@ -1778,7 +1778,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         try:
             xml = self.parse_xml_response(resp_args)
-        except SAXParseException as ex:
+        except SAXParseException:
             self.send_error_response(request, resp_args)
             return
 
@@ -1920,7 +1920,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         try:
             xml = self.parse_xml_response(resp_args)
-        except SAXParseException as ex:
+        except SAXParseException:
             self.send_error_response(request, resp_args)
             return
 
@@ -1959,7 +1959,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         try:
             xml = self.parse_xml_response(resp_args)
-        except SAXParseException as ex:
+        except SAXParseException:
             self.send_error_response(request, resp_args)
             return
 

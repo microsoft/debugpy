@@ -57,6 +57,7 @@ class DebugSession(object):
         self.backchannel_port = None
         self.backchannel_established = threading.Event()
         self._output_capture_threads = []
+        self.output_data = {'OUT': [], 'ERR': []}
 
         self.timeline = Timeline(ignore_unobserved=[
             Event('output'),
@@ -437,6 +438,7 @@ class DebugSession(object):
                     line = pipe.readline()
                     if not line:
                         break
+                    self.output_data[name].append(line)
                 except Exception:
                     break
                 else:

@@ -20,7 +20,7 @@ def open_metadata(schemafile, mode='r', *, _open=open):
                             os.path.basename(METADATA))
     try:
         return _open(filename, mode), filename
-    except FileNotFoundError as exc:
+    except FileNotFoundError:
         raise MetadataError(
                 'metadata file for {!r} not found'.format(schemafile))
 

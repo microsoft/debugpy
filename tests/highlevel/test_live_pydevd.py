@@ -194,7 +194,7 @@ class VSCFlowTest(TestBase):
 
         try:
             self.fix.binder.wait_until_done()
-        except Exception as ex:
+        except Exception:
             formatted_ex = traceback.format_exc()
             if hasattr(self, 'vsc') and hasattr(self.vsc, 'received'):
                 message = """
