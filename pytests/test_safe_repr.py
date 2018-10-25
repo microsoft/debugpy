@@ -1,6 +1,7 @@
 import collections
 import sys
-import unittest
+import re
+import pytest
 
 try:
     import numpy as np
@@ -19,74 +20,59 @@ if PY3K:
     xrange = range
 
 
-def py2_only(f):
-    deco = unittest.skipIf(PY_VER != 2, 'py2-only')
-    return deco(f)
+class SafeReprTestBase(object):
 
-
-def py3_only(f):
-    deco = unittest.skipIf(PY_VER == 2, 'py3-only')
-    return deco(f)
-
-
-class TestBase(unittest.TestCase):
-
-    def setUp(self):
-        super(TestBase, self).setUp()
-        self.saferepr = SafeRepr()
+    saferepr = SafeRepr()
 
     def assert_saferepr(self, value, expected):
         safe = self.saferepr(value)
 
-        self.assertEqual(safe, expected)
+        assert safe == expected
         return safe
 
     def assert_unchanged(self, value, expected):
         actual = repr(value)
 
         safe = self.assert_saferepr(value, expected)
-        self.assertEqual(safe, actual)
+        assert safe == actual
 
     def assert_shortened(self, value, expected):
         actual = repr(value)
 
         safe = self.assert_saferepr(value, expected)
-        self.assertNotEqual(safe, actual)
+        assert safe != actual
 
-    def assert_saferepr_regex(self, value, expected):
-        safe = self.saferepr(value)
+    def assert_saferepr_regex(self, s, r):
+        safe = self.saferepr(s)
 
-        if PY_VER == 2:
-            self.assertRegexpMatches(safe, expected)
-        else:
-            self.assertRegex(safe, expected)
+        assert re.search(r, safe) is not None
         return safe
 
     def assert_unchanged_regex(self, value, expected):
         actual = repr(value)
 
         safe = self.assert_saferepr_regex(value, expected)
-        self.assertEqual(safe, actual)
+        assert safe == actual
 
     def assert_shortened_regex(self, value, expected):
         actual = repr(value)
 
         safe = self.assert_saferepr_regex(value, expected)
-        self.assertNotEqual(safe, actual)
+        assert safe != actual
 
 
-class SafeReprTests(TestBase):
+class TestSafeRepr(SafeReprTestBase):
 
     def test_collection_types(self):
         colltypes = [t for t, _, _, _ in SafeRepr.collection_types]
 
-        self.assertEqual(colltypes, [
+        assert colltypes == [
             tuple,
             list,
             frozenset,
             set,
             collections.deque,
-        ])
+        ]
 
     def test_largest_repr(self):
         # Find the largest possible repr and ensure it is below our arbitrary
@@ -106,10 +92,10 @@ class SafeReprTests(TestBase):
         #print('len(SafeRepr()(dcoll)) = ' + str(len(text)) +
         #      ', len(repr(coll)) = ' + str(len(text_repr)))
 
-        self.assertLess(len(text), 8192)
+        assert len(text) < 8192
 
 
-class StringTests(TestBase):
+class TestStrings(SafeReprTestBase):
 
     def test_str_small(self):
         value = 'A' * 5
@@ -145,14 +131,14 @@ class StringTests(TestBase):
 
         self.assert_shortened([value], "['AAAAAAAAAAAAAAAAAAA...AAAAAAAAA']")
 
-    @py2_only
+    @pytest.mark.skipif(sys.version_info > (3, 0), reason='Py2 specific test')
     def test_unicode_small(self):
         value = u'A' * 5
 
         self.assert_unchanged(value, "u'AAAAA'")
         self.assert_unchanged([value], "[u'AAAAA']")
 
-    @py2_only
+    @pytest.mark.skipif(sys.version_info > (3, 0), reason='Py2 specific test')
     def test_unicode_large(self):
         value = u'A' * (SafeRepr.maxstring_outer + 10)
 
@@ -160,14 +146,14 @@ class StringTests(TestBase):
                               "u'" + 'A' * 43688 + "..." + 'A' * 21844 + "'")
         self.assert_shortened([value], "[u'AAAAAAAAAAAAAAAAAA...AAAAAAAAA']")
 
-    @py3_only
+    @pytest.mark.skipif(sys.version_info < (3, 0), reason='Py3 specific test')
     def test_bytes_small(self):
         value = b'A' * 5
 
         self.assert_unchanged(value, "b'AAAAA'")
         self.assert_unchanged([value], "[b'AAAAA']")
 
-    @py3_only
+    @pytest.mark.skipif(sys.version_info < (3, 0), reason='Py3 specific test')
     def test_bytes_large(self):
         value = b'A' * (SafeRepr.maxstring_outer + 10)
 
@@ -175,16 +161,16 @@ class StringTests(TestBase):
                               "b'" + 'A' * 43688 + "..." + 'A' * 21844 + "'")
         self.assert_shortened([value], "[b'AAAAAAAAAAAAAAAAAA...AAAAAAAAA']")
 
-    @unittest.skip('not written')  # TODO: finish!
+    @pytest.mark.skip(reason='not written')  # TODO: finish!
     def test_bytearray_small(self):
         raise NotImplementedError
 
-    @unittest.skip('not written')  # TODO: finish!
+    @pytest.mark.skip(reason='not written')  # TODO: finish!
     def test_bytearray_large(self):
         raise NotImplementedError
 
 
-class RawValueTests(TestBase):
+class RawValueTests(SafeReprTestBase):
 
     def setUp(self):
         super(RawValueTests, self).setUp()
@@ -203,17 +189,17 @@ class RawValueTests(TestBase):
         self.assert_saferepr(value, value.decode('ascii'))
 
 
-class NumberTests(TestBase):
+class TestNumbers(SafeReprTestBase):
 
-    @unittest.skip('not written')  # TODO: finish!
+    @pytest.mark.skip(reason='not written')  # TODO: finish!
     def test_int(self):
         raise NotImplementedError
 
-    @unittest.skip('not written')  # TODO: finish!
+    @pytest.mark.skip(reason='not written')  # TODO: finish!
     def test_float(self):
         raise NotImplementedError
 
-    @unittest.skip('not written')  # TODO: finish!
+    @pytest.mark.skip(reason='not written')  # TODO: finish!
     def test_complex(self):
         raise NotImplementedError
 
@@ -245,7 +231,7 @@ class ContainerBase(object):
 
     def combine(self, items, large=False):
         if self.LEFT is None:
-            raise unittest.SkipTest('unsupported')
+            pytest.skip('unsupported')
         return self._combine(items, self.LEFT, self.RIGHT, large=large)
 
     def combine_nested(self, depth, items, large=False):
@@ -277,11 +263,11 @@ class ContainerBase(object):
 
         self.assert_shortened(c2, c2_expect)
 
-    @unittest.skip('not written')  # TODO: finish!
+    @pytest.mark.skip(reason='not written')  # TODO: finish!
     def test_empty(self):
         raise NotImplementedError
 
-    @unittest.skip('not written')  # TODO: finish!
+    @pytest.mark.skip(reason='not written')  # TODO: finish!
     def test_subclass(self):
         raise NotImplementedError
 
@@ -320,14 +306,14 @@ class ContainerBase(object):
             self.assert_shortened(c3, expected3)
 
 
-class TupleTests(ContainerBase, TestBase):
+class TestTuples(ContainerBase, SafeReprTestBase):
 
     CLASS = tuple
     LEFT = '('
     RIGHT = ')'
 
 
-class ListTests(ContainerBase, TestBase):
+class TestLists(ContainerBase, SafeReprTestBase):
 
     CLASS = list
     LEFT = '['
@@ -346,12 +332,12 @@ class ListTests(ContainerBase, TestBase):
         self.assert_unchanged(value, '[1, 2, [[...]]]')
 
 
-class FrozensetTests(ContainerBase, TestBase):
+class TestFrozensets(ContainerBase, SafeReprTestBase):
 
     CLASS = frozenset
 
 
-class SetTests(ContainerBase, TestBase):
+class TestSets(ContainerBase, SafeReprTestBase):
 
     CLASS = set
     if PY_VER != 2:
@@ -359,34 +345,34 @@ class SetTests(ContainerBase, TestBase):
         RIGHT = '}'
 
     def test_nested(self):
-        raise unittest.SkipTest('unsupported')
+        pytest.skip('unsupported')
 
     def test_large_nested(self):
-        raise unittest.SkipTest('unsupported')
+        pytest.skip('unsupported')
 
 
-class DictTests(TestBase):
+class TestDicts(SafeReprTestBase):
 
     def test_large_key(self):
         value = {
-            'a' * SafeRepr.maxstring_inner * 2: '',
+            'a' * SafeRepr.maxstring_inner * 3: '',
         }
 
-        self.assert_shortened_regex(value, "{'a+\.\.\.a+': ''}")
+        self.assert_shortened_regex(value, r"{'a+\.\.\.a+': ''}")
 
     def test_large_value(self):
         value = {
             '': 'a' * SafeRepr.maxstring_inner * 2,
         }
 
-        self.assert_shortened_regex(value, "{'': 'a+\.\.\.a+'}")
+        self.assert_shortened_regex(value, r"{'': 'a+\.\.\.a+'}")
 
     def test_large_both(self):
         value = {}
         key = 'a' * SafeRepr.maxstring_inner * 2
         value[key] = key
 
-        self.assert_shortened_regex(value, "{'a+\.\.\.a+': 'a+\.\.\.a+'}")
+        self.assert_shortened_regex(value, r"{'a+\.\.\.a+': 'a+\.\.\.a+'}")
 
     def test_nested_value(self):
         d1 = {}
@@ -395,11 +381,11 @@ class DictTests(TestBase):
         d2 = {d1_key: d1}
         d3 = {d1_key: d2}
 
-        self.assert_shortened_regex(d2, "{'a+\.\.\.a+': {'a+\.\.\.a+': 'a+\.\.\.a+'}}")  # noqa
+        self.assert_shortened_regex(d2, r"{'a+\.\.\.a+': {'a+\.\.\.a+': 'a+\.\.\.a+'}}")  # noqa
         if len(SafeRepr.maxcollection) == 2:
-            self.assert_shortened_regex(d3, "{'a+\.\.\.a+': {'a+\.\.\.a+': {\.\.\.}}}")  # noqa
+            self.assert_shortened_regex(d3, r"{'a+\.\.\.a+': {'a+\.\.\.a+': {\.\.\.}}}")  # noqa
         else:
-            self.assert_shortened_regex(d3, "{'a+\.\.\.a+': {'a+\.\.\.a+': {'a+\.\.\.a+': 'a+\.\.\.a+'}}}")  # noqa
+            self.assert_shortened_regex(d3, r"{'a+\.\.\.a+': {'a+\.\.\.a+': {'a+\.\.\.a+': 'a+\.\.\.a+'}}}")  # noqa
 
     def test_empty(self):
         # Ensure empty dicts work
@@ -413,13 +399,13 @@ class DictTests(TestBase):
         d1['a'] = None
         self.assert_saferepr(d1, "{'a': None, 'b': None, 'c': None}")
 
-    @py3_only
+    @pytest.mark.skipif(sys.version_info < (3, 0), reason='Py3 specific test')
     def test_unsortable_keys(self):
         # Ensure dicts with unsortable keys do not crash
         d1 = {}
         for _ in range(100):
             d1[object()] = None
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             list(sorted(d1))
         self.saferepr(d1)
 
@@ -436,7 +422,7 @@ class DictTests(TestBase):
         self.assert_unchanged(value, '{1: None, 2: {3: {...}}}')
 
 
-class OtherPythonTypeTests(TestBase):
+class TestOtherPythonTypes(SafeReprTestBase):
     # not critical to test:
     #  singletons
     #  <function>
@@ -452,7 +438,7 @@ class OtherPythonTypeTests(TestBase):
     #  type
     #  super
 
-    @unittest.skip('not written')  # TODO: finish!
+    @pytest.mark.skip(reason='not written')  # TODO: finish!
     def test_file(self):
         raise NotImplementedError
 
@@ -462,7 +448,7 @@ class OtherPythonTypeTests(TestBase):
 
         self.assert_unchanged(value, '{}(1, 42)'.format(range_name))
 
-    @py3_only
+    @pytest.mark.skipif(sys.version_info < (3, 0), reason='Py3 specific test')
     def test_range_large_stop_only(self):
         range_name = xrange.__name__
         stop = SafeRepr.maxcollection[0]
@@ -479,22 +465,22 @@ class OtherPythonTypeTests(TestBase):
         self.assert_unchanged(value,
                               '{}(1, {})'.format(range_name, stop))
 
-    @unittest.skip('not written')  # TODO: finish!
+    @pytest.mark.skip(reason='not written')  # TODO: finish!
     def test_named_struct(self):
         # e.g. sys.version_info
         raise NotImplementedError
 
-    @unittest.skip('not written')  # TODO: finish!
+    @pytest.mark.skip(reason='not written')  # TODO: finish!
     def test_namedtuple(self):
         raise NotImplementedError
 
-    @unittest.skip('not written')  # TODO: finish!
-    @py3_only
+    @pytest.mark.skip(reason='not written')  # TODO: finish!
+    @pytest.mark.skipif(sys.version_info < (3, 0), reason='Py3 specific test')
     def test_SimpleNamespace(self):
         raise NotImplementedError
 
 
-class UserDefinedObjectTests(TestBase):
+class TestUserDefinedObjects(SafeReprTestBase):
 
     def test_broken_repr(self):
         class TestClass(object):
@@ -502,7 +488,7 @@ class UserDefinedObjectTests(TestBase):
                 raise NameError
         value = TestClass()
 
-        with self.assertRaises(NameError):
+        with pytest.raises(NameError):
             repr(TestClass())
         self.assert_saferepr(value, object.__repr__(value))
 
@@ -571,8 +557,8 @@ class UserDefinedObjectTests(TestBase):
         self.assert_shortened(value2, '<TestClass, len() = 1>')
 
 
-@unittest.skipIf(np is None, 'could not import numpy')
-class NumpyTests(TestBase):
+@pytest.mark.skipif(np is None, reason='could not import numpy')
+class TestNumpy(SafeReprTestBase):
     # numpy types should all use their native reprs, even arrays
     # exceeding limits.
 
