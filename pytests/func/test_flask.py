@@ -29,9 +29,13 @@ def _flask_no_multiproc_common(debug_session):
         'FLASK_APP': 'app.py',
         'FLASK_ENV': 'development',
         'FLASK_DEBUG': '0',
-        'LC_ALL': 'C.UTF-8',
-        'LANG': 'C.UTF-8',
     }
+    if platform.system() != 'Windows':
+        locale = 'en_US.utf8' if platform.system() == 'Linux' else 'en_US.UTF-8'
+        env.update({
+            'LC_ALL': locale,
+            'LANG': locale,
+        })
 
     # we may get multiple stopped(pause), or continued events.
     # we only care about stopped(breakpoint/exception) events
@@ -219,9 +223,13 @@ def test_flask_breakpoint_multiproc(debug_session):
         'FLASK_APP': 'app',
         'FLASK_ENV': 'development',
         'FLASK_DEBUG': '1',
-        'LC_ALL': 'C.UTF-8',
-        'LANG': 'C.UTF-8',
     }
+    if platform.system() != 'Windows':
+        locale = 'en_US.utf8' if platform.system() == 'Linux' else 'en_US.UTF-8'
+        env.update({
+            'LC_ALL': locale,
+            'LANG': locale,
+        })
 
     debug_session.ignore_unobserved += [
         Event('thread', ANY.dict_with({'reason': 'started'})),
@@ -264,9 +272,9 @@ def test_flask_breakpoint_multiproc(debug_session):
     resp_stacktrace = child_session.send_request('stackTrace', arguments={
         'threadId': tid,
     }).wait_for_response()
-    assert resp_stacktrace.body['totalFrames'] == 1
+    assert resp_stacktrace.body['totalFrames'] > 0
     frames = resp_stacktrace.body['stackFrames']
-    assert frames == [{
+    assert frames[0] == {
         'id': ANY.int,
         'name': 'home',
         'source': {
@@ -275,7 +283,7 @@ def test_flask_breakpoint_multiproc(debug_session):
         },
         'line': bp_line,
         'column': 1,
-    }]
+    }
 
     fid = frames[0]['id']
     resp_scopes = child_session.send_request('scopes', arguments={
