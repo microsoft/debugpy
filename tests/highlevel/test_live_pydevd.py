@@ -165,14 +165,6 @@ class LifecycleTests(TestBase, unittest.TestCase):
                         isLocalProcess=True,
                         startMethod='attach',
                     )),
-                self.new_event(
-                    'ptvsd_process',
-                    **dict(
-                        name=sys.argv[0],
-                        systemProcessId=os.getpid(),
-                        isLocalProcess=True,
-                        startMethod='attach',
-                    )),
                 self.new_event('thread', reason='started', threadId=1),
                 #self.new_event('exited', exitCode=0),
                 #self.new_event('terminated'),
@@ -511,14 +503,6 @@ class LogpointTests(TestBase, unittest.TestCase):
             self.new_response(req_config),
             self.new_event(
                 'process',
-                **dict(
-                    name=sys.argv[0],
-                    systemProcessId=os.getpid(),
-                    isLocalProcess=True,
-                    startMethod='attach',
-                )),
-            self.new_event(
-                'ptvsd_process',
                 **dict(
                     name=sys.argv[0],
                     systemProcessId=os.getpid(),

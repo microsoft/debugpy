@@ -363,16 +363,14 @@ class DebugSession(object):
         # The relative ordering of 'process' and 'configurationDone' is not deterministic.
         # (implementation varies depending on whether it's launch or attach, but in any
         # case, it is an implementation detail).
-        start = self.wait_for_next(Event('process') & Event('ptvsd_process') & Response(configurationDone_request))
+        start = self.wait_for_next(Event('process') & Response(configurationDone_request))
 
-        expected_process_body = {
+        self.expect_new(Event('process', {
             'name': ANY.str,
             'isLocalProcess': True,
             'startMethod': 'launch' if self.method == 'launch' else 'attach',
             'systemProcessId': self.pid if self.pid is not None else ANY.int,
-        }
-        self.expect_new(Event('process', expected_process_body))
-        self.expect_new(Event('ptvsd_process', expected_process_body))
+        }))
 
         if not freeze:
             self.proceed()
