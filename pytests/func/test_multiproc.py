@@ -43,7 +43,7 @@ def test_multiprocessing(debug_session, pyfile):
             print('leaving child')
 
         if __name__ == '__main__':
-            import pytests.helpers.backchannel as backchannel
+            import backchannel
             if sys.version_info >= (3, 4):
                 multiprocessing.set_start_method('spawn')
             else:
