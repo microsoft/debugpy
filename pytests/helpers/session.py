@@ -373,9 +373,6 @@ class DebugSession(object):
         if not freeze:
             self.proceed()
 
-        if self.backchannel_port:
-            self.backchannel_established.wait()
-
         return start
 
     def _process_event(self, event):
