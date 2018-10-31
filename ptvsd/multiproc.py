@@ -18,10 +18,10 @@ try:
 except ImportError:
     import Queue as queue
 
-from . import options
-from .socket import create_server, create_client
-from .messaging import JsonIOStream, JsonMessageChannel
-from ._util import new_hidden_thread, debug
+from ptvsd import options
+from ptvsd.socket import create_server, create_client
+from ptvsd.messaging import JsonIOStream, JsonMessageChannel
+from ptvsd._util import new_hidden_thread, debug
 
 from _pydev_bundle import pydev_monkey
 from _pydevd_bundle.pydevd_comm import get_global_debugger
@@ -168,9 +168,7 @@ def patch_args(args):
 
     the result should be:
 
-        python -R -Q warn -m ptvsd --host localhost --port 0 ... -m app
-
-    Note that the first -m above is interpreted by Python, and the second by ptvsd.
+        python -R -Q warn .../ptvsd/__main__.py --host localhost --port 0 ... -m app
     """
     if not options.multiprocess:
         return args
@@ -242,8 +240,9 @@ def patch_args(args):
 
     # Now we need to inject the ptvsd invocation right before the target. The target
     # itself can remain as is, because ptvsd is compatible with Python in that respect.
+    from ptvsd import __main__
     args[i:i] = [
-        '-m', 'ptvsd',
+        __main__.__file__,
         '--host', 'localhost',
         '--port', '0',
         '--wait',

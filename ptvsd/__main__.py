@@ -2,15 +2,53 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+from __future__ import print_function, with_statement, absolute_import
+
 import argparse
 import os.path
 import sys
+
+
+# ptvsd can also be invoked directly rather than via -m. In this case, the
+# first entry on sys.path is the one added automatically by Python for the
+# directory containing this file. This means that 1) import ptvsd will not
+# work, since we need the parent directory of ptvsd/ to be on path, rather
+# than ptvsd/ itself, and 2) many other absolute imports will break, because
+# they will be resolved relative to ptvsd/ - e.g. import socket will then
+# try to import ptvsd/socket.py!
+#
+# To fix this, we need to replace the automatically added entry such that it
+# points at the parent directory instead, import ptvsd from that directory,
+# and then remove than entry altogether so that it doesn't affect any further
+# imports. For example, suppose the user did:
+#
+#   python /foo/bar/ptvsd ...
+#
+# At the beginning of this script, sys.path will contain '/foo/bar/ptvsd' as
+# the first entry. What we want is to replace it with '/foo/bar', then import
+# ptvsd with that in effect, and then remove it before continuing execution.
+if __name__ == '__main__' and 'ptvsd' not in sys.modules:
+    sys.path[0] = os.path.dirname(sys.path[0])
+    import ptvsd # noqa
+    del sys.path[0]
+
 
 from ptvsd import multiproc, options
 from ptvsd._attach import attach_main
 from ptvsd._local import debug_main, run_main
 from ptvsd.socket import Address
 from ptvsd.version import __version__, __author__  # noqa
+
+
+# When forming the command line involving __main__.py, it might be tempting to
+# import it as a module, and then use its __file__. However, that does not work
+# reliably, because __file__ can be a relative path - and when it is relative,
+# that's relative to the current directory at the time import was done, which
+# may be different from the current directory at the time the path is used.
+#
+# So, to be able to correctly locate the script at any point, we compute the
+# absolute path at import time.
+__file__ = os.path.abspath(__file__)
 
 
 ##################################

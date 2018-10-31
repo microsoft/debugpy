@@ -14,15 +14,13 @@ import time
 import traceback
 
 import ptvsd
+import ptvsd.__main__
 from ptvsd.messaging import JsonIOStream, JsonMessageChannel, MessageHandlers
-from . import colors, print, watchdog
+
+from . import colors, debuggee, print, watchdog
 from .messaging import LoggingJsonStream
 from .pattern import ANY
 from .timeline import Timeline, Event, Response
-
-
-# ptvsd.__file__ will be <dir>/ptvsd/__main__.py - we want <dir>.
-PTVSD_SYS_PATH = os.path.dirname(os.path.dirname(ptvsd.__file__))
 
 
 class DebugSession(object):
@@ -41,7 +39,7 @@ class DebugSession(object):
         self.multiprocess_port_range = None
         self.debug_options = ['RedirectOutput']
         self.env = os.environ.copy()
-        self.env['PYTHONPATH'] = PTVSD_SYS_PATH
+        self.env['PYTHONPATH'] = os.path.dirname(debuggee.__file__)
         self.cwd = None
         self.expected_returncode = 0
         self.program_args = []
@@ -131,7 +129,7 @@ class DebugSession(object):
 
         argv = [sys.executable]
         if self.method != 'attach_pid':
-            argv += ['-m', 'ptvsd']
+            argv += [ptvsd.__main__.__file__]
 
         if self.method == 'attach_socket':
             argv += ['--wait']
@@ -374,9 +372,6 @@ class DebugSession(object):
 
         if not freeze:
             self.proceed()
-
-        if self.backchannel_port:
-            self.backchannel_established.wait()
 
         return start
 

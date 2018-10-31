@@ -8,9 +8,9 @@ import platform
 import pytest
 import sys
 
-from ..helpers.pattern import ANY
-from ..helpers.session import DebugSession
-from ..helpers.timeline import Event, Request
+from pytests.helpers.pattern import ANY
+from pytests.helpers.session import DebugSession
+from pytests.helpers.timeline import Event, Request
 
 
 @pytest.mark.timeout(60)
@@ -43,7 +43,7 @@ def test_multiprocessing(debug_session, pyfile):
             print('leaving child')
 
         if __name__ == '__main__':
-            import pytests.helpers.backchannel as backchannel
+            import backchannel
             if sys.version_info >= (3, 4):
                 multiprocessing.set_start_method('spawn')
             else:
@@ -144,7 +144,8 @@ def test_subprocess(debug_session, pyfile):
     @pyfile
     def child():
         import sys
-        print(' '.join(sys.argv))
+        import backchannel
+        backchannel.write_json(sys.argv)
 
     @pyfile
     def parent():
@@ -159,7 +160,7 @@ def test_subprocess(debug_session, pyfile):
 
     debug_session.multiprocess = True
     debug_session.program_args += [child]
-    debug_session.prepare_to_run(filename=parent)
+    debug_session.prepare_to_run(filename=parent, backchannel=True)
     debug_session.start_debugging()
 
     root_start_request, = debug_session.all_occurrences_of(Request('launch') | Request('attach'))
@@ -180,15 +181,15 @@ def test_subprocess(debug_session, pyfile):
         }
     })
     child_port = child_subprocess.body['port']
+    debug_session.proceed()
 
     child_session = DebugSession(method='attach_socket', ptvsd_port=child_port)
     child_session.ignore_unobserved = debug_session.ignore_unobserved
     child_session.connect()
     child_session.handshake()
     child_session.start_debugging()
-    debug_session.proceed()
 
-    child_args_output = child_session.wait_for_next(Event('output'))
-    assert child_args_output.body['output'].endswith('child.py --arg1 --arg2 --arg3')
+    child_argv = debug_session.read_json()
+    assert child_argv == [child, '--arg1', '--arg2', '--arg3']
 
     debug_session.wait_for_exit()

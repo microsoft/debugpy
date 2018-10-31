@@ -20,7 +20,7 @@ def test_run(debug_session, pyfile, run_as):
     def code_to_debug():
         import os
         import sys
-        from pytests.helpers import backchannel
+        import backchannel
 
         print('begin')
         assert backchannel.read_json() == 'continue'
