@@ -99,6 +99,7 @@ class EnableAttachTests(LifecycleTestsBase, unittest.TestCase):
 
             with DebugClient() as editor:
                 session = editor.attach_socket(addr, adapter, timeout=1)
+                stopped = session.get_awaiter_for_event('stopped')
                 with session.wait_for_event('thread') as result:
                     lifecycle_handshake(session, 'attach',
                                         breakpoints=breakpoints,
@@ -106,8 +107,8 @@ class EnableAttachTests(LifecycleTestsBase, unittest.TestCase):
                 event = result['msg']
                 tid = event.body['threadId']
 
-                with session.wait_for_event('stopped'):
-                    done()
+                stopped.wait(timeout=5.0)
+                done()
                 session.send_request('continue', threadId=tid)
 
                 adapter.wait()

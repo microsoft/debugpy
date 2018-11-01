@@ -17,7 +17,8 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_THREAD_CREATE,
     CMD_GET_THREAD_STACK,
     CMD_GET_EXCEPTION_DETAILS,
-    CMD_SUSPEND_ON_BREAKPOINT_EXCEPTION,
+    CMD_PYDEVD_JSON_CONFIG,
+    CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION,
 )
 
 from ptvsd._util import new_hidden_thread
@@ -140,7 +141,7 @@ class PyDevdLifecycle(object):
     @contextlib.contextmanager
     def _wait_for_initialized(self):
         with self._fix.wait_for_command(CMD_REDIRECT_OUTPUT):
-            with self._fix.wait_for_command(CMD_SUSPEND_ON_BREAKPOINT_EXCEPTION):
+            with self._fix.wait_for_command(CMD_PYDEVD_JSON_CONFIG):
                 with self._fix.wait_for_command(CMD_RUN):
                     yield
 
@@ -485,6 +486,10 @@ class PyDevdFixture(FixtureBase):
         self._suspend(thread, reason, stack)
 
     def _suspend(self, thread, reason, stack):
+        self.send_event(
+            CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION,
+            self.msgs.format_frames2(thread.id, reason, *stack)
+        )
         self.send_event(
             CMD_THREAD_SUSPEND,
             self.msgs.format_frames(thread.id, reason, *stack),

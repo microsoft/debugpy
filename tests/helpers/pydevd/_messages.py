@@ -74,6 +74,9 @@ class PyDevdMessages(object):
         text += '</xml>'
         return text
 
+    def format_frames2(self, threadid, reason, *frames):
+        return '{ "thread_id": "%s", "stop_reason": %d }' % (threadid, reason)
+
     def format_variables(self, *variables):
         text = '<xml>'
         for name, value in variables:

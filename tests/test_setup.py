@@ -185,6 +185,7 @@ VENDORED = {file.replace('/', os.path.sep) for file in [
     'pydevd/_pydevd_bundle/pydevd_xml.py',
     'pydevd/_pydevd_bundle/pydevd_extension_api.py',
     'pydevd/_pydevd_bundle/pydevd_comm.py',
+    'pydevd/_pydevd_bundle/pydevd_comm_constants.py',
     'pydevd/_pydevd_bundle/pydevd_kill_all_pydevd_threads.py',
     'pydevd/_pydevd_bundle/pydevd_traceproperty.py',
     'pydevd/_pydevd_bundle/pydevd_command_line_handling.py',

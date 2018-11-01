@@ -8,7 +8,7 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_REDIRECT_OUTPUT,
     CMD_RUN,
     CMD_VERSION,
-    CMD_SUSPEND_ON_BREAKPOINT_EXCEPTION,
+    CMD_PYDEVD_JSON_CONFIG,
 )
 
 from . import (
@@ -113,9 +113,10 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
             self.debugger_msgs.new_request(CMD_VERSION,
                                            *['1.1', expected_os_id, 'ID']),
             self.debugger_msgs.new_request(CMD_REDIRECT_OUTPUT),
-            self.debugger_msgs.new_request(CMD_SUSPEND_ON_BREAKPOINT_EXCEPTION, json.dumps(dict(
+            self.debugger_msgs.new_request(CMD_PYDEVD_JSON_CONFIG, json.dumps(dict(
                 skip_suspend_on_breakpoint_exception=('BaseException',),
                 skip_print_breakpoint_exception=('NameError',),
+                multi_threads_single_notification=True,
             ))),
             self.debugger_msgs.new_request(CMD_RUN),
         ])
@@ -193,9 +194,10 @@ class LifecycleTests(HighlevelTest, unittest.TestCase):
             self.debugger_msgs.new_request(CMD_VERSION,
                                            *['1.1', OS_ID, 'ID']),
             self.debugger_msgs.new_request(CMD_REDIRECT_OUTPUT),
-            self.debugger_msgs.new_request(CMD_SUSPEND_ON_BREAKPOINT_EXCEPTION, json.dumps(dict(
+            self.debugger_msgs.new_request(CMD_PYDEVD_JSON_CONFIG, json.dumps(dict(
                 skip_suspend_on_breakpoint_exception=('BaseException',),
                 skip_print_breakpoint_exception=('NameError',),
+                multi_threads_single_notification=True,
             ))),
             self.debugger_msgs.new_request(CMD_RUN),
         ])

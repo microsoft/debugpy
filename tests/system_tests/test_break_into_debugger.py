@@ -89,15 +89,9 @@ class BreakIntoDebuggerTests(LifecycleTestsBase):
             req_launch_attach.wait(timeout=3.0)
 
             self.set_var_to_end_loop(session, thread_id)
-            exited = session.get_awaiter_for_event('exited')
-            session.send_request('continue', threadId=thread_id)
-            exited.wait(timeout=5.0)
-
-        received = list(_strip_newline_output_events(session.received))
-        self.assert_contains(received, [
-            self.new_event('exited', exitCode=0),
-            self.new_event('terminated'),
-        ])
+            session.send_request('continue', threadId=thread_id).wait(timeout=3.0)
+            req_disconnect = session.send_request('disconnect', restart=False)
+            req_disconnect.wait()
 
 
 class LaunchFileBreakIntoDebuggerTests(BreakIntoDebuggerTests):

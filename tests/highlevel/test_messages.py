@@ -32,6 +32,8 @@ from _pydevd_bundle.pydevd_comm import (
     CMD_STEP_INTO_MY_CODE,
     CMD_GET_THREAD_STACK,
     CMD_GET_EXCEPTION_DETAILS,
+    CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION,
+    CMD_THREAD_RESUME_SINGLE_NOTIFICATION,
 )
 
 from . import RunningTest
@@ -2544,7 +2546,7 @@ class ThreadKillEventTests(ThreadEventTest, unittest.TestCase):
 
 class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
 
-    CMD = CMD_THREAD_SUSPEND
+    CMD = CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION
     EVENT = 'stopped'
 
     def pydevd_payload(self, threadid, reason, *frames):
@@ -2554,7 +2556,7 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
                 (2, 'spam', 'abc.py', 10),
                 (5, 'eggs', 'xyz.py', 2),
             ]
-        return self.debugger_msgs.format_frames(threadid, reason, *frames)
+        return self.debugger_msgs.format_frames2(threadid, reason, *frames)
 
     def test_step_into(self):
         with self.launched():
@@ -2749,11 +2751,11 @@ class ThreadSuspendEventTests(ThreadEventTest, unittest.TestCase):
 
 class ThreadRunEventTests(ThreadEventTest, unittest.TestCase):
 
-    CMD = CMD_THREAD_RUN
+    CMD = CMD_THREAD_RESUME_SINGLE_NOTIFICATION
     EVENT = 'continued'
 
     def pydevd_payload(self, threadid, reason):
-        return '{}\t{}'.format(threadid, reason)
+        return '{ "thread_id": "%s" }' % threadid
 
     def test_basic(self):
         with self.launched():

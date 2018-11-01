@@ -55,6 +55,11 @@ class TestBase(VSCTest):
     def setUp(self):
         super(TestBase, self).setUp()
         self._pathentry = PathEntry()
+        # Tests run a new thread in the same process and use that
+        # thread as the main thread -- the current thread which is
+        # managing the test should be invisible to the debugger.
+        import threading
+        threading.current_thread().is_pydev_daemon_thread = True
 
         self._filename = None
         if self.FILENAME is not None:
@@ -166,6 +171,7 @@ class LifecycleTests(TestBase, unittest.TestCase):
                         startMethod='attach',
                     )),
                 self.new_event('thread', reason='started', threadId=1),
+                self.new_event('thread', reason='exited', threadId=1),
                 #self.new_event('exited', exitCode=0),
                 #self.new_event('terminated'),
             ])

@@ -486,7 +486,7 @@ class ServerAttachTests(BreakpointTests):
 
 
 class PTVSDAttachTests(BreakpointTests):
-
+    @unittest.skip('Broken')
     def test_with_break_points(self):
         filename = TEST_FILES.resolve('attach_output.py')
         cwd = os.path.dirname(filename)

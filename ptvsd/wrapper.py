@@ -34,6 +34,7 @@ import warnings
 from xml.sax import SAXParseException
 
 import _pydevd_bundle.pydevd_comm as pydevd_comm  # noqa
+import _pydevd_bundle.pydevd_comm_constants as pydevd_comm_constants  # noqa
 import _pydevd_bundle.pydevd_extension_api as pydevd_extapi  # noqa
 import _pydevd_bundle.pydevd_extension_utils as pydevd_extutil  # noqa
 import _pydevd_bundle.pydevd_frame as pydevd_frame # noqa
@@ -53,6 +54,16 @@ from ptvsd.socket import TimeoutError  # noqa
 
 WAIT_FOR_THREAD_FINISH_TIMEOUT = 1  # seconds
 
+STEP_REASONS = {
+        pydevd_comm.CMD_STEP_INTO,
+        pydevd_comm.CMD_STEP_OVER,
+        pydevd_comm.CMD_STEP_RETURN,
+        pydevd_comm.CMD_STEP_INTO_MY_CODE,
+}
+EXCEPTION_REASONS = {
+    pydevd_comm.CMD_STEP_CAUGHT_EXCEPTION,
+    pydevd_comm.CMD_ADD_EXCEPTION_BREAK
+}
 
 debug = _util.debug
 debugger_attached = threading.Event()
@@ -1041,7 +1052,6 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         # https://github.com/Microsoft/VSDebugAdapterHost/wiki/Differences-between-Visual-Studio-Code-and-the-Visual-Studio-Debug-Adapter-Host # noqa
         # VS expects a single stopped event in a multi-threaded scenario.
         self._client_id = None
-        self._vs_ignore_stopped_events = threading.Event()
 
         # adapter state
         self.start_reason = None
@@ -1104,7 +1114,6 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
     # VSC protocol handlers
 
     def on_initialize(self, request, args):
-        # TODO: docstring
         self._client_id = args.get('clientID', None)
         self._restart_debugger = False
         self.is_process_created = False
@@ -1127,11 +1136,9 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         self.send_response(request)
 
     def on_configurationDone(self, request, args):
-        # TODO: docstring
-        debugger_attached.set()
-        self._vs_ignore_stopped_events.clear()
         self.send_response(request)
         self._process_debug_options(self.debug_options)
+        debugger_attached.set()
         self._handle_configurationDone(args)
         self._notify_ready()
 
@@ -1450,9 +1457,10 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 self.start_subprocess_notifier()
 
         # Print on all but NameError, don't suspend on any.
-        self.pydevd_request(pydevd_comm.CMD_SUSPEND_ON_BREAKPOINT_EXCEPTION, json.dumps(dict(
+        self.pydevd_request(pydevd_comm.CMD_PYDEVD_JSON_CONFIG, json.dumps(dict(
             skip_suspend_on_breakpoint_exception=('BaseException',),
             skip_print_breakpoint_exception=('NameError',),
+            multi_threads_single_notification=True,
         )))
 
     def _is_just_my_code_stepping_enabled(self):
@@ -2077,7 +2085,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     @async_handler
     def on_continue(self, request, args):
-        self._vs_ignore_stopped_events.clear()
 
         # Always continue all threads.
         self.pydevd_notify(pydevd_comm.CMD_THREAD_RUN, '*')
@@ -2085,7 +2092,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     @async_handler
     def on_next(self, request, args):
-        self._vs_ignore_stopped_events.clear()
 
         tid = self.thread_map.to_pydevd(int(args['threadId']))
         self.pydevd_notify(pydevd_comm.CMD_STEP_OVER, tid)
@@ -2093,7 +2099,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     @async_handler
     def on_stepIn(self, request, args):
-        self._vs_ignore_stopped_events.clear()
 
         tid = self.thread_map.to_pydevd(int(args['threadId']))
         if self._is_just_my_code_stepping_enabled():
@@ -2104,7 +2109,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     @async_handler
     def on_stepOut(self, request, args):
-        self._vs_ignore_stopped_events.clear()
 
         tid = self.thread_map.to_pydevd(int(args['threadId']))
         self.pydevd_notify(pydevd_comm.CMD_STEP_RETURN, tid)
@@ -2393,11 +2397,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         self.send_response(request)
 
-    def is_vs_client(self):
-        """ Return True if the client is 'Visual Studio' False otherwise
-        """
-        return self._client_id == 'visualstudio'
-
     # PyDevd protocol event handlers
 
     @pydevd_events.handler(pydevd_comm.CMD_INPUT_REQUESTED)
@@ -2466,16 +2465,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         xml = self.parse_xml_response(args)
         pyd_tid = xml.thread['id']
         reason = int(xml.thread['stop_reason'])
-        STEP_REASONS = {
-                pydevd_comm.CMD_STEP_INTO,
-                pydevd_comm.CMD_STEP_OVER,
-                pydevd_comm.CMD_STEP_RETURN,
-                pydevd_comm.CMD_STEP_INTO_MY_CODE,
-        }
-        EXCEPTION_REASONS = {
-            pydevd_comm.CMD_STEP_CAUGHT_EXCEPTION,
-            pydevd_comm.CMD_ADD_EXCEPTION_BREAK
-        }
 
         # This is needed till https://github.com/Microsoft/ptvsd/issues/477
         # is done. Remove this after adding the appropriate pydevd commands to
@@ -2489,10 +2478,16 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 self.pydevd_notify(pydevd_comm.CMD_THREAD_RUN, pyd_tid)
                 return
 
+    @pydevd_events.handler(pydevd_comm_constants.CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION)
+    @async_handler
+    def on_pydevd_thread_suspend_single_notification(self, seq, args):
         # NOTE: We should add the thread to VSC thread map only if the
         # thread is seen here for the first time in 'attach' scenario.
         # If we are here in 'launch' scenario and we get KeyError then
         # there is an issue in reporting of thread creation.
+        suspend_info = json.loads(args)
+        pyd_tid = suspend_info['thread_id']
+        reason = suspend_info['stop_reason']
         autogen = self.start_reason == 'attach'
         vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=autogen)
 
@@ -2517,12 +2512,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             exc_name, exc_desc, _, _  = \
                 self._parse_exception_details(resp_args, include_stack=False)
 
-        if self.is_vs_client():
-            if self._vs_ignore_stopped_events.is_set() and reason == 'pause':
-                return
-            else:
-                extra['allThreadsStopped'] = True
-                self._vs_ignore_stopped_events.set()
+        extra['allThreadsStopped'] = True
 
         self.send_event(
             'stopped',
@@ -2534,9 +2524,12 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_RUN)
     def on_pydevd_thread_run(self, seq, args):
-        # TODO: docstring
-        pyd_tid, _ = args.split('\t')
-        pyd_tid = pyd_tid.strip()
+        pass  # Ignore: only send continued on CMD_THREAD_RESUME_SINGLE_NOTIFICATION
+
+    @pydevd_events.handler(pydevd_comm_constants.CMD_THREAD_RESUME_SINGLE_NOTIFICATION)
+    def on_pydevd_thread_resume_single_notification(self, seq, args):
+        resumed_info = json.loads(args)
+        pyd_tid = resumed_info['thread_id']
 
         try:
             vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=False)

@@ -188,8 +188,8 @@ def new_hidden_thread(name, target, prefix='ptvsd.', daemon=True, **kwargs):
         **kwargs
     )
     t.pydev_do_not_trace = True
+    t.is_pydev_daemon_thread = True
     if daemon:
-        t.is_pydev_daemon_thread = True
         t.daemon = True
     return t
 

@@ -56,6 +56,8 @@ class VSCMessages(object):
         """Return a new VSC event message."""
         if seq is None:
             seq = self.counters.next_event()
+        if eventname == 'stopped':
+            body['allThreadsStopped'] = True
         return {
             'type': 'event',
             'seq': seq,
