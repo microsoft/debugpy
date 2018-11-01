@@ -1296,7 +1296,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     def _subprocess_notifier(self):
         while not self.closed:
             try:
-                subprocess_request, subprocess_response = multiproc.subprocess_queue.get(block=False, timeout=0.1)
+                subprocess_request, subprocess_response = multiproc.subprocess_queue.get(timeout=0.1)
             except queue.Empty:
                 continue
 
