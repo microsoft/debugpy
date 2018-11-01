@@ -5,6 +5,7 @@
 from __future__ import print_function, with_statement, absolute_import
 
 import inspect
+import os
 import pytest
 import threading
 import types
@@ -121,9 +122,30 @@ def pyfile(request, tmpdir):
     return factory
 
 
-@pytest.fixture(params=[
-    'launch', 'attach_socket'  # 'attach_pid'
-])
+if os.environ.get('PTVSD_SIMPLE_TESTS', '').lower() in ('1', 'true'):
+    # Setting PTVSD_SIMPLE_TESTS locally is useful to not have to run
+    # all the test permutations while developing.
+    _ATTACH_PARAMS = [
+        'launch',
+    ]
+
+    _RUN_AS_PARAMS = [
+        'file',
+    ]
+else:
+    _ATTACH_PARAMS = [
+        'launch',
+        'attach_socket',
+        # 'attach_pid',
+    ]
+
+    _RUN_AS_PARAMS = [
+        'file',
+        'module',
+    ]
+
+
+@pytest.fixture(params=_ATTACH_PARAMS)
 def debug_session(request):
     session = DebugSession(request.param)
     try:
@@ -137,3 +159,45 @@ def debug_session(request):
                 session.wait_for_exit()
     finally:
         session.stop()
+
+
+@pytest.fixture(
+    name='run_as',
+    params=_RUN_AS_PARAMS
+)
+def _run_as(request):
+    return request.param
+
+
+@pytest.fixture
+def simple_hit_paused_on_break(debug_session, pyfile, run_as):
+    '''
+    Starts debug session with a pre-defined code sample, yields with
+    a breakpoint hit and when finished, resumes the execution
+    and waits for the debug session to exit.
+
+    :note: fixture will run with all permutations of the debug_session
+    parameters as well as the run_as parameters.
+    '''
+
+    from pytests.helpers.timeline import Event
+
+    @pyfile
+    def code_to_debug():
+        a = 1
+        b = {"one": 1, "two": 2}
+        c = 3
+        print([a, b, c])
+
+    bp_line = 4
+    bp_file = code_to_debug
+    debug_session.common_setup(bp_file, run_as, breakpoints=[bp_line])
+    debug_session.start_debugging()
+    hit = debug_session.wait_for_thread_stopped()
+
+    yield hit
+
+    debug_session.send_request('continue').wait_for_response()
+    debug_session.wait_for_next(Event('continued'))
+
+    debug_session.wait_for_exit()

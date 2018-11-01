@@ -2317,7 +2317,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         xml = self.parse_xml_response(resp_args)
         targets = []
-        for item in list(xml.comp):
+        for item in list(getattr(xml, 'comp', [])):
             target = {}
             target['label'] = unquote(item['p0'])
             try:

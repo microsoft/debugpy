@@ -6,6 +6,7 @@ from __future__ import print_function, with_statement, absolute_import
 
 import os
 import psutil
+import pytest
 import socket
 import subprocess
 import sys
@@ -21,6 +22,9 @@ from . import colors, debuggee, print, watchdog
 from .messaging import LoggingJsonStream
 from .pattern import ANY
 from .timeline import Timeline, Event, Response
+from collections import namedtuple
+
+_Hit = namedtuple('_Hit', 'thread_stopped, stacktrace, thread_id, frame_id')
 
 
 class DebugSession(object):
@@ -167,7 +171,7 @@ class DebugSession(object):
         print('Spawning %r' % argv)
         self.process = subprocess.Popen(argv, env=self.env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.cwd)
         self.pid = self.process.pid
-        self.psutil_process =  psutil.Process(self.pid)
+        self.psutil_process = psutil.Process(self.pid)
         self.is_running = True
         watchdog.create(self.pid)
 
@@ -322,6 +326,7 @@ class DebugSession(object):
             for exp in expectations:
                 (request >> exp).wait()
             return request
+
         request.causing = causing
 
         return request
@@ -391,7 +396,7 @@ class DebugSession(object):
         _, self.backchannel_port = self.backchannel_socket.getsockname()
         self.backchannel_socket.listen(0)
 
-        backchannel_thread = threading.Thread(target=self._backchannel_worker, name='bchan#%d listener'  % self.ptvsd_port)
+        backchannel_thread = threading.Thread(target=self._backchannel_worker, name='bchan#%d listener' % self.ptvsd_port)
         backchannel_thread.daemon = True
         backchannel_thread.start()
 
@@ -425,6 +430,7 @@ class DebugSession(object):
         return t
 
     def _capture_output(self, pipe, name):
+
         def _output_worker():
             while True:
                 try:
@@ -447,3 +453,42 @@ class DebugSession(object):
     def _wait_for_remaining_output(self):
         for thread in self._output_capture_threads:
             thread.join()
+
+    def common_setup(self, path, run_as, breakpoints=()):
+        self.ignore_unobserved += [
+            Event('thread', ANY.dict_with({'reason': 'started'})),
+            Event('module')
+        ]
+        if run_as == 'file':
+            self.prepare_to_run(filename=path)
+        elif run_as == 'module':
+            self.add_file_to_pythonpath(path)
+            self.prepare_to_run(module='code_to_debug')
+        elif run_as == 'code':
+            with open(path, 'r') as f:
+                code = f.read()
+            self.prepare_to_run(code=code)
+        else:
+            pytest.fail()
+
+        if breakpoints:
+            self.send_request('setBreakpoints', arguments={
+                'source': {'path': path},
+                'breakpoints': [{'line': bp_line} for bp_line in breakpoints],
+            }).wait_for_response()
+
+    def wait_for_thread_stopped(self, reason='breakpoint'):
+        thread_stopped = self.wait_for_next(Event('stopped'), ANY.dict_with({'reason': reason}))
+
+        tid = thread_stopped.body['threadId']
+        assert tid is not None
+
+        resp_stacktrace = self.send_request('stackTrace', arguments={
+            'threadId': tid,
+        }).wait_for_response()
+        assert resp_stacktrace.body['totalFrames'] > 0
+        frames = resp_stacktrace.body['stackFrames']
+
+        fid = frames[0]['id']
+
+        return _Hit(thread_stopped, resp_stacktrace, tid, fid)
