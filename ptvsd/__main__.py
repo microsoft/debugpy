@@ -216,10 +216,10 @@ def _parse_args(prog, argv):
     args = parser.parse_args(argv)
     ns = vars(args)
 
-    host = ns.pop('host', None)
-    port = ns.pop('port')
-    client = ns.pop('client')
-    args.address = (Address.as_client if client else Address.as_server)(host, port) # noqa
+    options.host = ns.pop('host', None)
+    options.port = ns.pop('port')
+    options.client = ns.pop('client')
+    args.address = (Address.as_client if options.client else Address.as_server)(options.host, options.port) # noqa
 
     if ns['multiprocess']:
         options.multiprocess = True
