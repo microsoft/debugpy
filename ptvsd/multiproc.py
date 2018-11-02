@@ -243,7 +243,7 @@ def patch_args(args):
     from ptvsd import __main__
     args[i:i] = [
         __main__.__file__,
-        '--host', 'localhost',
+        '--host', options.host,
         '--port', '0',
         '--wait',
         '--multiprocess',

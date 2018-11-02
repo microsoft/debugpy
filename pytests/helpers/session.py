@@ -223,10 +223,10 @@ class DebugSession(object):
 
         self.wait_for_disconnect(close=False)
 
-        if sys.version_info < (3,) or Event('exited') in self:
+        if Event('exited') in self:
             self.expect_realized(Event('exited', {'exitCode': self.expected_returncode}))
 
-        if sys.version_info < (3,) or Event('terminated') in self:
+        if Event('terminated') in self:
             self.expect_realized(Event('exited') >> Event('terminated', {}))
 
         self.timeline.close()
