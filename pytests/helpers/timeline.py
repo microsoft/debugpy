@@ -201,36 +201,36 @@ class Timeline(object):
             # First time wait_until() calls us, we have to check the whole timeline.
             # On subsequent calls, we only need to check the newly added occurrence.
             if check_past:
-                if explain:
-                    print(
-                        colors.LIGHT_MAGENTA + 'Testing ' + colors.RESET +
-                        colors.color_repr(expectation) +
-                        colors.LIGHT_MAGENTA + ' against timeline up to and including ' + colors.RESET +
-                        colors.color_repr(occ)
-                    )
+                # if explain:
+                #     print(
+                #         colors.LIGHT_MAGENTA + 'Testing ' + colors.RESET +
+                #         colors.color_repr(expectation) +
+                #         colors.LIGHT_MAGENTA + ' against timeline up to and including ' + colors.RESET +
+                #         colors.color_repr(occ)
+                #     )
                 reasons.update(expectation.test_at_or_before(occ) or {})
                 del check_past[:]
             else:
-                if explain:
-                    print(
-                        colors.LIGHT_MAGENTA + 'Testing ' + colors.RESET +
-                        colors.color_repr(expectation) +
-                        colors.LIGHT_MAGENTA + ' against ' + colors.RESET +
-                        colors.color_repr(occ)
-                    )
+                # if explain:
+                #     print(
+                #         colors.LIGHT_MAGENTA + 'Testing ' + colors.RESET +
+                #         colors.color_repr(expectation) +
+                #         colors.LIGHT_MAGENTA + ' against ' + colors.RESET +
+                #         colors.color_repr(occ)
+                #     )
                 reasons.update(expectation.test_at(occ) or {})
 
             if reasons:
                 if observe:
                     self.expect_realized(expectation, explain=explain, observe=observe)
                 return True
-            else:
-                if explain:
-                    print(
-                        colors.color_repr(occ) +
-                        colors.LIGHT_MAGENTA + ' did not realize ' + colors.RESET +
-                        colors.color_repr(expectation)
-                    )
+            # else:
+            #     if explain:
+            #         print(
+            #             colors.color_repr(occ) +
+            #             colors.LIGHT_MAGENTA + ' did not realize ' + colors.RESET +
+            #             colors.color_repr(expectation)
+            #         )
 
         self.wait_until(has_been_realized, freeze)
 
