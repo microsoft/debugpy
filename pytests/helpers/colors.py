@@ -4,14 +4,15 @@
 
 from __future__ import print_function, with_statement, absolute_import
 
-import platform
 
-
-if platform.system() != 'Linux':
-    # pytest-timeout seems to be buggy wrt colorama when capturing output.
-    #
-    # TODO: re-enable after enabling proper ANSI sequence handling:
+if True:
+    # On Win32, colorama is not active when pytest-timeout dumps captured output
+    # on timeout, and ANSI sequences aren't properly interpreted.
+    # TODO: re-enable on Windows after enabling proper ANSI sequence handling:
     # https://docs.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
+    #
+    # Azure Pipelines doesn't support ANSI sequences at all.
+    # TODO: re-enable on all platforms after adding Azure Pipelines detection.
 
     RESET = ''
     BLACK = ''
