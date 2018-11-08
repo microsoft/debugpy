@@ -6,7 +6,6 @@ from __future__ import print_function, with_statement, absolute_import
 
 import platform
 import pytest
-import signal
 import sys
 
 from pytests.helpers.pattern import ANY
@@ -230,14 +229,14 @@ def test_subprocess_autokill(debug_session, pyfile):
     debug_session.proceed()
 
     child_session = DebugSession(method='attach_socket', ptvsd_port=child_port, pid=child_pid)
-    child_session.expected_returncode = signal.SIGTERM
+    child_session.expected_returncode = ANY
     child_session.connect()
     child_session.handshake()
     child_session.start_debugging()
 
     if debug_session.method == 'launch':
         # In launch scenario, terminate the parent process by disconnecting from it.
-        debug_session.expected_returncode = signal.SIGTERM
+        debug_session.expected_returncode = ANY
         disconnect = debug_session.send_request('disconnect', {})
         debug_session.wait_for_next(Response(disconnect))
     else:

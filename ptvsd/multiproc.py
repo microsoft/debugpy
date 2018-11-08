@@ -98,7 +98,7 @@ def kill_subprocesses():
             subprocesses.pop(pid, None)
         try:
             os.kill(pid, signal.SIGTERM)
-        except Exception as ex:
+        except Exception:
             pass
 
 
