@@ -198,6 +198,8 @@ def test_subprocess(debug_session, pyfile):
 
 
 @pytest.mark.timeout(60)
+@pytest.mark.skipif(sys.version_info < (3, 0) and (platform.system() != 'Windows'),
+                    reason='Bug #935')
 def test_autokill(debug_session, pyfile):
     @pyfile
     def child():
@@ -208,8 +210,11 @@ def test_autokill(debug_session, pyfile):
     def parent():
         import backchannel
         import os
+        import subprocess
         import sys
-        os.spawnl(os.P_NOWAIT, sys.executable, sys.executable, sys.argv[1])
+        argv = [sys.executable, sys.argv[1]]
+        env = os.environ.copy()
+        subprocess.Popen(argv, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         backchannel.read_json()
 
     debug_session.multiprocess = True
