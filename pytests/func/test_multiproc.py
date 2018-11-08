@@ -153,8 +153,7 @@ def test_subprocess(debug_session, pyfile):
         import os
         import subprocess
         import sys
-        argv = [sys.executable]
-        argv += [sys.argv[1], '--arg1', '--arg2', '--arg3']
+        argv = [sys.executable, sys.argv[1], '--arg1', '--arg2', '--arg3']
         env = os.environ.copy()
         process = subprocess.Popen(argv, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         process.wait()
@@ -199,7 +198,7 @@ def test_subprocess(debug_session, pyfile):
 
 
 @pytest.mark.timeout(60)
-def test_subprocess_autokill(debug_session, pyfile):
+def test_autokill(debug_session, pyfile):
     @pyfile
     def child():
         while True:
@@ -209,12 +208,8 @@ def test_subprocess_autokill(debug_session, pyfile):
     def parent():
         import backchannel
         import os
-        import subprocess
         import sys
-        argv = [sys.executable]
-        argv += [sys.argv[1], '--arg1', '--arg2', '--arg3']
-        env = os.environ.copy()
-        subprocess.Popen(argv, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        os.spawnl(os.P_NOWAIT, sys.executable, sys.executable, sys.argv[1])
         backchannel.read_json()
 
     debug_session.multiprocess = True
