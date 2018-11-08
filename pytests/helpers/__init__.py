@@ -23,24 +23,6 @@ def timestamp():
     return clock() - timestamp_zero
 
 
-print_lock = threading.Lock()
-real_print = print
-
-def print(*args, **kwargs):
-    """Like builtin print(), but synchronized using a global lock,
-    and adds a timestamp
-    """
-    from . import colors
-    timestamped = kwargs.pop('timestamped', True)
-    with print_lock:
-        if timestamped:
-            t = timestamp()
-            real_print(colors.LIGHT_BLACK, end='')
-            real_print('@%09.6f: ' % t, end='')
-            real_print(colors.RESET, end='')
-        real_print(*args, **kwargs)
-
-
 def dump_stacks():
     """Dump the stacks of all threads except the current thread"""
     current_ident = threading.current_thread().ident
@@ -72,3 +54,6 @@ def dump_stacks_in(secs):
     thread = threading.Thread(target=dumper)
     thread.daemon = True
     thread.start()
+
+
+from .printer import print
