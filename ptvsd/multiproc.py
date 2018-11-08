@@ -8,8 +8,10 @@ import atexit
 import itertools
 import os
 import re
+import signal
 import socket
 import sys
+import threading
 import time
 import traceback
 
@@ -27,7 +29,14 @@ from _pydev_bundle import pydev_monkey
 from _pydevd_bundle.pydevd_comm import get_global_debugger
 
 
+subprocess_lock = threading.Lock()
+
 subprocess_listener_socket = None
+
+subprocesses = {}
+"""List of known subprocesses. Keys are process IDs, values are JsonMessageChannel
+instances; subprocess_lock must be used to synchronize access.
+"""
 
 subprocess_queue = queue.Queue()
 """A queue of incoming 'ptvsd_subprocess' notifications. Whenenever a new request
@@ -66,6 +75,7 @@ def listen_for_subprocesses():
 
     subprocess_listener_socket = create_server('localhost', 0)
     atexit.register(stop_listening_for_subprocesses)
+    atexit.register(kill_subprocesses)
     new_hidden_thread('SubprocessListener', _subprocess_listener).start()
 
 
@@ -78,6 +88,18 @@ def stop_listening_for_subprocesses():
     except Exception:
         pass
     subprocess_listener_socket = None
+
+
+def kill_subprocesses():
+    with subprocess_lock:
+        pids = list(subprocesses.keys())
+    for pid in pids:
+        with subprocess_lock:
+            subprocesses.pop(pid, None)
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except Exception as ex:
+            pass
 
 
 def subprocess_listener_port():
@@ -100,6 +122,8 @@ def _subprocess_listener():
 
 def _handle_subprocess(n, stream):
     class Handlers(object):
+        _pid = None
+
         def ptvsd_subprocess_request(self, request):
             # When child process is spawned, the notification it sends only
             # contains information about itself and its immediate parent.
@@ -110,11 +134,20 @@ def _handle_subprocess(n, stream):
                 'rootStartRequest': root_start_request,
             })
 
+            self._pid = arguments['processId']
+            with subprocess_lock:
+                subprocesses[self._pid] = channel
+
             debug('ptvsd_subprocess: %r' % arguments)
             response = {'incomingConnection': False}
             subprocess_queue.put((arguments, response))
             subprocess_queue.join()
             return response
+
+        def disconnect(self):
+            if self._pid is not None:
+                with subprocess_lock:
+                    subprocesses.pop(self._pid, None)
 
     name = 'SubprocessListener-%d' % n
     channel = JsonMessageChannel(stream, Handlers(), name)
@@ -150,6 +183,10 @@ def notify_root(port):
         print('Failed to send subprocess notification; exiting', file=sys.__stderr__)
         traceback.print_exc()
         sys.exit(0)
+
+    # Keep the channel open until we exit - root process uses open channels to keep
+    # track of which subprocesses are alive and which are not.
+    atexit.register(lambda: channel.close())
 
     if not response['incomingConnection']:
         debugger = get_global_debugger()
