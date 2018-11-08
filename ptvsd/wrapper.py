@@ -17,6 +17,7 @@ import socket
 import sys
 import threading
 import traceback
+
 try:
     import urllib
     urllib.unquote
@@ -32,6 +33,7 @@ except ImportError:
     import Queue as queue
 import warnings
 from xml.sax import SAXParseException
+from xml.sax.saxutils import unescape as xml_unescape
 
 import _pydevd_bundle.pydevd_comm as pydevd_comm  # noqa
 import _pydevd_bundle.pydevd_comm_constants as pydevd_comm_constants  # noqa
@@ -210,6 +212,15 @@ def unquote(s):
     if s is None:
         return None
     return urllib.unquote(s)
+
+
+def unquote_xml_path(s):
+    """XML unescape after url unquote. This reverses the escapes and quotes done
+    by pydevd.
+    """
+    if s is None:
+        return None
+    return xml_unescape(unquote(str(s)))
 
 
 class IDMap(object):
@@ -1686,7 +1697,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             fid = self.frame_map.to_vscode(key, autogen=True)
             name = unquote(xframe['name'])
             # pydevd encodes if necessary and then uses urllib.quote.
-            norm_path = self.path_casing.un_normcase(unquote(str(xframe['file'])))  # noqa
+            norm_path = self.path_casing.un_normcase(unquote_xml_path(xframe['file']))  # noqa
             source_reference = self.get_source_reference(norm_path)
             if not self.internals_filter.is_internal_path(norm_path):
                 module = self.modules_mgr.add_or_get_from_path(norm_path)
@@ -2253,7 +2264,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 xframes = list(xml.thread.frame)
                 frame_data = []
                 for f in xframes:
-                    file_path = unquote(f['file'])
+                    file_path = unquote_xml_path(f['file'])
                     if not self.internals_filter.is_internal_path(file_path) \
                        and self._should_debug(file_path):
                         line_no = int(f['line'])
@@ -2270,7 +2281,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                                                func_name, None))
 
                 exc_stack = ''.join(traceback.format_list(frame_data))
-                exc_source = unquote(xframes[0]['file'])
+                exc_source = unquote_xml_path(xframes[0]['file'])
                 if self.internals_filter.is_internal_path(exc_source) or \
                     not self._should_debug(exc_source):
                     exc_source = None
@@ -2471,7 +2482,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         # do step over and step out
         xframes = list(xml.thread.frame)
         xframe = xframes[0]
-        filepath = unquote(xframe['file'])
+        filepath = unquote_xml_path(xframe['file'])
         if reason in STEP_REASONS or reason in EXCEPTION_REASONS:
             if self.internals_filter.is_internal_path(filepath) or \
                 not self._should_debug(filepath):
