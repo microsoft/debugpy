@@ -27,18 +27,25 @@ from collections import namedtuple
 
 _Hit = namedtuple('_Hit', 'thread_stopped, stacktrace, thread_id, frame_id')
 
+START_METHOD_LAUNCH = ('launch',)
+START_METHOD_CMDLINE = ('attach', 'socket', 'cmdline')
+START_METHOD_IMPORT = ('attach', 'socket', 'import')
+START_METHOD_PID = ('attach', 'pid')
+
 
 class DebugSession(object):
     WAIT_FOR_EXIT_TIMEOUT = 5
     BACKCHANNEL_TIMEOUT = 15
 
-    def __init__(self, method='launch', ptvsd_port=None, pid=None):
-        assert method in ('launch', 'attach_pid', 'attach_socket')
-        assert ptvsd_port is None or method == 'attach_socket'
+    def __init__(self, start_method=START_METHOD_LAUNCH, ptvsd_port=None, pid=None):
+        assert start_method[0] in ('launch', 'attach')
+        assert ptvsd_port is None or (len(start_method) > 1 and start_method[1] == 'socket')
+        assert start_method != ('attach', 'socket', 'import')
 
-        print('New debug session with method %r' % method)
+        print('New debug session with method %r' % str(start_method))
 
-        self.method = method
+        self.target = ('code', 'print("OK")')
+        self.start_method = start_method
         self.ptvsd_port = ptvsd_port or 5678
         self.multiprocess = False
         self.multiprocess_port_range = None
@@ -67,6 +74,8 @@ class DebugSession(object):
             Event('thread', ANY.dict_with({'reason': 'exited'}))
         ])
         self.timeline.freeze()
+        self.perform_handshake = True
+        self.use_backchannel = False
 
         # Expose some common members of timeline directly - these should be the ones
         # that are the most straightforward to use, and are difficult to use incorrectly.
@@ -79,9 +88,6 @@ class DebugSession(object):
         self.expect_new = self.timeline.expect_new
         self.expect_realized = self.timeline.expect_realized
         self.all_occurrences_of = self.timeline.all_occurrences_of
-
-    def add_file_to_pythonpath(self, filename):
-        self.env['PYTHONPATH'] += os.pathsep + os.path.dirname(filename)
 
     def __contains__(self, expectation):
         return expectation in self.timeline
@@ -122,21 +128,21 @@ class DebugSession(object):
 
         self._wait_for_remaining_output()
 
-    def prepare_to_run(self, perform_handshake=True, filename=None, module=None, code=None, backchannel=False):
+    def prepare_to_run(self):
         """Spawns ptvsd using the configured method, telling it to execute the
         provided Python file, module, or code, and establishes a message channel
         to it.
 
-        If backchannel is True, calls self.setup_backchannel() before returning.
+        If use_backchannel is True, calls self.setup_backchannel() before returning.
 
         If perform_handshake is True, calls self.handshake() before returning.
         """
 
         argv = [sys.executable]
-        if self.method != 'attach_pid':
+        if self.start_method != ('attach', 'pid'):
             argv += [ptvsd.__main__.__file__]
 
-        if self.method == 'attach_socket':
+        if self.start_method == ('attach', 'socket', 'cmdline'):
             argv += ['--wait']
         else:
             self._listen()
@@ -149,20 +155,34 @@ class DebugSession(object):
         if self.multiprocess_port_range:
             argv += ['--multiprocess-port-range', '%d-%d' % self.multiprocess_port_range]
 
-        if filename:
-            assert not module and not code
-            argv += [filename]
-        elif module:
-            assert not filename and not code
-            argv += ['-m', module]
-        elif code:
-            assert not filename and not module
-            argv += ['-c', code]
+        run_as, path_or_code = self.target
+        if run_as == 'file':
+            assert os.path.isfile(path_or_code)
+            argv += [path_or_code]
+        elif run_as == 'module':
+            if os.path.isfile(path_or_code) or os.path.isdir(path_or_code):
+                self.env['PYTHONPATH'] += os.pathsep + os.path.dirname(path_or_code)
+                try:
+                    module = path_or_code[len(os.path.dirname(path_or_code)) + 1:-3]
+                except Exception:
+                    module = 'code_to_debug'
+                argv += ['-m', module]
+            else:
+                argv += ['-m', path_or_code]
+        elif run_as == 'code':
+            if os.path.isfile(path_or_code):
+                with open(path_or_code, 'r') as f:
+                    code = f.read()
+                argv += ['-c', code]
+            else:
+                argv += ['-c', path_or_code]
+        else:
+            pytest.fail()
 
         if self.program_args:
             argv += list(self.program_args)
 
-        if backchannel:
+        if self.use_backchannel:
             self.setup_backchannel()
         if self.backchannel_port:
             self.env['PTVSD_BACKCHANNEL_PORT'] = str(self.backchannel_port)
@@ -179,7 +199,7 @@ class DebugSession(object):
         self._capture_output(self.process.stdout, 'OUT')
         self._capture_output(self.process.stderr, 'ERR')
 
-        if self.method == 'attach_socket':
+        if self.start_method == ('attach', 'socket', 'cmdline'):
             self.connect()
         self.connected.wait()
         assert self.ptvsd_port
@@ -193,7 +213,7 @@ class DebugSession(object):
             'data': {'version': ptvsd.__version__}
         })
 
-        if perform_handshake:
+        if self.perform_handshake:
             return self.handshake()
 
     def __enter__(self):
@@ -351,7 +371,7 @@ class DebugSession(object):
         self.send_request('initialize', {'adapterID': 'test'}).wait_for_response()
         self.wait_for_next(Event('initialized', {}))
 
-        request = 'launch' if self.method == 'launch' else 'attach'
+        request = 'launch' if self.start_method == ('launch',) else 'attach'
         self.send_request(request, {'debugOptions': self.debug_options}).wait_for_response()
 
         # Issue 'threads' so that we get the 'thread' event for the main thread now,
@@ -378,7 +398,7 @@ class DebugSession(object):
         self.expect_new(Event('process', {
             'name': ANY.str,
             'isLocalProcess': True,
-            'startMethod': 'launch' if self.method == 'launch' else 'attach',
+            'startMethod': 'launch' if self.start_method == ('launch',) else 'attach',
             'systemProcessId': self.pid if self.pid is not None else ANY.int,
         }))
 
@@ -461,27 +481,32 @@ class DebugSession(object):
         for thread in self._output_capture_threads:
             thread.join()
 
-    def common_setup(self, path, run_as, breakpoints=()):
+    def initialize(
+        self,
+        **kwargs
+    ):
         self.ignore_unobserved += [
             Event('thread', ANY.dict_with({'reason': 'started'})),
             Event('module')
-        ]
-        if run_as == 'file':
-            self.prepare_to_run(filename=path)
-        elif run_as == 'module':
-            self.add_file_to_pythonpath(path)
-            self.prepare_to_run(module='code_to_debug')
-        elif run_as == 'code':
-            with open(path, 'r') as f:
-                code = f.read()
-            self.prepare_to_run(code=code)
-        else:
-            pytest.fail()
+        ] + kwargs.pop('ignore_events', [])
 
-        if breakpoints:
-            self.send_request('setBreakpoints', arguments={
+        self.env.update(kwargs.pop('env', {}))
+        self.debug_options += kwargs.pop('debug_options', [])
+        self.program_args += kwargs.pop('program_args', [])
+
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+        assert self.start_method[0] in ('launch', 'attach')
+        assert len(self.target) == 2
+        assert self.target[0] in ('file', 'module', 'code')
+
+        self.prepare_to_run()
+
+    def set_breakpoints(self, path, lines=()):
+        self.send_request('setBreakpoints', arguments={
                 'source': {'path': path},
-                'breakpoints': [{'line': bp_line} for bp_line in breakpoints],
+                'breakpoints': [{'line': bp_line} for bp_line in lines],
             }).wait_for_response()
 
     def wait_for_thread_stopped(self, reason='breakpoint'):

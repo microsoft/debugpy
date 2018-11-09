@@ -9,11 +9,12 @@ import platform
 import pytest
 import sys
 
-from ..helpers.pattern import ANY
-from ..helpers.session import DebugSession
-from ..helpers.timeline import Event
-from ..helpers.webhelper import get_web_content, wait_for_connection
-from ..helpers.pathutils import get_test_root, compare_path
+from pytests.helpers.pattern import ANY
+from pytests.helpers.session import DebugSession
+from pytests.helpers.timeline import Event
+from pytests.helpers.webhelper import get_web_content, wait_for_connection
+from pytests.helpers.pathutils import get_test_root, compare_path
+from pytests.helpers.session import START_METHOD_LAUNCH, START_METHOD_CMDLINE
 
 
 FLASK1_ROOT = get_test_root('flask1')
@@ -22,9 +23,7 @@ FLASK1_TEMPLATE = os.path.join(FLASK1_ROOT, 'templates', 'hello.html')
 FLASK_LINK = 'http://127.0.0.1:5000/'
 FLASK_PORT = 5000
 
-def _flask_no_multiproc_common(debug_session):
-    debug_session.multiprocess = False
-    debug_session.program_args += ['run', '--no-debugger', '--no-reload', '--with-threads']
+def _flask_no_multiproc_common(debug_session, start_method):
     env = {
         'FLASK_APP': 'app.py',
         'FLASK_ENV': 'development',
@@ -37,35 +36,29 @@ def _flask_no_multiproc_common(debug_session):
             'LANG': locale,
         })
 
-    # we may get multiple stopped(pause), or continued events.
-    # we only care about stopped(breakpoint/exception) events
-    debug_session.ignore_unobserved += [
-        Event('thread', ANY.dict_with({'reason': 'started'})),
-        Event('module'),
-        Event('stopped'),
-        Event('continued')
-    ]
+    debug_session.initialize(
+        start_method=start_method,
+        target=('module', 'flask'),
+        program_args=['run', '--no-debugger', '--no-reload', '--with-threads'],
+        ignore_events=[Event('stopped'), Event('continued')],
+        debug_options=['Jinja'],
+        cwd=FLASK1_ROOT,
+        env=env,
+        expected_returncode=ANY.int,  # No clean way to kill Flask server
+    )
 
-    debug_session.debug_options += ['Jinja']
-    debug_session.cwd = FLASK1_ROOT
-    debug_session.env.update(env)
-    debug_session.expected_returncode = ANY.int  # No clean way to kill Flask server
 
 @pytest.mark.parametrize('bp_file, bp_line, bp_name', [
   (FLASK1_APP, 11, 'home'),
   (FLASK1_TEMPLATE, 8, 'template'),
 ])
+@pytest.mark.parametrize('start_method', [START_METHOD_LAUNCH, START_METHOD_CMDLINE])
 @pytest.mark.timeout(60)
-def test_flask_breakpoint_no_multiproc(debug_session, bp_file, bp_line, bp_name):
-    _flask_no_multiproc_common(debug_session)
-    debug_session.prepare_to_run(module='flask')
+def test_flask_breakpoint_no_multiproc(debug_session, bp_file, bp_line, bp_name, start_method):
+    _flask_no_multiproc_common(debug_session, start_method)
 
     bp_var_content = 'Flask-Jinja-Test'
-    debug_session.send_request('setBreakpoints', arguments={
-        'source': {'path': bp_file},
-        'breakpoints': [{'line': bp_line}, ],
-    }).wait_for_response()
-
+    debug_session.set_breakpoints(bp_file, [bp_line])
     debug_session.start_debugging()
 
     # wait for Flask web server to start
@@ -130,10 +123,10 @@ def test_flask_breakpoint_no_multiproc(debug_session, bp_file, bp_line, bp_name)
   ('handled', 21),
   ('unhandled', 33),
 ])
+@pytest.mark.parametrize('start_method', [START_METHOD_LAUNCH, START_METHOD_CMDLINE])
 @pytest.mark.timeout(60)
-def test_flask_exception_no_multiproc(debug_session, ex_type, ex_line):
-    _flask_no_multiproc_common(debug_session)
-    debug_session.prepare_to_run(module='flask')
+def test_flask_exception_no_multiproc(debug_session, ex_type, ex_line, start_method):
+    _flask_no_multiproc_common(debug_session, start_method)
 
     debug_session.send_request('setExceptionBreakpoints', arguments={
         'filters': ['raised', 'uncaught'],
@@ -206,7 +199,7 @@ def _wait_for_child_process(debug_session):
 
     child_port = child_subprocess.body['port']
 
-    child_session = DebugSession(method='attach_socket', ptvsd_port=child_port)
+    child_session = DebugSession(start_method=START_METHOD_CMDLINE, ptvsd_port=child_port)
     child_session.ignore_unobserved = debug_session.ignore_unobserved
     child_session.debug_options = debug_session.debug_options
     child_session.connect()
@@ -215,10 +208,9 @@ def _wait_for_child_process(debug_session):
 
 
 @pytest.mark.timeout(120)
+@pytest.mark.parametrize('start_method', [START_METHOD_LAUNCH])
 @pytest.mark.skipif((sys.version_info < (3, 0)) and (platform.system() != 'Windows'), reason='Bug #935')
-def test_flask_breakpoint_multiproc(debug_session):
-    debug_session.multiprocess = True
-    debug_session.program_args += ['run', ]
+def test_flask_breakpoint_multiproc(debug_session, start_method):
     env = {
         'FLASK_APP': 'app',
         'FLASK_ENV': 'development',
@@ -231,26 +223,21 @@ def test_flask_breakpoint_multiproc(debug_session):
             'LANG': locale,
         })
 
-    debug_session.ignore_unobserved += [
-        Event('thread', ANY.dict_with({'reason': 'started'})),
-        Event('module'),
-        Event('stopped'),
-        Event('continued')
-    ]
-
-    debug_session.debug_options += ['Jinja']
-    debug_session.cwd = FLASK1_ROOT
-    debug_session.env.update(env)
-    debug_session.expected_returncode = ANY.int  # No clean way to kill Flask server
-    debug_session.prepare_to_run(module='flask')
+    debug_session.initialize(
+        start_method=start_method,
+        target=('module', 'flask'),
+        multiprocess=True,
+        program_args=['run', ],
+        ignore_events=[Event('stopped'), Event('continued')],
+        debug_options=['Jinja'],
+        cwd=FLASK1_ROOT,
+        env=env,
+        expected_returncode=ANY.int,  # No clean way to kill Flask server
+    )
 
     bp_line = 11
     bp_var_content = 'Flask-Jinja-Test'
-    debug_session.send_request('setBreakpoints', arguments={
-        'source': {'path': FLASK1_APP},
-        'breakpoints': [{'line': bp_line}, ],
-    }).wait_for_response()
-
+    debug_session.set_breakpoints(FLASK1_APP, [bp_line])
     debug_session.start_debugging()
     child_session = _wait_for_child_process(debug_session)
 

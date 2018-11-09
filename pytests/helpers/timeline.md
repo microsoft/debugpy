@@ -287,11 +287,11 @@ The timeline is exposed as `debug_session.timeline`. In addition to that, the fo
 
 A freshly obtained session is dormant - there's no ptvsd running, and nothing to record. To make it useful, it needs to be primed to run some code:
 ```py
-debug_session.prepare_to_run(filename='example.py')
+debug_session.initialize(target=('file', 'example.py'))
 ```
 or, alternatively:
 ```py
-debug_session.prepare_to_run(module='example')
+debug_session.initialize(target=('module', 'example'))
 ```
 
 At this point ptvsd is spinned up and connected to the test process, and the initial handshake sequence ("initialize" and "configurationDone" requests) has been performed. The timeline is also live, containing the recording of the handshake, and waiting for further occurrences. However, the debugger is still idle - the script or module we specified isn't actually running yet. This is a good time to issue requests to set any breakpoints:
