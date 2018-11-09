@@ -10,7 +10,7 @@ import sys
 
 from pytests.helpers.pattern import ANY
 from pytests.helpers.session import DebugSession
-from pytests.helpers.timeline import Event, Request
+from pytests.helpers.timeline import Event, Request, Response
 
 
 @pytest.mark.timeout(60)
@@ -137,6 +137,7 @@ def test_multiprocessing(debug_session, pyfile):
 
     assert debug_session.read_json() == 'done'
 
+
 @pytest.mark.timeout(60)
 @pytest.mark.skipif(sys.version_info < (3, 0) and (platform.system() != 'Windows'),
                     reason='Bug #935')
@@ -152,8 +153,7 @@ def test_subprocess(debug_session, pyfile):
         import os
         import subprocess
         import sys
-        argv = [sys.executable]
-        argv += [sys.argv[1], '--arg1', '--arg2', '--arg3']
+        argv = [sys.executable, sys.argv[1], '--arg1', '--arg2', '--arg3']
         env = os.environ.copy()
         process = subprocess.Popen(argv, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         process.wait()
@@ -180,10 +180,11 @@ def test_subprocess(debug_session, pyfile):
             'arguments': root_start_request.arguments,
         }
     })
+    child_pid = child_subprocess.body['processId']
     child_port = child_subprocess.body['port']
     debug_session.proceed()
 
-    child_session = DebugSession(method='attach_socket', ptvsd_port=child_port)
+    child_session = DebugSession(method='attach_socket', ptvsd_port=child_port, pid=child_pid)
     child_session.ignore_unobserved = debug_session.ignore_unobserved
     child_session.connect()
     child_session.handshake()
@@ -192,4 +193,56 @@ def test_subprocess(debug_session, pyfile):
     child_argv = debug_session.read_json()
     assert child_argv == [child, '--arg1', '--arg2', '--arg3']
 
+    child_session.wait_for_exit()
     debug_session.wait_for_exit()
+
+
+@pytest.mark.timeout(60)
+@pytest.mark.skipif(sys.version_info < (3, 0) and (platform.system() != 'Windows'),
+                    reason='Bug #935')
+def test_autokill(debug_session, pyfile):
+    @pyfile
+    def child():
+        while True:
+            pass
+
+    @pyfile
+    def parent():
+        import backchannel
+        import os
+        import subprocess
+        import sys
+        argv = [sys.executable, sys.argv[1]]
+        env = os.environ.copy()
+        subprocess.Popen(argv, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        backchannel.read_json()
+
+    debug_session.multiprocess = True
+    debug_session.program_args += [child]
+    debug_session.prepare_to_run(filename=parent, backchannel=True)
+    debug_session.start_debugging()
+
+    child_subprocess = debug_session.wait_for_next(Event('ptvsd_subprocess'))
+    child_pid = child_subprocess.body['processId']
+    child_port = child_subprocess.body['port']
+
+    debug_session.proceed()
+
+    child_session = DebugSession(method='attach_socket', ptvsd_port=child_port, pid=child_pid)
+    child_session.expected_returncode = ANY
+    child_session.connect()
+    child_session.handshake()
+    child_session.start_debugging()
+
+    if debug_session.method == 'launch':
+        # In launch scenario, terminate the parent process by disconnecting from it.
+        debug_session.expected_returncode = ANY
+        disconnect = debug_session.send_request('disconnect', {})
+        debug_session.wait_for_next(Response(disconnect))
+    else:
+        # In attach scenario, just let the parent process run to completion.
+        debug_session.expected_returncode = 0
+        debug_session.write_json(None)
+
+    debug_session.wait_for_exit()
+    child_session.wait_for_exit()

@@ -135,7 +135,7 @@ class TestJsonMessageChannel(object):
             def pause_request(self, request):
                 assert request.command == 'pause'
                 requests_received.append((request.channel, request.arguments))
-                raise RuntimeError('pause error')
+                raise RequestFailure('pause error')
 
         input, input_exhausted = self.iter_with_event(REQUESTS)
         output = []

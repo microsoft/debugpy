@@ -262,8 +262,6 @@ class JsonMessageChannel(object):
 
     def __init__(self, stream, handlers=None, name='vsc_messaging'):
         self.stream = stream
-        self.send_callback = lambda channel, message: None
-        self.receive_callback = lambda channel, message: None
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._seq_iter = itertools.count(1)
@@ -293,7 +291,6 @@ class JsonMessageChannel(object):
         with self._lock:
             yield seq
             self.stream.write_json(message)
-        self.send_callback(self, message)
 
     def send_request(self, command, arguments=None):
         d = {'command': command}
@@ -327,7 +324,6 @@ class JsonMessageChannel(object):
             pass
 
     def on_message(self, message):
-        self.receive_callback(self, message)
         seq = message['seq']
         typ = message['type']
         if typ == 'request':
@@ -359,7 +355,7 @@ class JsonMessageChannel(object):
         request = Request(self, seq, command, arguments)
         try:
             response_body = handler(request)
-        except Exception as ex:
+        except RequestFailure as ex:
             self._send_response(seq, False, command, str(ex), None)
         else:
             if isinstance(response_body, Exception):
@@ -387,6 +383,14 @@ class JsonMessageChannel(object):
             body = RequestFailure(error_message)
         return request._handle_response(seq, command, body)
 
+    def on_disconnect(self):
+        # There's no more incoming messages, so any requests that are still pending
+        # must be marked as failed to unblock anyone waiting on them.
+        with self._lock:
+            for request in self._requests.values():
+                request._handle_response(None, request.command, EOFError('No response'))
+        getattr(self._handlers, 'disconnect', lambda: None)()
+
     def _process_incoming_messages(self):
         try:
             while True:
@@ -401,17 +405,17 @@ class JsonMessageChannel(object):
                     traceback.print_exc(file=sys.__stderr__)
                     raise
         finally:
-            # There's no more incoming messages, so any requests that are still pending
-            # must be marked as failed to unblock anyone waiting on them.
-            with self._lock:
-                for request in self._requests.values():
-                    request._handle_response(None, request.command, EOFError('No response'))
-
+            try:
+                self.on_disconnect()
+            except Exception:
+                print('Error while processing disconnect', file=sys.__stderr__)
+                traceback.print_exc(file=sys.__stderr__)
+                raise
 
 class MessageHandlers(object):
     """A simple delegating message handlers object for use with JsonMessageChannel.
     For every argument provided, the object has an attribute with the corresponding
-    name and value. Example:
+    name and value.
     """
 
     def __init__(self, **kwargs):

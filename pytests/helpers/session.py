@@ -21,6 +21,7 @@ from ptvsd.messaging import JsonIOStream, JsonMessageChannel, MessageHandlers
 from . import colors, debuggee, print, watchdog
 from .messaging import LoggingJsonStream
 from .pattern import ANY
+from .printer import wait_for_output
 from .timeline import Timeline, Event, Response
 from collections import namedtuple
 
@@ -214,6 +215,8 @@ class DebugSession(object):
         if close:
             self.timeline.close()
 
+        wait_for_output()
+
     def wait_for_termination(self):
         print(colors.LIGHT_MAGENTA + 'Waiting for ptvsd#%d to terminate' % self.ptvsd_port + colors.RESET)
 
@@ -230,12 +233,16 @@ class DebugSession(object):
             self.expect_realized(Event('exited') >> Event('terminated', {}))
 
         self.timeline.close()
+        wait_for_output()
 
     def wait_for_exit(self):
         """Waits for the spawned ptvsd process to exit. If it doesn't exit within
         WAIT_FOR_EXIT_TIMEOUT seconds, forcibly kills the process. After the process
         exits, validates its return code to match expected_returncode.
         """
+
+        if not self.is_running:
+            return
 
         assert self.psutil_process is not None
 

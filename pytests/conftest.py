@@ -11,6 +11,7 @@ import threading
 import types
 
 from . import helpers
+from .helpers.printer import wait_for_output
 from .helpers.session import DebugSession
 
 
@@ -29,9 +30,11 @@ def pytest_runtest_makereport(item, call):
 
 @pytest.hookimpl(hookwrapper=True, tryfirst=True)
 def pytest_pyfunc_call(pyfuncitem):
-    # Resets the timestamp zero for every new test.
+    # Resets the timestamp to zero for every new test, and ensures that
+    # all output is printed after the test.
     helpers.timestamp_zero = helpers.clock()
     yield
+    wait_for_output()
 
 
 @pytest.fixture

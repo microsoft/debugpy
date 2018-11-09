@@ -1154,6 +1154,8 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         self._notify_ready()
 
     def on_disconnect(self, request, args):
+        multiproc.kill_subprocesses()
+
         debugger_attached.clear()
         self._restart_debugger = args.get('restart', False)
 
