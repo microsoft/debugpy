@@ -340,14 +340,12 @@ def test_frozen(make_timeline, daemon):
 
     worker_started = threading.Event()
     worker_can_proceed = threading.Event()
-    worker_done = threading.Event()
 
     @daemon
     def worker():
         worker_started.set()
         worker_can_proceed.wait()
         timeline.mark('dee')
-        worker_done.set()
 
     worker_started.wait()
 
@@ -356,7 +354,7 @@ def test_frozen(make_timeline, daemon):
 
     with timeline.unfrozen():
         worker_can_proceed.set()
-        worker_done.wait()
+        worker.join()
 
     assert Mark('dee') in timeline
 
@@ -365,7 +363,6 @@ def test_frozen(make_timeline, daemon):
 def test_unobserved(make_timeline, daemon):
     timeline, initial_history = make_timeline()
 
-    event_recorded = threading.Event()
     worker_can_proceed = threading.Event()
 
     @daemon
@@ -381,7 +378,6 @@ def test_unobserved(make_timeline, daemon):
 
         timeline.record_event('dum', {})
         print('dum')
-        event_recorded.set()
 
     timeline.freeze()
     assert timeline.is_frozen
@@ -399,7 +395,7 @@ def test_unobserved(make_timeline, daemon):
     assert not timeline.is_frozen
 
     worker_can_proceed.set()
-    event_recorded.wait()
+    worker.join()
 
     dum2 = timeline.wait_for_next(Event('dum'), freeze=False)
     assert not timeline.is_frozen
@@ -430,17 +426,16 @@ def test_concurrency(make_timeline, daemon, order):
 
     occurrences = []
     worker_can_proceed = threading.Event()
-    worker_done = threading.Event()
 
     @daemon
     def worker():
         worker_can_proceed.wait()
         mark = timeline.mark('tada')
         occurrences.append(mark)
-        worker_done.set()
 
     if order == 'mark_then_wait':
         worker_can_proceed.set()
+        unblock_worker_later = None
     else:
         @daemon
         def unblock_worker_later():
@@ -449,7 +444,10 @@ def test_concurrency(make_timeline, daemon, order):
 
     mark = timeline.wait_for_next(Mark('tada'), freeze=True)
 
-    worker_done.wait()
+    worker.join()
     assert mark is occurrences[0]
     assert timeline.last is mark
     assert timeline.history() == Pattern(initial_history + occurrences)
+
+    if unblock_worker_later:
+        unblock_worker_later.join()
