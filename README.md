@@ -28,7 +28,7 @@ To run a module, use the `-m` switch instead of filename:
 ```console
 -m ptvsd --host localhost --port 5678 -m mymodule
 ```
-Same as with scripts, command line arguments can be passed to the module by specifying them after the module name. All other ptvsd switches work identically in this mode; in particular, `--wait` can be used to block execution until debugger attaches.
+Same as with scripts, command line arguments can be passed to the module by specifying them after the module name. All other ptvsd switches work identically in this mode; in particular, `--wait` can be used to block execution until the debugger attaches.
 
 ### Attaching to a running process by ID
 The following command injects the debugger into a process with a given PID that is running Python code. Once the command returns, a ptvsd server is running within the process, as if that process was launched via `-m ptvsd` itself.
@@ -45,8 +45,8 @@ ptvsd.enable_attach()
 ...
 ```
 
-### Waiting for debugger to attach
-Use the `ptvsd.wait_for_attach()` function to block program execution until debugger is attached.
+### Waiting for the debugger to attach
+Use the `ptvsd.wait_for_attach()` function to block program execution until the debugger is attached.
 ```python
 import ptvsd
 ptvsd.enable_attach()
@@ -55,7 +55,7 @@ ptvsd.wait_for_attach()  # blocks execution until debugger is attached
 ```
 
 ### `breakpoint()` function
-In Python 3.7 and above, `ptvsd` supports the standard `breakpoint()` function. Use `ptvsd.break_into_debugger()` function for similar behavior and compatibility with older versions of Python (3.6 and below). If the debugger is attached when either of these functions are invoked, it will pause execution on the calling line, as if it had a breakpoint set. If there's no debugger attached, the functions do nothing, and code continues to execute normally.
+In Python 3.7 and above, `ptvsd` supports the standard `breakpoint()` function. Use `ptvsd.break_into_debugger()` function for similar behavior and compatibility with older versions of Python (3.6 and below). If the debugger is attached when either of these functions is invoked, it will pause execution on the calling line, as if it had a breakpoint set. If there's no debugger attached, the functions do nothing, and the code continues to execute normally.
 ```python
 import ptvsd
 ptvsd.enable_attach()
