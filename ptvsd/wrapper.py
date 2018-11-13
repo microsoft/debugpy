@@ -2427,6 +2427,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         # as well.
         with self.is_process_created_lock:
             if not self.is_process_created:
+                if not debugger_attached.isSet():
+                    return
                 self.is_process_created = True
                 self.send_process_event(self.start_reason)
 

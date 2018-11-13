@@ -24,6 +24,8 @@ def test_multiprocessing(debug_session, pyfile, run_as, start_method):
         import multiprocessing
         import platform
         import sys
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
 
         def child_of_child(q):
             print('entering child of child')
@@ -143,6 +145,8 @@ def test_subprocess(debug_session, pyfile, start_method, run_as):
     def child():
         import sys
         import backchannel
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
         backchannel.write_json(sys.argv)
 
     @pyfile
@@ -150,6 +154,8 @@ def test_subprocess(debug_session, pyfile, start_method, run_as):
         import os
         import subprocess
         import sys
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
         argv = [sys.executable, sys.argv[1], '--arg1', '--arg2', '--arg3']
         env = os.environ.copy()
         process = subprocess.Popen(argv, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -200,6 +206,8 @@ def test_subprocess(debug_session, pyfile, start_method, run_as):
 def test_autokill(debug_session, pyfile, start_method, run_as):
     @pyfile
     def child():
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
         while True:
             pass
 
@@ -209,6 +217,8 @@ def test_autokill(debug_session, pyfile, start_method, run_as):
         import os
         import subprocess
         import sys
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
         argv = [sys.executable, sys.argv[1]]
         env = os.environ.copy()
         subprocess.Popen(argv, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

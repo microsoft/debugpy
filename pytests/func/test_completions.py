@@ -7,32 +7,32 @@ from __future__ import print_function, with_statement, absolute_import
 import pytest
 from pytests.helpers.pattern import ANY
 from pytests.helpers.timeline import Event
-from pytests.helpers.session import START_METHOD_LAUNCH, START_METHOD_CMDLINE
 
 
 expected_at_line = {
-    6: [
+    8: [
         {'label': 'SomeClass', 'type': 'class'},
         {'label': 'someFunction', 'type': 'function'},
-        {'label': 'someVariable', 'type': 'field'},
-    ],
-    9: [
-        {'label': 'SomeClass', 'type': 'class'},
-        {'label': 'someFunction', 'type': 'function'},
-        {'label': 'someVar', 'type': 'field'},
         {'label': 'someVariable', 'type': 'field'},
     ],
     11: [
         {'label': 'SomeClass', 'type': 'class'},
         {'label': 'someFunction', 'type': 'function'},
+        {'label': 'someVar', 'type': 'field'},
+        {'label': 'someVariable', 'type': 'field'},
+    ],
+    13: [
+        {'label': 'SomeClass', 'type': 'class'},
+        {'label': 'someFunction', 'type': 'function'},
     ],
 }
 
-@pytest.mark.parametrize('start_method', [START_METHOD_LAUNCH, START_METHOD_CMDLINE])
 @pytest.mark.parametrize('bp_line', expected_at_line.keys())
 def test_completions_scope(debug_session, pyfile, bp_line, run_as, start_method):
     @pyfile
     def code_to_debug():
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
         class SomeClass():
             def __init__(self, someVar):
                 self.some_var = someVar
@@ -83,16 +83,17 @@ def test_completions_scope(debug_session, pyfile, bp_line, run_as, start_method)
     debug_session.wait_for_exit()
 
 
-@pytest.mark.parametrize('start_method', [START_METHOD_LAUNCH, START_METHOD_CMDLINE])
 def test_completions(debug_session, pyfile, start_method, run_as):
     @pyfile
     def code_to_debug():
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
         a = 1
         b = {"one": 1, "two": 2}
         c = 3
         print([a, b, c])
 
-    bp_line = 4
+    bp_line = 6
     bp_file = code_to_debug
     debug_session.initialize(target=(run_as, bp_file), start_method=start_method)
     debug_session.set_breakpoints(bp_file, [bp_line])

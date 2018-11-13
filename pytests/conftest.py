@@ -119,6 +119,9 @@ def pyfile(request, tmpdir):
 
         tmpfile = tmpdir.join(name + '.py')
         assert not tmpfile.check()
+        # NOTE: This is a requirement with using pyfile. Adding this 
+        # makes it easier to add import start method
+        assert 'import_and_enable_debugger' in source
         tmpfile.write(source)
         return tmpfile.strpath
 
@@ -139,8 +142,8 @@ else:
     _ATTACH_PARAMS = [
         ('launch',),
         ('attach', 'socket', 'cmdline'),
-        ('attach', 'socket', 'import'),
-        ('attach', 'pid'),
+        # ('attach', 'socket', 'import'),
+        # ('attach', 'pid'),
     ]
 
     _RUN_AS_PARAMS = [

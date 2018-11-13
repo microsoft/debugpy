@@ -4,24 +4,23 @@
 
 from __future__ import print_function, with_statement, absolute_import
 
-import pytest
 from pytests.helpers import print
 from pytests.helpers.pattern import ANY
 from pytests.helpers.timeline import Event
-from pytests.helpers.session import START_METHOD_LAUNCH, START_METHOD_CMDLINE
 
 
-@pytest.mark.parametrize('start_method', [START_METHOD_LAUNCH, START_METHOD_CMDLINE])
 def test_variables_and_evaluate(debug_session, pyfile, run_as, start_method):
 
     @pyfile
     def code_to_debug():
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
         a = 1
         b = {"one": 1, "two": 2}
         c = 3
         print([a, b, c])
 
-    bp_line = 4
+    bp_line = 6
     bp_file = code_to_debug
     debug_session.initialize(target=(run_as, bp_file), start_method=start_method)
     debug_session.set_breakpoints(bp_file, [bp_line])
@@ -101,14 +100,15 @@ def test_variables_and_evaluate(debug_session, pyfile, run_as, start_method):
     debug_session.wait_for_exit()
 
 
-@pytest.mark.parametrize('start_method', [START_METHOD_LAUNCH, START_METHOD_CMDLINE])
 def test_set_variable(debug_session, pyfile, run_as, start_method):
     @pyfile
     def code_to_debug():
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
         a = 1
         print(a)
 
-    bp_line = 2
+    bp_line = 4
     bp_file = code_to_debug
     debug_session.initialize(target=(run_as, bp_file), start_method=start_method)
     debug_session.set_breakpoints(bp_file, [bp_line])
@@ -154,11 +154,12 @@ def test_set_variable(debug_session, pyfile, run_as, start_method):
     debug_session.wait_for_exit()
 
 
-@pytest.mark.parametrize('start_method', [START_METHOD_LAUNCH, START_METHOD_CMDLINE])
 def test_variable_sort(debug_session, pyfile, run_as, start_method):
 
     @pyfile
     def code_to_debug():
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
         b_test = {"spam": "A", "eggs": "B", "abcd": "C"}  # noqa
         _b_test = 12  # noqa
         __b_test = 13  # noqa
@@ -174,7 +175,7 @@ def test_variable_sort(debug_session, pyfile, run_as, start_method):
         d = 3  # noqa
         print('done')
 
-    bp_line = 13
+    bp_line = 15
     bp_file = code_to_debug
     debug_session.initialize(target=(run_as, bp_file), start_method=start_method)
     debug_session.set_breakpoints(bp_file, [bp_line])

@@ -31,6 +31,9 @@ START_METHOD_LAUNCH = ('launch',)
 START_METHOD_CMDLINE = ('attach', 'socket', 'cmdline')
 START_METHOD_IMPORT = ('attach', 'socket', 'import')
 START_METHOD_PID = ('attach', 'pid')
+PTVSD_ENABLE_KEY = 'PTVSD_ENABLE_ATTACH'
+PTVSD_HOST_KEY = 'PTVSD_TEST_HOST'
+PTVSD_PORT_KEY = 'PTVSD_TEST_PORT'
 
 
 class DebugSession(object):
@@ -128,33 +131,33 @@ class DebugSession(object):
 
         self._wait_for_remaining_output()
 
-    def prepare_to_run(self):
-        """Spawns ptvsd using the configured method, telling it to execute the
-        provided Python file, module, or code, and establishes a message channel
-        to it.
-
-        If use_backchannel is True, calls self.setup_backchannel() before returning.
-
-        If perform_handshake is True, calls self.handshake() before returning.
-        """
-
+    def _get_argv_for_attach_using_import(self):
         argv = [sys.executable]
-        if self.start_method != ('attach', 'pid'):
-            argv += [ptvsd.__main__.__file__]
+        return argv
 
-        if self.start_method == ('attach', 'socket', 'cmdline'):
-            argv += ['--wait']
-        else:
-            self._listen()
-            argv += ['--client']
+    def _get_argv_for_launch(self):
+        argv = [sys.executable]
+        argv += [ptvsd.__main__.__file__]
+        argv += ['--client']
         argv += ['--host', 'localhost', '--port', str(self.ptvsd_port)]
+        return argv
 
-        if self.multiprocess and 'Multiprocess' not in self.debug_options:
-            self.debug_options += ['Multiprocess']
+    def _get_argv_for_attach_using_cmdline(self):
+        argv = [sys.executable]
+        argv += [ptvsd.__main__.__file__]
+        argv += ['--wait']
+        argv += ['--host', 'localhost', '--port', str(self.ptvsd_port)]
+        return argv
 
-        if self.multiprocess_port_range:
-            argv += ['--multiprocess-port-range', '%d-%d' % self.multiprocess_port_range]
+    def _get_argv_for_attach_using_pid(self):
+        argv = [sys.executable]
+        argv += [ptvsd.__main__.__file__]
+        argv += ['--host', 'localhost', '--port', str(self.ptvsd_port)]
+        argv += ['--pid', str(self.pid)]
+        return argv
 
+    def _get_target(self):
+        argv = []
         run_as, path_or_code = self.target
         if run_as == 'file':
             assert os.path.isfile(path_or_code)
@@ -178,9 +181,44 @@ class DebugSession(object):
                 argv += ['-c', path_or_code]
         else:
             pytest.fail()
+        return argv
+
+    def prepare_to_run(self):
+        """Spawns ptvsd using the configured method, telling it to execute the
+        provided Python file, module, or code, and establishes a message channel
+        to it.
+
+        If use_backchannel is True, calls self.setup_backchannel() before returning.
+
+        If perform_handshake is True, calls self.handshake() before returning.
+        """
+        print('Preparing debug session with method %r' % str(self.start_method))
+        argv = []
+        if self.start_method == START_METHOD_LAUNCH:
+            self._listen()
+            argv += self._get_argv_for_launch()
+        elif self.start_method == START_METHOD_CMDLINE:
+            argv += self._get_argv_for_attach_using_cmdline()
+        elif self.start_method == START_METHOD_IMPORT:
+            argv += self._get_argv_for_attach_using_import()
+            # TODO: Remove adding ot python path after enabling TOX
+            ptvsd_path = os.path.dirname(os.path.dirname(ptvsd.__main__.__file__))
+            self.env['PYTHONPATH'] = ptvsd_path + os.pathsep + self.env['PYTHONPATH']
+            self.env[PTVSD_ENABLE_KEY] = '1'
+            self.env[PTVSD_HOST_KEY] = 'localhost'
+            self.env[PTVSD_PORT_KEY] = str(self.ptvsd_port)
+        elif self.start_method == START_METHOD_PID:
+            argv += self._get_argv_for_attach_using_pid()
+        else:
+            pytest.fail()
+
+        argv += self._get_target()
 
         if self.program_args:
             argv += list(self.program_args)
+
+        if self.multiprocess and 'Multiprocess' not in self.debug_options:
+            self.debug_options += ['Multiprocess']
 
         if self.use_backchannel:
             self.setup_backchannel()
@@ -190,6 +228,7 @@ class DebugSession(object):
         print('Current directory: %s' % os.getcwd())
         print('PYTHONPATH: %s' % self.env['PYTHONPATH'])
         print('Spawning %r' % argv)
+
         self.process = subprocess.Popen(argv, env=self.env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.cwd)
         self.pid = self.process.pid
         self.psutil_process = psutil.Process(self.pid)
@@ -199,7 +238,7 @@ class DebugSession(object):
         self._capture_output(self.process.stdout, 'OUT')
         self._capture_output(self.process.stderr, 'ERR')
 
-        if self.start_method == ('attach', 'socket', 'cmdline'):
+        if self.start_method != START_METHOD_LAUNCH:
             self.connect()
         self.connected.wait()
         assert self.ptvsd_port

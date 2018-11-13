@@ -18,6 +18,8 @@ from pytests.helpers.session import START_METHOD_LAUNCH, START_METHOD_CMDLINE
 def test_break_on_entry(debug_session, pyfile, run_as, start_method):
     @pyfile
     def code_to_debug():
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
         print('one')
         print('two')
         print('three')
@@ -56,13 +58,15 @@ def test_break_on_entry(debug_session, pyfile, run_as, start_method):
 def test_wait_on_normal_exit_enabled(debug_session, pyfile, run_as, start_method):
     @pyfile
     def code_to_debug():
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
         print('one')
         print('two')
         print('three')
 
     debug_session.debug_options += ['WaitOnNormalExit']
 
-    bp_line = 3
+    bp_line = 5
     bp_file = code_to_debug
     debug_session.initialize(target=(run_as, bp_file), start_method=start_method)
     debug_session.set_breakpoints(bp_file, [bp_line])
@@ -99,6 +103,8 @@ def test_wait_on_abnormal_exit_enabled(debug_session, pyfile, run_as, start_meth
     @pyfile
     def code_to_debug():
         import sys
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
         print('one')
         print('two')
         print('three')
@@ -106,7 +112,7 @@ def test_wait_on_abnormal_exit_enabled(debug_session, pyfile, run_as, start_meth
 
     debug_session.debug_options += ['WaitOnAbnormalExit']
 
-    bp_line = 5
+    bp_line = 7
     bp_file = code_to_debug
     debug_session.initialize(target=(run_as, bp_file), start_method=start_method)
     debug_session.set_breakpoints(bp_file, [bp_line])
@@ -140,13 +146,15 @@ def test_wait_on_abnormal_exit_enabled(debug_session, pyfile, run_as, start_meth
 def test_exit_normally_with_wait_on_abnormal_exit_enabled(debug_session, pyfile, run_as, start_method):
     @pyfile
     def code_to_debug():
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
         print('one')
         print('two')
         print('three')
 
     debug_session.debug_options += ['WaitOnAbnormalExit']
 
-    bp_line = 3
+    bp_line = 5
     bp_file = code_to_debug
     debug_session.initialize(target=(run_as, bp_file), start_method=start_method)
     debug_session.set_breakpoints(bp_file, [bp_line])
