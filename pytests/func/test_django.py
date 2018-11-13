@@ -13,7 +13,6 @@ from pytests.helpers.session import DebugSession
 from pytests.helpers.timeline import Event
 from pytests.helpers.pathutils import get_test_root, compare_path
 from pytests.helpers.webhelper import get_url_from_str, get_web_content, wait_for_connection
-from pytests.helpers.session import START_METHOD_LAUNCH, START_METHOD_CMDLINE
 
 DJANGO1_ROOT = get_test_root('django1')
 DJANGO1_MANAGE = os.path.join(DJANGO1_ROOT, 'app.py')
@@ -26,7 +25,7 @@ DJANGO_PORT = 8000
   (DJANGO1_MANAGE, 40, 'home'),
   (DJANGO1_TEMPLATE, 8, 'Django Template'),
 ])
-@pytest.mark.parametrize('start_method', [START_METHOD_LAUNCH, START_METHOD_CMDLINE])
+@pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
 @pytest.mark.skipif(sys.version_info < (3, 0), reason='Bug #923')
 @pytest.mark.timeout(60)
 def test_django_breakpoint_no_multiproc(debug_session, bp_file, bp_line, bp_name, start_method):
@@ -97,11 +96,12 @@ def test_django_breakpoint_no_multiproc(debug_session, bp_file, bp_line, bp_name
     link = DJANGO_LINK + 'exit'
     get_web_content(link).wait_for_response()
 
+
 @pytest.mark.parametrize('ex_type, ex_line', [
   ('handled', 50),
   ('unhandled', 64),
 ])
-@pytest.mark.parametrize('start_method', [START_METHOD_LAUNCH, START_METHOD_CMDLINE])
+@pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
 @pytest.mark.skipif(sys.version_info < (3, 0), reason='Bug #923')
 @pytest.mark.timeout(60)
 def test_django_exception_no_multiproc(debug_session, ex_type, ex_line, start_method):
@@ -184,16 +184,17 @@ def _wait_for_child_process(debug_session):
 
     child_port = child_subprocess.body['port']
 
-    child_session = DebugSession(start_method=START_METHOD_CMDLINE, ptvsd_port=child_port)
+    child_session = DebugSession(start_method='attach_socket_cmdline', ptvsd_port=child_port)
     child_session.ignore_unobserved = debug_session.ignore_unobserved
     child_session.debug_options = debug_session.debug_options
     child_session.connect()
     child_session.handshake()
     return child_session
 
+
 @pytest.mark.skip()
 @pytest.mark.timeout(120)
-@pytest.mark.parametrize('start_method', [START_METHOD_LAUNCH])
+@pytest.mark.parametrize('start_method', ['launch'])
 def test_django_breakpoint_multiproc(debug_session, start_method):
     debug_session.initialize(
         start_method=start_method,

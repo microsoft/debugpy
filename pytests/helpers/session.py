@@ -25,12 +25,9 @@ from .printer import wait_for_output
 from .timeline import Timeline, Event, Response
 from collections import namedtuple
 
+
 _Hit = namedtuple('_Hit', 'thread_stopped, stacktrace, thread_id, frame_id')
 
-START_METHOD_LAUNCH = ('launch',)
-START_METHOD_CMDLINE = ('attach', 'socket', 'cmdline')
-START_METHOD_IMPORT = ('attach', 'socket', 'import')
-START_METHOD_PID = ('attach', 'pid')
 PTVSD_ENABLE_KEY = 'PTVSD_ENABLE_ATTACH'
 PTVSD_HOST_KEY = 'PTVSD_TEST_HOST'
 PTVSD_PORT_KEY = 'PTVSD_TEST_PORT'
@@ -40,10 +37,9 @@ class DebugSession(object):
     WAIT_FOR_EXIT_TIMEOUT = 5
     BACKCHANNEL_TIMEOUT = 15
 
-    def __init__(self, start_method=START_METHOD_LAUNCH, ptvsd_port=None, pid=None):
-        assert start_method[0] in ('launch', 'attach')
-        assert ptvsd_port is None or (len(start_method) > 1 and start_method[1] == 'socket')
-        assert start_method != ('attach', 'socket', 'import')
+    def __init__(self, start_method='launch', ptvsd_port=None, pid=None):
+        assert start_method in ('launch', 'attach_pid', 'attach_socket_cmdline', 'attach_socket_import')
+        assert ptvsd_port is None or start_method.startswith('attach_socket_')
 
         print('New debug session with method %r' % str(start_method))
 
@@ -194,12 +190,12 @@ class DebugSession(object):
         """
         print('Preparing debug session with method %r' % str(self.start_method))
         argv = []
-        if self.start_method == START_METHOD_LAUNCH:
+        if self.start_method == 'launch':
             self._listen()
             argv += self._get_argv_for_launch()
-        elif self.start_method == START_METHOD_CMDLINE:
+        elif self.start_method == 'attach_socket_cmdline':
             argv += self._get_argv_for_attach_using_cmdline()
-        elif self.start_method == START_METHOD_IMPORT:
+        elif self.start_method == 'attach_socket_import':
             argv += self._get_argv_for_attach_using_import()
             # TODO: Remove adding ot python path after enabling TOX
             ptvsd_path = os.path.dirname(os.path.dirname(ptvsd.__main__.__file__))
@@ -207,7 +203,7 @@ class DebugSession(object):
             self.env[PTVSD_ENABLE_KEY] = '1'
             self.env[PTVSD_HOST_KEY] = 'localhost'
             self.env[PTVSD_PORT_KEY] = str(self.ptvsd_port)
-        elif self.start_method == START_METHOD_PID:
+        elif self.start_method == 'attach_pid':
             argv += self._get_argv_for_attach_using_pid()
         else:
             pytest.fail()
@@ -238,7 +234,7 @@ class DebugSession(object):
         self._capture_output(self.process.stdout, 'OUT')
         self._capture_output(self.process.stderr, 'ERR')
 
-        if self.start_method != START_METHOD_LAUNCH:
+        if self.start_method != 'launch':
             self.connect()
         self.connected.wait()
         assert self.ptvsd_port
@@ -410,7 +406,7 @@ class DebugSession(object):
         self.send_request('initialize', {'adapterID': 'test'}).wait_for_response()
         self.wait_for_next(Event('initialized', {}))
 
-        request = 'launch' if self.start_method == ('launch',) else 'attach'
+        request = 'launch' if self.start_method == 'launch' else 'attach'
         self.send_request(request, {'debugOptions': self.debug_options}).wait_for_response()
 
         # Issue 'threads' so that we get the 'thread' event for the main thread now,
@@ -437,7 +433,7 @@ class DebugSession(object):
         self.expect_new(Event('process', {
             'name': ANY.str,
             'isLocalProcess': True,
-            'startMethod': 'launch' if self.start_method == ('launch',) else 'attach',
+            'startMethod': 'launch' if self.start_method == 'launch' else 'attach',
             'systemProcessId': self.pid if self.pid is not None else ANY.int,
         }))
 
@@ -536,7 +532,7 @@ class DebugSession(object):
         for k, v in kwargs.items():
             setattr(self, k, v)
 
-        assert self.start_method[0] in ('launch', 'attach')
+        assert self.start_method in ('launch', 'attach_pid', 'attach_socket_cmdline', 'attach_socket_import')
         assert len(self.target) == 2
         assert self.target[0] in ('file', 'module', 'code')
 
@@ -549,7 +545,7 @@ class DebugSession(object):
             }).wait_for_response()
 
     def wait_for_thread_stopped(self, reason='breakpoint'):
-        thread_stopped = self.wait_for_next(Event('stopped'), ANY.dict_with({'reason': reason}))
+        thread_stopped = self.wait_for_next(Event('stopped', ANY.dict_with({'reason': reason})))
 
         tid = thread_stopped.body['threadId']
         assert tid is not None

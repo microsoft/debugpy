@@ -7,7 +7,9 @@ from __future__ import print_function, with_statement, absolute_import
 import multiprocessing
 import os
 import sys
+import platform
 import psutil
+import tempfile
 
 
 def create(pid):
@@ -30,6 +32,14 @@ def watch(test_pid, ptvsd_pid):
         except:
             pass
         for p in procs:
+            if platform.system() == 'Linux':
+                print('Generating core dump for ptvsd(pid=%d) ...' % p.pid)
+                try:
+                    # gcore will automatically add pid to the filename
+                    core_file = os.path.join(tempfile.gettempdir(), 'ptvsd_core')
+                    os.system('gcore -o %s %d' % (core_file, p.pid))
+                except:
+                    pass
             try:
                 p.kill()
             except:

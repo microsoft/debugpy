@@ -30,7 +30,7 @@ def test_path_with_ampersand(debug_session, start_method, run_as):
     debug_session.wait_for_exit()
 
 
-@pytest.mark.skipif(sys.version_info < (3, 0), reason='Not supported on 2.7')
+@pytest.mark.skipif(sys.version_info < (3, 0), reason='Paths are not Unicode in Python 2.7')
 def test_path_with_unicode(debug_session, start_method, run_as):
     bp_line = 6
     testfile = os.path.join(BP_TEST_ROOT, u'ನನ್ನ_ಸ್ಕ್ರಿಪ್ಟ್.py')
