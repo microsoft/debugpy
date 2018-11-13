@@ -176,13 +176,10 @@ def dont_trace_ptvsd_files(file_path):
 
 pydevd_frame.file_tracing_filter = dont_trace_ptvsd_files
 
-
-STDLIB_PATH_PREFIXES = [os.path.normcase(sys.prefix)]
-if hasattr(sys, 'base_prefix'):
-    STDLIB_PATH_PREFIXES.append(os.path.normcase(sys.base_prefix))
-if hasattr(sys, 'real_prefix'):
-    STDLIB_PATH_PREFIXES.append(os.path.normcase(sys.real_prefix))
-
+# NOTE: Previously this included sys.prefix, sys.base_prefix and sys.real_prefix
+# On some systems those resolve to '/usr'. That means any user code will 
+# also be treated as library code.
+STDLIB_PATH_PREFIXES = []
 if hasattr(site, 'getusersitepackages'):
     site_paths = site.getusersitepackages()
     if isinstance(site_paths, list):
