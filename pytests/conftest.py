@@ -132,7 +132,7 @@ if os.environ.get('PTVSD_SIMPLE_TESTS', '').lower() in ('1', 'true'):
     # Setting PTVSD_SIMPLE_TESTS locally is useful to not have to run
     # all the test permutations while developing.
     _ATTACH_PARAMS = [
-        ('launch',),
+        'launch',
     ]
 
     _RUN_AS_PARAMS = [
@@ -140,10 +140,10 @@ if os.environ.get('PTVSD_SIMPLE_TESTS', '').lower() in ('1', 'true'):
     ]
 else:
     _ATTACH_PARAMS = [
-        ('launch',),
-        ('attach', 'socket', 'cmdline'),
-        # ('attach', 'socket', 'import'),
-        # ('attach', 'pid'),
+        'launch',
+        'attach_socket_cmdline',
+        #'attach_socket_import',
+        #'attach_pid',
     ]
 
     _RUN_AS_PARAMS = [

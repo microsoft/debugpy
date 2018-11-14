@@ -14,7 +14,6 @@ from pytests.helpers.session import DebugSession
 from pytests.helpers.timeline import Event
 from pytests.helpers.webhelper import get_web_content, wait_for_connection
 from pytests.helpers.pathutils import get_test_root, compare_path
-from pytests.helpers.session import START_METHOD_LAUNCH, START_METHOD_CMDLINE
 
 
 FLASK1_ROOT = get_test_root('flask1')
@@ -22,6 +21,7 @@ FLASK1_APP = os.path.join(FLASK1_ROOT, 'app.py')
 FLASK1_TEMPLATE = os.path.join(FLASK1_ROOT, 'templates', 'hello.html')
 FLASK_LINK = 'http://127.0.0.1:5000/'
 FLASK_PORT = 5000
+
 
 def _flask_no_multiproc_common(debug_session, start_method):
     env = {
@@ -52,7 +52,7 @@ def _flask_no_multiproc_common(debug_session, start_method):
   (FLASK1_APP, 11, 'home'),
   (FLASK1_TEMPLATE, 8, 'template'),
 ])
-@pytest.mark.parametrize('start_method', [START_METHOD_LAUNCH, START_METHOD_CMDLINE])
+@pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
 @pytest.mark.timeout(60)
 def test_flask_breakpoint_no_multiproc(debug_session, bp_file, bp_line, bp_name, start_method):
     _flask_no_multiproc_common(debug_session, start_method)
@@ -123,7 +123,7 @@ def test_flask_breakpoint_no_multiproc(debug_session, bp_file, bp_line, bp_name,
   ('handled', 21),
   ('unhandled', 33),
 ])
-@pytest.mark.parametrize('start_method', [START_METHOD_LAUNCH, START_METHOD_CMDLINE])
+@pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
 @pytest.mark.timeout(60)
 def test_flask_exception_no_multiproc(debug_session, ex_type, ex_line, start_method):
     _flask_no_multiproc_common(debug_session, start_method)
@@ -199,7 +199,7 @@ def _wait_for_child_process(debug_session):
 
     child_port = child_subprocess.body['port']
 
-    child_session = DebugSession(start_method=START_METHOD_CMDLINE, ptvsd_port=child_port)
+    child_session = DebugSession(start_method='attach_socket_cmdline', ptvsd_port=child_port)
     child_session.ignore_unobserved = debug_session.ignore_unobserved
     child_session.debug_options = debug_session.debug_options
     child_session.connect()
@@ -208,7 +208,7 @@ def _wait_for_child_process(debug_session):
 
 
 @pytest.mark.timeout(120)
-@pytest.mark.parametrize('start_method', [START_METHOD_LAUNCH])
+@pytest.mark.parametrize('start_method', ['launch'])
 @pytest.mark.skipif((sys.version_info < (3, 0)) and (platform.system() != 'Windows'), reason='Bug #935')
 def test_flask_breakpoint_multiproc(debug_session, start_method):
     env = {
