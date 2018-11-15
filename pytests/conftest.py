@@ -119,7 +119,7 @@ def pyfile(request, tmpdir):
 
         tmpfile = tmpdir.join(name + '.py')
         assert not tmpfile.check()
-        # NOTE: This is a requirement with using pyfile. Adding this 
+        # NOTE: This is a requirement with using pyfile. Adding this
         # makes it easier to add import start method
         assert 'import_and_enable_debugger' in source
         tmpfile.write(source)
@@ -154,6 +154,7 @@ else:
 
 @pytest.fixture
 def debug_session(request):
+    helpers.timestamp_zero = helpers.clock()
     session = DebugSession()
     try:
         yield session

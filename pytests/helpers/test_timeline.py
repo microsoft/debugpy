@@ -291,12 +291,12 @@ def test_xor(make_timeline):
 
     timeline.mark('ham')
     with timeline.frozen():
-        assert t1 >> (eggs_exp ^ ham_exp) in timeline
-        assert t2 >> (eggs_exp ^ ham_exp) not in timeline
-        assert t1 >> (ham_exp ^ eggs_exp) in timeline
-        assert t2 >> (ham_exp ^ eggs_exp) not in timeline
-        assert t1 >> (cheese_exp ^ ham_exp ^ eggs_exp) in timeline
-        assert t2 >> (cheese_exp ^ ham_exp ^ eggs_exp) not in timeline
+        assert t1 >> (eggs_exp ^ ham_exp) not in timeline
+        assert t2 >> (eggs_exp ^ ham_exp) in timeline
+        assert t1 >> (ham_exp ^ eggs_exp) not in timeline
+        assert t2 >> (ham_exp ^ eggs_exp) in timeline
+        assert t1 >> (cheese_exp ^ ham_exp ^ eggs_exp) not in timeline
+        assert t2 >> (cheese_exp ^ ham_exp ^ eggs_exp) in timeline
 
 
 def test_conditional(make_timeline):
@@ -316,6 +316,18 @@ def test_conditional(make_timeline):
     timeline.record_event('something', 'exciting')
     with timeline.frozen():
         timeline.expect_realized(t >> something_exciting)
+
+
+def test_lower_bound(make_timeline):
+    timeline, _ = make_timeline()
+    timeline.mark('1')
+    timeline.mark('2')
+    timeline.mark('3')
+    timeline.freeze()
+
+    assert (Mark('2') >> (Mark('1') >> Mark('3'))) not in timeline
+    assert (Mark('2')  >> (Mark('1') & Mark('3'))) not in timeline
+    assert (Mark('2')  >> (Mark('1') ^ Mark('3'))) in timeline
 
 
 @pytest.mark.timeout(3)
@@ -417,6 +429,49 @@ def test_unobserved(make_timeline, daemon):
 
     # Should be good now.
     timeline.proceed()
+
+
+def test_new(make_timeline):
+    timeline, _ = make_timeline()
+
+    m1 = timeline.mark('1')
+    timeline.freeze()
+
+    assert timeline.expect_new(Mark('1')) is m1
+    with pytest.raises(Exception):
+        timeline.expect_new(Mark('2'))
+
+    timeline.proceed()
+    m2 = timeline.mark('2')
+    timeline.freeze()
+
+    with pytest.raises(Exception):
+        timeline.expect_new(Mark('1'))
+    assert timeline.expect_new(Mark('2')) is m2
+    with pytest.raises(Exception):
+        timeline.expect_new(Mark('3'))
+
+    timeline.unfreeze()
+    m3 = timeline.mark('3')
+    timeline.freeze()
+
+    with pytest.raises(Exception):
+        timeline.expect_new(Mark('1'))
+    assert timeline.expect_new(Mark('2')) is m2
+    assert timeline.expect_new(Mark('3')) is m3
+
+    timeline.proceed()
+    m4 = timeline.mark('4')
+    timeline.mark('4')
+    timeline.freeze()
+
+    with pytest.raises(Exception):
+        timeline.expect_new(Mark('1'))
+    with pytest.raises(Exception):
+        timeline.expect_new(Mark('2'))
+    with pytest.raises(Exception):
+        timeline.expect_new(Mark('3'))
+    assert timeline.expect_new(Mark('4')) is m4
 
 
 @pytest.mark.timeout(3)
