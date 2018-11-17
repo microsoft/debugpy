@@ -71,8 +71,6 @@ def test_wait_on_normal_exit_enabled(pyfile, run_as, start_method):
         session.send_request('continue').wait_for_response(freeze=False)
 
         session.expected_returncode = ANY.int
-        session.wait_for_next(Event('exited'))
-
         assert session.read_json() == 'done'
 
         session.process.stdin.write(b' \r\n')
@@ -117,8 +115,6 @@ def test_wait_on_abnormal_exit_enabled(pyfile, run_as, start_method):
         session.send_request('continue').wait_for_response(freeze=False)
 
         session.expected_returncode = ANY.int
-        session.wait_for_next(Event('exited'))
-
         assert session.read_json() == 'done'
 
         session.process.stdin.write(b' \r\n')
