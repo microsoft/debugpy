@@ -8,7 +8,7 @@ from __future__ import print_function, with_statement, absolute_import
 import os.path
 import pytest
 import sys
-from pytests.helpers.timeline import Event, Response
+from pytests.helpers.timeline import Event
 from pytests.helpers.pathutils import get_test_root, compare_path
 
 BP_TEST_ROOT = get_test_root('bp')
@@ -29,7 +29,7 @@ def test_path_with_ampersand(debug_session, start_method, run_as):
     frames = hit.stacktrace.body['stackFrames']
     assert compare_path(frames[0]['source']['path'], testfile, show=False)
 
-    debug_session.send_request('continue').wait_for_response()
+    debug_session.send_request('continue').wait_for_response(freeze=False)
     debug_session.wait_for_exit()
 
 
@@ -50,5 +50,5 @@ def test_path_with_unicode(debug_session, start_method, run_as):
     assert compare_path(frames[0]['source']['path'], testfile, show=False)
     assert u'ಏನಾದರೂ_ಮಾಡು' == frames[0]['name']
 
-    debug_session.send_request('continue').wait_for_response()
+    debug_session.send_request('continue').wait_for_response(freeze=False)
     debug_session.wait_for_exit()

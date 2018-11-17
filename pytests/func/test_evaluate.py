@@ -98,7 +98,7 @@ def test_variables_and_evaluate(debug_session, pyfile, run_as, start_method):
         'result': '2'
     })
 
-    debug_session.send_request('continue').wait_for_response()
+    debug_session.send_request('continue').wait_for_response(freeze=False)
     debug_session.wait_for_exit()
 
 
@@ -154,8 +154,7 @@ def test_set_variable(debug_session, pyfile, run_as, start_method):
         'value': '1000'
     })
 
-    debug_session.send_request('continue').wait_for_response()
-    debug_session.proceed()
+    debug_session.send_request('continue').wait_for_response(freeze=False)
 
     assert debug_session.read_json() == 1000
 
@@ -233,5 +232,5 @@ def test_variable_sort(debug_session, pyfile, run_as, start_method):
     # NOTE: this is commented out due to sorting bug #213
     # assert variable_names[:3] == ['1', '2', '10']
 
-    debug_session.send_request('continue').wait_for_response()
+    debug_session.send_request('continue').wait_for_response(freeze=False)
     debug_session.wait_for_exit()

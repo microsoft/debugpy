@@ -21,28 +21,20 @@ def test_break_on_entry(debug_session, pyfile, run_as, start_method):
         import_and_enable_debugger()
         backchannel.write_json('done')
 
-    debug_session.debug_options += ['StopOnEntry']
     debug_session.initialize(
         target=(run_as, code_to_debug),
         start_method=start_method,
+        debug_options=['StopOnEntry'],
         ignore_unobserved=[Event('continued')],
         use_backchannel=True,
     )
     debug_session.start_debugging()
 
-    thread_stopped = debug_session.wait_for_next(Event('stopped', ANY.dict_with({'reason': 'step'})))
-    assert thread_stopped.body['threadId'] is not None
-
-    tid = thread_stopped.body['threadId']
-
-    resp_stacktrace = debug_session.send_request('stackTrace', arguments={
-        'threadId': tid,
-    }).wait_for_response()
-    assert resp_stacktrace.body['totalFrames'] > 0
+    thread_stopped, resp_stacktrace, tid, _ = debug_session.wait_for_thread_stopped()
     frames = resp_stacktrace.body['stackFrames']
     assert frames[0]['line'] == 1
 
-    debug_session.send_request('continue').wait_for_response()
+    debug_session.send_request('continue').wait_for_response(freeze=False)
     debug_session.wait_for_termination()
 
     assert debug_session.read_json() == 'done'
@@ -59,24 +51,21 @@ def test_wait_on_normal_exit_enabled(debug_session, pyfile, run_as, start_method
         import backchannel
         from dbgimporter import import_and_enable_debugger
         import_and_enable_debugger()
+        import ptvsd
+        ptvsd.break_into_debugger()
         backchannel.write_json('done')
 
-    debug_session.debug_options += ['WaitOnNormalExit']
-
-    bp_line = 5
-    bp_file = code_to_debug
     debug_session.initialize(
-        target=(run_as, bp_file),
+        target=(run_as, code_to_debug),
         start_method=start_method,
+        debug_options=['WaitOnNormalExit'],
         ignore_unobserved=[Event('continued')],
         use_backchannel=True,
     )
-    debug_session.set_breakpoints(bp_file, [bp_line])
     debug_session.start_debugging()
 
-    debug_session.wait_for_next(Event('stopped', ANY.dict_with({'reason': 'breakpoint'})))
-    debug_session.send_request('continue').wait_for_response()
-    debug_session.proceed()
+    debug_session.wait_for_thread_stopped()
+    debug_session.send_request('continue').wait_for_response(freeze=False)
 
     debug_session.expected_returncode = ANY.int
     debug_session.wait_for_next(Event('exited'))
@@ -104,25 +93,23 @@ def test_wait_on_abnormal_exit_enabled(debug_session, pyfile, run_as, start_meth
         import sys
         from dbgimporter import import_and_enable_debugger
         import_and_enable_debugger()
+        import ptvsd
+        ptvsd.break_into_debugger()
         backchannel.write_json('done')
         sys.exit(12345)
 
     debug_session.debug_options += ['WaitOnAbnormalExit']
 
-    bp_line = 7
-    bp_file = code_to_debug
     debug_session.initialize(
-        target=(run_as, bp_file),
+        target=(run_as, code_to_debug),
         start_method=start_method,
         ignore_unobserved=[Event('continued')],
         use_backchannel=True,
     )
-    debug_session.set_breakpoints(bp_file, [bp_line])
     debug_session.start_debugging()
 
-    debug_session.wait_for_next(Event('stopped'), ANY.dict_with({'reason': 'breakpoint'}))
-    debug_session.send_request('continue').wait_for_response()
-    debug_session.proceed()
+    debug_session.wait_for_thread_stopped()
+    debug_session.send_request('continue').wait_for_response(freeze=False)
 
     debug_session.expected_returncode = ANY.int
     debug_session.wait_for_next(Event('exited'))
@@ -147,24 +134,21 @@ def test_exit_normally_with_wait_on_abnormal_exit_enabled(debug_session, pyfile,
         import backchannel
         from dbgimporter import import_and_enable_debugger
         import_and_enable_debugger()
+        import ptvsd
+        ptvsd.break_into_debugger()
         backchannel.write_json('done')
 
-    debug_session.debug_options += ['WaitOnAbnormalExit']
-
-    bp_line = 5
-    bp_file = code_to_debug
     debug_session.initialize(
-        target=(run_as, bp_file),
+        target=(run_as, code_to_debug),
         start_method=start_method,
+        debug_options=['WaitOnAbnormalExit'],
         ignore_unobserved=[Event('continued')],
         use_backchannel=True,
     )
-    debug_session.set_breakpoints(bp_file, [bp_line])
     debug_session.start_debugging()
 
-    debug_session.wait_for_next(Event('stopped', ANY.dict_with({'reason': 'breakpoint'})))
-    debug_session.send_request('continue').wait_for_response()
-    debug_session.proceed()
+    debug_session.wait_for_thread_stopped()
+    debug_session.send_request('continue').wait_for_response(freeze=False)
 
     debug_session.wait_for_termination()
 
