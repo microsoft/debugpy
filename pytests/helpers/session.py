@@ -26,8 +26,6 @@ from .timeline import Timeline, Event, Response
 from collections import namedtuple
 
 
-_Hit = namedtuple('_Hit', 'thread_stopped, stacktrace, thread_id, frame_id')
-
 PTVSD_ENABLE_KEY = 'PTVSD_ENABLE_ATTACH'
 PTVSD_HOST_KEY = 'PTVSD_TEST_HOST'
 PTVSD_PORT_KEY = 'PTVSD_TEST_PORT'
@@ -36,6 +34,8 @@ PTVSD_PORT_KEY = 'PTVSD_TEST_PORT'
 class DebugSession(object):
     WAIT_FOR_EXIT_TIMEOUT = 5
     BACKCHANNEL_TIMEOUT = 15
+
+    StopInfo = namedtuple('StopInfo', 'thread_stopped, stacktrace, thread_id, frame_id')
 
     def __init__(self, start_method='launch', ptvsd_port=None, pid=None):
         assert start_method in ('launch', 'attach_pid', 'attach_socket_cmdline', 'attach_socket_import')
@@ -89,6 +89,18 @@ class DebugSession(object):
         self.all_occurrences_of = self.timeline.all_occurrences_of
         self.observe_all = self.timeline.observe_all
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        was_final = self.timeline.is_final
+        self.close()
+        assert exc_type is not None or was_final, (
+            'Session timeline must be finalized before session goes out of scope at the end of the '
+            'with-statement. Use wait_for_exit(), wait_for_termination(), or wait_for_disconnect() '
+            'as appropriate.'
+        )
+
     def __contains__(self, expectation):
         return expectation in self.timeline
 
@@ -100,7 +112,7 @@ class DebugSession(object):
     def ignore_unobserved(self, value):
         self.timeline.ignore_unobserved = value
 
-    def stop(self):
+    def close(self):
         if self.socket:
             try:
                 self.socket.shutdown(socket.SHUT_RDWR)
@@ -180,7 +192,8 @@ class DebugSession(object):
             pytest.fail()
         return argv
 
-    def prepare_to_run(self):
+
+    def initialize(self, **kwargs):
         """Spawns ptvsd using the configured method, telling it to execute the
         provided Python file, module, or code, and establishes a message channel
         to it.
@@ -189,7 +202,24 @@ class DebugSession(object):
 
         If perform_handshake is True, calls self.handshake() before returning.
         """
-        print('Preparing debug session with method %r' % str(self.start_method))
+
+        self.ignore_unobserved += [
+            Event('thread', ANY.dict_with({'reason': 'started'})),
+            Event('module')
+        ] + kwargs.pop('ignore_unobserved', [])
+
+        self.env.update(kwargs.pop('env', {}))
+        self.debug_options += kwargs.pop('debug_options', [])
+        self.program_args += kwargs.pop('program_args', [])
+
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+        assert self.start_method in ('launch', 'attach_pid', 'attach_socket_cmdline', 'attach_socket_import')
+        assert len(self.target) == 2
+        assert self.target[0] in ('file', 'module', 'code')
+
+        print('Initializing debug session for ptvsd#%d' % self.ptvsd_port)
         argv = []
         if self.start_method == 'launch':
             self._listen()
@@ -222,6 +252,8 @@ class DebugSession(object):
         if self.backchannel_port:
             self.env['PTVSD_BACKCHANNEL_PORT'] = str(self.backchannel_port)
 
+        print('Start method: %s' % self.start_method)
+        print('Target: (%s) %s' % self.target)
         print('Current directory: %s' % os.getcwd())
         print('PYTHONPATH: %s' % self.env['PYTHONPATH'])
         print('Spawning %r' % argv)
@@ -251,12 +283,6 @@ class DebugSession(object):
 
         if self.perform_handshake:
             return self.handshake()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args):
-        self.wait_for_exit()
 
     def wait_for_disconnect(self, close=True):
         """Waits for the connected ptvsd process to disconnect.
@@ -421,7 +447,7 @@ class DebugSession(object):
         to start running code under debugger.
 
         After this method returns, ptvsd is running the code in the script file or module
-        that was specified in prepare_to_run().
+        that was specified via self.target.
         """
 
         configurationDone_request = self.send_request('configurationDone')
@@ -493,7 +519,6 @@ class DebugSession(object):
         return t
 
     def _capture_output(self, pipe, name):
-
         def _output_worker():
             while True:
                 try:
@@ -517,28 +542,6 @@ class DebugSession(object):
         for thread in self._output_capture_threads:
             thread.join()
 
-    def initialize(
-        self,
-        **kwargs
-    ):
-        self.ignore_unobserved += [
-            Event('thread', ANY.dict_with({'reason': 'started'})),
-            Event('module')
-        ] + kwargs.pop('ignore_unobserved', [])
-
-        self.env.update(kwargs.pop('env', {}))
-        self.debug_options += kwargs.pop('debug_options', [])
-        self.program_args += kwargs.pop('program_args', [])
-
-        for k, v in kwargs.items():
-            setattr(self, k, v)
-
-        assert self.start_method in ('launch', 'attach_pid', 'attach_socket_cmdline', 'attach_socket_import')
-        assert len(self.target) == 2
-        assert self.target[0] in ('file', 'module', 'code')
-
-        self.prepare_to_run()
-
     def set_breakpoints(self, path, lines=()):
         self.send_request('setBreakpoints', arguments={
                 'source': {'path': path},
@@ -559,4 +562,23 @@ class DebugSession(object):
 
         fid = frames[0]['id']
 
-        return _Hit(thread_stopped, resp_stacktrace, tid, fid)
+        return self.StopInfo(thread_stopped, resp_stacktrace, tid, fid)
+
+    def connect_to_child_session(self, ptvsd_subprocess):
+        child_port = ptvsd_subprocess.body['port']
+        assert child_port != 0
+
+        child_session = DebugSession(start_method='attach_socket_cmdline', ptvsd_port=child_port)
+        try:
+            child_session.ignore_unobserved = self.ignore_unobserved
+            child_session.debug_options = self.debug_options
+            child_session.connect()
+            child_session.handshake()
+        except:
+            child_session.close()
+        else:
+            return child_session
+
+    def connect_to_next_child_session(self):
+        ptvsd_subprocess = self.wait_for_next(Event('ptvsd_subprocess'))
+        return self.connect_to_child_session(ptvsd_subprocess)

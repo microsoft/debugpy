@@ -21,259 +21,258 @@ DJANGO_LINK = 'http://127.0.0.1:8000/'
 DJANGO_PORT = 8000
 
 
-@pytest.mark.parametrize('bp_file, bp_line, bp_name', [
-  (DJANGO1_MANAGE, 40, 'home'),
-  (DJANGO1_TEMPLATE, 8, 'Django Template'),
-])
+@pytest.mark.parametrize('bp_target', ['code', 'template'])
 @pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
 @pytest.mark.skipif(sys.version_info < (3, 0), reason='Bug #923')
 @pytest.mark.timeout(60)
-def test_django_breakpoint_no_multiproc(debug_session, bp_file, bp_line, bp_name, start_method):
-    debug_session.initialize(
-        start_method=start_method,
-        target=('file', DJANGO1_MANAGE),
-        program_args=['runserver', '--noreload', '--nothreading'],
-        debug_options=['Django'],
-        cwd=DJANGO1_ROOT,
-        expected_returncode=ANY.int,  # No clean way to kill Flask server
-        ignore_unobserved=[Event('continued')],
-    )
+def test_django_breakpoint_no_multiproc(bp_target, start_method):
+    bp_file, bp_line, bp_name = {
+        'code': (DJANGO1_MANAGE, 40, 'home'),
+        'template': (DJANGO1_TEMPLATE, 8, 'Django Template'),
+    }[bp_target]
 
-    bp_var_content = 'Django-Django-Test'
-    debug_session.set_breakpoints(bp_file, [bp_line])
-    debug_session.start_debugging()
+    with DebugSession() as session:
+        session.initialize(
+            start_method=start_method,
+            target=('file', DJANGO1_MANAGE),
+            program_args=['runserver', '--noreload', '--nothreading'],
+            debug_options=['Django'],
+            cwd=DJANGO1_ROOT,
+            expected_returncode=ANY.int,  # No clean way to kill Flask server
+            ignore_unobserved=[Event('continued')],
+        )
 
-    # wait for Django server to start
-    wait_for_connection(DJANGO_PORT)
-    web_request = get_web_content(DJANGO_LINK, {})
+        bp_var_content = 'Django-Django-Test'
+        session.set_breakpoints(bp_file, [bp_line])
+        session.start_debugging()
 
-    thread_stopped = debug_session.wait_for_next(Event('stopped', ANY.dict_with({'reason': 'breakpoint'})))
-    assert thread_stopped.body['threadId'] is not None
+        # wait for Django server to start
+        wait_for_connection(DJANGO_PORT)
+        web_request = get_web_content(DJANGO_LINK, {})
 
-    tid = thread_stopped.body['threadId']
+        thread_stopped = session.wait_for_next(Event('stopped', ANY.dict_with({'reason': 'breakpoint'})))
+        assert thread_stopped.body['threadId'] is not None
 
-    resp_stacktrace = debug_session.send_request('stackTrace', arguments={
-        'threadId': tid,
-    }).wait_for_response()
-    assert resp_stacktrace.body['totalFrames'] > 1
-    frames = resp_stacktrace.body['stackFrames']
-    assert frames[0] == {
-        'id': 1,
-        'name': bp_name,
-        'source': {
-            'sourceReference': ANY,
-            'path': ANY.such_that(lambda s: compare_path(s, bp_file)),
-        },
-        'line': bp_line,
-        'column': 1,
-    }
+        tid = thread_stopped.body['threadId']
 
-    fid = frames[0]['id']
-    resp_scopes = debug_session.send_request('scopes', arguments={
-        'frameId': fid
-    }).wait_for_response()
-    scopes = resp_scopes.body['scopes']
-    assert len(scopes) > 0
-
-    resp_variables = debug_session.send_request('variables', arguments={
-        'variablesReference': scopes[0]['variablesReference']
-    }).wait_for_response()
-    variables = list(v for v in resp_variables.body['variables'] if v['name'] == 'content')
-    assert variables == [{
-            'name': 'content',
-            'type': 'str',
-            'value': repr(bp_var_content),
-            'presentationHint': {'attributes': ['rawString']},
-            'evaluateName': 'content'
-        }]
-
-    debug_session.send_request('continue').wait_for_response()
-
-    web_content = web_request.wait_for_response()
-    assert web_content.find(bp_var_content) != -1
-
-    # shutdown to web server
-    link = DJANGO_LINK + 'exit'
-    get_web_content(link).wait_for_response()
-
-
-@pytest.mark.parametrize('ex_type, ex_line', [
-  ('handled', 50),
-  ('unhandled', 64),
-])
-@pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
-@pytest.mark.skipif(sys.version_info < (3, 0), reason='Bug #923')
-@pytest.mark.timeout(60)
-def test_django_exception_no_multiproc(debug_session, ex_type, ex_line, start_method):
-    debug_session.initialize(
-        start_method=start_method,
-        target=('file', DJANGO1_MANAGE),
-        program_args=['runserver', '--noreload', '--nothreading'],
-        debug_options=['Django'],
-        cwd=DJANGO1_ROOT,
-        expected_returncode=ANY.int,  # No clean way to kill Flask server
-        ignore_unobserved=[Event('continued')],
-    )
-
-    debug_session.send_request('setExceptionBreakpoints', arguments={
-        'filters': ['raised', 'uncaught'],
-    }).wait_for_response()
-
-    debug_session.start_debugging()
-
-    wait_for_connection(DJANGO_PORT)
-
-    base_link = DJANGO_LINK
-    link = base_link + ex_type if base_link.endswith('/') else ('/' + ex_type)
-    web_request = get_web_content(link, {})
-
-    thread_stopped = debug_session.wait_for_next(Event('stopped', ANY.dict_with({'reason': 'exception'})))
-    assert thread_stopped == Event('stopped', ANY.dict_with({
-        'reason': 'exception',
-        'text': ANY.such_that(lambda s: s.endswith('ArithmeticError')),
-        'description': 'Hello'
-    }))
-
-    tid = thread_stopped.body['threadId']
-    resp_exception_info = debug_session.send_request(
-        'exceptionInfo',
-        arguments={'threadId': tid, }
-    ).wait_for_response()
-    exception = resp_exception_info.body
-    assert exception == {
-        'exceptionId': ANY.such_that(lambda s: s.endswith('ArithmeticError')),
-        'breakMode': 'always',
-        'description': 'Hello',
-        'details': {
-            'message': 'Hello',
-            'typeName': ANY.such_that(lambda s: s.endswith('ArithmeticError')),
-            'source': ANY.such_that(lambda s: compare_path(s, DJANGO1_MANAGE)),
-            'stackTrace': ANY.such_that(lambda s: True),
+        resp_stacktrace = session.send_request('stackTrace', arguments={
+            'threadId': tid,
+        }).wait_for_response()
+        assert resp_stacktrace.body['totalFrames'] > 1
+        frames = resp_stacktrace.body['stackFrames']
+        assert frames[0] == {
+            'id': 1,
+            'name': bp_name,
+            'source': {
+                'sourceReference': ANY,
+                'path': ANY.such_that(lambda s: compare_path(s, bp_file)),
+            },
+            'line': bp_line,
+            'column': 1,
         }
-    }
 
-    resp_stacktrace = debug_session.send_request('stackTrace', arguments={
-        'threadId': tid,
-    }).wait_for_response()
-    assert resp_stacktrace.body['totalFrames'] > 1
-    frames = resp_stacktrace.body['stackFrames']
-    assert frames[0] == {
-        'id': ANY,
-        'name': 'bad_route_' + ex_type,
-        'source': {
-            'sourceReference': ANY,
-            'path': ANY.such_that(lambda s: compare_path(s, DJANGO1_MANAGE)),
-        },
-        'line': ex_line,
-        'column': 1,
-    }
+        fid = frames[0]['id']
+        resp_scopes = session.send_request('scopes', arguments={
+            'frameId': fid
+        }).wait_for_response()
+        scopes = resp_scopes.body['scopes']
+        assert len(scopes) > 0
 
-    debug_session.send_request('continue').wait_for_response()
+        resp_variables = session.send_request('variables', arguments={
+            'variablesReference': scopes[0]['variablesReference']
+        }).wait_for_response()
+        variables = list(v for v in resp_variables.body['variables'] if v['name'] == 'content')
+        assert variables == [{
+                'name': 'content',
+                'type': 'str',
+                'value': repr(bp_var_content),
+                'presentationHint': {'attributes': ['rawString']},
+                'evaluateName': 'content'
+            }]
 
-    # ignore response for exception tests
-    web_request.wait_for_response()
+        session.send_request('continue').wait_for_response(freeze=False)
 
-    # shutdown to web server
-    link = base_link + 'exit' if base_link.endswith('/') else '/exit'
-    get_web_content(link).wait_for_response()
+        web_content = web_request.wait_for_response()
+        assert web_content.find(bp_var_content) != -1
+
+        # shutdown to web server
+        link = DJANGO_LINK + 'exit'
+        get_web_content(link).wait_for_response()
+
+        session.wait_for_exit()
 
 
-def _wait_for_child_process(debug_session):
-    child_subprocess = debug_session.wait_for_next(Event('ptvsd_subprocess'))
-    assert child_subprocess.body['port'] != 0
+@pytest.mark.parametrize('ex_type', ['handled', 'unhandled'])
+@pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
+@pytest.mark.skipif(sys.version_info < (3, 0), reason='Bug #923')
+@pytest.mark.timeout(60)
+def test_django_exception_no_multiproc(ex_type, start_method):
+    ex_line = {
+        'handled': 50,
+        'unhandled': 64,
+    }[ex_type]
 
-    child_port = child_subprocess.body['port']
+    with DebugSession() as session:
+        session.initialize(
+            start_method=start_method,
+            target=('file', DJANGO1_MANAGE),
+            program_args=['runserver', '--noreload', '--nothreading'],
+            debug_options=['Django'],
+            cwd=DJANGO1_ROOT,
+            expected_returncode=ANY.int,  # No clean way to kill Flask server
+            ignore_unobserved=[Event('continued')],
+        )
 
-    child_session = DebugSession(start_method='attach_socket_cmdline', ptvsd_port=child_port)
-    child_session.ignore_unobserved = debug_session.ignore_unobserved
-    child_session.debug_options = debug_session.debug_options
-    child_session.connect()
-    child_session.handshake()
-    return child_session
+        session.send_request('setExceptionBreakpoints', arguments={
+            'filters': ['raised', 'uncaught'],
+        }).wait_for_response()
+
+        session.start_debugging()
+
+        wait_for_connection(DJANGO_PORT)
+
+        base_link = DJANGO_LINK
+        link = base_link + ex_type if base_link.endswith('/') else ('/' + ex_type)
+        web_request = get_web_content(link, {})
+
+        thread_stopped = session.wait_for_next(Event('stopped', ANY.dict_with({'reason': 'exception'})))
+        assert thread_stopped == Event('stopped', ANY.dict_with({
+            'reason': 'exception',
+            'text': ANY.such_that(lambda s: s.endswith('ArithmeticError')),
+            'description': 'Hello'
+        }))
+
+        tid = thread_stopped.body['threadId']
+        resp_exception_info = session.send_request(
+            'exceptionInfo',
+            arguments={'threadId': tid, }
+        ).wait_for_response()
+        exception = resp_exception_info.body
+        assert exception == {
+            'exceptionId': ANY.such_that(lambda s: s.endswith('ArithmeticError')),
+            'breakMode': 'always',
+            'description': 'Hello',
+            'details': {
+                'message': 'Hello',
+                'typeName': ANY.such_that(lambda s: s.endswith('ArithmeticError')),
+                'source': ANY.such_that(lambda s: compare_path(s, DJANGO1_MANAGE)),
+                'stackTrace': ANY.such_that(lambda s: True),
+            }
+        }
+
+        resp_stacktrace = session.send_request('stackTrace', arguments={
+            'threadId': tid,
+        }).wait_for_response()
+        assert resp_stacktrace.body['totalFrames'] > 1
+        frames = resp_stacktrace.body['stackFrames']
+        assert frames[0] == {
+            'id': ANY,
+            'name': 'bad_route_' + ex_type,
+            'source': {
+                'sourceReference': ANY,
+                'path': ANY.such_that(lambda s: compare_path(s, DJANGO1_MANAGE)),
+            },
+            'line': ex_line,
+            'column': 1,
+        }
+
+        session.send_request('continue').wait_for_response(freeze=False)
+
+        # ignore response for exception tests
+        web_request.wait_for_response()
+
+        # shutdown to web server
+        link = base_link + 'exit' if base_link.endswith('/') else '/exit'
+        get_web_content(link).wait_for_response()
+
+        session.wait_for_exit()
 
 
 @pytest.mark.skip()
 @pytest.mark.timeout(120)
 @pytest.mark.parametrize('start_method', ['launch'])
-def test_django_breakpoint_multiproc(debug_session, start_method):
-    debug_session.initialize(
-        start_method=start_method,
-        target=('file', DJANGO1_MANAGE),
-        multiprocess=True,
-        program_args=['runserver', ],
-        debug_options=['Django'],
-        cwd=DJANGO1_ROOT,
-        ignore_unobserved=[Event('stopped'), Event('continued')],
-        expected_returncode=ANY.int,  # No clean way to kill Flask server
-    )
+def test_django_breakpoint_multiproc(start_method):
+    with DebugSession() as parent_session:
+        parent_session.initialize(
+            start_method=start_method,
+            target=('file', DJANGO1_MANAGE),
+            multiprocess=True,
+            program_args=['runserver'],
+            debug_options=['Django'],
+            cwd=DJANGO1_ROOT,
+            ignore_unobserved=[Event('stopped'), Event('continued')],
+            expected_returncode=ANY.int,  # No clean way to kill Flask server
+        )
 
-    bp_line = 40
-    bp_var_content = 'Django-Django-Test'
-    debug_session.set_breakpoints(DJANGO1_MANAGE, [bp_line])
-    debug_session.start_debugging()
+        bp_line = 40
+        bp_var_content = 'Django-Django-Test'
+        parent_session.set_breakpoints(DJANGO1_MANAGE, [bp_line])
+        parent_session.start_debugging()
 
-    child_session = _wait_for_child_process(debug_session)
+        with parent_session.connect_to_next_child_session() as child_session:
+            child_session.send_request('setBreakpoints', arguments={
+                'source': {'path': DJANGO1_MANAGE},
+                'breakpoints': [{'line': bp_line}, ],
+            }).wait_for_response()
+            child_session.start_debugging()
 
-    child_session.send_request('setBreakpoints', arguments={
-        'source': {'path': DJANGO1_MANAGE},
-        'breakpoints': [{'line': bp_line}, ],
-    }).wait_for_response()
-    child_session.start_debugging()
+            # wait for Django server to start
+            while True:
+                child_session.proceed()
+                o = child_session.wait_for_next(Event('output'))
+                if get_url_from_str(o.body['output']) is not None:
+                    break
 
-    # wait for Django server to start
-    while True:
-        child_session.proceed()
-        o = child_session.wait_for_next(Event('output'))
-        if get_url_from_str(o.body['output']) is not None:
-            break
+            web_request = get_web_content(DJANGO_LINK, {})
 
-    web_request = get_web_content(DJANGO_LINK, {})
+            thread_stopped = child_session.wait_for_next(Event('stopped', ANY.dict_with({'reason': 'breakpoint'})))
+            assert thread_stopped.body['threadId'] is not None
 
-    thread_stopped = child_session.wait_for_next(Event('stopped', ANY.dict_with({'reason': 'breakpoint'})))
-    assert thread_stopped.body['threadId'] is not None
+            tid = thread_stopped.body['threadId']
 
-    tid = thread_stopped.body['threadId']
+            resp_stacktrace = child_session.send_request('stackTrace', arguments={
+                'threadId': tid,
+            }).wait_for_response()
+            assert resp_stacktrace.body['totalFrames'] > 0
+            frames = resp_stacktrace.body['stackFrames']
+            assert frames[0] == {
+                'id': ANY.int,
+                'name': 'home',
+                'source': {
+                    'sourceReference': ANY.int,
+                    'path': ANY.such_that(lambda s: compare_path(s, DJANGO1_MANAGE)),
+                },
+                'line': bp_line,
+                'column': 1,
+            }
 
-    resp_stacktrace = child_session.send_request('stackTrace', arguments={
-        'threadId': tid,
-    }).wait_for_response()
-    assert resp_stacktrace.body['totalFrames'] > 0
-    frames = resp_stacktrace.body['stackFrames']
-    assert frames[0] == {
-        'id': ANY.int,
-        'name': 'home',
-        'source': {
-            'sourceReference': ANY.int,
-            'path': ANY.such_that(lambda s: compare_path(s, DJANGO1_MANAGE)),
-        },
-        'line': bp_line,
-        'column': 1,
-    }
+            fid = frames[0]['id']
+            resp_scopes = child_session.send_request('scopes', arguments={
+                'frameId': fid
+            }).wait_for_response()
+            scopes = resp_scopes.body['scopes']
+            assert len(scopes) > 0
 
-    fid = frames[0]['id']
-    resp_scopes = child_session.send_request('scopes', arguments={
-        'frameId': fid
-    }).wait_for_response()
-    scopes = resp_scopes.body['scopes']
-    assert len(scopes) > 0
+            resp_variables = child_session.send_request('variables', arguments={
+                'variablesReference': scopes[0]['variablesReference']
+            }).wait_for_response()
+            variables = list(v for v in resp_variables.body['variables'] if v['name'] == 'content')
+            assert variables == [{
+                    'name': 'content',
+                    'type': 'str',
+                    'value': repr(bp_var_content),
+                    'presentationHint': {'attributes': ['rawString']},
+                    'evaluateName': 'content'
+                }]
 
-    resp_variables = child_session.send_request('variables', arguments={
-        'variablesReference': scopes[0]['variablesReference']
-    }).wait_for_response()
-    variables = list(v for v in resp_variables.body['variables'] if v['name'] == 'content')
-    assert variables == [{
-            'name': 'content',
-            'type': 'str',
-            'value': repr(bp_var_content),
-            'presentationHint': {'attributes': ['rawString']},
-            'evaluateName': 'content'
-        }]
+            child_session.send_request('continue').wait_for_response(freeze=False)
 
-    child_session.send_request('continue').wait_for_response()
+            web_content = web_request.wait_for_response()
+            assert web_content.find(bp_var_content) != -1
 
-    web_content = web_request.wait_for_response()
-    assert web_content.find(bp_var_content) != -1
+            # shutdown to web server
+            link = DJANGO_LINK + 'exit'
+            get_web_content(link).wait_for_response()
 
-    # shutdown to web server
-    link = DJANGO_LINK + 'exit'
-    get_web_content(link).wait_for_response()
+            child_session.wait_for_termination()
+            parent_session.wait_for_exit()

@@ -6,6 +6,7 @@ from __future__ import print_function, with_statement, absolute_import
 
 import pytest
 from pytests.helpers.pattern import ANY
+from pytests.helpers.session import DebugSession
 from pytests.helpers.timeline import Event
 
 
@@ -28,7 +29,7 @@ expected_at_line = {
 }
 
 @pytest.mark.parametrize('bp_line', expected_at_line.keys())
-def test_completions_scope(debug_session, pyfile, bp_line, run_as, start_method):
+def test_completions_scope(pyfile, bp_line, run_as, start_method):
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
@@ -47,43 +48,44 @@ def test_completions_scope(debug_session, pyfile, bp_line, run_as, start_method)
 
     expected = expected_at_line[bp_line]
 
-    debug_session.initialize(
-        target=(run_as, code_to_debug),
-        start_method=start_method,
-        ignore_unobserved=[Event('stopped'), Event('continued')],
-    )
-    debug_session.set_breakpoints(code_to_debug, [bp_line])
-    debug_session.start_debugging()
+    with DebugSession() as session:
+        session.initialize(
+            target=(run_as, code_to_debug),
+            start_method=start_method,
+            ignore_unobserved=[Event('stopped'), Event('continued')],
+        )
+        session.set_breakpoints(code_to_debug, [bp_line])
+        session.start_debugging()
 
-    thread_stopped = debug_session.wait_for_next(Event('stopped', ANY.dict_with({'reason': 'breakpoint'})))
-    assert thread_stopped.body['threadId'] is not None
-    tid = thread_stopped.body['threadId']
+        thread_stopped = session.wait_for_next(Event('stopped', ANY.dict_with({'reason': 'breakpoint'})))
+        assert thread_stopped.body['threadId'] is not None
+        tid = thread_stopped.body['threadId']
 
-    resp_stacktrace = debug_session.send_request('stackTrace', arguments={
-        'threadId': tid,
-    }).wait_for_response()
-    assert resp_stacktrace.body['totalFrames'] > 0
-    frames = resp_stacktrace.body['stackFrames']
-    assert len(frames) > 0
+        resp_stacktrace = session.send_request('stackTrace', arguments={
+            'threadId': tid,
+        }).wait_for_response()
+        assert resp_stacktrace.body['totalFrames'] > 0
+        frames = resp_stacktrace.body['stackFrames']
+        assert len(frames) > 0
 
-    fid = frames[0]['id']
-    resp_completions = debug_session.send_request('completions', arguments={
-        'text': 'some',
-        'frameId': fid,
-        'column': 1
-    }).wait_for_response()
-    targets = resp_completions.body['targets']
+        fid = frames[0]['id']
+        resp_completions = session.send_request('completions', arguments={
+            'text': 'some',
+            'frameId': fid,
+            'column': 1
+        }).wait_for_response()
+        targets = resp_completions.body['targets']
 
-    debug_session.send_request('continue').wait_for_response()
+        session.send_request('continue').wait_for_response(freeze=False)
 
-    targets.sort(key=lambda t: t['label'])
-    expected.sort(key=lambda t: t['label'])
-    assert targets == expected
+        targets.sort(key=lambda t: t['label'])
+        expected.sort(key=lambda t: t['label'])
+        assert targets == expected
 
-    debug_session.wait_for_exit()
+        session.wait_for_exit()
 
 
-def test_completions(debug_session, pyfile, start_method, run_as):
+def test_completions(pyfile, start_method, run_as):
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
@@ -96,29 +98,30 @@ def test_completions(debug_session, pyfile, start_method, run_as):
     bp_line = 6
     bp_file = code_to_debug
 
-    debug_session.initialize(
-        target=(run_as, bp_file),
-        start_method=start_method,
-        ignore_unobserved=[Event('continued')],
-    )
-    debug_session.set_breakpoints(bp_file, [bp_line])
-    debug_session.start_debugging()
-    hit = debug_session.wait_for_thread_stopped()
+    with DebugSession() as session:
+        session.initialize(
+            target=(run_as, bp_file),
+            start_method=start_method,
+            ignore_unobserved=[Event('continued')],
+        )
+        session.set_breakpoints(bp_file, [bp_line])
+        session.start_debugging()
+        hit = session.wait_for_thread_stopped()
 
-    response = debug_session.send_request('completions', arguments={
-        'frameId': hit.frame_id,
-        'text': 'b.'
-    }).wait_for_response()
+        response = session.send_request('completions', arguments={
+            'frameId': hit.frame_id,
+            'text': 'b.'
+        }).wait_for_response()
 
-    labels = set(target['label'] for target in response.body['targets'])
-    assert labels.issuperset(['get', 'items', 'keys', 'setdefault', 'update', 'values'])
+        labels = set(target['label'] for target in response.body['targets'])
+        assert labels.issuperset(['get', 'items', 'keys', 'setdefault', 'update', 'values'])
 
-    response = debug_session.send_request('completions', arguments={
-        'frameId': hit.frame_id,
-        'text': 'not_there'
-    }).wait_for_response()
+        response = session.send_request('completions', arguments={
+            'frameId': hit.frame_id,
+            'text': 'not_there'
+        }).wait_for_response()
 
-    assert not response.body['targets']
+        assert not response.body['targets']
 
-    debug_session.send_request('continue').wait_for_response()
-    debug_session.wait_for_exit()
+        session.send_request('continue').wait_for_response(freeze=False)
+        session.wait_for_exit()

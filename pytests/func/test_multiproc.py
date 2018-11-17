@@ -13,11 +13,11 @@ from pytests.helpers.session import DebugSession
 from pytests.helpers.timeline import Event, Request, Response
 
 
-@pytest.mark.timeout(60)
+@pytest.mark.timeout(30)
 @pytest.mark.skipif(platform.system() != 'Windows',
                     reason='Debugging multiprocessing module only works on Windows')
 @pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
-def test_multiprocessing(debug_session, pyfile, run_as, start_method):
+def test_multiprocessing(pyfile, run_as, start_method):
     @pyfile
     def code_to_debug():
         import multiprocessing
@@ -67,79 +67,66 @@ def test_multiprocessing(debug_session, pyfile, run_as, start_method):
             q.close()
             backchannel.write_json('done')
 
-    debug_session.initialize(multiprocess=True, target=(run_as, code_to_debug), start_method=start_method, use_backchannel=True)
-    debug_session.start_debugging()
+    with DebugSession() as parent_session:
+        parent_session.initialize(multiprocess=True, target=(run_as, code_to_debug), start_method=start_method, use_backchannel=True)
+        parent_session.start_debugging()
 
-    root_start_request, = debug_session.all_occurrences_of(Request('launch') | Request('attach'))
-    root_process, = debug_session.all_occurrences_of(Event('process'))
-    root_pid = int(root_process.body['systemProcessId'])
+        root_start_request, = parent_session.all_occurrences_of(Request('launch') | Request('attach'))
+        root_process, = parent_session.all_occurrences_of(Event('process'))
+        root_pid = int(root_process.body['systemProcessId'])
 
-    child_pid = debug_session.read_json()
+        child_pid = parent_session.read_json()
 
-    child_subprocess = debug_session.wait_for_next(Event('ptvsd_subprocess'))
-    assert child_subprocess == Event('ptvsd_subprocess', {
-        'rootProcessId': root_pid,
-        'parentProcessId': root_pid,
-        'processId': child_pid,
-        'port': ANY.int,
-        'rootStartRequest': {
-            'seq': ANY.int,
-            'type': 'request',
-            'command': root_start_request.command,
-            'arguments': root_start_request.arguments,
-        }
-    })
-    child_port = child_subprocess.body['port']
+        child_subprocess = parent_session.wait_for_next(Event('ptvsd_subprocess'))
+        assert child_subprocess == Event('ptvsd_subprocess', {
+            'rootProcessId': root_pid,
+            'parentProcessId': root_pid,
+            'processId': child_pid,
+            'port': ANY.int,
+            'rootStartRequest': {
+                'seq': ANY.int,
+                'type': 'request',
+                'command': root_start_request.command,
+                'arguments': root_start_request.arguments,
+            }
+        })
+        parent_session.proceed()
 
-    child_session = DebugSession(start_method='attach_socket_cmdline', ptvsd_port=child_port)
-    child_session.ignore_unobserved = debug_session.ignore_unobserved
-    child_session.connect()
-    child_session.handshake()
-    child_session.start_debugging()
+        with parent_session.connect_to_child_session(child_subprocess) as child_session:
+            child_session.start_debugging()
 
-    debug_session.proceed()
-    child_child_subprocess = debug_session.wait_for_next(Event('ptvsd_subprocess'))
-    assert child_child_subprocess == Event('ptvsd_subprocess', {
-        'rootProcessId': root_pid,
-        'parentProcessId': child_pid,
-        'processId': ANY.int,
-        'port': ANY.int,
-        'rootStartRequest': {
-            'seq': ANY.int,
-            'type': 'request',
-            'command': root_start_request.command,
-            'arguments': root_start_request.arguments,
-        }
-    })
-    child_child_port = child_child_subprocess.body['port']
+            grandchild_subprocess = parent_session.wait_for_next(Event('ptvsd_subprocess'))
+            assert grandchild_subprocess == Event('ptvsd_subprocess', {
+                'rootProcessId': root_pid,
+                'parentProcessId': child_pid,
+                'processId': ANY.int,
+                'port': ANY.int,
+                'rootStartRequest': {
+                    'seq': ANY.int,
+                    'type': 'request',
+                    'command': root_start_request.command,
+                    'arguments': root_start_request.arguments,
+                }
+            })
+            parent_session.proceed()
 
-    child_child_session = DebugSession(start_method='attach_socket_cmdline', ptvsd_port=child_child_port)
-    child_child_session.ignore_unobserved = debug_session.ignore_unobserved
-    child_child_session.connect()
-    child_child_session.handshake()
-    child_child_session.start_debugging(freeze=False)
+            with parent_session.connect_to_child_session(grandchild_subprocess) as grandchild_session:
+                grandchild_session.start_debugging()
 
-    debug_session.write_json('continue')
+                parent_session.write_json('continue')
 
-    if sys.version_info >= (3,):
-        child_child_session.wait_for_termination()
-        child_session.wait_for_termination()
-    else:
-        # These should really be wait_for_termination(), but child processes don't send the
-        # usual sequence of events leading to 'terminate' when they exit for some unclear
-        # reason (ptvsd bug?). So, just wait till they drop connection.
-        child_child_session.wait_for_disconnect()
-        child_session.wait_for_disconnect()
+                grandchild_session.wait_for_termination()
+                child_session.wait_for_termination()
 
-    assert debug_session.read_json() == 'done'
-    debug_session.wait_for_exit()
+                assert parent_session.read_json() == 'done'
+                parent_session.wait_for_exit()
 
 
-@pytest.mark.timeout(60)
+@pytest.mark.timeout(30)
 @pytest.mark.skipif(sys.version_info < (3, 0) and (platform.system() != 'Windows'),
                     reason='Bug #935')
 @pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
-def test_subprocess(debug_session, pyfile, start_method, run_as):
+def test_subprocess(pyfile, start_method, run_as):
     @pyfile
     def child():
         import sys
@@ -160,49 +147,45 @@ def test_subprocess(debug_session, pyfile, start_method, run_as):
         process = subprocess.Popen(argv, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         process.wait()
 
-    debug_session.program_args += [child]
-    debug_session.initialize(multiprocess=True, target=(run_as, parent), start_method=start_method, use_backchannel=True)
-    debug_session.start_debugging()
+    with DebugSession() as parent_session:
+        parent_session.program_args += [child]
+        parent_session.initialize(multiprocess=True, target=(run_as, parent), start_method=start_method, use_backchannel=True)
+        parent_session.start_debugging()
 
-    root_start_request, = debug_session.all_occurrences_of(Request('launch') | Request('attach'))
-    root_process, = debug_session.all_occurrences_of(Event('process'))
-    root_pid = int(root_process.body['systemProcessId'])
+        root_start_request, = parent_session.all_occurrences_of(Request('launch') | Request('attach'))
+        root_process, = parent_session.all_occurrences_of(Event('process'))
+        root_pid = int(root_process.body['systemProcessId'])
 
-    child_subprocess = debug_session.wait_for_next(Event('ptvsd_subprocess'))
-    assert child_subprocess == Event('ptvsd_subprocess', {
-        'rootProcessId': root_pid,
-        'parentProcessId': root_pid,
-        'processId': ANY.int,
-        'port': ANY.int,
-        'rootStartRequest': {
-            'seq': ANY.int,
-            'type': 'request',
-            'command': root_start_request.command,
-            'arguments': root_start_request.arguments,
-        }
-    })
-    child_pid = child_subprocess.body['processId']
-    child_port = child_subprocess.body['port']
-    debug_session.proceed()
+        child_subprocess = parent_session.wait_for_next(Event('ptvsd_subprocess'))
+        assert child_subprocess == Event('ptvsd_subprocess', {
+            'rootProcessId': root_pid,
+            'parentProcessId': root_pid,
+            'processId': ANY.int,
+            'port': ANY.int,
+            'rootStartRequest': {
+                'seq': ANY.int,
+                'type': 'request',
+                'command': root_start_request.command,
+                'arguments': root_start_request.arguments,
+            }
+        })
+        parent_session.proceed()
 
-    child_session = DebugSession(start_method='attach_socket_cmdline', ptvsd_port=child_port, pid=child_pid)
-    child_session.ignore_unobserved = debug_session.ignore_unobserved
-    child_session.connect()
-    child_session.handshake()
-    child_session.start_debugging()
+        with parent_session.connect_to_child_session(child_subprocess) as child_session:
+            child_session.start_debugging()
 
-    child_argv = debug_session.read_json()
-    assert child_argv == [child, '--arg1', '--arg2', '--arg3']
+            child_argv = parent_session.read_json()
+            assert child_argv == [child, '--arg1', '--arg2', '--arg3']
 
-    child_session.wait_for_exit()
-    debug_session.wait_for_exit()
+            child_session.wait_for_termination()
+            parent_session.wait_for_exit()
 
 
-@pytest.mark.timeout(60)
+@pytest.mark.timeout(30)
 @pytest.mark.skipif(sys.version_info < (3, 0) and (platform.system() != 'Windows'),
                     reason='Bug #935')
 @pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
-def test_autokill(debug_session, pyfile, start_method, run_as):
+def test_autokill(pyfile, start_method, run_as):
     @pyfile
     def child():
         from dbgimporter import import_and_enable_debugger
@@ -223,31 +206,23 @@ def test_autokill(debug_session, pyfile, start_method, run_as):
         subprocess.Popen(argv, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         backchannel.read_json()
 
-    debug_session.program_args += [child]
-    debug_session.initialize(multiprocess=True, target=(run_as, parent), start_method=start_method, use_backchannel=True)
-    debug_session.start_debugging()
+    with DebugSession() as parent_session:
+        parent_session.program_args += [child]
+        parent_session.initialize(multiprocess=True, target=(run_as, parent), start_method=start_method, use_backchannel=True)
+        parent_session.start_debugging()
 
-    child_subprocess = debug_session.wait_for_next(Event('ptvsd_subprocess'))
-    child_pid = child_subprocess.body['processId']
-    child_port = child_subprocess.body['port']
+        with parent_session.connect_to_next_child_session() as child_session:
+            child_session.start_debugging()
 
-    debug_session.proceed()
+            if parent_session.start_method == 'launch':
+                # In launch scenario, terminate the parent process by disconnecting from it.
+                parent_session.expected_returncode = ANY
+                disconnect = parent_session.send_request('disconnect', {})
+                parent_session.wait_for_next(Response(disconnect))
+            else:
+                # In attach scenario, just let the parent process run to completion.
+                parent_session.expected_returncode = 0
+                parent_session.write_json(None)
 
-    child_session = DebugSession(start_method='attach_socket_cmdline', ptvsd_port=child_port, pid=child_pid)
-    child_session.expected_returncode = ANY
-    child_session.connect()
-    child_session.handshake()
-    child_session.start_debugging()
-
-    if debug_session.start_method == 'launch':
-        # In launch scenario, terminate the parent process by disconnecting from it.
-        debug_session.expected_returncode = ANY
-        disconnect = debug_session.send_request('disconnect', {})
-        debug_session.wait_for_next(Response(disconnect))
-    else:
-        # In attach scenario, just let the parent process run to completion.
-        debug_session.expected_returncode = 0
-        debug_session.write_json(None)
-
-    debug_session.wait_for_exit()
-    child_session.wait_for_exit()
+            child_session.wait_for_termination()
+            parent_session.wait_for_exit()
