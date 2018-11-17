@@ -545,7 +545,7 @@ class DebugSession(object):
                 'breakpoints': [{'line': bp_line} for bp_line in lines],
             }).wait_for_response()
 
-    def wait_for_thread_stopped(self, reason='breakpoint'):
+    def wait_for_thread_stopped(self, reason=ANY):
         thread_stopped = self.wait_for_next(Event('stopped', ANY.dict_with({'reason': reason})))
 
         tid = thread_stopped.body['threadId']

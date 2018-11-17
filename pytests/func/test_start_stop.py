@@ -8,7 +8,6 @@ import platform
 import pytest
 import sys
 
-from pytests.helpers import print
 from pytests.helpers.pattern import ANY
 from pytests.helpers.timeline import Event
 
@@ -17,17 +16,17 @@ from pytests.helpers.timeline import Event
 def test_break_on_entry(debug_session, pyfile, run_as, start_method):
     @pyfile
     def code_to_debug():
+        import backchannel
         from dbgimporter import import_and_enable_debugger
         import_and_enable_debugger()
-        print('one')
-        print('two')
-        print('three')
+        backchannel.write_json('done')
 
     debug_session.debug_options += ['StopOnEntry']
     debug_session.initialize(
         target=(run_as, code_to_debug),
         start_method=start_method,
         ignore_unobserved=[Event('continued')],
+        use_backchannel=True,
     )
     debug_session.start_debugging()
 
@@ -44,13 +43,9 @@ def test_break_on_entry(debug_session, pyfile, run_as, start_method):
     assert frames[0]['line'] == 1
 
     debug_session.send_request('continue').wait_for_response()
-
     debug_session.wait_for_termination()
 
-    output = [e.body['output'] for e in debug_session.all_occurrences_of(Event('output'))
-              if len(e.body['output']) >= 3 and e.body['category'] == 'stdout']
-    assert len(output) == 3
-    assert output == ['one', 'two', 'three']
+    assert debug_session.read_json() == 'done'
 
     debug_session.wait_for_exit()
 
@@ -61,11 +56,10 @@ def test_break_on_entry(debug_session, pyfile, run_as, start_method):
 def test_wait_on_normal_exit_enabled(debug_session, pyfile, run_as, start_method):
     @pyfile
     def code_to_debug():
+        import backchannel
         from dbgimporter import import_and_enable_debugger
         import_and_enable_debugger()
-        print('one')
-        print('two')
-        print('three')
+        backchannel.write_json('done')
 
     debug_session.debug_options += ['WaitOnNormalExit']
 
@@ -75,6 +69,7 @@ def test_wait_on_normal_exit_enabled(debug_session, pyfile, run_as, start_method
         target=(run_as, bp_file),
         start_method=start_method,
         ignore_unobserved=[Event('continued')],
+        use_backchannel=True,
     )
     debug_session.set_breakpoints(bp_file, [bp_line])
     debug_session.start_debugging()
@@ -86,10 +81,7 @@ def test_wait_on_normal_exit_enabled(debug_session, pyfile, run_as, start_method
     debug_session.expected_returncode = ANY.int
     debug_session.wait_for_next(Event('exited'))
 
-    output = [e.body['output'] for e in debug_session.all_occurrences_of(Event('output'))
-              if len(e.body['output']) >= 3 and e.body['category'] == 'stdout']
-    assert len(output) == 3
-    assert output == ['one', 'two', 'three']
+    assert debug_session.read_json() == 'done'
 
     debug_session.process.stdin.write(b' \r\n')
     debug_session.wait_for_exit()
@@ -108,12 +100,11 @@ def test_wait_on_normal_exit_enabled(debug_session, pyfile, run_as, start_method
 def test_wait_on_abnormal_exit_enabled(debug_session, pyfile, run_as, start_method):
     @pyfile
     def code_to_debug():
+        import backchannel
         import sys
         from dbgimporter import import_and_enable_debugger
         import_and_enable_debugger()
-        print('one')
-        print('two')
-        print('three')
+        backchannel.write_json('done')
         sys.exit(12345)
 
     debug_session.debug_options += ['WaitOnAbnormalExit']
@@ -124,6 +115,7 @@ def test_wait_on_abnormal_exit_enabled(debug_session, pyfile, run_as, start_meth
         target=(run_as, bp_file),
         start_method=start_method,
         ignore_unobserved=[Event('continued')],
+        use_backchannel=True,
     )
     debug_session.set_breakpoints(bp_file, [bp_line])
     debug_session.start_debugging()
@@ -135,10 +127,7 @@ def test_wait_on_abnormal_exit_enabled(debug_session, pyfile, run_as, start_meth
     debug_session.expected_returncode = ANY.int
     debug_session.wait_for_next(Event('exited'))
 
-    output = [e.body['output'] for e in debug_session.all_occurrences_of(Event('output'))
-              if len(e.body['output']) >= 3 and e.body['category'] == 'stdout']
-    assert len(output) == 3
-    assert output == ['one', 'two', 'three']
+    assert debug_session.read_json() == 'done'
 
     debug_session.process.stdin.write(b' \r\n')
     debug_session.wait_for_exit()
@@ -155,11 +144,10 @@ def test_wait_on_abnormal_exit_enabled(debug_session, pyfile, run_as, start_meth
 def test_exit_normally_with_wait_on_abnormal_exit_enabled(debug_session, pyfile, run_as, start_method):
     @pyfile
     def code_to_debug():
+        import backchannel
         from dbgimporter import import_and_enable_debugger
         import_and_enable_debugger()
-        print('one')
-        print('two')
-        print('three')
+        backchannel.write_json('done')
 
     debug_session.debug_options += ['WaitOnAbnormalExit']
 
@@ -169,6 +157,7 @@ def test_exit_normally_with_wait_on_abnormal_exit_enabled(debug_session, pyfile,
         target=(run_as, bp_file),
         start_method=start_method,
         ignore_unobserved=[Event('continued')],
+        use_backchannel=True,
     )
     debug_session.set_breakpoints(bp_file, [bp_line])
     debug_session.start_debugging()
@@ -179,9 +168,6 @@ def test_exit_normally_with_wait_on_abnormal_exit_enabled(debug_session, pyfile,
 
     debug_session.wait_for_termination()
 
-    output = [e.body['output'] for e in debug_session.all_occurrences_of(Event('output'))
-              if len(e.body['output']) >= 3 and e.body['category'] == 'stdout']
-    assert len(output) == 3
-    assert output == ['one', 'two', 'three']
+    assert debug_session.read_json() == 'done'
 
     debug_session.wait_for_exit()

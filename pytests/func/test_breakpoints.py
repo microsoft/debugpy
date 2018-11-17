@@ -25,7 +25,7 @@ def test_path_with_ampersand(debug_session, start_method, run_as):
     )
     debug_session.set_breakpoints(testfile, [bp_line])
     debug_session.start_debugging()
-    hit = debug_session.wait_for_thread_stopped()
+    hit = debug_session.wait_for_thread_stopped('breakpoint')
     frames = hit.stacktrace.body['stackFrames']
     assert compare_path(frames[0]['source']['path'], testfile, show=False)
 
@@ -45,7 +45,7 @@ def test_path_with_unicode(debug_session, start_method, run_as):
     )
     debug_session.set_breakpoints(testfile, [bp_line])
     debug_session.start_debugging()
-    hit = debug_session.wait_for_thread_stopped()
+    hit = debug_session.wait_for_thread_stopped('breakpoint')
     frames = hit.stacktrace.body['stackFrames']
     assert compare_path(frames[0]['source']['path'], testfile, show=False)
     assert u'ಏನಾದರೂ_ಮಾಡು' == frames[0]['name']

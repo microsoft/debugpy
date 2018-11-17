@@ -4,7 +4,6 @@
 
 from __future__ import print_function, with_statement, absolute_import
 
-from pytests.helpers import print
 from pytests.helpers.pattern import ANY
 from pytests.helpers.timeline import Event
 
@@ -106,20 +105,24 @@ def test_variables_and_evaluate(debug_session, pyfile, run_as, start_method):
 def test_set_variable(debug_session, pyfile, run_as, start_method):
     @pyfile
     def code_to_debug():
+        import backchannel
         from dbgimporter import import_and_enable_debugger
         import_and_enable_debugger()
+        import ptvsd
         a = 1
-        print(a)
+        ptvsd.break_into_debugger()
+        backchannel.write_json(a)
 
-    bp_line = 4
-    bp_file = code_to_debug
+    # bp_line = 5
+    # bp_file = code_to_debug
 
     debug_session.initialize(
-        target=(run_as, bp_file),
+        target=(run_as, code_to_debug),
         start_method=start_method,
         ignore_unobserved=[Event('continued')],
+        use_backchannel=True,
     )
-    debug_session.set_breakpoints(bp_file, [bp_line])
+    # debug_session.set_breakpoints(bp_file, [bp_line])
     debug_session.start_debugging()
     hit = debug_session.wait_for_thread_stopped()
 
@@ -152,11 +155,9 @@ def test_set_variable(debug_session, pyfile, run_as, start_method):
     })
 
     debug_session.send_request('continue').wait_for_response()
+    debug_session.proceed()
 
-    debug_session.wait_for_next(Event('output'))
-    output = [e for e in debug_session.all_occurrences_of(Event('output'))
-              if e.body['output'].startswith('1000')]
-    assert any(output)
+    assert debug_session.read_json() == 1000
 
     debug_session.wait_for_exit()
 
