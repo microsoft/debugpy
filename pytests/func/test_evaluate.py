@@ -22,7 +22,12 @@ def test_variables_and_evaluate(debug_session, pyfile, run_as, start_method):
 
     bp_line = 6
     bp_file = code_to_debug
-    debug_session.initialize(target=(run_as, bp_file), start_method=start_method)
+
+    debug_session.initialize(
+        target=(run_as, bp_file),
+        start_method=start_method,
+        ignore_unobserved=[Event('continued')],
+    )
     debug_session.set_breakpoints(bp_file, [bp_line])
     debug_session.start_debugging()
     hit = debug_session.wait_for_thread_stopped()
@@ -95,8 +100,6 @@ def test_variables_and_evaluate(debug_session, pyfile, run_as, start_method):
     })
 
     debug_session.send_request('continue').wait_for_response()
-    debug_session.wait_for_next(Event('continued'))
-
     debug_session.wait_for_exit()
 
 
@@ -110,7 +113,12 @@ def test_set_variable(debug_session, pyfile, run_as, start_method):
 
     bp_line = 4
     bp_file = code_to_debug
-    debug_session.initialize(target=(run_as, bp_file), start_method=start_method)
+
+    debug_session.initialize(
+        target=(run_as, bp_file),
+        start_method=start_method,
+        ignore_unobserved=[Event('continued')],
+    )
     debug_session.set_breakpoints(bp_file, [bp_line])
     debug_session.start_debugging()
     hit = debug_session.wait_for_thread_stopped()
@@ -144,7 +152,6 @@ def test_set_variable(debug_session, pyfile, run_as, start_method):
     })
 
     debug_session.send_request('continue').wait_for_response()
-    debug_session.wait_for_next(Event('continued'))
 
     debug_session.wait_for_next(Event('output'))
     output = [e for e in debug_session.all_occurrences_of(Event('output'))
@@ -177,7 +184,12 @@ def test_variable_sort(debug_session, pyfile, run_as, start_method):
 
     bp_line = 15
     bp_file = code_to_debug
-    debug_session.initialize(target=(run_as, bp_file), start_method=start_method)
+
+    debug_session.initialize(
+        target=(run_as, bp_file),
+        start_method=start_method,
+        ignore_unobserved=[Event('continued')],
+    )
     debug_session.set_breakpoints(bp_file, [bp_line])
     debug_session.start_debugging()
     hit = debug_session.wait_for_thread_stopped()
@@ -221,6 +233,4 @@ def test_variable_sort(debug_session, pyfile, run_as, start_method):
     # assert variable_names[:3] == ['1', '2', '10']
 
     debug_session.send_request('continue').wait_for_response()
-    debug_session.wait_for_next(Event('continued'))
-
     debug_session.wait_for_exit()

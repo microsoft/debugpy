@@ -36,6 +36,7 @@ def test_django_breakpoint_no_multiproc(debug_session, bp_file, bp_line, bp_name
         debug_options=['Django'],
         cwd=DJANGO1_ROOT,
         expected_returncode=ANY.int,  # No clean way to kill Flask server
+        ignore_unobserved=[Event('continued')],
     )
 
     bp_var_content = 'Django-Django-Test'
@@ -87,7 +88,6 @@ def test_django_breakpoint_no_multiproc(debug_session, bp_file, bp_line, bp_name
         }]
 
     debug_session.send_request('continue').wait_for_response()
-    debug_session.wait_for_next(Event('continued'))
 
     web_content = web_request.wait_for_response()
     assert web_content.find(bp_var_content) != -1
@@ -112,6 +112,7 @@ def test_django_exception_no_multiproc(debug_session, ex_type, ex_line, start_me
         debug_options=['Django'],
         cwd=DJANGO1_ROOT,
         expected_returncode=ANY.int,  # No clean way to kill Flask server
+        ignore_unobserved=[Event('continued')],
     )
 
     debug_session.send_request('setExceptionBreakpoints', arguments={
@@ -168,7 +169,6 @@ def test_django_exception_no_multiproc(debug_session, ex_type, ex_line, start_me
     }
 
     debug_session.send_request('continue').wait_for_response()
-    debug_session.wait_for_next(Event('continued'))
 
     # ignore response for exception tests
     web_request.wait_for_response()
@@ -203,7 +203,7 @@ def test_django_breakpoint_multiproc(debug_session, start_method):
         program_args=['runserver', ],
         debug_options=['Django'],
         cwd=DJANGO1_ROOT,
-        ignore_events=[Event('stopped'), Event('continued')],
+        ignore_unobserved=[Event('stopped'), Event('continued')],
         expected_returncode=ANY.int,  # No clean way to kill Flask server
     )
 
@@ -270,7 +270,6 @@ def test_django_breakpoint_multiproc(debug_session, start_method):
         }]
 
     child_session.send_request('continue').wait_for_response()
-    child_session.wait_for_next(Event('continued'))
 
     web_content = web_request.wait_for_response()
     assert web_content.find(bp_var_content) != -1

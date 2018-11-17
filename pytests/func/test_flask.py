@@ -40,7 +40,7 @@ def _flask_no_multiproc_common(debug_session, start_method):
         start_method=start_method,
         target=('module', 'flask'),
         program_args=['run', '--no-debugger', '--no-reload', '--with-threads'],
-        ignore_events=[Event('stopped'), Event('continued')],
+        ignore_unobserved=[Event('stopped'), Event('continued')],
         debug_options=['Jinja'],
         cwd=FLASK1_ROOT,
         env=env,
@@ -107,7 +107,6 @@ def test_flask_breakpoint_no_multiproc(debug_session, bp_file, bp_line, bp_name,
         }]
 
     debug_session.send_request('continue').wait_for_response()
-    debug_session.wait_for_next(Event('continued'))
 
     web_content = web_request.wait_for_response()
     assert web_content.find(bp_var_content) != -1
@@ -182,7 +181,6 @@ def test_flask_exception_no_multiproc(debug_session, ex_type, ex_line, start_met
     }
 
     debug_session.send_request('continue').wait_for_response()
-    debug_session.wait_for_next(Event('continued'))
 
     # ignore response for exception tests
     web_request.wait_for_response()
@@ -228,7 +226,7 @@ def test_flask_breakpoint_multiproc(debug_session, start_method):
         target=('module', 'flask'),
         multiprocess=True,
         program_args=['run', ],
-        ignore_events=[Event('stopped'), Event('continued')],
+        ignore_unobserved=[Event('stopped'), Event('continued')],
         debug_options=['Jinja'],
         cwd=FLASK1_ROOT,
         env=env,
@@ -292,7 +290,6 @@ def test_flask_breakpoint_multiproc(debug_session, start_method):
         }]
 
     child_session.send_request('continue').wait_for_response()
-    child_session.wait_for_next(Event('continued'))
 
     web_content = web_request.wait_for_response()
     assert web_content.find(bp_var_content) != -1

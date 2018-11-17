@@ -87,6 +87,7 @@ class DebugSession(object):
         self.expect_new = self.timeline.expect_new
         self.expect_realized = self.timeline.expect_realized
         self.all_occurrences_of = self.timeline.all_occurrences_of
+        self.observe_all = self.timeline.observe_all
 
     def __contains__(self, expectation):
         return expectation in self.timeline
@@ -523,7 +524,7 @@ class DebugSession(object):
         self.ignore_unobserved += [
             Event('thread', ANY.dict_with({'reason': 'started'})),
             Event('module')
-        ] + kwargs.pop('ignore_events', [])
+        ] + kwargs.pop('ignore_unobserved', [])
 
         self.env.update(kwargs.pop('env', {}))
         self.debug_options += kwargs.pop('debug_options', [])

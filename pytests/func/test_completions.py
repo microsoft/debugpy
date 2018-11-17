@@ -46,11 +46,12 @@ def test_completions_scope(debug_session, pyfile, bp_line, run_as, start_method)
         print('done')
 
     expected = expected_at_line[bp_line]
-    debug_session.ignore_unobserved += [
-        Event('stopped'),
-        Event('continued')
-    ]
-    debug_session.initialize(target=(run_as, code_to_debug), start_method=start_method)
+
+    debug_session.initialize(
+        target=(run_as, code_to_debug),
+        start_method=start_method,
+        ignore_unobserved=[Event('stopped'), Event('continued')],
+    )
     debug_session.set_breakpoints(code_to_debug, [bp_line])
     debug_session.start_debugging()
 
@@ -74,7 +75,6 @@ def test_completions_scope(debug_session, pyfile, bp_line, run_as, start_method)
     targets = resp_completions.body['targets']
 
     debug_session.send_request('continue').wait_for_response()
-    debug_session.wait_for_next(Event('continued'))
 
     targets.sort(key=lambda t: t['label'])
     expected.sort(key=lambda t: t['label'])
@@ -95,7 +95,12 @@ def test_completions(debug_session, pyfile, start_method, run_as):
 
     bp_line = 6
     bp_file = code_to_debug
-    debug_session.initialize(target=(run_as, bp_file), start_method=start_method)
+
+    debug_session.initialize(
+        target=(run_as, bp_file),
+        start_method=start_method,
+        ignore_unobserved=[Event('continued')],
+    )
     debug_session.set_breakpoints(bp_file, [bp_line])
     debug_session.start_debugging()
     hit = debug_session.wait_for_thread_stopped()
@@ -116,6 +121,4 @@ def test_completions(debug_session, pyfile, start_method, run_as):
     assert not response.body['targets']
 
     debug_session.send_request('continue').wait_for_response()
-    debug_session.wait_for_next(Event('continued'))
-
     debug_session.wait_for_exit()

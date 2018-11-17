@@ -17,16 +17,19 @@ BP_TEST_ROOT = get_test_root('bp')
 def test_path_with_ampersand(debug_session, start_method, run_as):
     bp_line = 4
     testfile = os.path.join(BP_TEST_ROOT, 'a&b', 'test.py')
-    debug_session.initialize(target=(run_as, testfile), start_method=start_method)
+
+    debug_session.initialize(
+        target=(run_as, testfile),
+        start_method=start_method,
+        ignore_unobserved=[Event('continued')],
+    )
     debug_session.set_breakpoints(testfile, [bp_line])
     debug_session.start_debugging()
     hit = debug_session.wait_for_thread_stopped()
     frames = hit.stacktrace.body['stackFrames']
     assert compare_path(frames[0]['source']['path'], testfile, show=False)
 
-    continue_request = debug_session.send_request('continue')
-    debug_session.wait_for_next(Response(continue_request) & Event('continued'))
-
+    debug_session.send_request('continue').wait_for_response()
     debug_session.wait_for_exit()
 
 
@@ -34,7 +37,12 @@ def test_path_with_ampersand(debug_session, start_method, run_as):
 def test_path_with_unicode(debug_session, start_method, run_as):
     bp_line = 6
     testfile = os.path.join(BP_TEST_ROOT, u'ನನ್ನ_ಸ್ಕ್ರಿಪ್ಟ್.py')
-    debug_session.initialize(target=(run_as, testfile), start_method=start_method)
+
+    debug_session.initialize(
+        target=(run_as, testfile),
+        start_method=start_method,
+        ignore_unobserved=[Event('continued')],
+    )
     debug_session.set_breakpoints(testfile, [bp_line])
     debug_session.start_debugging()
     hit = debug_session.wait_for_thread_stopped()
@@ -42,7 +50,5 @@ def test_path_with_unicode(debug_session, start_method, run_as):
     assert compare_path(frames[0]['source']['path'], testfile, show=False)
     assert u'ಏನಾದರೂ_ಮಾಡು' == frames[0]['name']
 
-    continue_request = debug_session.send_request('continue')
-    debug_session.wait_for_next(Response(continue_request) & Event('continued'))
-
+    debug_session.send_request('continue').wait_for_response()
     debug_session.wait_for_exit()
