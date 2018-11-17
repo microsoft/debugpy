@@ -177,6 +177,10 @@ def test_after(make_timeline):
     with timeline.frozen():
         assert second_exp in timeline
 
+    timeline.mark('first')
+    with timeline.frozen():
+        assert Mark('second') >> Mark('first') in timeline
+
 
 def test_before(make_timeline):
     timeline, _ = make_timeline()
