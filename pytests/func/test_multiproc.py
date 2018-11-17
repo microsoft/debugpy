@@ -126,7 +126,7 @@ def test_multiprocessing(pyfile, run_as, start_method):
 @pytest.mark.skipif(sys.version_info < (3, 0) and (platform.system() != 'Windows'),
                     reason='Bug #935')
 @pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
-def test_subprocess(pyfile, start_method, run_as):
+def test_subprocess(pyfile, run_as, start_method):
     @pyfile
     def child():
         import sys
@@ -185,7 +185,7 @@ def test_subprocess(pyfile, start_method, run_as):
 @pytest.mark.skipif(sys.version_info < (3, 0) and (platform.system() != 'Windows'),
                     reason='Bug #935')
 @pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
-def test_autokill(pyfile, start_method, run_as):
+def test_autokill(pyfile, run_as, start_method):
     @pyfile
     def child():
         from dbgimporter import import_and_enable_debugger

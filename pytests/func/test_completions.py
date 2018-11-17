@@ -85,7 +85,7 @@ def test_completions_scope(pyfile, bp_line, run_as, start_method):
         session.wait_for_exit()
 
 
-def test_completions(pyfile, start_method, run_as):
+def test_completions(pyfile, run_as, start_method):
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger

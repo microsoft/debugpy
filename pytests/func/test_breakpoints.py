@@ -17,7 +17,7 @@ from pytests.helpers.timeline import Event
 BP_TEST_ROOT = get_test_root('bp')
 
 
-def test_path_with_ampersand(start_method, run_as):
+def test_path_with_ampersand(run_as, start_method):
     bp_line = 4
     testfile = os.path.join(BP_TEST_ROOT, 'a&b', 'test.py')
 
@@ -38,7 +38,7 @@ def test_path_with_ampersand(start_method, run_as):
 
 
 @pytest.mark.skipif(sys.version_info < (3, 0), reason='Paths are not Unicode in Python 2.7')
-def test_path_with_unicode(start_method, run_as):
+def test_path_with_unicode(run_as, start_method):
     bp_line = 6
     testfile = os.path.join(BP_TEST_ROOT, u'ನನ್ನ_ಸ್ಕ್ರಿಪ್ಟ್.py')
 

@@ -152,23 +152,6 @@ else:
     ]
 
 
-@pytest.fixture
-def debug_session(request):
-    helpers.timestamp_zero = helpers.clock()
-    session = DebugSession()
-    try:
-        yield session
-        try:
-            failed = request.node.call_result.failed
-        except AttributeError:
-            pass
-        else:
-            if not failed:
-                session.wait_for_exit()
-    finally:
-        session.stop()
-
-
 @pytest.fixture(
     name='run_as',
     params=_RUN_AS_PARAMS
