@@ -471,7 +471,7 @@ class Expectation(object):
         return not self == other
 
     def after(self, other):
-        return SequencedExpectation(self, lower_bound=other)
+        return SequencedExpectation(other, self)
 
     def when(self, condition):
         return ConditionalExpectation(self, condition)
@@ -521,36 +521,36 @@ class DerivativeExpectation(Expectation):
 
 
 class SequencedExpectation(DerivativeExpectation):
-    def __init__(self, expectation, lower_bound):
-        super(SequencedExpectation, self).__init__(expectation, lower_bound)
+    def __init__(self, first, second):
+        super(SequencedExpectation, self).__init__(first, second)
 
     @property
-    def expectation(self):
+    def first(self):
         return self.expectations[0]
 
     @property
-    def lower_bound(self):
+    def second(self):
         return self.expectations[1]
 
     def test(self, first, last):
         assert isinstance(first, Occurrence)
         assert isinstance(last, Occurrence)
 
-        for lhs_reasons in self.lower_bound.test(first, last):
-            lhs_occs = lhs_reasons.values()
-            lower_bound = latest_of(lhs_occs).next
+        for first_reasons in self.first.test(first, last):
+            first_occs = first_reasons.values()
+            lower_bound = latest_of(first_occs).next
             if lower_bound is not None:
-                for rhs_reasons in self.expectation.test(lower_bound, last):
-                    reasons = rhs_reasons.copy()
-                    reasons.update(lhs_reasons)
+                for second_reasons in self.second.test(lower_bound, last):
+                    reasons = second_reasons.copy()
+                    reasons.update(first_reasons)
                     yield reasons
 
     @property
     def has_lower_bound(self):
-        return self.expectation.has_lower_bound or self.lower_bound.has_lower_bound
+        return self.first.has_lower_bound or self.second.has_lower_bound
 
     def __repr__(self):
-        return '(%r >> %r)' % (self.lower_bound, self.expectation)
+        return '(%r >> %r)' % (self.first, self.second)
 
 
 class OrExpectation(DerivativeExpectation):
