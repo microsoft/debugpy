@@ -152,18 +152,17 @@ class Timeline(object):
         self.observe(*[occ for occ in self if occ == expectation])
 
     def wait_until(self, condition, freeze=None):
+        freeze = freeze or self.is_frozen
         try:
-            # First, test the condition against the timeline as it currently is.
-            with self.frozen():
-                result = condition()
-                if result:
-                    return result
-
-            freeze = freeze or self.is_frozen
-
-            # Now keep spinning waiting for new occurrences to come, and test the
-            # condition against every new batch in turn.
             with self._recorded_new:
+                # First, test the condition against the timeline as it currently is.
+                with self.frozen():
+                    result = condition()
+                    if result:
+                        return result
+
+                # Now keep spinning waiting for new occurrences to come, and test the
+                # condition against every new batch in turn.
                 self.unfreeze()
                 while True:
                     self._recorded_new.wait()
