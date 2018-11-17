@@ -12,7 +12,6 @@ import types
 
 from . import helpers
 from .helpers.printer import wait_for_output
-from .helpers.session import DebugSession
 
 
 @pytest.hookimpl(hookwrapper=True, tryfirst=True)

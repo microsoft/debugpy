@@ -201,8 +201,11 @@ def test_variable_sort(pyfile, run_as, start_method):
         resp_variables = session.send_request('variables', arguments={
             'variablesReference': scopes[0]['variablesReference']
         }).wait_for_response()
-        variable_names = list(v['name'] for v in resp_variables.body['variables']
-                            if v['name'].find('_test') > 0)
+        variable_names = list(
+            v['name']
+            for v in resp_variables.body['variables']
+            if v['name'].find('_test') > 0
+        )
         assert variable_names == [
                 'a_test', 'b_test', 'c_test', '_a_test', '_b_test', '_c_test',
                 '__a_test', '__b_test', '__c_test', '__a_test__', '__b_test__',
