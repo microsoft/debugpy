@@ -35,4 +35,9 @@ script:
     fi
 
 after_success:
-  - bash <(curl -s https://codecov.io/bash); fi
+  - |
+    if [[ $TRAVIS_PYTHON_VERSION != '2.7' ]]; then
+      pushd src
+      bash <(curl -s https://codecov.io/bash)
+      popd
+    fi
