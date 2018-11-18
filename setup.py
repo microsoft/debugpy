@@ -12,8 +12,11 @@ import sys
 from setuptools import setup
 
 import versioneer
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src'))
 import ptvsd
 import ptvsd._vendored
+del sys.path[0]
 
 
 PYDEVD_ROOT = ptvsd._vendored.project_root('pydevd')
@@ -81,6 +84,7 @@ if __name__ == '__main__':
             'License :: OSI Approved :: Eclipse Public License 2.0 (EPL-2.0)',
             'License :: OSI Approved :: MIT License',
         ],
+        package_dir={'': 'src'},
         packages=[
             'ptvsd',
             'ptvsd._vendored',

@@ -251,6 +251,7 @@ class DebugSession(object):
         if self.backchannel_port:
             self.env['PTVSD_BACKCHANNEL_PORT'] = str(self.backchannel_port)
 
+        print('ptvsd: %s' % ptvsd.__file__)
         print('Start method: %s' % self.start_method)
         print('Target: (%s) %s' % self.target)
         print('Current directory: %s' % os.getcwd())
