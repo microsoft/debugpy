@@ -4,6 +4,10 @@ ignore = W,
     E265,E722,E501,E731,E306,E401,E302,E222,E303,
     E402
 exclude =
-    ptvsd/_vendored/pydevd,
-    ./.eggs,
-    ./versioneer.py
+    .eggs,
+    .git,
+    .tox,
+    build,
+    dist,
+    versioneer.py,
+    src/ptvsd/_vendored/pydevd
