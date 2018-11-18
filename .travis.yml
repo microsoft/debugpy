@@ -30,7 +30,7 @@ script:
   - |
     if [[ $TRAVIS_PYTHON_VERSION != '2.7' ]]; then
       pushd src
-      coverage run -m unittest discover -vv -s .. &&
+      coverage run -m unittest discover -vv -s ..
       popd
     fi
 
