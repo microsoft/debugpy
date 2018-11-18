@@ -192,7 +192,6 @@ class DebugSession(object):
             pytest.fail()
         return argv
 
-
     def initialize(self, **kwargs):
         """Spawns ptvsd using the configured method, telling it to execute the
         provided Python file, module, or code, and establishes a message channel
@@ -582,3 +581,9 @@ class DebugSession(object):
     def connect_to_next_child_session(self):
         ptvsd_subprocess = self.wait_for_next(Event('ptvsd_subprocess'))
         return self.connect_to_child_session(ptvsd_subprocess)
+
+    def get_stdout_as_string(self):
+        return b''.join(self.output_data['OUT'])
+
+    def get_stderr_as_string(self):
+        return b''.join(self.output_data['ERR'])

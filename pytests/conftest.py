@@ -6,6 +6,7 @@ from __future__ import print_function, with_statement, absolute_import
 
 import inspect
 import os
+import platform
 import pytest
 import threading
 import types
@@ -144,6 +145,7 @@ else:
         #'attach_socket_import',
         #'attach_pid',
     ]
+    _ATTACH_PARAMS += ['attach_socket_import'] if platform.system() == 'Windows' else []
 
     _RUN_AS_PARAMS = [
         'file',
@@ -163,5 +165,5 @@ def _run_as(request):
     name='start_method',
     params=_ATTACH_PARAMS
 )
-def _start_method(request):
+def start_method(request):
     return request.param
