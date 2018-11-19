@@ -34,7 +34,12 @@ def test_thread_count(pyfile, run_as, start_method, count):
         stop = True
 
     with DebugSession() as session:
-        session.initialize(target=(run_as, code_to_debug), start_method=start_method, program_args=[str(count)])
+        session.initialize(
+            target=(run_as, code_to_debug),
+            start_method=start_method,
+            program_args=[str(count)],
+            ignore_unobserved=[Event('continued')],
+        )
         session.set_breakpoints(code_to_debug, [19])
         session.start_debugging()
         session.wait_for_thread_stopped()
@@ -43,6 +48,4 @@ def test_thread_count(pyfile, run_as, start_method, count):
         assert len(resp_threads.body['threads']) == count
 
         session.send_request('continue').wait_for_response()
-        session.wait_for_next(Event('continued'))
-
         session.wait_for_exit()
