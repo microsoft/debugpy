@@ -22,22 +22,13 @@ jobs:
       script:
         - flake8
 
-install:
-  - pip install -U pip setuptools -r test_requirements.txt
-
 script:
-  - tox -- -vv
-  - |
-    if [[ $TRAVIS_PYTHON_VERSION != '2.7' ]]; then
-      pushd src
-      coverage run -m unittest discover -vv -s ..
-      popd
-    fi
+  - tox
 
-after_success:
-  - |
-    if [[ $TRAVIS_PYTHON_VERSION != '2.7' ]]; then
-      pushd src
-      bash <(curl -s https://codecov.io/bash)
-      popd
-    fi
+# after_success:
+#   - |
+#     if [[ $TRAVIS_PYTHON_VERSION != '2.7' ]]; then
+#       pushd src
+#       bash <(curl -s https://codecov.io/bash)
+#       popd
+#     fi
