@@ -22,9 +22,13 @@ jobs:
       script:
         - flake8
 
+install:
+  - pip install -U pip setuptools tox
+
 script:
   - tox
 
+# TODO: re-enable after https://github.com/Microsoft/ptvsd/issues/1033
 # after_success:
 #   - |
 #     if [[ $TRAVIS_PYTHON_VERSION != '2.7' ]]; then
