@@ -4,7 +4,6 @@
 
 from __future__ import print_function, with_statement, absolute_import
 
-from collections import defaultdict
 import numbers
 
 from ptvsd.compat import unicode
@@ -19,66 +18,6 @@ class BasePattern(object):
 
     def such_that(self, condition):
         return Maybe(self, condition)
-
-
-class Pattern(BasePattern):
-    """Represents a pattern of a data structure, that can be matched against the
-    actual data by using operator "in".
-
-    For lists and tuples, (data == Pattern(pattern)) is true if both are sequences of the
-    same length, and for all valid I, (data[I] == Pattern(pattern[I])).
-
-    For dicts, (data == Pattern(pattern)) is true if, for all K in data.keys() + pattern.keys(),
-    data.has_key(K) and (data[K] == Pattern(pattern[K])). ANY.dict_with() can be used
-    to perform partial matches.
-
-    For any other type, (data == Pattern(pattern)) is true if pattern is ANY or data == pattern.
-
-    If the match has failed, but data has a member called __data__,  then it is invoked
-    without arguments, and the same match is performed against the returned value.
-    This allows object to return a data value describing itself, that can then be matched
-    by a corresponding data pattern. Typically, it's a tuple or a dict.
-
-    See test_pattern.py for examples.
-    """
-
-    def __init__(self, pattern):
-        self.pattern = pattern
-
-    def __repr__(self):
-        return repr(self.pattern)
-
-    def _matches(self, data):
-        pattern = self.pattern
-        if isinstance(data, tuple) and isinstance(pattern, tuple):
-            return len(data) == len(pattern) and all(d == Pattern(p) for (p, d) in zip(pattern, data))
-        elif isinstance(data, list) and isinstance(pattern, list):
-            return tuple(data) == Pattern(tuple(pattern))
-        elif isinstance(data, dict) and isinstance(pattern, dict):
-            keys = set(tuple(data.keys()) + tuple(pattern.keys()))
-            def pairs_match(key):
-                try:
-                    d = data[key]
-                    p = pattern[key]
-                except KeyError:
-                    return False
-                return d == Pattern(p)
-            return all(pairs_match(key) for key in keys)
-        else:
-            return data == pattern
-
-    def __eq__(self, value):
-        if self._matches(value):
-            return True
-        try:
-            value.__data__
-        except AttributeError:
-            return False
-        else:
-            return value.__data__() == self
-
-    def __ne__(self, value):
-        return not self == value
 
 
 class Any(BasePattern):
@@ -105,11 +44,23 @@ class Any(BasePattern):
             d1 == Pattern(d2)           # False (need exact match)
             d1 == ANY.dict_with(d2)     # True (subset matches)
         """
-        class AnyDictWith(defaultdict):
+
+        class AnyDictWith(dict):
             def __repr__(self):
-                return repr(dict(items))[:-1] + ', ...}'
-        items = AnyDictWith(lambda: ANY, items)
-        return items
+                return repr(items)[:-1] + ', ...}'
+
+            def __eq__(self, other):
+                if not isinstance(other, dict):
+                    return NotImplemented
+                d = {key: ANY for key in other}
+                d.update(self)
+                return d == other
+
+            def __ne__(self, other):
+                return not (self == other)
+
+        items = dict(items)
+        return AnyDictWith(items)
 
 
 class Maybe(BasePattern):

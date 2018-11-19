@@ -10,7 +10,7 @@ import time
 
 from ptvsd.messaging import RequestFailure
 
-from .pattern import Pattern, ANY, SUCCESS, FAILURE, Is
+from .pattern import ANY, SUCCESS, FAILURE, Is
 from .timeline import Timeline, Mark, Event, Request, Response
 
 
@@ -29,7 +29,7 @@ def make_timeline(request):
         with timeline.frozen():
             assert timeline.beginning is not None
             initial_history = [Is(timeline.beginning)]
-            assert timeline.history() == Pattern(initial_history)
+            assert timeline.history() == initial_history
         return timeline, initial_history
 
     yield factory
@@ -65,23 +65,23 @@ def test_occurrences(make_timeline):
     assert mark3.id == 'dum'
 
     with timeline.frozen():
-        assert timeline.history() == Pattern(initial_history + [Is(mark1), Is(mark2), Is(mark3)])
+        assert timeline.history() == initial_history + [Is(mark1), Is(mark2), Is(mark3)]
         timeline.finalize()
 
-    assert timeline.all_occurrences_of(Mark('dum')) == Pattern((Is(mark1), Is(mark3)))
-    assert timeline.all_occurrences_of(Mark('dee')) == Pattern((Is(mark2),))
+    assert timeline.all_occurrences_of(Mark('dum')) == (Is(mark1), Is(mark3))
+    assert timeline.all_occurrences_of(Mark('dee')) == (Is(mark2),)
 
-    assert timeline[:].all_occurrences_of(Mark('dum')) == Pattern((Is(mark1), Is(mark3)))
+    assert timeline[:].all_occurrences_of(Mark('dum')) == (Is(mark1), Is(mark3))
 
     # Lower boundary is inclusive.
-    assert timeline[mark1:].all_occurrences_of(Mark('dum')) == Pattern((Is(mark1), Is(mark3)))
-    assert timeline[mark2:].all_occurrences_of(Mark('dum')) == Pattern((Is(mark3),))
-    assert timeline[mark3:].all_occurrences_of(Mark('dum')) == Pattern((Is(mark3),))
+    assert timeline[mark1:].all_occurrences_of(Mark('dum')) == (Is(mark1), Is(mark3))
+    assert timeline[mark2:].all_occurrences_of(Mark('dum')) == (Is(mark3),)
+    assert timeline[mark3:].all_occurrences_of(Mark('dum')) == (Is(mark3),)
 
     # Upper boundary is exclusive.
     assert timeline[:mark1].all_occurrences_of(Mark('dum')) == ()
-    assert timeline[:mark2].all_occurrences_of(Mark('dum')) == Pattern((Is(mark1),))
-    assert timeline[:mark3].all_occurrences_of(Mark('dum')) == Pattern((Is(mark1),))
+    assert timeline[:mark2].all_occurrences_of(Mark('dum')) == (Is(mark1),)
+    assert timeline[:mark3].all_occurrences_of(Mark('dum')) == (Is(mark1),)
 
 
 def test_event(make_timeline):
@@ -92,7 +92,7 @@ def test_event(make_timeline):
 
     with timeline.frozen():
         assert timeline.last is event
-        assert timeline.history() == Pattern(initial_history + [Is(event)])
+        assert timeline.history() == initial_history + [Is(event)]
         timeline.expect_realized(Event('stopped', {'reason': 'pause'}))
 
 
@@ -110,7 +110,7 @@ def test_request_response(make_timeline, outcome):
 
     with timeline.frozen():
         assert timeline.last is request
-        assert timeline.history() == Pattern(initial_history + [Is(request)])
+        assert timeline.history() == initial_history + [Is(request)]
         timeline.expect_realized(Request('next'))
         timeline.expect_realized(Request('next', {'threadId': 3}))
 
@@ -135,7 +135,7 @@ def test_request_response(make_timeline, outcome):
         assert response != Response(request_expectation, SUCCESS)
         assert response == Response(request_expectation, FAILURE)
 
-    assert response.circumstances == Pattern(('Response', Is(request), response_body))
+    assert response.circumstances == ('Response', Is(request), response_body)
     assert response.request is request
     assert response.body == response_body
     if outcome == 'success':
@@ -145,7 +145,7 @@ def test_request_response(make_timeline, outcome):
 
     with timeline.frozen():
         assert timeline.last is response
-        assert timeline.history() == Pattern(initial_history + [Is(request), Is(response)])
+        assert timeline.history() == initial_history + [Is(request), Is(response)]
         timeline.expect_realized(Response(request, response_body))
         timeline.expect_realized(Response(request, ANY))
         if outcome == 'success':
@@ -305,7 +305,7 @@ def test_xor(make_timeline):
 
 def test_conditional(make_timeline):
     def is_exciting(occ):
-        return occ.circumstances == Pattern(('Event', ANY, 'exciting'))
+        return occ.circumstances == ('Event', ANY, 'exciting')
 
     something = Event('something', ANY)
     something_exciting = something.when(is_exciting)
@@ -506,7 +506,7 @@ def test_concurrency(make_timeline, daemon, order):
     worker.join()
     assert mark is occurrences[0]
     assert timeline.last is mark
-    assert timeline.history() == Pattern(initial_history + occurrences)
+    assert timeline.history() == initial_history + occurrences
 
     if unblock_worker_later:
         unblock_worker_later.join()

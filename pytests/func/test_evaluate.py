@@ -4,7 +4,7 @@
 
 from __future__ import print_function, with_statement, absolute_import
 
-from pytests.helpers.pattern import ANY, Pattern
+from pytests.helpers.pattern import ANY
 from pytests.helpers.session import DebugSession
 from pytests.helpers.timeline import Event
 
@@ -294,7 +294,7 @@ def test_return_values(pyfile, run_as, start_method):
         variables = list(v for v in resp_variables.body['variables']
                          if v['name'].startswith('(return)'))
 
-        assert variables == Pattern([expected1])
+        assert variables == [expected1]
 
         session.send_request('next', {'threadId': hit.thread_id}).wait_for_response()
         hit = session.wait_for_thread_stopped(reason='step')
@@ -306,7 +306,7 @@ def test_return_values(pyfile, run_as, start_method):
         variables = list(v for v in resp_variables.body['variables']
                          if v['name'].startswith('(return)'))
 
-        assert variables == Pattern([expected1, expected2])
+        assert variables == [expected1, expected2]
 
         session.send_request('continue').wait_for_response()
         session.wait_for_exit()

@@ -34,6 +34,6 @@ def test_with_tab_in_output(pyfile, run_as, start_method):
         session.initialize(target=(run_as, code_to_debug), start_method=start_method)
         session.start_debugging()
         session.wait_for_exit()
-        output = session.all_occurrences_of(Event('output', body=ANY.dict_with({'category': 'stdout'})))
+        output = session.all_occurrences_of(Event('output', ANY.dict_with({'category': 'stdout'})))
         output_str = ''.join(o.body['output'] for o in output)
         assert output_str.startswith('Hello\tWorld')

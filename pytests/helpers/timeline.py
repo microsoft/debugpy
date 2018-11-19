@@ -41,6 +41,7 @@ class Timeline(object):
             raise Exception('Timeline can only be inspected while frozen.')
 
     def __iter__(self):
+        self.expect_frozen()
         return self._beginning.and_following()
 
     def __len__(self):
@@ -424,33 +425,6 @@ class Expectation(object):
     def test(self, first, last):
         raise NotImplementedError()
 
-    # def test_before(self, occurrence):
-    #     return self.test_until_realized(occurrence.preceding())
-
-    # def test_at_or_before(self, occurrence):
-    #     return self.test_until_realized(occurrence.and_preceding())
-
-    # def test_until_realized(self, occurrences):
-    #     for occ in occurrences:
-    #         reasons = self.test_at(occ)
-    #         if reasons:
-    #             return reasons
-    #     return None
-
-    # def is_realized_at(self, occurrence):
-    #     return self.test_at(occurrence) is not None
-
-    # def is_realized_before(self, occurrence):
-    #     return self.test_before(occurrence) is not None
-
-    # def is_realized_at_or_before(self, occurrence):
-    #     return self.test_at_or_before(occurrence) is not None
-
-    # def is_realized_in(self, timeline_or_interval):
-    #     # Go in reverse on the assumption that we're more likely to be looking
-    #     # for something that happened recently, to find it quicker.
-    #     return self.test_until_realized(reversed(timeline_or_interval)) is not None
-
     def wait(self, freeze=None, explain=True):
         assert self.timeline is not None, 'Expectation must be bound to a timeline to be waited on.'
         return self.timeline.wait_for(self, freeze, explain)
@@ -652,7 +626,7 @@ class ConditionalExpectation(DerivativeExpectation):
 
 class PatternExpectation(Expectation):
     def __init__(self, *circumstances):
-        self.circumstances = pattern.Pattern(circumstances)
+        self.circumstances = circumstances
 
     def test(self, first, last):
         assert isinstance(first, Occurrence)
@@ -663,8 +637,7 @@ class PatternExpectation(Expectation):
                 yield {self: occ}
 
     def __repr__(self):
-        circumstances = self.circumstances.pattern
-        return '%s%r' % (circumstances[0], circumstances[1:])
+        return '%s%r' % (self.circumstances[0], self.circumstances[1:])
 
 
 def Mark(id):
@@ -797,9 +770,6 @@ class Occurrence(Expectation):
 
     def __hash__(self):
         return hash(id(self))
-
-    def __data__(self):
-        return self.circumstances
 
     def __repr__(self):
         s = '%s!%s%r' % (self.index, self.circumstances[0], self.circumstances[1:])

@@ -12,7 +12,7 @@ import sys
 from pytests.helpers.pathutils import get_test_root, compare_path
 from pytests.helpers.session import DebugSession
 from pytests.helpers.timeline import Event
-from pytests.helpers.pattern import ANY, Pattern
+from pytests.helpers.pattern import ANY
 
 
 BP_TEST_ROOT = get_test_root('bp')
@@ -117,9 +117,9 @@ def test_conditional_breakpoint(pyfile, run_as, start_method, condition_key):
         }).wait_for_response()
         variables = list(v for v in resp_variables.body['variables']
                          if v['name'] == 'i')
-        assert variables == Pattern([
+        assert variables == [
             ANY.dict_with({'name': 'i', 'type': 'int', 'value': value, 'evaluateName': 'i'})
-        ])
+        ]
 
         session.send_request('continue').wait_for_response(freeze=False)
         for i in range(1, hits):
