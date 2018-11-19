@@ -8,6 +8,4 @@ pygments
 pytest
 pytest-cov
 pytest-timeout
-setuptools
 tox
-tox-travis
