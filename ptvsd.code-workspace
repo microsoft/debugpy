@@ -7,7 +7,5 @@
     "settings": {
         "python.linting.enabled": true,
         "python.linting.pylintEnabled": false,
-        // "python.unitTest.pyTestEnabled": true,
-        // "python.unitTest.pyTestArgs": ["--no-cov"],
     }
 }
