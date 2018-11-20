@@ -291,8 +291,10 @@ def test_return_values(pyfile, run_as, start_method):
         resp_variables = session.send_request('variables', arguments={
             'variablesReference': scopes[0]['variablesReference']
         }).wait_for_response()
-        variables = list(v for v in resp_variables.body['variables']
-                         if v['name'].startswith('(return)'))
+        variables = list(
+            v for v in resp_variables.body['variables']
+            if v['name'].startswith('(return)')
+        )
 
         assert variables == [expected1]
 
@@ -303,8 +305,10 @@ def test_return_values(pyfile, run_as, start_method):
         resp_variables = session.send_request('variables', arguments={
             'variablesReference': scopes[0]['variablesReference']
         }).wait_for_response()
-        variables = list(v for v in resp_variables.body['variables']
-                         if v['name'].startswith('(return)'))
+        variables = list(
+            v for v in resp_variables.body['variables']
+            if v['name'].startswith('(return)')
+        )
 
         assert variables == [expected1, expected2]
 
