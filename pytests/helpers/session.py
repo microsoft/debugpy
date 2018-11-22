@@ -192,16 +192,7 @@ class DebugSession(object):
             pytest.fail()
         return argv
 
-    def initialize(self, **kwargs):
-        """Spawns ptvsd using the configured method, telling it to execute the
-        provided Python file, module, or code, and establishes a message channel
-        to it.
-
-        If use_backchannel is True, calls self.setup_backchannel() before returning.
-
-        If perform_handshake is True, calls self.handshake() before returning.
-        """
-
+    def _setup_session(self, **kwargs):
         self.ignore_unobserved += [
             Event('thread', ANY.dict_with({'reason': 'started'})),
             Event('module')
@@ -218,6 +209,16 @@ class DebugSession(object):
         assert len(self.target) == 2
         assert self.target[0] in ('file', 'module', 'code')
 
+    def initialize(self, **kwargs):
+        """Spawns ptvsd using the configured method, telling it to execute the
+        provided Python file, module, or code, and establishes a message channel
+        to it.
+
+        If use_backchannel is True, calls self.setup_backchannel() before returning.
+
+        If perform_handshake is True, calls self.handshake() before returning.
+        """
+        self._setup_session(**kwargs)
         print('Initializing debug session for ptvsd#%d' % self.ptvsd_port)
         argv = []
         if self.start_method == 'launch':
@@ -290,7 +291,7 @@ class DebugSession(object):
 
         print(colors.LIGHT_MAGENTA + 'Waiting for ptvsd#%d to disconnect' % self.ptvsd_port + colors.RESET)
 
-        self.channel.wait()
+        # self.channel.wait()
         self.channel.close()
 
         self.timeline.finalize()
@@ -588,3 +589,16 @@ class DebugSession(object):
 
     def get_stderr_as_string(self):
         return b''.join(self.output_data['ERR'])
+
+    def connect_with_new_session(self, **kwargs):
+        new_session = DebugSession(start_method='attach_socket_import', ptvsd_port=self.ptvsd_port)
+        try:
+            new_session._setup_session(**kwargs)
+            new_session.ignore_unobserved = self.ignore_unobserved
+            new_session.debug_options = self.debug_options
+            new_session.connect()
+            new_session.handshake()
+        except:
+            new_session.close()
+        else:
+            return new_session

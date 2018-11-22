@@ -177,7 +177,7 @@ def dont_trace_ptvsd_files(file_path):
 pydevd_frame.file_tracing_filter = dont_trace_ptvsd_files
 
 # NOTE: Previously this included sys.prefix, sys.base_prefix and sys.real_prefix
-# On some systems those resolve to '/usr'. That means any user code will 
+# On some systems those resolve to '/usr'. That means any user code will
 # also be treated as library code.
 STDLIB_PATH_PREFIXES = []
 if hasattr(site, 'getusersitepackages'):
@@ -2191,16 +2191,15 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                     lambda vsc_bpid: (path, vsc_bpid))
             self.path_casing.track_file_path_case(path)
 
+            condition = src_bp.get('condition', None)
             hit_condition = self._get_hit_condition_expression(
                                 src_bp.get('hitCondition', None))
             logMessage = src_bp.get('logMessage', '')
             if len(logMessage) == 0:
                 is_logpoint = None
-                condition = src_bp.get('condition', None)
                 expression = None
             else:
                 is_logpoint = True
-                condition = None
                 expressions = re.findall(r'\{.*?\}', logMessage)
                 if len(expressions) == 0:
                     expression = '{}'.format(repr(logMessage))  # noqa

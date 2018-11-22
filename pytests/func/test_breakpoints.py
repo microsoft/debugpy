@@ -258,3 +258,63 @@ def test_log_point(pyfile, run_as, start_method):
         assert len(values) > 0
         # assert logged == list(range(11, 20))
         # assert values == list(range(1, 10))
+
+
+@pytest.mark.skip(reason='bug #799')
+def test_condition_with_log_point(pyfile, run_as, start_method):
+    @pyfile
+    def code_to_debug():
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
+        a = 10
+        for i in range(1, a):
+            print('value: %d' % i)
+
+    bp_line = 5
+    with DebugSession() as session:
+        session.initialize(
+            target=(run_as, code_to_debug),
+            start_method=start_method,
+            ignore_unobserved=[Event('continued')],
+        )
+        session.send_request('setBreakpoints', arguments={
+            'source': {'path': code_to_debug},
+            'breakpoints': [{
+                'line': bp_line,
+                'logMessage': 'log: {a + i}',
+                'condition': 'i==5'
+            }],
+        }).wait_for_response()
+        session.start_debugging()
+        hit = session.wait_for_thread_stopped()
+        frames = hit.stacktrace.body['stackFrames']
+        assert bp_line == frames[0]['line']
+
+        resp_scopes = session.send_request('scopes', arguments={
+            'frameId': hit.frame_id
+        }).wait_for_response()
+        scopes = resp_scopes.body['scopes']
+        assert len(scopes) > 0
+
+        resp_variables = session.send_request('variables', arguments={
+            'variablesReference': scopes[0]['variablesReference']
+        }).wait_for_response()
+        variables = list(
+            v for v in resp_variables.body['variables']
+            if v['name'] == 'i'
+        )
+        assert variables == [
+            ANY.dict_with({'name': 'i', 'type': 'int', 'value': '5', 'evaluateName': 'i'})
+        ]
+
+        session.send_request('continue').wait_for_response(freeze=False)
+        session.wait_for_exit()
+        assert session.get_stderr_as_string() == b''
+
+        output = session.all_occurrences_of(Event('output', ANY.dict_with({'category': 'stdout'})))
+        output_str = ''.join(o.body['output'] for o in output)
+        logged = sorted(int(i) for i in re.findall(r"log:\s([0-9]*)", output_str))
+        values = sorted(int(i) for i in re.findall(r"value:\s([0-9]*)", output_str))
+
+        assert 15 in logged
+        assert 5 in values
