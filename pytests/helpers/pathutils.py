@@ -17,4 +17,4 @@ def compare_path(left, right, show=True):
     if show:
         print('LEFT : ' + n_left)
         print('RIGHT: ' + n_right)
-    return n_left == n_right
+    return str(n_left) == str(n_right)

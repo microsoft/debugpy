@@ -7,6 +7,7 @@ from __future__ import print_function, with_statement, absolute_import
 import numbers
 
 from ptvsd.compat import unicode
+from pytests.helpers.pathutils import compare_path
 
 
 class BasePattern(object):
@@ -61,6 +62,15 @@ class Any(BasePattern):
 
         items = dict(items)
         return AnyDictWith(items)
+
+    @staticmethod
+    def path(p):
+        class AnyStrPath(str):
+            def __eq__(self, other):
+                return compare_path(self, other, show=False)
+            def __ne__(self, other):
+                return not (self == other)
+        return AnyStrPath(p)
 
 
 class Maybe(BasePattern):

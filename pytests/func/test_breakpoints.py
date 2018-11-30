@@ -10,7 +10,7 @@ import pytest
 import sys
 import re
 
-from pytests.helpers.pathutils import get_test_root, compare_path
+from pytests.helpers.pathutils import get_test_root
 from pytests.helpers.session import DebugSession
 from pytests.helpers.timeline import Event
 from pytests.helpers.pattern import ANY
@@ -33,7 +33,7 @@ def test_path_with_ampersand(run_as, start_method):
         session.start_debugging()
         hit = session.wait_for_thread_stopped('breakpoint')
         frames = hit.stacktrace.body['stackFrames']
-        assert compare_path(frames[0]['source']['path'], testfile, show=False)
+        assert frames[0]['source']['path'] == ANY.path(testfile)
 
         session.send_request('continue').wait_for_response(freeze=False)
         session.wait_for_exit()
@@ -54,7 +54,7 @@ def test_path_with_unicode(run_as, start_method):
         session.start_debugging()
         hit = session.wait_for_thread_stopped('breakpoint')
         frames = hit.stacktrace.body['stackFrames']
-        assert compare_path(frames[0]['source']['path'], testfile, show=False)
+        assert frames[0]['source']['path'] == ANY.path(testfile)
         assert u'ಏನಾದರೂ_ಮಾಡು' == frames[0]['name']
 
         session.send_request('continue').wait_for_response(freeze=False)
@@ -159,13 +159,13 @@ def test_crossfile_breakpoint(pyfile, run_as, start_method):
         hit = session.wait_for_thread_stopped()
         frames = hit.stacktrace.body['stackFrames']
         assert bp_script2_line == frames[0]['line']
-        assert compare_path(frames[0]['source']['path'], script2, show=False)
+        assert frames[0]['source']['path'] == ANY.path(script2)
 
         session.send_request('continue').wait_for_response(freeze=False)
         hit = session.wait_for_thread_stopped()
         frames = hit.stacktrace.body['stackFrames']
         assert bp_script1_line == frames[0]['line']
-        assert compare_path(frames[0]['source']['path'], script1, show=False)
+        assert frames[0]['source']['path'] == ANY.path(script1)
 
         session.send_request('continue').wait_for_response(freeze=False)
         session.wait_for_exit()
@@ -318,3 +318,27 @@ def test_condition_with_log_point(pyfile, run_as, start_method):
 
         assert 15 in logged
         assert 5 in values
+
+
+@pytest.mark.skip(reason='Bug #1010')
+def test_package_launch():
+    bp_line = 2
+    cwd = get_test_root('testpkgs')
+    testfile = os.path.join(cwd, 'pkg1', '__main__.py')
+
+    with DebugSession() as session:
+        session.initialize(
+            target=('module', 'pkg1'),
+            start_method='launch',
+            ignore_unobserved=[Event('continued')],
+            cwd=cwd,
+        )
+        session.set_breakpoints(testfile, [bp_line])
+        session.start_debugging()
+
+        hit = session.wait_for_thread_stopped()
+        frames = hit.stacktrace.body['stackFrames']
+        assert bp_line == frames[0]['line']
+
+        session.send_request('continue').wait_for_response(freeze=False)
+        session.wait_for_exit()
