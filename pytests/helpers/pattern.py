@@ -63,15 +63,6 @@ class Any(BasePattern):
         items = dict(items)
         return AnyDictWith(items)
 
-    @staticmethod
-    def path(p):
-        class AnyStrPath(str):
-            def __eq__(self, other):
-                return compare_path(self, other, show=False)
-            def __ne__(self, other):
-                return not (self == other)
-        return AnyStrPath(p)
-
 
 class Maybe(BasePattern):
     """A pattern that matches if condition is True.
@@ -116,6 +107,26 @@ class Is(BasePattern):
 
     def __eq__(self, value):
         return self.obj is value
+
+
+class Path(object):
+    """A pattern that matches strings as path, using os.path.normcase before comparison,
+    and sys.getfilesystemencoding() to compare Unicode and non-Unicode strings.
+    """
+
+    def __init__(self, s):
+        self.s = s
+
+    def __repr__(self):
+        return 'Path(%r)' % (self.s,)
+
+    def __eq__(self, other):
+        if not (isinstance(other, bytes) or isinstance(other, unicode)):
+            return NotImplemented
+        return compare_path(self.s, other, show=False)
+
+    def __ne__(self, other):
+        return not (self == other)
 
 
 SUCCESS = Success(True)

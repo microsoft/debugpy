@@ -8,7 +8,7 @@ import os.path
 import pytest
 import sys
 
-from pytests.helpers.pattern import ANY
+from pytests.helpers.pattern import ANY, Path
 from pytests.helpers.session import DebugSession
 from pytests.helpers.timeline import Event
 from pytests.helpers.pathutils import get_test_root
@@ -65,7 +65,7 @@ def test_django_breakpoint_no_multiproc(bp_target, start_method):
             'name': bp_name,
             'source': {
                 'sourceReference': ANY,
-                'path': ANY.path(bp_file),
+                'path': Path(bp_file),
             },
             'line': bp_line,
             'column': 1,
@@ -155,7 +155,7 @@ def test_django_exception_no_multiproc(ex_type, start_method):
             'details': {
                 'message': 'Hello',
                 'typeName': ANY.such_that(lambda s: s.endswith('ArithmeticError')),
-                'source': ANY.path(DJANGO1_MANAGE),
+                'source': Path(DJANGO1_MANAGE),
                 'stackTrace': ANY.such_that(lambda s: True),
             }
         }
@@ -170,7 +170,7 @@ def test_django_exception_no_multiproc(ex_type, start_method):
             'name': 'bad_route_' + ex_type,
             'source': {
                 'sourceReference': ANY,
-                'path': ANY.path(DJANGO1_MANAGE),
+                'path': Path(DJANGO1_MANAGE),
             },
             'line': ex_line,
             'column': 1,
@@ -240,7 +240,7 @@ def test_django_breakpoint_multiproc(start_method):
                 'name': 'home',
                 'source': {
                     'sourceReference': ANY.int,
-                    'path': ANY.path(DJANGO1_MANAGE),
+                    'path': Path(DJANGO1_MANAGE),
                 },
                 'line': bp_line,
                 'column': 1,

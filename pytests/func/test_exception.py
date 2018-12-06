@@ -8,7 +8,7 @@ import pytest
 
 from pytests.helpers.session import DebugSession
 from pytests.helpers.timeline import Event
-from pytests.helpers.pattern import ANY
+from pytests.helpers.pattern import ANY, Path
 
 
 @pytest.mark.parametrize('raised', ['raisedOn', 'raisedOff'])
@@ -47,7 +47,7 @@ def test_vsc_exception_options_raise_with_except(pyfile, run_as, start_method, r
             'details': ANY.dict_with({
                 'typeName': ANY.such_that(lambda s: s.endswith('ArithmeticError')),
                 'message': 'bad code',
-                'source': ANY.path(code_to_debug),
+                'source': Path(code_to_debug),
             }),
         })
 
@@ -102,7 +102,7 @@ def test_vsc_exception_options_raise_without_except(pyfile, run_as, start_method
             'details': ANY.dict_with({
                 'typeName': ANY.such_that(lambda s: s.endswith('ArithmeticError')),
                 'message': 'bad code',
-                'source': ANY.path(code_to_debug),
+                'source': Path(code_to_debug),
             }),
         })
 

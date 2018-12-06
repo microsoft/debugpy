@@ -2,7 +2,7 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-from __future__ import print_function, absolute_import
+from __future__ import print_function, absolute_import, unicode_literals
 
 import contextlib
 import errno
@@ -46,6 +46,7 @@ from _pydevd_bundle.pydevd_additional_thread_info import PyDBAdditionalThreadInf
 from ptvsd import _util
 from ptvsd import multiproc
 from ptvsd import options
+from ptvsd.compat import unicode
 import ptvsd.ipcjson as ipcjson  # noqa
 import ptvsd.futures as futures  # noqa
 import ptvsd.untangle as untangle  # noqa
@@ -105,14 +106,8 @@ def is_debugger_internal_thread(thread_name):
     return False
 
 
-try:
-    unicode  # noqa
-
-    def needs_unicode(value):
-        return isinstance(value, unicode)  # noqa
-except Exception:
-    def needs_unicode(value):
-        return False
+def path_to_unicode(s):
+    return s if isinstance(s, unicode) else s.decode(sys.getfilesystemencoding())
 
 
 class SafeReprPresentationProvider(pydevd_extapi.StrPresentationProvider):
@@ -217,7 +212,7 @@ def unquote_xml_path(s):
     """
     if s is None:
         return None
-    return xml_unescape(unquote(str(s)))
+    return xml_unescape(unquote(s))
 
 
 class IDMap(object):
@@ -440,15 +435,14 @@ class PydevdSocket(object):
         return os.fdopen(self.pipe_r)
 
     def make_packet(self, cmd_id, args):
-        # TODO: docstring
+        assert not isinstance(args, bytes)
         with self.lock:
             seq = self.seq
             self.seq += 1
-        s = u'{}\t{}\t{}\n'.format(cmd_id, seq, args)
+        s = '{}\t{}\t{}\n'.format(cmd_id, seq, args)
         return seq, s
 
     def pydevd_notify(self, cmd_id, args):
-        # TODO: docstring
         if self.pipe_w is None:
             raise EOFError
         seq, s = self.make_packet(cmd_id, args)
@@ -456,7 +450,6 @@ class PydevdSocket(object):
         os.write(self.pipe_w, s.encode('utf8'))
 
     def pydevd_request(self, loop, cmd_id, args):
-        # TODO: docstring
         if self.pipe_w is None:
             raise EOFError
         seq, s = self.make_packet(cmd_id, args)
@@ -1467,11 +1460,14 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 self.start_subprocess_notifier()
 
         # Print on all but NameError, don't suspend on any.
-        self.pydevd_request(pydevd_comm.CMD_PYDEVD_JSON_CONFIG, json.dumps(dict(
+        msg = json.dumps(dict(
             skip_suspend_on_breakpoint_exception=('BaseException',),
             skip_print_breakpoint_exception=('NameError',),
             multi_threads_single_notification=True,
-        )))
+        ))
+        if isinstance(msg, bytes):
+            msg = msg.decode('utf-8')
+        self.pydevd_request(pydevd_comm.CMD_PYDEVD_JSON_CONFIG, msg)
 
     def _is_just_my_code_stepping_enabled(self):
         """Returns true if just-me-code stepping is enabled.
@@ -1507,9 +1503,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     def _send_cmd_version_command(self):
         cmd = pydevd_comm.CMD_VERSION
-        default_os_type = 'WINDOWS' if platform.system() == 'Windows' else 'UNIX' # noqa
-        client_os_type = self.debug_options.get(
-            'CLIENT_OS_TYPE', default_os_type)
+        default_os_type = 'WINDOWS' if platform.system() == 'Windows' else 'UNIX'
+        client_os_type = self.debug_options.get('CLIENT_OS_TYPE', default_os_type)
         os_id = client_os_type
         msg = '1.1\t{}\tID'.format(os_id)
         return self.pydevd_request(cmd, msg)
@@ -1610,8 +1605,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         if source_reference == 0:
             self.send_error_response(request, 'Source unavailable')
         else:
-            server_filename = pydevd_file_utils.norm_file_to_server(filename)
-
+            server_filename = path_to_unicode(pydevd_file_utils.norm_file_to_server(filename))
             cmd = pydevd_comm.CMD_LOAD_SOURCE
             _, _, content = yield self.pydevd_request(cmd, server_filename)
             self.send_response(request, content=content)
@@ -1788,7 +1782,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             cmd = pydevd_comm.CMD_GET_FRAME
         else:
             cmd = pydevd_comm.CMD_GET_VARIABLE
-        cmdargs = (str(s) for s in pyd_var)
+        cmdargs = (unicode(s) for s in pyd_var)
         msg = '\t'.join(cmdargs)
         with (yield self.using_format(fmt)):
             _, _, resp_args = yield self.pydevd_request(cmd, msg)
@@ -1870,7 +1864,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     def _get_index_or_key(self, text):
         # Dictionary resolver in pydevd provides key
         # in '<repr> (<hash>)' format
-        result = re.match(r"(.*)\ \(([0-9]*)\)", text,
+        result = re.match("(.*)\ \(([0-9]*)\)", text,
                           re.IGNORECASE | re.UNICODE)
         if result and len(result.groups()) == 2:
             try:
@@ -1912,8 +1906,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         # pydevd message format doesn't permit tabs in expressions
         expr = expr.replace('\t', ' ')
 
-        pyd_tid = str(pyd_var[0])
-        pyd_fid = str(pyd_var[1])
+        pyd_tid = unicode(pyd_var[0])
+        pyd_fid = unicode(pyd_var[1])
 
         # VSC gives us variablesReference to the parent of the variable
         # being set, and variable name; but pydevd wants the ID
@@ -1968,7 +1962,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         pyd_tid, pyd_fid = self.frame_map.to_pydevd(vsc_fid)
 
         cmd_args = (pyd_tid, pyd_fid, 'LOCAL', expr, '1')
-        msg = '\t'.join(str(s) for s in cmd_args)
+        msg = '\t'.join(unicode(s) for s in cmd_args)
         with (yield self.using_format(fmt)):
             _, _, resp_args = yield self.pydevd_request(
                 pydevd_comm.CMD_EVALUATE_EXPRESSION,
@@ -2053,7 +2047,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         expr = expr.replace('\t', ' ')
 
         cmd_args = (pyd_tid, pyd_fid, 'LOCAL', expr, '1')
-        msg = '\t'.join(str(s) for s in cmd_args)
+        msg = '\t'.join(unicode(s) for s in cmd_args)
         with (yield self.using_format(fmt)):
             yield self.pydevd_request(
                 pydevd_comm.CMD_EXEC_EXPRESSION,
@@ -2183,8 +2177,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         cmd = pydevd_comm.CMD_SET_BREAK
         msgfmt = '{}\t{}\t{}\t{}\tNone\t{}\t{}\t{}\t{}\tALL'
-        if needs_unicode(path):
-            msgfmt = unicode(msgfmt)   # noqa
         for src_bp in src_bps:
             line = src_bp['line']
             vsc_bpid = self.bp_map.add(

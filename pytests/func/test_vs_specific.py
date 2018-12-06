@@ -7,7 +7,7 @@ from __future__ import print_function, with_statement, absolute_import
 import pytest
 from pytests.helpers.session import DebugSession
 from pytests.helpers.timeline import Event
-from pytests.helpers.pattern import ANY
+from pytests.helpers.pattern import Path
 
 
 @pytest.mark.parametrize('module', [True, False])
@@ -87,9 +87,9 @@ def test_module_events(pyfile, run_as, start_method):
         modules = session.all_occurrences_of(Event('module'))
         modules = [(m.body['module']['name'], m.body['module']['path']) for m in modules]
         assert modules[:3] == [
-            ('module2', ANY.path(module2)),
-            ('module1', ANY.path(module1)),
-            ('__main__', ANY.path(test_code)),
+            ('module2', Path(module2)),
+            ('module1', Path(module1)),
+            ('__main__', Path(test_code)),
         ]
 
         session.send_request('continue').wait_for_response(freeze=False)

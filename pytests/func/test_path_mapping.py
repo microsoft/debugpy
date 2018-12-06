@@ -6,7 +6,7 @@ from __future__ import print_function, with_statement, absolute_import
 
 import os
 from shutil import copyfile
-from pytests.helpers.pattern import ANY
+from pytests.helpers.pattern import Path
 from pytests.helpers.session import DebugSession
 from pytests.helpers.timeline import Event
 
@@ -46,10 +46,10 @@ def test_with_path_mappings(pyfile, tmpdir, run_as, start_method):
         session.start_debugging()
         hit = session.wait_for_thread_stopped('breakpoint')
         frames = hit.stacktrace.body['stackFrames']
-        assert frames[0]['source']['path'] == ANY.path(path_local)
+        assert frames[0]['source']['path'] == Path(path_local)
 
         remote_code_path = session.read_json()
-        assert path_remote == ANY.path(remote_code_path)
+        assert path_remote == Path(remote_code_path)
 
         session.send_request('continue').wait_for_response(freeze=False)
         session.wait_for_exit()

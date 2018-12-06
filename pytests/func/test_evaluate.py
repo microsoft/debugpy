@@ -4,6 +4,8 @@
 
 from __future__ import print_function, with_statement, absolute_import
 
+import sys
+
 from pytests.helpers.pattern import ANY
 from pytests.helpers.session import DebugSession
 from pytests.helpers.timeline import Event
@@ -313,4 +315,46 @@ def test_return_values(pyfile, run_as, start_method):
         assert variables == [expected1, expected2]
 
         session.send_request('continue').wait_for_response()
+        session.wait_for_exit()
+
+
+def test_unicode(pyfile, run_as, start_method):
+    # On Python 3, variable names can contain Unicode characters.
+    # On Python 2, they must be ASCII, but using a Unicode character in an expression should not crash debugger.
+
+    @pyfile
+    def code_to_debug():
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
+        import ptvsd
+        # Since Unicode variable name is a SyntaxError at parse time in Python 2,
+        # this needs to do a roundabout way of setting it to avoid parse issues.
+        globals()[u'\u16A0'] = 123
+        ptvsd.break_into_debugger()
+        print('break')
+
+    with DebugSession() as session:
+        session.initialize(
+            target=(run_as, code_to_debug),
+            start_method=start_method,
+            ignore_unobserved=[Event('continued')],
+        )
+        session.start_debugging()
+        hit = session.wait_for_thread_stopped()
+
+        resp_eval = session.send_request('evaluate', arguments={
+            'expression': '\u16A0', 'frameId': hit.frame_id,
+        }).wait_for_response()
+
+        if sys.version_info >= (3,):
+            assert resp_eval.body == ANY.dict_with({
+                'type': 'int',
+                'result': '123'
+            })
+        else:
+            assert resp_eval.body == ANY.dict_with({
+                'type': 'SyntaxError'
+            })
+
+        session.send_request('continue').wait_for_response(freeze=False)
         session.wait_for_exit()

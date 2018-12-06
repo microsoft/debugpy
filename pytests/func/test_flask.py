@@ -9,7 +9,7 @@ import platform
 import pytest
 import sys
 
-from pytests.helpers.pattern import ANY
+from pytests.helpers.pattern import ANY, Path
 from pytests.helpers.session import DebugSession
 from pytests.helpers.timeline import Event
 from pytests.helpers.webhelper import get_web_content, wait_for_connection
@@ -84,7 +84,7 @@ def test_flask_breakpoint_no_multiproc(bp_target, start_method):
             'name': bp_name,
             'source': {
                 'sourceReference': ANY.int,
-                'path': ANY.path(bp_file),
+                'path': Path(bp_file),
             },
             'line': bp_line,
             'column': 1,
@@ -165,7 +165,7 @@ def test_flask_exception_no_multiproc(ex_type, start_method):
             'details': {
                 'message': 'Hello',
                 'typeName': ANY.such_that(lambda s: s.endswith('ArithmeticError')),
-                'source': ANY.path(FLASK1_APP),
+                'source': Path(FLASK1_APP),
                 'stackTrace': ANY.such_that(lambda s: True)
             }
         }
@@ -180,7 +180,7 @@ def test_flask_exception_no_multiproc(ex_type, start_method):
             'name': 'bad_route_' + ex_type,
             'source': {
                 'sourceReference': ANY.int,
-                'path': ANY.path(FLASK1_APP),
+                'path': Path(FLASK1_APP),
             },
             'line': ex_line,
             'column': 1,
@@ -258,7 +258,7 @@ def test_flask_breakpoint_multiproc(start_method):
                 'name': 'home',
                 'source': {
                     'sourceReference': ANY.int,
-                    'path': ANY.path(FLASK1_APP),
+                    'path': Path(FLASK1_APP),
                 },
                 'line': bp_line,
                 'column': 1,

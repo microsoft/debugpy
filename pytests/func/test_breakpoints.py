@@ -13,7 +13,7 @@ import re
 from pytests.helpers.pathutils import get_test_root
 from pytests.helpers.session import DebugSession
 from pytests.helpers.timeline import Event
-from pytests.helpers.pattern import ANY
+from pytests.helpers.pattern import ANY, Path
 
 
 BP_TEST_ROOT = get_test_root('bp')
@@ -33,7 +33,7 @@ def test_path_with_ampersand(run_as, start_method):
         session.start_debugging()
         hit = session.wait_for_thread_stopped('breakpoint')
         frames = hit.stacktrace.body['stackFrames']
-        assert frames[0]['source']['path'] == ANY.path(testfile)
+        assert frames[0]['source']['path'] == Path(testfile)
 
         session.send_request('continue').wait_for_response(freeze=False)
         session.wait_for_exit()
@@ -54,7 +54,7 @@ def test_path_with_unicode(run_as, start_method):
         session.start_debugging()
         hit = session.wait_for_thread_stopped('breakpoint')
         frames = hit.stacktrace.body['stackFrames']
-        assert frames[0]['source']['path'] == ANY.path(testfile)
+        assert frames[0]['source']['path'] == Path(testfile)
         assert u'ಏನಾದರೂ_ಮಾಡು' == frames[0]['name']
 
         session.send_request('continue').wait_for_response(freeze=False)
@@ -159,13 +159,13 @@ def test_crossfile_breakpoint(pyfile, run_as, start_method):
         hit = session.wait_for_thread_stopped()
         frames = hit.stacktrace.body['stackFrames']
         assert bp_script2_line == frames[0]['line']
-        assert frames[0]['source']['path'] == ANY.path(script2)
+        assert frames[0]['source']['path'] == Path(script2)
 
         session.send_request('continue').wait_for_response(freeze=False)
         hit = session.wait_for_thread_stopped()
         frames = hit.stacktrace.body['stackFrames']
         assert bp_script1_line == frames[0]['line']
-        assert frames[0]['source']['path'] == ANY.path(script1)
+        assert frames[0]['source']['path'] == Path(script1)
 
         session.send_request('continue').wait_for_response(freeze=False)
         session.wait_for_exit()
