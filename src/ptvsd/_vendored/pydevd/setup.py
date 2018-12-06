@@ -14,54 +14,11 @@ http://lucumr.pocoo.org/2014/1/27/python-on-wheels/
 
 Another (no wheels): https://jamie.curle.io/blog/my-first-experience-adding-package-pypi/
 
-New version: change version and then:
+See:
 
-rm dist/pydevd*
+build_tools\pydevd_release_process.txt
 
-C:\tools\Miniconda32\Scripts\activate py27_32
-python setup.py sdist bdist_wheel
-deactivate
-dir dist
-
-C:\tools\Miniconda32\Scripts\activate py34_32
-python setup.py sdist bdist_wheel
-deactivate
-dir dist
-
-C:\tools\Miniconda32\Scripts\activate py35_32
-python setup.py sdist bdist_wheel
-deactivate
-dir dist
-
-C:\tools\Miniconda32\Scripts\activate py36_32
-python setup.py sdist bdist_wheel
-deactivate
-dir dist
-
-C:\tools\Miniconda\Scripts\activate py27_64
-python setup.py sdist bdist_wheel
-deactivate
-dir dist
-
-C:\tools\Miniconda\Scripts\activate py34_64
-python setup.py sdist bdist_wheel
-deactivate
-dir dist
-
-C:\tools\Miniconda\Scripts\activate py35_64
-python setup.py sdist bdist_wheel
-deactivate
-dir dist
-
-C:\tools\Miniconda\Scripts\activate py36_64
-python setup.py sdist bdist_wheel
-deactivate
-dir dist
-
-twine upload dist/pydevd*
-
-git tag pydev_debugger_1_1_1 -a -m "PyDev.Debugger 1.1.1"
-git push --tags
+for release process.
 '''
 
 
@@ -95,7 +52,7 @@ version = pydevd.__version__
 args = dict(
     name='pydevd',
     version=version,
-    description = 'PyDev.Debugger (used in PyDev and PyCharm)',
+    description = 'PyDev.Debugger (used in PyDev, PyCharm and VSCode Python)',
     author='Fabio Zadrozny and others',
     url='https://github.com/fabioz/PyDev.Debugger/',
     license='EPL (Eclipse Public License)',
@@ -135,14 +92,19 @@ args = dict(
         'Environment :: Console',
         'Intended Audience :: Developers',
 
-        # It seems that the license is not recognized by Pypi, so, not categorizing it for now.
-        # https://bitbucket.org/pypa/pypi/issues/369/the-eclipse-public-license-superseeded
-        # 'License :: OSI Approved :: Eclipse Public License',
+        'License :: OSI Approved :: Eclipse Public License 1.0 (EPL-1.0)',
 
         'Operating System :: MacOS :: MacOS X',
         'Operating System :: Microsoft :: Windows',
         'Operating System :: POSIX',
         'Programming Language :: Python',
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Topic :: Software Development :: Debuggers',
     ],
     entry_points={

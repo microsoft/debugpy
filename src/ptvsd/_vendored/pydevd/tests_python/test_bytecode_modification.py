@@ -59,7 +59,7 @@ class TestInsertCode(unittest.TestCase):
         """
         seq1 = [(offset, op, arg) for offset, op, arg in dis._unpack_opargs(code1)]
         seq2 = [(offset, op, arg) for offset, op, arg in dis._unpack_opargs(code2)]
-        self.assertTrue(len(seq1) == len(seq2), "Bytes sequences have different lengths")
+        assert len(seq1) == len(seq2), "Bytes sequences have different lengths %s != %s" % (len(seq1), len(seq2))
         for i in range(len(seq1)):
             of, op1, arg1 = seq1[i]
             _, op2, arg2 = seq2[i]
@@ -83,6 +83,29 @@ class TestInsertCode(unittest.TestCase):
                     continue
                 else:
                     self.assertEquals(arg1, arg2, "Different arguments at offset {}".format(of))
+
+    def test_line(self):
+
+        def foo():
+            global global_loaded
+            global_loaded()
+
+        def method():
+            a = 10
+            b = 20
+            c = 20
+
+        success, result = insert_code(method.__code__, foo.__code__, method.__code__.co_firstlineno + 1)
+        assert success
+        assert list(result.co_lnotab) == [10, 1, 4, 1, 4, 1]
+
+        success, result = insert_code(method.__code__, foo.__code__, method.__code__.co_firstlineno + 2)
+        assert success
+        assert list(result.co_lnotab) == [0, 1, 14, 1, 4, 1]
+
+        success, result = insert_code(method.__code__, foo.__code__, method.__code__.co_firstlineno + 3)
+        assert success
+        assert list(result.co_lnotab) == [0, 1, 4, 1, 14, 1]
 
     def test_assignment(self):
         self.original_stdout = sys.stdout

@@ -6,8 +6,6 @@
 
     Note that it's a python script but it'll spawn a process to run as jython, ironpython and as python.
 '''
-import os
-import sys
 import time
 
 import pytest
@@ -25,7 +23,7 @@ try:
 except ImportError:
     from urllib.parse import unquote
 
-from tests_python.debug_constants import TEST_CYTHON
+from tests_python.debug_constants import *
 
 pytest_plugins = [
     str('tests_python.debugger_fixtures'),
@@ -37,29 +35,26 @@ except:
     xrange = range
 
 TEST_DJANGO = False
-if sys.version_info[:2] == (2, 7):
-    # Only test on python 2.7 for now
-    try:
-        import django
-        TEST_DJANGO = True
-    except:
-        pass
+TEST_FLASK = False
 
-IS_PY2 = False
-if sys.version_info[0] == 2:
-    IS_PY2 = True
+try:
+    import django
+    TEST_DJANGO = True
+except:
+    pass
 
-IS_PY26 = sys.version_info[:2] == (2, 6)
-IS_PY34 = sys.version_info[:2] == (3, 4)
+try:
+    import flask
+    TEST_FLASK = True
+except:
+    pass
+
 
 if IS_PY2:
     builtin_qualifier = "__builtin__"
 else:
     builtin_qualifier = "builtins"
 
-IS_PY36 = False
-if sys.version_info[0] == 3 and sys.version_info[1] == 6:
-    IS_PY36 = True
 
 
 @pytest.mark.skipif(IS_IRONPYTHON, reason='Test needs gc.get_referrers to really check anything.')
@@ -853,9 +848,44 @@ def test_case_20(case_setup):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(not TEST_FLASK, reason='No flask available')
+def test_case_flask(case_setup_flask):
+    with case_setup_flask.test_file(EXPECTED_RETURNCODE='any') as writer:
+        writer.write_multi_threads_single_notification(True)
+        writer.write_add_breakpoint_jinja2(5, None, 'hello.html')
+        writer.write_add_breakpoint_jinja2(8, None, 'hello.html')
+        writer.write_make_initial_run()
+
+        t = writer.create_request_thread()
+        time.sleep(2)  # Give flask some time to get to startup before requesting the page
+        t.start()
+
+        hit = writer.wait_for_single_notification_as_hit(line=5)
+        writer.write_get_frame(hit.thread_id, hit.frame_id)
+        writer.wait_for_vars(['<var name="content" type="str"'])
+        writer.write_run_thread(hit.thread_id)
+
+        hit = writer.wait_for_single_notification_as_hit(line=8)
+        writer.write_get_frame(hit.thread_id, hit.frame_id)
+        writer.wait_for_vars(['<var name="content" type="str"'])
+        writer.write_run_thread(hit.thread_id)
+
+        for _ in xrange(10):
+            if hasattr(t, 'contents'):
+                break
+            time.sleep(.3)
+        else:
+            raise AssertionError('Flask did not return contents properly!')
+
+        assert '<title>Hello</title>' in t.contents
+        assert 'Flask-Jinja-Test' in t.contents
+
+        writer.finished_ok = True
+
+
 @pytest.mark.skipif(not TEST_DJANGO, reason='No django available')
-def test_case_django(case_setup_django):
-    with case_setup_django.test_file('') as writer:
+def test_case_django_a(case_setup_django):
+    with case_setup_django.test_file(EXPECTED_RETURNCODE='any') as writer:
         writer.write_add_breakpoint_django(5, None, 'index.html')
         writer.write_make_initial_run()
 
@@ -896,8 +926,8 @@ def test_case_django(case_setup_django):
 
 
 @pytest.mark.skipif(not TEST_DJANGO, reason='No django available')
-def test_case_django2(case_setup_django):
-    with case_setup_django.test_file('') as writer:
+def test_case_django_b(case_setup_django):
+    with case_setup_django.test_file(EXPECTED_RETURNCODE='any') as writer:
         writer.write_add_breakpoint_django(4, None, 'name.html')
         writer.write_make_initial_run()
 
@@ -921,8 +951,12 @@ def test_cython(case_setup):
 
 def _has_qt():
     try:
-        from PySide import QtCore  # @UnresolvedImport
-        return True
+        try:
+            from PySide import QtCore  # @UnresolvedImport
+            return True
+        except:
+            from PySide2 import QtCore  # @UnresolvedImport
+            return True
     except:
         try:
             from PyQt4 import QtCore  # @UnresolvedImport
@@ -939,7 +973,7 @@ def _has_qt():
 @pytest.mark.skipif(not _has_qt(), reason='No qt available')
 def test_case_qthread1(case_setup):
     with case_setup.test_file('_debugger_case_qthread1.py') as writer:
-        breakpoint_id = writer.write_add_breakpoint(19, 'run')
+        breakpoint_id = writer.write_add_breakpoint(writer.get_line_index_with_content('break here'), 'run')
         writer.write_make_initial_run()
 
         hit = writer.wait_for_breakpoint_hit()
@@ -957,7 +991,7 @@ def test_case_qthread1(case_setup):
 @pytest.mark.skipif(not _has_qt(), reason='No qt available')
 def test_case_qthread2(case_setup):
     with case_setup.test_file('_debugger_case_qthread2.py') as writer:
-        breakpoint_id = writer.write_add_breakpoint(24, 'long_running')
+        breakpoint_id = writer.write_add_breakpoint(writer.get_line_index_with_content('break here'), 'long_running')
         writer.write_make_initial_run()
 
         hit = writer.wait_for_breakpoint_hit()
@@ -976,7 +1010,7 @@ def test_case_qthread2(case_setup):
 @pytest.mark.skipif(not _has_qt(), reason='No qt available')
 def test_case_qthread3(case_setup):
     with case_setup.test_file('_debugger_case_qthread3.py') as writer:
-        breakpoint_id = writer.write_add_breakpoint(22, 'run')
+        breakpoint_id = writer.write_add_breakpoint(writer.get_line_index_with_content('break here'), 'run')
         writer.write_make_initial_run()
 
         hit = writer.wait_for_breakpoint_hit()
@@ -1076,10 +1110,17 @@ def test_module_entry_point(case_setup_m_switch_entry_point):
         writer.finished_ok = True
 
 
-@pytest.mark.skipif(not IS_CPYTHON or TEST_CYTHON, reason='CPython only test without cython enabled.')
+@pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
 def test_check_tracer_with_exceptions(case_setup):
 
-    with case_setup.test_file('_debugger_case_check_tracer.py') as writer:
+    def get_environ(writer):
+        env = os.environ.copy()
+        # This test requires regular tracing (without cython).
+        env['PYDEVD_USE_CYTHON'] = 'NO'
+        env['PYDEVD_USE_FRAME_EVAL'] = 'NO'
+        return env
+
+    with case_setup.test_file('_debugger_case_check_tracer.py', get_environ=get_environ) as writer:
         writer.write_add_exception_breakpoint_with_policy('IndexError', "1", "1", "1")
         writer.write_make_initial_run()
         writer.finished_ok = True
@@ -1101,6 +1142,7 @@ def test_unhandled_exceptions_basic(case_setup):
             '_debugger_case_unhandled_exceptions.py',
             check_test_suceeded_msg=check_test_suceeded_msg,
             additional_output_checks=additional_output_checks,
+            EXPECTED_RETURNCODE=1,
         ) as writer:
 
         writer.write_add_exception_breakpoint_with_policy('Exception', "0", "1", "0")
@@ -1158,7 +1200,9 @@ def test_unhandled_exceptions_basic(case_setup):
 def test_unhandled_exceptions_in_top_level(case_setup_unhandled_exceptions):
 
     with case_setup_unhandled_exceptions.test_file(
-            '_debugger_case_unhandled_exceptions_on_top_level.py') as writer:
+            '_debugger_case_unhandled_exceptions_on_top_level.py',
+            EXPECTED_RETURNCODE=1,
+        ) as writer:
 
         writer.write_add_exception_breakpoint_with_policy('Exception', "0", "1", "0")
         writer.write_make_initial_run()
@@ -1196,6 +1240,7 @@ def test_unhandled_exceptions_in_top_level2(case_setup_unhandled_exceptions):
             '_debugger_case_unhandled_exceptions_on_top_level.py',
             get_environ=get_environ,
             update_command_line_args=update_command_line_args,
+            EXPECTED_RETURNCODE=(1, 255),  # Python 2.6, Jython can give 255
             ) as writer:
 
         writer.write_add_exception_breakpoint_with_policy('Exception', "0", "1", "0")
@@ -1213,7 +1258,9 @@ def test_unhandled_exceptions_in_top_level2(case_setup_unhandled_exceptions):
 def test_unhandled_exceptions_in_top_level3(case_setup_unhandled_exceptions):
 
     with case_setup_unhandled_exceptions.test_file(
-        '_debugger_case_unhandled_exceptions_on_top_level.py') as writer:
+            '_debugger_case_unhandled_exceptions_on_top_level.py',
+            EXPECTED_RETURNCODE=1
+        ) as writer:
 
         # Handled and unhandled
         writer.write_add_exception_breakpoint_with_policy('Exception', "1", "1", "0")
@@ -1236,7 +1283,9 @@ def test_unhandled_exceptions_in_top_level4(case_setup_unhandled_exceptions):
 
     # Note: expecting unhandled exception to be printed to stderr.
     with case_setup_unhandled_exceptions.test_file(
-        '_debugger_case_unhandled_exceptions_on_top_level2.py') as writer:
+            '_debugger_case_unhandled_exceptions_on_top_level2.py',
+            EXPECTED_RETURNCODE=1,
+        ) as writer:
 
         # Handled and unhandled
         writer.write_add_exception_breakpoint_with_policy('Exception', "1", "1", "0")
@@ -1256,19 +1305,25 @@ def test_unhandled_exceptions_in_top_level4(case_setup_unhandled_exceptions):
         writer.finished_ok = True
 
 
-@pytest.mark.skipif(not IS_CPYTHON or (IS_PY36 and not IS_WINDOWS), reason='Only for Python (failing on 3.6 on travis (linux) -- needs to be investigated).')
+@pytest.mark.skipif(not IS_CPYTHON, reason='Only for Python.')
 def test_case_set_next_statement(case_setup):
+
     with case_setup.test_file('_debugger_case_set_next_statement.py') as writer:
         breakpoint_id = writer.write_add_breakpoint(6, None)
         writer.write_make_initial_run()
 
-        hit = writer.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, line=6)
+        hit = writer.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, line=6)  # Stop in line a=3 (before setting it)
 
         writer.write_evaluate_expression('%s\t%s\t%s' % (hit.thread_id, hit.frame_id, 'LOCAL'), 'a')
         writer.wait_for_evaluation('<var name="a" type="int" qualifier="{0}" value="int: 2"'.format(builtin_qualifier))
         writer.write_set_next_statement(hit.thread_id, 2, 'method')
         hit = writer.wait_for_breakpoint_hit('127', line=2)
 
+        # Check that it's still unchanged
+        writer.write_evaluate_expression('%s\t%s\t%s' % (hit.thread_id, hit.frame_id, 'LOCAL'), 'a')
+        writer.wait_for_evaluation('<var name="a" type="int" qualifier="{0}" value="int: 2"'.format(builtin_qualifier))
+
+        # After a step over it should become 1 as we executed line which sets a = 1
         writer.write_step_over(hit.thread_id)
         hit = writer.wait_for_breakpoint_hit('108')
 
@@ -1284,7 +1339,9 @@ def test_case_set_next_statement(case_setup):
 def test_unhandled_exceptions_get_stack(case_setup_unhandled_exceptions):
 
     with case_setup_unhandled_exceptions.test_file(
-            '_debugger_case_unhandled_exception_get_stack.py') as writer:
+            '_debugger_case_unhandled_exception_get_stack.py',
+            EXPECTED_RETURNCODE=(1, 255),  # Python 2.6, Jython can give 255
+            ) as writer:
 
         writer.write_add_exception_breakpoint_with_policy('Exception', "0", "1", "0")
         writer.write_make_initial_run()
@@ -1574,7 +1631,7 @@ def test_case_settrace(case_setup):
         writer.finished_ok = True
 
 
-@pytest.mark.skipif(IS_PY26 or IS_JYTHON, reason='scapy only supports 2.7 onwards, not available for jython.')
+@pytest.mark.skipif(True or IS_PY26 or IS_JYTHON, reason='This is *very* flaky. Scapy only supports 2.7 onwards, not available for jython.')
 def test_case_scapy(case_setup):
     with case_setup.test_file('_debugger_case_scapy.py') as writer:
         writer.FORCE_KILL_PROCESS_WHEN_FINISHED_OK = True
@@ -1770,7 +1827,7 @@ def test_case_print(case_setup):
 @pytest.mark.skipif(IS_JYTHON, reason='Not working on Jython (needs to be investigated).')
 def test_case_lamdda(case_setup):
     with case_setup.test_file('_debugger_case_lamda.py') as writer:
-        writer.write_add_breakpoint(1, 'None')
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'), 'None')
         writer.write_make_initial_run()
 
         for _ in range(3):  # We'll hit the same breakpoint 3 times.
@@ -1800,6 +1857,7 @@ def test_case_suspension_policy(case_setup):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(IS_JYTHON, reason='Flaky on Jython (needs investigation).')
 def test_case_get_thread_stack(case_setup):
     with case_setup.test_file('_debugger_case_get_thread_stack.py') as writer:
 
@@ -1886,6 +1944,7 @@ def test_case_dump_threads_to_stderr(case_setup):
 
 
 def test_stop_on_start_regular(case_setup):
+
     with case_setup.test_file('_debugger_case_simple_calls.py') as writer:
         writer.write_stop_on_start()
         writer.write_make_initial_run()
@@ -1918,7 +1977,29 @@ def test_py_37_breakpoint(case_setup, filename):
         writer.finished_ok = True
 
 
+def _get_generator_cases():
+    if IS_PY2:
+        return ('_debugger_case_generator_py2.py',)
+    else:
+        # On py3 we should check both versions.
+        return ('_debugger_case_generator_py2.py', '_debugger_case_generator_py3.py')
+
+
+@pytest.mark.parametrize("filename", _get_generator_cases())
+def test_generator_cases(case_setup, filename):
+    with case_setup.test_file(filename) as writer:
+        writer.write_add_breakpoint(writer.get_line_index_with_content('break here'))
+        writer.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit()
+
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+
+
 def test_stop_on_start_m_switch(case_setup_m_switch):
+
     with case_setup_m_switch.test_file() as writer:
         writer.write_stop_on_start()
         writer.write_make_initial_run()
@@ -1931,6 +2012,7 @@ def test_stop_on_start_m_switch(case_setup_m_switch):
 
 
 def test_stop_on_start_entry_point(case_setup_m_switch_entry_point):
+
     with case_setup_m_switch_entry_point.test_file() as writer:
         writer.write_stop_on_start()
         writer.write_make_initial_run()
@@ -1994,6 +2076,58 @@ def test_debug_zip_files(case_setup, tmpdir):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
+def test_multiprocessing(case_setup_multiprocessing):
+    import threading
+    from tests_python.debugger_unittest import AbstractWriterThread
+    with case_setup_multiprocessing.test_file('_debugger_case_multiprocessing.py') as writer:
+        break1_line = writer.get_line_index_with_content('break 1 here')
+        break2_line = writer.get_line_index_with_content('break 2 here')
+
+        writer.write_add_breakpoint(break1_line)
+        writer.write_add_breakpoint(break2_line)
+
+        server_socket = writer.server_socket
+
+        class SecondaryProcessWriterThread(AbstractWriterThread):
+
+            TEST_FILE = writer.get_main_filename()
+            _sequence = -1
+
+        class SecondaryProcessThreadCommunication(threading.Thread):
+
+            def run(self):
+                from tests_python.debugger_unittest import ReaderThread
+                server_socket.listen(1)
+                self.server_socket = server_socket
+                new_sock, addr = server_socket.accept()
+
+                reader_thread = ReaderThread(new_sock)
+                reader_thread.start()
+
+                writer2 = SecondaryProcessWriterThread()
+
+                writer2.reader_thread = reader_thread
+                writer2.sock = new_sock
+
+                writer2.write_version()
+                writer2.write_add_breakpoint(break1_line)
+                writer2.write_add_breakpoint(break2_line)
+                writer2.write_make_initial_run()
+                hit = writer2.wait_for_breakpoint_hit()
+                writer2.write_run_thread(hit.thread_id)
+
+        secondary_process_thread_communication = SecondaryProcessThreadCommunication()
+        secondary_process_thread_communication.start()
+        writer.write_make_initial_run()
+        hit2 = writer.wait_for_breakpoint_hit()
+        secondary_process_thread_communication.join(10)
+        if secondary_process_thread_communication.isAlive():
+            raise AssertionError('The SecondaryProcessThreadCommunication did not finish')
+        writer.write_run_thread(hit2.thread_id)
+        writer.finished_ok = True
+
+    
 @pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
 def test_remote_debugger_basic(case_setup_remote):
     with case_setup_remote.test_file('_debugger_case_remote.py') as writer:
@@ -2110,7 +2244,11 @@ def test_remote_debugger_multi_proc(case_setup_remote):
         if hasattr(writer, 'secondary_multi_proc_process_writer'):
             writer.secondary_multi_proc_process_writer.do_kill()
 
-    with case_setup_remote.test_file('_debugger_case_remote_1.py', do_kill=do_kill) as writer:
+    with case_setup_remote.test_file(
+            '_debugger_case_remote_1.py',
+            do_kill=do_kill,
+            EXPECTED_RETURNCODE='any'
+        ) as writer:
 
         # It seems sometimes it becomes flaky on the ci because the process outlives the writer thread...
         # As we're only interested in knowing if a second connection was received, just kill the related
@@ -2163,7 +2301,8 @@ def test_remote_unhandled_exceptions(case_setup_remote):
     with case_setup_remote.test_file(
         '_debugger_case_remote_unhandled_exceptions.py',
         additional_output_checks=additional_output_checks,
-        check_test_suceeded_msg=check_test_suceeded_msg) as writer:
+        check_test_suceeded_msg=check_test_suceeded_msg,
+        EXPECTED_RETURNCODE=1) as writer:
 
         writer.log.append('making initial run')
         writer.write_make_initial_run()
@@ -2185,11 +2324,63 @@ def test_remote_unhandled_exceptions(case_setup_remote):
 
 
 def test_trace_dispatch_correct(case_setup):
-    with case_setup.test_file('_debugger_case_trace_dispatch.py') as writer:
+
+    def get_environ(writer):
+        env = os.environ.copy()
+        env['PYDEVD_USE_FRAME_EVAL'] = 'NO'  # This test checks trace dispatch (so, disable frame eval).
+        return env
+
+    with case_setup.test_file('_debugger_case_trace_dispatch.py', get_environ=get_environ) as writer:
         breakpoint_id = writer.write_add_breakpoint(5, 'method')
         writer.write_make_initial_run()
         hit = writer.wait_for_breakpoint_hit()
         writer.write_remove_breakpoint(breakpoint_id)
+        writer.write_run_thread(hit.thread_id)
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(IS_PY26, reason='Failing on Python 2.6 on travis (needs investigation).')
+def test_case_single_notification_on_step(case_setup):
+    from tests_python.debugger_unittest import REASON_STEP_INTO
+    with case_setup.test_file('_debugger_case_import_main.py') as writer:
+        writer.write_multi_threads_single_notification(True)
+        writer.write_add_breakpoint(writer.get_line_index_with_content('break here'), '')
+        writer.write_make_initial_run()
+
+        hit = writer.wait_for_single_notification_as_hit()
+
+        writer.write_step_in(hit.thread_id)
+        hit = writer.wait_for_single_notification_as_hit(reason=REASON_STEP_INTO)
+
+        writer.write_step_in(hit.thread_id)
+        hit = writer.wait_for_single_notification_as_hit(reason=REASON_STEP_INTO)
+
+        writer.write_step_in(hit.thread_id)
+        hit = writer.wait_for_single_notification_as_hit(reason=REASON_STEP_INTO)
+
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+
+
+def test_return_value(case_setup):
+    with case_setup.test_file('_debugger_case_return_value.py') as writer:
+        writer.write_add_breakpoint(writer.get_line_index_with_content('break here'), '')
+        writer.write_show_return_vars()
+        writer.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit()
+        writer.write_step_over(hit.thread_id)
+
+        hit = writer.wait_for_breakpoint_hit(REASON_STEP_OVER)
+        writer.write_get_frame(hit.thread_id, hit.frame_id)
+
+        writer.wait_for_vars([
+            [
+                '<var name="method1" type="int" qualifier="%s" value="int: 1" isRetVal="True"' % (builtin_qualifier,),
+                '<var name="method1" type="int"  value="int%253A 1" isRetVal="True"',
+            ],
+        ])
         writer.write_run_thread(hit.thread_id)
         writer.finished_ok = True
 
@@ -2233,10 +2424,10 @@ def test_run_pause_all_threads_single_notification(case_setup, check_single_noti
         writer.write_step_over(thread_id1)
 
         if check_single_notification:
-            dct = writer.wait_for_json_message(CMD_THREAD_RESUME_SINGLE_NOTIFICATION)
+            dct = writer.wait_for_json_message(CMD_THREAD_RESUME_SINGLE_NOTIFICATION)  # Note: prefer wait_for_single_notification_as_hit
             assert dct['thread_id'] == thread_id1
 
-            dct = writer.wait_for_json_message(CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION)
+            dct = writer.wait_for_json_message(CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION)  # Note: prefer wait_for_single_notification_as_hit
             assert dct['thread_id'] == thread_id1
             assert dct['stop_reason'] == REASON_STEP_OVER
 
@@ -2314,7 +2505,8 @@ def test_top_level_exceptions_on_attach(case_setup_remote, check_scenario):
     with case_setup_remote.test_file(
         '_debugger_case_remote_unhandled_exceptions2.py',
         additional_output_checks=additional_output_checks,
-        check_test_suceeded_msg=check_test_suceeded_msg) as writer:
+        check_test_suceeded_msg=check_test_suceeded_msg,
+        EXPECTED_RETURNCODE=1) as writer:
 
         writer.log.append('making initial run')
         writer.write_make_initial_run()

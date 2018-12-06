@@ -101,16 +101,16 @@ if sys.version_info[0] >= 3:
         FrameInfo(filename='_pydev_execfile.py', name='execfile', f_trace='None'),
         FrameInfo(filename='pydevd.py', name='_exec', f_trace='trace_unhandled_exceptions'),
         FrameInfo(filename='pydevd.py', name='run', f_trace='trace_dispatch|None'),
-        FrameInfo(filename='pydevd.py', name='main', f_trace='trace_dispatch'),
-        FrameInfo(filename='pydevd.py', name='<module>', f_trace='trace_dispatch')
+        FrameInfo(filename='pydevd.py', name='main', f_trace='trace_dispatch|None'),
+        FrameInfo(filename='pydevd.py', name='<module>', f_trace='trace_dispatch|None')
     ])
 else:
     check_frame_info([
         FrameInfo(filename='_debugger_case_check_tracer.py', name='<module>', f_trace='trace_exception'),
         FrameInfo(filename='pydevd.py', name='_exec', f_trace='trace_unhandled_exceptions'),
         FrameInfo(filename='pydevd.py', name='run', f_trace='trace_dispatch|None'),
-        FrameInfo(filename='pydevd.py', name='main', f_trace='trace_dispatch'),
-        FrameInfo(filename='pydevd.py', name='<module>', f_trace='trace_dispatch'),
+        FrameInfo(filename='pydevd.py', name='main', f_trace='trace_dispatch|None'),
+        FrameInfo(filename='pydevd.py', name='<module>', f_trace='trace_dispatch|None'),
     ])
 
 print('TEST SUCEEDED')

@@ -163,6 +163,7 @@ if USE_LIB_COPY:
 
 from _pydev_imps._pydev_saved_modules import thread
 _thread_id_lock = thread.allocate_lock()
+thread_get_ident = thread.get_ident
 
 if IS_PY3K:
 
@@ -237,7 +238,7 @@ except:
 
 NO_FTRACE = None
 
-if sys.version_info[:2] in ((2, 6), (3,3), (3,4)):
+if sys.version_info[:2] in ((2, 6), (3, 3), (3, 4)):
 
     def NO_FTRACE(frame, event, arg):
         # In Python <= 2.6 and <= 3.4, if we're tracing a method, frame.f_trace may not be set
@@ -274,6 +275,49 @@ def clear_cached_thread_id(thread):
             pass
 
 
+# Don't let threads be collected (so that id(thread) is guaranteed to be unique).
+_thread_id_to_thread_found = {}
+
+
+def _get_or_compute_thread_id_with_lock(thread, is_current_thread):
+    with _thread_id_lock:
+        # We do a new check with the lock in place just to be sure that nothing changed
+        tid = getattr(thread, '__pydevd_id__', None)
+        if tid is not None:
+            return tid
+
+        _thread_id_to_thread_found[id(thread)] = thread
+
+        # Note: don't use thread.ident because a new thread may have the
+        # same id from an old thread.
+        pid = get_pid()
+        tid = 'pid_%s_id_%s' % (pid, id(thread))
+
+        thread.__pydevd_id__ = tid
+
+    return tid
+
+
+def get_current_thread_id(thread):
+    '''
+    Note: the difference from get_current_thread_id to get_thread_id is that
+    for the current thread we can get the thread id while the thread.ident
+    is still not set in the Thread instance.
+    '''
+    try:
+        # Fast path without getting lock.
+        tid = thread.__pydevd_id__
+        if tid is None:
+            # Fix for https://www.brainwy.com/tracker/PyDev/645
+            # if __pydevd_id__ is None, recalculate it... also, use an heuristic
+            # that gives us always the same id for the thread (using thread.ident or id(thread)).
+            raise AttributeError()
+    except AttributeError:
+        tid = _get_or_compute_thread_id_with_lock(thread, is_current_thread=True)
+
+    return tid
+
+
 def get_thread_id(thread):
     try:
         # Fast path without getting lock.
@@ -284,14 +328,7 @@ def get_thread_id(thread):
             # that gives us always the same id for the thread (using thread.ident or id(thread)).
             raise AttributeError()
     except AttributeError:
-        with _thread_id_lock:
-            # We do a new check with the lock in place just to be sure that nothing changed
-            tid = getattr(thread, '__pydevd_id__', None)
-            if tid is None:
-                pid = get_pid()
-                # Note: don't use the thread ident because if we're too early in the
-                # thread bootstrap process, the thread id could be still unset.
-                tid = thread.__pydevd_id__ = 'pid_%s_id_%s' % (pid, id(thread))
+        tid = _get_or_compute_thread_id_with_lock(thread, is_current_thread=False)
 
     return tid
 

@@ -16,16 +16,16 @@ matrix:
         - JYTHON_URL=http://search.maven.org/remotecontent?filepath=org/python/jython-installer/2.7.1/jython-installer-2.7.1.jar
     
     # Python 2.6 (with and without cython)
-#     - python: 2.7
-#       env:
-#         - PYDEVD_PYTHON_VERSION=2.6
-#         - PYDEVD_USE_CYTHON=NO
-#         - PYDEVD_TEST_JYTHON=NO
     - python: 2.7
       env:
         - PYDEVD_PYTHON_VERSION=2.6
-        - PYDEVD_USE_CYTHON=YES
+        - PYDEVD_USE_CYTHON=NO
         - PYDEVD_TEST_JYTHON=NO
+#     - python: 2.7
+#       env:
+#         - PYDEVD_PYTHON_VERSION=2.6
+#         - PYDEVD_USE_CYTHON=YES
+#         - PYDEVD_TEST_JYTHON=NO
       
     # Python 2.7 (with and without cython)
     - python: 2.7

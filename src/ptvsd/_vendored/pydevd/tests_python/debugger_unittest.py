@@ -6,18 +6,17 @@ try:
 except ImportError:
     from urllib.parse import quote, quote_plus, unquote_plus  # @UnresolvedImport
 
-import os
 import re
 import socket
 import subprocess
-import sys
 import threading
 import time
 import traceback
+from tests_python.debug_constants import *
 
 from _pydev_bundle import pydev_localhost
 
-IS_PY3K = sys.version_info[0] >= 3
+
 
 # Note: copied (don't import because we want it to be independent on the actual code because of backward compatibility).
 CMD_RUN = 101
@@ -70,6 +69,7 @@ CMD_SHOW_CONSOLE = 142
 CMD_GET_ARRAY = 143
 CMD_STEP_INTO_MY_CODE = 144
 CMD_GET_CONCURRENCY_EVENT = 145
+CMD_SHOW_RETURN_VALUES = 146
 
 CMD_GET_THREAD_STACK = 152
 CMD_THREAD_DUMP_TO_STDERR = 153  # This is mostly for unit-tests to diagnose errors on ci.
@@ -92,6 +92,7 @@ REASON_CAUGHT_EXCEPTION = CMD_STEP_CAUGHT_EXCEPTION
 REASON_UNCAUGHT_EXCEPTION = CMD_ADD_EXCEPTION_BREAK
 REASON_STOP_ON_BREAKPOINT = CMD_SET_BREAK
 REASON_THREAD_SUSPEND = CMD_THREAD_SUSPEND
+REASON_STEP_INTO = CMD_STEP_INTO
 REASON_STEP_INTO_MY_CODE = CMD_STEP_INTO_MY_CODE
 REASON_STEP_OVER = CMD_STEP_OVER
 
@@ -197,17 +198,19 @@ class ReaderThread(threading.Thread):
         else:
             frame = sys._getframe().f_back.f_back
             frame_info = ''
-            i = 3
             while frame:
+                if frame.f_code.co_filename.endswith('debugger_unittest.py'):
+                    frame = frame.f_back
+                    continue
                 stack_msg = ' --  File "%s", line %s, in %s\n' % (frame.f_code.co_filename, frame.f_lineno, frame.f_code.co_name)
                 if 'run' == frame.f_code.co_name:
                     frame_info = stack_msg  # Ok, found the writer thread 'run' method (show only that).
                     break
                 frame_info += stack_msg
                 frame = frame.f_back
-                i -= 1
-                if i == 0:
-                    break
+                # Just print the first which is not debugger_unittest.py
+                break
+
             frame = None
             sys.stdout.write('Message returned in get_next_message(): %s --  ctx: %s, asked at:\n%s\n' % (unquote_plus(unquote_plus(msg)), context_message, frame_info))
         return msg
@@ -315,10 +318,18 @@ class DebuggerRunner(object):
                 print('executing', ' '.join(args))
 
             with self.run_process(args, writer) as dct_with_stdout_stder:
-                wait_for_condition(lambda: writer.finished_initialization)
-
-                writer.get_stdout = lambda: ''.join(dct_with_stdout_stder['stdout'])
-                writer.get_stderr = lambda: ''.join(dct_with_stdout_stder['stderr'])
+                try:
+                    wait_for_condition(lambda: writer.finished_initialization)
+                except TimeoutError:
+                    sys.stderr.write('Timed out waiting for initialization\n')
+                    sys.stderr.write('stdout:\n%s\n\nstderr:\n%s\n' % (
+                        ''.join(dct_with_stdout_stder['stdout']),
+                        ''.join(dct_with_stdout_stder['stderr']),
+                    ))
+                    raise
+                finally:
+                    writer.get_stdout = lambda: ''.join(dct_with_stdout_stder['stdout'])
+                    writer.get_stderr = lambda: ''.join(dct_with_stdout_stder['stderr'])
 
                 yield writer
         finally:
@@ -370,6 +381,14 @@ class DebuggerRunner(object):
 
             while True:
                 if process.poll() is not None:
+                    if writer.EXPECTED_RETURNCODE != 'any':
+                        expected_returncode = writer.EXPECTED_RETURNCODE
+                        if not isinstance(expected_returncode, (list, tuple)):
+                            expected_returncode = (expected_returncode,)
+
+                        if process.returncode not in expected_returncode:
+                            self.fail_with_message('Expected process.returncode to be %s. Found: %s' % (
+                                writer.EXPECTED_RETURNCODE, process.returncode), stdout, stderr, writer)
                     break
                 else:
                     if writer is not None:
@@ -435,6 +454,7 @@ class AbstractWriterThread(threading.Thread):
     FORCE_KILL_PROCESS_WHEN_FINISHED_OK = False
     IS_MODULE = False
     TEST_FILE = None
+    EXPECTED_RETURNCODE = 0
 
     def __init__(self, *args, **kwargs):
         threading.Thread.__init__(self, *args, **kwargs)
@@ -486,6 +506,14 @@ class AbstractWriterThread(threading.Thread):
             if line.strip().startswith('at '):
                 return True
 
+        if IS_PY26:
+            # Sometimes in the ci there's an unhandled exception which doesn't have a stack trace
+            # (apparently this happens when a daemon thread dies during process shutdown).
+            # This was only reproducible on the ci on Python 2.6, so, ignoring that output on Python 2.6 only.
+            for expected in (
+                'Unhandled exception in thread started by <_pydev_bundle.pydev_monkey._NewThreadStartupWithTrace'):
+                if expected in line:
+                    return True
         return False
 
     def additional_output_checks(self, stdout, stderr):
@@ -546,8 +574,14 @@ class AbstractWriterThread(threading.Thread):
         if SHOW_WRITES_AND_READS:
             print('Test Writer Thread Written %s%s' % (meaning, s,))
         msg = s + '\n'
+
+        if not hasattr(self, 'sock'):
+            print('%s.sock not available when sending: %s' % (self, msg))
+            return
+
         if IS_PY3K:
             msg = msg.encode('utf-8')
+
         self.sock.send(msg)
 
     def get_next_message(self, context_message, timeout=None):
@@ -559,6 +593,7 @@ class AbstractWriterThread(threading.Thread):
         if SHOW_WRITES_AND_READS:
             print('start_socket')
 
+        self._sequence = -1
         if port is None:
             socket_name = get_socket_name(close=True)
         else:
@@ -579,7 +614,6 @@ class AbstractWriterThread(threading.Thread):
         reader_thread.start()
         self.sock = new_sock
 
-        self._sequence = -1
         # initial command is always the version
         self.write_version()
         self.log.append('start_socket')
@@ -620,10 +654,20 @@ class AbstractWriterThread(threading.Thread):
                 msg = unquote_plus(unquote_plus(msg.split('"')[1]))
                 return msg, ctx
 
-    def get_current_stack_hit(self, thread_id):
+    def get_current_stack_hit(self, thread_id, **kwargs):
         self.write_get_thread_stack(thread_id)
         msg = self.wait_for_message(CMD_GET_THREAD_STACK)
-        return self._get_stack_as_hit(msg)
+        return self._get_stack_as_hit(msg, **kwargs)
+
+    def wait_for_single_notification_as_hit(self, reason=REASON_STOP_ON_BREAKPOINT, **kwargs):
+        dct = self.wait_for_json_message(CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION)
+        assert dct['stop_reason'] == reason
+
+        line = kwargs.pop('line', None)
+        file = kwargs.pop('file', None)
+        assert not kwargs, 'Unexpected kwargs: %s' % (kwargs,)
+
+        return self.get_current_stack_hit(dct['thread_id'], line=line, file=file)
 
     def wait_for_breakpoint_hit(self, reason=REASON_STOP_ON_BREAKPOINT, timeout=None, **kwargs):
         '''
@@ -774,9 +818,13 @@ class AbstractWriterThread(threading.Thread):
     def get_main_filename(self):
         return self.TEST_FILE
 
-    def write_add_breakpoint(self, line, func, filename=None, hit_condition=None, is_logpoint=False, suspend_policy=None, condition=None):
+    def write_show_return_vars(self, show=1):
+        self.write("%s\t%s\tCMD_SHOW_RETURN_VALUES\t%s" % (CMD_SHOW_RETURN_VALUES, self.next_seq(), show))
+
+    def write_add_breakpoint(self, line, func='None', filename=None, hit_condition=None, is_logpoint=False, suspend_policy=None, condition=None):
         '''
-            @param line: starts at 1
+        :param line: starts at 1
+        :param func: if None, may hit in any context, empty string only top level, otherwise must be method name.
         '''
         if filename is None:
             filename = self.get_main_filename()

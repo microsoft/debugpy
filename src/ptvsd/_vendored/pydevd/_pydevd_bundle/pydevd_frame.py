@@ -10,7 +10,7 @@ from _pydevd_bundle import pydevd_vars
 from _pydevd_bundle.pydevd_breakpoints import get_exception_breakpoint
 from _pydevd_bundle.pydevd_comm_constants import (CMD_STEP_CAUGHT_EXCEPTION, CMD_STEP_RETURN, CMD_STEP_OVER, CMD_SET_BREAK, \
     CMD_STEP_INTO, CMD_SMART_STEP_INTO, CMD_RUN_TO_LINE, CMD_SET_NEXT_STATEMENT, CMD_STEP_INTO_MY_CODE)
-from _pydevd_bundle.pydevd_constants import STATE_SUSPEND, get_thread_id, STATE_RUN, dict_iter_values, IS_PY3K, \
+from _pydevd_bundle.pydevd_constants import STATE_SUSPEND, get_current_thread_id, STATE_RUN, dict_iter_values, IS_PY3K, \
     dict_keys, RETURN_VALUES_DICT, NO_FTRACE
 from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, just_raised, remove_exception_from_frame, ignore_exception_trace
@@ -139,7 +139,7 @@ class PyDBFrame:
 
     # IFDEF CYTHON
     # def trace_exception(self, frame, str event, arg):
-    #     cdef bint flag;
+    #     cdef bint should_stop;
     # ELSE
     def trace_exception(self, frame, event, arg):
     # ENDIF
@@ -326,7 +326,7 @@ class PyDBFrame:
                     f = f.f_back
                 f = None
 
-                thread_id = get_thread_id(thread)
+                thread_id = get_current_thread_id(thread)
                 pydevd_vars.add_additional_frame_by_id(thread_id, frame_id_to_frame)
                 try:
                     main_debugger.send_caught_exception_stack(thread, arg, id(frame))
@@ -425,7 +425,7 @@ class PyDBFrame:
     # ENDIF
 
         main_debugger, filename, info, thread, frame_skips_cache, frame_cache_key = self._args
-        # print('frame trace_dispatch', frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename, event, info.pydev_step_cmd)
+        # print('frame trace_dispatch %s %s %s %s %s' % (frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename, event, info.pydev_step_cmd))
         try:
             info.is_tracing = True
             line = frame.f_lineno
@@ -459,10 +459,10 @@ class PyDBFrame:
                     # No need to reset frame.f_trace to keep the same trace function.
                     return self.trace_dispatch
 
-            need_trace_return = False
+            need_signature_trace_return = False
             if main_debugger.signature_factory is not None:
                 if is_call:
-                    need_trace_return = send_signature_call_trace(main_debugger, frame, filename)
+                    need_signature_trace_return = send_signature_call_trace(main_debugger, frame, filename)
                 elif is_return:
                     send_signature_return_trace(main_debugger, frame, filename, arg)
 
@@ -505,7 +505,7 @@ class PyDBFrame:
                             can_skip = not plugin_manager.can_not_skip(main_debugger, self, frame)
 
                         # CMD_STEP_OVER = 108
-                        if can_skip and is_return and main_debugger.show_return_values and info.pydev_step_cmd == 108 and frame.f_back is info.pydev_step_stop:
+                        if can_skip and main_debugger.show_return_values and info.pydev_step_cmd == 108 and frame.f_back is info.pydev_step_stop:
                             # trace function for showing return values after step over
                             can_skip = False
 
@@ -519,7 +519,7 @@ class PyDBFrame:
                             frame.f_trace = self.trace_exception
                             return self.trace_exception
                         else:
-                            if need_trace_return:
+                            if need_signature_trace_return:
                                 frame.f_trace = self.trace_return
                                 return self.trace_return
                             else:
@@ -565,7 +565,7 @@ class PyDBFrame:
                             frame.f_trace = self.trace_exception
                             return self.trace_exception
                         else:
-                            if need_trace_return:
+                            if need_signature_trace_return:
                                 frame.f_trace = self.trace_return
                                 return self.trace_return
                             else:
@@ -573,7 +573,7 @@ class PyDBFrame:
                                 return None
 
             # We may have hit a breakpoint or we are already in step mode. Either way, let's check what we should do in this frame
-            # print('NOT skipped', frame.f_lineno, frame.f_code.co_name, event)
+            # print('NOT skipped: %s %s %s %s' % (frame.f_lineno, frame.f_code.co_name, event, frame.__class__.__name__))
 
             try:
                 flag = False
@@ -621,7 +621,7 @@ class PyDBFrame:
                         # line event at the same place (so, if there's a module with a print() in the first line
                         # the user will hit that line twice, which is not what we want).
                         #
-                        # As for lamdba, as it only has a single statement, it's not interesting to trace
+                        # As for lambda, as it only has a single statement, it's not interesting to trace
                         # its call and later its line event as they're usually in the same line.
 
                         # No need to reset frame.f_trace to keep the same trace function.
@@ -737,12 +737,6 @@ class PyDBFrame:
 
                 elif step_cmd == CMD_STEP_RETURN:
                     stop = is_return and stop_frame is frame
-
-                elif step_cmd == CMD_RUN_TO_LINE or step_cmd == CMD_SET_NEXT_STATEMENT:
-                    try:
-                        stop, _, response_msg = main_debugger.set_next_statement(frame, event, info.pydev_func_name, info.pydev_next_line)
-                    except ValueError:
-                        pass
 
                 else:
                     stop = False

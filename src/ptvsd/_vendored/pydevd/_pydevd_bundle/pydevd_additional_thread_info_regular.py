@@ -39,10 +39,10 @@ if not hasattr(sys, '_current_frames'):
 
                 ret[thread.getId()] = frame
             return ret
-        
-    elif IS_IRONPYTHON: 
+
+    elif IS_IRONPYTHON:
         _tid_to_last_frame = {}
-        
+
         # IronPython doesn't have it. Let's use our workaround...
         def _current_frames():
             return _tid_to_last_frame
@@ -62,22 +62,8 @@ else:
 class PyDBAdditionalThreadInfo(object):
 # ENDIF
 
+    # Note: the params in cython are declared in pydevd_cython.pxd.
     # IFDEF CYTHON
-    # cdef public int pydev_state;
-    # cdef public object pydev_step_stop; # Actually, it's a frame or None
-    # cdef public int pydev_step_cmd;
-    # cdef public bint pydev_notify_kill;
-    # cdef public object pydev_smart_step_stop; # Actually, it's a frame or None
-    # cdef public bint pydev_django_resolve_frame;
-    # cdef public object pydev_call_from_jinja2;
-    # cdef public object pydev_call_inside_jinja2;
-    # cdef public bint is_tracing;
-    # cdef public tuple conditional_breakpoint_exception;
-    # cdef public str pydev_message;
-    # cdef public int suspend_type;
-    # cdef public int pydev_next_line;
-    # cdef public str pydev_func_name;
-    # cdef public bint suspended_at_unhandled;
     # ELSE
     __slots__ = [
         'pydev_state',
@@ -95,11 +81,12 @@ class PyDBAdditionalThreadInfo(object):
         'pydev_next_line',
         'pydev_func_name',
         'suspended_at_unhandled',
+        'trace_suspend_type',
     ]
     # ENDIF
 
     def __init__(self):
-        self.pydev_state = STATE_RUN
+        self.pydev_state = STATE_RUN  # STATE_RUN or STATE_SUSPEND
         self.pydev_step_stop = None
         self.pydev_step_cmd = -1  # Something as CMD_STEP_INTO, CMD_STEP_OVER, etc.
         self.pydev_notify_kill = False
@@ -114,6 +101,7 @@ class PyDBAdditionalThreadInfo(object):
         self.pydev_next_line = -1
         self.pydev_func_name = '.invalid.'  # Must match the type in cython
         self.suspended_at_unhandled = False
+        self.trace_suspend_type = 'trace'  # 'trace' or 'frame_eval'
 
     def get_topmost_frame(self, thread):
         '''
@@ -145,6 +133,7 @@ def set_additional_thread_info(thread):
             # conditions.
             additional_info = getattr(thread, 'additional_info', None)
             if additional_info is None:
-                additional_info = thread.additional_info = PyDBAdditionalThreadInfo()
+                additional_info = PyDBAdditionalThreadInfo()
+            thread.additional_info = additional_info
 
     return additional_info
