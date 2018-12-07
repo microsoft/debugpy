@@ -200,10 +200,21 @@ class UnsupportedPyDevdCommandError(Exception):
         self.cmdid = cmdid
 
 
-def unquote(s):
-    if s is None:
-        return None
-    return urllib.unquote(s)
+if sys.version_info >= (3,):
+    def unquote(s):
+        return None if s is None else urllib.unquote(s)
+else:
+    # In Python 2, urllib.unquote doesn't handle Unicode strings correctly,
+    # so we need to convert to ASCII first, unquote, and then decode.
+    def unquote(s):
+        if s is None:
+            return None
+        if not isinstance(s, bytes):
+            s = bytes(s)
+        s = urllib.unquote(s)
+        if isinstance(s, bytes):
+            s = s.decode('utf-8')
+        return s
 
 
 def unquote_xml_path(s):
@@ -1605,7 +1616,10 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         if source_reference == 0:
             self.send_error_response(request, 'Source unavailable')
         else:
+            if sys.version_info < (3,) and not isinstance(filename, bytes):
+                filename = filename.encode(sys.getfilesystemencoding())
             server_filename = path_to_unicode(pydevd_file_utils.norm_file_to_server(filename))
+
             cmd = pydevd_comm.CMD_LOAD_SOURCE
             _, _, content = yield self.pydevd_request(cmd, server_filename)
             self.send_response(request, content=content)

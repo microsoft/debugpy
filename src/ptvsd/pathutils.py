@@ -2,7 +2,7 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-from __future__ import print_function, with_statement, absolute_import
+from __future__ import print_function, with_statement, absolute_import, unicode_literals
 
 from glob import glob
 import os.path
