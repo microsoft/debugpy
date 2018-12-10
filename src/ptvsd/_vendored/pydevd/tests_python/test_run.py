@@ -2,10 +2,11 @@ pytest_plugins = [
     str('_pytest.pytester'),
 ]
 
-def _run_and_check(testdir, path):
+
+def _run_and_check(testdir, path, check_for='Worked'):
     result = testdir.runpython(path)
     result.stdout.fnmatch_lines([
-        'Worked'
+        check_for
     ])
 
 def test_run(testdir):
@@ -63,3 +64,41 @@ py_db = pydevd.PyDB()
 py_db.run(%(foo_module)r, is_module=True, set_trace=False)
 ''' % locals()))
 
+
+def test_run_on_local_module_without_adding_to_pythonpath(testdir):
+    import sys
+    import os
+
+    pydevd_dir = os.path.dirname(os.path.dirname(__file__))
+    assert os.path.exists(os.path.join(pydevd_dir, 'pydevd.py'))
+
+    foo_module = 'local_foo'
+    with open(os.path.join(os.getcwd(), 'local_foo.py'), 'w') as stream:
+        stream.write('print("WorkedLocalFoo")')
+
+    _run_and_check(testdir, testdir.makepyfile('''
+import sys
+import os
+sys.path.append(%(pydevd_dir)r)
+sys.argv.append('--as-module')
+cwd = os.path.abspath(os.getcwd())
+while cwd in sys.path:
+    sys.path.remove(cwd)
+import pydevd
+py_db = pydevd.PyDB()
+py_db.ready_to_run = True
+py_db.run(%(foo_module)r, is_module=True)
+''' % locals()), check_for='WorkedLocalFoo')
+
+    _run_and_check(testdir, testdir.makepyfile('''
+import sys
+import os
+sys.argv.append('--as-module')
+sys.path.append(%(pydevd_dir)r)
+cwd = os.path.abspath(os.getcwd())
+while cwd in sys.path:
+    sys.path.remove(cwd)
+import pydevd
+py_db = pydevd.PyDB()
+py_db.run(%(foo_module)r, is_module=True, set_trace=False)
+''' % locals()), check_for='WorkedLocalFoo')
