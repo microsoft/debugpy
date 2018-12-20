@@ -1,9 +1,14 @@
-from pydevd_concurrency_analyser.pydevd_thread_wrappers import ObjectWrapper, wrap_attr
+import time
+import traceback
 
-import pydevd_file_utils
-from _pydevd_bundle import pydevd_xml
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
+from _pydev_imps._pydev_saved_modules import threading
+from _pydevd_bundle import pydevd_xml
+from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder
 from _pydevd_bundle.pydevd_constants import get_thread_id, IS_PY3K
+from _pydevd_bundle.pydevd_net_command import NetCommand
+from pydevd_concurrency_analyser.pydevd_thread_wrappers import ObjectWrapper, wrap_attr
+import pydevd_file_utils
 
 file_system_encoding = getfilesystemencoding()
 
@@ -12,7 +17,6 @@ try:
 except:
     from urllib.parse import quote  # @UnresolvedImport
 
-from _pydev_imps._pydev_saved_modules import threading
 threadingCurrentThread = threading.currentThread
 
 
@@ -23,11 +27,7 @@ THREAD_METHODS = ['start', '_stop', 'join']
 LOCK_METHODS = ['__init__', 'acquire', 'release', '__enter__', '__exit__']
 QUEUE_METHODS = ['put', 'get']
 
-from _pydevd_bundle.pydevd_comm import NetCommand
-from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder
-import traceback
 
-import time
 # return time since epoch in milliseconds
 cur_time = lambda: int(round(time.time() * 1000000))
 

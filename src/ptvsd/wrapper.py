@@ -39,9 +39,9 @@ import _pydevd_bundle.pydevd_comm as pydevd_comm  # noqa
 import _pydevd_bundle.pydevd_comm_constants as pydevd_comm_constants  # noqa
 import _pydevd_bundle.pydevd_extension_api as pydevd_extapi  # noqa
 import _pydevd_bundle.pydevd_extension_utils as pydevd_extutil  # noqa
-import _pydevd_bundle.pydevd_frame as pydevd_frame # noqa
-#from _pydevd_bundle.pydevd_comm import pydevd_log
-from _pydevd_bundle.pydevd_additional_thread_info import PyDBAdditionalThreadInfo # noqa
+import _pydevd_bundle.pydevd_frame as pydevd_frame  # noqa
+# from _pydevd_bundle.pydevd_comm import pydevd_log
+from _pydevd_bundle.pydevd_additional_thread_info import PyDBAdditionalThreadInfo  # noqa
 
 from ptvsd import _util
 from ptvsd import multiproc
@@ -71,11 +71,11 @@ EXCEPTION_REASONS = {
 debug = _util.debug
 debugger_attached = threading.Event()
 
-#def ipcjson_trace(s):
-#    print(s)
-#ipcjson._TRACE = ipcjson_trace
+# def ipcjson_trace(s):
+#     print(s)
+# ipcjson._TRACE = ipcjson_trace
 
-#completion types.
+# completion types.
 TYPE_IMPORT = '0'
 TYPE_CLASS = '1'
 TYPE_FUNCTION = '2'
@@ -94,16 +94,6 @@ TYPE_LOOK_UP = {
 
 def NOOP(*args, **kwargs):
     pass
-
-
-def is_debugger_internal_thread(thread_name):
-    # TODO: docstring
-    if thread_name:
-        if thread_name.startswith('pydevd.'):
-            return True
-        elif thread_name.startswith('ptvsd.'):
-            return True
-    return False
 
 
 def path_to_unicode(s):
@@ -201,9 +191,12 @@ class UnsupportedPyDevdCommandError(Exception):
 
 
 if sys.version_info >= (3,):
+
     def unquote(s):
         return None if s is None else urllib.unquote(s)
+
 else:
+
     # In Python 2, urllib.unquote doesn't handle Unicode strings correctly,
     # so we need to convert to ASCII first, unquote, and then decode.
     def unquote(s):
@@ -329,7 +322,7 @@ class PydevdSocket(object):
     """
 
     def __init__(self, handle_msg, handle_close, getpeername, getsockname):
-        #self.log = open('pydevd.log', 'w')
+        # self.log = open('pydevd.log', 'w')
         self._handle_msg = handle_msg
         self._handle_close = handle_close
         self._getpeername = getpeername
@@ -395,8 +388,8 @@ class PydevdSocket(object):
         if pipe_r is None:
             return b''
         data = os.read(pipe_r, count)
-        #self.log.write('>>>[' + data.decode('utf8') + ']\n\n')
-        #self.log.flush()
+        # self.log.write('>>>[' + data.decode('utf8') + ']\n\n')
+        # self.log.flush()
         return data
 
     def recv_into(self, buf):
@@ -409,10 +402,13 @@ class PydevdSocket(object):
     # are encoded first and then quoted as individual bytes. In Python 3,
     # however, we just get a properly UTF-8-encoded string.
     if sys.version_info < (3,):
+
         @staticmethod
         def _decode_and_unquote(data):
             return unquote(data).decode('utf8')
+
     else:
+
         @staticmethod
         def _decode_and_unquote(data):
             return unquote(data.decode('utf8'))
@@ -422,12 +418,30 @@ class PydevdSocket(object):
 
         This is where pydevd sends responses and events.  The data will
         follow the pydevd line protocol.
+
+        Note that the data is always a full message received from pydevd
+        (sent from _pydevd_bundle.pydevd_comm.WriterThread), so, there's 
+        no need to actually treat received bytes as a stream of bytes.
         """
         result = len(data)
-        data = self._decode_and_unquote(data)
-        #self.log.write('<<<[' + data + ']\n\n')
-        #self.log.flush()
-        cmd_id, seq, args = data.split('\t', 2)
+
+        if data.startswith(b'{'):
+            # A json message was received.
+            data = data.decode('utf-8')
+            as_dict = json.loads(data)
+            cmd_id = as_dict['pydevd_cmd_id']
+            if 'request_seq' in as_dict:
+                seq = as_dict['request_seq']
+            else:
+                seq = as_dict['seq']
+            args = as_dict
+
+        else:
+            data = self._decode_and_unquote(data)
+            # self.log.write('<<<[' + data + ']\n\n')
+            # self.log.flush()
+            cmd_id, seq, args = data.split('\t', 2)
+
         cmd_id = int(cmd_id)
         seq = int(seq)
         _util.log_pydevd_msg(cmd_id, seq, args, inbound=True)
@@ -473,6 +487,7 @@ class PydevdSocket(object):
 
 
 class ExceptionsManager(object):
+
     def __init__(self, proc):
         self.proc = proc
         self.exceptions = {}
@@ -589,6 +604,7 @@ class ExceptionsManager(object):
 
 
 class VariablesSorter(object):
+
     def __init__(self):
         self.variables = []  # variables that do not begin with underscores
         self.single_underscore = []  # variables beginning with underscores
@@ -608,8 +624,10 @@ class VariablesSorter(object):
             self.variables.append(var)
 
     def get_sorted_variables(self):
+
         def get_sort_key(o):
             return o['name']
+
         self.variables.sort(key=get_sort_key)
         self.single_underscore.sort(key=get_sort_key)
         self.double_underscore.sort(key=get_sort_key)
@@ -618,6 +636,7 @@ class VariablesSorter(object):
 
 
 class ModulesManager(object):
+
     def __init__(self, proc):
         self.module_id_to_details = {}
         self.path_to_module_id = {}
@@ -731,9 +750,9 @@ class InternalsFilter(object):
                 return True
         return False
 
-
 ########################
 # the debug config
+
 
 def bool_parser(str):
     return str in ("True", "true", "1")
@@ -755,7 +774,6 @@ DEBUG_OPTIONS_PARSER = {
     'SHOW_RETURN_VALUE': bool_parser,
     'MULTIPROCESS': bool_parser,
 }
-
 
 DEBUG_OPTIONS_BY_FLAG = {
     'RedirectOutput': 'REDIRECT_OUTPUT=True',
@@ -837,10 +855,9 @@ def _parse_debug_options(opts):
             continue
 
     if 'CLIENT_OS_TYPE' not in options:
-        options['CLIENT_OS_TYPE'] = 'WINDOWS' if platform.system() == 'Windows' else 'UNIX' # noqa
+        options['CLIENT_OS_TYPE'] = 'WINDOWS' if platform.system() == 'Windows' else 'UNIX'  # noqa
 
     return options
-
 
 ########################
 # the message processor
@@ -931,6 +948,7 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
                     self.close()
                 else:
                     raise exc
+
         self.server_thread = _util.new_hidden_thread(
             target=process_messages,
             name=threadname,
@@ -1092,6 +1110,7 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
             # make sure the exited event is sent first.
             self._wait_until_exiting(self.EXITWAIT)
             self._ensure_debugger_stopped()
+
         t = _util.new_hidden_thread(
             target=stop,
             name='stopping',
@@ -1366,6 +1385,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     # PyDevd "socket" entry points (and related helpers)
 
     def pydevd_notify(self, cmd_id, args):
+        # self.log.write('pydevd_notify: %s %s\n' % (cmd_id, args))
+        # self.log.flush()
         # TODO: docstring
         try:
             return self._pydevd_notify(cmd_id, args)
@@ -1374,6 +1395,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             raise
 
     def pydevd_request(self, cmd_id, args):
+        # self.log.write('pydevd_request: %s %s\n' % (cmd_id, args))
+        # self.log.flush()
         # TODO: docstring
         return self._pydevd_request(self.loop, cmd_id, args)
 
@@ -1382,15 +1405,21 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     # added to the map with the corresponding message ID, and is
     # looked up there by pydevd event handler below.
     class EventHandlers(dict):
+
         def handler(self, cmd_id):
+
             def decorate(f):
                 self[cmd_id] = f
                 return f
+
             return decorate
 
     pydevd_events = EventHandlers()
 
     def on_pydevd_event(self, cmd_id, seq, args):
+        # self.log.write('on_pydevd_event: %s %s %s\n' % (cmd_id, seq, args))
+        # self.log.flush()
+
         # TODO: docstring
         if not self._detached:
             try:
@@ -1416,6 +1445,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             with provider.using_format(fmt):
                 yield
             provider._lock.release()
+
         yield futures.Result(context())
 
     def _wait_for_pydevd_ready(self):
@@ -1522,11 +1552,13 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     @async_handler
     def _handle_attach(self, args):
+        self.pydevd_request(pydevd_comm.CMD_SET_PROTOCOL, 'json')
         yield self._send_cmd_version_command()
         self._initialize_path_maps(args)
 
     @async_handler
     def _handle_launch(self, args):
+        self.pydevd_request(pydevd_comm.CMD_SET_PROTOCOL, 'json')
         yield self._send_cmd_version_command()
         self._initialize_path_maps(args)
 
@@ -1572,37 +1604,30 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         _, _, resp_args = yield self.pydevd_request(cmd, '')
 
         try:
-            xml = self.parse_xml_response(resp_args)
-        except SAXParseException:
-            self.send_error_response(request, resp_args)
-            return
-
-        try:
-            xthreads = xml.thread
-        except AttributeError:
+            xthreads = resp_args['body']['threads']
+        except KeyError:
             xthreads = []
 
         threads = []
         with self.new_thread_lock:
             for xthread in xthreads:
                 try:
-                    name = unquote(xthread['name'])
+                    name = xthread['name']
                 except KeyError:
-                    name = None
+                    name = '<Unable to get thread name>'
 
-                if not is_debugger_internal_thread(name):
-                    pyd_tid = xthread['id']
-                    try:
-                        vsc_tid = self.thread_map.to_vscode(pyd_tid,
-                                                            autogen=False)
-                    except KeyError:
-                        # This is a previously unseen thread
-                        vsc_tid = self.thread_map.to_vscode(pyd_tid,
-                                                            autogen=True)
-                        self.send_event('thread', reason='started',
-                                        threadId=vsc_tid)
+                pyd_tid = xthread['id']
+                try:
+                    vsc_tid = self.thread_map.to_vscode(pyd_tid,
+                                                        autogen=False)
+                except KeyError:
+                    # This is a previously unseen thread
+                    vsc_tid = self.thread_map.to_vscode(pyd_tid,
+                                                        autogen=True)
+                    self.send_event('thread', reason='started',
+                                    threadId=vsc_tid)
 
-                    threads.append({'id': vsc_tid, 'name': name})
+                threads.append({'id': vsc_tid, 'name': name})
 
         self.send_response(request, threads=threads)
 
@@ -2210,10 +2235,10 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 if len(expressions) == 0:
                     expression = '{}'.format(repr(logMessage))  # noqa
                 else:
-                    raw_text = reduce(lambda a, b: a.replace(b, '{}'), expressions, logMessage) # noqa
+                    raw_text = reduce(lambda a, b: a.replace(b, '{}'), expressions, logMessage)  # noqa
                     raw_text = raw_text.replace('"', '\\"')
-                    expression_list = ', '.join([s.strip('{').strip('}').strip() for s in expressions]) # noqa
-                    expression = '"{}".format({})'.format(raw_text, expression_list) # noqa
+                    expression_list = ', '.join([s.strip('{').strip('}').strip() for s in expressions])  # noqa
+                    expression = '"{}".format({})'.format(raw_text, expression_list)  # noqa
 
             msg = msgfmt.format(vsc_bpid, bp_type, path, line, condition,
                                 expression, hit_condition, is_logpoint)
@@ -2302,7 +2327,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         cmdid = pydevd_comm.CMD_GET_EXCEPTION_DETAILS
         _, _, resp_args = yield self.pydevd_request(cmdid, pyd_tid)
-        name, description, source, stack  = \
+        name, description, source, stack = \
             self._parse_exception_details(resp_args)
 
         self.send_response(
@@ -2398,7 +2423,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             'process': {
                 'pid': pid,
                 'executable': sys.executable,
-                'bitness': 64 if sys.maxsize > 2**32 else 32,
+                'bitness': 64 if sys.maxsize > 2 ** 32 else 32,
             },
         }
         self.send_response(request, **sys_info)
@@ -2425,6 +2450,17 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_CREATE)
     def on_pydevd_thread_create(self, seq, args):
+        '''
+        :param args: dict.
+            i.e.:
+            {
+                'type': 'event',
+                'event': 'thread',
+                'seq': 4,
+                'pydevd_cmd_id': 103
+                'body': {'reason': 'started', 'threadId': 'pid_9236_id_2714288164368'},
+            }
+        '''
         # If this is the first thread reported, report process creation
         # as well.
         with self.is_process_created_lock:
@@ -2434,23 +2470,16 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 self.is_process_created = True
                 self.send_process_event(self.start_reason)
 
-        xml = self.parse_xml_response(args)
-        try:
-            name = unquote(xml.thread['name'])
-        except KeyError:
-            name = None
-        if not is_debugger_internal_thread(name):
-            with self.new_thread_lock:
-                pyd_tid = xml.thread['id']
-                # Any internal pydevd or ptvsd threads will be ignored
-                # everywhere
-                try:
-                    tid = self.thread_map.to_vscode(pyd_tid,
-                                                    autogen=False)
-                except KeyError:
-                    tid = self.thread_map.to_vscode(pyd_tid,
-                                                    autogen=True)
-                    self.send_event('thread', reason='started', threadId=tid)
+        body = args['body']
+        with self.new_thread_lock:
+            pyd_tid = body['threadId']
+            try:
+                tid = self.thread_map.to_vscode(pyd_tid,
+                                                autogen=False)
+            except KeyError:
+                tid = self.thread_map.to_vscode(pyd_tid,
+                                                autogen=True)
+                self.send_event('thread', reason='started', threadId=tid)
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_KILL)
     def on_pydevd_thread_kill(self, seq, args):
@@ -2526,7 +2555,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         if reason == 'exception':
             cmdid = pydevd_comm.CMD_GET_EXCEPTION_DETAILS
             _, _, resp_args = yield self.pydevd_request(cmdid, pyd_tid)
-            exc_name, exc_desc, _, _  = \
+            exc_name, exc_desc, _, _ = \
                 self._parse_exception_details(resp_args, include_stack=False)
 
         extra['allThreadsStopped'] = True

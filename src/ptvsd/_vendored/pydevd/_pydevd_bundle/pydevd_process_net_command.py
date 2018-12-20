@@ -1,32 +1,41 @@
+import json
 import os
 import sys
 import traceback
 
 from _pydev_bundle import pydev_log
-from _pydevd_bundle import pydevd_traceproperty, pydevd_dont_trace, pydevd_utils
-import pydevd_tracing
-import pydevd_file_utils
-from _pydevd_bundle.pydevd_breakpoints import LineBreakpoint, get_exception_class
-from _pydevd_bundle.pydevd_comm import (CMD_RUN, CMD_VERSION, CMD_LIST_THREADS, CMD_THREAD_KILL,
-    CMD_THREAD_SUSPEND, pydevd_find_thread_by_id, CMD_THREAD_RUN, InternalRunThread, CMD_STEP_INTO, CMD_STEP_OVER,
-    CMD_STEP_RETURN, CMD_STEP_INTO_MY_CODE, InternalStepThread, CMD_RUN_TO_LINE, CMD_SET_NEXT_STATEMENT,
-    CMD_SMART_STEP_INTO, InternalSetNextStatementThread, CMD_RELOAD_CODE, ReloadCodeCommand, CMD_CHANGE_VARIABLE,
-    InternalChangeVariable, CMD_GET_VARIABLE, InternalGetVariable, CMD_GET_ARRAY, InternalGetArray, CMD_GET_COMPLETIONS,
-    InternalGetCompletions, CMD_GET_FRAME, InternalGetFrame, CMD_SET_BREAK, file_system_encoding, CMD_REMOVE_BREAK,
-    CMD_EVALUATE_EXPRESSION, CMD_EXEC_EXPRESSION, InternalEvaluateExpression, CMD_CONSOLE_EXEC, InternalConsoleExec,
-    CMD_SET_PY_EXCEPTION, CMD_GET_FILE_CONTENTS, CMD_SET_PROPERTY_TRACE, CMD_ADD_EXCEPTION_BREAK,
-    CMD_REMOVE_EXCEPTION_BREAK, CMD_LOAD_SOURCE, CMD_ADD_DJANGO_EXCEPTION_BREAK, CMD_REMOVE_DJANGO_EXCEPTION_BREAK,
-    CMD_EVALUATE_CONSOLE_EXPRESSION, InternalEvaluateConsoleExpression, InternalConsoleGetCompletions,
-    CMD_RUN_CUSTOM_OPERATION, InternalRunCustomOperation, CMD_IGNORE_THROWN_EXCEPTION_AT, CMD_ENABLE_DONT_TRACE,
-    CMD_SHOW_RETURN_VALUES, ID_TO_MEANING, CMD_GET_DESCRIPTION, InternalGetDescription, InternalLoadFullValue,
-    CMD_LOAD_FULL_VALUE, CMD_REDIRECT_OUTPUT, CMD_GET_NEXT_STATEMENT_TARGETS, InternalGetNextStatementTargets, CMD_SET_PROJECT_ROOTS,
-    CMD_GET_THREAD_STACK, CMD_THREAD_DUMP_TO_STDERR, CMD_STOP_ON_START, CMD_GET_EXCEPTION_DETAILS, NetCommand,
-    CMD_SET_PROTOCOL, CMD_PYDEVD_JSON_CONFIG, InternalGetThreadStack)
-from _pydevd_bundle.pydevd_constants import (get_thread_id, IS_PY3K, DebugInfoHolder, dict_keys, STATE_RUN,
-    NEXT_VALUE_SEPARATOR, IS_WINDOWS, get_current_thread_id)
-from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
 from _pydev_imps._pydev_saved_modules import threading
-import json
+from _pydevd_bundle import pydevd_traceproperty, pydevd_dont_trace, pydevd_utils
+from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
+from _pydevd_bundle.pydevd_breakpoints import LineBreakpoint, get_exception_class
+from _pydevd_bundle.pydevd_comm import (InternalGetThreadStack, pydevd_find_thread_by_id,
+    InternalStepThread, InternalSetNextStatementThread, ReloadCodeCommand, InternalChangeVariable,
+    InternalGetVariable, InternalGetArray, InternalLoadFullValue, InternalGetCompletions,
+    InternalGetDescription, InternalGetFrame, InternalEvaluateExpression, InternalConsoleExec,
+    InternalEvaluateConsoleExpression, InternalConsoleGetCompletions, InternalRunCustomOperation,
+    InternalGetNextStatementTargets)
+from _pydevd_bundle.pydevd_comm_constants import (CMD_RUN, CMD_SET_PROTOCOL, CMD_VERSION,
+    CMD_LIST_THREADS, CMD_GET_THREAD_STACK, CMD_THREAD_SUSPEND, CMD_THREAD_RUN, CMD_STEP_INTO,
+    CMD_STEP_OVER, CMD_STEP_RETURN, CMD_STEP_INTO_MY_CODE, CMD_RUN_TO_LINE, CMD_SET_NEXT_STATEMENT,
+    CMD_SMART_STEP_INTO, CMD_RELOAD_CODE, CMD_CHANGE_VARIABLE, CMD_GET_VARIABLE, CMD_GET_ARRAY,
+    CMD_SHOW_RETURN_VALUES, CMD_LOAD_FULL_VALUE, CMD_GET_COMPLETIONS, CMD_GET_DESCRIPTION,
+    CMD_GET_FRAME, CMD_SET_BREAK, file_system_encoding, CMD_REMOVE_BREAK, CMD_EVALUATE_EXPRESSION,
+    CMD_EXEC_EXPRESSION, CMD_CONSOLE_EXEC, CMD_SET_PY_EXCEPTION, CMD_GET_FILE_CONTENTS,
+    CMD_SET_PROPERTY_TRACE, CMD_ADD_EXCEPTION_BREAK, CMD_REMOVE_EXCEPTION_BREAK, CMD_LOAD_SOURCE,
+    CMD_ADD_DJANGO_EXCEPTION_BREAK, CMD_REMOVE_DJANGO_EXCEPTION_BREAK,
+    CMD_EVALUATE_CONSOLE_EXPRESSION, CMD_RUN_CUSTOM_OPERATION, CMD_IGNORE_THROWN_EXCEPTION_AT,
+    CMD_ENABLE_DONT_TRACE, CMD_REDIRECT_OUTPUT, CMD_GET_NEXT_STATEMENT_TARGETS,
+    CMD_SET_PROJECT_ROOTS, CMD_THREAD_DUMP_TO_STDERR, CMD_STOP_ON_START, CMD_PYDEVD_JSON_CONFIG,
+    CMD_GET_EXCEPTION_DETAILS)
+from _pydevd_bundle.pydevd_constants import (get_thread_id, IS_PY3K, DebugInfoHolder, dict_keys, STATE_RUN,
+    NEXT_VALUE_SEPARATOR, IS_WINDOWS, get_current_thread_id, HTTP_JSON_PROTOCOL, JSON_PROTOCOL,
+    set_protocol, get_protocol)
+import pydevd_file_utils
+import pydevd_tracing
+from _pydevd_bundle.pydevd_net_command_factory_json import NetCommandFactoryJson
+from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
+from _pydevd_bundle.pydevd_comm_constants import ID_TO_MEANING
+
 
 def process_net_command(py_db, cmd_id, seq, text):
     '''Processes a command received from the Java side
@@ -53,12 +62,15 @@ def process_net_command(py_db, cmd_id, seq, text):
                 py_db.ready_to_run = True
 
             elif cmd_id == CMD_SET_PROTOCOL:
-                expected = (NetCommand.HTTP_PROTOCOL, NetCommand.QUOTED_LINE_PROTOCOL)
-                text = text.strip()
-                assert text.strip() in expected, 'Protocol (%s) should be one of: %s' % (
-                    text, expected)
+                set_protocol(text.strip())
+                if get_protocol() in (HTTP_JSON_PROTOCOL, JSON_PROTOCOL):
+                    cmd_factory_class = NetCommandFactoryJson
+                else:
+                    cmd_factory_class = NetCommandFactory
 
-                NetCommand.protocol = text
+                if not isinstance(py_db.cmd_factory, cmd_factory_class):
+                    py_db.cmd_factory = cmd_factory_class()
+
                 cmd = py_db.cmd_factory.make_protocol_set_message(seq)
 
             elif cmd_id == CMD_VERSION:
@@ -121,13 +133,13 @@ def process_net_command(py_db, cmd_id, seq, text):
                 suspend_all = text.strip() == '*'
                 if suspend_all:
                     threads = pydevd_utils.get_non_pydevd_threads()
-                
+
                 elif text.startswith('__frame__:'):
                     sys.stderr.write("Can't suspend tasklet: %s\n" % (text,))
-                    
+
                 else:
                     threads = [pydevd_find_thread_by_id(text)]
-                    
+
                 for t in threads:
                     if t is None:
                         continue
@@ -145,10 +157,10 @@ def process_net_command(py_db, cmd_id, seq, text):
                 threads = []
                 if text.strip() == '*':
                     threads = pydevd_utils.get_non_pydevd_threads()
-                
+
                 elif text.startswith('__frame__:'):
                     sys.stderr.write("Can't make tasklet run: %s\n" % (text,))
-                    
+
                 else:
                     threads = [pydevd_find_thread_by_id(text)]
 
@@ -172,7 +184,6 @@ def process_net_command(py_db, cmd_id, seq, text):
                 elif text.startswith('__frame__:'):
                     sys.stderr.write("Can't make tasklet step command: %s\n" % (text,))
 
-
             elif cmd_id == CMD_RUN_TO_LINE or cmd_id == CMD_SET_NEXT_STATEMENT or cmd_id == CMD_SMART_STEP_INTO:
                 # we received some command to make a single step
                 thread_id, line, func_name = text.split('\t', 2)
@@ -183,7 +194,6 @@ def process_net_command(py_db, cmd_id, seq, text):
                 elif thread_id.startswith('__frame__:'):
                     sys.stderr.write("Can't set next statement in tasklet: %s\n" % (thread_id,))
 
-
             elif cmd_id == CMD_RELOAD_CODE:
                 # we received some command to make a reload of a module
                 module_name = text.strip()
@@ -193,7 +203,6 @@ def process_net_command(py_db, cmd_id, seq, text):
                 # when we stopped on a breakpoint.
                 int_cmd = ReloadCodeCommand(module_name, thread_id)
                 py_db.post_internal_command(int_cmd, thread_id)
-
 
             elif cmd_id == CMD_CHANGE_VARIABLE:
                 # the text is: thread\tstackframe\tFRAME|GLOBAL\tattribute_to_change\tvalue_to_change
@@ -230,7 +239,7 @@ def process_net_command(py_db, cmd_id, seq, text):
                 # we received some command to get an array variable
                 # the text is: thread_id\tframe_id\tFRAME|GLOBAL\tname\ttemp\troffs\tcoffs\trows\tcols\tformat
                 try:
-                    roffset, coffset, rows, cols, format, thread_id, frame_id, scopeattrs  = text.split('\t', 7)
+                    roffset, coffset, rows, cols, format, thread_id, frame_id, scopeattrs = text.split('\t', 7)
 
                     if scopeattrs.find('\t') != -1:  # there are attributes beyond scope
                         scope, attrs = scopeattrs.split('\t', 1)
@@ -297,18 +306,18 @@ def process_net_command(py_db, cmd_id, seq, text):
                 # func name: 'None': match anything. Empty: match global, specified: only method context.
                 # command to add some breakpoint.
                 # text is file\tline. Add to breakpoints dictionary
-                suspend_policy = "NONE" # Can be 'NONE' or 'ALL'
+                suspend_policy = "NONE"  # Can be 'NONE' or 'ALL'
                 is_logpoint = False
                 hit_condition = None
                 if py_db._set_breakpoints_with_id:
                     try:
                         try:
                             breakpoint_id, type, file, line, func_name, condition, expression, hit_condition, is_logpoint, suspend_policy = text.split('\t', 9)
-                        except ValueError: # not enough values to unpack
+                        except ValueError:  # not enough values to unpack
                             # No suspend_policy passed (use default).
                             breakpoint_id, type, file, line, func_name, condition, expression, hit_condition, is_logpoint = text.split('\t', 8)
                         is_logpoint = is_logpoint == 'True'
-                    except ValueError: # not enough values to unpack
+                    except ValueError:  # not enough values to unpack
                         breakpoint_id, type, file, line, func_name, condition, expression = text.split('\t', 6)
 
                     breakpoint_id = int(breakpoint_id)
@@ -344,7 +353,6 @@ def process_net_command(py_db, cmd_id, seq, text):
                     sys.stderr.write('pydev debugger: warning: trying to add breakpoint'\
                         ' to file that does not exist: %s (will have no effect)\n' % (file,))
                     sys.stderr.flush()
-
 
                 if condition is not None and (len(condition) <= 0 or condition == "None"):
                     condition = None
@@ -392,8 +400,8 @@ def process_net_command(py_db, cmd_id, seq, text):
                 py_db.on_breakpoints_changed()
 
             elif cmd_id == CMD_REMOVE_BREAK:
-                #command to remove some breakpoint
-                #text is type\file\tid. Remove from breakpoints dictionary
+                # command to remove some breakpoint
+                # text is type\file\tid. Remove from breakpoints dictionary
                 breakpoint_type, file, breakpoint_id = text.split('\t', 2)
 
                 if not IS_PY3K:  # In Python 3, the frame object will have unicode for the file, whereas on python 2 it has a byte-array encoded with the filesystem encoding.
@@ -439,8 +447,8 @@ def process_net_command(py_db, cmd_id, seq, text):
                 py_db.on_breakpoints_changed(removed=True)
 
             elif cmd_id == CMD_EVALUATE_EXPRESSION or cmd_id == CMD_EXEC_EXPRESSION:
-                #command to evaluate the given expression
-                #text is: thread\tstackframe\tLOCAL\texpression
+                # command to evaluate the given expression
+                # text is: thread\tstackframe\tLOCAL\texpression
                 temp_name = ""
                 try:
                     thread_id, frame_id, scope, expression, trim, temp_name = text.split('\t', 5)
@@ -451,8 +459,8 @@ def process_net_command(py_db, cmd_id, seq, text):
                 py_db.post_internal_command(int_cmd, thread_id)
 
             elif cmd_id == CMD_CONSOLE_EXEC:
-                #command to exec expression in console, in case expression is only partially valid 'False' is returned
-                #text is: thread\tstackframe\tLOCAL\texpression
+                # command to exec expression in console, in case expression is only partially valid 'False' is returned
+                # text is: thread\tstackframe\tLOCAL\texpression
 
                 thread_id, frame_id, scope, expression = text.split('\t', 3)
 
@@ -637,8 +645,6 @@ def process_net_command(py_db, cmd_id, seq, text):
                     else:
                         raise NameError(breakpoint_type)
 
-
-
             elif cmd_id == CMD_REMOVE_EXCEPTION_BREAK:
                 exception = text
                 if exception.find('-') != -1:
@@ -656,7 +662,7 @@ def process_net_command(py_db, cmd_id, seq, text):
                         cp.pop(exception, None)
                         py_db.break_on_caught_exceptions = cp
                     except:
-                        pydev_log.debug("Error while removing exception %s"%sys.exc_info()[0])
+                        pydev_log.debug("Error while removing exception %s" % sys.exc_info()[0])
                 else:
                     supported_type = False
 
@@ -805,7 +811,7 @@ def process_net_command(py_db, cmd_id, seq, text):
 
             elif cmd_id == CMD_STOP_ON_START:
                 py_db.stop_on_start = text.strip() in ('True', 'true', '1')
-                
+
             elif cmd_id == CMD_PYDEVD_JSON_CONFIG:
                 # Expected to receive a json string as:
                 # {
@@ -817,11 +823,11 @@ def process_net_command(py_db, cmd_id, seq, text):
                 if 'skip_suspend_on_breakpoint_exception' in msg:
                     py_db.skip_suspend_on_breakpoint_exception = tuple(
                         get_exception_class(x) for x in msg['skip_suspend_on_breakpoint_exception'])
-                
+
                 if 'skip_print_breakpoint_exception' in msg:
                     py_db.skip_print_breakpoint_exception = tuple(
                         get_exception_class(x) for x in msg['skip_print_breakpoint_exception'])
-                    
+
                 if 'multi_threads_single_notification' in msg:
                     py_db.multi_threads_single_notification = msg['multi_threads_single_notification']
 
@@ -839,7 +845,7 @@ def process_net_command(py_db, cmd_id, seq, text):
                     t = None
 
             else:
-                #I have no idea what this is all about
+                # I have no idea what this is all about
                 cmd = py_db.cmd_factory.make_error_message(seq, "unexpected command " + str(cmd_id))
 
             if cmd is not None:

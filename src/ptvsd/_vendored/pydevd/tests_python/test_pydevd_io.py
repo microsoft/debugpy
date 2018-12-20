@@ -1,5 +1,5 @@
 from _pydevd_bundle.pydevd_io import IORedirector
-from _pydevd_bundle.pydevd_comm import NetCommandFactory
+from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
 
 
 def test_io_redirector():

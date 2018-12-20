@@ -421,9 +421,40 @@ def call_only_once(func):
     return new_func
 
 
-#=======================================================================================================================
-# GlobalDebuggerHolder
-#=======================================================================================================================
+# Protocol where each line is a new message (text is quoted to prevent new lines).
+# payload is xml
+QUOTED_LINE_PROTOCOL = 'quoted-line'
+
+# Uses http protocol to provide a new message.
+# i.e.: Content-Length:xxx\r\n\r\npayload
+# payload is xml
+HTTP_PROTOCOL = 'http'
+
+# Message is sent without any header.
+# payload is json
+JSON_PROTOCOL = 'json'
+
+# Same header as the HTTP_PROTOCOL
+# payload is json
+HTTP_JSON_PROTOCOL = 'http_json'
+
+
+class _GlobalSettings:
+    protocol = QUOTED_LINE_PROTOCOL
+
+
+def set_protocol(protocol):
+    expected = (HTTP_PROTOCOL, QUOTED_LINE_PROTOCOL, JSON_PROTOCOL, HTTP_JSON_PROTOCOL)
+    assert protocol in expected, 'Protocol (%s) should be one of: %s' % (
+        protocol, expected)
+
+    _GlobalSettings.protocol = protocol
+
+
+def get_protocol():
+    return _GlobalSettings.protocol
+
+
 class GlobalDebuggerHolder:
     '''
         Holder for the global debugger.
@@ -431,9 +462,6 @@ class GlobalDebuggerHolder:
     global_dbg = None  # Note: don't rename (the name is used in our attach to process)
 
 
-#=======================================================================================================================
-# get_global_debugger
-#=======================================================================================================================
 def get_global_debugger():
     return GlobalDebuggerHolder.global_dbg
 
@@ -441,9 +469,6 @@ def get_global_debugger():
 GetGlobalDebugger = get_global_debugger  # Backward-compatibility
 
 
-#=======================================================================================================================
-# set_global_debugger
-#=======================================================================================================================
 def set_global_debugger(dbg):
     GlobalDebuggerHolder.global_dbg = dbg
 

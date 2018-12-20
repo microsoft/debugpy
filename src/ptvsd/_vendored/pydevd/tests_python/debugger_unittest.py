@@ -16,8 +16,6 @@ from tests_python.debug_constants import *
 
 from _pydev_bundle import pydev_localhost
 
-
-
 # Note: copied (don't import because we want it to be independent on the actual code because of backward compatibility).
 CMD_RUN = 101
 CMD_LIST_THREADS = 102
@@ -86,6 +84,7 @@ CMD_SET_PROJECT_ROOTS = 202
 
 CMD_VERSION = 501
 CMD_RETURN = 502
+CMD_SET_PROTOCOL = 503
 CMD_ERROR = 901
 
 REASON_CAUGHT_EXCEPTION = CMD_STEP_CAUGHT_EXCEPTION
@@ -182,7 +181,6 @@ class ReaderThread(threading.Thread):
         self.setDaemon(True)
         self.sock = sock
         self._queue = Queue()
-        self.all_received = []
         self._kill = False
 
     def set_messages_timeout(self, timeout):
@@ -217,28 +215,40 @@ class ReaderThread(threading.Thread):
 
     def run(self):
         try:
-            buf = ''
+            content_len = -1
+
+            stream = self.sock.makefile('rb')
             while not self._kill:
-                l = self.sock.recv(1024)
-                if IS_PY3K:
-                    l = l.decode('utf-8')
-                self.all_received.append(l)
-                buf += l
+                line = stream.readline()
+                if not line:
+                    break
 
-                while '\n' in buf:
-                    # Print each part...
-                    i = buf.index('\n') + 1
-                    last_received = buf[:i]
-                    buf = buf[i:]
+                if SHOW_WRITES_AND_READS:
+                    show_line = line
+                    if IS_PY3K:
+                        show_line = line.decode('utf-8')
 
-                    if SHOW_WRITES_AND_READS:
-                        print('Test Reader Thread Received %s' % (last_received,))
+                    print('Test Reader Thread Received %s' % (show_line,))
 
-                    self._queue.put(last_received)
+                if line.startswith(b'Content-Length:'):
+                    content_len = int(line.strip().split(b':', 1)[1])
+
+                elif content_len != -1:
+                    if line == b'\r\n':
+                        msg = stream.read(content_len)
+                        if IS_PY3K:
+                            msg = msg.decode('utf-8')
+                        print('Test Reader Thread Received %s' % (msg,))
+                        self._queue.put(msg)
+
+                else:
+                    msg = line
+                    if IS_PY3K:
+                        msg = msg.decode('utf-8')
+                    self._queue.put(msg)
+
         except:
             pass  # ok, finished it
-        finally:
-            del self.all_received[:]
 
     def do_kill(self):
         self._kill = True
@@ -810,6 +820,9 @@ class AbstractWriterThread(threading.Thread):
     def write_make_initial_run(self):
         self.write("101\t%s\t" % self.next_seq())
         self.log.append('write_make_initial_run')
+
+    def write_set_protocol(self, protocol):
+        self.write("%s\t%s\t%s" % (CMD_SET_PROTOCOL, self.next_seq(), protocol))
 
     def write_version(self):
         from _pydevd_bundle.pydevd_constants import IS_WINDOWS
