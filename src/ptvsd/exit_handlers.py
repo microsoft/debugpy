@@ -28,7 +28,7 @@ def kill_current_proc(signum=signal.SIGTERM):
 class ExitHandlers(object):
     """Manages signal and atexit handlers."""
 
-    if platform.system() == 'Windows':
+    if platform.system() == 'Windows' or not hasattr(signal, 'SIGHUP'):
         # TODO: Windows *does* support these signals:
         #  SIGABRT, SIGFPE, SIGILL, SIGINT, SIGSEGV, SIGTERM, SIGBREAK
         SIGNALS = []
