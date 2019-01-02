@@ -15,6 +15,7 @@ from pytests.helpers.timeline import Event
 
 @pytest.mark.parametrize('start_method', ['launch'])
 def test_break_on_entry(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         import backchannel
@@ -48,6 +49,7 @@ def test_break_on_entry(pyfile, run_as, start_method):
 @pytest.mark.skipif(sys.version_info < (3, 0) and platform.system() == 'Windows',
                     reason="On Win32 Python2.7, unable to send key strokes to test.")
 def test_wait_on_normal_exit_enabled(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         import backchannel
@@ -76,20 +78,19 @@ def test_wait_on_normal_exit_enabled(pyfile, run_as, start_method):
         session.process.stdin.write(b' \r\n')
         session.wait_for_exit()
 
-        def _decode(text):
-            if isinstance(text, bytes):
-                return text.decode('utf-8')
-            return text
-        assert any(
-            l for l in session.output_data['OUT']
-            if _decode(l).startswith('Press')
+        decoded = u'\n'.join(
+            (x.decode('utf-8') if isinstance(x, bytes) else x)
+            for x in session.output_data['OUT']
         )
+
+        assert u'Press' in decoded
 
 
 @pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
 @pytest.mark.skipif(sys.version_info < (3, 0) and platform.system() == 'Windows',
                     reason="On windows py2.7 unable to send key strokes to test.")
 def test_wait_on_abnormal_exit_enabled(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         import backchannel
@@ -124,6 +125,7 @@ def test_wait_on_abnormal_exit_enabled(pyfile, run_as, start_method):
             if isinstance(text, bytes):
                 return text.decode('utf-8')
             return text
+
         assert any(
             l for l in session.output_data['OUT']
             if _decode(l).startswith('Press')
@@ -132,6 +134,7 @@ def test_wait_on_abnormal_exit_enabled(pyfile, run_as, start_method):
 
 @pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
 def test_exit_normally_with_wait_on_abnormal_exit_enabled(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         import backchannel

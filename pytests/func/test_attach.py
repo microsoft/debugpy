@@ -55,7 +55,9 @@ def test_attach(run_as, wait_for_attach, is_attached, break_into):
             session.send_request('pause').wait_for_response(freeze=False)
             hit = session.wait_for_thread_stopped(reason='pause')
             frames = hit.stacktrace.body['stackFrames']
-            assert frames[0]['line'] in [27, 28, 29]
+            # Note: no longer asserting line as it can even stop on different files
+            # (such as as backchannel.py).
+            # assert frames[0]['line'] in [27, 28, 29]
 
         session.send_request('continue').wait_for_response(freeze=False)
         session.wait_for_exit()

@@ -38,11 +38,7 @@ def delete_old_compiled_extensions():
 
 if use_cython == 'YES':
     # We must import the cython version if forcing cython
-    from _pydevd_bundle.pydevd_cython_wrapper import trace_dispatch as _trace_dispatch, global_cache_skips, global_cache_frame_skips, fix_top_level_trace_and_get_trace_func
-    def trace_dispatch(py_db, frame, event, arg):
-        if _trace_dispatch is None:
-            return None
-        return _trace_dispatch(py_db, frame, event, arg)
+    from _pydevd_bundle.pydevd_cython_wrapper import trace_dispatch, global_cache_skips, global_cache_frame_skips, fix_top_level_trace_and_get_trace_func
 
 elif use_cython == 'NO':
     # Use the regular version if not forcing cython
@@ -51,11 +47,7 @@ elif use_cython == 'NO':
 elif use_cython is None:
     # Regular: use fallback if not found and give message to user
     try:
-        from _pydevd_bundle.pydevd_cython_wrapper import trace_dispatch as _trace_dispatch, global_cache_skips, global_cache_frame_skips, fix_top_level_trace_and_get_trace_func
-        def trace_dispatch(py_db, frame, event, arg):
-            if _trace_dispatch is None:
-                return None
-            return _trace_dispatch(py_db, frame, event, arg)
+        from _pydevd_bundle.pydevd_cython_wrapper import trace_dispatch, global_cache_skips, global_cache_frame_skips, fix_top_level_trace_and_get_trace_func
 
         # This version number is always available
         from _pydevd_bundle.pydevd_additional_thread_info_regular import version as regular_version

@@ -12,19 +12,19 @@ from pytests.helpers.timeline import Event
 
 expected_at_line = {
     8: [
-        {'label': 'SomeClass', 'type': 'class'},
-        {'label': 'someFunction', 'type': 'function'},
-        {'label': 'someVariable', 'type': 'field'},
+        {'label': 'SomeClass', 'type': 'class', 'start': 0, 'length': 4},
+        {'label': 'someFunction', 'type': 'function', 'start': 0, 'length': 4},
+        {'label': 'someVariable', 'type': 'field', 'start': 0, 'length': 4},
     ],
     11: [
-        {'label': 'SomeClass', 'type': 'class'},
-        {'label': 'someFunction', 'type': 'function'},
-        {'label': 'someVar', 'type': 'field'},
-        {'label': 'someVariable', 'type': 'field'},
+        {'label': 'SomeClass', 'type': 'class', 'start': 0, 'length': 4},
+        {'label': 'someFunction', 'type': 'function', 'start': 0, 'length': 4},
+        {'label': 'someVar', 'type': 'field', 'start': 0, 'length': 4},
+        {'label': 'someVariable', 'type': 'field', 'start': 0, 'length': 4},
     ],
     13: [
-        {'label': 'SomeClass', 'type': 'class'},
-        {'label': 'someFunction', 'type': 'function'},
+        {'label': 'SomeClass', 'type': 'class', 'start': 0, 'length': 4},
+        {'label': 'someFunction', 'type': 'function', 'start': 0, 'length': 4},
     ],
 }
 
@@ -72,7 +72,7 @@ def test_completions_scope(pyfile, bp_line, run_as, start_method):
         resp_completions = session.send_request('completions', arguments={
             'text': 'some',
             'frameId': fid,
-            'column': 1
+            'column': 5,
         }).wait_for_response()
         targets = resp_completions.body['targets']
 
@@ -85,7 +85,7 @@ def test_completions_scope(pyfile, bp_line, run_as, start_method):
         session.wait_for_exit()
 
 
-def test_completions(pyfile, run_as, start_method):
+def test_completions_cases(pyfile, run_as, start_method):
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
@@ -110,7 +110,8 @@ def test_completions(pyfile, run_as, start_method):
 
         response = session.send_request('completions', arguments={
             'frameId': hit.frame_id,
-            'text': 'b.'
+            'text': 'b.',
+            'column': 3,
         }).wait_for_response()
 
         labels = set(target['label'] for target in response.body['targets'])
@@ -118,7 +119,17 @@ def test_completions(pyfile, run_as, start_method):
 
         response = session.send_request('completions', arguments={
             'frameId': hit.frame_id,
-            'text': 'not_there'
+            'text': 'x = b.setdefault',
+            'column': 13,
+        }).wait_for_response()
+
+        assert response.body['targets'] == [
+            {'label': 'setdefault', 'length': 6, 'start': 6, 'type': 'function'}]
+
+        response = session.send_request('completions', arguments={
+            'frameId': hit.frame_id,
+            'text': 'not_there',
+            'column': 10,
         }).wait_for_response()
 
         assert not response.body['targets']

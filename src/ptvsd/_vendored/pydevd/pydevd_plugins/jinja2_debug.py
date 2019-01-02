@@ -1,5 +1,5 @@
 import traceback
-from _pydevd_bundle.pydevd_breakpoints import LineBreakpoint, get_exception_name
+from _pydevd_bundle.pydevd_breakpoints import LineBreakpoint
 from _pydevd_bundle.pydevd_constants import get_current_thread_id, STATE_SUSPEND, dict_iter_items, dict_keys, JINJA2_SUSPEND
 from _pydevd_bundle.pydevd_comm import CMD_SET_BREAK, CMD_ADD_EXCEPTION_BREAK
 from _pydevd_bundle import pydevd_vars
@@ -357,9 +357,9 @@ def exception_break(plugin, pydb, pydb_frame, frame, args, arg):
     pydb = args[0]
     thread = args[3]
     exception, value, trace = arg
-    if pydb.jinja2_exception_break:
+    if pydb.jinja2_exception_break and exception is not None:
         exception_type = dict_keys(pydb.jinja2_exception_break)[0]
-        if get_exception_name(exception) in ('UndefinedError', 'TemplateNotFound', 'TemplatesNotFound'):
+        if exception.__name__ in ('UndefinedError', 'TemplateNotFound', 'TemplatesNotFound'):
             #errors in rendering
             render_frame = _find_jinja2_render_frame(frame)
             if render_frame:
@@ -370,7 +370,7 @@ def exception_break(plugin, pydb, pydb_frame, frame, args, arg):
                     suspend_frame.f_back = frame
                     frame = suspend_frame
                     return flag, frame
-        elif get_exception_name(exception) in ('TemplateSyntaxError', 'TemplateAssertionError'):
+        elif exception.__name__ in ('TemplateSyntaxError', 'TemplateAssertionError'):
             #errors in compile time
             name = frame.f_code.co_name
             if name in ('template', 'top-level template code', '<module>') or name.startswith('block '):

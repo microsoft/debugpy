@@ -75,20 +75,11 @@ class LineBreakpoint(object):
         return ret
 
 
-def get_exception_full_qname(exctype):
-    if not exctype:
-        return None
-    return str(exctype.__module__) + '.' + exctype.__name__
-
-
-def get_exception_name(exctype):
-    if not exctype:
-        return None
-    return exctype.__name__
-
-
 def get_exception_breakpoint(exctype, exceptions):
-    exception_full_qname = get_exception_full_qname(exctype)
+    if not exctype:
+        exception_full_qname = None
+    else:
+        exception_full_qname = str(exctype.__module__) + '.' + exctype.__name__
 
     exc = None
     if exceptions is not None:
@@ -103,11 +94,10 @@ def get_exception_breakpoint(exctype, exceptions):
 
 
 def stop_on_unhandled_exception(py_db, thread, additional_info, arg):
-    from _pydevd_bundle.pydevd_frame import handle_breakpoint_condition, handle_breakpoint_expression
     exctype, value, tb = arg
     break_on_uncaught_exceptions = py_db.break_on_uncaught_exceptions
     if break_on_uncaught_exceptions:
-        exception_breakpoint = get_exception_breakpoint(exctype, break_on_uncaught_exceptions)
+        exception_breakpoint = py_db.get_exception_breakpoint(exctype, break_on_uncaught_exceptions)
     else:
         exception_breakpoint = None
 
@@ -137,12 +127,12 @@ def stop_on_unhandled_exception(py_db, thread, additional_info, arg):
         frame = frames[-1]
     add_exception_to_frame(frame, arg)
     if exception_breakpoint.condition is not None:
-        eval_result = handle_breakpoint_condition(py_db, additional_info, exception_breakpoint, frame)
+        eval_result = py_db.handle_breakpoint_condition(additional_info, exception_breakpoint, frame)
         if not eval_result:
             return
 
     if exception_breakpoint.expression is not None:
-        handle_breakpoint_expression(exception_breakpoint, additional_info, frame)
+        py_db.handle_breakpoint_expression(exception_breakpoint, additional_info, frame)
 
     try:
         additional_info.pydev_message = exception_breakpoint.qname
@@ -151,7 +141,7 @@ def stop_on_unhandled_exception(py_db, thread, additional_info, arg):
 
     pydev_log.debug('Handling post-mortem stop on exception breakpoint %s' % (exception_breakpoint.qname,))
 
-    py_db.stop_on_unhandled_exception(thread, frame, frames_byid, arg)
+    py_db.do_stop_on_unhandled_exception(thread, frame, frames_byid, arg)
 
 
 def get_exception_class(kls):

@@ -2,7 +2,6 @@ from __future__ import print_function
 import dis
 from _pydev_imps._pydev_saved_modules import threading, thread
 from _pydevd_bundle.pydevd_comm import GlobalDebuggerHolder
-from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE
 from _pydevd_frame_eval.pydevd_frame_tracing import create_pydev_trace_code_wrapper, update_globals_dict, dummy_tracing_holder
 from _pydevd_frame_eval.pydevd_modify_bytecode import insert_code
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_file, NORM_PATHS_AND_BASE_CONTAINER
@@ -10,8 +9,6 @@ from _pydevd_bundle.pydevd_trace_dispatch import fix_top_level_trace_and_get_tra
 
 from _pydevd_bundle.pydevd_additional_thread_info import _set_additional_thread_info_lock
 from _pydevd_bundle.pydevd_cython cimport PyDBAdditionalThreadInfo
-
-get_file_type = DONT_TRACE.get
 
 
 _thread_local_info = threading.local()
@@ -201,7 +198,7 @@ cdef FuncCodeInfo get_func_code_info(PyCodeObject * code_obj):
 
         func_code_info.real_path = abs_path_real_path_and_base[1]
 
-        file_type = get_file_type(abs_path_real_path_and_base[-1])  # we don't want to debug anything related to pydevd
+        file_type = main_debugger.get_file_type(abs_path_real_path_and_base)  # we don't want to debug anything related to pydevd
         if file_type is not None:
             func_code_info.always_skip_code = True
 

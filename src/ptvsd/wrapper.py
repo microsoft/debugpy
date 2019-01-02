@@ -5,6 +5,7 @@
 from __future__ import print_function, absolute_import, unicode_literals
 
 import contextlib
+import copy
 import errno
 import io
 import json
@@ -35,12 +36,14 @@ import warnings
 from xml.sax import SAXParseException
 from xml.sax.saxutils import unescape as xml_unescape
 
+import pydevd  # noqa
 import _pydevd_bundle.pydevd_comm as pydevd_comm  # noqa
 import _pydevd_bundle.pydevd_comm_constants as pydevd_comm_constants  # noqa
 import _pydevd_bundle.pydevd_extension_api as pydevd_extapi  # noqa
 import _pydevd_bundle.pydevd_extension_utils as pydevd_extutil  # noqa
 import _pydevd_bundle.pydevd_frame as pydevd_frame  # noqa
 # from _pydevd_bundle.pydevd_comm import pydevd_log
+from _pydevd_bundle.pydevd_dont_trace_files import PYDEV_FILE  # noqa
 from _pydevd_bundle.pydevd_additional_thread_info import PyDBAdditionalThreadInfo  # noqa
 
 from ptvsd import _util
@@ -159,7 +162,25 @@ def dont_trace_ptvsd_files(file_path):
     return file_path.startswith(PTVSD_DIR_PATH)
 
 
-pydevd_frame.file_tracing_filter = dont_trace_ptvsd_files
+original_get_file_type = pydevd.PyDB.get_file_type
+
+
+def _get_file_type(py_db, abs_real_path_and_basename, _cache_file_type={}):
+    abs_path = abs_real_path_and_basename[0]
+    try:
+        return _cache_file_type[abs_path]
+    except KeyError:
+        file_type = original_get_file_type(py_db, abs_real_path_and_basename)
+        if file_type is not None:
+            _cache_file_type[abs_path] = file_type
+        elif dont_trace_ptvsd_files(abs_path):
+            _cache_file_type[abs_path] = PYDEV_FILE
+        else:
+            _cache_file_type[abs_path] = None
+        return _cache_file_type[abs_path]
+
+
+pydevd.PyDB.get_file_type = _get_file_type
 
 # NOTE: Previously this included sys.prefix, sys.base_prefix and sys.real_prefix
 # On some systems those resolve to '/usr'. That means any user code will
@@ -420,7 +441,7 @@ class PydevdSocket(object):
         follow the pydevd line protocol.
 
         Note that the data is always a full message received from pydevd
-        (sent from _pydevd_bundle.pydevd_comm.WriterThread), so, there's 
+        (sent from _pydevd_bundle.pydevd_comm.WriterThread), so, there's
         no need to actually treat received bytes as a stream of bytes.
         """
         result = len(data)
@@ -467,6 +488,15 @@ class PydevdSocket(object):
         s = '{}\t{}\t{}\n'.format(cmd_id, seq, args)
         return seq, s
 
+    def make_json_packet(self, cmd_id, args):
+        assert isinstance(args, dict)
+        with self.lock:
+            seq = self.seq
+            self.seq += 1
+            args['seq'] = seq
+        s = json.dumps(args)
+        return seq, s
+
     def pydevd_notify(self, cmd_id, args):
         if self.pipe_w is None:
             raise EOFError
@@ -474,15 +504,31 @@ class PydevdSocket(object):
         _util.log_pydevd_msg(cmd_id, seq, args, inbound=False)
         os.write(self.pipe_w, s.encode('utf8'))
 
-    def pydevd_request(self, loop, cmd_id, args):
+    def pydevd_request(self, loop, cmd_id, args, is_json=False):
+        '''
+        If is_json == True the args are expected to be a dict to be
+        json-serialized with the request, otherwise it's expected
+        to be the text (to be concatenaded with the command id and
+        seq in the pydevd line-based protocol).
+        '''
         if self.pipe_w is None:
             raise EOFError
-        seq, s = self.make_packet(cmd_id, args)
+        if is_json:
+            seq, s = self.make_json_packet(cmd_id, args)
+        else:
+            seq, s = self.make_packet(cmd_id, args)
         _util.log_pydevd_msg(cmd_id, seq, args, inbound=False)
         fut = loop.create_future()
         with self.lock:
             self.requests[seq] = loop, fut
-            os.write(self.pipe_w, s.encode('utf8'))
+            as_bytes = s
+            if not isinstance(as_bytes, bytes):
+                as_bytes = as_bytes.encode('utf-8')
+
+            if is_json:
+                os.write(self.pipe_w, ('Content-Length:%s\r\n\r\n' % (len(as_bytes),)).encode('ascii'))
+
+            os.write(self.pipe_w, as_bytes)
         return fut
 
 
@@ -1394,11 +1440,11 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             traceback.print_exc(file=sys.__stderr__)
             raise
 
-    def pydevd_request(self, cmd_id, args):
+    def pydevd_request(self, cmd_id, args, is_json=False):
         # self.log.write('pydevd_request: %s %s\n' % (cmd_id, args))
         # self.log.flush()
         # TODO: docstring
-        return self._pydevd_request(self.loop, cmd_id, args)
+        return self._pydevd_request(self.loop, cmd_id, args, is_json=is_json)
 
     # Instances of this class provide decorators to mark methods as
     # handlers for various # pydevd messages - a decorated method is
@@ -2343,7 +2389,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     @async_handler
     def on_completions(self, request, args):
-        text = args['text']
         vsc_fid = args.get('frameId', None)
 
         try:
@@ -2354,22 +2399,16 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 'Frame {} not found'.format(vsc_fid))
             return
 
-        cmd_args = '{}\t{}\t{}\t{}'.format(pyd_tid, pyd_fid, 'LOCAL', text)
+        pydevd_request = copy.deepcopy(request)
+        del pydevd_request['seq']  # A new seq should be created for pydevd.
+        # Translate frameId for pydevd.
+        pydevd_request['arguments']['frameId'] = (pyd_tid, pyd_fid)
         _, _, resp_args = yield self.pydevd_request(
             pydevd_comm.CMD_GET_COMPLETIONS,
-            cmd_args)
+            pydevd_request,
+            is_json=True)
 
-        xml = self.parse_xml_response(resp_args)
-        targets = []
-        for item in list(getattr(xml, 'comp', [])):
-            target = {}
-            target['label'] = unquote(item['p0'])
-            try:
-                target['type'] = TYPE_LOOK_UP[item['p3']]
-            except KeyError:
-                pass
-            targets.append(target)
-
+        targets = resp_args['body']['targets']
         self.send_response(request, targets=targets)
 
     # Custom ptvsd message

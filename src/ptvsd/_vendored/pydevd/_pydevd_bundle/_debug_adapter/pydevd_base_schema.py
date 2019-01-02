@@ -77,6 +77,8 @@ def from_dict(dct):
 
 
 def from_json(json_msg):
+    if isinstance(json_msg, bytes):
+        json_msg = json_msg.decode('utf-8')
     import json
     return from_dict(json.loads(json_msg))
 

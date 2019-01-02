@@ -4,10 +4,10 @@ import weakref
 import sys
 
 from _pydevd_bundle.pydevd_comm import get_global_debugger
-from _pydevd_bundle.pydevd_constants import threading, call_only_once
+from _pydevd_bundle.pydevd_constants import call_only_once
+from _pydev_imps._pydev_saved_modules import threading
 from _pydevd_bundle.pydevd_constants import dict_items
 from _pydevd_bundle.pydevd_custom_frames import update_custom_frame, remove_custom_frame, add_custom_frame
-from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame
 import stackless  # @UnresolvedImport
 
@@ -218,10 +218,9 @@ def _schedule_callback(prev, next):
                         if frame is current_frame:
                             frame = frame.f_back
                         if frame is not None:
-                            base = get_abs_path_real_path_and_base_from_frame(frame)[-1]
+                            abs_real_path_and_base = get_abs_path_real_path_and_base_from_frame(frame)
                             # print >>sys.stderr, "SchedCB: %r, %d, '%s', '%s'" % (tasklet, frame.f_lineno, _filename, base)
-                            is_file_to_ignore = base in DONT_TRACE
-                            if not is_file_to_ignore:
+                            if debugger.get_file_type(abs_real_path_and_base) is None:
                                 tasklet_info.update_name()
                                 if tasklet_info.frame_id is None:
                                     tasklet_info.frame_id = add_custom_frame(frame, tasklet_info.tasklet_name, tasklet.thread_id)
@@ -286,9 +285,8 @@ if not hasattr(stackless.tasklet, "trace_function"):
                         if tasklet.paused or tasklet.blocked or tasklet.scheduled:
                             if tasklet.frame and tasklet.frame.f_back:
                                 f_back = tasklet.frame.f_back
-                                base = get_abs_path_real_path_and_base_from_frame(f_back)[-1]
-                                is_file_to_ignore = base in DONT_TRACE
-                                if not is_file_to_ignore:
+                                abs_real_path_and_base = get_abs_path_real_path_and_base_from_frame(f_back)
+                                if debugger.get_file_type(abs_real_path_and_base) is None:
                                     if tasklet_info.frame_id is None:
                                         tasklet_info.frame_id = add_custom_frame(f_back, tasklet_info.tasklet_name, tasklet.thread_id)
                                     else:

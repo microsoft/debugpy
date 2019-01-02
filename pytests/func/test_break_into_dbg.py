@@ -12,6 +12,7 @@ from pytests.helpers.timeline import Event
 
 @pytest.mark.parametrize('run_as', ['file', 'module', 'code'])
 def test_with_wait_for_attach(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         # NOTE: These tests verify break_into_debugger for launch
@@ -40,6 +41,7 @@ def test_with_wait_for_attach(pyfile, run_as, start_method):
 @pytest.mark.parametrize('run_as', ['file', 'module', 'code'])
 @pytest.mark.skipif(sys.version_info < (3, 7), reason='Supported from 3.7+')
 def test_breakpoint_function(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         # NOTE: These tests verify break_into_debugger for launch
@@ -58,7 +60,9 @@ def test_breakpoint_function(pyfile, run_as, start_method):
         session.start_debugging()
         hit = session.wait_for_thread_stopped()
         frames = hit.stacktrace.body['stackFrames']
-        assert frames[0]['line'] == 5
+        path = frames[0]['source']['path']
+        assert path.endswith('code_to_debug.py') or path.endswith('<string>')
+        assert frames[0]['line'] == 6
 
         session.send_request('continue').wait_for_response(freeze=False)
         session.wait_for_exit()

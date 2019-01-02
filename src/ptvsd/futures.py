@@ -102,15 +102,23 @@ class EventLoop(object):
         return Future(self)
 
     def run_forever(self):
-        while not self._stop:
-            if not self._event.wait(timeout=0.1):
-                continue
-            with self._lock:
-                queue = self._queue
-                self._queue = []
-                self._event.clear()
-            for (f, args) in queue:
-                f(*args)
+        try:
+            while not self._stop:
+                if not self._event.wait(timeout=0.1):
+                    continue
+                with self._lock:
+                    queue = self._queue
+                    self._queue = []
+                    self._event.clear()
+                for (f, args) in queue:
+                    f(*args)
+        except:
+            if sys is None or traceback is None:
+                # Errors during shutdown are expected as this is a daemon
+                # thread, so, just silence it.
+                pass
+            else:
+                traceback.print_exc()
 
     def stop(self):
         self._stop = True

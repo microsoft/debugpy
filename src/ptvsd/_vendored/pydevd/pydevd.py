@@ -29,7 +29,7 @@ from _pydevd_bundle import pydevd_io, pydevd_vm_type
 from _pydevd_bundle import pydevd_utils
 from _pydevd_bundle import pydevd_vars
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
-from _pydevd_bundle.pydevd_breakpoints import ExceptionBreakpoint
+from _pydevd_bundle.pydevd_breakpoints import ExceptionBreakpoint, get_exception_breakpoint
 from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, CMD_STEP_INTO, CMD_SET_BREAK,
     CMD_STEP_INTO_MY_CODE, CMD_STEP_OVER, CMD_SMART_STEP_INTO, CMD_RUN_TO_LINE,
     CMD_SET_NEXT_STATEMENT, CMD_STEP_RETURN, CMD_ADD_EXCEPTION_BREAK)
@@ -38,13 +38,13 @@ from _pydevd_bundle.pydevd_constants import (IS_JYTH_LESS25, IS_PYCHARM, get_thr
     clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, IS_PY34_OR_GREATER, IS_PY2, NULL,
     NO_FTRACE)
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
-from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE
+from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE
 from _pydevd_bundle.pydevd_extension_api import DebuggerEventHandler
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, remove_exception_from_frame
 from _pydevd_bundle.pydevd_kill_all_pydevd_threads import kill_all_pydev_threads
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
 from _pydevd_bundle.pydevd_trace_dispatch import (
-    trace_dispatch as _trace_dispatch, global_cache_skips, global_cache_frame_skips)
+    trace_dispatch as _trace_dispatch, global_cache_skips, global_cache_frame_skips, fix_top_level_trace_and_get_trace_func)
 from _pydevd_bundle.pydevd_utils import save_main_module
 from _pydevd_frame_eval.pydevd_frame_eval_main import (
     frame_eval_func, dummy_trace_dispatch)
@@ -61,7 +61,8 @@ from _pydevd_bundle.pydevd_comm import(InternalConsoleExec,
     start_client, start_server, InternalGetBreakpointException, InternalSendCurrExceptionTrace,
     InternalSendCurrExceptionTraceProceeded, run_as_pydevd_daemon_thread)
 
-get_file_type = DONT_TRACE.get
+from _pydevd_bundle.pydevd_breakpoints import stop_on_unhandled_exception
+from _pydevd_bundle.pydevd_collect_try_except_info import collect_try_except_info
 
 __version_info__ = (1, 3, 3)
 __version_info_str__ = []
@@ -433,6 +434,110 @@ class PyDB(object):
         self._threads_suspended_single_notification = ThreadsSuspendedSingleNotification(self)
 
         self._local_thread_trace_func = threading.local()
+
+        # Bind many locals to the debugger because upon teardown those names may become None
+        # in the namespace (and thus can't be relied upon unless the reference was previously
+        # saved).
+        self.trace_dispatch = partial(_trace_dispatch, self)
+        self.fix_top_level_trace_and_get_trace_func = fix_top_level_trace_and_get_trace_func
+        self.frame_eval_func = frame_eval_func
+        self.dummy_trace_dispatch = dummy_trace_dispatch
+
+        # Note: this is different from pydevd_constants.thread_get_ident because we want Jython
+        # to be None here because it also doesn't have threading._active.
+        try:
+            self.threading_get_ident = threading.get_ident  # Python 3
+            self.threading_active = threading._active
+        except:
+            try:
+                self.threading_get_ident = threading._get_ident  # Python 2
+                self.threading_active = threading._active
+            except:
+                self.threading_get_ident = None  # Jython
+                self.threading_active = None
+        self.threading_current_thread = threading.currentThread
+        self.set_additional_thread_info = set_additional_thread_info
+        self.stop_on_unhandled_exception = stop_on_unhandled_exception
+        self.collect_try_except_info = collect_try_except_info
+        self.get_exception_breakpoint = get_exception_breakpoint
+        self._dont_trace_get_file_type = DONT_TRACE.get
+        self.PYDEV_FILE = PYDEV_FILE
+
+    def handle_breakpoint_condition(self, info, breakpoint, new_frame):
+        condition = breakpoint.condition
+        try:
+            if breakpoint.handle_hit_condition(new_frame):
+                return True
+
+            if condition is None:
+                return False
+
+            return eval(condition, new_frame.f_globals, new_frame.f_locals)
+        except Exception as e:
+            if IS_PY2:
+                # Must be bytes on py2.
+                if isinstance(condition, unicode):
+                    condition = condition.encode('utf-8')
+
+            if not isinstance(e, self.skip_print_breakpoint_exception):
+                sys.stderr.write('Error while evaluating expression: %s\n' % (condition,))
+
+                etype, value, tb = sys.exc_info()
+                traceback.print_exception(etype, value, tb.tb_next)
+
+            if not isinstance(e, self.skip_suspend_on_breakpoint_exception):
+                try:
+                    # add exception_type and stacktrace into thread additional info
+                    etype, value, tb = sys.exc_info()
+                    error = ''.join(traceback.format_exception_only(etype, value))
+                    stack = traceback.extract_stack(f=tb.tb_frame.f_back)
+
+                    # On self.set_suspend(thread, CMD_SET_BREAK) this info will be
+                    # sent to the client.
+                    info.conditional_breakpoint_exception = \
+                        ('Condition:\n' + condition + '\n\nError:\n' + error, stack)
+                except:
+                    traceback.print_exc()
+                return True
+
+            return False
+
+        finally:
+            etype, value, tb = None, None, None
+
+    def handle_breakpoint_expression(self, breakpoint, info, new_frame):
+        try:
+            try:
+                val = eval(breakpoint.expression, new_frame.f_globals, new_frame.f_locals)
+            except:
+                val = sys.exc_info()[1]
+        finally:
+            if val is not None:
+                info.pydev_message = str(val)
+                
+    def get_file_type(self, abs_real_path_and_basename):
+        '''
+        :param abs_real_path_and_basename:
+            The result from get_abs_path_real_path_and_base_from_file or
+            get_abs_path_real_path_and_base_from_frame.
+
+        :return
+            _pydevd_bundle.pydevd_dont_trace_files.PYDEV_FILE:
+                If it's a file internal to the debugger which shouldn't be
+                traced nor shown to the user.
+
+            _pydevd_bundle.pydevd_dont_trace_files.LIB_FILE:
+                If it's a file in a library which shouldn't be traced.
+
+            None:
+                If it's a regular user file which should be traced.
+        '''
+        basename = abs_real_path_and_basename[-1]
+        if basename.startswith('<frozen '):
+            # In Python 3.7 "<frozen ..." appear multiple times during import and should be
+            # ignored for the user.
+            return self.PYDEV_FILE
+        return self._dont_trace_get_file_type(basename)
 
     def get_thread_local_trace_func(self):
         try:
@@ -1114,7 +1219,7 @@ class PyDB(object):
                 # print >> sys.stderr, 'Removing created frame: ', frame_id
                 self.writer.add_command(self.cmd_factory.make_thread_killed_message(frame_id))
 
-    def stop_on_unhandled_exception(self, thread, frame, frames_byid, arg):
+    def do_stop_on_unhandled_exception(self, thread, frame, frames_byid, arg):
         pydev_log.debug("We are stopping in post-mortem\n")
         thread_id = get_thread_id(thread)
         pydevd_vars.add_additional_frame_by_id(thread_id, frames_byid)
@@ -1142,7 +1247,7 @@ class PyDB(object):
                 abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(frame)
 
             # Don't change the tracing on debugger-related files
-            file_type = get_file_type(abs_path_real_path_and_base[-1])
+            file_type = self.get_file_type(abs_path_real_path_and_base)
 
             if file_type is None:
                 if disable:
@@ -1374,10 +1479,6 @@ class PyDB(object):
             self.process_internal_commands()
             time.sleep(0.01)
 
-    trace_dispatch = _trace_dispatch
-    frame_eval_func = frame_eval_func
-    dummy_trace_dispatch = dummy_trace_dispatch
-
 
 def set_debug(setup):
     setup['DEBUG_RECORD_SOCKET_READS'] = True
@@ -1571,7 +1672,9 @@ def _locked_settrace(
             }
             SetupHolder.setup = setup
 
-        debugger = PyDB()
+        debugger = get_global_debugger()
+        if debugger is None:
+            debugger = PyDB()
         debugger.connect(host, port)  # Note: connect can raise error.
 
         # Mark connected only if it actually succeeded.
@@ -1738,6 +1841,7 @@ def settrace_forked():
     '''
     from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder
     GlobalDebuggerHolder.global_dbg = None
+    threading.current_thread().additional_info = None
 
     from _pydevd_frame_eval.pydevd_frame_eval_main import clear_thread_local_info
     host, port = dispatch()
@@ -1848,7 +1952,9 @@ def main():
     f = setup['file']
     fix_app_engine_debug = False
 
-    debugger = PyDB()
+    debugger = get_global_debugger()
+    if debugger is None:
+        debugger = PyDB()
 
     try:
         from _pydev_bundle import pydev_monkey

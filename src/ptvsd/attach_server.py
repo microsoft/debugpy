@@ -8,6 +8,9 @@ from ptvsd._remote import (
     _pydevd_settrace,
 )
 from ptvsd.wrapper import debugger_attached
+import sys
+from _pydevd_bundle.pydevd_constants import get_global_debugger
+from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame
 
 WAIT_TIMEOUT = 1.0
 
@@ -97,7 +100,6 @@ def attach(address, redirect_output=True):
 
     ptvsd_attach(address, redirect_output=redirect_output)
 
-
 # TODO: Add disable_attach()?
 
 
@@ -113,10 +115,17 @@ def break_into_debugger():
     if not is_attached():
         return
 
-    import sys
+    # Get the first frame in the stack that's not an internal frame.
+    global_debugger = get_global_debugger()
+    stop_at_frame = sys._getframe().f_back
+    while stop_at_frame is not None and global_debugger.get_file_type(
+            get_abs_path_real_path_and_base_from_frame(stop_at_frame)) == global_debugger.PYDEV_FILE:
+        stop_at_frame = stop_at_frame.f_back
+
     _pydevd_settrace(
         suspend=True,
         trace_only_current_thread=True,
         patch_multiprocessing=False,
-        stop_at_frame=sys._getframe().f_back,
+        stop_at_frame=stop_at_frame,
     )
+    stop_at_frame = None

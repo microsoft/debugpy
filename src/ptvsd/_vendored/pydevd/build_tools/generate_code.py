@@ -112,6 +112,7 @@ if IS_PY3K:
     # Don't trace common encodings too
     DONT_TRACE['cp1252.py'] = LIB_FILE
     DONT_TRACE['utf_8.py'] = LIB_FILE
+    DONT_TRACE['codecs.py'] = LIB_FILE
 '''
 
     pydev_files = []

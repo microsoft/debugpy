@@ -82,6 +82,9 @@ class PyDBAdditionalThreadInfo(object):
         'pydev_func_name',
         'suspended_at_unhandled',
         'trace_suspend_type',
+        'top_level_thread_tracer_no_back_frames',
+        'top_level_thread_tracer_unhandled',
+        'thread_tracer',
     ]
     # ENDIF
 
@@ -102,6 +105,9 @@ class PyDBAdditionalThreadInfo(object):
         self.pydev_func_name = '.invalid.'  # Must match the type in cython
         self.suspended_at_unhandled = False
         self.trace_suspend_type = 'trace'  # 'trace' or 'frame_eval'
+        self.top_level_thread_tracer_no_back_frames = []
+        self.top_level_thread_tracer_unhandled = None
+        self.thread_tracer = None
 
     def get_topmost_frame(self, thread):
         '''

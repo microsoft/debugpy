@@ -15,3 +15,6 @@ cdef class PyDBAdditionalThreadInfo:
     cdef public str pydev_func_name;
     cdef public bint suspended_at_unhandled;
     cdef public str trace_suspend_type;
+    cdef public object top_level_thread_tracer_no_back_frames;
+    cdef public object top_level_thread_tracer_unhandled;
+    cdef public object thread_tracer;

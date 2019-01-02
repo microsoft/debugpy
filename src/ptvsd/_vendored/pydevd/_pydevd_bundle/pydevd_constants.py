@@ -236,15 +236,53 @@ try:
 except:
     from io import StringIO
 
-NO_FTRACE = None
 
-if sys.version_info[:2] in ((2, 6), (3, 3), (3, 4)):
+
+
+if IS_JYTHON:
 
     def NO_FTRACE(frame, event, arg):
-        # In Python <= 2.6 and <= 3.4, if we're tracing a method, frame.f_trace may not be set
-        # to None, it must always be set to a tracing function.
-        # See: tests_python.test_tracing_gotchas.test_tracing_gotchas
         return None
+
+else:
+    _curr_trace = sys.gettrace()
+
+    # Set a temporary trace which does nothing for us to test (otherwise setting frame.f_trace has no
+    # effect).
+    def _temp_trace(frame, event, arg):
+        return None
+
+    sys.settrace(_temp_trace)
+
+    def _check_ftrace_set_none():
+        '''
+        Will throw an error when executing a line event
+        '''
+        sys._getframe().f_trace = None
+        _line_event = 1
+        _line_event = 2
+
+    try:
+        _check_ftrace_set_none()
+
+        def NO_FTRACE(frame, event, arg):
+            frame.f_trace = None
+            return None
+
+    except TypeError:
+
+        def NO_FTRACE(frame, event, arg):
+            # In Python <= 2.6 and <= 3.4, if we're tracing a method, frame.f_trace may not be set
+            # to None, it must always be set to a tracing function.
+            # See: tests_python.test_tracing_gotchas.test_tracing_gotchas
+            #
+            # Note: Python 2.7 sometimes works and sometimes it doesn't depending on the minor
+            # version because of https://bugs.python.org/issue20041 (although bug reports didn't
+            # include the minor version, so, mark for any Python 2.7 as I'm not completely sure
+            # the fix in later 2.7 versions is the same one we're dealing with).
+            return None
+
+    sys.settrace(None)
 
 
 #=======================================================================================================================
@@ -453,6 +491,10 @@ def set_protocol(protocol):
 
 def get_protocol():
     return _GlobalSettings.protocol
+
+
+def is_json_protocol():
+    return _GlobalSettings.protocol in (JSON_PROTOCOL, HTTP_JSON_PROTOCOL)
 
 
 class GlobalDebuggerHolder:

@@ -1197,7 +1197,7 @@ def test_unhandled_exceptions_basic(case_setup):
 
 
 @pytest.mark.skipif(IS_JYTHON, reason='Failing on Jython -- needs to be investigated).')
-def test_unhandled_exceptions_in_top_level(case_setup_unhandled_exceptions):
+def test_unhandled_exceptions_in_top_level1(case_setup_unhandled_exceptions):
 
     with case_setup_unhandled_exceptions.test_file(
             '_debugger_case_unhandled_exceptions_on_top_level.py',
@@ -1240,7 +1240,7 @@ def test_unhandled_exceptions_in_top_level2(case_setup_unhandled_exceptions):
             '_debugger_case_unhandled_exceptions_on_top_level.py',
             get_environ=get_environ,
             update_command_line_args=update_command_line_args,
-            EXPECTED_RETURNCODE=(1, 255),  # Python 2.6, Jython can give 255
+            EXPECTED_RETURNCODE=(-1, 1, 255),  # Python 2.6, Jython can give 255 or -1
             ) as writer:
 
         writer.write_add_exception_breakpoint_with_policy('Exception', "0", "1", "0")

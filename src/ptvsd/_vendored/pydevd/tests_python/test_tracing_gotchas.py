@@ -14,7 +14,7 @@ class Tracer(object):
     def trace_func(self, frame, event, arg):
         if event == 'call':
             self.call_calls += 1
-            return self.on_return()
+            return self.on_call()
 
         elif event == 'line':
             self.line_calls += 1
@@ -24,7 +24,7 @@ class Tracer(object):
         else:
             return self.trace_func
 
-    def on_return(self):
+    def on_call(self):
         return self.trace_func
 
     def on_line(self, frame, event, arg):
@@ -41,14 +41,15 @@ class TracerSettingNone(Tracer):
 class TracerChangeToOtherTracing(Tracer):
 
     def on_line(self, frame, event, arg):
-        # Does NOT change to another tracing even if != None is returned
-        # (unless it's python 2.6).
-        return NO_FTRACE
+        return self._no_trace
+
+    def _no_trace(self, frame, event, arg):
+        return self._no_trace
 
 
 class TracerDisableOnCall(Tracer):
 
-    def on_return(self):
+    def on_call(self):
         return None
 
 
@@ -56,15 +57,17 @@ def test_tracing_gotchas():
     '''
     Summary of the gotchas tested:
 
-    If 'call' is used, the return value is used for the tracing. Afterwards the return may or may
-    not be ignored depending on the Python version, so, frame.f_trace should be set in that case.
+    If 'call' is used, a None return value is used for the tracing. Afterwards the return may or may
+    not be ignored depending on the Python version.
 
     Also, on Python 2.6, the trace function may not be set to None as it'll give an error
     afterwards (it needs to be set to an empty tracing function).
 
+    All of the versions seem to work when the return value is a new callable though.
+
     Note: according to: https://docs.python.org/3/library/sys.html#sys.settrace the behavior
     does not follow the spec (but we have to work with it nonetheless).
-    
+
     Note: Jython seems to do what's written in the docs.
     '''
 
@@ -77,7 +80,7 @@ def test_tracing_gotchas():
     for tracer, line_events in (
         (Tracer(), 1 if IS_JYTHON else 4),
         (TracerSettingNone(), 1),
-        (TracerChangeToOtherTracing(), 4 if not IS_PY26 and not IS_PY34 and not IS_JYTHON else 1),
+        (TracerChangeToOtherTracing(), 1),
         (TracerDisableOnCall(), 0),
         ):
         curr_trace_func = sys.gettrace()

@@ -310,7 +310,9 @@ def process_exec_queue(interpreter):
 if 'IPYTHONENABLE' in os.environ:
     IPYTHON = os.environ['IPYTHONENABLE'] == 'True'
 else:
-    IPYTHON = True
+    # By default, don't use IPython because occasionally changes
+    # in IPython break pydevd.
+    IPYTHON = False
 
 try:
     try:

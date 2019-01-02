@@ -21,20 +21,18 @@ from _pydevd_bundle.pydevd_comm_constants import (
     filesystem_encoding_is_utf8, file_system_encoding)
 from _pydevd_bundle.pydevd_constants import (DebugInfoHolder, get_thread_id, IS_IRONPYTHON,
     get_global_debugger, GetGlobalDebugger, set_global_debugger)  # Keep for backward compatibility @UnusedImport
-from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE
 from _pydevd_bundle.pydevd_net_command import NetCommand
 from _pydevd_bundle.pydevd_utils import quote_smart as quote, get_non_pydevd_threads
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame
 import pydevd_file_utils
 from pydevd_tracing import get_exception_traceback_str
+from _pydev_bundle._pydev_completer import completions_to_xml
 
 if IS_IRONPYTHON:
 
     # redefine `unquote` for IronPython, since we use it only for logging messages, but it leads to SOF with IronPython
     def unquote(s):
         return s
-
-get_file_type = DONT_TRACE.get
 
 
 #=======================================================================================================================
@@ -174,6 +172,7 @@ class NetCommandFactory:
         curr_frame = frame
         frame = None  # Clear frame reference
         try:
+            py_db = get_global_debugger()
             while curr_frame:
                 my_id = id(curr_frame)
 
@@ -185,7 +184,7 @@ class NetCommandFactory:
                     break  # Iron Python sometimes does not have it!
 
                 abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(curr_frame)
-                if get_file_type(abs_path_real_path_and_base[2]) == PYDEV_FILE:
+                if py_db.get_file_type(abs_path_real_path_and_base) == py_db.PYDEV_FILE:
                     # Skip pydevd files.
                     curr_frame = curr_frame.f_back
                     continue
@@ -325,8 +324,9 @@ class NetCommandFactory:
         except Exception:
             return self.make_error_message(seq, get_exception_traceback_str())
 
-    def make_get_completions_message(self, seq, payload):
+    def make_get_completions_message(self, seq, completions, qualifier, start):
         try:
+            payload = completions_to_xml(completions)
             return NetCommand(CMD_GET_COMPLETIONS, seq, payload)
         except Exception:
             return self.make_error_message(seq, get_exception_traceback_str())

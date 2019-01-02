@@ -26,6 +26,11 @@ class JsonFacade(object):
         msg = self.writer.wait_for_message(accept_json_message, unquote_msg=False, expect_xml=False)
         return from_json(msg)
 
+    def write_request(self, request):
+        seq = self.writer.next_seq()
+        request.seq = seq
+        self.writer.write_with_content_len(request.to_json())
+
 
 @pytest.mark.skipif(IS_JYTHON, reason='Must check why it is failing in Jython.')
 def test_case_json_protocol(case_setup):
@@ -51,3 +56,42 @@ def test_case_json_protocol(case_setup):
 
         writer.finished_ok = True
 
+
+def test_case_completions_json(case_setup):
+    from _pydevd_bundle._debug_adapter import pydevd_schema
+    with case_setup.test_file('_debugger_case_print.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_set_protocol('http_json')
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'))
+        writer.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit()
+        thread_id = hit.thread_id
+        frame_id = hit.frame_id
+
+        completions_arguments = pydevd_schema.CompletionsArguments(
+            'dict.', 6, frameId=(thread_id, frame_id), line=0)
+        completions_request = pydevd_schema.CompletionsRequest(completions_arguments)
+        json_facade.write_request(completions_request)
+
+        response = json_facade.wait_for_json_message(pydevd_schema.CompletionsResponse)
+        labels = [x['label'] for x in response.body.targets]
+        assert set(labels).issuperset(set(['__contains__', 'items', 'keys', 'values']))
+
+        completions_arguments = pydevd_schema.CompletionsArguments(
+            'dict.item', 10, frameId=(thread_id, frame_id))
+        completions_request = pydevd_schema.CompletionsRequest(completions_arguments)
+        json_facade.write_request(completions_request)
+
+        response = json_facade.wait_for_json_message(pydevd_schema.CompletionsResponse)
+        if IS_JYTHON:
+            assert response.body.targets == [
+                {'start': 5, 'length': 4, 'type': 'keyword', 'label': 'items'}]
+        else:
+            assert response.body.targets == [
+                {'start': 5, 'length': 4, 'type': 'function', 'label': 'items'}]
+
+        writer.write_run_thread(thread_id)
+
+        writer.finished_ok = True

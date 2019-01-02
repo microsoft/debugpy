@@ -1,20 +1,23 @@
-import pydevconsole
-import sys
+from collections import namedtuple
+from string import ascii_letters, digits
 
-if sys.version_info[0] >= 3:
-    import builtins as __builtin__ # Py3
-else:
+from _pydevd_bundle import pydevd_xml
+from _pydevd_bundle.pydevd_constants import IS_PY2
+import pydevconsole
+
+if IS_PY2:
     import __builtin__
+else:
+    import builtins as __builtin__  # Py3
 
 try:
-    import java.lang #@UnusedImport
+    import java.lang  # @UnusedImport
     from _pydev_bundle import _pydev_jy_imports_tipper
     _pydev_imports_tipper = _pydev_jy_imports_tipper
 except ImportError:
     IS_JYTHON = False
     from _pydev_bundle import _pydev_imports_tipper
 
-from _pydevd_bundle import pydevd_xml
 dir2 = _pydev_imports_tipper.generate_imports_tip_for_module
 
 
@@ -26,12 +29,12 @@ class _StartsWithFilter:
         Used because we can't create a lambda that'll use an outer scope in jython 2.1
     '''
 
-
     def __init__(self, start_with):
         self.start_with = start_with.lower()
 
     def __call__(self, name):
         return name.lower().startswith(self.start_with)
+
 
 #=======================================================================================================================
 # Completer
@@ -82,9 +85,9 @@ class Completer:
 
         """
         if self.use_main_ns:
-            #In pydev this option should never be used
+            # In pydev this option should never be used
             raise RuntimeError('Namespace must be provided!')
-            self.namespace = __main__.__dict__ #@UndefinedVariable
+            self.namespace = __main__.__dict__  # @UndefinedVariable
 
         if "." in text:
             return self.attr_matches(text)
@@ -99,13 +102,12 @@ class Completer:
 
         """
 
-
         def get_item(obj, attr):
             return obj[attr]
 
         a = {}
 
-        for dict_with_comps in [__builtin__.__dict__, self.namespace, self.global_namespace]: #@UndefinedVariable
+        for dict_with_comps in [__builtin__.__dict__, self.namespace, self.global_namespace]:  # @UndefinedVariable
             a.update(dict_with_comps)
 
         filter = _StartsWithFilter(text)
@@ -128,7 +130,7 @@ class Completer:
         import re
 
         # Another option, seems to work great. Catches things like ''.<tab>
-        m = re.match(r"(\S+(\.\w+)*)\.(\w*)$", text) #@UndefinedVariable
+        m = re.match(r"(\S+(\.\w+)*)\.(\w*)$", text)  # @UndefinedVariable
 
         if not m:
             return []
@@ -149,30 +151,44 @@ class Completer:
         return words
 
 
-#=======================================================================================================================
-# generate_completions_as_xml
-#=======================================================================================================================
-def generate_completions_as_xml(frame, act_tok):
-    if frame is None:
-        return '<xml></xml>'
+def generate_completions(frame, act_tok):
+    '''
+    :return list(tuple(method_name, docstring, parameters, completion_type))
 
-    #Not using frame.f_globals because of https://sourceforge.net/tracker2/?func=detail&aid=2541355&group_id=85796&atid=577329
-    #(Names not resolved in generator expression in method)
-    #See message: http://mail.python.org/pipermail/python-list/2009-January/526522.html
+    method_name: str
+    docstring: str
+    parameters: str -- i.e.: "(a, b)"
+    completion_type is an int
+        See: _pydev_bundle._pydev_imports_tipper for TYPE_ constants
+    '''
+    if frame is None:
+        return []
+
+    # Not using frame.f_globals because of https://sourceforge.net/tracker2/?func=detail&aid=2541355&group_id=85796&atid=577329
+    # (Names not resolved in generator expression in method)
+    # See message: http://mail.python.org/pipermail/python-list/2009-January/526522.html
     updated_globals = {}
     updated_globals.update(frame.f_globals)
-    updated_globals.update(frame.f_locals) #locals later because it has precedence over the actual globals
+    updated_globals.update(frame.f_locals)  # locals later because it has precedence over the actual globals
 
     if pydevconsole.IPYTHON:
         completions = pydevconsole.get_completions(act_tok, act_tok, updated_globals, frame.f_locals)
     else:
         completer = Completer(updated_globals, None)
-        #list(tuple(name, descr, parameters, type))
+        # list(tuple(name, descr, parameters, type))
         completions = completer.complete(act_tok)
 
+    return completions
+
+
+def generate_completions_as_xml(frame, act_tok):
+    completions = generate_completions(frame, act_tok)
+    return completions_to_xml(completions)
+
+
+def completions_to_xml(completions):
     valid_xml = pydevd_xml.make_valid_xml_value
     quote = pydevd_xml.quote
-
     msg = ["<xml>"]
 
     for comp in completions:
@@ -189,3 +205,85 @@ def generate_completions_as_xml(frame, act_tok):
 
     return ''.join(msg)
 
+
+identifier_start = ascii_letters + '_'
+identifier_part = ascii_letters + '_' + digits
+
+if IS_PY2:
+    identifier_start = identifier_start.decode('utf-8')
+    identifier_part = identifier_part.decode('utf-8')
+
+identifier_start = set(identifier_start)
+identifier_part = set(identifier_part)
+
+if IS_PY2:
+
+    # There's no string.isidentifier() on py2.
+    def isidentifier(s):
+        if not s:
+            return False
+        if s[0] not in identifier_start:
+            return False
+
+        for c in s[1:]:
+            if c not in identifier_part:
+                return False
+        return True
+
+else:
+
+    def isidentifier(s):
+        return s.isidentifier()
+
+TokenAndQualifier = namedtuple('TokenAndQualifier', 'token, qualifier')
+
+
+def extract_token_and_qualifier(text, line=0, column=0):
+    '''
+    Extracts the token a qualifier from the text given the line/colum
+    (see test_extract_token_and_qualifier for examples).
+
+    :param unicode text:
+    :param int line: 0-based
+    :param int column: 0-based
+    '''
+    # Note: not using the tokenize module because text should be unicode and
+    # line/column refer to the unicode text (otherwise we'd have to know
+    # those ranges after converted to bytes).
+    if line < 0:
+        line = 0
+    if column < 0:
+        column = 0
+
+    if isinstance(text, bytes):
+        text = text.decode('utf-8')
+
+    lines = text.splitlines()
+    try:
+        text = lines[line]
+    except IndexError:
+        return TokenAndQualifier(u'', u'')
+
+    if column >= len(text):
+        column = len(text)
+
+    text = text[:column]
+    token = u''
+    qualifier = u''
+
+    temp_token = []
+    for i in range(column - 1, -1, -1):
+        c = text[i]
+        if c in identifier_part or isidentifier(c) or c == u'.':
+            temp_token.append(c)
+        else:
+            break
+    temp_token = u''.join(reversed(temp_token))
+    if u'.' in temp_token:
+        temp_token = temp_token.split(u'.')
+        token = u'.'.join(temp_token[:-1])
+        qualifier = temp_token[-1]
+    else:
+        qualifier = temp_token
+
+    return TokenAndQualifier(token, qualifier)

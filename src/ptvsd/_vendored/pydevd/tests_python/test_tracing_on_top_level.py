@@ -1,6 +1,7 @@
 from pydevd import PyDB
 import pytest
 from tests_python.debugger_unittest import IS_CPYTHON
+import threading
 
 DEBUG = False
 
@@ -99,15 +100,15 @@ class _TraceTopLevel(object):
 
     def call_trace_dispatch(self, line):
         self.frame.f_lineno = line
-        return self.trace_dispatch(event='call', arg=None)
+        return self.trace_dispatch('call', None)
 
     def exception_trace_dispatch(self, line, arg):
         self.frame.f_lineno = line
-        self.new_trace_func = self.new_trace_func(self.frame, event='exception', arg=arg)
+        self.new_trace_func = self.new_trace_func(self.frame, 'exception', arg)
 
     def return_trace_dispatch(self, line):
         self.frame.f_lineno = line
-        self.new_trace_func = self.new_trace_func(self.frame, event='return', arg=None)
+        self.new_trace_func = self.new_trace_func(self.frame, 'return', None)
 
     def assert_paused(self):
         self.assert_last_commands('CMD_THREAD_SUSPEND', 'CMD_THREAD_RUN')
@@ -116,10 +117,11 @@ class _TraceTopLevel(object):
         self.assert_no_commands('CMD_THREAD_SUSPEND', 'CMD_THREAD_RUN')
 
 
-@pytest.fixture
+@pytest.yield_fixture
 def trace_top_level():
     # Note: we trace with a dummy frame with no f_back to simulate the issue in a remote attach.
-    return _TraceTopLevel()
+    yield _TraceTopLevel()
+    threading.current_thread().additional_info = None
 
 
 @pytest.fixture
@@ -440,6 +442,8 @@ def _replay_events(collected, trace_top_level_unhandled):
             # Notify only unhandled
             new_trace_func = trace_top_level_unhandled.call_trace_dispatch(lineno)
             # Check that it's dealing with the top-level event.
+            if hasattr(new_trace_func, 'get_method_object'):
+                new_trace_func = new_trace_func.get_method_object()
             assert new_trace_func.__name__ == 'trace_dispatch_and_unhandled_exceptions'
         elif event == 'exception':
             trace_top_level_unhandled.exception_trace_dispatch(lineno, arg)

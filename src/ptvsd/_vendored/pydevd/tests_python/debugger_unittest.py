@@ -494,6 +494,13 @@ class AbstractWriterThread(threading.Thread):
             )):
             return True
 
+        for expected in (
+            'PyDev console: using IPython',
+            'Attempting to work in a virtualenv. If you encounter problems, please',
+            ):
+            if expected in line:
+                return True
+
         if re.match(r'^(\d+)\t(\d)+', line):
             return True
 
@@ -509,6 +516,8 @@ class AbstractWriterThread(threading.Thread):
                 'from _pydevd_bundle.pydevd_additional_thread_info_regular import _current_frames',
                 'import org.python.core as PyCore #@UnresolvedImport',
                 'from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info',
+                "RuntimeWarning: Parent module '_pydevd_bundle._debug_adapter' not found while handling absolute import",
+                'import json',
                 ):
                 if expected in line:
                     return True
@@ -572,6 +581,22 @@ class AbstractWriterThread(threading.Thread):
             self.reader_thread.do_kill()
         if hasattr(self, 'sock'):
             self.sock.close()
+
+    def write_with_content_len(self, msg):
+        self.log.append('write: %s' % (msg,))
+
+        if SHOW_WRITES_AND_READS:
+            print('Test Writer Thread Written %s' % (msg,))
+
+        if not hasattr(self, 'sock'):
+            print('%s.sock not available when sending: %s' % (self, msg))
+            return
+
+        if not isinstance(msg, bytes):
+            msg = msg.encode('utf-8')
+
+        self.sock.sendall((u'Content-Length: %s\r\n\r\n' % len(msg)).encode('ascii'))
+        self.sock.sendall(msg)
 
     def write(self, s):
         from _pydevd_bundle.pydevd_comm import ID_TO_MEANING

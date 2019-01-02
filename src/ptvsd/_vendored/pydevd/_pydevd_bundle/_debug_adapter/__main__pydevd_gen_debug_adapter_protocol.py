@@ -47,8 +47,9 @@ class _OrderedSet(object):
 
 class Ref(object):
 
-    def __init__(self, ref):
+    def __init__(self, ref, ref_data):
         self.ref = ref
+        self.ref_data = ref_data
 
     def __str__(self):
         return self.ref
@@ -79,6 +80,10 @@ def create_classes_to_generate_structure(json_schema_data):
     for name, definition in definitions.items():
         all_of = definition.get('allOf')
         description = definition.get('description')
+        is_enum = definition.get('type') == 'string' and 'enum' in definition
+        enum_values = None
+        if is_enum:
+            enum_values = definition['enum']
         properties = {}
         properties.update(definition.get('properties', {}))
         required = _OrderedSet(definition.get('required', _OrderedSet()))
@@ -103,6 +108,8 @@ def create_classes_to_generate_structure(json_schema_data):
             base_definitions=base_definitions,
             description=description,
             required=required,
+            is_enum=is_enum,
+            enum_values=enum_values
         )
     return class_to_generatees
 
@@ -157,7 +164,7 @@ def update_class_to_generate_description(class_to_generate):
     class_to_generate['description'] = '    ' + ('\n    '.join(lines))
 
 
-def update_class_to_generate_type(class_to_generate):
+def update_class_to_generate_type(classes_to_generate, class_to_generate):
     properties = class_to_generate.get('properties')
     for _prop_name, prop_val in properties.items():
         prop_type = prop_val.get('type', '')
@@ -166,7 +173,7 @@ def update_class_to_generate_type(class_to_generate):
             if prop_type:
                 assert prop_type.startswith('#/definitions/')
                 prop_type = prop_type[len('#/definitions/'):]
-                prop_val['type'] = Ref(prop_type)
+                prop_val['type'] = Ref(prop_type, classes_to_generate[prop_type])
 
 
 def update_class_to_generate_register_dec(classes_to_generate, class_to_generate):
@@ -237,9 +244,9 @@ def update_class_to_generate_to_json(class_to_generate):
 
     for prop_name, prop in prop_name_and_prop:
         namespace = dict(prop_name=prop_name)
-        is_ref = prop['type'].__class__ == Ref
+        use_to_dict = prop['type'].__class__ == Ref and not prop['type'].ref_data.get('is_enum', False)
         if prop_name in required:
-            if is_ref:
+            if use_to_dict:
                 to_dict_body.append('         %(prop_name)r: self.%(prop_name)s.to_dict(),' % namespace)
             else:
                 to_dict_body.append('         %(prop_name)r: self.%(prop_name)s,' % namespace)
@@ -249,7 +256,7 @@ def update_class_to_generate_to_json(class_to_generate):
                 to_dict_body.append('    }')
 
             to_dict_body.append('    if self.%(prop_name)s is not None:' % namespace)
-            if is_ref:
+            if use_to_dict:
                 to_dict_body.append('        dct[%(prop_name)r] = self.%(prop_name)s.to_dict()' % namespace)
             else:
                 to_dict_body.append('        dct[%(prop_name)r] = self.%(prop_name)s' % namespace)
@@ -286,15 +293,22 @@ def update_class_to_generate_init(class_to_generate):
                 args.append(prop_name + '=None')
 
             if prop['type'].__class__ == Ref:
-                namespace = dict(
-                    prop_name=prop_name,
-                    ref_name=str(prop['type'])
-                )
-                init_body.append('    if %(prop_name)s is None:' % namespace)
-                init_body.append('        self.%(prop_name)s = %(ref_name)s()' % namespace)
-                init_body.append('    else:')
-                init_body.append('        self.%(prop_name)s = %(ref_name)s(**%(prop_name)s) if %(prop_name)s.__class__ !=  %(ref_name)s else %(prop_name)s' % namespace
-                )
+                ref = prop['type']
+                ref_data = ref.ref_data
+                if ref_data.get('is_enum', False):
+                    init_body.append('    assert %s in %s.VALID_VALUES' % (prop_name, str(ref)))
+                    init_body.append('    self.%(prop_name)s = %(prop_name)s' % dict(
+                        prop_name=prop_name))
+                else:
+                    namespace = dict(
+                        prop_name=prop_name,
+                        ref_name=str(ref)
+                    )
+                    init_body.append('    if %(prop_name)s is None:' % namespace)
+                    init_body.append('        self.%(prop_name)s = %(ref_name)s()' % namespace)
+                    init_body.append('    else:')
+                    init_body.append('        self.%(prop_name)s = %(ref_name)s(**%(prop_name)s) if %(prop_name)s.__class__ !=  %(ref_name)s else %(prop_name)s' % namespace
+                    )
 
             else:
                 init_body.append('    self.%(prop_name)s = %(prop_name)s' % dict(
@@ -343,7 +357,19 @@ def update_class_to_generate_props(class_to_generate):
 
 def update_class_to_generate_refs(class_to_generate):
     properties = class_to_generate['properties']
-    class_to_generate['refs'] = '    __refs__ = %s' % _OrderedSet(key for (key, val) in properties.items() if val['type'].__class__ == Ref).set_repr()
+    class_to_generate['refs'] = '    __refs__ = %s' % _OrderedSet(
+        key for (key, val) in properties.items() if val['type'].__class__ == Ref).set_repr()
+
+
+def update_class_to_generate_enums(class_to_generate):
+    class_to_generate['enums'] = ''
+    if class_to_generate.get('is_enum', False):
+        enums = ''
+        for enum in class_to_generate['enum_values']:
+            enums += '    %s = %r\n' % (enum.upper(), enum)
+        enums += '\n'
+        enums += '    VALID_VALUES = %s\n\n' % _OrderedSet(class_to_generate['enum_values']).set_repr()
+        class_to_generate['enums'] = enums
 
 
 def update_class_to_generate_objects(classes_to_generate, class_to_generate):
@@ -361,13 +387,13 @@ def update_class_to_generate_objects(classes_to_generate, class_to_generate):
             assert create_new['name'] not in classes_to_generate
             classes_to_generate[create_new['name']] = create_new
 
-            update_class_to_generate_type(create_new)
+            update_class_to_generate_type(classes_to_generate, create_new)
             update_class_to_generate_props(create_new)
 
             # Update nested object types
             update_class_to_generate_objects(classes_to_generate, create_new)
 
-            val['type'] = Ref(create_new['name'])
+            val['type'] = Ref(create_new['name'], classes_to_generate[create_new['name']])
             val.pop('properties', None)
 
 
@@ -384,13 +410,14 @@ def gen_debugger_protocol():
 
     for class_to_generate in list(classes_to_generate.values()):
         update_class_to_generate_description(class_to_generate)
-        update_class_to_generate_type(class_to_generate)
+        update_class_to_generate_type(classes_to_generate, class_to_generate)
         update_class_to_generate_props(class_to_generate)
         update_class_to_generate_objects(classes_to_generate, class_to_generate)
 
     for class_to_generate in classes_to_generate.values():
         update_class_to_generate_refs(class_to_generate)
         update_class_to_generate_init(class_to_generate)
+        update_class_to_generate_enums(class_to_generate)
         update_class_to_generate_to_json(class_to_generate)
         update_class_to_generate_register_dec(classes_to_generate, class_to_generate)
 
@@ -403,7 +430,7 @@ class %(name)s(BaseSchema):
     Note: automatically generated code. Do not edit manually.
     """
 
-%(props)s
+%(enums)s%(props)s
 %(refs)s
 
     __slots__ = list(__props__.keys()) + ['kwargs']

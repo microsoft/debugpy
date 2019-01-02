@@ -10093,10 +10093,8 @@ class CompletionItem(BaseSchema):
         """
         self.label = label
         self.text = text
-        if type is None:
-            self.type = CompletionItemType()
-        else:
-            self.type = CompletionItemType(**type) if type.__class__ !=  CompletionItemType else type
+        assert type in CompletionItemType.VALID_VALUES
+        self.type = type
         self.start = start
         self.length = length
         self.kwargs = kwargs
@@ -10109,7 +10107,7 @@ class CompletionItem(BaseSchema):
         if self.text is not None:
             dct['text'] = self.text
         if self.type is not None:
-            dct['type'] = self.type.to_dict()
+            dct['type'] = self.type
         if self.start is not None:
             dct['start'] = self.start
         if self.length is not None:
@@ -10126,6 +10124,28 @@ class CompletionItemType(BaseSchema):
 
     Note: automatically generated code. Do not edit manually.
     """
+
+    METHOD = 'method'
+    FUNCTION = 'function'
+    CONSTRUCTOR = 'constructor'
+    FIELD = 'field'
+    VARIABLE = 'variable'
+    CLASS = 'class'
+    INTERFACE = 'interface'
+    MODULE = 'module'
+    PROPERTY = 'property'
+    UNIT = 'unit'
+    VALUE = 'value'
+    ENUM = 'enum'
+    KEYWORD = 'keyword'
+    SNIPPET = 'snippet'
+    TEXT = 'text'
+    COLOR = 'color'
+    FILE = 'file'
+    REFERENCE = 'reference'
+    CUSTOMCOLOR = 'customcolor'
+
+    VALID_VALUES = set(['method', 'function', 'constructor', 'field', 'variable', 'class', 'interface', 'module', 'property', 'unit', 'value', 'enum', 'keyword', 'snippet', 'text', 'color', 'file', 'reference', 'customcolor'])
 
     __props__ = {}
     __refs__ = set()
@@ -10154,6 +10174,13 @@ class ChecksumAlgorithm(BaseSchema):
 
     Note: automatically generated code. Do not edit manually.
     """
+
+    MD5 = 'MD5'
+    SHA1 = 'SHA1'
+    SHA256 = 'SHA256'
+    TIMESTAMP = 'timestamp'
+
+    VALID_VALUES = set(['MD5', 'SHA1', 'SHA256', 'timestamp'])
 
     __props__ = {}
     __refs__ = set()
@@ -10202,17 +10229,15 @@ class Checksum(BaseSchema):
         :param ChecksumAlgorithm algorithm: The algorithm used to calculate this checksum.
         :param string checksum: Value of the checksum.
         """
-        if algorithm is None:
-            self.algorithm = ChecksumAlgorithm()
-        else:
-            self.algorithm = ChecksumAlgorithm(**algorithm) if algorithm.__class__ !=  ChecksumAlgorithm else algorithm
+        assert algorithm in ChecksumAlgorithm.VALID_VALUES
+        self.algorithm = algorithm
         self.checksum = checksum
         self.kwargs = kwargs
 
 
     def to_dict(self):
         dct = {
-             'algorithm': self.algorithm.to_dict(),
+             'algorithm': self.algorithm,
              'checksum': self.checksum,
         }
         dct.update(self.kwargs)
@@ -10375,17 +10400,15 @@ class ExceptionOptions(BaseSchema):
         :param ExceptionBreakMode breakMode: Condition when a thrown exception should result in a break.
         :param array path: A path that selects a single or multiple exceptions in a tree. If 'path' is missing, the whole tree is selected. By convention the first segment of the path is a category that is used to group exceptions in the UI.
         """
-        if breakMode is None:
-            self.breakMode = ExceptionBreakMode()
-        else:
-            self.breakMode = ExceptionBreakMode(**breakMode) if breakMode.__class__ !=  ExceptionBreakMode else breakMode
+        assert breakMode in ExceptionBreakMode.VALID_VALUES
+        self.breakMode = breakMode
         self.path = path
         self.kwargs = kwargs
 
 
     def to_dict(self):
         dct = {
-             'breakMode': self.breakMode.to_dict(),
+             'breakMode': self.breakMode,
         }
         if self.path is not None:
             dct['path'] = self.path
@@ -10408,6 +10431,13 @@ class ExceptionBreakMode(BaseSchema):
 
     Note: automatically generated code. Do not edit manually.
     """
+
+    NEVER = 'never'
+    ALWAYS = 'always'
+    UNHANDLED = 'unhandled'
+    USERUNHANDLED = 'userUnhandled'
+
+    VALID_VALUES = set(['never', 'always', 'unhandled', 'userUnhandled'])
 
     __props__ = {}
     __refs__ = set()
@@ -12028,10 +12058,8 @@ class ExceptionInfoResponseBody(BaseSchema):
         :param ExceptionDetails details: Detailed information about the exception.
         """
         self.exceptionId = exceptionId
-        if breakMode is None:
-            self.breakMode = ExceptionBreakMode()
-        else:
-            self.breakMode = ExceptionBreakMode(**breakMode) if breakMode.__class__ !=  ExceptionBreakMode else breakMode
+        assert breakMode in ExceptionBreakMode.VALID_VALUES
+        self.breakMode = breakMode
         self.description = description
         if details is None:
             self.details = ExceptionDetails()
@@ -12043,7 +12071,7 @@ class ExceptionInfoResponseBody(BaseSchema):
     def to_dict(self):
         dct = {
              'exceptionId': self.exceptionId,
-             'breakMode': self.breakMode.to_dict(),
+             'breakMode': self.breakMode,
         }
         if self.description is not None:
             dct['description'] = self.description

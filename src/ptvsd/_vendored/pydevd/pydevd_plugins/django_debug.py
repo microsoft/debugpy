@@ -2,7 +2,7 @@ from _pydevd_bundle.pydevd_comm import CMD_SET_BREAK, CMD_ADD_EXCEPTION_BREAK
 import inspect
 from _pydevd_bundle.pydevd_constants import STATE_SUSPEND, dict_iter_items, DJANGO_SUSPEND, IS_PY2, get_current_thread_id
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_file, normcase
-from _pydevd_bundle.pydevd_breakpoints import LineBreakpoint, get_exception_name
+from _pydevd_bundle.pydevd_breakpoints import LineBreakpoint
 from _pydevd_bundle import pydevd_vars
 import traceback
 from _pydev_bundle import pydev_log
@@ -425,8 +425,8 @@ def exception_break(plugin, main_debugger, pydb_frame, frame, args, arg):
     main_debugger = args[0]
     thread = args[3]
     exception, value, trace = arg
-    if main_debugger.django_exception_break and \
-            get_exception_name(exception) in ['VariableDoesNotExist', 'TemplateDoesNotExist', 'TemplateSyntaxError'] and \
+    if main_debugger.django_exception_break and exception is not None and \
+            exception.__name__ in ['VariableDoesNotExist', 'TemplateDoesNotExist', 'TemplateSyntaxError'] and \
             just_raised(trace) and not ignore_exception_trace(trace) and _is_django_exception_break_context(frame):
         render_frame = _find_django_render_frame(frame)
         if render_frame:
