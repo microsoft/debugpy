@@ -1982,7 +1982,10 @@ def _get_generator_cases():
         return ('_debugger_case_generator_py2.py',)
     else:
         # On py3 we should check both versions.
-        return ('_debugger_case_generator_py2.py', '_debugger_case_generator_py3.py')
+        return (
+            '_debugger_case_generator_py2.py',
+            '_debugger_case_generator_py3.py',
+        )
 
 
 @pytest.mark.parametrize("filename", _get_generator_cases())
@@ -2127,7 +2130,7 @@ def test_multiprocessing(case_setup_multiprocessing):
         writer.write_run_thread(hit2.thread_id)
         writer.finished_ok = True
 
-    
+
 @pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
 def test_remote_debugger_basic(case_setup_remote):
     with case_setup_remote.test_file('_debugger_case_remote.py') as writer:
@@ -2514,6 +2517,53 @@ def test_top_level_exceptions_on_attach(case_setup_remote, check_scenario):
         check_scenario(writer)
 
         writer.log.append('finished ok')
+        writer.finished_ok = True
+
+
+@pytest.mark.parametrize('filename, break_at_lines', [
+    # Known limitation: when it's added to the first line of the module, the
+    # module becomes traced.
+    ('_debugger_case_tracing.py', {2: 'trace'}),
+
+    ('_debugger_case_tracing.py', {3: 'frame_eval'}),
+    ('_debugger_case_tracing.py', {4: 'frame_eval'}),
+    ('_debugger_case_tracing.py', {2: 'trace', 4: 'trace'}),
+
+    ('_debugger_case_tracing.py', {8: 'frame_eval'}),
+    ('_debugger_case_tracing.py', {9: 'frame_eval'}),
+    ('_debugger_case_tracing.py', {10: 'frame_eval'}),
+
+    # Note: second frame eval hit is actually a trace because after we
+    # hit the first frame eval we don't actually stop tracing a given
+    # frame (known limitation to be fixed in the future).
+    # -- needs a better test
+    ('_debugger_case_tracing.py', {8: 'frame_eval', 10: 'frame_eval'}),
+])
+def test_frame_eval_limitations(case_setup, filename, break_at_lines):
+    '''
+    Test with limitations to be addressed in the future.
+    '''
+    with case_setup.test_file(filename) as writer:
+        for break_at_line in break_at_lines:
+            writer.write_add_breakpoint(break_at_line)
+
+        writer.log.append('making initial run')
+        writer.write_make_initial_run()
+
+        for break_at_line, break_mode in break_at_lines.items():
+            writer.log.append('waiting for breakpoint hit')
+            hit = writer.wait_for_breakpoint_hit()
+            thread_id = hit.thread_id
+
+            if IS_PY36_OR_GREATER and TEST_CYTHON:
+                assert hit.suspend_type == break_mode
+            else:
+                # Before 3.6 frame eval is not available.
+                assert hit.suspend_type == 'trace'
+
+            writer.log.append('run thread')
+            writer.write_run_thread(thread_id)
+
         writer.finished_ok = True
 
 # Jython needs some vars to be set locally.

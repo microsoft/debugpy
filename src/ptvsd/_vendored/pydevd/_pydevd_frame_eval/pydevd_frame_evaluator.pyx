@@ -74,9 +74,6 @@ cdef class FuncCodeInfo:
     cdef public bint breakpoint_found
     cdef public object new_code
     
-    # Lines with the breakpoints which were actually added to this function.
-    cdef public set breakpoints_created
-    
     # When breakpoints_mtime != PyDb.mtime the validity of breakpoints have
     # to be re-evaluated (if invalid a new FuncCodeInfo must be created and
     # tracing can't be disabled for the related frames).
@@ -92,7 +89,6 @@ cdef class FuncCodeInfo:
         # where needed, so, fallback to tracing.
         self.breakpoint_found = False
         self.new_code = None
-        self.breakpoints_created = set()
         self.breakpoints_mtime = -1
 
 
@@ -184,6 +180,7 @@ cdef FuncCodeInfo get_func_code_info(PyCodeObject * code_obj):
 
     cdef str co_filename = <str> code_obj.co_filename
     cdef str co_name = <str> code_obj.co_name
+    cdef set break_at_lines
 
     func_code_info = FuncCodeInfo()
     func_code_info.breakpoints_mtime = main_debugger.mtime
@@ -214,23 +211,27 @@ cdef FuncCodeInfo get_func_code_info(PyCodeObject * code_obj):
             if breakpoints:
                 # if DEBUG:
                 #    print('found breakpoints', code_obj_py.co_name, breakpoints)
+                break_at_lines = set()
+                new_code = None
                 for offset, line in dis.findlinestarts(code_obj_py):
                     if line in breakpoints:
-                        breakpoint = breakpoints[line]
+                        # breakpoint = breakpoints[line]
                         # if DEBUG:
                         #    print('created breakpoint', code_obj_py.co_name, line)
-                        func_code_info.breakpoints_created.add(line)
                         func_code_info.breakpoint_found = True
+                        break_at_lines.add(line)
     
                         success, new_code = insert_code(
-                            code_obj_py, create_pydev_trace_code_wrapper(line), line)
+                            code_obj_py, create_pydev_trace_code_wrapper(line), line, tuple(break_at_lines))
+                        code_obj_py = new_code
     
-                        if success:
-                            func_code_info.new_code = new_code
-                            code_obj_py = new_code
-                        else:
+                        if not success:
                             func_code_info.new_code = None
                             break
+                else:
+                    # Ok, all succeeded, set to generated code object.
+                    func_code_info.new_code = new_code
+                    
 
     Py_INCREF(func_code_info)
     _PyCode_SetExtra(<PyObject *> code_obj, _code_extra_index, <PyObject *> func_code_info)
@@ -279,7 +280,7 @@ cdef PyObject * get_bytecode_while_frame_eval(PyFrameObject * frame_obj, int exc
         return _PyEval_EvalFrameDefault(frame_obj, exc)
 
     # frame = <object> frame_obj
-    # DEBUG = frame.f_code.co_filename.endswith('_debugger_case_multiprocessing.py')
+    # DEBUG = frame.f_code.co_filename.endswith('_debugger_case_tracing.py')
     # if DEBUG:
     #     print('get_bytecode_while_frame_eval', frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename)
     
@@ -302,6 +303,8 @@ cdef PyObject * get_bytecode_while_frame_eval(PyFrameObject * frame_obj, int exc
                 main_debugger.signature_factory or \
                 additional_info.pydev_step_cmd == CMD_STEP_OVER and main_debugger.show_return_values and frame.f_back is additional_info.pydev_step_stop:
             
+            # if DEBUG:
+            #     print('get_bytecode_while_frame_eval enabled trace')
             if thread_info.thread_trace_func is not None:
                 frame.f_trace = thread_info.thread_trace_func
             else:

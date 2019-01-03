@@ -51,12 +51,6 @@ def _modify_new_lines(code_to_modify, offset, code_to_insert):
     # There's a nice overview of co_lnotab in
     # https://github.com/python/cpython/blob/3.6/Objects/lnotab_notes.txt
 
-    if code_to_modify.co_firstlineno == 1 and offset == 0 and code_to_modify.co_name == '<module>':
-        # There's a peculiarity here: if a breakpoint is added in the first line of a module, we
-        # can't replace the code because we require a line event to stop and the live event
-        # was already generated, so, fallback to tracing.
-        return None
-
     new_list = list(code_to_modify.co_lnotab)
     if not new_list:
         # Could happen on a lambda (in this case, a breakpoint in the lambda should fallback to
@@ -192,24 +186,38 @@ def add_jump_instruction(jump_arg, code_to_insert):
 _created = {}
 
 
-def insert_code(code_to_modify, code_to_insert, before_line):
-    # This check is needed for generator functions, because after each yield a new frame is created
-    # but the former code object is used.
+def insert_code(code_to_modify, code_to_insert, before_line, all_lines_with_breaks=()):
+    '''
+    :param all_lines_with_breaks:
+        tuple(int) a tuple with all the breaks in the given code object (this method is expected
+        to be called multiple times with different lines to add multiple breakpoints, so, the
+        variable `before_line` should have the current breakpoint an the all_lines_with_breaks
+        should have all the breakpoints added so far (including the `before_line`).
+    '''
+    if not all_lines_with_breaks:
+        # Backward-compatibility with signature which received only one line.
+        all_lines_with_breaks = (before_line,)
 
-    ok_and_curr_before_line = _created.get(code_to_modify)
-    if ok_and_curr_before_line is not None:
-        ok, curr_before_line = ok_and_curr_before_line
-        if not ok:
-            return False, code_to_modify
+    # The cache is needed for generator functions, because after each yield a new frame
+    # is created but the former code object is used (so, check if code_to_modify is
+    # already there and if not cache based on the new code generated).
 
-        if curr_before_line == before_line:
-            return True, code_to_modify
+    # print('inserting code', before_line, all_lines_with_breaks)
+    # dis.dis(code_to_modify)
 
-        return False, code_to_modify
+    ok_and_new_code = _created.get((code_to_modify, all_lines_with_breaks))
+    if ok_and_new_code is not None:
+        return ok_and_new_code
 
     ok, new_code = _insert_code(code_to_modify, code_to_insert, before_line)
-    _created[new_code] = ok, before_line
-    return ok, new_code
+
+    # print('insert code ok', ok)
+    # dis.dis(new_code)
+
+    # Note: caching with new code!
+    cache_key = new_code, all_lines_with_breaks
+    _created[cache_key] = (ok, new_code)
+    return _created[cache_key]
 
 
 def _insert_code(code_to_modify, code_to_insert, before_line):
@@ -223,6 +231,16 @@ def _insert_code(code_to_modify, code_to_insert, before_line):
     :return: boolean flag whether insertion was successful, modified code
     """
     linestarts = dict(dis.findlinestarts(code_to_modify))
+    if not linestarts:
+        return False, code_to_modify
+
+    if code_to_modify.co_name == '<module>':
+        # There's a peculiarity here: if a breakpoint is added in the first line of a module, we
+        # can't replace the code because we require a line event to stop and the line event
+        # was already generated, so, fallback to tracing.
+        if before_line == min(linestarts.values()):
+            return False, code_to_modify
+
     if before_line not in linestarts.values():
         return False, code_to_modify
 
