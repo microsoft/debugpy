@@ -212,7 +212,7 @@ def test_error_in_condition(pyfile, run_as, start_method, error_name):
         session.wait_for_exit()
         assert session.get_stdout_as_string() == b''
         if error_name == 'NameError':
-            assert session.get_stderr_as_string() == b''
+            assert session.get_stderr_as_string().find(b'NameError') == -1
         else:
             assert session.get_stderr_as_string().find(b'ArithmeticError') > 0
 

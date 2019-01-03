@@ -27,7 +27,7 @@ settings.configure(
             'BACKEND': 'django.template.backends.django.DjangoTemplates',
             'APP_DIRS': True,
             'DIRS': [
-                'templates/'
+                os.path.join(os.path.dirname(__file__), 'templates'),
             ]
         },
     ]
