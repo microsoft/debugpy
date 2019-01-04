@@ -2,6 +2,7 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+import numbers
 import sys
 import time
 
@@ -139,5 +140,10 @@ def _run(argv, addr, _pydevd=pydevd, _install=install, **kwargs):
     try:
         _pydevd.main()
     except SystemExit as ex:
-        daemon.exitcode = 0 if ex.code is None else int(ex.code)
+        if ex.code is None:
+            daemon.exitcode = 0
+        elif isinstance(ex.code, numbers.Integral):
+            daemon.exitcode = int(ex.code)
+        else:
+            daemon.exitcode = 1
         raise
