@@ -5,6 +5,8 @@
 [![GitHub](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://raw.githubusercontent.com/Microsoft/ptvsd/master/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/ptvsd.svg)](https://pypi.org/project/ptvsd/)
 
+This debugger is based on the Debug Adapter Protocol for VS Code: [debugProtocol.json](https://github.com/Microsoft/vscode-debugadapter-node/blob/master/debugProtocol.json)
+
 ## `ptvsd` CLI Usage
 ### Debugging a script file
 To run a script file with debugging enabled, but without waiting for the debugger to attach (i.e. code starts executing immediately):

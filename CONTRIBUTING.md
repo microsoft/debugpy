@@ -34,8 +34,8 @@ VSC Python settings for formating:
 ],
 ```
 
-### Running `pytest` based tests
-We are currently migrating the tests to use `pytest`. Please run both set of tests. Newer tests must go into the [pytests](pytests) directory. Use [test_requirements.txt](test_requirements.txt) to install packages needed to run the tests.
+### Running tests
+We are currently migrating the tests to use `pytest`. Please run both set of tests. Newer tests must go into the [tests](tests) directory. Use [test_requirements.txt](test_requirements.txt) to install packages needed to run the tests.
 #### Windows
 ```
 C:\> git clone https://github.com/Microsoft/ptvsd
@@ -50,20 +50,7 @@ C:\ptvsd> py -3.7 -m pytest -v
 ~/ptvsd: python3 -m pip install -r ./test_requirements.txt
 ~/ptvsd: python3 -m pytest -v
 ```
-### Running `unittest` based tests
-`git clone` ptvsd and change directory to `ptvsd`. Run the `tests` module from there. Newer tests must be written using `pytest` and must go into the [pytests](pytests) directory. Please do not add tests to this directory.
-#### Windows
-```
-C:\> git clone https://github.com/Microsoft/ptvsd
-C:\> cd ptvsd
-C:\ptvsd> py -3.7 -m tests -v
-```
-#### Linux\Mac
-```
-~: git clone https://github.com/Microsoft/ptvsd
-~: cd ptvsd
-~/ptvsd: python3 -m tests -v
-```
+
 
 ### Debug in VSC using development version
 Set `PYTHONPATH` to point to cloned version of ptvsd, in `launch.json`, to debug any python project to test the debugger you are working on:

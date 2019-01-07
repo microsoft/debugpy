@@ -1,46 +1,17 @@
-from __future__ import absolute_import
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License. See LICENSE in the project root
+# for license information.
 
-import os
-import os.path
-import sys
-import unittest
+__doc__ = """pytest-based ptvsd tests."""
 
-# Importing "ptvsd" here triggers the vendoring code before any vendored
-# code ever gets imported.
-import ptvsd  # noqa
-from ptvsd._vendored import list_all as vendored
+import colorama
+import pytest
 
-
-TEST_ROOT = os.path.abspath(os.path.dirname(__file__))  # noqa
-RESOURCES_ROOT = os.path.join(TEST_ROOT, 'resources')  # noqa
-PROJECT_ROOT = os.path.abspath(os.path.dirname(os.path.dirname(ptvsd.__file__)))
-VENDORED_ROOTS = vendored(resolve=True)  # noqa
+# This is only imported to ensure that the module is actually installed and the
+# timeout setting in pytest.ini is active, since otherwise most timeline-based
+# tests will hang indefinitely.
+import pytest_timeout # noqa
 
 
-def skip_py2(decorated=None):
-    if sys.version_info[0] > 2:
-        return decorated
-    msg = 'not tested under Python 2'
-    if decorated is None:
-        raise unittest.SkipTest(msg)
-    else:
-        decorator = unittest.skip(msg)
-    return decorator(decorated)
-
-
-if sys.version_info[0] == 2:
-    # Hack alert!!!
-    class SkippingTestSuite(unittest.TestSuite):
-        def __init__(self, tests=()):
-            if tests and type(tests[0]).__name__ == 'ModuleImportFailure':
-                _, exc, _ = sys.exc_info()
-                if isinstance(exc, unittest.SkipTest):
-                    from unittest.loader import _make_failed_load_tests
-                    suite = _make_failed_load_tests(
-                        tests[0]._testMethodName,
-                        exc,
-                        type(self),
-                    )
-                    tests = tuple(suite)
-            unittest.TestSuite.__init__(self, tests)
-    unittest.TestLoader.suiteClass = SkippingTestSuite
+colorama.init()
+pytest.register_assert_rewrite('tests.helpers')
