@@ -32,7 +32,8 @@ from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_i
 from _pydevd_bundle.pydevd_breakpoints import ExceptionBreakpoint, get_exception_breakpoint
 from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, CMD_STEP_INTO, CMD_SET_BREAK,
     CMD_STEP_INTO_MY_CODE, CMD_STEP_OVER, CMD_SMART_STEP_INTO, CMD_RUN_TO_LINE,
-    CMD_SET_NEXT_STATEMENT, CMD_STEP_RETURN, CMD_ADD_EXCEPTION_BREAK)
+    CMD_SET_NEXT_STATEMENT, CMD_STEP_RETURN, CMD_ADD_EXCEPTION_BREAK, CMD_STEP_RETURN_MY_CODE,
+    CMD_STEP_OVER_MY_CODE)
 from _pydevd_bundle.pydevd_constants import (IS_JYTH_LESS25, IS_PYCHARM, get_thread_id, get_current_thread_id,
     dict_keys, dict_iter_items, DebugInfoHolder, PYTHON_SUSPEND, STATE_SUSPEND, STATE_RUN, get_frame,
     clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, IS_PY34_OR_GREATER, IS_PY2, NULL,
@@ -51,7 +52,7 @@ from _pydevd_frame_eval.pydevd_frame_eval_main import (
 import pydev_ipython  # @UnusedImport
 from pydevd_concurrency_analyser.pydevd_concurrency_logger import ThreadingLogger, AsyncioLogger, send_message, cur_time
 from pydevd_concurrency_analyser.pydevd_thread_wrappers import wrap_threads
-from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame, NORM_PATHS_AND_BASE_CONTAINER
+from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame, NORM_PATHS_AND_BASE_CONTAINER, get_abs_path_real_path_and_base_from_file
 from pydevd_file_utils import get_fullname, rPath, get_package_dir
 import pydevd_tracing
 
@@ -514,7 +515,7 @@ class PyDB(object):
         finally:
             if val is not None:
                 info.pydev_message = str(val)
-                
+
     def get_file_type(self, abs_real_path_and_basename):
         '''
         :param abs_real_path_and_basename:
@@ -623,8 +624,18 @@ class PyDB(object):
             self.plugin = PluginManager(self)
         return self.plugin
 
-    def in_project_scope(self, filename):
-        return pydevd_utils.in_project_roots(filename)
+    def in_project_scope(self, filename, cache={}):
+        try:
+            return cache[filename]
+        except KeyError:
+            abs_real_path_and_basename = get_abs_path_real_path_and_base_from_file(filename)
+            # pydevd files are nevere considered to be in the project scope.
+            if self.get_file_type(abs_real_path_and_basename) == self.PYDEV_FILE:
+                cache[filename] = False
+            else:
+                cache[filename] = pydevd_utils.in_project_roots(filename)
+
+            return cache[filename]
 
     def is_ignored_by_filters(self, filename):
         return pydevd_utils.is_ignored_by_filter(filename)
@@ -1094,6 +1105,7 @@ class PyDB(object):
             If True we should use the line of the exception instead of the current line in the frame
             as the paused location on the top-level frame (exception info must be passed on 'arg').
         """
+        # print('do_wait_suspend %s %s %s %s' % (frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename, event))
         self.process_internal_commands()
         thread_stack_str = ''  # @UnusedVariable -- this is here so that `make_get_thread_stack_message`
                                 # can retrieve it later.
@@ -1149,19 +1161,20 @@ class PyDB(object):
         self.cancel_async_evaluation(get_current_thread_id(thread), str(id(frame)))
 
         # process any stepping instructions
-        if info.pydev_step_cmd == CMD_STEP_INTO or info.pydev_step_cmd == CMD_STEP_INTO_MY_CODE:
+        if info.pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE):
             info.pydev_step_stop = None
             info.pydev_smart_step_stop = None
+            self.set_trace_for_frame_and_parents(frame)
 
-        elif info.pydev_step_cmd == CMD_STEP_OVER:
+        elif info.pydev_step_cmd in (CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE):
             info.pydev_step_stop = frame
             info.pydev_smart_step_stop = None
             self.set_trace_for_frame_and_parents(frame)
 
         elif info.pydev_step_cmd == CMD_SMART_STEP_INTO:
-            self.set_trace_for_frame_and_parents(frame)
             info.pydev_step_stop = None
             info.pydev_smart_step_stop = frame
+            self.set_trace_for_frame_and_parents(frame)
 
         elif info.pydev_step_cmd == CMD_RUN_TO_LINE or info.pydev_step_cmd == CMD_SET_NEXT_STATEMENT:
             self.set_trace_for_frame_and_parents(frame)
@@ -1195,8 +1208,16 @@ class PyDB(object):
                 self._do_wait_suspend(thread, frame, event, arg, suspend_type, from_this_thread)
                 return
 
-        elif info.pydev_step_cmd == CMD_STEP_RETURN:
+        elif info.pydev_step_cmd in (CMD_STEP_RETURN, CMD_STEP_RETURN_MY_CODE):
             back_frame = frame.f_back
+            if info.pydev_step_cmd == CMD_STEP_RETURN_MY_CODE:
+                while back_frame is not None:
+                    if self.in_project_scope(back_frame.f_code.co_filename):
+                        break
+                    else:
+                        frame = back_frame
+                        back_frame = back_frame.f_back
+
             if back_frame is not None:
                 # steps back to the same frame (in a return call it will stop in the 'back frame' for the user)
                 info.pydev_step_stop = frame

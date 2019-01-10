@@ -62,7 +62,9 @@ WAIT_FOR_THREAD_FINISH_TIMEOUT = 1  # seconds
 
 STEP_REASONS = {
         pydevd_comm.CMD_STEP_INTO,
+        pydevd_comm.CMD_STEP_INTO_MY_CODE,
         pydevd_comm.CMD_STEP_OVER,
+        pydevd_comm.CMD_STEP_OVER_MY_CODE,
         pydevd_comm.CMD_STEP_RETURN,
         pydevd_comm.CMD_STEP_INTO_MY_CODE,
 }
@@ -2183,7 +2185,10 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     def on_next(self, request, args):
 
         tid = self.thread_map.to_pydevd(int(args['threadId']))
-        self.pydevd_notify(pydevd_comm.CMD_STEP_OVER, tid)
+        if self._is_just_my_code_stepping_enabled():
+            self.pydevd_notify(pydevd_comm.CMD_STEP_OVER_MY_CODE, tid)
+        else:
+            self.pydevd_notify(pydevd_comm.CMD_STEP_OVER, tid)
         self.send_response(request)
 
     @async_handler
@@ -2200,7 +2205,10 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     def on_stepOut(self, request, args):
 
         tid = self.thread_map.to_pydevd(int(args['threadId']))
-        self.pydevd_notify(pydevd_comm.CMD_STEP_RETURN, tid)
+        if self._is_just_my_code_stepping_enabled():
+            self.pydevd_notify(pydevd_comm.CMD_STEP_RETURN_MY_CODE, tid)
+        else:
+            self.pydevd_notify(pydevd_comm.CMD_STEP_RETURN, tid)
         self.send_response(request)
 
     def _get_hit_condition_expression(self, hit_condition):
@@ -2546,22 +2554,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_SUSPEND)
     @async_handler
     def on_pydevd_thread_suspend(self, seq, args):
-        # TODO: docstring
-        xml = self.parse_xml_response(args)
-        pyd_tid = xml.thread['id']
-        reason = int(xml.thread['stop_reason'])
-
-        # This is needed till https://github.com/Microsoft/ptvsd/issues/477
-        # is done. Remove this after adding the appropriate pydevd commands to
-        # do step over and step out
-        xframes = list(xml.thread.frame)
-        xframe = xframes[0]
-        filepath = unquote_xml_path(xframe['file'])
-        if reason in STEP_REASONS or reason in EXCEPTION_REASONS:
-            if self.internals_filter.is_internal_path(filepath) or \
-                not self._should_debug(filepath):
-                self.pydevd_notify(pydevd_comm.CMD_THREAD_RUN, pyd_tid)
-                return
+        pass
 
     @pydevd_events.handler(pydevd_comm_constants.CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION)
     @async_handler

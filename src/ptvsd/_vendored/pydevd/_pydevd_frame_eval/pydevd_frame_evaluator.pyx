@@ -256,6 +256,7 @@ cdef PyObject * get_bytecode_while_frame_eval(PyFrameObject * frame_obj, int exc
     cdef int STATE_SUSPEND = 2
     cdef int CMD_STEP_INTO = 107
     cdef int CMD_STEP_OVER = 108
+    cdef int CMD_STEP_OVER_MY_CODE = 159
     cdef int CMD_STEP_INTO_MY_CODE = 144
     cdef bint can_skip = True
     try:
@@ -301,7 +302,7 @@ cdef PyObject * get_bytecode_while_frame_eval(PyFrameObject * frame_obj, int exc
                 main_debugger.break_on_caught_exceptions or \
                 main_debugger.has_plugin_exception_breaks or \
                 main_debugger.signature_factory or \
-                additional_info.pydev_step_cmd == CMD_STEP_OVER and main_debugger.show_return_values and frame.f_back is additional_info.pydev_step_stop:
+                additional_info.pydev_step_cmd in (CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE) and main_debugger.show_return_values and frame.f_back is additional_info.pydev_step_stop:
             
             # if DEBUG:
             #     print('get_bytecode_while_frame_eval enabled trace')

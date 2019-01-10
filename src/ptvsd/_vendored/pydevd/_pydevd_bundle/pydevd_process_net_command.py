@@ -26,7 +26,7 @@ from _pydevd_bundle.pydevd_comm_constants import (CMD_RUN, CMD_SET_PROTOCOL, CMD
     CMD_EVALUATE_CONSOLE_EXPRESSION, CMD_RUN_CUSTOM_OPERATION, CMD_IGNORE_THROWN_EXCEPTION_AT,
     CMD_ENABLE_DONT_TRACE, CMD_REDIRECT_OUTPUT, CMD_GET_NEXT_STATEMENT_TARGETS,
     CMD_SET_PROJECT_ROOTS, CMD_THREAD_DUMP_TO_STDERR, CMD_STOP_ON_START, CMD_PYDEVD_JSON_CONFIG,
-    CMD_GET_EXCEPTION_DETAILS)
+    CMD_GET_EXCEPTION_DETAILS, CMD_STEP_RETURN_MY_CODE, CMD_STEP_OVER_MY_CODE)
 from _pydevd_bundle.pydevd_constants import (get_thread_id, IS_PY3K, DebugInfoHolder, dict_keys, STATE_RUN,
     NEXT_VALUE_SEPARATOR, IS_WINDOWS, get_current_thread_id, HTTP_JSON_PROTOCOL, JSON_PROTOCOL,
     set_protocol, get_protocol)
@@ -172,8 +172,14 @@ def process_net_command(py_db, cmd_id, seq, text):
                     additional_info.pydev_step_stop = None
                     additional_info.pydev_state = STATE_RUN
 
-            elif cmd_id == CMD_STEP_INTO or cmd_id == CMD_STEP_OVER or cmd_id == CMD_STEP_RETURN or \
-                    cmd_id == CMD_STEP_INTO_MY_CODE:
+            elif cmd_id in (
+                    CMD_STEP_INTO,
+                    CMD_STEP_OVER,
+                    CMD_STEP_RETURN,
+                    CMD_STEP_INTO_MY_CODE,
+                    CMD_STEP_OVER_MY_CODE,
+                    CMD_STEP_RETURN_MY_CODE
+                ):
                 # we received some command to make a single step
                 t = pydevd_find_thread_by_id(text)
                 if t:

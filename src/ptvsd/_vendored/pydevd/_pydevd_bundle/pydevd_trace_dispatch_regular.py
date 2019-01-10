@@ -357,7 +357,7 @@ class ThreadTracer(object):
         # ENDIF
 
         # DEBUG = 'code_to_debug' in frame.f_code.co_filename
-        # if DEBUG: print('ENTER: trace_dispatch', frame.f_code.co_filename, frame.f_lineno, event, frame.f_code.co_name)
+        # if DEBUG: print('ENTER: trace_dispatch: %s %s %s %s' % (frame.f_code.co_filename, frame.f_lineno, event, frame.f_code.co_name))
         py_db, t, additional_info, cache_skips, frame_skips_cache = self._args
         pydev_step_cmd = additional_info.pydev_step_cmd
         is_stepping = pydev_step_cmd != -1

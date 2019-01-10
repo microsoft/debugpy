@@ -78,6 +78,9 @@ CMD_PYDEVD_JSON_CONFIG = 156
 CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION = 157
 CMD_THREAD_RESUME_SINGLE_NOTIFICATION = 158
 
+CMD_STEP_OVER_MY_CODE = 159
+CMD_STEP_RETURN_MY_CODE = 160
+
 CMD_REDIRECT_OUTPUT = 200
 CMD_GET_NEXT_STATEMENT_TARGETS = 201
 CMD_SET_PROJECT_ROOTS = 202
@@ -93,7 +96,10 @@ REASON_STOP_ON_BREAKPOINT = CMD_SET_BREAK
 REASON_THREAD_SUSPEND = CMD_THREAD_SUSPEND
 REASON_STEP_INTO = CMD_STEP_INTO
 REASON_STEP_INTO_MY_CODE = CMD_STEP_INTO_MY_CODE
+REASON_STEP_RETURN = CMD_STEP_RETURN
+REASON_STEP_RETURN_MY_CODE = CMD_STEP_RETURN_MY_CODE
 REASON_STEP_OVER = CMD_STEP_OVER
+REASON_STEP_OVER_MY_CODE = CMD_STEP_OVER_MY_CODE
 
 # Always True (because otherwise when we do have an error, it's hard to diagnose).
 SHOW_WRITES_AND_READS = True
@@ -715,6 +721,7 @@ class AbstractWriterThread(threading.Thread):
         # note: those must be passed in kwargs.
         line = kwargs.get('line')
         file = kwargs.get('file')
+        name = kwargs.get('name')
 
         self.log.append('Start: wait_for_breakpoint_hit')
         # wait for hit breakpoint
@@ -728,9 +735,9 @@ class AbstractWriterThread(threading.Thread):
             return False
 
         msg = self.wait_for_message(accept_message, timeout=timeout)
-        return self._get_stack_as_hit(msg, file, line)
+        return self._get_stack_as_hit(msg, file, line, name)
 
-    def _get_stack_as_hit(self, msg, file=None, line=None):
+    def _get_stack_as_hit(self, msg, file=None, line=None, name=None):
         # we have something like <xml><thread id="12152656" stop_reason="111"><frame id="12453120" name="encode" ...
         if len(msg.thread.frame) == 0:
             frame = msg.thread.frame
@@ -739,7 +746,7 @@ class AbstractWriterThread(threading.Thread):
         thread_id = msg.thread['id']
         frame_id = frame['id']
         suspend_type = msg.thread['suspend_type']
-        name = frame['name']
+        hit_name = frame['name']
         frame_line = int(frame['line'])
         frame_file = frame['file']
 
@@ -749,10 +756,13 @@ class AbstractWriterThread(threading.Thread):
         if line is not None:
             assert line == frame_line, 'Expected hit to be in line %s, was: %s' % (line, frame_line)
 
+        if name is not None:
+            assert name == hit_name
+
         self.log.append('End(1): wait_for_breakpoint_hit: %s' % (msg.original_xml,))
 
         return Hit(
-            thread_id=thread_id, frame_id=frame_id, line=frame_line, suspend_type=suspend_type, name=name, file=frame_file)
+            thread_id=thread_id, frame_id=frame_id, line=frame_line, suspend_type=suspend_type, name=hit_name, file=frame_file)
 
     def wait_for_get_next_statement_targets(self):
         last = ''
@@ -960,8 +970,17 @@ class AbstractWriterThread(threading.Thread):
     def write_step_in(self, thread_id):
         self.write("%s\t%s\t%s" % (CMD_STEP_INTO, self.next_seq(), thread_id,))
 
+    def write_step_in_my_code(self, thread_id):
+        self.write("%s\t%s\t%s" % (CMD_STEP_INTO_MY_CODE, self.next_seq(), thread_id,))
+
     def write_step_return(self, thread_id):
         self.write("%s\t%s\t%s" % (CMD_STEP_RETURN, self.next_seq(), thread_id,))
+
+    def write_step_return_my_code(self, thread_id):
+        self.write("%s\t%s\t%s" % (CMD_STEP_RETURN_MY_CODE, self.next_seq(), thread_id,))
+
+    def write_step_over_my_code(self, thread_id):
+        self.write("%s\t%s\t%s" % (CMD_STEP_OVER_MY_CODE, self.next_seq(), thread_id,))
 
     def write_suspend_thread(self, thread_id):
         self.write("%s\t%s\t%s" % (CMD_THREAD_SUSPEND, self.next_seq(), thread_id,))
@@ -1094,7 +1113,7 @@ def _get_debugger_test_file(filename):
 
     ret = os.path.normcase(rPath(os.path.join(os.path.dirname(__file__), filename)))
     if not os.path.exists(ret):
-        ret = os.path.join(os.path.dirname(ret), 'resources', os.path.basename(ret))
+        ret = os.path.join(os.path.dirname(__file__), 'resources', filename)
     if not os.path.exists(ret):
         raise AssertionError('Expected: %s to exist.' % (ret,))
     return ret
