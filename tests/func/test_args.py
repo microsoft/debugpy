@@ -13,6 +13,7 @@ def test_args(pyfile, run_as, start_method):
         import sys
         from dbgimporter import import_and_enable_debugger
         import_and_enable_debugger()
+        print(sys.argv)
         assert sys.argv[1] == '--arg1'
         assert sys.argv[2] == 'arg2'
         assert sys.argv[3] == '-arg3'

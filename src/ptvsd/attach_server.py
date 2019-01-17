@@ -17,7 +17,6 @@ WAIT_TIMEOUT = 1.0
 DEFAULT_HOST = '0.0.0.0'
 DEFAULT_PORT = 5678
 
-_debug_current_thread = None
 _pending_threads = set()
 
 

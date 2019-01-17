@@ -3,10 +3,13 @@
 # for license information.
 
 import pydevd
+import threading
 import time
 
 from _pydevd_bundle.pydevd_comm import get_global_debugger
 
+import ptvsd
+import ptvsd.options
 from ptvsd._util import new_hidden_thread
 from ptvsd.pydevd_hooks import install
 from ptvsd.daemon import session_not_bound, DaemonClosedError
@@ -41,6 +44,9 @@ global_next_session = lambda: None
 def enable_attach(address, redirect_output=True,
                   _pydevd=pydevd, _install=install,
                   on_attach=lambda: None, **kwargs):
+
+    ptvsd.main_thread = threading.current_thread()
+
     host, port = address
 
     def wait_for_connection(daemon, host, port, next_session=None):
@@ -82,7 +88,9 @@ def enable_attach(address, redirect_output=True,
                      stdoutToServer=redirect_output,
                      stderrToServer=redirect_output,
                      port=port,
-                     suspend=False)
+                     suspend=False,
+                     patch_multiprocessing=ptvsd.options.multiprocess)
+    return daemon
 
 
 def attach(address,
@@ -91,13 +99,14 @@ def attach(address,
            _install=install,
            **kwargs):
 
+    ptvsd.main_thread = threading.current_thread()
+
     host, port = address
-    _install(_pydevd,
-             address,
-             singlesession=False,
-             **kwargs)
+    daemon = _install(_pydevd, address, singlesession=False, **kwargs)
     _pydevd.settrace(host=host,
                      port=port,
                      stdoutToServer=redirect_output,
                      stderrToServer=redirect_output,
-                     suspend=False)
+                     suspend=False,
+                     patch_multiprocessing=ptvsd.options.multiprocess)
+    return daemon

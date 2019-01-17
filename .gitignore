@@ -109,3 +109,6 @@ ENV/
 .project
 .pydevproject
 .settings
+
+# Backup files
+*.bak

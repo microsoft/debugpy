@@ -147,21 +147,21 @@ class DebugSession(object):
 
     def _get_argv_for_launch(self):
         argv = [sys.executable]
-        argv += [ptvsd.__main__.__file__]
+        argv += [os.path.dirname(ptvsd.__file__)]
         argv += ['--client']
         argv += ['--host', 'localhost', '--port', str(self.ptvsd_port)]
         return argv
 
     def _get_argv_for_attach_using_cmdline(self):
         argv = [sys.executable]
-        argv += [ptvsd.__main__.__file__]
+        argv += [os.path.dirname(ptvsd.__file__)]
         argv += ['--wait']
         argv += ['--host', 'localhost', '--port', str(self.ptvsd_port)]
         return argv
 
     def _get_argv_for_attach_using_pid(self):
         argv = [sys.executable]
-        argv += [ptvsd.__main__.__file__]
+        argv += [os.path.dirname(ptvsd.__file__)]
         argv += ['--host', 'localhost', '--port', str(self.ptvsd_port)]
         argv += ['--pid', str(self.pid)]
         return argv

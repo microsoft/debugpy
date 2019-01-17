@@ -40,8 +40,9 @@ import _pydevd_bundle.pydevd_extension_utils as pydevd_extutil  # noqa
 import _pydevd_bundle.pydevd_frame as pydevd_frame  # noqa
 # from _pydevd_bundle.pydevd_comm import pydevd_log
 from _pydevd_bundle.pydevd_dont_trace_files import PYDEV_FILE  # noqa
-from _pydevd_bundle.pydevd_additional_thread_info import PyDBAdditionalThreadInfo  # noqa
+from _pydevd_bundle import pydevd_additional_thread_info
 
+import ptvsd
 from ptvsd import _util
 from ptvsd import multiproc
 from ptvsd import options
@@ -1210,13 +1211,6 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         self._handle_launch(request, args)
         self.send_response(request)
 
-    def on_configurationDone(self, request, args):
-        self.send_response(request)
-        self._process_debug_options(self.debug_options)
-        debugger_attached.set()
-        self._handle_configurationDone(args)
-        self._notify_ready()
-
     def on_disconnect(self, request, args):
         multiproc.kill_subprocesses()
 
@@ -1292,7 +1286,7 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
     def _process_debug_options(self, opts):
         pass
 
-    def _handle_configurationDone(self, args):
+    def _handle_configurationDone(self, request, args):
         pass
 
     def _handle_attach(self, request, args):
@@ -1506,19 +1500,27 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     # VSC protocol handlers
 
-    def _handle_configurationDone(self, args):
+    @async_handler
+    def on_configurationDone(self, request, args):
+        self._process_debug_options(self.debug_options)
+        yield self._ensure_pydevd_requests_handled()
+
+        debugger_attached.set()
+
         self.pydevd_request(pydevd_comm.CMD_RUN, '')
         self._wait_for_pydevd_ready()
         self._notify_debugger_ready()
 
-        if self.start_reason == 'attach':
-            # Send event notifying the creation of the process.
-            # If we do not do this and try to pause, VSC throws errors,
-            # complaining about debugger still initializing.
-            with self.is_process_created_lock:
-                if not self.is_process_created:
-                    self.is_process_created = True
-                    self.send_process_event(self.start_reason)
+        # Send event notifying the creation of the process.
+        # If we do not do this and try to pause, VSC throws errors,
+        # complaining about debugger still initializing.
+        with self.is_process_created_lock:
+            if not self.is_process_created:
+                self.is_process_created = True
+                self.send_process_event(self.start_reason)
+
+        self._notify_ready()
+        self.send_response(request)
 
     def _process_debug_options(self, opts):
         """Process the launch arguments to configure the debugger."""
@@ -1532,7 +1534,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self.pydevd_request(pydevd_comm.CMD_REDIRECT_OUTPUT, redirect_output)
 
         if opts.get('STOP_ON_ENTRY', False) and self.start_reason == 'launch':
-            self.pydevd_request(pydevd_comm.CMD_STOP_ON_START, '1')
+            info = pydevd_additional_thread_info.set_additional_thread_info(ptvsd.main_thread)
+            info.pydev_step_cmd = pydevd_comm.CMD_STEP_INTO_MY_CODE
 
         if opts.get('SHOW_RETURN_VALUE', False):
             self.pydevd_request(pydevd_comm.CMD_SHOW_RETURN_VALUES, '1\t1')
@@ -1597,7 +1600,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     def _handle_attach(self, request, args):
         self.pydevd_request(pydevd_comm.CMD_SET_PROTOCOL, 'json')
         yield self._send_cmd_version_command()
-        
+
         pydevd_request = copy.deepcopy(request)
         del pydevd_request['seq']  # A new seq should be created for pydevd.
         yield self.pydevd_request(-1, pydevd_request, is_json=True)
@@ -1625,7 +1628,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         # No related pydevd command id (removes all breaks and resumes threads).
         self.pydevd_request(
-            -1, 
+            -1,
             {"command": "disconnect", "arguments": {}, "type": "request"},
             is_json=True
         )

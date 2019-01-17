@@ -8,25 +8,48 @@ from __future__ import print_function, with_statement, absolute_import
 """ptvsd command-line options that need to be globally available.
 """
 
-client = None
-"""If True, this instance of ptvsd is operating in client mode - i.e. it connects
-to the IDE, instead of waiting for an incoming connection from the IDE.
+target_kind = None
+"""One of: None, 'file', 'module', 'code', or 'pid'.
 """
 
-host = None
+target = None
+"""Specifies what to debug.
+
+If target_kind is None, then target is None, indicating that the current process
+is the one that is initiating debugger attach to itself.
+
+If target_kind is 'file', then target is a path to the file to run.
+
+If target_kind is 'module', then target is the qualified name of the module to run.
+
+If target_kind is 'code', then target is the code to run.
+
+If target_kind is 'pid', then target is the process ID to attach to.
+"""
+
+host = 'localhost'
 """Name or IP address of the network interface used by ptvsd. If runing in server
 mode, this is the interface on which it listens for incoming connections. If running
 in client mode, this is the interface to which it connects.
 """
 
-port = None
+port = 5678
 """Port number used by ptvsd. If running in server mode, this is the port on which it
 listens for incoming connections. If running in client mode, this is port to which it
 connects.
 """
 
-code = None
-"""When running with -c, specifies the code that needs to be run.
+client = False
+"""If True, this instance of ptvsd is operating in client mode - i.e. it connects
+to the IDE, instead of waiting for an incoming connection from the IDE.
+"""
+
+no_debug = False
+"""If true, execute the target without debugging.
+"""
+
+wait = False
+"""If True, wait until the debugger is connected before running any code."
 """
 
 multiprocess = False

@@ -5,6 +5,7 @@
 from __future__ import print_function, with_statement, absolute_import
 
 import numbers
+import re
 
 from ptvsd.compat import unicode
 from tests.helpers.pathutils import compare_path
@@ -124,6 +125,25 @@ class Path(object):
         if not (isinstance(other, bytes) or isinstance(other, unicode)):
             return NotImplemented
         return compare_path(self.s, other, show=False)
+
+    def __ne__(self, other):
+        return not (self == other)
+
+
+class Regex(object):
+    """A pattern that matches strings against regex, as if with re.match().
+    """
+
+    def __init__(self, regex):
+        self.regex = regex
+
+    def __repr__(self):
+        return '/%s/' % (self.regex,)
+
+    def __eq__(self, other):
+        if not (isinstance(other, bytes) or isinstance(other, unicode)):
+            return NotImplemented
+        return re.match(self.regex, other)
 
     def __ne__(self, other):
         return not (self == other)

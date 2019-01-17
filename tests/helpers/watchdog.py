@@ -20,7 +20,11 @@ def create(pid):
 
 def watch(test_pid, ptvsd_pid):
     test_process = psutil.Process(test_pid)
-    ptvsd_process = psutil.Process(ptvsd_pid)
+    try:
+        ptvsd_process = psutil.Process(ptvsd_pid)
+    except psutil.NoSuchProcess:
+        # ptvsd process has already exited, so there's nothing to watch.
+        return
 
     test_process.wait()
 
