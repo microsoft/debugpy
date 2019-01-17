@@ -1,8 +1,6 @@
-from contextlib import contextmanager
 
 from _pydevd_bundle.pydevd_constants import get_frame
-from _pydev_imps._pydev_saved_modules import thread, threading
-from _pydevd_bundle import pydevd_utils
+from _pydev_imps._pydev_saved_modules import thread
 
 try:
     import cStringIO as StringIO #may not always be available @UnusedImport

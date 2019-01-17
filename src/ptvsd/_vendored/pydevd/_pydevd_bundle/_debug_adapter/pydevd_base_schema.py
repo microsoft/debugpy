@@ -83,6 +83,10 @@ def from_json(json_msg):
     return from_dict(json.loads(json_msg))
 
 
+def get_response_class(request):
+    return _responses_to_types[request.command]
+
+
 def build_response(request, kwargs=None):
     if kwargs is None:
         kwargs = {}

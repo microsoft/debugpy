@@ -67,7 +67,6 @@ class NetCommandFactoryJson(NetCommandFactory):
                 completion = pydevd_schema.CompletionItem(
                     label=label, type=COMPLETION_TYPE_LOOK_UP[completion[3]], start=start, length=qualifier_len)
                 targets.append(completion.to_dict())
-            
 
         body = pydevd_schema.CompletionsResponseBody(targets)
         response = pydevd_schema.CompletionsResponse(

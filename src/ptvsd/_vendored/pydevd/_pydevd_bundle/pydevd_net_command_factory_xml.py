@@ -18,7 +18,7 @@ from _pydevd_bundle.pydevd_comm_constants import (
     CMD_THREAD_RESUME_SINGLE_NOTIFICATION,
     CMD_GET_NEXT_STATEMENT_TARGETS, CMD_VERSION,
     CMD_RETURN, CMD_SET_PROTOCOL, CMD_ERROR, MAX_IO_MSG_SIZE, VERSION_STRING,
-    filesystem_encoding_is_utf8, file_system_encoding)
+    filesystem_encoding_is_utf8, file_system_encoding, CMD_RELOAD_CODE)
 from _pydevd_bundle.pydevd_constants import (DebugInfoHolder, get_thread_id, IS_IRONPYTHON,
     get_global_debugger, GetGlobalDebugger, set_global_debugger)  # Keep for backward compatibility @UnusedImport
 from _pydevd_bundle.pydevd_net_command import NetCommand
@@ -337,6 +337,12 @@ class NetCommandFactory:
         except Exception:
             return self.make_error_message(seq, get_exception_traceback_str())
 
+    def make_reloaded_code_message(self, seq, reloaded_ok):
+        try:
+            return NetCommand(CMD_RELOAD_CODE, seq, '<xml><reloaded ok="%s"></reloaded></xml>' % reloaded_ok)
+        except Exception:
+            return self.make_error_message(seq, get_exception_traceback_str())
+
     def make_send_breakpoint_exception_message(self, seq, payload):
         try:
             return NetCommand(CMD_GET_BREAKPOINT_EXCEPTION, seq, payload)
@@ -412,16 +418,8 @@ class NetCommandFactory:
         except Exception:
             return self.make_error_message(seq, get_exception_traceback_str())
 
-    def make_load_source_message(self, seq, source, dbg=None):
-        try:
-            net = NetCommand(CMD_LOAD_SOURCE, seq, '%s' % source)
-
-        except:
-            net = self.make_error_message(0, get_exception_traceback_str())
-
-        if dbg:
-            dbg.writer.add_command(net)
-        return net
+    def make_load_source_message(self, seq, source):
+        return NetCommand(CMD_LOAD_SOURCE, seq, '%s' % source)
 
     def make_show_console_message(self, thread_id, frame):
         try:

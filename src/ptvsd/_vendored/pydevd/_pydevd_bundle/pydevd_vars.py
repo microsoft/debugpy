@@ -30,16 +30,11 @@ class VariableError(RuntimeError): pass
 class FrameNotFoundError(RuntimeError): pass
 
 
-def _iter_frames(initialFrame):
-    '''NO-YIELD VERSION: Iterates through all the frames starting at the specified frame (which will be the first returned item)'''
-    # cannot use yield
-    frames = []
-
-    while initialFrame is not None:
-        frames.append(initialFrame)
-        initialFrame = initialFrame.f_back
-
-    return frames
+def _iter_frames(frame):
+    while frame is not None:
+        yield frame
+        frame = frame.f_back
+    frame = None
 
 
 def dump_frames(thread_id):
@@ -356,9 +351,9 @@ def eval_in_context(expression, globals, locals):
     return result
 
 
-def evaluate_expression(thread_id, frame_id, expression, doExec):
+def evaluate_expression(thread_id, frame_id, expression, is_exec):
     '''returns the result of the evaluated expression
-    @param doExec: determines if we should do an exec or an eval
+    @param is_exec: determines if we should do an exec or an eval
     '''
     frame = find_frame(thread_id, frame_id)
     if frame is None:
@@ -374,7 +369,7 @@ def evaluate_expression(thread_id, frame_id, expression, doExec):
     try:
         expression = str(expression.replace('@LINE@', '\n'))
 
-        if doExec:
+        if is_exec:
             try:
                 # try to make it an eval (if it is an eval we can print it, otherwise we'll exec it and
                 # it will have whatever the user actually did)

@@ -19,6 +19,7 @@ from tests_python.debugger_unittest import (CMD_SET_PROPERTY_TRACE, REASON_CAUGH
     CMD_THREAD_RESUME_SINGLE_NOTIFICATION, REASON_STEP_RETURN, REASON_STEP_RETURN_MY_CODE,
     REASON_STEP_OVER_MY_CODE, REASON_STEP_INTO)
 from _pydevd_bundle.pydevd_constants import IS_WINDOWS
+from _pydevd_bundle.pydevd_comm_constants import CMD_RELOAD_CODE
 try:
     from urllib import unquote
 except ImportError:
@@ -1856,7 +1857,7 @@ def test_case_lamdda(case_setup):
 @pytest.mark.skipif(IS_JYTHON, reason='Not working properly on Jython (needs investigation).')
 def test_case_suspension_policy(case_setup):
     with case_setup.test_file('_debugger_case_suspend_policy.py') as writer:
-        writer.write_add_breakpoint(25, '', filename=writer.TEST_FILE, hit_condition='', is_logpoint=False, suspend_policy='ALL')
+        writer.write_add_breakpoint(25, '', suspend_policy='ALL')
         writer.write_make_initial_run()
 
         thread_ids = []
@@ -2378,6 +2379,52 @@ def test_case_single_notification_on_step(case_setup):
 
         writer.write_run_thread(hit.thread_id)
 
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(IS_JYTHON, reason='Not ok for Jython.')
+def test_reload(case_setup, tmpdir):
+
+    def additional_output_checks(writer, stdout, stderr):
+        # Don't call super as we have an expected exception
+        for line in (
+                'pydev debugger: Start reloading module: "my_temp2"',
+                'pydev debugger: Updated function code: <function call',
+                'pydev debugger: reload finished',
+            ):
+            if line not in stderr:
+                raise AssertionError('%s" not in stderr.\nstdout:\n%s\n\nstderr:\n%s' % (
+                    line, stdout, stderr))
+
+    path = tmpdir.join('my_temp.py')
+    path.write('''
+import my_temp2
+assert my_temp2.call() == 1
+a = 10 # break here
+assert my_temp2.call() == 2
+print('TEST SUCEEDED!')
+''')
+    
+    path2 = tmpdir.join('my_temp2.py')
+    path2.write('''
+def call():
+    return 1
+''')
+    with case_setup.test_file(str(path), additional_output_checks=additional_output_checks) as writer:
+        break_line = writer.get_line_index_with_content('break here')
+        writer.write_add_breakpoint(break_line, '')
+        writer.write_make_initial_run()
+        hit = writer.wait_for_breakpoint_hit()
+        
+        path2 = tmpdir.join('my_temp2.py')
+        path2.write('''
+def call():
+    return 2
+''')
+
+        writer.write_reload('my_temp2')
+        writer.wait_for_message(CMD_RELOAD_CODE)
+        writer.write_run_thread(hit.thread_id)
         writer.finished_ok = True
 
 

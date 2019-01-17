@@ -25,10 +25,6 @@ try:
 except Exception:
     import urllib.parse as urllib
 try:
-    from functools import reduce
-except Exception:
-    pass
-try:
     import queue
 except ImportError:
     import Queue as queue
@@ -1203,7 +1199,7 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         multiproc.root_start_request = request
         self.start_reason = 'attach'
         self._set_debug_options(args)
-        self._handle_attach(args)
+        self._handle_attach(request, args)
         self.send_response(request)
 
     def on_launch(self, request, args):
@@ -1211,7 +1207,7 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         self.start_reason = 'launch'
         self._set_debug_options(args)
         self._notify_launch()
-        self._handle_launch(args)
+        self._handle_launch(request, args)
         self.send_response(request)
 
     def on_configurationDone(self, request, args):
@@ -1299,10 +1295,10 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
     def _handle_configurationDone(self, args):
         pass
 
-    def _handle_attach(self, args):
+    def _handle_attach(self, request, args):
         pass
 
-    def _handle_launch(self, args):
+    def _handle_launch(self, request, args):
         pass
 
     def _handle_detach(self):
@@ -1341,7 +1337,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self.thread_map = IDMap()
         self.frame_map = IDMap()
         self.var_map = IDMap()
-        self.bp_map = IDMap()
         self.source_map = IDMap()
         self.enable_source_references = False
         self.next_var_ref = 0
@@ -1599,15 +1594,25 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         return self.pydevd_request(cmd, msg)
 
     @async_handler
-    def _handle_attach(self, args):
+    def _handle_attach(self, request, args):
         self.pydevd_request(pydevd_comm.CMD_SET_PROTOCOL, 'json')
         yield self._send_cmd_version_command()
+        
+        pydevd_request = copy.deepcopy(request)
+        del pydevd_request['seq']  # A new seq should be created for pydevd.
+        yield self.pydevd_request(-1, pydevd_request, is_json=True)
+
         self._initialize_path_maps(args)
 
     @async_handler
-    def _handle_launch(self, args):
+    def _handle_launch(self, request, args):
         self.pydevd_request(pydevd_comm.CMD_SET_PROTOCOL, 'json')
         yield self._send_cmd_version_command()
+
+        pydevd_request = copy.deepcopy(request)
+        del pydevd_request['seq']  # A new seq should be created for pydevd.
+        yield self.pydevd_request(-1, pydevd_request, is_json=True)
+
         self._initialize_path_maps(args)
 
     def _handle_detach(self):
@@ -1616,21 +1621,17 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self._detached = True
 
         self._clear_output_redirection()
-        self._clear_breakpoints()
         self.exceptions_mgr.remove_all_exception_breaks()
-        self._resume_all_threads()
+
+        # No related pydevd command id (removes all breaks and resumes threads).
+        self.pydevd_request(
+            -1, 
+            {"command": "disconnect", "arguments": {}, "type": "request"},
+            is_json=True
+        )
 
     def _clear_output_redirection(self):
         self.pydevd_request(pydevd_comm.CMD_REDIRECT_OUTPUT, '')
-
-    def _clear_breakpoints(self):
-        cmd = pydevd_comm.CMD_REMOVE_BREAK
-        for pyd_bpid, vsc_bpid in self.bp_map.pairs():
-            bp_type = self._get_bp_type(pyd_bpid[0])
-            msg = '{}\t{}\t{}'.format(bp_type, pyd_bpid[0], vsc_bpid)
-            self.pydevd_notify(cmd, msg)
-            self.bp_map.remove(pyd_bpid, vsc_bpid)
-        # TODO: Wait until the last request has been handled?
 
     def _resume_all_threads(self):
         self.pydevd_notify(pydevd_comm.CMD_THREAD_RUN, '*')
@@ -2251,61 +2252,15 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     @async_handler
     def on_setBreakpoints(self, request, args):
-        # TODO: docstring
-        bps = []
-        path = args['source']['path']
-        self.path_casing.track_file_path_case(path)
-        src_bps = args.get('breakpoints', [])
+        pydevd_request = copy.deepcopy(request)
+        del pydevd_request['seq']  # A new seq should be created for pydevd.
+        _, _, resp_args = yield self.pydevd_request(
+            pydevd_comm.CMD_SET_BREAK,
+            pydevd_request,
+            is_json=True)
 
-        bp_type = self._get_bp_type(path)
-
-        # First, we must delete all existing breakpoints in that source.
-        # TODO: Call self._clear_breakpoints(path) instead?
-        cmd = pydevd_comm.CMD_REMOVE_BREAK
-        for pyd_bpid, vsc_bpid in self.bp_map.pairs():
-            if pyd_bpid[0] == path:
-                msg = '{}\t{}\t{}'.format(bp_type, path, vsc_bpid)
-                self.pydevd_notify(cmd, msg)
-                self.bp_map.remove(pyd_bpid, vsc_bpid)
-
-        cmd = pydevd_comm.CMD_SET_BREAK
-        msgfmt = '{}\t{}\t{}\t{}\tNone\t{}\t{}\t{}\t{}\tALL'
-        for src_bp in src_bps:
-            line = src_bp['line']
-            vsc_bpid = self.bp_map.add(
-                    lambda vsc_bpid: (path, vsc_bpid))
-            self.path_casing.track_file_path_case(path)
-
-            condition = src_bp.get('condition', None)
-            hit_condition = self._get_hit_condition_expression(
-                                src_bp.get('hitCondition', None))
-            logMessage = src_bp.get('logMessage', '')
-            if len(logMessage) == 0:
-                is_logpoint = None
-                expression = None
-            else:
-                is_logpoint = True
-                expressions = re.findall(r'\{.*?\}', logMessage)
-                if len(expressions) == 0:
-                    expression = '{}'.format(repr(logMessage))  # noqa
-                else:
-                    raw_text = reduce(lambda a, b: a.replace(b, '{}'), expressions, logMessage)  # noqa
-                    raw_text = raw_text.replace('"', '\\"')
-                    expression_list = ', '.join([s.strip('{').strip('}').strip() for s in expressions])  # noqa
-                    expression = '"{}".format({})'.format(raw_text, expression_list)  # noqa
-
-            msg = msgfmt.format(vsc_bpid, bp_type, path, line, condition,
-                                expression, hit_condition, is_logpoint)
-            self.pydevd_notify(cmd, msg)
-            bps.append({
-                'id': vsc_bpid,
-                'verified': True,
-                'line': line,
-            })
-        yield self._ensure_pydevd_requests_handled()
-
-        if request is not None:
-            self.send_response(request, breakpoints=bps)
+        breakpoints = resp_args['body']['breakpoints']
+        self.send_response(request, breakpoints=breakpoints)
 
     @async_handler
     def on_setExceptionBreakpoints(self, request, args):

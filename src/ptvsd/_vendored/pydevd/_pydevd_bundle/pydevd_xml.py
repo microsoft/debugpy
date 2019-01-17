@@ -271,7 +271,7 @@ def frame_vars_to_xml(frame_f_locals, hidden_ns=None):
     return return_values_xml + xml
 
 
-def var_to_xml(val, name, doTrim=True, additional_in_xml='', evaluate_full_value=True):
+def var_to_xml(val, name, trim_if_too_big=True, additional_in_xml='', evaluate_full_value=True):
     """ single variable or dictionary to xml representation """
 
     try:
@@ -340,7 +340,7 @@ def var_to_xml(val, name, doTrim=True, additional_in_xml='', evaluate_full_value
 
     if value:
         # cannot be too big... communication may not handle it.
-        if len(value) > MAXIMUM_VARIABLE_REPRESENTATION_SIZE and doTrim:
+        if len(value) > MAXIMUM_VARIABLE_REPRESENTATION_SIZE and trim_if_too_big:
             value = value[0:MAXIMUM_VARIABLE_REPRESENTATION_SIZE]
             value += '...'
 

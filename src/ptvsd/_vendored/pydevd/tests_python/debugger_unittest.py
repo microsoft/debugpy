@@ -985,6 +985,10 @@ class AbstractWriterThread(threading.Thread):
     def write_suspend_thread(self, thread_id):
         self.write("%s\t%s\t%s" % (CMD_THREAD_SUSPEND, self.next_seq(), thread_id,))
 
+    def write_reload(self, module_name):
+        self.log.append('write_reload')
+        self.write("%s\t%s\t%s" % (CMD_RELOAD_CODE, self.next_seq(), module_name,))
+
     def write_run_thread(self, thread_id):
         self.log.append('write_run_thread')
         self.write("%s\t%s\t%s" % (CMD_THREAD_RUN, self.next_seq(), thread_id,))
