@@ -256,6 +256,9 @@ def run_module():
     if sys.version_info < (3,) and not isinstance(target, bytes):
         target = target.encode(sys.getfilesystemencoding())
 
+    # Add current directory to path, like Python itself does for -m.
+    sys.path.insert(0, '')
+
     # Docs say that runpy.run_module is equivalent to -m, but it's not actually
     # the case for packages - -m sets __name__ to '__main__', but run_module sets
     # it to `pkg.__main__`. This breaks everything that uses the standard pattern
@@ -270,6 +273,8 @@ def run_module():
 
 
 def run_code():
+    # Add current directory to path, like Python itself does for -c.
+    sys.path.insert(0, '')
     code = compile(ptvsd.options.target, '<string>', 'exec')
     setup_connection()
     eval(code, {})
@@ -321,7 +326,7 @@ ptvsd.enable_attach()
 
 def main(argv=sys.argv):
     try:
-        argv[:] = [argv[0]] + list(parse(argv[1:]))
+        sys.argv[:] = [argv[0]] + list(parse(argv[1:]))
     except Exception as ex:
         print(HELP + '\nError: ' + str(ex), file=sys.stderr)
         sys.exit(2)
