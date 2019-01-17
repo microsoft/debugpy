@@ -1174,7 +1174,7 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         self.send_event('exited', exitCode=exitcode or 0)
 
         self._waiting = True
-        if wait is not None:
+        if wait is not None and self.start_reason == 'launch':
             normal, abnormal = self._wait_options()
             cfg = (normal and not exitcode) or (abnormal and exitcode)
             # This must be done before we send a disconnect response

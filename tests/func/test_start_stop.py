@@ -45,7 +45,7 @@ def test_break_on_entry(pyfile, run_as, start_method):
         session.wait_for_exit()
 
 
-@pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
+@pytest.mark.parametrize('start_method', ['launch'])
 @pytest.mark.skipif(sys.version_info < (3, 0) and platform.system() == 'Windows',
                     reason="On Win32 Python2.7, unable to send key strokes to test.")
 def test_wait_on_normal_exit_enabled(pyfile, run_as, start_method):
@@ -86,7 +86,7 @@ def test_wait_on_normal_exit_enabled(pyfile, run_as, start_method):
         assert u'Press' in decoded
 
 
-@pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
+@pytest.mark.parametrize('start_method', ['launch'])
 @pytest.mark.skipif(sys.version_info < (3, 0) and platform.system() == 'Windows',
                     reason="On windows py2.7 unable to send key strokes to test.")
 def test_wait_on_abnormal_exit_enabled(pyfile, run_as, start_method):
@@ -132,7 +132,7 @@ def test_wait_on_abnormal_exit_enabled(pyfile, run_as, start_method):
         )
 
 
-@pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
+@pytest.mark.parametrize('start_method', ['launch'])
 def test_exit_normally_with_wait_on_abnormal_exit_enabled(pyfile, run_as, start_method):
 
     @pyfile
