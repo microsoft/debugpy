@@ -9,19 +9,34 @@ import os.path
 import subprocess
 import sys
 
-from setuptools import setup
+pure = None
+if '--pure' in sys.argv:
+    pure = True
+    sys.argv.remove('--pure')
+elif '--universal' in sys.argv:
+    pure = True
+elif '--abi' in sys.argv:
+    pure = False
+    sys.argv.remove('--abi')
 
-import versioneer
+
+from setuptools import setup  # noqa
+import versioneer  # noqa
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src'))
-import ptvsd
-import ptvsd._vendored
+import ptvsd  # noqa
+import ptvsd._vendored  # noqa
 del sys.path[0]
 
 
 PYDEVD_ROOT = ptvsd._vendored.project_root('pydevd')
 PTVSD_ROOT = os.path.dirname(os.path.abspath(ptvsd.__file__))
 
+
+def get_buildplatform():
+    if '-p' in sys.argv:
+        return sys.argv[sys.argv.index('-p') + 1]
+    return None
 
 def cython_build():
     print('Compiling extension modules (set SKIP_CYTHON_BUILD=1 to omit)')
@@ -46,9 +61,28 @@ with open('DESCRIPTION.md', 'r') as fh:
     long_description = fh.read()
 
 
+try:
+    from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
+
+    class bdist_wheel(_bdist_wheel):
+        def finalize_options(self):
+            _bdist_wheel.finalize_options(self)
+            self.root_is_pure = pure
+
+except ImportError:
+    bdist_wheel = None
+
 if __name__ == '__main__':
     if not os.getenv('SKIP_CYTHON_BUILD'):
         cython_build()
+
+    cmds = versioneer.get_cmdclass()
+    cmds['bdist_wheel'] = bdist_wheel
+
+    extras = {}
+    platforms = get_buildplatform()
+    if platforms is not None:
+        extras['platforms'] = platforms
 
     setup(
         name='ptvsd',
@@ -82,5 +116,6 @@ if __name__ == '__main__':
             'ptvsd': ['ThirdPartyNotices.txt'],
             'ptvsd._vendored': list(iter_vendored_files()),
         },
-        cmdclass=versioneer.get_cmdclass(),
+        cmdclass=cmds,
+        **extras
     )

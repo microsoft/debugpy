@@ -2,4 +2,4 @@ include LICENSE
 include DESCRIPTION.md
 global-exclude *.py[cdo]
 include versioneer.py
-include ptvsd/_version.py
+include src/ptvsd/_version.py
