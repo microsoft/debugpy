@@ -283,7 +283,7 @@ def process_exec_queue(interpreter):
                 # Note: it'll block here until return_control returns True.
                 inputhook()
             except:
-                import traceback;traceback.print_exc()
+                traceback.print_exc()
         try:
             try:
                 code_fragment = interpreter.exec_queue.get(block=True, timeout=1/20.) # 20 calls/second
@@ -541,7 +541,7 @@ class ConsoleWriter(InteractiveInterpreter):
 def console_exec(thread_id, frame_id, expression, dbg):
     """returns 'False' in case expression is partially correct
     """
-    frame = pydevd_vars.find_frame(thread_id, frame_id)
+    frame = dbg.find_frame(thread_id, frame_id)
 
     is_multiline = expression.count('@LINE@') > 1
     expression = str(expression.replace('@LINE@', '\n'))

@@ -567,7 +567,7 @@ class InternalGetThreadStack(InternalThreadCommand):
             frame = additional_info.get_topmost_frame(t)
         try:
             self._cmd = py_db.cmd_factory.make_get_thread_stack_message(
-                self.seq, self.thread_id, frame, must_be_suspended=not timed_out)
+                py_db, self.seq, self.thread_id, frame, must_be_suspended=not timed_out)
         finally:
             frame = None
             t = None
@@ -644,7 +644,7 @@ class InternalGetVariable(InternalThreadCommand):
         try:
             xml = StringIO.StringIO()
             xml.write("<xml>")
-            _typeName, val_dict = pydevd_vars.resolve_compound_variable_fields(self.thread_id, self.frame_id, self.scope, self.attributes)
+            _typeName, val_dict = pydevd_vars.resolve_compound_variable_fields(dbg, self.thread_id, self.frame_id, self.scope, self.attributes)
             if val_dict is None:
                 val_dict = {}
 
@@ -686,7 +686,7 @@ class InternalGetArray(InternalThreadCommand):
 
     def do_it(self, dbg):
         try:
-            frame = pydevd_vars.find_frame(self.thread_id, self.frame_id)
+            frame = dbg.find_frame(self.thread_id, self.frame_id)
             var = pydevd_vars.eval_in_context(self.name, frame.f_globals, frame.f_locals)
             xml = pydevd_vars.table_like_struct_to_xml(var, self.name, self.roffset, self.coffset, self.rows, self.cols, self.format)
             cmd = dbg.cmd_factory.make_get_array_message(self.sequence, xml)
@@ -724,7 +724,7 @@ class InternalChangeVariable(InternalThreadCommand):
 def internal_get_frame(dbg, seq, thread_id, frame_id):
     ''' Converts request into python variable '''
     try:
-        frame = pydevd_vars.find_frame(thread_id, frame_id)
+        frame = dbg.find_frame(thread_id, frame_id)
         if frame is not None:
             hidden_ns = pydevconsole.get_ipython_hidden_vars()
             xml = "<xml>"
@@ -746,7 +746,7 @@ def internal_get_frame(dbg, seq, thread_id, frame_id):
 def internal_get_next_statement_targets(dbg, seq, thread_id, frame_id):
     ''' gets the valid line numbers for use with set next statement '''
     try:
-        frame = pydevd_vars.find_frame(thread_id, frame_id)
+        frame = dbg.find_frame(thread_id, frame_id)
         if frame is not None:
             code = frame.f_code
             xml = "<xml>"
@@ -777,7 +777,7 @@ def internal_get_next_statement_targets(dbg, seq, thread_id, frame_id):
 def internal_evaluate_expression(dbg, seq, thread_id, frame_id, expression, is_exec, trim_if_too_big, attr_to_set_result):
     ''' gets the value of a variable '''
     try:
-        result = pydevd_vars.evaluate_expression(thread_id, frame_id, expression, is_exec)
+        result = pydevd_vars.evaluate_expression(dbg, thread_id, frame_id, expression, is_exec)
         if attr_to_set_result != "":
             pydevd_vars.change_attr_expression(thread_id, frame_id, attr_to_set_result, expression, dbg, result)
         xml = "<xml>"
@@ -807,7 +807,7 @@ def internal_get_completions(dbg, seq, thread_id, frame_id, act_tok, line=-1, co
                     act_tok += u'.'
                 qualifier = token_and_qualifier[1]
 
-            frame = pydevd_vars.find_frame(thread_id, frame_id)
+            frame = dbg.find_frame(thread_id, frame_id)
             if frame is not None:
                 if IS_PY2:
                     if not isinstance(act_tok, bytes):
@@ -842,7 +842,7 @@ def internal_get_description(dbg, seq, thread_id, frame_id, expression):
     ''' Fetch the variable description stub from the debug console
     '''
     try:
-        frame = pydevd_vars.find_frame(thread_id, frame_id)
+        frame = dbg.find_frame(thread_id, frame_id)
         description = pydevd_console.get_description(frame, thread_id, frame_id, expression)
         description = pydevd_xml.make_valid_xml_value(quote(description, '/>_= \t'))
         description_xml = '<xml><var name="" type="" value="%s"/></xml>' % description
@@ -951,7 +951,7 @@ class InternalEvaluateConsoleExpression(InternalThreadCommand):
         </xml>
         '''
         try:
-            frame = pydevd_vars.find_frame(self.thread_id, self.frame_id)
+            frame = dbg.find_frame(self.thread_id, self.frame_id)
             if frame is not None:
                 console_message = pydevd_console.execute_console_command(
                     frame, self.thread_id, self.frame_id, self.line, self.buffer_output)
@@ -987,7 +987,7 @@ class InternalRunCustomOperation(InternalThreadCommand):
 
     def do_it(self, dbg):
         try:
-            res = pydevd_vars.custom_operation(self.thread_id, self.frame_id, self.scope, self.attrs,
+            res = pydevd_vars.custom_operation(dbg, self.thread_id, self.frame_id, self.scope, self.attrs,
                                               self.style, self.code_or_file, self.fnname)
             resEncoded = quote_plus(res)
             cmd = dbg.cmd_factory.make_custom_operation_message(self.sequence, resEncoded)
@@ -1012,7 +1012,7 @@ class InternalConsoleGetCompletions(InternalThreadCommand):
         ''' Get completions and write back to the client
         '''
         try:
-            frame = pydevd_vars.find_frame(self.thread_id, self.frame_id)
+            frame = dbg.find_frame(self.thread_id, self.frame_id)
             completions_xml = pydevd_console.get_completions(frame, self.act_tok)
             cmd = dbg.cmd_factory.make_send_console_message(self.sequence, completions_xml)
             dbg.writer.add_command(cmd)
@@ -1080,7 +1080,7 @@ class InternalLoadFullValue(InternalThreadCommand):
                     else:
                         scope, attrs = (variable, None)
                         name = scope
-                    var_obj = pydevd_vars.getVariable(self.thread_id, self.frame_id, scope, attrs)
+                    var_obj = pydevd_vars.getVariable(dbg, self.thread_id, self.frame_id, scope, attrs)
                     var_objects.append((var_obj, name))
 
             t = GetValueAsyncThreadDebug(dbg, self.sequence, var_objects)

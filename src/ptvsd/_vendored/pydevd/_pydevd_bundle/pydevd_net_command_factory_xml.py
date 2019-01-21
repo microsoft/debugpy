@@ -69,10 +69,9 @@ class NetCommandFactory:
         except:
             return self.make_error_message(0, get_exception_traceback_str())
 
-    def make_custom_frame_created_message(self, frameId, frameDescription):
-        frameDescription = pydevd_xml.make_valid_xml_value(frameDescription)
-        cmdText = '<xml><thread name="%s" id="%s"/></xml>' % (frameDescription, frameId)
-        return NetCommand(CMD_THREAD_CREATE, 0, cmdText)
+    def make_custom_frame_created_message(self, frame_id, frame_description):
+        frame_description = pydevd_xml.make_valid_xml_value(frame_description)
+        return NetCommand(CMD_THREAD_CREATE, 0, '<xml><thread name="%s" id="%s"/></xml>' % (frame_description, frame_id))
 
     def make_list_threads_message(self, seq):
         """ returns thread listing as XML """
@@ -88,7 +87,7 @@ class NetCommandFactory:
         except:
             return self.make_error_message(seq, get_exception_traceback_str())
 
-    def make_get_thread_stack_message(self, seq, thread_id, topmost_frame, must_be_suspended=False):
+    def make_get_thread_stack_message(self, py_db, seq, thread_id, topmost_frame, must_be_suspended=False):
         """
         Returns thread stack as XML.
 
@@ -99,24 +98,21 @@ class NetCommandFactory:
             cmd_text = ['<xml><thread id="%s">' % (thread_id,)]
 
             if topmost_frame is not None:
+                frame_id_to_lineno = {}
                 try:
-                    # Note: if we detect that we're already stopped in a given place within
-                    # the debugger, use that stack instead of creating a new one with the
-                    # current position (this is needed because when an uncaught exception
-                    # is reported for a given frame we are actually stopped in a different
-                    # place within the debugger).
-                    frame = topmost_frame
-                    thread_stack_str = ''
-                    while frame is not None:
-                        if frame.f_code.co_name == 'do_wait_suspend' and frame.f_code.co_filename.endswith('pydevd.py'):
-                            thread_stack_str = frame.f_locals.get('thread_stack_str')
-                            break
-                        frame = frame.f_back
-                    else:
+                    # : :type suspended_frames_manager: SuspendedFramesManager
+                    suspended_frames_manager = py_db.suspended_frames_manager
+                    info = suspended_frames_manager.get_topmost_frame_and_frame_id_to_line(thread_id)
+                    if info is None:
                         # Could not find stack of suspended frame...
                         if must_be_suspended:
                             return None
-                    cmd_text.append(thread_stack_str or self.make_thread_stack_str(topmost_frame))
+                    else:
+                        # Note: we have to use the topmost frame where it was suspended (it may
+                        # be different if it was an exception).
+                        topmost_frame, frame_id_to_lineno = info
+
+                    cmd_text.append(self.make_thread_stack_str(topmost_frame, frame_id_to_lineno))
                 finally:
                     topmost_frame = None
             cmd_text.append('</thread></xml>')
@@ -156,15 +152,15 @@ class NetCommandFactory:
         except:
             return self.make_error_message(0, get_exception_traceback_str())
 
-    def make_thread_stack_str(self, frame, frame_to_lineno=None):
+    def make_thread_stack_str(self, frame, frame_id_to_lineno=None):
         '''
-        :param frame_to_lineno:
+        :param frame_id_to_lineno:
             If available, the line number for the frame will be gotten from this dict,
             otherwise frame.f_lineno will be used (needed for unhandled exceptions as
             the place where we report may be different from the place where it's raised).
         '''
-        if frame_to_lineno is None:
-            frame_to_lineno = {}
+        if frame_id_to_lineno is None:
+            frame_id_to_lineno = {}
         make_valid_xml_value = pydevd_xml.make_valid_xml_value
         cmd_text_list = []
         append = cmd_text_list.append
@@ -174,7 +170,7 @@ class NetCommandFactory:
         try:
             py_db = get_global_debugger()
             while curr_frame:
-                my_id = id(curr_frame)
+                frame_id = id(curr_frame)
 
                 if curr_frame.f_code is None:
                     break  # Iron Python sometimes does not have it!
@@ -197,11 +193,11 @@ class NetCommandFactory:
 
                 # print("file is ", filename_in_utf8)
 
-                lineno = frame_to_lineno.get(curr_frame, curr_frame.f_lineno)
+                lineno = frame_id_to_lineno.get(frame_id, curr_frame.f_lineno)
                 # print("line is ", lineno)
 
                 # Note: variables are all gotten 'on-demand'.
-                append('<frame id="%s" name="%s" ' % (my_id , make_valid_xml_value(method_name)))
+                append('<frame id="%s" name="%s" ' % (frame_id , make_valid_xml_value(method_name)))
                 append('file="%s" line="%s">' % (quote(make_valid_xml_value(filename_in_utf8), '/>_= \t'), lineno))
                 append("</frame>")
                 curr_frame = curr_frame.f_back
@@ -218,7 +214,7 @@ class NetCommandFactory:
         stop_reason=None,
         message=None,
         suspend_type="trace",
-        frame_to_lineno=None
+        frame_id_to_lineno=None
         ):
         """
         :return tuple(str,str):
@@ -257,16 +253,16 @@ class NetCommandFactory:
         if suspend_type is not None:
             append(' suspend_type="%s"' % (suspend_type,))
         append('>')
-        thread_stack_str = self.make_thread_stack_str(frame, frame_to_lineno)
+        thread_stack_str = self.make_thread_stack_str(frame, frame_id_to_lineno)
         append(thread_stack_str)
         append("</thread></xml>")
 
         return ''.join(cmd_text_list), thread_stack_str
 
-    def make_thread_suspend_message(self, thread_id, frame, stop_reason, message, suspend_type, frame_to_lineno=None):
+    def make_thread_suspend_message(self, thread_id, frame, stop_reason, message, suspend_type, frame_id_to_lineno=None):
         try:
             thread_suspend_str, thread_stack_str = self.make_thread_suspend_str(
-                thread_id, frame, stop_reason, message, suspend_type, frame_to_lineno=frame_to_lineno)
+                thread_id, frame, stop_reason, message, suspend_type, frame_id_to_lineno=frame_id_to_lineno)
             cmd = NetCommand(CMD_THREAD_SUSPEND, 0, thread_suspend_str)
             cmd.thread_stack_str = thread_stack_str
             cmd.thread_suspend_str = thread_suspend_str

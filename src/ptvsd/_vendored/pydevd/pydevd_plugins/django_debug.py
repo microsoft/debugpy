@@ -30,7 +30,7 @@ class DjangoLineBreakpoint(LineBreakpoint):
         return self.file == template_frame_file and self.line == template_frame_line
 
     def __str__(self):
-        return "DjangoLineBreakpoint: %s-%d" %(self.file, self.line)
+        return "DjangoLineBreakpoint: %s-%d" % (self.file, self.line)
 
 
 def add_line_breakpoint(plugin, pydb, type, file, line, condition, expression, func_name, hit_condition=None, is_logpoint=False):
@@ -148,8 +148,6 @@ def suspend_django(main_debugger, thread, frame, cmd=CMD_SET_BREAK):
 
     if frame.f_lineno is None:
         return None
-
-    pydevd_vars.add_additional_frame_by_id(get_current_thread_id(thread), {id(frame): frame})
 
     main_debugger.set_suspend(thread, cmd)
     thread.additional_info.suspend_type = DJANGO_SUSPEND
@@ -356,7 +354,7 @@ def cmd_step_into(plugin, main_debugger, frame, event, args, stop_info, stop):
         plugin_stop = stop_info['django_stop']
         stop = stop and _is_django_resolve_call(frame.f_back) and not _is_django_context_get_call(frame)
         if stop:
-            info.pydev_django_resolve_frame = True # we remember that we've go into python code from django rendering frame
+            info.pydev_django_resolve_frame = True  # we remember that we've go into python code from django rendering frame
     return stop, plugin_stop
 
 
@@ -371,7 +369,7 @@ def cmd_step_over(plugin, main_debugger, frame, event, args, stop_info, stop):
         return stop, plugin_stop
     else:
         if event == 'return' and info.pydev_django_resolve_frame and _is_django_resolve_call(frame.f_back):
-            #we return to Django suspend mode and should not stop before django rendering frame
+            # we return to Django suspend mode and should not stop before django rendering frame
             info.pydev_step_stop = frame.f_back
             info.pydev_django_resolve_frame = False
             thread.additional_info.suspend_type = DJANGO_SUSPEND

@@ -27,7 +27,6 @@ from _pydev_imps._pydev_saved_modules import time
 from _pydevd_bundle import pydevd_extension_utils
 from _pydevd_bundle import pydevd_io, pydevd_vm_type
 from _pydevd_bundle import pydevd_utils
-from _pydevd_bundle import pydevd_vars
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
 from _pydevd_bundle.pydevd_breakpoints import ExceptionBreakpoint, get_exception_breakpoint
 from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, CMD_STEP_INTO, CMD_SET_BREAK,
@@ -64,6 +63,7 @@ from _pydevd_bundle.pydevd_comm import(InternalConsoleExec,
 
 from _pydevd_bundle.pydevd_breakpoints import stop_on_unhandled_exception
 from _pydevd_bundle.pydevd_collect_try_except_info import collect_try_except_info
+from _pydevd_bundle.pydevd_suspended_frames import SuspendedFramesManager
 
 __version_info__ = (1, 3, 3)
 __version_info_str__ = []
@@ -358,6 +358,7 @@ class PyDB(object):
         self.quitting = None
         self.cmd_factory = NetCommandFactory()
         self._cmd_queue = defaultdict(_queue.Queue)  # Key is thread id or '*', value is Queue
+        self.suspended_frames_manager = SuspendedFramesManager()
 
         self.breakpoints = {}
 
@@ -463,6 +464,9 @@ class PyDB(object):
         self.get_exception_breakpoint = get_exception_breakpoint
         self._dont_trace_get_file_type = DONT_TRACE.get
         self.PYDEV_FILE = PYDEV_FILE
+
+    def add_fake_frame(self, thread_id, frame_id, frame):
+        self.suspended_frames_manager.add_fake_frame(thread_id, frame_id, frame)
 
     def handle_breakpoint_condition(self, info, breakpoint, new_frame):
         condition = breakpoint.condition
@@ -822,6 +826,8 @@ class PyDB(object):
             all_threads = threadingEnumerate()
             program_threads_dead = []
             with self._lock_running_thread_ids:
+                reset_cache = not self._running_thread_ids
+
                 for t in all_threads:
                     if getattr(t, 'is_pydev_daemon_thread', False):
                         pass  # I.e.: skip the DummyThreads created from pydev daemon threads
@@ -829,23 +835,13 @@ class PyDB(object):
                         pydev_log.error_once('Error in debugger: Found PyDBDaemonThread not marked with is_pydev_daemon_thread=True.\n')
 
                     elif is_thread_alive(t):
-                        if not self._running_thread_ids:
+                        if reset_cache:
                             # Fix multiprocessing debug with breakpoints in both main and child processes
                             # (https://youtrack.jetbrains.com/issue/PY-17092) When the new process is created, the main
                             # thread in the new process already has the attribute 'pydevd_id', so the new thread doesn't
                             # get new id with its process number and the debugger loses access to both threads.
                             # Therefore we should update thread_id for every main thread in the new process.
-
-                            # Fix it for all existing threads.
-                            for existing_thread in all_threads:
-                                old_thread_id = get_thread_id(existing_thread)
-                                clear_cached_thread_id(t)
-
-                                thread_id = get_thread_id(t)
-                                if thread_id != old_thread_id:
-                                    if pydevd_vars.has_additional_frames_by_id(old_thread_id):
-                                        frames_by_id = pydevd_vars.get_additional_frames_by_id(old_thread_id)
-                                        pydevd_vars.add_additional_frame_by_id(thread_id, frames_by_id)
+                            clear_cached_thread_id(t)
 
                         thread_id = get_thread_id(t)
                         program_threads_alive[thread_id] = t
@@ -1103,6 +1099,10 @@ class PyDB(object):
         finally:
             self._main_lock.release()
 
+    def find_frame(self, thread_id, frame_id):
+        """ returns a frame on the thread that has a given frame_id """
+        return self.suspended_frames_manager.find_frame(thread_id, frame_id)
+
     def do_wait_suspend(self, thread, frame, event, arg, is_unhandled_exception=False):  # @UnusedVariable
         """ busy waits until the thread state changes to RUN
         it expects thread's state as attributes of the thread.
@@ -1114,8 +1114,6 @@ class PyDB(object):
         """
         # print('do_wait_suspend %s %s %s %s' % (frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename, event))
         self.process_internal_commands()
-        thread_stack_str = ''  # @UnusedVariable -- this is here so that `make_get_thread_stack_message`
-                                # can retrieve it later.
 
         thread_id = get_current_thread_id(thread)
 
@@ -1123,34 +1121,40 @@ class PyDB(object):
         message = thread.additional_info.pydev_message
         suspend_type = thread.additional_info.trace_suspend_type
         thread.additional_info.trace_suspend_type = 'trace'  # Reset to trace mode for next call.
-        frame_to_lineno = {}
+        frame_id_to_lineno = {}
         stop_reason = thread.stop_reason
         if is_unhandled_exception:
             # arg must be the exception info (tuple(exc_type, exc, traceback))
             tb = arg[2]
             while tb is not None:
-                frame_to_lineno[tb.tb_frame] = tb.tb_lineno
+                frame_id_to_lineno[id(tb.tb_frame)] = tb.tb_lineno
                 tb = tb.tb_next
-        cmd = self.cmd_factory.make_thread_suspend_message(thread_id, frame, stop_reason, message, suspend_type, frame_to_lineno=frame_to_lineno)
-        frame_to_lineno.clear()
-        thread_stack_str = cmd.thread_stack_str  # @UnusedVariable -- `make_get_thread_stack_message` uses it later.
-        self.writer.add_command(cmd)
 
-        with CustomFramesContainer.custom_frames_lock:  # @UndefinedVariable
-            from_this_thread = []
+        with self.suspended_frames_manager.track_frames(self) as frames_tracker:
+            frames_tracker.track(thread_id, frame, frame_id_to_lineno)
+            cmd = frames_tracker.create_thread_suspend_command(thread_id, stop_reason, message, suspend_type)
+            self.writer.add_command(cmd)
 
-            for frame_id, custom_frame in dict_iter_items(CustomFramesContainer.custom_frames):
-                if custom_frame.thread_id == thread.ident:
-                    # print >> sys.stderr, 'Frame created: ', frame_id
-                    self.writer.add_command(self.cmd_factory.make_custom_frame_created_message(frame_id, custom_frame.name))
-                    self.writer.add_command(self.cmd_factory.make_thread_suspend_message(frame_id, custom_frame.frame, CMD_THREAD_SUSPEND, "", suspend_type))
+            with CustomFramesContainer.custom_frames_lock:  # @UndefinedVariable
+                from_this_thread = []
 
-                from_this_thread.append(frame_id)
+                for frame_custom_thread_id, custom_frame in dict_iter_items(CustomFramesContainer.custom_frames):
+                    if custom_frame.thread_id == thread.ident:
+                        frames_tracker.track(thread_id, custom_frame.frame, frame_id_to_lineno, frame_custom_thread_id=frame_custom_thread_id)
+                        # print('Frame created as thread: %s' % (frame_custom_thread_id,))
 
-        with self._threads_suspended_single_notification.notify_thread_suspended(thread_id, stop_reason):
-            self._do_wait_suspend(thread, frame, event, arg, suspend_type, from_this_thread)
+                        self.writer.add_command(self.cmd_factory.make_custom_frame_created_message(
+                            frame_custom_thread_id, custom_frame.name))
 
-    def _do_wait_suspend(self, thread, frame, event, arg, suspend_type, from_this_thread):
+                        self.writer.add_command(
+                            frames_tracker.create_thread_suspend_command(frame_custom_thread_id, CMD_THREAD_SUSPEND, "", suspend_type))
+
+                    from_this_thread.append(frame_custom_thread_id)
+
+            with self._threads_suspended_single_notification.notify_thread_suspended(thread_id, stop_reason):
+                self._do_wait_suspend(thread, frame, event, arg, suspend_type, from_this_thread, frames_tracker)
+
+    def _do_wait_suspend(self, thread, frame, event, arg, suspend_type, from_this_thread, frames_tracker):
         info = thread.additional_info
 
         if info.pydev_state == STATE_SUSPEND and not self._finish_debugging_session:
@@ -1199,6 +1203,8 @@ class PyDB(object):
                     info.pydev_message = ''
 
             if stop:
+                # Uninstall the current frames tracker before running it.
+                frames_tracker.untrack_all()
                 cmd = self.cmd_factory.make_thread_run_message(get_current_thread_id(thread), info.pydev_step_cmd)
                 self.writer.add_command(cmd)
                 info.pydev_state = STATE_SUSPEND
@@ -1212,7 +1218,7 @@ class PyDB(object):
                 thread.stop_reason = CMD_THREAD_SUSPEND
                 # return to the suspend state and wait for other command (without sending any
                 # additional notification to the client).
-                self._do_wait_suspend(thread, frame, event, arg, suspend_type, from_this_thread)
+                self._do_wait_suspend(thread, frame, event, arg, suspend_type, from_this_thread, frames_tracker)
                 return
 
         elif info.pydev_step_cmd in (CMD_STEP_RETURN, CMD_STEP_RETURN_MY_CODE):
@@ -1244,23 +1250,19 @@ class PyDB(object):
         with CustomFramesContainer.custom_frames_lock:
             # The ones that remained on last_running must now be removed.
             for frame_id in from_this_thread:
-                # print >> sys.stderr, 'Removing created frame: ', frame_id
+                # print('Removing created frame: %s' % (frame_id,))
                 self.writer.add_command(self.cmd_factory.make_thread_killed_message(frame_id))
 
     def do_stop_on_unhandled_exception(self, thread, frame, frames_byid, arg):
         pydev_log.debug("We are stopping in post-mortem\n")
-        thread_id = get_thread_id(thread)
-        pydevd_vars.add_additional_frame_by_id(thread_id, frames_byid)
         try:
-            try:
-                add_exception_to_frame(frame, arg)
-                self.set_suspend(thread, CMD_ADD_EXCEPTION_BREAK)
-                self.do_wait_suspend(thread, frame, 'exception', arg, is_unhandled_exception=True)
-            except:
-                pydev_log.error("We've got an error while stopping in post-mortem: %s\n" % (arg[0],))
+            add_exception_to_frame(frame, arg)
+            self.set_suspend(thread, CMD_ADD_EXCEPTION_BREAK)
+            self.do_wait_suspend(thread, frame, 'exception', arg, is_unhandled_exception=True)
+        except:
+            pydev_log.error("We've got an error while stopping in post-mortem: %s\n" % (arg[0],))
         finally:
             remove_exception_from_frame(frame)
-            pydevd_vars.remove_additional_frame_by_id(thread_id)
             frame = None
 
     def set_trace_for_frame_and_parents(self, frame, **kwargs):
@@ -1491,7 +1493,7 @@ class PyDB(object):
         frame = pydevd_frame_utils.Frame(None, -1, pydevd_frame_utils.FCode("Console",
                                                                             os.path.abspath(os.path.dirname(__file__))), globals, globals)
         thread_id = get_current_thread_id(thread)
-        pydevd_vars.add_additional_frame_by_id(thread_id, {id(frame): frame})
+        self.add_fake_frame(thread_id, id(frame), frame)
 
         cmd = self.cmd_factory.make_show_console_message(thread_id, frame)
         self.writer.add_command(cmd)
@@ -2064,7 +2066,8 @@ def main():
     except:
         # It's ok not having stackless there...
         try:
-            sys.exc_clear()  # the exception information should be cleaned in Python 2
+            if hasattr(sys, 'exc_clear'):
+                sys.exc_clear()  # the exception information should be cleaned in Python 2
         except:
             pass
 

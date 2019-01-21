@@ -179,6 +179,7 @@ class ReaderThread(threading.Thread):
 
     def __init__(self, sock):
         threading.Thread.__init__(self)
+        self.name = 'Test Reader Thread'
         try:
             from queue import Queue
         except ImportError:
@@ -234,7 +235,7 @@ class ReaderThread(threading.Thread):
                     if IS_PY3K:
                         show_line = line.decode('utf-8')
 
-                    print('Test Reader Thread Received %s' % (show_line,))
+                    print('%s Received %s' % (self.name, show_line,))
 
                 if line.startswith(b'Content-Length:'):
                     content_len = int(line.strip().split(b':', 1)[1])
@@ -331,7 +332,7 @@ class DebuggerRunner(object):
             args = self.add_command_line_args(args)
 
             if SHOW_OTHER_DEBUG_INFO:
-                print('executing', ' '.join(args))
+                print('executing: %s' % (' '.join(args),))
 
             with self.run_process(args, writer) as dct_with_stdout_stder:
                 try:
@@ -561,6 +562,11 @@ class AbstractWriterThread(threading.Thread):
         dirname = os.path.dirname(__file__)
         dirname = os.path.dirname(dirname)
         return os.path.abspath(os.path.join(dirname, 'pydevd.py'))
+
+    def get_pydevconsole_file(self):
+        dirname = os.path.dirname(__file__)
+        dirname = os.path.dirname(dirname)
+        return os.path.abspath(os.path.join(dirname, 'pydevconsole.py'))
 
     def get_line_index_with_content(self, line_content):
         '''

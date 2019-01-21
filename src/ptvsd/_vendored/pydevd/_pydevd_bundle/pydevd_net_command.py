@@ -60,7 +60,7 @@ class NetCommand:
                 msg = '%s\t%s\t%s\n' % (cmd_id, seq, encoded)
 
             else:
-                msg = '%s\t%s\t%s\n' % (cmd_id, seq, text)
+                msg = '%s\t%s\t%s' % (cmd_id, seq, text)
 
         if IS_PY2:
             assert isinstance(msg, str)  # i.e.: bytes

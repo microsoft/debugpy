@@ -518,21 +518,6 @@ class BaseInterpreterInterface:
         # it to run in the main thread.
         self.exec_queue.put(do_change_variable)
 
-    def _findFrame(self, thread_id, frame_id):
-        '''
-        Used to show console with variables connection.
-        Always return a frame where the locals map to our internal namespace.
-        '''
-        VIRTUAL_FRAME_ID = "1"  # matches PyStackFrameConsole.java
-        VIRTUAL_CONSOLE_ID = "console_main"  # matches PyThreadConsole.java
-        if thread_id == VIRTUAL_CONSOLE_ID and frame_id == VIRTUAL_FRAME_ID:
-            f = FakeFrame()
-            f.f_globals = {}  # As globals=locals here, let's simply let it empty (and save a bit of network traffic).
-            f.f_locals = self.get_namespace()
-            return f
-        else:
-            return self.orig_find_frame(thread_id, frame_id)
-
     def connectToDebugger(self, debuggerPort, debugger_options=None):
         '''
         Used to show console with variables connection.
@@ -569,10 +554,15 @@ class BaseInterpreterInterface:
             from _pydev_bundle import pydev_localhost
             set_thread_id(threading.currentThread(), "console_main")
 
-            self.orig_find_frame = pydevd_vars.find_frame
-            pydevd_vars.find_frame = self._findFrame
+            VIRTUAL_FRAME_ID = "1"  # matches PyStackFrameConsole.java
+            VIRTUAL_CONSOLE_ID = "console_main"  # matches PyThreadConsole.java
+            f = FakeFrame()
+            f.f_back = None
+            f.f_globals = {}  # As globals=locals here, let's simply let it empty (and save a bit of network traffic).
+            f.f_locals = self.get_namespace()
 
             self.debugger = pydevd.PyDB()
+            self.debugger.add_fake_frame(thread_id=VIRTUAL_CONSOLE_ID, frame_id=VIRTUAL_FRAME_ID, frame=f)
             try:
                 pydevd.apply_debugger_options(debugger_options)
                 self.debugger.connect(pydev_localhost.get_localhost(), debuggerPort)

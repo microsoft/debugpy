@@ -420,16 +420,10 @@ cdef class PyDBFrame:
                     f = f.f_back
                 f = None
 
-                thread_id = get_current_thread_id(thread)
-                pydevd_vars.add_additional_frame_by_id(thread_id, frame_id_to_frame)
-                try:
-                    main_debugger.send_caught_exception_stack(thread, arg, id(frame))
-                    self.set_suspend(thread, CMD_STEP_CAUGHT_EXCEPTION)
-                    self.do_wait_suspend(thread, frame, event, arg)
-                    main_debugger.send_caught_exception_stack_proceeded(thread)
-
-                finally:
-                    pydevd_vars.remove_additional_frame_by_id(thread_id)
+                main_debugger.send_caught_exception_stack(thread, arg, id(frame))
+                self.set_suspend(thread, CMD_STEP_CAUGHT_EXCEPTION)
+                self.do_wait_suspend(thread, frame, event, arg)
+                main_debugger.send_caught_exception_stack_proceeded(thread)
             except:
                 traceback.print_exc()
 

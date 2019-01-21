@@ -16,7 +16,7 @@ class Jinja2LineBreakpoint(LineBreakpoint):
         return self.file == template_frame_file and self.line == template_frame_line
 
     def __str__(self):
-        return "Jinja2LineBreakpoint: %s-%d" %(self.file, self.line)
+        return "Jinja2LineBreakpoint: %s-%d" % (self.file, self.line)
 
 
 def add_line_breakpoint(plugin, pydb, type, file, line, condition, expression, func_name, hit_condition=None, is_logpoint=False):
@@ -73,7 +73,6 @@ def _suspend_jinja2(pydb, thread, frame, cmd=CMD_SET_BREAK, message=None):
     if frame.f_lineno is None:
         return None
 
-    pydevd_vars.add_additional_frame_by_id(get_current_thread_id(thread), {id(frame): frame})
     pydb.set_suspend(thread, cmd)
 
     thread.additional_info.suspend_type = JINJA2_SUSPEND
@@ -112,7 +111,7 @@ class Jinja2TemplateFrame:
         file_name = _get_jinja2_template_filename(frame)
         self.back_context = None
         if 'context' in frame.f_locals:
-            #sometimes we don't have 'context', e.g. in macros
+            # sometimes we don't have 'context', e.g. in macros
             self.back_context = frame.f_locals['context']
         self.f_code = FCode('template', file_name)
         self.f_lineno = _get_jinja2_template_line(frame)
@@ -172,7 +171,7 @@ def _is_missing(item):
     return False
 
 def _find_render_function_frame(frame):
-    #in order to hide internal rendering functions
+    # in order to hide internal rendering functions
     old_frame = frame
     try:
         while not ('self' in frame.f_locals and frame.f_locals['self'].__class__.__name__ == 'Template' and \
@@ -189,7 +188,7 @@ def _get_jinja2_template_line(frame):
     if '__jinja_template__' in frame.f_globals:
         _debug_info = frame.f_globals['__jinja_template__']._debug_info
         if _debug_info != '':
-            #sometimes template contains only plain text
+            # sometimes template contains only plain text
             debug_info = frame.f_globals['__jinja_template__'].debug_info
 
     if debug_info is None:
@@ -247,26 +246,26 @@ def cmd_step_into(plugin, pydb, frame, event, args, stop_info, stop):
         stop = False
         if info.pydev_call_from_jinja2 is not None:
             if _is_jinja2_internal_function(frame):
-                #if internal Jinja2 function was called, we sould continue debugging inside template
+                # if internal Jinja2 function was called, we sould continue debugging inside template
                 info.pydev_call_from_jinja2 = None
             else:
-                #we go into python code from Jinja2 rendering frame
+                # we go into python code from Jinja2 rendering frame
                 stop = True
 
         if event == 'call' and _is_jinja2_context_call(frame.f_back):
-            #we called function from context, the next step will be in function
+            # we called function from context, the next step will be in function
             info.pydev_call_from_jinja2 = 1
 
     if event == 'return' and _is_jinja2_context_call(frame.f_back):
-        #we return from python code to Jinja2 rendering frame
+        # we return from python code to Jinja2 rendering frame
         info.pydev_step_stop = info.pydev_call_from_jinja2
         info.pydev_call_from_jinja2 = None
         thread.additional_info.suspend_type = JINJA2_SUSPEND
         stop = False
 
-        #print "info.pydev_call_from_jinja2", info.pydev_call_from_jinja2, "stop_info", stop_info, \
+        # print "info.pydev_call_from_jinja2", info.pydev_call_from_jinja2, "stop_info", stop_info, \
         #    "thread.additional_info.suspend_type", thread.additional_info.suspend_type
-        #print "event", event, "farme.locals", frame.f_locals
+        # print "event", event, "farme.locals", frame.f_locals
     return stop, plugin_stop
 
 
@@ -295,19 +294,19 @@ def cmd_step_over(plugin, pydb, frame, event, args, stop_info, stop):
         return stop, plugin_stop
     else:
         if event == 'return' and _is_jinja2_context_call(frame.f_back):
-            #we return from python code to Jinja2 rendering frame
+            # we return from python code to Jinja2 rendering frame
             info.pydev_call_from_jinja2 = None
             info.pydev_call_inside_jinja2 = _find_jinja2_render_frame(frame)
             thread.additional_info.suspend_type = JINJA2_SUSPEND
             stop = False
             return stop, plugin_stop
-    #print "info.pydev_call_from_jinja2", info.pydev_call_from_jinja2, "stop", stop, "jinja_stop", jinja2_stop, \
+    # print "info.pydev_call_from_jinja2", info.pydev_call_from_jinja2, "stop", stop, "jinja_stop", jinja2_stop, \
     #    "thread.additional_info.suspend_type", thread.additional_info.suspend_type
-    #print "event", event, "info.pydev_call_inside_jinja2", info.pydev_call_inside_jinja2
-    #print "frame", frame, "frame.f_back", frame.f_back, "step_stop", info.pydev_step_stop
-    #print "is_context_call", _is_jinja2_context_call(frame)
-    #print "render", _is_jinja2_render_call(frame)
-    #print "-------------"
+    # print "event", event, "info.pydev_call_inside_jinja2", info.pydev_call_inside_jinja2
+    # print "frame", frame, "frame.f_back", frame.f_back, "step_stop", info.pydev_step_stop
+    # print "is_context_call", _is_jinja2_context_call(frame)
+    # print "render", _is_jinja2_render_call(frame)
+    # print "-------------"
     return stop, plugin_stop
 
 
@@ -323,7 +322,7 @@ def stop(plugin, pydb, frame, event, args, stop_info, arg, step_cmd):
 
 
 def get_breakpoint(plugin, pydb, pydb_frame, frame, event, args):
-    pydb= args[0]
+    pydb = args[0]
     filename = args[1]
     info = args[2]
     new_frame = None
@@ -360,7 +359,7 @@ def exception_break(plugin, pydb, pydb_frame, frame, args, arg):
     if pydb.jinja2_exception_break and exception is not None:
         exception_type = dict_keys(pydb.jinja2_exception_break)[0]
         if exception.__name__ in ('UndefinedError', 'TemplateNotFound', 'TemplatesNotFound'):
-            #errors in rendering
+            # errors in rendering
             render_frame = _find_jinja2_render_frame(frame)
             if render_frame:
                 suspend_frame = _suspend_jinja2(pydb, thread, render_frame, CMD_ADD_EXCEPTION_BREAK, message=exception_type)
@@ -371,10 +370,10 @@ def exception_break(plugin, pydb, pydb_frame, frame, args, arg):
                     frame = suspend_frame
                     return flag, frame
         elif exception.__name__ in ('TemplateSyntaxError', 'TemplateAssertionError'):
-            #errors in compile time
+            # errors in compile time
             name = frame.f_code.co_name
             if name in ('template', 'top-level template code', '<module>') or name.startswith('block '):
-                #Jinja2 translates exception info and creates fake frame on his own
+                # Jinja2 translates exception info and creates fake frame on his own
                 pydb_frame.set_suspend(thread, CMD_ADD_EXCEPTION_BREAK)
                 add_exception_to_frame(frame, (exception, value, trace))
                 thread.additional_info.suspend_type = JINJA2_SUSPEND
