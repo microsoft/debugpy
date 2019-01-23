@@ -8,6 +8,7 @@ import os.path
 import pytest
 import sys
 
+import tests.helpers
 from tests.helpers.pattern import ANY, Path
 from tests.helpers.session import DebugSession
 from tests.helpers.timeline import Event
@@ -17,8 +18,8 @@ from tests.helpers.webhelper import get_url_from_str, get_web_content, wait_for_
 DJANGO1_ROOT = get_test_root('django1')
 DJANGO1_MANAGE = os.path.join(DJANGO1_ROOT, 'app.py')
 DJANGO1_TEMPLATE = os.path.join(DJANGO1_ROOT, 'templates', 'hello.html')
-DJANGO_LINK = 'http://127.0.0.1:8000/'
-DJANGO_PORT = 8000
+DJANGO_PORT = tests.helpers.get_unique_port(8000)
+DJANGO_LINK = 'http://127.0.0.1:{}/'.format(DJANGO_PORT)
 
 
 @pytest.mark.parametrize('bp_target', ['code', 'template'])
@@ -35,7 +36,7 @@ def test_django_breakpoint_no_multiproc(bp_target, start_method):
         session.initialize(
             start_method=start_method,
             target=('file', DJANGO1_MANAGE),
-            program_args=['runserver', '--noreload', '--nothreading'],
+            program_args=['runserver', '--noreload', '--', str(DJANGO_PORT)],
             debug_options=['Django'],
             cwd=DJANGO1_ROOT,
             expected_returncode=ANY.int,  # No clean way to kill Flask server
@@ -116,7 +117,7 @@ def test_django_exception_no_multiproc(ex_type, start_method):
         session.initialize(
             start_method=start_method,
             target=('file', DJANGO1_MANAGE),
-            program_args=['runserver', '--noreload', '--nothreading'],
+            program_args=['runserver', '--noreload', '--nothreading', str(DJANGO_PORT)],
             debug_options=['Django'],
             cwd=DJANGO1_ROOT,
             expected_returncode=ANY.int,  # No clean way to kill Flask server

@@ -4,6 +4,7 @@
 
 from __future__ import print_function, with_statement, absolute_import
 
+from collections import namedtuple
 import os
 import psutil
 import pytest
@@ -18,14 +19,15 @@ import ptvsd
 import ptvsd.__main__
 from ptvsd.messaging import JsonIOStream, JsonMessageChannel, MessageHandlers
 
+import tests.helpers
 from . import colors, debuggee, print, watchdog
 from .messaging import LoggingJsonStream
 from .pattern import ANY
 from .printer import wait_for_output
 from .timeline import Timeline, Event, Response
-from collections import namedtuple
 
 
+PTVSD_PORT = tests.helpers.get_unique_port(5678)
 PTVSD_ENABLE_KEY = 'PTVSD_ENABLE_ATTACH'
 PTVSD_HOST_KEY = 'PTVSD_TEST_HOST'
 PTVSD_PORT_KEY = 'PTVSD_TEST_PORT'
@@ -45,7 +47,7 @@ class DebugSession(object):
 
         self.target = ('code', 'print("OK")')
         self.start_method = start_method
-        self.ptvsd_port = ptvsd_port or 5678
+        self.ptvsd_port = ptvsd_port or PTVSD_PORT
         self.multiprocess = False
         self.multiprocess_port_range = None
         self.debug_options = ['RedirectOutput']

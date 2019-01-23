@@ -56,4 +56,15 @@ def dump_stacks_in(secs):
     thread.start()
 
 
+def get_unique_port(base):
+    # Different worker processes need to use different ports,
+    # for those scenarios where one is specified explicitly.
+    try:
+        worker_id = os.environ['PYTEST_XDIST_WORKER']
+        n = int(worker_id[2:])  # e.g. 'gw123'
+    except KeyError:
+        n = 0
+    return base + n
+
+
 from .printer import print

@@ -9,6 +9,7 @@ import platform
 import pytest
 import sys
 
+import tests.helpers
 from tests.helpers.pattern import ANY, Path
 from tests.helpers.session import DebugSession
 from tests.helpers.timeline import Event
@@ -19,8 +20,8 @@ from tests.helpers.pathutils import get_test_root
 FLASK1_ROOT = get_test_root('flask1')
 FLASK1_APP = os.path.join(FLASK1_ROOT, 'app.py')
 FLASK1_TEMPLATE = os.path.join(FLASK1_ROOT, 'templates', 'hello.html')
-FLASK_LINK = 'http://127.0.0.1:5000/'
-FLASK_PORT = 5000
+FLASK_PORT = tests.helpers.get_unique_port(5000)
+FLASK_LINK = 'http://127.0.0.1:{}/'.format(FLASK_PORT)
 
 
 def _initialize_flask_session_no_multiproc(session, start_method):
@@ -39,7 +40,7 @@ def _initialize_flask_session_no_multiproc(session, start_method):
     session.initialize(
         start_method=start_method,
         target=('module', 'flask'),
-        program_args=['run', '--no-debugger', '--no-reload', '--with-threads'],
+        program_args=['run', '--no-debugger', '--no-reload', '--with-threads', '--port', str(FLASK_PORT)],
         ignore_unobserved=[Event('stopped'), Event('continued')],
         debug_options=['Jinja'],
         cwd=FLASK1_ROOT,
@@ -219,7 +220,7 @@ def test_flask_breakpoint_multiproc(start_method):
             start_method=start_method,
             target=('module', 'flask'),
             multiprocess=True,
-            program_args=['run', ],
+            program_args=['run', '--port', str(FLASK_PORT)],
             ignore_unobserved=[Event('stopped'), Event('continued')],
             debug_options=['Jinja'],
             cwd=FLASK1_ROOT,
