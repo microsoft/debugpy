@@ -43,6 +43,13 @@ def save_main_module(file, module_name):
     return m
 
 
+def is_current_thread_main_thread():
+    if hasattr(threading, 'main_thread'):
+        return threading.current_thread() is threading.main_thread()
+    else:
+        return isinstance(threading.current_thread(), threading._MainThread)
+
+
 def to_number(x):
     if is_string(x):
         try:

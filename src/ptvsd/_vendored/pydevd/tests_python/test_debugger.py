@@ -2828,6 +2828,22 @@ def test_step_over_my_code(case_setup):
         writer.write_step_over_my_code(hit.thread_id)
         writer.finished_ok = True
 
+
+def test_matplotlib_activation(case_setup):
+    try:
+        import matplotlib
+    except ImportError:
+        return
+
+    with case_setup.test_file('_debugger_case_matplotlib.py') as writer:
+        writer.write_add_breakpoint(writer.get_line_index_with_content('break here'))
+        writer.write_make_initial_run()
+        for _ in range(3):
+            hit = writer.wait_for_breakpoint_hit()
+            writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+
 # Jython needs some vars to be set locally.
 # set JAVA_HOME=c:\bin\jdk1.8.0_172
 # set PATH=%PATH%;C:\bin\jython2.7.0\bin

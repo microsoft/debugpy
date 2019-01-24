@@ -33,7 +33,7 @@ if [ "$PYDEVD_PYTHON_VERSION" = "3.6" ]; then
 fi
 
 if [ "$PYDEVD_PYTHON_VERSION" = "3.7" ]; then
-    conda install --yes pyqt=5
+    conda install --yes pyqt=5 matplotlib
     # Note: track the latest django
     pip install "django"
 fi

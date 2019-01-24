@@ -45,7 +45,7 @@ from _pydevd_bundle.pydevd_kill_all_pydevd_threads import kill_all_pydev_threads
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
 from _pydevd_bundle.pydevd_trace_dispatch import (
     trace_dispatch as _trace_dispatch, global_cache_skips, global_cache_frame_skips, fix_top_level_trace_and_get_trace_func)
-from _pydevd_bundle.pydevd_utils import save_main_module
+from _pydevd_bundle.pydevd_utils import save_main_module, is_current_thread_main_thread
 from _pydevd_frame_eval.pydevd_frame_eval_main import (
     frame_eval_func, dummy_trace_dispatch)
 import pydev_ipython  # @UnusedImport
@@ -734,8 +734,9 @@ class PyDB(object):
     def init_matplotlib_in_debug_console(self):
         # import hook and patches for matplotlib support in debug console
         from _pydev_bundle.pydev_import_hook import import_hook_manager
-        for module in dict_keys(self.mpl_modules_for_patching):
-            import_hook_manager.add_module_name(module, self.mpl_modules_for_patching.pop(module))
+        if is_current_thread_main_thread():
+            for module in dict_keys(self.mpl_modules_for_patching):
+                import_hook_manager.add_module_name(module, self.mpl_modules_for_patching.pop(module))
 
     def init_matplotlib_support(self):
         # prepare debugger for integration with matplotlib GUI event loop
@@ -763,11 +764,12 @@ class PyDB(object):
 
     def _activate_mpl_if_needed(self):
         if len(self.mpl_modules_for_patching) > 0:
-            for module in dict_keys(self.mpl_modules_for_patching):
-                if module in sys.modules:
-                    activate_function = self.mpl_modules_for_patching.pop(module)
-                    activate_function()
-                    self.mpl_in_use = True
+            if is_current_thread_main_thread():
+                for module in dict_keys(self.mpl_modules_for_patching):
+                    if module in sys.modules:
+                        activate_function = self.mpl_modules_for_patching.pop(module)
+                        activate_function()
+                        self.mpl_in_use = True
 
     def _call_mpl_hook(self):
         try:
@@ -1158,11 +1160,13 @@ class PyDB(object):
         info = thread.additional_info
 
         if info.pydev_state == STATE_SUSPEND and not self._finish_debugging_session:
+            in_main_thread = is_current_thread_main_thread()
             # before every stop check if matplotlib modules were imported inside script code
-            self._activate_mpl_if_needed()
+            if in_main_thread:
+                self._activate_mpl_if_needed()
 
             while info.pydev_state == STATE_SUSPEND and not self._finish_debugging_session:
-                if self.mpl_in_use:
+                if in_main_thread and self.mpl_in_use:
                     # call input hooks if only matplotlib is in use
                     self._call_mpl_hook()
 
