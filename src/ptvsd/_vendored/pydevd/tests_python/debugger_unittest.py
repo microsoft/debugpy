@@ -955,6 +955,9 @@ class AbstractWriterThread(threading.Thread):
             exception, notify_on_handled_exceptions, notify_on_unhandled_exceptions, ignore_libraries])))
         self.log.append('write_add_exception_breakpoint: %s' % (exception,))
 
+    def write_remove_exception_breakpoint(self, exception):
+        self.write('%s\t%s\t%s' % (CMD_REMOVE_EXCEPTION_BREAK, self.next_seq(), exception))
+
     def write_remove_breakpoint(self, breakpoint_id):
         self.write("%s\t%s\t%s\t%s\t%s" % (
             CMD_REMOVE_BREAK, self.next_seq(), 'python-line', self.get_main_filename(), breakpoint_id))

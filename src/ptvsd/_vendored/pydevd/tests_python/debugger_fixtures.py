@@ -6,7 +6,7 @@ import pytest
 
 from tests_python import debugger_unittest
 from tests_python.debugger_unittest import get_free_port, overrides, IS_CPYTHON, IS_JYTHON, IS_IRONPYTHON, \
-    IS_PY3K
+    IS_PY3K, CMD_ADD_DJANGO_EXCEPTION_BREAK, CMD_REMOVE_DJANGO_EXCEPTION_BREAK
 
 import sys
 
@@ -186,6 +186,12 @@ class AbstractWriterThreadCaseDjango(debugger_unittest.AbstractWriterThread):
         self.write("111\t%s\t%s\t%s\t%s\t%s\t%s\tNone\tNone" % (self.next_seq(), breakpoint_id, 'django-line', template_file, line, func))
         self.log.append('write_add_django_breakpoint: %s line: %s func: %s' % (breakpoint_id, line, func))
         return breakpoint_id
+
+    def write_add_exception_breakpoint_django(self, exception='Exception'):
+        self.write('%s\t%s\t%s' % (CMD_ADD_DJANGO_EXCEPTION_BREAK, self.next_seq(), exception))
+
+    def write_remove_exception_breakpoint_django(self, exception='Exception'):
+        self.write('%s\t%s\t%s' % (CMD_REMOVE_DJANGO_EXCEPTION_BREAK, self.next_seq(), exception))
 
     def create_request_thread(self, uri):
         outer = self

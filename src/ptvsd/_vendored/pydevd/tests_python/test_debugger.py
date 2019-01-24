@@ -945,6 +945,8 @@ def test_case_django_a(case_setup_django):
 def test_case_django_b(case_setup_django):
     with case_setup_django.test_file(EXPECTED_RETURNCODE='any') as writer:
         writer.write_add_breakpoint_django(4, None, 'name.html')
+        writer.write_add_exception_breakpoint_django()
+        writer.write_remove_exception_breakpoint_django()
         writer.write_make_initial_run()
 
         t = writer.create_request_thread('my_app/name')
@@ -2378,8 +2380,9 @@ def test_remote_debugger_multi_proc(case_setup_remote):
         writer.finished_ok = True
 
 
+@pytest.mark.parametrize('handle', [True, False])
 @pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
-def test_remote_unhandled_exceptions(case_setup_remote):
+def test_remote_unhandled_exceptions(case_setup_remote, handle):
 
     def check_test_suceeded_msg(writer, stdout, stderr):
         return 'TEST SUCEEDED' in ''.join(stderr)
@@ -2400,14 +2403,21 @@ def test_remote_unhandled_exceptions(case_setup_remote):
         writer.log.append('waiting for breakpoint hit')
         hit = writer.wait_for_breakpoint_hit()
 
+        # Add, remove and add back
         writer.write_add_exception_breakpoint_with_policy('Exception', '0', '1', '0')
+        writer.write_remove_exception_breakpoint('Exception')
+        writer.write_add_exception_breakpoint_with_policy('Exception', '0', '1', '0')
+
+        if not handle:
+            writer.write_remove_exception_breakpoint('Exception')
 
         writer.log.append('run thread')
         writer.write_run_thread(hit.thread_id)
 
-        writer.log.append('waiting for uncaught exception')
-        hit = writer.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
-        writer.write_run_thread(hit.thread_id)
+        if handle:
+            writer.log.append('waiting for uncaught exception')
+            hit = writer.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
+            writer.write_run_thread(hit.thread_id)
 
         writer.log.append('finished ok')
         writer.finished_ok = True
