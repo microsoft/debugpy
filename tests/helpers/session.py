@@ -20,7 +20,7 @@ import ptvsd.__main__
 from ptvsd.messaging import JsonIOStream, JsonMessageChannel, MessageHandlers
 
 import tests.helpers
-from . import colors, debuggee, print, watchdog
+from . import colors, debuggee, print
 from .messaging import LoggingJsonStream
 from .pattern import ANY
 from .printer import wait_for_output
@@ -34,8 +34,8 @@ PTVSD_PORT_KEY = 'PTVSD_TEST_PORT'
 
 
 class DebugSession(object):
-    WAIT_FOR_EXIT_TIMEOUT = 5
-    BACKCHANNEL_TIMEOUT = 15
+    WAIT_FOR_EXIT_TIMEOUT = 10
+    BACKCHANNEL_TIMEOUT = 20
 
     StopInfo = namedtuple('StopInfo', 'thread_stopped, stacktrace, thread_id, frame_id')
 
@@ -268,7 +268,7 @@ class DebugSession(object):
         self.pid = self.process.pid
         self.psutil_process = psutil.Process(self.pid)
         self.is_running = True
-        watchdog.create(self.pid)
+        #watchdog.create(self.pid)
 
         self._capture_output(self.process.stdout, 'OUT')
         self._capture_output(self.process.stderr, 'ERR')
@@ -585,6 +585,7 @@ class DebugSession(object):
             child_session.handshake()
         except:
             child_session.close()
+            raise
         else:
             return child_session
 

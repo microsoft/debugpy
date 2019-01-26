@@ -698,37 +698,50 @@ class ModulesManager(object):
                 pass
 
             search_path = self._get_platform_file_path(module_path)
+
             for _, value in list(sys.modules.items()):
                 try:
                     path = self._get_platform_file_path(value.__file__)
                 except AttributeError:
                     path = None
 
-                if path and search_path == path:
-                    module_id = self._next_id
-                    self._next_id += 1
+                if not path:
+                    continue
 
-                    module = {
-                        'id': module_id,
-                        'package': value.__package__ if hasattr(value, '__package__') else None,
-                        'path': module_path,
-                    }
+                try:
+                    # This tries to open the files to obtain handles, which can be restricted
+                    # by file permissions, but ensures that long/short path mismatch, symlinks
+                    # etc are all accounted for. Fall back to comparing names in case of failure.
+                    if not os.path.samefile(path, search_path):
+                        continue
+                except Exception:
+                    if path != search_path:
+                        continue
 
-                    try:
-                        module['name'] = value.__qualname__
-                    except AttributeError:
-                        module['name'] = value.__name__
+                module_id = self._next_id
+                self._next_id += 1
 
-                    try:
-                        module['version'] = value.__version__
-                    except AttributeError:
-                        pass
+                module = {
+                    'id': module_id,
+                    'package': value.__package__ if hasattr(value, '__package__') else None,
+                    'path': module_path,
+                }
 
-                    self.path_to_module_id[module_path] = module_id
-                    self.module_id_to_details[module_id] = module
+                try:
+                    module['name'] = value.__qualname__
+                except AttributeError:
+                    module['name'] = value.__name__
 
-                    self.proc.send_event('module', reason='new', module=module)
-                    return module
+                try:
+                    module['version'] = value.__version__
+                except AttributeError:
+                    pass
+
+                self.path_to_module_id[module_path] = module_id
+                self.module_id_to_details[module_id] = module
+
+                self.proc.send_event('module', reason='new', module=module)
+                return module
 
         return None
 
