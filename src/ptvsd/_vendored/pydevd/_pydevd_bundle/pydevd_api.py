@@ -289,8 +289,18 @@ class PyDevdAPI(object):
         Removes all the breakpoints from a given file or from all files if filename == '*'.
         '''
         changed = False
-        for file_to_id_to_breakpoint in [
-            py_db.file_to_id_to_line_breakpoint, py_db.file_to_id_to_plugin_breakpoint]:
+        lst = [
+            py_db.file_to_id_to_line_breakpoint,
+            py_db.file_to_id_to_plugin_breakpoint,
+            py_db.breakpoints
+        ]
+        if hasattr(py_db, 'django_breakpoints'):
+            lst.append(py_db.django_breakpoints)
+
+        if hasattr(py_db, 'jinja2_breakpoints'):
+            lst.append(py_db.jinja2_breakpoints)
+
+        for file_to_id_to_breakpoint in lst:
             if filename == '*':
                 if file_to_id_to_breakpoint:
                     file_to_id_to_breakpoint.clear()
