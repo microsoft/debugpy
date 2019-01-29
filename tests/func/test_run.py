@@ -47,3 +47,29 @@ def test_run(pyfile, run_as, start_method):
         assert re.match(re.escape(expected_ptvsd_path) + r'(c|o)?$', ptvsd_path)
 
         session.wait_for_exit()
+
+
+@pytest.mark.parametrize('run_as', ['file', 'module', 'code'])
+def test_nodebug(pyfile, run_as):
+    @pyfile
+    def code_to_debug():
+        # import_and_enable_debugger
+        import backchannel
+        backchannel.read_json()
+        print('ok')
+
+    with DebugSession() as session:
+        session.no_debug = True
+        session.initialize(target=(run_as, code_to_debug), start_method='launch', use_backchannel=True)
+        session.set_breakpoints(code_to_debug, [3])
+        session.start_debugging()
+
+        session.write_json(None)
+
+        # Breakpoint shouldn't be hit.
+        session.wait_for_exit()
+
+        session.expect_realized(Event('output', ANY.dict_with({
+            'category': 'stdout',
+            'output': 'ok',
+        })))

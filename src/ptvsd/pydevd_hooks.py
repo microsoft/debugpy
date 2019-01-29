@@ -131,7 +131,7 @@ def install(pydevd_module, address,
 
     # This is invoked when a child process is spawned with multiproc debugging enabled.
     pydev_monkey.patch_args = multiproc.patch_and_quote_args
-    if not options.multiprocess:
+    if not options.multiprocess and not options.no_debug:
         # This means '--multiprocess' flag was not passed via command line args. Patch the
         # new process functions here to handle multiprocess being enabled via debug options.
         pydev_monkey.patch_new_process_functions()

@@ -41,9 +41,12 @@ def _pydevd_settrace(redirect_output=None, _pydevd=pydevd, **kwargs):
 global_next_session = lambda: None
 
 
-def enable_attach(address, redirect_output=True,
-                  _pydevd=pydevd, _install=install,
-                  on_attach=lambda: None, **kwargs):
+def enable_attach(address,
+                  redirect_output=True,
+                  _pydevd=pydevd,
+                  _install=install,
+                  on_attach=lambda: None,
+                  **kwargs):
 
     ptvsd.main_thread = threading.current_thread()
 
@@ -84,12 +87,16 @@ def enable_attach(address, redirect_output=True,
                                           args=(daemon, host, port))
     connection_thread.start()
 
-    _pydevd.settrace(host=host,
-                     stdoutToServer=redirect_output,
-                     stderrToServer=redirect_output,
-                     port=port,
-                     suspend=False,
-                     patch_multiprocessing=ptvsd.options.multiprocess)
+    if ptvsd.options.no_debug:
+        _setup_nodebug()
+    else:
+        _pydevd.settrace(host=host,
+                         stdoutToServer=redirect_output,
+                         stderrToServer=redirect_output,
+                         port=port,
+                         suspend=False,
+                         patch_multiprocessing=ptvsd.options.multiprocess)
+
     return daemon
 
 
@@ -103,10 +110,32 @@ def attach(address,
 
     host, port = address
     daemon = _install(_pydevd, address, singlesession=False, **kwargs)
-    _pydevd.settrace(host=host,
-                     port=port,
-                     stdoutToServer=redirect_output,
-                     stderrToServer=redirect_output,
-                     suspend=False,
-                     patch_multiprocessing=ptvsd.options.multiprocess)
+
+    if ptvsd.options.no_debug:
+        _setup_nodebug()
+    else:
+        _pydevd.settrace(host=host,
+                         port=port,
+                         stdoutToServer=redirect_output,
+                         stderrToServer=redirect_output,
+                         suspend=False,
+                         patch_multiprocessing=ptvsd.options.multiprocess)
+
     return daemon
+
+
+def _setup_nodebug():
+    debugger = pydevd.PyDB()
+    debugger.init_matplotlib_support = lambda *arg: None
+    # We are invoking run() solely for side effects here - setting up the
+    # debugger and connecting to our socket - so the code run is a no-op.
+    debugger.run(
+        file='ptvsd._remote:_nop',
+        globals=None,
+        locals=None,
+        is_module=True,
+        set_trace=False)
+
+
+def _nop():
+    pass

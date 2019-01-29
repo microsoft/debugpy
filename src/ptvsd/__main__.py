@@ -38,6 +38,7 @@ import pydevd
 
 import ptvsd._remote
 import ptvsd.options
+import ptvsd.runner
 import ptvsd.version
 
 
@@ -57,9 +58,9 @@ TARGET = '<filename> | -m <module> | -c <code> | --pid <pid>'
 HELP = ('''ptvsd %s
 See https://aka.ms/ptvsd for documentation.
 
-Usage: ptvsd --host <address> --port <port> [--wait] [--multiprocess]
+Usage: ptvsd --host <address> [--port <port>] [--wait] [--multiprocess]
              ''' + TARGET + '''
-''') % (ptvsd.version.__version__)
+''') % (ptvsd.version.__version__,)
 
 
 # In Python 2, arguments are passed as bytestrings in locale encoding
@@ -109,6 +110,11 @@ def set_target(kind, parser=None):
         ptvsd.options.target = arg if parser is None else parser(next(it))
     return do
 
+def set_nodebug(arg, it):
+    # --nodebug implies --client
+    ptvsd.options.no_debug = True
+    ptvsd.options.client = True
+
 
 switches = [
     # Switch                    Placeholder         Action                                  Required
@@ -123,7 +129,7 @@ switches = [
     ('--multiprocess',          None,               set_true('multiprocess'),               False),
 
     # Switches that are used internally by the IDE or ptvsd itself.
-    ('--nodebug',               None,               set_true('no_debug'),                   False),
+    ('--nodebug',               None,               set_nodebug,                            False),
     ('--client',                None,               set_true('client'),                     False),
     ('--subprocess-of',         '<pid>',            set_arg('subprocess_of', pid),          False),
     ('--subprocess-notify',     '<port>',           set_arg('subprocess_notify', port),     False),
@@ -185,9 +191,6 @@ daemon = None
 
 def setup_connection():
     opts = ptvsd.options
-    if opts.no_debug:
-        return
-
     pydevd.apply_debugger_options({
         'server': not opts.client,
         'client': opts.host,
@@ -224,7 +227,11 @@ def setup_connection():
     addr = (opts.host, opts.port)
 
     global daemon
-    if opts.client:
+    if opts.no_debug:
+        daemon = ptvsd.runner.Daemon()
+        if not daemon.wait_for_launch(addr):
+            return
+    elif opts.client:
         daemon = ptvsd._remote.attach(addr)
     else:
         daemon = ptvsd._remote.enable_attach(addr)

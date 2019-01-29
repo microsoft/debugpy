@@ -47,6 +47,7 @@ class DebugSession(object):
 
         self.target = ('code', 'print("OK")')
         self.start_method = start_method
+        self.no_debug = False
         self.ptvsd_port = ptvsd_port or PTVSD_PORT
         self.multiprocess = False
         self.multiprocess_port_range = None
@@ -243,6 +244,9 @@ class DebugSession(object):
             argv += self._get_argv_for_attach_using_pid()
         else:
             pytest.fail()
+
+        if self.no_debug:
+            argv += ['--nodebug']
 
         argv += self._get_target()
 
@@ -445,11 +449,12 @@ class DebugSession(object):
             'pathMappings': self.path_mappings,
         }).wait_for_response()
 
-        # Issue 'threads' so that we get the 'thread' event for the main thread now,
-        # rather than at some random time later during the test.
-        (self.send_request('threads')
-            .causing(Event('thread'))
-            .wait_for_response())
+        if not self.no_debug:
+            # Issue 'threads' so that we get the 'thread' event for the main thread now,
+            # rather than at some random time later during the test.
+            (self.send_request('threads')
+                .causing(Event('thread'))
+                .wait_for_response())
 
     def start_debugging(self, freeze=True):
         """Finalizes the configuration stage, and issues a 'configurationDone' request
@@ -461,17 +466,20 @@ class DebugSession(object):
 
         configurationDone_request = self.send_request('configurationDone')
 
-        # The relative ordering of 'process' and 'configurationDone' is not deterministic.
-        # (implementation varies depending on whether it's launch or attach, but in any
-        # case, it is an implementation detail).
-        start = self.wait_for_next(Event('process') & Response(configurationDone_request))
+        if self.no_debug:
+            start = self.wait_for_next(Response(configurationDone_request))
+        else:
+            # The relative ordering of 'process' and 'configurationDone' is not deterministic.
+            # (implementation varies depending on whether it's launch or attach, but in any
+            # case, it is an implementation detail).
+            start = self.wait_for_next(Event('process') & Response(configurationDone_request))
 
-        self.expect_new(Event('process', {
-            'name': ANY.str,
-            'isLocalProcess': True,
-            'startMethod': 'launch' if self.start_method == 'launch' else 'attach',
-            'systemProcessId': self.pid if self.pid is not None else ANY.int,
-        }))
+            self.expect_new(Event('process', {
+                'name': ANY.str,
+                'isLocalProcess': True,
+                'startMethod': 'launch' if self.start_method == 'launch' else 'attach',
+                'systemProcessId': self.pid if self.pid is not None else ANY.int,
+            }))
 
         if not freeze:
             self.proceed()
