@@ -46,12 +46,15 @@ def _pydev_stop_at_break(line):
             abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(frame)
         filename = abs_path_real_path_and_base[1]
 
-        breakpoints_for_file = debugger.breakpoints.get(filename)
-
         try:
-            python_breakpoint = breakpoints_for_file[line]
-        except KeyError:
-            pydev_log.debug("Couldn't find breakpoint in the file {} on line {}".format(frame.f_code.co_filename, line))
+            python_breakpoint = debugger.breakpoints[filename][line]
+        except:
+            # print("Couldn't find breakpoint in the file %s on line %s" % (frame.f_code.co_filename, line))
+            # Could be KeyError if line is not there or TypeError if breakpoints_for_file is None.
+            # Note: using catch-all exception for performance reasons (if the user adds a breakpoint
+            # and then removes it after hitting it once, this method added for the programmatic
+            # breakpoint will keep on being called and one of those exceptions will always be raised
+            # here).
             return
 
         if python_breakpoint:

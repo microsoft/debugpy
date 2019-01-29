@@ -50,7 +50,7 @@ class JsonFacade(object):
     def write_list_threads(self):
         return self.wait_for_response(self.write_request(pydevd_schema.ThreadsRequest()))
 
-    def write_add_breakpoints(self, lines, filename=None, line_to_info=None):
+    def write_set_breakpoints(self, lines, filename=None, line_to_info=None):
         '''
         Adds a breakpoint.
         '''
@@ -103,13 +103,34 @@ class JsonFacade(object):
 
 
 @pytest.mark.skipif(IS_JYTHON, reason='Must check why it is failing in Jython.')
+def test_case_json_change_breaks(case_setup):
+    with case_setup.test_file('_debugger_case_change_breaks.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_set_protocol('http_json')
+        json_facade.write_launch()
+        json_facade.write_set_breakpoints(writer.get_line_index_with_content('break 1'))
+        json_facade.write_make_initial_run()
+        hit = writer.wait_for_breakpoint_hit()
+        writer.write_run_thread(hit.thread_id)
+
+        hit = writer.wait_for_breakpoint_hit()
+        writer.write_run_thread(hit.thread_id)
+
+        json_facade.write_set_breakpoints([])
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(IS_JYTHON, reason='Must check why it is failing in Jython.')
 def test_case_json_protocol(case_setup):
     with case_setup.test_file('_debugger_case_print.py') as writer:
         json_facade = JsonFacade(writer)
 
         writer.write_set_protocol('http_json')
         json_facade.write_launch()
-        json_facade.write_add_breakpoints(writer.get_line_index_with_content('Break here'))
+        json_facade.write_set_breakpoints(writer.get_line_index_with_content('Break here'))
         json_facade.write_make_initial_run()
 
         json_facade.wait_for_json_message(ThreadEvent, lambda event: event.body.reason == 'started')
