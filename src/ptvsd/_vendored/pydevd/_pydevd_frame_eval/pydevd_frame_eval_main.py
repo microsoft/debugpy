@@ -31,8 +31,9 @@ elif use_frame_eval is None:
 
             dirname = os.path.dirname(os.path.dirname(__file__))
             if not IS_PYCHARM:
-                log_error_once("warning: Debugger speedups using cython not found. Run '\"%s\" \"%s\" build_ext --inplace' to build." % (
-                    sys.executable, os.path.join(dirname, 'setup_cython.py')))
+                #log_error_once("warning: Debugger speedups using cython not found. Run '\"%s\" \"%s\" build_ext --inplace' to build." % (
+                #    sys.executable, os.path.join(dirname, 'setup_cython.py')))
+                pass
             else:
                 show_frame_eval_warning = True
 

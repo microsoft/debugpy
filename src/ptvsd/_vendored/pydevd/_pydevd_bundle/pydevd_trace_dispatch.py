@@ -59,10 +59,11 @@ elif use_cython is None:
 
     except ImportError:
         from _pydevd_bundle.pydevd_trace_dispatch_regular import trace_dispatch, global_cache_skips, global_cache_frame_skips, fix_top_level_trace_and_get_trace_func  # @UnusedImport
-        from _pydev_bundle.pydev_monkey import log_error_once
+        #from _pydev_bundle.pydev_monkey import log_error_once
 
-        log_error_once("warning: Debugger speedups using cython not found. Run '\"%s\" \"%s\" build_ext --inplace' to build." % (
-            sys.executable, os.path.join(dirname, 'setup_cython.py')))
+        #log_error_once("warning: Debugger speedups using cython not found. Run '\"%s\" \"%s\" build_ext --inplace' to build." % (
+        #    sys.executable, os.path.join(dirname, 'setup_cython.py')))
+        pass
 
 else:
     raise RuntimeError('Unexpected value for PYDEVD_USE_CYTHON: %s (accepted: YES, NO)' % (use_cython,))
