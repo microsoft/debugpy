@@ -6,9 +6,10 @@
 from __future__ import print_function, with_statement, absolute_import
 
 import os.path
+import platform
 import pytest
-import sys
 import re
+import sys
 
 from tests.helpers.pathutils import get_test_root
 from tests.helpers.session import DebugSession
@@ -40,6 +41,9 @@ def test_path_with_ampersand(run_as, start_method):
 
 
 @pytest.mark.skipif(sys.version_info < (3, 0), reason='Paths are not Unicode in Python 2.7')
+@pytest.mark.skipif(
+    platform.system() == 'Windows' and sys.version_info < (3, 6),
+    reason='https://github.com/Microsoft/ptvsd/issues/1124#issuecomment-459506802')
 def test_path_with_unicode(run_as, start_method):
     bp_line = 6
     testfile = os.path.join(BP_TEST_ROOT, u'ನನ್ನ_ಸ್ಕ್ರಿಪ್ಟ್.py')
