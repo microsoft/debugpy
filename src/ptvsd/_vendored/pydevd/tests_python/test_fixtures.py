@@ -22,11 +22,11 @@ class _DummySocket(object):
         self._socket_server.bind((host, 0))
         self._socket_server.listen(1)
 
-    def makefile(self, *args, **kwargs):
-        assert not self._sock_for_reader_thread
-        sock, _addr = self._socket_server.accept()
-        self._sock_for_reader_thread = sock
-        return sock.makefile(*args, **kwargs)
+    def recv(self, *args, **kwargs):
+        if self._sock_for_reader_thread is None:
+            sock, _addr = self._socket_server.accept()
+            self._sock_for_reader_thread = sock
+        return self._sock_for_reader_thread.recv(*args, **kwargs)
 
     def put(self, msg):
         if IS_PY3K and not isinstance(msg, bytes):
@@ -86,9 +86,9 @@ def test_fixture_reader_thread2(_dummy_socket):
     http = ('Content-Length: %s\r\n\r\n%s' % (len(msg), msg))
     sock.put('msg1\nmsg2\nmsg3\n' + http + http)
 
-    assert reader_thread.get_next_message('check 1') == 'msg1\n'
-    assert reader_thread.get_next_message('check 2') == 'msg2\n'
-    assert reader_thread.get_next_message('check 3') == 'msg3\n'
+    assert reader_thread.get_next_message('check 1') == 'msg1'
+    assert reader_thread.get_next_message('check 2') == 'msg2'
+    assert reader_thread.get_next_message('check 3') == 'msg3'
     assert reader_thread.get_next_message('check 4') == json_part
     assert reader_thread.get_next_message('check 5') == json_part
 

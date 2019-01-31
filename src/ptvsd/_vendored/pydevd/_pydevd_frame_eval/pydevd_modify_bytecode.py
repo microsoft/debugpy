@@ -65,7 +65,6 @@ def _modify_new_lines(code_to_modify, offset, code_to_insert):
     byte_increments = code_to_modify.co_lnotab[0::2]
     line_increments = code_to_modify.co_lnotab[1::2]
 
-
     if offset == 0:
         new_list[0] += bytecode_delta
     else:

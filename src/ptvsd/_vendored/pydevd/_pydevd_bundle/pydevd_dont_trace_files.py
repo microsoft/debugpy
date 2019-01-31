@@ -83,6 +83,7 @@ DONT_TRACE = {
     'pydevd_extension_api.py': PYDEV_FILE,
     'pydevd_extension_utils.py': PYDEV_FILE,
     'pydevd_file_utils.py': PYDEV_FILE,
+    'pydevd_filtering.py': PYDEV_FILE,
     'pydevd_frame.py': PYDEV_FILE,
     'pydevd_frame_eval_cython_wrapper.py': PYDEV_FILE,
     'pydevd_frame_eval_main.py': PYDEV_FILE,

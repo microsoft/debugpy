@@ -187,9 +187,6 @@ DEBUG_START_PY3K = ('_pydev_execfile.py', 'execfile')
 TRACE_PROPERTY = 'pydevd_traceproperty.py'
 
 
-
-
-
 #=======================================================================================================================
 # PyDBFrame
 #=======================================================================================================================
@@ -595,7 +592,7 @@ cdef class PyDBFrame:
 
                     if can_skip:
                         if plugin_manager is not None and main_debugger.has_plugin_line_breaks:
-                            can_skip = not plugin_manager.can_not_skip(main_debugger, self, frame)
+                            can_skip = not plugin_manager.can_not_skip(main_debugger, frame)
 
                         # CMD_STEP_OVER = 108, CMD_STEP_OVER_MY_CODE = 159
                         if can_skip and main_debugger.show_return_values and info.pydev_step_cmd in (108, 159) and frame.f_back is info.pydev_step_stop:
@@ -708,18 +705,8 @@ cdef class PyDBFrame:
                         #
                         # As for lambda, as it only has a single statement, it's not interesting to trace
                         # its call and later its line event as they're usually in the same line.
-                        return self.trace_dispatch
 
-                else:
-                    # if the frame is traced after breakpoint stop,
-                    # but the file should be ignored while stepping because of filters
-                    if step_cmd != -1:
-                        if main_debugger.is_filter_enabled and main_debugger.is_ignored_by_filters(filename):
-                            # ignore files matching stepping filters
-                            return self.trace_dispatch
-                        if main_debugger.is_filter_libraries and not main_debugger.in_project_scope(filename):
-                            # ignore library files while stepping
-                            return self.trace_dispatch
+                        return self.trace_dispatch
 
                 if main_debugger.show_return_values:
                     if is_return and info.pydev_step_cmd in (CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE) and frame.f_back == info.pydev_step_stop:
@@ -776,30 +763,23 @@ cdef class PyDBFrame:
                 if should_skip:
                     stop = False
 
-                elif step_cmd == CMD_STEP_INTO:
+                elif step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE):
+                    force_check_project_scope = step_cmd == CMD_STEP_INTO_MY_CODE
                     if is_line:
-                        stop = True
-                    elif is_return:
-                        if frame.f_back is not None:
-                            if main_debugger.get_file_type(
-                                    get_abs_path_real_path_and_base_from_frame(frame.f_back)) == main_debugger.PYDEV_FILE:
-                                stop = False
+                        if force_check_project_scope or main_debugger.is_files_filter_enabled:
+                            stop = not main_debugger.apply_files_filter(frame, frame.f_code.co_filename, force_check_project_scope)
+                        else:
+                            stop = True
+
+                    elif is_return and frame.f_back is not None:
+                        if main_debugger.get_file_type(
+                                get_abs_path_real_path_and_base_from_frame(frame.f_back)) == main_debugger.PYDEV_FILE:
+                            stop = False
+                        else:
+                            if force_check_project_scope or main_debugger.is_files_filter_enabled:
+                                stop = not main_debugger.apply_files_filter(frame.f_back, frame.f_back.f_code.co_filename, force_check_project_scope)
                             else:
                                 stop = True
-                    if plugin_manager is not None:
-                        result = plugin_manager.cmd_step_into(main_debugger, frame, event, self._args, stop_info, stop)
-                        if result:
-                            stop, plugin_stop = result
-
-                elif step_cmd == CMD_STEP_INTO_MY_CODE:
-                    if is_line:
-                        if main_debugger.in_project_scope(frame.f_code.co_filename):
-                            stop = True
-                    elif is_return and frame.f_back is not None:
-                        if main_debugger.in_project_scope(frame.f_back.f_code.co_filename):
-                            stop = True
-                    else:
-                        stop = False
 
                     if plugin_manager is not None:
                         result = plugin_manager.cmd_step_into(main_debugger, frame, event, self._args, stop_info, stop)
@@ -918,13 +898,14 @@ from _pydev_imps._pydev_saved_modules import threading
 from _pydevd_bundle.pydevd_constants import get_current_thread_id, IS_IRONPYTHON, NO_FTRACE
 from _pydevd_bundle.pydevd_kill_all_pydevd_threads import kill_all_pydev_threads
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame, NORM_PATHS_AND_BASE_CONTAINER
+from _pydevd_bundle.pydevd_comm_constants import CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_OVER, \
+    CMD_STEP_OVER_MY_CODE, CMD_STEP_RETURN, CMD_STEP_RETURN_MY_CODE
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
 from cpython.object cimport PyObject
 from cpython.ref cimport Py_INCREF, Py_XDECREF
 # ELSE
 # from _pydevd_bundle.pydevd_frame import PyDBFrame
 # ENDIF
-
 
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
 # cdef dict global_cache_skips
@@ -1299,9 +1280,22 @@ cdef class ThreadTracer:
             # Note: it's important that the context name is also given because we may hit something once
             # in the global context and another in the local context.
             frame_cache_key = (frame.f_code.co_firstlineno, frame.f_code.co_name, frame.f_code.co_filename)
-            if not is_stepping and frame_cache_key in cache_skips:
-                # if DEBUG: print('skipped: trace_dispatch (cache hit)', frame_cache_key, frame.f_lineno, event, frame.f_code.co_name)
-                return None if event == 'call' else NO_FTRACE
+            if frame_cache_key in cache_skips:
+                if not is_stepping:
+                    # if DEBUG: print('skipped: trace_dispatch (cache hit)', frame_cache_key, frame.f_lineno, event, frame.f_code.co_name)
+                    return None if event == 'call' else NO_FTRACE
+                else:
+                    # When stepping we can't take into account caching based on the breakpoints (only global filtering).
+                    if cache_skips.get(frame_cache_key) == 1:
+                        back_frame = frame.f_back
+                        if back_frame is not None and pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_RETURN, CMD_STEP_RETURN_MY_CODE):
+                            back_frame_cache_key = (back_frame.f_code.co_firstlineno, back_frame.f_code.co_name, back_frame.f_code.co_filename)
+                            if cache_skips.get(back_frame_cache_key) == 1:
+                                # if DEBUG: print('skipped: trace_dispatch (cache hit: 1)', frame_cache_key, frame.f_lineno, event, frame.f_code.co_name)
+                                return None if event == 'call' else NO_FTRACE
+                        else:
+                            # if DEBUG: print('skipped: trace_dispatch (cache hit: 2)', frame_cache_key, frame.f_lineno, event, frame.f_code.co_name)
+                            return None if event == 'call' else NO_FTRACE
 
             try:
                 # Make fast path faster!
@@ -1323,13 +1317,20 @@ cdef class ThreadTracer:
                     cache_skips[frame_cache_key] = 1
                     return None if event == 'call' else NO_FTRACE
 
-            if is_stepping:
-                if py_db.is_filter_enabled and py_db.is_ignored_by_filters(filename):
-                    # ignore files matching stepping filters
-                    return None if event == 'call' else NO_FTRACE
-                if py_db.is_filter_libraries and not py_db.in_project_scope(filename):
-                    # ignore library files while stepping
-                    return None if event == 'call' else NO_FTRACE
+            if py_db.is_files_filter_enabled:
+                if py_db.apply_files_filter(frame, filename, False):
+                    cache_skips[frame_cache_key] = 1
+                    # A little gotcha, sometimes when we're stepping in we have to stop in a
+                    # return event showing the back frame as the current frame, so, we need
+                    # to check not only the current frame but the back frame too.
+                    back_frame = frame.f_back
+                    if back_frame is not None and pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_RETURN, CMD_STEP_RETURN_MY_CODE):
+                        if py_db.apply_files_filter(back_frame, back_frame.f_code.co_filename, False):
+                            back_frame_cache_key = (back_frame.f_code.co_firstlineno, back_frame.f_code.co_name, back_frame.f_code.co_filename)
+                            cache_skips[back_frame_cache_key] = 1
+                            return None if event == 'call' else NO_FTRACE
+                    else:
+                        return None if event == 'call' else NO_FTRACE
 
             # if DEBUG: print('trace_dispatch', filename, frame.f_lineno, event, frame.f_code.co_name, file_type)
             if additional_info.is_tracing:
@@ -1343,7 +1344,9 @@ cdef class ThreadTracer:
                 )
             ).trace_dispatch(frame, event, arg)
             if ret is None:
-                cache_skips[frame_cache_key] = 1
+                # 1 means skipped because of filters.
+                # 2 means skipped because no breakpoints were hit.
+                cache_skips[frame_cache_key] = 2
                 return None if event == 'call' else NO_FTRACE
 
             # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)

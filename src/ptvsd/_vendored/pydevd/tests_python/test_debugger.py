@@ -20,6 +20,7 @@ from tests_python.debugger_unittest import (CMD_SET_PROPERTY_TRACE, REASON_CAUGH
     REASON_STEP_OVER_MY_CODE, REASON_STEP_INTO, CMD_THREAD_KILL)
 from _pydevd_bundle.pydevd_constants import IS_WINDOWS
 from _pydevd_bundle.pydevd_comm_constants import CMD_RELOAD_CODE
+import json
 try:
     from urllib import unquote
 except ImportError:
@@ -51,12 +52,10 @@ try:
 except:
     pass
 
-
 if IS_PY2:
     builtin_qualifier = "__builtin__"
 else:
     builtin_qualifier = "builtins"
-
 
 
 @pytest.mark.skipif(IS_IRONPYTHON, reason='Test needs gc.get_referrers to really check anything.')
@@ -901,7 +900,15 @@ def test_case_flask(case_setup_flask):
 
 @pytest.mark.skipif(not TEST_DJANGO, reason='No django available')
 def test_case_django_a(case_setup_django):
-    with case_setup_django.test_file(EXPECTED_RETURNCODE='any') as writer:
+
+    def get_environ(writer):
+        env = os.environ.copy()
+        env.update({
+            'PYDEVD_FILTER_LIBRARIES': '1',  # Global setting for in project or not
+        })
+        return env
+
+    with case_setup_django.test_file(EXPECTED_RETURNCODE='any', get_environ=get_environ) as writer:
         writer.write_add_breakpoint_django(5, None, 'index.html')
         writer.write_make_initial_run()
 
@@ -2570,7 +2577,6 @@ def test_return_value(case_setup):
         writer.write_step_over(hit.thread_id)
         hit = writer.wait_for_breakpoint_hit(REASON_STEP_OVER, name='<module>', line=break_line + 1)
         writer.write_get_frame(hit.thread_id, hit.frame_id)
-
         writer.wait_for_vars([
             [
                 '<var name="method1" type="int" qualifier="%s" value="int: 1" isRetVal="True"' % (builtin_qualifier,),
@@ -2826,6 +2832,110 @@ def test_step_over_my_code(case_setup):
         assert hit.name == '<module>'
 
         writer.write_step_over_my_code(hit.thread_id)
+        writer.finished_ok = True
+
+
+@pytest.fixture(
+    params=[
+        'step_over',
+        'step_return',
+        'step_in',
+    ]
+)
+def step_method(request):
+    return request.param
+
+
+@pytest.mark.parametrize("environ", [
+    {'PYDEVD_FILTER_LIBRARIES': '1'},  # Global setting for step over
+    {'PYDEVD_FILTERS': json.dumps({'**/other.py': True})},  # specify as json
+    {'PYDEVD_FILTERS': '**/other.py'},  # specify ';' separated list
+])
+def test_step_over_my_code_global_settings(case_setup, environ, step_method):
+
+    def get_environ(writer):
+        env = os.environ.copy()
+        env.update(environ)
+        return env
+
+    def do_step():
+        if step_method == 'step_over':
+            writer.write_step_over(hit.thread_id)
+            return REASON_STEP_INTO  # Note: goes from step over to step into
+        elif step_method == 'step_return':
+            writer.write_step_return(hit.thread_id)
+            return REASON_STEP_RETURN
+        else:
+            assert step_method == 'step_in'
+            writer.write_step_in(hit.thread_id)
+            return REASON_STEP_INTO
+
+    with case_setup.test_file('my_code/my_code.py', get_environ=get_environ) as writer:
+        writer.write_set_project_roots([debugger_unittest._get_debugger_test_file('my_code')])
+        writer.write_add_breakpoint(writer.get_line_index_with_content('break here'))
+        writer.write_make_initial_run()
+        hit = writer.wait_for_breakpoint_hit()
+
+        writer.write_step_in(hit.thread_id)
+        hit = writer.wait_for_breakpoint_hit(reason=REASON_STEP_INTO)
+        assert hit.name == 'callback1'
+
+        writer.write_step_in(hit.thread_id)
+        hit = writer.wait_for_breakpoint_hit(reason=REASON_STEP_INTO)
+        assert hit.name == 'callback2'
+
+        stop_reason = do_step()
+        hit = writer.wait_for_breakpoint_hit(reason=stop_reason)
+        assert hit.name == 'callback1'
+
+        stop_reason = do_step()
+        hit = writer.wait_for_breakpoint_hit(reason=stop_reason)
+        assert hit.name == '<module>'
+
+        if IS_JYTHON:
+            # Jython may get to exit functions, so, just resume the thread.
+            writer.write_run_thread(hit.thread_id)
+
+        else:
+            stop_reason = do_step()
+
+            if step_method != 'step_return':
+                stop_reason = do_step()
+                if step_method == 'step_over':
+                    stop_reason = REASON_STEP_OVER
+
+                hit = writer.wait_for_breakpoint_hit(reason=stop_reason)
+                assert hit.name == '<module>'
+
+                writer.write_step_over(hit.thread_id)
+
+        writer.finished_ok = True
+
+
+def test_step_over_my_code_global_setting_and_explicit_include(case_setup):
+
+    def get_environ(writer):
+        env = os.environ.copy()
+        env.update({
+            'PYDEVD_FILTER_LIBRARIES': '1',  # Global setting for in project or not
+            # specify as json (force include).
+            'PYDEVD_FILTERS': json.dumps({'**/other.py': False})
+        })
+        return env
+
+    with case_setup.test_file('my_code/my_code.py', get_environ=get_environ) as writer:
+        writer.write_set_project_roots([debugger_unittest._get_debugger_test_file('my_code')])
+        writer.write_add_breakpoint(writer.get_line_index_with_content('break here'))
+        writer.write_make_initial_run()
+        hit = writer.wait_for_breakpoint_hit()
+
+        writer.write_step_in(hit.thread_id)
+        hit = writer.wait_for_breakpoint_hit(reason=REASON_STEP_INTO)
+
+        # Although we filtered out non-project files, other.py is explicitly included.
+        assert hit.name == 'call_me_back1'
+
+        writer.write_run_thread(hit.thread_id)
         writer.finished_ok = True
 
 

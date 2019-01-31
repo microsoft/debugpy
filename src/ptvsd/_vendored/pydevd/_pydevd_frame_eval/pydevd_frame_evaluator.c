@@ -6747,7 +6747,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  *             if not func_code_info.always_skip_code:
  * 
  *                 if main_debugger.has_plugin_line_breaks:             # <<<<<<<<<<<<<<
- *                     can_skip = not main_debugger.plugin.can_not_skip(main_debugger, None, <object> frame_obj)
+ *                     can_skip = not main_debugger.plugin.can_not_skip(main_debugger, <object> frame_obj)
  * 
  */
         __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_has_plugin_line_breaks); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 319, __pyx_L23_error)
@@ -6759,7 +6759,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
           /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":320
  * 
  *                 if main_debugger.has_plugin_line_breaks:
- *                     can_skip = not main_debugger.plugin.can_not_skip(main_debugger, None, <object> frame_obj)             # <<<<<<<<<<<<<<
+ *                     can_skip = not main_debugger.plugin.can_not_skip(main_debugger, <object> frame_obj)             # <<<<<<<<<<<<<<
  * 
  *                     if not can_skip:
  */
@@ -6782,22 +6782,22 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
           }
           #if CYTHON_FAST_PYCALL
           if (PyFunction_Check(__pyx_t_9)) {
-            PyObject *__pyx_temp[4] = {__pyx_t_2, __pyx_v_main_debugger, Py_None, ((PyObject *)__pyx_v_frame_obj)};
-            __pyx_t_10 = __Pyx_PyFunction_FastCall(__pyx_t_9, __pyx_temp+1-__pyx_t_11, 3+__pyx_t_11); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 320, __pyx_L23_error)
+            PyObject *__pyx_temp[3] = {__pyx_t_2, __pyx_v_main_debugger, ((PyObject *)__pyx_v_frame_obj)};
+            __pyx_t_10 = __Pyx_PyFunction_FastCall(__pyx_t_9, __pyx_temp+1-__pyx_t_11, 2+__pyx_t_11); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 320, __pyx_L23_error)
             __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
             __Pyx_GOTREF(__pyx_t_10);
           } else
           #endif
           #if CYTHON_FAST_PYCCALL
           if (__Pyx_PyFastCFunction_Check(__pyx_t_9)) {
-            PyObject *__pyx_temp[4] = {__pyx_t_2, __pyx_v_main_debugger, Py_None, ((PyObject *)__pyx_v_frame_obj)};
-            __pyx_t_10 = __Pyx_PyCFunction_FastCall(__pyx_t_9, __pyx_temp+1-__pyx_t_11, 3+__pyx_t_11); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 320, __pyx_L23_error)
+            PyObject *__pyx_temp[3] = {__pyx_t_2, __pyx_v_main_debugger, ((PyObject *)__pyx_v_frame_obj)};
+            __pyx_t_10 = __Pyx_PyCFunction_FastCall(__pyx_t_9, __pyx_temp+1-__pyx_t_11, 2+__pyx_t_11); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 320, __pyx_L23_error)
             __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
             __Pyx_GOTREF(__pyx_t_10);
           } else
           #endif
           {
-            __pyx_t_8 = PyTuple_New(3+__pyx_t_11); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 320, __pyx_L23_error)
+            __pyx_t_8 = PyTuple_New(2+__pyx_t_11); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 320, __pyx_L23_error)
             __Pyx_GOTREF(__pyx_t_8);
             if (__pyx_t_2) {
               __Pyx_GIVEREF(__pyx_t_2); PyTuple_SET_ITEM(__pyx_t_8, 0, __pyx_t_2); __pyx_t_2 = NULL;
@@ -6805,12 +6805,9 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
             __Pyx_INCREF(__pyx_v_main_debugger);
             __Pyx_GIVEREF(__pyx_v_main_debugger);
             PyTuple_SET_ITEM(__pyx_t_8, 0+__pyx_t_11, __pyx_v_main_debugger);
-            __Pyx_INCREF(Py_None);
-            __Pyx_GIVEREF(Py_None);
-            PyTuple_SET_ITEM(__pyx_t_8, 1+__pyx_t_11, Py_None);
             __Pyx_INCREF(((PyObject *)__pyx_v_frame_obj));
             __Pyx_GIVEREF(((PyObject *)__pyx_v_frame_obj));
-            PyTuple_SET_ITEM(__pyx_t_8, 2+__pyx_t_11, ((PyObject *)__pyx_v_frame_obj));
+            PyTuple_SET_ITEM(__pyx_t_8, 1+__pyx_t_11, ((PyObject *)__pyx_v_frame_obj));
             __pyx_t_10 = __Pyx_PyObject_Call(__pyx_t_9, __pyx_t_8, NULL); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 320, __pyx_L23_error)
             __Pyx_GOTREF(__pyx_t_10);
             __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
@@ -6821,7 +6818,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
           __pyx_v_can_skip = (!__pyx_t_4);
 
           /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":322
- *                     can_skip = not main_debugger.plugin.can_not_skip(main_debugger, None, <object> frame_obj)
+ *                     can_skip = not main_debugger.plugin.can_not_skip(main_debugger, <object> frame_obj)
  * 
  *                     if not can_skip:             # <<<<<<<<<<<<<<
  *                         # if DEBUG:
@@ -6882,7 +6879,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
             __pyx_L46:;
 
             /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":322
- *                     can_skip = not main_debugger.plugin.can_not_skip(main_debugger, None, <object> frame_obj)
+ *                     can_skip = not main_debugger.plugin.can_not_skip(main_debugger, <object> frame_obj)
  * 
  *                     if not can_skip:             # <<<<<<<<<<<<<<
  *                         # if DEBUG:
@@ -6894,7 +6891,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  *             if not func_code_info.always_skip_code:
  * 
  *                 if main_debugger.has_plugin_line_breaks:             # <<<<<<<<<<<<<<
- *                     can_skip = not main_debugger.plugin.can_not_skip(main_debugger, None, <object> frame_obj)
+ *                     can_skip = not main_debugger.plugin.can_not_skip(main_debugger, <object> frame_obj)
  * 
  */
         }

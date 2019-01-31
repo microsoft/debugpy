@@ -1,12 +1,12 @@
-from _pydevd_bundle.pydevd_comm import CMD_SET_BREAK, CMD_ADD_EXCEPTION_BREAK
 import inspect
-from _pydevd_bundle.pydevd_constants import STATE_SUSPEND, dict_iter_items, DJANGO_SUSPEND, IS_PY2, get_current_thread_id
-from pydevd_file_utils import get_abs_path_real_path_and_base_from_file, normcase
-from _pydevd_bundle.pydevd_breakpoints import LineBreakpoint
-from _pydevd_bundle import pydevd_vars
 import traceback
+
 from _pydev_bundle import pydev_log
+from _pydevd_bundle.pydevd_breakpoints import LineBreakpoint
+from _pydevd_bundle.pydevd_comm import CMD_SET_BREAK, CMD_ADD_EXCEPTION_BREAK
+from _pydevd_bundle.pydevd_constants import STATE_SUSPEND, dict_iter_items, DJANGO_SUSPEND, IS_PY2
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, FCode, just_raised, ignore_exception_trace
+from pydevd_file_utils import get_abs_path_real_path_and_base_from_file, normcase
 
 IS_DJANGO18 = False
 IS_DJANGO19 = False
@@ -22,6 +22,7 @@ except:
 
 
 class DjangoLineBreakpoint(LineBreakpoint):
+
     def __init__(self, file, line, condition, func_name, expression, hit_condition=None, is_logpoint=False):
         self.file = file
         LineBreakpoint.__init__(self, line, condition, func_name, expression, hit_condition=hit_condition, is_logpoint=is_logpoint)
@@ -41,6 +42,7 @@ def add_line_breakpoint(plugin, pydb, type, file, line, condition, expression, f
         return breakpoint, pydb.django_breakpoints
     return None
 
+
 def add_exception_breakpoint(plugin, pydb, type, exception):
     if type == 'django':
         if not hasattr(pydb, 'django_exception_break'):
@@ -49,9 +51,11 @@ def add_exception_breakpoint(plugin, pydb, type, exception):
         return True
     return False
 
+
 def _init_plugin_breaks(pydb):
     pydb.django_exception_break = {}
     pydb.django_breakpoints = {}
+
 
 def remove_exception_breakpoint(plugin, pydb, type, exception):
     if type == 'django':
@@ -62,10 +66,12 @@ def remove_exception_breakpoint(plugin, pydb, type, exception):
             pass
     return False
 
+
 def get_breakpoints(plugin, pydb, type):
     if type == 'django-line':
         return pydb.django_breakpoints
     return None
+
 
 def _inherits(cls, *names):
     if cls.__name__ in names:
@@ -164,6 +170,7 @@ def _find_django_render_frame(frame):
 #=======================================================================================================================
 # Django Frame
 #=======================================================================================================================
+
 
 def _read_file(filename):
     # type: (str) -> str
@@ -281,6 +288,7 @@ def _get_template_line(frame):
 
 
 class DjangoTemplateFrame:
+
     def __init__(self, frame):
         file_name = _get_template_file_name(frame)
         self.back_context = frame.f_locals['context']
@@ -323,12 +331,12 @@ def _is_django_exception_break_context(frame):
         name = None
     return name in ['_resolve_lookup', 'find_template']
 
-
 #=======================================================================================================================
 # Django Step Commands
 #=======================================================================================================================
 
-def can_not_skip(plugin, main_debugger, pydb_frame, frame):
+
+def can_not_skip(plugin, main_debugger, frame):
     return main_debugger.django_breakpoints and _is_django_render_call(frame)
 
 
@@ -418,6 +426,7 @@ def suspend(plugin, main_debugger, thread, frame, bp_type):
     if bp_type == 'django':
         return suspend_django(main_debugger, thread, frame)
     return None
+
 
 def exception_break(plugin, main_debugger, pydb_frame, frame, args, arg):
     main_debugger = args[0]

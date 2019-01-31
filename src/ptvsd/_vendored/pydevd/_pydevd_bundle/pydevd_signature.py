@@ -4,17 +4,17 @@ try:
 except ImportError:
     pass
 else:
-    trace._warn = lambda *args: None   # workaround for http://bugs.python.org/issue17143 (PY-8706)
+    trace._warn = lambda *args: None  # workaround for http://bugs.python.org/issue17143 (PY-8706)
 
 import os
 from _pydevd_bundle.pydevd_comm import CMD_SIGNATURE_CALL_TRACE, NetCommand
 from _pydevd_bundle import pydevd_xml
 from _pydevd_bundle.pydevd_constants import xrange, dict_iter_items
-from _pydevd_bundle import pydevd_utils
 from _pydevd_bundle.pydevd_utils import get_clsname_for_code
 
 
 class Signature(object):
+
     def __init__(self, file, name):
         self.file = file
         self.name = name
@@ -24,7 +24,7 @@ class Signature(object):
 
     def add_arg(self, name, type):
         self.args.append((name, type))
-        self.args_str.append("%s:%s"%(name, type))
+        self.args_str.append("%s:%s" % (name, type))
 
     def set_args(self, frame, recursive=False):
         self.args = []
@@ -39,7 +39,7 @@ class Signature(object):
             self.add_arg(name, class_name)
 
     def __str__(self):
-        return "%s %s(%s)"%(self.file, self.name, ", ".join(self.args_str))
+        return "%s %s(%s)" % (self.file, self.name, ", ".join(self.args_str))
 
 
 def get_type_of_value(value, ignore_module_name=('__main__', '__builtin__', 'builtins'), recursive=False):
@@ -50,7 +50,7 @@ def get_type_of_value(value, ignore_module_name=('__main__', '__builtin__', 'bui
         class_name = tp.__name__
 
     if hasattr(tp, '__module__') and tp.__module__ and tp.__module__ not in ignore_module_name:
-        class_name = "%s.%s"%(tp.__module__, class_name)
+        class_name = "%s.%s" % (tp.__module__, class_name)
 
     if class_name == 'list':
         class_name = 'List'
@@ -62,7 +62,7 @@ def get_type_of_value(value, ignore_module_name=('__main__', '__builtin__', 'bui
         class_name = 'Dict'
         if len(value) > 0 and recursive:
             for (k, v) in dict_iter_items(value):
-                class_name += '[%s, %s]' % (get_type_of_value(k, recursive=recursive), 
+                class_name += '[%s, %s]' % (get_type_of_value(k, recursive=recursive),
                                             get_type_of_value(v, recursive=recursive))
                 break
         return class_name
@@ -85,12 +85,10 @@ def _modname(path):
 
 
 class SignatureFactory(object):
+
     def __init__(self):
         self._caller_cache = {}
         self.cache = CallSignatureCache()
-
-    def is_in_scope(self, filename):
-        return pydevd_utils.in_project_roots(filename)
 
     def create_signature(self, frame, filename, with_args=True):
         try:
@@ -103,8 +101,7 @@ class SignatureFactory(object):
             import traceback
             traceback.print_exc()
 
-
-    def file_module_function_of(self, frame): #this code is take from trace module and fixed to work with new-style classes
+    def file_module_function_of(self, frame):  # this code is take from trace module and fixed to work with new-style classes
         code = frame.f_code
         filename = code.co_filename
         if filename:
@@ -143,6 +140,7 @@ def get_frame_info(frame):
 
 
 class CallSignatureCache(object):
+
     def __init__(self):
         self.cache = {}
 
@@ -166,7 +164,7 @@ def create_signature_message(signature):
 
     for arg in signature.args:
         cmdTextList.append('<arg name="%s" type="%s"></arg>' % (pydevd_xml.make_valid_xml_value(arg[0]), pydevd_xml.make_valid_xml_value(arg[1])))
-        
+
     if signature.return_type is not None:
         cmdTextList.append('<return type="%s"></return>' % (pydevd_xml.make_valid_xml_value(signature.return_type)))
 
@@ -176,7 +174,7 @@ def create_signature_message(signature):
 
 
 def send_signature_call_trace(dbg, frame, filename):
-    if dbg.signature_factory and dbg.signature_factory.is_in_scope(filename):
+    if dbg.signature_factory and dbg.in_project_scope(filename):
         signature = dbg.signature_factory.create_signature(frame, filename)
         if signature is not None:
             if dbg.signature_factory.cache is not None:
@@ -194,13 +192,11 @@ def send_signature_call_trace(dbg, frame, filename):
 
 
 def send_signature_return_trace(dbg, frame, filename, return_value):
-    if dbg.signature_factory and dbg.signature_factory.is_in_scope(filename):
+    if dbg.signature_factory and dbg.in_project_scope(filename):
         signature = dbg.signature_factory.create_signature(frame, filename, with_args=False)
         signature.return_type = get_type_of_value(return_value, recursive=True)
         dbg.writer.add_command(create_signature_message(signature))
         return True
 
     return False
-
-
 

@@ -64,7 +64,7 @@ def test_to_server_and_to_client(tmpdir):
                     ('c:\\foo\\', 'c:\\bar'),
                     ('c:/foo/', 'c:\\bar'),
                     ('c:\\foo\\', 'c:/bar'),
-                    
+
                 ]):
                 PATHS_FROM_ECLIPSE_TO_PYTHON = [
                     (in_eclipse, in_python)
@@ -86,7 +86,7 @@ def test_to_server_and_to_client(tmpdir):
                     ('/foo/', 'c:\\bar'),
                     ('/foo/', 'c:\\bar\\'),
                 ]):
-                
+
                 PATHS_FROM_ECLIPSE_TO_PYTHON = [
                     (in_eclipse, in_python)
                 ]
@@ -142,25 +142,30 @@ def test_to_server_and_to_client(tmpdir):
             # Client on windows and server on unix
             pydevd_file_utils.set_ide_os('WINDOWS')
             for in_eclipse, in_python  in ([
-                    ('c:\\foo', '/bar'),
-                    ('c:/foo', '/bar'),
-                    ('c:/foo/', '/bar'),
+                    ('c:\\foo', '/báéíóúr'),
+                    ('c:/foo', '/báéíóúr'),
+                    ('c:/foo/', '/báéíóúr'),
+                    ('c:/foo/', '/báéíóúr/'),
+                    ('c:\\foo\\', '/báéíóúr/'),
                 ]):
-                
+
                 PATHS_FROM_ECLIPSE_TO_PYTHON = [
                     (in_eclipse, in_python)
                 ]
 
                 pydevd_file_utils.setup_client_server_paths(PATHS_FROM_ECLIPSE_TO_PYTHON)
-                assert pydevd_file_utils.norm_file_to_server('c:\\foo\\my') == '/bar/my'
-                assert pydevd_file_utils.norm_file_to_server('c:/foo/my') == '/bar/my'
-                assert pydevd_file_utils.norm_file_to_server('c:\\foo\\my\\') == '/bar/my'
-                assert pydevd_file_utils.norm_file_to_server('c:/foo/my/') == '/bar/my'
-                
-                assert pydevd_file_utils.norm_file_to_client('/bar/my') == 'c:\\foo\\my'
-                assert pydevd_file_utils.norm_file_to_client('/bar/my/') == 'c:\\foo\\my'
-    
+                assert pydevd_file_utils.norm_file_to_server('c:\\foo\\my') == '/báéíóúr/my'
+                assert pydevd_file_utils.norm_file_to_server('c:\\foo\\my\\file.py') == '/báéíóúr/my/file.py'
+                assert pydevd_file_utils.norm_file_to_server('c:\\foo\\my\\other\\file.py') == '/báéíóúr/my/other/file.py'
+                assert pydevd_file_utils.norm_file_to_server('c:/foo/my') == '/báéíóúr/my'
+                assert pydevd_file_utils.norm_file_to_server('c:\\foo\\my\\') == '/báéíóúr/my'
+                assert pydevd_file_utils.norm_file_to_server('c:/foo/my/') == '/báéíóúr/my'
+
+                assert pydevd_file_utils.norm_file_to_client('/báéíóúr/my') == 'c:\\foo\\my'
+                assert pydevd_file_utils.norm_file_to_client('/báéíóúr/my/') == 'c:\\foo\\my'
+
                 # Files for which there's no translation have only their separators updated.
+                assert pydevd_file_utils.norm_file_to_client('/usr/bin/x.py') == '\\usr\\bin\\x.py'
                 assert pydevd_file_utils.norm_file_to_client('/usr/bin') == '\\usr\\bin'
                 assert pydevd_file_utils.norm_file_to_client('/usr/bin/') == '\\usr\\bin'
                 assert pydevd_file_utils.norm_file_to_server('\\usr\\bin') == '/usr/bin'
@@ -169,13 +174,13 @@ def test_to_server_and_to_client(tmpdir):
             # Client and server on unix
             pydevd_file_utils.set_ide_os('UNIX')
             in_eclipse = '/foo'
-            in_python = '/bar'
+            in_python = '/báéíóúr'
             PATHS_FROM_ECLIPSE_TO_PYTHON = [
                 (in_eclipse, in_python)
             ]
             pydevd_file_utils.setup_client_server_paths(PATHS_FROM_ECLIPSE_TO_PYTHON)
-            assert pydevd_file_utils.norm_file_to_server('/foo/my') == '/bar/my'
-            assert pydevd_file_utils.norm_file_to_client('/bar/my') == '/foo/my'
+            assert pydevd_file_utils.norm_file_to_server('/foo/my') == '/báéíóúr/my'
+            assert pydevd_file_utils.norm_file_to_client('/báéíóúr/my') == '/foo/my'
     finally:
         pydevd_file_utils.setup_client_server_paths([])
 

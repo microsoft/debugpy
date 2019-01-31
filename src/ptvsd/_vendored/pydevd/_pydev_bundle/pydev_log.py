@@ -3,10 +3,10 @@ from _pydevd_bundle.pydevd_constants import DebugInfoHolder
 from _pydev_imps._pydev_saved_modules import threading
 currentThread = threading.currentThread
 
-
 import traceback
 
 WARN_ONCE_MAP = {}
+
 
 def stderr_write(message):
     sys.stderr.write(message)
@@ -14,12 +14,12 @@ def stderr_write(message):
 
 
 def debug(message):
-    if DebugInfoHolder.DEBUG_TRACE_LEVEL>2:
+    if DebugInfoHolder.DEBUG_TRACE_LEVEL > 2:
         stderr_write(message)
 
 
 def warn(message):
-    if DebugInfoHolder.DEBUG_TRACE_LEVEL>1:
+    if DebugInfoHolder.DEBUG_TRACE_LEVEL > 1:
         stderr_write(message)
 
 

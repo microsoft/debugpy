@@ -1,8 +1,11 @@
+import pytest
+
+from _pydevd_bundle._debug_adapter import pydevd_schema, pydevd_base_schema
 from _pydevd_bundle._debug_adapter.pydevd_base_schema import from_json
 from _pydevd_bundle._debug_adapter.pydevd_schema import ThreadEvent
-from tests_python.debugger_unittest import IS_JYTHON
-import pytest
-from _pydevd_bundle._debug_adapter import pydevd_schema, pydevd_base_schema
+from tests_python import debugger_unittest
+from tests_python.debugger_unittest import IS_JYTHON, REASON_STEP_INTO, REASON_STEP_OVER
+import json
 
 pytest_plugins = [
     str('tests_python.debugger_fixtures'),
@@ -31,16 +34,24 @@ class JsonFacade(object):
         response_class = pydevd_base_schema.get_response_class(request)
 
         def accept_message(response):
-            if response.request_seq == request.seq:
-                return True
+            if isinstance(request, dict):
+                if response.request_seq == request['seq']:
+                    return True
+            else:
+                if response.request_seq == request.seq:
+                    return True
             return False
 
         return self.wait_for_json_message(response_class, accept_message)
 
     def write_request(self, request):
         seq = self.writer.next_seq()
-        request.seq = seq
-        self.writer.write_with_content_len(request.to_json())
+        if isinstance(request, dict):
+            request['seq'] = seq
+            self.writer.write_with_content_len(json.dumps(request))
+        else:
+            request.seq = seq
+            self.writer.write_with_content_len(request.to_json())
         return request
 
     def write_make_initial_run(self):
@@ -91,9 +102,9 @@ class JsonFacade(object):
         lines_in_response = [b['line'] for b in body.breakpoints]
         assert set(lines_in_response) == set(lines)
 
-    def write_launch(self):
-        arguments = pydevd_schema.LaunchRequestArguments(noDebug=False)
-        request = pydevd_schema.LaunchRequest(arguments)
+    def write_launch(self, **arguments):
+        arguments['noDebug'] = False
+        request = {'type': 'request', 'command': 'launch', 'arguments': arguments, 'seq':-1}
         self.wait_for_response(self.write_request(request))
 
     def write_disconnect(self):
@@ -150,6 +161,105 @@ def test_case_json_protocol(case_setup):
         writer.finished_ok = True
 
 
+@pytest.mark.parametrize("custom_setup", [
+    'set_exclude_launch_module_full',
+    'set_exclude_launch_module_prefix',
+    'set_exclude_launch_path_match_filename',
+    'set_exclude_launch_path_match_folder',
+    'set_just_my_code',
+    'set_just_my_code_and_include',
+])
+def test_case_skipping_filters(case_setup, custom_setup):
+    with case_setup.test_file('my_code/my_code.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_set_protocol('http_json')
+        if custom_setup == 'set_exclude_launch_path_match_filename':
+            json_facade.write_launch(
+                debugStdLib=True,
+                rules=[
+                    {'path': '**/other.py', 'include':False},
+                ]
+            )
+
+        elif custom_setup == 'set_exclude_launch_path_match_folder':
+            json_facade.write_launch(
+                debugStdLib=True,
+                rules=[
+                    {'path': debugger_unittest._get_debugger_test_file('not_my_code'), 'include':False},
+                ]
+            )
+
+        elif custom_setup == 'set_exclude_launch_module_full':
+            json_facade.write_launch(
+                debugStdLib=True,
+                rules=[
+                    {'module': 'not_my_code.other', 'include':False},
+                ]
+            )
+
+        elif custom_setup == 'set_exclude_launch_module_prefix':
+            json_facade.write_launch(
+                debugStdLib=True,
+                rules=[
+                    {'module': 'not_my_code', 'include':False},
+                ]
+            )
+
+        elif custom_setup == 'set_just_my_code':
+            writer.write_set_project_roots([debugger_unittest._get_debugger_test_file('my_code')])
+            json_facade.write_launch(debugStdLib=False)
+
+        elif custom_setup == 'set_just_my_code_and_include':
+            # I.e.: nothing in my_code (add it with rule).
+            writer.write_set_project_roots([debugger_unittest._get_debugger_test_file('launch')])
+            json_facade.write_launch(
+                debugStdLib=False,
+                rules=[
+                    {'module': '__main__', 'include':True},
+                ]
+            )
+
+        else:
+            raise AssertionError('Unhandled: %s' % (custom_setup,))
+
+        json_facade.write_add_breakpoints(writer.get_line_index_with_content('break here'))
+        json_facade.write_make_initial_run()
+
+        json_facade.wait_for_json_message(ThreadEvent, lambda event: event.body.reason == 'started')
+
+        hit = writer.wait_for_breakpoint_hit()
+
+        writer.write_step_in(hit.thread_id)
+        hit = writer.wait_for_breakpoint_hit(reason=REASON_STEP_INTO)
+        assert hit.name == 'callback1'
+
+        writer.write_step_in(hit.thread_id)
+        hit = writer.wait_for_breakpoint_hit(reason=REASON_STEP_INTO)
+        assert hit.name == 'callback2'
+
+        writer.write_step_over(hit.thread_id)
+        hit = writer.wait_for_breakpoint_hit(reason=REASON_STEP_INTO)  # Note: goes from step over to step into
+        assert hit.name == 'callback1'
+
+        writer.write_step_over(hit.thread_id)
+        hit = writer.wait_for_breakpoint_hit(reason=REASON_STEP_INTO)  # Note: goes from step over to step into
+        assert hit.name == '<module>'
+
+        writer.write_step_over(hit.thread_id)
+        hit = writer.wait_for_breakpoint_hit(reason=REASON_STEP_OVER)
+        assert hit.name == '<module>'
+
+        writer.write_step_over(hit.thread_id)
+
+        if IS_JYTHON:
+            writer.write_run_thread(hit.thread_id)
+        else:
+            writer.write_step_over(hit.thread_id)
+
+        writer.finished_ok = True
+
+
 def test_case_completions_json(case_setup):
     with case_setup.test_file('_debugger_case_print.py') as writer:
         json_facade = JsonFacade(writer)
@@ -188,3 +298,8 @@ def test_case_completions_json(case_setup):
         writer.write_run_thread(thread_id)
 
         writer.finished_ok = True
+
+
+if __name__ == '__main__':
+    pytest.main(['-k', 'test_case_skipping_filters', '-s'])
+

@@ -5,13 +5,14 @@ from _pydev_imps._pydev_saved_modules import threading
 from _pydevd_bundle.pydevd_constants import get_current_thread_id, IS_IRONPYTHON, NO_FTRACE
 from _pydevd_bundle.pydevd_kill_all_pydevd_threads import kill_all_pydev_threads
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame, NORM_PATHS_AND_BASE_CONTAINER
+from _pydevd_bundle.pydevd_comm_constants import CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_OVER, \
+    CMD_STEP_OVER_MY_CODE, CMD_STEP_RETURN, CMD_STEP_RETURN_MY_CODE
 # IFDEF CYTHON
 # from cpython.object cimport PyObject
 # from cpython.ref cimport Py_INCREF, Py_XDECREF
 # ELSE
 from _pydevd_bundle.pydevd_frame import PyDBFrame
 # ENDIF
-
 
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
 # cdef dict global_cache_skips
@@ -388,9 +389,22 @@ class ThreadTracer(object):
             # Note: it's important that the context name is also given because we may hit something once
             # in the global context and another in the local context.
             frame_cache_key = (frame.f_code.co_firstlineno, frame.f_code.co_name, frame.f_code.co_filename)
-            if not is_stepping and frame_cache_key in cache_skips:
-                # if DEBUG: print('skipped: trace_dispatch (cache hit)', frame_cache_key, frame.f_lineno, event, frame.f_code.co_name)
-                return None if event == 'call' else NO_FTRACE
+            if frame_cache_key in cache_skips:
+                if not is_stepping:
+                    # if DEBUG: print('skipped: trace_dispatch (cache hit)', frame_cache_key, frame.f_lineno, event, frame.f_code.co_name)
+                    return None if event == 'call' else NO_FTRACE
+                else:
+                    # When stepping we can't take into account caching based on the breakpoints (only global filtering).
+                    if cache_skips.get(frame_cache_key) == 1:
+                        back_frame = frame.f_back
+                        if back_frame is not None and pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_RETURN, CMD_STEP_RETURN_MY_CODE):
+                            back_frame_cache_key = (back_frame.f_code.co_firstlineno, back_frame.f_code.co_name, back_frame.f_code.co_filename)
+                            if cache_skips.get(back_frame_cache_key) == 1:
+                                # if DEBUG: print('skipped: trace_dispatch (cache hit: 1)', frame_cache_key, frame.f_lineno, event, frame.f_code.co_name)
+                                return None if event == 'call' else NO_FTRACE
+                        else:
+                            # if DEBUG: print('skipped: trace_dispatch (cache hit: 2)', frame_cache_key, frame.f_lineno, event, frame.f_code.co_name)
+                            return None if event == 'call' else NO_FTRACE
 
             try:
                 # Make fast path faster!
@@ -412,13 +426,20 @@ class ThreadTracer(object):
                     cache_skips[frame_cache_key] = 1
                     return None if event == 'call' else NO_FTRACE
 
-            if is_stepping:
-                if py_db.is_filter_enabled and py_db.is_ignored_by_filters(filename):
-                    # ignore files matching stepping filters
-                    return None if event == 'call' else NO_FTRACE
-                if py_db.is_filter_libraries and not py_db.in_project_scope(filename):
-                    # ignore library files while stepping
-                    return None if event == 'call' else NO_FTRACE
+            if py_db.is_files_filter_enabled:
+                if py_db.apply_files_filter(frame, filename, False):
+                    cache_skips[frame_cache_key] = 1
+                    # A little gotcha, sometimes when we're stepping in we have to stop in a
+                    # return event showing the back frame as the current frame, so, we need
+                    # to check not only the current frame but the back frame too.
+                    back_frame = frame.f_back
+                    if back_frame is not None and pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_RETURN, CMD_STEP_RETURN_MY_CODE):
+                        if py_db.apply_files_filter(back_frame, back_frame.f_code.co_filename, False):
+                            back_frame_cache_key = (back_frame.f_code.co_firstlineno, back_frame.f_code.co_name, back_frame.f_code.co_filename)
+                            cache_skips[back_frame_cache_key] = 1
+                            return None if event == 'call' else NO_FTRACE
+                    else:
+                        return None if event == 'call' else NO_FTRACE
 
             # if DEBUG: print('trace_dispatch', filename, frame.f_lineno, event, frame.f_code.co_name, file_type)
             if additional_info.is_tracing:
@@ -432,7 +453,9 @@ class ThreadTracer(object):
                 )
             ).trace_dispatch(frame, event, arg)
             if ret is None:
-                cache_skips[frame_cache_key] = 1
+                # 1 means skipped because of filters.
+                # 2 means skipped because no breakpoints were hit.
+                cache_skips[frame_cache_key] = 2
                 return None if event == 'call' else NO_FTRACE
 
             # IFDEF CYTHON

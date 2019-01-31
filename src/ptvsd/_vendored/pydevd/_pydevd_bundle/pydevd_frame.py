@@ -36,9 +36,6 @@ DEBUG_START_PY3K = ('_pydev_execfile.py', 'execfile')
 TRACE_PROPERTY = 'pydevd_traceproperty.py'
 
 
-
-
-
 #=======================================================================================================================
 # PyDBFrame
 #=======================================================================================================================
@@ -444,7 +441,7 @@ class PyDBFrame:
 
                     if can_skip:
                         if plugin_manager is not None and main_debugger.has_plugin_line_breaks:
-                            can_skip = not plugin_manager.can_not_skip(main_debugger, self, frame)
+                            can_skip = not plugin_manager.can_not_skip(main_debugger, frame)
 
                         # CMD_STEP_OVER = 108, CMD_STEP_OVER_MY_CODE = 159
                         if can_skip and main_debugger.show_return_values and info.pydev_step_cmd in (108, 159) and frame.f_back is info.pydev_step_stop:
@@ -557,18 +554,8 @@ class PyDBFrame:
                         #
                         # As for lambda, as it only has a single statement, it's not interesting to trace
                         # its call and later its line event as they're usually in the same line.
-                        return self.trace_dispatch
 
-                else:
-                    # if the frame is traced after breakpoint stop,
-                    # but the file should be ignored while stepping because of filters
-                    if step_cmd != -1:
-                        if main_debugger.is_filter_enabled and main_debugger.is_ignored_by_filters(filename):
-                            # ignore files matching stepping filters
-                            return self.trace_dispatch
-                        if main_debugger.is_filter_libraries and not main_debugger.in_project_scope(filename):
-                            # ignore library files while stepping
-                            return self.trace_dispatch
+                        return self.trace_dispatch
 
                 if main_debugger.show_return_values:
                     if is_return and info.pydev_step_cmd in (CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE) and frame.f_back == info.pydev_step_stop:
@@ -625,30 +612,23 @@ class PyDBFrame:
                 if should_skip:
                     stop = False
 
-                elif step_cmd == CMD_STEP_INTO:
+                elif step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE):
+                    force_check_project_scope = step_cmd == CMD_STEP_INTO_MY_CODE
                     if is_line:
-                        stop = True
-                    elif is_return:
-                        if frame.f_back is not None:
-                            if main_debugger.get_file_type(
-                                    get_abs_path_real_path_and_base_from_frame(frame.f_back)) == main_debugger.PYDEV_FILE:
-                                stop = False
+                        if force_check_project_scope or main_debugger.is_files_filter_enabled:
+                            stop = not main_debugger.apply_files_filter(frame, frame.f_code.co_filename, force_check_project_scope)
+                        else:
+                            stop = True
+
+                    elif is_return and frame.f_back is not None:
+                        if main_debugger.get_file_type(
+                                get_abs_path_real_path_and_base_from_frame(frame.f_back)) == main_debugger.PYDEV_FILE:
+                            stop = False
+                        else:
+                            if force_check_project_scope or main_debugger.is_files_filter_enabled:
+                                stop = not main_debugger.apply_files_filter(frame.f_back, frame.f_back.f_code.co_filename, force_check_project_scope)
                             else:
                                 stop = True
-                    if plugin_manager is not None:
-                        result = plugin_manager.cmd_step_into(main_debugger, frame, event, self._args, stop_info, stop)
-                        if result:
-                            stop, plugin_stop = result
-
-                elif step_cmd == CMD_STEP_INTO_MY_CODE:
-                    if is_line:
-                        if main_debugger.in_project_scope(frame.f_code.co_filename):
-                            stop = True
-                    elif is_return and frame.f_back is not None:
-                        if main_debugger.in_project_scope(frame.f_back.f_code.co_filename):
-                            stop = True
-                    else:
-                        stop = False
 
                     if plugin_manager is not None:
                         result = plugin_manager.cmd_step_into(main_debugger, frame, event, self._args, stop_info, stop)

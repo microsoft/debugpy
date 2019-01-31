@@ -318,7 +318,6 @@ def change_attr_expression(thread_id, frame_id, attr, expression, dbg, value=SEN
             Exec('%s=%s' % (attr, expression), frame.f_globals, frame.f_locals)
             return result
 
-
     except Exception:
         traceback.print_exc()
 
@@ -450,7 +449,6 @@ def array_to_meta_xml(array, name, format):
     xml = '<array slice=\"%s\" rows=\"%s\" cols=\"%s\" format=\"%s\" type=\"%s\" max=\"%s\" min=\"%s\"/>' % \
           (slice, rows, cols, format, type, bounds[1], bounds[0])
     return array, xml, rows, cols, format
-
 
 
 def dataframe_to_xml(df, name, roffset, coffset, rows, cols, format):

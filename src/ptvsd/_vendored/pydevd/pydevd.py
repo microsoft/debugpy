@@ -25,6 +25,7 @@ from _pydev_imps._pydev_saved_modules import thread
 from _pydev_imps._pydev_saved_modules import threading
 from _pydev_imps._pydev_saved_modules import time
 from _pydevd_bundle import pydevd_extension_utils
+from _pydevd_bundle.pydevd_filtering import FilesFiltering
 from _pydevd_bundle import pydevd_io, pydevd_vm_type
 from _pydevd_bundle import pydevd_utils
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
@@ -102,9 +103,9 @@ def install_breakpointhook(pydevd_breakpointhook=None):
         sys.breakpointhook = pydevd_breakpointhook
     else:
         if sys.version_info[0] >= 3:
-            import builtins as __builtin__  # Py3
+            import builtins as __builtin__  # Py3 noqa
         else:
-            import __builtin__
+            import __builtin__  # noqa
 
         # In older versions, breakpoint() isn't really available, so, install the hook directly
         # in the builtins.
@@ -359,6 +360,7 @@ class PyDB(object):
         self.cmd_factory = NetCommandFactory()
         self._cmd_queue = defaultdict(_queue.Queue)  # Key is thread id or '*', value is Queue
         self.suspended_frames_manager = SuspendedFramesManager()
+        self._files_filtering = FilesFiltering()
 
         self.breakpoints = {}
 
@@ -422,8 +424,9 @@ class PyDB(object):
 
         self._filename_to_not_in_scope = {}
         self.first_breakpoint_reached = False
-        self.is_filter_enabled = pydevd_utils.is_filter_enabled()
-        self.is_filter_libraries = pydevd_utils.is_filter_libraries()
+        self._exclude_filters_enabled = self._files_filtering.use_exclude_filters()
+        self._is_libraries_filter_enabled = self._files_filtering.use_libraries_filter()
+        self.is_files_filter_enabled = self._exclude_filters_enabled or self._is_libraries_filter_enabled
         self.show_return_values = False
         self.remove_return_values_flag = False
         self.redirect_output = False
@@ -452,7 +455,7 @@ class PyDB(object):
             self.threading_active = threading._active
         except:
             try:
-                self.threading_get_ident = threading._get_ident  # Python 2
+                self.threading_get_ident = threading._get_ident  # Python 2 noqa
                 self.threading_active = threading._active
             except:
                 self.threading_get_ident = None  # Jython
@@ -465,13 +468,17 @@ class PyDB(object):
         self._dont_trace_get_file_type = DONT_TRACE.get
         self.PYDEV_FILE = PYDEV_FILE
 
+        self._in_project_scope_cache = {}
+        self._exclude_by_filter_cache = {}
+        self._apply_filter_cache = {}
+
     def add_fake_frame(self, thread_id, frame_id, frame):
         self.suspended_frames_manager.add_fake_frame(thread_id, frame_id, frame)
 
-    def handle_breakpoint_condition(self, info, breakpoint, new_frame):
-        condition = breakpoint.condition
+    def handle_breakpoint_condition(self, info, pybreakpoint, new_frame):
+        condition = pybreakpoint.condition
         try:
-            if breakpoint.handle_hit_condition(new_frame):
+            if pybreakpoint.handle_hit_condition(new_frame):
                 return True
 
             if condition is None:
@@ -481,7 +488,7 @@ class PyDB(object):
         except Exception as e:
             if IS_PY2:
                 # Must be bytes on py2.
-                if isinstance(condition, unicode):
+                if isinstance(condition, unicode):  # noqa
                     condition = condition.encode('utf-8')
 
             if not isinstance(e, self.skip_print_breakpoint_exception):
@@ -510,10 +517,10 @@ class PyDB(object):
         finally:
             etype, value, tb = None, None, None
 
-    def handle_breakpoint_expression(self, breakpoint, info, new_frame):
+    def handle_breakpoint_expression(self, pybreakpoint, info, new_frame):
         try:
             try:
-                val = eval(breakpoint.expression, new_frame.f_globals, new_frame.f_locals)
+                val = eval(pybreakpoint.expression, new_frame.f_globals, new_frame.f_locals)
             except:
                 val = sys.exc_info()[1]
         finally:
@@ -628,21 +635,101 @@ class PyDB(object):
             self.plugin = PluginManager(self)
         return self.plugin
 
-    def in_project_scope(self, filename, cache={}):
+    def in_project_scope(self, filename):
         try:
-            return cache[filename]
+            return self._in_project_scope_cache[filename]
         except KeyError:
+            cache = self._in_project_scope_cache
             abs_real_path_and_basename = get_abs_path_real_path_and_base_from_file(filename)
-            # pydevd files are nevere considered to be in the project scope.
+            # pydevd files are never considered to be in the project scope.
             if self.get_file_type(abs_real_path_and_basename) == self.PYDEV_FILE:
                 cache[filename] = False
             else:
-                cache[filename] = pydevd_utils.in_project_roots(filename)
+                cache[filename] = self._files_filtering.in_project_roots(filename)
 
             return cache[filename]
 
-    def is_ignored_by_filters(self, filename):
-        return pydevd_utils.is_ignored_by_filter(filename)
+    def _clear_filters_caches(self):
+        self._in_project_scope_cache.clear()
+        self._exclude_by_filter_cache.clear()
+        self._apply_filter_cache.clear()
+        self._exclude_filters_enabled = self._files_filtering.use_exclude_filters()
+        self._is_libraries_filter_enabled = self._files_filtering.use_libraries_filter()
+        self.is_files_filter_enabled = self._exclude_filters_enabled or self._is_libraries_filter_enabled
+
+    def _exclude_by_filter(self, frame, filename):
+        '''
+        :param str filename:
+            The filename to filter.
+
+        :return: True if it should be excluded, False if it should be included and None
+            if no rule matched the given file.
+        '''
+        try:
+            return self._exclude_by_filter_cache[filename]
+        except KeyError:
+            cache = self._exclude_by_filter_cache
+
+            abs_real_path_and_basename = get_abs_path_real_path_and_base_from_file(filename)
+            # pydevd files are always filtered out
+            if self.get_file_type(abs_real_path_and_basename) == self.PYDEV_FILE:
+                cache[filename] = True
+            else:
+                module_name = None
+                if self._files_filtering.require_module:
+                    module_name = frame.f_globals.get('__name__')
+                cache[filename] = self._files_filtering.exclude_by_filter(filename, module_name)
+
+            return cache[filename]
+
+    def apply_files_filter(self, frame, filename, force_check_project_scope):
+        '''
+        Should only be called if `self.is_files_filter_enabled == True`.
+
+        Note that it covers both the filter by specific paths includes/excludes as well
+        as the check which filters out libraries if not in the project scope.
+
+        :param force_check_project_scope:
+            Check that the file is in the project scope even if the global setting
+            is off.
+
+        :return bool:
+            True if it should be excluded when stepping and False if it should be
+            included.
+        '''
+        cache_key = (frame.f_code.co_firstlineno, frame.f_code.co_name, filename, force_check_project_scope)
+        try:
+            return self._apply_filter_cache[cache_key]
+        except KeyError:
+            if self.plugin is not None and self.has_plugin_line_breaks:
+                # If it's explicitly needed by some plugin, we can't skip it.
+                if self.plugin.can_not_skip(self, frame):
+                    # print('include (include by plugins): %s' % filename)
+                    self._apply_filter_cache[cache_key] = False
+                    return False
+
+            if self._exclude_filters_enabled:
+                exclude_by_filter = self._exclude_by_filter(frame, filename)
+                if exclude_by_filter is not None:
+                    if exclude_by_filter:
+                        # ignore files matching stepping filters
+                        # print('exclude (filtered out): %s' % filename)
+                        self._apply_filter_cache[cache_key] = True
+                        return True
+                    else:
+                        # print('include (explicitly included): %s' % filename)
+                        self._apply_filter_cache[cache_key] = False
+                        return False
+
+            if (self._is_libraries_filter_enabled or force_check_project_scope) and not self.in_project_scope(filename):
+                # print('exclude (not on project): %s' % filename)
+                # ignore library files while stepping
+                self._apply_filter_cache[cache_key] = True
+                return True
+
+            # print('include (on project): %s' % filename)
+            self._apply_filter_cache[cache_key] = False
+            return False
 
     def is_exception_trace_in_project_scope(self, trace):
         if trace is None or not self.in_project_scope(trace.tb_frame.f_code.co_filename):
@@ -654,6 +741,21 @@ class PyDB(object):
                     return False
                 trace = trace.tb_next
             return True
+
+    def set_project_roots(self, project_roots):
+        self._files_filtering.set_project_roots(project_roots)
+        self._clear_skip_caches()
+        self._clear_filters_caches()
+
+    def set_exclude_filters(self, exclude_filters):
+        self._files_filtering.set_exclude_filters(exclude_filters)
+        self._clear_skip_caches()
+        self._clear_filters_caches()
+
+    def set_use_libraries_filter(self, use_libraries_filter):
+        self._files_filtering.set_use_libraries_filter(use_libraries_filter)
+        self._clear_skip_caches()
+        self._clear_filters_caches()
 
     def has_threads_alive(self):
         for t in pydevd_utils.get_non_pydevd_threads():
@@ -905,13 +1007,13 @@ class PyDB(object):
 
     def consolidate_breakpoints(self, file, id_to_breakpoint, breakpoints):
         break_dict = {}
-        for breakpoint_id, pybreakpoint in dict_iter_items(id_to_breakpoint):
+        for _breakpoint_id, pybreakpoint in dict_iter_items(id_to_breakpoint):
             break_dict[pybreakpoint.line] = pybreakpoint
 
         breakpoints[file] = break_dict
-        self.clear_skip_caches()
+        self._clear_skip_caches()
 
-    def clear_skip_caches(self):
+    def _clear_skip_caches(self):
         global_cache_skips.clear()
         global_cache_frame_skips.clear()
 
@@ -1196,7 +1298,7 @@ class PyDB(object):
             stop = False
             response_msg = ""
             try:
-                stop, old_line, response_msg = self.set_next_statement(frame, event, info.pydev_func_name, info.pydev_next_line)
+                stop, _old_line, response_msg = self.set_next_statement(frame, event, info.pydev_func_name, info.pydev_next_line)
             except ValueError as e:
                 response_msg = "%s" % e
             finally:
@@ -1227,13 +1329,15 @@ class PyDB(object):
 
         elif info.pydev_step_cmd in (CMD_STEP_RETURN, CMD_STEP_RETURN_MY_CODE):
             back_frame = frame.f_back
-            if info.pydev_step_cmd == CMD_STEP_RETURN_MY_CODE:
+            force_check_project_scope = info.pydev_step_cmd == CMD_STEP_RETURN_MY_CODE
+
+            if force_check_project_scope or self.is_files_filter_enabled:
                 while back_frame is not None:
-                    if self.in_project_scope(back_frame.f_code.co_filename):
-                        break
-                    else:
+                    if self.apply_files_filter(back_frame, back_frame.f_code.co_filename, force_check_project_scope):
                         frame = back_frame
                         back_frame = back_frame.f_back
+                    else:
+                        break
 
             if back_frame is not None:
                 # steps back to the same frame (in a return call it will stop in the 'back frame' for the user)
@@ -1571,7 +1675,7 @@ class _CustomWriter(object):
         if s:
             if IS_PY2:
                 # Need s in bytes
-                if isinstance(s, unicode):
+                if isinstance(s, unicode):  # noqa
                     # Note: python 2.6 does not accept the "errors" keyword.
                     s = s.encode('utf-8', 'replace')
             else:

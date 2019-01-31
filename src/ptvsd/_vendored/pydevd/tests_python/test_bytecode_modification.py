@@ -451,7 +451,6 @@ class TestInsertCode(unittest.TestCase):
             self.check_insert_to_line_by_symbols(foo, call_tracing, foo.__code__.co_firstlineno + 2,
                                                  check_line_2.__code__)
 
-
         finally:
             sys.stdout = self.original_stdout
 
