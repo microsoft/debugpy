@@ -1213,7 +1213,7 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         multiproc.root_start_request = request
         self.start_reason = 'attach'
         self._set_debug_options(args)
-        self._handle_attach(request, args)
+        self._handle_launch_or_attach(request, args)
         self.send_response(request)
 
     def on_launch(self, request, args):
@@ -1221,7 +1221,7 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         self.start_reason = 'launch'
         self._set_debug_options(args)
         self._notify_launch()
-        self._handle_launch(request, args)
+        self._handle_launch_or_attach(request, args)
         self.send_response(request)
 
     def on_disconnect(self, request, args):
@@ -1302,10 +1302,7 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
     def _handle_configurationDone(self, request, args):
         pass
 
-    def _handle_attach(self, request, args):
-        pass
-
-    def _handle_launch(self, request, args):
+    def _handle_launch_or_attach(self, request, args):
         pass
 
     def _handle_detach(self):
@@ -1356,6 +1353,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         # adapter state
         self.path_casing = PathUnNormcase()
         self._detached = False
+        self._path_mappings_received = False
+        self._path_mappings_applied = False
 
     def _start_event_loop(self):
         self.loop = futures.EventLoop()
@@ -1609,6 +1608,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         if len(self._path_mappings) > 0:
             pydevd_file_utils.setup_client_server_paths(self._path_mappings)
 
+        self._path_mappings_applied = True
+
     def _send_cmd_version_command(self):
         cmd = pydevd_comm.CMD_VERSION
         default_os_type = 'WINDOWS' if platform.system() == 'Windows' else 'UNIX'
@@ -1618,18 +1619,9 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         return self.pydevd_request(cmd, msg)
 
     @async_handler
-    def _handle_attach(self, request, args):
-        self.pydevd_request(pydevd_comm.CMD_SET_PROTOCOL, 'json')
-        yield self._send_cmd_version_command()
+    def _handle_launch_or_attach(self, request, args):
+        self._path_mappings_received = True
 
-        pydevd_request = copy.deepcopy(request)
-        del pydevd_request['seq']  # A new seq should be created for pydevd.
-        yield self.pydevd_request(-1, pydevd_request, is_json=True)
-
-        self._initialize_path_maps(args)
-
-    @async_handler
-    def _handle_launch(self, request, args):
         self.pydevd_request(pydevd_comm.CMD_SET_PROTOCOL, 'json')
         yield self._send_cmd_version_command()
 
@@ -2276,6 +2268,15 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     @async_handler
     def on_setBreakpoints(self, request, args):
+        if not self._path_mappings_received:
+            self.send_error_response(request, "'setBreakpoints' request must be issued after 'launch' or 'attach' request.")
+            return
+
+        # There might be a concurrent 'launch' or 'attach' request in flight that hasn't
+        # gotten to processing path mappings yet. If so, spin until it finishes that.
+        while not self._path_mappings_applied:
+            yield self.sleep()
+
         pydevd_request = copy.deepcopy(request)
         del pydevd_request['seq']  # A new seq should be created for pydevd.
         _, _, resp_args = yield self.pydevd_request(
