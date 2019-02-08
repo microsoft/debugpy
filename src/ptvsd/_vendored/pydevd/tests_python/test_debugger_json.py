@@ -82,7 +82,7 @@ class JsonFacade(object):
             log_message = None
 
             if line in line_to_info:
-                line_info = line_to_info.get('line')
+                line_info = line_to_info.get(line)
                 condition = line_info.get('condition')
                 hit_condition = line_info.get('hit_condition')
                 log_message = line_info.get('log_message')
@@ -111,6 +111,40 @@ class JsonFacade(object):
         arguments = pydevd_schema.DisconnectArguments(terminateDebuggee=False)
         request = pydevd_schema.DisconnectRequest(arguments)
         self.wait_for_response(self.write_request(request))
+
+
+def test_case_json_logpoints(case_setup):
+    with case_setup.test_file('_debugger_case_change_breaks.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_set_protocol('http_json')
+        json_facade.write_launch()
+        break_2 = writer.get_line_index_with_content('break 2')
+        break_3 = writer.get_line_index_with_content('break 3')
+        json_facade.write_set_breakpoints(
+            [break_2, break_3],
+            line_to_info={
+                break_2: {'log_message': 'var {repr("_a")} is {_a}'}
+        })
+        json_facade.write_make_initial_run()
+
+        # Should only print, not stop on logpoints.
+        messages = []
+        while True:
+            msg, ctx = writer.wait_for_output()
+            if ctx == 'stdout':
+                msg = msg.strip()
+                if msg == "var '_a' is 2":
+                    messages.append(msg)
+
+                if len(messages) == 2:
+                    break
+
+        # Just one hit at the end (break 3).
+        hit = writer.wait_for_breakpoint_hit()
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
 
 
 @pytest.mark.skipif(IS_JYTHON, reason='Must check why it is failing in Jython.')
@@ -223,7 +257,7 @@ def test_case_skipping_filters(case_setup, custom_setup):
         else:
             raise AssertionError('Unhandled: %s' % (custom_setup,))
 
-        json_facade.write_add_breakpoints(writer.get_line_index_with_content('break here'))
+        json_facade.write_set_breakpoints(writer.get_line_index_with_content('break here'))
         json_facade.write_make_initial_run()
 
         json_facade.wait_for_json_message(ThreadEvent, lambda event: event.body.reason == 'started')

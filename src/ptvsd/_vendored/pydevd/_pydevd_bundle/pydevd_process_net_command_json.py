@@ -1,8 +1,7 @@
-from functools import reduce, partial
+from functools import partial
 import itertools
 import json
 import os
-import re
 
 from _pydevd_bundle._debug_adapter import pydevd_base_schema
 from _pydevd_bundle._debug_adapter.pydevd_schema import SourceBreakpoint
@@ -11,6 +10,7 @@ from _pydevd_bundle.pydevd_comm_constants import CMD_RETURN
 from _pydevd_bundle.pydevd_filtering import ExcludeFilter
 from _pydevd_bundle.pydevd_json_debug_options import _extract_debug_options
 from _pydevd_bundle.pydevd_net_command import NetCommand
+from _pydevd_bundle.pydevd_utils import convert_dap_log_message_to_expression
 
 
 def _convert_rules_to_exclude_filters(rules, filename_to_server, on_error):
@@ -254,14 +254,7 @@ class _PyDevJsonCommandProcessor(object):
                 expression = None
             else:
                 is_logpoint = True
-                expressions = re.findall(r'\{.*?\}', log_message)
-                if len(expressions) == 0:
-                    expression = '{}'.format(repr(log_message))  # noqa
-                else:
-                    raw_text = reduce(lambda a, b: a.replace(b, '{}'), expressions, log_message)
-                    raw_text = raw_text.replace('"', '\\"')
-                    expression_list = ', '.join([s.strip('{').strip('}').strip() for s in expressions])
-                    expression = '"{}".format({})'.format(raw_text, expression_list)
+                expression = convert_dap_log_message_to_expression(log_message)
 
             self.api.add_breakpoint(
                 py_db, filename, btype, breakpoint_id, line, condition, func_name, expression, suspend_policy, hit_condition, is_logpoint)

@@ -221,7 +221,6 @@ def test_error_in_condition(pyfile, run_as, start_method, error_name):
             assert session.get_stderr_as_string().find(b'ArithmeticError') > 0
 
 
-@pytest.mark.skip(reason='bug #799')
 def test_log_point(pyfile, run_as, start_method):
     @pyfile
     def code_to_debug():
@@ -230,8 +229,12 @@ def test_log_point(pyfile, run_as, start_method):
         a = 10
         for i in range(1, a):
             print('value: %d' % i)
+        # Break at end too so that we're sure we get all output
+        # events before the break.
+        a = 10
 
     bp_line = 5
+    end_bp_line = 8
     with DebugSession() as session:
         session.initialize(
             target=(run_as, code_to_debug),
@@ -243,9 +246,16 @@ def test_log_point(pyfile, run_as, start_method):
             'breakpoints': [{
                 'line': bp_line,
                 'logMessage': 'log: {a + i}'
-            }],
+            }, {'line': end_bp_line}],
         }).wait_for_response()
         session.start_debugging()
+
+        # Breakpoint at the end just to make sure we get all output events.
+        hit = session.wait_for_thread_stopped()
+        frames = hit.stacktrace.body['stackFrames']
+        assert end_bp_line == frames[0]['line']
+
+        session.send_request('continue').wait_for_response(freeze=False)
 
         session.wait_for_exit()
         assert session.get_stderr_as_string() == b''
@@ -255,16 +265,10 @@ def test_log_point(pyfile, run_as, start_method):
         logged = sorted(int(i) for i in re.findall(r"log:\s([0-9]*)", output_str))
         values = sorted(int(i) for i in re.findall(r"value:\s([0-9]*)", output_str))
 
-        # NOTE: Due to https://github.com/Microsoft/ptvsd/issues/1028 we may not get
-        # all output events. Once that is fixed we should check for the exact output
-        # and log value
-        assert len(logged) > 0
-        assert len(values) > 0
-        # assert logged == list(range(11, 20))
-        # assert values == list(range(1, 10))
+        assert logged == list(range(11, 20))
+        assert values == list(range(1, 10))
 
 
-@pytest.mark.skip(reason='bug #799')
 def test_condition_with_log_point(pyfile, run_as, start_method):
     @pyfile
     def code_to_debug():
@@ -273,8 +277,12 @@ def test_condition_with_log_point(pyfile, run_as, start_method):
         a = 10
         for i in range(1, a):
             print('value: %d' % i)
+        # Break at end too so that we're sure we get all output
+        # events before the break.
+        a = 10
 
     bp_line = 5
+    end_bp_line = 8
     with DebugSession() as session:
         session.initialize(
             target=(run_as, code_to_debug),
@@ -287,7 +295,7 @@ def test_condition_with_log_point(pyfile, run_as, start_method):
                 'line': bp_line,
                 'logMessage': 'log: {a + i}',
                 'condition': 'i==5'
-            }],
+            }, {'line': end_bp_line}],
         }).wait_for_response()
         session.start_debugging()
         hit = session.wait_for_thread_stopped()
@@ -312,6 +320,13 @@ def test_condition_with_log_point(pyfile, run_as, start_method):
         ]
 
         session.send_request('continue').wait_for_response(freeze=False)
+
+        # Breakpoint at the end just to make sure we get all output events.
+        hit = session.wait_for_thread_stopped()
+        frames = hit.stacktrace.body['stackFrames']
+        assert end_bp_line == frames[0]['line']
+        session.send_request('continue').wait_for_response(freeze=False)
+
         session.wait_for_exit()
         assert session.get_stderr_as_string() == b''
 
@@ -320,8 +335,8 @@ def test_condition_with_log_point(pyfile, run_as, start_method):
         logged = sorted(int(i) for i in re.findall(r"log:\s([0-9]*)", output_str))
         values = sorted(int(i) for i in re.findall(r"value:\s([0-9]*)", output_str))
 
-        assert 15 in logged
-        assert 5 in values
+        assert logged == list(range(11, 20))
+        assert values == list(range(1, 10))
 
 
 def test_package_launch():

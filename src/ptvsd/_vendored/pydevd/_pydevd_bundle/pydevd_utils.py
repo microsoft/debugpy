@@ -185,3 +185,46 @@ def dump_threads(stream=None):
 
     stream.write('\n=============================== END Thread Dump ===============================')
     stream.flush()
+
+
+def _extract_variable_nested_braces(char_iter):
+    expression = []
+    level = 0
+    for c in char_iter:
+        if c == '{':
+            level += 1
+        if c == '}':
+            level -= 1
+        if level == -1:
+            return ''.join(expression).strip()
+        expression.append(c)
+    raise SyntaxError('Unbalanced braces in expression.')
+
+
+def _extract_expression_list(log_message):
+    # Note: not using re because of nested braces.
+    expression = []
+    expression_vars = []
+    char_iter = iter(log_message)
+    for c in char_iter:
+        if c == '{':
+            expression_var = _extract_variable_nested_braces(char_iter)
+            if expression_var:
+                expression.append('%s')
+                expression_vars.append(expression_var)
+        else:
+            expression.append(c)
+
+    expression = ''.join(expression)
+    return expression, expression_vars
+
+
+def convert_dap_log_message_to_expression(log_message):
+    try:
+        expression, expression_vars = _extract_expression_list(log_message)
+    except SyntaxError:
+        return repr('Unbalanced braces in: %s' % (log_message))
+    if not expression_vars:
+        return repr(expression)
+    # Note: use '%' to be compatible with Python 2.6.
+    return repr(expression) + ' % (' + ', '.join(str(x) for x in expression_vars) + ',)'

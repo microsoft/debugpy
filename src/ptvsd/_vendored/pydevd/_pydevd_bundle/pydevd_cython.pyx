@@ -694,7 +694,10 @@ cdef class PyDBFrame:
                                 cmd = main_debugger.cmd_factory.make_io_message(info.pydev_message + os.linesep, '1')
                                 main_debugger.writer.add_command(cmd)
 
-                        if breakpoint.has_condition and not eval_result:
+                        if breakpoint.has_condition:
+                            if not eval_result:
+                                return self.trace_dispatch
+                        elif breakpoint.is_logpoint:
                             return self.trace_dispatch
 
                     if is_call and frame.f_code.co_name in ('<module>', '<lambda>'):
