@@ -298,6 +298,7 @@ def attach_to_pid():
     pid = ptvsd.options.target
     host = quoted_str(ptvsd.options.host)
     port = ptvsd.options.port
+    client = ptvsd.options.client
 
     ptvsd_path = os.path.abspath(os.path.join(ptvsd.__file__, '../..'))
     if isinstance(ptvsd_path, bytes):
@@ -315,11 +316,15 @@ import ptvsd
 del sys.path[0]
 
 import ptvsd.options
-ptvsd.options.client = True
+ptvsd.options.client = {client}
 ptvsd.options.host = {host}
 ptvsd.options.port = {port}
 
-ptvsd.enable_attach()
+if ptvsd.options.client:
+    from ptvsd._remote import attach
+    attach(({host}, {port}))
+else:
+    ptvsd.enable_attach()
 '''.format(**locals())
     print(code)
 

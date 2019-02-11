@@ -9,6 +9,7 @@ import pytest
 from tests.helpers.session import DebugSession
 from tests.helpers.pathutils import get_test_root
 from tests.helpers.timeline import Event
+from tests.helpers.pattern import ANY
 
 
 @pytest.mark.parametrize('wait_for_attach', ['waitOn', 'waitOff'])
@@ -104,3 +105,36 @@ def test_reattach(pyfile, run_as, start_method):
             assert 12 == frames[0]['line']
             session.send_request('continue').wait_for_response(freeze=False)
             session.wait_for_exit()
+
+
+@pytest.mark.parametrize('start_method', ['attach_pid'])
+@pytest.mark.parametrize('run_as', ['file', 'module', 'code'])
+@pytest.mark.skip(reason='Enable after #846, #863 and #1144 are fixed')
+def test_attaching_by_pid(pyfile, run_as, start_method):
+    @pyfile
+    def code_to_debug():
+        # import_and_enable_debugger()
+        import time
+        def do_something(i):
+            time.sleep(0.1)
+            print(i)
+        for i in range(100):
+            do_something(i)
+    bp_line = 5
+    with DebugSession() as session:
+        session.initialize(
+            target=(run_as, code_to_debug),
+            start_method=start_method,
+            ignore_unobserved=[Event('continued')],
+        )
+        session.set_breakpoints(code_to_debug, [bp_line])
+        session.start_debugging()
+        hit = session.wait_for_thread_stopped()
+        frames = hit.stacktrace.body['stackFrames']
+        assert bp_line == frames[0]['line']
+
+        # remove breakpoint and continue
+        session.set_breakpoints(code_to_debug, [])
+        session.send_request('continue').wait_for_response(freeze=False)
+        session.wait_for_next(Event('output', ANY.dict_with({'category': 'stdout'})))
+        session.wait_for_exit()

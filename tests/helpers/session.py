@@ -165,8 +165,8 @@ class DebugSession(object):
     def _get_argv_for_attach_using_pid(self):
         argv = [sys.executable]
         argv += [os.path.dirname(ptvsd.__file__)]
-        argv += ['--host', 'localhost', '--port', str(self.ptvsd_port)]
-        argv += ['--pid', str(self.pid)]
+        argv += ['--client', '--host', 'localhost', '--port', str(self.ptvsd_port)]
+        # argv += ['--pid', '<pid>']  # pid value to be appended later
         return argv
 
     def _get_target(self):
@@ -226,32 +226,41 @@ class DebugSession(object):
         """
         self._setup_session(**kwargs)
         print('Initializing debug session for ptvsd#%d' % self.ptvsd_port)
-        argv = []
+        dbg_argv = []
+        usr_argv = []
         if self.start_method == 'launch':
             self._listen()
-            argv += self._get_argv_for_launch()
+            dbg_argv += self._get_argv_for_launch()
         elif self.start_method == 'attach_socket_cmdline':
-            argv += self._get_argv_for_attach_using_cmdline()
+            dbg_argv += self._get_argv_for_attach_using_cmdline()
         elif self.start_method == 'attach_socket_import':
-            argv += self._get_argv_for_attach_using_import()
-            # TODO: Remove adding ot python path after enabling TOX
+            dbg_argv += self._get_argv_for_attach_using_import()
+            # TODO: Remove adding to python path after enabling TOX
             ptvsd_path = os.path.dirname(os.path.dirname(ptvsd.__main__.__file__))
             self.env['PYTHONPATH'] = ptvsd_path + os.pathsep + self.env['PYTHONPATH']
             self.env[PTVSD_ENABLE_KEY] = '1'
             self.env[PTVSD_HOST_KEY] = 'localhost'
             self.env[PTVSD_PORT_KEY] = str(self.ptvsd_port)
         elif self.start_method == 'attach_pid':
-            argv += self._get_argv_for_attach_using_pid()
+            self._listen()
+            dbg_argv += self._get_argv_for_attach_using_pid()
         else:
             pytest.fail()
 
         if self.no_debug:
-            argv += ['--nodebug']
+            dbg_argv += ['--nodebug']
 
-        argv += self._get_target()
+        if self.start_method == 'attach_pid':
+            usr_argv += [sys.executable]
+            usr_argv += self._get_target()
+        else:
+            dbg_argv += self._get_target()
 
         if self.program_args:
-            argv += list(self.program_args)
+            if self.start_method == 'attach_pid':
+                usr_argv += list(self.program_args)
+            else:
+                dbg_argv += list(self.program_args)
 
         if self.multiprocess and 'Multiprocess' not in self.debug_options:
             self.debug_options += ['Multiprocess']
@@ -266,9 +275,13 @@ class DebugSession(object):
         print('Target: (%s) %s' % self.target)
         print('Current directory: %s' % self.cwd)
         print('PYTHONPATH: %s' % self.env['PYTHONPATH'])
-        print('Spawning %r' % argv)
+        if self.start_method == 'attach_pid':
+            print('Spawning %r' % usr_argv)
+        else:
+            print('Spawning %r' % dbg_argv)
 
-        self.process = subprocess.Popen(argv, env=self.env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.cwd)
+        spawn_args = usr_argv if self.start_method == 'attach_pid' else dbg_argv
+        self.process = subprocess.Popen(spawn_args, env=self.env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.cwd)
         self.pid = self.process.pid
         self.psutil_process = psutil.Process(self.pid)
         self.is_running = True
@@ -277,7 +290,15 @@ class DebugSession(object):
         self._capture_output(self.process.stdout, 'OUT')
         self._capture_output(self.process.stderr, 'ERR')
 
-        if self.start_method != 'launch':
+        if self.start_method == 'attach_pid':
+            # This is a temp process spawned to inject debugger into the
+            # running process
+            dbg_argv += ['--pid', str(self.pid)]
+            print('Spawning %r' % dbg_argv)
+            temp_process = subprocess.Popen(dbg_argv)
+            print('temp process has pid=%d' % temp_process.pid)
+
+        if self.start_method not in ('launch', 'attach_pid'):
             self.connect()
         self.connected.wait()
         assert self.ptvsd_port
