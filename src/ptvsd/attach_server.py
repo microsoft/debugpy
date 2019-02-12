@@ -9,6 +9,8 @@ from ptvsd._remote import (
 )
 from ptvsd.wrapper import debugger_attached
 import sys
+
+import pydevd
 from _pydevd_bundle.pydevd_constants import get_global_debugger
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame
 
@@ -128,3 +130,7 @@ def break_into_debugger():
         stop_at_frame=stop_at_frame,
     )
     stop_at_frame = None
+
+
+def debug_this_thread():
+    pydevd.settrace(suspend=False)

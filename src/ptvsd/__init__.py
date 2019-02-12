@@ -12,7 +12,12 @@ __all__ = [
 # that the ptvsd-vendored copy of pydevd gets used.
 from ._vendored import force_pydevd
 from ptvsd.version import __version__, __author__
-from ptvsd.attach_server import (
-    enable_attach, wait_for_attach, break_into_debugger, is_attached,
+from ptvsd.attach_server import (  # noqa
+    attach,
+    break_into_debugger,
+    debug_this_thread,
+    enable_attach,
+    is_attached,
+    wait_for_attach,
 )
 del force_pydevd
