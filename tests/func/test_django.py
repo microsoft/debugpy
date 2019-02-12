@@ -18,6 +18,7 @@ from tests.helpers.webhelper import get_url_from_str, get_web_content, wait_for_
 DJANGO1_ROOT = get_test_root('django1')
 DJANGO1_MANAGE = os.path.join(DJANGO1_ROOT, 'app.py')
 DJANGO1_TEMPLATE = os.path.join(DJANGO1_ROOT, 'templates', 'hello.html')
+DJANGO1_BAD_TEMPLATE = os.path.join(DJANGO1_ROOT, 'templates', 'bad.html')
 DJANGO_PORT = tests.helpers.get_unique_port(8000)
 DJANGO_LINK = 'http://127.0.0.1:{}/'.format(DJANGO_PORT)
 
@@ -39,7 +40,7 @@ def test_django_breakpoint_no_multiproc(bp_target, start_method):
             program_args=['runserver', '--noreload', '--', str(DJANGO_PORT)],
             debug_options=['Django'],
             cwd=DJANGO1_ROOT,
-            expected_returncode=ANY.int,  # No clean way to kill Flask server
+            expected_returncode=ANY.int,  # No clean way to kill Django server
             ignore_unobserved=[Event('continued')],
         )
 
@@ -103,6 +104,76 @@ def test_django_breakpoint_no_multiproc(bp_target, start_method):
         session.wait_for_exit()
 
 
+@pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
+@pytest.mark.skip(reason='Bug #694')
+@pytest.mark.timeout(60)
+def test_django_template_exception_no_multiproc(start_method):
+    with DebugSession() as session:
+        session.initialize(
+            start_method=start_method,
+            target=('file', DJANGO1_MANAGE),
+            program_args=['runserver', '--noreload', '--nothreading', str(DJANGO_PORT)],
+            debug_options=['Django'],
+            cwd=DJANGO1_ROOT,
+            expected_returncode=ANY.int,  # No clean way to kill Django server
+            ignore_unobserved=[Event('continued')],
+        )
+
+        session.send_request('setExceptionBreakpoints', arguments={
+            'filters': ['raised', 'uncaught'],
+        }).wait_for_response()
+
+        session.start_debugging()
+
+        wait_for_connection(DJANGO_PORT)
+
+        base_link = DJANGO_LINK
+        part = 'badtemplate'
+        link = base_link + part if base_link.endswith('/') else ('/' + part)
+        web_request = get_web_content(link, {})
+
+        hit = session.wait_for_thread_stopped()
+        frames = hit.stacktrace.body['stackFrames']
+        assert frames[0] == {
+            'id': ANY,
+            'name': 'bad_template',
+            'source': {
+                'sourceReference': ANY,
+                'path': Path(DJANGO1_BAD_TEMPLATE),
+            },
+            'line': 8,
+            'column': 1,
+        }
+
+        resp_exception_info = session.send_request(
+            'exceptionInfo',
+            arguments={'threadId': hit.thread_id, }
+        ).wait_for_response()
+        exception = resp_exception_info.body
+        assert exception == {
+            'exceptionId': ANY.such_that(lambda s: s.endswith('TemplateSyntaxError')),
+            'breakMode': 'always',
+            'description': ANY.such_that(lambda s: s.find('doesnotexist') > -1),
+            'details': {
+                'message': ANY.such_that(lambda s: s.endswith('doesnotexist') > -1),
+                'typeName': ANY.such_that(lambda s: s.endswith('TemplateSyntaxError')),
+                'source': Path(DJANGO1_BAD_TEMPLATE),
+                'stackTrace': ANY.such_that(lambda s: True),
+            }
+        }
+
+        session.send_request('continue').wait_for_response(freeze=False)
+
+        # ignore response for exception tests
+        web_request.wait_for_response()
+
+        # shutdown to web server
+        link = base_link + 'exit' if base_link.endswith('/') else '/exit'
+        get_web_content(link).wait_for_response()
+
+        session.wait_for_exit()
+
+
 @pytest.mark.parametrize('ex_type', ['handled', 'unhandled'])
 @pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
 @pytest.mark.skipif(sys.version_info < (3, 0), reason='Bug #923')
@@ -120,7 +191,7 @@ def test_django_exception_no_multiproc(ex_type, start_method):
             program_args=['runserver', '--noreload', '--nothreading', str(DJANGO_PORT)],
             debug_options=['Django'],
             cwd=DJANGO1_ROOT,
-            expected_returncode=ANY.int,  # No clean way to kill Flask server
+            expected_returncode=ANY.int,  # No clean way to kill Django server
             ignore_unobserved=[Event('continued')],
         )
 
@@ -202,7 +273,7 @@ def test_django_breakpoint_multiproc(start_method):
             debug_options=['Django'],
             cwd=DJANGO1_ROOT,
             ignore_unobserved=[Event('stopped'), Event('continued')],
-            expected_returncode=ANY.int,  # No clean way to kill Flask server
+            expected_returncode=ANY.int,  # No clean way to kill Django server
         )
 
         bp_line = 40

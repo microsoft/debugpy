@@ -20,6 +20,7 @@ from tests.helpers.pathutils import get_test_root
 FLASK1_ROOT = get_test_root('flask1')
 FLASK1_APP = os.path.join(FLASK1_ROOT, 'app.py')
 FLASK1_TEMPLATE = os.path.join(FLASK1_ROOT, 'templates', 'hello.html')
+FLASK1_BAD_TEMPLATE = os.path.join(FLASK1_ROOT, 'templates', 'bad.html')
 FLASK_PORT = tests.helpers.get_unique_port(5000)
 FLASK_LINK = 'http://127.0.0.1:{}/'.format(FLASK_PORT)
 
@@ -117,6 +118,68 @@ def test_flask_breakpoint_no_multiproc(bp_target, start_method):
 
         # shutdown to web server
         link = FLASK_LINK + 'exit'
+        get_web_content(link).wait_for_response()
+
+        session.wait_for_exit()
+
+
+@pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
+@pytest.mark.skip(reason='Bug #694')
+@pytest.mark.timeout(60)
+def test_flask_template_exception_no_multiproc(start_method):
+    with DebugSession() as session:
+        _initialize_flask_session_no_multiproc(session, start_method)
+
+        session.send_request('setExceptionBreakpoints', arguments={
+            'filters': ['raised', 'uncaught'],
+        }).wait_for_response()
+
+        session.start_debugging()
+
+        # wait for Flask web server to start
+        wait_for_connection(FLASK_PORT)
+        base_link = FLASK_LINK
+        part = 'badtemplate'
+        link = base_link + part if base_link.endswith('/') else ('/' + part)
+        web_request = get_web_content(link, {})
+
+        hit = session.wait_for_thread_stopped()
+        frames = hit.stacktrace.body['stackFrames']
+        assert frames[0] == {
+            'id': ANY.int,
+            'name': 'bad_template',
+            'source': {
+                'sourceReference': ANY.int,
+                'path': Path(FLASK1_BAD_TEMPLATE),
+            },
+            'line': 8,
+            'column': 1,
+        }
+
+        resp_exception_info = session.send_request(
+            'exceptionInfo',
+            arguments={'threadId': hit.thread_id, }
+        ).wait_for_response()
+        exception = resp_exception_info.body
+        assert exception == {
+            'exceptionId': ANY.such_that(lambda s: s.endswith('TemplateSyntaxError')),
+            'breakMode': 'always',
+            'description': ANY.such_that(lambda s: s.find('doesnotexist') > -1),
+            'details': {
+                'message': ANY.such_that(lambda s: s.find('doesnotexist') > -1),
+                'typeName': ANY.such_that(lambda s: s.endswith('TemplateSyntaxError')),
+                'source': Path(FLASK1_BAD_TEMPLATE),
+                'stackTrace': ANY.such_that(lambda s: True)
+            }
+        }
+
+        session.send_request('continue').wait_for_response(freeze=False)
+
+        # ignore response for exception tests
+        web_request.wait_for_response()
+
+        # shutdown to web server
+        link = base_link + 'exit' if base_link.endswith('/') else '/exit'
         get_web_content(link).wait_for_response()
 
         session.wait_for_exit()

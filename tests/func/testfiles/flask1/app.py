@@ -38,6 +38,15 @@ def bad_route_unhandled():
     )
 
 
+@app.route("/badtemplate")
+def bad_template():
+    return render_template(
+        "bad.html",
+        title='Hello',
+        content='Flask-Jinja-Test'
+    )
+
+
 @app.route("/exit")
 def exit_app():
     from flask import request

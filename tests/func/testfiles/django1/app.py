@@ -72,6 +72,17 @@ def bad_route_unhandled(request):
     return HttpResponse(template.render(context, request))
 
 
+def bad_template(request):
+    title = 'hello'
+    content = 'Django-Django-Test'
+    context = {
+        'title': title,
+        'content': content,
+    }
+    template = loader.get_template('bad.html')
+    return HttpResponse(template.render(context, request))
+
+
 def exit_app(request):
     if hasattr(signal, 'SIGBREAK'):
         os.kill(os.getpid(), signal.SIGBREAK)
@@ -84,6 +95,7 @@ urlpatterns = [
     path('', home, name='home'),
     path('handled', bad_route_handled, name='bad_route_handled'),
     path('unhandled', bad_route_unhandled, name='bad_route_unhandled'),
+    path('badtemplate', bad_template, name='bad_template'),
     path('exit', exit_app, name='exit_app'),
 ]
 
