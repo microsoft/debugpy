@@ -115,8 +115,9 @@ def pyfile(request, tmpdir):
         line = source[0]
         indent = len(line) - len(line.lstrip())
         source = [line[indent:] for line in source]
-        source = ''.join(source)
 
+        # Write it to file.
+        source = ''.join(source)
         tmpfile = tmpdir.join(name + '.py')
         assert not tmpfile.check()
         # NOTE: This is a requirement with using pyfile. Adding this

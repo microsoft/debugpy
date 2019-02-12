@@ -6,7 +6,7 @@ from __future__ import print_function, with_statement, absolute_import
 
 import pytest
 
-from tests.helpers import print
+from tests.helpers import print, get_marked_line_numbers
 from tests.helpers.session import DebugSession
 from tests.helpers.timeline import Event
 from tests.helpers.pattern import ANY, Path
@@ -154,10 +154,12 @@ def test_systemexit(pyfile, run_as, start_method, raised, uncaught, zero, exit_c
         exit_code = eval(sys.argv[1])
         print('sys.exit(%r)' % (exit_code,))
         try:
-            sys.exit(exit_code)
+            sys.exit(exit_code) #@handled
         except SystemExit:
             pass
-        sys.exit(exit_code)
+        sys.exit(exit_code) #@unhandled
+
+    line_numbers = get_marked_line_numbers(code_to_debug)
 
     filters = []
     if raised:
@@ -185,12 +187,12 @@ def test_systemexit(pyfile, run_as, start_method, raised, uncaught, zero, exit_c
         if raised and (zero or exit_code != 0):
             hit = session.wait_for_thread_stopped(reason='exception')
             frames = hit.stacktrace.body['stackFrames']
-            assert frames[0]['line'] == 7
+            assert frames[0]['line'] == line_numbers['handled']
             session.send_request('continue').wait_for_response(freeze=False)
 
             hit = session.wait_for_thread_stopped(reason='exception')
             frames = hit.stacktrace.body['stackFrames']
-            assert frames[0]['line'] == 10
+            assert frames[0]['line'] == line_numbers['unhandled']
             session.send_request('continue').wait_for_response(freeze=False)
 
         # When breaking on uncaught exceptions, we'll stop on the second line,
@@ -202,7 +204,7 @@ def test_systemexit(pyfile, run_as, start_method, raised, uncaught, zero, exit_c
         if uncaught and (zero or exit_code != 0):
             hit = session.wait_for_thread_stopped(reason='exception')
             frames = hit.stacktrace.body['stackFrames']
-            assert frames[0]['line'] == 10
+            assert frames[0]['line'] == line_numbers['unhandled']
             session.send_request('continue').wait_for_response(freeze=False)
 
         session.wait_for_exit()

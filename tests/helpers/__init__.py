@@ -5,6 +5,7 @@
 from __future__ import print_function, with_statement, absolute_import
 
 import os
+import re
 import sys
 import threading
 import time
@@ -65,6 +66,28 @@ def get_unique_port(base):
     except KeyError:
         n = 0
     return base + n
+
+
+# Given a path to a Python source file, extracts line numbers for
+# all lines that are marked with #@. For example, given this file:
+#
+#   print(1) #@foo
+#   print(2)
+#   print(3) #@bar
+#
+# the function will return:
+#
+#   {'foo': 1, 'bar': 3}
+#
+def get_marked_line_numbers(path):
+    with open(path) as f:
+        lines = {}
+        for i, line in enumerate(f):
+            match = re.search(r'#@(.*?)\s*$', line)
+            if match:
+                marker = match.group(1)
+                lines[marker] = i + 1
+    return lines
 
 
 from .printer import print
