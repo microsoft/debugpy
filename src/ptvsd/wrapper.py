@@ -819,6 +819,7 @@ def bool_parser(str):
 DEBUG_OPTIONS_PARSER = {
     'WAIT_ON_ABNORMAL_EXIT': bool_parser,
     'WAIT_ON_NORMAL_EXIT': bool_parser,
+    'BREAK_SYSTEMEXIT_ZERO': bool_parser,
     'REDIRECT_OUTPUT': bool_parser,
     'VERSION': unquote,
     'INTERPRETER_OPTIONS': unquote,
@@ -837,6 +838,7 @@ DEBUG_OPTIONS_BY_FLAG = {
     'RedirectOutput': 'REDIRECT_OUTPUT=True',
     'WaitOnNormalExit': 'WAIT_ON_NORMAL_EXIT=True',
     'WaitOnAbnormalExit': 'WAIT_ON_ABNORMAL_EXIT=True',
+    'BreakOnSystemExitZero': 'BREAK_SYSTEMEXIT_ZERO=True',
     'Django': 'DJANGO_DEBUG=True',
     'Flask': 'FLASK_DEBUG=True',
     'Jinja': 'FLASK_DEBUG=True',
@@ -890,6 +892,7 @@ def _parse_debug_options(opts):
     """Debug options are semicolon separated key=value pairs
         WAIT_ON_ABNORMAL_EXIT=True|False
         WAIT_ON_NORMAL_EXIT=True|False
+        BREAK_SYSTEMEXIT_ZERO=True|False
         REDIRECT_OUTPUT=True|False
         VERSION=string
         INTERPRETER_OPTIONS=string
@@ -2570,8 +2573,23 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             exc_name, exc_desc, _, _ = \
                 self._parse_exception_details(resp_args, include_stack=False)
 
-        extra['allThreadsStopped'] = True
+        if not self.debug_options.get('BREAK_SYSTEMEXIT_ZERO', False):
+            # SystemExit is qualified on Python 2, and unqualified on Python 3
+            sysexit_exc_name = 'exceptions.SystemExit' if sys.version_info < (3,) else 'SystemExit'
+            if exc_name == sysexit_exc_name:
+                try:
+                    exit_code = int(exc_desc)
+                except ValueError:
+                    # It is legal to invoke exit() with a non-integer argument, and SystemExit will
+                    # pass that through. It's considered an error exit, same as non-zero integer.
+                    ignore = False
+                else:
+                    ignore = (exit_code == 0)
+                if ignore:
+                    self._resume_all_threads()
+                    return
 
+        extra['allThreadsStopped'] = True
         self.send_event(
             'stopped',
             reason=reason,
