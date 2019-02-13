@@ -5,7 +5,7 @@ requests
 flask
 psutil
 pygments
-pytest
+pytest<5
 pytest-cov
 pytest-timeout
 pytest-xdist

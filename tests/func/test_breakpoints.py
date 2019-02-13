@@ -11,6 +11,7 @@ import pytest
 import re
 import sys
 
+from tests.helpers import get_marked_line_numbers
 from tests.helpers.pathutils import get_test_root
 from tests.helpers.session import DebugSession
 from tests.helpers.timeline import Event
@@ -398,3 +399,84 @@ def test_add_and_remove_breakpoint(pyfile, run_as, start_method):
         output = session.all_occurrences_of(Event('output', ANY.dict_with({'category': 'stdout'})))
         output = sorted(int(o.body['output'].strip()) for o in output if len(o.body['output'].strip()) > 0)
         assert list(range(0, 10)) == output
+
+
+def test_invalid_breakpoints(pyfile, run_as, start_method):
+    @pyfile
+    def code_to_debug():
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
+
+        b = True
+        while b:        #@bp1-expected
+            pass        #@bp1-requested
+            break
+
+        print()         #@bp2-expected
+        [               #@bp2-requested
+            1, 2, 3,    #@bp3-expected
+        ]               #@bp3-requested
+
+        # Python 2.7 only.
+        print()         #@bp4-expected
+        print(1,        #@bp4-requested-1
+              2, 3,     #@bp4-requested-2
+              4, 5, 6)
+
+    line_numbers = get_marked_line_numbers(code_to_debug)
+    from tests.helpers import print
+    print(line_numbers)
+
+    with DebugSession() as session:
+        session.initialize(
+            target=(run_as, code_to_debug),
+            start_method=start_method,
+            ignore_unobserved=[Event('continued')],
+        )
+
+        requested_bps = [
+            line_numbers['bp1-requested'],
+            line_numbers['bp2-requested'],
+            line_numbers['bp3-requested'],
+        ]
+        if sys.version_info < (3,):
+            requested_bps += [
+                line_numbers['bp4-requested-1'],
+                line_numbers['bp4-requested-2'],
+            ]
+
+        actual_bps = session.set_breakpoints(code_to_debug, requested_bps)
+        actual_bps = [bp['line'] for bp in actual_bps]
+
+        expected_bps = [
+            line_numbers['bp1-expected'],
+            line_numbers['bp2-expected'],
+            line_numbers['bp3-expected'],
+        ]
+        if sys.version_info < (3,):
+            expected_bps += [
+                line_numbers['bp4-expected'],
+                line_numbers['bp4-expected'],
+            ]
+
+        assert expected_bps == actual_bps
+
+        # Now let's make sure that we hit all of the expected breakpoints,
+        # and stop where we expect them to be.
+
+        session.start_debugging()
+
+        # If there's multiple breakpoints on the same line, we only stop once,
+        # so remove duplicates first.
+        expected_bps = sorted(set(expected_bps))
+
+        while expected_bps:
+            hit = session.wait_for_thread_stopped()
+            frames = hit.stacktrace.body['stackFrames']
+            line = frames[0]['line']
+            assert line == expected_bps[0]
+            del expected_bps[0]
+            session.send_request('continue').wait_for_response()
+        assert not expected_bps
+
+        session.wait_for_exit()

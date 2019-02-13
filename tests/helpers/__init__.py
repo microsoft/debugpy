@@ -83,7 +83,7 @@ def get_marked_line_numbers(path):
     with open(path) as f:
         lines = {}
         for i, line in enumerate(f):
-            match = re.search(r'#@(.*?)\s*$', line)
+            match = re.search(r'#@\s*(.*?)\s*$', line)
             if match:
                 marker = match.group(1)
                 lines[marker] = i + 1

@@ -8,6 +8,7 @@ import contextlib
 import os
 import threading
 import time
+import types
 import sys
 
 
@@ -413,3 +414,18 @@ def _allow_debug_break(enabled=True):
 
 def _is_debug_break_allowed():
     return _enable_debug_break
+
+
+try:
+    import dis
+except ImportError:
+    def get_code_lines(code):
+        return None
+else:
+    def get_code_lines(code):
+        for _, lineno in dis.findlinestarts(code):
+            yield lineno
+        for const in code.co_consts:
+            if isinstance(const, types.CodeType) and const.co_filename == code.co_filename:
+                for lineno in get_code_lines(const):
+                    yield lineno

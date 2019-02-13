@@ -581,10 +581,10 @@ class DebugSession(object):
             thread.join()
 
     def set_breakpoints(self, path, lines=()):
-        self.send_request('setBreakpoints', arguments={
+        return self.send_request('setBreakpoints', arguments={
                 'source': {'path': path},
                 'breakpoints': [{'line': bp_line} for bp_line in lines],
-            }).wait_for_response()
+            }).wait_for_response().body.get('breakpoints', None)
 
     def wait_for_thread_stopped(self, reason=ANY):
         thread_stopped = self.wait_for_next(Event('stopped', ANY.dict_with({'reason': reason})))

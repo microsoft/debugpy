@@ -4,6 +4,7 @@
 
 from __future__ import print_function, absolute_import, unicode_literals
 
+import bisect
 import contextlib
 import copy
 import errno
@@ -2282,6 +2283,40 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         pydevd_request = copy.deepcopy(request)
         del pydevd_request['seq']  # A new seq should be created for pydevd.
+
+        # Validate breakpoints and adjust their positions.
+        args = pydevd_request['arguments']
+        if 'breakpoints' in args and 'path' in args['source']:
+            path = args['source']['path']
+            if sys.version_info < (3,) and not isinstance(path, bytes):
+                path = path.encode(sys.getfilesystemencoding())
+            path = path_to_unicode(pydevd_file_utils.norm_file_to_server(path))
+
+            try:
+                with open(path) as f:
+                    src = f.read()
+            except Exception:
+                pass
+            else:
+                try:
+                    code = compile(src, path, 'exec', 0, dont_inherit=True)
+                except Exception:
+                    pass
+                else:
+                    try:
+                        lines = sorted(_util.get_code_lines(code))
+                    except Exception:
+                        pass
+                    else:
+                        if lines:
+                            for bp in args['breakpoints']:
+                                line = bp['line']
+                                if line not in lines:
+                                    # Adjust to the first preceding valid line.
+                                    idx = bisect.bisect_left(lines, line)
+                                    if idx > 0:
+                                        bp['line'] = lines[idx - 1]
+
         _, _, resp_args = yield self.pydevd_request(
             pydevd_comm.CMD_SET_BREAK,
             pydevd_request,
