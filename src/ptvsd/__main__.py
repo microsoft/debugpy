@@ -40,6 +40,7 @@ import ptvsd._remote
 import ptvsd.options
 import ptvsd.runner
 import ptvsd.version
+from ptvsd.multiproc import listen_for_subprocesses
 
 
 # When forming the command line involving __main__.py, it might be tempting to
@@ -197,6 +198,9 @@ def setup_connection():
         'port': opts.port,
         'multiprocess': opts.multiprocess,
     })
+
+    if opts.multiprocess:
+        listen_for_subprocesses()
 
     # We need to set up sys.argv[0] before invoking attach() or enable_attach(),
     # because they use it to report the 'process' event. Thus, we can't rely on
