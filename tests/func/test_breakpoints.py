@@ -392,8 +392,8 @@ def test_add_and_remove_breakpoint(pyfile, run_as, start_method):
         session.set_breakpoints(code_to_debug, [])
         session.send_request('continue').wait_for_response(freeze=False)
 
-        session.write_json('done')
         session.wait_for_next(Event('output', ANY.dict_with({'category': 'stdout', 'output': '9'})))
+        session.write_json('done')
         session.wait_for_exit()
 
         output = session.all_occurrences_of(Event('output', ANY.dict_with({'category': 'stdout'})))
