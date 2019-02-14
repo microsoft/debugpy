@@ -423,8 +423,14 @@ except ImportError:
         return None
 else:
     def get_code_lines(code):
+        # First, get all line starts for this code object. This does not include
+        # bodies of nested class and function definitions, as they have their
+        # own objects.
         for _, lineno in dis.findlinestarts(code):
             yield lineno
+
+        # For nested class and function definitions, their respective code objects
+        # are constants referenced by this object.
         for const in code.co_consts:
             if isinstance(const, types.CodeType) and const.co_filename == code.co_filename:
                 for lineno in get_code_lines(const):
