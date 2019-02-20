@@ -166,7 +166,10 @@ class PyDBCommandThread(PyDBDaemonThread):
                 self._py_db_command_thread_event.clear()
                 self._py_db_command_thread_event.wait(0.3)
         except:
-            pydev_log.debug(sys.exc_info()[0])
+            try:
+                pydev_log.debug(sys.exc_info()[0])
+            except:
+                pass  # In interpreter shutdown sys may be None already.
             # only got this error in interpreter shutdown
             # pydevd_log(0, 'Finishing debug communication...(3)')
 
