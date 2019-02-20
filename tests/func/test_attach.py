@@ -65,7 +65,6 @@ def test_attach(run_as, wait_for_attach, is_attached, break_into):
 
 
 @pytest.mark.parametrize('start_method', ['attach_socket_cmdline', 'attach_socket_import'])
-@pytest.mark.skip(reason='Bug #1048')
 def test_reattach(pyfile, run_as, start_method):
     @pyfile
     def code_to_debug():
@@ -77,7 +76,7 @@ def test_reattach(pyfile, run_as, start_method):
         ptvsd.break_into_debugger()
         print('first')
         backchannel.write_json('continued')
-        for _ in range(0, 20):
+        for _ in range(0, 100):
             time.sleep(0.1)
             ptvsd.break_into_debugger()
             print('second')
@@ -88,6 +87,8 @@ def test_reattach(pyfile, run_as, start_method):
             start_method=start_method,
             ignore_unobserved=[Event('continued')],
             use_backchannel=True,
+            kill_ptvsd=False,
+            skip_capture=True,
         )
         session.start_debugging()
         hit = session.wait_for_thread_stopped()
@@ -97,14 +98,16 @@ def test_reattach(pyfile, run_as, start_method):
         session.wait_for_disconnect()
         assert session.read_json() == 'continued'
 
-        # re-attach
-        with session.connect_with_new_session() as session2:
-            session2.start_debugging()
-            hit = session2.wait_for_thread_stopped()
-            frames = hit.stacktrace.body['stackFrames']
-            assert 12 == frames[0]['line']
-            session.send_request('continue').wait_for_response(freeze=False)
-            session.wait_for_exit()
+    # re-attach
+    with session.connect_with_new_session(
+        target=(run_as, code_to_debug),
+    ) as session2:
+        session2.start_debugging()
+        hit = session2.wait_for_thread_stopped()
+        frames = hit.stacktrace.body['stackFrames']
+        assert 12 == frames[0]['line']
+        session2.send_request('disconnect').wait_for_response(freeze=False)
+        session2.wait_for_disconnect()
 
 
 @pytest.mark.parametrize('start_method', ['attach_pid'])

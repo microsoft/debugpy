@@ -63,6 +63,8 @@ class DebugSession(object):
         self.process = None
         self.pid = pid
         self.psutil_process = psutil.Process(self.pid) if self.pid else None
+        self.kill_ptvsd = True
+        self.skip_capture = False
         self.socket = None
         self.server_socket = None
         self.connected = threading.Event()
@@ -120,25 +122,33 @@ class DebugSession(object):
         if self.socket:
             try:
                 self.socket.shutdown(socket.SHUT_RDWR)
-            except:
+                print('Closed socket to ptvsd#%d' % self.ptvsd_port)
+            except socket.error as ex:
+                print('Error while closing socket to ptvsd#%d: %s' % (self.ptvsd_port, str(ex)))
                 self.socket = None
 
         if self.server_socket:
             try:
                 self.server_socket.shutdown(socket.SHUT_RDWR)
-            except:
+                print('Closed server socket to ptvsd#%d' % self.ptvsd_port)
+            except socket.error as ex:
+                print('Error while closing server socket to ptvsd#%d: %s' % (self.ptvsd_port, str(ex)))
                 self.server_socket = None
 
         if self.backchannel_socket:
             try:
                 self.backchannel_socket.shutdown(socket.SHUT_RDWR)
-            except:
+                print('Closed backchannel to ptvsd#%d' % self.backchannel_port)
+            except socket.error as ex:
+                print('Error while closing backchannel socket to ptvsd#%d: %s' % (self.ptvsd_port, str(ex)))
                 self.backchannel_socket = None
 
-        if self.process:
+        if self.kill_ptvsd and self.process:
             try:
                 self._kill_process_tree()
+                print('Killed ptvsd process tree %d' % self.pid)
             except:
+                print('Error killing ptvsd process tree %d' % self.pid)
                 traceback.print_exc()
                 pass
 
@@ -287,8 +297,9 @@ class DebugSession(object):
         self.is_running = True
         #watchdog.create(self.pid)
 
-        self._capture_output(self.process.stdout, 'OUT')
-        self._capture_output(self.process.stderr, 'ERR')
+        if not self.skip_capture:
+            self._capture_output(self.process.stdout, 'OUT')
+            self._capture_output(self.process.stderr, 'ERR')
 
         if self.start_method == 'attach_pid':
             # This is a temp process spawned to inject debugger into the
@@ -415,8 +426,8 @@ class DebugSession(object):
         while not self.socket:
             try:
                 self._try_connect()
-            except socket.error:
-                pass
+            except socket.error as ex:
+                print('Error connecting to ptvsd#%d: %s' % (self.ptvsd_port, str(ex)))
             time.sleep(0.1)
 
     def _try_connect(self):
@@ -629,14 +640,21 @@ class DebugSession(object):
         return b''.join(self.output_data['ERR'])
 
     def connect_with_new_session(self, **kwargs):
-        new_session = DebugSession(start_method='attach_socket_import', ptvsd_port=self.ptvsd_port)
+        ns = DebugSession(start_method='attach_socket_import', ptvsd_port=self.ptvsd_port)
         try:
-            new_session._setup_session(**kwargs)
-            new_session.ignore_unobserved = self.ignore_unobserved
-            new_session.debug_options = self.debug_options
-            new_session.connect()
-            new_session.handshake()
+            ns._setup_session(**kwargs)
+            ns.ignore_unobserved = self.ignore_unobserved
+            ns.debug_options = self.debug_options
+
+            ns.pid = self.pid
+            ns.process = self.process
+            ns.psutil_process = psutil.Process(ns.pid)
+            ns.is_running = True
+
+            ns.connect()
+            ns.connected.wait()
+            ns.handshake()
         except:
-            new_session.close()
+            ns.close()
         else:
-            return new_session
+            return ns
