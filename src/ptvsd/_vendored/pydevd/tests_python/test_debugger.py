@@ -58,7 +58,7 @@ else:
     builtin_qualifier = "builtins"
 
 
-@pytest.mark.skipif(IS_IRONPYTHON, reason='Test needs gc.get_referrers to really check anything.')
+@pytest.mark.skipif(IS_IRONPYTHON or IS_JYTHON, reason='Test needs gc.get_referrers to really check anything.')
 def test_case_referrers(case_setup):
     with case_setup.test_file('_debugger_case1.py') as writer:
         writer.log.append('writing add breakpoint')
@@ -389,8 +389,8 @@ def test_case_6(case_setup):
 def test_case_7(case_setup):
     # This test checks that we start without variables and at each step a new var is created, but on ironpython,
     # the variables exist all at once (with None values), so, we can't test it properly.
-    with case_setup.test_file('_debugger_case7.py') as writer:
-        writer.write_add_breakpoint(2, 'Call')
+    with case_setup.test_file('_debugger_case_local_variables.py') as writer:
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'), 'Call')
         writer.write_make_initial_run()
 
         hit = writer.wait_for_breakpoint_hit('111')
@@ -1804,8 +1804,8 @@ def test_path_translation(case_setup):
 
 
 def test_evaluate_errors(case_setup):
-    with case_setup.test_file('_debugger_case7.py') as writer:
-        writer.write_add_breakpoint(4, 'Call')
+    with case_setup.test_file('_debugger_case_local_variables.py') as writer:
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'), 'Call')
         writer.write_make_initial_run()
 
         hit = writer.wait_for_breakpoint_hit()
@@ -1819,8 +1819,8 @@ def test_evaluate_errors(case_setup):
 
 
 def test_list_threads(case_setup):
-    with case_setup.test_file('_debugger_case7.py') as writer:
-        writer.write_add_breakpoint(4, 'Call')
+    with case_setup.test_file('_debugger_case_local_variables.py') as writer:
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'), 'Call')
         writer.write_make_initial_run()
 
         hit = writer.wait_for_breakpoint_hit()

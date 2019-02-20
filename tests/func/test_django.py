@@ -63,7 +63,7 @@ def test_django_breakpoint_no_multiproc(bp_target, start_method):
         assert resp_stacktrace.body['totalFrames'] > 1
         frames = resp_stacktrace.body['stackFrames']
         assert frames[0] == {
-            'id': 1,
+            'id': ANY.int,
             'name': bp_name,
             'source': {
                 'sourceReference': ANY,

@@ -5,8 +5,10 @@ from _pydevd_bundle import pydevd_utils
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
 from _pydevd_bundle.pydevd_comm import (InternalGetThreadStack, internal_get_completions,
     pydevd_find_thread_by_id, InternalStepThread, InternalSetNextStatementThread, internal_reload_code,
-    InternalChangeVariable, InternalGetVariable, InternalGetArray, InternalLoadFullValue,
-    internal_get_description, internal_get_frame, internal_evaluate_expression, InternalConsoleExec)
+    InternalGetVariable, InternalGetArray, InternalLoadFullValue,
+    internal_get_description, internal_get_frame, internal_evaluate_expression, InternalConsoleExec,
+    internal_get_variable_json, internal_change_variable, internal_change_variable_json,
+    internal_evaluate_expression_json, internal_set_expression_json)
 from _pydevd_bundle.pydevd_comm_constants import CMD_THREAD_SUSPEND, file_system_encoding
 from _pydevd_bundle.pydevd_constants import (get_current_thread_id, set_protocol, get_protocol,
     HTTP_JSON_PROTOCOL, JSON_PROTOCOL, STATE_RUN, IS_PY3K, DebugInfoHolder, dict_keys)
@@ -115,9 +117,10 @@ class PyDevdAPI(object):
         py_db.post_method_as_internal_command(
             thread_id, internal_get_completions, seq, thread_id, frame_id, act_tok, line=line, column=column)
 
-    def request_stack(self, py_db, seq, thread_id, timeout=.5):
+    def request_stack(self, py_db, seq, thread_id, fmt=None, timeout=.5):
         # If it's already suspended, get it right away.
-        internal_get_thread_stack = InternalGetThreadStack(seq, thread_id, py_db, set_additional_thread_info, timeout=timeout)
+        internal_get_thread_stack = InternalGetThreadStack(
+            seq, thread_id, py_db, set_additional_thread_info, fmt=fmt, timeout=timeout)
         if internal_get_thread_stack.can_be_executed_by(get_current_thread_id(threading.current_thread())):
             internal_get_thread_stack.do_it(py_db)
         else:
@@ -151,8 +154,8 @@ class PyDevdAPI(object):
         '''
         :param scope: 'FRAME' or 'GLOBAL'
         '''
-        int_cmd = InternalChangeVariable(seq, thread_id, frame_id, scope, attr, value)
-        py_db.post_internal_command(int_cmd, thread_id)
+        py_db.post_method_as_internal_command(
+            thread_id, internal_change_variable, seq, thread_id, frame_id, scope, attr, value)
 
     def request_get_variable(self, py_db, seq, thread_id, frame_id, scope, attrs):
         '''
@@ -161,8 +164,8 @@ class PyDevdAPI(object):
         int_cmd = InternalGetVariable(seq, thread_id, frame_id, scope, attrs)
         py_db.post_internal_command(int_cmd, thread_id)
 
-    def request_get_array(self, py_db, seq, roffset, coffset, rows, cols, format, thread_id, frame_id, scope, attrs):
-        int_cmd = InternalGetArray(seq, roffset, coffset, rows, cols, format, thread_id, frame_id, scope, attrs)
+    def request_get_array(self, py_db, seq, roffset, coffset, rows, cols, fmt, thread_id, frame_id, scope, attrs):
+        int_cmd = InternalGetArray(seq, roffset, coffset, rows, cols, fmt, thread_id, frame_id, scope, attrs)
         py_db.post_internal_command(int_cmd, thread_id)
 
     def request_load_full_value(self, py_db, seq, thread_id, frame_id, vars):
@@ -366,6 +369,15 @@ class PyDevdAPI(object):
             thread_id, internal_evaluate_expression,
             seq, thread_id, frame_id, expression, is_exec, trim_if_too_big, attr_to_set_result)
 
+    def request_exec_or_evaluate_json(
+            self, py_db, request, thread_id):
+        py_db.post_method_as_internal_command(
+            thread_id, internal_evaluate_expression_json, request, thread_id)
+
+    def request_set_expression_json(self, py_db, request, thread_id):
+        py_db.post_method_as_internal_command(
+            thread_id, internal_set_expression_json, request, thread_id)
+
     def request_console_exec(self, py_db, seq, thread_id, frame_id, expression):
         int_cmd = InternalConsoleExec(seq, thread_id, frame_id, expression)
         py_db.post_internal_command(int_cmd, thread_id)
@@ -470,3 +482,16 @@ class PyDevdAPI(object):
     def set_use_libraries_filter(self, py_db, use_libraries_filter):
         py_db.set_use_libraries_filter(use_libraries_filter)
 
+    def request_get_variable_json(self, py_db, request, thread_id):
+        '''
+        :param VariablesRequest request:
+        '''
+        py_db.post_method_as_internal_command(
+            thread_id, internal_get_variable_json, request)
+
+    def request_change_variable_json(self, py_db, request, thread_id):
+        '''
+        :param SetVariableRequest request:
+        '''
+        py_db.post_method_as_internal_command(
+            thread_id, internal_change_variable_json, request)

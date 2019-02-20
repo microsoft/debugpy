@@ -5,7 +5,6 @@
 from __future__ import print_function, absolute_import, unicode_literals
 
 import bisect
-import contextlib
 import copy
 import errno
 import io
@@ -30,7 +29,6 @@ try:
 except ImportError:
     import Queue as queue
 import warnings
-from xml.sax import SAXParseException
 from xml.sax.saxutils import unescape as xml_unescape
 
 import pydevd  # noqa
@@ -53,9 +51,10 @@ import ptvsd.ipcjson as ipcjson  # noqa
 import ptvsd.futures as futures  # noqa
 import ptvsd.untangle as untangle  # noqa
 from ptvsd.pathutils import PathUnNormcase  # noqa
-from ptvsd.safe_repr import SafeRepr  # noqa
 from ptvsd.version import __version__  # noqa
 from ptvsd.socket import TimeoutError  # noqa
+
+LOG_FILENAME = 'pydevd.log'
 
 WAIT_FOR_THREAD_FINISH_TIMEOUT = 1  # seconds
 
@@ -79,22 +78,6 @@ debugger_attached = threading.Event()
 #     print(s)
 # ipcjson._TRACE = ipcjson_trace
 
-# completion types.
-TYPE_IMPORT = '0'
-TYPE_CLASS = '1'
-TYPE_FUNCTION = '2'
-TYPE_ATTR = '3'
-TYPE_BUILTIN = '4'
-TYPE_PARAM = '5'
-TYPE_LOOK_UP = {
-    TYPE_IMPORT: 'module',
-    TYPE_CLASS: 'class',
-    TYPE_FUNCTION: 'function',
-    TYPE_ATTR: 'field',
-    TYPE_BUILTIN: 'keyword',
-    TYPE_PARAM: 'variable',
-}
-
 
 def NOOP(*args, **kwargs):
     pass
@@ -103,54 +86,6 @@ def NOOP(*args, **kwargs):
 def path_to_unicode(s):
     return s if isinstance(s, unicode) else s.decode(sys.getfilesystemencoding())
 
-
-class SafeReprPresentationProvider(pydevd_extapi.StrPresentationProvider):
-    """
-    Computes string representation of Python values by delegating them
-    to SafeRepr.
-    """
-
-    _lock = threading.Lock()
-
-    def __init__(self):
-        self.set_format({})
-
-    def can_provide(self, type_object, type_name):
-        """Implements StrPresentationProvider."""
-        return True
-
-    def get_str(self, val):
-        """Implements StrPresentationProvider."""
-        return self._repr(val)
-
-    def set_format(self, fmt):
-        """
-        Use fmt for all future formatting operations done by this provider.
-        """
-        safe_repr = SafeRepr()
-        safe_repr.convert_to_hex = fmt.get('hex', False)
-        safe_repr.raw_value = fmt.get('rawString', False)
-        self._repr = safe_repr
-
-    @contextlib.contextmanager
-    def using_format(self, fmt):
-        """
-        Returns a context manager that invokes set_format(fmt) on enter,
-        and restores the old format on exit.
-        """
-        old_repr = self._repr
-        self.set_format(fmt)
-        yield
-        self._repr = old_repr
-
-
-# Do not access directly - use safe_repr_provider() instead!
-SafeReprPresentationProvider._instance = SafeReprPresentationProvider()
-
-# Register our presentation provider as the first item on the list,
-# so that we're in full control of presentation.
-str_handlers = pydevd_extutil.EXTENSION_MANAGER_INSTANCE.type_to_instance.setdefault(pydevd_extapi.StrPresentationProvider, [])  # noqa
-str_handlers.insert(0, SafeReprPresentationProvider._instance)
 
 PTVSD_DIR_PATH = os.path.dirname(os.path.abspath(get_abs_path_real_path_and_base_from_file(__file__)[0])) + os.path.sep
 NORM_PTVSD_DIR_PATH = os.path.normcase(PTVSD_DIR_PATH)
@@ -344,7 +279,7 @@ class PydevdSocket(object):
     """
 
     def __init__(self, handle_msg, handle_close, getpeername, getsockname):
-        # self.log = open('pydevd.log', 'w')
+        # self.log = open(LOG_FILENAME, 'w')
         self._handle_msg = handle_msg
         self._handle_close = handle_close
         self._getpeername = getpeername
@@ -450,6 +385,8 @@ class PydevdSocket(object):
         if data.startswith(b'{'):
             # A json message was received.
             data = data.decode('utf-8')
+            # self.log.write('<<<[' + data + ']\n\n')
+            # self.log.flush()
             as_dict = json.loads(data)
             cmd_id = as_dict['pydevd_cmd_id']
             if 'request_seq' in as_dict:
@@ -470,8 +407,12 @@ class PydevdSocket(object):
         with self.lock:
             loop, fut = self.requests.pop(seq, (None, None))
         if fut is None:
+            # self.log.write('handle message: %s' % (args,))
+            # self.log.flush()
             self._handle_msg(cmd_id, seq, args)
         else:
+            # self.log.write('set result message: %s' % (args,))
+            # self.log.flush()
             loop.call_soon_threadsafe(fut.set_result, (cmd_id, seq, args))
         return result
 
@@ -681,84 +622,6 @@ class VariablesSorter(object):
         self.double_underscore.sort(key=get_sort_key)
         self.dunder.sort(key=get_sort_key)
         return self.variables + self.single_underscore + self.double_underscore + self.dunder  # noqa
-
-
-class ModulesManager(object):
-
-    def __init__(self, proc):
-        self.module_id_to_details = {}
-        self.path_to_module_id = {}
-        self._lock = threading.Lock()
-        self.proc = proc
-        self._next_id = 1
-
-    def add_or_get_from_path(self, module_path):
-        with self._lock:
-            try:
-                module_id = self.path_to_module_id[module_path]
-                return self.module_id_to_details[module_id]
-            except KeyError:
-                pass
-
-            search_path = self._get_platform_file_path(module_path)
-
-            for _, value in list(sys.modules.items()):
-                try:
-                    path = self._get_platform_file_path(value.__file__)
-                except AttributeError:
-                    path = None
-
-                if not path:
-                    continue
-
-                try:
-                    # This tries to open the files to obtain handles, which can be restricted
-                    # by file permissions, but ensures that long/short path mismatch, symlinks
-                    # etc are all accounted for. Fall back to comparing names in case of failure.
-                    if not os.path.samefile(path, search_path):
-                        continue
-                except Exception:
-                    if path != search_path:
-                        continue
-
-                module_id = self._next_id
-                self._next_id += 1
-
-                module = {
-                    'id': module_id,
-                    'package': value.__package__ if hasattr(value, '__package__') else None,
-                    'path': module_path,
-                }
-
-                try:
-                    module['name'] = value.__qualname__
-                except AttributeError:
-                    module['name'] = value.__name__
-
-                try:
-                    module['version'] = value.__version__
-                except AttributeError:
-                    pass
-
-                self.path_to_module_id[module_path] = module_id
-                self.module_id_to_details[module_id] = module
-
-                self.proc.send_event('module', reason='new', module=module)
-                return module
-
-        return None
-
-    def _get_platform_file_path(self, path):
-        if platform.system() == 'Windows':
-            return path.lower()
-        return path
-
-    def get_all(self):
-        with self._lock:
-            return list(self.module_id_to_details.values())
-
-    def check_unloaded_modules(self, module_event):
-        pass
 
 
 class InternalsFilter(object):
@@ -1346,21 +1209,12 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self.is_process_created = False
         self.is_process_created_lock = threading.Lock()
         self.thread_map = IDMap()
-        self.frame_map = IDMap()
-        self.var_map = IDMap()
-        self.source_map = IDMap()
-        self.goto_target_map = IDMap()
-        self.current_goto_request = None
-        self.enable_source_references = False
-        self.next_var_ref = 0
         self._path_mappings = []
         self.exceptions_mgr = ExceptionsManager(self)
-        self.modules_mgr = ModulesManager(self)
         self.internals_filter = InternalsFilter()
         self.new_thread_lock = threading.Lock()
 
         # adapter state
-        self.path_casing = PathUnNormcase()
         self._detached = False
         self._path_mappings_received = False
         self._path_mappings_applied = False
@@ -1475,8 +1329,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     pydevd_events = EventHandlers()
 
     def on_pydevd_event(self, cmd_id, seq, args):
-        # self.log.write('on_pydevd_event: %s %s %s\n' % (cmd_id, seq, args))
-        # self.log.flush()
+        # with open(LOG_FILENAME, 'a+') as stream:
+        #     stream.write('on_pydevd_event: %s %s %s\n' % (cmd_id, seq, args))
 
         # TODO: docstring
         if not self._detached:
@@ -1491,20 +1345,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     @staticmethod
     def parse_xml_response(args):
         return untangle.parse(io.BytesIO(args.encode('utf8'))).xml
-
-    @async_method
-    def using_format(self, fmt):
-        while not SafeReprPresentationProvider._lock.acquire(False):
-            yield self.sleep()
-        provider = SafeReprPresentationProvider._instance
-
-        @contextlib.contextmanager
-        def context():
-            with provider.using_format(fmt):
-                yield
-            provider._lock.release()
-
-        yield futures.Result(context())
 
     def _wait_for_pydevd_ready(self):
         # TODO: Call self._ensure_pydevd_requests_handled?
@@ -1545,9 +1385,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     def _process_debug_options(self, opts):
         """Process the launch arguments to configure the debugger."""
-        if opts.get('FIX_FILE_PATH_CASE', False):
-            self.path_casing.enable()
-
         if opts.get('REDIRECT_OUTPUT', False):
             redirect_output = 'STDOUT\tSTDERR'
         else:
@@ -1709,61 +1546,24 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     def on_source(self, request, args):
         """Request to get the source"""
         source_reference = args.get('sourceReference', 0)
-        filename = '' if source_reference == 0 else \
-            self.source_map.to_pydevd(source_reference)
 
         if source_reference == 0:
             self.send_error_response(request, 'Source unavailable')
         else:
-            if sys.version_info < (3,) and not isinstance(filename, bytes):
-                filename = filename.encode(sys.getfilesystemencoding())
-            server_filename = path_to_unicode(pydevd_file_utils.norm_file_to_server(filename))
+            pydevd_request = copy.deepcopy(request)
+            del pydevd_request['seq']  # A new seq should be created for pydevd.
+            _, _, resp_args = yield self.pydevd_request(
+                pydevd_comm.CMD_LOAD_SOURCE,
+                pydevd_request,
+                is_json=True)
 
-            cmd = pydevd_comm.CMD_LOAD_SOURCE
-            _, _, content = yield self.pydevd_request(cmd, server_filename)
-            self.send_response(request, content=content)
-
-    def get_source_reference(self, filename):
-        """Gets the source reference only in remote debugging scenarios.
-        And we know that the path returned is the same as the server path
-        (i.e. path has not been translated)"""
-
-        if self.start_reason == 'launch':
-            return 0
-
-        # If we have no path mappings, then always enable source references.
-        autogen = len(self._path_mappings) == 0
-
-        try:
-            return self.source_map.to_vscode(filename, autogen=autogen)
-        except KeyError:
-            pass
-
-        # If file has been mapped, then source is available on client.
-        for local_prefix, remote_prefix in self._path_mappings:
-            if filename.startswith(local_prefix):
-                return 0
-
-        return self.source_map.to_vscode(filename, autogen=True)
-
-    def _cleanup_frames_and_variables(self, pyd_tid, preserve_frames=()):
-        """ Delete frames and variables for a given thread, except for the ones in preserve list.
-        """
-        for pyd_fid, vsc_fid in self.frame_map.pairs():
-            if pyd_fid[0] == pyd_tid and pyd_fid[1] not in preserve_frames:
-                self.frame_map.remove(pyd_fid, vsc_fid)
-
-        for pyd_var, vsc_var in self.var_map.pairs():
-            if pyd_var[0] == pyd_tid and pyd_fid[1] not in preserve_frames:
-                self.var_map.remove(pyd_var, vsc_var)
+            body = resp_args['body']
+            self.send_response(request, **body)
 
     @async_handler
     def on_stackTrace(self, request, args):
         # TODO: docstring
         vsc_tid = int(args['threadId'])
-        startFrame = int(args.get('startFrame', 0))
-        levels = int(args.get('levels', 0))
-        fmt = args.get('format', {})
 
         try:
             pyd_tid = self.thread_map.to_pydevd(vsc_tid)
@@ -1773,230 +1573,48 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 request,
                 'Thread {} not found'.format(vsc_tid))
             return
+        pydevd_request = copy.deepcopy(request)
+        del pydevd_request['seq']  # A new seq should be created for pydevd.
+        # Translate threadId for pydevd.
+        pydevd_request['arguments']['threadId'] = pyd_tid
+        _, _, resp_args = yield self.pydevd_request(
+            pydevd_comm.CMD_GET_THREAD_STACK,
+            pydevd_request,
+            is_json=True)
 
-        try:
-            cmd = pydevd_comm.CMD_GET_THREAD_STACK
-            _, _, resp_args = yield self.pydevd_request(cmd, pyd_tid)
-            xml = self.parse_xml_response(resp_args)
-            xframes = list(xml.thread.frame)
-        except Exception:
-            xframes = []
-
-        totalFrames = len(xframes)
-        if levels == 0:
-            levels = totalFrames
-
-        stackFrames = []
-        preserve_fids = []
-        for xframe in xframes:
-            if startFrame > 0:
-                startFrame -= 1
-                continue
-
-            if levels <= 0:
-                break
-            levels -= 1
-
-            pyd_fid = int(xframe['id'])
-            preserve_fids.append(pyd_fid)
-            key = (pyd_tid, pyd_fid)
-            fid = self.frame_map.to_vscode(key, autogen=True)
-            name = unquote(xframe['name'])
-            # pydevd encodes if necessary and then uses urllib.quote.
-            norm_path = self.path_casing.un_normcase(unquote_xml_path(xframe['file']))  # noqa
-            source_reference = self.get_source_reference(norm_path)
-            if not self.internals_filter.is_internal_path(norm_path):
-                module = self.modules_mgr.add_or_get_from_path(norm_path)
-            else:
-                module = None
-            line = int(xframe['line'])
-            frame_name = self._format_frame_name(
-                fmt,
-                name,
-                module,
-                line,
-                norm_path)
-
-            stackFrames.append({
-                'id': fid,
-                'name': frame_name,
-                'source': {
-                    'path': norm_path,
-                    'sourceReference': source_reference
-                },
-                'line': line, 'column': 1,
-            })
-
-        user_frames = []
-        for frame in stackFrames:
-            path = frame['source']['path']
-            if not self.internals_filter.is_internal_path(path) and \
-                self._should_debug(path):
-                user_frames.append(frame)
-
-        self._cleanup_frames_and_variables(pyd_tid, preserve_fids)
-
-        totalFrames = len(user_frames)
-        self.send_response(request,
-                           stackFrames=user_frames,
-                           totalFrames=totalFrames)
-
-    def _format_frame_name(self, fmt, name, module, line, path):
-        frame_name = name
-        if fmt.get('module', False):
-            if module:
-                if name == '<module>':
-                    frame_name = module['name']
-                else:
-                    frame_name = '%s.%s' % (module['name'], name)
-            else:
-                _, tail = os.path.split(path)
-                tail = tail[0:-3] if tail.lower().endswith('.py') else tail
-                if name == '<module>':
-                    frame_name = '%s in %s' % (name, tail)
-                else:
-                    frame_name = '%s.%s' % (tail, name)
-
-        if fmt.get('line', False):
-            frame_name = '%s : %d' % (frame_name, line)
-
-        return frame_name
+        stackFrames = resp_args['body']['stackFrames']
+        totalFrames = resp_args['body']['totalFrames']
+        self.send_response(request, stackFrames=stackFrames, totalFrames=totalFrames)
 
     @async_handler
     def on_scopes(self, request, args):
-        # TODO: docstring
-        vsc_fid = int(args['frameId'])
-        pyd_tid, pyd_fid = self.frame_map.to_pydevd(vsc_fid)
-        pyd_var = (pyd_tid, pyd_fid, 'FRAME')
-        vsc_var = self.var_map.to_vscode(pyd_var, autogen=True)
-        scope = {
-            'name': 'Locals',
-            'expensive': False,
-            'variablesReference': vsc_var,
-        }
-        self.send_response(request, scopes=[scope])
+        pydevd_request = copy.deepcopy(request)
+        del pydevd_request['seq']  # A new seq should be created for pydevd.
+        _, _, resp_args = yield self.pydevd_request(
+            -1,
+            pydevd_request,
+            is_json=True)
+
+        scopes = resp_args['body']['scopes']
+        self.send_response(request, scopes=scopes)
 
     @async_handler
     def on_variables(self, request, args):
         """Handles DAP VariablesRequest."""
+        pydevd_request = copy.deepcopy(request)
+        del pydevd_request['seq']  # A new seq should be created for pydevd.
+        _, _, resp_args = yield self.pydevd_request(
+            pydevd_comm.CMD_GET_VARIABLE,
+            pydevd_request,
+            is_json=True)
 
-        vsc_var = int(args['variablesReference'])
-        fmt = args.get('format', {})
-
-        try:
-            pyd_var = self.var_map.to_pydevd(vsc_var)
-        except KeyError:
-            self.send_error_response(
-                request,
-                'Variable {} not found in frame'.format(vsc_var))
-            return
-
-        if len(pyd_var) == 3:
-            cmd = pydevd_comm.CMD_GET_FRAME
-        else:
-            cmd = pydevd_comm.CMD_GET_VARIABLE
-        cmdargs = (unicode(s) for s in pyd_var)
-        msg = '\t'.join(cmdargs)
-        with (yield self.using_format(fmt)):
-            _, _, resp_args = yield self.pydevd_request(cmd, msg)
-
-        try:
-            xml = self.parse_xml_response(resp_args)
-        except SAXParseException:
-            self.send_error_response(request, resp_args)
-            return
-
-        try:
-            xvars = xml.var
-        except AttributeError:
-            xvars = []
-
-        variables = VariablesSorter()
-        for xvar in xvars:
-            attributes = []
-            var_name = unquote(xvar['name'])
-            var_type = unquote(xvar['type'])
-            var_value = unquote(xvar['value'])
-            var = {
-                'name': var_name,
-                'type': var_type,
-                'value': var_value,
-            }
-
-            if self._is_raw_string(var_type):
-                attributes.append('rawString')
-
-            if bool(xvar['isRetVal']):
-                attributes.append('readOnly')
-                var['name'] = '(return) %s' % var_name
-            else:
-                if bool(xvar['isContainer']):
-                    pyd_child = pyd_var + (var_name,)
-                    var['variablesReference'] = self.var_map.to_vscode(
-                        pyd_child, autogen=True)
-
-                eval_name = self._get_variable_evaluate_name(
-                    pyd_var, var_name)
-                if eval_name:
-                    var['evaluateName'] = eval_name
-
-            if len(attributes) > 0:
-                var['presentationHint'] = {'attributes': attributes}
-
-            variables.append(var)
-
-        self.send_response(request, variables=variables.get_sorted_variables())
-
-    def _is_raw_string(self, var_type):
-        return var_type in ('str', 'unicode', 'bytes', 'bytearray')
-
-    def _get_variable_evaluate_name(self, pyd_var_parent, var_name):
-        # TODO: docstring
-        eval_name = None
-        pyd_var_len = len(pyd_var_parent)
-        if pyd_var_len > 3:
-            # This means the current variable has a parent i.e, it is not a
-            # FRAME variable. These require evaluateName to work in VS
-            # watch window
-            var = pyd_var_parent + (var_name,)
-            eval_name = var[3]
-            for s in var[4:]:
-                try:
-                    # Check and get the dictionary key or list index.
-                    # Note: this is best effort, keys that are object
-                    # references will not work
-                    i = self._get_index_or_key(s)
-                    eval_name += '[{}]'.format(i)
-                except Exception:
-                    eval_name += '.' + s
-        elif pyd_var_len == 3:
-            return var_name
-
-        return eval_name
-
-    def _get_index_or_key(self, text):
-        # Dictionary resolver in pydevd provides key
-        # in '<repr> (<hash>)' format
-        result = re.match("(.*)\ \(([0-9]*)\)", text,
-                          re.IGNORECASE | re.UNICODE)
-        if result and len(result.groups()) == 2:
-            try:
-                # check if group 2 is a hash
-                int(result.group(2))
-                return result.group(1)
-            except Exception:
-                pass
-        # In the result XML from pydevd list indexes appear
-        # as names. If the name is a number then it is a index.
-        return int(text)
+        variables = resp_args['body']['variables']
+        self.send_response(request, variables=variables)
 
     @async_handler
     def on_setVariable(self, request, args):
         """Handles DAP SetVariableRequest."""
         var_name = args['name']
-        var_value = args['value']
-        vsc_var = int(args['variablesReference'])
-        fmt = args.get('format', {})
 
         if var_name.startswith('(return) '):
             self.send_error_response(
@@ -2004,183 +1622,53 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 'Cannot change return value')
             return
 
-        try:
-            pyd_var = self.var_map.to_pydevd(vsc_var)
-        except KeyError:
-            self.send_error_response(
-                request,
-                'Variable {} not found in frame'.format(vsc_var))
-            return
+        pydevd_request = copy.deepcopy(request)
+        del pydevd_request['seq']  # A new seq should be created for pydevd.
+        _, _, resp_args = yield self.pydevd_request(
+            pydevd_comm.CMD_CHANGE_VARIABLE,
+            pydevd_request,
+            is_json=True)
 
-        lhs_expr = self._get_variable_evaluate_name(pyd_var, var_name)
-        if not lhs_expr:
-            lhs_expr = var_name
-        expr = '%s = %s' % (lhs_expr, var_value)
-        # pydevd message format doesn't permit tabs in expressions
-        expr = expr.replace('\t', ' ')
-
-        pyd_tid = unicode(pyd_var[0])
-        pyd_fid = unicode(pyd_var[1])
-
-        # VSC gives us variablesReference to the parent of the variable
-        # being set, and variable name; but pydevd wants the ID
-        # (or rather path) of the variable itself.
-        pyd_var += (var_name,)
-        vsc_var = self.var_map.to_vscode(pyd_var, autogen=True)
-
-        cmd_args = [pyd_tid, pyd_fid, 'LOCAL', expr, '1']
-        with (yield self.using_format(fmt)):
-            yield self.pydevd_request(
-                pydevd_comm.CMD_EXEC_EXPRESSION,
-                '\t'.join(cmd_args),
-            )
-
-        cmd_args = [pyd_tid, pyd_fid, 'LOCAL', lhs_expr, '1']
-        with (yield self.using_format(fmt)):
-            _, _, resp_args = yield self.pydevd_request(
-                pydevd_comm.CMD_EVALUATE_EXPRESSION,
-                '\t'.join(cmd_args),
-            )
-
-        try:
-            xml = self.parse_xml_response(resp_args)
-        except SAXParseException:
-            self.send_error_response(request, resp_args)
-            return
-
-        try:
-            xvar = xml.var
-        except AttributeError:
-            self.send_response(request, success=False)
-            return
-
-        response = {
-            'type': unquote(xvar['type']),
-            'value': unquote(xvar['value']),
-        }
-        if bool(xvar['isContainer']):
-            response['variablesReference'] = vsc_var
-
-        self.send_response(request, **response)
+        body = resp_args['body']
+        self.send_response(request, **body)
 
     @async_handler
     def on_evaluate(self, request, args):
         """Handles DAP EvaluateRequest."""
 
-        # pydevd message format doesn't permit tabs in expressions
-        expr = args['expression'].replace('\n', '@LINE@').replace('\t', ' ')
-        fmt = args.get('format', {})
+        pydevd_request = copy.deepcopy(request)
+        del pydevd_request['seq']  # A new seq should be created for pydevd.
+        _, _, resp_args = yield self.pydevd_request(
+            pydevd_comm.CMD_EVALUATE_EXPRESSION,
+            pydevd_request,
+            is_json=True)
 
-        vsc_fid = int(args['frameId'])
-        pyd_tid, pyd_fid = self.frame_map.to_pydevd(vsc_fid)
-
-        cmd_args = (pyd_tid, pyd_fid, 'LOCAL', expr, '1')
-        msg = '\t'.join(unicode(s) for s in cmd_args)
-        with (yield self.using_format(fmt)):
-            _, _, resp_args = yield self.pydevd_request(
-                pydevd_comm.CMD_EVALUATE_EXPRESSION,
-                msg)
-
-        try:
-            xml = self.parse_xml_response(resp_args)
-        except SAXParseException:
-            self.send_error_response(request, resp_args)
-            return
-
-        try:
-            xvar = xml.var
-        except AttributeError:
-            self.send_response(request, success=False)
-            return
-
-        context = args.get('context', '')
-        is_eval_error = xvar['isErrorOnEval']
-        if context == 'hover' and is_eval_error == 'True':
-            self.send_response(
-                request,
-                result=None,
-                variablesReference=0)
-            return
-
-        if context == 'repl' and is_eval_error == 'True':
-            # try exec for repl requests
-            with (yield self.using_format(fmt)):
-                _, _, resp_args = yield self.pydevd_request(
-                    pydevd_comm.CMD_EXEC_EXPRESSION,
-                    msg)
-            try:
-                xml2 = self.parse_xml_response(resp_args)
-                xvar2 = xml2.var
-                result_type = unquote(xvar2['type'])
-                result = unquote(xvar2['value'])
-            except Exception:
-                # if resp_args is not xml then it contains the error traceback
-                result_type = unquote(xvar['type'])
-                result = unquote(xvar['value'])
-            self.send_response(
-                request,
-                result=(None
-                        if result == 'None' and result_type == 'NoneType'
-                        else result),
-                type=result_type,
-                variablesReference=0,
-            )
-            return
-
-        pyd_var = (pyd_tid, pyd_fid, 'EXPRESSION', expr)
-        vsc_var = self.var_map.to_vscode(pyd_var, autogen=True)
-        var_type = unquote(xvar['type'])
-        var_value = unquote(xvar['value'])
-        response = {
-            'type': var_type,
-            'result': var_value,
-        }
-
-        if self._is_raw_string(var_type):
-            response['presentationHint'] = {'attributes': ['rawString']}
-
-        if bool(xvar['isContainer']):
-            response['variablesReference'] = vsc_var
-
-        self.send_response(request, **response)
+        body = resp_args['body']
+        self.send_response(request, **body)
 
     @async_handler
     def on_setExpression(self, request, args):
-        # TODO: docstring
+        pydevd_request = copy.deepcopy(request)
+        del pydevd_request['seq']  # A new seq should be created for pydevd.
+        _, _, resp_args = yield self.pydevd_request(
+            -1,
+            pydevd_request,
+            is_json=True)
 
-        vsc_fid = int(args['frameId'])
-        pyd_tid, pyd_fid = self.frame_map.to_pydevd(vsc_fid)
-        fmt = args.get('format', {})
-
-        lhs_expr = args.get('expression')
-        rhs_expr = args.get('value')
-        expr = '%s = (%s)' % (lhs_expr, rhs_expr)
-
-        # pydevd message format doesn't permit tabs in expressions
-        expr = expr.replace('\t', ' ')
-
-        cmd_args = (pyd_tid, pyd_fid, 'LOCAL', expr, '1')
-        msg = '\t'.join(unicode(s) for s in cmd_args)
-        with (yield self.using_format(fmt)):
-            yield self.pydevd_request(
-                pydevd_comm.CMD_EXEC_EXPRESSION,
-                msg)
-
-        # Return 'None' here, VS will call getVariables to retrieve
-        # updated values anyway. Doing eval on the left-hand-side
-        # expression may have side-effects
-        self.send_response(request, value=None)
+        body = resp_args['body']
+        self.send_response(request, **body)
 
     @async_handler
     def on_modules(self, request, args):
-        modules = list(self.modules_mgr.get_all())
-        user_modules = []
-        for module in modules:
-            if not self.internals_filter.is_internal_path(module['path']):
-                user_modules.append(module)
-        self.send_response(request,
-                           modules=user_modules,
-                           totalModules=len(user_modules))
+        pydevd_request = copy.deepcopy(request)
+        del pydevd_request['seq']  # A new seq should be created for pydevd.
+        _, _, resp_args = yield self.pydevd_request(
+            -1,
+            pydevd_request,
+            is_json=True)
+
+        body = resp_args.get('body', {})
+        self.send_response(request, **body)
 
     @async_handler
     def on_pause(self, request, args):
@@ -2264,44 +1752,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self.pydevd_notify(
             pydevd_comm.CMD_SET_NEXT_STATEMENT,
             '{}\t{}\t*'.format(pyd_tid, line))
-
-    def _get_hit_condition_expression(self, hit_condition):
-        """Following hit condition values are supported
-
-        * x or == x when breakpoint is hit x times
-        * >= x when breakpoint is hit more than or equal to x times
-        * % x when breakpoint is hit multiple of x times
-
-        Returns '@HIT@ == x' where @HIT@ will be replaced by number of hits
-        """
-        if not hit_condition:
-            return None
-
-        expr = hit_condition.strip()
-        try:
-            int(expr)
-            return '@HIT@ == {}'.format(expr)
-        except ValueError:
-            pass
-
-        if expr.startswith('%'):
-            return '@HIT@ {} == 0'.format(expr)
-
-        if expr.startswith('==') or \
-            expr.startswith('>') or \
-            expr.startswith('<'):
-            return '@HIT@ {}'.format(expr)
-
-        return hit_condition
-
-    def _get_bp_type(self, path):
-        bp_type = 'python-line'
-        if not path.lower().endswith('.py'):
-            if self.debug_options.get('DJANGO_DEBUG', False):
-                bp_type = 'django-line'
-            elif self.debug_options.get('FLASK_DEBUG', False):
-                bp_type = 'jinja2-line'
-        return bp_type
 
     @async_handler
     def on_setBreakpoints(self, request, args):
@@ -2436,20 +1886,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     @async_handler
     def on_completions(self, request, args):
-        vsc_fid = args.get('frameId', None)
-
-        try:
-            pyd_tid, pyd_fid = self.frame_map.to_pydevd(vsc_fid)
-        except KeyError:
-            self.send_error_response(
-                request,
-                'Frame {} not found'.format(vsc_fid))
-            return
-
         pydevd_request = copy.deepcopy(request)
         del pydevd_request['seq']  # A new seq should be created for pydevd.
-        # Translate frameId for pydevd.
-        pydevd_request['arguments']['frameId'] = (pyd_tid, pyd_fid)
         _, _, resp_args = yield self.pydevd_request(
             pydevd_comm.CMD_GET_COMPLETIONS,
             pydevd_request,
@@ -2525,6 +1963,11 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     # PyDevd protocol event handlers
 
+    @pydevd_events.handler(pydevd_comm.CMD_MODULE_EVENT)
+    def on_pydevd_module_event(self, seq, args):
+        body = args.get('body', {})
+        self.send_event('module', **body)
+
     @pydevd_events.handler(pydevd_comm.CMD_INPUT_REQUESTED)
     def on_pydevd_input_requested(self, seq, args):
         '''
@@ -2571,16 +2014,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     def on_pydevd_thread_kill(self, seq, args):
         # TODO: docstring
         pyd_tid = args.strip()
-
-        # All frames, and variables for
-        # this thread are now invalid; clear their IDs.
-        for pyd_fid, vsc_fid in self.frame_map.pairs():
-            if pyd_fid[0] == pyd_tid:
-                self.frame_map.remove(pyd_fid, vsc_fid)
-
-        for pyd_var, vsc_var in self.var_map.pairs():
-            if pyd_var[0] == pyd_tid:
-                self.var_map.remove(pyd_var, vsc_var)
 
         try:
             vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=False)

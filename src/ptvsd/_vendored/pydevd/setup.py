@@ -61,6 +61,7 @@ args = dict(
         '_pydev_imps',
         '_pydev_runfiles',
         '_pydevd_bundle',
+        '_pydevd_bundle._debug_adapter',
         '_pydevd_frame_eval',
         'pydev_ipython',
 

@@ -12,6 +12,7 @@ from tests.helpers.timeline import Event
 
 
 def test_with_dot_remote_root(pyfile, tmpdir, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
@@ -57,7 +58,9 @@ def test_with_dot_remote_root(pyfile, tmpdir, run_as, start_method):
         session.send_request('continue').wait_for_response(freeze=False)
         session.wait_for_exit()
 
+
 def test_with_path_mappings(pyfile, tmpdir, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
@@ -93,9 +96,16 @@ def test_with_path_mappings(pyfile, tmpdir, run_as, start_method):
         hit = session.wait_for_thread_stopped('breakpoint')
         frames = hit.stacktrace.body['stackFrames']
         assert frames[0]['source']['path'] == Path(path_local)
+        source_reference = frames[0]['source']['sourceReference']
+        assert source_reference > 0
 
         remote_code_path = session.read_json()
         assert path_remote == Path(remote_code_path)
+
+        resp_variables = session.send_request('source', arguments={
+            'sourceReference': source_reference
+        }).wait_for_response()
+        assert "print('done')" in (resp_variables.body['content'])
 
         session.send_request('continue').wait_for_response(freeze=False)
         session.wait_for_exit()

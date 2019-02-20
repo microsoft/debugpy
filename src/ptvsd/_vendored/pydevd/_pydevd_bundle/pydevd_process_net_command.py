@@ -87,7 +87,7 @@ class _PyDevCommandProcessor(object):
             thread_id = text
             timeout = .5  # Default timeout is .5 seconds
 
-        return self.api.request_stack(py_db, seq, thread_id, timeout)
+        return self.api.request_stack(py_db, seq, thread_id, fmt={}, timeout=timeout)
 
     def cmd_set_protocol(self, py_db, cmd_id, seq, text):
         return self.api.set_protocol(py_db, seq, text.strip())

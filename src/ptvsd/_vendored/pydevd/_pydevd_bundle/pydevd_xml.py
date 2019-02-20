@@ -16,12 +16,14 @@ try:
 except:
     frame_type = None
 
+
 def make_valid_xml_value(s):
     # Same thing as xml.sax.saxutils.escape but also escaping double quotes.
     return s.replace("&", "&amp;").replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
 
 
 class ExceptionOnEvaluate:
+
     def __init__(self, result):
         self.result = result
 
@@ -204,14 +206,14 @@ class TypeResolveHandler(object):
 
 _TYPE_RESOLVE_HANDLER = TypeResolveHandler()
 
-""" 
+"""
 def get_type(o):
     Receives object and returns a triple (typeObject, typeString, resolver).
-    
+
     resolver != None means that variable is a container, and should be displayed as a hierarchy.
-    
+
     Use the resolver to get its attributes.
-    
+
     All container objects should have a resolver.
 """
 get_type = _TYPE_RESOLVE_HANDLER.get_type
@@ -271,9 +273,7 @@ def frame_vars_to_xml(frame_f_locals, hidden_ns=None):
     return return_values_xml + xml
 
 
-def var_to_xml(val, name, trim_if_too_big=True, additional_in_xml='', evaluate_full_value=True):
-    """ single variable or dictionary to xml representation """
-
+def get_variable_details(val, evaluate_full_value=True, to_string=None):
     try:
         # This should be faster than isinstance (but we have to protect against not having a '__class__' attribute).
         is_exception_on_eval = val.__class__ == ExceptionOnEvaluate
@@ -285,15 +285,19 @@ def var_to_xml(val, name, trim_if_too_big=True, additional_in_xml='', evaluate_f
     else:
         v = val
 
-    _type, typeName, resolver = get_type(v)
+    _type, type_name, resolver = get_type(v)
     type_qualifier = getattr(_type, "__module__", "")
     if not evaluate_full_value:
         value = DEFAULT_VALUE
     else:
         try:
-            str_from_provider = _str_from_providers(v, _type, typeName)
+            str_from_provider = _str_from_providers(v, _type, type_name)
             if str_from_provider is not None:
                 value = str_from_provider
+
+            elif to_string is not None:
+                value = to_string(v)
+
             elif hasattr(v, '__class__'):
                 if v.__class__ == frame_type:
                     value = pydevd_resolver.frameResolver.get_frame_name(v)
@@ -326,12 +330,32 @@ def var_to_xml(val, name, trim_if_too_big=True, additional_in_xml='', evaluate_f
             except:
                 value = 'Unable to get repr for %s' % v.__class__
 
+    # fix to work with unicode values
+    try:
+        if not IS_PY3K:
+            if value.__class__ == unicode:  # @UndefinedVariable
+                value = value.encode('utf-8', 'replace')
+        else:
+            if value.__class__ == bytes:
+                value = value.decode('utf-8', 'replace')
+    except TypeError:
+        pass
+
+    return type_name, type_qualifier, is_exception_on_eval, resolver, value
+
+
+def var_to_xml(val, name, trim_if_too_big=True, additional_in_xml='', evaluate_full_value=True):
+    """ single variable or dictionary to xml representation """
+
+    type_name, type_qualifier, is_exception_on_eval, resolver, value = get_variable_details(
+        val, evaluate_full_value)
+
     try:
         name = quote(name, '/>_= ')  # TODO: Fix PY-5834 without using quote
     except:
         pass
 
-    xml = '<var name="%s" type="%s" ' % (make_valid_xml_value(name), make_valid_xml_value(typeName))
+    xml = '<var name="%s" type="%s" ' % (make_valid_xml_value(name), make_valid_xml_value(type_name))
 
     if type_qualifier:
         xml_qualifier = 'qualifier="%s"' % make_valid_xml_value(type_qualifier)
@@ -343,17 +367,6 @@ def var_to_xml(val, name, trim_if_too_big=True, additional_in_xml='', evaluate_f
         if len(value) > MAXIMUM_VARIABLE_REPRESENTATION_SIZE and trim_if_too_big:
             value = value[0:MAXIMUM_VARIABLE_REPRESENTATION_SIZE]
             value += '...'
-
-        # fix to work with unicode values
-        try:
-            if not IS_PY3K:
-                if value.__class__ == unicode:  # @UndefinedVariable
-                    value = value.encode('utf-8')
-            else:
-                if value.__class__ == bytes:
-                    value = value.encode('utf-8')
-        except TypeError:  # in java, unicode is a function
-            pass
 
         xml_value = ' value="%s"' % (make_valid_xml_value(quote(value, '/>_= ')))
     else:
