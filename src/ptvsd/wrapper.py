@@ -503,7 +503,8 @@ class PydevdSocket(object):
             raise EOFError
         seq, s = self.make_packet(cmd_id, args)
         _util.log_pydevd_msg(cmd_id, seq, args, inbound=False)
-        os.write(self.pipe_w, s.encode('utf8'))
+        with self.lock:
+            os.write(self.pipe_w, s.encode('utf8'))
 
     def pydevd_request(self, loop, cmd_id, args, is_json=False):
         '''
@@ -520,16 +521,16 @@ class PydevdSocket(object):
             seq, s = self.make_packet(cmd_id, args)
         _util.log_pydevd_msg(cmd_id, seq, args, inbound=False)
         fut = loop.create_future()
+
         with self.lock:
             self.requests[seq] = loop, fut
             as_bytes = s
             if not isinstance(as_bytes, bytes):
                 as_bytes = as_bytes.encode('utf-8')
-
             if is_json:
                 os.write(self.pipe_w, ('Content-Length:%s\r\n\r\n' % (len(as_bytes),)).encode('ascii'))
-
             os.write(self.pipe_w, as_bytes)
+
         return fut
 
 
@@ -1104,6 +1105,7 @@ INITIALIZE_RESPONSE = dict(
     supportsSetVariable=True,
     supportsValueFormattingOptions=True,
     supportTerminateDebuggee=True,
+    supportsGotoTargetsRequest=False,   # https://github.com/Microsoft/ptvsd/issues/1163
     exceptionBreakpointFilters=[
         {
             'filter': 'raised',
@@ -1347,6 +1349,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self.frame_map = IDMap()
         self.var_map = IDMap()
         self.source_map = IDMap()
+        self.goto_target_map = IDMap()
+        self.current_goto_request = None
         self.enable_source_references = False
         self.next_var_ref = 0
         self._path_mappings = []
@@ -2233,6 +2237,34 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             self.pydevd_notify(pydevd_comm.CMD_STEP_RETURN, tid)
         self.send_response(request)
 
+    @async_handler
+    def on_gotoTargets(self, request, args):
+        path = args['source']['path']
+        line = args['line']
+        target_id = self.goto_target_map.to_vscode((path, line), autogen=True)
+        self.send_response(request, targets=[{
+            'id': target_id,
+            'label': '{}:{}'.format(path, line),
+            'line': line,
+        }])
+
+    @async_handler
+    def on_goto(self, request, args):
+        if self.current_goto_request is not None:
+            self.send_error_response(request, 'Already processing a "goto" request.')
+            return
+
+        vsc_tid = args['threadId']
+        target_id = args['targetId']
+
+        pyd_tid = self.thread_map.to_pydevd(vsc_tid)
+        path, line = self.goto_target_map.to_pydevd(target_id)
+
+        self.current_goto_request = request
+        self.pydevd_notify(
+            pydevd_comm.CMD_SET_NEXT_STATEMENT,
+            '{}\t{}\t*'.format(pyd_tid, line))
+
     def _get_hit_condition_expression(self, hit_condition):
         """Following hit condition values are supported
 
@@ -2293,30 +2325,18 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 path = path.encode(sys.getfilesystemencoding())
             path = path_to_unicode(pydevd_file_utils.norm_file_to_server(path))
 
-            try:
-                with open(path) as f:
-                    src = f.read()
-            except Exception:
-                pass
-            else:
-                try:
-                    code = compile(src, path, 'exec', 0, dont_inherit=True)
-                except Exception:
-                    pass
-                else:
-                    try:
-                        lines = sorted(_util.get_code_lines(code))
-                    except Exception:
-                        pass
-                    else:
-                        if lines:
-                            for bp in args['breakpoints']:
-                                line = bp['line']
-                                if line not in lines:
-                                    # Adjust to the first preceding valid line.
-                                    idx = bisect.bisect_left(lines, line)
-                                    if idx > 0:
-                                        bp['line'] = lines[idx - 1]
+        try:
+            lines = sorted(_util.get_code_lines(path))
+        except Exception:
+            pass
+        else:
+            for bp in args['breakpoints']:
+                line = bp['line']
+                if line not in lines:
+                    # Adjust to the first preceding valid line.
+                    idx = bisect.bisect_left(lines, line)
+                    if idx > 0:
+                        bp['line'] = lines[idx - 1]
 
         _, _, resp_args = yield self.pydevd_request(
             pydevd_comm.CMD_SET_BREAK,
@@ -2573,7 +2593,30 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_SUSPEND)
     @async_handler
     def on_pydevd_thread_suspend(self, seq, args):
-        pass
+        xml = self.parse_xml_response(args)
+        reason = int(xml.thread['stop_reason'])
+
+        # Normally, we rely on CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION instead,
+        # but we only get this one in response to CMD_SET_NEXT_STATEMENT.
+        if reason == pydevd_comm.CMD_SET_NEXT_STATEMENT:
+            pyd_tid = xml.thread['id']
+            vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=False)
+            self.send_event(
+                'stopped',
+                reason='pause',
+                threadId=vsc_tid,
+                allThreadsStopped=True)
+
+    @pydevd_events.handler(pydevd_comm.CMD_THREAD_RUN)
+    def on_pydevd_thread_run(self, seq, args):
+        pyd_tid, reason = args.split('\t', 2)
+        reason = int(reason)
+        vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=False)
+
+        # Normally, we rely on CMD_THREAD_RESUME_SINGLE_NOTIFICATION instead,
+        # but we only get this one in response to CMD_SET_NEXT_STATEMENT.
+        if reason == pydevd_comm.CMD_SET_NEXT_STATEMENT:
+            self.send_event('continued', threadId=vsc_tid)
 
     @pydevd_events.handler(pydevd_comm_constants.CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION)
     @async_handler
@@ -2634,10 +2677,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             description=exc_desc,
             **extra)
 
-    @pydevd_events.handler(pydevd_comm.CMD_THREAD_RUN)
-    def on_pydevd_thread_run(self, seq, args):
-        pass  # Ignore: only send continued on CMD_THREAD_RESUME_SINGLE_NOTIFICATION
-
     @pydevd_events.handler(pydevd_comm_constants.CMD_THREAD_RESUME_SINGLE_NOTIFICATION)
     def on_pydevd_thread_resume_single_notification(self, seq, args):
         resumed_info = json.loads(args)
@@ -2677,3 +2716,16 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     @pydevd_events.handler(pydevd_comm.CMD_PROCESS_CREATED)
     def on_pydevd_process_create(self, seq, args):
         pass
+
+    @pydevd_events.handler(pydevd_comm.CMD_SET_NEXT_STATEMENT)
+    def on_pydevd_set_next_statement(self, seq, args):
+        goto_request = self.current_goto_request
+        assert goto_request is not None
+        self.current_goto_request = None
+
+        success, message = args.split('\t', 2)
+
+        if success == 'True':
+            self.send_response(goto_request)
+        else:
+            self.send_error_response(goto_request, message)

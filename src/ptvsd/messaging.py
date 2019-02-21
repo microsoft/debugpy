@@ -239,6 +239,9 @@ class RequestFailure(Exception):
     def __init__(self, message):
         self.message = message
 
+    def __hash__(self):
+        return hash(self.message)
+
     def __eq__(self, other):
         if not isinstance(other, RequestFailure):
             return NotImplemented

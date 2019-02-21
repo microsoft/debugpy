@@ -22,6 +22,8 @@ with vendored('pydevd'):
 pydevd_constants.CYTHON_SUPPORTED = False
 # We limit representation size in our representation provider when needed.
 pydevd_constants.MAXIMUM_VARIABLE_REPRESENTATION_SIZE = 2**32
+# We want CMD_SET_NEXT_STATEMENT to have a response indicating success or failure.
+pydevd_constants.GOTO_HAS_RESPONSE = True
 
 
 # Now make sure all the top-level modules and packages in pydevd are

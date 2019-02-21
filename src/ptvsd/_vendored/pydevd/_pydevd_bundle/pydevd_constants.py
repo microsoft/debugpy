@@ -115,6 +115,9 @@ USE_LIB_COPY = SUPPORT_GEVENT and \
 INTERACTIVE_MODE_AVAILABLE = sys.platform in ('darwin', 'win32') or os.getenv('DISPLAY') is not None
 IS_PYCHARM = False
 
+# If True, CMD_SET_NEXT_STATEMENT and CMD_RUN_TO_LINE commands have responses indicating success or failure.
+GOTO_HAS_RESPONSE = IS_PYCHARM
+
 LOAD_VALUES_ASYNC = os.getenv('PYDEVD_LOAD_VALUES_ASYNC', 'False') == 'True'
 DEFAULT_VALUE = "__pydevd_value_async"
 ASYNC_EVAL_TIMEOUT_SEC = 60
