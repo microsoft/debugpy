@@ -7,5 +7,6 @@
     "settings": {
         "python.linting.enabled": true,
         "python.linting.pylintEnabled": false,
+        "python.envFile": "${workspaceFolder}/.env",
     }
 }
