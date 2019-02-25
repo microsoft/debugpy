@@ -118,7 +118,10 @@ class EventLoop(object):
                 # thread, so, just silence it.
                 pass
             else:
-                traceback.print_exc()
+                try:
+                    traceback.print_exc()
+                except:
+                    pass  # Could give an error during shutdown.
 
     def stop(self):
         self._stop = True
@@ -173,4 +176,5 @@ def wrap_async(f):
 
         callback(None)
         return result
+
     return g

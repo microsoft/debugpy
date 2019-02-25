@@ -39,6 +39,7 @@ import _pydevd_bundle.pydevd_comm_constants as pydevd_comm_constants  # noqa
 import _pydevd_bundle.pydevd_extension_api as pydevd_extapi  # noqa
 import _pydevd_bundle.pydevd_extension_utils as pydevd_extutil  # noqa
 import _pydevd_bundle.pydevd_frame as pydevd_frame  # noqa
+from pydevd_file_utils import get_abs_path_real_path_and_base_from_file  # noqa
 # from _pydevd_bundle.pydevd_comm import pydevd_log
 from _pydevd_bundle.pydevd_dont_trace_files import PYDEV_FILE  # noqa
 from _pydevd_bundle import pydevd_additional_thread_info
@@ -151,7 +152,7 @@ SafeReprPresentationProvider._instance = SafeReprPresentationProvider()
 str_handlers = pydevd_extutil.EXTENSION_MANAGER_INSTANCE.type_to_instance.setdefault(pydevd_extapi.StrPresentationProvider, [])  # noqa
 str_handlers.insert(0, SafeReprPresentationProvider._instance)
 
-PTVSD_DIR_PATH = os.path.dirname(os.path.abspath(__file__)) + os.path.sep
+PTVSD_DIR_PATH = os.path.dirname(os.path.abspath(get_abs_path_real_path_and_base_from_file(__file__)[0])) + os.path.sep
 NORM_PTVSD_DIR_PATH = os.path.normcase(PTVSD_DIR_PATH)
 
 
