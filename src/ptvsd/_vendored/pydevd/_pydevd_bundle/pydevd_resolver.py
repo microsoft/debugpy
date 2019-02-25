@@ -235,10 +235,7 @@ class DictResolver:
         raise UnableToResolveVariableException()
 
     def key_to_str(self, key):
-        if not pydevd_constants.IS_PY3K:
-            if isinstance(key, unicode):
-                return "u'%s'" % key
-        return '%r' % key
+        return '%r' % (key,)
 
     def init_dict(self):
         return {}
@@ -323,12 +320,10 @@ class TupleResolver:  # to enumerate tuples and lists
         l = len(lst)
         ret = []
 
-        format_str = '%0' + str(int(len(str(l)))) + 'd'
+        format_str = '%0' + str(int(len(str(l - 1)))) + 'd'
 
-        i = 0
-        for item in lst:
+        for i, item in enumerate(lst):
             ret.append((format_str % i, item, '[%s]' % i))
-            i += 1
 
             if i > MAX_ITEMS_TO_HANDLE:
                 ret.append((TOO_LARGE_ATTR, TOO_LARGE_MSG, None))
@@ -345,12 +340,10 @@ class TupleResolver:  # to enumerate tuples and lists
         l = len(var)
         d = {}
 
-        format_str = '%0' + str(int(len(str(l)))) + 'd'
+        format_str = '%0' + str(int(len(str(l - 1)))) + 'd'
 
-        i = 0
-        for item in var:
+        for i, item in enumerate(var):
             d[format_str % i] = item
-            i += 1
 
             if i > MAX_ITEMS_TO_HANDLE:
                 d[TOO_LARGE_ATTR] = TOO_LARGE_MSG

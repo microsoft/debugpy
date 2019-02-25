@@ -37,13 +37,12 @@ def test_set_expression(pyfile, run_as, start_method):
             'variablesReference': scopes[0]['variablesReference']
         }).wait_for_response()
         variables = list(v for v in resp_variables.body['variables'] if v['name'] == 'a')
-        assert len(variables) == 1
-        assert variables[0] == {
+        assert variables == [{
             'type': 'int',
             'value': '1',
             'name': 'a',
             'evaluateName': "a"
-        }
+        }]
 
         resp_set_variable = session.send_request('setExpression', arguments={
             'frameId': hit.frame_id,
