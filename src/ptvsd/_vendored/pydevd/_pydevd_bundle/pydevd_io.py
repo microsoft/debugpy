@@ -2,6 +2,7 @@ from _pydevd_bundle import pydevd_constants
 
 IS_PY3K = pydevd_constants.IS_PY3K
 
+
 class IORedirector:
     '''
     This class works to wrap a stream (stdout/stderr) with an additional redirect.
@@ -10,7 +11,7 @@ class IORedirector:
     def __init__(self, original, new_redirect, wrap_buffer=False):
         '''
         :param stream original:
-            The stream to be wrapped (usually stdout/stderr).
+            The stream to be wrapped (usually stdout/stderr, but could be None).
 
         :param stream new_redirect:
             Usually IOBuf (below).
@@ -27,14 +28,19 @@ class IORedirector:
         # Note that writing to the original stream may fail for some reasons
         # (such as trying to write something that's not a string or having it closed).
         for r in self._redirect_to:
-            r.write(s)
+            if hasattr(r, 'write'):
+                r.write(s)
 
     def isatty(self):
-        return self._redirect_to[0].isatty()
+        for r in self._redirect_to:
+            if hasattr(r, 'isatty'):
+                return r.isatty()
+        return False
 
     def flush(self):
         for r in self._redirect_to:
-            r.flush()
+            if hasattr(r, 'flush'):
+                r.flush()
 
     def __getattr__(self, name):
         for r in self._redirect_to:
@@ -42,11 +48,13 @@ class IORedirector:
                 return getattr(r, name)
         raise AttributeError(name)
 
+
 class IOBuf:
     '''This class works as a replacement for stdio and stderr.
     It is a buffer and when its contents are requested, it will erase what
     it has so far so that the next return will not return the same contents again.
     '''
+
     def __init__(self):
         self.buflist = []
         import os
@@ -56,7 +64,7 @@ class IOBuf:
         b = self.buflist
         self.buflist = []  # clear it
         return ''.join(b)  # bytes on py2, str on py3.
-    
+
     def write(self, s):
         if not IS_PY3K:
             if isinstance(s, unicode):
@@ -75,6 +83,7 @@ class IOBuf:
 
     def empty(self):
         return len(self.buflist) == 0
+
 
 class _RedirectionsHolder:
     _stack_stdout = []
