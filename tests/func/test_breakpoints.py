@@ -480,3 +480,53 @@ def test_invalid_breakpoints(pyfile, run_as, start_method):
         assert not expected_bps
 
         session.wait_for_exit()
+
+
+def test_deep_stacks(pyfile, run_as, start_method):
+    @pyfile
+    def code_to_debug():
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
+
+        def deep_stack(level):
+            if level <= 0:
+                print('done')  #@bp
+                return level
+            deep_stack(level - 1)
+        deep_stack(100)
+
+    line_numbers = get_marked_line_numbers(code_to_debug)
+    with DebugSession() as session:
+        session.initialize(
+            target=(run_as, code_to_debug),
+            start_method=start_method,
+            ignore_unobserved=[Event('continued')],
+        )
+
+        bp_line = line_numbers['bp']
+
+        actual_bps = session.set_breakpoints(code_to_debug, [bp_line])
+        actual_bps = [bp['line'] for bp in actual_bps]
+        session.start_debugging()
+
+        hit = session.wait_for_thread_stopped()
+        full_frames = hit.stacktrace.body['stackFrames']
+        assert len(full_frames) > 100
+
+        # Construct stack from parts
+        frames = []
+        start = 0
+        for _ in range(5):
+            resp_stacktrace = session.send_request('stackTrace', arguments={
+                'threadId': hit.thread_id,
+                'startFrame': start,
+                'levels': 25
+            }).wait_for_response()
+            assert resp_stacktrace.body['totalFrames'] > 0
+            frames += resp_stacktrace.body['stackFrames']
+            start = len(frames)
+
+        assert full_frames == frames
+
+        session.send_request('continue').wait_for_response()
+        session.wait_for_exit()

@@ -958,6 +958,7 @@ INITIALIZE_RESPONSE = dict(
     supportsConditionalBreakpoints=True,
     supportsConfigurationDoneRequest=True,
     supportsDebuggerProperties=True,
+    supportsDelayedStackTraceLoading=True,
     supportsEvaluateForHovers=True,
     supportsExceptionInfoRequest=True,
     supportsExceptionOptions=True,
@@ -1562,7 +1563,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     @async_handler
     def on_stackTrace(self, request, args):
-        # TODO: docstring
         vsc_tid = int(args['threadId'])
 
         try:
@@ -1582,7 +1582,12 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             pydevd_request,
             is_json=True)
 
+        levels = int(args.get('levels', 0))
         stackFrames = resp_args['body']['stackFrames']
+        if levels > 0:
+            start = int(args.get('startFrame', 0))
+            end = min(start + levels, len(stackFrames))
+            stackFrames = resp_args['body']['stackFrames'][start:end]
         totalFrames = resp_args['body']['totalFrames']
         self.send_response(request, stackFrames=stackFrames, totalFrames=totalFrames)
 
