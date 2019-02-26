@@ -91,7 +91,10 @@ def get_response_class(request):
 
 def build_response(request, kwargs=None):
     if kwargs is None:
-        kwargs = {}
+        kwargs = {'success':True}
+    else:
+        if 'success' not in kwargs:
+            kwargs['success'] = True
     response_class = _responses_to_types[request.command]
     kwargs.setdefault('seq', -1)  # To be overwritten before sending
-    return response_class(command=request.command, request_seq=request.seq, success=True, **kwargs)
+    return response_class(command=request.command, request_seq=request.seq, **kwargs)

@@ -43,10 +43,14 @@ r'''
 
 from _pydevd_bundle.pydevd_constants import IS_PY2, IS_PY3K, DebugInfoHolder, IS_WINDOWS, IS_JYTHON
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
+from _pydevd_bundle.pydevd_comm_constants import file_system_encoding, filesystem_encoding_is_utf8
+
 import json
 import os.path
 import sys
 import traceback
+import itertools
+from functools import partial
 
 _os_normcase = os.path.normcase
 basename = os.path.basename
@@ -363,11 +367,29 @@ except:
 # instead of importing any of those names to a given scope.
 
 
+def _path_to_expected_str(filename):
+    if IS_PY2:
+        if not filesystem_encoding_is_utf8 and hasattr(filename, "decode"):
+            # filename_in_utf8 is a byte string encoded using the file system encoding
+            # convert it to utf8
+            filename = filename.decode(file_system_encoding)
+
+        if not isinstance(filename, bytes):
+            filename = filename.encode('utf-8')
+
+    else:  # py3
+        if isinstance(filename, bytes):
+            filename = filename.decode(file_system_encoding)
+
+    return filename
+
+
 def _original_file_to_client(filename, cache={}):
     try:
         return cache[filename]
     except KeyError:
-        cache[filename] = get_path_with_real_case(_AbsFile(filename))
+        translated = _path_to_expected_str(get_path_with_real_case(_AbsFile(filename)))
+        cache[filename] = translated
     return cache[filename]
 
 
@@ -387,6 +409,18 @@ def _fix_path(path, sep):
 
 
 _last_client_server_paths_set = []
+
+_source_reference_to_server_filename = {}
+_client_filename_in_utf8_to_source_reference = {}
+_next_source_reference = partial(next, itertools.count(1))
+
+
+def get_client_filename_source_reference(client_filename):
+    return _client_filename_in_utf8_to_source_reference.get(client_filename, 0)
+
+
+def get_server_filename_from_source_reference(source_reference):
+    return _source_reference_to_server_filename.get(source_reference, '')
 
 
 def setup_client_server_paths(paths):
@@ -414,7 +448,7 @@ def setup_client_server_paths(paths):
                 path0 = path0.encode(sys.getfilesystemencoding())
             if isinstance(path1, unicode):
                 path1 = path1.encode(sys.getfilesystemencoding())
-                
+
         path0 = _fix_path(path0, eclipse_sep)
         path1 = _fix_path(path1, python_sep)
         initial_paths[i] = (path0, path1)
@@ -504,9 +538,17 @@ def setup_client_server_paths(paths):
             if eclipse_sep != python_sep:
                 translated = translated.replace(python_sep, eclipse_sep)
 
+            translated = _path_to_expected_str(translated)
+
             # The resulting path is not in the python process, so, we cannot do a _NormFile here,
             # only at the beginning of this method.
             cache[filename] = translated
+
+            if translated not in _client_filename_in_utf8_to_source_reference:
+                source_reference = _next_source_reference()
+                _client_filename_in_utf8_to_source_reference[translated] = source_reference
+                _source_reference_to_server_filename[source_reference] = filename
+
             return translated
 
     norm_file_to_server = _norm_file_to_server

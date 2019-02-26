@@ -10,6 +10,11 @@ PYTHON_SUSPEND = 1
 DJANGO_SUSPEND = 2
 JINJA2_SUSPEND = 3
 
+try:
+    int_types = (int, long)
+except NameError:
+    int_types = (int,)
+
 
 class DebugInfoHolder:
     # we have to put it here because it can be set through the command line (so, the

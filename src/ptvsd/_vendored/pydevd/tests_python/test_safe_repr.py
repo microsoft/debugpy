@@ -2,14 +2,12 @@ import collections
 import sys
 import re
 import pytest
+from _pydevd_bundle.pydevd_safe_repr import SafeRepr
 
 try:
     import numpy as np
 except ImportError:
     np = None
-
-from ptvsd.safe_repr import SafeRepr
-
 
 PY_VER = sys.version_info[0]
 assert PY_VER <= 3  # Fix the code when Python 4 comes around.
@@ -84,12 +82,12 @@ class TestSafeRepr(SafeReprTestBase):
         for i in range(SafeRepr.maxcollection[0]):
             dcoll[str(i) * SafeRepr.maxstring_outer] = coll
         text = self.saferepr(dcoll)
-        #try:
+        # try:
         #    text_repr = repr(dcoll)
-        #except MemoryError:
+        # except MemoryError:
         #    print('Memory error raised while creating repr of test data')
         #    text_repr = ''
-        #print('len(SafeRepr()(dcoll)) = ' + str(len(text)) +
+        # print('len(SafeRepr()(dcoll)) = ' + str(len(text)) +
         #      ', len(repr(coll)) = ' + str(len(text_repr)))
 
         assert len(text) < 8192
@@ -161,13 +159,13 @@ class TestStrings(SafeReprTestBase):
                               "b'" + 'A' * 43688 + "..." + 'A' * 21844 + "'")
         self.assert_shortened([value], "[b'AAAAAAAAAAAAAAAAAA...AAAAAAAAA']")
 
-    @pytest.mark.skip(reason='not written')  # TODO: finish!
-    def test_bytearray_small(self):
-        raise NotImplementedError
-
-    @pytest.mark.skip(reason='not written')  # TODO: finish!
-    def test_bytearray_large(self):
-        raise NotImplementedError
+    # @pytest.mark.skip(reason='not written')  # TODO: finish!
+    # def test_bytearray_small(self):
+    #    raise NotImplementedError
+    #
+    # @pytest.mark.skip(reason='not written')  # TODO: finish!
+    # def test_bytearray_large(self):
+    #    raise NotImplementedError
 
 
 class RawValueTests(SafeReprTestBase):
@@ -188,20 +186,19 @@ class RawValueTests(SafeReprTestBase):
         value = bytearray(b'A' * 5)
         self.assert_saferepr(value, value.decode('ascii'))
 
-
-class TestNumbers(SafeReprTestBase):
-
-    @pytest.mark.skip(reason='not written')  # TODO: finish!
-    def test_int(self):
-        raise NotImplementedError
-
-    @pytest.mark.skip(reason='not written')  # TODO: finish!
-    def test_float(self):
-        raise NotImplementedError
-
-    @pytest.mark.skip(reason='not written')  # TODO: finish!
-    def test_complex(self):
-        raise NotImplementedError
+# class TestNumbers(SafeReprTestBase):
+#
+#     @pytest.mark.skip(reason='not written')  # TODO: finish!
+#     def test_int(self):
+#         raise NotImplementedError
+#
+#     @pytest.mark.skip(reason='not written')  # TODO: finish!
+#     def test_float(self):
+#         raise NotImplementedError
+#
+#     @pytest.mark.skip(reason='not written')  # TODO: finish!
+#     def test_complex(self):
+#         raise NotImplementedError
 
 
 class ContainerBase(object):
@@ -241,7 +238,7 @@ class ContainerBase(object):
             suffix = _suffix + ("," + _suffix) * depth
         else:
             suffix = _suffix * (depth + 1)
-        #print("ctype = " + ctype.__name__ + ", maxcollection[" +
+        # print("ctype = " + ctype.__name__ + ", maxcollection[" +
         #      str(i) + "] == " + str(SafeRepr.maxcollection[i]))
         return self._combine(items, prefix, suffix, large=large)
 
@@ -263,13 +260,13 @@ class ContainerBase(object):
 
         self.assert_shortened(c2, c2_expect)
 
-    @pytest.mark.skip(reason='not written')  # TODO: finish!
-    def test_empty(self):
-        raise NotImplementedError
-
-    @pytest.mark.skip(reason='not written')  # TODO: finish!
-    def test_subclass(self):
-        raise NotImplementedError
+    # @pytest.mark.skip(reason='not written')  # TODO: finish!
+    # def test_empty(self):
+    #     raise NotImplementedError
+    #
+    # @pytest.mark.skip(reason='not written')  # TODO: finish!
+    # def test_subclass(self):
+    #     raise NotImplementedError
 
     def test_boundary(self):
         items1 = range(SafeRepr.maxcollection[0] - 1)
@@ -295,7 +292,7 @@ class ContainerBase(object):
             c1 = self.CLASS(items1)
             c2 = self.CLASS(items2)
             c3 = self.CLASS(items3)
-            for j in range(i):
+            for _j in range(i):
                 c1, c2, c3 = ctype((c1,)), ctype((c2,)), ctype((c3,))
             expected1 = self.combine_nested(i, items1)
             expected2 = self.combine_nested(i, items2[:-1], large=True)
@@ -438,15 +435,15 @@ class TestOtherPythonTypes(SafeReprTestBase):
     #  type
     #  super
 
-    @pytest.mark.skip(reason='not written')  # TODO: finish!
-    def test_file(self):
-        raise NotImplementedError
+    # @pytest.mark.skip(reason='not written')  # TODO: finish!
+    # def test_file(self):
+    #     raise NotImplementedError
 
     def test_range_small(self):
         range_name = xrange.__name__
         value = xrange(1, 42)
 
-        self.assert_unchanged(value, '{}(1, 42)'.format(range_name))
+        self.assert_unchanged(value, '%s(1, 42)' % (range_name,))
 
     @pytest.mark.skipif(sys.version_info < (3, 0), reason='Py3 specific test')
     def test_range_large_stop_only(self):
@@ -455,7 +452,7 @@ class TestOtherPythonTypes(SafeReprTestBase):
         value = xrange(stop)
 
         self.assert_unchanged(value,
-                              '{}(0, {})'.format(range_name, stop))
+                              '%s(0, %s)' % (range_name, stop))
 
     def test_range_large_with_start(self):
         range_name = xrange.__name__
@@ -463,29 +460,32 @@ class TestOtherPythonTypes(SafeReprTestBase):
         value = xrange(1, stop)
 
         self.assert_unchanged(value,
-                              '{}(1, {})'.format(range_name, stop))
+                              '%s(1, %s)' % (range_name, stop))
 
-    @pytest.mark.skip(reason='not written')  # TODO: finish!
-    def test_named_struct(self):
-        # e.g. sys.version_info
-        raise NotImplementedError
-
-    @pytest.mark.skip(reason='not written')  # TODO: finish!
-    def test_namedtuple(self):
-        raise NotImplementedError
-
-    @pytest.mark.skip(reason='not written')  # TODO: finish!
-    @pytest.mark.skipif(sys.version_info < (3, 0), reason='Py3 specific test')
-    def test_SimpleNamespace(self):
-        raise NotImplementedError
+    # @pytest.mark.skip(reason='not written')  # TODO: finish!
+    # def test_named_struct(self):
+    #     # e.g. sys.version_info
+    #     raise NotImplementedError
+    #
+    # @pytest.mark.skip(reason='not written')  # TODO: finish!
+    # def test_namedtuple(self):
+    #     raise NotImplementedError
+    #
+    # @pytest.mark.skip(reason='not written')  # TODO: finish!
+    # @pytest.mark.skipif(sys.version_info < (3, 0), reason='Py3 specific test')
+    # def test_SimpleNamespace(self):
+    #     raise NotImplementedError
 
 
 class TestUserDefinedObjects(SafeReprTestBase):
 
     def test_broken_repr(self):
+
         class TestClass(object):
-            def __repr__(_):
+
+            def __repr__(self):
                 raise NameError
+
         value = TestClass()
 
         with pytest.raises(NameError):
@@ -493,46 +493,60 @@ class TestUserDefinedObjects(SafeReprTestBase):
         self.assert_saferepr(value, object.__repr__(value))
 
     def test_large(self):
+
         class TestClass(object):
+
             def __repr__(self):
                 return '<' + 'A' * SafeRepr.maxother_outer * 2 + '>'
+
         value = TestClass()
 
         self.assert_shortened_regex(value, r'\<A+\.\.\.A+\>')
 
     def test_inherit_repr(self):
+
         class TestClass(dict):
             pass
+
         value_dict = TestClass()
 
-        class TestClass(list):
+        class TestClass2(list):
             pass
-        value_list = TestClass()
+
+        value_list = TestClass2()
 
         self.assert_unchanged(value_dict, '{}')
         self.assert_unchanged(value_list, '[]')
 
     def test_custom_repr(self):
+
         class TestClass(dict):
-            def __repr__(_):
+
+            def __repr__(self):
                 return 'MyRepr'
+
         value1 = TestClass()
 
-        class TestClass(list):
-            def __repr__(_):
+        class TestClass2(list):
+
+            def __repr__(self):
                 return 'MyRepr'
-        value2 = TestClass()
+
+        value2 = TestClass2()
 
         self.assert_unchanged(value1, 'MyRepr')
         self.assert_unchanged(value2, 'MyRepr')
 
     def test_custom_repr_many_items(self):
+
         class TestClass(list):
+
             def __init__(self, it=()):
                 list.__init__(self, it)
 
-            def __repr__(_):
+            def __repr__(self):
                 return 'MyRepr'
+
         value1 = TestClass(xrange(0, 15))
         value2 = TestClass(xrange(0, 16))
         value3 = TestClass([TestClass(xrange(0, 10))])
@@ -544,12 +558,15 @@ class TestUserDefinedObjects(SafeReprTestBase):
         self.assert_shortened(value4, '<TestClass, len() = 1>')
 
     def test_custom_repr_large_item(self):
+
         class TestClass(list):
+
             def __init__(self, it=()):
                 list.__init__(self, it)
 
-            def __repr__(_):
+            def __repr__(self):
                 return 'MyRepr'
+
         value1 = TestClass(['a' * (SafeRepr.maxcollection[1] + 1)])
         value2 = TestClass(['a' * (SafeRepr.maxstring_inner + 1)])
 

@@ -97,7 +97,7 @@ def getVariable(dbg, thread_id, frame_id, scope, attrs):
         for count in xrange(len(attrList)):
             if count == 0:
                 # An Expression can be in any scope (globals/locals), therefore it needs to evaluated as an expression
-                var = evaluate_expression(dbg, thread_id, frame_id, attrList[count], False)
+                var = evaluate_expression(dbg, frame, attrList[count], False)
             else:
                 _type, _typeName, resolver = get_type(var)
                 var = resolver.resolve(var, attrList[count])
@@ -240,11 +240,10 @@ def eval_in_context(expression, globals, locals):
     return result
 
 
-def evaluate_expression(dbg, thread_id, frame_id, expression, is_exec):
+def evaluate_expression(dbg, frame, expression, is_exec):
     '''returns the result of the evaluated expression
     @param is_exec: determines if we should do an exec or an eval
     '''
-    frame = dbg.find_frame(thread_id, frame_id)
     if frame is None:
         return
 
@@ -280,10 +279,9 @@ def evaluate_expression(dbg, thread_id, frame_id, expression, is_exec):
         del frame
 
 
-def change_attr_expression(thread_id, frame_id, attr, expression, dbg, value=SENTINEL_VALUE):
+def change_attr_expression(frame, attr, expression, dbg, value=SENTINEL_VALUE):
     '''Changes some attribute in a given frame.
     '''
-    frame = dbg.find_frame(thread_id, frame_id)
     if frame is None:
         return
 

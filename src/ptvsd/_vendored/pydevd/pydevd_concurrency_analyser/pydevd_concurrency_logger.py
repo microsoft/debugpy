@@ -19,7 +19,6 @@ except:
 
 threadingCurrentThread = threading.currentThread
 
-
 DONT_TRACE_THREADING = ['threading.py', 'pydevd.py']
 INNER_METHODS = ['_stop']
 INNER_FILES = ['threading.py']
@@ -27,10 +26,8 @@ THREAD_METHODS = ['start', '_stop', 'join']
 LOCK_METHODS = ['__init__', 'acquire', 'release', '__enter__', '__exit__']
 QUEUE_METHODS = ['put', 'get']
 
-
 # return time since epoch in milliseconds
 cur_time = lambda: int(round(time.time() * 1000000))
-
 
 try:
     import asyncio  # @UnresolvedImport
@@ -44,35 +41,31 @@ def get_text_list_for_frame(frame):
     cmdTextList = []
     try:
         while curFrame:
-            #print cmdText
+            # print cmdText
             myId = str(id(curFrame))
-            #print "id is ", myId
+            # print "id is ", myId
 
             if curFrame.f_code is None:
-                break #Iron Python sometimes does not have it!
+                break  # Iron Python sometimes does not have it!
 
-            myName = curFrame.f_code.co_name #method name (if in method) or ? if global
+            myName = curFrame.f_code.co_name  # method name (if in method) or ? if global
             if myName is None:
-                break #Iron Python sometimes does not have it!
+                break  # Iron Python sometimes does not have it!
 
-            #print "name is ", myName
+            # print "name is ", myName
 
             filename = pydevd_file_utils.get_abs_path_real_path_and_base_from_frame(curFrame)[1]
 
             myFile = pydevd_file_utils.norm_file_to_client(filename)
-            if file_system_encoding.lower() != "utf-8" and hasattr(myFile, "decode"):
-                # myFile is a byte string encoded using the file system encoding
-                # convert it to utf8
-                myFile = myFile.decode(file_system_encoding).encode("utf-8")
 
-            #print "file is ", myFile
-            #myFile = inspect.getsourcefile(curFrame) or inspect.getfile(frame)
+            # print "file is ", myFile
+            # myFile = inspect.getsourcefile(curFrame) or inspect.getfile(frame)
 
             myLine = str(curFrame.f_lineno)
-            #print "line is ", myLine
+            # print "line is ", myLine
 
-            #the variables are all gotten 'on-demand'
-            #variables = pydevd_xml.frame_vars_to_xml(curFrame.f_locals)
+            # the variables are all gotten 'on-demand'
+            # variables = pydevd_xml.frame_vars_to_xml(curFrame.f_locals)
 
             variables = ''
             cmdTextList.append('<frame id="%s" name="%s" ' % (myId , pydevd_xml.make_valid_xml_value(myName)))
@@ -121,6 +114,7 @@ def log_new_thread(global_debugger, t):
 
 
 class ThreadingLogger:
+
     def __init__(self):
         self.start_time = cur_time()
 
@@ -235,12 +229,12 @@ class ThreadingLogger:
                         # print(event_time, t.getName(), get_thread_id(t), "lock",
                         #       real_method, back.f_code.co_filename, back.f_lineno)
 
-
         except Exception:
             traceback.print_exc()
 
 
 class NameManager:
+
     def __init__(self, name_prefix):
         self.tasks = {}
         self.last = 0
@@ -254,6 +248,7 @@ class NameManager:
 
 
 class AsyncioLogger:
+
     def __init__(self):
         self.task_mgr = NameManager("Task")
         self.coro_mgr = NameManager("Coro")
@@ -263,7 +258,7 @@ class AsyncioLogger:
         while frame is not None:
             if "self" in frame.f_locals:
                 self_obj = frame.f_locals["self"]
-                if isinstance(self_obj,  asyncio.Task):
+                if isinstance(self_obj, asyncio.Task):
                     method_name = frame.f_code.co_name
                     if method_name == "_step":
                         return id(self_obj)
@@ -308,7 +303,7 @@ class AsyncioLogger:
                     if method_name == "acquire":
                         if not self_obj._waiters and not self_obj.locked():
                             send_message("asyncio_event", event_time, task_name, task_name, "lock",
-                                         method_name+"_begin", frame.f_code.co_filename, frame.f_lineno, frame, lock_id=str(id(self_obj)))
+                                         method_name + "_begin", frame.f_code.co_filename, frame.f_lineno, frame, lock_id=str(id(self_obj)))
                         if self_obj.locked():
                             method_name += "_begin"
                         else:

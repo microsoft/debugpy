@@ -4,13 +4,15 @@ import json
 import os
 
 from _pydevd_bundle._debug_adapter import pydevd_base_schema
-from _pydevd_bundle._debug_adapter.pydevd_schema import SourceBreakpoint
+from _pydevd_bundle._debug_adapter.pydevd_schema import (SourceBreakpoint, ScopesResponseBody, Scope,
+    VariablesResponseBody, SetVariableResponseBody, ModulesResponseBody, SourceResponseBody)
 from _pydevd_bundle.pydevd_api import PyDevdAPI
 from _pydevd_bundle.pydevd_comm_constants import CMD_RETURN
 from _pydevd_bundle.pydevd_filtering import ExcludeFilter
 from _pydevd_bundle.pydevd_json_debug_options import _extract_debug_options
 from _pydevd_bundle.pydevd_net_command import NetCommand
 from _pydevd_bundle.pydevd_utils import convert_dap_log_message_to_expression
+import pydevd_file_utils
 
 
 def _convert_rules_to_exclude_filters(rules, filename_to_server, on_error):
@@ -134,7 +136,9 @@ class _PyDevJsonCommandProcessor(object):
         arguments = request.arguments  # : :type arguments: CompletionsArguments
         seq = request.seq
         text = arguments.text
-        thread_id, frame_id = arguments.frameId
+        frame_id = arguments.frameId
+        thread_id = py_db.suspended_frames_manager.get_thread_id_for_variable_reference(
+            frame_id)
 
         # Note: line and column are 1-based (convert to 0-based for pydevd).
         column = arguments.column - 1
@@ -267,6 +271,127 @@ class _PyDevJsonCommandProcessor(object):
         body = {'breakpoints': breakpoints_set}
         set_breakpoints_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
         return NetCommand(CMD_RETURN, 0, set_breakpoints_response.to_dict(), is_json=True)
+
+    def on_stacktrace_request(self, py_db, request):
+        '''
+        :param StackTraceRequest request:
+        '''
+        # : :type stack_trace_arguments: StackTraceArguments
+        stack_trace_arguments = request.arguments
+        thread_id = stack_trace_arguments.threadId
+
+        fmt = stack_trace_arguments.format
+        if hasattr(fmt, 'to_dict'):
+            fmt = fmt.to_dict()
+        self.api.request_stack(py_db, request.seq, thread_id, fmt)
+
+    def on_scopes_request(self, py_db, request):
+        '''
+        Scopes are the top-level items which appear for a frame (so, we receive the frame id
+        and provide the scopes it has).
+
+        :param ScopesRequest request:
+        '''
+        frame_id = request.arguments.frameId
+
+        variables_reference = frame_id
+        scopes = [Scope('Locals', int(variables_reference), False).to_dict()]
+        body = ScopesResponseBody(scopes)
+        scopes_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
+        return NetCommand(CMD_RETURN, 0, scopes_response.to_dict(), is_json=True)
+
+    def on_evaluate_request(self, py_db, request):
+        '''
+        :param EvaluateRequest request:
+        '''
+        # : :type arguments: EvaluateArguments
+        arguments = request.arguments
+
+        thread_id = py_db.suspended_frames_manager.get_thread_id_for_variable_reference(
+            arguments.frameId)
+
+        self.api.request_exec_or_evaluate_json(
+            py_db, request, thread_id)
+
+    def on_setexpression_request(self, py_db, request):
+        # : :type arguments: SetExpressionArguments
+        arguments = request.arguments
+
+        thread_id = py_db.suspended_frames_manager.get_thread_id_for_variable_reference(
+            arguments.frameId)
+
+        self.api.request_set_expression_json(
+            py_db, request, thread_id)
+
+    def on_variables_request(self, py_db, request):
+        '''
+        Variables can be asked whenever some place returned a variables reference (so, it
+        can be a scope gotten from on_scopes_request, the result of some evaluation, etc.).
+
+        Note that in the DAP the variables reference requires a unique int... the way this works for
+        pydevd is that an instance is generated for that specific variable reference and we use its
+        id(instance) to identify it to make sure all items are unique (and the actual {id->instance}
+        is added to a dict which is only valid while the thread is suspended and later cleared when
+        the related thread resumes execution).
+
+        see: SuspendedFramesManager
+
+        :param VariablesRequest request:
+        '''
+        arguments = request.arguments  # : :type arguments: VariablesArguments
+        variables_reference = arguments.variablesReference
+
+        thread_id = py_db.suspended_frames_manager.get_thread_id_for_variable_reference(
+            variables_reference)
+        if thread_id is not None:
+            self.api.request_get_variable_json(py_db, request, thread_id)
+        else:
+            variables = []
+            body = VariablesResponseBody(variables)
+            variables_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
+            return NetCommand(CMD_RETURN, 0, variables_response.to_dict(), is_json=True)
+
+    def on_setvariable_request(self, py_db, request):
+        arguments = request.arguments  # : :type arguments: SetVariableArguments
+        variables_reference = arguments.variablesReference
+
+        thread_id = py_db.suspended_frames_manager.get_thread_id_for_variable_reference(
+            variables_reference)
+        if thread_id is not None:
+            self.api.request_change_variable_json(py_db, request, thread_id)
+        else:
+            body = SetVariableResponseBody('')
+            variables_response = pydevd_base_schema.build_response(
+                request,
+                kwargs={
+                    'body':body,
+                    'success': False,
+                    'message': 'Unable to find thread to evaluate variable reference.'
+            })
+            return NetCommand(CMD_RETURN, 0, variables_response.to_dict(), is_json=True)
+
+    def on_modules_request(self, py_db, request):
+        modules_manager = py_db.cmd_factory.modules_manager  # : :type modules_manager: ModulesManager
+        modules_info = modules_manager.get_modules_info()
+        body = ModulesResponseBody(modules_info)
+        variables_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
+        return NetCommand(CMD_RETURN, 0, variables_response.to_dict(), is_json=True)
+
+    def on_source_request(self, py_db, request):
+        '''
+        :param SourceRequest request:
+        '''
+        source_reference = request.arguments.sourceReference
+        content = ''
+        if source_reference != 0:
+            server_filename = pydevd_file_utils.get_server_filename_from_source_reference(source_reference)
+            if os.path.exists(server_filename):
+                with open(server_filename, 'r') as stream:
+                    content = stream.read()
+
+        body = SourceResponseBody(content)
+        response = pydevd_base_schema.build_response(request, kwargs={'body':body})
+        return NetCommand(CMD_RETURN, 0, response.to_dict(), is_json=True)
 
 
 process_net_command_json = _PyDevJsonCommandProcessor(pydevd_base_schema.from_json).process_net_command_json

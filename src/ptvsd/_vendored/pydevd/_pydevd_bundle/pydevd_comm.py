@@ -64,6 +64,7 @@ each command has a format:
 '''
 
 import itertools
+import os
 
 from _pydev_bundle.pydev_imports import _queue
 from _pydev_imps._pydev_saved_modules import time
@@ -76,6 +77,11 @@ from _pydevd_bundle.pydevd_constants import (DebugInfoHolder, get_thread_id, IS_
 from _pydev_bundle.pydev_override import overrides
 import weakref
 from _pydev_bundle._pydev_completer import extract_token_and_qualifier
+from _pydevd_bundle._debug_adapter.pydevd_schema import VariablesResponseBody, \
+    SetVariableResponseBody
+from _pydevd_bundle._debug_adapter import pydevd_base_schema, pydevd_schema
+from _pydevd_bundle.pydevd_net_command import NetCommand
+from _pydevd_bundle.pydevd_xml import ExceptionOnEvaluate
 try:
     from urllib import quote_plus, unquote_plus
 except:
@@ -435,7 +441,9 @@ def start_client(host, port):
         pass  # May not be available everywhere.
 
     try:
-        s.settimeout(10)  # 10 seconds timeout
+        # 10 seconds default timeout
+        timeout = int(os.environ.get('PYDEVD_CONNECT_TIMEOUT', 10))
+        s.settimeout(timeout)
         s.connect((host, port))
         s.settimeout(None)  # no timeout after connected
         pydevd_log(1, "Connected.")
@@ -541,12 +549,13 @@ class InternalGetThreadStack(InternalThreadCommand):
     stopped in a breakpoint).
     '''
 
-    def __init__(self, seq, thread_id, py_db, set_additional_thread_info, timeout=.5):
+    def __init__(self, seq, thread_id, py_db, set_additional_thread_info, fmt, timeout=.5):
         InternalThreadCommand.__init__(self, thread_id)
         self._py_db = weakref.ref(py_db)
         self._timeout = time.time() + timeout
         self.seq = seq
         self._cmd = None
+        self._fmt = fmt
 
         # Note: receives set_additional_thread_info to avoid a circular import
         # in this module.
@@ -564,7 +573,7 @@ class InternalGetThreadStack(InternalThreadCommand):
             frame = additional_info.get_topmost_frame(t)
         try:
             self._cmd = py_db.cmd_factory.make_get_thread_stack_message(
-                py_db, self.seq, self.thread_id, frame, must_be_suspended=not timed_out)
+                py_db, self.seq, self.thread_id, frame, self._fmt, must_be_suspended=not timed_out)
         finally:
             frame = None
             t = None
@@ -626,6 +635,30 @@ class InternalSetNextStatementThread(InternalThreadCommand):
             t.additional_info.pydev_message = str(self.seq)
 
 
+def internal_get_variable_json(py_db, request):
+    '''
+        :param VariablesRequest request:
+    '''
+    arguments = request.arguments  # : :type arguments: VariablesArguments
+    variables_reference = arguments.variablesReference
+    fmt = arguments.format
+    if hasattr(fmt, 'to_dict'):
+        fmt = fmt.to_dict()
+
+    variables = []
+    try:
+        variable = py_db.suspended_frames_manager.get_variable(variables_reference)
+    except KeyError:
+        pass
+    else:
+        for child_var in variable.get_children_variables(fmt=fmt):
+            variables.append(child_var.get_var_data(fmt=fmt))
+
+    body = VariablesResponseBody(variables)
+    variables_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
+    py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response.to_dict(), is_json=True))
+
+
 class InternalGetVariable(InternalThreadCommand):
     ''' gets the value of a variable '''
 
@@ -641,7 +674,8 @@ class InternalGetVariable(InternalThreadCommand):
         try:
             xml = StringIO.StringIO()
             xml.write("<xml>")
-            _typeName, val_dict = pydevd_vars.resolve_compound_variable_fields(dbg, self.thread_id, self.frame_id, self.scope, self.attributes)
+            _typeName, val_dict = pydevd_vars.resolve_compound_variable_fields(
+                dbg, self.thread_id, self.frame_id, self.scope, self.attributes)
             if val_dict is None:
                 val_dict = {}
 
@@ -693,29 +727,73 @@ class InternalGetArray(InternalThreadCommand):
             dbg.writer.add_command(cmd)
 
 
-class InternalChangeVariable(InternalThreadCommand):
-    ''' changes the value of a variable '''
+def internal_change_variable(dbg, seq, thread_id, frame_id, scope, attr, value):
+    ''' Changes the value of a variable '''
+    try:
+        frame = dbg.find_frame(thread_id, frame_id)
+        if frame is not None:
+            result = pydevd_vars.change_attr_expression(frame, attr, value, dbg)
+        else:
+            result = None
+        xml = "<xml>"
+        xml += pydevd_xml.var_to_xml(result, "")
+        xml += "</xml>"
+        cmd = dbg.cmd_factory.make_variable_changed_message(seq, xml)
+        dbg.writer.add_command(cmd)
+    except Exception:
+        cmd = dbg.cmd_factory.make_error_message(seq, "Error changing variable attr:%s expression:%s traceback:%s" % (attr, value, get_exception_traceback_str()))
+        dbg.writer.add_command(cmd)
 
-    def __init__(self, seq, thread_id, frame_id, scope, attr, expression):
-        self.sequence = seq
-        self.thread_id = thread_id
-        self.frame_id = frame_id
-        self.scope = scope
-        self.attr = attr
-        self.expression = expression
 
-    def do_it(self, dbg):
-        ''' Converts request into python variable '''
-        try:
-            result = pydevd_vars.change_attr_expression(self.thread_id, self.frame_id, self.attr, self.expression, dbg)
-            xml = "<xml>"
-            xml += pydevd_xml.var_to_xml(result, "")
-            xml += "</xml>"
-            cmd = dbg.cmd_factory.make_variable_changed_message(self.sequence, xml)
-            dbg.writer.add_command(cmd)
-        except Exception:
-            cmd = dbg.cmd_factory.make_error_message(self.sequence, "Error changing variable attr:%s expression:%s traceback:%s" % (self.attr, self.expression, get_exception_traceback_str()))
-            dbg.writer.add_command(cmd)
+def internal_change_variable_json(py_db, request):
+    '''
+    The pydevd_vars.change_attr_expression(thread_id, frame_id, attr, value, dbg) can only
+    deal with changing at a frame level, so, currently changing the contents of something
+    in a different scope is currently not supported.
+
+    TODO: make the resolvers structure resolve the name and change accordingly -- for instance, the
+    list resolver should change the value considering the index.
+
+    :param SetVariableRequest request:
+    '''
+    # : :type arguments: SetVariableArguments
+    arguments = request.arguments
+    variables_reference = arguments.variablesReference
+    fmt = arguments.format
+    if hasattr(fmt, 'to_dict'):
+        fmt = fmt.to_dict()
+
+    # : :type frame: _FrameVariable
+    frame_variable = py_db.suspended_frames_manager.get_variable(variables_reference)
+    if hasattr(frame_variable, 'frame'):
+        frame = frame_variable.frame
+
+        pydevd_vars.change_attr_expression(frame, arguments.name, arguments.value, py_db)
+
+        for child_var in frame_variable.get_children_variables(fmt=fmt):
+            if child_var.get_name() == arguments.name:
+                var_data = child_var.get_var_data(fmt=fmt)
+                body = SetVariableResponseBody(
+                    value=var_data['value'],
+                    type=var_data['type'],
+                    variablesReference=var_data.get('variablesReference'),
+                    namedVariables=var_data.get('namedVariables'),
+                    indexedVariables=var_data.get('indexedVariables'),
+                )
+                variables_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
+                py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response.to_dict(), is_json=True))
+                break
+
+    # If it's gotten here we haven't been able to evaluate it properly. Let the client know.
+    body = SetVariableResponseBody('')
+    variables_response = pydevd_base_schema.build_response(
+        request,
+        kwargs={
+            'body':body,
+            'success': False,
+            'message': 'Unable to change: %s.' % (arguments.name,)
+    })
+    return NetCommand(CMD_RETURN, 0, variables_response.to_dict(), is_json=True)
 
 
 def internal_get_frame(dbg, seq, thread_id, frame_id):
@@ -771,12 +849,93 @@ def internal_get_next_statement_targets(dbg, seq, thread_id, frame_id):
         dbg.writer.add_command(cmd)
 
 
+def _evaluate_response(py_db, request, result, error_message=''):
+    is_error = isinstance(result, ExceptionOnEvaluate)
+    if is_error:
+        result = result.result
+    if not error_message:
+        body = pydevd_schema.EvaluateResponseBody(result=result, variablesReference=0)
+        variables_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
+        py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response.to_dict(), is_json=True))
+    else:
+        body = pydevd_schema.EvaluateResponseBody(result='', variablesReference=0)
+        variables_response = pydevd_base_schema.build_response(request, kwargs={
+            'body':body, 'success':False, 'message': error_message})
+        py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response.to_dict(), is_json=True))
+
+
+def internal_evaluate_expression_json(py_db, request, thread_id):
+    '''
+    :param EvaluateRequest request:
+    '''
+    # : :type arguments: EvaluateArguments
+
+    arguments = request.arguments
+    expression = arguments.expression
+    frame_id = arguments.frameId
+    context = arguments.context
+    fmt = arguments.format
+    if hasattr(fmt, 'to_dict'):
+        fmt = fmt.to_dict()
+
+    if IS_PY2 and isinstance(expression, unicode):
+        try:
+            expression = expression.encode('utf-8')
+        except:
+            _evaluate_response(py_db, request, '', error_message='Expression is not valid utf-8.')
+            raise
+
+    frame = py_db.find_frame(thread_id, frame_id)
+    result = pydevd_vars.evaluate_expression(py_db, frame, expression, is_exec=False)
+    is_error = isinstance(result, ExceptionOnEvaluate)
+
+    if is_error:
+        if context == 'hover':
+            _evaluate_response(py_db, request, result='')
+            return
+
+        elif context == 'repl':
+            try:
+                pydevd_vars.evaluate_expression(py_db, frame, expression, is_exec=True)
+            except:
+                pass
+            # No result on exec.
+            _evaluate_response(py_db, request, result='')
+            return
+
+    # Ok, we have the result (could be an error), let's put it into the saved variables.
+    frame_tracker = py_db.suspended_frames_manager.get_frame_tracker(thread_id)
+    if frame_tracker is None:
+        # This is not really expected.
+        _evaluate_response(py_db, request, result, error_message='Thread id: %s is not current thread id.' % (thread_id,))
+        return
+
+    variable = frame_tracker.obtain_as_variable(expression, result)
+    var_data = variable.get_var_data(fmt=fmt)
+
+    body = pydevd_schema.EvaluateResponseBody(
+        result=var_data['value'],
+        variablesReference=var_data.get('variableReference', 0),
+        type=var_data.get('type'),
+        presentationHint=var_data.get('presentationHint'),
+        namedVariables=var_data.get('namedVariables'),
+        indexedVariables=var_data.get('indexedVariables'),
+    )
+    variables_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
+    py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response.to_dict(), is_json=True))
+
+
 def internal_evaluate_expression(dbg, seq, thread_id, frame_id, expression, is_exec, trim_if_too_big, attr_to_set_result):
     ''' gets the value of a variable '''
     try:
-        result = pydevd_vars.evaluate_expression(dbg, thread_id, frame_id, expression, is_exec)
-        if attr_to_set_result != "":
-            pydevd_vars.change_attr_expression(thread_id, frame_id, attr_to_set_result, expression, dbg, result)
+        frame = dbg.find_frame(thread_id, frame_id)
+        if frame is not None:
+            result = pydevd_vars.evaluate_expression(dbg, frame, expression, is_exec)
+            if attr_to_set_result != "":
+                pydevd_vars.change_attr_expression(frame, attr_to_set_result, expression, dbg, result)
+        else:
+            result = None
+
         xml = "<xml>"
         xml += pydevd_xml.var_to_xml(result, expression, trim_if_too_big)
         xml += "</xml>"
@@ -786,6 +945,70 @@ def internal_evaluate_expression(dbg, seq, thread_id, frame_id, expression, is_e
         exc = get_exception_traceback_str()
         cmd = dbg.cmd_factory.make_error_message(seq, "Error evaluating expression " + exc)
         dbg.writer.add_command(cmd)
+
+
+def _set_expression_response(py_db, request, result, error_message):
+    body = pydevd_schema.SetExpressionResponseBody(result='', variablesReference=0)
+    variables_response = pydevd_base_schema.build_response(request, kwargs={
+        'body':body, 'success':False, 'message': error_message})
+    py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response.to_dict(), is_json=True))
+
+
+def internal_set_expression_json(py_db, request, thread_id):
+    # : :type arguments: SetExpressionArguments
+
+    arguments = request.arguments
+    expression = arguments.expression
+    frame_id = arguments.frameId
+    value = arguments.value
+    fmt = arguments.format
+    if hasattr(fmt, 'to_dict'):
+        fmt = fmt.to_dict()
+
+    if IS_PY2 and isinstance(expression, unicode):
+        try:
+            expression = expression.encode('utf-8')
+        except:
+            _evaluate_response(py_db, request, '', error_message='Expression is not valid utf-8.')
+            raise
+    if IS_PY2 and isinstance(value, unicode):
+        try:
+            value = value.encode('utf-8')
+        except:
+            _evaluate_response(py_db, request, '', error_message='Value is not valid utf-8.')
+            raise
+
+    frame = py_db.find_frame(thread_id, frame_id)
+    exec_code = '%s = (%s)' % (expression, value)
+    result = pydevd_vars.evaluate_expression(py_db, frame, exec_code, is_exec=True)
+    is_error = isinstance(result, ExceptionOnEvaluate)
+
+    if is_error:
+        _set_expression_response(py_db, request, result, error_message='Error executing: %s' % (exec_code,))
+        return
+
+    # Ok, we have the result (could be an error), let's put it into the saved variables.
+    frame_tracker = py_db.suspended_frames_manager.get_frame_tracker(thread_id)
+    if frame_tracker is None:
+        # This is not really expected.
+        _set_expression_response(py_db, request, result, error_message='Thread id: %s is not current thread id.' % (thread_id,))
+        return
+
+    # Now that the exec is done, get the actual value changed to return.
+    result = pydevd_vars.evaluate_expression(py_db, frame, expression, is_exec=False)
+    variable = frame_tracker.obtain_as_variable(expression, result)
+    var_data = variable.get_var_data(fmt=fmt)
+
+    body = pydevd_schema.SetExpressionResponseBody(
+        value=var_data['value'],
+        variablesReference=var_data.get('variableReference', 0),
+        type=var_data.get('type'),
+        presentationHint=var_data.get('presentationHint'),
+        namedVariables=var_data.get('namedVariables'),
+        indexedVariables=var_data.get('indexedVariables'),
+    )
+    variables_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
+    py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response.to_dict(), is_json=True))
 
 
 def internal_get_completions(dbg, seq, thread_id, frame_id, act_tok, line=-1, column=-1):

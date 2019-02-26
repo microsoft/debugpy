@@ -12,6 +12,7 @@ from tests.helpers.timeline import Event
 
 
 def test_variables_and_evaluate(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
@@ -71,7 +72,7 @@ def test_variables_and_evaluate(pyfile, run_as, start_method):
             'type': 'int',
             'value': '2',
             'name': '__len__',
-            'evaluateName': "b.__len__"
+            'evaluateName': "b.__len__()"
         }
 
         # simple variable
@@ -106,6 +107,7 @@ def test_variables_and_evaluate(pyfile, run_as, start_method):
 
 
 def test_set_variable(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         import backchannel
@@ -162,6 +164,7 @@ def test_set_variable(pyfile, run_as, start_method):
 
 
 def test_variable_sort(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
@@ -240,15 +243,20 @@ def test_variable_sort(pyfile, run_as, start_method):
 
 
 def test_return_values(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
         import_and_enable_debugger()
+
         class MyClass(object):
+
             def do_something(self):
                 return 'did something'
+
         def my_func():
             return 'did more things'
+
         MyClass().do_something()
         my_func()
         print('done')

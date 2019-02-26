@@ -2,8 +2,8 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+# Gotten from ptvsd for supporting the format expected there.
 import sys
-
 
 # Py3 compat - alias unicode to str, and xrange to range
 try:
