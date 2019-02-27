@@ -2,9 +2,10 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+import ptvsd.log
 from .socket import is_socket, close_socket
 from .wrapper import VSCodeMessageProcessor
-from ._util import TimeoutError, ClosedError, Closeable, Startable, debug
+from ._util import TimeoutError, ClosedError, Closeable, Startable
 
 
 class DebugSession(Startable, Closeable):
@@ -57,7 +58,7 @@ class DebugSession(Startable, Closeable):
             def handle_closing(before):
                 if before:
                     return
-                debug('closing session socket')
+                ptvsd.log.debug('Closing session socket')
                 proc = self._msgprocessor
                 if self._pre_socket_close is not None:
                     self._pre_socket_close()
@@ -65,7 +66,7 @@ class DebugSession(Startable, Closeable):
                     try:
                         proc.wait_while_connected(10)  # seconds
                     except TimeoutError:
-                        debug('timed out waiting for disconnect')
+                        ptvsd.log.exception('timed out waiting for disconnect', category='D')
                 close_socket(self._sock)
             self.add_close_handler(handle_closing)
 
@@ -123,7 +124,7 @@ class DebugSession(Startable, Closeable):
         if proc is None:
             return
 
-        debug('proc stopping')
+        ptvsd.log.debug('Message processor is stopping.')
         # TODO: We should not need to wait if not exiting.
         # The editor will send a "disconnect" request at this point.
         proc._wait_for_disconnect()
@@ -131,8 +132,7 @@ class DebugSession(Startable, Closeable):
         self._msgprocessor = None
 
     def _close(self):
-        debug('session closing')
-        pass
+        ptvsd.log.debug('Session is closing.')
 
     def _msgprocessor_running(self):
         if self._msgprocessor is None:
@@ -143,12 +143,12 @@ class DebugSession(Startable, Closeable):
     # internal methods for VSCodeMessageProcessor
 
     def _handle_vsc_disconnect(self, pre_socket_close=None):
-        debug('disconnecting')
+        ptvsd.log.debug('Disconnecting.')
         self._pre_socket_close = pre_socket_close  # TODO: Fail if already set?
         self._notify_disconnecting(self)
 
     def _handle_vsc_close(self):
-        debug('processor closing')
+        ptvsd.log.debug('Message processor is closing.')
         try:
             self.close()
         except ClosedError:
@@ -191,5 +191,5 @@ class PyDevdDebugSession(DebugSession):
     # internal methods for VSCodeMessageProcessor
 
     def _handle_vsc_debugger_ready(self):
-        debug('ready to debug')
+        ptvsd.log.debug('Ready to debug')
         self._notify_debugger_ready(self)

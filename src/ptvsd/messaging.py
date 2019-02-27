@@ -9,8 +9,10 @@ import itertools
 import json
 import sys
 import threading
-import traceback
-from ._util import new_hidden_thread
+
+import ptvsd.log
+from ptvsd._util import new_hidden_thread
+
 
 class JsonIOStream(object):
     """Implements a JSON value stream over two byte streams (input and output).
@@ -22,7 +24,7 @@ class JsonIOStream(object):
     MAX_BODY_SIZE = 0xFFFFFF
 
     @classmethod
-    def from_stdio(cls):
+    def from_stdio(cls, name='???'):
         if sys.version_info >= (3,):
             stdin = sys.stdin.buffer
             stdout = sys.stdout.buffer
@@ -33,16 +35,16 @@ class JsonIOStream(object):
                 import os, msvcrt
                 msvcrt.setmode(stdin.fileno(), os.O_BINARY)
                 msvcrt.setmode(stdout.fileno(), os.O_BINARY)
-        return cls(stdin, stdout)
+        return cls(stdin, stdout, name)
 
     @classmethod
-    def from_socket(cls, socket):
+    def from_socket(cls, socket, name='???'):
         if socket.gettimeout() is not None:
             raise ValueError('Socket must be in blocking mode')
         socket_io = socket.makefile('rwb', 0)
-        return cls(socket_io, socket_io)
+        return cls(socket_io, socket_io, name)
 
-    def __init__(self, reader, writer):
+    def __init__(self, reader, writer, name='???'):
         """Creates a new JsonIOStream.
 
         reader is a BytesIO-like object from which incoming messages are read;
@@ -51,6 +53,7 @@ class JsonIOStream(object):
 
         writer is a BytesIO-like object to which outgoing messages are written.
         """
+        self.name = name
         self._reader = reader
         self._writer = writer
         self._is_closing = False
@@ -93,6 +96,7 @@ class JsonIOStream(object):
             if not (0 <= length <= self.MAX_BODY_SIZE):
                 raise ValueError
         except (KeyError, ValueError):
+            ptvsd.log.exception('{0} --> {1}', self.name, headers)
             raise IOError('Content-Length is missing or invalid')
 
         try:
@@ -104,8 +108,21 @@ class JsonIOStream(object):
                 raise
 
         if isinstance(body, bytes):
-            body = body.decode('utf-8')
-        return json.loads(body)
+            try:
+                body = body.decode('utf-8')
+            except Exception:
+                ptvsd.log.exception('{0} --> {1}', self.name, body)
+                raise
+
+        try:
+            body = json.loads(body)
+        except Exception:
+            ptvsd.log.exception('{0} --> {1}', self.name, body)
+            raise
+
+        ptvsd.log.debug('{0} --> {1!j}', self.name, body)
+        return body
+
 
     def write_json(self, value):
         """Write a single JSON object to writer.
@@ -113,16 +130,27 @@ class JsonIOStream(object):
         object must be in the format suitable for json.dump().
         """
 
-        body = json.dumps(value, sort_keys=True)
+        try:
+            body = json.dumps(value, sort_keys=True)
+        except Exception:
+            ptvsd.log.exception('{0} <-- {1!r}', self.name, value)
+
         if not isinstance(body, bytes):
             body = body.encode('utf-8')
 
-        header = 'Content-Length: %d\r\n\r\n' % len(body)
-        if not isinstance(header, bytes):
-            header = header.encode('ascii')
+        try:
+            header = 'Content-Length: %d\r\n\r\n' % len(body)
+            if not isinstance(header, bytes):
+                header = header.encode('ascii')
 
-        self._writer.write(header)
-        self._writer.write(body)
+            self._writer.write(header)
+            self._writer.write(body)
+        except Exception:
+            ptvsd.log.exception('{0} <-- {1!j}', self.name, value)
+            raise
+
+        ptvsd.log.debug('{0} <-- {1!j}', self.name, value)
+
 
 
 class Request(object):
@@ -263,14 +291,15 @@ class JsonMessageChannel(object):
     Debug Adapter Protocol (https://microsoft.github.io/debug-adapter-protocol/overview).
     """
 
-    def __init__(self, stream, handlers=None, name='vsc_messaging'):
+    def __init__(self, stream, handlers=None, name=None):
         self.stream = stream
+        self.name = name if name is not None else stream.name
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._seq_iter = itertools.count(1)
         self._requests = {}
         self._handlers = handlers
-        self._worker = new_hidden_thread(name, self._process_incoming_messages)
+        self._worker = new_hidden_thread('{} message channel worker'.format(self.name), self._process_incoming_messages)
         self._worker.daemon = True
 
     def close(self):
@@ -404,16 +433,15 @@ class JsonMessageChannel(object):
                 try:
                     self.on_message(message)
                 except Exception:
-                    print('Error while processing message:\n%r\n\n' % message, file=sys.__stderr__)
-                    traceback.print_exc(file=sys.__stderr__)
+                    ptvsd.log.exception('Error while processing message for {0}:\n\n{1!r}', self.name, message)
                     raise
         finally:
             try:
                 self.on_disconnect()
             except Exception:
-                print('Error while processing disconnect', file=sys.__stderr__)
-                traceback.print_exc(file=sys.__stderr__)
+                ptvsd.log.exception('Error while processing disconnect for {0}', self.name)
                 raise
+
 
 class MessageHandlers(object):
     """A simple delegating message handlers object for use with JsonMessageChannel.

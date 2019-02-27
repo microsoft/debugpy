@@ -44,6 +44,7 @@ class LoggingJsonStream(object):
     def __init__(self, stream, id=None):
         self.stream = stream
         self.id = id or next(self.id_iter)
+        self.name = self.id
 
     def close(self):
         self.stream.close()

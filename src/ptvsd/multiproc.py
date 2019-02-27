@@ -13,17 +13,17 @@ import socket
 import sys
 import threading
 import time
-import traceback
 
 try:
     import queue
 except ImportError:
     import Queue as queue
 
+import ptvsd.log
 from ptvsd import options
 from ptvsd.socket import create_server, create_client
 from ptvsd.messaging import JsonIOStream, JsonMessageChannel
-from ptvsd._util import new_hidden_thread, debug
+from ptvsd._util import new_hidden_thread
 
 from _pydev_bundle import pydev_monkey
 from _pydevd_bundle.pydevd_comm import get_global_debugger
@@ -138,7 +138,7 @@ def _handle_subprocess(n, stream):
             with subprocess_lock:
                 subprocesses[self._pid] = channel
 
-            debug('ptvsd_subprocess: %r' % arguments)
+            ptvsd.log.debug('ptvsd_subprocess: {0!r}', arguments)
             response = {'incomingConnection': False}
             subprocess_queue.put((arguments, response))
             subprocess_queue.join()
@@ -149,7 +149,7 @@ def _handle_subprocess(n, stream):
                 with subprocess_lock:
                     subprocesses.pop(self._pid, None)
 
-    name = 'SubprocessListener-%d' % n
+    name = 'subprocess-%d' % n
     channel = JsonMessageChannel(stream, Handlers(), name)
     channel.start()
 
@@ -157,10 +157,10 @@ def _handle_subprocess(n, stream):
 def notify_root(port):
     assert options.subprocess_of
 
-    debug('Subprocess %d notifying root process at port %d' % (os.getpid(), options.subprocess_notify))
+    ptvsd.log.debug('Subprocess {0} notifying root process at port {1}', os.getpid(), options.subprocess_notify)
     conn = create_client()
     conn.connect(('localhost', options.subprocess_notify))
-    stream = JsonIOStream.from_socket(conn)
+    stream = JsonIOStream.from_socket(conn, 'root-process')
     channel = JsonMessageChannel(stream)
     channel.start()
 
@@ -180,8 +180,7 @@ def notify_root(port):
     try:
         response = request.wait_for_response()
     except Exception:
-        print('Failed to send subprocess notification; exiting', file=sys.__stderr__)
-        traceback.print_exc()
+        ptvsd.log.exception('Failed to send subprocess notification; exiting')
         sys.exit(0)
 
     # Keep the channel open until we exit - root process uses open channels to keep
@@ -189,6 +188,7 @@ def notify_root(port):
     atexit.register(lambda: channel.close())
 
     if not response['incomingConnection']:
+        ptvsd.log.debug('No IDE connection is expected for this subprocess; unpausing.')
         debugger = get_global_debugger()
         while debugger is None:
             time.sleep(0.1)
@@ -207,12 +207,12 @@ def patch_args(args):
 
         python -R -Q warn .../ptvsd/__main__.py --host localhost --port 0 ... -m app
     """
+
     if not options.multiprocess:
         return args
 
-    assert options.multiprocess
-
     args = list(args)
+    ptvsd.log.debug('Patching subprocess command line: {0!r}', args)
 
     # First, let's find the target of the invocation. This is one of:
     #
@@ -278,7 +278,7 @@ def patch_args(args):
     # Now we need to inject the ptvsd invocation right before the target. The target
     # itself can remain as is, because ptvsd is compatible with Python in that respect.
     from ptvsd import __main__
-    args[i:i] = [
+    ptvsd_args = [
         __main__.__file__,
         '--host', options.host,
         '--port', '0',
@@ -287,7 +287,11 @@ def patch_args(args):
         '--subprocess-of', str(os.getpid()),
         '--subprocess-notify', str(options.subprocess_notify or subprocess_listener_port()),
     ]
+    if options.log_dir:
+        ptvsd_args += ['--log-dir', options.log_dir]
+    args[i:i] = ptvsd_args
 
+    ptvsd.log.debug('Patched subprocess command line: {0!r}', args)
     return args
 
 

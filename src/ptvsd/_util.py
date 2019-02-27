@@ -5,28 +5,12 @@
 from __future__ import print_function
 
 import contextlib
-import os
 import threading
 import time
 import types
 import sys
 
-
-DEBUG = False
-if os.environ.get('PTVSD_DEBUG', ''):
-    DEBUG = True
-
-
-def debug(*msg, **kwargs):
-    if not DEBUG:
-        return
-    tb = kwargs.pop('tb', False)
-    assert not kwargs
-    if tb:
-        import traceback
-        traceback.print_exc()
-    print(*msg, file=sys.__stderr__)
-    sys.__stderr__.flush()
+import ptvsd.log
 
 
 @contextlib.contextmanager
@@ -34,9 +18,9 @@ def ignore_errors(log=None):
     """A context manager that masks any raised exceptions."""
     try:
         yield
-    except Exception as exc:
+    except Exception:
         if log is not None:
-            log('ignoring error', exc)
+            ptvsd.log.exception('Ignoring error', category='I')
 
 
 def call_all(callables, *args, **kwargs):
@@ -50,37 +34,6 @@ def call_all(callables, *args, **kwargs):
         else:
             results.append((call, None))
     return results
-
-
-########################
-# pydevd stuff
-
-from _pydevd_bundle import pydevd_comm  # noqa
-
-
-def log_pydevd_msg(cmdid, seq, args, inbound,
-                   log=debug, prefix=None, verbose=False):
-    """Log a representation of the given pydevd msg."""
-    if log is None or (log is debug and not DEBUG):
-        return
-    if not verbose and cmdid == pydevd_comm.CMD_WRITE_TO_CONSOLE:
-        return
-
-    if prefix is None:
-        prefix = '-> ' if inbound else '<- '
-    try:
-        cmdname = pydevd_comm.ID_TO_MEANING[str(cmdid)]
-    except KeyError:
-        for cmdname, value in vars(pydevd_comm).items():
-            if cmdid == value:
-                break
-        else:
-            cmdname = '???'
-    cmd = '{} ({})'.format(cmdid, cmdname)
-    if isinstance(args, bytes) or isinstance(args, str):
-        args = args.replace('\n', '\\n')
-    msg = '{}{:28} [{:>10}]: |{}|'.format(prefix, cmd, seq, args)
-    log(msg)
 
 
 ########################

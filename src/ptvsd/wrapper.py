@@ -38,11 +38,11 @@ import _pydevd_bundle.pydevd_extension_api as pydevd_extapi  # noqa
 import _pydevd_bundle.pydevd_extension_utils as pydevd_extutil  # noqa
 import _pydevd_bundle.pydevd_frame as pydevd_frame  # noqa
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_file  # noqa
-# from _pydevd_bundle.pydevd_comm import pydevd_log
 from _pydevd_bundle.pydevd_dont_trace_files import PYDEV_FILE  # noqa
 from _pydevd_bundle import pydevd_additional_thread_info
 
 import ptvsd
+import ptvsd.log
 from ptvsd import _util
 from ptvsd import multiproc
 from ptvsd import options
@@ -54,7 +54,6 @@ from ptvsd.pathutils import PathUnNormcase  # noqa
 from ptvsd.version import __version__  # noqa
 from ptvsd.socket import TimeoutError  # noqa
 
-LOG_FILENAME = 'pydevd.log'
 
 WAIT_FOR_THREAD_FINISH_TIMEOUT = 1  # seconds
 
@@ -71,12 +70,7 @@ EXCEPTION_REASONS = {
     pydevd_comm.CMD_ADD_EXCEPTION_BREAK
 }
 
-debug = _util.debug
 debugger_attached = threading.Event()
-
-# def ipcjson_trace(s):
-#     print(s)
-# ipcjson._TRACE = ipcjson_trace
 
 
 def NOOP(*args, **kwargs):
@@ -279,7 +273,6 @@ class PydevdSocket(object):
     """
 
     def __init__(self, handle_msg, handle_close, getpeername, getsockname):
-        # self.log = open(LOG_FILENAME, 'w')
         self._handle_msg = handle_msg
         self._handle_close = handle_close
         self._getpeername = getpeername
@@ -345,8 +338,6 @@ class PydevdSocket(object):
         if pipe_r is None:
             return b''
         data = os.read(pipe_r, count)
-        # self.log.write('>>>[' + data.decode('utf8') + ']\n\n')
-        # self.log.flush()
         return data
 
     def recv_into(self, buf):
@@ -359,13 +350,10 @@ class PydevdSocket(object):
     # are encoded first and then quoted as individual bytes. In Python 3,
     # however, we just get a properly UTF-8-encoded string.
     if sys.version_info < (3,):
-
         @staticmethod
         def _decode_and_unquote(data):
             return unquote(data).decode('utf8')
-
     else:
-
         @staticmethod
         def _decode_and_unquote(data):
             return unquote(data.decode('utf8'))
@@ -382,38 +370,67 @@ class PydevdSocket(object):
         """
         result = len(data)
 
-        if data.startswith(b'{'):
-            # A json message was received.
-            data = data.decode('utf-8')
-            # self.log.write('<<<[' + data + ']\n\n')
-            # self.log.flush()
-            as_dict = json.loads(data)
-            cmd_id = as_dict['pydevd_cmd_id']
-            if 'request_seq' in as_dict:
-                seq = as_dict['request_seq']
+        # Defer logging until we have as much information about the message
+        # as possible - after decoding it, parsing it, determining whether
+        # it's a response etc. This way it can be logged in the most readable
+        # representation and with the most context.
+        #
+        # However, if something fails at any of those stages, we want to log
+        # as much as we have by then. Thus, the format string for for trace()
+        # is also constructed dynamically, reflecting the available info.
+
+        trace_prefix = 'PYD --> '
+        trace_fmt = '{data}'
+
+        try:
+            if data.startswith(b'{'):  # JSON
+                data = data.decode('utf-8')
+                data = json.loads(data)
+                trace_fmt = '{data!j}'
+                cmd_id = data['pydevd_cmd_id']
+                if 'request_seq' in data:
+                    seq = data['request_seq']
+                else:
+                    seq = data['seq']
+                args = data
             else:
-                seq = as_dict['seq']
-            args = as_dict
+                assert data.endswith(b'\n')
+                data = self._decode_and_unquote(data[:-1])
+                cmd_id, seq, args = data.split('\t', 2)
+                if ptvsd.log.is_enabled():
+                    trace_fmt = '{cmd_name} {seq}\n{args}'
+        except:
+            ptvsd.log.exception(trace_prefix + trace_fmt, data=data)
+            raise
 
-        else:
-            data = self._decode_and_unquote(data)
-            # self.log.write('<<<[' + data + ']\n\n')
-            # self.log.flush()
-            cmd_id, seq, args = data.split('\t', 2)
-
-        cmd_id = int(cmd_id)
         seq = int(seq)
-        _util.log_pydevd_msg(cmd_id, seq, args, inbound=True)
+        cmd_id = int(cmd_id)
+        try:
+            cmd_name = pydevd_comm.ID_TO_MEANING[str(cmd_id)]
+        except KeyError:
+            cmd_name = cmd_id
+
         with self.lock:
-            loop, fut = self.requests.pop(seq, (None, None))
+            loop, fut, requesting_handler = self.requests.pop(seq, (None, None, None))
+
+        if requesting_handler is not None:
+            trace_prefix = '(requested while handling {requesting_handler})\n' + trace_prefix
+        ptvsd.log.debug(
+            trace_prefix + trace_fmt,
+            data=data,
+            cmd_id=cmd_id,
+            cmd_name=cmd_name,
+            seq=seq,
+            args=args,
+            requesting_handler=requesting_handler,
+        )
+
         if fut is None:
-            # self.log.write('handle message: %s' % (args,))
-            # self.log.flush()
-            self._handle_msg(cmd_id, seq, args)
+            with ptvsd.log.handling((cmd_name, seq)):
+                self._handle_msg(cmd_id, seq, args)
         else:
-            # self.log.write('set result message: %s' % (args,))
-            # self.log.flush()
             loop.call_soon_threadsafe(fut.set_result, (cmd_id, seq, args))
+
         return result
 
     sendall = send
@@ -427,6 +444,14 @@ class PydevdSocket(object):
         with self.lock:
             seq = self.seq
             self.seq += 1
+
+        if ptvsd.log.is_enabled():
+            try:
+                cmd_name = pydevd_comm.ID_TO_MEANING[str(cmd_id)]
+            except KeyError:
+                cmd_name = cmd_id
+            ptvsd.log.debug('PYD <-- {0} {1} {2}', cmd_name, seq, args)
+
         s = '{}\t{}\t{}\n'.format(cmd_id, seq, args)
         return seq, s
 
@@ -436,6 +461,9 @@ class PydevdSocket(object):
             seq = self.seq
             self.seq += 1
             args['seq'] = seq
+
+        ptvsd.log.debug('PYD <-- {0!j}', args)
+
         s = json.dumps(args)
         return seq, s
 
@@ -443,7 +471,6 @@ class PydevdSocket(object):
         if self.pipe_w is None:
             raise EOFError
         seq, s = self.make_packet(cmd_id, args)
-        _util.log_pydevd_msg(cmd_id, seq, args, inbound=False)
         with self.lock:
             os.write(self.pipe_w, s.encode('utf8'))
 
@@ -460,11 +487,10 @@ class PydevdSocket(object):
             seq, s = self.make_json_packet(cmd_id, args)
         else:
             seq, s = self.make_packet(cmd_id, args)
-        _util.log_pydevd_msg(cmd_id, seq, args, inbound=False)
         fut = loop.create_future()
 
         with self.lock:
-            self.requests[seq] = loop, fut
+            self.requests[seq] = loop, fut, ptvsd.log.current_handler()
             as_bytes = s
             if not isinstance(as_bytes, bytes):
                 as_bytes = as_bytes.encode('utf-8')
@@ -795,14 +821,11 @@ def _parse_debug_options(opts):
 class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
     """The base class for VSC message processors."""
 
-    def __init__(self, socket, notify_closing,
-                 timeout=None, logfile=None, own_socket=False
-                 ):
+    def __init__(self, socket, notify_closing, timeout=None, own_socket=False):
         super(VSCodeMessageProcessorBase, self).__init__(
             socket=socket,
             own_socket=False,
             timeout=timeout,
-            logfile=logfile,
         )
         self.socket = socket
         self._own_socket = own_socket
@@ -861,14 +884,14 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
             try:
                 self.process_messages()
             except (EOFError, TimeoutError):
-                debug('client socket closed')
+                ptvsd.log.exception('Client socket closed', category='I')
                 with self._connlock:
                     _util.lock_release(self._listening)
                     _util.lock_release(self._connected)
                 self.close()
             except socket.error as exc:
                 if exc.errno == errno.ECONNRESET:
-                    debug('client socket forcibly closed')
+                    ptvsd.log.exception('Client socket forcibly closed', category='I')
                     with self._connlock:
                         _util.lock_release(self._listening)
                         _util.lock_release(self._connected)
@@ -883,14 +906,12 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
         self.server_thread.start()
 
         # special initialization
-        debug('sending output')
         self.send_event(
             'output',
             category='telemetry',
             output='ptvsd',
             data={'version': __version__},
         )
-        debug('output sent')
         self.readylock.release()
 
     def close(self):
@@ -898,7 +919,7 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
         if self.closed:
             return
         self._closing = True
-        debug('raw closing')
+        ptvsd.log.debug('Raw closing')
 
         self._notify_closing()
         # Close the editor-side socket.
@@ -941,8 +962,7 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
                 self.socket.close()
                 self._set_disconnected()
             except Exception:
-                # TODO: log the error
-                pass
+                ptvsd.log.exception('Error on socket shutdown')
 
     # methods for subclasses to override
 
@@ -990,16 +1010,14 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
 
     EXITWAIT = 1
 
-    def __init__(self, socket,
-                 notify_disconnecting, notify_closing,
-                 notify_launch=None, notify_ready=None,
-                 timeout=None, logfile=None, debugging=True,
-                 ):
+    def __init__(
+        self, socket, notify_disconnecting, notify_closing,
+        notify_launch=None, notify_ready=None, timeout=None, debugging=True,
+    ):
         super(VSCLifecycleMsgProcessor, self).__init__(
             socket=socket,
             notify_closing=notify_closing,
             timeout=timeout,
-            logfile=logfile,
         )
         self._notify_launch = notify_launch or NOOP
         self._notify_ready = notify_ready or NOOP
@@ -1187,17 +1205,17 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     protocol.
     """
 
-    def __init__(self, socket, pydevd_notify, pydevd_request,
-                 notify_debugger_ready,
-                 notify_disconnecting, notify_closing,
-                 timeout=None, logfile=None,
-                 ):
+    def __init__(
+        self, socket, pydevd_notify, pydevd_request,
+        notify_debugger_ready,
+        notify_disconnecting, notify_closing,
+        timeout=None,
+    ):
         super(VSCodeMessageProcessor, self).__init__(
             socket=socket,
             notify_disconnecting=notify_disconnecting,
             notify_closing=notify_closing,
             timeout=timeout,
-            logfile=logfile,
         )
         self._pydevd_notify = pydevd_notify
         self._pydevd_request = pydevd_request
@@ -1278,15 +1296,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         m = futures.wrap_async(m)
 
         def f(self, *args, **kwargs):
-            fut = m(self, self.loop, *args, **kwargs)
-
-            def done(fut):
-                try:
-                    fut.result()
-                except BaseException:
-                    traceback.print_exc(file=sys.__stderr__)
-
-            fut.add_done_callback(done)
+            return m(self, self.loop, *args, **kwargs)
 
         return f
 
@@ -1298,19 +1308,9 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     # PyDevd "socket" entry points (and related helpers)
 
     def pydevd_notify(self, cmd_id, args):
-        # self.log.write('pydevd_notify: %s %s\n' % (cmd_id, args))
-        # self.log.flush()
-        # TODO: docstring
-        try:
-            return self._pydevd_notify(cmd_id, args)
-        except BaseException:
-            traceback.print_exc(file=sys.__stderr__)
-            raise
+        return self._pydevd_notify(cmd_id, args)
 
     def pydevd_request(self, cmd_id, args, is_json=False):
-        # self.log.write('pydevd_request: %s %s\n' % (cmd_id, args))
-        # self.log.flush()
-        # TODO: docstring
         return self._pydevd_request(self.loop, cmd_id, args, is_json=is_json)
 
     # Instances of this class provide decorators to mark methods as
@@ -1330,10 +1330,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     pydevd_events = EventHandlers()
 
     def on_pydevd_event(self, cmd_id, seq, args):
-        # with open(LOG_FILENAME, 'a+') as stream:
-        #     stream.write('on_pydevd_event: %s %s %s\n' % (cmd_id, seq, args))
-
-        # TODO: docstring
         if not self._detached:
             try:
                 f = self.pydevd_events[cmd_id]
@@ -1479,7 +1475,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self._initialize_path_maps(args)
 
     def _handle_detach(self):
-        debug('detaching')
+        ptvsd.log.info('Detaching ...')
         # TODO: Skip if already detached?
         self._detached = True
 

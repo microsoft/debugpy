@@ -2,13 +2,15 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+import sys
+
+import ptvsd.log
 from ptvsd._remote import (
     attach as ptvsd_attach,
     enable_attach as ptvsd_enable_attach,
     _pydevd_settrace,
 )
 from ptvsd.wrapper import debugger_attached
-import sys
 
 import pydevd
 from _pydevd_bundle.pydevd_constants import get_global_debugger
@@ -32,10 +34,11 @@ def wait_for_attach(timeout=None):
     timeout : float, optional
         The timeout for the operation in seconds (or fractions thereof).
     """
+    ptvsd.log.info('wait_for_attach{0!r}', (timeout,))
     debugger_attached.wait(timeout)
 
 
-def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True):
+def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True, log=None):
     """Enables a client to attach to this process remotely to debug Python code.
 
     Parameters
@@ -50,6 +53,8 @@ def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True):
     redirect_output : bool, optional
         Specifies whether any output (on both `stdout` and `stderr`) produced
         by this program should be sent to the debugger. Default is ``True``.
+    log : str, optional
+        Name of the file that debugger will use as a log.
 
     Notes
     -----
@@ -63,8 +68,15 @@ def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True):
     attached. Any threads that are already running before this function is
     called will not be visible.
     """
+
+    if log:
+        ptvsd.log.to_file(log)
+    ptvsd.log.info('enable_attach{0!r}', (address, redirect_output))
+
     if is_attached():
+        ptvsd.log.info('enable_attach() ignored - already attached.')
         return
+
     debugger_attached.clear()
 
     # Ensure port is int
@@ -77,7 +89,7 @@ def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True):
     )
 
 
-def attach(address, redirect_output=True):
+def attach(address, redirect_output=True, log=None):
     """Attaches this process to the debugger listening on a given address.
 
     Parameters
@@ -90,9 +102,18 @@ def attach(address, redirect_output=True):
     redirect_output : bool, optional
         Specifies whether any output (on both `stdout` and `stderr`) produced
         by this program should be sent to the debugger. Default is ``True``.
+    log : str, optional
+        Name of the file that debugger will use as a log.
     """
+
+    if log:
+        ptvsd.log.to_file(log)
+    ptvsd.log.info('attach{0!r}', (address, redirect_output))
+
     if is_attached():
+        ptvsd.log.info('attach() ignored - already attached.')
         return
+
     debugger_attached.clear()
 
     # Ensure port is int
@@ -100,8 +121,6 @@ def attach(address, redirect_output=True):
     address = (address[0], port if type(port) is int else int(port))
 
     ptvsd_attach(address, redirect_output=redirect_output)
-
-# TODO: Add disable_attach()?
 
 
 def is_attached():
@@ -113,7 +132,11 @@ def break_into_debugger():
     """If a remote debugger is attached, pauses execution of all threads,
     and breaks into the debugger with current thread as active.
     """
+
+    ptvsd.log.info('break_into_debugger()')
+
     if not is_attached():
+        ptvsd.log.info('break_into_debugger() ignored - debugger not attached')
         return
 
     # Get the first frame in the stack that's not an internal frame.

@@ -10,13 +10,15 @@ from _pydev_bundle import pydev_monkey
 from _pydevd_bundle import pydevd_comm
 
 import ptvsd
+import ptvsd.log
 from ptvsd import multiproc
 from ptvsd.socket import Address
 from ptvsd.daemon import Daemon, DaemonStoppedError, DaemonClosedError
-from ptvsd._util import debug, new_hidden_thread
+from ptvsd._util import new_hidden_thread
 from ptvsd import options
 
 
+@ptvsd.log.escaped_exceptions
 def start_server(daemon, host, port, **kwargs):
     """Return a socket to a (new) local pydevd-handling daemon.
 
@@ -29,28 +31,28 @@ def start_server(daemon, host, port, **kwargs):
 
     def handle_next():
         try:
+            ptvsd.log.debug('Waiting for session...')
             session = next_session(**kwargs)
-            debug('done waiting')
+            ptvsd.log.debug('Got session')
             return session
         except (DaemonClosedError, DaemonStoppedError):
             # Typically won't happen.
-            debug('stopped')
+            ptvsd.log.exception('Daemon stopped while waiting for session', category='D')
             raise
-        except Exception as exc:
-            # TODO: log this?
-            debug('failed:', exc, tb=True)
+        except Exception:
+            ptvsd.log.exception()
             return None
 
     def serve_forever():
-        debug('waiting on initial connection')
+        ptvsd.log.debug('Waiting for initial connection...')
         handle_next()
         while True:
-            debug('waiting on next connection')
+            ptvsd.log.debug('Waiting for next connection...')
             try:
                 handle_next()
             except (DaemonClosedError, DaemonStoppedError):
                 break
-        debug('done')
+        ptvsd.log.debug('Done serving')
 
     t = new_hidden_thread(
         target=serve_forever,
@@ -60,6 +62,7 @@ def start_server(daemon, host, port, **kwargs):
     return sock
 
 
+@ptvsd.log.escaped_exceptions
 def start_client(daemon, host, port, **kwargs):
     """Return a socket to an existing "remote" pydevd-handling daemon.
 
@@ -74,6 +77,7 @@ def start_client(daemon, host, port, **kwargs):
 
 
 # See pydevd/_vendored/pydevd/_pydev_bundle/pydev_monkey.py
+@ptvsd.log.escaped_exceptions
 def get_python_c_args(host, port, indC, args, setup):
     runner = '''
 import sys
@@ -117,6 +121,9 @@ def install(pydevd_module, address,
     this is somewhat fragile (since the monkeypatching sites may
     change).
     """
+
+    ptvsd.log.debug('Installing pydevd hooks.')
+
     addr = Address.from_raw(address)
     daemon = Daemon(**kwargs)
 
@@ -134,6 +141,7 @@ def install(pydevd_module, address,
     if not options.multiprocess and not options.no_debug:
         # This means '--multiprocess' flag was not passed via command line args. Patch the
         # new process functions here to handle multiprocess being enabled via debug options.
+        ptvsd.log.debug('Monkey-patching multiprocess functions.')
         pydev_monkey.patch_new_process_functions()
 
     # Ensure that pydevd is using our functions.

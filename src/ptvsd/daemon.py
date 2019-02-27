@@ -6,6 +6,7 @@ import contextlib
 import sys
 import threading
 
+import ptvsd.log
 from ptvsd import wrapper, options, multiproc
 from ptvsd.socket import (
     close_socket, create_server, create_client, connect, Address)
@@ -14,7 +15,7 @@ from .exit_handlers import (
     kill_current_proc)
 from .session import PyDevdDebugSession
 from ._util import (
-    ClosedError, NotRunningError, ignore_errors, debug, lock_wait)
+    ClosedError, NotRunningError, ignore_errors, lock_wait)
 
 
 session_not_bound = threading.Event()
@@ -150,13 +151,16 @@ class DaemonBase(object):
 
     def start_server(self, addr, hidebadsessions=True):
         """Return ("socket", next_session) with a new server socket."""
+
+        ptvsd.log.debug('Starting server daemon on {0!r}.', addr)
+
         addr = Address.from_raw(addr)
         with self.started():
             assert self._sessionlock is None
             assert self.session is None
             self._server = create_server(addr.host, addr.port)
             host, port = self._server.getsockname()
-            debug('server socket created on %r:%r' % (host, port))
+            ptvsd.log.debug('Server socket created on {0!r}', addr)
             self._sessionlock = threading.Lock()
         sock = self._sock
 
@@ -170,28 +174,27 @@ class DaemonBase(object):
             sessionlock = self._sessionlock
             check_ready(checksession=False)
 
-            debug('getting next session')
+            ptvsd.log.debug('Getting next session...')
             sessionlock.acquire()  # Released in _finish_session().
-            debug('session lock acquired')
+            ptvsd.log.debug('Session lock acquired.')
             # It may have closed or stopped while we waited.
             check_ready()
 
             timeout = kwargs.pop('timeout', None)
             try:
-                debug('getting session socket')
+                ptvsd.log.debug('Getting session socket...')
                 client = connect(server, None, **kwargs)
                 self._bind_session(client)
-                debug('starting session')
+                ptvsd.log.debug('Starting session...')
                 self._start_session_safely('ptvsd.Server', timeout=timeout)
-                debug('session started')
+                ptvsd.log.debug('Session started.')
                 return self._session
-            except Exception as exc:
-                debug('session exc:', exc, tb=True)
+            except Exception:
+                ptvsd.log.exception(category=('D' if hidebadsessions else 'E'))
                 with ignore_errors():
                     self._finish_session()
                 if hidebadsessions:
-                    debug('hiding bad session')
-                    # TODO: Log the error?
+                    ptvsd.log.debug('Hiding bad session')
                     return None
                 self._stop_quietly()
                 raise
@@ -203,6 +206,9 @@ class DaemonBase(object):
 
     def start_client(self, addr):
         """Return ("socket", start_session) with a new client socket."""
+
+        ptvsd.log.debug('Starting client daemon on {0!r}.', addr)
+
         addr = Address.from_raw(addr)
         self._singlesession = True
         with self.started():
@@ -234,6 +240,9 @@ class DaemonBase(object):
         If "session" is a client socket then a session is created
         from it.
         """
+
+        ptvsd.log.debug('Starting session.')
+
         self._check_ready_for_session()
         if self._server is not None:
             raise RuntimeError('running as server')
@@ -244,6 +253,9 @@ class DaemonBase(object):
 
     def close(self):
         """Stop all loops and release all resources."""
+
+        ptvsd.log.debug('Stopping daemon.')
+
         with self._lock:
             if self._closed:
                 raise DaemonClosedError('already closed')
@@ -298,7 +310,7 @@ class DaemonBase(object):
             self._stop()
 
     def _handle_session_disconnecting(self, session):
-        debug('handling disconnecting session')
+        ptvsd.log.debug('Handling disconnecting session')
         if self._singlesession:
             if self._killonclose:
                 with self._lock:
@@ -316,7 +328,7 @@ class DaemonBase(object):
                     pass
 
     def _handle_session_closing(self, session):
-        debug('handling closing session')
+        ptvsd.log.debug('Handling closing session')
 
         if self._singlesession:
             if self._killonclose:
@@ -344,9 +356,9 @@ class DaemonBase(object):
             try:
                 sessionlock.release()
             except Exception:  # TODO: Make it more specific?
-                debug('session lock not released')
+                ptvsd.log.exception('Session lock not released', category='D')
             else:
-                debug('session lock released')
+                ptvsd.log.debug('Session lock released')
 
     # internal session-related methods
 
@@ -367,6 +379,7 @@ class DaemonBase(object):
         try:
             self._start_session(threadname, **kwargs)
         except Exception:
+            ptvsd.log.exception()
             with ignore_errors():
                 self._finish_session()
             raise
@@ -376,12 +389,12 @@ class DaemonBase(object):
         session_not_bound.set()
         try:
             session = self._release_session()
-            debug('session stopped')
+            ptvsd.log.debug('Session stopped')
         finally:
             self._clear_sessionlock()
 
             if self._singlesession:
-                debug('closing daemon after single session')
+                ptvsd.log.debug('Closing daemon after single session')
                 try:
                     self.close()
                 except DaemonClosedError:
@@ -427,7 +440,7 @@ class DaemonBase(object):
                 pass
 
     def _handle_atexit(self):
-        debug('handling atexit')
+        ptvsd.log.debug('Handling atexit')
         with self._lock:
             self._exiting_via_atexit_handler = True
         session = self.session
@@ -455,7 +468,7 @@ class DaemonBase(object):
             session.wait_until_stopped()
 
     def _handle_signal(self, signum, frame):
-        debug('handling signal')
+        ptvsd.log.debug('Handling signal')
         try:
             self.close()
         except DaemonClosedError:

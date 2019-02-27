@@ -9,6 +9,7 @@ import time
 from _pydevd_bundle.pydevd_comm import get_global_debugger
 
 import ptvsd
+import ptvsd.log
 import ptvsd.options
 from ptvsd._util import new_hidden_thread
 from ptvsd.pydevd_hooks import install
@@ -32,12 +33,6 @@ def _pydevd_settrace(redirect_output=None, _pydevd=pydevd, **kwargs):
     _pydevd.settrace(**kwargs)
 
 
-# TODO: Split up enable_attach() to align with module organization.
-# This should including making better use of Daemon (e,g, the
-# start_server() method).
-# Then move at least some parts to the appropriate modules.  This module
-# is focused on running the debugger.
-
 global_next_session = lambda: None
 
 
@@ -49,15 +44,16 @@ def enable_attach(address,
                   **kwargs):
 
     ptvsd.main_thread = threading.current_thread()
-
     host, port = address
 
     def wait_for_connection(daemon, host, port, next_session=None):
+        ptvsd.log.debug('Waiting for pydevd ...')
         debugger = get_global_debugger()
         while debugger is None:
             time.sleep(0.1)
             debugger = get_global_debugger()
 
+        ptvsd.log.debug('Unblocking pydevd.')
         debugger.ready_to_run = True
 
         while True:
@@ -82,6 +78,7 @@ def enable_attach(address,
                       singlesession=False,
                       **kwargs)
 
+    ptvsd.log.debug('Starting connection listener thread')
     connection_thread = new_hidden_thread('ptvsd.listen_for_connection',
                                           wait_for_connection,
                                           args=(daemon, host, port))
@@ -90,6 +87,7 @@ def enable_attach(address,
     if ptvsd.options.no_debug:
         _setup_nodebug()
     else:
+        ptvsd.log.debug('pydevd.settrace()')
         _pydevd.settrace(host=host,
                          stdoutToServer=redirect_output,
                          stderrToServer=redirect_output,
@@ -107,13 +105,13 @@ def attach(address,
            **kwargs):
 
     ptvsd.main_thread = threading.current_thread()
-
     host, port = address
     daemon = _install(_pydevd, address, singlesession=False, **kwargs)
 
     if ptvsd.options.no_debug:
         _setup_nodebug()
     else:
+        ptvsd.log.debug('pydevd.settrace()')
         _pydevd.settrace(host=host,
                          port=port,
                          stdoutToServer=redirect_output,
@@ -125,6 +123,7 @@ def attach(address,
 
 
 def _setup_nodebug():
+    ptvsd.log.debug('Running pydevd in nodebug mode.')
     debugger = pydevd.PyDB()
     debugger.init_matplotlib_support = lambda *arg: None
     # We are invoking run() solely for side effects here - setting up the

@@ -60,6 +60,7 @@ HELP = ('''ptvsd %s
 See https://aka.ms/ptvsd for documentation.
 
 Usage: ptvsd --host <address> [--port <port>] [--wait] [--multiprocess]
+             [--log-dir <path>]
              ''' + TARGET + '''
 ''') % (ptvsd.version.__version__,)
 
@@ -128,6 +129,7 @@ switches = [
     ('--port',                  '<port>',           set_arg('port', port),                  False),
     ('--wait',                  None,               set_true('wait'),                       False),
     ('--multiprocess',          None,               set_true('multiprocess'),               False),
+    ('--log-dir',               '<path>',           set_arg('log_dir', string),             False),
 
     # Switches that are used internally by the IDE or ptvsd itself.
     ('--nodebug',               None,               set_nodebug,                            False),
@@ -224,9 +226,11 @@ def setup_connection():
             else:
                 _, _, _, sys.argv[0] = runpy._get_module_details(opts.target)
         except Exception:
-            pass
+            ptvsd.log.exception('Error determining module path for sys.argv')
     else:
         assert False
+
+    ptvsd.log.debug('sys.argv after patching: {0!r}', sys.argv)
 
     addr = (opts.host, opts.port)
 
@@ -246,14 +250,21 @@ def setup_connection():
 
 def run_file():
     setup_connection()
+
     target = ptvsd.options.target
+    ptvsd.log.info('Running file {0}', target)
 
     # run_path has one difference with invoking Python from command-line:
     # if the target is a file (rather than a directory), it does not add its
     # parent directory to sys.path. Thus, importing other modules from the
     # same directory is broken unless sys.path is patched here.
     if os.path.isfile(target):
-        sys.path.insert(0, os.path.dirname(target))
+        dir = os.path.dirname(target)
+        ptvsd.log.debug('Adding {0} to sys.path.', dir)
+        sys.path.insert(0, dir)
+    else:
+        ptvsd.log.debug('Not a file: {0}', target)
+
     runpy.run_path(target, run_name='__main__')
 
 
@@ -267,6 +278,8 @@ def run_module():
     if sys.version_info < (3,) and not isinstance(target, bytes):
         target = target.encode(sys.getfilesystemencoding())
 
+    ptvsd.log.info('Running module {0}', target)
+
     # Add current directory to path, like Python itself does for -m.
     sys.path.insert(0, '')
 
@@ -278,12 +291,15 @@ def run_module():
     try:
         run_module_as_main = runpy._run_module_as_main
     except AttributeError:
+        ptvsd.log.warning('runpy._run_module_as_main is missing, falling back to run_module.')
         runpy.run_module(target, alter_sys=True)
     else:
         run_module_as_main(target, alter_argv=True)
 
 
 def run_code():
+    ptvsd.log.info('Running code:\n\n{0}', ptvsd.options.target)
+
     # Add current directory to path, like Python itself does for -c.
     sys.path.insert(0, '')
     code = compile(ptvsd.options.target, '<string>', 'exec')
@@ -293,16 +309,21 @@ def run_code():
 
 def attach_to_pid():
     def quoted_str(s):
+        if s is None:
+            return s
         assert not isinstance(s, bytes)
         unescaped = set(chr(ch) for ch in range(32, 127)) - {'"', "'", '\\'}
         def escape(ch):
             return ch if ch in unescaped else '\\u%04X' % ord(ch)
         return 'u"' + ''.join(map(escape, s)) + '"'
 
+    ptvsd.log.info('Attaching to process with ID {0}', ptvsd.options.target)
+
     pid = ptvsd.options.target
     host = quoted_str(ptvsd.options.host)
     port = ptvsd.options.port
     client = ptvsd.options.client
+    log_dir = quoted_str(ptvsd.options.log_dir)
 
     ptvsd_path = os.path.abspath(os.path.join(ptvsd.__file__, '../..'))
     if isinstance(ptvsd_path, bytes):
@@ -320,9 +341,14 @@ import ptvsd
 del sys.path[0]
 
 import ptvsd.options
+ptvsd.options.log_dir = {log_dir}
 ptvsd.options.client = {client}
 ptvsd.options.host = {host}
 ptvsd.options.port = {port}
+
+import ptvsd.log
+ptvsd.log.to_file()
+ptvsd.log.info('Debugger successfully injected')
 
 if ptvsd.options.client:
     from ptvsd._remote import attach
@@ -331,6 +357,8 @@ else:
     ptvsd.enable_attach()
 '''.format(**locals())
     print(code)
+
+    ptvsd.log.debug('Injecting debugger into target process.')
 
     pydevd_attach_to_process_path = os.path.join(
         os.path.dirname(pydevd.__file__),
@@ -341,11 +369,16 @@ else:
 
 
 def main(argv=sys.argv):
+    saved_argv = argv
     try:
         sys.argv[:] = [argv[0]] + list(parse(argv[1:]))
     except Exception as ex:
         print(HELP + '\nError: ' + str(ex), file=sys.stderr)
         sys.exit(2)
+
+    ptvsd.log.to_file()
+    ptvsd.log.info('main({0!r})', saved_argv)
+    ptvsd.log.info('sys.argv after parsing: {0!r}', sys.argv)
 
     try:
         run = {
@@ -356,6 +389,7 @@ def main(argv=sys.argv):
         }[ptvsd.options.target_kind]
         run()
     except SystemExit as ex:
+        ptvsd.log.exception('Debuggee exited via SystemExit', category='D')
         if daemon is not None:
             if ex.code is None:
                 daemon.exitcode = 0

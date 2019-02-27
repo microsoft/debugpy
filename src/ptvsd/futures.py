@@ -7,6 +7,8 @@ from __future__ import print_function, with_statement, absolute_import
 import sys
 import threading
 import traceback
+
+import ptvsd.log
 from ptvsd.reraise import reraise
 
 
@@ -16,21 +18,34 @@ class Future(object):
     def __init__(self, loop):
         self._lock = threading.Lock()
         self._loop = loop
-        self._done = False
+        self._done = None
         self._observed = False
         self._done_callbacks = []
         self._exc_info = None
+        self._handling = ptvsd.log.current_handler()
+
+        # It's expensive, so only capture the origin if logging is enabled.
+        if ptvsd.log.is_enabled():
+            self._origin = traceback.extract_stack()
+        else:
+            self._origin = None
 
     def __del__(self):
-        if self._lock:
-            with self._lock:
-                if self._done and self._exc_info and not self._observed:
-                    print(
-                        'Unobserved exception in a Future:',
-                        file=sys.__stderr__)
-                    traceback.print_exception(
-                        *self._exc_info,
-                        file=sys.__stderr__)
+        # Do not run any checks if Python is shutting down.
+        if not sys or not self._lock:
+            return
+
+        with self._lock:
+            assert self._done or self._done is None
+            exc_info = self._exc_info
+            if exc_info and not self._observed:
+                msg = 'Unobserved failed future'
+                origin = self._origin
+                if origin:
+                    origin = '\n'.join(traceback.format_list(origin))
+                    msg += ' originating from:\n\n{origin}\n\n'
+                ptvsd.log.exception(msg, origin=origin, exc_info=exc_info)
+                traceback.print_exception(*exc_info, file=sys.__stderr__)
 
     def result(self):
         # TODO: docstring
@@ -79,7 +94,7 @@ class Future(object):
             done = self._done
             self._done_callbacks.append(callback)
         if done:
-            callback(self)
+            self._loop.call_soon(lambda: callback(self))
 
     def remove_done_callback(self, callback):
         # TODO: docstring
@@ -114,14 +129,16 @@ class EventLoop(object):
                     f(*args)
         except:
             if sys is None or traceback is None:
-                # Errors during shutdown are expected as this is a daemon
-                # thread, so, just silence it.
+                # Errors during shutdown are expected as this is a daemon thread,
+                # so just silence it. We can't even log it at this point.
                 pass
             else:
+                # Try to log it, but guard against the possibility of shutdown
+                # in the middle of it.
                 try:
-                    traceback.print_exc()
+                    ptvsd.log.exception('Exception escaped to event loop')
                 except:
-                    pass  # Could give an error during shutdown.
+                    pass
 
     def stop(self):
         self._stop = True
@@ -145,8 +162,6 @@ class Result(object):
 
 
 def wrap_async(f):
-    # TODO: docstring
-
     def g(self, loop, *args, **kwargs):
         it = f(self, *args, **kwargs)
         result = Future(loop)
@@ -154,7 +169,9 @@ def wrap_async(f):
             result.set_result(None)
             return result
 
-        def callback(fut):
+        async_handler = ptvsd.log.current_handler()
+
+        def resume(fut):
             try:
                 if fut is None:
                     x = next(it)
@@ -164,17 +181,22 @@ def wrap_async(f):
                         x = it.throw(*exc_info)
                     else:
                         x = it.send(fut.result())
+            except AssertionError:
+                raise
             except StopIteration:
                 result.set_result(None)
-            except BaseException:
+            except:
                 result.set_exc_info(sys.exc_info())
             else:
                 if isinstance(x, Result):
                     result.set_result(x.value)
                 else:
+                    def callback(fut):
+                        with ptvsd.log.handling(async_handler):
+                            resume(fut)
                     x.add_done_callback(callback)
 
-        callback(None)
+        resume(None)
         return result
 
     return g

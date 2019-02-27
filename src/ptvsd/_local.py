@@ -115,7 +115,6 @@ def _run_main_argv(filename, extra):
 
 def _run(argv, addr, _pydevd=pydevd, _install=install, **kwargs):
     """Start pydevd with the given commandline args."""
-    #print(' '.join(argv))
 
     # Pydevd assumes that the "__main__" module is the "pydevd" module
     # and does some tricky stuff under that assumption.  For example,

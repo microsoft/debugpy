@@ -21,10 +21,9 @@ import sys
 import time
 import traceback
 
-from .socket import TimeoutError, convert_eof
+import ptvsd.log
+from ptvsd.socket import TimeoutError, convert_eof
 
-
-_TRACE = None
 
 SKIP_TB_PREFIXES = [
     os.path.normcase(
@@ -48,11 +47,6 @@ else:
 
     class BrokenPipeError(Exception):
         pass
-
-
-def _trace(*msg):
-    if _TRACE:
-        _TRACE(''.join(_str_or_call(m) for m in msg) + '\n')
 
 
 def _str_or_call(m):
@@ -82,7 +76,6 @@ class SocketIO(object):
         port = kwargs.pop('port', None)
         socket = kwargs.pop('socket', None)
         own_socket = kwargs.pop('own_socket', True)
-        logfile = kwargs.pop('logfile', None)
         if socket is None:
             if port is None:
                 raise ValueError(
@@ -96,18 +89,13 @@ class SocketIO(object):
         self.__port = port
         self.__socket = socket
         self.__own_socket = own_socket
-        self.__logfile = logfile
 
     def _send(self, **payload):
-        # TODO: docstring
+        ptvsd.log.debug('IDE <-- {0!j}', payload)
         content = json.dumps(payload).encode('utf-8')
         headers = ('Content-Length: {}\r\n\r\n'.format(len(content))
                    ).encode('ascii')
-        # TODO: We never actually use a logfile...
-        if self.__logfile is not None:
-            self.__logfile.write(content)
-            self.__logfile.write('\n'.encode('utf-8'))
-            self.__logfile.flush()
+
         try:
             self.__socket.send(headers)
             self.__socket.send(content)
@@ -203,44 +191,19 @@ class SocketIO(object):
         content = self._buffered_read_as_utf8(length)
         try:
             msg = json.loads(content)
+            ptvsd.log.debug('IDE --> {0!j}', msg)
             self._receive_message(msg)
         except ValueError:
+            ptvsd.log.exception('IDE --> {0}', content)
             raise InvalidContentError('Error deserializing message content.')
         except json.decoder.JSONDecodeError:
+            ptvsd.log.exception('IDE --> {0}', content)
             raise InvalidContentError('Error deserializing message content.')
 
     def _close(self):
         # TODO: docstring
         if self.__own_socket:
             self.__socket.close()
-
-
-'''
-class StandardIO(object):
-    # TODO: docstring
-
-    def __init__(self, stdin, stdout, *args, **kwargs):
-        super(StandardIO, self).__init__(*args, **kwargs)
-        try:
-            self.__stdin = stdin.buffer
-            self.__stdout = stdout.buffer
-        except AttributeError:
-            self.__stdin = stdin
-            self.__stdout = stdout
-
-    def _send(self, **payload):
-        data = json.dumps(payload).encode('utf-8') + NEWLINE_BYTES
-        self.__stdout.write(data)
-        self.__stdout.flush()
-
-    def _wait_for_message(self):
-        msg = json.loads(
-            self.__stdin.readline().decode('utf-8', 'replace').rstrip())
-        self._receive_message(msg)
-
-    def _close(self):
-        pass
-'''
 
 
 class IpcChannel(object):
@@ -303,11 +266,12 @@ class IpcChannel(object):
         while not self.__exit:
             try:
                 self.process_one_message()
-                _trace('self.__exit is ', self.__exit)
+            except AssertionError:
+                raise
             except Exception:
+                ptvsd.log.exception(category=('D' if self.__exit else 'E'))
                 if not self.__exit:
                     raise
-                # TODO: log the error?
 
     def process_one_message(self):
         # TODO: docstring
@@ -327,22 +291,25 @@ class IpcChannel(object):
         if self._fail_after is not None:
             self._fail_after = time.time() + self._timeout
 
-        _trace('Received ', msg)
+        what = msg.copy()
+        what.pop('arguments', None)
+        what.pop('body', None)
 
-        try:
-            if msg['type'] == 'request':
-                self.on_request(msg)
-            elif msg['type'] == 'response':
-                self.on_response(msg)
-            elif msg['type'] == 'event':
-                self.on_event(msg)
-            else:
-                self.on_invalid_request(msg, {})
-        except AssertionError:
-            raise
-        except Exception:
-            _trace('Error ', traceback.format_exc)
-            traceback.print_exc()
+        with ptvsd.log.handling(what):
+            try:
+                if msg['type'] == 'request':
+                    self.on_request(msg)
+                elif msg['type'] == 'response':
+                    self.on_response(msg)
+                elif msg['type'] == 'event':
+                    self.on_event(msg)
+                else:
+                    self.on_invalid_request(msg, {})
+            except AssertionError:
+                ptvsd.log.exception()
+                raise
+            except Exception:
+                ptvsd.log.exception()
 
     def on_request(self, request):
         # TODO: docstring
@@ -351,10 +318,9 @@ class IpcChannel(object):
 
         cmd = request.get('command', '')
         args = request.get('arguments', {})
-        target = getattr(self, 'on_' + cmd,
-                         self.on_invalid_request)
+        target = getattr(self, 'on_' + cmd, self.on_invalid_request)
+
         try:
-            _trace('Calling ', repr(target))
             target(request, args)
         except AssertionError:
             raise
