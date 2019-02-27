@@ -458,7 +458,7 @@ def test_stack_and_variables_dict(case_setup):
         assert variables_response.body.variables == [
             {'name': "'a'", 'value': '30', 'type': 'int', 'evaluateName': "variable_for_test_3['a']" },
             {'name': "'b'", 'value': '20', 'type': 'int', 'evaluateName': "variable_for_test_3['b']"},
-            {'name': '__len__', 'value': '2', 'type': 'int', 'evaluateName': 'variable_for_test_3.__len__()'}
+            {'name': '__len__', 'value': '2', 'type': 'int', 'evaluateName': 'len(variable_for_test_3)'}
         ]
 
         writer.write_run_thread(hit.thread_id)
@@ -536,7 +536,7 @@ def test_stack_and_variables_set_and_list(case_setup):
             u'name': u'__len__',
             u'type': u'int',
             u'value': u'2',
-            u'evaluateName': u'variable_for_test_1.__len__()',
+            u'evaluateName': u'len(variable_for_test_1)',
         }]
 
         writer.write_run_thread(hit.thread_id)

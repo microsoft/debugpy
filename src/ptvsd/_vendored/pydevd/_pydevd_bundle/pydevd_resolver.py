@@ -5,7 +5,7 @@ except:
 import traceback
 from os.path import basename
 
-from _pydevd_bundle import pydevd_constants
+from functools import partial
 from _pydevd_bundle.pydevd_constants import dict_iter_items, dict_keys, xrange
 
 # Note: 300 is already a lot to see in the outline (after that the user should really use the shell to get things)
@@ -286,7 +286,7 @@ class DictResolver:
                 ret.append((TOO_LARGE_ATTR, TOO_LARGE_MSG))
                 break
 
-        ret.append(('__len__', len(dct), '.__len__()'))
+        ret.append(('__len__', len(dct), partial(_apply_evaluate_name, evaluate_name='len(%s)')))
         # in case the class extends built-in type and has some additional fields
         from_default_resolver = defaultResolver.get_contents_debug_adapter_protocol(dct)
 
@@ -313,6 +313,10 @@ class DictResolver:
         additional_fields = defaultResolver.get_dictionary(dict)
         ret.update(additional_fields)
         return ret
+
+
+def _apply_evaluate_name(parent_name, evaluate_name):
+    return evaluate_name % (parent_name,)
 
 
 #=======================================================================================================================
@@ -354,7 +358,7 @@ class TupleResolver:  # to enumerate tuples and lists
                 ret.append((TOO_LARGE_ATTR, TOO_LARGE_MSG, None))
                 break
 
-        ret.append(('__len__', len(lst), '.__len__()'))
+        ret.append(('__len__', len(lst), partial(_apply_evaluate_name, evaluate_name='len(%s)')))
         # Needed in case the class extends the built-in type and has some additional fields.
         from_default_resolver = defaultResolver.get_dictionary(lst)
         if from_default_resolver:

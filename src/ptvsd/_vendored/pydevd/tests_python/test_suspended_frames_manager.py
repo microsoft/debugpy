@@ -58,7 +58,7 @@ def test_suspended_frames_manager():
         as_dict = (dict([x.get_name(), x.get_var_data()] for x in children_vars))
         assert as_dict == {
             '0': {'name': '0', 'value': '1', 'type': 'int', 'evaluateName': 'var2[0]' },
-            '__len__': {'name': '__len__', 'value': '1', 'type': 'int', 'evaluateName': 'var2.__len__()'},
+            '__len__': {'name': '__len__', 'value': '1', 'type': 'int', 'evaluateName': 'len(var2)'},
         }
 
         var3 = dict((x.get_name(), x) for x in variable.get_children_variables())['var3']
@@ -68,5 +68,5 @@ def test_suspended_frames_manager():
 
         check_vars_dict_expected(as_dict, {
             '33': {'name': '33', 'value': "[1]", 'type': 'list', 'evaluateName': 'var3[33]'},
-            '__len__': {'name': '__len__', 'value': '1', 'type': 'int', 'evaluateName': 'var3.__len__()'}
+            '__len__': {'name': '__len__', 'value': '1', 'type': 'int', 'evaluateName': 'len(var3)'}
         })

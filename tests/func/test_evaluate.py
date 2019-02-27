@@ -72,7 +72,7 @@ def test_variables_and_evaluate(pyfile, run_as, start_method):
             'type': 'int',
             'value': '2',
             'name': '__len__',
-            'evaluateName': "b.__len__()"
+            'evaluateName': "len(b)"
         }
 
         # simple variable

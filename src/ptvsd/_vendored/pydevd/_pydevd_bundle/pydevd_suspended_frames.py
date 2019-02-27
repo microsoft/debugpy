@@ -107,7 +107,10 @@ class _ObjectVariable(_AbstractVariable):
             if parent_evaluate_name:
                 for key, val, evaluate_name in lst:
                     if evaluate_name is not None:
-                        evaluate_name = parent_evaluate_name + evaluate_name
+                        if callable(evaluate_name):
+                            evaluate_name = evaluate_name(parent_evaluate_name)
+                        else:
+                            evaluate_name = parent_evaluate_name + evaluate_name
                     variable = _ObjectVariable(
                         key, val, self._register_variable, evaluate_name=evaluate_name)
                     children_variables.append(variable)
