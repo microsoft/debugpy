@@ -89,17 +89,24 @@ class DefaultResolver:
         return getattr(var, attribute)
 
     def get_contents_debug_adapter_protocol(self, obj):
-        dct = self.get_dictionary(obj)
-        lst = sorted(dict_iter_items(dct), key=sorted_attributes_key)
-        return [(attr_name, attr_value, '.%s' % attr_name) for (attr_name, attr_value) in lst]
-
-    def get_dictionary(self, var, names=None):
         if MethodWrapperType:
-            return self._getPyDictionary(var, names)
+            dct, used___dict__ = self._get_py_dictionary(obj)
         else:
-            return self._getJyDictionary(var)
+            dct = self._get_jy_dictionary(obj)[0]
 
-    def _getJyDictionary(self, obj):
+        lst = sorted(dict_iter_items(dct), key=lambda tup: sorted_attributes_key(tup[0]))
+        if used___dict__:
+            return [(attr_name, attr_value, '.__dict__[%s]' % attr_name) for (attr_name, attr_value) in lst]
+        else:
+            return [(attr_name, attr_value, '.%s' % attr_name) for (attr_name, attr_value) in lst]
+
+    def get_dictionary(self, var, names=None, used___dict__=False):
+        if MethodWrapperType:
+            return self._get_py_dictionary(var, names, used___dict__=used___dict__)[0]
+        else:
+            return self._get_jy_dictionary(var)[0]
+
+    def _get_jy_dictionary(self, obj):
         ret = {}
         found = java.util.HashMap()
 
@@ -156,45 +163,63 @@ class DefaultResolver:
         return ret
 
     def get_names(self, var):
-        names = dir(var)
-        if not names and hasattr(var, '__members__'):
-            names = var.__members__
-        return names
+        used___dict__ = False
+        try:
+            names = dir(var)
+        except TypeError:
+            names = []
+        if not names:
+            if hasattr(var, '__dict__'):
+                names = dict_keys(var.__dict__)
+                used___dict__ = True
+        return names, used___dict__
 
-    def _getPyDictionary(self, var, names=None):
-        filterPrivate = False
-        filterSpecial = True
-        filterFunction = True
-        filterBuiltIn = True
+    def _get_py_dictionary(self, var, names=None, used___dict__=False):
+        '''
+        :return tuple(names, used___dict__), where used___dict__ means we have to access
+        using obj.__dict__[name] instead of getattr(obj, name)
+        '''
+
+        # TODO: Those should be options (would fix https://github.com/Microsoft/ptvsd/issues/66).
+        filter_private = False
+        filter_special = True
+        filter_function = True
+        filter_builtin = True
 
         if not names:
-            names = self.get_names(var)
+            names, used___dict__ = self.get_names(var)
         d = {}
 
         # Be aware that the order in which the filters are applied attempts to
         # optimize the operation by removing as many items as possible in the
         # first filters, leaving fewer items for later filters
 
-        if filterBuiltIn or filterFunction:
-            for n in names:
-                if filterSpecial:
-                    if n.startswith('__') and n.endswith('__'):
-                        continue
-
-                if filterPrivate:
-                    if n.startswith('_') or n.endswith('__'):
-                        continue
-
+        if filter_builtin or filter_function:
+            for name in names:
                 try:
-                    attr = getattr(var, n)
+                    name_as_str = name
+                    if name_as_str.__class__ != str:
+                        name_as_str = '%r' % (name_as_str,)
+
+                    if filter_special:
+                        if name_as_str.startswith('__') and name_as_str.endswith('__'):
+                            continue
+
+                    if filter_private:
+                        if name_as_str.startswith('_') or name_as_str.endswith('__'):
+                            continue
+                    if not used___dict__:
+                        attr = getattr(var, name)
+                    else:
+                        attr = var.__dict__[name]
 
                     # filter builtins?
-                    if filterBuiltIn:
+                    if filter_builtin:
                         if inspect.isbuiltin(attr):
                             continue
 
                     # filter functions?
-                    if filterFunction:
+                    if filter_function:
                         if inspect.isroutine(attr) or isinstance(attr, MethodWrapperType):
                             continue
                 except:
@@ -203,9 +228,9 @@ class DefaultResolver:
                     traceback.print_exc(file=strIO)
                     attr = strIO.getvalue()
 
-                d[ n ] = attr
+                d[name_as_str] = attr
 
-        return d
+        return d, used___dict__
 
 
 #=======================================================================================================================
@@ -469,22 +494,18 @@ class MultiValueDictResolver(DictResolver):
 # DjangoFormResolver
 #=======================================================================================================================
 class DjangoFormResolver(DefaultResolver):
-    has_errors_attr = False
-
-    def get_names(self, var):
-        names = dir(var)
-        if not names and hasattr(var, '__members__'):
-            names = var.__members__
-
-        if "errors" in names:
-            self.has_errors_attr = True
-            names.remove("errors")
-        return names
 
     def get_dictionary(self, var, names=None):
-        # Do not call self.errors because it is property and has side effects
-        d = defaultResolver.get_dictionary(var, self.get_names(var))
-        if self.has_errors_attr:
+        # Do not call self.errors because it is a property and has side effects.
+        names, used___dict__ = self.get_names(var)
+
+        has_errors_attr = False
+        if "errors" in names:
+            has_errors_attr = True
+            names.remove("errors")
+
+        d = defaultResolver.get_dictionary(var, names=names, used___dict__=used___dict__)
+        if has_errors_attr:
             try:
                 errors_attr = getattr(var, "_errors")
             except:
