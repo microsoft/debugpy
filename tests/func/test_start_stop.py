@@ -8,7 +8,7 @@ import platform
 import pytest
 import sys
 
-from tests.helpers.pattern import ANY
+from tests.helpers.pattern import ANY, Path
 from tests.helpers.session import DebugSession
 from tests.helpers.timeline import Event
 
@@ -36,6 +36,7 @@ def test_break_on_entry(pyfile, run_as, start_method):
         thread_stopped, resp_stacktrace, tid, _ = session.wait_for_thread_stopped()
         frames = resp_stacktrace.body['stackFrames']
         assert frames[0]['line'] == 1
+        assert frames[0]['source']['path'] == Path(code_to_debug)
 
         session.send_request('continue').wait_for_response(freeze=False)
         session.wait_for_termination()
