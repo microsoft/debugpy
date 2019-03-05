@@ -58,6 +58,7 @@ class DebugSession(object):
         self.cwd = None
         self.expected_returncode = 0
         self.program_args = []
+        self.log_dir = None
 
         self.is_running = False
         self.process = None
@@ -256,6 +257,9 @@ class DebugSession(object):
             dbg_argv += self._get_argv_for_attach_using_pid()
         else:
             pytest.fail()
+
+        if self.log_dir:
+            dbg_argv += ['--log-dir', self.log_dir]
 
         if self.no_debug:
             dbg_argv += ['--nodebug']

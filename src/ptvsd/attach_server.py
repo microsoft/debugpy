@@ -38,7 +38,7 @@ def wait_for_attach(timeout=None):
     debugger_attached.wait(timeout)
 
 
-def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True, log=None):
+def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True, log_dir=None):
     """Enables a client to attach to this process remotely to debug Python code.
 
     Parameters
@@ -53,8 +53,9 @@ def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True, lo
     redirect_output : bool, optional
         Specifies whether any output (on both `stdout` and `stderr`) produced
         by this program should be sent to the debugger. Default is ``True``.
-    log : str, optional
-        Name of the file that debugger will use as a log.
+    log_dir : str, optional
+        Name of the directory that debugger will create its log files in.
+        If not specified, logging is disabled.
 
     Notes
     -----
@@ -69,8 +70,9 @@ def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True, lo
     called will not be visible.
     """
 
-    if log:
-        ptvsd.log.to_file(log)
+    if log_dir:
+        ptvsd.options.log_dir = log_dir
+    ptvsd.log.to_file()
     ptvsd.log.info('enable_attach{0!r}', (address, redirect_output))
 
     if is_attached():
@@ -89,7 +91,7 @@ def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True, lo
     )
 
 
-def attach(address, redirect_output=True, log=None):
+def attach(address, redirect_output=True, log_dir=None):
     """Attaches this process to the debugger listening on a given address.
 
     Parameters
@@ -102,12 +104,14 @@ def attach(address, redirect_output=True, log=None):
     redirect_output : bool, optional
         Specifies whether any output (on both `stdout` and `stderr`) produced
         by this program should be sent to the debugger. Default is ``True``.
-    log : str, optional
-        Name of the file that debugger will use as a log.
+    log_dir : str, optional
+        Name of the directory that debugger will create its log files in.
+        If not specified, logging is disabled.
     """
 
-    if log:
-        ptvsd.log.to_file(log)
+    if log_dir:
+        ptvsd.options.log_dir = log_dir
+    ptvsd.log.to_file()
     ptvsd.log.info('attach{0!r}', (address, redirect_output))
 
     if is_attached():
