@@ -19,3 +19,18 @@ IS_PY34 = sys.version_info[:2] == (3, 4)
 IS_PY36 = False
 if sys.version_info[0] == 3 and sys.version_info[1] == 6:
     IS_PY36 = True
+
+TEST_DJANGO = False
+TEST_FLASK = False
+
+try:
+    import django
+    TEST_DJANGO = True
+except:
+    pass
+
+try:
+    import flask
+    TEST_FLASK = True
+except:
+    pass

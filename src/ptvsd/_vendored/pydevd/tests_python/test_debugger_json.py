@@ -4,13 +4,13 @@ from _pydevd_bundle._debug_adapter import pydevd_schema, pydevd_base_schema
 from _pydevd_bundle._debug_adapter.pydevd_base_schema import from_json
 from _pydevd_bundle._debug_adapter.pydevd_schema import ThreadEvent, ModuleEvent
 from tests_python import debugger_unittest
-from tests_python.debugger_unittest import IS_JYTHON, REASON_STEP_INTO, REASON_STEP_OVER
+from tests_python.debugger_unittest import IS_JYTHON, REASON_STEP_INTO, REASON_STEP_OVER, \
+    REASON_CAUGHT_EXCEPTION
 import json
 from collections import namedtuple
-from _pydevd_bundle.pydevd_constants import int_types, IS_WINDOWS
-from tests_python.debug_constants import IS_PY2
-from os.path import os
-from tests_python.debugger_unittest import CMD_LOAD_SOURCE
+from _pydevd_bundle.pydevd_constants import int_types
+from tests_python.debug_constants import *  # noqa
+import time
 
 pytest_plugins = [
     str('tests_python.debugger_fixtures'),
@@ -796,6 +796,50 @@ def test_path_translation_and_source_reference(case_setup):
 
         writer.write_run_thread(hit.thread_id)
 
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not TEST_DJANGO, reason='No django available')
+def test_case_django_no_attribute_exception_breakpoint(case_setup_django):
+    django_version = [int(x) for x in django.get_version().split('.')][:2]
+
+    if django_version < [2, 1]:
+        pytest.skip('Template exceptions only supporting Django 2.1 onwards.')
+
+    with case_setup_django.test_file(EXPECTED_RETURNCODE='any') as writer:
+        json_facade = JsonFacade(writer)
+        writer.write_set_protocol('http_json')
+
+        writer.write_add_exception_breakpoint_django()
+        writer.write_make_initial_run()
+
+        t = writer.create_request_thread('my_app/template_error')
+        time.sleep(5)  # Give django some time to get to startup before requesting the page
+        t.start()
+
+        hit = writer.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, line=7, file='template_error.html')
+
+        stack_trace_request = json_facade.write_request(
+            pydevd_schema.StackTraceRequest(pydevd_schema.StackTraceArguments(
+                threadId=hit.thread_id,
+                format={'module': True, 'line': True}
+        )))
+        stack_trace_response = json_facade.wait_for_response(stack_trace_request)
+        stack_trace_response_body = stack_trace_response.body
+        stack_frame = next(iter(stack_trace_response_body.stackFrames))
+        assert stack_frame['source']['path'].endswith('template_error.html')
+
+        json_hit = json_facade.get_stack_as_json_hit(hit.thread_id)
+        variables_response = json_facade.get_variables_response(json_hit.frameId)
+        entries = [x for x in variables_response.to_dict()['body']['variables'] if x['name'] == 'entry']
+        assert len(entries) == 1
+        variables_response = json_facade.get_variables_response(entries[0]['variablesReference'])
+        assert variables_response.to_dict()['body']['variables'] == [
+            {'name': 'key', 'value': "'v1'", 'type': 'str', 'evaluateName': 'entry.key', 'presentationHint': {'attributes': ['rawString']}},
+            {'name': 'val', 'value': "'v1'", 'type': 'str', 'evaluateName': 'entry.val', 'presentationHint': {'attributes': ['rawString']}}
+        ]
+
+        writer.write_run_thread(hit.thread_id)
         writer.finished_ok = True
 
 

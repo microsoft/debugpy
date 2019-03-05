@@ -7,6 +7,7 @@ from _pydevd_bundle.pydevd_comm import CMD_SET_BREAK, CMD_ADD_EXCEPTION_BREAK
 from _pydevd_bundle.pydevd_constants import STATE_SUSPEND, dict_iter_items, DJANGO_SUSPEND, IS_PY2
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, FCode, just_raised, ignore_exception_trace
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_file, normcase
+import os
 
 IS_DJANGO18 = False
 IS_DJANGO19 = False
@@ -84,7 +85,7 @@ def _inherits(cls, *names):
     return inherits_node
 
 
-def _is_django_render_call(frame):
+def _is_django_render_call(frame, debug=False):
     try:
         name = frame.f_code.co_name
         if name != 'render':
@@ -150,8 +151,6 @@ def _is_django_suspended(thread):
 
 
 def suspend_django(main_debugger, thread, frame, cmd=CMD_SET_BREAK):
-    frame = DjangoTemplateFrame(frame)
-
     if frame.f_lineno is None:
         return None
 
@@ -231,7 +230,7 @@ def _get_template_file_name(frame):
             if 'context' in frame.f_locals:
                 context = frame.f_locals['context']
                 if hasattr(context, '_has_included_template'):
-                    #  if there was included template we need to inspect the previous frames and find its name
+                    # if there was included template we need to inspect the previous frames and find its name
                     back = frame.f_back
                     while back is not None and frame.f_code.co_name in ('render', '_render'):
                         locals = back.f_locals
@@ -287,19 +286,19 @@ def _get_template_line(frame):
         return None
 
 
-class DjangoTemplateFrame:
+class DjangoTemplateFrame(object):
 
     def __init__(self, frame):
         file_name = _get_template_file_name(frame)
-        self.back_context = frame.f_locals['context']
+        self._back_context = frame.f_locals['context']
         self.f_code = FCode('Django Template', file_name)
         self.f_lineno = _get_template_line(frame)
         self.f_back = frame
         self.f_globals = {}
-        self.f_locals = self.collect_context(self.back_context)
+        self.f_locals = self._collect_context(self._back_context)
         self.f_trace = None
 
-    def collect_context(self, context):
+    def _collect_context(self, context):
         res = {}
         try:
             for d in context.dicts:
@@ -310,10 +309,21 @@ class DjangoTemplateFrame:
         return res
 
     def _change_variable(self, name, value):
-        for d in self.back_context.dicts:
+        for d in self._back_context.dicts:
             for k, v in d.items():
                 if k == name:
                     d[k] = value
+
+
+class DjangoTemplateSyntaxErrorFrame(object):
+
+    def __init__(self, frame, filename, lineno, f_locals):
+        self.f_code = FCode('Django TemplateSyntaxError', filename)
+        self.f_lineno = lineno
+        self.f_back = frame
+        self.f_globals = {}
+        self.f_locals = f_locals
+        self.f_trace = None
 
 
 def change_variable(plugin, frame, attr, expression):
@@ -324,12 +334,12 @@ def change_variable(plugin, frame, attr, expression):
     return False
 
 
-def _is_django_exception_break_context(frame):
+def _is_django_variable_does_not_exist_exception_break_context(frame):
     try:
         name = frame.f_code.co_name
     except:
         name = None
-    return name in ['_resolve_lookup', 'find_template']
+    return name in ('_resolve_lookup', 'find_template')
 
 #=======================================================================================================================
 # Django Step Commands
@@ -389,7 +399,7 @@ def stop(plugin, main_debugger, frame, event, args, stop_info, arg, step_cmd):
     main_debugger = args[0]
     thread = args[3]
     if 'django_stop' in stop_info and stop_info['django_stop']:
-        frame = suspend_django(main_debugger, thread, frame, step_cmd)
+        frame = suspend_django(main_debugger, thread, DjangoTemplateFrame(frame), step_cmd)
         if frame:
             main_debugger.do_wait_suspend(thread, frame, event, arg)
             return True
@@ -424,7 +434,7 @@ def get_breakpoint(plugin, main_debugger, pydb_frame, frame, event, args):
 
 def suspend(plugin, main_debugger, thread, frame, bp_type):
     if bp_type == 'django':
-        return suspend_django(main_debugger, thread, frame)
+        return suspend_django(main_debugger, thread, DjangoTemplateFrame(frame))
     return None
 
 
@@ -432,17 +442,48 @@ def exception_break(plugin, main_debugger, pydb_frame, frame, args, arg):
     main_debugger = args[0]
     thread = args[3]
     exception, value, trace = arg
-    if main_debugger.django_exception_break and exception is not None and \
-            exception.__name__ in ['VariableDoesNotExist', 'TemplateDoesNotExist', 'TemplateSyntaxError'] and \
-            just_raised(trace) and not ignore_exception_trace(trace) and _is_django_exception_break_context(frame):
-        render_frame = _find_django_render_frame(frame)
-        if render_frame:
-            suspend_frame = suspend_django(main_debugger, thread, render_frame, CMD_ADD_EXCEPTION_BREAK)
-            if suspend_frame:
-                add_exception_to_frame(suspend_frame, (exception, value, trace))
-                flag = True
-                thread.additional_info.pydev_message = 'VariableDoesNotExist'
-                suspend_frame.f_back = frame
-                frame = suspend_frame
-                return (flag, frame)
+
+    if main_debugger.django_exception_break and exception is not None:
+        if exception.__name__ in ['VariableDoesNotExist', 'TemplateDoesNotExist', 'TemplateSyntaxError'] and \
+                just_raised(trace) and not ignore_exception_trace(trace):
+
+            if exception.__name__ == 'TemplateSyntaxError':
+                # In this case we don't actually have a regular render frame with the context
+                # (we didn't really get to that point).
+                token = getattr(value, 'token', None)
+                lineno = getattr(token, 'lineno', None)
+                filename = None
+                if lineno is not None:
+                    get_template_frame = frame
+                    while get_template_frame.f_code.co_name != 'get_template':
+                        get_template_frame = get_template_frame.f_back
+
+                    origin = None
+                    if get_template_frame is not None:
+                        origin = get_template_frame.f_locals.get('origin')
+
+                    if hasattr(origin, 'name') and origin.name is not None:
+                        filename = normcase(origin.name)
+
+                if filename is not None and lineno is not None:
+                    syntax_error_frame = DjangoTemplateSyntaxErrorFrame(
+                        frame, filename, lineno, {'token': token, 'exception': exception})
+
+                    suspend_frame = suspend_django(
+                        main_debugger, thread, syntax_error_frame, CMD_ADD_EXCEPTION_BREAK)
+                    return True, suspend_frame
+
+            elif exception.__name__ == 'VariableDoesNotExist':
+                if _is_django_variable_does_not_exist_exception_break_context(frame):
+                    render_frame = _find_django_render_frame(frame)
+                    if render_frame:
+                        suspend_frame = suspend_django(
+                            main_debugger, thread, DjangoTemplateFrame(render_frame), CMD_ADD_EXCEPTION_BREAK)
+                        if suspend_frame:
+                            add_exception_to_frame(suspend_frame, (exception, value, trace))
+                            thread.additional_info.pydev_message = 'VariableDoesNotExist'
+                            suspend_frame.f_back = frame
+                            frame = suspend_frame
+                            return True, frame
+
     return None

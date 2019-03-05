@@ -269,62 +269,64 @@ cdef class PyDBFrame:
             if trace is not None and hasattr(trace, 'tb_next'):
                 # on jython trace is None on the first event and it may not have a tb_next.
 
-                exception_breakpoint = main_debugger.get_exception_breakpoint(
-                    exception, main_debugger.break_on_caught_exceptions)
+                should_stop = False
+                exception_breakpoint = None
+                try:
+                    if main_debugger.plugin is not None:
+                        result = main_debugger.plugin.exception_break(main_debugger, self, frame, self._args, arg)
+                        if result:
+                            should_stop, frame = result
+                except:
+                    traceback.print_exc()
 
-                if exception_breakpoint is not None:
-                    if exception_breakpoint.condition is not None:
-                        eval_result = main_debugger.handle_breakpoint_condition(info, exception_breakpoint, frame)
-                        if not eval_result:
+                if not should_stop:
+                    # It was not handled by any plugin, lets check exception breakpoints.
+                    exception_breakpoint = main_debugger.get_exception_breakpoint(
+                        exception, main_debugger.break_on_caught_exceptions)
+
+                    if exception_breakpoint is not None:
+                        if exception_breakpoint.condition is not None:
+                            eval_result = main_debugger.handle_breakpoint_condition(info, exception_breakpoint, frame)
+                            if not eval_result:
+                                return False, frame
+
+                        if exception_breakpoint.ignore_libraries:
+                            if not main_debugger.is_exception_trace_in_project_scope(trace):
+                                pydev_log.debug("Ignore exception %s in library %s -- (%s)" % (exception, frame.f_code.co_filename, frame.f_code.co_name))
+                                return False, frame
+
+                        if ignore_exception_trace(trace):
                             return False, frame
 
-                    if exception_breakpoint.ignore_libraries:
-                        if not main_debugger.is_exception_trace_in_project_scope(trace):
-                            pydev_log.debug("Ignore exception %s in library %s -- (%s)" % (exception, frame.f_code.co_filename, frame.f_code.co_name))
-                            return False, frame
+                        was_just_raised = just_raised(trace)
+                        if was_just_raised:
 
-                    if ignore_exception_trace(trace):
-                        return False, frame
+                            if main_debugger.skip_on_exceptions_thrown_in_same_context:
+                                # Option: Don't break if an exception is caught in the same function from which it is thrown
+                                return False, frame
 
-                    was_just_raised = just_raised(trace)
-                    if was_just_raised:
+                        if exception_breakpoint.notify_on_first_raise_only:
+                            if main_debugger.skip_on_exceptions_thrown_in_same_context:
+                                # In this case we never stop if it was just raised, so, to know if it was the first we
+                                # need to check if we're in the 2nd method.
+                                if not was_just_raised and not just_raised(trace.tb_next):
+                                    return False, frame  # I.e.: we stop only when we're at the caller of a method that throws an exception
 
-                        if main_debugger.skip_on_exceptions_thrown_in_same_context:
-                            # Option: Don't break if an exception is caught in the same function from which it is thrown
-                            return False, frame
+                            else:
+                                if not was_just_raised:
+                                    return False, frame  # I.e.: we stop only when it was just raised
 
-                    if exception_breakpoint.notify_on_first_raise_only:
-                        if main_debugger.skip_on_exceptions_thrown_in_same_context:
-                            # In this case we never stop if it was just raised, so, to know if it was the first we
-                            # need to check if we're in the 2nd method.
-                            if not was_just_raised and not just_raised(trace.tb_next):
-                                return False, frame  # I.e.: we stop only when we're at the caller of a method that throws an exception
+                        # If it got here we should stop.
+                        should_stop = True
+                        try:
+                            info.pydev_message = exception_breakpoint.qname
+                        except:
+                            info.pydev_message = exception_breakpoint.qname.encode('utf-8')
 
-                        else:
-                            if not was_just_raised:
-                                return False, frame  # I.e.: we stop only when it was just raised
-
-                    # If it got here we should stop.
-                    should_stop = True
-                    try:
-                        info.pydev_message = exception_breakpoint.qname
-                    except:
-                        info.pydev_message = exception_breakpoint.qname.encode('utf-8')
-
+                if should_stop:
                     # Always add exception to frame (must remove later after we proceed).
                     add_exception_to_frame(frame, (exception, value, trace))
 
-                else:
-                    # No regular exception breakpoint, let's see if some plugin handles it.
-                    try:
-                        if main_debugger.plugin is not None:
-                            result = main_debugger.plugin.exception_break(main_debugger, self, frame, self._args, arg)
-                            if result:
-                                should_stop, frame = result
-                    except:
-                        should_stop = False
-
-                if should_stop:
                     if exception_breakpoint is not None and exception_breakpoint.expression is not None:
                         main_debugger.handle_breakpoint_expression(exception_breakpoint, info, frame)
 

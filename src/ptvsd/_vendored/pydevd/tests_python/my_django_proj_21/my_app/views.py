@@ -48,3 +48,21 @@ def get_name(request):
         form = NameForm(data={'your_name': 'unknown name'})
 
     return render(request, 'my_app/name.html', {'form': form})
+
+
+def template_error(request):
+    import faulthandler
+    faulthandler.enable()
+    context = {
+        'entries': [Entry('v1', 'v1'), Entry('v2', 'v2')]
+    }
+    ret = render(request, 'my_app/template_error.html', context)
+    return ret
+
+
+def template_error2(request):
+    import faulthandler
+    faulthandler.enable()
+    context = {}
+    ret = render(request, 'my_app/template_error2.html', context)
+    return ret

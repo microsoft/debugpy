@@ -173,6 +173,7 @@ class AbstractWriterThreadCaseDjango(debugger_unittest.AbstractWriterThread):
             debugger_unittest._get_debugger_test_file(os.path.join(self.DJANGO_FOLDER, 'manage.py')),
             'runserver',
             '--noreload',
+            '--nothreading',
             str(free_port),
         ]
 

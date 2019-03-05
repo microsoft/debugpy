@@ -26,7 +26,7 @@ try:
 except ImportError:
     from urllib.parse import unquote
 
-from tests_python.debug_constants import *
+from tests_python.debug_constants import *  # noqa
 
 pytest_plugins = [
     str('tests_python.debugger_fixtures'),
@@ -36,21 +36,6 @@ try:
     xrange
 except:
     xrange = range
-
-TEST_DJANGO = False
-TEST_FLASK = False
-
-try:
-    import django
-    TEST_DJANGO = True
-except:
-    pass
-
-try:
-    import flask
-    TEST_FLASK = True
-except:
-    pass
 
 if IS_PY2:
     builtin_qualifier = "__builtin__"
@@ -964,6 +949,86 @@ def test_case_django_b(case_setup_django):
 
         writer.write_get_frame(hit.thread_id, hit.frame_id)
         writer.wait_for_var('<var name="form" type="NameForm" qualifier="my_app.forms" value="NameForm%253A')
+        writer.write_run_thread(hit.thread_id)
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not TEST_DJANGO, reason='No django available')
+def test_case_django_no_attribute_exception_breakpoint(case_setup_django):
+    django_version = [int(x) for x in django.get_version().split('.')][:2]
+
+    if django_version < [2, 1]:
+        pytest.skip('Template exceptions only supporting Django 2.1 onwards.')
+
+    with case_setup_django.test_file(EXPECTED_RETURNCODE='any') as writer:
+        writer.write_add_exception_breakpoint_django()
+        writer.write_make_initial_run()
+
+        t = writer.create_request_thread('my_app/template_error')
+        time.sleep(5)  # Give django some time to get to startup before requesting the page
+        t.start()
+
+        hit = writer.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, line=7, file='template_error.html')
+
+        writer.write_get_frame(hit.thread_id, hit.frame_id)
+        writer.wait_for_var('<var name="entry" type="Entry" qualifier="my_app.views" value="Entry: v1:v1" isContainer="True"')
+
+        writer.write_run_thread(hit.thread_id)
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not TEST_DJANGO, reason='No django available')
+def test_case_django_no_attribute_exception_breakpoint_and_regular_exceptions(case_setup_django):
+    django_version = [int(x) for x in django.get_version().split('.')][:2]
+
+    if django_version < [2, 1]:
+        pytest.skip('Template exceptions only supporting Django 2.1 onwards.')
+
+    with case_setup_django.test_file(EXPECTED_RETURNCODE='any') as writer:
+        writer.write_add_exception_breakpoint_django()
+
+        # The django plugin has priority over the regular exception breakpoint.
+        writer.write_add_exception_breakpoint_with_policy(
+            'django.template.base.VariableDoesNotExist',
+            notify_on_handled_exceptions=2,  # 2 means notify only on first raise.
+            notify_on_unhandled_exceptions=0,
+            ignore_libraries=0
+        )
+        writer.write_make_initial_run()
+
+        t = writer.create_request_thread('my_app/template_error')
+        time.sleep(5)  # Give django some time to get to startup before requesting the page
+        t.start()
+
+        hit = writer.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, line=7, file='template_error.html')
+
+        writer.write_get_frame(hit.thread_id, hit.frame_id)
+        writer.wait_for_var('<var name="entry" type="Entry" qualifier="my_app.views" value="Entry: v1:v1" isContainer="True"')
+
+        writer.write_run_thread(hit.thread_id)
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not TEST_DJANGO, reason='No django available')
+def test_case_django_invalid_template_exception_breakpoint(case_setup_django):
+    django_version = [int(x) for x in django.get_version().split('.')][:2]
+
+    if django_version < [2, 1]:
+        pytest.skip('Template exceptions only supporting Django 2.1 onwards.')
+
+    with case_setup_django.test_file(EXPECTED_RETURNCODE='any') as writer:
+        writer.write_add_exception_breakpoint_django()
+        writer.write_make_initial_run()
+
+        t = writer.create_request_thread('my_app/template_error2')
+        time.sleep(5)  # Give django some time to get to startup before requesting the page
+        t.start()
+
+        hit = writer.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, line=4, file='template_error2.html')
+
+        writer.write_get_frame(hit.thread_id, hit.frame_id)
+        writer.wait_for_var('<var name="token" type="Token" qualifier="django.template.base" value="Token:')
+
         writer.write_run_thread(hit.thread_id)
         writer.finished_ok = True
 
