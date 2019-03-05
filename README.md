@@ -109,3 +109,20 @@ while True:
     ]
 }
 ```
+
+## Debugger logging
+
+To enable debugger internal logging via CLI, the `--log-dir` switch can be used:
+```console
+-m ptvsd --log-dir path/to/logs ...
+```
+
+When using `enable_attach`, the same can be done with `log_dir` argument:
+```py
+ptvsd.enable_attach(log_dir='path/to/logs')
+```
+
+In both cases, the environment variable `PTVSD_LOG_DIR` can also be set to the same effect.
+
+When logging is enabled, ptvsd will create a log file with a name `ptvsd-<pid>.log` in the specified directory, where `<pid>` is the ID of the process being debugged. When subprocess debugging is enabled, a separate log is created for every subprocess.
+
