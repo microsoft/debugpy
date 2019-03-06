@@ -60,7 +60,7 @@ def test_django_breakpoint_no_multiproc(bp_target, start_method):
         resp_stacktrace = session.send_request('stackTrace', arguments={
             'threadId': tid,
         }).wait_for_response()
-        assert resp_stacktrace.body['totalFrames'] > 1
+        assert resp_stacktrace.body['totalFrames'] >= 1
         frames = resp_stacktrace.body['stackFrames']
         assert frames[0] == {
             'id': ANY.int,

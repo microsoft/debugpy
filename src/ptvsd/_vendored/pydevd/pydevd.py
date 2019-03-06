@@ -763,6 +763,9 @@ class PyDB(object):
         self._clear_skip_caches()
         self._clear_filters_caches()
 
+    def get_use_libraries_filter(self):
+        return self._files_filtering.use_libraries_filter()
+
     def has_threads_alive(self):
         for t in pydevd_utils.get_non_pydevd_threads():
             if isinstance(t, PyDBDaemonThread):

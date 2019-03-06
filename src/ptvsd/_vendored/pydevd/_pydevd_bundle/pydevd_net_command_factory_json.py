@@ -184,13 +184,19 @@ class NetCommandFactoryJson(NetCommandFactory):
 
                     module_events.extend(self.modules_manager.track_module(filename_in_utf8, module_name, frame))
 
-                    # TODO: presentationHint should be subtle if it's a filtered method.
+                    presentation_hint = None
+                    if not py_db.in_project_scope(filename_in_utf8):
+                        if py_db.get_use_libraries_filter():
+                            continue
+                        presentation_hint = 'subtle'
+
                     formatted_name = self._format_frame_name(fmt, method_name, module_name, lineno, filename_in_utf8)
                     frames.append(pydevd_schema.StackFrame(
                         frame_id, formatted_name, lineno, column=1, source={
                             'path': filename_in_utf8,
                             'sourceReference': pydevd_file_utils.get_client_filename_source_reference(filename_in_utf8),
-                        }).to_dict())
+                        },
+                        presentationHint=presentation_hint).to_dict())
             finally:
                 topmost_frame = None
 

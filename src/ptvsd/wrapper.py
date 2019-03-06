@@ -89,7 +89,7 @@ def dont_trace_ptvsd_files(file_path):
     """
     Returns true if the file should not be traced.
     """
-    return file_path.startswith(PTVSD_DIR_PATH)
+    return file_path.startswith(PTVSD_DIR_PATH) or file_path.endswith('ptvsd_launcher.py')
 
 
 original_get_file_type = pydevd.PyDB.get_file_type

@@ -12,7 +12,6 @@ from tests.helpers.timeline import Event
 from tests.helpers.pattern import ANY, Path
 
 @pytest.mark.parametrize('jmc', ['jmcOn', 'jmcOff'])
-@pytest.mark.skip(reason='https://github.com/Microsoft/ptvsd/issues/1187')
 def test_justmycode_frames(pyfile, run_as, start_method, jmc):
     @pyfile
     def code_to_debug():

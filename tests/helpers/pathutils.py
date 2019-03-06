@@ -22,7 +22,7 @@ def compare_path(left, right, show=True):
         if not isinstance(right, ptvsd.compat.unicode):
             right = right.decode(sys.getfilesystemencoding())
     elif isinstance(right, ptvsd.compat.unicode):
-        left = right.decode(sys.getfilesystemencoding())
+        right = right.decode(sys.getfilesystemencoding())
 
     n_left = os.path.normcase(left)
     n_right = os.path.normcase(right)
