@@ -118,8 +118,7 @@ def escaped_exceptions(f):
 def to_file():
     global file
 
-    if ptvsd.options.log_dir:
-        assert not file
+    if ptvsd.options.log_dir and not file:
         filename = ptvsd.options.log_dir + '/ptvsd-{}.log'.format(os.getpid())
         file = io.open(filename, 'w', encoding='utf-8')
 
