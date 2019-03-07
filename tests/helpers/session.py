@@ -144,13 +144,28 @@ class DebugSession(object):
                 print('Error while closing backchannel socket to ptvsd#%d: %s' % (self.ptvsd_port, str(ex)))
                 self.backchannel_socket = None
 
-        if self.kill_ptvsd and self.process:
+        if self.process:
+            if self.kill_ptvsd:
+                try:
+                    self._kill_process_tree()
+                    print('Killed ptvsd process tree %d' % self.pid)
+                except:
+                    print('Error killing ptvsd process tree %d' % self.pid)
+                    traceback.print_exc()
+                    pass
+
+            # Clean up pipes to avoid leaking OS handles.
             try:
-                self._kill_process_tree()
-                print('Killed ptvsd process tree %d' % self.pid)
+                self.process.stdin.close()
             except:
-                print('Error killing ptvsd process tree %d' % self.pid)
-                traceback.print_exc()
+                pass
+            try:
+                self.process.stdout.close()
+            except:
+                pass
+            try:
+                self.process.stderr.close()
+            except:
                 pass
 
         self._wait_for_remaining_output()

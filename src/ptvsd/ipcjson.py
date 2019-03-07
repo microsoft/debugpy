@@ -266,7 +266,7 @@ class IpcChannel(object):
         while not self.__exit:
             try:
                 self.process_one_message()
-            except AssertionError:
+            except (AssertionError, EOFError):
                 raise
             except Exception:
                 ptvsd.log.exception(category=('D' if self.__exit else 'E'))

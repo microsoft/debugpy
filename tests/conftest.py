@@ -111,10 +111,12 @@ def pyfile(request, tmpdir):
         assert source
 
         # Now we need to adjust indentation. Compute how much the first line of
-        # the body is indented by, then dedent all lines by that amount.
+        # the body is indented by, then dedent all lines by that amount. Blank
+        # lines don't matter indentation-wise, and might not be indented to begin
+        # with, so just replace them with a simple newline.
         line = source[0]
         indent = len(line) - len(line.lstrip())
-        source = [line[indent:] for line in source]
+        source = [line[indent:] if line.strip() else '\n' for line in source]
 
         # Write it to file.
         source = ''.join(source)

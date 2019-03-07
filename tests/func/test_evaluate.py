@@ -4,8 +4,10 @@
 
 from __future__ import print_function, with_statement, absolute_import
 
+import pytest
 import sys
 
+from tests.helpers import get_marked_line_numbers, print
 from tests.helpers.pattern import ANY
 from tests.helpers.session import DebugSession
 from tests.helpers.timeline import Event
@@ -242,6 +244,7 @@ def test_variable_sort(pyfile, run_as, start_method):
         session.wait_for_exit()
 
 
+@pytest.mark.skipif(sys.version_info >= (3, 7), reason='https://github.com/Microsoft/ptvsd/issues/1207')
 def test_return_values(pyfile, run_as, start_method):
 
     @pyfile
@@ -250,16 +253,18 @@ def test_return_values(pyfile, run_as, start_method):
         import_and_enable_debugger()
 
         class MyClass(object):
-
             def do_something(self):
                 return 'did something'
 
         def my_func():
             return 'did more things'
 
-        MyClass().do_something()
+        MyClass().do_something()  #@bp
         my_func()
         print('done')
+
+    line_numbers = get_marked_line_numbers(code_to_debug)
+    print(line_numbers)
 
     expected1 = ANY.dict_with({
         'name': '(return) MyClass.do_something',
@@ -285,7 +290,7 @@ def test_return_values(pyfile, run_as, start_method):
             start_method=start_method,
             debug_options=['ShowReturnValue'],
             ignore_unobserved=[Event('continued')])
-        session.set_breakpoints(code_to_debug, [8])
+        session.set_breakpoints(code_to_debug, [line_numbers['bp']])
         session.start_debugging()
         hit = session.wait_for_thread_stopped()
 

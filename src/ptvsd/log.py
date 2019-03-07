@@ -75,7 +75,10 @@ def write(category, fmt, *args, **kwargs):
             file.write(message)
             file.flush()
         if category in 'WE':
-            sys.__stderr__.write(message)
+            try:
+                sys.__stderr__.write(message)
+            except:
+                pass
 
 
 debug = functools.partial(write, 'D')
