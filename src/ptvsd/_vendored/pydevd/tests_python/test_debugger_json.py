@@ -736,6 +736,86 @@ def test_stack_and_variables(case_setup):
         writer.finished_ok = True
 
 
+def test_hex_variables(case_setup):
+    with case_setup.test_file('_debugger_case_local_variables_hex.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_set_protocol('http_json')
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'))
+
+        json_facade.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit()
+
+        # : :type stack_trace_response: StackTraceResponse
+        # : :type stack_trace_response_body: StackTraceResponseBody
+        # : :type stack_frame: StackFrame
+        stack_trace_request = json_facade.write_request(
+            pydevd_schema.StackTraceRequest(pydevd_schema.StackTraceArguments(threadId=hit.thread_id)))
+        stack_trace_response = json_facade.wait_for_response(stack_trace_request)
+        stack_trace_response_body = stack_trace_response.body
+        assert len(stack_trace_response_body.stackFrames) == 2
+        stack_frame = next(iter(stack_trace_response_body.stackFrames))
+        assert stack_frame['name'] == 'Call'
+        assert stack_frame['source']['path'].endswith('_debugger_case_local_variables_hex.py')
+
+        scopes_request = json_facade.write_request(pydevd_schema.ScopesRequest(
+            pydevd_schema.ScopesArguments(stack_frame['id'])))
+
+        scopes_response = json_facade.wait_for_response(scopes_request)
+        scopes = scopes_response.body.scopes
+        assert len(scopes) == 1
+        scope = pydevd_schema.Scope(**next(iter(scopes)))
+        assert scope.name == 'Locals'
+        assert not scope.expensive
+        frame_variables_reference = scope.variablesReference
+        assert isinstance(frame_variables_reference, int)
+
+        fmt = {'hex': True}
+        variables_request = json_facade.write_request(
+            pydevd_schema.VariablesRequest(pydevd_schema.VariablesArguments(frame_variables_reference, format=fmt)))
+        variables_response = json_facade.wait_for_response(variables_request)
+
+        # : :type variables_response: VariablesResponse
+        variable_for_test_1, variable_for_test_2, variable_for_test_3, variable_for_test_4 = sorted(list(
+            v for v in variables_response.body.variables if v['name'].startswith('variable_for_test')
+        ), key=lambda v: v['name'])
+        assert variable_for_test_1 == [{
+            'name': 'variable_for_test_1',
+            'value': "0x64",
+            'type': 'int',
+            'evaluateName': 'variable_for_test_1'
+        }]
+
+        assert isinstance(variable_for_test_2.pop('variablesReference'), int)
+        assert variable_for_test_2 == [{
+            'name': 'variable_for_test_2',
+            'value': "[0x1, 0xa, 0x64]",
+            'type': 'list',
+            'evaluateName': 'variable_for_test_2'
+        }]
+
+        assert isinstance(variable_for_test_3.pop('variablesReference'), int)
+        assert variable_for_test_3 == [{
+            'name': 'variable_for_test_3',
+            'value': '{0xa: 0xa, 0x64: 0x64, 0x3e8: 0x3e8}',
+            'type': 'dict',
+            'evaluateName': 'variable_for_test_3'
+        }]
+
+        assert isinstance(variable_for_test_4.pop('variablesReference'), int)
+        assert variable_for_test_4 == [{
+            'name': 'variable_for_test_4',
+            'value': '{(0x1, 0xa, 0x64): (0x2710, 0x186a0, 0x186a0)}',
+            'type': 'dict',
+            'evaluateName': 'variable_for_test_4'
+        }]
+
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+
+
 def test_path_translation_and_source_reference(case_setup):
 
     def get_file_in_client(writer):

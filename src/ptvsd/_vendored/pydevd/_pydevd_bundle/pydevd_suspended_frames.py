@@ -94,7 +94,7 @@ class _ObjectVariable(_AbstractVariable):
         if resolver is not None:  # i.e.: it's a container.
             if hasattr(resolver, 'get_contents_debug_adapter_protocol'):
                 # The get_contents_debug_adapter_protocol needs to return sorted.
-                lst = resolver.get_contents_debug_adapter_protocol(self.value)
+                lst = resolver.get_contents_debug_adapter_protocol(self.value, fmt=fmt)
             else:
                 # If there's no special implementation, the default is sorting the keys.
                 dct = resolver.get_dictionary(self.value)

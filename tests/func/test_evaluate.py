@@ -4,7 +4,6 @@
 
 from __future__ import print_function, with_statement, absolute_import
 
-import pytest
 import sys
 
 from tests.helpers import get_marked_line_numbers, print
@@ -244,7 +243,6 @@ def test_variable_sort(pyfile, run_as, start_method):
         session.wait_for_exit()
 
 
-@pytest.mark.skipif(sys.version_info >= (3, 7), reason='https://github.com/Microsoft/ptvsd/issues/1207')
 def test_return_values(pyfile, run_as, start_method):
 
     @pyfile
@@ -368,6 +366,123 @@ def test_unicode(pyfile, run_as, start_method):
             assert resp_eval.body == ANY.dict_with({
                 'type': 'SyntaxError'
             })
+
+        session.send_request('continue').wait_for_response(freeze=False)
+        session.wait_for_exit()
+
+
+def test_hex_numbers(pyfile, run_as, start_method):
+    @pyfile
+    def code_to_debug():
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
+        a = 100
+        b = [1, 10, 100]
+        c = {10: 10, 100: 100, 1000: 1000}
+        d = {(1, 10, 100): (10000, 100000, 100000)}
+        print((a, b, c, d)) #@bp
+
+    line_numbers = get_marked_line_numbers(code_to_debug)
+    print(line_numbers)
+
+    with DebugSession() as session:
+        session.initialize(
+            target=(run_as, code_to_debug),
+            start_method=start_method,
+            ignore_unobserved=[Event('continued')],
+        )
+        session.set_breakpoints(code_to_debug, [line_numbers['bp']])
+        session.start_debugging()
+        hit = session.wait_for_thread_stopped()
+
+        resp_scopes = session.send_request('scopes', arguments={
+            'frameId': hit.frame_id
+        }).wait_for_response()
+        scopes = resp_scopes.body['scopes']
+        assert len(scopes) > 0
+
+        resp_variables = session.send_request('variables', arguments={
+            'variablesReference': scopes[0]['variablesReference'],
+            'format': {'hex': True}
+        }).wait_for_response()
+        variables = list(v for v in resp_variables.body['variables']
+                         if v['name'] in ('a', 'b', 'c', 'd'))
+        a, b, c, d = sorted(variables, key=lambda v: v['name'])
+        assert a == ANY.dict_with({
+            'name': 'a',
+            'value': "0x64",
+            'type': 'int',
+            'evaluateName': 'a'
+        })
+
+        assert b == ANY.dict_with({
+            'name': 'b',
+            'value': "[0x1, 0xa, 0x64]",
+            'type': 'list',
+            'evaluateName': 'b',
+            'variablesReference': ANY.int,
+        })
+
+        resp_variables = session.send_request('variables', arguments={
+            'variablesReference': b['variablesReference'],
+            'format': {'hex': True}
+        }).wait_for_response()
+        b_children = resp_variables.body['variables']
+        assert b_children == [
+            {'name': '0x0', 'value': '0x1', 'type': 'int', 'evaluateName': 'b[0]'},
+            {'name': '0x1', 'value': '0xa', 'type': 'int', 'evaluateName': 'b[1]'},
+            {'name': '0x2', 'value': '0x64', 'type': 'int', 'evaluateName': 'b[2]'},
+            {'name': '__len__', 'value': '0x3', 'type': 'int', 'evaluateName': 'len(b)'},
+        ]
+
+        assert c == ANY.dict_with({
+            'name': 'c',
+            'value': '{0xa: 0xa, 0x64: 0x64, 0x3e8: 0x3e8}',
+            'type': 'dict',
+            'evaluateName': 'c',
+            'variablesReference': ANY.int,
+        })
+
+        resp_variables = session.send_request('variables', arguments={
+            'variablesReference': c['variablesReference'],
+            'format': {'hex': True}
+        }).wait_for_response()
+        c_children = resp_variables.body['variables']
+        assert c_children == [
+            {'name': '0x3e8', 'value': '0x3e8', 'type': 'int', 'evaluateName': 'c[1000]'},
+            {'name': '0x64', 'value': '0x64', 'type': 'int', 'evaluateName': 'c[100]'},
+            {'name': '0xa', 'value': '0xa', 'type': 'int', 'evaluateName': 'c[10]'},
+            {'name': '__len__', 'value': '0x3', 'type': 'int', 'evaluateName': 'len(c)'}
+        ]
+
+        assert d == ANY.dict_with({
+            'name': 'd',
+            'value': '{(0x1, 0xa, 0x64): (0x2710, 0x186a0, 0x186a0)}',
+            'type': 'dict',
+            'evaluateName': 'd',
+            'variablesReference': ANY.int,
+        })
+        resp_variables = session.send_request('variables', arguments={
+            'variablesReference': d['variablesReference'],
+            'format': {'hex': True}
+        }).wait_for_response()
+        d_children = resp_variables.body['variables']
+        assert d_children == [
+            {'name': '(0x1, 0xa, 0x64)', 'value': '(0x2710, 0x186a0, 0x186a0)', 'type': 'tuple', 'evaluateName': 'd[(1, 10, 100)]', 'variablesReference': ANY.int},
+            {'name': '__len__', 'value': '0x1', 'type': 'int', 'evaluateName': 'len(d)'}
+        ]
+
+        resp_variables = session.send_request('variables', arguments={
+            'variablesReference': d_children[0]['variablesReference'],
+            'format': {'hex': True}
+        }).wait_for_response()
+        d_child_of_child = resp_variables.body['variables']
+        assert d_child_of_child == [
+            {'name': '0x0', 'value': '0x2710', 'type': 'int', 'evaluateName': 'd[(1, 10, 100)][0]'},
+            {'name': '0x1', 'value': '0x186a0', 'type': 'int', 'evaluateName': 'd[(1, 10, 100)][1]'},
+            {'name': '0x2', 'value': '0x186a0', 'type': 'int', 'evaluateName': 'd[(1, 10, 100)][2]'},
+            {'name': '__len__', 'value': '0x3', 'type': 'int', 'evaluateName': 'len(d[(1, 10, 100)])'}
+        ]
 
         session.send_request('continue').wait_for_response(freeze=False)
         session.wait_for_exit()

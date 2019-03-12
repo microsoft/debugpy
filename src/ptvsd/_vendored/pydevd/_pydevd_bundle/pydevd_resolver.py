@@ -7,6 +7,7 @@ from os.path import basename
 
 from functools import partial
 from _pydevd_bundle.pydevd_constants import dict_iter_items, dict_keys, xrange
+from _pydevd_bundle.pydevd_safe_repr import SafeRepr
 
 # Note: 300 is already a lot to see in the outline (after that the user should really use the shell to get things)
 # and this also means we'll pass less information to the client side (which makes debugging faster).
@@ -88,7 +89,7 @@ class DefaultResolver:
     def resolve(self, var, attribute):
         return getattr(var, attribute)
 
-    def get_contents_debug_adapter_protocol(self, obj):
+    def get_contents_debug_adapter_protocol(self, obj, fmt={}):
         if MethodWrapperType:
             dct, used___dict__ = self._get_py_dictionary(obj)
         else:
@@ -259,13 +260,17 @@ class DictResolver:
 
         raise UnableToResolveVariableException()
 
-    def key_to_str(self, key):
+    def key_to_str(self, key, fmt={}):
+        if fmt.get('hex', False):
+            safe_repr = SafeRepr()
+            safe_repr.convert_to_hex = True
+            return safe_repr(key)
         return '%r' % (key,)
 
     def init_dict(self):
         return {}
 
-    def get_contents_debug_adapter_protocol(self, dct):
+    def get_contents_debug_adapter_protocol(self, dct, fmt={}):
         '''
         This method is to be used in the case where the variables are all saved by its id (and as
         such don't need to have the `resolve` method called later on, so, keys don't need to
@@ -280,15 +285,16 @@ class DictResolver:
         i = 0
         for key, val in dict_iter_items(dct):
             i += 1
-            key_as_str = self.key_to_str(key)
-            ret.append((key_as_str, val, '[%s]' % (key_as_str,)))
+            key_as_str = self.key_to_str(key, fmt)
+            eval_key_str = self.key_to_str(key) # do not format the key
+            ret.append((key_as_str, val, '[%s]' % (eval_key_str,)))
             if i > MAX_ITEMS_TO_HANDLE:
                 ret.append((TOO_LARGE_ATTR, TOO_LARGE_MSG))
                 break
 
         ret.append(('__len__', len(dct), partial(_apply_evaluate_name, evaluate_name='len(%s)')))
         # in case the class extends built-in type and has some additional fields
-        from_default_resolver = defaultResolver.get_contents_debug_adapter_protocol(dct)
+        from_default_resolver = defaultResolver.get_contents_debug_adapter_protocol(dct, fmt)
 
         if from_default_resolver:
             ret = from_default_resolver + ret
@@ -336,7 +342,7 @@ class TupleResolver:  # to enumerate tuples and lists
         except:
             return getattr(var, attribute)
 
-    def get_contents_debug_adapter_protocol(self, lst):
+    def get_contents_debug_adapter_protocol(self, lst, fmt={}):
         '''
         This method is to be used in the case where the variables are all saved by its id (and as
         such don't need to have the `resolve` method called later on, so, keys don't need to
@@ -350,6 +356,8 @@ class TupleResolver:  # to enumerate tuples and lists
         ret = []
 
         format_str = '%0' + str(int(len(str(l - 1)))) + 'd'
+        if fmt is not None and fmt.get('hex', False):
+            format_str = '0x%0' + str(int(len(hex(l).lstrip('0x')))) + 'x'
 
         for i, item in enumerate(lst):
             ret.append((format_str % i, item, '[%s]' % i))
@@ -365,11 +373,13 @@ class TupleResolver:  # to enumerate tuples and lists
             ret = from_default_resolver + ret
         return ret
 
-    def get_dictionary(self, var):
+    def get_dictionary(self, var, fmt={}):
         l = len(var)
         d = {}
 
         format_str = '%0' + str(int(len(str(l - 1)))) + 'd'
+        if fmt is not None and fmt.get('hex', False):
+            format_str = '0x%0' + str(int(len(hex(l).lstrip('0x')))) + 'x'
 
         for i, item in enumerate(var):
             d[format_str % i] = item
