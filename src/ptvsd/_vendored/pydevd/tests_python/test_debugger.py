@@ -3011,7 +3011,14 @@ def test_matplotlib_activation(case_setup):
     except ImportError:
         return
 
-    with case_setup.test_file('_debugger_case_matplotlib.py') as writer:
+    def get_environ(writer):
+        env = os.environ.copy()
+        env.update({
+            'IPYTHONENABLE': 'True',
+        })
+        return env
+
+    with case_setup.test_file('_debugger_case_matplotlib.py', get_environ=get_environ) as writer:
         writer.write_add_breakpoint(writer.get_line_index_with_content('break here'))
         writer.write_make_initial_run()
         for _ in range(3):
