@@ -1836,7 +1836,8 @@ def test_path_translation(case_setup):
 
         file_in_client = get_file_in_client(writer)
         assert 'tests_python' not in file_in_client
-        writer.write_add_breakpoint(2, 'main', filename=file_in_client)
+        writer.write_add_breakpoint(
+            writer.get_line_index_with_content('break here'), 'call_this', filename=file_in_client)
         writer.write_make_initial_run()
 
         xml = writer.wait_for_message(lambda msg:'stop_reason="111"' in msg)

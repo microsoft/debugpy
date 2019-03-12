@@ -9,6 +9,7 @@ from shutil import copyfile
 from tests.helpers.pattern import Path
 from tests.helpers.session import DebugSession
 from tests.helpers.timeline import Event
+from tests.helpers.pathutils import get_test_root
 
 
 def test_with_dot_remote_root(pyfile, tmpdir, run_as, start_method):
@@ -66,11 +67,22 @@ def test_with_path_mappings(pyfile, tmpdir, run_as, start_method):
         from dbgimporter import import_and_enable_debugger
         import_and_enable_debugger()
         import os
+        import sys
         import backchannel
+        json = backchannel.read_json()
+        call_me_back_dir = json['call_me_back_dir']
+        sys.path.append(call_me_back_dir)
+
+        import call_me_back
+
+        def call_func():
+            print('break here')
+
         backchannel.write_json(os.path.abspath(__file__))
+        call_me_back.call_me_back(call_func)
         print('done')
 
-    bp_line = 6
+    bp_line = 13
     path_local = tmpdir.mkdir('local').join('code_to_debug.py').strpath
     path_remote = tmpdir.mkdir('remote').join('code_to_debug.py').strpath
 
@@ -79,6 +91,8 @@ def test_with_path_mappings(pyfile, tmpdir, run_as, start_method):
 
     copyfile(code_to_debug, path_local)
     copyfile(code_to_debug, path_remote)
+
+    call_me_back_dir = get_test_root('call_me_back')
 
     with DebugSession() as session:
         session.initialize(
@@ -93,19 +107,25 @@ def test_with_path_mappings(pyfile, tmpdir, run_as, start_method):
         )
         session.set_breakpoints(path_remote, [bp_line])
         session.start_debugging()
+        session.write_json({'call_me_back_dir': call_me_back_dir})
         hit = session.wait_for_thread_stopped('breakpoint')
+
         frames = hit.stacktrace.body['stackFrames']
         assert frames[0]['source']['path'] == Path(path_local)
         source_reference = frames[0]['source']['sourceReference']
-        assert source_reference > 0
+        assert source_reference == 0  # Mapped files should be found locally.
 
-        remote_code_path = session.read_json()
-        assert path_remote == Path(remote_code_path)
+        assert frames[1]['source']['path'].endswith('call_me_back.py')
+        source_reference = frames[1]['source']['sourceReference']
+        assert source_reference > 0  # Unmapped file should have a source reference.
 
         resp_variables = session.send_request('source', arguments={
             'sourceReference': source_reference
         }).wait_for_response()
-        assert "print('done')" in (resp_variables.body['content'])
+        assert "def call_me_back(callback):" in (resp_variables.body['content'])
+
+        remote_code_path = session.read_json()
+        assert path_remote == Path(remote_code_path)
 
         session.send_request('continue').wait_for_response(freeze=False)
         session.wait_for_exit()

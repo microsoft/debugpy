@@ -40,6 +40,37 @@ def test_convert_utilities(tmpdir):
         assert pydevd_file_utils.get_path_with_real_case(test_dir) == test_dir
 
 
+def test_source_reference(tmpdir):
+    import pydevd_file_utils
+
+    pydevd_file_utils.set_ide_os('WINDOWS')
+    if IS_WINDOWS:
+        # Client and server are on windows.
+        pydevd_file_utils.setup_client_server_paths([('c:\\foo', 'c:\\bar')])
+
+        assert pydevd_file_utils.norm_file_to_client('c:\\bar\\my') == 'c:\\foo\\my'
+        assert pydevd_file_utils.get_client_filename_source_reference('c:\\foo\\my') == 0
+
+        assert pydevd_file_utils.norm_file_to_client('c:\\another\\my') == 'c:\\another\\my'
+        source_reference = pydevd_file_utils.get_client_filename_source_reference('c:\\another\\my')
+        assert source_reference != 0
+        assert pydevd_file_utils.get_server_filename_from_source_reference(source_reference) == 'c:\\another\\my'
+
+    else:
+        # Client on windows and server on unix
+        pydevd_file_utils.set_ide_os('WINDOWS')
+
+        pydevd_file_utils.setup_client_server_paths([('c:\\foo', '/bar')])
+
+        assert pydevd_file_utils.norm_file_to_client('/bar/my') == 'c:\\foo\\my'
+        assert pydevd_file_utils.get_client_filename_source_reference('c:\\foo\\my') == 0
+
+        assert pydevd_file_utils.norm_file_to_client('/another/my') == '\\another\\my'
+        source_reference = pydevd_file_utils.get_client_filename_source_reference('\\another\\my')
+        assert source_reference != 0
+        assert pydevd_file_utils.get_server_filename_from_source_reference(source_reference) == '/another/my'
+
+
 def test_to_server_and_to_client(tmpdir):
     try:
 

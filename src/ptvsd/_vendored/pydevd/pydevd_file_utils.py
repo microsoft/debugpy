@@ -429,7 +429,13 @@ def setup_client_server_paths(paths):
     global norm_file_to_client
     global norm_file_to_server
     global _last_client_server_paths_set
+    global _next_source_reference
+
     _last_client_server_paths_set = paths[:]
+
+    _source_reference_to_server_filename.clear()
+    _client_filename_in_utf8_to_source_reference.clear()
+    _next_source_reference = partial(next, itertools.count(1))
 
     # Work on the client and server slashes.
     python_sep = '\\' if IS_WINDOWS else '/'
@@ -510,6 +516,8 @@ def setup_client_server_paths(paths):
             translated_proper_case = get_path_with_real_case(translated)
             translated = _NormFile(translated_proper_case)
 
+            path_mapping_applied = False
+
             if IS_WINDOWS:
                 if translated.lower() != translated_proper_case.lower():
                     translated_proper_case = translated
@@ -528,6 +536,7 @@ def setup_client_server_paths(paths):
                     translated = eclipse_prefix + translated_proper_case[len(python_prefix):]
                     if DEBUG_CLIENT_SERVER_TRANSLATION:
                         sys.stderr.write('pydev debugger: sent to client: %s\n' % (translated,))
+                    path_mapping_applied = True
                     break
             else:
                 if DEBUG_CLIENT_SERVER_TRANSLATION:
@@ -545,7 +554,10 @@ def setup_client_server_paths(paths):
             cache[filename] = translated
 
             if translated not in _client_filename_in_utf8_to_source_reference:
-                source_reference = _next_source_reference()
+                if path_mapping_applied:
+                    source_reference = 0
+                else:
+                    source_reference = _next_source_reference()
                 _client_filename_in_utf8_to_source_reference[translated] = source_reference
                 _source_reference_to_server_filename[source_reference] = filename
 

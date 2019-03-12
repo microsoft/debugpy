@@ -816,6 +816,7 @@ def test_hex_variables(case_setup):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(IS_JYTHON, reason='Flaky on Jython.')
 def test_path_translation_and_source_reference(case_setup):
 
     def get_file_in_client(writer):
@@ -846,7 +847,9 @@ def test_path_translation_and_source_reference(case_setup):
         json_facade = JsonFacade(writer)
 
         writer.write_set_protocol('http_json')
-        writer.write_add_breakpoint(2, 'main', filename=file_in_client)
+        bp_line = writer.get_line_index_with_content('break here')
+        writer.write_add_breakpoint(
+            bp_line, 'call_this', filename=file_in_client)
 
         json_facade.write_make_initial_run()
 
@@ -864,15 +867,23 @@ def test_path_translation_and_source_reference(case_setup):
         )))
         stack_trace_response = json_facade.wait_for_response(stack_trace_request)
         stack_trace_response_body = stack_trace_response.body
-        stack_frame = next(iter(stack_trace_response_body.stackFrames))
-        assert stack_frame['name'] == '__main__.main : 2'
+        stack_frame = stack_trace_response_body.stackFrames[0]
+        assert stack_frame['name'] == '__main__.call_this : %s' % (bp_line,)
         assert stack_frame['source']['path'] == file_in_client
         source_reference = stack_frame['source']['sourceReference']
-        assert source_reference != 0
+        assert source_reference == 0  # When it's translated the source reference must be == 0
+
+        stack_frame_not_path_translated = stack_trace_response_body.stackFrames[1]
+        assert stack_frame_not_path_translated['name'].startswith(
+            'tests_python.resource_path_translation.other.call_me_back1 :')
+
+        assert stack_frame_not_path_translated['source']['path'].endswith('other.py')
+        source_reference = stack_frame_not_path_translated['source']['sourceReference']
+        assert source_reference != 0  # Not translated
 
         response = json_facade.wait_for_response(json_facade.write_request(
             pydevd_schema.SourceRequest(pydevd_schema.SourceArguments(source_reference))))
-        assert "print('TEST SUCEEDED!')" in response.body.content
+        assert "def call_me_back1(callback):" in response.body.content
 
         writer.write_run_thread(hit.thread_id)
 
