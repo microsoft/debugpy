@@ -467,10 +467,13 @@ class PydevdSocket(object):
         s = json.dumps(args)
         return seq, s
 
-    def pydevd_notify(self, cmd_id, args):
+    def pydevd_notify(self, cmd_id, args, is_json=False):
         if self.pipe_w is None:
             raise EOFError
-        seq, s = self.make_packet(cmd_id, args)
+        if is_json:
+            seq, s = self.make_json_packet(cmd_id, args)
+        else:
+            seq, s = self.make_packet(cmd_id, args)
         with self.lock:
             os.write(self.pipe_w, s.encode('utf8'))
 
@@ -478,7 +481,7 @@ class PydevdSocket(object):
         '''
         If is_json == True the args are expected to be a dict to be
         json-serialized with the request, otherwise it's expected
-        to be the text (to be concatenaded with the command id and
+        to be the text (to be concatenated with the command id and
         seq in the pydevd line-based protocol).
         '''
         if self.pipe_w is None:
@@ -1307,8 +1310,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     # PyDevd "socket" entry points (and related helpers)
 
-    def pydevd_notify(self, cmd_id, args):
-        return self._pydevd_notify(cmd_id, args)
+    def pydevd_notify(self, cmd_id, args, is_json=False):
+        return self._pydevd_notify(cmd_id, args, is_json=is_json)
 
     def pydevd_request(self, cmd_id, args, is_json=False):
         return self._pydevd_request(self.loop, cmd_id, args, is_json=is_json)
@@ -1673,8 +1676,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     @async_handler
     def on_pause(self, request, args):
-        # TODO: docstring
-
         # Pause requests cannot be serviced until pydevd is fully initialized.
         with self.is_process_created_lock:
             if not self.is_process_created:
@@ -1685,45 +1686,70 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 )
                 return
 
+        pydevd_request = copy.deepcopy(request)
+        del pydevd_request['seq']  # A new seq should be created for pydevd.
+        try:
+            pydevd_request['arguments']['threadId'] = '*'
+        except KeyError:
+            pydevd_request['arguments'] = {'threadId': '*'}
+
         # Always suspend all threads.
-        self.pydevd_notify(pydevd_comm.CMD_THREAD_SUSPEND, '*')
+        yield self.pydevd_request(pydevd_comm.CMD_THREAD_SUSPEND,
+                                  pydevd_request, is_json=True)
         self.send_response(request)
 
     @async_handler
     def on_continue(self, request, args):
 
+        pydevd_request = copy.deepcopy(request)
+        del pydevd_request['seq']  # A new seq should be created for pydevd.
+        try:
+            pydevd_request['arguments']['threadId'] = '*'
+        except KeyError:
+            pydevd_request['arguments'] = {'threadId': '*'}
+
         # Always continue all threads.
-        self.pydevd_notify(pydevd_comm.CMD_THREAD_RUN, '*')
+        yield self.pydevd_request(pydevd_comm.CMD_THREAD_RUN,
+                                  pydevd_request, is_json=True)
         self.send_response(request, allThreadsContinued=True)
 
     @async_handler
     def on_next(self, request, args):
 
-        tid = self.thread_map.to_pydevd(int(args['threadId']))
-        if self._is_just_my_code_stepping_enabled():
-            self.pydevd_notify(pydevd_comm.CMD_STEP_OVER_MY_CODE, tid)
-        else:
-            self.pydevd_notify(pydevd_comm.CMD_STEP_OVER, tid)
+        pyd_tid = self.thread_map.to_pydevd(int(args['threadId']))
+
+        pydevd_request = copy.deepcopy(request)
+        del pydevd_request['seq']  # A new seq should be created for pydevd.
+        pydevd_request['arguments']['threadId'] = pyd_tid
+        cmd_id = pydevd_comm.CMD_STEP_OVER
+
+        yield self.pydevd_request(cmd_id, pydevd_request, is_json=True)
         self.send_response(request)
 
     @async_handler
     def on_stepIn(self, request, args):
 
-        tid = self.thread_map.to_pydevd(int(args['threadId']))
-        if self._is_just_my_code_stepping_enabled():
-            self.pydevd_notify(pydevd_comm.CMD_STEP_INTO_MY_CODE, tid)
-        else:
-            self.pydevd_notify(pydevd_comm.CMD_STEP_INTO, tid)
+        pyd_tid = self.thread_map.to_pydevd(int(args['threadId']))
+
+        pydevd_request = copy.deepcopy(request)
+        del pydevd_request['seq']  # A new seq should be created for pydevd.
+        pydevd_request['arguments']['threadId'] = pyd_tid
+        cmd_id = pydevd_comm.CMD_STEP_INTO
+
+        yield self.pydevd_request(cmd_id, pydevd_request, is_json=True)
         self.send_response(request)
 
     @async_handler
     def on_stepOut(self, request, args):
 
-        tid = self.thread_map.to_pydevd(int(args['threadId']))
-        if self._is_just_my_code_stepping_enabled():
-            self.pydevd_notify(pydevd_comm.CMD_STEP_RETURN_MY_CODE, tid)
-        else:
-            self.pydevd_notify(pydevd_comm.CMD_STEP_RETURN, tid)
+        pyd_tid = self.thread_map.to_pydevd(int(args['threadId']))
+
+        pydevd_request = copy.deepcopy(request)
+        del pydevd_request['seq']  # A new seq should be created for pydevd.
+        pydevd_request['arguments']['threadId'] = pyd_tid
+        cmd_id = pydevd_comm.CMD_STEP_RETURN
+
+        yield self.pydevd_request(cmd_id, pydevd_request, is_json=True)
         self.send_response(request)
 
     @async_handler

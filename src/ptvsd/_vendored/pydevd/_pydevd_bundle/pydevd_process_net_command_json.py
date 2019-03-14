@@ -7,7 +7,9 @@ from _pydevd_bundle._debug_adapter import pydevd_base_schema
 from _pydevd_bundle._debug_adapter.pydevd_schema import (SourceBreakpoint, ScopesResponseBody, Scope,
     VariablesResponseBody, SetVariableResponseBody, ModulesResponseBody, SourceResponseBody)
 from _pydevd_bundle.pydevd_api import PyDevdAPI
-from _pydevd_bundle.pydevd_comm_constants import CMD_RETURN
+from _pydevd_bundle.pydevd_comm_constants import (
+    CMD_RETURN, CMD_STEP_OVER_MY_CODE, CMD_STEP_OVER, CMD_STEP_INTO_MY_CODE,
+    CMD_STEP_INTO, CMD_STEP_RETURN_MY_CODE, CMD_STEP_RETURN)
 from _pydevd_bundle.pydevd_filtering import ExcludeFilter
 from _pydevd_bundle.pydevd_json_debug_options import _extract_debug_options
 from _pydevd_bundle.pydevd_net_command import NetCommand
@@ -181,6 +183,82 @@ class _PyDevJsonCommandProcessor(object):
         :param AttachRequest request:
         '''
         self._set_debug_options(py_db, request.arguments.kwargs)
+        response = pydevd_base_schema.build_response(request)
+        return NetCommand(CMD_RETURN, 0, response.to_dict(), is_json=True)
+
+    def on_pause_request(self, py_db, request):
+        '''
+        :param PauseRequest request:
+        '''
+        arguments = request.arguments  # : :type arguments: PauseArguments
+        thread_id = arguments.threadId
+
+        self.api.request_suspend_thread(py_db, thread_id=thread_id)
+
+        response = pydevd_base_schema.build_response(request)
+        return NetCommand(CMD_RETURN, 0, response.to_dict(), is_json=True)
+
+    def on_continue_request(self, py_db, request):
+        '''
+        :param ContinueRequest request:
+        '''
+        arguments = request.arguments  # : :type arguments: ContinueArguments
+        thread_id = arguments.threadId
+
+        self.api.request_resume_thread(thread_id)
+
+        body = {'allThreadsContinued': thread_id == '*'}
+        response = pydevd_base_schema.build_response(request, kwargs={'body': body})
+        return NetCommand(CMD_RETURN, 0, response.to_dict(), is_json=True)
+
+    def on_next_request(self, py_db, request):
+        '''
+        :param NextRequest request:
+        '''
+        arguments = request.arguments  # : :type arguments: NextArguments
+        thread_id = arguments.threadId
+
+        if py_db.get_use_libraries_filter():
+            step_cmd_id = CMD_STEP_OVER_MY_CODE
+        else:
+            step_cmd_id = CMD_STEP_OVER
+
+        self.api.request_step(py_db, thread_id, step_cmd_id)
+
+        response = pydevd_base_schema.build_response(request)
+        return NetCommand(CMD_RETURN, 0, response.to_dict(), is_json=True)
+
+    def on_stepin_request(self, py_db, request):
+        '''
+        :param StepInRequest request:
+        '''
+        arguments = request.arguments  # : :type arguments: StepInArguments
+        thread_id = arguments.threadId
+
+        if py_db.get_use_libraries_filter():
+            step_cmd_id = CMD_STEP_INTO_MY_CODE
+        else:
+            step_cmd_id = CMD_STEP_INTO
+
+        self.api.request_step(py_db, thread_id, step_cmd_id)
+
+        response = pydevd_base_schema.build_response(request)
+        return NetCommand(CMD_RETURN, 0, response.to_dict(), is_json=True)
+
+    def on_stepout_request(self, py_db, request):
+        '''
+        :param StepOutRequest request:
+        '''
+        arguments = request.arguments  # : :type arguments: StepOutArguments
+        thread_id = arguments.threadId
+
+        if py_db.get_use_libraries_filter():
+            step_cmd_id = CMD_STEP_RETURN_MY_CODE
+        else:
+            step_cmd_id = CMD_STEP_RETURN
+
+        self.api.request_step(py_db, thread_id, step_cmd_id)
+
         response = pydevd_base_schema.build_response(request)
         return NetCommand(CMD_RETURN, 0, response.to_dict(), is_json=True)
 
