@@ -74,12 +74,18 @@ def listen_for_subprocesses():
     assert subprocess_listener_socket is None
 
     subprocess_listener_socket = create_server('localhost', 0)
+    ptvsd.log.debug(
+        'Listening for subprocess notifications on port {0}.',
+        subprocess_listener_port())
+
     atexit.register(stop_listening_for_subprocesses)
     atexit.register(kill_subprocesses)
     new_hidden_thread('SubprocessListener', _subprocess_listener).start()
 
 
 def stop_listening_for_subprocesses():
+    ptvsd.log.debug('Stopping listening for subprocess notifications.')
+
     global subprocess_listener_socket
     if subprocess_listener_socket is None:
         return
@@ -93,13 +99,17 @@ def stop_listening_for_subprocesses():
 def kill_subprocesses():
     with subprocess_lock:
         pids = list(subprocesses.keys())
+
+    ptvsd.log.debug('Killing remaining subprocesses: PID={0}', pids)
+
     for pid in pids:
+        ptvsd.log.debug('Killing subprocess with PID={0}.', pid)
         with subprocess_lock:
             subprocesses.pop(pid, None)
         try:
             os.kill(pid, signal.SIGTERM)
         except Exception:
-            pass
+            ptvsd.log.exception('Failed to kill process with PID={0}.', pid, category='D')
 
 
 def subprocess_listener_port():
@@ -116,8 +126,13 @@ def _subprocess_listener():
             (sock, _) = subprocess_listener_socket.accept()
         except Exception:
             break
-        stream = JsonIOStream.from_socket(sock)
-        _handle_subprocess(next(counter), stream)
+
+        n = next(counter)
+        name = 'subprocess-{}'.format(n)
+        ptvsd.log.debug('Accepted incoming connection from {0}', name)
+
+        stream = JsonIOStream.from_socket(sock, name=name)
+        _handle_subprocess(n, stream)
 
 
 def _handle_subprocess(n, stream):
@@ -138,13 +153,18 @@ def _handle_subprocess(n, stream):
             with subprocess_lock:
                 subprocesses[self._pid] = channel
 
-            ptvsd.log.debug('ptvsd_subprocess: {0!r}', arguments)
+            ptvsd.log.debug(
+                'Subprocess {0} (PID={1}) registered, notifying IDE.',
+                stream.name,
+                self._pid)
+
             response = {'incomingConnection': False}
             subprocess_queue.put((arguments, response))
             subprocess_queue.join()
             return response
 
         def disconnect(self):
+            ptvsd.log.debug('Subprocess {0} disconnected, presumed to have terminated.', self._pid)
             if self._pid is not None:
                 with subprocess_lock:
                     subprocesses.pop(self._pid, None)
@@ -157,7 +177,7 @@ def _handle_subprocess(n, stream):
 def notify_root(port):
     assert options.subprocess_of
 
-    ptvsd.log.debug('Subprocess {0} notifying root process at port {1}', os.getpid(), options.subprocess_notify)
+    ptvsd.log.debug('Subprocess (PID={0}) notifying root process at port {1}', os.getpid(), options.subprocess_notify)
     conn = create_client()
     conn.connect(('localhost', options.subprocess_notify))
     stream = JsonIOStream.from_socket(conn, 'root-process')

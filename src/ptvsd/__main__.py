@@ -369,7 +369,7 @@ else:
 
 
 def main(argv=sys.argv):
-    saved_argv = argv
+    saved_argv = list(argv)
     try:
         sys.argv[:] = [argv[0]] + list(parse(argv[1:]))
     except Exception as ex:
