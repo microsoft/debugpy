@@ -226,3 +226,62 @@ def test_autokill(pyfile, run_as, start_method):
 
             child_session.wait_for_termination()
             parent_session.wait_for_exit()
+
+
+def test_argv_quoting(pyfile, run_as, start_method):
+    @pyfile
+    def args():
+        # import_and_enable_debugger
+        args = [ # noqa
+            r'regular',
+            r'',
+            r'with spaces'
+            r'"quoted"',
+            r'" quote at start',
+            r'quote at end "',
+            r'quote in " the middle',
+            r'quotes "in the" middle',
+            r'\path with\spaces',
+            r'\path\with\terminal\backslash' + '\\',
+            r'backslash \" before quote',
+        ]
+
+    @pyfile
+    def parent():
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
+
+        import sys
+        import subprocess
+        from args import args
+        child = sys.argv[1]
+        subprocess.check_call([sys.executable] + [child] + args)
+
+    @pyfile
+    def child():
+        # import_and_enable_debugger
+        import backchannel
+        import sys
+
+        from args import args as expected_args
+        backchannel.write_json(expected_args)
+
+        actual_args = sys.argv[1:]
+        backchannel.write_json(actual_args)
+
+    with DebugSession() as session:
+        session.initialize(
+            target=(run_as, parent),
+            start_method=start_method,
+            program_args=[child],
+            use_backchannel=True,
+            ignore_unobserved=[Event('continued')],
+        )
+
+        session.start_debugging()
+
+        expected_args = session.read_json()
+        actual_args = session.read_json()
+        assert expected_args == actual_args
+
+        session.wait_for_exit()

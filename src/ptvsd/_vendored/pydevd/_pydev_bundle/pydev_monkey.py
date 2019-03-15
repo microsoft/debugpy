@@ -1,5 +1,6 @@
 # License: EPL
 import os
+import re
 import sys
 import traceback
 from _pydev_imps._pydev_saved_modules import threading
@@ -87,19 +88,40 @@ def remove_quotes_from_args(args):
         return args
 
 
+def quote_arg_win32(arg):
+    # See if we need to quote at all - empty strings need quoting, as do strings
+    # with whitespace or quotes in them. Backslashes do not need quoting.
+    if arg and not set(arg).intersection(' "\t\n\v'):
+        return arg
+
+    # Per https://docs.microsoft.com/en-us/windows/desktop/api/shellapi/nf-shellapi-commandlinetoargvw,
+    # the standard way to interpret arguments in double quotes is as follows:
+    #
+    #       2N backslashes followed by a quotation mark produce N backslashes followed by
+    #       begin/end quote. This does not become part of the parsed argument, but toggles
+    #       the "in quotes" mode.
+    #
+    #       2N+1 backslashes followed by a quotation mark again produce N backslashes followed
+    #       by a quotation mark literal ("). This does not toggle the "in quotes" mode.
+    #
+    #       N backslashes not followed by a quotation mark simply produce N backslashes.
+    #
+    # This code needs to do the reverse transformation, thus:
+    #
+    #       N backslashes followed by " produce 2N+1 backslashes followed by "
+    #
+    #       N backslashes at the end (i.e. where the closing " goes) produce 2N backslashes.
+    #
+    #       N backslashes in any other position remain as is.
+
+    arg = re.sub(r'(\\*)\"', r'\1\1\\"', arg)
+    arg = re.sub(r'(\\*)$', r'\1\1', arg)
+    return '"' + arg + '"'
+
+
 def quote_args(args):
     if sys.platform == "win32":
-        quoted_args = []
-        for x in args:
-            if x.startswith('"') and x.endswith('"'):
-                quoted_args.append(x)
-            else:
-                if ' ' in x:
-                    x = x.replace('"', '\\"')
-                    quoted_args.append('"%s"' % x)
-                else:
-                    quoted_args.append(x)
-        return quoted_args
+        return list(map(quote_arg_win32, args))
     else:
         return args
 
@@ -208,7 +230,11 @@ def patch_args(args):
 
 
 def str_to_args_windows(args):
-    # see http:#msdn.microsoft.com/en-us/library/a1y7w461.aspx
+    # See https://docs.microsoft.com/en-us/cpp/c-language/parsing-c-command-line-arguments.
+    #
+    # Implemetation ported from DebugPlugin.parseArgumentsWindows:
+    # https://github.com/eclipse/eclipse.platform.debug/blob/master/org.eclipse.debug.core/core/org/eclipse/debug/core/DebugPlugin.java
+
     result = []
 
     DEFAULT = 0
@@ -272,11 +298,6 @@ def str_to_args_windows(args):
                     # a single double quote.
                     buf += '"'
                     i += 1
-                elif len(buf) == 0:
-                    # empty string on Windows platform. Account for bug in constructor of
-                    # JDK's java.lang.ProcessImpl.
-                    result.append("\"\"")
-                    state = DEFAULT
                 else:
                     state = ARG
             else:
@@ -317,7 +338,7 @@ def warn_multiproc():
     # log_error_once(
     #     "pydev debugger: New process is launching (breakpoints won't work in the new process).\n"
     #     "pydev debugger: To debug that process please enable 'Attach to subprocess automatically while debugging?' option in the debugger settings.\n")
-    # 
+    #
 
 def create_warn_multiproc(original_name):
 
@@ -615,7 +636,7 @@ class _NewThreadStartupWithTrace:
                 thread_id = get_current_thread_id(t)
                 global_debugger.notify_thread_created(thread_id, t)
                 _on_set_trace_for_new_thread(global_debugger)
-            
+
             if getattr(global_debugger, 'thread_analyser', None) is not None:
                 try:
                     from pydevd_concurrency_analyser.pydevd_concurrency_logger import log_new_thread
@@ -627,7 +648,7 @@ class _NewThreadStartupWithTrace:
         finally:
             if thread_id is not None:
                 global_debugger.notify_thread_not_alive(thread_id)
-        
+
         return ret
 
 
