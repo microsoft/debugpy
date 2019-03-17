@@ -228,6 +228,8 @@ def test_autokill(pyfile, run_as, start_method):
             parent_session.wait_for_exit()
 
 
+@pytest.mark.skipif(sys.version_info < (3, 0) and (platform.system() != 'Windows'),
+                    reason='Bug #935')
 def test_argv_quoting(pyfile, run_as, start_method):
     @pyfile
     def args():
