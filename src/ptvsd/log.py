@@ -109,10 +109,8 @@ def escaped_exceptions(f):
         try:
             return f(*args, **kwargs)
         except:
-            try:
-                name = f.__qualname__
-            except AttributeError:
-                name = f.__name__
+            # Must not use try/except here to avoid overwriting the caught exception.
+            name = f.__qualname__ if hasattr(f, '__qualname__') else f.__name__
             exception('Exception escaped from {0}', name)
             raise
     return g
