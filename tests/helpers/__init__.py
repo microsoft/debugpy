@@ -11,14 +11,13 @@ import threading
 import time
 import traceback
 
-
 if sys.version_info >= (3, 5):
     clock = time.monotonic
 else:
     clock = time.clock
 
-
 timestamp_zero = clock()
+
 
 def timestamp():
     return clock() - timestamp_zero
@@ -83,7 +82,7 @@ def get_marked_line_numbers(path):
     with open(path) as f:
         lines = {}
         for i, line in enumerate(f):
-            match = re.search(r'#@\s*(.*?)\s*$', line)
+            match = re.search(r'#\s*@\s*(.*?)\s*$', line)
             if match:
                 marker = match.group(1)
                 lines[marker] = i + 1

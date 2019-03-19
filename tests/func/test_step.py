@@ -12,17 +12,18 @@ from tests.helpers.timeline import Event
 from tests.helpers.pattern import ANY
 
 
-@pytest.mark.skip(reason='https://github.com/Microsoft/ptvsd/issues/1163')
 def test_set_next_statement(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
         import_and_enable_debugger()
 
         def func():
-            print(1)    #@inner1
-            print(2)    #@inner2
-        print(3)        #@outer3
+            print(1)  # @inner1
+            print(2)  # @inner2
+
+        print(3)  # @outer3
         func()
 
     line_numbers = get_marked_line_numbers(code_to_debug)

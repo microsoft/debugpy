@@ -1000,7 +1000,7 @@ INITIALIZE_RESPONSE = dict(
     supportsSetVariable=True,
     supportsValueFormattingOptions=True,
     supportTerminateDebuggee=True,
-    supportsGotoTargetsRequest=False,  # https://github.com/Microsoft/ptvsd/issues/1163
+    supportsGotoTargetsRequest=True,
     exceptionBreakpointFilters=[
         {
             'filter': 'raised',
@@ -1243,6 +1243,10 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self.exceptions_mgr = ExceptionsManager(self)
         self.internals_filter = InternalsFilter()
         self.new_thread_lock = threading.Lock()
+
+        # goto
+        self.goto_target_map = IDMap()
+        self.current_goto_request = None
 
         # adapter state
         self._detached = False
@@ -2085,30 +2089,11 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_SUSPEND)
     @async_handler
     def on_pydevd_thread_suspend(self, seq, args):
-        xml = self.parse_xml_response(args)
-        reason = int(xml.thread['stop_reason'])
-
-        # Normally, we rely on CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION instead,
-        # but we only get this one in response to CMD_SET_NEXT_STATEMENT.
-        if reason == pydevd_comm.CMD_SET_NEXT_STATEMENT:
-            pyd_tid = xml.thread['id']
-            vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=False)
-            self.send_event(
-                'stopped',
-                reason='pause',
-                threadId=vsc_tid,
-                allThreadsStopped=True)
+        pass  # We only care about the thread suspend single notification.
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_RUN)
     def on_pydevd_thread_run(self, seq, args):
-        pyd_tid, reason = args.split('\t', 2)
-        reason = int(reason)
-        vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=False)
-
-        # Normally, we rely on CMD_THREAD_RESUME_SINGLE_NOTIFICATION instead,
-        # but we only get this one in response to CMD_SET_NEXT_STATEMENT.
-        if reason == pydevd_comm.CMD_SET_NEXT_STATEMENT:
-            self.send_event('continued', threadId=vsc_tid)
+        pass  # We only care about the thread suspend single notification.
 
     @pydevd_events.handler(pydevd_comm_constants.CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION)
     @async_handler

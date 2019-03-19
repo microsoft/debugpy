@@ -1265,10 +1265,16 @@ class PyDB(object):
                     from_this_thread.append(frame_custom_thread_id)
 
             with self._threads_suspended_single_notification.notify_thread_suspended(thread_id, stop_reason):
-                self._do_wait_suspend(thread, frame, event, arg, suspend_type, from_this_thread, frames_tracker)
+                keep_suspended = self._do_wait_suspend(thread, frame, event, arg, suspend_type, from_this_thread, frames_tracker)
+
+        if keep_suspended:
+            # This means that we should pause again after a set next statement.
+            self._threads_suspended_single_notification.increment_suspend_time()
+            self.do_wait_suspend(thread, frame, event, arg, is_unhandled_exception)
 
     def _do_wait_suspend(self, thread, frame, event, arg, suspend_type, from_this_thread, frames_tracker):
         info = thread.additional_info
+        keep_suspended = False
 
         if info.pydev_state == STATE_SUSPEND and not self._finish_debugging_session:
             in_main_thread = is_current_thread_main_thread()
@@ -1324,8 +1330,8 @@ class PyDB(object):
                 self.writer.add_command(cmd)
                 info.pydev_state = STATE_SUSPEND
                 thread.stop_reason = CMD_SET_NEXT_STATEMENT
-                self.do_wait_suspend(thread, frame, event, arg)
-                return
+                keep_suspended = True
+
             else:
                 # Set next did not work...
                 info.pydev_step_cmd = -1
@@ -1333,8 +1339,7 @@ class PyDB(object):
                 thread.stop_reason = CMD_THREAD_SUSPEND
                 # return to the suspend state and wait for other command (without sending any
                 # additional notification to the client).
-                self._do_wait_suspend(thread, frame, event, arg, suspend_type, from_this_thread, frames_tracker)
-                return
+                return self._do_wait_suspend(thread, frame, event, arg, suspend_type, from_this_thread, frames_tracker)
 
         elif info.pydev_step_cmd in (CMD_STEP_RETURN, CMD_STEP_RETURN_MY_CODE):
             back_frame = frame.f_back
@@ -1369,6 +1374,8 @@ class PyDB(object):
             for frame_id in from_this_thread:
                 # print('Removing created frame: %s' % (frame_id,))
                 self.writer.add_command(self.cmd_factory.make_thread_killed_message(frame_id))
+
+        return keep_suspended
 
     def do_stop_on_unhandled_exception(self, thread, frame, frames_byid, arg):
         pydev_log.debug("We are stopping in post-mortem\n")
