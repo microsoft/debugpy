@@ -5,13 +5,15 @@ from _pydev_bundle._pydev_imports_tipper import TYPE_IMPORT, TYPE_CLASS, TYPE_FU
 from _pydev_bundle.pydev_is_thread_alive import is_thread_alive
 from _pydev_bundle.pydev_override import overrides
 from _pydevd_bundle._debug_adapter import pydevd_schema
-from _pydevd_bundle.pydevd_comm_constants import CMD_THREAD_CREATE, CMD_RETURN, CMD_MODULE_EVENT
+from _pydevd_bundle.pydevd_comm_constants import CMD_THREAD_CREATE, CMD_RETURN, CMD_MODULE_EVENT, \
+    CMD_WRITE_TO_CONSOLE
 from _pydevd_bundle.pydevd_constants import get_thread_id, dict_values
 from _pydevd_bundle.pydevd_net_command import NetCommand
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
 from _pydevd_bundle.pydevd_utils import get_non_pydevd_threads
 from _pydev_imps._pydev_saved_modules import threading
-from _pydevd_bundle._debug_adapter.pydevd_schema import ModuleEvent, ModuleEventBody, Module
+from _pydevd_bundle._debug_adapter.pydevd_schema import ModuleEvent, ModuleEventBody, Module, \
+    OutputEventBody, OutputEvent
 from functools import partial
 import itertools
 import pydevd_file_utils
@@ -178,17 +180,16 @@ class NetCommandFactoryJson(NetCommandFactory):
                         py_db, topmost_frame, frame_id_to_lineno
                     ):
 
-                    module_name = frame.f_globals.get('__qualname__', '')
-                    if not module_name:
-                        module_name = frame.f_globals.get('__name__', '')
+                    module_name = frame.f_globals.get('__name__', '')
 
                     module_events.extend(self.modules_manager.track_module(filename_in_utf8, module_name, frame))
 
                     presentation_hint = None
-                    if not py_db.in_project_scope(filename_in_utf8):
-                        if py_db.get_use_libraries_filter():
-                            continue
-                        presentation_hint = 'subtle'
+                    if not getattr(frame, 'IS_PLUGIN_FRAME', False):  # Never filter out plugin frames!
+                        if not py_db.in_project_scope(filename_in_utf8):
+                            if py_db.get_use_libraries_filter():
+                                continue
+                            presentation_hint = 'subtle'
 
                     formatted_name = self._format_frame_name(fmt, method_name, module_name, lineno, filename_in_utf8)
                     frames.append(pydevd_schema.StackFrame(
@@ -209,3 +210,10 @@ class NetCommandFactoryJson(NetCommandFactory):
             command='stackTrace',
             body=pydevd_schema.StackTraceResponseBody(stackFrames=frames, totalFrames=len(frames)))
         return NetCommand(CMD_RETURN, 0, response.to_dict(), is_json=True)
+
+    @overrides(NetCommandFactory.make_io_message)
+    def make_io_message(self, v, ctx):
+        category = 'stdout' if int(ctx) == 1 else 'stderr'
+        body = OutputEventBody(v, category)
+        event = OutputEvent(body)
+        return NetCommand(CMD_WRITE_TO_CONSOLE, 0, event.to_dict(), is_json=True)

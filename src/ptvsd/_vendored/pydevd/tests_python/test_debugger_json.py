@@ -1,11 +1,12 @@
+# coding: utf-8
 import pytest
 
 from _pydevd_bundle._debug_adapter import pydevd_schema, pydevd_base_schema
 from _pydevd_bundle._debug_adapter.pydevd_base_schema import from_json
-from _pydevd_bundle._debug_adapter.pydevd_schema import ThreadEvent, ModuleEvent, StoppedEvent
-from tests_python import debugger_unittest
 from tests_python.debugger_unittest import IS_JYTHON, REASON_STEP_INTO, REASON_STEP_OVER, \
-    REASON_CAUGHT_EXCEPTION, REASON_THREAD_SUSPEND, REASON_STEP_RETURN
+    REASON_CAUGHT_EXCEPTION, REASON_THREAD_SUSPEND, REASON_STEP_RETURN, IS_APPVEYOR, overrides
+from _pydevd_bundle._debug_adapter.pydevd_schema import ThreadEvent, ModuleEvent, OutputEvent
+from tests_python import debugger_unittest
 import json
 from collections import namedtuple
 from _pydevd_bundle.pydevd_constants import int_types
@@ -178,7 +179,10 @@ def test_case_json_logpoints(case_setup):
         # Should only print, not stop on logpoints.
         messages = []
         while True:
-            msg, ctx = writer.wait_for_output()
+            output_event = json_facade.wait_for_json_message(OutputEvent)
+            msg = output_event.body.output
+            ctx = output_event.body.category
+
             if ctx == 'stdout':
                 msg = msg.strip()
                 if msg == "var '_a' is 2":
@@ -257,7 +261,7 @@ def test_case_skipping_filters(case_setup, custom_setup):
         writer.write_set_protocol('http_json')
         if custom_setup == 'set_exclude_launch_path_match_filename':
             json_facade.write_launch(
-                debugStdLib=True,
+                debugOptions=['DebugStdLib'],
                 rules=[
                     {'path': '**/other.py', 'include':False},
                 ]
@@ -265,7 +269,7 @@ def test_case_skipping_filters(case_setup, custom_setup):
 
         elif custom_setup == 'set_exclude_launch_path_match_folder':
             json_facade.write_launch(
-                debugStdLib=True,
+                debugOptions=['DebugStdLib'],
                 rules=[
                     {'path': debugger_unittest._get_debugger_test_file('not_my_code'), 'include':False},
                 ]
@@ -273,7 +277,7 @@ def test_case_skipping_filters(case_setup, custom_setup):
 
         elif custom_setup == 'set_exclude_launch_module_full':
             json_facade.write_launch(
-                debugStdLib=True,
+                debugOptions=['DebugStdLib'],
                 rules=[
                     {'module': 'not_my_code.other', 'include':False},
                 ]
@@ -281,7 +285,7 @@ def test_case_skipping_filters(case_setup, custom_setup):
 
         elif custom_setup == 'set_exclude_launch_module_prefix':
             json_facade.write_launch(
-                debugStdLib=True,
+                debugOptions=['DebugStdLib'],
                 rules=[
                     {'module': 'not_my_code', 'include':False},
                 ]
@@ -289,13 +293,13 @@ def test_case_skipping_filters(case_setup, custom_setup):
 
         elif custom_setup == 'set_just_my_code':
             writer.write_set_project_roots([debugger_unittest._get_debugger_test_file('my_code')])
-            json_facade.write_launch(debugStdLib=False)
+            json_facade.write_launch(debugOptions=[])
 
         elif custom_setup == 'set_just_my_code_and_include':
             # I.e.: nothing in my_code (add it with rule).
             writer.write_set_project_roots([debugger_unittest._get_debugger_test_file('launch')])
             json_facade.write_launch(
-                debugStdLib=False,
+                debugOptions=[],
                 rules=[
                     {'module': '__main__', 'include':True},
                 ]
@@ -848,13 +852,14 @@ def test_pause_and_continue(case_setup):
         scope = pydevd_schema.Scope(**next(iter(scopes_response.body.scopes)))
         frame_variables_reference = scope.variablesReference
 
-        set_variable_request = json_facade.write_request(
-            pydevd_schema.SetVariableRequest(pydevd_schema.SetVariableArguments(
-                frame_variables_reference, 'loop', 'False'
-        )))
-        set_variable_response = json_facade.wait_for_response(set_variable_request)
-        set_variable_response_as_dict = set_variable_response.to_dict()['body']
-        assert set_variable_response_as_dict == {'value': "False", 'type': 'bool'}
+        if not IS_JYTHON:
+            set_variable_request = json_facade.write_request(
+                pydevd_schema.SetVariableRequest(pydevd_schema.SetVariableArguments(
+                    frame_variables_reference, 'loop', 'False'
+            )))
+            set_variable_response = json_facade.wait_for_response(set_variable_request)
+            set_variable_response_as_dict = set_variable_response.to_dict()['body']
+            assert set_variable_response_as_dict == {'value': "False", 'type': 'bool'}
 
         continue_request = json_facade.write_request(
         pydevd_schema.ContinueRequest(pydevd_schema.ContinueArguments('*')))
@@ -920,7 +925,7 @@ def test_stepping(case_setup):
         assert stack_frame['name'] == 'step_out'
 
         stepout_request = json_facade.write_request(
-            pydevd_schema.StepInRequest(pydevd_schema.StepInArguments(hit.thread_id)))
+            pydevd_schema.StepOutRequest(pydevd_schema.StepOutArguments(hit.thread_id)))
         stepout_response = json_facade.wait_for_response(stepout_request)
         hit = writer.wait_for_breakpoint_hit(REASON_STEP_RETURN)
 
@@ -1010,7 +1015,8 @@ def test_path_translation_and_source_reference(case_setup):
 
 
 @pytest.mark.skipif(not TEST_DJANGO, reason='No django available')
-def test_case_django_no_attribute_exception_breakpoint(case_setup_django):
+@pytest.mark.parametrize("jmc", [False, True])
+def test_case_django_no_attribute_exception_breakpoint(case_setup_django, jmc):
     django_version = [int(x) for x in django.get_version().split('.')][:2]
 
     if django_version < [2, 1]:
@@ -1019,6 +1025,12 @@ def test_case_django_no_attribute_exception_breakpoint(case_setup_django):
     with case_setup_django.test_file(EXPECTED_RETURNCODE='any') as writer:
         json_facade = JsonFacade(writer)
         writer.write_set_protocol('http_json')
+
+        if jmc:
+            writer.write_set_project_roots([debugger_unittest._get_debugger_test_file('my_code')])
+            json_facade.write_launch(debugOptions=[])
+        else:
+            json_facade.write_launch(debugOptions=['DebugStdLib'])
 
         writer.write_add_exception_breakpoint_django()
         writer.write_make_initial_run()
@@ -1050,6 +1062,112 @@ def test_case_django_no_attribute_exception_breakpoint(case_setup_django):
         ]
 
         writer.write_run_thread(hit.thread_id)
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not TEST_FLASK, reason='No flask available')
+@pytest.mark.parametrize("jmc", [False, True])
+def test_case_flask_exceptions(case_setup_flask, jmc):
+    with case_setup_flask.test_file(EXPECTED_RETURNCODE='any') as writer:
+        json_facade = JsonFacade(writer)
+        writer.write_set_protocol('http_json')
+
+        if jmc:
+            writer.write_set_project_roots([debugger_unittest._get_debugger_test_file('my_code')])
+            json_facade.write_launch(debugOptions=[])
+        else:
+            json_facade.write_launch(debugOptions=['DebugStdLib'])
+
+        writer.write_add_exception_breakpoint_jinja2()
+        writer.write_make_initial_run()
+
+        t = writer.create_request_thread('/bad_template')
+        time.sleep(2)  # Give flask some time to get to startup before requesting the page
+        t.start()
+
+        hit = writer.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, line=8, file='bad.html')
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(IS_APPVEYOR or IS_JYTHON, reason='Flaky on appveyor / Jython encoding issues (needs investigation).')
+def test_redirect_output(case_setup):
+
+    def get_environ(writer):
+        env = os.environ.copy()
+
+        env["PYTHONIOENCODING"] = 'utf-8'
+        return env
+
+    with case_setup.test_file('_debugger_case_redirect.py', get_environ=get_environ) as writer:
+        original_ignore_stderr_line = writer._ignore_stderr_line
+        writer.write_set_protocol('http_json')
+        json_facade = JsonFacade(writer)
+
+        @overrides(writer._ignore_stderr_line)
+        def _ignore_stderr_line(line):
+            if original_ignore_stderr_line(line):
+                return True
+            return line.startswith((
+                'text',
+                'binary',
+                'a'
+            ))
+
+        writer._ignore_stderr_line = _ignore_stderr_line
+
+        # Note: writes to stdout and stderr are now synchronous (so, the order
+        # must always be consistent and there's a message for each write).
+        expected = [
+            'text\n',
+            'binary or text\n',
+            'ação1\n',
+        ]
+
+        if sys.version_info[0] >= 3:
+            expected.extend((
+                'binary\n',
+                'ação2\n'.encode(encoding='latin1').decode('utf-8', 'replace'),
+                'ação3\n',
+            ))
+
+        new_expected = [(x, 'stdout') for x in expected]
+        new_expected.extend([(x, 'stderr') for x in expected])
+
+        writer.write_start_redirect()
+
+        writer.write_make_initial_run()
+        msgs = []
+        ignored = []
+        while len(msgs) < len(new_expected):
+            try:
+                output_event = json_facade.wait_for_json_message(OutputEvent)
+                output = output_event.body.output
+                category = output_event.body.category
+                if IS_PY2:
+                    if isinstance(output, unicode):
+                        output = output.encode('utf-8')
+                    if isinstance(category, unicode):
+                        category = category.encode('utf-8')
+                msg = (output, category)
+            except Exception:
+                for msg in msgs:
+                    sys.stderr.write('Found: %s\n' % (msg,))
+                for msg in new_expected:
+                    sys.stderr.write('Expected: %s\n' % (msg,))
+                for msg in ignored:
+                    sys.stderr.write('Ignored: %s\n' % (msg,))
+                raise
+            if msg not in new_expected:
+                ignored.append(msg)
+                continue
+            msgs.append(msg)
+
+        if msgs != new_expected:
+            print(msgs)
+            print(new_expected)
+        assert msgs == new_expected
         writer.finished_ok = True
 
 

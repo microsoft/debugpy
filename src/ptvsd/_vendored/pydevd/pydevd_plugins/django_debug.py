@@ -7,7 +7,6 @@ from _pydevd_bundle.pydevd_comm import CMD_SET_BREAK, CMD_ADD_EXCEPTION_BREAK
 from _pydevd_bundle.pydevd_constants import STATE_SUSPEND, dict_iter_items, DJANGO_SUSPEND, IS_PY2
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, FCode, just_raised, ignore_exception_trace
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_file, normcase
-import os
 
 IS_DJANGO18 = False
 IS_DJANGO19 = False
@@ -223,6 +222,13 @@ def _get_source_django_18_or_lower(frame):
         return None
 
 
+def _convert_to_str(s):
+    if IS_PY2:
+        if isinstance(s, unicode):
+            s = s.encode('utf-8')
+    return s
+
+
 def _get_template_file_name(frame):
     try:
         if IS_DJANGO19:
@@ -238,26 +244,26 @@ def _get_template_file_name(frame):
                             self = locals['self']
                             if self.__class__.__name__ == 'Template' and hasattr(self, 'origin') and \
                                     hasattr(self.origin, 'name'):
-                                return normcase(self.origin.name)
+                                return normcase(_convert_to_str(self.origin.name))
                         back = back.f_back
                 else:
                     if hasattr(context, 'template') and hasattr(context.template, 'origin') and \
                             hasattr(context.template.origin, 'name'):
-                        return normcase(context.template.origin.name)
+                        return normcase(_convert_to_str(context.template.origin.name))
             return None
         elif IS_DJANGO19_OR_HIGHER:
             # For Django 1.10 and later there is much simpler way to get template name
             if 'self' in frame.f_locals:
                 self = frame.f_locals['self']
                 if hasattr(self, 'origin') and hasattr(self.origin, 'name'):
-                    return normcase(self.origin.name)
+                    return normcase(_convert_to_str(self.origin.name))
             return None
 
         source = _get_source_django_18_or_lower(frame)
         if source is None:
             pydev_log.debug("Source is None\n")
             return None
-        fname = source[0].name
+        fname = _convert_to_str(source[0].name)
 
         if fname == '<unknown source>':
             pydev_log.debug("Source name is %s\n" % fname)
@@ -288,6 +294,8 @@ def _get_template_line(frame):
 
 class DjangoTemplateFrame(object):
 
+    IS_PLUGIN_FRAME = True
+
     def __init__(self, frame):
         file_name = _get_template_file_name(frame)
         self._back_context = frame.f_locals['context']
@@ -316,6 +324,8 @@ class DjangoTemplateFrame(object):
 
 
 class DjangoTemplateSyntaxErrorFrame(object):
+
+    IS_PLUGIN_FRAME = True
 
     def __init__(self, frame, filename, lineno, f_locals):
         self.f_code = FCode('Django TemplateSyntaxError', filename)
@@ -346,8 +356,19 @@ def _is_django_variable_does_not_exist_exception_break_context(frame):
 #=======================================================================================================================
 
 
-def can_not_skip(plugin, main_debugger, frame):
-    return main_debugger.django_breakpoints and _is_django_render_call(frame)
+def can_skip(plugin, main_debugger, frame):
+    if main_debugger.django_breakpoints:
+        if _is_django_render_call(frame):
+            return False
+
+    if main_debugger.django_exception_break:
+        module_name = frame.f_globals.get('__name__', '')
+
+        if module_name == 'django.template.base':
+            # Exceptions raised at django.template.base must be checked.
+            return False
+
+    return True
 
 
 def has_exception_breaks(plugin):
@@ -463,7 +484,7 @@ def exception_break(plugin, main_debugger, pydb_frame, frame, args, arg):
                         origin = get_template_frame.f_locals.get('origin')
 
                     if hasattr(origin, 'name') and origin.name is not None:
-                        filename = normcase(origin.name)
+                        filename = normcase(_convert_to_str(origin.name))
 
                 if filename is not None and lineno is not None:
                     syntax_error_frame = DjangoTemplateSyntaxErrorFrame(

@@ -6,7 +6,6 @@ from __future__ import print_function, with_statement, absolute_import
 
 import os.path
 import pytest
-import sys
 
 import tests.helpers
 from tests.helpers.pattern import ANY, Path
@@ -25,7 +24,6 @@ DJANGO_LINK = 'http://127.0.0.1:{}/'.format(DJANGO_PORT)
 
 @pytest.mark.parametrize('bp_target', ['code', 'template'])
 @pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
-@pytest.mark.skipif(sys.version_info < (3, 0), reason='Bug #923')
 @pytest.mark.timeout(60)
 def test_django_breakpoint_no_multiproc(bp_target, start_method):
     bp_file, bp_line, bp_name = {
@@ -50,18 +48,10 @@ def test_django_breakpoint_no_multiproc(bp_target, start_method):
 
         # wait for Django server to start
         wait_for_connection(DJANGO_PORT)
-        web_request = get_web_content(DJANGO_LINK, {})
+        web_request = get_web_content(DJANGO_LINK + 'home', {})
 
-        thread_stopped = session.wait_for_next(Event('stopped', ANY.dict_with({'reason': 'breakpoint'})))
-        assert thread_stopped.body['threadId'] is not None
-
-        tid = thread_stopped.body['threadId']
-
-        resp_stacktrace = session.send_request('stackTrace', arguments={
-            'threadId': tid,
-        }).wait_for_response()
-        assert resp_stacktrace.body['totalFrames'] >= 1
-        frames = resp_stacktrace.body['stackFrames']
+        hit = session.wait_for_thread_stopped()
+        frames = hit.stacktrace.body['stackFrames']
         assert frames[0] == {
             'id': ANY.int,
             'name': bp_name,
@@ -105,7 +95,6 @@ def test_django_breakpoint_no_multiproc(bp_target, start_method):
 
 
 @pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
-@pytest.mark.skip(reason='Bug #694')
 @pytest.mark.timeout(60)
 def test_django_template_exception_no_multiproc(start_method):
     with DebugSession() as session:
@@ -127,40 +116,36 @@ def test_django_template_exception_no_multiproc(start_method):
 
         wait_for_connection(DJANGO_PORT)
 
-        base_link = DJANGO_LINK
-        part = 'badtemplate'
-        link = base_link + part if base_link.endswith('/') else ('/' + part)
+        link = DJANGO_LINK + 'badtemplate'
         web_request = get_web_content(link, {})
 
         hit = session.wait_for_thread_stopped()
         frames = hit.stacktrace.body['stackFrames']
-        assert frames[0] == {
-            'id': ANY,
-            'name': 'bad_template',
-            'source': {
-                'sourceReference': ANY,
+        assert frames[0] == ANY.dict_with({
+            'id': ANY.int,
+            'name': 'Django TemplateSyntaxError',
+            'source': ANY.dict_with({
+                'sourceReference': ANY.int,
                 'path': Path(DJANGO1_BAD_TEMPLATE),
-            },
+            }),
             'line': 8,
             'column': 1,
-        }
+        })
 
         resp_exception_info = session.send_request(
             'exceptionInfo',
             arguments={'threadId': hit.thread_id, }
         ).wait_for_response()
         exception = resp_exception_info.body
-        assert exception == {
+        assert exception == ANY.dict_with({
             'exceptionId': ANY.such_that(lambda s: s.endswith('TemplateSyntaxError')),
             'breakMode': 'always',
             'description': ANY.such_that(lambda s: s.find('doesnotexist') > -1),
-            'details': {
+            'details': ANY.dict_with({
                 'message': ANY.such_that(lambda s: s.endswith('doesnotexist') > -1),
                 'typeName': ANY.such_that(lambda s: s.endswith('TemplateSyntaxError')),
-                'source': Path(DJANGO1_BAD_TEMPLATE),
-                'stackTrace': ANY.such_that(lambda s: True),
-            }
-        }
+            })
+        })
 
         session.send_request('continue').wait_for_response(freeze=False)
 
@@ -168,7 +153,7 @@ def test_django_template_exception_no_multiproc(start_method):
         web_request.wait_for_response()
 
         # shutdown to web server
-        link = base_link + 'exit' if base_link.endswith('/') else '/exit'
+        link = DJANGO_LINK + 'exit'
         get_web_content(link).wait_for_response()
 
         session.wait_for_exit()
@@ -176,7 +161,6 @@ def test_django_template_exception_no_multiproc(start_method):
 
 @pytest.mark.parametrize('ex_type', ['handled', 'unhandled'])
 @pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
-@pytest.mark.skipif(sys.version_info < (3, 0), reason='Bug #923')
 @pytest.mark.timeout(60)
 def test_django_exception_no_multiproc(ex_type, start_method):
     ex_line = {
@@ -203,8 +187,7 @@ def test_django_exception_no_multiproc(ex_type, start_method):
 
         wait_for_connection(DJANGO_PORT)
 
-        base_link = DJANGO_LINK
-        link = base_link + ex_type if base_link.endswith('/') else ('/' + ex_type)
+        link = DJANGO_LINK + ex_type
         web_request = get_web_content(link, {})
 
         thread_stopped = session.wait_for_next(Event('stopped', ANY.dict_with({'reason': 'exception'})))
@@ -238,10 +221,10 @@ def test_django_exception_no_multiproc(ex_type, start_method):
         assert resp_stacktrace.body['totalFrames'] > 1
         frames = resp_stacktrace.body['stackFrames']
         assert frames[0] == {
-            'id': ANY,
+            'id': ANY.int,
             'name': 'bad_route_' + ex_type,
             'source': {
-                'sourceReference': ANY,
+                'sourceReference': ANY.int,
                 'path': Path(DJANGO1_MANAGE),
             },
             'line': ex_line,
@@ -254,7 +237,7 @@ def test_django_exception_no_multiproc(ex_type, start_method):
         web_request.wait_for_response()
 
         # shutdown to web server
-        link = base_link + 'exit' if base_link.endswith('/') else '/exit'
+        link = DJANGO_LINK + 'exit'
         get_web_content(link).wait_for_response()
 
         session.wait_for_exit()
@@ -295,7 +278,7 @@ def test_django_breakpoint_multiproc(start_method):
                 if get_url_from_str(o.body['output']) is not None:
                     break
 
-            web_request = get_web_content(DJANGO_LINK, {})
+            web_request = get_web_content(DJANGO_LINK + 'home', {})
 
             thread_stopped = child_session.wait_for_next(Event('stopped', ANY.dict_with({'reason': 'breakpoint'})))
             assert thread_stopped.body['threadId'] is not None

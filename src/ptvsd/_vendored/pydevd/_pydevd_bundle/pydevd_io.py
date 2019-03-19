@@ -1,4 +1,5 @@
 from _pydevd_bundle import pydevd_constants
+from _pydev_imps._pydev_saved_modules import threading
 
 IS_PY3K = pydevd_constants.IS_PY3K
 
@@ -20,6 +21,8 @@ class IORedirector:
             Whether to create a buffer attribute (needed to mimick python 3 s
             tdout/stderr which has a buffer to write binary data).
         '''
+        self._lock = threading.RLock()
+        self._writing = False
         self._redirect_to = (original, new_redirect)
         if wrap_buffer and hasattr(original, 'buffer'):
             self.buffer = IORedirector(original.buffer, new_redirect.buffer, False)
@@ -27,9 +30,16 @@ class IORedirector:
     def write(self, s):
         # Note that writing to the original stream may fail for some reasons
         # (such as trying to write something that's not a string or having it closed).
-        for r in self._redirect_to:
-            if hasattr(r, 'write'):
-                r.write(s)
+        with self._lock:
+            if self._writing:
+                return
+            self._writing = True
+            try:
+                for r in self._redirect_to:
+                    if hasattr(r, 'write'):
+                        r.write(s)
+            finally:
+                self._writing = False
 
     def isatty(self):
         for r in self._redirect_to:

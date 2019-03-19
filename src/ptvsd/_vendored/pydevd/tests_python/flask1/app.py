@@ -1,7 +1,6 @@
 from flask import Flask
 from flask import render_template
 
-
 app = Flask(__name__)
 
 
@@ -38,6 +37,15 @@ def bad_route_unhandled():
     )
 
 
+@app.route("/bad_template")
+def bad_template():
+    return render_template(
+        "bad.html",
+        title='Bad',
+        content='Flask-Jinja-Test'
+    )
+
+
 @app.route("/exit")
 def exit_app():
     from flask import request
@@ -46,3 +54,7 @@ def exit_app():
         raise RuntimeError('No shutdown')
     func()
     return 'Done'
+
+
+if __name__ == '__main__':
+    app.run()

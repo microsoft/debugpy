@@ -14,8 +14,8 @@ def get_breakpoints(plugin, pydb):
     return None
 
 
-def can_not_skip(plugin, pydb, frame):
-    return False
+def can_skip(plugin, pydb, frame):
+    return True
 
 
 def has_exception_breaks(plugin):

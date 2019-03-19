@@ -16,7 +16,6 @@ from tests.helpers.timeline import Event
 from tests.helpers.webhelper import get_web_content, wait_for_connection
 from tests.helpers.pathutils import get_test_root
 
-
 FLASK1_ROOT = get_test_root('flask1')
 FLASK1_APP = os.path.join(FLASK1_ROOT, 'app.py')
 FLASK1_TEMPLATE = os.path.join(FLASK1_ROOT, 'templates', 'hello.html')
@@ -124,7 +123,6 @@ def test_flask_breakpoint_no_multiproc(bp_target, start_method):
 
 
 @pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
-@pytest.mark.skip(reason='Bug #694')
 @pytest.mark.timeout(60)
 def test_flask_template_exception_no_multiproc(start_method):
     with DebugSession() as session:
@@ -145,33 +143,31 @@ def test_flask_template_exception_no_multiproc(start_method):
 
         hit = session.wait_for_thread_stopped()
         frames = hit.stacktrace.body['stackFrames']
-        assert frames[0] == {
+        assert frames[0] == ANY.dict_with({
             'id': ANY.int,
-            'name': 'bad_template',
-            'source': {
+            'name': 'template' if sys.version_info[0] >= 3 else 'Jinja2 TemplateSyntaxError',
+            'source': ANY.dict_with({
                 'sourceReference': ANY.int,
                 'path': Path(FLASK1_BAD_TEMPLATE),
-            },
+            }),
             'line': 8,
             'column': 1,
-        }
+        })
 
         resp_exception_info = session.send_request(
             'exceptionInfo',
             arguments={'threadId': hit.thread_id, }
         ).wait_for_response()
         exception = resp_exception_info.body
-        assert exception == {
+        assert exception == ANY.dict_with({
             'exceptionId': ANY.such_that(lambda s: s.endswith('TemplateSyntaxError')),
             'breakMode': 'always',
             'description': ANY.such_that(lambda s: s.find('doesnotexist') > -1),
-            'details': {
+            'details': ANY.dict_with({
                 'message': ANY.such_that(lambda s: s.find('doesnotexist') > -1),
                 'typeName': ANY.such_that(lambda s: s.endswith('TemplateSyntaxError')),
-                'source': Path(FLASK1_BAD_TEMPLATE),
-                'stackTrace': ANY.such_that(lambda s: True)
-            }
-        }
+            })
+        })
 
         session.send_request('continue').wait_for_response(freeze=False)
 

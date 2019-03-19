@@ -89,7 +89,7 @@ class DefaultResolver:
     def resolve(self, var, attribute):
         return getattr(var, attribute)
 
-    def get_contents_debug_adapter_protocol(self, obj, fmt={}):
+    def get_contents_debug_adapter_protocol(self, obj, fmt=None):
         if MethodWrapperType:
             dct, used___dict__ = self._get_py_dictionary(obj)
         else:
@@ -260,17 +260,18 @@ class DictResolver:
 
         raise UnableToResolveVariableException()
 
-    def key_to_str(self, key, fmt={}):
-        if fmt.get('hex', False):
-            safe_repr = SafeRepr()
-            safe_repr.convert_to_hex = True
-            return safe_repr(key)
+    def key_to_str(self, key, fmt=None):
+        if fmt is not None:
+            if fmt.get('hex', False):
+                safe_repr = SafeRepr()
+                safe_repr.convert_to_hex = True
+                return safe_repr(key)
         return '%r' % (key,)
 
     def init_dict(self):
         return {}
 
-    def get_contents_debug_adapter_protocol(self, dct, fmt={}):
+    def get_contents_debug_adapter_protocol(self, dct, fmt=None):
         '''
         This method is to be used in the case where the variables are all saved by its id (and as
         such don't need to have the `resolve` method called later on, so, keys don't need to
@@ -286,7 +287,7 @@ class DictResolver:
         for key, val in dict_iter_items(dct):
             i += 1
             key_as_str = self.key_to_str(key, fmt)
-            eval_key_str = self.key_to_str(key) # do not format the key
+            eval_key_str = self.key_to_str(key)  # do not format the key
             ret.append((key_as_str, val, '[%s]' % (eval_key_str,)))
             if i > MAX_ITEMS_TO_HANDLE:
                 ret.append((TOO_LARGE_ATTR, TOO_LARGE_MSG))
@@ -342,7 +343,7 @@ class TupleResolver:  # to enumerate tuples and lists
         except:
             return getattr(var, attribute)
 
-    def get_contents_debug_adapter_protocol(self, lst, fmt={}):
+    def get_contents_debug_adapter_protocol(self, lst, fmt=None):
         '''
         This method is to be used in the case where the variables are all saved by its id (and as
         such don't need to have the `resolve` method called later on, so, keys don't need to

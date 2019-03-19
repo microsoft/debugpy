@@ -47,6 +47,7 @@ def get_web_content(link, web_result=None, timeout=1):
         name='test.webClient'
     )
     response._web_client_thread.start()
+    print('Opening link: ' + link)
     return response
 
 

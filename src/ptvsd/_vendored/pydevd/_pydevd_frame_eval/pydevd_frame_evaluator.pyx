@@ -316,8 +316,8 @@ cdef PyObject * get_bytecode_while_frame_eval(PyFrameObject * frame_obj, int exc
             #     print('get_bytecode_while_frame_eval always skip', func_code_info.always_skip_code)
             if not func_code_info.always_skip_code:
     
-                if main_debugger.has_plugin_line_breaks:
-                    can_skip = not main_debugger.plugin.can_not_skip(main_debugger, <object> frame_obj)
+                if main_debugger.has_plugin_line_breaks or main_debugger.has_plugin_exception_breaks:
+                    can_skip = main_debugger.plugin.can_skip(main_debugger, <object> frame_obj)
 
                     if not can_skip:
                         # if DEBUG:

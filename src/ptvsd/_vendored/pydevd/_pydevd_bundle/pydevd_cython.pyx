@@ -593,8 +593,9 @@ cdef class PyDBFrame:
                         or (step_cmd in (108, 109, 159, 160) and stop_frame is not frame)
 
                     if can_skip:
-                        if plugin_manager is not None and main_debugger.has_plugin_line_breaks:
-                            can_skip = not plugin_manager.can_not_skip(main_debugger, frame)
+                        if plugin_manager is not None and (
+                                main_debugger.has_plugin_line_breaks or main_debugger.has_plugin_exception_breaks):
+                            can_skip = plugin_manager.can_skip(main_debugger, frame)
 
                         # CMD_STEP_OVER = 108, CMD_STEP_OVER_MY_CODE = 159
                         if can_skip and main_debugger.show_return_values and info.pydev_step_cmd in (108, 159) and frame.f_back is info.pydev_step_stop:

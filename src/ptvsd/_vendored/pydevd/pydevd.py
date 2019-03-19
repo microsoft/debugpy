@@ -707,9 +707,9 @@ class PyDB(object):
         try:
             return self._apply_filter_cache[cache_key]
         except KeyError:
-            if self.plugin is not None and self.has_plugin_line_breaks:
+            if self.plugin is not None and (self.has_plugin_line_breaks or self.has_plugin_exception_breaks):
                 # If it's explicitly needed by some plugin, we can't skip it.
-                if self.plugin.can_not_skip(self, frame):
+                if not self.plugin.can_skip(self, frame):
                     # print('include (include by plugins): %s' % filename)
                     self._apply_filter_cache[cache_key] = False
                     return False

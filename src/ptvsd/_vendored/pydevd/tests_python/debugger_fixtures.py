@@ -6,7 +6,8 @@ import pytest
 
 from tests_python import debugger_unittest
 from tests_python.debugger_unittest import get_free_port, overrides, IS_CPYTHON, IS_JYTHON, IS_IRONPYTHON, \
-    IS_PY3K, CMD_ADD_DJANGO_EXCEPTION_BREAK, CMD_REMOVE_DJANGO_EXCEPTION_BREAK
+    IS_PY3K, CMD_ADD_DJANGO_EXCEPTION_BREAK, CMD_REMOVE_DJANGO_EXCEPTION_BREAK, \
+    CMD_ADD_EXCEPTION_BREAK
 
 import sys
 
@@ -80,6 +81,9 @@ class AbstractWriterThreadCaseFlask(debugger_unittest.AbstractWriterThread):
         self.log.append('write_add_breakpoint_jinja: %s line: %s func: %s' % (breakpoint_id, line, func))
         return breakpoint_id
 
+    def write_add_exception_breakpoint_jinja2(self, exception='jinja2-Exception'):
+        self.write('%s\t%s\t%s\t%s\t%s\t%s' % (CMD_ADD_EXCEPTION_BREAK, self.next_seq(), exception, 2, 0, 0))
+
     @overrides(debugger_unittest.AbstractWriterThread.get_environ)
     def get_environ(self):
         import platform
@@ -125,7 +129,7 @@ class AbstractWriterThreadCaseFlask(debugger_unittest.AbstractWriterThread):
 
         return False
 
-    def create_request_thread(self):
+    def create_request_thread(self, url=''):
         outer = self
 
         class T(threading.Thread):
@@ -137,7 +141,7 @@ class AbstractWriterThreadCaseFlask(debugger_unittest.AbstractWriterThread):
                     from urllib import urlopen
                 for _ in range(10):
                     try:
-                        stream = urlopen('http://127.0.0.1:%s' % (outer.flask_port,))
+                        stream = urlopen('http://127.0.0.1:%s%s' % (outer.flask_port, url))
                         contents = stream.read()
                         if IS_PY3K:
                             contents = contents.decode('utf-8')
