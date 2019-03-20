@@ -4,6 +4,7 @@
 
 import sys
 
+import ptvsd.log
 from ptvsd._local import run_module, run_file, run_main
 
 
@@ -22,7 +23,10 @@ RUNNERS = {
 
 def debug(filename, port_num, debug_id, debug_options, run_as,
           _runners=RUNNERS, _extra=None, *args, **kwargs):
-    # TODO: docstring
+
+    ptvsd.log.to_file()
+    ptvsd.log.info('debug{0!r}', (filename, port_num, debug_id, debug_options, run_as))
+
     if _extra is None:
         _extra = sys.argv[1:]
     address = (LOCALHOST, port_num)
@@ -39,5 +43,9 @@ def debug(filename, port_num, debug_id, debug_options, run_as,
 
 def run(filename, port_num, run_as,
         *args, **kwargs):
+
+    ptvsd.log.to_file()
+    ptvsd.log.info('run{0!r}', (filename, port_num, run_as))
+
     address = (LOCALHOST, port_num)
     run_main(address, filename, run_as, *args, **kwargs)
