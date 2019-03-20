@@ -939,6 +939,49 @@ def test_stepping(case_setup):
 
         writer.finished_ok = True
 
+def test_evaluate(case_setup):
+    with case_setup.test_file('_debugger_case_evaluate.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_set_protocol('http_json')
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'))
+
+        json_facade.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit()
+
+        stack_trace_request = json_facade.write_request(
+            pydevd_schema.StackTraceRequest(pydevd_schema.StackTraceArguments(threadId=hit.thread_id)))
+        stack_trace_response = json_facade.wait_for_response(stack_trace_request)
+        stack_frame = next(iter(stack_trace_response.body.stackFrames))
+        stack_frame_id = stack_frame['id']
+
+        # Test evaluate request that results in 'eval'
+        eval_request = json_facade.write_request(
+            pydevd_schema.EvaluateRequest(pydevd_schema.EvaluateArguments('var_1', frameId=stack_frame_id, context='repl')))
+        eval_response = json_facade.wait_for_response(eval_request)
+        assert eval_response.body.result == '5'
+        assert eval_response.body.type == 'int'
+
+        # Test evaluate request that results in 'exec'
+        exec_request = json_facade.write_request(
+            pydevd_schema.EvaluateRequest(pydevd_schema.EvaluateArguments('var_1 = 6', frameId=stack_frame_id, context='repl')))
+        exec_response = json_facade.wait_for_response(exec_request)
+        assert exec_response.body.result == ''
+
+        # Test evaluate request that results in 'exec' but fails
+        exec_request = json_facade.write_request(
+            pydevd_schema.EvaluateRequest(pydevd_schema.EvaluateArguments('var_1 = "abc"/6', frameId=stack_frame_id, context='repl')))
+        exec_response = json_facade.wait_for_response(exec_request)
+        assert exec_response.success == False
+        assert exec_response.body.result == ''
+        assert exec_response.message.find('TypeError') > -1
+
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+
+
 
 @pytest.mark.skipif(IS_JYTHON, reason='Flaky on Jython.')
 def test_path_translation_and_source_reference(case_setup):

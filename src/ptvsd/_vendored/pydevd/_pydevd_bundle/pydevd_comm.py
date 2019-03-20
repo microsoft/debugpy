@@ -897,8 +897,10 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
         elif context == 'repl':
             try:
                 pydevd_vars.evaluate_expression(py_db, frame, expression, is_exec=True)
-            except:
-                pass
+            except Exception as ex:
+                err = ''.join(traceback.format_exception_only(type(ex), ex))
+                _evaluate_response(py_db, request, result='', error_message=err)
+                return
             # No result on exec.
             _evaluate_response(py_db, request, result='')
             return

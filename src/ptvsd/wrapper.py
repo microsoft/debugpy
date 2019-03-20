@@ -1656,6 +1656,11 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             is_json=True)
 
         body = resp_args['body']
+
+        # Currently there is an issue in VSC where returning success=false for a eval request,
+        # in repl context. VSC does not show the error response in the debug console.
+        if args.get('context', None) == 'repl' and not resp_args['success']:
+            body['result'] = resp_args['message']
         self.send_response(request, **body)
 
     @async_handler
