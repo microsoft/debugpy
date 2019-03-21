@@ -1569,8 +1569,10 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 pydevd_request,
                 is_json=True)
 
-            body = resp_args['body']
-            self.send_response(request, **body)
+            if resp_args.get('success', True):
+                self.send_response(request, **resp_args['body'])
+            else:
+                self.send_error_response(request, resp_args.get('message', 'Error retrieving source'))
 
     @async_handler
     def on_stackTrace(self, request, args):

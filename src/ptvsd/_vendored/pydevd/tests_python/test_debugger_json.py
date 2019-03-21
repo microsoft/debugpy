@@ -1057,6 +1057,71 @@ def test_path_translation_and_source_reference(case_setup):
         writer.finished_ok = True
 
 
+
+@pytest.mark.skipif(IS_JYTHON, reason='Flaky on Jython.')
+def test_source_reference_no_file(case_setup, tmpdir):
+
+    def get_environ(writer):
+        env = os.environ.copy()
+        # We need to set up path mapping to enable source references.
+        env["PATHS_FROM_ECLIPSE_TO_PYTHON"] = json.dumps([
+            (os.path.dirname(writer.TEST_FILE), os.path.dirname(writer.TEST_FILE))
+        ])
+        return env
+
+    with case_setup.test_file('_debugger_case_source_reference.py', get_environ=get_environ) as writer:
+        json_facade = JsonFacade(writer)
+        writer.write_set_protocol('http_json')
+        writer.write_add_breakpoint(writer.get_line_index_with_content('breakpoint'))
+        json_facade.write_make_initial_run()
+
+        # First hit is for breakpoint reached via a stack frame that doesn't have source.
+
+        hit = writer.wait_for_breakpoint_hit()
+        stack_trace_request = json_facade.write_request(
+            pydevd_schema.StackTraceRequest(pydevd_schema.StackTraceArguments(
+                threadId=hit.thread_id,
+                format={'module': True, 'line': True}
+        )))
+        stack_trace_response = json_facade.wait_for_response(stack_trace_request)
+        stack_trace_response_body = stack_trace_response.body
+        stack_frame = stack_trace_response_body.stackFrames[1]
+        assert stack_frame['source']['path'] == '<string>'
+        source_reference = stack_frame['source']['sourceReference']
+        assert source_reference != 0
+
+        response = json_facade.wait_for_response(json_facade.write_request(
+            pydevd_schema.SourceRequest(pydevd_schema.SourceArguments(source_reference))))
+        assert not response.success
+
+        writer.write_run_thread(hit.thread_id)
+
+        # First hit is for breakpoint reached via a stack frame that doesn't have source
+        # on disk, but which can be retrieved via linecache.
+
+        hit = writer.wait_for_breakpoint_hit()
+        stack_trace_request = json_facade.write_request(
+            pydevd_schema.StackTraceRequest(pydevd_schema.StackTraceArguments(
+                threadId=hit.thread_id,
+                format={'module': True, 'line': True}
+        )))
+        stack_trace_response = json_facade.wait_for_response(stack_trace_request)
+        stack_trace_response_body = stack_trace_response.body
+        stack_frame = stack_trace_response_body.stackFrames[1]
+        print(stack_frame['source']['path'])
+        assert stack_frame['source']['path'] == '<something>'
+        source_reference = stack_frame['source']['sourceReference']
+        assert source_reference != 0
+
+        response = json_facade.wait_for_response(json_facade.write_request(
+            pydevd_schema.SourceRequest(pydevd_schema.SourceArguments(source_reference))))
+        assert response.success
+        assert response.body.content == 'foo()\n'
+
+        writer.write_run_thread(hit.thread_id)
+        writer.finished_ok = True
+
+
 @pytest.mark.skipif(not TEST_DJANGO, reason='No django available')
 @pytest.mark.parametrize("jmc", [False, True])
 def test_case_django_no_attribute_exception_breakpoint(case_setup_django, jmc):
@@ -1216,4 +1281,3 @@ def test_redirect_output(case_setup):
 
 if __name__ == '__main__':
     pytest.main(['-k', 'test_case_skipping_filters', '-s'])
-

@@ -1,6 +1,7 @@
 from functools import partial
 import itertools
 import json
+import linecache
 import os
 
 from _pydevd_bundle._debug_adapter import pydevd_base_schema
@@ -460,15 +461,41 @@ class _PyDevJsonCommandProcessor(object):
         :param SourceRequest request:
         '''
         source_reference = request.arguments.sourceReference
-        content = ''
+        server_filename = None
+        content = None
+
         if source_reference != 0:
             server_filename = pydevd_file_utils.get_server_filename_from_source_reference(source_reference)
-            if os.path.exists(server_filename):
-                with open(server_filename, 'r') as stream:
-                    content = stream.read()
+            if server_filename:
+                # Try direct file access first - it's much faster when available.
+                try:
+                    with open(server_filename, 'r') as stream:
+                        content = stream.read()
+                except:
+                    pass
 
-        body = SourceResponseBody(content)
-        response = pydevd_base_schema.build_response(request, kwargs={'body':body})
+                if content is None:
+                    # File might not exist at all, or we might not have a permission to read it,
+                    # but it might also be inside a zipfile, or an IPython cell. In this case,
+                    # linecache might still be able to retrieve the source.
+                    lines = (linecache.getline(server_filename, i) for i in itertools.count(1))
+                    lines = itertools.takewhile(bool, lines)  # empty lines are '\n', EOF is ''
+
+                    # If we didn't get at least one line back, reset it to None so that it's
+                    # reported as error below, and not as an empty file.
+                    content = ''.join(lines) or None
+
+        body = SourceResponseBody(content or '')
+        response_args = {'body': body}
+
+        if content is None:
+            if server_filename:
+                message = 'Unable to retrieve source for %s' % (server_filename,)
+            else:
+                message = 'Invalid sourceReference %d' % (source_reference,)
+            response_args.update({'success': False, 'message': message})
+
+        response = pydevd_base_schema.build_response(request, kwargs=response_args)
         return NetCommand(CMD_RETURN, 0, response.to_dict(), is_json=True)
 
 

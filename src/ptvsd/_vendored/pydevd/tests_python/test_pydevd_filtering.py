@@ -49,7 +49,8 @@ def test_in_project_roots(tmpdir):
         (site_packages_inside_project_dir, False),
         (project_dir, True),
         (project_dir_inside_site_packages, False),
-        (os.path.join(tmpdir, '<foo>'), False),
+        ('<foo>', True),
+        ('<frozen importlib._bootstrap>', False),
     ]
 
     for check_path, find in check:

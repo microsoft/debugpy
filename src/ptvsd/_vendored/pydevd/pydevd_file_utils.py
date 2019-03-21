@@ -240,6 +240,11 @@ def _NormPaths(filename):
 
 
 def _NormPath(filename, normpath):
+    if filename.startswith('<'):
+        # Not really a file, rather a synthetic name like <string> or <ipython-...>;
+        # shouldn't be normalized.
+        return filename
+
     r = normpath(filename)
     ind = r.find('.zip')
     if ind == -1:

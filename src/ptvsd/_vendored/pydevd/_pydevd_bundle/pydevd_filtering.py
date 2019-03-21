@@ -223,12 +223,10 @@ class FilesFiltering(object):
             # roots if it's not found in site-packages (because we have defaults for those
             # and not the other way around).
             if filename.endswith('>'):
-                if filename.endswith('<string>'):
-                    # When `python -c <code>` is used, the filename
-                    # endswith <string>.
-                    in_project = True
-                else:
-                    in_project = False
+                # This is a dummy filename that is usually used for eval or exec. Assume
+                # that it is user code, with one exception: <frozen ...> is used in the
+                # standard library.
+                in_project = not filename.startswith('<frozen ')
             else:
                 in_project = not found_in_library
         else:
@@ -284,4 +282,3 @@ class FilesFiltering(object):
             if not exclude_filter.is_path:
                 self.require_module = True
                 break
-
