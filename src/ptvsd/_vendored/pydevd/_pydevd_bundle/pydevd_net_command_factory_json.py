@@ -54,7 +54,7 @@ class ModulesManager(object):
 
             module_event = ModuleEvent(ModuleEventBody('new', module))
 
-            module_events.append(NetCommand(CMD_MODULE_EVENT, 0, module_event.to_dict(), is_json=True))
+            module_events.append(NetCommand(CMD_MODULE_EVENT, 0, module_event, is_json=True))
 
             self._modules[filename_in_utf8] = module.to_dict()
         return module_events
@@ -92,7 +92,7 @@ class NetCommandFactoryJson(NetCommandFactory):
             pydevd_schema.ThreadEventBody('started', get_thread_id(thread)),
         )
 
-        return NetCommand(CMD_THREAD_CREATE, 0, msg.to_dict(), is_json=True)
+        return NetCommand(CMD_THREAD_CREATE, 0, msg, is_json=True)
 
     @overrides(NetCommandFactory.make_list_threads_message)
     def make_list_threads_message(self, seq):
@@ -106,7 +106,7 @@ class NetCommandFactoryJson(NetCommandFactory):
         response = pydevd_schema.ThreadsResponse(
             request_seq=seq, success=True, command='threads', body=body)
 
-        return NetCommand(CMD_RETURN, 0, response.to_dict(), is_json=True)
+        return NetCommand(CMD_RETURN, 0, response, is_json=True)
 
     @overrides(NetCommandFactory.make_get_completions_message)
     def make_get_completions_message(self, seq, completions, qualifier, start):
@@ -132,7 +132,7 @@ class NetCommandFactoryJson(NetCommandFactory):
         body = pydevd_schema.CompletionsResponseBody(targets)
         response = pydevd_schema.CompletionsResponse(
             request_seq=seq, success=True, command='completions', body=body)
-        return NetCommand(CMD_RETURN, 0, response.to_dict(), is_json=True)
+        return NetCommand(CMD_RETURN, 0, response, is_json=True)
 
     def _format_frame_name(self, fmt, initial_name, module_name, line, path):
         if fmt is None:
@@ -209,11 +209,11 @@ class NetCommandFactoryJson(NetCommandFactory):
             success=True,
             command='stackTrace',
             body=pydevd_schema.StackTraceResponseBody(stackFrames=frames, totalFrames=len(frames)))
-        return NetCommand(CMD_RETURN, 0, response.to_dict(), is_json=True)
+        return NetCommand(CMD_RETURN, 0, response, is_json=True)
 
     @overrides(NetCommandFactory.make_io_message)
     def make_io_message(self, v, ctx):
         category = 'stdout' if int(ctx) == 1 else 'stderr'
         body = OutputEventBody(v, category)
         event = OutputEvent(body)
-        return NetCommand(CMD_WRITE_TO_CONSOLE, 0, event.to_dict(), is_json=True)
+        return NetCommand(CMD_WRITE_TO_CONSOLE, 0, event, is_json=True)

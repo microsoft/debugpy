@@ -31,7 +31,7 @@ class ProtocolMessage(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, type, seq=-1, **kwargs):
+    def __init__(self, type, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: Message type.
         :param integer seq: Sequence number.
@@ -41,10 +41,12 @@ class ProtocolMessage(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'seq': self.seq,
+            'type': type,
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -90,7 +92,7 @@ class Request(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, command, seq=-1, arguments=None, **kwargs):
+    def __init__(self, command, seq=-1, arguments=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: The command to execute.
@@ -104,14 +106,18 @@ class Request(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        seq = self.seq
+        arguments = self.arguments
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'seq': seq,
         }
-        if self.arguments is not None:
-            dct['arguments'] = self.arguments
+        if arguments is not None:
+            dct['arguments'] = arguments
         dct.update(self.kwargs)
         return dct
 
@@ -156,7 +162,7 @@ class Event(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, event, seq=-1, body=None, **kwargs):
+    def __init__(self, event, seq=-1, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string event: Type of event.
@@ -170,14 +176,18 @@ class Event(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        event = self.event
+        seq = self.seq
+        body = self.body
         dct = {
-             'type': self.type,
-             'event': self.event,
-             'seq': self.seq,
+            'type': type,
+            'event': event,
+            'seq': seq,
         }
-        if self.body is not None:
-            dct['body'] = self.body
+        if body is not None:
+            dct['body'] = body
         dct.update(self.kwargs)
         return dct
 
@@ -234,7 +244,7 @@ class Response(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, **kwargs):
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -254,18 +264,25 @@ class Response(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
-        if self.body is not None:
-            dct['body'] = self.body
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body
         dct.update(self.kwargs)
         return dct
 
@@ -320,7 +337,7 @@ class ErrorResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, body, seq=-1, message=None, **kwargs):
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -337,23 +354,30 @@ class ErrorResponse(BaseSchema):
         if body is None:
             self.body = ErrorResponseBody()
         else:
-            self.body = ErrorResponseBody(**body) if body.__class__ !=  ErrorResponseBody else body
+            self.body = ErrorResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  ErrorResponseBody else body
         self.seq = seq
         self.message = message
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
+        if message is not None:
+            dct['message'] = message
         dct.update(self.kwargs)
         return dct
 
@@ -420,7 +444,7 @@ class InitializedEvent(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, seq=-1, body=None, **kwargs):
+    def __init__(self, seq=-1, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string event: 
@@ -434,14 +458,18 @@ class InitializedEvent(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        event = self.event
+        seq = self.seq
+        body = self.body
         dct = {
-             'type': self.type,
-             'event': self.event,
-             'seq': self.seq,
+            'type': type,
+            'event': event,
+            'seq': seq,
         }
-        if self.body is not None:
-            dct['body'] = self.body
+        if body is not None:
+            dct['body'] = body
         dct.update(self.kwargs)
         return dct
 
@@ -520,7 +548,7 @@ class StoppedEvent(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, body, seq=-1, **kwargs):
+    def __init__(self, body, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string event: 
@@ -532,17 +560,21 @@ class StoppedEvent(BaseSchema):
         if body is None:
             self.body = StoppedEventBody()
         else:
-            self.body = StoppedEventBody(**body) if body.__class__ !=  StoppedEventBody else body
+            self.body = StoppedEventBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  StoppedEventBody else body
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        event = self.event
+        body = self.body
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'event': self.event,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'event': event,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -600,7 +632,7 @@ class ContinuedEvent(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, body, seq=-1, **kwargs):
+    def __init__(self, body, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string event: 
@@ -612,17 +644,21 @@ class ContinuedEvent(BaseSchema):
         if body is None:
             self.body = ContinuedEventBody()
         else:
-            self.body = ContinuedEventBody(**body) if body.__class__ !=  ContinuedEventBody else body
+            self.body = ContinuedEventBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  ContinuedEventBody else body
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        event = self.event
+        body = self.body
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'event': self.event,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'event': event,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -671,7 +707,7 @@ class ExitedEvent(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, body, seq=-1, **kwargs):
+    def __init__(self, body, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string event: 
@@ -683,17 +719,21 @@ class ExitedEvent(BaseSchema):
         if body is None:
             self.body = ExitedEventBody()
         else:
-            self.body = ExitedEventBody(**body) if body.__class__ !=  ExitedEventBody else body
+            self.body = ExitedEventBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  ExitedEventBody else body
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        event = self.event
+        body = self.body
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'event': self.event,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'event': event,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -748,7 +788,7 @@ class TerminatedEvent(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, seq=-1, body=None, **kwargs):
+    def __init__(self, seq=-1, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string event: 
@@ -761,18 +801,22 @@ class TerminatedEvent(BaseSchema):
         if body is None:
             self.body = TerminatedEventBody()
         else:
-            self.body = TerminatedEventBody(**body) if body.__class__ !=  TerminatedEventBody else body
+            self.body = TerminatedEventBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  TerminatedEventBody else body
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        event = self.event
+        seq = self.seq
+        body = self.body
         dct = {
-             'type': self.type,
-             'event': self.event,
-             'seq': self.seq,
+            'type': type,
+            'event': event,
+            'seq': seq,
         }
-        if self.body is not None:
-            dct['body'] = self.body.to_dict()
+        if body is not None:
+            dct['body'] = body.to_dict(update_ids_to_dap=update_ids_to_dap)
         dct.update(self.kwargs)
         return dct
 
@@ -829,7 +873,7 @@ class ThreadEvent(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, body, seq=-1, **kwargs):
+    def __init__(self, body, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string event: 
@@ -841,17 +885,21 @@ class ThreadEvent(BaseSchema):
         if body is None:
             self.body = ThreadEventBody()
         else:
-            self.body = ThreadEventBody(**body) if body.__class__ !=  ThreadEventBody else body
+            self.body = ThreadEventBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  ThreadEventBody else body
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        event = self.event
+        body = self.body
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'event': self.event,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'event': event,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -938,7 +986,7 @@ class OutputEvent(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, body, seq=-1, **kwargs):
+    def __init__(self, body, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string event: 
@@ -950,17 +998,21 @@ class OutputEvent(BaseSchema):
         if body is None:
             self.body = OutputEventBody()
         else:
-            self.body = OutputEventBody(**body) if body.__class__ !=  OutputEventBody else body
+            self.body = OutputEventBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  OutputEventBody else body
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        event = self.event
+        body = self.body
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'event': self.event,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'event': event,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -1019,7 +1071,7 @@ class BreakpointEvent(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, body, seq=-1, **kwargs):
+    def __init__(self, body, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string event: 
@@ -1031,17 +1083,21 @@ class BreakpointEvent(BaseSchema):
         if body is None:
             self.body = BreakpointEventBody()
         else:
-            self.body = BreakpointEventBody(**body) if body.__class__ !=  BreakpointEventBody else body
+            self.body = BreakpointEventBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  BreakpointEventBody else body
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        event = self.event
+        body = self.body
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'event': self.event,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'event': event,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -1100,7 +1156,7 @@ class ModuleEvent(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, body, seq=-1, **kwargs):
+    def __init__(self, body, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string event: 
@@ -1112,17 +1168,21 @@ class ModuleEvent(BaseSchema):
         if body is None:
             self.body = ModuleEventBody()
         else:
-            self.body = ModuleEventBody(**body) if body.__class__ !=  ModuleEventBody else body
+            self.body = ModuleEventBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  ModuleEventBody else body
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        event = self.event
+        body = self.body
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'event': self.event,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'event': event,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -1182,7 +1242,7 @@ class LoadedSourceEvent(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, body, seq=-1, **kwargs):
+    def __init__(self, body, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string event: 
@@ -1194,17 +1254,21 @@ class LoadedSourceEvent(BaseSchema):
         if body is None:
             self.body = LoadedSourceEventBody()
         else:
-            self.body = LoadedSourceEventBody(**body) if body.__class__ !=  LoadedSourceEventBody else body
+            self.body = LoadedSourceEventBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  LoadedSourceEventBody else body
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        event = self.event
+        body = self.body
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'event': self.event,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'event': event,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -1276,7 +1340,7 @@ class ProcessEvent(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, body, seq=-1, **kwargs):
+    def __init__(self, body, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string event: 
@@ -1288,17 +1352,21 @@ class ProcessEvent(BaseSchema):
         if body is None:
             self.body = ProcessEventBody()
         else:
-            self.body = ProcessEventBody(**body) if body.__class__ !=  ProcessEventBody else body
+            self.body = ProcessEventBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  ProcessEventBody else body
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        event = self.event
+        body = self.body
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'event': self.event,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'event': event,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -1355,7 +1423,7 @@ class CapabilitiesEvent(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, body, seq=-1, **kwargs):
+    def __init__(self, body, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string event: 
@@ -1367,17 +1435,21 @@ class CapabilitiesEvent(BaseSchema):
         if body is None:
             self.body = CapabilitiesEventBody()
         else:
-            self.body = CapabilitiesEventBody(**body) if body.__class__ !=  CapabilitiesEventBody else body
+            self.body = CapabilitiesEventBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  CapabilitiesEventBody else body
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        event = self.event
+        body = self.body
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'event': self.event,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'event': event,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -1418,7 +1490,7 @@ class RunInTerminalRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -1430,17 +1502,21 @@ class RunInTerminalRequest(BaseSchema):
         if arguments is None:
             self.arguments = RunInTerminalRequestArguments()
         else:
-            self.arguments = RunInTerminalRequestArguments(**arguments) if arguments.__class__ !=  RunInTerminalRequestArguments else arguments
+            self.arguments = RunInTerminalRequestArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  RunInTerminalRequestArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -1494,7 +1570,7 @@ class RunInTerminalRequestArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, cwd, args, kind=None, title=None, env=None, **kwargs):
+    def __init__(self, cwd, args, kind=None, title=None, env=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string cwd: Working directory of the command.
         :param array args: List of arguments. The first argument is the command to run.
@@ -1509,21 +1585,26 @@ class RunInTerminalRequestArguments(BaseSchema):
         if env is None:
             self.env = RunInTerminalRequestArgumentsEnv()
         else:
-            self.env = RunInTerminalRequestArgumentsEnv(**env) if env.__class__ !=  RunInTerminalRequestArgumentsEnv else env
+            self.env = RunInTerminalRequestArgumentsEnv(update_ids_from_dap=update_ids_from_dap, **env) if env.__class__ !=  RunInTerminalRequestArgumentsEnv else env
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        cwd = self.cwd
+        args = self.args
+        kind = self.kind
+        title = self.title
+        env = self.env
         dct = {
-             'cwd': self.cwd,
-             'args': self.args,
+            'cwd': cwd,
+            'args': args,
         }
-        if self.kind is not None:
-            dct['kind'] = self.kind
-        if self.title is not None:
-            dct['title'] = self.title
-        if self.env is not None:
-            dct['env'] = self.env.to_dict()
+        if kind is not None:
+            dct['kind'] = kind
+        if title is not None:
+            dct['title'] = title
+        if env is not None:
+            dct['env'] = env.to_dict(update_ids_to_dap=update_ids_to_dap)
         dct.update(self.kwargs)
         return dct
 
@@ -1582,7 +1663,7 @@ class RunInTerminalResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, body, seq=-1, message=None, **kwargs):
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -1599,23 +1680,30 @@ class RunInTerminalResponse(BaseSchema):
         if body is None:
             self.body = RunInTerminalResponseBody()
         else:
-            self.body = RunInTerminalResponseBody(**body) if body.__class__ !=  RunInTerminalResponseBody else body
+            self.body = RunInTerminalResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  RunInTerminalResponseBody else body
         self.seq = seq
         self.message = message
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
+        if message is not None:
+            dct['message'] = message
         dct.update(self.kwargs)
         return dct
 
@@ -1661,7 +1749,7 @@ class InitializeRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -1673,17 +1761,21 @@ class InitializeRequest(BaseSchema):
         if arguments is None:
             self.arguments = InitializeRequestArguments()
         else:
-            self.arguments = InitializeRequestArguments(**arguments) if arguments.__class__ !=  InitializeRequestArguments else arguments
+            self.arguments = InitializeRequestArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  InitializeRequestArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -1747,7 +1839,7 @@ class InitializeRequestArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, adapterID, clientID=None, clientName=None, locale=None, linesStartAt1=None, columnsStartAt1=None, pathFormat=None, supportsVariableType=None, supportsVariablePaging=None, supportsRunInTerminalRequest=None, **kwargs):
+    def __init__(self, adapterID, clientID=None, clientName=None, locale=None, linesStartAt1=None, columnsStartAt1=None, pathFormat=None, supportsVariableType=None, supportsVariablePaging=None, supportsRunInTerminalRequest=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string adapterID: The ID of the debug adapter.
         :param string clientID: The ID of the (frontend) client using this adapter.
@@ -1773,28 +1865,38 @@ class InitializeRequestArguments(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        adapterID = self.adapterID
+        clientID = self.clientID
+        clientName = self.clientName
+        locale = self.locale
+        linesStartAt1 = self.linesStartAt1
+        columnsStartAt1 = self.columnsStartAt1
+        pathFormat = self.pathFormat
+        supportsVariableType = self.supportsVariableType
+        supportsVariablePaging = self.supportsVariablePaging
+        supportsRunInTerminalRequest = self.supportsRunInTerminalRequest
         dct = {
-             'adapterID': self.adapterID,
+            'adapterID': adapterID,
         }
-        if self.clientID is not None:
-            dct['clientID'] = self.clientID
-        if self.clientName is not None:
-            dct['clientName'] = self.clientName
-        if self.locale is not None:
-            dct['locale'] = self.locale
-        if self.linesStartAt1 is not None:
-            dct['linesStartAt1'] = self.linesStartAt1
-        if self.columnsStartAt1 is not None:
-            dct['columnsStartAt1'] = self.columnsStartAt1
-        if self.pathFormat is not None:
-            dct['pathFormat'] = self.pathFormat
-        if self.supportsVariableType is not None:
-            dct['supportsVariableType'] = self.supportsVariableType
-        if self.supportsVariablePaging is not None:
-            dct['supportsVariablePaging'] = self.supportsVariablePaging
-        if self.supportsRunInTerminalRequest is not None:
-            dct['supportsRunInTerminalRequest'] = self.supportsRunInTerminalRequest
+        if clientID is not None:
+            dct['clientID'] = clientID
+        if clientName is not None:
+            dct['clientName'] = clientName
+        if locale is not None:
+            dct['locale'] = locale
+        if linesStartAt1 is not None:
+            dct['linesStartAt1'] = linesStartAt1
+        if columnsStartAt1 is not None:
+            dct['columnsStartAt1'] = columnsStartAt1
+        if pathFormat is not None:
+            dct['pathFormat'] = pathFormat
+        if supportsVariableType is not None:
+            dct['supportsVariableType'] = supportsVariableType
+        if supportsVariablePaging is not None:
+            dct['supportsVariablePaging'] = supportsVariablePaging
+        if supportsRunInTerminalRequest is not None:
+            dct['supportsRunInTerminalRequest'] = supportsRunInTerminalRequest
         dct.update(self.kwargs)
         return dct
 
@@ -1844,7 +1946,7 @@ class InitializeResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, **kwargs):
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -1863,22 +1965,29 @@ class InitializeResponse(BaseSchema):
         if body is None:
             self.body = Capabilities()
         else:
-            self.body = Capabilities(**body) if body.__class__ !=  Capabilities else body
+            self.body = Capabilities(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  Capabilities else body
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
-        if self.body is not None:
-            dct['body'] = self.body.to_dict()
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body.to_dict(update_ids_to_dap=update_ids_to_dap)
         dct.update(self.kwargs)
         return dct
 
@@ -1918,7 +2027,7 @@ class ConfigurationDoneRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, seq=-1, arguments=None, **kwargs):
+    def __init__(self, seq=-1, arguments=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -1931,18 +2040,22 @@ class ConfigurationDoneRequest(BaseSchema):
         if arguments is None:
             self.arguments = ConfigurationDoneArguments()
         else:
-            self.arguments = ConfigurationDoneArguments(**arguments) if arguments.__class__ !=  ConfigurationDoneArguments else arguments
+            self.arguments = ConfigurationDoneArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  ConfigurationDoneArguments else arguments
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        seq = self.seq
+        arguments = self.arguments
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'seq': seq,
         }
-        if self.arguments is not None:
-            dct['arguments'] = self.arguments.to_dict()
+        if arguments is not None:
+            dct['arguments'] = arguments.to_dict(update_ids_to_dap=update_ids_to_dap)
         dct.update(self.kwargs)
         return dct
 
@@ -1960,7 +2073,7 @@ class ConfigurationDoneArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, **kwargs):
+    def __init__(self, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
     
         """
@@ -1968,7 +2081,7 @@ class ConfigurationDoneArguments(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         dct = {
         }
         dct.update(self.kwargs)
@@ -2029,7 +2142,7 @@ class ConfigurationDoneResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, **kwargs):
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -2049,18 +2162,25 @@ class ConfigurationDoneResponse(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
-        if self.body is not None:
-            dct['body'] = self.body
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body
         dct.update(self.kwargs)
         return dct
 
@@ -2101,7 +2221,7 @@ class LaunchRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -2113,17 +2233,21 @@ class LaunchRequest(BaseSchema):
         if arguments is None:
             self.arguments = LaunchRequestArguments()
         else:
-            self.arguments = LaunchRequestArguments(**arguments) if arguments.__class__ !=  LaunchRequestArguments else arguments
+            self.arguments = LaunchRequestArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  LaunchRequestArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -2159,7 +2283,7 @@ class LaunchRequestArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, noDebug=None, __restart=None, **kwargs):
+    def __init__(self, noDebug=None, __restart=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param boolean noDebug: If noDebug is true the launch request should launch the program without enabling debugging.
         :param ['array', 'boolean', 'integer', 'null', 'number', 'object', 'string'] __restart: Optional data from the previous, restarted session.
@@ -2171,13 +2295,15 @@ class LaunchRequestArguments(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        noDebug = self.noDebug
+        __restart = self.__restart
         dct = {
         }
-        if self.noDebug is not None:
-            dct['noDebug'] = self.noDebug
-        if self.__restart is not None:
-            dct['__restart'] = self.__restart
+        if noDebug is not None:
+            dct['noDebug'] = noDebug
+        if __restart is not None:
+            dct['__restart'] = __restart
         dct.update(self.kwargs)
         return dct
 
@@ -2235,7 +2361,7 @@ class LaunchResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, **kwargs):
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -2255,18 +2381,25 @@ class LaunchResponse(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
-        if self.body is not None:
-            dct['body'] = self.body
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body
         dct.update(self.kwargs)
         return dct
 
@@ -2307,7 +2440,7 @@ class AttachRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -2319,17 +2452,21 @@ class AttachRequest(BaseSchema):
         if arguments is None:
             self.arguments = AttachRequestArguments()
         else:
-            self.arguments = AttachRequestArguments(**arguments) if arguments.__class__ !=  AttachRequestArguments else arguments
+            self.arguments = AttachRequestArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  AttachRequestArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -2361,7 +2498,7 @@ class AttachRequestArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, __restart=None, **kwargs):
+    def __init__(self, __restart=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param ['array', 'boolean', 'integer', 'null', 'number', 'object', 'string'] __restart: Optional data from the previous, restarted session.
         The data is sent as the 'restart' attribute of the 'terminated' event.
@@ -2371,11 +2508,12 @@ class AttachRequestArguments(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        __restart = self.__restart
         dct = {
         }
-        if self.__restart is not None:
-            dct['__restart'] = self.__restart
+        if __restart is not None:
+            dct['__restart'] = __restart
         dct.update(self.kwargs)
         return dct
 
@@ -2433,7 +2571,7 @@ class AttachResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, **kwargs):
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -2453,18 +2591,25 @@ class AttachResponse(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
-        if self.body is not None:
-            dct['body'] = self.body
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body
         dct.update(self.kwargs)
         return dct
 
@@ -2511,7 +2656,7 @@ class RestartRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, seq=-1, arguments=None, **kwargs):
+    def __init__(self, seq=-1, arguments=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -2524,18 +2669,22 @@ class RestartRequest(BaseSchema):
         if arguments is None:
             self.arguments = RestartArguments()
         else:
-            self.arguments = RestartArguments(**arguments) if arguments.__class__ !=  RestartArguments else arguments
+            self.arguments = RestartArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  RestartArguments else arguments
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        seq = self.seq
+        arguments = self.arguments
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'seq': seq,
         }
-        if self.arguments is not None:
-            dct['arguments'] = self.arguments.to_dict()
+        if arguments is not None:
+            dct['arguments'] = arguments.to_dict(update_ids_to_dap=update_ids_to_dap)
         dct.update(self.kwargs)
         return dct
 
@@ -2553,7 +2702,7 @@ class RestartArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, **kwargs):
+    def __init__(self, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
     
         """
@@ -2561,7 +2710,7 @@ class RestartArguments(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         dct = {
         }
         dct.update(self.kwargs)
@@ -2621,7 +2770,7 @@ class RestartResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, **kwargs):
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -2641,18 +2790,25 @@ class RestartResponse(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
-        if self.body is not None:
-            dct['body'] = self.body
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body
         dct.update(self.kwargs)
         return dct
 
@@ -2696,7 +2852,7 @@ class DisconnectRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, seq=-1, arguments=None, **kwargs):
+    def __init__(self, seq=-1, arguments=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -2709,18 +2865,22 @@ class DisconnectRequest(BaseSchema):
         if arguments is None:
             self.arguments = DisconnectArguments()
         else:
-            self.arguments = DisconnectArguments(**arguments) if arguments.__class__ !=  DisconnectArguments else arguments
+            self.arguments = DisconnectArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  DisconnectArguments else arguments
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        seq = self.seq
+        arguments = self.arguments
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'seq': seq,
         }
-        if self.arguments is not None:
-            dct['arguments'] = self.arguments.to_dict()
+        if arguments is not None:
+            dct['arguments'] = arguments.to_dict(update_ids_to_dap=update_ids_to_dap)
         dct.update(self.kwargs)
         return dct
 
@@ -2747,7 +2907,7 @@ class DisconnectArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, restart=None, terminateDebuggee=None, **kwargs):
+    def __init__(self, restart=None, terminateDebuggee=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param boolean restart: A value of true indicates that this 'disconnect' request is part of a restart sequence.
         :param boolean terminateDebuggee: Indicates whether the debuggee should be terminated when the debugger is disconnected.
@@ -2759,13 +2919,15 @@ class DisconnectArguments(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        restart = self.restart
+        terminateDebuggee = self.terminateDebuggee
         dct = {
         }
-        if self.restart is not None:
-            dct['restart'] = self.restart
-        if self.terminateDebuggee is not None:
-            dct['terminateDebuggee'] = self.terminateDebuggee
+        if restart is not None:
+            dct['restart'] = restart
+        if terminateDebuggee is not None:
+            dct['terminateDebuggee'] = terminateDebuggee
         dct.update(self.kwargs)
         return dct
 
@@ -2823,7 +2985,7 @@ class DisconnectResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, **kwargs):
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -2843,18 +3005,25 @@ class DisconnectResponse(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
-        if self.body is not None:
-            dct['body'] = self.body
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body
         dct.update(self.kwargs)
         return dct
 
@@ -2894,7 +3063,7 @@ class TerminateRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, seq=-1, arguments=None, **kwargs):
+    def __init__(self, seq=-1, arguments=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -2907,18 +3076,22 @@ class TerminateRequest(BaseSchema):
         if arguments is None:
             self.arguments = TerminateArguments()
         else:
-            self.arguments = TerminateArguments(**arguments) if arguments.__class__ !=  TerminateArguments else arguments
+            self.arguments = TerminateArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  TerminateArguments else arguments
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        seq = self.seq
+        arguments = self.arguments
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'seq': seq,
         }
-        if self.arguments is not None:
-            dct['arguments'] = self.arguments.to_dict()
+        if arguments is not None:
+            dct['arguments'] = arguments.to_dict(update_ids_to_dap=update_ids_to_dap)
         dct.update(self.kwargs)
         return dct
 
@@ -2941,7 +3114,7 @@ class TerminateArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, restart=None, **kwargs):
+    def __init__(self, restart=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param boolean restart: A value of true indicates that this 'terminate' request is part of a restart sequence.
         """
@@ -2949,11 +3122,12 @@ class TerminateArguments(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        restart = self.restart
         dct = {
         }
-        if self.restart is not None:
-            dct['restart'] = self.restart
+        if restart is not None:
+            dct['restart'] = restart
         dct.update(self.kwargs)
         return dct
 
@@ -3011,7 +3185,7 @@ class TerminateResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, **kwargs):
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -3031,18 +3205,25 @@ class TerminateResponse(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
-        if self.body is not None:
-            dct['body'] = self.body
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body
         dct.update(self.kwargs)
         return dct
 
@@ -3085,7 +3266,7 @@ class SetBreakpointsRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -3097,17 +3278,21 @@ class SetBreakpointsRequest(BaseSchema):
         if arguments is None:
             self.arguments = SetBreakpointsArguments()
         else:
-            self.arguments = SetBreakpointsArguments(**arguments) if arguments.__class__ !=  SetBreakpointsArguments else arguments
+            self.arguments = SetBreakpointsArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  SetBreakpointsArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -3149,7 +3334,7 @@ class SetBreakpointsArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, source, breakpoints=None, lines=None, sourceModified=None, **kwargs):
+    def __init__(self, source, breakpoints=None, lines=None, sourceModified=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param Source source: The source location of the breakpoints; either 'source.path' or 'source.reference' must be specified.
         :param array breakpoints: The code locations of the breakpoints.
@@ -3159,23 +3344,30 @@ class SetBreakpointsArguments(BaseSchema):
         if source is None:
             self.source = Source()
         else:
-            self.source = Source(**source) if source.__class__ !=  Source else source
+            self.source = Source(update_ids_from_dap=update_ids_from_dap, **source) if source.__class__ !=  Source else source
         self.breakpoints = breakpoints
+        if update_ids_from_dap and self.breakpoints:
+            for o in self.breakpoints:
+                SourceBreakpoint.update_dict_ids_from_dap(o)
         self.lines = lines
         self.sourceModified = sourceModified
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        source = self.source
+        breakpoints = self.breakpoints
+        lines = self.lines
+        sourceModified = self.sourceModified
         dct = {
-             'source': self.source.to_dict(),
+            'source': source.to_dict(update_ids_to_dap=update_ids_to_dap),
         }
-        if self.breakpoints is not None:
-            dct['breakpoints'] = self.breakpoints
-        if self.lines is not None:
-            dct['lines'] = self.lines
-        if self.sourceModified is not None:
-            dct['sourceModified'] = self.sourceModified
+        if breakpoints is not None:
+            dct['breakpoints'] = [SourceBreakpoint.update_dict_ids_to_dap(o) for o in breakpoints] if (update_ids_to_dap and breakpoints) else breakpoints
+        if lines is not None:
+            dct['lines'] = lines
+        if sourceModified is not None:
+            dct['sourceModified'] = sourceModified
         dct.update(self.kwargs)
         return dct
 
@@ -3244,7 +3436,7 @@ class SetBreakpointsResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, body, seq=-1, message=None, **kwargs):
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -3261,23 +3453,30 @@ class SetBreakpointsResponse(BaseSchema):
         if body is None:
             self.body = SetBreakpointsResponseBody()
         else:
-            self.body = SetBreakpointsResponseBody(**body) if body.__class__ !=  SetBreakpointsResponseBody else body
+            self.body = SetBreakpointsResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  SetBreakpointsResponseBody else body
         self.seq = seq
         self.message = message
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
+        if message is not None:
+            dct['message'] = message
         dct.update(self.kwargs)
         return dct
 
@@ -3321,7 +3520,7 @@ class SetFunctionBreakpointsRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -3333,17 +3532,21 @@ class SetFunctionBreakpointsRequest(BaseSchema):
         if arguments is None:
             self.arguments = SetFunctionBreakpointsArguments()
         else:
-            self.arguments = SetFunctionBreakpointsArguments(**arguments) if arguments.__class__ !=  SetFunctionBreakpointsArguments else arguments
+            self.arguments = SetFunctionBreakpointsArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  SetFunctionBreakpointsArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -3370,17 +3573,21 @@ class SetFunctionBreakpointsArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, breakpoints, **kwargs):
+    def __init__(self, breakpoints, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param array breakpoints: The function names of the breakpoints.
         """
         self.breakpoints = breakpoints
+        if update_ids_from_dap and self.breakpoints:
+            for o in self.breakpoints:
+                FunctionBreakpoint.update_dict_ids_from_dap(o)
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        breakpoints = self.breakpoints
         dct = {
-             'breakpoints': self.breakpoints,
+            'breakpoints': [FunctionBreakpoint.update_dict_ids_to_dap(o) for o in breakpoints] if (update_ids_to_dap and breakpoints) else breakpoints,
         }
         dct.update(self.kwargs)
         return dct
@@ -3444,7 +3651,7 @@ class SetFunctionBreakpointsResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, body, seq=-1, message=None, **kwargs):
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -3461,23 +3668,30 @@ class SetFunctionBreakpointsResponse(BaseSchema):
         if body is None:
             self.body = SetFunctionBreakpointsResponseBody()
         else:
-            self.body = SetFunctionBreakpointsResponseBody(**body) if body.__class__ !=  SetFunctionBreakpointsResponseBody else body
+            self.body = SetFunctionBreakpointsResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  SetFunctionBreakpointsResponseBody else body
         self.seq = seq
         self.message = message
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
+        if message is not None:
+            dct['message'] = message
         dct.update(self.kwargs)
         return dct
 
@@ -3517,7 +3731,7 @@ class SetExceptionBreakpointsRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -3529,17 +3743,21 @@ class SetExceptionBreakpointsRequest(BaseSchema):
         if arguments is None:
             self.arguments = SetExceptionBreakpointsArguments()
         else:
-            self.arguments = SetExceptionBreakpointsArguments(**arguments) if arguments.__class__ !=  SetExceptionBreakpointsArguments else arguments
+            self.arguments = SetExceptionBreakpointsArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  SetExceptionBreakpointsArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -3573,22 +3791,27 @@ class SetExceptionBreakpointsArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, filters, exceptionOptions=None, **kwargs):
+    def __init__(self, filters, exceptionOptions=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param array filters: IDs of checked exception options. The set of IDs is returned via the 'exceptionBreakpointFilters' capability.
         :param array exceptionOptions: Configuration options for selected exceptions.
         """
         self.filters = filters
         self.exceptionOptions = exceptionOptions
+        if update_ids_from_dap and self.exceptionOptions:
+            for o in self.exceptionOptions:
+                ExceptionOptions.update_dict_ids_from_dap(o)
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        filters = self.filters
+        exceptionOptions = self.exceptionOptions
         dct = {
-             'filters': self.filters,
+            'filters': filters,
         }
-        if self.exceptionOptions is not None:
-            dct['exceptionOptions'] = self.exceptionOptions
+        if exceptionOptions is not None:
+            dct['exceptionOptions'] = [ExceptionOptions.update_dict_ids_to_dap(o) for o in exceptionOptions] if (update_ids_to_dap and exceptionOptions) else exceptionOptions
         dct.update(self.kwargs)
         return dct
 
@@ -3647,7 +3870,7 @@ class SetExceptionBreakpointsResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, **kwargs):
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -3667,18 +3890,25 @@ class SetExceptionBreakpointsResponse(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
-        if self.body is not None:
-            dct['body'] = self.body
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body
         dct.update(self.kwargs)
         return dct
 
@@ -3717,7 +3947,7 @@ class ContinueRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -3729,17 +3959,21 @@ class ContinueRequest(BaseSchema):
         if arguments is None:
             self.arguments = ContinueArguments()
         else:
-            self.arguments = ContinueArguments(**arguments) if arguments.__class__ !=  ContinueArguments else arguments
+            self.arguments = ContinueArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  ContinueArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -3763,7 +3997,7 @@ class ContinueArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, threadId, **kwargs):
+    def __init__(self, threadId, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer threadId: Continue execution for the specified thread (if possible). If the backend cannot continue on a single thread but will continue on all threads, it should set the 'allThreadsContinued' attribute in the response to true.
         """
@@ -3771,9 +4005,10 @@ class ContinueArguments(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        threadId = self.threadId
         dct = {
-             'threadId': self.threadId,
+            'threadId': threadId,
         }
         dct.update(self.kwargs)
         return dct
@@ -3829,7 +4064,7 @@ class ContinueResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, body, seq=-1, message=None, **kwargs):
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -3846,23 +4081,30 @@ class ContinueResponse(BaseSchema):
         if body is None:
             self.body = ContinueResponseBody()
         else:
-            self.body = ContinueResponseBody(**body) if body.__class__ !=  ContinueResponseBody else body
+            self.body = ContinueResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  ContinueResponseBody else body
         self.seq = seq
         self.message = message
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
+        if message is not None:
+            dct['message'] = message
         dct.update(self.kwargs)
         return dct
 
@@ -3904,7 +4146,7 @@ class NextRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -3916,17 +4158,21 @@ class NextRequest(BaseSchema):
         if arguments is None:
             self.arguments = NextArguments()
         else:
-            self.arguments = NextArguments(**arguments) if arguments.__class__ !=  NextArguments else arguments
+            self.arguments = NextArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  NextArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -3950,7 +4196,7 @@ class NextArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, threadId, **kwargs):
+    def __init__(self, threadId, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer threadId: Execute 'next' for this thread.
         """
@@ -3958,9 +4204,10 @@ class NextArguments(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        threadId = self.threadId
         dct = {
-             'threadId': self.threadId,
+            'threadId': threadId,
         }
         dct.update(self.kwargs)
         return dct
@@ -4019,7 +4266,7 @@ class NextResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, **kwargs):
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -4039,18 +4286,25 @@ class NextResponse(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
-        if self.body is not None:
-            dct['body'] = self.body
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body
         dct.update(self.kwargs)
         return dct
 
@@ -4101,7 +4355,7 @@ class StepInRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -4113,17 +4367,21 @@ class StepInRequest(BaseSchema):
         if arguments is None:
             self.arguments = StepInArguments()
         else:
-            self.arguments = StepInArguments(**arguments) if arguments.__class__ !=  StepInArguments else arguments
+            self.arguments = StepInArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  StepInArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -4151,7 +4409,7 @@ class StepInArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, threadId, targetId=None, **kwargs):
+    def __init__(self, threadId, targetId=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer threadId: Execute 'stepIn' for this thread.
         :param integer targetId: Optional id of the target to step into.
@@ -4161,12 +4419,14 @@ class StepInArguments(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        threadId = self.threadId
+        targetId = self.targetId
         dct = {
-             'threadId': self.threadId,
+            'threadId': threadId,
         }
-        if self.targetId is not None:
-            dct['targetId'] = self.targetId
+        if targetId is not None:
+            dct['targetId'] = targetId
         dct.update(self.kwargs)
         return dct
 
@@ -4224,7 +4484,7 @@ class StepInResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, **kwargs):
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -4244,18 +4504,25 @@ class StepInResponse(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
-        if self.body is not None:
-            dct['body'] = self.body
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body
         dct.update(self.kwargs)
         return dct
 
@@ -4297,7 +4564,7 @@ class StepOutRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -4309,17 +4576,21 @@ class StepOutRequest(BaseSchema):
         if arguments is None:
             self.arguments = StepOutArguments()
         else:
-            self.arguments = StepOutArguments(**arguments) if arguments.__class__ !=  StepOutArguments else arguments
+            self.arguments = StepOutArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  StepOutArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -4343,7 +4614,7 @@ class StepOutArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, threadId, **kwargs):
+    def __init__(self, threadId, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer threadId: Execute 'stepOut' for this thread.
         """
@@ -4351,9 +4622,10 @@ class StepOutArguments(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        threadId = self.threadId
         dct = {
-             'threadId': self.threadId,
+            'threadId': threadId,
         }
         dct.update(self.kwargs)
         return dct
@@ -4412,7 +4684,7 @@ class StepOutResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, **kwargs):
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -4432,18 +4704,25 @@ class StepOutResponse(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
-        if self.body is not None:
-            dct['body'] = self.body
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body
         dct.update(self.kwargs)
         return dct
 
@@ -4486,7 +4765,7 @@ class StepBackRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -4498,17 +4777,21 @@ class StepBackRequest(BaseSchema):
         if arguments is None:
             self.arguments = StepBackArguments()
         else:
-            self.arguments = StepBackArguments(**arguments) if arguments.__class__ !=  StepBackArguments else arguments
+            self.arguments = StepBackArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  StepBackArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -4532,7 +4815,7 @@ class StepBackArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, threadId, **kwargs):
+    def __init__(self, threadId, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer threadId: Execute 'stepBack' for this thread.
         """
@@ -4540,9 +4823,10 @@ class StepBackArguments(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        threadId = self.threadId
         dct = {
-             'threadId': self.threadId,
+            'threadId': threadId,
         }
         dct.update(self.kwargs)
         return dct
@@ -4601,7 +4885,7 @@ class StepBackResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, **kwargs):
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -4621,18 +4905,25 @@ class StepBackResponse(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
-        if self.body is not None:
-            dct['body'] = self.body
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body
         dct.update(self.kwargs)
         return dct
 
@@ -4672,7 +4963,7 @@ class ReverseContinueRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -4684,17 +4975,21 @@ class ReverseContinueRequest(BaseSchema):
         if arguments is None:
             self.arguments = ReverseContinueArguments()
         else:
-            self.arguments = ReverseContinueArguments(**arguments) if arguments.__class__ !=  ReverseContinueArguments else arguments
+            self.arguments = ReverseContinueArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  ReverseContinueArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -4718,7 +5013,7 @@ class ReverseContinueArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, threadId, **kwargs):
+    def __init__(self, threadId, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer threadId: Execute 'reverseContinue' for this thread.
         """
@@ -4726,9 +5021,10 @@ class ReverseContinueArguments(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        threadId = self.threadId
         dct = {
-             'threadId': self.threadId,
+            'threadId': threadId,
         }
         dct.update(self.kwargs)
         return dct
@@ -4788,7 +5084,7 @@ class ReverseContinueResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, **kwargs):
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -4808,18 +5104,25 @@ class ReverseContinueResponse(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
-        if self.body is not None:
-            dct['body'] = self.body
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body
         dct.update(self.kwargs)
         return dct
 
@@ -4861,7 +5164,7 @@ class RestartFrameRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -4873,17 +5176,21 @@ class RestartFrameRequest(BaseSchema):
         if arguments is None:
             self.arguments = RestartFrameArguments()
         else:
-            self.arguments = RestartFrameArguments(**arguments) if arguments.__class__ !=  RestartFrameArguments else arguments
+            self.arguments = RestartFrameArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  RestartFrameArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -4907,19 +5214,37 @@ class RestartFrameArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, frameId, **kwargs):
+    def __init__(self, frameId, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer frameId: Restart this stackframe.
         """
         self.frameId = frameId
+        if update_ids_from_dap:
+            self.frameId = self._translate_id_from_dap(self.frameId)
         self.kwargs = kwargs
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'frameId' in dct:
+            dct['frameId'] = cls._translate_id_from_dap(dct['frameId'])
+        return dct
 
-
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        frameId = self.frameId
+        if update_ids_to_dap:
+            if frameId is not None:
+                frameId = self._translate_id_to_dap(frameId)
         dct = {
-             'frameId': self.frameId,
+            'frameId': frameId,
         }
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'frameId' in dct:
+            dct['frameId'] = cls._translate_id_to_dap(dct['frameId'])
         return dct
 
 
@@ -4976,7 +5301,7 @@ class RestartFrameResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, **kwargs):
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -4996,18 +5321,25 @@ class RestartFrameResponse(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
-        if self.body is not None:
-            dct['body'] = self.body
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body
         dct.update(self.kwargs)
         return dct
 
@@ -5052,7 +5384,7 @@ class GotoRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -5064,17 +5396,21 @@ class GotoRequest(BaseSchema):
         if arguments is None:
             self.arguments = GotoArguments()
         else:
-            self.arguments = GotoArguments(**arguments) if arguments.__class__ !=  GotoArguments else arguments
+            self.arguments = GotoArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  GotoArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -5102,7 +5438,7 @@ class GotoArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, threadId, targetId, **kwargs):
+    def __init__(self, threadId, targetId, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer threadId: Set the goto target for this thread.
         :param integer targetId: The location where the debuggee will continue to run.
@@ -5112,10 +5448,12 @@ class GotoArguments(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        threadId = self.threadId
+        targetId = self.targetId
         dct = {
-             'threadId': self.threadId,
-             'targetId': self.targetId,
+            'threadId': threadId,
+            'targetId': targetId,
         }
         dct.update(self.kwargs)
         return dct
@@ -5174,7 +5512,7 @@ class GotoResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, **kwargs):
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -5194,18 +5532,25 @@ class GotoResponse(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
-        if self.body is not None:
-            dct['body'] = self.body
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body
         dct.update(self.kwargs)
         return dct
 
@@ -5247,7 +5592,7 @@ class PauseRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -5259,17 +5604,21 @@ class PauseRequest(BaseSchema):
         if arguments is None:
             self.arguments = PauseArguments()
         else:
-            self.arguments = PauseArguments(**arguments) if arguments.__class__ !=  PauseArguments else arguments
+            self.arguments = PauseArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  PauseArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -5293,7 +5642,7 @@ class PauseArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, threadId, **kwargs):
+    def __init__(self, threadId, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer threadId: Pause execution for this thread.
         """
@@ -5301,9 +5650,10 @@ class PauseArguments(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        threadId = self.threadId
         dct = {
-             'threadId': self.threadId,
+            'threadId': threadId,
         }
         dct.update(self.kwargs)
         return dct
@@ -5362,7 +5712,7 @@ class PauseResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, **kwargs):
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -5382,18 +5732,25 @@ class PauseResponse(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
-        if self.body is not None:
-            dct['body'] = self.body
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body
         dct.update(self.kwargs)
         return dct
 
@@ -5432,7 +5789,7 @@ class StackTraceRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -5444,17 +5801,21 @@ class StackTraceRequest(BaseSchema):
         if arguments is None:
             self.arguments = StackTraceArguments()
         else:
-            self.arguments = StackTraceArguments(**arguments) if arguments.__class__ !=  StackTraceArguments else arguments
+            self.arguments = StackTraceArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  StackTraceArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -5490,7 +5851,7 @@ class StackTraceArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, threadId, startFrame=None, levels=None, format=None, **kwargs):
+    def __init__(self, threadId, startFrame=None, levels=None, format=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer threadId: Retrieve the stacktrace for this thread.
         :param integer startFrame: The index of the first frame to return; if omitted frames start at 0.
@@ -5503,20 +5864,24 @@ class StackTraceArguments(BaseSchema):
         if format is None:
             self.format = StackFrameFormat()
         else:
-            self.format = StackFrameFormat(**format) if format.__class__ !=  StackFrameFormat else format
+            self.format = StackFrameFormat(update_ids_from_dap=update_ids_from_dap, **format) if format.__class__ !=  StackFrameFormat else format
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        threadId = self.threadId
+        startFrame = self.startFrame
+        levels = self.levels
+        format = self.format  # noqa (assign to builtin)
         dct = {
-             'threadId': self.threadId,
+            'threadId': threadId,
         }
-        if self.startFrame is not None:
-            dct['startFrame'] = self.startFrame
-        if self.levels is not None:
-            dct['levels'] = self.levels
-        if self.format is not None:
-            dct['format'] = self.format.to_dict()
+        if startFrame is not None:
+            dct['startFrame'] = startFrame
+        if levels is not None:
+            dct['levels'] = levels
+        if format is not None:
+            dct['format'] = format.to_dict(update_ids_to_dap=update_ids_to_dap)
         dct.update(self.kwargs)
         return dct
 
@@ -5581,7 +5946,7 @@ class StackTraceResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, body, seq=-1, message=None, **kwargs):
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -5598,23 +5963,30 @@ class StackTraceResponse(BaseSchema):
         if body is None:
             self.body = StackTraceResponseBody()
         else:
-            self.body = StackTraceResponseBody(**body) if body.__class__ !=  StackTraceResponseBody else body
+            self.body = StackTraceResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  StackTraceResponseBody else body
         self.seq = seq
         self.message = message
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
+        if message is not None:
+            dct['message'] = message
         dct.update(self.kwargs)
         return dct
 
@@ -5653,7 +6025,7 @@ class ScopesRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -5665,17 +6037,21 @@ class ScopesRequest(BaseSchema):
         if arguments is None:
             self.arguments = ScopesArguments()
         else:
-            self.arguments = ScopesArguments(**arguments) if arguments.__class__ !=  ScopesArguments else arguments
+            self.arguments = ScopesArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  ScopesArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -5699,19 +6075,37 @@ class ScopesArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, frameId, **kwargs):
+    def __init__(self, frameId, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer frameId: Retrieve the scopes for this stackframe.
         """
         self.frameId = frameId
+        if update_ids_from_dap:
+            self.frameId = self._translate_id_from_dap(self.frameId)
         self.kwargs = kwargs
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'frameId' in dct:
+            dct['frameId'] = cls._translate_id_from_dap(dct['frameId'])
+        return dct
 
-
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        frameId = self.frameId
+        if update_ids_to_dap:
+            if frameId is not None:
+                frameId = self._translate_id_to_dap(frameId)
         dct = {
-             'frameId': self.frameId,
+            'frameId': frameId,
         }
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'frameId' in dct:
+            dct['frameId'] = cls._translate_id_to_dap(dct['frameId'])
         return dct
 
 
@@ -5771,7 +6165,7 @@ class ScopesResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, body, seq=-1, message=None, **kwargs):
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -5788,23 +6182,30 @@ class ScopesResponse(BaseSchema):
         if body is None:
             self.body = ScopesResponseBody()
         else:
-            self.body = ScopesResponseBody(**body) if body.__class__ !=  ScopesResponseBody else body
+            self.body = ScopesResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  ScopesResponseBody else body
         self.seq = seq
         self.message = message
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
+        if message is not None:
+            dct['message'] = message
         dct.update(self.kwargs)
         return dct
 
@@ -5845,7 +6246,7 @@ class VariablesRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -5857,17 +6258,21 @@ class VariablesRequest(BaseSchema):
         if arguments is None:
             self.arguments = VariablesArguments()
         else:
-            self.arguments = VariablesArguments(**arguments) if arguments.__class__ !=  VariablesArguments else arguments
+            self.arguments = VariablesArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  VariablesArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -5911,7 +6316,7 @@ class VariablesArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, variablesReference, filter=None, start=None, count=None, format=None, **kwargs):
+    def __init__(self, variablesReference, filter=None, start=None, count=None, format=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer variablesReference: The Variable reference.
         :param string filter: Optional filter to limit the child variables to either named or indexed. If ommited, both types are fetched.
@@ -5926,23 +6331,45 @@ class VariablesArguments(BaseSchema):
         if format is None:
             self.format = ValueFormat()
         else:
-            self.format = ValueFormat(**format) if format.__class__ !=  ValueFormat else format
+            self.format = ValueFormat(update_ids_from_dap=update_ids_from_dap, **format) if format.__class__ !=  ValueFormat else format
+        if update_ids_from_dap:
+            self.variablesReference = self._translate_id_from_dap(self.variablesReference)
         self.kwargs = kwargs
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'variablesReference' in dct:
+            dct['variablesReference'] = cls._translate_id_from_dap(dct['variablesReference'])
+        return dct
 
-
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        variablesReference = self.variablesReference
+        filter = self.filter  # noqa (assign to builtin)
+        start = self.start
+        count = self.count
+        format = self.format  # noqa (assign to builtin)
+        if update_ids_to_dap:
+            if variablesReference is not None:
+                variablesReference = self._translate_id_to_dap(variablesReference)
         dct = {
-             'variablesReference': self.variablesReference,
+            'variablesReference': variablesReference,
         }
-        if self.filter is not None:
-            dct['filter'] = self.filter
-        if self.start is not None:
-            dct['start'] = self.start
-        if self.count is not None:
-            dct['count'] = self.count
-        if self.format is not None:
-            dct['format'] = self.format.to_dict()
+        if filter is not None:
+            dct['filter'] = filter
+        if start is not None:
+            dct['start'] = start
+        if count is not None:
+            dct['count'] = count
+        if format is not None:
+            dct['format'] = format.to_dict(update_ids_to_dap=update_ids_to_dap)
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'variablesReference' in dct:
+            dct['variablesReference'] = cls._translate_id_to_dap(dct['variablesReference'])
         return dct
 
 
@@ -6002,7 +6429,7 @@ class VariablesResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, body, seq=-1, message=None, **kwargs):
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -6019,23 +6446,30 @@ class VariablesResponse(BaseSchema):
         if body is None:
             self.body = VariablesResponseBody()
         else:
-            self.body = VariablesResponseBody(**body) if body.__class__ !=  VariablesResponseBody else body
+            self.body = VariablesResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  VariablesResponseBody else body
         self.seq = seq
         self.message = message
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
+        if message is not None:
+            dct['message'] = message
         dct.update(self.kwargs)
         return dct
 
@@ -6074,7 +6508,7 @@ class SetVariableRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -6086,17 +6520,21 @@ class SetVariableRequest(BaseSchema):
         if arguments is None:
             self.arguments = SetVariableArguments()
         else:
-            self.arguments = SetVariableArguments(**arguments) if arguments.__class__ !=  SetVariableArguments else arguments
+            self.arguments = SetVariableArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  SetVariableArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -6132,7 +6570,7 @@ class SetVariableArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, variablesReference, name, value, format=None, **kwargs):
+    def __init__(self, variablesReference, name, value, format=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer variablesReference: The reference of the variable container.
         :param string name: The name of the variable.
@@ -6145,19 +6583,40 @@ class SetVariableArguments(BaseSchema):
         if format is None:
             self.format = ValueFormat()
         else:
-            self.format = ValueFormat(**format) if format.__class__ !=  ValueFormat else format
+            self.format = ValueFormat(update_ids_from_dap=update_ids_from_dap, **format) if format.__class__ !=  ValueFormat else format
+        if update_ids_from_dap:
+            self.variablesReference = self._translate_id_from_dap(self.variablesReference)
         self.kwargs = kwargs
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'variablesReference' in dct:
+            dct['variablesReference'] = cls._translate_id_from_dap(dct['variablesReference'])
+        return dct
 
-
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        variablesReference = self.variablesReference
+        name = self.name
+        value = self.value
+        format = self.format  # noqa (assign to builtin)
+        if update_ids_to_dap:
+            if variablesReference is not None:
+                variablesReference = self._translate_id_to_dap(variablesReference)
         dct = {
-             'variablesReference': self.variablesReference,
-             'name': self.name,
-             'value': self.value,
+            'variablesReference': variablesReference,
+            'name': name,
+            'value': value,
         }
-        if self.format is not None:
-            dct['format'] = self.format.to_dict()
+        if format is not None:
+            dct['format'] = format.to_dict(update_ids_to_dap=update_ids_to_dap)
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'variablesReference' in dct:
+            dct['variablesReference'] = cls._translate_id_to_dap(dct['variablesReference'])
         return dct
 
 
@@ -6230,7 +6689,7 @@ class SetVariableResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, body, seq=-1, message=None, **kwargs):
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -6247,23 +6706,30 @@ class SetVariableResponse(BaseSchema):
         if body is None:
             self.body = SetVariableResponseBody()
         else:
-            self.body = SetVariableResponseBody(**body) if body.__class__ !=  SetVariableResponseBody else body
+            self.body = SetVariableResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  SetVariableResponseBody else body
         self.seq = seq
         self.message = message
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
+        if message is not None:
+            dct['message'] = message
         dct.update(self.kwargs)
         return dct
 
@@ -6302,7 +6768,7 @@ class SourceRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -6314,17 +6780,21 @@ class SourceRequest(BaseSchema):
         if arguments is None:
             self.arguments = SourceArguments()
         else:
-            self.arguments = SourceArguments(**arguments) if arguments.__class__ !=  SourceArguments else arguments
+            self.arguments = SourceArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  SourceArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -6352,7 +6822,7 @@ class SourceArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, sourceReference, source=None, **kwargs):
+    def __init__(self, sourceReference, source=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer sourceReference: The reference to the source. This is the same as source.sourceReference. This is provided for backward compatibility since old backends do not understand the 'source' attribute.
         :param Source source: Specifies the source content to load. Either source.path or source.sourceReference must be specified.
@@ -6361,16 +6831,18 @@ class SourceArguments(BaseSchema):
         if source is None:
             self.source = Source()
         else:
-            self.source = Source(**source) if source.__class__ !=  Source else source
+            self.source = Source(update_ids_from_dap=update_ids_from_dap, **source) if source.__class__ !=  Source else source
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        sourceReference = self.sourceReference
+        source = self.source
         dct = {
-             'sourceReference': self.sourceReference,
+            'sourceReference': sourceReference,
         }
-        if self.source is not None:
-            dct['source'] = self.source.to_dict()
+        if source is not None:
+            dct['source'] = source.to_dict(update_ids_to_dap=update_ids_to_dap)
         dct.update(self.kwargs)
         return dct
 
@@ -6432,7 +6904,7 @@ class SourceResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, body, seq=-1, message=None, **kwargs):
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -6449,23 +6921,30 @@ class SourceResponse(BaseSchema):
         if body is None:
             self.body = SourceResponseBody()
         else:
-            self.body = SourceResponseBody(**body) if body.__class__ !=  SourceResponseBody else body
+            self.body = SourceResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  SourceResponseBody else body
         self.seq = seq
         self.message = message
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
+        if message is not None:
+            dct['message'] = message
         dct.update(self.kwargs)
         return dct
 
@@ -6513,7 +6992,7 @@ class ThreadsRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, seq=-1, arguments=None, **kwargs):
+    def __init__(self, seq=-1, arguments=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -6527,14 +7006,18 @@ class ThreadsRequest(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        seq = self.seq
+        arguments = self.arguments
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'seq': seq,
         }
-        if self.arguments is not None:
-            dct['arguments'] = self.arguments
+        if arguments is not None:
+            dct['arguments'] = arguments
         dct.update(self.kwargs)
         return dct
 
@@ -6595,7 +7078,7 @@ class ThreadsResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, body, seq=-1, message=None, **kwargs):
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -6612,23 +7095,30 @@ class ThreadsResponse(BaseSchema):
         if body is None:
             self.body = ThreadsResponseBody()
         else:
-            self.body = ThreadsResponseBody(**body) if body.__class__ !=  ThreadsResponseBody else body
+            self.body = ThreadsResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  ThreadsResponseBody else body
         self.seq = seq
         self.message = message
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
+        if message is not None:
+            dct['message'] = message
         dct.update(self.kwargs)
         return dct
 
@@ -6667,7 +7157,7 @@ class TerminateThreadsRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -6679,17 +7169,21 @@ class TerminateThreadsRequest(BaseSchema):
         if arguments is None:
             self.arguments = TerminateThreadsArguments()
         else:
-            self.arguments = TerminateThreadsArguments(**arguments) if arguments.__class__ !=  TerminateThreadsArguments else arguments
+            self.arguments = TerminateThreadsArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  TerminateThreadsArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -6716,7 +7210,7 @@ class TerminateThreadsArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, threadIds=None, **kwargs):
+    def __init__(self, threadIds=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param array threadIds: Ids of threads to be terminated.
         """
@@ -6724,11 +7218,12 @@ class TerminateThreadsArguments(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        threadIds = self.threadIds
         dct = {
         }
-        if self.threadIds is not None:
-            dct['threadIds'] = self.threadIds
+        if threadIds is not None:
+            dct['threadIds'] = threadIds
         dct.update(self.kwargs)
         return dct
 
@@ -6787,7 +7282,7 @@ class TerminateThreadsResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, **kwargs):
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -6807,18 +7302,25 @@ class TerminateThreadsResponse(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
-        if self.body is not None:
-            dct['body'] = self.body
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body
         dct.update(self.kwargs)
         return dct
 
@@ -6858,7 +7360,7 @@ class ModulesRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -6870,17 +7372,21 @@ class ModulesRequest(BaseSchema):
         if arguments is None:
             self.arguments = ModulesArguments()
         else:
-            self.arguments = ModulesArguments(**arguments) if arguments.__class__ !=  ModulesArguments else arguments
+            self.arguments = ModulesArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  ModulesArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -6908,7 +7414,7 @@ class ModulesArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, startModule=None, moduleCount=None, **kwargs):
+    def __init__(self, startModule=None, moduleCount=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer startModule: The index of the first module to return; if omitted modules start at 0.
         :param integer moduleCount: The number of modules to return. If moduleCount is not specified or 0, all modules are returned.
@@ -6918,13 +7424,15 @@ class ModulesArguments(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        startModule = self.startModule
+        moduleCount = self.moduleCount
         dct = {
         }
-        if self.startModule is not None:
-            dct['startModule'] = self.startModule
-        if self.moduleCount is not None:
-            dct['moduleCount'] = self.moduleCount
+        if startModule is not None:
+            dct['startModule'] = startModule
+        if moduleCount is not None:
+            dct['moduleCount'] = moduleCount
         dct.update(self.kwargs)
         return dct
 
@@ -6989,7 +7497,7 @@ class ModulesResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, body, seq=-1, message=None, **kwargs):
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -7006,23 +7514,30 @@ class ModulesResponse(BaseSchema):
         if body is None:
             self.body = ModulesResponseBody()
         else:
-            self.body = ModulesResponseBody(**body) if body.__class__ !=  ModulesResponseBody else body
+            self.body = ModulesResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  ModulesResponseBody else body
         self.seq = seq
         self.message = message
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
+        if message is not None:
+            dct['message'] = message
         dct.update(self.kwargs)
         return dct
 
@@ -7061,7 +7576,7 @@ class LoadedSourcesRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, seq=-1, arguments=None, **kwargs):
+    def __init__(self, seq=-1, arguments=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -7074,18 +7589,22 @@ class LoadedSourcesRequest(BaseSchema):
         if arguments is None:
             self.arguments = LoadedSourcesArguments()
         else:
-            self.arguments = LoadedSourcesArguments(**arguments) if arguments.__class__ !=  LoadedSourcesArguments else arguments
+            self.arguments = LoadedSourcesArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  LoadedSourcesArguments else arguments
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        seq = self.seq
+        arguments = self.arguments
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'seq': seq,
         }
-        if self.arguments is not None:
-            dct['arguments'] = self.arguments.to_dict()
+        if arguments is not None:
+            dct['arguments'] = arguments.to_dict(update_ids_to_dap=update_ids_to_dap)
         dct.update(self.kwargs)
         return dct
 
@@ -7103,7 +7622,7 @@ class LoadedSourcesArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, **kwargs):
+    def __init__(self, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
     
         """
@@ -7111,7 +7630,7 @@ class LoadedSourcesArguments(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         dct = {
         }
         dct.update(self.kwargs)
@@ -7174,7 +7693,7 @@ class LoadedSourcesResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, body, seq=-1, message=None, **kwargs):
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -7191,23 +7710,30 @@ class LoadedSourcesResponse(BaseSchema):
         if body is None:
             self.body = LoadedSourcesResponseBody()
         else:
-            self.body = LoadedSourcesResponseBody(**body) if body.__class__ !=  LoadedSourcesResponseBody else body
+            self.body = LoadedSourcesResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  LoadedSourcesResponseBody else body
         self.seq = seq
         self.message = message
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
+        if message is not None:
+            dct['message'] = message
         dct.update(self.kwargs)
         return dct
 
@@ -7248,7 +7774,7 @@ class EvaluateRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -7260,17 +7786,21 @@ class EvaluateRequest(BaseSchema):
         if arguments is None:
             self.arguments = EvaluateArguments()
         else:
-            self.arguments = EvaluateArguments(**arguments) if arguments.__class__ !=  EvaluateArguments else arguments
+            self.arguments = EvaluateArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  EvaluateArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -7316,7 +7846,7 @@ class EvaluateArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, expression, frameId=None, context=None, format=None, **kwargs):
+    def __init__(self, expression, frameId=None, context=None, format=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string expression: The expression to evaluate.
         :param integer frameId: Evaluate the expression in the scope of this stack frame. If not specified, the expression is evaluated in the global scope.
@@ -7329,21 +7859,42 @@ class EvaluateArguments(BaseSchema):
         if format is None:
             self.format = ValueFormat()
         else:
-            self.format = ValueFormat(**format) if format.__class__ !=  ValueFormat else format
+            self.format = ValueFormat(update_ids_from_dap=update_ids_from_dap, **format) if format.__class__ !=  ValueFormat else format
+        if update_ids_from_dap:
+            self.frameId = self._translate_id_from_dap(self.frameId)
         self.kwargs = kwargs
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'frameId' in dct:
+            dct['frameId'] = cls._translate_id_from_dap(dct['frameId'])
+        return dct
 
-
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        expression = self.expression
+        frameId = self.frameId
+        context = self.context
+        format = self.format  # noqa (assign to builtin)
+        if update_ids_to_dap:
+            if frameId is not None:
+                frameId = self._translate_id_to_dap(frameId)
         dct = {
-             'expression': self.expression,
+            'expression': expression,
         }
-        if self.frameId is not None:
-            dct['frameId'] = self.frameId
-        if self.context is not None:
-            dct['context'] = self.context
-        if self.format is not None:
-            dct['format'] = self.format.to_dict()
+        if frameId is not None:
+            dct['frameId'] = frameId
+        if context is not None:
+            dct['context'] = context
+        if format is not None:
+            dct['format'] = format.to_dict(update_ids_to_dap=update_ids_to_dap)
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'frameId' in dct:
+            dct['frameId'] = cls._translate_id_to_dap(dct['frameId'])
         return dct
 
 
@@ -7421,7 +7972,7 @@ class EvaluateResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, body, seq=-1, message=None, **kwargs):
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -7438,23 +7989,30 @@ class EvaluateResponse(BaseSchema):
         if body is None:
             self.body = EvaluateResponseBody()
         else:
-            self.body = EvaluateResponseBody(**body) if body.__class__ !=  EvaluateResponseBody else body
+            self.body = EvaluateResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  EvaluateResponseBody else body
         self.seq = seq
         self.message = message
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
+        if message is not None:
+            dct['message'] = message
         dct.update(self.kwargs)
         return dct
 
@@ -7496,7 +8054,7 @@ class SetExpressionRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -7508,17 +8066,21 @@ class SetExpressionRequest(BaseSchema):
         if arguments is None:
             self.arguments = SetExpressionArguments()
         else:
-            self.arguments = SetExpressionArguments(**arguments) if arguments.__class__ !=  SetExpressionArguments else arguments
+            self.arguments = SetExpressionArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  SetExpressionArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -7554,7 +8116,7 @@ class SetExpressionArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, expression, value, frameId=None, format=None, **kwargs):
+    def __init__(self, expression, value, frameId=None, format=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string expression: The l-value expression to assign to.
         :param string value: The value expression to assign to the l-value expression.
@@ -7567,20 +8129,41 @@ class SetExpressionArguments(BaseSchema):
         if format is None:
             self.format = ValueFormat()
         else:
-            self.format = ValueFormat(**format) if format.__class__ !=  ValueFormat else format
+            self.format = ValueFormat(update_ids_from_dap=update_ids_from_dap, **format) if format.__class__ !=  ValueFormat else format
+        if update_ids_from_dap:
+            self.frameId = self._translate_id_from_dap(self.frameId)
         self.kwargs = kwargs
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'frameId' in dct:
+            dct['frameId'] = cls._translate_id_from_dap(dct['frameId'])
+        return dct
 
-
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        expression = self.expression
+        value = self.value
+        frameId = self.frameId
+        format = self.format  # noqa (assign to builtin)
+        if update_ids_to_dap:
+            if frameId is not None:
+                frameId = self._translate_id_to_dap(frameId)
         dct = {
-             'expression': self.expression,
-             'value': self.value,
+            'expression': expression,
+            'value': value,
         }
-        if self.frameId is not None:
-            dct['frameId'] = self.frameId
-        if self.format is not None:
-            dct['format'] = self.format.to_dict()
+        if frameId is not None:
+            dct['frameId'] = frameId
+        if format is not None:
+            dct['format'] = format.to_dict(update_ids_to_dap=update_ids_to_dap)
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'frameId' in dct:
+            dct['frameId'] = cls._translate_id_to_dap(dct['frameId'])
         return dct
 
 
@@ -7657,7 +8240,7 @@ class SetExpressionResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, body, seq=-1, message=None, **kwargs):
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -7674,23 +8257,30 @@ class SetExpressionResponse(BaseSchema):
         if body is None:
             self.body = SetExpressionResponseBody()
         else:
-            self.body = SetExpressionResponseBody(**body) if body.__class__ !=  SetExpressionResponseBody else body
+            self.body = SetExpressionResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  SetExpressionResponseBody else body
         self.seq = seq
         self.message = message
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
+        if message is not None:
+            dct['message'] = message
         dct.update(self.kwargs)
         return dct
 
@@ -7734,7 +8324,7 @@ class StepInTargetsRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -7746,17 +8336,21 @@ class StepInTargetsRequest(BaseSchema):
         if arguments is None:
             self.arguments = StepInTargetsArguments()
         else:
-            self.arguments = StepInTargetsArguments(**arguments) if arguments.__class__ !=  StepInTargetsArguments else arguments
+            self.arguments = StepInTargetsArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  StepInTargetsArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -7780,19 +8374,37 @@ class StepInTargetsArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, frameId, **kwargs):
+    def __init__(self, frameId, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer frameId: The stack frame for which to retrieve the possible stepIn targets.
         """
         self.frameId = frameId
+        if update_ids_from_dap:
+            self.frameId = self._translate_id_from_dap(self.frameId)
         self.kwargs = kwargs
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'frameId' in dct:
+            dct['frameId'] = cls._translate_id_from_dap(dct['frameId'])
+        return dct
 
-
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        frameId = self.frameId
+        if update_ids_to_dap:
+            if frameId is not None:
+                frameId = self._translate_id_to_dap(frameId)
         dct = {
-             'frameId': self.frameId,
+            'frameId': frameId,
         }
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'frameId' in dct:
+            dct['frameId'] = cls._translate_id_to_dap(dct['frameId'])
         return dct
 
 
@@ -7852,7 +8464,7 @@ class StepInTargetsResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, body, seq=-1, message=None, **kwargs):
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -7869,23 +8481,30 @@ class StepInTargetsResponse(BaseSchema):
         if body is None:
             self.body = StepInTargetsResponseBody()
         else:
-            self.body = StepInTargetsResponseBody(**body) if body.__class__ !=  StepInTargetsResponseBody else body
+            self.body = StepInTargetsResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  StepInTargetsResponseBody else body
         self.seq = seq
         self.message = message
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
+        if message is not None:
+            dct['message'] = message
         dct.update(self.kwargs)
         return dct
 
@@ -7929,7 +8548,7 @@ class GotoTargetsRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -7941,17 +8560,21 @@ class GotoTargetsRequest(BaseSchema):
         if arguments is None:
             self.arguments = GotoTargetsArguments()
         else:
-            self.arguments = GotoTargetsArguments(**arguments) if arguments.__class__ !=  GotoTargetsArguments else arguments
+            self.arguments = GotoTargetsArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  GotoTargetsArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -7983,7 +8606,7 @@ class GotoTargetsArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, source, line, column=None, **kwargs):
+    def __init__(self, source, line, column=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param Source source: The source location for which the goto targets are determined.
         :param integer line: The line location for which the goto targets are determined.
@@ -7992,19 +8615,22 @@ class GotoTargetsArguments(BaseSchema):
         if source is None:
             self.source = Source()
         else:
-            self.source = Source(**source) if source.__class__ !=  Source else source
+            self.source = Source(update_ids_from_dap=update_ids_from_dap, **source) if source.__class__ !=  Source else source
         self.line = line
         self.column = column
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        source = self.source
+        line = self.line
+        column = self.column
         dct = {
-             'source': self.source.to_dict(),
-             'line': self.line,
+            'source': source.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'line': line,
         }
-        if self.column is not None:
-            dct['column'] = self.column
+        if column is not None:
+            dct['column'] = column
         dct.update(self.kwargs)
         return dct
 
@@ -8065,7 +8691,7 @@ class GotoTargetsResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, body, seq=-1, message=None, **kwargs):
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -8082,23 +8708,30 @@ class GotoTargetsResponse(BaseSchema):
         if body is None:
             self.body = GotoTargetsResponseBody()
         else:
-            self.body = GotoTargetsResponseBody(**body) if body.__class__ !=  GotoTargetsResponseBody else body
+            self.body = GotoTargetsResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  GotoTargetsResponseBody else body
         self.seq = seq
         self.message = message
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
+        if message is not None:
+            dct['message'] = message
         dct.update(self.kwargs)
         return dct
 
@@ -8140,7 +8773,7 @@ class CompletionsRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -8152,17 +8785,21 @@ class CompletionsRequest(BaseSchema):
         if arguments is None:
             self.arguments = CompletionsArguments()
         else:
-            self.arguments = CompletionsArguments(**arguments) if arguments.__class__ !=  CompletionsArguments else arguments
+            self.arguments = CompletionsArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  CompletionsArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -8198,7 +8835,7 @@ class CompletionsArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, text, column, frameId=None, line=None, **kwargs):
+    def __init__(self, text, column, frameId=None, line=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string text: One or more source lines. Typically this is the text a user has typed into the debug console before he asked for completion.
         :param integer column: The character position for which to determine the completion proposals.
@@ -8209,19 +8846,40 @@ class CompletionsArguments(BaseSchema):
         self.column = column
         self.frameId = frameId
         self.line = line
+        if update_ids_from_dap:
+            self.frameId = self._translate_id_from_dap(self.frameId)
         self.kwargs = kwargs
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'frameId' in dct:
+            dct['frameId'] = cls._translate_id_from_dap(dct['frameId'])
+        return dct
 
-
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        text = self.text
+        column = self.column
+        frameId = self.frameId
+        line = self.line
+        if update_ids_to_dap:
+            if frameId is not None:
+                frameId = self._translate_id_to_dap(frameId)
         dct = {
-             'text': self.text,
-             'column': self.column,
+            'text': text,
+            'column': column,
         }
-        if self.frameId is not None:
-            dct['frameId'] = self.frameId
-        if self.line is not None:
-            dct['line'] = self.line
+        if frameId is not None:
+            dct['frameId'] = frameId
+        if line is not None:
+            dct['line'] = line
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'frameId' in dct:
+            dct['frameId'] = cls._translate_id_to_dap(dct['frameId'])
         return dct
 
 
@@ -8281,7 +8939,7 @@ class CompletionsResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, body, seq=-1, message=None, **kwargs):
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -8298,23 +8956,30 @@ class CompletionsResponse(BaseSchema):
         if body is None:
             self.body = CompletionsResponseBody()
         else:
-            self.body = CompletionsResponseBody(**body) if body.__class__ !=  CompletionsResponseBody else body
+            self.body = CompletionsResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  CompletionsResponseBody else body
         self.seq = seq
         self.message = message
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
+        if message is not None:
+            dct['message'] = message
         dct.update(self.kwargs)
         return dct
 
@@ -8353,7 +9018,7 @@ class ExceptionInfoRequest(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, arguments, seq=-1, **kwargs):
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param string command: 
@@ -8365,17 +9030,21 @@ class ExceptionInfoRequest(BaseSchema):
         if arguments is None:
             self.arguments = ExceptionInfoArguments()
         else:
-            self.arguments = ExceptionInfoArguments(**arguments) if arguments.__class__ !=  ExceptionInfoArguments else arguments
+            self.arguments = ExceptionInfoArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  ExceptionInfoArguments else arguments
         self.seq = seq
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
         dct = {
-             'type': self.type,
-             'command': self.command,
-             'arguments': self.arguments.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
         dct.update(self.kwargs)
         return dct
@@ -8399,7 +9068,7 @@ class ExceptionInfoArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, threadId, **kwargs):
+    def __init__(self, threadId, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer threadId: Thread for which exception information should be retrieved.
         """
@@ -8407,9 +9076,10 @@ class ExceptionInfoArguments(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        threadId = self.threadId
         dct = {
-             'threadId': self.threadId,
+            'threadId': threadId,
         }
         dct.update(self.kwargs)
         return dct
@@ -8481,7 +9151,7 @@ class ExceptionInfoResponse(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, request_seq, success, command, body, seq=-1, message=None, **kwargs):
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string type: 
         :param integer request_seq: Sequence number of the corresponding request.
@@ -8498,23 +9168,30 @@ class ExceptionInfoResponse(BaseSchema):
         if body is None:
             self.body = ExceptionInfoResponseBody()
         else:
-            self.body = ExceptionInfoResponseBody(**body) if body.__class__ !=  ExceptionInfoResponseBody else body
+            self.body = ExceptionInfoResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  ExceptionInfoResponseBody else body
         self.seq = seq
         self.message = message
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
         dct = {
-             'type': self.type,
-             'request_seq': self.request_seq,
-             'success': self.success,
-             'command': self.command,
-             'body': self.body.to_dict(),
-             'seq': self.seq,
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
         }
-        if self.message is not None:
-            dct['message'] = self.message
+        if message is not None:
+            dct['message'] = message
         dct.update(self.kwargs)
         return dct
 
@@ -8646,7 +9323,7 @@ class Capabilities(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, supportsConfigurationDoneRequest=None, supportsFunctionBreakpoints=None, supportsConditionalBreakpoints=None, supportsHitConditionalBreakpoints=None, supportsEvaluateForHovers=None, exceptionBreakpointFilters=None, supportsStepBack=None, supportsSetVariable=None, supportsRestartFrame=None, supportsGotoTargetsRequest=None, supportsStepInTargetsRequest=None, supportsCompletionsRequest=None, supportsModulesRequest=None, additionalModuleColumns=None, supportedChecksumAlgorithms=None, supportsRestartRequest=None, supportsExceptionOptions=None, supportsValueFormattingOptions=None, supportsExceptionInfoRequest=None, supportTerminateDebuggee=None, supportsDelayedStackTraceLoading=None, supportsLoadedSourcesRequest=None, supportsLogPoints=None, supportsTerminateThreadsRequest=None, supportsSetExpression=None, supportsTerminateRequest=None, **kwargs):
+    def __init__(self, supportsConfigurationDoneRequest=None, supportsFunctionBreakpoints=None, supportsConditionalBreakpoints=None, supportsHitConditionalBreakpoints=None, supportsEvaluateForHovers=None, exceptionBreakpointFilters=None, supportsStepBack=None, supportsSetVariable=None, supportsRestartFrame=None, supportsGotoTargetsRequest=None, supportsStepInTargetsRequest=None, supportsCompletionsRequest=None, supportsModulesRequest=None, additionalModuleColumns=None, supportedChecksumAlgorithms=None, supportsRestartRequest=None, supportsExceptionOptions=None, supportsValueFormattingOptions=None, supportsExceptionInfoRequest=None, supportTerminateDebuggee=None, supportsDelayedStackTraceLoading=None, supportsLoadedSourcesRequest=None, supportsLogPoints=None, supportsTerminateThreadsRequest=None, supportsSetExpression=None, supportsTerminateRequest=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param boolean supportsConfigurationDoneRequest: The debug adapter supports the 'configurationDone' request.
         :param boolean supportsFunctionBreakpoints: The debug adapter supports function breakpoints.
@@ -8681,6 +9358,9 @@ class Capabilities(BaseSchema):
         self.supportsHitConditionalBreakpoints = supportsHitConditionalBreakpoints
         self.supportsEvaluateForHovers = supportsEvaluateForHovers
         self.exceptionBreakpointFilters = exceptionBreakpointFilters
+        if update_ids_from_dap and self.exceptionBreakpointFilters:
+            for o in self.exceptionBreakpointFilters:
+                ExceptionBreakpointsFilter.update_dict_ids_from_dap(o)
         self.supportsStepBack = supportsStepBack
         self.supportsSetVariable = supportsSetVariable
         self.supportsRestartFrame = supportsRestartFrame
@@ -8689,7 +9369,13 @@ class Capabilities(BaseSchema):
         self.supportsCompletionsRequest = supportsCompletionsRequest
         self.supportsModulesRequest = supportsModulesRequest
         self.additionalModuleColumns = additionalModuleColumns
+        if update_ids_from_dap and self.additionalModuleColumns:
+            for o in self.additionalModuleColumns:
+                ColumnDescriptor.update_dict_ids_from_dap(o)
         self.supportedChecksumAlgorithms = supportedChecksumAlgorithms
+        if update_ids_from_dap and self.supportedChecksumAlgorithms:
+            for o in self.supportedChecksumAlgorithms:
+                ChecksumAlgorithm.update_dict_ids_from_dap(o)
         self.supportsRestartRequest = supportsRestartRequest
         self.supportsExceptionOptions = supportsExceptionOptions
         self.supportsValueFormattingOptions = supportsValueFormattingOptions
@@ -8704,61 +9390,87 @@ class Capabilities(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        supportsConfigurationDoneRequest = self.supportsConfigurationDoneRequest
+        supportsFunctionBreakpoints = self.supportsFunctionBreakpoints
+        supportsConditionalBreakpoints = self.supportsConditionalBreakpoints
+        supportsHitConditionalBreakpoints = self.supportsHitConditionalBreakpoints
+        supportsEvaluateForHovers = self.supportsEvaluateForHovers
+        exceptionBreakpointFilters = self.exceptionBreakpointFilters
+        supportsStepBack = self.supportsStepBack
+        supportsSetVariable = self.supportsSetVariable
+        supportsRestartFrame = self.supportsRestartFrame
+        supportsGotoTargetsRequest = self.supportsGotoTargetsRequest
+        supportsStepInTargetsRequest = self.supportsStepInTargetsRequest
+        supportsCompletionsRequest = self.supportsCompletionsRequest
+        supportsModulesRequest = self.supportsModulesRequest
+        additionalModuleColumns = self.additionalModuleColumns
+        supportedChecksumAlgorithms = self.supportedChecksumAlgorithms
+        supportsRestartRequest = self.supportsRestartRequest
+        supportsExceptionOptions = self.supportsExceptionOptions
+        supportsValueFormattingOptions = self.supportsValueFormattingOptions
+        supportsExceptionInfoRequest = self.supportsExceptionInfoRequest
+        supportTerminateDebuggee = self.supportTerminateDebuggee
+        supportsDelayedStackTraceLoading = self.supportsDelayedStackTraceLoading
+        supportsLoadedSourcesRequest = self.supportsLoadedSourcesRequest
+        supportsLogPoints = self.supportsLogPoints
+        supportsTerminateThreadsRequest = self.supportsTerminateThreadsRequest
+        supportsSetExpression = self.supportsSetExpression
+        supportsTerminateRequest = self.supportsTerminateRequest
         dct = {
         }
-        if self.supportsConfigurationDoneRequest is not None:
-            dct['supportsConfigurationDoneRequest'] = self.supportsConfigurationDoneRequest
-        if self.supportsFunctionBreakpoints is not None:
-            dct['supportsFunctionBreakpoints'] = self.supportsFunctionBreakpoints
-        if self.supportsConditionalBreakpoints is not None:
-            dct['supportsConditionalBreakpoints'] = self.supportsConditionalBreakpoints
-        if self.supportsHitConditionalBreakpoints is not None:
-            dct['supportsHitConditionalBreakpoints'] = self.supportsHitConditionalBreakpoints
-        if self.supportsEvaluateForHovers is not None:
-            dct['supportsEvaluateForHovers'] = self.supportsEvaluateForHovers
-        if self.exceptionBreakpointFilters is not None:
-            dct['exceptionBreakpointFilters'] = self.exceptionBreakpointFilters
-        if self.supportsStepBack is not None:
-            dct['supportsStepBack'] = self.supportsStepBack
-        if self.supportsSetVariable is not None:
-            dct['supportsSetVariable'] = self.supportsSetVariable
-        if self.supportsRestartFrame is not None:
-            dct['supportsRestartFrame'] = self.supportsRestartFrame
-        if self.supportsGotoTargetsRequest is not None:
-            dct['supportsGotoTargetsRequest'] = self.supportsGotoTargetsRequest
-        if self.supportsStepInTargetsRequest is not None:
-            dct['supportsStepInTargetsRequest'] = self.supportsStepInTargetsRequest
-        if self.supportsCompletionsRequest is not None:
-            dct['supportsCompletionsRequest'] = self.supportsCompletionsRequest
-        if self.supportsModulesRequest is not None:
-            dct['supportsModulesRequest'] = self.supportsModulesRequest
-        if self.additionalModuleColumns is not None:
-            dct['additionalModuleColumns'] = self.additionalModuleColumns
-        if self.supportedChecksumAlgorithms is not None:
-            dct['supportedChecksumAlgorithms'] = self.supportedChecksumAlgorithms
-        if self.supportsRestartRequest is not None:
-            dct['supportsRestartRequest'] = self.supportsRestartRequest
-        if self.supportsExceptionOptions is not None:
-            dct['supportsExceptionOptions'] = self.supportsExceptionOptions
-        if self.supportsValueFormattingOptions is not None:
-            dct['supportsValueFormattingOptions'] = self.supportsValueFormattingOptions
-        if self.supportsExceptionInfoRequest is not None:
-            dct['supportsExceptionInfoRequest'] = self.supportsExceptionInfoRequest
-        if self.supportTerminateDebuggee is not None:
-            dct['supportTerminateDebuggee'] = self.supportTerminateDebuggee
-        if self.supportsDelayedStackTraceLoading is not None:
-            dct['supportsDelayedStackTraceLoading'] = self.supportsDelayedStackTraceLoading
-        if self.supportsLoadedSourcesRequest is not None:
-            dct['supportsLoadedSourcesRequest'] = self.supportsLoadedSourcesRequest
-        if self.supportsLogPoints is not None:
-            dct['supportsLogPoints'] = self.supportsLogPoints
-        if self.supportsTerminateThreadsRequest is not None:
-            dct['supportsTerminateThreadsRequest'] = self.supportsTerminateThreadsRequest
-        if self.supportsSetExpression is not None:
-            dct['supportsSetExpression'] = self.supportsSetExpression
-        if self.supportsTerminateRequest is not None:
-            dct['supportsTerminateRequest'] = self.supportsTerminateRequest
+        if supportsConfigurationDoneRequest is not None:
+            dct['supportsConfigurationDoneRequest'] = supportsConfigurationDoneRequest
+        if supportsFunctionBreakpoints is not None:
+            dct['supportsFunctionBreakpoints'] = supportsFunctionBreakpoints
+        if supportsConditionalBreakpoints is not None:
+            dct['supportsConditionalBreakpoints'] = supportsConditionalBreakpoints
+        if supportsHitConditionalBreakpoints is not None:
+            dct['supportsHitConditionalBreakpoints'] = supportsHitConditionalBreakpoints
+        if supportsEvaluateForHovers is not None:
+            dct['supportsEvaluateForHovers'] = supportsEvaluateForHovers
+        if exceptionBreakpointFilters is not None:
+            dct['exceptionBreakpointFilters'] = [ExceptionBreakpointsFilter.update_dict_ids_to_dap(o) for o in exceptionBreakpointFilters] if (update_ids_to_dap and exceptionBreakpointFilters) else exceptionBreakpointFilters
+        if supportsStepBack is not None:
+            dct['supportsStepBack'] = supportsStepBack
+        if supportsSetVariable is not None:
+            dct['supportsSetVariable'] = supportsSetVariable
+        if supportsRestartFrame is not None:
+            dct['supportsRestartFrame'] = supportsRestartFrame
+        if supportsGotoTargetsRequest is not None:
+            dct['supportsGotoTargetsRequest'] = supportsGotoTargetsRequest
+        if supportsStepInTargetsRequest is not None:
+            dct['supportsStepInTargetsRequest'] = supportsStepInTargetsRequest
+        if supportsCompletionsRequest is not None:
+            dct['supportsCompletionsRequest'] = supportsCompletionsRequest
+        if supportsModulesRequest is not None:
+            dct['supportsModulesRequest'] = supportsModulesRequest
+        if additionalModuleColumns is not None:
+            dct['additionalModuleColumns'] = [ColumnDescriptor.update_dict_ids_to_dap(o) for o in additionalModuleColumns] if (update_ids_to_dap and additionalModuleColumns) else additionalModuleColumns
+        if supportedChecksumAlgorithms is not None:
+            dct['supportedChecksumAlgorithms'] = [ChecksumAlgorithm.update_dict_ids_to_dap(o) for o in supportedChecksumAlgorithms] if (update_ids_to_dap and supportedChecksumAlgorithms) else supportedChecksumAlgorithms
+        if supportsRestartRequest is not None:
+            dct['supportsRestartRequest'] = supportsRestartRequest
+        if supportsExceptionOptions is not None:
+            dct['supportsExceptionOptions'] = supportsExceptionOptions
+        if supportsValueFormattingOptions is not None:
+            dct['supportsValueFormattingOptions'] = supportsValueFormattingOptions
+        if supportsExceptionInfoRequest is not None:
+            dct['supportsExceptionInfoRequest'] = supportsExceptionInfoRequest
+        if supportTerminateDebuggee is not None:
+            dct['supportTerminateDebuggee'] = supportTerminateDebuggee
+        if supportsDelayedStackTraceLoading is not None:
+            dct['supportsDelayedStackTraceLoading'] = supportsDelayedStackTraceLoading
+        if supportsLoadedSourcesRequest is not None:
+            dct['supportsLoadedSourcesRequest'] = supportsLoadedSourcesRequest
+        if supportsLogPoints is not None:
+            dct['supportsLogPoints'] = supportsLogPoints
+        if supportsTerminateThreadsRequest is not None:
+            dct['supportsTerminateThreadsRequest'] = supportsTerminateThreadsRequest
+        if supportsSetExpression is not None:
+            dct['supportsSetExpression'] = supportsSetExpression
+        if supportsTerminateRequest is not None:
+            dct['supportsTerminateRequest'] = supportsTerminateRequest
         dct.update(self.kwargs)
         return dct
 
@@ -8790,7 +9502,7 @@ class ExceptionBreakpointsFilter(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, filter, label, default=None, **kwargs):
+    def __init__(self, filter, label, default=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string filter: The internal ID of the filter. This value is passed to the setExceptionBreakpoints request.
         :param string label: The name of the filter. This will be shown in the UI.
@@ -8802,13 +9514,16 @@ class ExceptionBreakpointsFilter(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        filter = self.filter  # noqa (assign to builtin)
+        label = self.label
+        default = self.default
         dct = {
-             'filter': self.filter,
-             'label': self.label,
+            'filter': filter,
+            'label': label,
         }
-        if self.default is not None:
-            dct['default'] = self.default
+        if default is not None:
+            dct['default'] = default
         dct.update(self.kwargs)
         return dct
 
@@ -8859,7 +9574,7 @@ class Message(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, id, format, variables=None, sendTelemetry=None, showUser=None, url=None, urlLabel=None, **kwargs):
+    def __init__(self, id, format, variables=None, sendTelemetry=None, showUser=None, url=None, urlLabel=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer id: Unique identifier for the message.
         :param string format: A format string for the message. Embedded variables have the form '{name}'.
@@ -8875,7 +9590,7 @@ class Message(BaseSchema):
         if variables is None:
             self.variables = MessageVariables()
         else:
-            self.variables = MessageVariables(**variables) if variables.__class__ !=  MessageVariables else variables
+            self.variables = MessageVariables(update_ids_from_dap=update_ids_from_dap, **variables) if variables.__class__ !=  MessageVariables else variables
         self.sendTelemetry = sendTelemetry
         self.showUser = showUser
         self.url = url
@@ -8883,21 +9598,28 @@ class Message(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        id = self.id  # noqa (assign to builtin)
+        format = self.format  # noqa (assign to builtin)
+        variables = self.variables
+        sendTelemetry = self.sendTelemetry
+        showUser = self.showUser
+        url = self.url
+        urlLabel = self.urlLabel
         dct = {
-             'id': self.id,
-             'format': self.format,
+            'id': id,
+            'format': format,
         }
-        if self.variables is not None:
-            dct['variables'] = self.variables.to_dict()
-        if self.sendTelemetry is not None:
-            dct['sendTelemetry'] = self.sendTelemetry
-        if self.showUser is not None:
-            dct['showUser'] = self.showUser
-        if self.url is not None:
-            dct['url'] = self.url
-        if self.urlLabel is not None:
-            dct['urlLabel'] = self.urlLabel
+        if variables is not None:
+            dct['variables'] = variables.to_dict(update_ids_to_dap=update_ids_to_dap)
+        if sendTelemetry is not None:
+            dct['sendTelemetry'] = sendTelemetry
+        if showUser is not None:
+            dct['showUser'] = showUser
+        if url is not None:
+            dct['url'] = url
+        if urlLabel is not None:
+            dct['urlLabel'] = urlLabel
         dct.update(self.kwargs)
         return dct
 
@@ -8975,7 +9697,7 @@ class Module(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, id, name, path=None, isOptimized=None, isUserCode=None, version=None, symbolStatus=None, symbolFilePath=None, dateTimeStamp=None, addressRange=None, **kwargs):
+    def __init__(self, id, name, path=None, isOptimized=None, isUserCode=None, version=None, symbolStatus=None, symbolFilePath=None, dateTimeStamp=None, addressRange=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param ['integer', 'string'] id: Unique identifier for the module.
         :param string name: A name of the module.
@@ -9004,27 +9726,37 @@ class Module(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        id = self.id  # noqa (assign to builtin)
+        name = self.name
+        path = self.path
+        isOptimized = self.isOptimized
+        isUserCode = self.isUserCode
+        version = self.version
+        symbolStatus = self.symbolStatus
+        symbolFilePath = self.symbolFilePath
+        dateTimeStamp = self.dateTimeStamp
+        addressRange = self.addressRange
         dct = {
-             'id': self.id,
-             'name': self.name,
+            'id': id,
+            'name': name,
         }
-        if self.path is not None:
-            dct['path'] = self.path
-        if self.isOptimized is not None:
-            dct['isOptimized'] = self.isOptimized
-        if self.isUserCode is not None:
-            dct['isUserCode'] = self.isUserCode
-        if self.version is not None:
-            dct['version'] = self.version
-        if self.symbolStatus is not None:
-            dct['symbolStatus'] = self.symbolStatus
-        if self.symbolFilePath is not None:
-            dct['symbolFilePath'] = self.symbolFilePath
-        if self.dateTimeStamp is not None:
-            dct['dateTimeStamp'] = self.dateTimeStamp
-        if self.addressRange is not None:
-            dct['addressRange'] = self.addressRange
+        if path is not None:
+            dct['path'] = path
+        if isOptimized is not None:
+            dct['isOptimized'] = isOptimized
+        if isUserCode is not None:
+            dct['isUserCode'] = isUserCode
+        if version is not None:
+            dct['version'] = version
+        if symbolStatus is not None:
+            dct['symbolStatus'] = symbolStatus
+        if symbolFilePath is not None:
+            dct['symbolFilePath'] = symbolFilePath
+        if dateTimeStamp is not None:
+            dct['dateTimeStamp'] = dateTimeStamp
+        if addressRange is not None:
+            dct['addressRange'] = addressRange
         dct.update(self.kwargs)
         return dct
 
@@ -9072,7 +9804,7 @@ class ColumnDescriptor(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, attributeName, label, format=None, type=None, width=None, **kwargs):
+    def __init__(self, attributeName, label, format=None, type=None, width=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string attributeName: Name of the attribute rendered in this column.
         :param string label: Header UI label of column.
@@ -9088,17 +9820,22 @@ class ColumnDescriptor(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        attributeName = self.attributeName
+        label = self.label
+        format = self.format  # noqa (assign to builtin)
+        type = self.type  # noqa (assign to builtin)
+        width = self.width
         dct = {
-             'attributeName': self.attributeName,
-             'label': self.label,
+            'attributeName': attributeName,
+            'label': label,
         }
-        if self.format is not None:
-            dct['format'] = self.format
-        if self.type is not None:
-            dct['type'] = self.type
-        if self.width is not None:
-            dct['width'] = self.width
+        if format is not None:
+            dct['format'] = format
+        if type is not None:
+            dct['type'] = type
+        if width is not None:
+            dct['width'] = width
         dct.update(self.kwargs)
         return dct
 
@@ -9126,17 +9863,21 @@ class ModulesViewDescriptor(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, columns, **kwargs):
+    def __init__(self, columns, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param array columns: 
         """
         self.columns = columns
+        if update_ids_from_dap and self.columns:
+            for o in self.columns:
+                ColumnDescriptor.update_dict_ids_from_dap(o)
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        columns = self.columns
         dct = {
-             'columns': self.columns,
+            'columns': [ColumnDescriptor.update_dict_ids_to_dap(o) for o in columns] if (update_ids_to_dap and columns) else columns,
         }
         dct.update(self.kwargs)
         return dct
@@ -9164,7 +9905,7 @@ class Thread(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, id, name, **kwargs):
+    def __init__(self, id, name, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer id: Unique identifier for the thread.
         :param string name: A name of the thread.
@@ -9174,10 +9915,12 @@ class Thread(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        id = self.id  # noqa (assign to builtin)
+        name = self.name
         dct = {
-             'id': self.id,
-             'name': self.name,
+            'id': id,
+            'name': name,
         }
         dct.update(self.kwargs)
         return dct
@@ -9249,7 +9992,7 @@ class Source(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, name=None, path=None, sourceReference=None, presentationHint=None, origin=None, sources=None, adapterData=None, checksums=None, **kwargs):
+    def __init__(self, name=None, path=None, sourceReference=None, presentationHint=None, origin=None, sources=None, adapterData=None, checksums=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string name: The short name of the source. Every source returned from the debug adapter has a name. When sending a source to the debug adapter this name is optional.
         :param string path: The path of the source to be shown in the UI. It is only used to locate and load the content of the source if no sourceReference is specified (or its value is 0).
@@ -9266,30 +10009,44 @@ class Source(BaseSchema):
         self.presentationHint = presentationHint
         self.origin = origin
         self.sources = sources
+        if update_ids_from_dap and self.sources:
+            for o in self.sources:
+                Source.update_dict_ids_from_dap(o)
         self.adapterData = adapterData
         self.checksums = checksums
+        if update_ids_from_dap and self.checksums:
+            for o in self.checksums:
+                Checksum.update_dict_ids_from_dap(o)
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        name = self.name
+        path = self.path
+        sourceReference = self.sourceReference
+        presentationHint = self.presentationHint
+        origin = self.origin
+        sources = self.sources
+        adapterData = self.adapterData
+        checksums = self.checksums
         dct = {
         }
-        if self.name is not None:
-            dct['name'] = self.name
-        if self.path is not None:
-            dct['path'] = self.path
-        if self.sourceReference is not None:
-            dct['sourceReference'] = self.sourceReference
-        if self.presentationHint is not None:
-            dct['presentationHint'] = self.presentationHint
-        if self.origin is not None:
-            dct['origin'] = self.origin
-        if self.sources is not None:
-            dct['sources'] = self.sources
-        if self.adapterData is not None:
-            dct['adapterData'] = self.adapterData
-        if self.checksums is not None:
-            dct['checksums'] = self.checksums
+        if name is not None:
+            dct['name'] = name
+        if path is not None:
+            dct['path'] = path
+        if sourceReference is not None:
+            dct['sourceReference'] = sourceReference
+        if presentationHint is not None:
+            dct['presentationHint'] = presentationHint
+        if origin is not None:
+            dct['origin'] = origin
+        if sources is not None:
+            dct['sources'] = [Source.update_dict_ids_to_dap(o) for o in sources] if (update_ids_to_dap and sources) else sources
+        if adapterData is not None:
+            dct['adapterData'] = adapterData
+        if checksums is not None:
+            dct['checksums'] = [Checksum.update_dict_ids_to_dap(o) for o in checksums] if (update_ids_to_dap and checksums) else checksums
         dct.update(self.kwargs)
         return dct
 
@@ -9352,7 +10109,7 @@ class StackFrame(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, id, name, line, column, source=None, endLine=None, endColumn=None, moduleId=None, presentationHint=None, **kwargs):
+    def __init__(self, id, name, line, column, source=None, endLine=None, endColumn=None, moduleId=None, presentationHint=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer id: An identifier for the stack frame. It must be unique across all threads. This id can be used to retrieve the scopes of the frame with the 'scopesRequest' or to restart the execution of a stackframe.
         :param string name: The name of the stack frame, typically a method name.
@@ -9371,32 +10128,58 @@ class StackFrame(BaseSchema):
         if source is None:
             self.source = Source()
         else:
-            self.source = Source(**source) if source.__class__ !=  Source else source
+            self.source = Source(update_ids_from_dap=update_ids_from_dap, **source) if source.__class__ !=  Source else source
         self.endLine = endLine
         self.endColumn = endColumn
         self.moduleId = moduleId
         self.presentationHint = presentationHint
+        if update_ids_from_dap:
+            self.id = self._translate_id_from_dap(self.id)
         self.kwargs = kwargs
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'id' in dct:
+            dct['id'] = cls._translate_id_from_dap(dct['id'])
+        return dct
 
-
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        id = self.id  # noqa (assign to builtin)
+        name = self.name
+        line = self.line
+        column = self.column
+        source = self.source
+        endLine = self.endLine
+        endColumn = self.endColumn
+        moduleId = self.moduleId
+        presentationHint = self.presentationHint
+        if update_ids_to_dap:
+            if id is not None:
+                id = self._translate_id_to_dap(id)  # noqa (assign to builtin)
         dct = {
-             'id': self.id,
-             'name': self.name,
-             'line': self.line,
-             'column': self.column,
+            'id': id,
+            'name': name,
+            'line': line,
+            'column': column,
         }
-        if self.source is not None:
-            dct['source'] = self.source.to_dict()
-        if self.endLine is not None:
-            dct['endLine'] = self.endLine
-        if self.endColumn is not None:
-            dct['endColumn'] = self.endColumn
-        if self.moduleId is not None:
-            dct['moduleId'] = self.moduleId
-        if self.presentationHint is not None:
-            dct['presentationHint'] = self.presentationHint
+        if source is not None:
+            dct['source'] = source.to_dict(update_ids_to_dap=update_ids_to_dap)
+        if endLine is not None:
+            dct['endLine'] = endLine
+        if endColumn is not None:
+            dct['endColumn'] = endColumn
+        if moduleId is not None:
+            dct['moduleId'] = moduleId
+        if presentationHint is not None:
+            dct['presentationHint'] = presentationHint
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'id' in dct:
+            dct['id'] = cls._translate_id_to_dap(dct['id'])
         return dct
 
 
@@ -9455,7 +10238,7 @@ class Scope(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, name, variablesReference, expensive, namedVariables=None, indexedVariables=None, source=None, line=None, column=None, endLine=None, endColumn=None, **kwargs):
+    def __init__(self, name, variablesReference, expensive, namedVariables=None, indexedVariables=None, source=None, line=None, column=None, endLine=None, endColumn=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string name: Name of the scope such as 'Arguments', 'Locals'.
         :param integer variablesReference: The variables of this scope can be retrieved by passing the value of variablesReference to the VariablesRequest.
@@ -9478,35 +10261,62 @@ class Scope(BaseSchema):
         if source is None:
             self.source = Source()
         else:
-            self.source = Source(**source) if source.__class__ !=  Source else source
+            self.source = Source(update_ids_from_dap=update_ids_from_dap, **source) if source.__class__ !=  Source else source
         self.line = line
         self.column = column
         self.endLine = endLine
         self.endColumn = endColumn
+        if update_ids_from_dap:
+            self.variablesReference = self._translate_id_from_dap(self.variablesReference)
         self.kwargs = kwargs
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'variablesReference' in dct:
+            dct['variablesReference'] = cls._translate_id_from_dap(dct['variablesReference'])
+        return dct
 
-
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        name = self.name
+        variablesReference = self.variablesReference
+        expensive = self.expensive
+        namedVariables = self.namedVariables
+        indexedVariables = self.indexedVariables
+        source = self.source
+        line = self.line
+        column = self.column
+        endLine = self.endLine
+        endColumn = self.endColumn
+        if update_ids_to_dap:
+            if variablesReference is not None:
+                variablesReference = self._translate_id_to_dap(variablesReference)
         dct = {
-             'name': self.name,
-             'variablesReference': self.variablesReference,
-             'expensive': self.expensive,
+            'name': name,
+            'variablesReference': variablesReference,
+            'expensive': expensive,
         }
-        if self.namedVariables is not None:
-            dct['namedVariables'] = self.namedVariables
-        if self.indexedVariables is not None:
-            dct['indexedVariables'] = self.indexedVariables
-        if self.source is not None:
-            dct['source'] = self.source.to_dict()
-        if self.line is not None:
-            dct['line'] = self.line
-        if self.column is not None:
-            dct['column'] = self.column
-        if self.endLine is not None:
-            dct['endLine'] = self.endLine
-        if self.endColumn is not None:
-            dct['endColumn'] = self.endColumn
+        if namedVariables is not None:
+            dct['namedVariables'] = namedVariables
+        if indexedVariables is not None:
+            dct['indexedVariables'] = indexedVariables
+        if source is not None:
+            dct['source'] = source.to_dict(update_ids_to_dap=update_ids_to_dap)
+        if line is not None:
+            dct['line'] = line
+        if column is not None:
+            dct['column'] = column
+        if endLine is not None:
+            dct['endLine'] = endLine
+        if endColumn is not None:
+            dct['endColumn'] = endColumn
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'variablesReference' in dct:
+            dct['variablesReference'] = cls._translate_id_to_dap(dct['variablesReference'])
         return dct
 
 
@@ -9571,7 +10381,7 @@ class Variable(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, name, value, variablesReference, type=None, presentationHint=None, evaluateName=None, namedVariables=None, indexedVariables=None, **kwargs):
+    def __init__(self, name, value, variablesReference, type=None, presentationHint=None, evaluateName=None, namedVariables=None, indexedVariables=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string name: The variable's name.
         :param string value: The variable's value. This can be a multi-line text, e.g. for a function the body of a function.
@@ -9591,30 +10401,55 @@ class Variable(BaseSchema):
         if presentationHint is None:
             self.presentationHint = VariablePresentationHint()
         else:
-            self.presentationHint = VariablePresentationHint(**presentationHint) if presentationHint.__class__ !=  VariablePresentationHint else presentationHint
+            self.presentationHint = VariablePresentationHint(update_ids_from_dap=update_ids_from_dap, **presentationHint) if presentationHint.__class__ !=  VariablePresentationHint else presentationHint
         self.evaluateName = evaluateName
         self.namedVariables = namedVariables
         self.indexedVariables = indexedVariables
+        if update_ids_from_dap:
+            self.variablesReference = self._translate_id_from_dap(self.variablesReference)
         self.kwargs = kwargs
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'variablesReference' in dct:
+            dct['variablesReference'] = cls._translate_id_from_dap(dct['variablesReference'])
+        return dct
 
-
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        name = self.name
+        value = self.value
+        variablesReference = self.variablesReference
+        type = self.type  # noqa (assign to builtin)
+        presentationHint = self.presentationHint
+        evaluateName = self.evaluateName
+        namedVariables = self.namedVariables
+        indexedVariables = self.indexedVariables
+        if update_ids_to_dap:
+            if variablesReference is not None:
+                variablesReference = self._translate_id_to_dap(variablesReference)
         dct = {
-             'name': self.name,
-             'value': self.value,
-             'variablesReference': self.variablesReference,
+            'name': name,
+            'value': value,
+            'variablesReference': variablesReference,
         }
-        if self.type is not None:
-            dct['type'] = self.type
-        if self.presentationHint is not None:
-            dct['presentationHint'] = self.presentationHint.to_dict()
-        if self.evaluateName is not None:
-            dct['evaluateName'] = self.evaluateName
-        if self.namedVariables is not None:
-            dct['namedVariables'] = self.namedVariables
-        if self.indexedVariables is not None:
-            dct['indexedVariables'] = self.indexedVariables
+        if type is not None:
+            dct['type'] = type
+        if presentationHint is not None:
+            dct['presentationHint'] = presentationHint.to_dict(update_ids_to_dap=update_ids_to_dap)
+        if evaluateName is not None:
+            dct['evaluateName'] = evaluateName
+        if namedVariables is not None:
+            dct['namedVariables'] = namedVariables
+        if indexedVariables is not None:
+            dct['indexedVariables'] = indexedVariables
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'variablesReference' in dct:
+            dct['variablesReference'] = cls._translate_id_to_dap(dct['variablesReference'])
         return dct
 
 
@@ -9697,7 +10532,7 @@ class VariablePresentationHint(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, kind=None, attributes=None, visibility=None, **kwargs):
+    def __init__(self, kind=None, attributes=None, visibility=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string kind: The kind of variable. Before introducing additional values, try to use the listed values.
         :param array attributes: Set of attributes represented as an array of strings. Before introducing additional values, try to use the listed values.
@@ -9709,15 +10544,18 @@ class VariablePresentationHint(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        kind = self.kind
+        attributes = self.attributes
+        visibility = self.visibility
         dct = {
         }
-        if self.kind is not None:
-            dct['kind'] = self.kind
-        if self.attributes is not None:
-            dct['attributes'] = self.attributes
-        if self.visibility is not None:
-            dct['visibility'] = self.visibility
+        if kind is not None:
+            dct['kind'] = kind
+        if attributes is not None:
+            dct['attributes'] = attributes
+        if visibility is not None:
+            dct['visibility'] = visibility
         dct.update(self.kwargs)
         return dct
 
@@ -9756,7 +10594,7 @@ class SourceBreakpoint(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, line, column=None, condition=None, hitCondition=None, logMessage=None, **kwargs):
+    def __init__(self, line, column=None, condition=None, hitCondition=None, logMessage=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer line: The source line of the breakpoint or logpoint.
         :param integer column: An optional source column of the breakpoint.
@@ -9772,18 +10610,23 @@ class SourceBreakpoint(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        line = self.line
+        column = self.column
+        condition = self.condition
+        hitCondition = self.hitCondition
+        logMessage = self.logMessage
         dct = {
-             'line': self.line,
+            'line': line,
         }
-        if self.column is not None:
-            dct['column'] = self.column
-        if self.condition is not None:
-            dct['condition'] = self.condition
-        if self.hitCondition is not None:
-            dct['hitCondition'] = self.hitCondition
-        if self.logMessage is not None:
-            dct['logMessage'] = self.logMessage
+        if column is not None:
+            dct['column'] = column
+        if condition is not None:
+            dct['condition'] = condition
+        if hitCondition is not None:
+            dct['hitCondition'] = hitCondition
+        if logMessage is not None:
+            dct['logMessage'] = logMessage
         dct.update(self.kwargs)
         return dct
 
@@ -9814,7 +10657,7 @@ class FunctionBreakpoint(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, name, condition=None, hitCondition=None, **kwargs):
+    def __init__(self, name, condition=None, hitCondition=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string name: The name of the function.
         :param string condition: An optional expression for conditional breakpoints.
@@ -9826,14 +10669,17 @@ class FunctionBreakpoint(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        name = self.name
+        condition = self.condition
+        hitCondition = self.hitCondition
         dct = {
-             'name': self.name,
+            'name': name,
         }
-        if self.condition is not None:
-            dct['condition'] = self.condition
-        if self.hitCondition is not None:
-            dct['hitCondition'] = self.hitCondition
+        if condition is not None:
+            dct['condition'] = condition
+        if hitCondition is not None:
+            dct['hitCondition'] = hitCondition
         dct.update(self.kwargs)
         return dct
 
@@ -9884,7 +10730,7 @@ class Breakpoint(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, verified, id=None, message=None, source=None, line=None, column=None, endLine=None, endColumn=None, **kwargs):
+    def __init__(self, verified, id=None, message=None, source=None, line=None, column=None, endLine=None, endColumn=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param boolean verified: If true breakpoint could be set (but not necessarily at the desired location).
         :param integer id: An optional identifier for the breakpoint. It is needed if breakpoint events are used to update or remove breakpoints.
@@ -9901,7 +10747,7 @@ class Breakpoint(BaseSchema):
         if source is None:
             self.source = Source()
         else:
-            self.source = Source(**source) if source.__class__ !=  Source else source
+            self.source = Source(update_ids_from_dap=update_ids_from_dap, **source) if source.__class__ !=  Source else source
         self.line = line
         self.column = column
         self.endLine = endLine
@@ -9909,24 +10755,32 @@ class Breakpoint(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        verified = self.verified
+        id = self.id  # noqa (assign to builtin)
+        message = self.message
+        source = self.source
+        line = self.line
+        column = self.column
+        endLine = self.endLine
+        endColumn = self.endColumn
         dct = {
-             'verified': self.verified,
+            'verified': verified,
         }
-        if self.id is not None:
-            dct['id'] = self.id
-        if self.message is not None:
-            dct['message'] = self.message
-        if self.source is not None:
-            dct['source'] = self.source.to_dict()
-        if self.line is not None:
-            dct['line'] = self.line
-        if self.column is not None:
-            dct['column'] = self.column
-        if self.endLine is not None:
-            dct['endLine'] = self.endLine
-        if self.endColumn is not None:
-            dct['endColumn'] = self.endColumn
+        if id is not None:
+            dct['id'] = id
+        if message is not None:
+            dct['message'] = message
+        if source is not None:
+            dct['source'] = source.to_dict(update_ids_to_dap=update_ids_to_dap)
+        if line is not None:
+            dct['line'] = line
+        if column is not None:
+            dct['column'] = column
+        if endLine is not None:
+            dct['endLine'] = endLine
+        if endColumn is not None:
+            dct['endColumn'] = endColumn
         dct.update(self.kwargs)
         return dct
 
@@ -9954,7 +10808,7 @@ class StepInTarget(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, id, label, **kwargs):
+    def __init__(self, id, label, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer id: Unique identifier for a stepIn target.
         :param string label: The name of the stepIn target (shown in the UI).
@@ -9964,10 +10818,12 @@ class StepInTarget(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        id = self.id  # noqa (assign to builtin)
+        label = self.label
         dct = {
-             'id': self.id,
-             'label': self.label,
+            'id': id,
+            'label': label,
         }
         dct.update(self.kwargs)
         return dct
@@ -10013,7 +10869,7 @@ class GotoTarget(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, id, label, line, column=None, endLine=None, endColumn=None, **kwargs):
+    def __init__(self, id, label, line, column=None, endLine=None, endColumn=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer id: Unique identifier for a goto target. This is used in the goto request.
         :param string label: The name of the goto target (shown in the UI).
@@ -10031,18 +10887,24 @@ class GotoTarget(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        id = self.id  # noqa (assign to builtin)
+        label = self.label
+        line = self.line
+        column = self.column
+        endLine = self.endLine
+        endColumn = self.endColumn
         dct = {
-             'id': self.id,
-             'label': self.label,
-             'line': self.line,
+            'id': id,
+            'label': label,
+            'line': line,
         }
-        if self.column is not None:
-            dct['column'] = self.column
-        if self.endLine is not None:
-            dct['endLine'] = self.endLine
-        if self.endColumn is not None:
-            dct['endColumn'] = self.endColumn
+        if column is not None:
+            dct['column'] = column
+        if endLine is not None:
+            dct['endLine'] = endLine
+        if endColumn is not None:
+            dct['endColumn'] = endColumn
         dct.update(self.kwargs)
         return dct
 
@@ -10081,7 +10943,7 @@ class CompletionItem(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, label, text=None, type=None, start=None, length=None, **kwargs):
+    def __init__(self, label, text=None, type=None, start=None, length=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string label: The label of this completion item. By default this is also the text that is inserted when selecting this completion.
         :param string text: If text is not falsy then it is inserted instead of the label.
@@ -10100,18 +10962,23 @@ class CompletionItem(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        label = self.label
+        text = self.text
+        type = self.type  # noqa (assign to builtin)
+        start = self.start
+        length = self.length
         dct = {
-             'label': self.label,
+            'label': label,
         }
-        if self.text is not None:
-            dct['text'] = self.text
-        if self.type is not None:
-            dct['type'] = self.type
-        if self.start is not None:
-            dct['start'] = self.start
-        if self.length is not None:
-            dct['length'] = self.length
+        if text is not None:
+            dct['text'] = text
+        if type is not None:
+            dct['type'] = type
+        if start is not None:
+            dct['start'] = start
+        if length is not None:
+            dct['length'] = length
         dct.update(self.kwargs)
         return dct
 
@@ -10152,7 +11019,7 @@ class CompletionItemType(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, **kwargs):
+    def __init__(self, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
     
         """
@@ -10160,7 +11027,7 @@ class CompletionItemType(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         dct = {
         }
         dct.update(self.kwargs)
@@ -10187,7 +11054,7 @@ class ChecksumAlgorithm(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, **kwargs):
+    def __init__(self, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
     
         """
@@ -10195,7 +11062,7 @@ class ChecksumAlgorithm(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         dct = {
         }
         dct.update(self.kwargs)
@@ -10224,7 +11091,7 @@ class Checksum(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, algorithm, checksum, **kwargs):
+    def __init__(self, algorithm, checksum, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param ChecksumAlgorithm algorithm: The algorithm used to calculate this checksum.
         :param string checksum: Value of the checksum.
@@ -10235,10 +11102,12 @@ class Checksum(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        algorithm = self.algorithm
+        checksum = self.checksum
         dct = {
-             'algorithm': self.algorithm,
-             'checksum': self.checksum,
+            'algorithm': algorithm,
+            'checksum': checksum,
         }
         dct.update(self.kwargs)
         return dct
@@ -10262,7 +11131,7 @@ class ValueFormat(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, hex=None, **kwargs):
+    def __init__(self, hex=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param boolean hex: Display the value in hex.
         """
@@ -10270,11 +11139,12 @@ class ValueFormat(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        hex = self.hex  # noqa (assign to builtin)
         dct = {
         }
-        if self.hex is not None:
-            dct['hex'] = self.hex
+        if hex is not None:
+            dct['hex'] = hex
         dct.update(self.kwargs)
         return dct
 
@@ -10325,7 +11195,7 @@ class StackFrameFormat(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, hex=None, parameters=None, parameterTypes=None, parameterNames=None, parameterValues=None, line=None, module=None, includeAll=None, **kwargs):
+    def __init__(self, hex=None, parameters=None, parameterTypes=None, parameterNames=None, parameterValues=None, line=None, module=None, includeAll=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param boolean hex: Display the value in hex.
         :param boolean parameters: Displays parameters for the stack frame.
@@ -10347,25 +11217,33 @@ class StackFrameFormat(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        hex = self.hex  # noqa (assign to builtin)
+        parameters = self.parameters
+        parameterTypes = self.parameterTypes
+        parameterNames = self.parameterNames
+        parameterValues = self.parameterValues
+        line = self.line
+        module = self.module
+        includeAll = self.includeAll
         dct = {
         }
-        if self.hex is not None:
-            dct['hex'] = self.hex
-        if self.parameters is not None:
-            dct['parameters'] = self.parameters
-        if self.parameterTypes is not None:
-            dct['parameterTypes'] = self.parameterTypes
-        if self.parameterNames is not None:
-            dct['parameterNames'] = self.parameterNames
-        if self.parameterValues is not None:
-            dct['parameterValues'] = self.parameterValues
-        if self.line is not None:
-            dct['line'] = self.line
-        if self.module is not None:
-            dct['module'] = self.module
-        if self.includeAll is not None:
-            dct['includeAll'] = self.includeAll
+        if hex is not None:
+            dct['hex'] = hex
+        if parameters is not None:
+            dct['parameters'] = parameters
+        if parameterTypes is not None:
+            dct['parameterTypes'] = parameterTypes
+        if parameterNames is not None:
+            dct['parameterNames'] = parameterNames
+        if parameterValues is not None:
+            dct['parameterValues'] = parameterValues
+        if line is not None:
+            dct['line'] = line
+        if module is not None:
+            dct['module'] = module
+        if includeAll is not None:
+            dct['includeAll'] = includeAll
         dct.update(self.kwargs)
         return dct
 
@@ -10395,7 +11273,7 @@ class ExceptionOptions(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, breakMode, path=None, **kwargs):
+    def __init__(self, breakMode, path=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param ExceptionBreakMode breakMode: Condition when a thrown exception should result in a break.
         :param array path: A path that selects a single or multiple exceptions in a tree. If 'path' is missing, the whole tree is selected. By convention the first segment of the path is a category that is used to group exceptions in the UI.
@@ -10403,15 +11281,20 @@ class ExceptionOptions(BaseSchema):
         assert breakMode in ExceptionBreakMode.VALID_VALUES
         self.breakMode = breakMode
         self.path = path
+        if update_ids_from_dap and self.path:
+            for o in self.path:
+                ExceptionPathSegment.update_dict_ids_from_dap(o)
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        breakMode = self.breakMode
+        path = self.path
         dct = {
-             'breakMode': self.breakMode,
+            'breakMode': breakMode,
         }
-        if self.path is not None:
-            dct['path'] = self.path
+        if path is not None:
+            dct['path'] = [ExceptionPathSegment.update_dict_ids_to_dap(o) for o in path] if (update_ids_to_dap and path) else path
         dct.update(self.kwargs)
         return dct
 
@@ -10444,7 +11327,7 @@ class ExceptionBreakMode(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, **kwargs):
+    def __init__(self, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
     
         """
@@ -10452,7 +11335,7 @@ class ExceptionBreakMode(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         dct = {
         }
         dct.update(self.kwargs)
@@ -10486,7 +11369,7 @@ class ExceptionPathSegment(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, names, negate=None, **kwargs):
+    def __init__(self, names, negate=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param array names: Depending on the value of 'negate' the names that should match or not match.
         :param boolean negate: If false or missing this segment matches the names provided, otherwise it matches anything except the names provided.
@@ -10496,12 +11379,14 @@ class ExceptionPathSegment(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        names = self.names
+        negate = self.negate
         dct = {
-             'names': self.names,
+            'names': names,
         }
-        if self.negate is not None:
-            dct['negate'] = self.negate
+        if negate is not None:
+            dct['negate'] = negate
         dct.update(self.kwargs)
         return dct
 
@@ -10547,7 +11432,7 @@ class ExceptionDetails(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, message=None, typeName=None, fullTypeName=None, evaluateName=None, stackTrace=None, innerException=None, **kwargs):
+    def __init__(self, message=None, typeName=None, fullTypeName=None, evaluateName=None, stackTrace=None, innerException=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string message: Message contained in the exception.
         :param string typeName: Short type name of the exception object.
@@ -10562,24 +11447,33 @@ class ExceptionDetails(BaseSchema):
         self.evaluateName = evaluateName
         self.stackTrace = stackTrace
         self.innerException = innerException
+        if update_ids_from_dap and self.innerException:
+            for o in self.innerException:
+                ExceptionDetails.update_dict_ids_from_dap(o)
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        message = self.message
+        typeName = self.typeName
+        fullTypeName = self.fullTypeName
+        evaluateName = self.evaluateName
+        stackTrace = self.stackTrace
+        innerException = self.innerException
         dct = {
         }
-        if self.message is not None:
-            dct['message'] = self.message
-        if self.typeName is not None:
-            dct['typeName'] = self.typeName
-        if self.fullTypeName is not None:
-            dct['fullTypeName'] = self.fullTypeName
-        if self.evaluateName is not None:
-            dct['evaluateName'] = self.evaluateName
-        if self.stackTrace is not None:
-            dct['stackTrace'] = self.stackTrace
-        if self.innerException is not None:
-            dct['innerException'] = self.innerException
+        if message is not None:
+            dct['message'] = message
+        if typeName is not None:
+            dct['typeName'] = typeName
+        if fullTypeName is not None:
+            dct['fullTypeName'] = fullTypeName
+        if evaluateName is not None:
+            dct['evaluateName'] = evaluateName
+        if stackTrace is not None:
+            dct['stackTrace'] = stackTrace
+        if innerException is not None:
+            dct['innerException'] = [ExceptionDetails.update_dict_ids_to_dap(o) for o in innerException] if (update_ids_to_dap and innerException) else innerException
         dct.update(self.kwargs)
         return dct
 
@@ -10602,22 +11496,23 @@ class ErrorResponseBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, error=None, **kwargs):
+    def __init__(self, error=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param Message error: An optional, structured error message.
         """
         if error is None:
             self.error = Message()
         else:
-            self.error = Message(**error) if error.__class__ !=  Message else error
+            self.error = Message(update_ids_from_dap=update_ids_from_dap, **error) if error.__class__ !=  Message else error
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        error = self.error
         dct = {
         }
-        if self.error is not None:
-            dct['error'] = self.error.to_dict()
+        if error is not None:
+            dct['error'] = error.to_dict(update_ids_to_dap=update_ids_to_dap)
         dct.update(self.kwargs)
         return dct
 
@@ -10668,7 +11563,7 @@ class StoppedEventBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, reason, description=None, threadId=None, preserveFocusHint=None, text=None, allThreadsStopped=None, **kwargs):
+    def __init__(self, reason, description=None, threadId=None, preserveFocusHint=None, text=None, allThreadsStopped=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string reason: The reason for the event.
         For backward compatibility this string is shown in the UI if the 'description' attribute is missing (but it must not be translated).
@@ -10689,20 +11584,26 @@ class StoppedEventBody(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        reason = self.reason
+        description = self.description
+        threadId = self.threadId
+        preserveFocusHint = self.preserveFocusHint
+        text = self.text
+        allThreadsStopped = self.allThreadsStopped
         dct = {
-             'reason': self.reason,
+            'reason': reason,
         }
-        if self.description is not None:
-            dct['description'] = self.description
-        if self.threadId is not None:
-            dct['threadId'] = self.threadId
-        if self.preserveFocusHint is not None:
-            dct['preserveFocusHint'] = self.preserveFocusHint
-        if self.text is not None:
-            dct['text'] = self.text
-        if self.allThreadsStopped is not None:
-            dct['allThreadsStopped'] = self.allThreadsStopped
+        if description is not None:
+            dct['description'] = description
+        if threadId is not None:
+            dct['threadId'] = threadId
+        if preserveFocusHint is not None:
+            dct['preserveFocusHint'] = preserveFocusHint
+        if text is not None:
+            dct['text'] = text
+        if allThreadsStopped is not None:
+            dct['allThreadsStopped'] = allThreadsStopped
         dct.update(self.kwargs)
         return dct
 
@@ -10729,7 +11630,7 @@ class ContinuedEventBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, threadId, allThreadsContinued=None, **kwargs):
+    def __init__(self, threadId, allThreadsContinued=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer threadId: The thread which was continued.
         :param boolean allThreadsContinued: If 'allThreadsContinued' is true, a debug adapter can announce that all threads have continued.
@@ -10739,12 +11640,14 @@ class ContinuedEventBody(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        threadId = self.threadId
+        allThreadsContinued = self.allThreadsContinued
         dct = {
-             'threadId': self.threadId,
+            'threadId': threadId,
         }
-        if self.allThreadsContinued is not None:
-            dct['allThreadsContinued'] = self.allThreadsContinued
+        if allThreadsContinued is not None:
+            dct['allThreadsContinued'] = allThreadsContinued
         dct.update(self.kwargs)
         return dct
 
@@ -10767,7 +11670,7 @@ class ExitedEventBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, exitCode, **kwargs):
+    def __init__(self, exitCode, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer exitCode: The exit code returned from the debuggee.
         """
@@ -10775,9 +11678,10 @@ class ExitedEventBody(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        exitCode = self.exitCode
         dct = {
-             'exitCode': self.exitCode,
+            'exitCode': exitCode,
         }
         dct.update(self.kwargs)
         return dct
@@ -10809,7 +11713,7 @@ class TerminatedEventBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, restart=None, **kwargs):
+    def __init__(self, restart=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param ['array', 'boolean', 'integer', 'null', 'number', 'object', 'string'] restart: A debug adapter may set 'restart' to true (or to an arbitrary object) to request that the front end restarts the session.
         The value is not interpreted by the client and passed unmodified as an attribute '__restart' to the 'launch' and 'attach' requests.
@@ -10818,11 +11722,12 @@ class TerminatedEventBody(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        restart = self.restart
         dct = {
         }
-        if self.restart is not None:
-            dct['restart'] = self.restart
+        if restart is not None:
+            dct['restart'] = restart
         dct.update(self.kwargs)
         return dct
 
@@ -10853,7 +11758,7 @@ class ThreadEventBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, reason, threadId, **kwargs):
+    def __init__(self, reason, threadId, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string reason: The reason for the event.
         :param integer threadId: The identifier of the thread.
@@ -10863,10 +11768,12 @@ class ThreadEventBody(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        reason = self.reason
+        threadId = self.threadId
         dct = {
-             'reason': self.reason,
-             'threadId': self.threadId,
+            'reason': reason,
+            'threadId': threadId,
         }
         dct.update(self.kwargs)
         return dct
@@ -10928,7 +11835,7 @@ class OutputEventBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, output, category=None, variablesReference=None, source=None, line=None, column=None, data=None, **kwargs):
+    def __init__(self, output, category=None, variablesReference=None, source=None, line=None, column=None, data=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string output: The output to report.
         :param string category: The output category. If not specified, 'console' is assumed.
@@ -10944,30 +11851,54 @@ class OutputEventBody(BaseSchema):
         if source is None:
             self.source = Source()
         else:
-            self.source = Source(**source) if source.__class__ !=  Source else source
+            self.source = Source(update_ids_from_dap=update_ids_from_dap, **source) if source.__class__ !=  Source else source
         self.line = line
         self.column = column
         self.data = data
+        if update_ids_from_dap:
+            self.variablesReference = self._translate_id_from_dap(self.variablesReference)
         self.kwargs = kwargs
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'variablesReference' in dct:
+            dct['variablesReference'] = cls._translate_id_from_dap(dct['variablesReference'])
+        return dct
 
-
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        output = self.output
+        category = self.category
+        variablesReference = self.variablesReference
+        source = self.source
+        line = self.line
+        column = self.column
+        data = self.data
+        if update_ids_to_dap:
+            if variablesReference is not None:
+                variablesReference = self._translate_id_to_dap(variablesReference)
         dct = {
-             'output': self.output,
+            'output': output,
         }
-        if self.category is not None:
-            dct['category'] = self.category
-        if self.variablesReference is not None:
-            dct['variablesReference'] = self.variablesReference
-        if self.source is not None:
-            dct['source'] = self.source.to_dict()
-        if self.line is not None:
-            dct['line'] = self.line
-        if self.column is not None:
-            dct['column'] = self.column
-        if self.data is not None:
-            dct['data'] = self.data
+        if category is not None:
+            dct['category'] = category
+        if variablesReference is not None:
+            dct['variablesReference'] = variablesReference
+        if source is not None:
+            dct['source'] = source.to_dict(update_ids_to_dap=update_ids_to_dap)
+        if line is not None:
+            dct['line'] = line
+        if column is not None:
+            dct['column'] = column
+        if data is not None:
+            dct['data'] = data
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'variablesReference' in dct:
+            dct['variablesReference'] = cls._translate_id_to_dap(dct['variablesReference'])
         return dct
 
 
@@ -10998,7 +11929,7 @@ class BreakpointEventBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, reason, breakpoint, **kwargs):
+    def __init__(self, reason, breakpoint, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string reason: The reason for the event.
         :param Breakpoint breakpoint: The 'id' attribute is used to find the target breakpoint and the other attributes are used as the new values.
@@ -11007,14 +11938,16 @@ class BreakpointEventBody(BaseSchema):
         if breakpoint is None:
             self.breakpoint = Breakpoint()
         else:
-            self.breakpoint = Breakpoint(**breakpoint) if breakpoint.__class__ !=  Breakpoint else breakpoint
+            self.breakpoint = Breakpoint(update_ids_from_dap=update_ids_from_dap, **breakpoint) if breakpoint.__class__ !=  Breakpoint else breakpoint
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        reason = self.reason
+        breakpoint = self.breakpoint  # noqa (assign to builtin)
         dct = {
-             'reason': self.reason,
-             'breakpoint': self.breakpoint.to_dict(),
+            'reason': reason,
+            'breakpoint': breakpoint.to_dict(update_ids_to_dap=update_ids_to_dap),
         }
         dct.update(self.kwargs)
         return dct
@@ -11047,7 +11980,7 @@ class ModuleEventBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, reason, module, **kwargs):
+    def __init__(self, reason, module, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string reason: The reason for the event.
         :param Module module: The new, changed, or removed module. In case of 'removed' only the module id is used.
@@ -11056,14 +11989,16 @@ class ModuleEventBody(BaseSchema):
         if module is None:
             self.module = Module()
         else:
-            self.module = Module(**module) if module.__class__ !=  Module else module
+            self.module = Module(update_ids_from_dap=update_ids_from_dap, **module) if module.__class__ !=  Module else module
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        reason = self.reason
+        module = self.module
         dct = {
-             'reason': self.reason,
-             'module': self.module.to_dict(),
+            'reason': reason,
+            'module': module.to_dict(update_ids_to_dap=update_ids_to_dap),
         }
         dct.update(self.kwargs)
         return dct
@@ -11096,7 +12031,7 @@ class LoadedSourceEventBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, reason, source, **kwargs):
+    def __init__(self, reason, source, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string reason: The reason for the event.
         :param Source source: The new, changed, or removed source.
@@ -11105,14 +12040,16 @@ class LoadedSourceEventBody(BaseSchema):
         if source is None:
             self.source = Source()
         else:
-            self.source = Source(**source) if source.__class__ !=  Source else source
+            self.source = Source(update_ids_from_dap=update_ids_from_dap, **source) if source.__class__ !=  Source else source
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        reason = self.reason
+        source = self.source
         dct = {
-             'reason': self.reason,
-             'source': self.source.to_dict(),
+            'reason': reason,
+            'source': source.to_dict(update_ids_to_dap=update_ids_to_dap),
         }
         dct.update(self.kwargs)
         return dct
@@ -11158,7 +12095,7 @@ class ProcessEventBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, name, systemProcessId=None, isLocalProcess=None, startMethod=None, **kwargs):
+    def __init__(self, name, systemProcessId=None, isLocalProcess=None, startMethod=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string name: The logical name of the process. This is usually the full path to process's executable file. Example: /home/example/myproj/program.js.
         :param integer systemProcessId: The system process id of the debugged process. This property will be missing for non-system processes.
@@ -11172,16 +12109,20 @@ class ProcessEventBody(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        name = self.name
+        systemProcessId = self.systemProcessId
+        isLocalProcess = self.isLocalProcess
+        startMethod = self.startMethod
         dct = {
-             'name': self.name,
+            'name': name,
         }
-        if self.systemProcessId is not None:
-            dct['systemProcessId'] = self.systemProcessId
-        if self.isLocalProcess is not None:
-            dct['isLocalProcess'] = self.isLocalProcess
-        if self.startMethod is not None:
-            dct['startMethod'] = self.startMethod
+        if systemProcessId is not None:
+            dct['systemProcessId'] = systemProcessId
+        if isLocalProcess is not None:
+            dct['isLocalProcess'] = isLocalProcess
+        if startMethod is not None:
+            dct['startMethod'] = startMethod
         dct.update(self.kwargs)
         return dct
 
@@ -11204,20 +12145,21 @@ class CapabilitiesEventBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, capabilities, **kwargs):
+    def __init__(self, capabilities, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param Capabilities capabilities: The set of updated capabilities.
         """
         if capabilities is None:
             self.capabilities = Capabilities()
         else:
-            self.capabilities = Capabilities(**capabilities) if capabilities.__class__ !=  Capabilities else capabilities
+            self.capabilities = Capabilities(update_ids_from_dap=update_ids_from_dap, **capabilities) if capabilities.__class__ !=  Capabilities else capabilities
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        capabilities = self.capabilities
         dct = {
-             'capabilities': self.capabilities.to_dict(),
+            'capabilities': capabilities.to_dict(update_ids_to_dap=update_ids_to_dap),
         }
         dct.update(self.kwargs)
         return dct
@@ -11236,7 +12178,7 @@ class RunInTerminalRequestArgumentsEnv(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, **kwargs):
+    def __init__(self, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
     
         """
@@ -11244,7 +12186,7 @@ class RunInTerminalRequestArgumentsEnv(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         dct = {
         }
         dct.update(self.kwargs)
@@ -11273,7 +12215,7 @@ class RunInTerminalResponseBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, processId=None, shellProcessId=None, **kwargs):
+    def __init__(self, processId=None, shellProcessId=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param number processId: The process ID.
         :param number shellProcessId: The process ID of the terminal shell.
@@ -11283,13 +12225,15 @@ class RunInTerminalResponseBody(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        processId = self.processId
+        shellProcessId = self.shellProcessId
         dct = {
         }
-        if self.processId is not None:
-            dct['processId'] = self.processId
-        if self.shellProcessId is not None:
-            dct['shellProcessId'] = self.shellProcessId
+        if processId is not None:
+            dct['processId'] = processId
+        if shellProcessId is not None:
+            dct['shellProcessId'] = shellProcessId
         dct.update(self.kwargs)
         return dct
 
@@ -11315,17 +12259,21 @@ class SetBreakpointsResponseBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, breakpoints, **kwargs):
+    def __init__(self, breakpoints, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param array breakpoints: Information about the breakpoints. The array elements are in the same order as the elements of the 'breakpoints' (or the deprecated 'lines') array in the arguments.
         """
         self.breakpoints = breakpoints
+        if update_ids_from_dap and self.breakpoints:
+            for o in self.breakpoints:
+                Breakpoint.update_dict_ids_from_dap(o)
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        breakpoints = self.breakpoints
         dct = {
-             'breakpoints': self.breakpoints,
+            'breakpoints': [Breakpoint.update_dict_ids_to_dap(o) for o in breakpoints] if (update_ids_to_dap and breakpoints) else breakpoints,
         }
         dct.update(self.kwargs)
         return dct
@@ -11352,17 +12300,21 @@ class SetFunctionBreakpointsResponseBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, breakpoints, **kwargs):
+    def __init__(self, breakpoints, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param array breakpoints: Information about the breakpoints. The array elements correspond to the elements of the 'breakpoints' array.
         """
         self.breakpoints = breakpoints
+        if update_ids_from_dap and self.breakpoints:
+            for o in self.breakpoints:
+                Breakpoint.update_dict_ids_from_dap(o)
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        breakpoints = self.breakpoints
         dct = {
-             'breakpoints': self.breakpoints,
+            'breakpoints': [Breakpoint.update_dict_ids_to_dap(o) for o in breakpoints] if (update_ids_to_dap and breakpoints) else breakpoints,
         }
         dct.update(self.kwargs)
         return dct
@@ -11386,7 +12338,7 @@ class ContinueResponseBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, allThreadsContinued=None, **kwargs):
+    def __init__(self, allThreadsContinued=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param boolean allThreadsContinued: If true, the 'continue' request has ignored the specified thread and continued all threads instead. If this attribute is missing a value of 'true' is assumed for backward compatibility.
         """
@@ -11394,11 +12346,12 @@ class ContinueResponseBody(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        allThreadsContinued = self.allThreadsContinued
         dct = {
         }
-        if self.allThreadsContinued is not None:
-            dct['allThreadsContinued'] = self.allThreadsContinued
+        if allThreadsContinued is not None:
+            dct['allThreadsContinued'] = allThreadsContinued
         dct.update(self.kwargs)
         return dct
 
@@ -11428,23 +12381,28 @@ class StackTraceResponseBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, stackFrames, totalFrames=None, **kwargs):
+    def __init__(self, stackFrames, totalFrames=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param array stackFrames: The frames of the stackframe. If the array has length zero, there are no stackframes available.
         This means that there is no location information available.
         :param integer totalFrames: The total number of frames available.
         """
         self.stackFrames = stackFrames
+        if update_ids_from_dap and self.stackFrames:
+            for o in self.stackFrames:
+                StackFrame.update_dict_ids_from_dap(o)
         self.totalFrames = totalFrames
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        stackFrames = self.stackFrames
+        totalFrames = self.totalFrames
         dct = {
-             'stackFrames': self.stackFrames,
+            'stackFrames': [StackFrame.update_dict_ids_to_dap(o) for o in stackFrames] if (update_ids_to_dap and stackFrames) else stackFrames,
         }
-        if self.totalFrames is not None:
-            dct['totalFrames'] = self.totalFrames
+        if totalFrames is not None:
+            dct['totalFrames'] = totalFrames
         dct.update(self.kwargs)
         return dct
 
@@ -11470,17 +12428,21 @@ class ScopesResponseBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, scopes, **kwargs):
+    def __init__(self, scopes, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param array scopes: The scopes of the stackframe. If the array has length zero, there are no scopes available.
         """
         self.scopes = scopes
+        if update_ids_from_dap and self.scopes:
+            for o in self.scopes:
+                Scope.update_dict_ids_from_dap(o)
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        scopes = self.scopes
         dct = {
-             'scopes': self.scopes,
+            'scopes': [Scope.update_dict_ids_to_dap(o) for o in scopes] if (update_ids_to_dap and scopes) else scopes,
         }
         dct.update(self.kwargs)
         return dct
@@ -11507,17 +12469,21 @@ class VariablesResponseBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, variables, **kwargs):
+    def __init__(self, variables, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param array variables: All (or a range) of variables for the given variable reference.
         """
         self.variables = variables
+        if update_ids_from_dap and self.variables:
+            for o in self.variables:
+                Variable.update_dict_ids_from_dap(o)
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        variables = self.variables
         dct = {
-             'variables': self.variables,
+            'variables': [Variable.update_dict_ids_to_dap(o) for o in variables] if (update_ids_to_dap and variables) else variables,
         }
         dct.update(self.kwargs)
         return dct
@@ -11557,7 +12523,7 @@ class SetVariableResponseBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, value, type=None, variablesReference=None, namedVariables=None, indexedVariables=None, **kwargs):
+    def __init__(self, value, type=None, variablesReference=None, namedVariables=None, indexedVariables=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string value: The new value of the variable.
         :param string type: The type of the new value. Typically shown in the UI when hovering over the value.
@@ -11572,22 +12538,44 @@ class SetVariableResponseBody(BaseSchema):
         self.variablesReference = variablesReference
         self.namedVariables = namedVariables
         self.indexedVariables = indexedVariables
+        if update_ids_from_dap:
+            self.variablesReference = self._translate_id_from_dap(self.variablesReference)
         self.kwargs = kwargs
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'variablesReference' in dct:
+            dct['variablesReference'] = cls._translate_id_from_dap(dct['variablesReference'])
+        return dct
 
-
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        value = self.value
+        type = self.type  # noqa (assign to builtin)
+        variablesReference = self.variablesReference
+        namedVariables = self.namedVariables
+        indexedVariables = self.indexedVariables
+        if update_ids_to_dap:
+            if variablesReference is not None:
+                variablesReference = self._translate_id_to_dap(variablesReference)
         dct = {
-             'value': self.value,
+            'value': value,
         }
-        if self.type is not None:
-            dct['type'] = self.type
-        if self.variablesReference is not None:
-            dct['variablesReference'] = self.variablesReference
-        if self.namedVariables is not None:
-            dct['namedVariables'] = self.namedVariables
-        if self.indexedVariables is not None:
-            dct['indexedVariables'] = self.indexedVariables
+        if type is not None:
+            dct['type'] = type
+        if variablesReference is not None:
+            dct['variablesReference'] = variablesReference
+        if namedVariables is not None:
+            dct['namedVariables'] = namedVariables
+        if indexedVariables is not None:
+            dct['indexedVariables'] = indexedVariables
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'variablesReference' in dct:
+            dct['variablesReference'] = cls._translate_id_to_dap(dct['variablesReference'])
         return dct
 
 
@@ -11613,7 +12601,7 @@ class SourceResponseBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, content, mimeType=None, **kwargs):
+    def __init__(self, content, mimeType=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string content: Content of the source reference.
         :param string mimeType: Optional content type (mime type) of the source.
@@ -11623,12 +12611,14 @@ class SourceResponseBody(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        content = self.content
+        mimeType = self.mimeType
         dct = {
-             'content': self.content,
+            'content': content,
         }
-        if self.mimeType is not None:
-            dct['mimeType'] = self.mimeType
+        if mimeType is not None:
+            dct['mimeType'] = mimeType
         dct.update(self.kwargs)
         return dct
 
@@ -11654,17 +12644,21 @@ class ThreadsResponseBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, threads, **kwargs):
+    def __init__(self, threads, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param array threads: All threads.
         """
         self.threads = threads
+        if update_ids_from_dap and self.threads:
+            for o in self.threads:
+                Thread.update_dict_ids_from_dap(o)
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        threads = self.threads
         dct = {
-             'threads': self.threads,
+            'threads': [Thread.update_dict_ids_to_dap(o) for o in threads] if (update_ids_to_dap and threads) else threads,
         }
         dct.update(self.kwargs)
         return dct
@@ -11695,22 +12689,27 @@ class ModulesResponseBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, modules, totalModules=None, **kwargs):
+    def __init__(self, modules, totalModules=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param array modules: All modules or range of modules.
         :param integer totalModules: The total number of modules available.
         """
         self.modules = modules
+        if update_ids_from_dap and self.modules:
+            for o in self.modules:
+                Module.update_dict_ids_from_dap(o)
         self.totalModules = totalModules
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        modules = self.modules
+        totalModules = self.totalModules
         dct = {
-             'modules': self.modules,
+            'modules': [Module.update_dict_ids_to_dap(o) for o in modules] if (update_ids_to_dap and modules) else modules,
         }
-        if self.totalModules is not None:
-            dct['totalModules'] = self.totalModules
+        if totalModules is not None:
+            dct['totalModules'] = totalModules
         dct.update(self.kwargs)
         return dct
 
@@ -11736,17 +12735,21 @@ class LoadedSourcesResponseBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, sources, **kwargs):
+    def __init__(self, sources, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param array sources: Set of loaded sources.
         """
         self.sources = sources
+        if update_ids_from_dap and self.sources:
+            for o in self.sources:
+                Source.update_dict_ids_from_dap(o)
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        sources = self.sources
         dct = {
-             'sources': self.sources,
+            'sources': [Source.update_dict_ids_to_dap(o) for o in sources] if (update_ids_to_dap and sources) else sources,
         }
         dct.update(self.kwargs)
         return dct
@@ -11790,7 +12793,7 @@ class EvaluateResponseBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, result, variablesReference, type=None, presentationHint=None, namedVariables=None, indexedVariables=None, **kwargs):
+    def __init__(self, result, variablesReference, type=None, presentationHint=None, namedVariables=None, indexedVariables=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string result: The result of the evaluate request.
         :param number variablesReference: If variablesReference is > 0, the evaluate result is structured and its children can be retrieved by passing variablesReference to the VariablesRequest.
@@ -11807,26 +12810,49 @@ class EvaluateResponseBody(BaseSchema):
         if presentationHint is None:
             self.presentationHint = VariablePresentationHint()
         else:
-            self.presentationHint = VariablePresentationHint(**presentationHint) if presentationHint.__class__ !=  VariablePresentationHint else presentationHint
+            self.presentationHint = VariablePresentationHint(update_ids_from_dap=update_ids_from_dap, **presentationHint) if presentationHint.__class__ !=  VariablePresentationHint else presentationHint
         self.namedVariables = namedVariables
         self.indexedVariables = indexedVariables
+        if update_ids_from_dap:
+            self.variablesReference = self._translate_id_from_dap(self.variablesReference)
         self.kwargs = kwargs
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'variablesReference' in dct:
+            dct['variablesReference'] = cls._translate_id_from_dap(dct['variablesReference'])
+        return dct
 
-
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        result = self.result
+        variablesReference = self.variablesReference
+        type = self.type  # noqa (assign to builtin)
+        presentationHint = self.presentationHint
+        namedVariables = self.namedVariables
+        indexedVariables = self.indexedVariables
+        if update_ids_to_dap:
+            if variablesReference is not None:
+                variablesReference = self._translate_id_to_dap(variablesReference)
         dct = {
-             'result': self.result,
-             'variablesReference': self.variablesReference,
+            'result': result,
+            'variablesReference': variablesReference,
         }
-        if self.type is not None:
-            dct['type'] = self.type
-        if self.presentationHint is not None:
-            dct['presentationHint'] = self.presentationHint.to_dict()
-        if self.namedVariables is not None:
-            dct['namedVariables'] = self.namedVariables
-        if self.indexedVariables is not None:
-            dct['indexedVariables'] = self.indexedVariables
+        if type is not None:
+            dct['type'] = type
+        if presentationHint is not None:
+            dct['presentationHint'] = presentationHint.to_dict(update_ids_to_dap=update_ids_to_dap)
+        if namedVariables is not None:
+            dct['namedVariables'] = namedVariables
+        if indexedVariables is not None:
+            dct['indexedVariables'] = indexedVariables
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'variablesReference' in dct:
+            dct['variablesReference'] = cls._translate_id_to_dap(dct['variablesReference'])
         return dct
 
 
@@ -11868,7 +12894,7 @@ class SetExpressionResponseBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, value, type=None, presentationHint=None, variablesReference=None, namedVariables=None, indexedVariables=None, **kwargs):
+    def __init__(self, value, type=None, presentationHint=None, variablesReference=None, namedVariables=None, indexedVariables=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string value: The new value of the expression.
         :param string type: The optional type of the value.
@@ -11884,28 +12910,51 @@ class SetExpressionResponseBody(BaseSchema):
         if presentationHint is None:
             self.presentationHint = VariablePresentationHint()
         else:
-            self.presentationHint = VariablePresentationHint(**presentationHint) if presentationHint.__class__ !=  VariablePresentationHint else presentationHint
+            self.presentationHint = VariablePresentationHint(update_ids_from_dap=update_ids_from_dap, **presentationHint) if presentationHint.__class__ !=  VariablePresentationHint else presentationHint
         self.variablesReference = variablesReference
         self.namedVariables = namedVariables
         self.indexedVariables = indexedVariables
+        if update_ids_from_dap:
+            self.variablesReference = self._translate_id_from_dap(self.variablesReference)
         self.kwargs = kwargs
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'variablesReference' in dct:
+            dct['variablesReference'] = cls._translate_id_from_dap(dct['variablesReference'])
+        return dct
 
-
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        value = self.value
+        type = self.type  # noqa (assign to builtin)
+        presentationHint = self.presentationHint
+        variablesReference = self.variablesReference
+        namedVariables = self.namedVariables
+        indexedVariables = self.indexedVariables
+        if update_ids_to_dap:
+            if variablesReference is not None:
+                variablesReference = self._translate_id_to_dap(variablesReference)
         dct = {
-             'value': self.value,
+            'value': value,
         }
-        if self.type is not None:
-            dct['type'] = self.type
-        if self.presentationHint is not None:
-            dct['presentationHint'] = self.presentationHint.to_dict()
-        if self.variablesReference is not None:
-            dct['variablesReference'] = self.variablesReference
-        if self.namedVariables is not None:
-            dct['namedVariables'] = self.namedVariables
-        if self.indexedVariables is not None:
-            dct['indexedVariables'] = self.indexedVariables
+        if type is not None:
+            dct['type'] = type
+        if presentationHint is not None:
+            dct['presentationHint'] = presentationHint.to_dict(update_ids_to_dap=update_ids_to_dap)
+        if variablesReference is not None:
+            dct['variablesReference'] = variablesReference
+        if namedVariables is not None:
+            dct['namedVariables'] = namedVariables
+        if indexedVariables is not None:
+            dct['indexedVariables'] = indexedVariables
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'variablesReference' in dct:
+            dct['variablesReference'] = cls._translate_id_to_dap(dct['variablesReference'])
         return dct
 
 
@@ -11930,17 +12979,21 @@ class StepInTargetsResponseBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, targets, **kwargs):
+    def __init__(self, targets, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param array targets: The possible stepIn targets of the specified source location.
         """
         self.targets = targets
+        if update_ids_from_dap and self.targets:
+            for o in self.targets:
+                StepInTarget.update_dict_ids_from_dap(o)
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        targets = self.targets
         dct = {
-             'targets': self.targets,
+            'targets': [StepInTarget.update_dict_ids_to_dap(o) for o in targets] if (update_ids_to_dap and targets) else targets,
         }
         dct.update(self.kwargs)
         return dct
@@ -11967,17 +13020,21 @@ class GotoTargetsResponseBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, targets, **kwargs):
+    def __init__(self, targets, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param array targets: The possible goto targets of the specified location.
         """
         self.targets = targets
+        if update_ids_from_dap and self.targets:
+            for o in self.targets:
+                GotoTarget.update_dict_ids_from_dap(o)
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        targets = self.targets
         dct = {
-             'targets': self.targets,
+            'targets': [GotoTarget.update_dict_ids_to_dap(o) for o in targets] if (update_ids_to_dap and targets) else targets,
         }
         dct.update(self.kwargs)
         return dct
@@ -12004,17 +13061,21 @@ class CompletionsResponseBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, targets, **kwargs):
+    def __init__(self, targets, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param array targets: The possible completions for .
         """
         self.targets = targets
+        if update_ids_from_dap and self.targets:
+            for o in self.targets:
+                CompletionItem.update_dict_ids_from_dap(o)
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        targets = self.targets
         dct = {
-             'targets': self.targets,
+            'targets': [CompletionItem.update_dict_ids_to_dap(o) for o in targets] if (update_ids_to_dap and targets) else targets,
         }
         dct.update(self.kwargs)
         return dct
@@ -12050,7 +13111,7 @@ class ExceptionInfoResponseBody(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, exceptionId, breakMode, description=None, details=None, **kwargs):
+    def __init__(self, exceptionId, breakMode, description=None, details=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string exceptionId: ID of the exception that was thrown.
         :param ExceptionBreakMode breakMode: Mode that caused the exception notification to be raised.
@@ -12064,19 +13125,23 @@ class ExceptionInfoResponseBody(BaseSchema):
         if details is None:
             self.details = ExceptionDetails()
         else:
-            self.details = ExceptionDetails(**details) if details.__class__ !=  ExceptionDetails else details
+            self.details = ExceptionDetails(update_ids_from_dap=update_ids_from_dap, **details) if details.__class__ !=  ExceptionDetails else details
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        exceptionId = self.exceptionId
+        breakMode = self.breakMode
+        description = self.description
+        details = self.details
         dct = {
-             'exceptionId': self.exceptionId,
-             'breakMode': self.breakMode,
+            'exceptionId': exceptionId,
+            'breakMode': breakMode,
         }
-        if self.description is not None:
-            dct['description'] = self.description
-        if self.details is not None:
-            dct['details'] = self.details.to_dict()
+        if description is not None:
+            dct['description'] = description
+        if details is not None:
+            dct['details'] = details.to_dict(update_ids_to_dap=update_ids_to_dap)
         dct.update(self.kwargs)
         return dct
 
@@ -12094,7 +13159,7 @@ class MessageVariables(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, **kwargs):
+    def __init__(self, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
     
         """
@@ -12102,7 +13167,7 @@ class MessageVariables(BaseSchema):
         self.kwargs = kwargs
 
 
-    def to_dict(self):
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         dct = {
         }
         dct.update(self.kwargs)

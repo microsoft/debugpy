@@ -5,8 +5,8 @@ from _pydevd_bundle.pydevd_constants import DebugInfoHolder, IS_PY2, \
     get_global_debugger, GetGlobalDebugger, set_global_debugger  # Keep for backward compatibility @UnusedImport
 from _pydevd_bundle.pydevd_utils import quote_smart as quote, to_string
 from _pydevd_bundle.pydevd_comm_constants import ID_TO_MEANING
-from _pydevd_bundle.pydevd_constants import QUOTED_LINE_PROTOCOL, HTTP_PROTOCOL, HTTP_JSON_PROTOCOL, \
-    get_protocol, JSON_PROTOCOL
+from _pydevd_bundle.pydevd_constants import HTTP_PROTOCOL, HTTP_JSON_PROTOCOL, \
+    get_protocol
 import json
 
 
@@ -36,7 +36,7 @@ class NetCommand:
         self.seq = seq
 
         if is_json:
-            as_dict = text
+            as_dict = text.to_dict(update_ids_to_dap=True)
             as_dict['pydevd_cmd_id'] = cmd_id
             as_dict['seq'] = seq
             text = json.dumps(as_dict)

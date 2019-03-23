@@ -251,13 +251,14 @@ def test_return_values(pyfile, run_as, start_method):
         import_and_enable_debugger()
 
         class MyClass(object):
+
             def do_something(self):
                 return 'did something'
 
         def my_func():
             return 'did more things'
 
-        MyClass().do_something()  #@bp
+        MyClass().do_something()  # @bp
         my_func()
         print('done')
 
@@ -372,6 +373,7 @@ def test_unicode(pyfile, run_as, start_method):
 
 
 def test_hex_numbers(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
@@ -380,7 +382,7 @@ def test_hex_numbers(pyfile, run_as, start_method):
         b = [1, 10, 100]
         c = {10: 10, 100: 100, 1000: 1000}
         d = {(1, 10, 100): (10000, 100000, 100000)}
-        print((a, b, c, d)) #@bp
+        print((a, b, c, d))  # @bp
 
     line_numbers = get_marked_line_numbers(code_to_debug)
     print(line_numbers)
@@ -420,7 +422,7 @@ def test_hex_numbers(pyfile, run_as, start_method):
             'value': "[0x1, 0xa, 0x64]",
             'type': 'list',
             'evaluateName': 'b',
-            'variablesReference': ANY.int,
+            'variablesReference': ANY.dap_id,
         })
 
         resp_variables = session.send_request('variables', arguments={
@@ -440,7 +442,7 @@ def test_hex_numbers(pyfile, run_as, start_method):
             'value': '{0xa: 0xa, 0x64: 0x64, 0x3e8: 0x3e8}',
             'type': 'dict',
             'evaluateName': 'c',
-            'variablesReference': ANY.int,
+            'variablesReference': ANY.dap_id,
         })
 
         resp_variables = session.send_request('variables', arguments={
@@ -460,7 +462,7 @@ def test_hex_numbers(pyfile, run_as, start_method):
             'value': '{(0x1, 0xa, 0x64): (0x2710, 0x186a0, 0x186a0)}',
             'type': 'dict',
             'evaluateName': 'd',
-            'variablesReference': ANY.int,
+            'variablesReference': ANY.dap_id,
         })
         resp_variables = session.send_request('variables', arguments={
             'variablesReference': d['variablesReference'],
@@ -468,7 +470,7 @@ def test_hex_numbers(pyfile, run_as, start_method):
         }).wait_for_response()
         d_children = resp_variables.body['variables']
         assert d_children == [
-            {'name': '(0x1, 0xa, 0x64)', 'value': '(0x2710, 0x186a0, 0x186a0)', 'type': 'tuple', 'evaluateName': 'd[(1, 10, 100)]', 'variablesReference': ANY.int},
+            {'name': '(0x1, 0xa, 0x64)', 'value': '(0x2710, 0x186a0, 0x186a0)', 'type': 'tuple', 'evaluateName': 'd[(1, 10, 100)]', 'variablesReference': ANY.dap_id},
             {'name': '__len__', 'value': '0x1', 'type': 'int', 'evaluateName': 'len(d)'}
         ]
 

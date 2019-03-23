@@ -12,6 +12,7 @@ from tests.helpers.pathutils import compare_path
 
 
 class BasePattern(object):
+
     def __repr__(self):
         raise NotImplementedError()
 
@@ -48,6 +49,7 @@ class Any(BasePattern):
         """
 
         class AnyDictWith(dict):
+
             def __repr__(self):
                 return repr(items)[:-1] + ', ...}'
 
@@ -165,3 +167,9 @@ ANY.num.name = 'ANY.num'
 
 ANY.int = ANY.such_that(lambda x: isinstance(x, numbers.Integral))
 ANY.int.name = 'ANY.int'
+
+# Note: in practice it could be any int32, but as in those cases we expect the number to be
+# incremented sequentially, this should be reasonable for tests.
+ANY.dap_id = ANY.such_that(lambda x: isinstance(x, numbers.Integral) and 0 <= x < 10000)
+ANY.dap_id.name = 'ANY.dap_id'
+

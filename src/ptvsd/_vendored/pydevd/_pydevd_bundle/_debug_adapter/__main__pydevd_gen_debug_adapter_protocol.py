@@ -6,6 +6,21 @@ to download the latest version.
 '''
 
 
+def is_variable_to_translate(cls_name, var_name):
+    if var_name in ('variablesReference', 'frameId'):
+        return True
+
+    if cls_name == 'StackFrame' and var_name == 'id':
+        # It's frameId everywhere except on StackFrame.
+        return True
+
+    return False
+
+
+def _get_noqa_for_var(prop_name):
+    return '  # noqa (assign to builtin)' if prop_name in ('type', 'format', 'id', 'hex', 'breakpoint', 'filter') else ''
+
+
 class _OrderedSet(object):
     # Not a good ordered set (just something to be small without adding any deps)
 
@@ -238,28 +253,70 @@ def update_class_to_generate_to_json(class_to_generate):
     required = _OrderedSet(class_to_generate.get('required', _OrderedSet()))
     prop_name_and_prop = extract_prop_name_and_prop(class_to_generate)
 
-    to_dict_body = ['def to_dict(self):']
+    to_dict_body = ['def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)']
+
+    translate_prop_names = []
+    for prop_name, prop in prop_name_and_prop:
+        if is_variable_to_translate(class_to_generate['name'], prop_name):
+            translate_prop_names.append(prop_name)
+
+    for prop_name, prop in prop_name_and_prop:
+        namespace = dict(prop_name=prop_name, noqa=_get_noqa_for_var(prop_name))
+        to_dict_body.append('    %(prop_name)s = self.%(prop_name)s%(noqa)s' % namespace)
+
+    if translate_prop_names:
+        to_dict_body.append('    if update_ids_to_dap:')
+        for prop_name in translate_prop_names:
+            namespace = dict(prop_name=prop_name, noqa=_get_noqa_for_var(prop_name))
+            to_dict_body.append('        if %(prop_name)s is not None:' % namespace)
+            to_dict_body.append('            %(prop_name)s = self._translate_id_to_dap(%(prop_name)s)%(noqa)s' % namespace)
+
+    if not translate_prop_names:
+        update_dict_ids_from_dap_body = []
+    else:
+        update_dict_ids_from_dap_body = ['', '', '@classmethod', 'def update_dict_ids_from_dap(cls, dct):']
+        for prop_name in translate_prop_names:
+            namespace = dict(prop_name=prop_name)
+            update_dict_ids_from_dap_body.append('    if %(prop_name)r in dct:' % namespace)
+            update_dict_ids_from_dap_body.append('        dct[%(prop_name)r] = cls._translate_id_from_dap(dct[%(prop_name)r])' % namespace)
+        update_dict_ids_from_dap_body.append('    return dct')
+
+    class_to_generate['update_dict_ids_from_dap'] = _indent_lines('\n'.join(update_dict_ids_from_dap_body))
+
     to_dict_body.append('    dct = {')
     first_not_required = False
 
     for prop_name, prop in prop_name_and_prop:
-        namespace = dict(prop_name=prop_name)
         use_to_dict = prop['type'].__class__ == Ref and not prop['type'].ref_data.get('is_enum', False)
+        is_array = prop['type'] == 'array'
+        ref_array_cls_name = ''
+        if is_array:
+            ref = prop['items'].get('$ref')
+            if ref is not None:
+                ref_array_cls_name = ref.split('/')[-1]
+
+        namespace = dict(prop_name=prop_name, ref_array_cls_name=ref_array_cls_name)
         if prop_name in required:
             if use_to_dict:
-                to_dict_body.append('         %(prop_name)r: self.%(prop_name)s.to_dict(),' % namespace)
+                to_dict_body.append('        %(prop_name)r: %(prop_name)s.to_dict(update_ids_to_dap=update_ids_to_dap),' % namespace)
             else:
-                to_dict_body.append('         %(prop_name)r: self.%(prop_name)s,' % namespace)
+                if ref_array_cls_name:
+                    to_dict_body.append('        %(prop_name)r: [%(ref_array_cls_name)s.update_dict_ids_to_dap(o) for o in %(prop_name)s] if (update_ids_to_dap and %(prop_name)s) else %(prop_name)s,' % namespace)
+                else:
+                    to_dict_body.append('        %(prop_name)r: %(prop_name)s,' % namespace)
         else:
             if not first_not_required:
                 first_not_required = True
                 to_dict_body.append('    }')
 
-            to_dict_body.append('    if self.%(prop_name)s is not None:' % namespace)
+            to_dict_body.append('    if %(prop_name)s is not None:' % namespace)
             if use_to_dict:
-                to_dict_body.append('        dct[%(prop_name)r] = self.%(prop_name)s.to_dict()' % namespace)
+                to_dict_body.append('        dct[%(prop_name)r] = %(prop_name)s.to_dict(update_ids_to_dap=update_ids_to_dap)' % namespace)
             else:
-                to_dict_body.append('        dct[%(prop_name)r] = self.%(prop_name)s' % namespace)
+                if ref_array_cls_name:
+                    to_dict_body.append('        dct[%(prop_name)r] = [%(ref_array_cls_name)s.update_dict_ids_to_dap(o) for o in %(prop_name)s] if (update_ids_to_dap and %(prop_name)s) else %(prop_name)s' % namespace)
+                else:
+                    to_dict_body.append('        dct[%(prop_name)r] = %(prop_name)s' % namespace)
 
     if not first_not_required:
         first_not_required = True
@@ -270,6 +327,18 @@ def update_class_to_generate_to_json(class_to_generate):
 
     class_to_generate['to_dict'] = _indent_lines('\n'.join(to_dict_body))
 
+    if not translate_prop_names:
+        update_dict_ids_to_dap_body = []
+    else:
+        update_dict_ids_to_dap_body = ['', '', '@classmethod', 'def update_dict_ids_to_dap(cls, dct):']
+        for prop_name in translate_prop_names:
+            namespace = dict(prop_name=prop_name)
+            update_dict_ids_to_dap_body.append('    if %(prop_name)r in dct:' % namespace)
+            update_dict_ids_to_dap_body.append('        dct[%(prop_name)r] = cls._translate_id_to_dap(dct[%(prop_name)r])' % namespace)
+        update_dict_ids_to_dap_body.append('    return dct')
+
+    class_to_generate['update_dict_ids_to_dap'] = _indent_lines('\n'.join(update_dict_ids_to_dap_body))
+
 
 def update_class_to_generate_init(class_to_generate):
     args = []
@@ -279,7 +348,11 @@ def update_class_to_generate_init(class_to_generate):
     required = _OrderedSet(class_to_generate.get('required', _OrderedSet()))
     prop_name_and_prop = extract_prop_name_and_prop(class_to_generate)
 
+    translate_prop_names = []
     for prop_name, prop in prop_name_and_prop:
+        if is_variable_to_translate(class_to_generate['name'], prop_name):
+            translate_prop_names.append(prop_name)
+
         enum = prop.get('enum')
         if enum and len(enum) == 1:
             init_body.append('    self.%(prop_name)s = %(enum)r' % dict(prop_name=prop_name, enum=next(iter(enum))))
@@ -307,18 +380,30 @@ def update_class_to_generate_init(class_to_generate):
                     init_body.append('    if %(prop_name)s is None:' % namespace)
                     init_body.append('        self.%(prop_name)s = %(ref_name)s()' % namespace)
                     init_body.append('    else:')
-                    init_body.append('        self.%(prop_name)s = %(ref_name)s(**%(prop_name)s) if %(prop_name)s.__class__ !=  %(ref_name)s else %(prop_name)s' % namespace
+                    init_body.append('        self.%(prop_name)s = %(ref_name)s(update_ids_from_dap=update_ids_from_dap, **%(prop_name)s) if %(prop_name)s.__class__ !=  %(ref_name)s else %(prop_name)s' % namespace
                     )
 
             else:
-                init_body.append('    self.%(prop_name)s = %(prop_name)s' % dict(
-                    prop_name=prop_name))
+                init_body.append('    self.%(prop_name)s = %(prop_name)s' % dict(prop_name=prop_name))
+
+                if prop['type'] == 'array':
+                    ref = prop['items'].get('$ref')
+                    if ref is not None:
+                        ref_array_cls_name = ref.split('/')[-1]
+                        init_body.append('    if update_ids_from_dap and self.%(prop_name)s:' % dict(prop_name=prop_name))
+                        init_body.append('        for o in self.%(prop_name)s:' % dict(prop_name=prop_name))
+                        init_body.append('            %(ref_array_cls_name)s.update_dict_ids_from_dap(o)' % dict(ref_array_cls_name=ref_array_cls_name))
 
         prop_type = prop['type']
         prop_description = prop.get('description', '')
 
         docstring.append(':param %(prop_type)s %(prop_name)s: %(prop_description)s' % dict(
             prop_type=prop_type, prop_name=prop_name, prop_description=prop_description))
+
+    if translate_prop_names:
+        init_body.append('    if update_ids_from_dap:')
+        for prop_name in translate_prop_names:
+            init_body.append('        self.%(prop_name)s = self._translate_id_from_dap(self.%(prop_name)s)' % dict(prop_name=prop_name))
 
     docstring = _indent_lines('\n'.join(docstring))
     init_body = '\n'.join(init_body)
@@ -331,7 +416,7 @@ def update_class_to_generate_init(class_to_generate):
     # Note: added kwargs because some messages are expected to be extended by the user (so, we'll actually
     # make all extendable so that we don't have to worry about which ones -- we loose a little on typing,
     # but may be better than doing a whitelist based on something only pointed out in the documentation).
-    class_to_generate['init'] = '''def __init__(self%(args)s, **kwargs):
+    class_to_generate['init'] = '''def __init__(self%(args)s, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
     """
 %(docstring)s
     """
@@ -435,9 +520,9 @@ class %(name)s(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-%(init)s
+%(init)s%(update_dict_ids_from_dap)s
 
-%(to_dict)s
+%(to_dict)s%(update_dict_ids_to_dap)s
 '''
 
     contents = []

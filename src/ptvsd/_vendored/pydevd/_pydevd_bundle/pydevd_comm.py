@@ -656,7 +656,7 @@ def internal_get_variable_json(py_db, request):
 
     body = VariablesResponseBody(variables)
     variables_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
-    py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response.to_dict(), is_json=True))
+    py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response, is_json=True))
 
 
 class InternalGetVariable(InternalThreadCommand):
@@ -781,7 +781,7 @@ def internal_change_variable_json(py_db, request):
                     indexedVariables=var_data.get('indexedVariables'),
                 )
                 variables_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
-                py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response.to_dict(), is_json=True))
+                py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response, is_json=True))
                 break
 
     # If it's gotten here we haven't been able to evaluate it properly. Let the client know.
@@ -793,7 +793,7 @@ def internal_change_variable_json(py_db, request):
             'success': False,
             'message': 'Unable to change: %s.' % (arguments.name,)
     })
-    return NetCommand(CMD_RETURN, 0, variables_response.to_dict(), is_json=True)
+    return NetCommand(CMD_RETURN, 0, variables_response, is_json=True)
 
 
 def internal_get_frame(dbg, seq, thread_id, frame_id):
@@ -856,12 +856,12 @@ def _evaluate_response(py_db, request, result, error_message=''):
     if not error_message:
         body = pydevd_schema.EvaluateResponseBody(result=result, variablesReference=0)
         variables_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
-        py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response.to_dict(), is_json=True))
+        py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response, is_json=True))
     else:
         body = pydevd_schema.EvaluateResponseBody(result='', variablesReference=0)
         variables_response = pydevd_base_schema.build_response(request, kwargs={
             'body':body, 'success':False, 'message': error_message})
-        py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response.to_dict(), is_json=True))
+        py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response, is_json=True))
 
 
 def internal_evaluate_expression_json(py_db, request, thread_id):
@@ -924,7 +924,7 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
         indexedVariables=var_data.get('indexedVariables'),
     )
     variables_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
-    py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response.to_dict(), is_json=True))
+    py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response, is_json=True))
 
 
 def internal_evaluate_expression(dbg, seq, thread_id, frame_id, expression, is_exec, trim_if_too_big, attr_to_set_result):
@@ -953,7 +953,7 @@ def _set_expression_response(py_db, request, result, error_message):
     body = pydevd_schema.SetExpressionResponseBody(result='', variablesReference=0)
     variables_response = pydevd_base_schema.build_response(request, kwargs={
         'body':body, 'success':False, 'message': error_message})
-    py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response.to_dict(), is_json=True))
+    py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response, is_json=True))
 
 
 def internal_set_expression_json(py_db, request, thread_id):
@@ -1010,7 +1010,7 @@ def internal_set_expression_json(py_db, request, thread_id):
         indexedVariables=var_data.get('indexedVariables'),
     )
     variables_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
-    py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response.to_dict(), is_json=True))
+    py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response, is_json=True))
 
 
 def internal_get_completions(dbg, seq, thread_id, frame_id, act_tok, line=-1, column=-1):

@@ -19,6 +19,10 @@ pytest_plugins = [
 
 _JsonHit = namedtuple('_JsonHit', 'frameId')
 
+# Note: in reality must be < int32, but as it's created sequentially this should be
+# a reasonable number for tests.
+MAX_EXPECTED_ID = 10000
+
 
 class JsonFacade(object):
 
@@ -130,11 +134,16 @@ class JsonFacade(object):
         stack_trace_response = self.wait_for_response(stack_trace_request)
         stack_trace_response_body = stack_trace_response.body
         assert len(stack_trace_response_body.stackFrames) > 0
+
+        for stack_frame in stack_trace_response_body.stackFrames:
+            assert stack_frame['id'] < MAX_EXPECTED_ID
+
         stack_frame = next(iter(stack_trace_response_body.stackFrames))
 
         return _JsonHit(frameId=stack_frame['id'])
 
     def get_variables_response(self, variables_reference):
+        assert variables_reference < MAX_EXPECTED_ID
         variables_request = self.write_request(
             pydevd_schema.VariablesRequest(pydevd_schema.VariablesArguments(variables_reference)))
         variables_response = self.wait_for_response(variables_request)
@@ -157,6 +166,7 @@ class JsonFacade(object):
             reference = dct.pop('variablesReference', None)
             if reference is not None:
                 assert isinstance(reference, int_types)
+                assert reference < MAX_EXPECTED_ID
             references.append(reference)
         return references
 

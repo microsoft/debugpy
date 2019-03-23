@@ -81,10 +81,10 @@ def test_flask_breakpoint_no_multiproc(bp_target, start_method):
         assert resp_stacktrace.body['totalFrames'] > 0
         frames = resp_stacktrace.body['stackFrames']
         assert frames[0] == {
-            'id': ANY.int,
+            'id': ANY.dap_id,
             'name': bp_name,
             'source': {
-                'sourceReference': ANY.int,
+                'sourceReference': ANY.dap_id,
                 'path': Path(bp_file),
             },
             'line': bp_line,
@@ -144,10 +144,10 @@ def test_flask_template_exception_no_multiproc(start_method):
         hit = session.wait_for_thread_stopped()
         frames = hit.stacktrace.body['stackFrames']
         assert frames[0] == ANY.dict_with({
-            'id': ANY.int,
+            'id': ANY.dap_id,
             'name': 'template' if sys.version_info[0] >= 3 else 'Jinja2 TemplateSyntaxError',
             'source': ANY.dict_with({
-                'sourceReference': ANY.int,
+                'sourceReference': ANY.dap_id,
                 'path': Path(FLASK1_BAD_TEMPLATE),
             }),
             'line': 8,
@@ -236,10 +236,10 @@ def test_flask_exception_no_multiproc(ex_type, start_method):
         assert resp_stacktrace.body['totalFrames'] > 0
         frames = resp_stacktrace.body['stackFrames']
         assert frames[0] == {
-            'id': ANY.int,
+            'id': ANY.dap_id,
             'name': 'bad_route_' + ex_type,
             'source': {
-                'sourceReference': ANY.int,
+                'sourceReference': ANY.dap_id,
                 'path': Path(FLASK1_APP),
             },
             'line': ex_line,
@@ -314,10 +314,10 @@ def test_flask_breakpoint_multiproc(start_method):
             assert resp_stacktrace.body['totalFrames'] > 0
             frames = resp_stacktrace.body['stackFrames']
             assert frames[0] == {
-                'id': ANY.int,
+                'id': ANY.dap_id,
                 'name': 'home',
                 'source': {
-                    'sourceReference': ANY.int,
+                    'sourceReference': ANY.dap_id,
                     'path': Path(FLASK1_APP),
                 },
                 'line': bp_line,

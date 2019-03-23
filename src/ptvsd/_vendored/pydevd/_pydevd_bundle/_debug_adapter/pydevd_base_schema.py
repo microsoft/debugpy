@@ -1,12 +1,44 @@
 from _pydevd_bundle._debug_adapter.pydevd_schema_log import debug_exception
 import json
+import itertools
+from functools import partial
 
 
 class BaseSchema(object):
 
+    @staticmethod
+    def initialize_ids_translation():
+        BaseSchema._dap_id_to_obj_id = {0:0, None:None}
+        BaseSchema._obj_id_to_dap_id = {0:0, None:None}
+        BaseSchema._next_dap_id = partial(next, itertools.count(1))
+
     def to_json(self):
         return json.dumps(self.to_dict())
 
+    @staticmethod
+    def _translate_id_to_dap(obj_id):
+        # Note: we don't invalidate ids, so, if some object starts using the same id
+        # of another object, the same id will be used.
+        dap_id = BaseSchema._obj_id_to_dap_id.get(obj_id)
+        if dap_id is None:
+            dap_id = BaseSchema._obj_id_to_dap_id[obj_id] = BaseSchema._next_dap_id()
+            BaseSchema._dap_id_to_obj_id[dap_id] = obj_id
+        return dap_id
+
+    @staticmethod
+    def _translate_id_from_dap(dap_id):
+        return BaseSchema._dap_id_to_obj_id[dap_id]
+
+    @staticmethod
+    def update_dict_ids_to_dap(dct):
+        return dct
+
+    @staticmethod
+    def update_dict_ids_from_dap(dct):
+        return dct
+
+
+BaseSchema.initialize_ids_translation()
 
 _requests_to_types = {}
 _responses_to_types = {}
@@ -46,7 +78,7 @@ def register_event(event):
     return do_register
 
 
-def from_dict(dct):
+def from_dict(dct, update_ids_from_dap=False):
     msg_type = dct.get('type')
     if msg_type is None:
         raise ValueError('Unable to make sense of message: %s' % (dct,))
@@ -67,7 +99,7 @@ def from_dict(dct):
     if cls is None:
         raise ValueError('Unable to create message from dict: %s. %s not in %s' % (dct, use, sorted(to_type.keys())))
     try:
-        return cls(**dct)
+        return cls(update_ids_from_dap=update_ids_from_dap, **dct)
     except:
         msg = 'Error creating %s from %s' % (cls, dct)
         debug_exception(msg)
@@ -76,11 +108,11 @@ def from_dict(dct):
     raise ValueError('Unable to create message from dict: %s' % (dct,))
 
 
-def from_json(json_msg):
+def from_json(json_msg, update_ids_from_dap=False):
     if isinstance(json_msg, bytes):
         json_msg = json_msg.decode('utf-8')
 
-    return from_dict(json.loads(json_msg))
+    return from_dict(json.loads(json_msg), update_ids_from_dap=update_ids_from_dap)
 
 
 def get_response_class(request):
