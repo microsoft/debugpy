@@ -32,7 +32,7 @@ class TestCase(unittest.TestCase):
             if sys.platform == "win32":
                 debug_command = debug_command.replace('"', '\\"')
                 debug_command = '"%s"' % debug_command
-                
+
             self.assertEqual(
                 'C:\\bin\\python.exe -u -c %s' % debug_command,
                 pydev_monkey.patch_arg_str_win(check))
@@ -96,7 +96,7 @@ class TestCase(unittest.TestCase):
 
         try:
             SetupHolder.setup = {'client': '127.0.0.1', 'port': '0'}
-            check = ['C:\\bin\\python.exe', 'connect(\\"127.0.0.1\\")']
+            check = ['C:\\bin\\python.exe', 'connect(\\"127.0.0.1\\")', 'with spaces']
             from _pydevd_bundle.pydevd_command_line_handling import get_pydevd_file
             self.assertEqual(pydev_monkey.patch_args(check), [
                 'C:\\bin\\python.exe',
@@ -106,7 +106,9 @@ class TestCase(unittest.TestCase):
                 '--client',
                 '127.0.0.1',
                 '--file',
-                'connect(\\"127.0.0.1\\")'])
+                '"connect(\\\\\\"127.0.0.1\\\\\\")"' if sys.platform == 'win32' else 'connect(\\"127.0.0.1\\")',
+                '"with spaces"'  if sys.platform == 'win32' else 'with spaces',
+            ])
         finally:
             SetupHolder.setup = original
 
@@ -129,7 +131,6 @@ class TestCase(unittest.TestCase):
         try:
             SetupHolder.setup = {'client': '127.0.0.1', 'port': '0'}
             check = ['C:\\bin\\python.exe', 'target.py', 'connect(\\"127.0.0.1\\")', 'bar']
-
             self.assertEqual(pydev_monkey.patch_args(check), [
                 'C:\\bin\\python.exe',
                 get_pydevd_file(),
@@ -139,7 +140,7 @@ class TestCase(unittest.TestCase):
                 '127.0.0.1',
                 '--file',
                 'target.py',
-                'connect(\\"127.0.0.1\\")',
+                '"connect(\\\\\\"127.0.0.1\\\\\\")"' if sys.platform == 'win32' else 'connect(\\"127.0.0.1\\")',
                 'bar',
             ])
         finally:

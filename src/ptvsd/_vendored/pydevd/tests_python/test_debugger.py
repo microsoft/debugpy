@@ -2321,6 +2321,67 @@ def test_multiprocessing_with_stopped_breakpoints(case_setup_multiprocessing):
 
 
 @pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
+def test_subprocess_quoted_args(case_setup_multiprocessing):
+    import threading
+    from tests_python.debugger_unittest import AbstractWriterThread
+    with case_setup_multiprocessing.test_file('_debugger_case_quoting.py') as writer:
+        break_subprocess_line = writer.get_line_index_with_content('break here')
+
+        writer.write_add_breakpoint(break_subprocess_line)
+
+        server_socket = writer.server_socket
+
+        class SecondaryProcessWriterThread(AbstractWriterThread):
+
+            TEST_FILE = writer.get_main_filename()
+            _sequence = -1
+
+        class SecondaryProcessThreadCommunication(threading.Thread):
+
+            def run(self):
+                from tests_python.debugger_unittest import ReaderThread
+                # Note: on linux on Python 2 because on Python 2 CPython subprocess.call will actually
+                # create a fork first (at which point it'll connect) and then, later on it'll
+                # call the main (as if it was a clean process as if PyDB wasn't created
+                # the first time -- the debugger will still work, but it'll do an additional
+                # connection.
+
+                expected_connections = 1
+                if sys.platform != 'win32' and IS_PY2:
+                    expected_connections = 2
+
+                for _ in range(expected_connections):
+                    server_socket.listen(1)
+                    self.server_socket = server_socket
+                    new_sock, addr = server_socket.accept()
+
+                    reader_thread = ReaderThread(new_sock)
+                    reader_thread.name = '  *** Multiprocess Reader Thread'
+                    reader_thread.start()
+
+                    writer2 = SecondaryProcessWriterThread()
+
+                    writer2.reader_thread = reader_thread
+                    writer2.sock = new_sock
+
+                    writer2.write_version()
+                    writer2.write_add_breakpoint(break_subprocess_line)
+                    writer2.write_make_initial_run()
+                hit = writer2.wait_for_breakpoint_hit()
+                writer2.write_run_thread(hit.thread_id)
+
+        secondary_process_thread_communication = SecondaryProcessThreadCommunication()
+        secondary_process_thread_communication.start()
+        writer.write_make_initial_run()
+
+        secondary_process_thread_communication.join(10)
+        if secondary_process_thread_communication.isAlive():
+            raise AssertionError('The SecondaryProcessThreadCommunication did not finish')
+
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
 def test_remote_debugger_basic(case_setup_remote):
     with case_setup_remote.test_file('_debugger_case_remote.py') as writer:
         writer.log.append('making initial run')

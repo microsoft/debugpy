@@ -23,6 +23,7 @@ def log_debug(msg):
 def log_error_once(msg):
     pydev_log.error_once(msg)
 
+
 pydev_src_dir = os.path.dirname(os.path.dirname(__file__))
 
 
@@ -80,8 +81,9 @@ def remove_quotes_from_args(args):
     if sys.platform == "win32":
         new_args = []
         for x in args:
-            if len(x) > 1 and x.startswith('"') and x.endswith('"'):
-                x = x[1:-1]
+            if x != '""':
+                if len(x) > 1 and x.startswith('"') and x.endswith('"'):
+                    x = x[1:-1]
             new_args.append(x)
         return new_args
     else:
@@ -146,7 +148,7 @@ def get_c_option_index(args):
 
 def patch_args(args):
     try:
-        log_debug("Patching args: %s"% str(args))
+        log_debug("Patching args: %s" % str(args))
         args = remove_quotes_from_args(args)
 
         from pydevd import SetupHolder
@@ -321,6 +323,7 @@ def patch_arg_str_win(arg_str):
     log_debug("New args: %s" % arg_str)
     return arg_str
 
+
 def monkey_patch_module(module, funcname, create_func):
     if hasattr(module, funcname):
         original_name = 'original_' + funcname
@@ -340,6 +343,7 @@ def warn_multiproc():
     #     "pydev debugger: To debug that process please enable 'Attach to subprocess automatically while debugging?' option in the debugger settings.\n")
     #
 
+
 def create_warn_multiproc(original_name):
 
     def new_warn_multiproc(*args):
@@ -348,9 +352,12 @@ def create_warn_multiproc(original_name):
         warn_multiproc()
 
         return getattr(os, original_name)(*args)
+
     return new_warn_multiproc
 
+
 def create_execl(original_name):
+
     def new_execl(path, *args):
         """
         os.execl(path, arg0, arg1, ...)
@@ -362,10 +369,12 @@ def create_execl(original_name):
         args = patch_args(args)
         send_process_created_message()
         return getattr(os, original_name)(path, *args)
+
     return new_execl
 
 
 def create_execv(original_name):
+
     def new_execv(path, args):
         """
         os.execv(path, args)
@@ -374,6 +383,7 @@ def create_execv(original_name):
         import os
         send_process_created_message()
         return getattr(os, original_name)(path, patch_args(args))
+
     return new_execv
 
 
@@ -382,14 +392,17 @@ def create_execve(original_name):
     os.execve(path, args, env)
     os.execvpe(file, args, env)
     """
+
     def new_execve(path, args, env):
         import os
         send_process_created_message()
         return getattr(os, original_name)(path, patch_args(args), env)
+
     return new_execve
 
 
 def create_spawnl(original_name):
+
     def new_spawnl(mode, path, *args):
         """
         os.spawnl(mode, path, arg0, arg1, ...)
@@ -399,10 +412,12 @@ def create_spawnl(original_name):
         args = patch_args(args)
         send_process_created_message()
         return getattr(os, original_name)(mode, path, *args)
+
     return new_spawnl
 
 
 def create_spawnv(original_name):
+
     def new_spawnv(mode, path, args):
         """
         os.spawnv(mode, path, args)
@@ -411,6 +426,7 @@ def create_spawnv(original_name):
         import os
         send_process_created_message()
         return getattr(os, original_name)(mode, path, patch_args(args))
+
     return new_spawnv
 
 
@@ -419,10 +435,12 @@ def create_spawnve(original_name):
     os.spawnve(mode, path, args, env)
     os.spawnvpe(mode, file, args, env)
     """
+
     def new_spawnve(mode, path, args, env):
         import os
         send_process_created_message()
         return getattr(os, original_name)(mode, path, patch_args(args), env)
+
     return new_spawnve
 
 
@@ -430,11 +448,13 @@ def create_fork_exec(original_name):
     """
     _posixsubprocess.fork_exec(args, executable_list, close_fds, ... (13 more))
     """
+
     def new_fork_exec(args, *other_args):
         import _posixsubprocess  # @UnresolvedImport
         args = patch_args(args)
         send_process_created_message()
         return getattr(_posixsubprocess, original_name)(args, *other_args)
+
     return new_fork_exec
 
 
@@ -442,6 +462,7 @@ def create_warn_fork_exec(original_name):
     """
     _posixsubprocess.fork_exec(args, executable_list, close_fds, ... (13 more))
     """
+
     def new_warn_fork_exec(*args):
         try:
             import _posixsubprocess
@@ -449,6 +470,7 @@ def create_warn_fork_exec(original_name):
             return getattr(_posixsubprocess, original_name)(*args)
         except:
             pass
+
     return new_warn_fork_exec
 
 
@@ -456,6 +478,7 @@ def create_CreateProcess(original_name):
     """
     CreateProcess(*args, **kwargs)
     """
+
     def new_CreateProcess(app_name, cmd_line, *args):
         try:
             import _subprocess
@@ -463,6 +486,7 @@ def create_CreateProcess(original_name):
             import _winapi as _subprocess
         send_process_created_message()
         return getattr(_subprocess, original_name)(app_name, patch_arg_str_win(cmd_line), *args)
+
     return new_CreateProcess
 
 
@@ -470,6 +494,7 @@ def create_CreateProcessWarnMultiproc(original_name):
     """
     CreateProcess(*args, **kwargs)
     """
+
     def new_CreateProcess(*args):
         try:
             import _subprocess
@@ -477,10 +502,12 @@ def create_CreateProcessWarnMultiproc(original_name):
             import _winapi as _subprocess
         warn_multiproc()
         return getattr(_subprocess, original_name)(*args)
+
     return new_CreateProcess
 
 
 def create_fork(original_name):
+
     def new_fork():
         import os
 
@@ -511,6 +538,7 @@ def create_fork(original_name):
             if is_new_python_process:
                 send_process_created_message()
         return child_process
+
     return new_fork
 
 
@@ -662,6 +690,7 @@ class _NewThreadStartupWithoutTrace:
     def __call__(self):
         return self.original_func(*self.args, **self.kwargs)
 
+
 _UseNewThreadStartup = _NewThreadStartupWithTrace
 
 
@@ -676,6 +705,7 @@ def _get_threading_modules_to_patch():
     threading_modules_to_patch.append(threading)
 
     return threading_modules_to_patch
+
 
 threading_modules_to_patch = _get_threading_modules_to_patch()
 

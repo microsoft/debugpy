@@ -205,9 +205,15 @@ class ReaderThread(threading.Thread):
             frame = sys._getframe().f_back.f_back
             frame_info = ''
             while frame:
+                if frame.f_code.co_name in (
+                    'wait_for_message', 'accept_json_message', 'wait_for_json_message', 'wait_for_response'):
+                    frame = frame.f_back
+                    continue
+
                 if frame.f_code.co_filename.endswith('debugger_unittest.py'):
                     frame = frame.f_back
                     continue
+
                 stack_msg = ' --  File "%s", line %s, in %s\n' % (frame.f_code.co_filename, frame.f_lineno, frame.f_code.co_name)
                 if 'run' == frame.f_code.co_name:
                     frame_info = stack_msg  # Ok, found the writer thread 'run' method (show only that).

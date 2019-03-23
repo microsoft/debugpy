@@ -306,19 +306,32 @@ class AbstractSingleNotificationBehavior(object):
 class ThreadsSuspendedSingleNotification(AbstractSingleNotificationBehavior):
 
     __slots__ = AbstractSingleNotificationBehavior.__slots__ + [
-        'multi_threads_single_notification', '_py_db']
+        'multi_threads_single_notification', '_py_db', '_callbacks', '_callbacks_lock']
 
     def __init__(self, py_db):
         AbstractSingleNotificationBehavior.__init__(self)
         # If True, pydevd will send a single notification when all threads are suspended/resumed.
         self.multi_threads_single_notification = False
         self._py_db = weakref.ref(py_db)
+        self._callbacks_lock = threading.Lock()
+        self._callbacks = []
+
+    def add_on_resumed_callback(self, callback):
+        with self._callbacks_lock:
+            self._callbacks.append(callback)
 
     @overrides(AbstractSingleNotificationBehavior.send_resume_notification)
     def send_resume_notification(self, thread_id):
         py_db = self._py_db()
         if py_db is not None:
             py_db.writer.add_command(py_db.cmd_factory.make_thread_resume_single_notification(thread_id))
+
+            with self._callbacks_lock:
+                callbacks = self._callbacks
+                self._callbacks = []
+
+            for callback in callbacks:
+                callback()
 
     @overrides(AbstractSingleNotificationBehavior.send_suspend_notification)
     def send_suspend_notification(self, thread_id, stop_reason):
@@ -635,6 +648,10 @@ class PyDB(object):
     @multi_threads_single_notification.setter
     def multi_threads_single_notification(self, notify):
         self._threads_suspended_single_notification.multi_threads_single_notification = notify
+
+    @property
+    def threads_suspended_single_notification(self):
+        return self._threads_suspended_single_notification
 
     def get_plugin_lazy_init(self):
         if self.plugin is None and SUPPORT_PLUGINS:

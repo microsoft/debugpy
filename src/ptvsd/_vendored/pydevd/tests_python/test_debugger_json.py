@@ -825,6 +825,7 @@ def test_pause_and_continue(case_setup):
     with case_setup.test_file('_debugger_case_pause_continue.py') as writer:
         json_facade = JsonFacade(writer)
 
+        writer.write_multi_threads_single_notification(True)
         writer.write_set_protocol('http_json')
         writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'))
 
@@ -939,6 +940,7 @@ def test_stepping(case_setup):
 
         writer.finished_ok = True
 
+
 def test_evaluate(case_setup):
     with case_setup.test_file('_debugger_case_evaluate.py') as writer:
         json_facade = JsonFacade(writer)
@@ -980,7 +982,6 @@ def test_evaluate(case_setup):
         writer.write_run_thread(hit.thread_id)
 
         writer.finished_ok = True
-
 
 
 @pytest.mark.skipif(IS_JYTHON, reason='Flaky on Jython.')
@@ -1055,7 +1056,6 @@ def test_path_translation_and_source_reference(case_setup):
         writer.write_run_thread(hit.thread_id)
 
         writer.finished_ok = True
-
 
 
 @pytest.mark.skipif(IS_JYTHON, reason='Flaky on Jython.')
@@ -1281,3 +1281,4 @@ def test_redirect_output(case_setup):
 
 if __name__ == '__main__':
     pytest.main(['-k', 'test_case_skipping_filters', '-s'])
+

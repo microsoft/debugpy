@@ -206,11 +206,18 @@ class _PyDevJsonCommandProcessor(object):
         arguments = request.arguments  # : :type arguments: ContinueArguments
         thread_id = arguments.threadId
 
-        self.api.request_resume_thread(thread_id)
+        def on_resumed():
+            body = {'allThreadsContinued': thread_id == '*'}
+            response = pydevd_base_schema.build_response(request, kwargs={'body': body})
+            cmd = NetCommand(CMD_RETURN, 0, response.to_dict(), is_json=True)
+            py_db.writer.add_command(cmd)
 
-        body = {'allThreadsContinued': thread_id == '*'}
-        response = pydevd_base_schema.build_response(request, kwargs={'body': body})
-        return NetCommand(CMD_RETURN, 0, response.to_dict(), is_json=True)
+        # Only send resumed notification when it has actually resumed!
+        # (otherwise the user could send a continue, receive the notification and then
+        # request a new pause which would be paused without sending any notification as
+        # it didn't really run in the first place).
+        py_db.threads_suspended_single_notification.add_on_resumed_callback(on_resumed)
+        self.api.request_resume_thread(thread_id)
 
     def on_next_request(self, py_db, request):
         '''
