@@ -8,7 +8,7 @@ from _pydevd_bundle.pydevd_comm import (InternalGetThreadStack, internal_get_com
     InternalGetVariable, InternalGetArray, InternalLoadFullValue,
     internal_get_description, internal_get_frame, internal_evaluate_expression, InternalConsoleExec,
     internal_get_variable_json, internal_change_variable, internal_change_variable_json,
-    internal_evaluate_expression_json, internal_set_expression_json)
+    internal_evaluate_expression_json, internal_set_expression_json, internal_get_exception_details_json)
 from _pydevd_bundle.pydevd_comm_constants import CMD_THREAD_SUSPEND, file_system_encoding
 from _pydevd_bundle.pydevd_constants import (get_current_thread_id, set_protocol, get_protocol,
     HTTP_JSON_PROTOCOL, JSON_PROTOCOL, STATE_RUN, IS_PY3K, DebugInfoHolder, dict_keys)
@@ -125,6 +125,15 @@ class PyDevdAPI(object):
             internal_get_thread_stack.do_it(py_db)
         else:
             py_db.post_internal_command(internal_get_thread_stack, '*')
+
+    def request_exception_info_json(self, py_db, request, thread_id):
+        py_db.post_method_as_internal_command(
+            thread_id,
+            internal_get_exception_details_json,
+            request,
+            thread_id,
+            set_additional_thread_info=set_additional_thread_info,
+            iter_visible_frames_info=py_db.cmd_factory._iter_visible_frames_info)
 
     def request_step(self, py_db, thread_id, step_cmd_id):
         t = pydevd_find_thread_by_id(thread_id)

@@ -12,12 +12,10 @@ import json
 import os
 import platform
 import pydevd_file_utils
-import re
 import site
 import socket
 import sys
 import threading
-import traceback
 
 try:
     import urllib
@@ -1882,72 +1880,21 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         if request is not None:
             self.send_response(request)
 
-    def _parse_exception_details(self, exc_xml, include_stack=True):
-        exc_name = None
-        exc_desc = None
-        exc_source = None
-        exc_stack = None
-        try:
-            xml = self.parse_xml_response(exc_xml)
-            re_name = r"[\'\"](.*)[\'\"]"
-            exc_type = xml.thread['exc_type']
-            exc_desc = xml.thread['exc_desc']
-            try:
-                exc_name = re.findall(re_name, exc_type)[0]
-            except IndexError:
-                exc_name = exc_type
-
-            if include_stack:
-                xframes = list(xml.thread.frame)
-                frame_data = []
-                for f in xframes:
-                    file_path = unquote_xml_path(f['file'])
-                    if not self.internals_filter.is_internal_path(file_path) \
-                       and self._should_debug(file_path):
-                        line_no = int(f['line'])
-                        func_name = unquote(f['name'])
-                        if _util.is_py34():
-                            # NOTE: In 3.4.* format_list requires the text
-                            # to be passed in the tuple list.
-                            line_text = _util.get_line_for_traceback(file_path,
-                                                                     line_no)
-                            frame_data.append((file_path, line_no,
-                                               func_name, line_text))
-                        else:
-                            frame_data.append((file_path, line_no,
-                                               func_name, None))
-
-                exc_stack = ''.join(traceback.format_list(frame_data))
-                exc_source = unquote_xml_path(xframes[0]['file'])
-                if self.internals_filter.is_internal_path(exc_source) or \
-                    not self._should_debug(exc_source):
-                    exc_source = None
-        except Exception:
-            exc_name = 'BaseException'
-            exc_desc = 'exception: no description'
-
-        return exc_name, exc_desc, exc_source, exc_stack
-
     @async_handler
     def on_exceptionInfo(self, request, args):
-        # TODO: docstring
         pyd_tid = self.thread_map.to_pydevd(args['threadId'])
 
-        cmdid = pydevd_comm.CMD_GET_EXCEPTION_DETAILS
-        _, _, resp_args = yield self.pydevd_request(cmdid, pyd_tid)
-        name, description, source, stack = \
-            self._parse_exception_details(resp_args)
+        pydevd_request = copy.deepcopy(request)
+        del pydevd_request['seq']  # A new seq should be created for pydevd.
+        pydevd_request['arguments']['threadId'] = pyd_tid
+        _, _, resp_args = yield self.pydevd_request(
+            pydevd_comm.CMD_GET_EXCEPTION_DETAILS,
+            pydevd_request,
+            is_json=True)
 
-        self.send_response(
-            request,
-            exceptionId=name,
-            description=description,
-            breakMode=self.exceptions_mgr.get_break_mode(name),
-            details={'typeName': name,
-                     'message': description,
-                     'stackTrace': stack,
-                     'source': source},
-        )
+        body = resp_args['body']
+        body['breakMode'] = self.exceptions_mgr.get_break_mode(body['exceptionId'])
+        self.send_response(request, **body)
 
     @async_handler
     def on_completions(self, request, args):
@@ -2126,10 +2073,20 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             reason not in ['step', 'exception', 'breakpoint']
 
         if reason == 'exception':
-            cmdid = pydevd_comm.CMD_GET_EXCEPTION_DETAILS
-            _, _, resp_args = yield self.pydevd_request(cmdid, pyd_tid)
-            exc_name, exc_desc, _, _ = \
-                self._parse_exception_details(resp_args, include_stack=False)
+            pydevd_request = {
+                'type': 'request',
+                'command': 'exceptionInfo',
+                'arguments': {
+                    'threadId': pyd_tid
+                },
+            }
+
+            _, _, resp_args = yield self.pydevd_request(
+                pydevd_comm.CMD_GET_EXCEPTION_DETAILS,
+                pydevd_request,
+                is_json=True)
+            exc_name = resp_args['body']['exceptionId']
+            exc_desc = resp_args['body']['description']
 
         if not self.debug_options.get('BREAK_SYSTEMEXIT_ZERO', False):
             # SystemExit is qualified on Python 2, and unqualified on Python 3

@@ -994,6 +994,33 @@ def test_evaluate(case_setup):
         writer.finished_ok = True
 
 
+def test_exception_details(case_setup):
+    with case_setup.test_file('_debugger_case_exceptions.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_set_protocol('http_json')
+        writer.write_add_exception_breakpoint_with_policy(
+            'IndexError',
+            notify_on_handled_exceptions=2,  # Notify only once
+            notify_on_unhandled_exceptions=0,
+            ignore_libraries=1
+        )
+
+        json_facade.write_make_initial_run()
+        hit = writer.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION)
+
+        exc_info_request = json_facade.write_request(
+            pydevd_schema.ExceptionInfoRequest(pydevd_schema.ExceptionInfoArguments(hit.thread_id)))
+        exc_info_response = json_facade.wait_for_response(exc_info_request)
+        body = exc_info_response.body
+        assert body.exceptionId.endswith('IndexError')
+        assert body.description == 'foo'
+        assert body.details.kwargs['source'] == writer.TEST_FILE
+
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+
 @pytest.mark.skipif(IS_JYTHON, reason='Flaky on Jython.')
 def test_path_translation_and_source_reference(case_setup):
 

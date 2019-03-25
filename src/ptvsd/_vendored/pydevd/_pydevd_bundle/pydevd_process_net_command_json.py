@@ -371,6 +371,15 @@ class _PyDevJsonCommandProcessor(object):
             fmt = fmt.to_dict()
         self.api.request_stack(py_db, request.seq, thread_id, fmt)
 
+    def on_exceptioninfo_request(self, py_db, request):
+        '''
+        :param ExceptionInfoRequest request:
+        '''
+        # : :type exception_into_arguments: ExceptionInfoArguments
+        exception_into_arguments = request.arguments
+        thread_id = exception_into_arguments.threadId
+        self.api.request_exception_info_json(py_db, request, thread_id)
+
     def on_scopes_request(self, py_db, request):
         '''
         Scopes are the top-level items which appear for a frame (so, we receive the frame id
