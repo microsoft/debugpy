@@ -4,14 +4,14 @@
 
 import os
 import pytest
-import ptvsd.untangle
+import ptvsd
 
 from ptvsd.wrapper import InternalsFilter
 from ptvsd.wrapper import dont_trace_ptvsd_files
 
-INTERNAL_DIR = os.path.dirname(os.path.abspath(ptvsd.untangle.__file__))
+INTERNAL_DIR = os.path.dirname(os.path.abspath(ptvsd.__file__))
 @pytest.mark.parametrize('path', [
-    os.path.abspath(ptvsd.untangle.__file__),
+    os.path.abspath(ptvsd.__file__),
     # File used by VS/VSC to launch ptvsd
     os.path.join('somepath', 'ptvsd_launcher.py'),
     # Any file under ptvsd
@@ -42,4 +42,4 @@ def test_user_file_paths(path):
     (os.path.join('usr', 'abcd', 'ptvsd', 'tangle.py'), False),
 ])
 def test_ptvsd_paths(path, val):
-    assert val == dont_trace_ptvsd_files(path)
+    assert val == dont_trace_ptvsd_files(os.path.normcase(path))

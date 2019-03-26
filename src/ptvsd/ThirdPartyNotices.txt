@@ -16,7 +16,6 @@ Ptvsd incorporates third party material from the projects listed below.
 		Includes:six 
 		Includes:WinAppDbg 
 		Includes:XML-RPC client interface for Python 
-2.	untangle (https://github.com/stchris/untangle)
 
 
 %% PyDev.Debugger  NOTICES, INFORMATION, AND LICENSE BEGIN HERE

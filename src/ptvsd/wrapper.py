@@ -7,7 +7,6 @@ from __future__ import print_function, absolute_import, unicode_literals
 import bisect
 import copy
 import errno
-import io
 import json
 import os
 import platform
@@ -22,13 +21,13 @@ try:
     urllib.unquote
 except Exception:
     import urllib.parse as urllib
+
 try:
     import queue
 except ImportError:
     import Queue as queue
-import warnings
-from xml.sax.saxutils import unescape as xml_unescape
 
+import warnings
 import pydevd  # noqa
 import _pydevd_bundle.pydevd_comm as pydevd_comm  # noqa
 import _pydevd_bundle.pydevd_comm_constants as pydevd_comm_constants  # noqa
@@ -47,7 +46,6 @@ from ptvsd import options
 from ptvsd.compat import unicode
 import ptvsd.ipcjson as ipcjson  # noqa
 import ptvsd.futures as futures  # noqa
-import ptvsd.untangle as untangle  # noqa
 from ptvsd.pathutils import PathUnNormcase  # noqa
 from ptvsd.version import __version__  # noqa
 from ptvsd.socket import TimeoutError  # noqa
@@ -156,15 +154,6 @@ else:
         if isinstance(s, bytes):
             s = s.decode('utf-8')
         return s
-
-
-def unquote_xml_path(s):
-    """XML unescape after url unquote. This reverses the escapes and quotes done
-    by pydevd.
-    """
-    if s is None:
-        return None
-    return xml_unescape(unquote(s))
 
 
 class IDMap(object):
@@ -1351,10 +1340,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             return f(self, seq, args)
         else:
             return None
-
-    @staticmethod
-    def parse_xml_response(args):
-        return untangle.parse(io.BytesIO(args.encode('utf8'))).xml
 
     def _wait_for_pydevd_ready(self):
         # TODO: Call self._ensure_pydevd_requests_handled?
