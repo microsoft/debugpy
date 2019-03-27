@@ -464,7 +464,12 @@ class PydevdSocket(object):
         else:
             seq, s = self.make_packet(cmd_id, args)
         with self.lock:
-            os.write(self.pipe_w, s.encode('utf8'))
+            as_bytes = s
+            if not isinstance(as_bytes, bytes):
+                as_bytes = as_bytes.encode('utf-8')
+            if is_json:
+                os.write(self.pipe_w, ('Content-Length:%s\r\n\r\n' % (len(as_bytes),)).encode('ascii'))
+            os.write(self.pipe_w, as_bytes)
 
     def pydevd_request(self, loop, cmd_id, args, is_json=False):
         '''
@@ -1696,8 +1701,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             pydevd_request['arguments'] = {'threadId': '*'}
 
         # Always suspend all threads.
-        yield self.pydevd_request(pydevd_comm.CMD_THREAD_SUSPEND,
-                                  pydevd_request, is_json=True)
+        self.pydevd_request(pydevd_comm.CMD_THREAD_SUSPEND,
+                            pydevd_request, is_json=True)
         self.send_response(request)
 
     @async_handler
@@ -1711,8 +1716,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             pydevd_request['arguments'] = {'threadId': '*'}
 
         # Always continue all threads.
-        yield self.pydevd_request(pydevd_comm.CMD_THREAD_RUN,
-                                  pydevd_request, is_json=True)
+        self.pydevd_request(pydevd_comm.CMD_THREAD_RUN,
+                            pydevd_request, is_json=True)
         self.send_response(request, allThreadsContinued=True)
 
     @async_handler
@@ -1725,7 +1730,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         pydevd_request['arguments']['threadId'] = pyd_tid
         cmd_id = pydevd_comm.CMD_STEP_OVER
 
-        yield self.pydevd_request(cmd_id, pydevd_request, is_json=True)
+        self.pydevd_request(cmd_id, pydevd_request, is_json=True)
         self.send_response(request)
 
     @async_handler
@@ -1738,7 +1743,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         pydevd_request['arguments']['threadId'] = pyd_tid
         cmd_id = pydevd_comm.CMD_STEP_INTO
 
-        yield self.pydevd_request(cmd_id, pydevd_request, is_json=True)
+        self.pydevd_request(cmd_id, pydevd_request, is_json=True)
         self.send_response(request)
 
     @async_handler
@@ -1751,7 +1756,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         pydevd_request['arguments']['threadId'] = pyd_tid
         cmd_id = pydevd_comm.CMD_STEP_RETURN
 
-        yield self.pydevd_request(cmd_id, pydevd_request, is_json=True)
+        self.pydevd_request(cmd_id, pydevd_request, is_json=True)
         self.send_response(request)
 
     @async_handler
