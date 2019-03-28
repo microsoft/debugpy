@@ -1021,6 +1021,63 @@ def test_exception_details(case_setup):
 
         writer.finished_ok = True
 
+
+def test_goto(case_setup):
+    with case_setup.test_file('_debugger_case_set_next_statement.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_set_protocol('http_json')
+        break_line = writer.get_line_index_with_content('Break here')
+        step_line = writer.get_line_index_with_content('Step here')
+        writer.write_add_breakpoint(break_line)
+
+        json_facade.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit()
+
+        stack_trace_request = json_facade.write_request(
+            pydevd_schema.StackTraceRequest(pydevd_schema.StackTraceArguments(threadId=hit.thread_id)))
+        stack_trace_response = json_facade.wait_for_response(stack_trace_request)
+        stack_frame = next(iter(stack_trace_response.body.stackFrames))
+        assert stack_frame['line'] == break_line
+
+        goto_targets_request = json_facade.write_request(
+            pydevd_schema.GotoTargetsRequest(pydevd_schema.GotoTargetsArguments(
+                source=pydevd_schema.Source(path=writer.TEST_FILE, sourceReference=0),
+                line=step_line)))
+        goto_targets_response = json_facade.wait_for_response(goto_targets_request)
+        target_id = goto_targets_response.body.targets[0]['id']
+
+        goto_request = json_facade.write_request(
+            pydevd_schema.GotoRequest(pydevd_schema.GotoArguments(
+                threadId=hit.thread_id,
+                targetId=12345)))
+        goto_response = json_facade.wait_for_response(goto_request)
+        assert not goto_response.success
+
+        goto_request = json_facade.write_request(
+            pydevd_schema.GotoRequest(pydevd_schema.GotoArguments(
+                threadId=hit.thread_id,
+                targetId=target_id)))
+        goto_response = json_facade.wait_for_response(goto_request)
+
+        hit = writer.wait_for_breakpoint_hit(reason='127')
+
+        stack_trace_request = json_facade.write_request(
+            pydevd_schema.StackTraceRequest(pydevd_schema.StackTraceArguments(threadId=hit.thread_id)))
+        stack_trace_response = json_facade.wait_for_response(stack_trace_request)
+        stack_frame = next(iter(stack_trace_response.body.stackFrames))
+        assert stack_frame['line'] == step_line
+
+        writer.write_run_thread(hit.thread_id)
+
+        # we hit the breakpoint again. Since we moved back
+        hit = writer.wait_for_breakpoint_hit()
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+
+
 @pytest.mark.skipif(IS_JYTHON, reason='Flaky on Jython.')
 def test_path_translation_and_source_reference(case_setup):
 

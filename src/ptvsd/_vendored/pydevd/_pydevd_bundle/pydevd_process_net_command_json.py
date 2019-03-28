@@ -6,11 +6,12 @@ import os
 
 from _pydevd_bundle._debug_adapter import pydevd_base_schema
 from _pydevd_bundle._debug_adapter.pydevd_schema import (SourceBreakpoint, ScopesResponseBody, Scope,
-    VariablesResponseBody, SetVariableResponseBody, ModulesResponseBody, SourceResponseBody)
+    VariablesResponseBody, SetVariableResponseBody, ModulesResponseBody, SourceResponseBody,
+    GotoTargetsResponseBody)
 from _pydevd_bundle.pydevd_api import PyDevdAPI
 from _pydevd_bundle.pydevd_comm_constants import (
     CMD_RETURN, CMD_STEP_OVER_MY_CODE, CMD_STEP_OVER, CMD_STEP_INTO_MY_CODE,
-    CMD_STEP_INTO, CMD_STEP_RETURN_MY_CODE, CMD_STEP_RETURN)
+    CMD_STEP_INTO, CMD_STEP_RETURN_MY_CODE, CMD_STEP_RETURN, CMD_SET_NEXT_STATEMENT)
 from _pydevd_bundle.pydevd_filtering import ExcludeFilter
 from _pydevd_bundle.pydevd_json_debug_options import _extract_debug_options
 from _pydevd_bundle.pydevd_net_command import NetCommand
@@ -78,6 +79,25 @@ def _convert_rules_to_exclude_filters(rules, filename_to_server, on_error):
     return exclude_filters
 
 
+class IDMap(object):
+    def __init__(self):
+        self._value_to_key = {}
+        self._key_to_value = {}
+        self._next_id = partial(next, itertools.count(0))
+
+    def obtain_value(self, key):
+        return self._key_to_value[key]
+
+    def obtain_key(self, value):
+        try:
+            key = self._value_to_key[value]
+        except KeyError:
+            key = self._next_id()
+            self._key_to_value[key] = value
+            self._value_to_key[value] = key
+        return key
+
+
 class _PyDevJsonCommandProcessor(object):
 
     def __init__(self, from_json):
@@ -85,6 +105,7 @@ class _PyDevJsonCommandProcessor(object):
         self.api = PyDevdAPI()
         self._debug_options = {}
         self._next_breakpoint_id = partial(next, itertools.count(0))
+        self._goto_targets_map = IDMap()
 
     def process_net_command_json(self, py_db, json_contents):
         '''
@@ -514,5 +535,36 @@ class _PyDevJsonCommandProcessor(object):
         response = pydevd_base_schema.build_response(request, kwargs=response_args)
         return NetCommand(CMD_RETURN, 0, response, is_json=True)
 
+    def on_gototargets_request(self, py_db, request):
+        path = request.arguments.source.path
+        line = request.arguments.line
+        target_id = self._goto_targets_map.obtain_key((path, line))
+        target = {
+            'id': target_id,
+            'label': '{}:{}'.format(path, line),
+            'line': line
+        }
+        body = GotoTargetsResponseBody(targets=[target])
+        response_args = {'body': body}
+        response = pydevd_base_schema.build_response(request, kwargs=response_args)
+        return NetCommand(CMD_RETURN, 0, response, is_json=True)
+
+    def on_goto_request(self, py_db, request):
+        target_id = int(request.arguments.targetId)
+        thread_id = request.arguments.threadId
+        try:
+            _, line = self._goto_targets_map.obtain_value(target_id)
+        except KeyError:
+            response = pydevd_base_schema.build_response(request,
+                kwargs={
+                    'body': {},
+                    'success': False,
+                    'message': 'Unknown goto target id: %d' % (target_id,),
+                })
+            return NetCommand(CMD_RETURN, 0, response, is_json=True)
+
+        self.api.request_set_next(py_db, thread_id, CMD_SET_NEXT_STATEMENT, line, '*')
+        response = pydevd_base_schema.build_response(request, kwargs={'body': {}})
+        return NetCommand(CMD_RETURN, 0, response, is_json=True)
 
 process_net_command_json = _PyDevJsonCommandProcessor(pydevd_base_schema.from_json).process_net_command_json

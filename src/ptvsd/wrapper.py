@@ -1237,7 +1237,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self.new_thread_lock = threading.Lock()
 
         # goto
-        self.goto_target_map = IDMap()
         self.current_goto_request = None
 
         # adapter state
@@ -1761,14 +1760,12 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     @async_handler
     def on_gotoTargets(self, request, args):
-        path = args['source']['path']
-        line = args['line']
-        target_id = self.goto_target_map.to_vscode((path, line), autogen=True)
-        self.send_response(request, targets=[{
-            'id': target_id,
-            'label': '{}:{}'.format(path, line),
-            'line': line,
-        }])
+        pydevd_request = copy.deepcopy(request)
+        del pydevd_request['seq']  # A new seq should be created for pydevd.
+        cmd_id = pydevd_comm.CMD_GET_NEXT_STATEMENT_TARGETS
+        _, _, resp_args = yield self.pydevd_request(cmd_id, pydevd_request, is_json=True)
+
+        self.send_response(request, targets=resp_args['body']['targets'])
 
     @async_handler
     def on_goto(self, request, args):
@@ -1776,16 +1773,16 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             self.send_error_response(request, 'Already processing a "goto" request.')
             return
 
-        vsc_tid = args['threadId']
-        target_id = args['targetId']
-
-        pyd_tid = self.thread_map.to_pydevd(vsc_tid)
-        path, line = self.goto_target_map.to_pydevd(target_id)
+        pyd_tid = self.thread_map.to_pydevd(int(args['threadId']))
+        pydevd_request = copy.deepcopy(request)
+        del pydevd_request['seq']  # A new seq should be created for pydevd.
+        pydevd_request['arguments']['threadId'] = pyd_tid
 
         self.current_goto_request = request
-        self.pydevd_notify(
-            pydevd_comm.CMD_SET_NEXT_STATEMENT,
-            '{}\t{}\t*'.format(pyd_tid, line))
+        cmd_id = pydevd_comm.CMD_SET_NEXT_STATEMENT
+        yield self.pydevd_request(cmd_id, pydevd_request, is_json=True)
+        # response for this is received via set_next_statement event
+        # see on_pydevd_set_next_statement below
 
     @async_handler
     def on_setBreakpoints(self, request, args):
