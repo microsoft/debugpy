@@ -80,6 +80,7 @@ def _convert_rules_to_exclude_filters(rules, filename_to_server, on_error):
 
 
 class IDMap(object):
+
     def __init__(self):
         self._value_to_key = {}
         self._key_to_value = {}
@@ -541,7 +542,7 @@ class _PyDevJsonCommandProcessor(object):
         target_id = self._goto_targets_map.obtain_key((path, line))
         target = {
             'id': target_id,
-            'label': '{}:{}'.format(path, line),
+            'label': '%s:%s' % (path, line),
             'line': line
         }
         body = GotoTargetsResponseBody(targets=[target])
@@ -566,5 +567,6 @@ class _PyDevJsonCommandProcessor(object):
         self.api.request_set_next(py_db, thread_id, CMD_SET_NEXT_STATEMENT, line, '*')
         response = pydevd_base_schema.build_response(request, kwargs={'body': {}})
         return NetCommand(CMD_RETURN, 0, response, is_json=True)
+
 
 process_net_command_json = _PyDevJsonCommandProcessor(pydevd_base_schema.from_json).process_net_command_json

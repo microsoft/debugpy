@@ -918,7 +918,7 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
 
     body = pydevd_schema.EvaluateResponseBody(
         result=var_data['value'],
-        variablesReference=var_data.get('variableReference', 0),
+        variablesReference=var_data.get('variablesReference', 0),
         type=var_data.get('type'),
         presentationHint=var_data.get('presentationHint'),
         namedVariables=var_data.get('namedVariables'),
@@ -1004,7 +1004,7 @@ def internal_set_expression_json(py_db, request, thread_id):
 
     body = pydevd_schema.SetExpressionResponseBody(
         value=var_data['value'],
-        variablesReference=var_data.get('variableReference', 0),
+        variablesReference=var_data.get('variablesReference', 0),
         type=var_data.get('type'),
         presentationHint=var_data.get('presentationHint'),
         namedVariables=var_data.get('namedVariables'),
@@ -1111,11 +1111,11 @@ def internal_get_exception_details_json(dbg, request, thread_id, set_additional_
                 if trace_obj is not None:
                     for frame_id, frame, method_name, filename_in_utf8, lineno in iter_visible_frames_info(
                             dbg, trace_obj.tb_frame, frame_id_to_lineno):
- 
+
                         line_text = linecache.getline(filename_in_utf8, lineno)
 
                         # Never filter out plugin frames!
-                        if not getattr(frame, 'IS_PLUGIN_FRAME', False):  
+                        if not getattr(frame, 'IS_PLUGIN_FRAME', False):
                             if not dbg.in_project_scope(filename_in_utf8):
                                 if not dbg.get_use_libraries_filter():
                                     continue
@@ -1132,7 +1132,7 @@ def internal_get_exception_details_json(dbg, request, thread_id, set_additional_
 
         stack_str = ''.join(traceback.format_list(frames))
 
-        # This is an extra bit of data used by Visual Studio 
+        # This is an extra bit of data used by Visual Studio
         source_path = frames[0][0] if frames else ''
 
         # TODO: breakMode is set to always. This should be retrieved from exception

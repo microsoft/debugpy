@@ -575,20 +575,91 @@ def test_evaluate_unicode(case_setup):
         evaluate_response = json_facade.wait_for_response(
             json_facade.write_request(EvaluateRequest(EvaluateArguments(u'\u16A0', json_hit.frameId))))
 
+        evaluate_response_body = evaluate_response.body.to_dict()
+
         if IS_PY2:
-            assert evaluate_response.body.to_dict() == {
+            # The error can be referenced.
+            variables_reference = json_facade.pop_variables_reference([evaluate_response_body])
+
+            assert evaluate_response_body == {
                 'result': u"SyntaxError('invalid syntax', ('<string>', 1, 1, '\\xe1\\x9a\\xa0'))",
                 'type': u'SyntaxError',
-                'variablesReference': 0,
                 'presentationHint': {},
             }
+
+            assert len(variables_reference) == 1
+            reference = variables_reference[0]
+            assert reference > 0
+            variables_response = json_facade.get_variables_response(reference)
+            child_variables = variables_response.to_dict()['body']['variables']
+            assert len(child_variables) == 1
+            assert json_facade.pop_variables_reference(child_variables)[0] > 0
+            assert child_variables == [{
+                u'type': u'SyntaxError',
+                u'evaluateName': u'\u16a0.result',
+                u'name': u'result',
+                u'value': u"SyntaxError('invalid syntax', ('<string>', 1, 1, '\\xe1\\x9a\\xa0'))"
+            }]
+
         else:
-            assert evaluate_response.body.to_dict() == {
+            assert evaluate_response_body == {
                 'result': "'\u16a1'",
                 'type': 'str',
                 'variablesReference': 0,
                 'presentationHint': {'attributes': ['rawString']},
             }
+
+        writer.write_run_thread(hit.thread_id)
+        writer.finished_ok = True
+
+
+def test_evaluate_variable_references(case_setup):
+    from _pydevd_bundle._debug_adapter.pydevd_schema import EvaluateRequest
+    from _pydevd_bundle._debug_adapter.pydevd_schema import EvaluateArguments
+    with case_setup.test_file('_debugger_case_local_variables2.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_set_protocol('http_json')
+
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'))
+        json_facade.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit()
+        json_hit = json_facade.get_stack_as_json_hit(hit.thread_id)
+
+        evaluate_response = json_facade.wait_for_response(
+            json_facade.write_request(EvaluateRequest(EvaluateArguments('variable_for_test_2', json_hit.frameId))))
+
+        evaluate_response_body = evaluate_response.body.to_dict()
+
+        variables_reference = json_facade.pop_variables_reference([evaluate_response_body])
+
+        assert evaluate_response_body == {
+            'type': 'set',
+            'result': "set(['a'])" if IS_PY2 else "{'a'}",
+            'presentationHint': {},
+        }
+        assert len(variables_reference) == 1
+        reference = variables_reference[0]
+        assert reference > 0
+        variables_response = json_facade.get_variables_response(reference)
+        child_variables = variables_response.to_dict()['body']['variables']
+
+        # The name for a reference in a set is the id() of the variable and can change at each run.
+        del child_variables[0]['name']
+
+        assert child_variables == [
+            {
+                'type': 'str',
+                'value': "'a'",
+                'presentationHint': {'attributes': ['rawString']},
+            },
+            {
+                'name': '__len__',
+                'type': 'int',
+                'value': '1'
+            }
+        ]
 
         writer.write_run_thread(hit.thread_id)
         writer.finished_ok = True
@@ -1022,6 +1093,7 @@ def test_exception_details(case_setup):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(IS_JYTHON, reason='No goto on Jython.')
 def test_goto(case_setup):
     with case_setup.test_file('_debugger_case_set_next_statement.py') as writer:
         json_facade = JsonFacade(writer)
