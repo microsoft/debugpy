@@ -5,7 +5,8 @@
 import os.path
 import sys
 
-import ptvsd.compat
+from ptvsd.compat import unicode
+from pydevd_file_utils import get_path_with_real_case
 
 
 def get_test_root(name):
@@ -18,14 +19,14 @@ def get_test_root(name):
 
 def compare_path(left, right, show=True):
     # If there's a unicode/bytes mismatch, make both unicode.
-    if isinstance(left, ptvsd.compat.unicode):
-        if not isinstance(right, ptvsd.compat.unicode):
+    if isinstance(left, unicode):
+        if not isinstance(right, unicode):
             right = right.decode(sys.getfilesystemencoding())
-    elif isinstance(right, ptvsd.compat.unicode):
-        right = right.decode(sys.getfilesystemencoding())
+    elif isinstance(right, unicode):
+        right = right.encode(sys.getfilesystemencoding())
 
-    n_left = os.path.normcase(left)
-    n_right = os.path.normcase(right)
+    n_left = get_path_with_real_case(left)
+    n_right = get_path_with_real_case(right)
     if show:
         print('LEFT : ' + n_left)
         print('RIGHT: ' + n_right)
