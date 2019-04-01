@@ -21,6 +21,7 @@ def test_dict_resolver():
         assert contents_debug_adapter_protocol == [
             ("'22'", 22, "['22']"), ('(1, 2)', 2, '[(1, 2)]')]
 
+
 def test_dict_resolver_hex():
     from _pydevd_bundle.pydevd_resolver import DictResolver
     dict_resolver = DictResolver()
@@ -140,7 +141,7 @@ def test_django_forms_resolver():
 def test_tuple_resolver():
     from _pydevd_bundle.pydevd_resolver import TupleResolver
     tuple_resolver = TupleResolver()
-    fmt={'hex': True}
+    fmt = {'hex': True}
     lst = tuple(range(11))
     contents_debug_adapter_protocol = tuple_resolver.get_contents_debug_adapter_protocol(lst)
     len_entry = contents_debug_adapter_protocol.pop(-1)
@@ -279,3 +280,19 @@ def test_tuple_resolver():
         '0x9': 9,
         '__len__': 10
     }
+
+
+def test_tuple_resolver_mixed():
+    from _pydevd_bundle.pydevd_resolver import TupleResolver
+    tuple_resolver = TupleResolver()
+
+    class CustomTuple(tuple):
+        pass
+
+    my_tuple = CustomTuple([1, 2])
+    my_tuple.some_value = 10
+    contents_debug_adapter_protocol = tuple_resolver.get_contents_debug_adapter_protocol(my_tuple)
+    len_entry = contents_debug_adapter_protocol.pop(-1)
+    check_len_entry(len_entry, ('__len__', 2))
+    assert contents_debug_adapter_protocol == [
+        ('some_value', 10, '.some_value'), ('0', 1, '[0]'), ('1', 2, '[1]'), ]
