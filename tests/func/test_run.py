@@ -11,6 +11,7 @@ import re
 import ptvsd
 
 from tests.helpers import print
+from tests.helpers.pathutils import get_test_root
 from tests.helpers.pattern import ANY, Regex
 from tests.helpers.session import DebugSession
 from tests.helpers.timeline import Event
@@ -46,6 +47,20 @@ def test_run(pyfile, run_as, start_method):
         expected_ptvsd_path = os.path.abspath(ptvsd.__file__)
         assert re.match(re.escape(expected_ptvsd_path) + r'(c|o)?$', ptvsd_path)
 
+        session.wait_for_exit()
+
+
+def test_run_submodule():
+    cwd = get_test_root('testpkgs')
+    with DebugSession() as session:
+        session.initialize(
+            target=('module', 'pkg1.sub'),
+            start_method='launch',
+            ignore_unobserved=[Event('continued')],
+            cwd=cwd,
+        )
+        session.start_debugging()
+        session.wait_for_next(Event('output', ANY.dict_with({'category': 'stdout', 'output': 'three'})))
         session.wait_for_exit()
 
 

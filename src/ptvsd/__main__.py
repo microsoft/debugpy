@@ -213,6 +213,10 @@ def setup_connection():
     elif opts.target_kind == 'file':
         sys.argv[0] = opts.target
     elif opts.target_kind == 'module':
+        # Add current directory to path, like Python itself does for -m. This must
+        # be in place before trying to use find_spec below to resolve submodules.
+        sys.path.insert(0, '')
+
         # We want to do the same thing that run_module() would do here, without
         # actually invoking it. On Python 3, it's exposed as a public API, but
         # on Python 2, we have to invoke a private function in runpy for this.
@@ -279,9 +283,6 @@ def run_module():
         target = target.encode(sys.getfilesystemencoding())
 
     ptvsd.log.info('Running module {0}', target)
-
-    # Add current directory to path, like Python itself does for -m.
-    sys.path.insert(0, '')
 
     # Docs say that runpy.run_module is equivalent to -m, but it's not actually
     # the case for packages - -m sets __name__ to '__main__', but run_module sets
