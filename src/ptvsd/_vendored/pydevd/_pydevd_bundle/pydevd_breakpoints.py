@@ -110,6 +110,9 @@ def stop_on_unhandled_exception(py_db, thread, additional_info, arg):
     if exctype is KeyboardInterrupt:
         return
 
+    if py_db.exclude_exception_by_filter(exception_breakpoint, tb, True):
+        return
+
     frames = []
     user_frame = None
 

@@ -119,7 +119,7 @@ def test_django_template_exception_no_multiproc(start_method):
         link = DJANGO_LINK + 'badtemplate'
         web_request = get_web_content(link, {})
 
-        hit = session.wait_for_thread_stopped()
+        hit = session.wait_for_thread_stopped(reason='exception')
         frames = hit.stacktrace.body['stackFrames']
         assert frames[0] == ANY.dict_with({
             'id': ANY.dap_id,
@@ -132,6 +132,7 @@ def test_django_template_exception_no_multiproc(start_method):
             'column': 1,
         })
 
+        # Will stop once in the plugin
         resp_exception_info = session.send_request(
             'exceptionInfo',
             arguments={'threadId': hit.thread_id, }
@@ -147,6 +148,10 @@ def test_django_template_exception_no_multiproc(start_method):
             })
         })
 
+        session.send_request('continue').wait_for_response(freeze=False)
+
+        # And a second time when the exception reaches the user code.
+        hit = session.wait_for_thread_stopped(reason='exception')
         session.send_request('continue').wait_for_response(freeze=False)
 
         # ignore response for exception tests

@@ -754,16 +754,26 @@ class PyDB(object):
             self._apply_filter_cache[cache_key] = False
             return False
 
-    def is_exception_trace_in_project_scope(self, trace):
-        if trace is None or not self.in_project_scope(trace.tb_frame.f_code.co_filename):
+    def exclude_exception_by_filter(self, exception_breakpoint, trace, is_uncaught):
+        if not exception_breakpoint.ignore_libraries and not self._exclude_filters_enabled:
             return False
-        else:
-            trace = trace.tb_next
-            while trace is not None:
-                if not self.in_project_scope(trace.tb_frame.f_code.co_filename):
-                    return False
-                trace = trace.tb_next
+
+        if trace is None:
             return True
+
+        # We need to get the place where it was raised if it's an uncaught exception...
+        if is_uncaught:
+            while trace.tb_next is not None:
+                trace = trace.tb_next
+
+        ignore_libraries = exception_breakpoint.ignore_libraries
+        exclude_filters_enabled = self._exclude_filters_enabled
+
+        if (ignore_libraries and not self.in_project_scope(trace.tb_frame.f_code.co_filename)) \
+                or (exclude_filters_enabled and self._exclude_by_filter(trace.tb_frame, trace.tb_frame.f_code.co_filename)):
+            return True
+
+        return False
 
     def set_project_roots(self, project_roots):
         self._files_filtering.set_project_roots(project_roots)

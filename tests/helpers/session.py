@@ -26,7 +26,6 @@ from .pattern import ANY
 from .printer import wait_for_output
 from .timeline import Timeline, Event, Response
 
-
 PTVSD_PORT = tests.helpers.get_unique_port(5678)
 PTVSD_ENABLE_KEY = 'PTVSD_ENABLE_ATTACH'
 PTVSD_HOST_KEY = 'PTVSD_TEST_HOST'
@@ -53,6 +52,7 @@ class DebugSession(object):
         self.multiprocess_port_range = None
         self.debug_options = ['RedirectOutput']
         self.path_mappings = []
+        self.rules = []
         self.env = os.environ.copy()
         self.env['PYTHONPATH'] = os.path.dirname(debuggee.__file__)
         self.cwd = None
@@ -233,6 +233,7 @@ class DebugSession(object):
         self.path_mappings += kwargs.pop('path_mappings', [])
         self.debug_options += kwargs.pop('debug_options', [])
         self.program_args += kwargs.pop('program_args', [])
+        self.rules += kwargs.pop('rules', [])
 
         for k, v in kwargs.items():
             setattr(self, k, v)
@@ -314,7 +315,7 @@ class DebugSession(object):
         self.pid = self.process.pid
         self.psutil_process = psutil.Process(self.pid)
         self.is_running = True
-        #watchdog.create(self.pid)
+        # watchdog.create(self.pid)
 
         if not self.skip_capture:
             self._capture_output(self.process.stdout, 'OUT')
@@ -498,6 +499,7 @@ class DebugSession(object):
         self.send_request(request, {
             'debugOptions': self.debug_options,
             'pathMappings': self.path_mappings,
+            'rules': self.rules,
         }).wait_for_response()
 
         if not self.no_debug:
@@ -587,6 +589,7 @@ class DebugSession(object):
         return t
 
     def _capture_output(self, pipe, name):
+
         def _output_worker():
             while True:
                 try:
@@ -640,6 +643,7 @@ class DebugSession(object):
         try:
             child_session.ignore_unobserved = self.ignore_unobserved
             child_session.debug_options = self.debug_options
+            child_session.rules = self.rules
             child_session.connect()
             child_session.handshake()
         except:
@@ -664,6 +668,7 @@ class DebugSession(object):
             ns._setup_session(**kwargs)
             ns.ignore_unobserved = self.ignore_unobserved
             ns.debug_options = self.debug_options
+            ns.rules = self.rules
 
             ns.pid = self.pid
             ns.process = self.process

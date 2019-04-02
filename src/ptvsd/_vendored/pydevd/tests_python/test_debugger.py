@@ -3000,6 +3000,116 @@ def step_method(request):
     return request.param
 
 
+def test_sysexit_on_filtered_file(case_setup):
+
+    def get_environ(writer):
+        env = os.environ.copy()
+        env.update({'PYDEVD_FILTERS': json.dumps({'**/_debugger_case_sysexit.py': True})})
+        return env
+
+    with case_setup.test_file('_debugger_case_sysexit.py', get_environ=get_environ, EXPECTED_RETURNCODE=1) as writer:
+        writer.write_add_exception_breakpoint_with_policy(
+            'SystemExit',
+            notify_on_handled_exceptions=1,  # Notify multiple times
+            notify_on_unhandled_exceptions=1,
+            ignore_libraries=0
+        )
+
+        writer.write_make_initial_run()
+        writer.finished_ok = True
+
+
+@pytest.mark.parametrize("scenario", [
+    'handled_once',
+    'handled_multiple',
+    'unhandled',
+])
+def test_exception_not_on_filtered_file(case_setup, scenario):
+
+    def get_environ(writer):
+        env = os.environ.copy()
+        env.update({'PYDEVD_FILTERS': json.dumps({'**/other.py': True})})
+        return env
+
+    def check_test_suceeded_msg(writer, stdout, stderr):
+        return 'TEST SUCEEDED' in ''.join(stderr)
+
+    def additional_output_checks(writer, stdout, stderr):
+        if 'raise RuntimeError' not in stderr:
+            raise AssertionError('Expected test to have an unhandled exception.\nstdout:\n%s\n\nstderr:\n%s' % (
+                stdout, stderr))
+
+    with case_setup.test_file(
+            'my_code/my_code_exception.py',
+            get_environ=get_environ,
+            EXPECTED_RETURNCODE='any',
+            check_test_suceeded_msg=check_test_suceeded_msg,
+            additional_output_checks=additional_output_checks,
+        ) as writer:
+
+        if scenario == 'handled_once':
+            writer.write_add_exception_breakpoint_with_policy(
+                'RuntimeError',
+                notify_on_handled_exceptions=2,  # Notify only once
+                notify_on_unhandled_exceptions=0,
+                ignore_libraries=0
+            )
+        elif scenario == 'handled_multiple':
+            writer.write_add_exception_breakpoint_with_policy(
+                'RuntimeError',
+                notify_on_handled_exceptions=1,  # Notify multiple times
+                notify_on_unhandled_exceptions=0,
+                ignore_libraries=0
+            )
+        elif scenario == 'unhandled':
+            writer.write_add_exception_breakpoint_with_policy(
+                'RuntimeError',
+                notify_on_handled_exceptions=0,
+                notify_on_unhandled_exceptions=1,
+                ignore_libraries=0
+            )
+
+        writer.write_make_initial_run()
+        for _i in range(3 if scenario == 'handled_multiple' else 1):
+            hit = writer.wait_for_breakpoint_hit(
+                REASON_UNCAUGHT_EXCEPTION if scenario == 'unhandled' else REASON_CAUGHT_EXCEPTION)
+            writer.write_run_thread(hit.thread_id)
+        writer.finished_ok = True
+
+
+def test_exception_on_filtered_file(case_setup):
+
+    def get_environ(writer):
+        env = os.environ.copy()
+        env.update({'PYDEVD_FILTERS': json.dumps({'**/other.py': True})})
+        return env
+
+    def check_test_suceeded_msg(writer, stdout, stderr):
+        return 'TEST SUCEEDED' in ''.join(stderr)
+
+    def additional_output_checks(writer, stdout, stderr):
+        if 'raise RuntimeError' not in stderr:
+            raise AssertionError('Expected test to have an unhandled exception.\nstdout:\n%s\n\nstderr:\n%s' % (
+                stdout, stderr))
+
+    with case_setup.test_file(
+            'my_code/my_code_exception_on_other.py',
+            get_environ=get_environ,
+            EXPECTED_RETURNCODE='any',
+            check_test_suceeded_msg=check_test_suceeded_msg,
+            additional_output_checks=additional_output_checks,
+        ) as writer:
+        writer.write_add_exception_breakpoint_with_policy(
+            'RuntimeError',
+            notify_on_handled_exceptions=2,  # Notify only once
+            notify_on_unhandled_exceptions=1,
+            ignore_libraries=0
+        )
+
+        writer.write_make_initial_run()
+        writer.finished_ok = True
+
+
 @pytest.mark.parametrize("environ", [
     {'PYDEVD_FILTER_LIBRARIES': '1'},  # Global setting for step over
     {'PYDEVD_FILTERS': json.dumps({'**/other.py': True})},  # specify as json
