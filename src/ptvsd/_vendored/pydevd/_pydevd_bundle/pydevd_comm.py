@@ -1135,9 +1135,11 @@ def internal_get_exception_details_json(dbg, request, thread_id, set_additional_
         # This is an extra bit of data used by Visual Studio
         source_path = frames[0][0] if frames else ''
 
-        # TODO: breakMode is set to always. This should be retrieved from exception
-        # breakpoint settings for that exception, or its parent chain. Currently json
-        # support for setExceptionBreakpoint is not implemented.
+        if thread.stop_reason == CMD_STEP_CAUGHT_EXCEPTION:
+            break_mode = pydevd_schema.ExceptionBreakMode.ALWAYS
+        else:
+            break_mode = pydevd_schema.ExceptionBreakMode.UNHANDLED
+
         response = pydevd_schema.ExceptionInfoResponse(
             request_seq=request.seq,
             success=True,
@@ -1145,7 +1147,7 @@ def internal_get_exception_details_json(dbg, request, thread_id, set_additional_
             body=pydevd_schema.ExceptionInfoResponseBody(
                 exceptionId=name,
                 description=description,
-                breakMode=pydevd_schema.ExceptionBreakMode.ALWAYS,
+                breakMode=break_mode,
                 details=pydevd_schema.ExceptionDetails(
                     message=description,
                     typeName=name,

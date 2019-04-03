@@ -10,6 +10,10 @@ def remove_exception_breakpoint(plugin, pydb, type, exception):
     return False
 
 
+def remove_all_exception_breakpoints(plugin, pydb):
+    return False
+
+
 def get_breakpoints(plugin, pydb):
     return None
 

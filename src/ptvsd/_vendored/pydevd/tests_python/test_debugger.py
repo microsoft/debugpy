@@ -1607,7 +1607,11 @@ def test_case_handled_exceptions0(case_setup):
         )
         writer.write_make_initial_run()
 
-        hit = writer.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, line=3)
+        hit = writer.wait_for_breakpoint_hit(
+            REASON_CAUGHT_EXCEPTION,
+            line=writer.get_line_index_with_content('raise indexerror line')
+        )
+
         writer.write_run_thread(hit.thread_id)
 
         writer.finished_ok = True
@@ -1646,13 +1650,16 @@ def test_case_handled_exceptions1(case_setup):
             assert unquote(unquote(msg.thread.frame[0]['file'])).endswith('_debugger_case_exceptions.py')
             writer.write_run_thread(hit.thread_id)
 
-        hit = writer.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, line=3)
+        hit = writer.wait_for_breakpoint_hit(
+            REASON_CAUGHT_EXCEPTION, line=writer.get_line_index_with_content('raise indexerror line'))
         check(hit)
 
-        hit = writer.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, line=6)
+        hit = writer.wait_for_breakpoint_hit(
+            REASON_CAUGHT_EXCEPTION, line=writer.get_line_index_with_content('reraise on method2'))
         check(hit)
 
-        hit = writer.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, line=10)
+        hit = writer.wait_for_breakpoint_hit(
+            REASON_CAUGHT_EXCEPTION, line=writer.get_line_index_with_content('handle on method1'))
         check(hit)
 
         writer.finished_ok = True
@@ -1702,7 +1709,8 @@ def test_case_handled_exceptions3(case_setup):
         )
 
         writer.write_make_initial_run()
-        hit = writer.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, line=3)
+        hit = writer.wait_for_breakpoint_hit(
+            REASON_CAUGHT_EXCEPTION, line=writer.get_line_index_with_content('raise indexerror line'))
         writer.write_run_thread(hit.thread_id)
 
         writer.finished_ok = True
@@ -1729,7 +1737,8 @@ def test_case_handled_exceptions4(case_setup):
         )
 
         writer.write_make_initial_run()
-        hit = writer.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION, line=6)
+        hit = writer.wait_for_breakpoint_hit(
+            REASON_CAUGHT_EXCEPTION, line=writer.get_line_index_with_content('reraise on method2'))
         writer.write_run_thread(hit.thread_id)
 
         writer.finished_ok = True

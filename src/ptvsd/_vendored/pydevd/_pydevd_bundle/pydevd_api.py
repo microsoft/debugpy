@@ -473,6 +473,15 @@ class PyDevdAPI(object):
 
         py_db.on_breakpoints_changed(removed=True)
 
+    def remove_all_exception_breakpoints(self, py_db):
+        py_db.break_on_uncaught_exceptions = {}
+        py_db.break_on_caught_exceptions = {}
+
+        plugin = py_db.plugin
+        if plugin is not None:
+            plugin.remove_all_exception_breakpoints(py_db)
+        py_db.on_breakpoints_changed(removed=True)
+
     def set_project_roots(self, py_db, project_roots):
         '''
         :param unicode project_roots:

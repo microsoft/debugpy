@@ -45,6 +45,13 @@ def _init_plugin_breaks(pydb):
     pydb.jinja2_breakpoints = {}
 
 
+def remove_all_exception_breakpoints(plugin, pydb):
+    if hasattr(pydb, 'jinja2_exception_break'):
+        pydb.jinja2_exception_break = {}
+        return True
+    return False
+
+
 def remove_exception_breakpoint(plugin, pydb, type, exception):
     if type == 'jinja2':
         try:

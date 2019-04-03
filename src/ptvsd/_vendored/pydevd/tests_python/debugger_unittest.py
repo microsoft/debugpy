@@ -205,8 +205,7 @@ class ReaderThread(threading.Thread):
             frame = sys._getframe().f_back.f_back
             frame_info = ''
             while frame:
-                if frame.f_code.co_name in (
-                    'wait_for_message', 'accept_json_message', 'wait_for_json_message', 'wait_for_response'):
+                if not frame.f_code.co_name.startswith('test_'):
                     frame = frame.f_back
                     continue
 

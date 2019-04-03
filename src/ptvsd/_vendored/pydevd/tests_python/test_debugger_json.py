@@ -4,8 +4,10 @@ import pytest
 from _pydevd_bundle._debug_adapter import pydevd_schema, pydevd_base_schema
 from _pydevd_bundle._debug_adapter.pydevd_base_schema import from_json
 from tests_python.debugger_unittest import IS_JYTHON, REASON_STEP_INTO, REASON_STEP_OVER, \
-    REASON_CAUGHT_EXCEPTION, REASON_THREAD_SUSPEND, REASON_STEP_RETURN, IS_APPVEYOR, overrides
-from _pydevd_bundle._debug_adapter.pydevd_schema import ThreadEvent, ModuleEvent, OutputEvent
+    REASON_CAUGHT_EXCEPTION, REASON_THREAD_SUSPEND, REASON_STEP_RETURN, IS_APPVEYOR, overrides, \
+    REASON_UNCAUGHT_EXCEPTION
+from _pydevd_bundle._debug_adapter.pydevd_schema import ThreadEvent, ModuleEvent, OutputEvent, \
+    ExceptionOptions
 from tests_python import debugger_unittest
 import json
 from collections import namedtuple
@@ -113,6 +115,26 @@ class JsonFacade(object):
         assert len(body.breakpoints) == len(lines)
         lines_in_response = [b['line'] for b in body.breakpoints]
         assert set(lines_in_response) == set(lines)
+
+    def write_set_exception_breakpoints(self, filters=None, exception_options=None):
+        '''
+        :param list(str) filters:
+            A list with 'raised' or 'uncaught' entries.
+
+        :param list(ExceptionOptions) exception_options:
+
+        '''
+        filters = filters or []
+        assert set(filters).issubset(set(('raised', 'uncaught')))
+
+        exception_options = exception_options or []
+        exception_options = [exception_option.to_dict() for exception_option in exception_options]
+
+        arguments = pydevd_schema.SetExceptionBreakpointsArguments(filters, exception_options)
+        request = pydevd_schema.SetExceptionBreakpointsRequest(arguments)
+        # : :type response: SetExceptionBreakpointsResponse
+        response = self.wait_for_response(self.write_request(request))
+        assert response.success
 
     def write_launch(self, **arguments):
         arguments['noDebug'] = False
@@ -224,6 +246,59 @@ def test_case_json_change_breaks(case_setup):
         writer.write_run_thread(hit.thread_id)
 
         json_facade.write_set_breakpoints([])
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+
+
+def test_case_handled_exception_breaks(case_setup):
+    with case_setup.test_file('_debugger_case_exceptions.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_set_protocol('http_json')
+        json_facade.write_launch()
+        json_facade.write_set_exception_breakpoints(['raised'])
+        json_facade.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit(
+            reason=REASON_CAUGHT_EXCEPTION, line=writer.get_line_index_with_content('raise indexerror line'))
+        writer.write_run_thread(hit.thread_id)
+
+        hit = writer.wait_for_breakpoint_hit(
+            reason=REASON_CAUGHT_EXCEPTION, line=writer.get_line_index_with_content('reraise on method2'))
+
+        # Clear so that the last one is not hit.
+        json_facade.write_set_exception_breakpoints([])
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+
+
+def test_case_handled_exception_breaks_by_type(case_setup):
+    with case_setup.test_file('_debugger_case_exceptions.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_set_protocol('http_json')
+        json_facade.write_launch()
+        json_facade.write_set_exception_breakpoints(exception_options=[
+            ExceptionOptions(breakMode='always', path=[
+                {'names': ['Python Exceptions']},
+                {'names': ['IndexError']},
+            ])
+        ])
+        json_facade.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit(
+            reason=REASON_CAUGHT_EXCEPTION, line=writer.get_line_index_with_content('raise indexerror line'))
+
+        # Deal only with RuntimeErorr now.
+        json_facade.write_set_exception_breakpoints(exception_options=[
+            ExceptionOptions(breakMode='always', path=[
+                {'names': ['Python Exceptions']},
+                {'names': ['RuntimeError']},
+            ])
+        ])
+
         writer.write_run_thread(hit.thread_id)
 
         writer.finished_ok = True
@@ -1070,12 +1145,7 @@ def test_exception_details(case_setup):
         json_facade = JsonFacade(writer)
 
         writer.write_set_protocol('http_json')
-        writer.write_add_exception_breakpoint_with_policy(
-            'IndexError',
-            notify_on_handled_exceptions=2,  # Notify only once
-            notify_on_unhandled_exceptions=0,
-            ignore_libraries=1
-        )
+        json_facade.write_set_exception_breakpoints(['raised'])
 
         json_facade.write_make_initial_run()
         hit = writer.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION)
@@ -1088,6 +1158,7 @@ def test_exception_details(case_setup):
         assert body.description == 'foo'
         assert body.details.kwargs['source'] == writer.TEST_FILE
 
+        json_facade.write_set_exception_breakpoints([])  # Don't stop on reraises.
         writer.write_run_thread(hit.thread_id)
 
         writer.finished_ok = True
@@ -1302,11 +1373,19 @@ def test_case_django_no_attribute_exception_breakpoint(case_setup_django, jmc):
 
         if jmc:
             writer.write_set_project_roots([debugger_unittest._get_debugger_test_file('my_code')])
-            json_facade.write_launch(debugOptions=[])
+            json_facade.write_launch(debugOptions=['Django'])
+            json_facade.write_set_exception_breakpoints(['raised'])
         else:
-            json_facade.write_launch(debugOptions=['DebugStdLib'])
+            json_facade.write_launch(debugOptions=['DebugStdLib', 'Django'])
+            # Don't set to all 'raised' because we'd stop on standard library exceptions here
+            # (which is not something we want).
+            json_facade.write_set_exception_breakpoints(exception_options=[
+                ExceptionOptions(breakMode='always', path=[
+                    {'names': ['Python Exceptions']},
+                    {'names': ['AssertionError']},
+                ])
+            ])
 
-        writer.write_add_exception_breakpoint_django()
         writer.write_make_initial_run()
 
         t = writer.create_request_thread('my_app/template_error')
@@ -1348,11 +1427,18 @@ def test_case_flask_exceptions(case_setup_flask, jmc):
 
         if jmc:
             writer.write_set_project_roots([debugger_unittest._get_debugger_test_file('my_code')])
-            json_facade.write_launch(debugOptions=[])
+            json_facade.write_launch(debugOptions=['Jinja'])
+            json_facade.write_set_exception_breakpoints(['raised'])
         else:
-            json_facade.write_launch(debugOptions=['DebugStdLib'])
-
-        writer.write_add_exception_breakpoint_jinja2()
+            json_facade.write_launch(debugOptions=['DebugStdLib', 'Jinja'])
+            # Don't set to all 'raised' because we'd stop on standard library exceptions here
+            # (which is not something we want).
+            json_facade.write_set_exception_breakpoints(exception_options=[
+                ExceptionOptions(breakMode='always', path=[
+                    {'names': ['Python Exceptions']},
+                    {'names': ['IndexError']},
+                ])
+            ])
         writer.write_make_initial_run()
 
         t = writer.create_request_thread('/bad_template')

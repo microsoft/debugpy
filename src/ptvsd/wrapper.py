@@ -498,129 +498,6 @@ class PydevdSocket(object):
         return fut
 
 
-class ExceptionsManager(object):
-
-    def __init__(self, proc):
-        self.proc = proc
-        self.exceptions = {}
-        self.lock = threading.Lock()
-
-    def remove_exception_break(self, ex_type='python', exception='BaseException'):
-        cmdargs = (ex_type, exception)
-        msg = '{}-{}'.format(*cmdargs)
-        self.proc.pydevd_notify(pydevd_comm.CMD_REMOVE_EXCEPTION_BREAK, msg)
-
-    def remove_all_exception_breaks(self):
-        with self.lock:
-            for exception in self.exceptions.keys():
-                self.remove_exception_break(exception=exception)
-            self.exceptions = {}
-
-    def _find_exception(self, name):
-        if name in self.exceptions:
-            return name
-
-        for ex_name in self.exceptions.keys():
-            # exception name can be in repr form
-            # here we attempt to find the exception as it
-            # is saved in the dictionary
-            if ex_name in name:
-                return ex_name
-
-        return 'BaseException'
-
-    def get_break_mode(self, name):
-        with self.lock:
-            try:
-                return self.exceptions[self._find_exception(name)]
-            except KeyError:
-                pass
-        return 'unhandled'
-
-    def add_exception_break(self, exception, break_raised, break_uncaught,
-                            skip_stdlib=False, ex_type='python'):
-
-        notify_on_handled_exceptions = 1 if break_raised else 0
-        notify_on_unhandled_exceptions = 1 if break_uncaught else 0
-        ignore_libraries = 1 if skip_stdlib else 0
-
-        cmdargs = (
-            ex_type,
-            exception,
-            notify_on_handled_exceptions,
-            notify_on_unhandled_exceptions,
-            ignore_libraries,
-        )
-
-        break_mode = 'never'
-        if break_raised:
-            break_mode = 'always'
-        elif break_uncaught:
-            break_mode = 'unhandled'
-
-        msg = '{}-{}\t{}\t{}\t{}'.format(*cmdargs)
-        with self.lock:
-            self.proc.pydevd_notify(
-                pydevd_comm.CMD_ADD_EXCEPTION_BREAK, msg)
-            self.exceptions[exception] = break_mode
-
-    def apply_exception_options(self, exception_options, skip_stdlib=False):
-        """
-        Applies exception options after removing any existing exception
-        breaks.
-        """
-        self.remove_all_exception_breaks()
-        pyex_options = (opt
-                        for opt in exception_options
-                        if self._is_python_exception_category(opt))
-        for option in pyex_options:
-            exception_paths = option['path']
-            if not exception_paths:
-                continue
-
-            mode = option['breakMode']
-            break_raised = (mode == 'always')
-            break_uncaught = (mode in ['unhandled', 'userUnhandled'])
-
-            # Special case for the entire python exceptions category
-            is_category = False
-            if len(exception_paths) == 1:
-                # TODO: isn't the first one always the category?
-                if exception_paths[0]['names'][0] == 'Python Exceptions':
-                    is_category = True
-            if is_category:
-                self.add_exception_break(
-                    'BaseException', break_raised, break_uncaught, skip_stdlib)
-            else:
-                path_iterator = iter(exception_paths)
-                # Skip the first one. It will always be the category
-                # "Python Exceptions"
-                next(path_iterator)
-                exception_names = []
-                for path in path_iterator:
-                    for ex_name in path['names']:
-                        exception_names.append(ex_name)
-                for exception_name in exception_names:
-                    self.add_exception_break(
-                        exception_name, break_raised,
-                        break_uncaught, skip_stdlib)
-
-    def _is_python_exception_category(self, option):
-        """
-        Check if the option has entires and that the first entry
-        is 'Python Exceptions'.
-        """
-        exception_paths = option['path']
-        if not exception_paths:
-            return False
-
-        category = exception_paths[0]['names']
-        if category is None or len(category) != 1:
-            return False
-
-        return category[0] == 'Python Exceptions'
-
-
 class VariablesSorter(object):
 
     def __init__(self):
@@ -1232,7 +1109,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self.is_process_created_lock = threading.Lock()
         self.thread_map = IDMap()
         self._path_mappings = []
-        self.exceptions_mgr = ExceptionsManager(self)
         self.internals_filter = InternalsFilter()
         self.new_thread_lock = threading.Lock()
 
@@ -1482,7 +1358,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self._detached = True
 
         self._clear_output_redirection()
-        self.exceptions_mgr.remove_all_exception_breaks()
 
         # No related pydevd command id (removes all breaks and resumes threads).
         self.pydevd_request(
@@ -1506,6 +1381,24 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             'startMethod': start_method,
         }
         self.send_event('process', **evt)
+
+    @async_handler
+    def _forward_request_to_pydevd(self, request, args):
+        translate_thread_id = args.get('threadId') is not None
+        if translate_thread_id:
+            pyd_tid = self.thread_map.to_pydevd(int(args['threadId']))
+
+        pydevd_request = copy.deepcopy(request)
+        del pydevd_request['seq']  # A new seq should be created for pydevd.
+        if translate_thread_id:
+            pydevd_request['arguments']['threadId'] = pyd_tid
+        cmd_id = -1  # It's actually unused on json requests.
+        _, _, resp_args = yield self.pydevd_request(cmd_id, pydevd_request, is_json=True)
+
+        body = resp_args.get('body')
+        if body is None:
+            body = {}
+        self.send_response(request, **body)
 
     @async_handler
     def on_threads(self, request, args):
@@ -1591,30 +1484,11 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         totalFrames = resp_args['body']['totalFrames']
         self.send_response(request, stackFrames=stackFrames, totalFrames=totalFrames)
 
-    @async_handler
     def on_scopes(self, request, args):
-        pydevd_request = copy.deepcopy(request)
-        del pydevd_request['seq']  # A new seq should be created for pydevd.
-        _, _, resp_args = yield self.pydevd_request(
-            -1,
-            pydevd_request,
-            is_json=True)
+        self._forward_request_to_pydevd(request, args)
 
-        scopes = resp_args['body']['scopes']
-        self.send_response(request, scopes=scopes)
-
-    @async_handler
     def on_variables(self, request, args):
-        """Handles DAP VariablesRequest."""
-        pydevd_request = copy.deepcopy(request)
-        del pydevd_request['seq']  # A new seq should be created for pydevd.
-        _, _, resp_args = yield self.pydevd_request(
-            pydevd_comm.CMD_GET_VARIABLE,
-            pydevd_request,
-            is_json=True)
-
-        variables = resp_args['body']['variables']
-        self.send_response(request, variables=variables)
+        self._forward_request_to_pydevd(request, args)
 
     @async_handler
     def on_setVariable(self, request, args):
@@ -1656,29 +1530,11 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             body['result'] = resp_args['message']
         self.send_response(request, **body)
 
-    @async_handler
     def on_setExpression(self, request, args):
-        pydevd_request = copy.deepcopy(request)
-        del pydevd_request['seq']  # A new seq should be created for pydevd.
-        _, _, resp_args = yield self.pydevd_request(
-            -1,
-            pydevd_request,
-            is_json=True)
+        self._forward_request_to_pydevd(request, args)
 
-        body = resp_args['body']
-        self.send_response(request, **body)
-
-    @async_handler
     def on_modules(self, request, args):
-        pydevd_request = copy.deepcopy(request)
-        del pydevd_request['seq']  # A new seq should be created for pydevd.
-        _, _, resp_args = yield self.pydevd_request(
-            -1,
-            pydevd_request,
-            is_json=True)
-
-        body = resp_args.get('body', {})
-        self.send_response(request, **body)
+        self._forward_request_to_pydevd(request, args)
 
     @async_handler
     def on_pause(self, request, args):
@@ -1719,53 +1575,17 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                             pydevd_request, is_json=True)
         self.send_response(request, allThreadsContinued=True)
 
-    @async_handler
     def on_next(self, request, args):
+        self._forward_request_to_pydevd(request, args)
 
-        pyd_tid = self.thread_map.to_pydevd(int(args['threadId']))
-
-        pydevd_request = copy.deepcopy(request)
-        del pydevd_request['seq']  # A new seq should be created for pydevd.
-        pydevd_request['arguments']['threadId'] = pyd_tid
-        cmd_id = pydevd_comm.CMD_STEP_OVER
-
-        self.pydevd_request(cmd_id, pydevd_request, is_json=True)
-        self.send_response(request)
-
-    @async_handler
     def on_stepIn(self, request, args):
+        self._forward_request_to_pydevd(request, args)
 
-        pyd_tid = self.thread_map.to_pydevd(int(args['threadId']))
-
-        pydevd_request = copy.deepcopy(request)
-        del pydevd_request['seq']  # A new seq should be created for pydevd.
-        pydevd_request['arguments']['threadId'] = pyd_tid
-        cmd_id = pydevd_comm.CMD_STEP_INTO
-
-        self.pydevd_request(cmd_id, pydevd_request, is_json=True)
-        self.send_response(request)
-
-    @async_handler
     def on_stepOut(self, request, args):
+        self._forward_request_to_pydevd(request, args)
 
-        pyd_tid = self.thread_map.to_pydevd(int(args['threadId']))
-
-        pydevd_request = copy.deepcopy(request)
-        del pydevd_request['seq']  # A new seq should be created for pydevd.
-        pydevd_request['arguments']['threadId'] = pyd_tid
-        cmd_id = pydevd_comm.CMD_STEP_RETURN
-
-        self.pydevd_request(cmd_id, pydevd_request, is_json=True)
-        self.send_response(request)
-
-    @async_handler
     def on_gotoTargets(self, request, args):
-        pydevd_request = copy.deepcopy(request)
-        del pydevd_request['seq']  # A new seq should be created for pydevd.
-        cmd_id = pydevd_comm.CMD_GET_NEXT_STATEMENT_TARGETS
-        _, _, resp_args = yield self.pydevd_request(cmd_id, pydevd_request, is_json=True)
-
-        self.send_response(request, targets=resp_args['body']['targets'])
+        self._forward_request_to_pydevd(request, args)
 
     @async_handler
     def on_goto(self, request, args):
@@ -1827,73 +1647,14 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         breakpoints = resp_args['body']['breakpoints']
         self.send_response(request, breakpoints=breakpoints)
 
-    def _get_pydevex_type(self):
-        if self.debug_options.get('DJANGO_DEBUG', False):
-            return 'django'
-        elif self.debug_options.get('FLASK_DEBUG', False):
-            return 'jinja2'
-        return 'python'
-
-    @async_handler
     def on_setExceptionBreakpoints(self, request, args):
-        # TODO: docstring
-        filters = args['filters']
-        exception_options = args.get('exceptionOptions', [])
-        jmc = self._is_just_my_code_stepping_enabled()
+        self._forward_request_to_pydevd(request, args)
 
-        pydevex_type = self._get_pydevex_type()
-        if exception_options:
-            self.exceptions_mgr.apply_exception_options(
-                exception_options, jmc)
-            if pydevex_type != 'python':
-                self.exceptions_mgr.remove_exception_break(ex_type=pydevex_type)
-                self.exceptions_mgr.add_exception_break(
-                    'BaseException', True, True,
-                    skip_stdlib=jmc, ex_type=pydevex_type)
-        else:
-            self.exceptions_mgr.remove_all_exception_breaks()
-            break_raised = 'raised' in filters
-            break_uncaught = 'uncaught' in filters
-            if break_raised or break_uncaught:
-                self.exceptions_mgr.add_exception_break(
-                    'BaseException', break_raised, break_uncaught,
-                    skip_stdlib=jmc)
-                if pydevex_type != 'python':
-                    self.exceptions_mgr.remove_exception_break(ex_type=pydevex_type)
-                    self.exceptions_mgr.add_exception_break(
-                        'BaseException', break_raised, break_uncaught,
-                        skip_stdlib=jmc, ex_type=pydevex_type)
-
-        if request is not None:
-            self.send_response(request)
-
-    @async_handler
     def on_exceptionInfo(self, request, args):
-        pyd_tid = self.thread_map.to_pydevd(args['threadId'])
+        self._forward_request_to_pydevd(request, args)
 
-        pydevd_request = copy.deepcopy(request)
-        del pydevd_request['seq']  # A new seq should be created for pydevd.
-        pydevd_request['arguments']['threadId'] = pyd_tid
-        _, _, resp_args = yield self.pydevd_request(
-            pydevd_comm.CMD_GET_EXCEPTION_DETAILS,
-            pydevd_request,
-            is_json=True)
-
-        body = resp_args['body']
-        body['breakMode'] = self.exceptions_mgr.get_break_mode(body['exceptionId'])
-        self.send_response(request, **body)
-
-    @async_handler
     def on_completions(self, request, args):
-        pydevd_request = copy.deepcopy(request)
-        del pydevd_request['seq']  # A new seq should be created for pydevd.
-        _, _, resp_args = yield self.pydevd_request(
-            pydevd_comm.CMD_GET_COMPLETIONS,
-            pydevd_request,
-            is_json=True)
-
-        targets = resp_args['body']['targets']
-        self.send_response(request, targets=targets)
+        self._forward_request_to_pydevd(request, args)
 
     # Custom ptvsd message
     def on_ptvsd_systemInfo(self, request, args):
