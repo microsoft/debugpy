@@ -1123,12 +1123,25 @@ def internal_get_exception_details_json(dbg, request, thread_id, set_additional_
             finally:
                 topmost_frame = None
 
+        name = 'exception: type unknown'
+        if exc_type is not None:
+            try:
+                name = exc_type.__qualname__
+            except:
+                try:
+                    name = exc_type.__name__
+                except:
+                    try:
+                        name = str(exc_type)
+                    except:
+                        pass
+
+        description = 'exception: no description'
         if exc_desc is not None:
-            name = exc_desc.__class__.__name__
-            description = '%s' % (exc_desc,)
-        else:
-            name = 'exception: type unknown'
-            description = 'exception: no description'
+            try:
+                description = str(exc_desc)
+            except:
+                pass
 
         stack_str = ''.join(traceback.format_list(frames))
 
