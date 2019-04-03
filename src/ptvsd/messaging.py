@@ -100,7 +100,10 @@ class JsonIOStream(object):
             raise IOError('Content-Length is missing or invalid')
 
         try:
-            body = self._reader.read(length)
+            body = b''
+            while length:
+                body += self._reader.read(length)
+                length -= len(body)
         except Exception:
             if self._is_closing:
                 raise EOFError
