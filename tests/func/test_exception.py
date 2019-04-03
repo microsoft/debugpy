@@ -194,7 +194,7 @@ def test_systemexit(pyfile, run_as, start_method, raised, uncaught, zero, exit_c
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued'), Event('stopped')],
+            ignore_unobserved=[Event('continued')],
             expected_returncode=ANY.int,
         )
         session.send_request('setExceptionBreakpoints', {
@@ -308,6 +308,39 @@ def test_raise_exception_options(pyfile, run_as, start_method, exceptions, break
             frames = hit.stacktrace.body['stackFrames']
             assert frames[0]['source']['path'].endswith('code_to_debug.py')
             assert frames[0]['line'] == line_numbers[expected_exception]
+
+        session.send_request('continue').wait_for_response(freeze=False)
+        session.wait_for_exit()
+
+
+@pytest.mark.parametrize('exit_code', [0, 3])
+def test_success_exitcodes(pyfile, run_as, start_method, exit_code):
+    @pyfile
+    def code_to_debug():
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
+        import sys
+        exit_code = eval(sys.argv[1])
+        print('sys.exit(%r)' % (exit_code,))
+        sys.exit(exit_code)
+
+    with DebugSession() as session:
+        session.program_args = [repr(exit_code)]
+        session.success_exitcodes = [3]
+        session.initialize(
+            target=(run_as, code_to_debug),
+            start_method=start_method,
+            ignore_unobserved=[Event('continued')],
+            # Exit code doesn't match for attach_socket_import: https://github.com/Microsoft/ptvsd/issues/1278
+            expected_returncode=ANY.int if start_method == 'attach_socket_import' else exit_code,
+        )
+        session.send_request('setExceptionBreakpoints', {
+            'filters': ['uncaught']
+        }).wait_for_response()
+        session.start_debugging()
+
+        if exit_code == 0:
+            session.wait_for_thread_stopped(reason='exception')
             session.send_request('continue').wait_for_response(freeze=False)
 
         session.wait_for_exit()

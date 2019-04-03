@@ -1109,6 +1109,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self.is_process_created_lock = threading.Lock()
         self.thread_map = IDMap()
         self._path_mappings = []
+        self._success_exitcodes = []
         self.internals_filter = InternalsFilter()
         self.new_thread_lock = threading.Lock()
 
@@ -1351,6 +1352,11 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         yield self.pydevd_request(-1, pydevd_request, is_json=True)
 
         self._initialize_path_maps(args)
+
+        default_success_exitcodes = [0]
+        if self.debug_options.get('DJANGO_DEBUG', False):
+            default_success_exitcodes += [3]
+        self._success_exitcodes = args.get('successExitCodes', default_success_exitcodes)
 
     def _handle_detach(self):
         ptvsd.log.info('Detaching ...')
@@ -1836,21 +1842,25 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             exc_name = resp_args['body']['exceptionId']
             exc_desc = resp_args['body']['description']
 
-        if not self.debug_options.get('BREAK_SYSTEMEXIT_ZERO', False):
-            # SystemExit is qualified on Python 2, and unqualified on Python 3
-            sysexit_exc_name = 'exceptions.SystemExit' if sys.version_info < (3,) else 'SystemExit'
-            if exc_name == sysexit_exc_name:
-                try:
-                    exit_code = int(exc_desc)
-                except ValueError:
-                    # It is legal to invoke exit() with a non-integer argument, and SystemExit will
-                    # pass that through. It's considered an error exit, same as non-zero integer.
-                    ignore = False
-                else:
-                    ignore = (exit_code == 0)
-                if ignore:
-                    self._resume_all_threads()
-                    return
+        if not self.debug_options.get('BREAK_SYSTEMEXIT_ZERO', False) and exc_name == 'SystemExit':
+            ptvsd.log.info('{0}({1!r})', exc_name, exc_desc)
+            try:
+                exit_code = int(exc_desc)
+            except ValueError:
+                # It is legal to invoke exit() with a non-integer argument, and SystemExit will
+                # pass that through. It's considered an error exit, same as non-zero integer.
+                ptvsd.log.info('Exit code {0!r} cannot be converted to int, treating as failure', exc_desc)
+                ignore = False
+            else:
+                ignore = exit_code in self._success_exitcodes
+                ptvsd.log.info(
+                    'Process exiting with {0} exit code {1}',
+                    'success' if ignore else 'failure',
+                    exc_desc,
+                )
+            if ignore:
+                self._resume_all_threads()
+                return
 
         extra['allThreadsStopped'] = True
         self.send_event(

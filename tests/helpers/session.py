@@ -52,6 +52,7 @@ class DebugSession(object):
         self.multiprocess_port_range = None
         self.debug_options = ['RedirectOutput']
         self.path_mappings = []
+        self.success_exitcodes = None
         self.rules = []
         self.env = os.environ.copy()
         self.env['PYTHONPATH'] = os.path.dirname(debuggee.__file__)
@@ -496,11 +497,14 @@ class DebugSession(object):
         self.wait_for_next(Event('initialized', {}))
 
         request = 'launch' if self.start_method == 'launch' else 'attach'
-        self.send_request(request, {
+        args = {
             'debugOptions': self.debug_options,
             'pathMappings': self.path_mappings,
             'rules': self.rules,
-        }).wait_for_response()
+        }
+        if self.success_exitcodes is not None:
+            args['successExitCodes'] = self.success_exitcodes
+        self.send_request(request, args).wait_for_response()
 
         if not self.no_debug:
             # Issue 'threads' so that we get the 'thread' event for the main thread now,
