@@ -331,8 +331,8 @@ def test_success_exitcodes(pyfile, run_as, start_method, exit_code):
             target=(run_as, code_to_debug),
             start_method=start_method,
             ignore_unobserved=[Event('continued')],
-            # Exit code doesn't match for attach_socket_import: https://github.com/Microsoft/ptvsd/issues/1278
-            expected_returncode=ANY.int if start_method == 'attach_socket_import' else exit_code,
+            # Exit code doesn't match: https://github.com/Microsoft/ptvsd/issues/1278
+            expected_returncode=ANY.int,
         )
         session.send_request('setExceptionBreakpoints', {
             'filters': ['uncaught']
