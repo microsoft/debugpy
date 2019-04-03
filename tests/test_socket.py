@@ -20,8 +20,8 @@ class TestSocketServerReuse(object):
         # sockets. This to prevent accidental changes to socket options. In Windows
         # SO_REUSEADDR flag allows two sockets to bind to same address:port combination.
         # Windows should always use SO_EXCLUSIVEADDRUSE
+        sock1 = create_server(self.HOST1, 0)
         try:
-            sock1 = create_server(self.HOST1, 0)
             _, PORT1 = sock1.getsockname()
             with pytest.raises(Exception):
                 create_server(self.HOST1, PORT1)
