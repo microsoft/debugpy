@@ -101,9 +101,10 @@ class JsonIOStream(object):
 
         try:
             body = b''
-            while length:
-                body += self._reader.read(length)
-                length -= len(body)
+            while length > 0:
+                chunk = self._reader.read(length)
+                body += chunk
+                length -= len(chunk)
         except Exception:
             if self._is_closing:
                 raise EOFError
