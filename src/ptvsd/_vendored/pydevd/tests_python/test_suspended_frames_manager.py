@@ -1,5 +1,6 @@
 import sys
 from _pydevd_bundle.pydevd_constants import int_types
+from _pydevd_bundle.pydevd_resolver import MAX_ITEMS_TO_HANDLE
 
 
 def get_frame():
@@ -70,3 +71,30 @@ def test_suspended_frames_manager():
             '33': {'name': '33', 'value': "[1]", 'type': 'list', 'evaluateName': 'var3[33]'},
             '__len__': {'name': '__len__', 'value': '1', 'type': 'int', 'evaluateName': 'len(var3)'}
         })
+
+
+def get_large_frame():
+    lst = {}
+    for idx in range(0, MAX_ITEMS_TO_HANDLE + 1):
+        lst[idx] = (1)
+    return sys._getframe()
+
+def test_get_child_variables():
+    from _pydevd_bundle.pydevd_suspended_frames import SuspendedFramesManager
+    suspended_frames_manager = SuspendedFramesManager()
+    py_db = None
+    with suspended_frames_manager.track_frames(py_db) as tracker:
+        # : :type tracker: _FramesTracker
+        thread_id = 'thread1'
+        frame = get_large_frame()
+        tracker.track(thread_id, frame, frame_id_to_lineno={})
+
+        assert suspended_frames_manager.get_thread_id_for_variable_reference(id(frame)) == thread_id
+
+        variable = suspended_frames_manager.get_variable(id(frame))
+
+        for x in variable.get_children_variables():
+            try:
+                x.get_children_variables()
+            except:
+                raise AssertionError()

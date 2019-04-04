@@ -290,7 +290,7 @@ class DictResolver:
             eval_key_str = self.key_to_str(key)  # do not format the key
             ret.append((key_as_str, val, '[%s]' % (eval_key_str,)))
             if i > MAX_ITEMS_TO_HANDLE:
-                ret.append((TOO_LARGE_ATTR, TOO_LARGE_MSG))
+                ret.append((TOO_LARGE_ATTR, TOO_LARGE_MSG, None))
                 break
 
         ret.append(('__len__', len(dct), partial(_apply_evaluate_name, evaluate_name='len(%s)')))
