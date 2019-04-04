@@ -59,10 +59,10 @@ class LineBreakpoint(object):
 
     @property
     def has_condition(self):
-        return self.condition is not None or self.hit_condition is not None
+        return bool(self.condition) or bool(self.hit_condition)
 
     def handle_hit_condition(self, frame):
-        if self.hit_condition is None:
+        if not self.hit_condition:
             return False
         ret = False
         with self._hit_condition_lock:

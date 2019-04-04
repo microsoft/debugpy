@@ -500,7 +500,7 @@ class PyDB(object):
             if pybreakpoint.handle_hit_condition(new_frame):
                 return True
 
-            if condition is None:
+            if not condition:
                 return False
 
             return eval(condition, new_frame.f_globals, new_frame.f_locals)
