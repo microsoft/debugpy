@@ -80,7 +80,7 @@ def test_set_next_statement(pyfile, run_as, start_method):
 
         session.wait_for_next(Event('continued'))
 
-        stop = session.wait_for_thread_stopped()
+        stop = session.wait_for_thread_stopped(reason='goto')
         frames = stop.stacktrace.body['stackFrames']
         line = frames[0]['line']
         assert line == line_numbers['inner2']

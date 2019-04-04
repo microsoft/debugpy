@@ -1820,6 +1820,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             reason = 'exception'
         elif reason == pydevd_comm.CMD_SET_BREAK:
             reason = 'breakpoint'
+        elif reason == pydevd_comm.CMD_SET_NEXT_STATEMENT:
+            reason = 'goto'
         else:
             reason = 'pause'
 
