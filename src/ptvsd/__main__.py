@@ -349,7 +349,7 @@ ptvsd.options.port = {port}
 
 import ptvsd.log
 ptvsd.log.to_file()
-ptvsd.log.info('Debugger successfully injected')
+ptvsd.log.info("Debugger successfully injected")
 
 if ptvsd.options.client:
     from ptvsd._remote import attach
@@ -357,9 +357,9 @@ if ptvsd.options.client:
 else:
     ptvsd.enable_attach()
 '''.format(**locals())
-    print(code)
 
-    ptvsd.log.debug('Injecting debugger into target process.')
+    ptvsd.log.debug('Injecting debugger into target process: \n"""{0}\n"""'.format(code))
+    assert "'" not in code, 'Injected code should not contain any single quotes'
 
     pydevd_attach_to_process_path = os.path.join(
         os.path.dirname(pydevd.__file__),
