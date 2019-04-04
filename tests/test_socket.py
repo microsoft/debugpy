@@ -14,7 +14,6 @@ class TestSocketServerReuse(object):
     # 127/8 range. Mac by default supports only 127/0. Configuring /etc/network/interface
     # for this one test is overkill so use '0.0.0.0' on Mac instead.
     HOST2 = '127.0.0.2' if platform.system() in ['Windows', 'Linux'] else '0.0.0.0'
-    PORT1 = 7890
 
     def test_reuse_same_address_port(self):
         # NOTE: This test should ensure that same address port can be used by two
@@ -22,20 +21,21 @@ class TestSocketServerReuse(object):
         # SO_REUSEADDR flag allows two sockets to bind to same address:port combination.
         # Windows should always use SO_EXCLUSIVEADDRUSE
         try:
-            sock1 = create_server(self.HOST1, self.PORT1)
+            sock1 = create_server(self.HOST1, 0)
+            _, PORT1 = sock1.getsockname()
             with pytest.raises(Exception):
-                create_server(self.HOST1, self.PORT1)
-            assert sock1.getsockname() == (self.HOST1, self.PORT1)
+                create_server(self.HOST1, PORT1)
         finally:
             close_socket(sock1)
 
     def test_reuse_same_port(self):
         try:
             sock1, sock2 = None, None
-            sock1 = create_server(self.HOST1, self.PORT1)
-            sock2 = create_server(self.HOST2, self.PORT1)
-            assert sock1.getsockname() == (self.HOST1, self.PORT1)
-            assert sock2.getsockname() == (self.HOST2, self.PORT1)
+            sock1 = create_server(self.HOST1, 0)
+            _, PORT1 = sock1.getsockname()
+            sock2 = create_server(self.HOST2, PORT1)
+            assert sock1.getsockname() == (self.HOST1, PORT1)
+            assert sock2.getsockname() == (self.HOST2, PORT1)
         except Exception:
             pytest.fail()
         finally:
