@@ -1140,11 +1140,28 @@ def test_evaluate(case_setup):
         writer.finished_ok = True
 
 
-def test_exception_details(case_setup):
-    with case_setup.test_file('_debugger_case_exceptions.py') as writer:
+@pytest.mark.parametrize('max_frames', ['default', 'all', 10])  # -1 = default, 0 = all, 10 = 10 frames
+def test_exception_details(case_setup, max_frames):
+    with case_setup.test_file('_debugger_case_large_exception_stack.py') as writer:
         json_facade = JsonFacade(writer)
 
         writer.write_set_protocol('http_json')
+        if max_frames == 'all':
+            json_facade.write_launch(maxExceptionStackFrames=0)
+            # trace back compresses repeated text
+            min_expected_lines = 100
+            max_expected_lines = 220
+        elif max_frames == 'default':
+            json_facade.write_launch()
+            # default is all frames
+            # trace back compresses repeated text
+            min_expected_lines = 100
+            max_expected_lines = 220
+        else:
+            json_facade.write_launch(maxExceptionStackFrames=max_frames)
+            min_expected_lines = 10
+            max_expected_lines = 21
+
         json_facade.write_set_exception_breakpoints(['raised'])
 
         json_facade.write_make_initial_run()
@@ -1157,6 +1174,8 @@ def test_exception_details(case_setup):
         assert body.exceptionId.endswith('IndexError')
         assert body.description == 'foo'
         assert body.details.kwargs['source'] == writer.TEST_FILE
+        stack_line_count = len(body.details.stackTrace.split('\n'))
+        assert  min_expected_lines <= stack_line_count <= max_expected_lines
 
         json_facade.write_set_exception_breakpoints([])  # Don't stop on reraises.
         writer.write_run_thread(hit.thread_id)

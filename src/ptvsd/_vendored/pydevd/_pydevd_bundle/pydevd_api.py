@@ -126,12 +126,13 @@ class PyDevdAPI(object):
         else:
             py_db.post_internal_command(internal_get_thread_stack, '*')
 
-    def request_exception_info_json(self, py_db, request, thread_id):
+    def request_exception_info_json(self, py_db, request, thread_id, max_frames):
         py_db.post_method_as_internal_command(
             thread_id,
             internal_get_exception_details_json,
             request,
             thread_id,
+            max_frames,
             set_additional_thread_info=set_additional_thread_info,
             iter_visible_frames_info=py_db.cmd_factory._iter_visible_frames_info)
 

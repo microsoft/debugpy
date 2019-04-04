@@ -46,6 +46,7 @@ class DebugSession(object):
 
         self.target = ('code', 'print("OK")')
         self.start_method = start_method
+        self.start_method_args = {}
         self.no_debug = False
         self.ptvsd_port = ptvsd_port or PTVSD_PORT
         self.multiprocess = False
@@ -230,6 +231,7 @@ class DebugSession(object):
         ] + kwargs.pop('ignore_unobserved', [])
 
         self.env.update(kwargs.pop('env', {}))
+        self.start_method_args.update(kwargs.pop('args', {}))
 
         self.path_mappings += kwargs.pop('path_mappings', [])
         self.debug_options += kwargs.pop('debug_options', [])
@@ -497,14 +499,14 @@ class DebugSession(object):
         self.wait_for_next(Event('initialized', {}))
 
         request = 'launch' if self.start_method == 'launch' else 'attach'
-        args = {
+        self.start_method_args.update({
             'debugOptions': self.debug_options,
             'pathMappings': self.path_mappings,
             'rules': self.rules,
-        }
+        })
         if self.success_exitcodes is not None:
-            args['successExitCodes'] = self.success_exitcodes
-        self.send_request(request, args).wait_for_response()
+            self.start_method_args['successExitCodes'] = self.success_exitcodes
+        self.send_request(request, self.start_method_args).wait_for_response()
 
         if not self.no_debug:
             # Issue 'threads' so that we get the 'thread' event for the main thread now,

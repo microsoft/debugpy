@@ -1077,7 +1077,7 @@ def internal_get_description(dbg, seq, thread_id, frame_id, expression):
         dbg.writer.add_command(cmd)
 
 
-def internal_get_exception_details_json(dbg, request, thread_id, set_additional_thread_info=None, iter_visible_frames_info=None):
+def internal_get_exception_details_json(dbg, request, thread_id, max_frames, set_additional_thread_info=None, iter_visible_frames_info=None):
     ''' Fetch exception details
     '''
     try:
@@ -1143,7 +1143,7 @@ def internal_get_exception_details_json(dbg, request, thread_id, set_additional_
             except:
                 pass
 
-        stack_str = ''.join(traceback.format_list(frames))
+        stack_str = ''.join(traceback.format_list(frames[-max_frames:]))
 
         # This is an extra bit of data used by Visual Studio
         source_path = frames[0][0] if frames else ''

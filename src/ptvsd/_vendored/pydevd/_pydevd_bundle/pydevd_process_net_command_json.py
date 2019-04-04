@@ -190,6 +190,8 @@ class _PyDevJsonCommandProcessor(object):
             args.get('options'),
             args.get('debugOptions'),
         )
+        self._debug_options['args'] = args
+
         debug_stdlib = self._debug_options.get('DEBUG_STDLIB', False)
         self.api.set_use_libraries_filter(py_db, not debug_stdlib)
 
@@ -491,8 +493,9 @@ class _PyDevJsonCommandProcessor(object):
         '''
         # : :type exception_into_arguments: ExceptionInfoArguments
         exception_into_arguments = request.arguments
-        thread_id = exception_into_arguments.threadId
-        self.api.request_exception_info_json(py_db, request, thread_id)
+        thread_id = exception_into_arguments.threadId            
+        max_frames = int(self._debug_options['args'].get('maxExceptionStackFrames', 0))
+        self.api.request_exception_info_json(py_db, request, thread_id, max_frames)
 
     def on_scopes_request(self, py_db, request):
         '''
