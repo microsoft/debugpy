@@ -4,13 +4,6 @@
 
 from __future__ import print_function, with_statement, absolute_import
 
-# This module MUST NOT import threading in global scope. This is because
-# in a direct (non-ptvsd) attach scenario, it is loaded on the injected
-# debugger attach thread, and if threading module hasn't been loaded
-# already, it will assume that the thread on which it is being loaded is
-# the main thread. This will cause issues when the thread goes away
-# after attach completes.
-
 import errno
 import itertools
 import json
@@ -19,6 +12,7 @@ import os.path
 from socket import create_connection
 import sys
 import time
+import threading
 import traceback
 
 import ptvsd.log
@@ -216,14 +210,10 @@ class IpcChannel(object):
         super(IpcChannel, self).__init__(*args, **kwargs)
         # This class is meant to be last in the list of base classes
         # Don't call super because object's __init__ doesn't take arguments
-        try:
-            import thread
-        except ImportError:
-            import _thread as thread
-        # TODO: switch to a single underscore for "private" variables.
+
         self.__seq = itertools.count()
         self.__exit = False
-        self.__lock = thread.allocate_lock()
+        self.__lock = threading.Lock()
         self.__message = []
         self._timeout = timeout
         self._fail_after = None
