@@ -308,8 +308,8 @@ def test_raise_exception_options(pyfile, run_as, start_method, exceptions, break
             frames = hit.stacktrace.body['stackFrames']
             assert frames[0]['source']['path'].endswith('code_to_debug.py')
             assert frames[0]['line'] == line_numbers[expected_exception]
+            session.send_request('continue').wait_for_response(freeze=False)
 
-        session.send_request('continue').wait_for_response(freeze=False)
         session.wait_for_exit()
 
 
