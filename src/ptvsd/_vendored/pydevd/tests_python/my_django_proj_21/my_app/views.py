@@ -66,3 +66,15 @@ def template_error2(request):
     context = {}
     ret = render(request, 'my_app/template_error2.html', context)
     return ret
+
+
+def inherits(request):
+    context = {}
+    ret = render(request, 'my_app/inherits.html', context)
+    return ret
+
+
+def no_var_error(request):
+    context = {}
+    ret = render(request, 'my_app/no_var_error.html', context)
+    return ret

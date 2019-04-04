@@ -870,15 +870,10 @@ def test_case_flask(case_setup_flask):
         writer.wait_for_vars(['<var name="content" type="str"'])
         writer.write_run_thread(hit.thread_id)
 
-        for _ in xrange(10):
-            if hasattr(t, 'contents'):
-                break
-            time.sleep(.3)
-        else:
-            raise AssertionError('Flask did not return contents properly!')
+        contents = t.wait_for_contents()
 
-        assert '<title>Hello</title>' in t.contents
-        assert 'Flask-Jinja-Test' in t.contents
+        assert '<title>Hello</title>' in contents
+        assert 'Flask-Jinja-Test' in contents
 
         writer.finished_ok = True
 
@@ -919,14 +914,9 @@ def test_case_django_a(case_setup_django):
 
         writer.write_run_thread(hit.thread_id)
 
-        for _ in xrange(10):
-            if hasattr(t, 'contents'):
-                break
-            time.sleep(.3)
-        else:
-            raise AssertionError('Django did not return contents properly!')
+        contents = t.wait_for_contents()
 
-        contents = t.contents.replace(' ', '').replace('\r', '').replace('\n', '')
+        contents = contents.replace(' ', '').replace('\r', '').replace('\n', '')
         if contents != '<ul><li>v1:v1</li><li>v2:v2</li></ul>':
             raise AssertionError('%s != <ul><li>v1:v1</li><li>v2:v2</li></ul>' % (contents,))
 
@@ -954,13 +944,48 @@ def test_case_django_b(case_setup_django):
 
 
 @pytest.mark.skipif(not TEST_DJANGO, reason='No django available')
+def test_case_django_template_inherits_no_exception(case_setup_django):
+    with case_setup_django.test_file(EXPECTED_RETURNCODE='any') as writer:
+
+        # Check that it doesn't have issues with inherits + django exception breakpoints.
+        writer.write_add_exception_breakpoint_django()
+
+        writer.write_make_initial_run()
+
+        t = writer.create_request_thread('my_app/inherits')
+        time.sleep(5)  # Give django some time to get to startup before requesting the page
+        t.start()
+        contents = t.wait_for_contents()
+
+        contents = contents.replace(' ', '').replace('\r', '').replace('\n', '')
+        assert contents == '''"chat_mode=True""chat_mode=False"'''
+
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not TEST_DJANGO, reason='No django available')
+def test_case_django_no_var_error(case_setup_django):
+    with case_setup_django.test_file(EXPECTED_RETURNCODE='any') as writer:
+
+        # Check that it doesn't have issues with inherits + django exception breakpoints.
+        writer.write_add_exception_breakpoint_django()
+
+        writer.write_make_initial_run()
+
+        t = writer.create_request_thread('my_app/no_var_error')
+        time.sleep(5)  # Give django some time to get to startup before requesting the page
+        t.start()
+        contents = t.wait_for_contents()
+
+        contents = contents.replace(' ', '').replace('\r', '').replace('\n', '')
+        assert contents == '''no_pat_name'''
+
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not TEST_DJANGO, reason='No django available')
 @pytest.mark.parametrize("jmc", [False, True])
 def test_case_django_no_attribute_exception_breakpoint(case_setup_django, jmc):
-    django_version = [int(x) for x in django.get_version().split('.')][:2]
-
-    if django_version < [2, 1]:
-        pytest.skip('Template exceptions only supporting Django 2.1 onwards.')
-
     kwargs = {}
     if jmc:
 
@@ -993,11 +1018,6 @@ def test_case_django_no_attribute_exception_breakpoint(case_setup_django, jmc):
 
 @pytest.mark.skipif(not TEST_DJANGO, reason='No django available')
 def test_case_django_no_attribute_exception_breakpoint_and_regular_exceptions(case_setup_django):
-    django_version = [int(x) for x in django.get_version().split('.')][:2]
-
-    if django_version < [2, 1]:
-        pytest.skip('Template exceptions only supporting Django 2.1 onwards.')
-
     with case_setup_django.test_file(EXPECTED_RETURNCODE='any') as writer:
         writer.write_add_exception_breakpoint_django()
 
@@ -1026,11 +1046,6 @@ def test_case_django_no_attribute_exception_breakpoint_and_regular_exceptions(ca
 @pytest.mark.skipif(not TEST_DJANGO, reason='No django available')
 @pytest.mark.parametrize("jmc", [False, True])
 def test_case_django_invalid_template_exception_breakpoint(case_setup_django, jmc):
-    django_version = [int(x) for x in django.get_version().split('.')][:2]
-
-    if django_version < [2, 1]:
-        pytest.skip('Template exceptions only supporting Django 2.1 onwards.')
-
     kwargs = {}
     if jmc:
 

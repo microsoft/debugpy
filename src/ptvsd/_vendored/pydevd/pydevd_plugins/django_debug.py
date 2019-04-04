@@ -358,6 +358,17 @@ def _is_django_variable_does_not_exist_exception_break_context(frame):
         name = None
     return name in ('_resolve_lookup', 'find_template')
 
+
+def _is_ignoring_failures(frame):
+    while frame is not None:
+        if frame.f_code.co_name == 'resolve':
+            ignore_failures = frame.f_locals.get('ignore_failures')
+            if ignore_failures:
+                return True
+        frame = frame.f_back
+
+    return False
+
 #=======================================================================================================================
 # Django Step Commands
 #=======================================================================================================================
@@ -466,6 +477,21 @@ def suspend(plugin, main_debugger, thread, frame, bp_type):
     return None
 
 
+def _get_filename_from_origin_in_parent_frame_locals(frame, parent_frame_name):
+    filename = None
+    parent_frame = frame
+    while parent_frame.f_code.co_name != parent_frame_name:
+        parent_frame = parent_frame.f_back
+
+    origin = None
+    if parent_frame is not None:
+        origin = parent_frame.f_locals.get('origin')
+
+    if hasattr(origin, 'name') and origin.name is not None:
+        filename = normcase(_convert_to_str(origin.name))
+    return filename
+
+
 def exception_break(plugin, main_debugger, pydb_frame, frame, args, arg):
     main_debugger = args[0]
     thread = args[3]
@@ -479,19 +505,21 @@ def exception_break(plugin, main_debugger, pydb_frame, frame, args, arg):
                 # In this case we don't actually have a regular render frame with the context
                 # (we didn't really get to that point).
                 token = getattr(value, 'token', None)
+
+                if token is None:
+                    # Django 1.7 does not have token in exception. Try to get it from locals.
+                    token = frame.f_locals.get('token')
+
                 lineno = getattr(token, 'lineno', None)
+
                 filename = None
                 if lineno is not None:
-                    get_template_frame = frame
-                    while get_template_frame.f_code.co_name != 'get_template':
-                        get_template_frame = get_template_frame.f_back
+                    filename = _get_filename_from_origin_in_parent_frame_locals(frame, 'get_template')
 
-                    origin = None
-                    if get_template_frame is not None:
-                        origin = get_template_frame.f_locals.get('origin')
-
-                    if hasattr(origin, 'name') and origin.name is not None:
-                        filename = normcase(_convert_to_str(origin.name))
+                    if filename is None:
+                        # Django 1.7 does not have origin in get_template. Try to get it from
+                        # load_template.
+                        filename = _get_filename_from_origin_in_parent_frame_locals(frame, 'load_template')
 
                 if filename is not None and lineno is not None:
                     syntax_error_frame = DjangoTemplateSyntaxErrorFrame(
@@ -503,15 +531,16 @@ def exception_break(plugin, main_debugger, pydb_frame, frame, args, arg):
 
             elif exception.__name__ == 'VariableDoesNotExist':
                 if _is_django_variable_does_not_exist_exception_break_context(frame):
-                    render_frame = _find_django_render_frame(frame)
-                    if render_frame:
-                        suspend_frame = suspend_django(
-                            main_debugger, thread, DjangoTemplateFrame(render_frame), CMD_ADD_EXCEPTION_BREAK)
-                        if suspend_frame:
-                            add_exception_to_frame(suspend_frame, (exception, value, trace))
-                            thread.additional_info.pydev_message = 'VariableDoesNotExist'
-                            suspend_frame.f_back = frame
-                            frame = suspend_frame
-                            return True, frame
+                    if not getattr(exception, 'silent_variable_failure', False) and not _is_ignoring_failures(frame):
+                        render_frame = _find_django_render_frame(frame)
+                        if render_frame:
+                            suspend_frame = suspend_django(
+                                main_debugger, thread, DjangoTemplateFrame(render_frame), CMD_ADD_EXCEPTION_BREAK)
+                            if suspend_frame:
+                                add_exception_to_frame(suspend_frame, (exception, value, trace))
+                                thread.additional_info.pydev_message = 'VariableDoesNotExist'
+                                suspend_frame.f_back = frame
+                                frame = suspend_frame
+                                return True, frame
 
     return None

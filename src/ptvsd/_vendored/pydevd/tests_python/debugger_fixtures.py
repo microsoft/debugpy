@@ -10,6 +10,7 @@ from tests_python.debugger_unittest import get_free_port, overrides, IS_CPYTHON,
     CMD_ADD_EXCEPTION_BREAK
 
 import sys
+import time
 
 
 def get_java_location():
@@ -134,6 +135,15 @@ class AbstractWriterThreadCaseFlask(debugger_unittest.AbstractWriterThread):
 
         class T(threading.Thread):
 
+            def wait_for_contents(self):
+                for _ in range(10):
+                    if hasattr(self, 'contents'):
+                        break
+                    time.sleep(.3)
+                else:
+                    raise AssertionError('Django did not return contents properly!')
+                return self.contents
+
             def run(self):
                 try:
                     from urllib.request import urlopen
@@ -202,6 +212,15 @@ class AbstractWriterThreadCaseDjango(debugger_unittest.AbstractWriterThread):
         outer = self
 
         class T(threading.Thread):
+
+            def wait_for_contents(self):
+                for _ in range(10):
+                    if hasattr(self, 'contents'):
+                        break
+                    time.sleep(.3)
+                else:
+                    raise AssertionError('Django did not return contents properly!')
+                return self.contents
 
             def run(self):
                 try:
@@ -442,10 +461,10 @@ def case_setup_django():
             version = [int(x) for x in django.get_version().split('.')][:2]
             if version == [1, 7]:
                 django_folder = 'my_django_proj_17'
-            elif version == [2, 1]:
+            elif version in ([2, 1], [2, 2]):
                 django_folder = 'my_django_proj_21'
             else:
-                raise AssertionError('Can only check django 1.7 and 2.1 right now. Found: %s' % (version,))
+                raise AssertionError('Can only check django 1.7, 2.1 and 2.2 right now. Found: %s' % (version,))
 
             WriterThread.DJANGO_FOLDER = django_folder
             for key, value in kwargs.items():
