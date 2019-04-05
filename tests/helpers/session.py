@@ -6,6 +6,7 @@ from __future__ import print_function, with_statement, absolute_import
 
 from collections import namedtuple
 import os
+import platform
 import psutil
 import pytest
 import socket
@@ -374,7 +375,14 @@ class DebugSession(object):
         self.wait_for_disconnect(close=False)
 
         if Event('exited') in self:
-            self.expect_realized(Event('exited', {'exitCode': self.expected_returncode}))
+            expected_returncode = self.expected_returncode
+
+            # Due to https://github.com/Microsoft/ptvsd/issues/1278, exit code is not recorded
+            # in the "exited" event correctly in attach scenarios on Windows.
+            if self.start_method == 'attach_socket_import' and platform.system() == 'Windows':
+                expected_returncode = ANY.int
+
+            self.expect_realized(Event('exited', {'exitCode': expected_returncode}))
 
         if Event('terminated') in self:
             self.expect_realized(Event('exited') >> Event('terminated', {}))
@@ -404,14 +412,11 @@ class DebugSession(object):
         kill_thread.start()
 
         print(colors.LIGHT_MAGENTA + 'Waiting for ptvsd#%d (pid=%d) to terminate' % (self.ptvsd_port, self.pid) + colors.RESET)
-        self.psutil_process.wait()
+        returncode = self.psutil_process.wait()
+
+        assert returncode == self.expected_returncode
 
         self.is_running = False
-
-        if self.process is not None:
-            self.process.wait()
-            assert self.process.returncode == self.expected_returncode
-
         self.wait_for_termination()
 
     def _kill_process_tree(self):

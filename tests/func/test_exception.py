@@ -331,8 +331,7 @@ def test_success_exitcodes(pyfile, run_as, start_method, exit_code):
             target=(run_as, code_to_debug),
             start_method=start_method,
             ignore_unobserved=[Event('continued')],
-            # Exit code doesn't match: https://github.com/Microsoft/ptvsd/issues/1278
-            expected_returncode=ANY.int,
+            expected_returncode=exit_code,
         )
         session.send_request('setExceptionBreakpoints', {
             'filters': ['uncaught']
