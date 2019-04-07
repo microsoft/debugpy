@@ -3,6 +3,8 @@
 # for license information.
 
 from __future__ import print_function, with_statement, absolute_import
+
+from tests.helpers import get_marked_line_numbers
 from tests.helpers.session import DebugSession
 from tests.helpers.timeline import Event
 from tests.helpers.pattern import ANY
@@ -28,12 +30,27 @@ def test_with_tab_in_output(pyfile, run_as, start_method):
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
         import_and_enable_debugger()
-        print('Hello\tWorld')
+        a = '\t'.join(('Hello', 'World'))
+        print(a)
+        # Break here so we are sure to get the output event.
+        a = 1 # @bp1
 
+    line_numbers = get_marked_line_numbers(code_to_debug)
     with DebugSession() as session:
-        session.initialize(target=(run_as, code_to_debug), start_method=start_method)
+        session.initialize(
+            target=(run_as, code_to_debug),
+            start_method=start_method,
+            ignore_unobserved=[Event('continued')],
+        )
+
+        session.set_breakpoints(code_to_debug, [line_numbers['bp1']])
         session.start_debugging()
+
+        # Breakpoint at the end just to make sure we get all output events.
+        session.wait_for_thread_stopped()
+        session.send_request('continue').wait_for_response(freeze=False)
         session.wait_for_exit()
+
         output = session.all_occurrences_of(Event('output', ANY.dict_with({'category': 'stdout'})))
         output_str = ''.join(o.body['output'] for o in output)
         assert output_str.startswith('Hello\tWorld')
