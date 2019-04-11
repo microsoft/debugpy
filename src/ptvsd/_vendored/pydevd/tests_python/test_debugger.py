@@ -21,6 +21,7 @@ from tests_python.debugger_unittest import (CMD_SET_PROPERTY_TRACE, REASON_CAUGH
 from _pydevd_bundle.pydevd_constants import IS_WINDOWS
 from _pydevd_bundle.pydevd_comm_constants import CMD_RELOAD_CODE
 import json
+import pydevd_file_utils
 try:
     from urllib import unquote
 except ImportError:
@@ -1858,7 +1859,14 @@ def test_redirect_output(case_setup):
         writer.finished_ok = True
 
 
-def test_path_translation(case_setup):
+def _path_equals(path1, path2):
+    path1 = pydevd_file_utils.normcase(path1)
+    path2 = pydevd_file_utils.normcase(path2)
+    return path1 == path2
+
+
+@pytest.mark.parametrize('mixed_case', [True, False] if sys.platform == 'win32' else [False])
+def test_path_translation(case_setup, mixed_case):
 
     def get_file_in_client(writer):
         # Instead of using: test_python/_debugger_case_path_translation.py
@@ -1873,9 +1881,13 @@ def test_path_translation(case_setup):
         env["PYTHONIOENCODING"] = 'utf-8'
 
         assert writer.TEST_FILE.endswith('_debugger_case_path_translation.py')
+        file_in_client = get_file_in_client(writer)
+        if mixed_case:
+            new_file_in_client = ''.join([file_in_client[i].upper() if i % 2 == 0 else file_in_client[i].lower() for i in range(len(file_in_client))])
+            assert _path_equals(file_in_client, new_file_in_client)
         env["PATHS_FROM_ECLIPSE_TO_PYTHON"] = json.dumps([
             (
-                os.path.dirname(get_file_in_client(writer)),
+                os.path.dirname(file_in_client),
                 os.path.dirname(writer.TEST_FILE)
             )
         ])

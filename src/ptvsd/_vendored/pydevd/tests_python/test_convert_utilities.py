@@ -186,6 +186,9 @@ def test_to_server_and_to_client(tmpdir):
 
                 pydevd_file_utils.setup_client_server_paths(PATHS_FROM_ECLIPSE_TO_PYTHON)
                 assert pydevd_file_utils.norm_file_to_server('c:\\foo\\my') == '/báéíóúr/my'
+                assert pydevd_file_utils.norm_file_to_server('C:\\foo\\my') == '/báéíóúr/my'
+                assert pydevd_file_utils.norm_file_to_server('C:\\foo\\MY') == '/báéíóúr/MY'
+                assert pydevd_file_utils.norm_file_to_server('C:\\foo\\MY\\') == '/báéíóúr/MY'
                 assert pydevd_file_utils.norm_file_to_server('c:\\foo\\my\\file.py') == '/báéíóúr/my/file.py'
                 assert pydevd_file_utils.norm_file_to_server('c:\\foo\\my\\other\\file.py') == '/báéíóúr/my/other/file.py'
                 assert pydevd_file_utils.norm_file_to_server('c:/foo/my') == '/báéíóúr/my'
@@ -201,6 +204,12 @@ def test_to_server_and_to_client(tmpdir):
                 assert pydevd_file_utils.norm_file_to_client('/usr/bin/') == '\\usr\\bin'
                 assert pydevd_file_utils.norm_file_to_server('\\usr\\bin') == '/usr/bin'
                 assert pydevd_file_utils.norm_file_to_server('\\usr\\bin\\') == '/usr/bin'
+
+                # When we have a client file and there'd be no translation, and making it absolute would
+                # do something as '$cwd/$file_received' (i.e.: $cwd/c:/another in the case below),
+                # warn the user that it's not correct and the path that should be translated instead
+                # and don't make it absolute.
+                assert pydevd_file_utils.norm_file_to_server('c:\\another') == 'c:/another'
 
             # Client and server on unix
             pydevd_file_utils.set_ide_os('UNIX')

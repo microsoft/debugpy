@@ -97,9 +97,6 @@ def _parse_debug_options(opts):
         except KeyError:
             continue
 
-    if 'CLIENT_OS_TYPE' not in options:
-        options['CLIENT_OS_TYPE'] = 'WINDOWS' if platform.system() == 'Windows' else 'UNIX'  # noqa
-
     return options
 
 

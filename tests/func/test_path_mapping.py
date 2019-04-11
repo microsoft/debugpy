@@ -10,6 +10,53 @@ from tests.helpers.pattern import Path
 from tests.helpers.session import DebugSession
 from tests.helpers.timeline import Event
 from tests.helpers.pathutils import get_test_root
+from tests.helpers import get_marked_line_numbers
+import pytest
+import sys
+
+
+@pytest.mark.skipif(sys.platform == 'win32', reason='Linux/Mac only test.')
+@pytest.mark.parametrize('invalid_os_type', [True])
+def test_client_ide_from_path_mapping_linux_backend(pyfile, tmpdir, run_as, start_method, invalid_os_type):
+    '''
+    Test simulating that the backend is on Linux and the client is on Windows
+    (automatically detect it from the path mapping).
+    '''
+
+    @pyfile
+    def code_to_debug():
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
+        import backchannel
+        import pydevd_file_utils
+        backchannel.write_json({'ide_os': pydevd_file_utils._ide_os})
+        print('done')  # @break_here
+
+    with DebugSession() as session:
+        session.initialize(
+            target=(run_as, code_to_debug),
+            start_method=start_method,
+            ignore_unobserved=[Event('continued')],
+            use_backchannel=True,
+            path_mappings=[{
+                'localRoot': 'C:\\TEMP\\src',
+                'remoteRoot': os.path.dirname(code_to_debug),
+            }],
+        )
+        if invalid_os_type:
+            session.debug_options.append('CLIENT_OS_TYPE=INVALID')
+        bp_line = get_marked_line_numbers(code_to_debug)['break_here']
+        session.set_breakpoints('c:\\temp\\src\\' + os.path.basename(code_to_debug), [bp_line])
+        session.start_debugging()
+        hit = session.wait_for_thread_stopped('breakpoint')
+        frames = hit.stacktrace.body['stackFrames']
+        assert frames[0]['source']['path'] == 'C:\\TEMP\\src\\' + os.path.basename(code_to_debug)
+
+        json_read = session.read_json()
+        assert json_read == {'ide_os': 'WINDOWS'}
+
+        session.send_request('continue').wait_for_response(freeze=False)
+        session.wait_for_exit()
 
 
 def test_with_dot_remote_root(pyfile, tmpdir, run_as, start_method):

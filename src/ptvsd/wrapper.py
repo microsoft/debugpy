@@ -9,6 +9,7 @@ import copy
 import errno
 import json
 import os
+import re
 import platform
 import pydevd_file_utils
 import site
@@ -687,9 +688,6 @@ def _parse_debug_options(opts):
         except KeyError:
             continue
 
-    if 'CLIENT_OS_TYPE' not in options:
-        options['CLIENT_OS_TYPE'] = 'WINDOWS' if platform.system() == 'Windows' else 'UNIX'  # noqa
-
     return options
 
 ########################
@@ -1101,6 +1099,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self._pydevd_request = pydevd_request
         self._notify_debugger_ready = notify_debugger_ready
 
+        self._client_os_type = 'WINDOWS' if platform.system() == 'Windows' else 'UNIX'
+
         self.loop = None
         self.event_loop_thread = None
 
@@ -1334,15 +1334,35 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     def _send_cmd_version_command(self):
         cmd = pydevd_comm.CMD_VERSION
-        default_os_type = 'WINDOWS' if platform.system() == 'Windows' else 'UNIX'
-        client_os_type = self.debug_options.get('CLIENT_OS_TYPE', default_os_type)
-        os_id = client_os_type
-        msg = '1.1\t{}\tID'.format(os_id)
+
+        msg = '1.1\t{}\tID'.format(self._client_os_type)
         return self.pydevd_request(cmd, msg)
 
     @async_handler
     def _handle_launch_or_attach(self, request, args):
         self._path_mappings_received = True
+
+        client_os_type = self.debug_options.get('CLIENT_OS_TYPE', '').upper().strip()
+        if client_os_type and client_os_type not in ('WINDOWS', 'UNIX'):
+            ptvsd.log.warn('Invalid CLIENT_OS_TYPE passed: %s (must be either "WINDOWS" or "UNIX").' % (client_os_type,))
+            client_os_type = ''
+
+        if not client_os_type:
+            for pathMapping in args.get('pathMappings', []):
+                localRoot = pathMapping.get('localRoot', '')
+                if localRoot:
+                    if localRoot.startswith('/'):
+                        client_os_type = 'UNIX'
+                        break
+
+                    if re.match('^([a-zA-Z]):', localRoot):  # Match drive letter
+                        client_os_type = 'WINDOWS'
+                        break
+
+        if not client_os_type:
+            client_os_type = 'WINDOWS' if platform.system() == 'Windows' else 'UNIX'
+
+        self._client_os_type = client_os_type
 
         self.pydevd_request(pydevd_comm.CMD_SET_PROTOCOL, 'json')
         yield self._send_cmd_version_command()
