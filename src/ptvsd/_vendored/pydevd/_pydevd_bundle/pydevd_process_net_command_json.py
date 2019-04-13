@@ -481,11 +481,13 @@ class _PyDevJsonCommandProcessor(object):
         # : :type stack_trace_arguments: StackTraceArguments
         stack_trace_arguments = request.arguments
         thread_id = stack_trace_arguments.threadId
+        start_frame = stack_trace_arguments.startFrame
+        levels = stack_trace_arguments.levels
 
         fmt = stack_trace_arguments.format
         if hasattr(fmt, 'to_dict'):
             fmt = fmt.to_dict()
-        self.api.request_stack(py_db, request.seq, thread_id, fmt)
+        self.api.request_stack(py_db, request.seq, thread_id, fmt=fmt, start_frame=start_frame, levels=levels)
 
     def on_exceptioninfo_request(self, py_db, request):
         '''

@@ -550,13 +550,15 @@ class InternalGetThreadStack(InternalThreadCommand):
     stopped in a breakpoint).
     '''
 
-    def __init__(self, seq, thread_id, py_db, set_additional_thread_info, fmt, timeout=.5):
+    def __init__(self, seq, thread_id, py_db, set_additional_thread_info, fmt, timeout=.5, start_frame=0, levels=0):
         InternalThreadCommand.__init__(self, thread_id)
         self._py_db = weakref.ref(py_db)
         self._timeout = time.time() + timeout
         self.seq = seq
         self._cmd = None
         self._fmt = fmt
+        self._start_frame = start_frame
+        self._levels = levels
 
         # Note: receives set_additional_thread_info to avoid a circular import
         # in this module.
@@ -574,7 +576,7 @@ class InternalGetThreadStack(InternalThreadCommand):
             frame = additional_info.get_topmost_frame(t)
         try:
             self._cmd = py_db.cmd_factory.make_get_thread_stack_message(
-                py_db, self.seq, self.thread_id, frame, self._fmt, must_be_suspended=not timed_out)
+                py_db, self.seq, self.thread_id, frame, self._fmt, must_be_suspended=not timed_out, start_frame=self._start_frame, levels=self._levels)
         finally:
             frame = None
             t = None

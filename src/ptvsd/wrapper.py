@@ -1412,7 +1412,15 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     def _forward_request_to_pydevd(self, request, args):
         translate_thread_id = args.get('threadId') is not None
         if translate_thread_id:
-            pyd_tid = self.thread_map.to_pydevd(int(args['threadId']))
+            try:
+                vsc_tid = int(args['threadId'])
+                pyd_tid = self.thread_map.to_pydevd(vsc_tid)
+            except KeyError:
+                # Unknown thread, nothing much we can do about it here
+                self.send_error_response(
+                    request,
+                    'Thread {} not found'.format(vsc_tid))
+                return
 
         pydevd_request = copy.deepcopy(request)
         del pydevd_request['seq']  # A new seq should be created for pydevd.
@@ -1480,35 +1488,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             else:
                 self.send_error_response(request, resp_args.get('message', 'Error retrieving source'))
 
-    @async_handler
     def on_stackTrace(self, request, args):
-        vsc_tid = int(args['threadId'])
-
-        try:
-            pyd_tid = self.thread_map.to_pydevd(vsc_tid)
-        except KeyError:
-            # Unknown thread, nothing much we can do about it here
-            self.send_error_response(
-                request,
-                'Thread {} not found'.format(vsc_tid))
-            return
-        pydevd_request = copy.deepcopy(request)
-        del pydevd_request['seq']  # A new seq should be created for pydevd.
-        # Translate threadId for pydevd.
-        pydevd_request['arguments']['threadId'] = pyd_tid
-        _, _, resp_args = yield self.pydevd_request(
-            pydevd_comm.CMD_GET_THREAD_STACK,
-            pydevd_request,
-            is_json=True)
-
-        levels = int(args.get('levels', 0))
-        stackFrames = resp_args['body']['stackFrames']
-        if levels > 0:
-            start = int(args.get('startFrame', 0))
-            end = min(start + levels, len(stackFrames))
-            stackFrames = resp_args['body']['stackFrames'][start:end]
-        totalFrames = resp_args['body']['totalFrames']
-        self.send_response(request, stackFrames=stackFrames, totalFrames=totalFrames)
+        self._forward_request_to_pydevd(request, args)
 
     def on_scopes(self, request, args):
         self._forward_request_to_pydevd(request, args)

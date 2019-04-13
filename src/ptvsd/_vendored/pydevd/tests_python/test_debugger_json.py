@@ -1182,6 +1182,41 @@ def test_exception_details(case_setup, max_frames):
 
         writer.finished_ok = True
 
+def test_stack_levels(case_setup):
+    with case_setup.test_file('_debugger_case_deep_stacks.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_set_protocol('http_json')
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'))
+
+        json_facade.write_make_initial_run()
+        hit = writer.wait_for_breakpoint_hit()
+
+        # get full stack
+        stack_trace_request = json_facade.write_request(
+            pydevd_schema.StackTraceRequest(pydevd_schema.StackTraceArguments(threadId=hit.thread_id)))
+        stack_trace_response = json_facade.wait_for_response(stack_trace_request)
+        full_stack_frames = stack_trace_response.body.stackFrames
+        total_frames = stack_trace_response.body.totalFrames
+
+        startFrame = 0
+        levels = 20
+        received_frames = []
+        while startFrame < total_frames:
+            stack_trace_request = json_facade.write_request(
+                pydevd_schema.StackTraceRequest(pydevd_schema.StackTraceArguments(
+                    threadId=hit.thread_id,
+                    startFrame=startFrame,
+                    levels=20)))
+            stack_trace_response = json_facade.wait_for_response(stack_trace_request)
+            received_frames += stack_trace_response.body.stackFrames
+            startFrame += levels
+
+        assert full_stack_frames == received_frames
+
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
 
 @pytest.mark.skipif(IS_JYTHON, reason='No goto on Jython.')
 def test_goto(case_setup):

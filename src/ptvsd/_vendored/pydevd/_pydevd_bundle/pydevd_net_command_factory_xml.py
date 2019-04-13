@@ -87,7 +87,7 @@ class NetCommandFactory(object):
         except:
             return self.make_error_message(seq, get_exception_traceback_str())
 
-    def make_get_thread_stack_message(self, py_db, seq, thread_id, topmost_frame, fmt, must_be_suspended=False):
+    def make_get_thread_stack_message(self, py_db, seq, thread_id, topmost_frame, fmt, must_be_suspended=False, start_frame=0, levels=0):
         """
         Returns thread stack as XML.
 

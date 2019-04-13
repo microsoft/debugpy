@@ -117,10 +117,10 @@ class PyDevdAPI(object):
         py_db.post_method_as_internal_command(
             thread_id, internal_get_completions, seq, thread_id, frame_id, act_tok, line=line, column=column)
 
-    def request_stack(self, py_db, seq, thread_id, fmt=None, timeout=.5):
+    def request_stack(self, py_db, seq, thread_id, fmt=None, timeout=.5, start_frame=0, levels=0):
         # If it's already suspended, get it right away.
         internal_get_thread_stack = InternalGetThreadStack(
-            seq, thread_id, py_db, set_additional_thread_info, fmt=fmt, timeout=timeout)
+            seq, thread_id, py_db, set_additional_thread_info, fmt=fmt, timeout=timeout, start_frame=start_frame, levels=levels)
         if internal_get_thread_stack.can_be_executed_by(get_current_thread_id(threading.current_thread())):
             internal_get_thread_stack.do_it(py_db)
         else:

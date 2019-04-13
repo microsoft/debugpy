@@ -158,7 +158,7 @@ class NetCommandFactoryJson(NetCommandFactory):
         return frame_name
 
     @overrides(NetCommandFactory.make_get_thread_stack_message)
-    def make_get_thread_stack_message(self, py_db, seq, thread_id, topmost_frame, fmt, must_be_suspended=False):
+    def make_get_thread_stack_message(self, py_db, seq, thread_id, topmost_frame, fmt, must_be_suspended=False, start_frame=0, levels=0):
         frames = []
         module_events = []
         if topmost_frame is not None:
@@ -204,11 +204,18 @@ class NetCommandFactoryJson(NetCommandFactory):
         for module_event in module_events:
             py_db.writer.add_command(module_event)
 
+        total_frames = len(frames)
+        stack_frames = frames
+        if bool(levels):
+            start = start_frame
+            end = min(start + levels, total_frames)
+            stack_frames = frames[start:end]
+
         response = pydevd_schema.StackTraceResponse(
             request_seq=seq,
             success=True,
             command='stackTrace',
-            body=pydevd_schema.StackTraceResponseBody(stackFrames=frames, totalFrames=len(frames)))
+            body=pydevd_schema.StackTraceResponseBody(stackFrames=stack_frames, totalFrames=total_frames))
         return NetCommand(CMD_RETURN, 0, response, is_json=True)
 
     @overrides(NetCommandFactory.make_io_message)
