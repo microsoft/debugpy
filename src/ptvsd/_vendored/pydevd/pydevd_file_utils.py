@@ -60,6 +60,11 @@ exists = os.path.exists
 join = os.path.join
 
 try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOError  # noqa
+
+try:
     rPath = os.path.realpath  # @UndefinedVariable
 except:
     # jython does not support os.path.realpath
@@ -132,13 +137,78 @@ if sys.platform == 'win32':
                 filename = filename.encode(getfilesystemencoding())
             return filename
 
+        # Note that we have a cache for previous list dirs... the only case where this may be an
+        # issue is if the user actually changes the case of an existing file on windows while
+        # the debugger is executing (as this seems very unlikely and the cache can save a
+        # reasonable time -- especially on mapped drives -- it seems nice to have it).
+        _listdir_cache = {}
+
+        def _resolve_listing(resolved, iter_parts, cache=_listdir_cache):
+            while True:  # Note: while True to make iterative and not recursive
+                try:
+                    resolve_lowercase = next(iter_parts)  # must be lowercase already
+                except StopIteration:
+                    return resolved
+
+                resolved_lower = resolved.lower()
+
+                resolved_joined = cache.get((resolved_lower, resolve_lowercase))
+                if resolved_joined is None:
+                    dir_contents = cache.get(resolved_lower)
+                    if dir_contents is None:
+                        dir_contents = cache[resolved_lower] = os.listdir(resolved)
+
+                    for filename in dir_contents:
+                        if filename.lower() == resolve_lowercase:
+                            resolved_joined = os.path.join(resolved, filename)
+                            cache[(resolved_lower, resolve_lowercase)] = resolved_joined
+                            break
+                    else:
+                        raise FileNotFoundError('Unable to find: %s in %s' % (
+                            resolve_lowercase, resolved))
+
+                resolved = resolved_joined
+
         def _get_path_with_real_case(filename):
-            ret = convert_to_long_pathname(convert_to_short_pathname(filename))
-            # This doesn't handle the drive letter properly (it'll be unchanged).
-            # Make sure the drive letter is always uppercase.
-            if len(ret) > 1 and ret[1] == ':' and ret[0].islower():
-                return ret[0].upper() + ret[1:]
-            return ret
+            # Note: this previously made:
+            # convert_to_long_pathname(convert_to_short_pathname(filename))
+            # but this is no longer done because we can't rely on getting the shortname
+            # consistently (there are settings to disable it on Windows).
+            # So, using approach which resolves by listing the dir.
+
+            if IS_PY2 and isinstance(filename, unicode):  # noqa
+                filename = filename.encode(getfilesystemencoding())
+
+            if '~' in filename:
+                filename = convert_to_long_pathname(filename)
+
+            if filename.startswith('<') or not os.path.exists(filename):
+                return filename  # Not much we can do.
+
+            drive, parts = os.path.splitdrive(os.path.normpath(filename))
+            drive = drive.upper()
+            while parts.startswith(os.path.sep):
+                parts = parts[1:]
+                drive += os.path.sep
+            parts = parts.lower().split(os.path.sep)
+
+            try:
+                return _resolve_listing(drive, iter(parts))
+            except FileNotFoundError:
+                _listdir_cache.clear()
+                # Retry once after clearing the cache we have.
+                try:
+                    return _resolve_listing(drive, iter(parts))
+                except FileNotFoundError:
+                    if os.path.exists(filename):
+                        # This is really strange, ask the user to report as error.
+                        sys.stderr.write('\npydev debugger: critical: unable to get real case for file. Details:\n'
+                                         'filename: %s\ndrive: %s\nparts: %s\n'
+                                         '(please create a ticket in the tracker to address this).\n\n' % (
+                                             filename, drive, parts))
+                        traceback.print_exc()
+                    # Don't fail, just return the original file passed.
+                    return filename
 
         # Check that it actually works
         _get_path_with_real_case(__file__)

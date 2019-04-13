@@ -1,6 +1,7 @@
 # coding: utf-8
 import os.path
-from _pydevd_bundle.pydevd_constants import IS_WINDOWS, IS_JYTHON
+from _pydevd_bundle.pydevd_constants import IS_WINDOWS, IS_JYTHON, IS_PY2
+from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
 
 
 def test_convert_utilities(tmpdir):
@@ -24,19 +25,43 @@ def test_convert_utilities(tmpdir):
             assert stream.read() == 'test'
 
         assert '~' not in normalized
-        if not IS_JYTHON:
-            assert '~' in pydevd_file_utils.convert_to_short_pathname(normalized)
 
-        real_case = pydevd_file_utils.get_path_with_real_case(normalized)
-        assert isinstance(real_case, str)  # bytes on py2, unicode on py3
-        # Note test_dir itself cannot be compared with because pytest may
-        # have passed the case normalized.
-        assert real_case.endswith("Test_Convert_Utilities")
+        for i in range(3):  # Check if cache is ok.
+
+            if i == 2:
+                pydevd_file_utils._listdir_cache.clear()
+
+            assert pydevd_file_utils.get_path_with_real_case('<does not EXIST>') == '<does not EXIST>'
+            real_case = pydevd_file_utils.get_path_with_real_case(normalized)
+            assert isinstance(real_case, str)  # bytes on py2, unicode on py3
+            # Note test_dir itself cannot be compared with because pytest may
+            # have passed the case normalized.
+            assert real_case.endswith("Test_Convert_Utilities")
+
+            if i == 2:
+                # Check that we have the expected paths in the cache.
+                assert pydevd_file_utils._listdir_cache[os.path.dirname(normalized).lower()] == ['Test_Convert_Utilities']
+                assert pydevd_file_utils._listdir_cache[(os.path.dirname(normalized).lower(), 'Test_Convert_Utilities'.lower())] == real_case
+
+            if IS_PY2:
+                # Test with unicode in python 2 too.
+                real_case = pydevd_file_utils.get_path_with_real_case(normalized.decode(
+                    getfilesystemencoding()))
+                assert isinstance(real_case, str)  # bytes on py2, unicode on py3
+                # Note test_dir itself cannot be compared with because pytest may
+                # have passed the case normalized.
+                assert real_case.endswith("Test_Convert_Utilities")
+
+        # Check that it works with a shortened path.
+        shortened = pydevd_file_utils.convert_to_short_pathname(normalized)
+        assert '~' in shortened
+        with_real_case = pydevd_file_utils.get_path_with_real_case(shortened)
+        assert with_real_case.endswith('Test_Convert_Utilities')
+        assert '~' not in with_real_case
 
     else:
         # On other platforms, nothing should change
         assert pydevd_file_utils.normcase(test_dir) == test_dir
-        assert pydevd_file_utils.convert_to_short_pathname(test_dir) == test_dir
         assert pydevd_file_utils.get_path_with_real_case(test_dir) == test_dir
 
 
