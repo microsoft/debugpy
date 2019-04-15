@@ -8,43 +8,51 @@ import pytest
 from tests.helpers.pattern import ANY
 from tests.helpers.session import DebugSession
 from tests.helpers.timeline import Event
-
+from ptvsd.messaging import RequestFailure
+from tests.helpers import get_marked_line_numbers
 
 expected_at_line = {
-    8: [
+    'in_do_something': [
         {'label': 'SomeClass', 'type': 'class', 'start': 0, 'length': 4},
         {'label': 'someFunction', 'type': 'function', 'start': 0, 'length': 4},
         {'label': 'someVariable', 'type': 'field', 'start': 0, 'length': 4},
     ],
-    11: [
+    'in_some_function': [
         {'label': 'SomeClass', 'type': 'class', 'start': 0, 'length': 4},
         {'label': 'someFunction', 'type': 'function', 'start': 0, 'length': 4},
         {'label': 'someVar', 'type': 'field', 'start': 0, 'length': 4},
         {'label': 'someVariable', 'type': 'field', 'start': 0, 'length': 4},
     ],
-    13: [
+    'done': [
         {'label': 'SomeClass', 'type': 'class', 'start': 0, 'length': 4},
         {'label': 'someFunction', 'type': 'function', 'start': 0, 'length': 4},
     ],
 }
 
-@pytest.mark.parametrize('bp_line', expected_at_line.keys())
+
+@pytest.mark.parametrize('bp_line', sorted(expected_at_line.keys()))
 def test_completions_scope(pyfile, bp_line, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
         import_and_enable_debugger()
+
         class SomeClass():
+
             def __init__(self, someVar):
                 self.some_var = someVar
+
             def do_someting(self):
                 someVariable = self.some_var
-                return someVariable
+                return someVariable  # @in_do_something
+
         def someFunction(someVar):
             someVariable = someVar
-            return SomeClass(someVariable).do_someting()
+            return SomeClass(someVariable).do_someting()  # @in_some_function
+
         someFunction('value')
-        print('done')
+        print('done')  # @done
 
     expected = expected_at_line[bp_line]
 
@@ -54,7 +62,9 @@ def test_completions_scope(pyfile, bp_line, run_as, start_method):
             start_method=start_method,
             ignore_unobserved=[Event('stopped'), Event('continued')],
         )
-        session.set_breakpoints(code_to_debug, [bp_line])
+
+        line_numbers = get_marked_line_numbers(code_to_debug)
+        session.set_breakpoints(code_to_debug, [line_numbers[bp_line]])
         session.start_debugging()
 
         thread_stopped = session.wait_for_next(Event('stopped', ANY.dict_with({'reason': 'breakpoint'})))
@@ -86,6 +96,7 @@ def test_completions_scope(pyfile, bp_line, run_as, start_method):
 
 
 def test_completions_cases(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
@@ -93,9 +104,10 @@ def test_completions_cases(pyfile, run_as, start_method):
         a = 1
         b = {"one": 1, "two": 2}
         c = 3
-        print([a, b, c])
+        print([a, b, c])  # @break
 
-    bp_line = 6
+    line_numbers = get_marked_line_numbers(code_to_debug)
+    bp_line = line_numbers['break']
     bp_file = code_to_debug
 
     with DebugSession() as session:
@@ -133,6 +145,15 @@ def test_completions_cases(pyfile, run_as, start_method):
         }).wait_for_response()
 
         assert not response.body['targets']
+
+        # Check errors
+        with pytest.raises(RequestFailure) as request_failure:
+            response = session.send_request('completions', arguments={
+                'frameId': 9999999,  # frameId not available.
+                'text': 'not_there',
+                'column': 10,
+            }).wait_for_response()
+        assert 'Wrong ID sent from the client:' in request_failure.value.message
 
         session.send_request('continue').wait_for_response(freeze=False)
         session.wait_for_exit()

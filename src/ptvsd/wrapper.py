@@ -1429,10 +1429,13 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         cmd_id = -1  # It's actually unused on json requests.
         _, _, resp_args = yield self.pydevd_request(cmd_id, pydevd_request, is_json=True)
 
-        body = resp_args.get('body')
-        if body is None:
-            body = {}
-        self.send_response(request, **body)
+        if not resp_args.get('success'):
+            self.send_error_response(request, message=resp_args.get('message', ''))
+        else:
+            body = resp_args.get('body')
+            if body is None:
+                body = {}
+            self.send_response(request, **body)
 
     @async_handler
     def on_threads(self, request, args):

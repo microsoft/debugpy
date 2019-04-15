@@ -17,6 +17,7 @@ from _pydevd_bundle.pydevd_json_debug_options import _extract_debug_options
 from _pydevd_bundle.pydevd_net_command import NetCommand
 from _pydevd_bundle.pydevd_utils import convert_dap_log_message_to_expression
 import pydevd_file_utils
+from _pydevd_bundle._debug_adapter.pydevd_schema import CompletionsResponseBody
 
 
 def _convert_rules_to_exclude_filters(rules, filename_to_server, on_error):
@@ -115,21 +116,39 @@ class _PyDevJsonCommandProcessor(object):
 
         DEBUG = False
 
-        request = self.from_json(json_contents, update_ids_from_dap=True)
+        try:
+            request = self.from_json(json_contents, update_ids_from_dap=True)
+        except KeyError as e:
+            request = self.from_json(json_contents, update_ids_from_dap=False)
+            error_msg = str(e)
+            if error_msg.startswith("'") and error_msg.endswith("'"):
+                error_msg = error_msg[1:-1]
 
-        if DEBUG:
-            print('Process %s: %s\n' % (
-                request.__class__.__name__, json.dumps(request.to_dict(), indent=4, sort_keys=True),))
+            # This means a failure updating ids from the DAP (the client sent a key we didn't send).
+            def on_request(py_db, request):
+                error_response = {
+                    'type': 'response',
+                    'request_seq': request.seq,
+                    'success': False,
+                    'command': request.command,
+                    'message': error_msg,
+                }
+                return NetCommand(CMD_RETURN, 0, error_response, is_json=True)
 
-        assert request.type == 'request'
-        method_name = 'on_%s_request' % (request.command.lower(),)
-        on_request = getattr(self, method_name, None)
-        if on_request is None:
-            print('Unhandled: %s not available in _PyDevJsonCommandProcessor.\n' % (method_name,))
-            return
+        else:
+            if DEBUG:
+                print('Process %s: %s\n' % (
+                    request.__class__.__name__, json.dumps(request.to_dict(), indent=4, sort_keys=True),))
 
-        if DEBUG:
-            print('Handled in pydevd: %s (in _PyDevJsonCommandProcessor).\n' % (method_name,))
+            assert request.type == 'request'
+            method_name = 'on_%s_request' % (request.command.lower(),)
+            on_request = getattr(self, method_name, None)
+            if on_request is None:
+                print('Unhandled: %s not available in _PyDevJsonCommandProcessor.\n' % (method_name,))
+                return
+
+            if DEBUG:
+                print('Handled in pydevd: %s (in _PyDevJsonCommandProcessor).\n' % (method_name,))
 
         py_db._main_lock.acquire()
         try:
@@ -164,6 +183,17 @@ class _PyDevJsonCommandProcessor(object):
         frame_id = arguments.frameId
         thread_id = py_db.suspended_frames_manager.get_thread_id_for_variable_reference(
             frame_id)
+
+        if thread_id is None:
+            body = CompletionsResponseBody([])
+            variables_response = pydevd_base_schema.build_response(
+                request,
+                kwargs={
+                    'body': body,
+                    'success': False,
+                    'message': 'Thread to get completions seems to have resumed already.'
+            })
+            return NetCommand(CMD_RETURN, 0, variables_response, is_json=True)
 
         # Note: line and column are 1-based (convert to 0-based for pydevd).
         column = arguments.column - 1
@@ -495,7 +525,7 @@ class _PyDevJsonCommandProcessor(object):
         '''
         # : :type exception_into_arguments: ExceptionInfoArguments
         exception_into_arguments = request.arguments
-        thread_id = exception_into_arguments.threadId            
+        thread_id = exception_into_arguments.threadId
         max_frames = int(self._debug_options['args'].get('maxExceptionStackFrames', 0))
         self.api.request_exception_info_json(py_db, request, thread_id, max_frames)
 

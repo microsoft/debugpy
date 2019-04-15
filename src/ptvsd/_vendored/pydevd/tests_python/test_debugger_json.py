@@ -7,7 +7,7 @@ from tests_python.debugger_unittest import IS_JYTHON, REASON_STEP_INTO, REASON_S
     REASON_CAUGHT_EXCEPTION, REASON_THREAD_SUSPEND, REASON_STEP_RETURN, IS_APPVEYOR, overrides, \
     REASON_UNCAUGHT_EXCEPTION
 from _pydevd_bundle._debug_adapter.pydevd_schema import ThreadEvent, ModuleEvent, OutputEvent, \
-    ExceptionOptions
+    ExceptionOptions, Response
 from tests_python import debugger_unittest
 import json
 from collections import namedtuple
@@ -56,7 +56,7 @@ class JsonFacade(object):
                     return True
             return False
 
-        return self.wait_for_json_message(response_class, accept_message)
+        return self.wait_for_json_message((response_class, Response), accept_message)
 
     def write_request(self, request):
         seq = self.writer.next_seq()
@@ -431,7 +431,7 @@ def test_case_skipping_filters(case_setup, custom_setup):
 
 
 def test_case_completions_json(case_setup):
-    with case_setup.test_file('_debugger_case_print.py') as writer:
+    with case_setup.test_file('_debugger_case_completions.py') as writer:
         json_facade = JsonFacade(writer)
 
         writer.write_set_protocol('http_json')
@@ -439,33 +439,61 @@ def test_case_completions_json(case_setup):
 
         json_facade.write_make_initial_run()
 
-        hit = writer.wait_for_breakpoint_hit()
+        first_hit = None
+        for i in range(2):
+            hit = writer.wait_for_breakpoint_hit()
 
-        json_hit = json_facade.get_stack_as_json_hit(hit.thread_id)
+            json_hit = json_facade.get_stack_as_json_hit(hit.thread_id)
+            if i == 0:
+                first_hit = json_hit
 
-        completions_arguments = pydevd_schema.CompletionsArguments(
-            'dict.', 6, frameId=json_hit.frameId, line=0)
-        completions_request = json_facade.write_request(
-            pydevd_schema.CompletionsRequest(completions_arguments))
+            completions_arguments = pydevd_schema.CompletionsArguments(
+                'dict.', 6, frameId=json_hit.frameId, line=0)
+            completions_request = json_facade.write_request(
+                pydevd_schema.CompletionsRequest(completions_arguments))
 
-        response = json_facade.wait_for_response(completions_request)
-        labels = [x['label'] for x in response.body.targets]
-        assert set(labels).issuperset(set(['__contains__', 'items', 'keys', 'values']))
+            response = json_facade.wait_for_response(completions_request)
+            assert response.success
+            labels = [x['label'] for x in response.body.targets]
+            assert set(labels).issuperset(set(['__contains__', 'items', 'keys', 'values']))
 
-        completions_arguments = pydevd_schema.CompletionsArguments(
-            'dict.item', 10, frameId=json_hit.frameId)
-        completions_request = json_facade.write_request(
-            pydevd_schema.CompletionsRequest(completions_arguments))
+            completions_arguments = pydevd_schema.CompletionsArguments(
+                'dict.item', 10, frameId=json_hit.frameId)
+            completions_request = json_facade.write_request(
+                pydevd_schema.CompletionsRequest(completions_arguments))
 
-        response = json_facade.wait_for_response(completions_request)
-        if IS_JYTHON:
-            assert response.body.targets == [
-                {'start': 5, 'length': 4, 'type': 'keyword', 'label': 'items'}]
-        else:
-            assert response.body.targets == [
-                {'start': 5, 'length': 4, 'type': 'function', 'label': 'items'}]
+            response = json_facade.wait_for_response(completions_request)
+            assert response.success
+            if IS_JYTHON:
+                assert response.body.targets == [
+                    {'start': 5, 'length': 4, 'type': 'keyword', 'label': 'items'}]
+            else:
+                assert response.body.targets == [
+                    {'start': 5, 'length': 4, 'type': 'function', 'label': 'items'}]
 
-        writer.write_run_thread(hit.thread_id)
+            if i == 1:
+                # Check with a previously existing frameId.
+                assert first_hit.frameId != json_hit.frameId
+                completions_arguments = pydevd_schema.CompletionsArguments(
+                    'dict.item', 10, frameId=first_hit.frameId)
+                completions_request = json_facade.write_request(
+                    pydevd_schema.CompletionsRequest(completions_arguments))
+
+                response = json_facade.wait_for_response(completions_request)
+                assert not response.success
+                assert response.message == 'Thread to get completions seems to have resumed already.'
+
+                # Check with a never frameId which never existed.
+                completions_arguments = pydevd_schema.CompletionsArguments(
+                    'dict.item', 10, frameId=99999)
+                completions_request = json_facade.write_request(
+                    pydevd_schema.CompletionsRequest(completions_arguments))
+
+                response = json_facade.wait_for_response(completions_request)
+                assert not response.success
+                assert response.message.startswith('Wrong ID sent from the client:')
+
+            writer.write_run_thread(hit.thread_id)
 
         writer.finished_ok = True
 

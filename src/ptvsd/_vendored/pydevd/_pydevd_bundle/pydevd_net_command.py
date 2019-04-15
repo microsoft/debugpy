@@ -36,7 +36,11 @@ class NetCommand:
         self.seq = seq
 
         if is_json:
-            as_dict = text.to_dict(update_ids_to_dap=True)
+            if hasattr(text, 'to_dict'):
+                as_dict = text.to_dict(update_ids_to_dap=True)
+            else:
+                assert isinstance(text, dict)
+                as_dict = text
             as_dict['pydevd_cmd_id'] = cmd_id
             as_dict['seq'] = seq
             text = json.dumps(as_dict)

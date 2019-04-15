@@ -27,7 +27,10 @@ class BaseSchema(object):
 
     @staticmethod
     def _translate_id_from_dap(dap_id):
-        return BaseSchema._dap_id_to_obj_id[dap_id]
+        try:
+            return BaseSchema._dap_id_to_obj_id[dap_id]
+        except:
+            raise KeyError('Wrong ID sent from the client: %s' % (dap_id,))
 
     @staticmethod
     def update_dict_ids_to_dap(dct):
@@ -103,16 +106,23 @@ def from_dict(dct, update_ids_from_dap=False):
     except:
         msg = 'Error creating %s from %s' % (cls, dct)
         debug_exception(msg)
-        raise ValueError(msg)
-
-    raise ValueError('Unable to create message from dict: %s' % (dct,))
+        raise
 
 
 def from_json(json_msg, update_ids_from_dap=False):
     if isinstance(json_msg, bytes):
         json_msg = json_msg.decode('utf-8')
 
-    return from_dict(json.loads(json_msg), update_ids_from_dap=update_ids_from_dap)
+    as_dict = json.loads(json_msg)
+    try:
+        return from_dict(as_dict, update_ids_from_dap=update_ids_from_dap)
+    except:
+        if as_dict.get('type') == 'response' and not as_dict.get('success'):
+            # Error messages may not have required body (return as a generic Response).
+            Response = _all_messages['Response']
+            return Response(**as_dict)
+        else:
+            raise
 
 
 def get_response_class(request):

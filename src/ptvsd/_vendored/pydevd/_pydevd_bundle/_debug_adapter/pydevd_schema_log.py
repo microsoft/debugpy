@@ -1,5 +1,6 @@
 import os
 import threading
+import traceback
 
 _pid = os.getpid()
 _pid_msg = '%s: ' % (_pid,)
@@ -35,7 +36,7 @@ def debug_exception(msg=None):
             debug(msg)
 
         with _debug_lock:
-            import traceback
+
             with open(DEBUG_FILE, 'a+') as stream:
                 _pid_prefix = _pid_msg
                 if isinstance(msg, bytes):
