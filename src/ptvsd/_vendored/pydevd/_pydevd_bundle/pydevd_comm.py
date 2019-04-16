@@ -1111,14 +1111,14 @@ def internal_get_exception_details_json(dbg, request, thread_id, max_frames, set
                     topmost_frame, frame_id_to_lineno = info
 
                 if trace_obj is not None:
-                    for frame_id, frame, method_name, filename_in_utf8, lineno in iter_visible_frames_info(
+                    for frame_id, frame, method_name, original_filename, filename_in_utf8, lineno in iter_visible_frames_info(
                             dbg, trace_obj.tb_frame, frame_id_to_lineno):
 
-                        line_text = linecache.getline(filename_in_utf8, lineno)
+                        line_text = linecache.getline(original_filename, lineno)
 
                         # Never filter out plugin frames!
                         if not getattr(frame, 'IS_PLUGIN_FRAME', False):
-                            if not dbg.in_project_scope(filename_in_utf8):
+                            if not dbg.in_project_scope(original_filename):
                                 if not dbg.get_use_libraries_filter():
                                     continue
                         frames.append((filename_in_utf8, lineno, method_name, line_text))

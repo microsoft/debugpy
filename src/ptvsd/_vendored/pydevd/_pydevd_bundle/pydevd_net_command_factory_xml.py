@@ -172,7 +172,7 @@ class NetCommandFactory(object):
             frame_id = id(frame)
             lineno = frame_id_to_lineno.get(frame_id, frame.f_lineno)
 
-            yield frame_id, frame, method_name, filename_in_utf8, lineno
+            yield frame_id, frame, method_name, abs_path_real_path_and_base[0], filename_in_utf8, lineno
 
             frame = frame.f_back
 
@@ -193,7 +193,7 @@ class NetCommandFactory(object):
         frame = None  # Clear frame reference
         try:
             py_db = get_global_debugger()
-            for frame_id, frame, method_name, filename_in_utf8, lineno in self._iter_visible_frames_info(
+            for frame_id, frame, method_name, _original_filename, filename_in_utf8, lineno in self._iter_visible_frames_info(
                     py_db, curr_frame, frame_id_to_lineno
                 ):
 

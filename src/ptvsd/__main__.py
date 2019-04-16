@@ -8,6 +8,7 @@ import numbers
 import os.path
 import runpy
 import sys
+import site
 
 
 # ptvsd can also be invoked directly rather than via -m. In this case, the
@@ -193,6 +194,24 @@ daemon = None
 
 
 def setup_connection():
+    ptvsd.log.debug('sys.prefix: {0}', (sys.prefix,))
+
+    if hasattr(sys, 'base_prefix'):
+        ptvsd.log.debug('sys.base_prefix: {0}', sys.base_prefix)
+
+    if hasattr(sys, 'real_prefix'):
+        ptvsd.log.debug('sys.real_prefix: {0}', sys.real_prefix)
+
+    if hasattr(site, 'getusersitepackages'):
+        ptvsd.log.debug('site.getusersitepackages(): {0}', site.getusersitepackages())
+
+    if hasattr(site, 'getsitepackages'):
+        ptvsd.log.debug('site.getsitepackages(): {0}', site.getsitepackages())
+
+    for path in sys.path:
+        if os.path.exists(path) and os.path.basename(path) == 'site-packages':
+            ptvsd.log.debug('Folder with "site-packages" in sys.path: {0}', path)
+
     opts = ptvsd.options
     pydevd.apply_debugger_options({
         'server': not opts.client,

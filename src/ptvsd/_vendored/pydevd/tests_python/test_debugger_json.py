@@ -19,7 +19,7 @@ pytest_plugins = [
     str('tests_python.debugger_fixtures'),
 ]
 
-_JsonHit = namedtuple('_JsonHit', 'frameId')
+_JsonHit = namedtuple('_JsonHit', 'frameId, stack_trace_response')
 
 # Note: in reality must be < int32, but as it's created sequentially this should be
 # a reasonable number for tests.
@@ -162,7 +162,7 @@ class JsonFacade(object):
 
         stack_frame = next(iter(stack_trace_response_body.stackFrames))
 
-        return _JsonHit(frameId=stack_frame['id'])
+        return _JsonHit(frameId=stack_frame['id'], stack_trace_response=stack_trace_response)
 
     def get_variables_response(self, variables_reference):
         assert variables_reference < MAX_EXPECTED_ID
@@ -327,6 +327,53 @@ def test_case_json_protocol(case_setup):
 
         # Removes breakpoints and proceeds running.
         json_facade.write_disconnect()
+
+        writer.finished_ok = True
+
+
+def test_case_path_translation_not_skipped(case_setup):
+    import site
+    sys_folder = None
+    if hasattr(site, 'getusersitepackages'):
+        sys_folder = site.getusersitepackages()
+
+    if not sys_folder and hasattr(site, 'getsitepackages'):
+        sys_folder = site.getsitepackages()
+
+    if not sys_folder:
+        sys_folder = sys.prefix
+
+    if isinstance(sys_folder, (list, tuple)):
+        sys_folder = next(iter(sys_folder))
+
+    def get_environ(writer):
+        env = os.environ.copy()
+        # We need to set up path mapping to enable source references.
+        my_code = debugger_unittest._get_debugger_test_file('my_code')
+
+        env["PATHS_FROM_ECLIPSE_TO_PYTHON"] = json.dumps([
+            (sys_folder, my_code),
+        ])
+        env['PYDEVD_FILTER_LIBRARIES'] = '1'
+        return env
+
+    with case_setup.test_file('my_code/my_code.py', get_environ=get_environ) as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_set_protocol('http_json')
+
+        bp_line = writer.get_line_index_with_content('break here')
+        json_facade.write_set_breakpoints(
+            bp_line,
+            filename=os.path.join(sys_folder, 'my_code.py'),
+        )
+        json_facade.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit(line=bp_line)
+        json_hit = json_facade.get_stack_as_json_hit(hit.thread_id)
+        assert json_hit.stack_trace_response.body.stackFrames[-1]['source']['path'] == \
+            os.path.join(sys_folder, 'my_code.py')
+        writer.write_run_thread(hit.thread_id)
 
         writer.finished_ok = True
 
@@ -1210,6 +1257,7 @@ def test_exception_details(case_setup, max_frames):
 
         writer.finished_ok = True
 
+
 def test_stack_levels(case_setup):
     with case_setup.test_file('_debugger_case_deep_stacks.py') as writer:
         json_facade = JsonFacade(writer)
@@ -1245,6 +1293,7 @@ def test_stack_levels(case_setup):
         writer.write_run_thread(hit.thread_id)
 
         writer.finished_ok = True
+
 
 @pytest.mark.skipif(IS_JYTHON, reason='No goto on Jython.')
 def test_goto(case_setup):

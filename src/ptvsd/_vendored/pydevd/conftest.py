@@ -3,6 +3,8 @@ import sys
 from _pydevd_bundle.pydevd_constants import IS_JYTHON, IS_IRONPYTHON
 from tests_python.debug_constants import TEST_CYTHON
 from tests_python.debug_constants import TEST_JYTHON
+import site
+import os
 
 
 def pytest_report_header(config):
@@ -14,6 +16,25 @@ def pytest_report_header(config):
         pass
     else:
         print('Number of processors: %s' % (multiprocessing.cpu_count(),))
+
+    print('Relevant system paths:')
+    print('sys.prefix: %s' % (sys.prefix,))
+
+    if hasattr(sys, 'base_prefix'):
+        print('sys.base_prefix: %s' % (sys.base_prefix,))
+
+    if hasattr(sys, 'real_prefix'):
+        print('sys.real_prefix: %s' % (sys.real_prefix,))
+
+    if hasattr(site, 'getusersitepackages'):
+        print('site.getusersitepackages(): %s' % (site.getusersitepackages(),))
+
+    if hasattr(site, 'getsitepackages'):
+        print('site.getsitepackages(): %s' % (site.getsitepackages(),))
+
+    for path in sys.path:
+        if os.path.exists(path) and os.path.basename(path) == 'site-packages':
+            print('Folder with "site-packages" in sys.path: %s' % (path,))
 
 
 _started_monitoring_threads = False

@@ -176,7 +176,7 @@ class NetCommandFactoryJson(NetCommandFactory):
                     # be different if it was an exception).
                     topmost_frame, frame_id_to_lineno = info
 
-                for frame_id, frame, method_name, filename_in_utf8, lineno in self._iter_visible_frames_info(
+                for frame_id, frame, method_name, original_filename, filename_in_utf8, lineno in self._iter_visible_frames_info(
                         py_db, topmost_frame, frame_id_to_lineno
                     ):
 
@@ -186,7 +186,7 @@ class NetCommandFactoryJson(NetCommandFactory):
 
                     presentation_hint = None
                     if not getattr(frame, 'IS_PLUGIN_FRAME', False):  # Never filter out plugin frames!
-                        if not py_db.in_project_scope(filename_in_utf8):
+                        if not py_db.in_project_scope(original_filename):
                             if py_db.get_use_libraries_filter():
                                 continue
                             presentation_hint = 'subtle'
