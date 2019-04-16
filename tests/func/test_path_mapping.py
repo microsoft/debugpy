@@ -8,7 +8,6 @@ import os
 from shutil import copyfile
 from tests.helpers.pattern import Path
 from tests.helpers.session import DebugSession
-from tests.helpers.timeline import Event
 from tests.helpers.pathutils import get_test_root
 from tests.helpers import get_marked_line_numbers
 import pytest
@@ -36,7 +35,6 @@ def test_client_ide_from_path_mapping_linux_backend(pyfile, tmpdir, run_as, star
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
             use_backchannel=True,
             path_mappings=[{
                 'localRoot': 'C:\\TEMP\\src',
@@ -84,7 +82,6 @@ def test_with_dot_remote_root(pyfile, tmpdir, run_as, start_method):
         session.initialize(
             target=(run_as, path_remote),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
             use_backchannel=True,
             path_mappings=[{
                 'localRoot': dir_local,
@@ -145,7 +142,6 @@ def test_with_path_mappings(pyfile, tmpdir, run_as, start_method):
         session.initialize(
             target=(run_as, path_remote),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
             use_backchannel=True,
             path_mappings=[{
                 'localRoot': dir_local,

@@ -2,7 +2,6 @@ from __future__ import print_function, with_statement, absolute_import
 
 from tests.helpers.pattern import ANY
 from tests.helpers.session import DebugSession
-from tests.helpers.timeline import Event
 
 
 def test_set_expression(pyfile, run_as, start_method):
@@ -21,7 +20,6 @@ def test_set_expression(pyfile, run_as, start_method):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
             use_backchannel=True,
         )
         session.start_debugging()

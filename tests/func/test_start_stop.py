@@ -10,7 +10,6 @@ import sys
 
 from tests.helpers.pattern import ANY, Path
 from tests.helpers.session import DebugSession
-from tests.helpers.timeline import Event
 
 
 @pytest.mark.parametrize('start_method', ['launch'])
@@ -28,7 +27,6 @@ def test_break_on_entry(pyfile, run_as, start_method):
             target=(run_as, code_to_debug),
             start_method=start_method,
             debug_options=['StopOnEntry'],
-            ignore_unobserved=[Event('continued')],
             use_backchannel=True,
         )
         session.start_debugging()
@@ -65,7 +63,6 @@ def test_wait_on_normal_exit_enabled(pyfile, run_as, start_method):
             target=(run_as, code_to_debug),
             start_method=start_method,
             debug_options=['WaitOnNormalExit'],
-            ignore_unobserved=[Event('continued')],
             use_backchannel=True,
         )
         session.start_debugging()
@@ -108,7 +105,6 @@ def test_wait_on_abnormal_exit_enabled(pyfile, run_as, start_method):
             target=(run_as, code_to_debug),
             start_method=start_method,
             debug_options=['WaitOnAbnormalExit'],
-            ignore_unobserved=[Event('continued')],
             use_backchannel=True,
         )
         session.start_debugging()
@@ -150,7 +146,6 @@ def test_exit_normally_with_wait_on_abnormal_exit_enabled(pyfile, run_as, start_
             target=(run_as, code_to_debug),
             start_method=start_method,
             debug_options=['WaitOnAbnormalExit'],
-            ignore_unobserved=[Event('continued')],
             use_backchannel=True,
         )
         session.start_debugging()

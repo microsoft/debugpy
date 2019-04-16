@@ -8,7 +8,6 @@ import platform
 import pytest
 
 from tests.helpers import get_marked_line_numbers
-from tests.helpers.timeline import Event
 from tests.helpers.session import DebugSession
 
 
@@ -42,7 +41,6 @@ def test_thread_count(pyfile, run_as, start_method, count):
             target=(run_as, code_to_debug),
             start_method=start_method,
             program_args=[str(count)],
-            ignore_unobserved=[Event('continued')],
         )
         session.set_breakpoints(code_to_debug, [19])
         session.start_debugging()
@@ -98,7 +96,6 @@ def test_debug_this_thread(pyfile, run_as, start_method):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
         )
         session.set_breakpoints(code_to_debug, [line_numbers['bp']])
         session.start_debugging()

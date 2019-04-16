@@ -60,7 +60,7 @@ def test_completions_scope(pyfile, bp_line, run_as, start_method):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('stopped'), Event('continued')],
+            ignore_unobserved=[Event('stopped')],
         )
 
         line_numbers = get_marked_line_numbers(code_to_debug)
@@ -114,7 +114,6 @@ def test_completions_cases(pyfile, run_as, start_method):
         session.initialize(
             target=(run_as, bp_file),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
         )
         session.set_breakpoints(bp_file, [bp_line])
         session.start_debugging()

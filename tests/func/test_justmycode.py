@@ -8,7 +8,6 @@ import pytest
 
 from tests.helpers import print, get_marked_line_numbers
 from tests.helpers.session import DebugSession
-from tests.helpers.timeline import Event
 from tests.helpers.pattern import ANY, Path
 
 @pytest.mark.parametrize('jmc', ['jmcOn', 'jmcOff'])
@@ -24,7 +23,6 @@ def test_justmycode_frames(pyfile, run_as, start_method, jmc):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
             debug_options=[] if jmc == 'jmcOn' else ['DebugStdLib']
         )
 

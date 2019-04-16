@@ -6,7 +6,6 @@ from __future__ import print_function, with_statement, absolute_import
 
 from tests.helpers import print, get_marked_line_numbers
 from tests.helpers.session import DebugSession
-from tests.helpers.timeline import Event
 from tests.helpers.pattern import ANY, Path
 from os.path import os
 import pytest
@@ -54,7 +53,6 @@ def test_exceptions_and_exclude_rules(pyfile, run_as, start_method, scenario, ex
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
             rules=rules,
         )
         # TODO: The process returncode doesn't match the one returned from the DAP.
@@ -115,7 +113,6 @@ def test_exceptions_and_partial_exclude_rules(pyfile, run_as, start_method, scen
             target=(run_as, code_to_debug),
             start_method=start_method,
             use_backchannel=True,
-            ignore_unobserved=[Event('continued')],
             rules=rules,
         )
         # TODO: The process returncode doesn't match the one returned from the DAP.

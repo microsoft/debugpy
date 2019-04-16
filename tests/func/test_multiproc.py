@@ -277,7 +277,6 @@ def test_argv_quoting(pyfile, run_as, start_method):
             start_method=start_method,
             program_args=[child],
             use_backchannel=True,
-            ignore_unobserved=[Event('continued')],
         )
 
         session.start_debugging()

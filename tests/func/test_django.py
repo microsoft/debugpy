@@ -39,7 +39,6 @@ def test_django_breakpoint_no_multiproc(bp_target, start_method):
             debug_options=['Django'],
             cwd=DJANGO1_ROOT,
             expected_returncode=ANY.int,  # No clean way to kill Django server
-            ignore_unobserved=[Event('continued')],
         )
 
         bp_var_content = 'Django-Django-Test'
@@ -105,7 +104,6 @@ def test_django_template_exception_no_multiproc(start_method):
             debug_options=['Django'],
             cwd=DJANGO1_ROOT,
             expected_returncode=ANY.int,  # No clean way to kill Django server
-            ignore_unobserved=[Event('continued')],
         )
 
         session.send_request('setExceptionBreakpoints', arguments={
@@ -181,7 +179,6 @@ def test_django_exception_no_multiproc(ex_type, start_method):
             debug_options=['Django'],
             cwd=DJANGO1_ROOT,
             expected_returncode=ANY.int,  # No clean way to kill Django server
-            ignore_unobserved=[Event('continued')],
         )
 
         session.send_request('setExceptionBreakpoints', arguments={
@@ -260,7 +257,7 @@ def test_django_breakpoint_multiproc(start_method):
             program_args=['runserver'],
             debug_options=['Django'],
             cwd=DJANGO1_ROOT,
-            ignore_unobserved=[Event('stopped'), Event('continued')],
+            ignore_unobserved=[Event('stopped')],
             expected_returncode=ANY.int,  # No clean way to kill Django server
         )
 

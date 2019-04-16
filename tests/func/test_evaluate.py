@@ -9,7 +9,6 @@ import sys
 from tests.helpers import get_marked_line_numbers, print
 from tests.helpers.pattern import ANY
 from tests.helpers.session import DebugSession
-from tests.helpers.timeline import Event
 
 
 def test_variables_and_evaluate(pyfile, run_as, start_method):
@@ -30,7 +29,6 @@ def test_variables_and_evaluate(pyfile, run_as, start_method):
         session.initialize(
             target=(run_as, bp_file),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
         )
         session.set_breakpoints(bp_file, [bp_line])
         session.start_debugging()
@@ -123,7 +121,6 @@ def test_set_variable(pyfile, run_as, start_method):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
             use_backchannel=True,
         )
         session.start_debugging()
@@ -192,7 +189,6 @@ def test_variable_sort(pyfile, run_as, start_method):
         session.initialize(
             target=(run_as, bp_file),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
         )
         session.set_breakpoints(bp_file, [bp_line])
         session.start_debugging()
@@ -288,7 +284,7 @@ def test_return_values(pyfile, run_as, start_method):
             target=(run_as, code_to_debug),
             start_method=start_method,
             debug_options=['ShowReturnValue'],
-            ignore_unobserved=[Event('continued')])
+        )
         session.set_breakpoints(code_to_debug, [line_numbers['bp']])
         session.start_debugging()
         hit = session.wait_for_thread_stopped()
@@ -349,7 +345,6 @@ def test_unicode(pyfile, run_as, start_method):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
         )
         session.start_debugging()
         hit = session.wait_for_thread_stopped()
@@ -391,7 +386,6 @@ def test_hex_numbers(pyfile, run_as, start_method):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
         )
         session.set_breakpoints(code_to_debug, [line_numbers['bp']])
         session.start_debugging()

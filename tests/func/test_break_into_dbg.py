@@ -7,7 +7,6 @@ from __future__ import print_function, with_statement, absolute_import
 import pytest
 import sys
 from tests.helpers.session import DebugSession
-from tests.helpers.timeline import Event
 
 
 @pytest.mark.parametrize('run_as', ['file', 'module', 'code'])
@@ -27,7 +26,6 @@ def test_with_wait_for_attach(pyfile, run_as, start_method):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')]
         )
         session.start_debugging()
         hit = session.wait_for_thread_stopped()
@@ -55,7 +53,6 @@ def test_breakpoint_function(pyfile, run_as, start_method):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')]
         )
         session.start_debugging()
         hit = session.wait_for_thread_stopped()

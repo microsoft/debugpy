@@ -40,7 +40,6 @@ def test_with_tab_in_output(pyfile, run_as, start_method):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
         )
 
         session.set_breakpoints(code_to_debug, [line_numbers['bp1']])

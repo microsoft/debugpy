@@ -38,7 +38,6 @@ def test_vsc_exception_options_raise_with_except(pyfile, run_as, start_method, r
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
         )
         session.send_request('setExceptionBreakpoints', {
             'filters': filters
@@ -96,7 +95,7 @@ def test_vsc_exception_options_raise_without_except(pyfile, run_as, start_method
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued'), Event('stopped')],
+            ignore_unobserved=[Event('stopped')],
             expected_returncode=ANY.int,
         )
         session.send_request('setExceptionBreakpoints', {
@@ -194,7 +193,6 @@ def test_systemexit(pyfile, run_as, start_method, raised, uncaught, zero, exit_c
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
             expected_returncode=ANY.int,
         )
         session.send_request('setExceptionBreakpoints', {
@@ -286,7 +284,7 @@ def test_raise_exception_options(pyfile, run_as, start_method, exceptions, break
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued'), Event('stopped')],
+            ignore_unobserved=[Event('stopped')],
             expected_returncode=ANY.int,
         )
         path = [
@@ -330,7 +328,6 @@ def test_success_exitcodes(pyfile, run_as, start_method, exit_code):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
             expected_returncode=exit_code,
         )
         session.send_request('setExceptionBreakpoints', {
@@ -381,7 +378,6 @@ def test_exception_stack(pyfile, run_as, start_method, max_frames):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
             expected_returncode=ANY.int,
             args=args,
         )

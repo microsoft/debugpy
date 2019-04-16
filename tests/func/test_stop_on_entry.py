@@ -6,7 +6,6 @@ from __future__ import print_function, with_statement, absolute_import
 
 from tests.helpers.pattern import Path
 from tests.helpers.session import DebugSession
-from tests.helpers.timeline import Event
 import pytest
 
 
@@ -23,7 +22,6 @@ print('done')
         session.initialize(
             target=(run_as, str(testfile)),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
             debug_options=['StopOnEntry'],
         )
 

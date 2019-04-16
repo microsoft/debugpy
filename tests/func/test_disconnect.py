@@ -24,7 +24,7 @@ def test_continue_on_disconnect_for_attach(pyfile, run_as, start_method):
         session.initialize(
                 target=(run_as, code_to_debug),
                 start_method=start_method,
-                ignore_unobserved=[Event('continued'), Event('exited'), Event('terminated')],
+                ignore_unobserved=[Event('exited'), Event('terminated')],
                 use_backchannel=True,
             )
         session.set_breakpoints(code_to_debug, [bp_line])
@@ -54,7 +54,6 @@ def test_exit_on_disconnect_for_launch(pyfile, run_as, start_method):
         session.initialize(
                 target=(run_as, code_to_debug),
                 start_method=start_method,
-                ignore_unobserved=[Event('continued')],
                 use_backchannel=True,
                 expected_returncode=ANY.int,
             )

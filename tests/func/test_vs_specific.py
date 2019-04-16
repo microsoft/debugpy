@@ -31,7 +31,7 @@ def test_stack_format(pyfile, run_as, start_method, module, line):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('stopped'), Event('continued')],
+            ignore_unobserved=[Event('stopped')],
         )
         session.set_breakpoints(test_module, [bp_line])
         session.start_debugging()
@@ -78,7 +78,7 @@ def test_module_events(pyfile, run_as, start_method):
         session.initialize(
             target=(run_as, test_code),
             start_method=start_method,
-            ignore_unobserved=[Event('stopped'), Event('continued')],
+            ignore_unobserved=[Event('stopped')],
         )
         session.set_breakpoints(module2, [bp_line])
         session.start_debugging()

@@ -56,7 +56,6 @@ def test_run_submodule():
         session.initialize(
             target=('module', 'pkg1.sub'),
             start_method='launch',
-            ignore_unobserved=[Event('continued')],
             cwd=cwd,
         )
         session.start_debugging()

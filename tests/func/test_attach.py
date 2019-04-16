@@ -33,7 +33,6 @@ def test_attach(run_as, wait_for_attach, is_attached, break_into):
         session.initialize(
             target=(run_as, testfile),
             start_method='launch',
-            ignore_unobserved=[Event('continued')],
             env=env,
             use_backchannel=True,
         )
@@ -85,7 +84,6 @@ def test_reattach(pyfile, run_as, start_method):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
             use_backchannel=True,
             kill_ptvsd=False,
             skip_capture=True,
@@ -128,7 +126,6 @@ def test_attaching_by_pid(pyfile, run_as, start_method):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
         )
         session.set_breakpoints(code_to_debug, [bp_line])
         session.start_debugging()

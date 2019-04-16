@@ -1887,7 +1887,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         except KeyError:
             pass
         else:
-            self.send_event('continued', threadId=vsc_tid)
+            if os.getenv('PTVSD_USE_CONTINUED'):
+                self.send_event('continued', threadId=vsc_tid)
 
     @pydevd_events.handler(pydevd_comm.CMD_SEND_CURR_EXCEPTION_TRACE)
     def on_pydevd_send_curr_exception_trace(self, seq, args):

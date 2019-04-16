@@ -29,7 +29,6 @@ def test_path_with_ampersand(run_as, start_method):
         session.initialize(
             target=(run_as, testfile),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
         )
         session.set_breakpoints(testfile, [bp_line])
         session.start_debugging()
@@ -53,7 +52,6 @@ def test_path_with_unicode(run_as, start_method):
         session.initialize(
             target=(run_as, testfile),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
         )
         session.set_breakpoints(testfile, [bp_line])
         session.start_debugging()
@@ -101,7 +99,6 @@ def test_conditional_breakpoint(pyfile, run_as, start_method, condition_key):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
         )
         session.send_request('setBreakpoints', arguments={
             'source': {'path': code_to_debug},
@@ -155,7 +152,6 @@ def test_crossfile_breakpoint(pyfile, run_as, start_method):
         session.initialize(
             target=(run_as, script2),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
         )
         session.set_breakpoints(script1, lines=[bp_script1_line])
         session.set_breakpoints(script2, lines=[bp_script2_line])
@@ -203,7 +199,6 @@ def test_error_in_condition(pyfile, run_as, start_method, error_name):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
         )
         session.send_request('setBreakpoints', arguments={
             'source': {'path': code_to_debug},
@@ -240,7 +235,6 @@ def test_log_point(pyfile, run_as, start_method):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
         )
         session.send_request('setBreakpoints', arguments={
             'source': {'path': code_to_debug},
@@ -288,7 +282,6 @@ def test_condition_with_log_point(pyfile, run_as, start_method):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
         )
         session.send_request('setBreakpoints', arguments={
             'source': {'path': code_to_debug},
@@ -349,7 +342,6 @@ def test_package_launch():
         session.initialize(
             target=('module', 'pkg1'),
             start_method='launch',
-            ignore_unobserved=[Event('continued')],
             cwd=cwd,
         )
         session.set_breakpoints(testfile, [bp_line])
@@ -378,7 +370,6 @@ def test_add_and_remove_breakpoint(pyfile, run_as, start_method):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
             use_backchannel=True,
         )
         session.set_breakpoints(code_to_debug, [bp_line])
@@ -431,7 +422,6 @@ def test_invalid_breakpoints(pyfile, run_as, start_method):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
         )
 
         requested_bps = [
@@ -500,7 +490,6 @@ def test_deep_stacks(pyfile, run_as, start_method):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            ignore_unobserved=[Event('continued')],
         )
 
         bp_line = line_numbers['bp']

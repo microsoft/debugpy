@@ -315,7 +315,13 @@ class DebugSession(object):
             print('Spawning %r' % dbg_argv)
 
         spawn_args = usr_argv if self.start_method == 'attach_pid' else dbg_argv
-        self.process = subprocess.Popen(spawn_args, env=self.env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.cwd)
+
+        # ensure env is all string, this is needed for python 2.7 on windows
+        temp_env = {}
+        for k, v in self.env.items():
+            temp_env[str(k)] = str(v)
+
+        self.process = subprocess.Popen(spawn_args, env=temp_env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.cwd)
         self.pid = self.process.pid
         self.psutil_process = psutil.Process(self.pid)
         self.is_running = True
