@@ -87,6 +87,17 @@ def load_schema_data():
     return json_schema_data
 
 
+def load_custom_schema_data():
+    import os.path
+    import json
+
+    json_file = os.path.join(os.path.dirname(__file__), 'debugProtocolCustom.json')
+
+    with open(json_file, 'rb') as json_contents:
+        json_schema_data = json.loads(json_contents.read())
+    return json_schema_data
+
+
 def create_classes_to_generate_structure(json_schema_data):
     definitions = json_schema_data['definitions']
 
@@ -490,6 +501,7 @@ def gen_debugger_protocol():
         raise AssertionError('Must be run with Python 3.6 onwards (to keep dict order).')
 
     classes_to_generate = create_classes_to_generate_structure(load_schema_data())
+    classes_to_generate.update(create_classes_to_generate_structure(load_custom_schema_data()))
 
     class_to_generate = fill_properties_and_required_from_base(classes_to_generate)
 

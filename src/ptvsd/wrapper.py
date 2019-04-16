@@ -80,33 +80,13 @@ def path_to_unicode(s):
 PTVSD_DIR_PATH = os.path.dirname(os.path.abspath(get_abs_path_real_path_and_base_from_file(__file__)[0])) + os.path.sep
 NORM_PTVSD_DIR_PATH = os.path.normcase(PTVSD_DIR_PATH)
 
-
-def dont_trace_ptvsd_files(file_path):
+def dont_trace_ptvsd_files(py_db, file_path):
     """
     Returns true if the file should not be traced.
     """
     return file_path.startswith(PTVSD_DIR_PATH) or file_path.endswith('ptvsd_launcher.py')
 
-
-original_get_file_type = pydevd.PyDB.get_file_type
-
-
-def _get_file_type(py_db, abs_real_path_and_basename, _cache_file_type={}):
-    abs_path = abs_real_path_and_basename[0]
-    try:
-        return _cache_file_type[abs_path]
-    except KeyError:
-        file_type = original_get_file_type(py_db, abs_real_path_and_basename)
-        if file_type is not None:
-            _cache_file_type[abs_path] = file_type
-        elif dont_trace_ptvsd_files(abs_path):
-            _cache_file_type[abs_path] = PYDEV_FILE
-        else:
-            _cache_file_type[abs_path] = None
-        return _cache_file_type[abs_path]
-
-
-pydevd.PyDB.get_file_type = _get_file_type
+pydevd.PyDB.dont_trace_external_files = dont_trace_ptvsd_files
 
 # NOTE: Previously this included sys.prefix, sys.base_prefix and sys.real_prefix
 # On some systems those resolve to '/usr'. That means any user code will
@@ -1338,6 +1318,14 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         msg = '1.1\t{}\tID'.format(self._client_os_type)
         return self.pydevd_request(cmd, msg)
 
+    def _get_new_setDebuggerProperty_request(self, **kwargs):
+        return {
+            "command": "setDebuggerProperty",
+            "arguments": kwargs,
+            "type": "request",
+            # "seq": seq_id, # A new seq should be created for pydevd.
+        }
+
     @async_handler
     def _handle_launch_or_attach(self, request, args):
         self._path_mappings_received = True
@@ -1377,6 +1365,14 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         if self.debug_options.get('DJANGO_DEBUG', False):
             default_success_exitcodes += [3]
         self._success_exitcodes = args.get('successExitCodes', default_success_exitcodes)
+
+        # Don't trace files under ptvsd, and ptvsd_launcher.py files
+        # TODO: un-comment this code after fixing https://github.com/Microsoft/ptvsd/issues/1355
+        #dont_trace_request = self._get_new_setDebuggerProperty_request(
+        #    dontTraceStartPatterns=[PTVSD_DIR_PATH],
+        #    dontTraceEndPatterns=['ptvsd_launcher.py']
+        #)
+        #yield self.pydevd_request(-1, dont_trace_request, is_json=True)
 
     def _handle_detach(self):
         ptvsd.log.info('Detaching ...')
@@ -1723,12 +1719,14 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self.send_response(request, **sys_info)
 
     # VS specific custom message handlers
-    @async_handler
+
     def on_setDebuggerProperty(self, request, args):
         if 'JustMyCodeStepping' in args:
             jmc = int(args.get('JustMyCodeStepping', 0)) > 0
             self.debug_options['DEBUG_STDLIB'] = not jmc
 
+        # TODO: Replace the line below with _forward_request_to_pydevd
+        # after fixing https://github.com/Microsoft/ptvsd/issues/1355
         self.send_response(request)
 
     # PyDevd protocol event handlers

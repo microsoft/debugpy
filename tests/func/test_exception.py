@@ -361,12 +361,12 @@ def test_exception_stack(pyfile, run_as, start_method, max_frames):
     if max_frames == 'all':
         # trace back compresses repeated text
         min_expected_lines = 100
-        max_expected_lines = 220
+        max_expected_lines = 221
         args = {'maxExceptionStackFrames': 0}
     elif max_frames == 'default':
         # default is all frames
         min_expected_lines = 100
-        max_expected_lines = 220
+        max_expected_lines = 221
         args = {}
     else:
         min_expected_lines = 10

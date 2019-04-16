@@ -1,0 +1,39 @@
+{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"title": "Custom Debug Adapter Protocol",
+	"description": "Extension to the DAP to support additional features.",
+	"type": "object",
+
+
+	"definitions": {
+
+		"SetDebuggerPropertyRequest": {
+			"allOf": [ { "$ref": "#/definitions/Request" }, {
+				"type": "object",
+				"description": "The request can be used to enable or disable debugger features.",
+				"properties": {
+					"command": {
+						"type": "string",
+						"enum": [ "setDebuggerProperty" ]
+					},
+					"arguments": {
+						"$ref": "#/definitions/SetDebuggerPropertyArguments"
+					}
+				},
+				"required": [ "command", "arguments"  ]
+			}]
+		},
+		"SetDebuggerPropertyArguments": {
+			"type": "object",
+			"description": "Arguments for 'setDebuggerProperty' request.",
+			"properties": {	}
+		},
+		"SetDebuggerPropertyResponse": {
+			"allOf": [ { "$ref": "#/definitions/Response" }, {
+				"type": "object",
+				"description": "Response to 'setDebuggerProperty' request. This is just an acknowledgement, so no body field is required."
+			}]
+		}
+
+    }
+}

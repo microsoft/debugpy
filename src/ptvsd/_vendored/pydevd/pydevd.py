@@ -137,6 +137,7 @@ forked = False
 
 file_system_encoding = getfilesystemencoding()
 
+_CACHE_FILE_TYPE = {}
 
 #=======================================================================================================================
 # PyDBCommandThread
@@ -546,7 +547,31 @@ class PyDB(object):
             if val is not None:
                 info.pydev_message = str(val)
 
-    def get_file_type(self, abs_real_path_and_basename):
+    def _internal_get_file_type(self, abs_real_path_and_basename):
+        basename = abs_real_path_and_basename[-1]
+        if basename.startswith('<frozen '):
+            # In Python 3.7 "<frozen ..." appear multiple times during import and should be
+            # ignored for the user.
+            return self.PYDEV_FILE
+        return self._dont_trace_get_file_type(basename)
+
+    def dont_trace_external_files(self, abs_path):
+        '''
+        :param abs_path:
+            The result from get_abs_path_real_path_and_base_from_file or
+            get_abs_path_real_path_and_base_from_frame.
+
+        :return
+            True :
+                If files should NOT be traced.
+
+            False:
+                If files should be traced.
+        '''
+        # By default all external files are traced.
+        return False
+
+    def get_file_type(self, abs_real_path_and_basename, _cache_file_type=_CACHE_FILE_TYPE):
         '''
         :param abs_real_path_and_basename:
             The result from get_abs_path_real_path_and_base_from_file or
@@ -563,12 +588,17 @@ class PyDB(object):
             None:
                 If it's a regular user file which should be traced.
         '''
-        basename = abs_real_path_and_basename[-1]
-        if basename.startswith('<frozen '):
-            # In Python 3.7 "<frozen ..." appear multiple times during import and should be
-            # ignored for the user.
-            return self.PYDEV_FILE
-        return self._dont_trace_get_file_type(basename)
+        try:
+            return _cache_file_type[abs_real_path_and_basename[0]]
+        except:
+            file_type = self._internal_get_file_type(abs_real_path_and_basename)
+            if file_type is None:
+                file_type = PYDEV_FILE if self.dont_trace_external_files(abs_real_path_and_basename[0]) else None
+            _cache_file_type[abs_real_path_and_basename[0]] = file_type
+            return file_type
+
+    def is_cache_file_type_empty(self):
+        return bool(_CACHE_FILE_TYPE)
 
     def get_thread_local_trace_func(self):
         try:
