@@ -1,8 +1,10 @@
 from functools import partial
+import bisect
 import itertools
 import json
 import linecache
 import os
+import types
 
 from _pydevd_bundle._debug_adapter import pydevd_base_schema
 from _pydevd_bundle._debug_adapter.pydevd_schema import (SourceBreakpoint, ScopesResponseBody, Scope,
@@ -20,6 +22,36 @@ from _pydevd_bundle.pydevd_utils import convert_dap_log_message_to_expression
 import pydevd_file_utils
 from _pydevd_bundle._debug_adapter.pydevd_schema import CompletionsResponseBody
 
+
+try:
+    import dis
+except ImportError:
+    def _get_code_lines(code):
+        raise NotImplementedError
+else:
+    def _get_code_lines(code):
+        if not isinstance(code, types.CodeType):
+            path = code
+            with open(path) as f:
+                src = f.read()
+            code = compile(src, path, 'exec', 0, dont_inherit=True)
+            return _get_code_lines(code)
+
+        def iterate():
+            # First, get all line starts for this code object. This does not include
+            # bodies of nested class and function definitions, as they have their
+            # own objects.
+            for _, lineno in dis.findlinestarts(code):
+                yield lineno
+
+            # For nested class and function definitions, their respective code objects
+            # are constants referenced by this object.
+            for const in code.co_consts:
+                if isinstance(const, types.CodeType) and const.co_filename == code.co_filename:
+                    for lineno in _get_code_lines(const):
+                        yield lineno
+
+        return iterate()
 
 def _convert_rules_to_exclude_filters(rules, filename_to_server, on_error):
     exclude_filters = []
@@ -370,11 +402,26 @@ class _PyDevJsonCommandProcessor(object):
         :param SetBreakpointsRequest request:
         '''
         arguments = request.arguments  # : :type arguments: SetBreakpointsArguments
+        # TODO: Path is optional here it could be source reference.
         filename = arguments.source.path
         filename = self.api.filename_to_server(filename)
         func_name = 'None'
 
         self.api.remove_all_breakpoints(py_db, filename)
+
+        # Validate breakpoints and adjust their positions.
+        try:
+            lines = sorted(_get_code_lines(filename))
+        except Exception:
+            pass
+        else:
+            for bp in arguments.breakpoints:
+                line = bp['line']
+                if line not in lines:
+                    # Adjust to the first preceding valid line.
+                    idx = bisect.bisect_left(lines, line)
+                    if idx > 0:
+                        bp['line'] = lines[idx - 1]
 
         btype = 'python-line'
         suspend_policy = 'ALL'
@@ -408,10 +455,10 @@ class _PyDevJsonCommandProcessor(object):
             # Note that the id is made up (the id for pydevd is unique only within a file, so, the
             # line is used for it).
             # Also, the id is currently not used afterwards, so, we don't even keep a mapping.
-            breakpoints_set.append({'id':self._next_breakpoint_id(), 'verified': True, 'line': line})
+            breakpoints_set.append({'id': self._next_breakpoint_id(), 'verified': True, 'line': line})
 
         body = {'breakpoints': breakpoints_set}
-        set_breakpoints_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
+        set_breakpoints_response = pydevd_base_schema.build_response(request, kwargs={'body': body})
         return NetCommand(CMD_RETURN, 0, set_breakpoints_response, is_json=True)
 
     def on_setexceptionbreakpoints_request(self, py_db, request):

@@ -1295,6 +1295,37 @@ def test_stack_levels(case_setup):
         writer.finished_ok = True
 
 
+def test_breakpoint_adjustment(case_setup):
+    with case_setup.test_file('_debugger_case_adjust_breakpoint.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_set_protocol('http_json')
+        bp_requested = writer.get_line_index_with_content('requested')
+        bp_expected = writer.get_line_index_with_content('expected')
+
+        set_bp_request = json_facade.write_request(
+            pydevd_schema.SetBreakpointsRequest(pydevd_schema.SetBreakpointsArguments(
+                source=pydevd_schema.Source(path=writer.TEST_FILE, sourceReference=0),
+                breakpoints=[pydevd_schema.SourceBreakpoint(bp_requested).to_dict()]))
+        )
+        set_bp_response = json_facade.wait_for_response(set_bp_request)
+        assert set_bp_response.body.breakpoints[0]['line'] == bp_expected
+
+        json_facade.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit()
+
+        stack_trace_request = json_facade.write_request(
+            pydevd_schema.StackTraceRequest(pydevd_schema.StackTraceArguments(threadId=hit.thread_id)))
+        stack_trace_response = json_facade.wait_for_response(stack_trace_request)
+        stack_frame = next(iter(stack_trace_response.body.stackFrames))
+        assert stack_frame['line'] == bp_expected
+
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+
+
 @pytest.mark.skipif(IS_JYTHON, reason='No goto on Jython.')
 def test_goto(case_setup):
     with case_setup.test_file('_debugger_case_set_next_statement.py') as writer:
