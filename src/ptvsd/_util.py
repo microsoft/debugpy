@@ -344,32 +344,6 @@ class Startable(object):
         raise NotImplementedError
 
 
-def is_py34():
-    return sys.version_info >= (3, 4,) and sys.version_info < (3, 5,)
-
-
-def get_line_for_traceback(file_path, line_no):
-    try:
-        with open(file_path, 'r') as f:
-            return f.readlines()[line_no - 1]
-    except Exception:
-        return None
-
-
-_enable_debug_break = False
-
-
-def _allow_debug_break(enabled=True):
-    """Enable breaking into debugger feature.
-    """
-    global _enable_debug_break
-    _enable_debug_break = enabled
-
-
-def _is_debug_break_allowed():
-    return _enable_debug_break
-
-
 try:
     import dis
 except ImportError:
