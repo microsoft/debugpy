@@ -56,7 +56,11 @@ def test_vsc_exception_options_raise_with_except(pyfile, run_as, start_method, r
         })
 
         if raised == 'raisedOn':
-            hit = session.wait_for_thread_stopped(reason='exception')
+            hit = session.wait_for_thread_stopped(
+                reason='exception',
+                text=ANY.such_that(lambda s: s.endswith('ArithmeticError')),
+                description='bad code',
+            )
             frames = hit.stacktrace.body['stackFrames']
             assert ex_line == frames[0]['line']
 
@@ -313,6 +317,7 @@ def test_raise_exception_options(pyfile, run_as, start_method, exceptions, break
 
 @pytest.mark.parametrize('exit_code', [0, 3])
 def test_success_exitcodes(pyfile, run_as, start_method, exit_code):
+
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
@@ -344,17 +349,19 @@ def test_success_exitcodes(pyfile, run_as, start_method, exit_code):
 
 @pytest.mark.parametrize('max_frames', ['default', 'all', 10])
 def test_exception_stack(pyfile, run_as, start_method, max_frames):
+
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
         import_and_enable_debugger()
+
         def do_something(n):
             if n <= 0:
-                raise ArithmeticError('bad code') # @unhandled
+                raise ArithmeticError('bad code')  # @unhandled
             do_something2(n - 1)
 
         def do_something2(n):
-            do_something(n-1)
+            do_something(n - 1)
 
         do_something(100)
 

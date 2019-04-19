@@ -51,19 +51,6 @@ from ptvsd.socket import TimeoutError  # noqa
 
 WAIT_FOR_THREAD_FINISH_TIMEOUT = 1  # seconds
 
-STEP_REASONS = {
-        pydevd_comm.CMD_STEP_INTO,
-        pydevd_comm.CMD_STEP_INTO_MY_CODE,
-        pydevd_comm.CMD_STEP_OVER,
-        pydevd_comm.CMD_STEP_OVER_MY_CODE,
-        pydevd_comm.CMD_STEP_RETURN,
-        pydevd_comm.CMD_STEP_INTO_MY_CODE,
-}
-EXCEPTION_REASONS = {
-    pydevd_comm.CMD_STEP_CAUGHT_EXCEPTION,
-    pydevd_comm.CMD_ADD_EXCEPTION_BREAK
-}
-
 debugger_attached = threading.Event()
 
 
@@ -78,11 +65,13 @@ def path_to_unicode(s):
 PTVSD_DIR_PATH = os.path.dirname(os.path.abspath(get_abs_path_real_path_and_base_from_file(__file__)[0])) + os.path.sep
 NORM_PTVSD_DIR_PATH = os.path.normcase(PTVSD_DIR_PATH)
 
+
 def dont_trace_ptvsd_files(py_db, file_path):
     """
     Returns true if the file should not be traced.
     """
     return file_path.startswith(PTVSD_DIR_PATH) or file_path.endswith('ptvsd_launcher.py')
+
 
 pydevd.PyDB.dont_trace_external_files = dont_trace_ptvsd_files
 
@@ -1333,11 +1322,11 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         # Don't trace files under ptvsd, and ptvsd_launcher.py files
         # TODO: un-comment this code after fixing https://github.com/Microsoft/ptvsd/issues/1355
-        #dont_trace_request = self._get_new_setDebuggerProperty_request(
+        # dont_trace_request = self._get_new_setDebuggerProperty_request(
         #    dontTraceStartPatterns=[PTVSD_DIR_PATH],
         #    dontTraceEndPatterns=['ptvsd_launcher.py']
-        #)
-        #yield self.pydevd_request(-1, dont_trace_request, is_json=True)
+        # )
+        # yield self.pydevd_request(-1, dont_trace_request, is_json=True)
 
     def _handle_detach(self):
         ptvsd.log.info('Detaching ...')
@@ -1745,84 +1734,50 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         pass  # We only care about the thread suspend single notification.
 
     @pydevd_events.handler(pydevd_comm_constants.CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION)
-    @async_handler
     def on_pydevd_thread_suspend_single_notification(self, seq, args):
         # NOTE: We should add the thread to VSC thread map only if the
         # thread is seen here for the first time in 'attach' scenario.
         # If we are here in 'launch' scenario and we get KeyError then
         # there is an issue in reporting of thread creation.
-        suspend_info = json.loads(args)
-        pyd_tid = suspend_info['thread_id']
-        reason = suspend_info['stop_reason']
+        body = args.get('body', {})
+
+        pyd_tid = body['threadId']
         autogen = self.start_reason == 'attach'
         vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=autogen)
 
-        exc_desc = None
-        exc_name = None
-        extra = {}
-        if reason in STEP_REASONS:
-            reason = 'step'
-        elif reason in EXCEPTION_REASONS:
-            reason = 'exception'
-        elif reason == pydevd_comm.CMD_SET_BREAK:
-            reason = 'breakpoint'
-        elif reason == pydevd_comm.CMD_SET_NEXT_STATEMENT:
-            reason = 'goto'
-        else:
-            reason = 'pause'
-
-        extra['preserveFocusHint'] = \
-            reason not in ['step', 'exception', 'breakpoint']
-
+        reason = body['reason']
         if reason == 'exception':
-            pydevd_request = {
-                'type': 'request',
-                'command': 'exceptionInfo',
-                'arguments': {
-                    'threadId': pyd_tid
-                },
-            }
+            exc_name = body['text']
+            exc_desc = body['description']
 
-            _, _, resp_args = yield self.pydevd_request(
-                pydevd_comm.CMD_GET_EXCEPTION_DETAILS,
-                pydevd_request,
-                is_json=True)
-            exc_name = resp_args['body']['exceptionId']
-            exc_desc = resp_args['body']['description']
+            if not self.debug_options.get('BREAK_SYSTEMEXIT_ZERO', False) and exc_name == 'SystemExit':
+                ptvsd.log.info('{0}({1!r})', exc_name, exc_desc)
+                try:
+                    exit_code = int(exc_desc)
+                except ValueError:
+                    # It is legal to invoke exit() with a non-integer argument, and SystemExit will
+                    # pass that through. It's considered an error exit, same as non-zero integer.
+                    ptvsd.log.info('Exit code {0!r} cannot be converted to int, treating as failure', exc_desc)
+                    ignore = False
+                else:
+                    ignore = exit_code in self._success_exitcodes
+                    ptvsd.log.info(
+                        'Process exiting with {0} exit code {1}',
+                        'success' if ignore else 'failure',
+                        exc_desc,
+                    )
+                if ignore:
+                    self._resume_all_threads()
+                    return
 
-        if not self.debug_options.get('BREAK_SYSTEMEXIT_ZERO', False) and exc_name == 'SystemExit':
-            ptvsd.log.info('{0}({1!r})', exc_name, exc_desc)
-            try:
-                exit_code = int(exc_desc)
-            except ValueError:
-                # It is legal to invoke exit() with a non-integer argument, and SystemExit will
-                # pass that through. It's considered an error exit, same as non-zero integer.
-                ptvsd.log.info('Exit code {0!r} cannot be converted to int, treating as failure', exc_desc)
-                ignore = False
-            else:
-                ignore = exit_code in self._success_exitcodes
-                ptvsd.log.info(
-                    'Process exiting with {0} exit code {1}',
-                    'success' if ignore else 'failure',
-                    exc_desc,
-                )
-            if ignore:
-                self._resume_all_threads()
-                return
-
-        extra['allThreadsStopped'] = True
-        self.send_event(
-            'stopped',
-            reason=reason,
-            threadId=vsc_tid,
-            text=exc_name,
-            description=exc_desc,
-            **extra)
+        body = body.copy()
+        body['threadId'] = vsc_tid
+        self.send_event('stopped', **body)
 
     @pydevd_events.handler(pydevd_comm_constants.CMD_THREAD_RESUME_SINGLE_NOTIFICATION)
     def on_pydevd_thread_resume_single_notification(self, seq, args):
-        resumed_info = json.loads(args)
-        pyd_tid = resumed_info['thread_id']
+        body = args.get('body', {})
+        pyd_tid = body['threadId']
 
         try:
             vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=False)

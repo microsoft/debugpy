@@ -759,10 +759,12 @@ class _PyDevJsonCommandProcessor(object):
             start_patterns = tuple(args['dontTraceStartPatterns'])
             end_patterns = tuple(args['dontTraceEndPatterns'])
             if self._can_set_dont_trace_pattern(py_db, start_patterns, end_patterns):
+
                 def dont_trace_files_property_request(abs_path):
                     result = abs_path.startswith(start_patterns) or \
                             abs_path.endswith(end_patterns)
                     return result
+
                 dont_trace_files_property_request.start_patterns = start_patterns
                 dont_trace_files_property_request.end_patterns = end_patterns
                 py_db.dont_trace_external_files = dont_trace_files_property_request
@@ -787,5 +789,6 @@ class _PyDevJsonCommandProcessor(object):
 
         response = pydevd_base_schema.build_response(request, kwargs={'body': {}})
         return NetCommand(CMD_RETURN, 0, response, is_json=True)
+
 
 process_net_command_json = _PyDevJsonCommandProcessor(pydevd_base_schema.from_json).process_net_command_json

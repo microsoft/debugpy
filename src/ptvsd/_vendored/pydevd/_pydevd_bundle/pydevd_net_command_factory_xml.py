@@ -273,7 +273,7 @@ class NetCommandFactory(object):
         except:
             return self.make_error_message(0, get_exception_traceback_str())
 
-    def make_thread_suspend_single_notification(self, thread_id, stop_reason):
+    def make_thread_suspend_single_notification(self, py_db, thread_id, stop_reason):
         try:
             return NetCommand(CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION, 0, json.dumps(
                 {'thread_id': thread_id, 'stop_reason':stop_reason}))
