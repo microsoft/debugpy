@@ -239,6 +239,13 @@ class _PyDevJsonCommandProcessor(object):
 
         self.api.request_completions(py_db, seq, thread_id, frame_id, text, line=line, column=column)
 
+    def _resolve_remote_root(self, local_root, remote_root):
+        if remote_root == '.':
+            cwd = os.getcwd()
+            append_pathsep = local_root.endswith('\\') or local_root.endswith('/')
+            return cwd + (os.path.sep if append_pathsep else '')
+        return remote_root
+
     def _set_debug_options(self, py_db, args):
         rules = args.get('rules')
         exclude_filters = []
@@ -257,6 +264,17 @@ class _PyDevJsonCommandProcessor(object):
 
         debug_stdlib = self._debug_options.get('DEBUG_STDLIB', False)
         self.api.set_use_libraries_filter(py_db, not debug_stdlib)
+
+        path_mappings = []
+        for pathMapping in args.get('pathMappings', []):
+            localRoot = pathMapping.get('localRoot', '')
+            remoteRoot = pathMapping.get('remoteRoot', '')
+            remoteRoot = self._resolve_remote_root(localRoot, remoteRoot)
+            if (localRoot != '') and (remoteRoot != ''):
+                path_mappings.append((localRoot, remoteRoot))
+
+        if bool(path_mappings):
+            pydevd_file_utils.setup_client_server_paths(path_mappings)
 
     def on_launch_request(self, py_db, request):
         '''

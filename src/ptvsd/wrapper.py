@@ -10,7 +10,6 @@ import json
 import os
 import re
 import platform
-import pydevd_file_utils
 import socket
 import sys
 import threading
@@ -1055,7 +1054,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self.is_process_created = False
         self.is_process_created_lock = threading.Lock()
         self.thread_map = IDMap()
-        self._path_mappings = []
         self._success_exitcodes = []
         self.internals_filter = InternalsFilter()
         self.new_thread_lock = threading.Lock()
@@ -1245,27 +1243,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         dbg_stdlib = self.debug_options.get('DEBUG_STDLIB', False)
         return not dbg_stdlib
 
-    def _resolve_remote_root(self, local_root, remote_root):
-        if remote_root == '.':
-            cwd = os.getcwd()
-            append_pathsep = local_root.endswith('\\') or local_root.endswith('/')
-            return cwd + (os.path.sep if append_pathsep else '')
-        return remote_root
-
-    def _initialize_path_maps(self, args):
-        self._path_mappings = []
-        for pathMapping in args.get('pathMappings', []):
-            localRoot = pathMapping.get('localRoot', '')
-            remoteRoot = pathMapping.get('remoteRoot', '')
-            remoteRoot = self._resolve_remote_root(localRoot, remoteRoot)
-            if (len(localRoot) > 0 and len(remoteRoot) > 0):
-                self._path_mappings.append((localRoot, remoteRoot))
-
-        if len(self._path_mappings) > 0:
-            pydevd_file_utils.setup_client_server_paths(self._path_mappings)
-
-        self._path_mappings_applied = True
-
     def _send_cmd_version_command(self):
         cmd = pydevd_comm.CMD_VERSION
 
@@ -1313,7 +1290,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         del pydevd_request['seq']  # A new seq should be created for pydevd.
         yield self.pydevd_request(-1, pydevd_request, is_json=True)
 
-        self._initialize_path_maps(args)
+        self._path_mappings_applied = True
 
         default_success_exitcodes = [0]
         if self.debug_options.get('DJANGO_DEBUG', False):
