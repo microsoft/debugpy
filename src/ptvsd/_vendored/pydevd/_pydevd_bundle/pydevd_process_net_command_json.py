@@ -720,7 +720,9 @@ class _PyDevJsonCommandProcessor(object):
         response_args = {'body': body}
 
         if content is None:
-            if server_filename:
+            if source_reference == 0:
+                message = 'Source unavailable'
+            elif server_filename:
                 message = 'Unable to retrieve source for %s' % (server_filename,)
             else:
                 message = 'Invalid sourceReference %d' % (source_reference,)

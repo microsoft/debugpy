@@ -1398,25 +1398,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         self.send_response(request, threads=threads)
 
-    @async_handler
     def on_source(self, request, args):
-        """Request to get the source"""
-        source_reference = args.get('sourceReference', 0)
-
-        if source_reference == 0:
-            self.send_error_response(request, 'Source unavailable')
-        else:
-            pydevd_request = copy.deepcopy(request)
-            del pydevd_request['seq']  # A new seq should be created for pydevd.
-            _, _, resp_args = yield self.pydevd_request(
-                pydevd_comm.CMD_LOAD_SOURCE,
-                pydevd_request,
-                is_json=True)
-
-            if resp_args.get('success', True):
-                self.send_response(request, **resp_args['body'])
-            else:
-                self.send_error_response(request, resp_args.get('message', 'Error retrieving source'))
+        self._forward_request_to_pydevd(request, args)
 
     def on_stackTrace(self, request, args):
         self._forward_request_to_pydevd(request, args)
