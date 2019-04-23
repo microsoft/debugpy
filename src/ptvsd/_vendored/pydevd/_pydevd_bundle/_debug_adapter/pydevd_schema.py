@@ -4002,15 +4002,32 @@ class ContinueArguments(BaseSchema):
         :param integer threadId: Continue execution for the specified thread (if possible). If the backend cannot continue on a single thread but will continue on all threads, it should set the 'allThreadsContinued' attribute in the response to true.
         """
         self.threadId = threadId
+        if update_ids_from_dap:
+            self.threadId = self._translate_id_from_dap(self.threadId)
         self.kwargs = kwargs
-
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_from_dap(dct['threadId'])
+        return dct
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         threadId = self.threadId
+        if update_ids_to_dap:
+            if threadId is not None:
+                threadId = self._translate_id_to_dap(threadId)
         dct = {
             'threadId': threadId,
         }
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_to_dap(dct['threadId'])
         return dct
 
 
@@ -4201,15 +4218,32 @@ class NextArguments(BaseSchema):
         :param integer threadId: Execute 'next' for this thread.
         """
         self.threadId = threadId
+        if update_ids_from_dap:
+            self.threadId = self._translate_id_from_dap(self.threadId)
         self.kwargs = kwargs
-
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_from_dap(dct['threadId'])
+        return dct
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         threadId = self.threadId
+        if update_ids_to_dap:
+            if threadId is not None:
+                threadId = self._translate_id_to_dap(threadId)
         dct = {
             'threadId': threadId,
         }
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_to_dap(dct['threadId'])
         return dct
 
 
@@ -4416,18 +4450,35 @@ class StepInArguments(BaseSchema):
         """
         self.threadId = threadId
         self.targetId = targetId
+        if update_ids_from_dap:
+            self.threadId = self._translate_id_from_dap(self.threadId)
         self.kwargs = kwargs
-
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_from_dap(dct['threadId'])
+        return dct
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         threadId = self.threadId
         targetId = self.targetId
+        if update_ids_to_dap:
+            if threadId is not None:
+                threadId = self._translate_id_to_dap(threadId)
         dct = {
             'threadId': threadId,
         }
         if targetId is not None:
             dct['targetId'] = targetId
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_to_dap(dct['threadId'])
         return dct
 
 
@@ -4619,15 +4670,32 @@ class StepOutArguments(BaseSchema):
         :param integer threadId: Execute 'stepOut' for this thread.
         """
         self.threadId = threadId
+        if update_ids_from_dap:
+            self.threadId = self._translate_id_from_dap(self.threadId)
         self.kwargs = kwargs
-
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_from_dap(dct['threadId'])
+        return dct
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         threadId = self.threadId
+        if update_ids_to_dap:
+            if threadId is not None:
+                threadId = self._translate_id_to_dap(threadId)
         dct = {
             'threadId': threadId,
         }
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_to_dap(dct['threadId'])
         return dct
 
 
@@ -4820,15 +4888,32 @@ class StepBackArguments(BaseSchema):
         :param integer threadId: Execute 'stepBack' for this thread.
         """
         self.threadId = threadId
+        if update_ids_from_dap:
+            self.threadId = self._translate_id_from_dap(self.threadId)
         self.kwargs = kwargs
-
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_from_dap(dct['threadId'])
+        return dct
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         threadId = self.threadId
+        if update_ids_to_dap:
+            if threadId is not None:
+                threadId = self._translate_id_to_dap(threadId)
         dct = {
             'threadId': threadId,
         }
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_to_dap(dct['threadId'])
         return dct
 
 
@@ -5018,15 +5103,32 @@ class ReverseContinueArguments(BaseSchema):
         :param integer threadId: Execute 'reverseContinue' for this thread.
         """
         self.threadId = threadId
+        if update_ids_from_dap:
+            self.threadId = self._translate_id_from_dap(self.threadId)
         self.kwargs = kwargs
-
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_from_dap(dct['threadId'])
+        return dct
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         threadId = self.threadId
+        if update_ids_to_dap:
+            if threadId is not None:
+                threadId = self._translate_id_to_dap(threadId)
         dct = {
             'threadId': threadId,
         }
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_to_dap(dct['threadId'])
         return dct
 
 
@@ -5445,17 +5547,34 @@ class GotoArguments(BaseSchema):
         """
         self.threadId = threadId
         self.targetId = targetId
+        if update_ids_from_dap:
+            self.threadId = self._translate_id_from_dap(self.threadId)
         self.kwargs = kwargs
-
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_from_dap(dct['threadId'])
+        return dct
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         threadId = self.threadId
         targetId = self.targetId
+        if update_ids_to_dap:
+            if threadId is not None:
+                threadId = self._translate_id_to_dap(threadId)
         dct = {
             'threadId': threadId,
             'targetId': targetId,
         }
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_to_dap(dct['threadId'])
         return dct
 
 
@@ -5647,15 +5766,32 @@ class PauseArguments(BaseSchema):
         :param integer threadId: Pause execution for this thread.
         """
         self.threadId = threadId
+        if update_ids_from_dap:
+            self.threadId = self._translate_id_from_dap(self.threadId)
         self.kwargs = kwargs
-
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_from_dap(dct['threadId'])
+        return dct
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         threadId = self.threadId
+        if update_ids_to_dap:
+            if threadId is not None:
+                threadId = self._translate_id_to_dap(threadId)
         dct = {
             'threadId': threadId,
         }
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_to_dap(dct['threadId'])
         return dct
 
 
@@ -5865,14 +6001,25 @@ class StackTraceArguments(BaseSchema):
             self.format = StackFrameFormat()
         else:
             self.format = StackFrameFormat(update_ids_from_dap=update_ids_from_dap, **format) if format.__class__ !=  StackFrameFormat else format
+        if update_ids_from_dap:
+            self.threadId = self._translate_id_from_dap(self.threadId)
         self.kwargs = kwargs
-
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_from_dap(dct['threadId'])
+        return dct
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         threadId = self.threadId
         startFrame = self.startFrame
         levels = self.levels
         format = self.format  # noqa (assign to builtin)
+        if update_ids_to_dap:
+            if threadId is not None:
+                threadId = self._translate_id_to_dap(threadId)
         dct = {
             'threadId': threadId,
         }
@@ -5883,6 +6030,12 @@ class StackTraceArguments(BaseSchema):
         if format is not None:
             dct['format'] = format.to_dict(update_ids_to_dap=update_ids_to_dap)
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_to_dap(dct['threadId'])
         return dct
 
 
@@ -9073,15 +9226,32 @@ class ExceptionInfoArguments(BaseSchema):
         :param integer threadId: Thread for which exception information should be retrieved.
         """
         self.threadId = threadId
+        if update_ids_from_dap:
+            self.threadId = self._translate_id_from_dap(self.threadId)
         self.kwargs = kwargs
-
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_from_dap(dct['threadId'])
+        return dct
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         threadId = self.threadId
+        if update_ids_to_dap:
+            if threadId is not None:
+                threadId = self._translate_id_to_dap(threadId)
         dct = {
             'threadId': threadId,
         }
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_to_dap(dct['threadId'])
         return dct
 
 
@@ -9912,17 +10082,34 @@ class Thread(BaseSchema):
         """
         self.id = id
         self.name = name
+        if update_ids_from_dap:
+            self.id = self._translate_id_from_dap(self.id)
         self.kwargs = kwargs
-
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'id' in dct:
+            dct['id'] = cls._translate_id_from_dap(dct['id'])
+        return dct
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         id = self.id  # noqa (assign to builtin)
         name = self.name
+        if update_ids_to_dap:
+            if id is not None:
+                id = self._translate_id_to_dap(id)  # noqa (assign to builtin)
         dct = {
             'id': id,
             'name': name,
         }
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'id' in dct:
+            dct['id'] = cls._translate_id_to_dap(dct['id'])
         return dct
 
 
@@ -11772,8 +11959,16 @@ class StoppedEventBody(BaseSchema):
         self.preserveFocusHint = preserveFocusHint
         self.text = text
         self.allThreadsStopped = allThreadsStopped
+        if update_ids_from_dap:
+            self.threadId = self._translate_id_from_dap(self.threadId)
         self.kwargs = kwargs
-
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_from_dap(dct['threadId'])
+        return dct
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         reason = self.reason
@@ -11782,6 +11977,9 @@ class StoppedEventBody(BaseSchema):
         preserveFocusHint = self.preserveFocusHint
         text = self.text
         allThreadsStopped = self.allThreadsStopped
+        if update_ids_to_dap:
+            if threadId is not None:
+                threadId = self._translate_id_to_dap(threadId)
         dct = {
             'reason': reason,
         }
@@ -11796,6 +11994,12 @@ class StoppedEventBody(BaseSchema):
         if allThreadsStopped is not None:
             dct['allThreadsStopped'] = allThreadsStopped
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_to_dap(dct['threadId'])
         return dct
 
 
@@ -11828,18 +12032,35 @@ class ContinuedEventBody(BaseSchema):
         """
         self.threadId = threadId
         self.allThreadsContinued = allThreadsContinued
+        if update_ids_from_dap:
+            self.threadId = self._translate_id_from_dap(self.threadId)
         self.kwargs = kwargs
-
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_from_dap(dct['threadId'])
+        return dct
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         threadId = self.threadId
         allThreadsContinued = self.allThreadsContinued
+        if update_ids_to_dap:
+            if threadId is not None:
+                threadId = self._translate_id_to_dap(threadId)
         dct = {
             'threadId': threadId,
         }
         if allThreadsContinued is not None:
             dct['allThreadsContinued'] = allThreadsContinued
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_to_dap(dct['threadId'])
         return dct
 
 
@@ -11956,17 +12177,34 @@ class ThreadEventBody(BaseSchema):
         """
         self.reason = reason
         self.threadId = threadId
+        if update_ids_from_dap:
+            self.threadId = self._translate_id_from_dap(self.threadId)
         self.kwargs = kwargs
-
+    
+    
+    @classmethod
+    def update_dict_ids_from_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_from_dap(dct['threadId'])
+        return dct
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         reason = self.reason
         threadId = self.threadId
+        if update_ids_to_dap:
+            if threadId is not None:
+                threadId = self._translate_id_to_dap(threadId)
         dct = {
             'reason': reason,
             'threadId': threadId,
         }
         dct.update(self.kwargs)
+        return dct    
+    
+    @classmethod
+    def update_dict_ids_to_dap(cls, dct):
+        if 'threadId' in dct:
+            dct['threadId'] = cls._translate_id_to_dap(dct['threadId'])
         return dct
 
 

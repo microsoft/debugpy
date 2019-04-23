@@ -1053,10 +1053,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         # debugger state
         self.is_process_created = False
         self.is_process_created_lock = threading.Lock()
-        self.thread_map = IDMap()
         self._success_exitcodes = []
         self.internals_filter = InternalsFilter()
-        self.new_thread_lock = threading.Lock()
 
         # goto
         self.current_goto_request = None
@@ -1336,67 +1334,23 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self.send_event('process', **evt)
 
     @async_handler
-    def _forward_request_to_pydevd(self, request, args):
-        translate_thread_id = args.get('threadId') is not None
-        if translate_thread_id:
-            try:
-                vsc_tid = int(args['threadId'])
-                pyd_tid = self.thread_map.to_pydevd(vsc_tid)
-            except KeyError:
-                # Unknown thread, nothing much we can do about it here
-                self.send_error_response(
-                    request,
-                    'Thread {} not found'.format(vsc_tid))
-                return
-
+    def _forward_request_to_pydevd(self, request, args, send_response=True):
         pydevd_request = copy.deepcopy(request)
         del pydevd_request['seq']  # A new seq should be created for pydevd.
-        if translate_thread_id:
-            pydevd_request['arguments']['threadId'] = pyd_tid
         cmd_id = -1  # It's actually unused on json requests.
         _, _, resp_args = yield self.pydevd_request(cmd_id, pydevd_request, is_json=True)
 
-        if not resp_args.get('success'):
-            self.send_error_response(request, message=resp_args.get('message', ''))
-        else:
-            body = resp_args.get('body')
-            if body is None:
-                body = {}
-            self.send_response(request, **body)
+        if send_response:
+            if not resp_args.get('success'):
+                self.send_error_response(request, message=resp_args.get('message', ''))
+            else:
+                body = resp_args.get('body')
+                if body is None:
+                    body = {}
+                self.send_response(request, **body)
 
-    @async_handler
     def on_threads(self, request, args):
-        # TODO: docstring
-        cmd = pydevd_comm.CMD_LIST_THREADS
-        _, _, resp_args = yield self.pydevd_request(cmd, '')
-
-        try:
-            xthreads = resp_args['body']['threads']
-        except KeyError:
-            xthreads = []
-
-        threads = []
-        with self.new_thread_lock:
-            for xthread in xthreads:
-                try:
-                    name = xthread['name']
-                except KeyError:
-                    name = '<Unable to get thread name>'
-
-                pyd_tid = xthread['id']
-                try:
-                    vsc_tid = self.thread_map.to_vscode(pyd_tid,
-                                                        autogen=False)
-                except KeyError:
-                    # This is a previously unseen thread
-                    vsc_tid = self.thread_map.to_vscode(pyd_tid,
-                                                        autogen=True)
-                    self.send_event('thread', reason='started',
-                                    threadId=vsc_tid)
-
-                threads.append({'id': vsc_tid, 'name': name})
-
-        self.send_response(request, threads=threads)
+        self._forward_request_to_pydevd(request, args)
 
     def on_source(self, request, args):
         self._forward_request_to_pydevd(request, args)
@@ -1507,22 +1461,15 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     def on_gotoTargets(self, request, args):
         self._forward_request_to_pydevd(request, args)
 
-    @async_handler
     def on_goto(self, request, args):
         if self.current_goto_request is not None:
             self.send_error_response(request, 'Already processing a "goto" request.')
             return
 
-        pyd_tid = self.thread_map.to_pydevd(int(args['threadId']))
-        pydevd_request = copy.deepcopy(request)
-        del pydevd_request['seq']  # A new seq should be created for pydevd.
-        pydevd_request['arguments']['threadId'] = pyd_tid
-
         self.current_goto_request = request
-        cmd_id = pydevd_comm.CMD_SET_NEXT_STATEMENT
-        yield self.pydevd_request(cmd_id, pydevd_request, is_json=True)
         # response for this is received via set_next_statement event
         # see on_pydevd_set_next_statement below
+        self._forward_request_to_pydevd(request, args, send_response=False)
 
     @async_handler
     def on_setBreakpoints(self, request, args):
@@ -1651,8 +1598,14 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 'body': {'reason': 'started', 'threadId': 'pid_9236_id_2714288164368'},
             }
         '''
-        # If this is the first thread reported, report process creation
-        # as well.
+        # When we receive the thread on tests (due to a threads request), it's possible
+        # that the `debugger_attached` is still unset (but we should report about the
+        # thread creation anyways).
+        tid = args['body']['threadId']
+        self.send_event('thread', reason='started', threadId=tid)
+
+        # Report process creation as well if we're already attached and we still
+        # didn't report it.
         with self.is_process_created_lock:
             if not self.is_process_created:
                 if not debugger_attached.isSet():
@@ -1660,29 +1613,10 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 self.is_process_created = True
                 self.send_process_event(self.start_reason)
 
-        body = args['body']
-        with self.new_thread_lock:
-            pyd_tid = body['threadId']
-            try:
-                tid = self.thread_map.to_vscode(pyd_tid,
-                                                autogen=False)
-            except KeyError:
-                tid = self.thread_map.to_vscode(pyd_tid,
-                                                autogen=True)
-                self.send_event('thread', reason='started', threadId=tid)
-
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_KILL)
     def on_pydevd_thread_kill(self, seq, args):
-        # TODO: docstring
-        pyd_tid = args.strip()
-
-        try:
-            vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=False)
-        except KeyError:
-            pass
-        else:
-            self.thread_map.remove(pyd_tid, vsc_tid)
-            self.send_event('thread', reason='exited', threadId=vsc_tid)
+        tid = args['body']['threadId']
+        self.send_event('thread', reason='exited', threadId=tid)
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_SUSPEND)
     @async_handler
@@ -1699,11 +1633,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         # thread is seen here for the first time in 'attach' scenario.
         # If we are here in 'launch' scenario and we get KeyError then
         # there is an issue in reporting of thread creation.
-        body = args.get('body', {})
-
-        pyd_tid = body['threadId']
-        autogen = self.start_reason == 'attach'
-        vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=autogen)
+        body = args['body']
 
         reason = body['reason']
         if reason == 'exception':
@@ -1730,22 +1660,14 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                     self._resume_all_threads()
                     return
 
-        body = body.copy()
-        body['threadId'] = vsc_tid
         self.send_event('stopped', **body)
 
     @pydevd_events.handler(pydevd_comm_constants.CMD_THREAD_RESUME_SINGLE_NOTIFICATION)
     def on_pydevd_thread_resume_single_notification(self, seq, args):
-        body = args.get('body', {})
-        pyd_tid = body['threadId']
+        tid = args['body']['threadId']
 
-        try:
-            vsc_tid = self.thread_map.to_vscode(pyd_tid, autogen=False)
-        except KeyError:
-            pass
-        else:
-            if os.getenv('PTVSD_USE_CONTINUED'):
-                self.send_event('continued', threadId=vsc_tid)
+        if os.getenv('PTVSD_USE_CONTINUED'):
+            self.send_event('continued', threadId=tid)
 
     @pydevd_events.handler(pydevd_comm.CMD_SEND_CURR_EXCEPTION_TRACE)
     def on_pydevd_send_curr_exception_trace(self, seq, args):

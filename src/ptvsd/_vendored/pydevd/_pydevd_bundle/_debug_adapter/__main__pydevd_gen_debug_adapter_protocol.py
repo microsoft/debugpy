@@ -7,11 +7,15 @@ to download the latest version.
 
 
 def is_variable_to_translate(cls_name, var_name):
-    if var_name in ('variablesReference', 'frameId'):
+    if var_name in ('variablesReference', 'frameId', 'threadId'):
         return True
 
     if cls_name == 'StackFrame' and var_name == 'id':
         # It's frameId everywhere except on StackFrame.
+        return True
+
+    if cls_name == 'Thread' and var_name == 'id':
+        # It's threadId everywhere except on Thread.
         return True
 
     return False

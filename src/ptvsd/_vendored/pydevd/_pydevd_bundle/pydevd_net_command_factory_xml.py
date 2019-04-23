@@ -73,7 +73,7 @@ class NetCommandFactory(object):
         frame_description = pydevd_xml.make_valid_xml_value(frame_description)
         return NetCommand(CMD_THREAD_CREATE, 0, '<xml><thread name="%s" id="%s"/></xml>' % (frame_description, frame_id))
 
-    def make_list_threads_message(self, seq):
+    def make_list_threads_message(self, py_db, seq):
         """ returns thread listing as XML """
         try:
             threads = get_non_pydevd_threads()
@@ -146,9 +146,9 @@ class NetCommandFactory(object):
         except:
             return self.make_error_message(seq, get_exception_traceback_str())
 
-    def make_thread_killed_message(self, id):
+    def make_thread_killed_message(self, tid):
         try:
-            return NetCommand(CMD_THREAD_KILL, 0, str(id))
+            return NetCommand(CMD_THREAD_KILL, 0, str(tid))
         except:
             return self.make_error_message(0, get_exception_traceback_str())
 

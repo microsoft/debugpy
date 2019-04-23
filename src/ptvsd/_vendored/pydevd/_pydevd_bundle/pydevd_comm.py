@@ -1118,9 +1118,8 @@ def build_exception_info_response(dbg, thread_id, request_seq, set_additional_th
 
                     # Never filter out plugin frames!
                     if not getattr(frame, 'IS_PLUGIN_FRAME', False):
-                        if not dbg.in_project_scope(original_filename):
-                            if not dbg.get_use_libraries_filter():
-                                continue
+                        if dbg.is_files_filter_enabled and dbg.apply_files_filter(frame, original_filename, False):
+                            continue
                     frames.append((filename_in_utf8, lineno, method_name, line_text))
         finally:
             topmost_frame = None

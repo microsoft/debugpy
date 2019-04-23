@@ -14,7 +14,7 @@ from _pydevd_bundle.pydevd_comm_constants import CMD_THREAD_CREATE, CMD_RETURN, 
     CMD_WRITE_TO_CONSOLE, CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE, \
     CMD_STEP_RETURN, CMD_STEP_CAUGHT_EXCEPTION, CMD_ADD_EXCEPTION_BREAK, CMD_SET_BREAK, \
     CMD_SET_NEXT_STATEMENT, CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION, \
-    CMD_THREAD_RESUME_SINGLE_NOTIFICATION
+    CMD_THREAD_RESUME_SINGLE_NOTIFICATION, CMD_THREAD_KILL
 from _pydevd_bundle.pydevd_constants import get_thread_id, dict_values
 from _pydevd_bundle.pydevd_net_command import NetCommand
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
@@ -99,12 +99,25 @@ class NetCommandFactoryJson(NetCommandFactory):
 
         return NetCommand(CMD_THREAD_CREATE, 0, msg, is_json=True)
 
+    @overrides(NetCommandFactory.make_thread_killed_message)
+    def make_thread_killed_message(self, tid):
+        msg = pydevd_schema.ThreadEvent(
+            pydevd_schema.ThreadEventBody('exited', tid),
+        )
+
+        return NetCommand(CMD_THREAD_KILL, 0, msg, is_json=True)
+
     @overrides(NetCommandFactory.make_list_threads_message)
-    def make_list_threads_message(self, seq):
+    def make_list_threads_message(self, py_db, seq):
         threads = []
         for thread in get_non_pydevd_threads():
             if is_thread_alive(thread):
-                thread_schema = pydevd_schema.Thread(id=get_thread_id(thread), name=thread.getName())
+                thread_id = get_thread_id(thread)
+
+                # Notify that it's created (no-op if we already notified before).
+                py_db.notify_thread_created(thread_id, thread)
+
+                thread_schema = pydevd_schema.Thread(id=thread_id, name=thread.getName())
                 threads.append(thread_schema.to_dict())
 
         body = pydevd_schema.ThreadsResponseBody(threads)
@@ -191,9 +204,10 @@ class NetCommandFactoryJson(NetCommandFactory):
 
                     presentation_hint = None
                     if not getattr(frame, 'IS_PLUGIN_FRAME', False):  # Never filter out plugin frames!
+                        if py_db.is_files_filter_enabled and py_db.apply_files_filter(frame, original_filename, False):
+                            continue
+
                         if not py_db.in_project_scope(original_filename):
-                            if py_db.get_use_libraries_filter():
-                                continue
                             presentation_hint = 'subtle'
 
                     formatted_name = self._format_frame_name(fmt, method_name, module_name, lineno, filename_in_utf8)

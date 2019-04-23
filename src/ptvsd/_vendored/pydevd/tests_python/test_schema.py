@@ -1,6 +1,7 @@
 from _pydevd_bundle._debug_adapter.pydevd_schema import InitializeRequest, \
     InitializeRequestArguments, InitializeResponse, Capabilities
 from _pydevd_bundle._debug_adapter import pydevd_schema, pydevd_base_schema
+from _pydevd_bundle._debug_adapter.pydevd_schema import ThreadsResponse
 
 
 def test_schema():
@@ -67,7 +68,7 @@ def test_schema():
     }
 
 
-def test_schema_translation():
+def test_schema_translation_frame():
     pydevd_base_schema.BaseSchema.initialize_ids_translation()
     stack_trace_arguments = pydevd_schema.StackTraceArguments(threadId=1)
     stack_trace_request = pydevd_schema.StackTraceRequest(stack_trace_arguments)
@@ -99,6 +100,43 @@ def test_schema_translation():
         'body': {'stackFrames': [
             {'id': 2 ** 45, 'name': 'foo', 'line': 1, 'column': 1, 'source': {}},
             {'id': 2 ** 46, 'name': 'bar', 'line': 1, 'column': 1, 'source': {}}
+        ]},
+        'seq':-1
+    }
+
+
+def test_schema_translation_thread():
+    from _pydevd_bundle._debug_adapter.pydevd_schema import ThreadsRequest
+    pydevd_base_schema.BaseSchema.initialize_ids_translation()
+
+    threads = [
+        pydevd_schema.Thread(id=2 ** 45, name='foo').to_dict(),
+        pydevd_schema.Thread(id=2 ** 46, name='bar').to_dict(),
+    ]
+    body = pydevd_schema.ThreadsResponseBody(threads)
+    threads_request = ThreadsRequest()
+    threads_response = pydevd_base_schema.build_response(threads_request, kwargs=dict(body=body))
+    as_dict = threads_response.to_dict(update_ids_to_dap=True)
+    assert as_dict == {
+        'type': 'response',
+        'request_seq':-1,
+        'success': True,
+        'command': 'threads',
+        'body': {'threads': [
+            {'id': 1, 'name': 'foo'},
+            {'id': 2, 'name': 'bar'},
+        ]},
+        'seq':-1}
+
+    reconstructed = pydevd_base_schema.from_dict(as_dict, update_ids_from_dap=True)
+    assert reconstructed.to_dict() == {
+        'type': 'response',
+        'request_seq':-1,
+        'success': True,
+        'command': 'threads',
+        'body': {'threads': [
+            {'id': 2 ** 45, 'name': 'foo'},
+            {'id': 2 ** 46, 'name': 'bar'}
         ]},
         'seq':-1
     }

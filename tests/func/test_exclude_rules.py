@@ -7,7 +7,7 @@ from __future__ import print_function, with_statement, absolute_import
 from tests.helpers import print, get_marked_line_numbers
 from tests.helpers.session import DebugSession
 from tests.helpers.pattern import ANY, Path
-from os.path import os
+from os.path import os, basename
 import pytest
 from tests.helpers.pathutils import get_test_root
 
@@ -132,19 +132,19 @@ def test_exceptions_and_partial_exclude_rules(pyfile, run_as, start_method, scen
             frames = hit.stacktrace.body['stackFrames']
             # We don't stop at the raise line but rather at the callback module which is
             # not excluded.
-            assert len(frames) == 2
+            assert len(frames) == 1
             assert frames[0] == ANY.dict_with({
                 'line': 2,
                 'source': ANY.dict_with({
                     'path': Path(os.path.join(call_me_back_dir, 'call_me_back.py'))
                 })
             })
-            assert frames[1] == ANY.dict_with({
-                'line': line_numbers['call_me_back_line'],
-                'source': ANY.dict_with({
-                    'path': Path(code_to_debug)
-                })
-            })
+            # assert frames[1] == ANY.dict_with({ -- filtered out
+            #     'line': line_numbers['call_me_back_line'],
+            #     'source': ANY.dict_with({
+            #         'path': Path(code_to_debug)
+            #     })
+            # })
             # 'continue' should terminate the debuggee
             session.send_request('continue').wait_for_response(freeze=False)
 
@@ -154,7 +154,11 @@ def test_exceptions_and_partial_exclude_rules(pyfile, run_as, start_method, scen
             # Stop at handled raise_line
             hit = session.wait_for_thread_stopped(reason='exception')
             frames = hit.stacktrace.body['stackFrames']
-            assert len(frames) == 3
+            assert [(frame['name'], basename(frame['source']['path'])) for frame in frames] == [
+                ('call_func', 'code_to_debug.py'),
+                # ('call_me_back', 'call_me_back.py'), -- filtered out
+                ('<module>', 'code_to_debug.py'),
+            ]
             assert frames[0] == ANY.dict_with({
                 'line': line_numbers['raise_line'],
                 'source': ANY.dict_with({
@@ -166,7 +170,9 @@ def test_exceptions_and_partial_exclude_rules(pyfile, run_as, start_method, scen
             # Stop at handled call_me_back_line
             hit = session.wait_for_thread_stopped(reason='exception')
             frames = hit.stacktrace.body['stackFrames']
-            assert len(frames) == 1
+            assert [(frame['name'], basename(frame['source']['path'])) for frame in frames] == [
+                ('<module>', 'code_to_debug.py'),
+            ]
             assert frames[0] == ANY.dict_with({
                 'line': line_numbers['call_me_back_line'],
                 'source': ANY.dict_with({
@@ -178,7 +184,12 @@ def test_exceptions_and_partial_exclude_rules(pyfile, run_as, start_method, scen
             # Stop at unhandled
             hit = session.wait_for_thread_stopped(reason='exception')
             frames = hit.stacktrace.body['stackFrames']
-            assert len(frames) == 3
+            assert [(frame['name'], basename(frame['source']['path'])) for frame in frames] == [
+                ('call_func', 'code_to_debug.py'),
+                # ('call_me_back', 'call_me_back.py'), -- filtered out
+                ('<module>', 'code_to_debug.py'),
+            ]
+
             assert frames[0] == ANY.dict_with({
                 'line': line_numbers['raise_line'],
                 'source': ANY.dict_with({

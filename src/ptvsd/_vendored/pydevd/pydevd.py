@@ -426,6 +426,9 @@ class PyDB(object):
         # find that thread alive anymore, we must remove it from this list and make the java side know that the thread
         # was killed.
         self._running_thread_ids = {}
+        # Note: also access '_enable_thread_notifications' with '_lock_running_thread_ids'
+        self._enable_thread_notifications = True
+
         self._set_breakpoints_with_id = False
 
         # This attribute holds the file-> lines which have an @IgnoreException.
@@ -690,6 +693,10 @@ class PyDB(object):
         return self.plugin
 
     def in_project_scope(self, filename):
+        '''
+        Note: in general this method should not be used (apply_files_filter should be used
+        in most cases as it also handles the project scope check).
+        '''
         try:
             return self._in_project_scope_cache[filename]
         except KeyError:
@@ -958,6 +965,9 @@ class PyDB(object):
             return
 
         with self._lock_running_thread_ids if use_lock else NULL:
+            if not self._enable_thread_notifications:
+                return
+
             if thread_id in self._running_thread_ids:
                 return
 
@@ -977,6 +987,9 @@ class PyDB(object):
             return
 
         with self._lock_running_thread_ids if use_lock else NULL:
+            if not self._enable_thread_notifications:
+                return
+
             thread = self._running_thread_ids.pop(thread_id, None)
             if thread is None:
                 return
@@ -986,6 +999,16 @@ class PyDB(object):
                 thread.additional_info.pydev_notify_kill = True
 
         self.writer.add_command(self.cmd_factory.make_thread_killed_message(thread_id))
+
+    def set_enable_thread_notifications(self, enable):
+        with self._lock_running_thread_ids:
+            if self._enable_thread_notifications != enable:
+                self._enable_thread_notifications = enable
+
+                if enable:
+                    # As it was previously disabled, we have to notify about existing threads again
+                    # (so, clear the cache related to that).
+                    self._running_thread_ids = {}
 
     def process_internal_commands(self):
         '''This function processes internal commands

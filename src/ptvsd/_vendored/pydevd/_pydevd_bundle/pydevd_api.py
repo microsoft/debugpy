@@ -66,7 +66,7 @@ class PyDevdAPI(object):
 
     def list_threads(self, py_db, seq):
         # Response is the command with the list of threads to be added to the writer thread.
-        return py_db.cmd_factory.make_list_threads_message(seq)
+        return py_db.cmd_factory.make_list_threads_message(py_db, seq)
 
     def request_suspend_thread(self, py_db, thread_id='*'):
         # Yes, thread suspend is done at this point, not through an internal command.
@@ -93,6 +93,17 @@ class PyDevdAPI(object):
             # Break here (even if it's suspend all) as py_db.set_suspend will
             # take care of suspending other threads.
             break
+
+    def set_enable_thread_notifications(self, py_db, enable):
+        '''
+        When disabled, no thread notifications (for creation/removal) will be
+        issued until it's re-enabled.
+
+        Note that when it's re-enabled, a creation notification will be sent for
+        all existing threads even if it was previously sent (this is meant to
+        be used on disconnect/reconnect).
+        '''
+        py_db.set_enable_thread_notifications(enable)
 
     def request_resume_thread(self, thread_id):
         threads = []

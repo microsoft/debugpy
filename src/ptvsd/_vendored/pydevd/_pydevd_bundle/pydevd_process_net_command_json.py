@@ -22,13 +22,15 @@ from _pydevd_bundle.pydevd_utils import convert_dap_log_message_to_expression
 import pydevd_file_utils
 from _pydevd_bundle._debug_adapter.pydevd_schema import CompletionsResponseBody
 
-
 try:
     import dis
 except ImportError:
+
     def _get_code_lines(code):
         raise NotImplementedError
+
 else:
+
     def _get_code_lines(code):
         if not isinstance(code, types.CodeType):
             path = code
@@ -52,6 +54,7 @@ else:
                         yield lineno
 
         return iterate()
+
 
 def _convert_rules_to_exclude_filters(rules, filename_to_server, on_error):
     exclude_filters = []
@@ -280,6 +283,7 @@ class _PyDevJsonCommandProcessor(object):
         '''
         :param LaunchRequest request:
         '''
+        self.api.set_enable_thread_notifications(py_db, True)
         self._set_debug_options(py_db, request.arguments.kwargs)
         response = pydevd_base_schema.build_response(request)
         return NetCommand(CMD_RETURN, 0, response, is_json=True)
@@ -288,6 +292,7 @@ class _PyDevJsonCommandProcessor(object):
         '''
         :param AttachRequest request:
         '''
+        self.api.set_enable_thread_notifications(py_db, True)
         self._set_debug_options(py_db, request.arguments.kwargs)
         response = pydevd_base_schema.build_response(request)
         return NetCommand(CMD_RETURN, 0, response, is_json=True)
@@ -408,6 +413,7 @@ class _PyDevJsonCommandProcessor(object):
         '''
         :param DisconnectRequest request:
         '''
+        self.api.set_enable_thread_notifications(py_db, False)
         self.api.remove_all_breakpoints(py_db, filename='*')
         self.api.remove_all_exception_breakpoints(py_db)
         self.api.request_resume_thread(thread_id='*')
