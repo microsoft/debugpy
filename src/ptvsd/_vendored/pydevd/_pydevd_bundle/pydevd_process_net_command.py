@@ -116,7 +116,12 @@ class _PyDevCommandProcessor(object):
         elif len(splitted) == 3:
             _local_version, ide_os, breakpoints_by = splitted
 
-        return self.api.set_ide_os_and_breakpoints_by(py_db, seq, ide_os, breakpoints_by)
+        version_msg = self.api.set_ide_os_and_breakpoints_by(py_db, seq, ide_os, breakpoints_by)
+
+        # Enable thread notifications after the version command is completed.
+        self.api.set_enable_thread_notifications(py_db, True)
+
+        return version_msg
 
     def cmd_thread_run(self, py_db, cmd_id, seq, text):
         return self.api.request_resume_thread(text.strip())

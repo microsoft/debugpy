@@ -427,7 +427,7 @@ class PyDB(object):
         # was killed.
         self._running_thread_ids = {}
         # Note: also access '_enable_thread_notifications' with '_lock_running_thread_ids'
-        self._enable_thread_notifications = True
+        self._enable_thread_notifications = False
 
         self._set_breakpoints_with_id = False
 

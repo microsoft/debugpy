@@ -1158,10 +1158,14 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     def on_pydevd_event(self, cmd_id, seq, args):
         if not self._detached:
             try:
-                f = self.pydevd_events[cmd_id]
-            except KeyError:
-                raise UnsupportedPyDevdCommandError(cmd_id)
-            return f(self, seq, args)
+                try:
+                    f = self.pydevd_events[cmd_id]
+                except KeyError:
+                    raise UnsupportedPyDevdCommandError(cmd_id)
+                return f(self, seq, args)
+            except:
+                ptvsd.log.exception('Error handling pydevd event: {0}', args)
+                raise
         else:
             return None
 
