@@ -1,10 +1,11 @@
 
 import sys
+from _pydev_bundle import pydev_log
 
 backends = {'tk': 'TkAgg',
             'gtk': 'GTKAgg',
             'wx': 'WXAgg',
-            'qt': 'Qt4Agg', # qt3 not supported
+            'qt': 'Qt4Agg',  # qt3 not supported
             'qt4': 'Qt4Agg',
             'qt5': 'Qt5Agg',
             'osx': 'MacOSX'}
@@ -31,8 +32,7 @@ def do_enable_gui(guiname):
             enable_gui(guiname)
         except:
             sys.stderr.write("Failed to enable GUI event loop integration for '%s'\n" % guiname)
-            import traceback
-            traceback.print_exc()
+            pydev_log.exception()
     elif guiname not in ['none', '', None]:
         # Only print a warning if the guiname was going to do something
         sys.stderr.write("Debug console: Python version does not support GUI event loop integration for '%s'\n" % guiname)
@@ -66,6 +66,7 @@ def is_interactive_backend(backend):
 def patch_use(enable_gui_function):
     """ Patch matplotlib function 'use' """
     matplotlib = sys.modules['matplotlib']
+
     def patched_use(*args, **kwargs):
         matplotlib.real_use(*args, **kwargs)
         gui, backend = find_gui_and_backend()
@@ -78,6 +79,7 @@ def patch_use(enable_gui_function):
 def patch_is_interactive():
     """ Patch matplotlib function 'use' """
     matplotlib = sys.modules['matplotlib']
+
     def patched_is_interactive():
         return matplotlib.rcParams['interactive']
 
@@ -122,9 +124,9 @@ def flag_calls(func):
     if hasattr(func, 'called'):
         return func
 
-    def wrapper(*args,**kw):
+    def wrapper(*args, **kw):
         wrapper.called = False
-        out = func(*args,**kw)
+        out = func(*args, **kw)
         wrapper.called = True
         return out
 

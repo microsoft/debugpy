@@ -2,10 +2,12 @@ import sys
 from _pydevd_bundle import pydevd_xml
 from os.path import basename
 import traceback
+from _pydev_bundle import pydev_log
 try:
     from urllib import quote, quote_plus, unquote, unquote_plus
 except:
-    from urllib.parse import quote, quote_plus, unquote, unquote_plus  #@Reimport @UnresolvedImport
+    from urllib.parse import quote, quote_plus, unquote, unquote_plus  # @Reimport @UnresolvedImport
+
 
 #===================================================================================================
 # print_var_node
@@ -25,6 +27,7 @@ def print_var_node(xml_node, stream):
     if found_as:
         stream.write(', Found as: %s' % (unquote_plus(found_as),))
     stream.write('\n')
+
 
 #===================================================================================================
 # print_referrers
@@ -88,7 +91,7 @@ def get_referrer_info(searched_obj):
                 import gc
                 referrers = gc.get_referrers(searched_obj)
             except:
-                traceback.print_exc()
+                pydev_log.exception()
                 ret = ['<xml>\n']
 
                 ret.append('<for>\n')
@@ -107,14 +110,13 @@ def get_referrer_info(searched_obj):
             curr_frame = sys._getframe()
             frame_type = type(curr_frame)
 
-            #Ignore this frame and any caller frame of this frame
+            # Ignore this frame and any caller frame of this frame
 
-            ignore_frames = {}  #Should be a set, but it's not available on all python versions.
+            ignore_frames = {}  # Should be a set, but it's not available on all python versions.
             while curr_frame is not None:
                 if basename(curr_frame.f_code.co_filename).startswith('pydev'):
                     ignore_frames[curr_frame] = 1
                 curr_frame = curr_frame.f_back
-
 
             ret = ['<xml>\n']
 
@@ -133,9 +135,9 @@ def get_referrer_info(searched_obj):
             for r in referrers:
                 try:
                     if r in ignore_frames:
-                        continue  #Skip the references we may add ourselves
+                        continue  # Skip the references we may add ourselves
                 except:
-                    pass  #Ok: unhashable type checked...
+                    pass  # Ok: unhashable type checked...
 
                 if r is referrers:
                     continue
@@ -169,9 +171,9 @@ def get_referrer_info(searched_obj):
                                 sys.stderr.write('    Found as %r in dict\n' % (found_as,))
                             break
 
-                    #Ok, there's one annoying thing: many times we find it in a dict from an instance,
-                    #but with this we don't directly have the class, only the dict, so, to workaround that
-                    #we iterate over all reachable objects ad check if one of those has the given dict.
+                    # Ok, there's one annoying thing: many times we find it in a dict from an instance,
+                    # but with this we don't directly have the class, only the dict, so, to workaround that
+                    # we iterate over all reachable objects ad check if one of those has the given dict.
                     if all_objects is None:
                         all_objects = gc.get_objects()
 
@@ -184,7 +186,7 @@ def get_referrer_info(searched_obj):
                                 representation = str(r_type)
                                 break
                         except:
-                            pass  #Just ignore any error here (i.e.: ReferenceError, etc.)
+                            pass  # Just ignore any error here (i.e.: ReferenceError, etc.)
 
                 elif r_type in (tuple, list):
                     if DEBUG:
@@ -210,7 +212,7 @@ def get_referrer_info(searched_obj):
             if DEBUG:
                 sys.stderr.write('Done searching for references.\n')
 
-            #If we have any exceptions, don't keep dangling references from this frame to any of our objects.
+            # If we have any exceptions, don't keep dangling references from this frame to any of our objects.
             all_objects = None
             referrers = None
             searched_obj = None
@@ -221,7 +223,7 @@ def get_referrer_info(searched_obj):
             curr_frame = None
             ignore_frames = None
     except:
-        traceback.print_exc()
+        pydev_log.exception()
         ret = ['<xml>\n']
 
         ret.append('<for>\n')

@@ -1,5 +1,4 @@
 import time
-import traceback
 
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
 from _pydev_imps._pydev_saved_modules import threading
@@ -9,6 +8,7 @@ from _pydevd_bundle.pydevd_constants import get_thread_id, IS_PY3K
 from _pydevd_bundle.pydevd_net_command import NetCommand
 from pydevd_concurrency_analyser.pydevd_thread_wrappers import ObjectWrapper, wrap_attr
 import pydevd_file_utils
+from _pydev_bundle import pydev_log
 
 file_system_encoding = getfilesystemencoding()
 
@@ -74,7 +74,7 @@ def get_text_list_for_frame(frame):
             cmdTextList.append("</frame>")
             curFrame = curFrame.f_back
     except :
-        traceback.print_exc()
+        pydev_log.exception()
 
     return cmdTextList
 
@@ -230,7 +230,7 @@ class ThreadingLogger:
                         #       real_method, back.f_code.co_filename, back.f_lineno)
 
         except Exception:
-            traceback.print_exc()
+            pydev_log.exception()
 
 
 class NameManager:

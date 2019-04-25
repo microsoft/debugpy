@@ -5,6 +5,7 @@ from tests_python.debug_constants import TEST_CYTHON
 from tests_python.debug_constants import TEST_JYTHON
 import site
 import os
+from _pydev_bundle import pydev_log
 
 
 def pytest_report_header(config):
@@ -201,7 +202,7 @@ def before_after_each_function(request):
             from pympler import summary, muppy
             sum1 = summary.summarize(muppy.get_objects())
         except:
-            import traceback;traceback.print_exc()
+            pydev_log.exception()
 
     sys.stdout.write(
 '''
@@ -247,7 +248,7 @@ Memory before: %s
             else:
                 _global_collect_info = False
         except:
-            import traceback;traceback.print_exc()
+            pydev_log.exception()
 
     sys.stdout.write(
 '''

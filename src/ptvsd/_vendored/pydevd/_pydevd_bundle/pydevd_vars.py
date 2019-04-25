@@ -5,6 +5,7 @@ import pickle
 from _pydevd_bundle.pydevd_constants import get_frame, get_current_thread_id, xrange
 
 from _pydevd_bundle.pydevd_xml import ExceptionOnEvaluate, get_type, var_to_xml
+from _pydev_bundle import pydev_log
 
 try:
     from StringIO import StringIO
@@ -136,9 +137,8 @@ def resolve_compound_variable_fields(dbg, thread_id, frame_id, scope, attrs):
         _type, _typeName, resolver = get_type(var)
         return _typeName, resolver.get_dictionary(var)
     except:
-        sys.stderr.write('Error evaluating: thread_id: %s\nframe_id: %s\nscope: %s\nattrs: %s\n' % (
-            thread_id, frame_id, scope, attrs,))
-        traceback.print_exc()
+        pydev_log.exception('Error evaluating: thread_id: %s\nframe_id: %s\nscope: %s\nattrs: %s.',
+            thread_id, frame_id, scope, attrs)
 
 
 def resolve_var_object(var, attrs):
@@ -177,7 +177,7 @@ def resolve_compound_var_object_fields(var, attrs):
         type, _typeName, resolver = get_type(var)
         return resolver.get_dictionary(var)
     except:
-        traceback.print_exc()
+        pydev_log.exception()
 
 
 def custom_operation(dbg, thread_id, frame_id, scope, attrs, style, code_or_file, operation_fn_name):
@@ -200,7 +200,7 @@ def custom_operation(dbg, thread_id, frame_id, scope, attrs, style, code_or_file
 
         return str(namespace[operation_fn_name](expressionValue))
     except:
-        traceback.print_exc()
+        pydev_log.exception()
 
 
 def eval_in_context(expression, globals, locals):
@@ -317,7 +317,7 @@ def change_attr_expression(frame, attr, expression, dbg, value=SENTINEL_VALUE):
             return result
 
     except Exception:
-        traceback.print_exc()
+        pydev_log.exception()
 
 
 MAXIMUM_ARRAY_SIZE = 100

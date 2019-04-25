@@ -1,7 +1,7 @@
 import dis
-import traceback
 from opcode import opmap, EXTENDED_ARG, HAVE_ARGUMENT
 from types import CodeType
+from _pydev_bundle import pydev_log
 
 MAX_BYTE = 255
 RETURN_VALUE_SIZE = 2
@@ -267,7 +267,7 @@ def _insert_code(code_to_modify, code_to_insert, before_line):
             return False, code_to_modify
 
     except ValueError:
-        traceback.print_exc()
+        pydev_log.exception()
         return False, code_to_modify
 
     new_code = CodeType(

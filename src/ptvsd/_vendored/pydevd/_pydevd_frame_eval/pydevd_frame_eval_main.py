@@ -2,6 +2,7 @@ import os
 import sys
 
 from _pydevd_bundle.pydevd_constants import IS_PYCHARM
+from _pydev_bundle import pydev_log
 
 IS_PY36_OR_GREATER = sys.version_info >= (3, 6)
 
@@ -27,12 +28,10 @@ elif use_frame_eval is None:
         try:
             from _pydevd_frame_eval.pydevd_frame_eval_cython_wrapper import frame_eval_func, stop_frame_eval, dummy_trace_dispatch, clear_thread_local_info
         except ImportError:
-            from _pydev_bundle.pydev_monkey import log_error_once
-
             dirname = os.path.dirname(os.path.dirname(__file__))
             if not IS_PYCHARM:
-                #log_error_once("warning: Debugger speedups using cython not found. Run '\"%s\" \"%s\" build_ext --inplace' to build." % (
-                #    sys.executable, os.path.join(dirname, 'setup_cython.py')))
+                # pydev_log.error_once("warning: Debugger speedups using cython not found. Run '\"%s\" \"%s\" build_ext --inplace' to build.",
+                #     sys.executable, os.path.join(dirname, 'setup_cython.py'))
                 pass
             else:
                 show_frame_eval_warning = True

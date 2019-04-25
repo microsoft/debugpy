@@ -1,15 +1,15 @@
 import pkgutil
 import sys
-import traceback
 from _pydev_bundle import pydev_log
 try:
     import pydevd_plugins.extensions as extensions
 except:
-    traceback.print_exc()
+    pydev_log.exception()
     extensions = None
 
+
 class ExtensionManager(object):
-    
+
     def __init__(self):
         self.loaded_extensions = None
         self.type_to_instance = {}
@@ -26,7 +26,7 @@ class ExtensionManager(object):
                         module = sys.modules[name]
                         self.loaded_extensions.append(module)
                     except ImportError:
-                        pydev_log.error('Unable to load extension ' + name)
+                        pydev_log.critical('Unable to load extension: %s', name)
 
     def _ensure_loaded(self):
         if self.loaded_extensions is None:
@@ -50,11 +50,12 @@ class ExtensionManager(object):
                 try:
                     handlers.append(attr())
                 except:
-                    pydev_log.error('Unable to load extension class' + attr_name, tb=True)
+                    pydev_log.exception('Unable to load extension class: %s', attr_name)
         return handlers
 
 
 EXTENSION_MANAGER_INSTANCE = ExtensionManager()
+
 
 def extensions_of_type(extension_type):
     """
@@ -63,5 +64,4 @@ def extensions_of_type(extension_type):
     :rtype: list[T]
     """
     return EXTENSION_MANAGER_INSTANCE.get_extension_classes(extension_type)
-
 

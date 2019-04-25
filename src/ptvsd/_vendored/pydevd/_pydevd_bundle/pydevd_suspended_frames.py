@@ -4,11 +4,11 @@ import sys
 from _pydev_imps._pydev_saved_modules import threading
 from _pydevd_bundle.pydevd_constants import get_frame, dict_items, RETURN_VALUES_DICT, \
     dict_iter_items
-import traceback
 from _pydevd_bundle.pydevd_xml import get_variable_details, get_type
 from _pydev_bundle.pydev_override import overrides
 from _pydevd_bundle.pydevd_resolver import sorted_attributes_key
 from _pydevd_bundle.pydevd_safe_repr import SafeRepr
+from _pydev_bundle import pydev_log
 
 
 class _AbstractVariable(object):
@@ -395,5 +395,5 @@ class SuspendedFramesManager(object):
 
             return None
         except:
-            traceback.print_exc()
+            pydev_log.exception()
             return None

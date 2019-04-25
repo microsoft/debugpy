@@ -1,5 +1,4 @@
 from _pydev_bundle import pydev_log
-import traceback
 from _pydevd_bundle import pydevd_extension_utils
 from _pydevd_bundle import pydevd_resolver
 import sys
@@ -162,7 +161,7 @@ class TypeResolveHandler(object):
                     self._type_to_resolver_cache[type_object] = resolver
                     return (type_object, type_name, resolver)
         except:
-            traceback.print_exc()
+            pydev_log.exception()
 
         # No match return default (and cache it).
         resolver = pydevd_resolver.defaultResolver
@@ -264,8 +263,7 @@ def frame_vars_to_xml(frame_f_locals, hidden_ns=None):
                 else:
                     xml += var_to_xml(v, str(k), evaluate_full_value=eval_full_val)
         except Exception:
-            traceback.print_exc()
-            pydev_log.error("Unexpected error, recovered safely.\n")
+            pydev_log.exception("Unexpected error, recovered safely.")
 
     # Show return values as the first entry.
     return return_values_xml + xml

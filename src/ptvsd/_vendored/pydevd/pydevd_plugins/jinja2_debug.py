@@ -1,10 +1,10 @@
-import traceback
 from _pydevd_bundle.pydevd_breakpoints import LineBreakpoint
 from _pydevd_bundle.pydevd_constants import STATE_SUSPEND, dict_iter_items, dict_keys, JINJA2_SUSPEND, \
     IS_PY2
 from _pydevd_bundle.pydevd_comm import CMD_SET_BREAK, CMD_ADD_EXCEPTION_BREAK
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_file
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, FCode
+from _pydev_bundle import pydev_log
 
 
 class Jinja2LineBreakpoint(LineBreakpoint):
@@ -75,7 +75,7 @@ def _is_jinja2_render_call(frame):
             return True
         return False
     except:
-        traceback.print_exc()
+        pydev_log.exception()
         return False
 
 

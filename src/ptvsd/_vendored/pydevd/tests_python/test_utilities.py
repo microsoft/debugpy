@@ -99,3 +99,54 @@ def test_convert_dap_log_message_to_expression():
         'Unbalanced braces in: a {{22:22} {2}'
     )
 
+
+def test_pydevd_log():
+    from _pydev_bundle import pydev_log
+    try:
+        import StringIO as io
+    except:
+        import io
+    from _pydev_bundle.pydev_log import log_context
+
+    stream = io.StringIO()
+    with log_context(0, stream=stream):
+        pydev_log.critical('always')
+        pydev_log.info('never')
+
+    assert stream.getvalue() == 'always\n'
+
+    stream = io.StringIO()
+    with log_context(1, stream=stream):
+        pydev_log.critical('always')
+        pydev_log.info('this too')
+
+    assert stream.getvalue() == 'always\nthis too\n'
+
+    stream = io.StringIO()
+    with log_context(0, stream=stream):
+        pydev_log.critical('always %s', 1)
+
+    assert stream.getvalue() == 'always 1\n'
+
+    stream = io.StringIO()
+    with log_context(0, stream=stream):
+        pydev_log.critical('always %s %s', 1, 2)
+
+    assert stream.getvalue() == 'always 1 2\n'
+
+    stream = io.StringIO()
+    with log_context(0, stream=stream):
+        pydev_log.critical('always %s %s', 1)
+
+    # Even if there's an error in the formatting, don't fail, just print the message and args.
+    assert stream.getvalue() == 'always %s %s - (1,)\n'
+
+    stream = io.StringIO()
+    with log_context(0, stream=stream):
+        try:
+            raise RuntimeError()
+        except:
+            pydev_log.exception('foo')
+
+        assert 'foo\n' in stream.getvalue()
+        assert 'raise RuntimeError()' in stream.getvalue()

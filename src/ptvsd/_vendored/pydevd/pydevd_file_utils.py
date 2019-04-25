@@ -41,6 +41,7 @@ r'''
         machine for the paths that'll actually have breakpoints).
 '''
 
+from _pydev_bundle import pydev_log
 from _pydevd_bundle.pydevd_constants import IS_PY2, IS_PY3K, DebugInfoHolder, IS_WINDOWS, IS_JYTHON
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding, filesystem_encoding_is_utf8
@@ -78,7 +79,7 @@ try:
     PATHS_FROM_ECLIPSE_TO_PYTHON = json.loads(os.environ.get('PATHS_FROM_ECLIPSE_TO_PYTHON', '[]'))
 except Exception:
     sys.stderr.write('Error loading PATHS_FROM_ECLIPSE_TO_PYTHON from environment variable.\n')
-    traceback.print_exc()
+    pydev_log.exception()
     PATHS_FROM_ECLIPSE_TO_PYTHON = []
 else:
     if not isinstance(PATHS_FROM_ECLIPSE_TO_PYTHON, list):
@@ -206,7 +207,7 @@ if sys.platform == 'win32':
                                          'filename: %s\ndrive: %s\nparts: %s\n'
                                          '(please create a ticket in the tracker to address this).\n\n' % (
                                              filename, drive, parts))
-                        traceback.print_exc()
+                        pydev_log.exception()
                     # Don't fail, just return the original file passed.
                     return filename
 
@@ -215,7 +216,7 @@ if sys.platform == 'win32':
     except:
         # Something didn't quite work out, leave no-op conversions in place.
         if DebugInfoHolder.DEBUG_TRACE_LEVEL > 2:
-            traceback.print_exc()
+            pydev_log.exception()
     else:
         convert_to_long_pathname = _convert_to_long_pathname
         convert_to_short_pathname = _convert_to_short_pathname
@@ -454,7 +455,7 @@ try:
 
 except:
     # Don't fail if there's something not correct here -- but at least print it to the user so that we can correct that
-    traceback.print_exc()
+    pydev_log.exception()
 
 # Note: as these functions may be rebound, users should always import
 # pydevd_file_utils and then use:

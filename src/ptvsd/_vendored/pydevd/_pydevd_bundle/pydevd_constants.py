@@ -2,6 +2,8 @@
 This module holds the constants used for specifying the states of the debugger.
 '''
 from __future__ import nested_scopes
+import traceback
+from contextlib import contextmanager
 
 STATE_RUN = 1
 STATE_SUSPEND = 2
@@ -15,17 +17,23 @@ try:
 except NameError:
     int_types = (int,)
 
+import sys  # Note: the sys import must be here anyways (others depend on it)
+
 
 class DebugInfoHolder:
     # we have to put it here because it can be set through the command line (so, the
     # already imported references would not have it).
+
+    # General information
+    DEBUG_TRACE_LEVEL = 0  # 0 = critical, 1 = info, 2 = debug, 3 = verbose
+    DEBUG_STREAM = sys.stderr
+
+    # Flags to debug specific points of the code.
     DEBUG_RECORD_SOCKET_READS = False
-    DEBUG_TRACE_LEVEL = -1
     DEBUG_TRACE_BREAKPOINTS = -1
 
 
 # Hold a reference to the original _getframe (because psyco will change that as soon as it's imported)
-import sys  # Note: the sys import must be here anyways (others depend on it)
 IS_IRONPYTHON = sys.platform == 'cli'
 try:
     get_frame = sys._getframe
@@ -128,13 +136,17 @@ DEFAULT_VALUE = "__pydevd_value_async"
 ASYNC_EVAL_TIMEOUT_SEC = 60
 NEXT_VALUE_SEPARATOR = "__pydev_val__"
 BUILTINS_MODULE_NAME = '__builtin__' if IS_PY2 else 'builtins'
-SHOW_DEBUG_INFO_ENV = os.getenv('PYCHARM_DEBUG') == 'True' or os.getenv('PYDEV_DEBUG') == 'True'
+SHOW_DEBUG_INFO_ENV = os.getenv('PYCHARM_DEBUG') == 'True' or os.getenv('PYDEV_DEBUG') == 'True' or os.getenv('PYDEVD_DEBUG') == 'True'
+PYDEVD_DEBUG_FILE = os.getenv('PYDEVD_DEBUG_FILE')
 
 if SHOW_DEBUG_INFO_ENV:
     # show debug info before the debugger start
     DebugInfoHolder.DEBUG_RECORD_SOCKET_READS = True
     DebugInfoHolder.DEBUG_TRACE_LEVEL = 3
     DebugInfoHolder.DEBUG_TRACE_BREAKPOINTS = 1
+
+    if PYDEVD_DEBUG_FILE:
+        DebugInfoHolder.DEBUG_STREAM = open(PYDEVD_DEBUG_FILE, 'w')
 
 
 def protect_libraries_from_patching():

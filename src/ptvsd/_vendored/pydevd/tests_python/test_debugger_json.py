@@ -1401,7 +1401,18 @@ def test_goto(case_setup):
 
 @pytest.mark.parametrize('dbg_property', ['dont_trace', 'trace', 'change_pattern', 'dont_trace_after_start'])
 def test_set_debugger_property(case_setup, dbg_property):
-    with case_setup.test_file('_debugger_case_dont_trace_test.py') as writer:
+
+    kwargs = {}
+    if dbg_property == 'dont_trace_after_start':
+
+        def additional_output_checks(writer, stdout, stderr):
+            if "Calls to set or change don't trace patterns (via setDebuggerProperty) are not allowed since debugging has already started or don't trace patterns are already set." not in stderr:
+                raise AssertionError('Expected test to have error message.\nstdout:\n%s\n\nstderr:\n%s' % (
+                    stdout, stderr))
+
+        kwargs['additional_output_checks'] = additional_output_checks
+
+    with case_setup.test_file('_debugger_case_dont_trace_test.py', **kwargs) as writer:
         json_facade = JsonFacade(writer)
 
         json_facade.write_set_breakpoints(writer.get_line_index_with_content('Break here'))

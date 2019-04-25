@@ -11,6 +11,7 @@ from tests.helpers.pattern import ANY
 
 
 def test_with_no_output(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
@@ -26,6 +27,7 @@ def test_with_no_output(pyfile, run_as, start_method):
 
 
 def test_with_tab_in_output(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
@@ -33,7 +35,7 @@ def test_with_tab_in_output(pyfile, run_as, start_method):
         a = '\t'.join(('Hello', 'World'))
         print(a)
         # Break here so we are sure to get the output event.
-        a = 1 # @bp1
+        a = 1  # @bp1
 
     line_numbers = get_marked_line_numbers(code_to_debug)
     with DebugSession() as session:

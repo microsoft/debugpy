@@ -20,7 +20,7 @@ from _pydev_imps._pydev_saved_modules import threading
 from _pydevd_bundle.pydevd_constants import INTERACTIVE_MODE_AVAILABLE, dict_keys
 
 import traceback
-from _pydev_bundle import fix_getpass
+from _pydev_bundle import fix_getpass, pydev_log
 fix_getpass.fix_getpass()
 
 from _pydevd_bundle import pydevd_vars, pydevd_save_locals
@@ -38,7 +38,9 @@ from _pydev_bundle.pydev_console_utils import CodeFragment
 IS_PYTHON_3_ONWARDS = sys.version_info[0] >= 3
 IS_PY24 = sys.version_info[0] == 2 and sys.version_info[1] == 4
 
+
 class Command:
+
     def __init__(self, interpreter, code_fragment):
         """
         :type code_fragment: CodeFragment
@@ -48,16 +50,16 @@ class Command:
         self.code_fragment = code_fragment
         self.more = None
 
-
     def symbol_for_fragment(code_fragment):
         if code_fragment.is_single_line:
             symbol = 'single'
         else:
             if IS_JYTHON:
-                symbol = 'single' # Jython doesn't support exec
+                symbol = 'single'  # Jython doesn't support exec
             else:
                 symbol = 'exec'
         return symbol
+
     symbol_for_fragment = staticmethod(symbol_for_fragment)
 
     def run(self):
@@ -66,9 +68,10 @@ class Command:
 
         self.more = self.interpreter.runsource(text, '<input>', symbol)
 
+
 try:
     try:
-        execfile #Not in Py3k
+        execfile  # Not in Py3k
     except NameError:
         from _pydev_bundle.pydev_imports import execfile
 
@@ -84,6 +87,7 @@ if sys.version_info[0] >= 3:
 else:
     import __builtin__
     __builtin__.runfile = runfile
+
 
 #=======================================================================================================================
 # InterpreterInterface
@@ -101,16 +105,13 @@ class InterpreterInterface(BaseInterpreterInterface):
         self.interpreter = InteractiveConsole(self.namespace)
         self._input_error_printed = False
 
-
     def do_add_exec(self, codeFragment):
         command = Command(self.interpreter, codeFragment)
         command.run()
         return command.more
 
-
     def get_namespace(self):
         return self.namespace
-
 
     def getCompletions(self, text, act_tok):
         try:
@@ -119,9 +120,7 @@ class InterpreterInterface(BaseInterpreterInterface):
             completer = Completer(self.namespace, None)
             return completer.complete(act_tok)
         except:
-            import traceback
-
-            traceback.print_exc()
+            pydev_log.exception()
             return []
 
     def close(self):
@@ -134,6 +133,7 @@ class InterpreterInterface(BaseInterpreterInterface):
 class _ProcessExecQueueHelper:
     _debug_hook = None
     _return_control_osc = False
+
 
 def set_debug_hook(debug_hook):
     _ProcessExecQueueHelper._debug_hook = debug_hook
@@ -184,6 +184,7 @@ def init_mpl_in_console(interpreter):
 
 
 if sys.platform != 'win32':
+
     def pid_exists(pid):
         # Note that this function in the face of errors will conservatively consider that
         # the pid is still running (because we'll exit the current process when it's
@@ -214,7 +215,9 @@ if sys.platform != 'win32':
                 return True
         else:
             return True
+
 else:
+
     def pid_exists(pid):
         # Note that this function in the face of errors will conservatively consider that
         # the pid is still running (because we'll exit the current process when it's
@@ -250,7 +253,6 @@ else:
                 # to raise any errors -- so, just consider it exists).
                 return True
 
-
             elif bool(exit_code.contents.value) and int(exit_code.contents.value) != STILL_ACTIVE:
                 return False
         finally:
@@ -283,10 +285,10 @@ def process_exec_queue(interpreter):
                 # Note: it'll block here until return_control returns True.
                 inputhook()
             except:
-                traceback.print_exc()
+                pydev_log.exception()
         try:
             try:
-                code_fragment = interpreter.exec_queue.get(block=True, timeout=1/20.) # 20 calls/second
+                code_fragment = interpreter.exec_queue.get(block=True, timeout=1 / 20.)  # 20 calls/second
             except _queue.Empty:
                 continue
 
@@ -333,6 +335,7 @@ except:
     IPYTHON = False
     pass
 
+
 #=======================================================================================================================
 # _DoExit
 #=======================================================================================================================
@@ -361,8 +364,8 @@ def start_console_server(host, port, interpreter):
         if port == 0:
             host = ''
 
-        #I.e.: supporting the internal Jython version in PyDev to create a Jython interactive console inside Eclipse.
-        from _pydev_bundle.pydev_imports import SimpleXMLRPCServer as XMLRPCServer  #@Reimport
+        # I.e.: supporting the internal Jython version in PyDev to create a Jython interactive console inside Eclipse.
+        from _pydev_bundle.pydev_imports import SimpleXMLRPCServer as XMLRPCServer  # @Reimport
 
         try:
             if IS_PY24:
@@ -414,7 +417,7 @@ def start_console_server(host, port, interpreter):
                 e = sys.exc_info()[1]
                 retry = False
                 try:
-                    retry = e.args[0] == 4 #errno.EINTR
+                    retry = e.args[0] == 4  # errno.EINTR
                 except:
                     pass
                 if not retry:
@@ -422,20 +425,21 @@ def start_console_server(host, port, interpreter):
                     # Otherwise, keep on going
         return server
     except:
-        traceback.print_exc()
+        pydev_log.exception()
         # Notify about error to avoid long waiting
         connection_queue = interpreter.get_connect_status_queue()
         if connection_queue is not None:
             connection_queue.put(False)
 
+
 def start_server(host, port, client_port):
-    #replace exit (see comments on method)
-    #note that this does not work in jython!!! (sys method can't be replaced).
+    # replace exit (see comments on method)
+    # note that this does not work in jython!!! (sys method can't be replaced).
     sys.exit = do_exit
 
     interpreter = InterpreterInterface(host, client_port, threading.currentThread())
 
-    start_new_thread(start_console_server,(host, port, interpreter))
+    start_new_thread(start_console_server, (host, port, interpreter))
 
     process_exec_queue(interpreter)
 
@@ -469,6 +473,7 @@ def get_completions(text, token, globals, locals):
 # Debugger integration
 #===============================================================================
 
+
 def exec_code(code, globals, locals, debugger):
     interpreterInterface = get_interpreter()
     interpreterInterface.interpreter.update(globals, locals)
@@ -483,7 +488,6 @@ def exec_code(code, globals, locals, debugger):
     return False
 
 
-
 class ConsoleWriter(InteractiveInterpreter):
     skip = 0
 
@@ -491,7 +495,7 @@ class ConsoleWriter(InteractiveInterpreter):
         InteractiveInterpreter.__init__(self, locals)
 
     def write(self, data):
-        #if (data.find("global_vars") == -1 and data.find("pydevd") == -1):
+        # if (data.find("global_vars") == -1 and data.find("pydevd") == -1):
         if self.skip > 0:
             self.skip -= 1
         else:
@@ -501,7 +505,7 @@ class ConsoleWriter(InteractiveInterpreter):
 
     def showsyntaxerror(self, filename=None):
         """Display the syntax error that just occurred."""
-        #Override for avoid using sys.excepthook PY-12600
+        # Override for avoid using sys.excepthook PY-12600
         type, value, tb = sys.exc_info()
         sys.last_type = type
         sys.last_value = value
@@ -522,7 +526,7 @@ class ConsoleWriter(InteractiveInterpreter):
 
     def showtraceback(self, *args, **kwargs):
         """Display the exception that just occurred."""
-        #Override for avoid using sys.excepthook PY-12600
+        # Override for avoid using sys.excepthook PY-12600
         try:
             type, value, tb = sys.exc_info()
             sys.last_type = type
@@ -538,6 +542,7 @@ class ConsoleWriter(InteractiveInterpreter):
             tblist = tb = None
         sys.stderr.write(''.join(lines))
 
+
 def console_exec(thread_id, frame_id, expression, dbg):
     """returns 'False' in case expression is partially correct
     """
@@ -546,19 +551,18 @@ def console_exec(thread_id, frame_id, expression, dbg):
     is_multiline = expression.count('@LINE@') > 1
     expression = str(expression.replace('@LINE@', '\n'))
 
-    #Not using frame.f_globals because of https://sourceforge.net/tracker2/?func=detail&aid=2541355&group_id=85796&atid=577329
-    #(Names not resolved in generator expression in method)
-    #See message: http://mail.python.org/pipermail/python-list/2009-January/526522.html
+    # Not using frame.f_globals because of https://sourceforge.net/tracker2/?func=detail&aid=2541355&group_id=85796&atid=577329
+    # (Names not resolved in generator expression in method)
+    # See message: http://mail.python.org/pipermail/python-list/2009-January/526522.html
     updated_globals = {}
     updated_globals.update(frame.f_globals)
-    updated_globals.update(frame.f_locals) #locals later because it has precedence over the actual globals
+    updated_globals.update(frame.f_locals)  # locals later because it has precedence over the actual globals
 
     if IPYTHON:
-        need_more =  exec_code(CodeFragment(expression), updated_globals, frame.f_locals, dbg)
+        need_more = exec_code(CodeFragment(expression), updated_globals, frame.f_locals, dbg)
         if not need_more:
             pydevd_save_locals.save_locals(frame)
         return need_more
-
 
     interpreter = ConsoleWriter()
 
@@ -575,7 +579,7 @@ def console_exec(thread_id, frame_id, expression, dbg):
     else:
         code = expression
 
-    #Case 3
+    # Case 3
 
     try:
         Exec(code, updated_globals, frame.f_locals)
@@ -588,15 +592,16 @@ def console_exec(thread_id, frame_id, expression, dbg):
         pydevd_save_locals.save_locals(frame)
     return False
 
+
 #=======================================================================================================================
 # main
 #=======================================================================================================================
 if __name__ == '__main__':
-    #Important: don't use this module directly as the __main__ module, rather, import itself as pydevconsole
-    #so that we don't get multiple pydevconsole modules if it's executed directly (otherwise we'd have multiple
-    #representations of its classes).
-    #See: https://sw-brainwy.rhcloud.com/tracker/PyDev/446:
-    #'Variables' and 'Expressions' views stopped working when debugging interactive console
+    # Important: don't use this module directly as the __main__ module, rather, import itself as pydevconsole
+    # so that we don't get multiple pydevconsole modules if it's executed directly (otherwise we'd have multiple
+    # representations of its classes).
+    # See: https://sw-brainwy.rhcloud.com/tracker/PyDev/446:
+    # 'Variables' and 'Expressions' views stopped working when debugging interactive console
     import pydevconsole
     sys.stdin = pydevconsole.BaseStdIn(sys.stdin)
     port, client_port = sys.argv[1:3]

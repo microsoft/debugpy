@@ -2,8 +2,8 @@
 '''
 from _pydevd_bundle.pydevd_comm import get_global_debugger
 from _pydevd_bundle.pydevd_constants import DebugInfoHolder, IS_PY2
-import pydevd_tracing
-import traceback
+from _pydev_bundle import pydev_log
+
 
 #=======================================================================================================================
 # replace_builtin_property
@@ -17,15 +17,13 @@ def replace_builtin_property(new_property=None):
             import __builtin__
             __builtin__.__dict__['property'] = new_property
         except:
-            if DebugInfoHolder.DEBUG_TRACE_LEVEL:
-                traceback.print_exc() #@Reimport
+            pydev_log.exception()  # @Reimport
     else:
         try:
-            import builtins #Python 3.0 does not have the __builtin__ module @UnresolvedImport
+            import builtins  # Python 3.0 does not have the __builtin__ module @UnresolvedImport
             builtins.__dict__['property'] = new_property
         except:
-            if DebugInfoHolder.DEBUG_TRACE_LEVEL:
-                traceback.print_exc() #@Reimport
+            pydev_log.exception()  # @Reimport
     return original
 
 
@@ -38,13 +36,11 @@ class DebugProperty(object):
     the tracing.
     """
 
-
     def __init__(self, fget=None, fset=None, fdel=None, doc=None):
         self.fget = fget
         self.fset = fset
         self.fdel = fdel
         self.__doc__ = doc
-
 
     def __get__(self, obj, objtype=None):
         if obj is None:
@@ -90,13 +86,11 @@ class DebugProperty(object):
         self.fget = fget
         return self
 
-
     def setter(self, fset):
         """Overriding setter decorator for the property
         """
         self.fset = fset
         return self
-
 
     def deleter(self, fdel):
         """Overriding deleter decorator for the property

@@ -1,13 +1,12 @@
-import sys
-
 from _pydev_imps._pydev_saved_modules import threading
 from _pydevd_bundle.pydevd_constants import DebugInfoHolder, IS_PY2, \
     get_global_debugger, GetGlobalDebugger, set_global_debugger  # Keep for backward compatibility @UnusedImport
 from _pydevd_bundle.pydevd_utils import quote_smart as quote, to_string
 from _pydevd_bundle.pydevd_comm_constants import ID_TO_MEANING
 from _pydevd_bundle.pydevd_constants import HTTP_PROTOCOL, HTTP_JSON_PROTOCOL, \
-    get_protocol
+    get_protocol, IS_JYTHON
 import json
+from _pydev_bundle import pydev_log
 
 
 class NetCommand:
@@ -79,10 +78,17 @@ class NetCommand:
 
     def send(self, sock):
         as_bytes = self._as_bytes
-        if get_protocol() in (HTTP_PROTOCOL, HTTP_JSON_PROTOCOL):
-            sock.sendall(('Content-Length: %s\r\n\r\n' % len(as_bytes)).encode('ascii'))
-
-        sock.sendall(as_bytes)
+        try:
+            if get_protocol() in (HTTP_PROTOCOL, HTTP_JSON_PROTOCOL):
+                sock.sendall(('Content-Length: %s\r\n\r\n' % len(as_bytes)).encode('ascii'))
+            sock.sendall(as_bytes)
+        except:
+            if IS_JYTHON:
+                # Ignore errors in sock.sendall in Jython (seems to be common for Jython to
+                # give spurious exceptions at interpreter shutdown here).
+                pass
+            else:
+                raise
 
     @classmethod
     def _show_debug_info(cls, cmd_id, seq, text):
@@ -100,7 +106,7 @@ class NetCommand:
                 out_message += ' '
                 out_message += text.replace('\n', ' ')
                 try:
-                    sys.stderr.write('%s\n' % (out_message,))
+                    pydev_log.critical('%s\n', out_message)
                 except:
                     pass
             finally:

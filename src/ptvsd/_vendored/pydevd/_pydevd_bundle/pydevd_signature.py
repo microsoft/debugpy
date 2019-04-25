@@ -1,3 +1,4 @@
+from _pydev_bundle import pydev_log
 
 try:
     import trace
@@ -98,8 +99,7 @@ class SignatureFactory(object):
                 signature.set_args(frame, recursive=True)
             return signature
         except:
-            import traceback
-            traceback.print_exc()
+            pydev_log.exception()
 
     def file_module_function_of(self, frame):  # this code is take from trace module and fixed to work with new-style classes
         code = frame.f_code

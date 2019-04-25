@@ -1,3 +1,4 @@
+from _pydev_bundle import pydev_log
 try:
     import StringIO
 except:
@@ -457,7 +458,7 @@ class InstanceResolver:
                 declaredFields[i].setAccessible(True)
                 ret[name] = declaredFields[i].get(obj)
             except:
-                traceback.print_exc()
+                pydev_log.exception()
 
         return ret
 

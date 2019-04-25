@@ -117,7 +117,7 @@ def _is_django_render_call(frame, debug=False):
 
         return clsname != 'TextNode' and clsname != 'NodeList'
     except:
-        traceback.print_exc()
+        pydev_log.exception()
         return False
 
 
@@ -130,7 +130,7 @@ def _is_django_context_get_call(frame):
 
         return _inherits(cls, 'BaseContext')
     except:
-        traceback.print_exc()
+        pydev_log.exception()
         return False
 
 
@@ -148,7 +148,7 @@ def _is_django_resolve_call(frame):
         clsname = cls.__name__
         return clsname == 'Variable'
     except:
-        traceback.print_exc()
+        pydev_log.exception()
         return False
 
 
@@ -225,7 +225,7 @@ def _get_source_django_18_or_lower(frame):
             return None
 
     except:
-        pydev_log.debug(traceback.format_exc())
+        pydev_log.exception()
         return None
 
 

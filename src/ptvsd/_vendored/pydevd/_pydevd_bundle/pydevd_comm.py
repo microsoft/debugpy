@@ -97,6 +97,7 @@ import sys
 import traceback
 from _pydevd_bundle.pydevd_utils import quote_smart as quote, compare_object_attrs_key
 from _pydev_bundle import pydev_log
+from _pydev_bundle.pydev_log import exception as pydev_log_exception
 from _pydev_bundle import _pydev_completer
 
 from pydevd_tracing import get_exception_traceback_str
@@ -116,20 +117,6 @@ from _pydevd_bundle.pydevd_comm_constants import *  # @UnusedWildImport
 
 if IS_JYTHON:
     import org.python.core as JyCore  # @UnresolvedImport
-
-
-def pydevd_log(level, *args):
-    ''' levels are:
-        0 most serious warnings/errors
-        1 warnings/significant events
-        2 informational trace
-    '''
-    if level <= DebugInfoHolder.DEBUG_TRACE_LEVEL:
-        # yes, we can have errors printing if the console of the program has been finished (and we're still trying to print something)
-        try:
-            sys.stderr.write('%s\n' % (args,))
-        except:
-            pass
 
 
 class PyDBDaemonThread(threading.Thread):
@@ -161,8 +148,8 @@ class PyDBDaemonThread(threading.Thread):
                 self._stop_trace()
                 self._on_run()
             except:
-                if sys is not None and traceback is not None:
-                    traceback.print_exc()
+                if sys is not None and pydev_log_exception is not None:
+                    pydev_log_exception()
         finally:
             del created_pydb_daemon[self]
 
@@ -296,7 +283,7 @@ class ReaderThread(PyDBDaemonThread):
                             line = line[:-1]
                 except:
                     if not self.killReceived:
-                        traceback.print_exc()
+                        pydev_log_exception()
                         self.handle_except()
                     return  # Finished communication.
 
@@ -307,8 +294,7 @@ class ReaderThread(PyDBDaemonThread):
                     line = line.decode('utf-8')
 
                 if DebugInfoHolder.DEBUG_RECORD_SOCKET_READS:
-                    sys.stderr.write(u'debugger: received >>%s<<\n' % (line,))
-                    sys.stderr.flush()
+                    pydev_log.critical(u'debugger: received >>%s<<\n' % (line,))
 
                 args = line.split(u'\t', 2)
                 try:
@@ -316,15 +302,14 @@ class ReaderThread(PyDBDaemonThread):
                     pydev_log.debug('Received command: %s %s\n' % (ID_TO_MEANING.get(str(cmd_id), '???'), line,))
                     self.process_command(cmd_id, int(args[1]), args[2])
                 except:
-                    if traceback is not None and sys is not None:  # Could happen at interpreter shutdown
-                        traceback.print_exc()
-                        sys.stderr.write("Can't process net command: %s\n" % line)
-                        sys.stderr.flush()
+                    if sys is not None and pydev_log_exception is not None:  # Could happen at interpreter shutdown
+                        pydev_log_exception("Can't process net command: %s.", line)
 
         except:
             if not self.killReceived:
-                if traceback is not None:  # Could happen at interpreter shutdown
-                    traceback.print_exc()
+                if sys is not None and pydev_log_exception is not None:  # Could happen at interpreter shutdown
+                    pydev_log_exception()
+
             self.handle_except()
 
     def handle_except(self):
@@ -373,7 +358,7 @@ class WriterThread(PyDBDaemonThread):
                         else:
                             continue
                 except:
-                    # pydevd_log(0, 'Finishing debug communication...(1)')
+                    # pydev_log.info('Finishing debug communication...(1)')
                     # when liberating the thread here, we could have errors because we were shutting down
                     # but the thread was still not liberated
                     return
@@ -387,7 +372,7 @@ class WriterThread(PyDBDaemonThread):
         except Exception:
             GlobalDebuggerHolder.global_dbg.finish_debugging_session()
             if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 0:
-                traceback.print_exc()
+                pydev_log_exception()
 
     def empty(self):
         return self.cmdQueue.empty()
@@ -405,26 +390,24 @@ def start_server(port):
         s.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 
     s.bind(('', port))
-    pydevd_log(1, "Bound to port ", str(port))
+    pydev_log.info("Bound to port :%s", port)
 
     try:
         s.listen(1)
         newSock, _addr = s.accept()
-        pydevd_log(1, "Connection accepted")
+        pydev_log.info("Connection accepted")
         # closing server socket is not necessary but we don't need it
         s.shutdown(SHUT_RDWR)
         s.close()
         return newSock
 
     except:
-        sys.stderr.write("Could not bind to port: %s\n" % (port,))
-        sys.stderr.flush()
-        traceback.print_exc()
+        pydev_log.exception("Could not bind to port: %s\n", port)
 
 
 def start_client(host, port):
     ''' connects to a host/port '''
-    pydevd_log(1, "Connecting to ", host, ":", str(port))
+    pydev_log.info("Connecting to %s:%s", host, port)
 
     s = socket(AF_INET, SOCK_STREAM)
 
@@ -447,12 +430,10 @@ def start_client(host, port):
         s.settimeout(timeout)
         s.connect((host, port))
         s.settimeout(None)  # no timeout after connected
-        pydevd_log(1, "Connected.")
+        pydev_log.info("Connected.")
         return s
     except:
-        sys.stderr.write("Could not connect to %s: %s\n" % (host, port))
-        sys.stderr.flush()
-        traceback.print_exc()
+        pydev_log.exception("Could not connect to %s: %s", host, port)
         raise
 
 
@@ -1489,9 +1470,9 @@ def pydevd_find_thread_by_id(thread_id):
                 return i
 
         # This can happen when a request comes for a thread which was previously removed.
-        pydevd_log(1, "Could not find thread %s\n" % (thread_id,))
-        pydevd_log(1, "Available: %s\n" % ([get_thread_id(t) for t in threads],))
+        pydev_log.info("Could not find thread %s.", thread_id)
+        pydev_log.info("Available: %s.", ([get_thread_id(t) for t in threads],))
     except:
-        traceback.print_exc()
+        pydev_log.exception()
 
     return None

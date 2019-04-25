@@ -277,7 +277,7 @@ cdef class PyDBFrame:
                         if result:
                             should_stop, frame = result
                 except:
-                    traceback.print_exc()
+                    pydev_log.exception()
 
                 if not should_stop:
                     # It was not handled by any plugin, lets check exception breakpoints.
@@ -423,7 +423,7 @@ cdef class PyDBFrame:
                 self.do_wait_suspend(thread, frame, event, arg)
                 main_debugger.send_caught_exception_stack_proceeded(thread)
             except:
-                traceback.print_exc()
+                pydev_log.exception()
 
             main_debugger.set_trace_for_frame_and_parents(frame)
         finally:
@@ -449,7 +449,7 @@ cdef class PyDBFrame:
             else:
                 return func_name
         except:
-            traceback.print_exc()
+            pydev_log.exception()
             return func_name
 
     def show_return_values(self, frame, arg):
@@ -464,7 +464,7 @@ cdef class PyDBFrame:
                     name = self.get_func_name(frame)
                     return_values_dict[name] = arg
             except:
-                traceback.print_exc()
+                pydev_log.exception()
         finally:
             f_locals_back = None
 
@@ -479,7 +479,7 @@ cdef class PyDBFrame:
                 if f_locals_back is not None:
                     f_locals_back.pop(RETURN_VALUES_DICT, None)
             except:
-                traceback.print_exc()
+                pydev_log.exception()
         finally:
             f_locals_back = None
 
@@ -745,7 +745,7 @@ cdef class PyDBFrame:
                         frame_skips_cache[line_cache_key] = 0
 
             except:
-                traceback.print_exc()
+                pydev_log.exception()
                 raise
 
             # step handling. We stop when we hit the right frame
@@ -882,7 +882,7 @@ cdef class PyDBFrame:
                 raise
             except:
                 try:
-                    traceback.print_exc()
+                    pydev_log.exception()
                     info.pydev_step_cmd = -1
                 except:
                     return None if is_call else NO_FTRACE
@@ -1267,7 +1267,7 @@ cdef class ThreadTracer:
                         if py_db.output_checker_thread is None:
                             kill_all_pydev_threads()
                     except:
-                        traceback.print_exc()
+                        pydev_log.exception()
                     py_db._termination_event_set = True
                 return None if event == 'call' else NO_FTRACE
 
@@ -1371,7 +1371,7 @@ cdef class ThreadTracer:
             try:
                 if traceback is not None:
                     # This can actually happen during the interpreter shutdown in Python 2.7
-                    traceback.print_exc()
+                    pydev_log.exception()
             except:
                 # Error logging? We're really in the interpreter shutdown...
                 # (https://github.com/fabioz/PyDev.Debugger/issues/8)

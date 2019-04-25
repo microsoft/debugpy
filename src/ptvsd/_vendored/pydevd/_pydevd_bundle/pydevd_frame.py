@@ -126,7 +126,7 @@ class PyDBFrame:
                         if result:
                             should_stop, frame = result
                 except:
-                    traceback.print_exc()
+                    pydev_log.exception()
 
                 if not should_stop:
                     # It was not handled by any plugin, lets check exception breakpoints.
@@ -272,7 +272,7 @@ class PyDBFrame:
                 self.do_wait_suspend(thread, frame, event, arg)
                 main_debugger.send_caught_exception_stack_proceeded(thread)
             except:
-                traceback.print_exc()
+                pydev_log.exception()
 
             main_debugger.set_trace_for_frame_and_parents(frame)
         finally:
@@ -298,7 +298,7 @@ class PyDBFrame:
             else:
                 return func_name
         except:
-            traceback.print_exc()
+            pydev_log.exception()
             return func_name
 
     def show_return_values(self, frame, arg):
@@ -313,7 +313,7 @@ class PyDBFrame:
                     name = self.get_func_name(frame)
                     return_values_dict[name] = arg
             except:
-                traceback.print_exc()
+                pydev_log.exception()
         finally:
             f_locals_back = None
 
@@ -328,7 +328,7 @@ class PyDBFrame:
                 if f_locals_back is not None:
                     f_locals_back.pop(RETURN_VALUES_DICT, None)
             except:
-                traceback.print_exc()
+                pydev_log.exception()
         finally:
             f_locals_back = None
 
@@ -594,7 +594,7 @@ class PyDBFrame:
                         frame_skips_cache[line_cache_key] = 0
 
             except:
-                traceback.print_exc()
+                pydev_log.exception()
                 raise
 
             # step handling. We stop when we hit the right frame
@@ -731,7 +731,7 @@ class PyDBFrame:
                 raise
             except:
                 try:
-                    traceback.print_exc()
+                    pydev_log.exception()
                     info.pydev_step_cmd = -1
                 except:
                     return None if is_call else NO_FTRACE

@@ -104,12 +104,14 @@ from _pydevd_bundle import pydevd_dont_trace
 import sys
 import traceback
 import types
+from _pydev_bundle import pydev_log
 
 NO_DEBUG = 0
 LEVEL1 = 1
 LEVEL2 = 2
 
 DEBUG = NO_DEBUG
+
 
 def write(*args):
     new_lst = []
@@ -119,6 +121,7 @@ def write(*args):
     msg = ' '.join(new_lst)
     sys.stdout.write('%s\n' % (msg,))
 
+
 def write_err(*args):
     new_lst = []
     for a in args:
@@ -127,20 +130,23 @@ def write_err(*args):
     msg = ' '.join(new_lst)
     sys.stderr.write('pydev debugger: %s\n' % (msg,))
 
+
 def notify_info0(*args):
     write_err(*args)
+
 
 def notify_info(*args):
     if DEBUG >= LEVEL1:
         write(*args)
 
+
 def notify_info2(*args):
     if DEBUG >= LEVEL2:
         write(*args)
 
+
 def notify_error(*args):
     write_err(*args)
-
 
 
 #=======================================================================================================================
@@ -171,7 +177,6 @@ def xreload(mod):
     r = None
     pydevd_dont_trace.clear_trace_filter_cache()
     return found_change
-
 
 # This isn't actually used... Initially I planned to reload variables which are immutable on the
 # namespace, but this can destroy places where we're saving state, which may not be what we want,
@@ -267,8 +272,7 @@ class Reload:
                 c()
             del self._on_finish_callbacks[:]
         except:
-            traceback.print_exc()
-
+            pydev_log.exception()
 
     def _handle_namespace(self, namespace, is_class_namespace=False):
         on_finish = None
@@ -283,12 +287,9 @@ class Reload:
             self.found_change = True
             on_finish = lambda: xreload_after_update(namespace)
 
-
         if on_finish is not None:
             # If a client wants to know about it, give him a chance.
             self._on_finish_callbacks.append(on_finish)
-
-
 
     def _update(self, namespace, name, oldobj, newobj, is_class_namespace=False):
         """Update oldobj, if possible in place, with newobj.
@@ -327,7 +328,7 @@ class Reload:
                 return
 
             if hasattr(types, 'ClassType'):
-                classtype = (types.ClassType, type) #object is not instance of types.ClassType.
+                classtype = (types.ClassType, type)  # object is not instance of types.ClassType.
             else:
                 classtype = type
 
@@ -361,11 +362,9 @@ class Reload:
 
         except:
             notify_error('Exception found when updating %s. Proceeding for other items.' % (name,))
-            traceback.print_exc()
-
+            pydev_log.exception()
 
     # All of the following functions have the same signature as _update()
-
 
     def _update_function(self, oldfunc, newfunc):
         """Update a function object."""
@@ -393,7 +392,6 @@ class Reload:
 
         return oldfunc
 
-
     def _update_method(self, oldmeth, newmeth):
         """Update a method object."""
         # XXX What if im_func is not a function?
@@ -402,7 +400,6 @@ class Reload:
         elif hasattr(oldmeth, '__func__') and hasattr(newmeth, '__func__'):
             self._update(None, None, oldmeth.__func__, newmeth.__func__)
         return oldmeth
-
 
     def _update_class(self, oldclass, newclass):
         """Update a class object."""
@@ -432,7 +429,6 @@ class Reload:
 
         self._handle_namespace(oldclass, is_class_namespace=True)
 
-
     def _update_classmethod(self, oldcm, newcm):
         """Update a classmethod update."""
         # While we can't modify the classmethod object itself (it has no
@@ -441,7 +437,6 @@ class Reload:
         # it in-place.  We don't have the class available to pass to
         # __get__() but any object except None will do.
         self._update(None, None, oldcm.__get__(0), newcm.__get__(0))
-
 
     def _update_staticmethod(self, oldsm, newsm):
         """Update a staticmethod update."""

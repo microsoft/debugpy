@@ -2,6 +2,7 @@ from _pydevd_bundle.pydevd_constants import get_current_thread_id, Null
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame
 from _pydev_imps._pydev_saved_modules import thread, threading
 import sys
+from _pydev_bundle import pydev_log
 
 DEBUG = False
 
@@ -101,7 +102,7 @@ def update_custom_frame(frame_custom_thread_id, frame, thread_id, name=None):
             old.thread_id = thread_id
         except:
             sys.stderr.write('Unable to get frame to replace: %s\n' % (frame_custom_thread_id,))
-            import traceback;traceback.print_exc()
+            pydev_log.exception()
 
         CustomFramesContainer._py_db_command_thread_event.set()
 

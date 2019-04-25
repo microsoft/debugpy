@@ -12,17 +12,9 @@ try:
 except:
     xrange = range
 
-
 #===============================================================================
 # Things that are dependent on having the pydevd debugger
 #===============================================================================
-def log_debug(msg):
-    pydev_log.debug(msg)
-
-
-def log_error_once(msg):
-    pydev_log.error_once(msg)
-
 
 pydev_src_dir = os.path.dirname(os.path.dirname(__file__))
 
@@ -148,7 +140,7 @@ def get_c_option_index(args):
 
 def patch_args(args):
     try:
-        log_debug("Patching args: %s" % str(args))
+        pydev_log.debug("Patching args: %s", args)
         args = remove_quotes_from_args(args)
 
         from pydevd import SetupHolder
@@ -183,13 +175,13 @@ def patch_args(args):
                         continue
 
                     if arg.rsplit('.')[-1] in ['zip', 'pyz', 'pyzw']:
-                        log_debug('Executing a PyZip, returning')
+                        pydev_log.debug('Executing a PyZip, returning')
                         return args
                     break
 
                 new_args.append(args[0])
         else:
-            log_debug("Process is not python, returning.")
+            pydev_log.debug("Process is not python, returning.")
             return args
 
         i = 1
@@ -227,7 +219,7 @@ def patch_args(args):
 
         return quote_args(new_args)
     except:
-        traceback.print_exc()
+        pydev_log.exception('Error patching args')
         return args
 
 
@@ -320,7 +312,7 @@ def patch_arg_str_win(arg_str):
     if not args or not is_python(args[0]):
         return arg_str
     arg_str = ' '.join(patch_args(args))
-    log_debug("New args: %s" % arg_str)
+    pydev_log.debug("New args: %s", arg_str)
     return arg_str
 
 
@@ -338,7 +330,7 @@ def monkey_patch_os(funcname, create_func):
 
 def warn_multiproc():
     pass  # TODO: Provide logging as messages to the IDE.
-    # log_error_once(
+    # pydev_log.error_once(
     #     "pydev debugger: New process is launching (breakpoints won't work in the new process).\n"
     #     "pydev debugger: To debug that process please enable 'Attach to subprocess automatically while debugging?' option in the debugger settings.\n")
     #
