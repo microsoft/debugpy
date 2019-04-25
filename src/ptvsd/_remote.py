@@ -57,11 +57,16 @@ def enable_attach(address,
         debugger.ready_to_run = True
 
         while True:
-            session_not_bound.wait()
             try:
-                global_next_session()
-                on_attach()
-            except DaemonClosedError:
+                session_not_bound.wait()
+                try:
+                    global_next_session()
+                    on_attach()
+                except DaemonClosedError:
+                    return
+            except TypeError:
+                # May happen during interpreter shutdown
+                # (if some global -- such as global_next_session becomes None).
                 return
 
     def start_daemon():
