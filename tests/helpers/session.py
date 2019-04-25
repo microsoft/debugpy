@@ -522,9 +522,10 @@ class DebugSession(object):
         if not self.no_debug:
             # Issue 'threads' so that we get the 'thread' event for the main thread now,
             # rather than at some random time later during the test.
-            (self.send_request('threads')
-                .causing(Event('thread'))
-                .wait_for_response())
+            # Note: it's actually possible that the 'thread' event was sent before the 'threads'
+            # request (although the 'threads' will force 'thread' to be sent if it still wasn't).
+            self.send_request('threads').wait_for_response()
+            self.expect_realized(Event('thread'))
 
     def start_debugging(self, freeze=True):
         """Finalizes the configuration stage, and issues a 'configurationDone' request

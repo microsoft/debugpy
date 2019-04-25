@@ -22,17 +22,16 @@ _original_dump_stacks = pytest_timeout.dump_stacks
 
 
 def _print_pydevd_log(reason):
-    print('******************************************************************')
-    print('pydevd log on %s' % (reason,))
-    print('******************************************************************')
+    sys.stderr.write('\n******************************************************************\n')
+    sys.stderr.write('pydevd log on %s\n' % (reason,))
+    sys.stderr.write('******************************************************************\n')
     current_pydevd_debug_file = os.environ.get('PYDEVD_DEBUG_FILE')
     if current_pydevd_debug_file:
         if os.path.exists(current_pydevd_debug_file):
             with open(current_pydevd_debug_file, 'r') as stream:
-                print(stream.read())
-    print('******************************************************************')
-    print('******************************************************************')
-    print('******************************************************************')
+                sys.stderr.write(stream.read())
+    sys.stderr.write('\n******************************************************************\n')
+    sys.stderr.write('******************************************************************\n')
 
 
 def _on_dump_stack_print_pydevd_log():
