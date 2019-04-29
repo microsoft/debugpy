@@ -37,7 +37,7 @@ from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, CMD_STEP_I
 from _pydevd_bundle.pydevd_constants import (IS_JYTH_LESS25, IS_PYCHARM, get_thread_id, get_current_thread_id,
     dict_keys, dict_iter_items, DebugInfoHolder, PYTHON_SUSPEND, STATE_SUSPEND, STATE_RUN, get_frame,
     clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, IS_PY34_OR_GREATER, IS_PY2, NULL,
-    NO_FTRACE, GOTO_HAS_RESPONSE)
+    NO_FTRACE, GOTO_HAS_RESPONSE, IS_IRONPYTHON)
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
 from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE
 from _pydevd_bundle.pydevd_extension_api import DebuggerEventHandler
@@ -467,7 +467,15 @@ class PyDB(object):
         # Bind many locals to the debugger because upon teardown those names may become None
         # in the namespace (and thus can't be relied upon unless the reference was previously
         # saved).
-        self.trace_dispatch = partial(_trace_dispatch, self)
+        if IS_IRONPYTHON:
+
+            # A partial() cannot be used in IronPython for sys.settrace.
+            def new_trace_dispatch(frame, event, arg):
+                return _trace_dispatch(self, frame, event, arg)
+
+            self.trace_dispatch = new_trace_dispatch
+        else:
+            self.trace_dispatch = partial(_trace_dispatch, self)
         self.fix_top_level_trace_and_get_trace_func = fix_top_level_trace_and_get_trace_func
         self.frame_eval_func = frame_eval_func
         self.dummy_trace_dispatch = dummy_trace_dispatch
