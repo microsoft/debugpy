@@ -139,7 +139,7 @@ class _PyDevCommandProcessor(object):
 
     def _cmd_set_next(self, py_db, cmd_id, seq, text):
         thread_id, line, func_name = text.split('\t', 2)
-        return self.api.request_set_next(py_db, thread_id, cmd_id, line, func_name)
+        return self.api.request_set_next(py_db, seq, thread_id, cmd_id, line, func_name)
 
     cmd_run_to_line = _cmd_set_next
     cmd_set_next_statement = _cmd_set_next

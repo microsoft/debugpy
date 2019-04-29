@@ -156,10 +156,10 @@ class PyDevdAPI(object):
         elif thread_id.startswith('__frame__:'):
             sys.stderr.write("Can't make tasklet step command: %s\n" % (thread_id,))
 
-    def request_set_next(self, py_db, thread_id, set_next_cmd_id, line, func_name):
+    def request_set_next(self, py_db, seq, thread_id, set_next_cmd_id, line, func_name):
         t = pydevd_find_thread_by_id(thread_id)
         if t:
-            int_cmd = InternalSetNextStatementThread(thread_id, set_next_cmd_id, line, func_name)
+            int_cmd = InternalSetNextStatementThread(thread_id, set_next_cmd_id, line, func_name, seq=seq)
             py_db.post_internal_command(int_cmd, thread_id)
         elif thread_id.startswith('__frame__:'):
             sys.stderr.write("Can't set next statement in tasklet: %s\n" % (thread_id,))

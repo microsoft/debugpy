@@ -1056,9 +1056,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self._success_exitcodes = []
         self.internals_filter = InternalsFilter()
 
-        # goto
-        self.current_goto_request = None
-
         # adapter state
         self._detached = False
         self._path_mappings_received = False
@@ -1466,14 +1463,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self._forward_request_to_pydevd(request, args)
 
     def on_goto(self, request, args):
-        if self.current_goto_request is not None:
-            self.send_error_response(request, 'Already processing a "goto" request.')
-            return
-
-        self.current_goto_request = request
-        # response for this is received via set_next_statement event
-        # see on_pydevd_set_next_statement below
-        self._forward_request_to_pydevd(request, args, send_response=False)
+        self._forward_request_to_pydevd(request, args)
 
     @async_handler
     def on_setBreakpoints(self, request, args):
@@ -1623,7 +1613,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self.send_event('thread', reason='exited', threadId=tid)
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_SUSPEND)
-    @async_handler
     def on_pydevd_thread_suspend(self, seq, args):
         pass  # We only care about the thread suspend single notification.
 
@@ -1675,12 +1664,10 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     @pydevd_events.handler(pydevd_comm.CMD_SEND_CURR_EXCEPTION_TRACE)
     def on_pydevd_send_curr_exception_trace(self, seq, args):
-        # TODO: docstring
         pass
 
     @pydevd_events.handler(pydevd_comm.CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED)
     def on_pydevd_send_curr_exception_trace_proceeded(self, seq, args):
-        # TODO: docstring
         pass
 
     @pydevd_events.handler(pydevd_comm.CMD_WRITE_TO_CONSOLE)
@@ -1697,16 +1684,3 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     @pydevd_events.handler(pydevd_comm.CMD_PROCESS_CREATED)
     def on_pydevd_process_create(self, seq, args):
         pass
-
-    @pydevd_events.handler(pydevd_comm.CMD_SET_NEXT_STATEMENT)
-    def on_pydevd_set_next_statement(self, seq, args):
-        goto_request = self.current_goto_request
-        assert goto_request is not None
-        self.current_goto_request = None
-
-        success, message = args.split('\t', 2)
-
-        if success == 'True':
-            self.send_response(goto_request)
-        else:
-            self.send_error_response(goto_request, message)
