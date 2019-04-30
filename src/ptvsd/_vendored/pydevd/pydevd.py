@@ -34,10 +34,10 @@ from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, CMD_STEP_I
     CMD_STEP_INTO_MY_CODE, CMD_STEP_OVER, CMD_SMART_STEP_INTO, CMD_RUN_TO_LINE,
     CMD_SET_NEXT_STATEMENT, CMD_STEP_RETURN, CMD_ADD_EXCEPTION_BREAK, CMD_STEP_RETURN_MY_CODE,
     CMD_STEP_OVER_MY_CODE)
-from _pydevd_bundle.pydevd_constants import (IS_JYTH_LESS25, IS_PYCHARM, get_thread_id, get_current_thread_id,
+from _pydevd_bundle.pydevd_constants import (IS_JYTH_LESS25, get_thread_id, get_current_thread_id,
     dict_keys, dict_iter_items, DebugInfoHolder, PYTHON_SUSPEND, STATE_SUSPEND, STATE_RUN, get_frame,
     clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, IS_PY34_OR_GREATER, IS_PY2, NULL,
-    NO_FTRACE, GOTO_HAS_RESPONSE, IS_IRONPYTHON)
+    NO_FTRACE, IS_IRONPYTHON)
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
 from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE
 from _pydevd_bundle.pydevd_extension_api import DebuggerEventHandler
@@ -1406,11 +1406,10 @@ class PyDB(object):
             except ValueError as e:
                 response_msg = "%s" % e
             finally:
-                if GOTO_HAS_RESPONSE:
-                    seq = info.pydev_message
-                    cmd = self.cmd_factory.make_set_next_stmnt_status_message(seq, stop, response_msg)
-                    self.writer.add_command(cmd)
-                    info.pydev_message = ''
+                seq = info.pydev_message
+                cmd = self.cmd_factory.make_set_next_stmnt_status_message(seq, stop, response_msg)
+                self.writer.add_command(cmd)
+                info.pydev_message = ''
 
             if stop:
                 # Uninstall the current frames tracker before running it.

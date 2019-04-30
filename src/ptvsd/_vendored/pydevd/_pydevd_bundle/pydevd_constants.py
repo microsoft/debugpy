@@ -2,8 +2,6 @@
 This module holds the constants used for specifying the states of the debugger.
 '''
 from __future__ import nested_scopes
-import traceback
-from contextlib import contextmanager
 
 STATE_RUN = 1
 STATE_SUSPEND = 2
@@ -126,10 +124,8 @@ USE_LIB_COPY = SUPPORT_GEVENT and \
                 (IS_PY3K and sys.version_info[1] >= 3))
 
 INTERACTIVE_MODE_AVAILABLE = sys.platform in ('darwin', 'win32') or os.getenv('DISPLAY') is not None
-IS_PYCHARM = False
 
-# If True, CMD_SET_NEXT_STATEMENT and CMD_RUN_TO_LINE commands have responses indicating success or failure.
-GOTO_HAS_RESPONSE = IS_PYCHARM
+SHOW_COMPILE_CYTHON_COMMAND_LINE = os.getenv('PYDEVD_SHOW_COMPILE_CYTHON_COMMAND_LINE', 'False') == 'True'
 
 LOAD_VALUES_ASYNC = os.getenv('PYDEVD_LOAD_VALUES_ASYNC', 'False') == 'True'
 DEFAULT_VALUE = "__pydevd_value_async"

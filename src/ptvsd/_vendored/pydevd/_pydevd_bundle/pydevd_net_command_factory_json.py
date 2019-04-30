@@ -20,7 +20,7 @@ from _pydevd_bundle.pydevd_net_command import NetCommand
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
 from _pydevd_bundle.pydevd_utils import get_non_pydevd_threads
 import pydevd_file_utils
-from _pydevd_bundle.pydevd_comm import pydevd_find_thread_by_id, build_exception_info_response
+from _pydevd_bundle.pydevd_comm import build_exception_info_response
 from _pydevd_bundle.pydevd_additional_thread_info_regular import set_additional_thread_info
 
 
