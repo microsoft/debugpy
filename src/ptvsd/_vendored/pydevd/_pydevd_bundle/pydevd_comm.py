@@ -735,9 +735,6 @@ def internal_change_variable_json(py_db, request):
     deal with changing at a frame level, so, currently changing the contents of something
     in a different scope is currently not supported.
 
-    TODO: make the resolvers structure resolve the name and change accordingly -- for instance, the
-    list resolver should change the value considering the index.
-
     :param SetVariableRequest request:
     '''
     # : :type arguments: SetVariableArguments
@@ -747,37 +744,46 @@ def internal_change_variable_json(py_db, request):
     if hasattr(fmt, 'to_dict'):
         fmt = fmt.to_dict()
 
-    # : :type frame: _FrameVariable
-    frame_variable = py_db.suspended_frames_manager.get_variable(variables_reference)
-    if hasattr(frame_variable, 'frame'):
-        frame = frame_variable.frame
+    try:
+        variable = py_db.suspended_frames_manager.get_variable(variables_reference)
+    except KeyError:
+        variable = None
 
-        pydevd_vars.change_attr_expression(frame, arguments.name, arguments.value, py_db)
+    if variable is None:
+        _write_variable_response(
+            py_db, request, value='', success=False, message='Unable to find variable container to change: %s.' % (variables_reference,))
+        return
 
-        for child_var in frame_variable.get_children_variables(fmt=fmt):
-            if child_var.get_name() == arguments.name:
-                var_data = child_var.get_var_data(fmt=fmt)
-                body = SetVariableResponseBody(
-                    value=var_data['value'],
-                    type=var_data['type'],
-                    variablesReference=var_data.get('variablesReference'),
-                    namedVariables=var_data.get('namedVariables'),
-                    indexedVariables=var_data.get('indexedVariables'),
-                )
-                variables_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
-                py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response, is_json=True))
-                break
+    child_var = variable.change_variable(arguments.name, arguments.value, py_db, fmt=fmt)
 
-    # If it's gotten here we haven't been able to evaluate it properly. Let the client know.
+    if child_var is None:
+        _write_variable_response(
+            py_db, request, value='', success=False, message='Unable to change: %s.' % (arguments.name,))
+        return
+
+    var_data = child_var.get_var_data(fmt=fmt)
+    body = SetVariableResponseBody(
+        value=var_data['value'],
+        type=var_data['type'],
+        variablesReference=var_data.get('variablesReference'),
+        namedVariables=var_data.get('namedVariables'),
+        indexedVariables=var_data.get('indexedVariables'),
+    )
+    variables_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
+    py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response, is_json=True))
+
+
+def _write_variable_response(py_db, request, value, success, message):
     body = SetVariableResponseBody('')
     variables_response = pydevd_base_schema.build_response(
         request,
         kwargs={
             'body':body,
             'success': False,
-            'message': 'Unable to change: %s.' % (arguments.name,)
+            'message': message
     })
-    return NetCommand(CMD_RETURN, 0, variables_response, is_json=True)
+    cmd = NetCommand(CMD_RETURN, 0, variables_response, is_json=True)
+    py_db.writer.add_command(cmd)
 
 
 def internal_get_frame(dbg, seq, thread_id, frame_id):
@@ -896,7 +902,7 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
         _evaluate_response(py_db, request, result, error_message='Thread id: %s is not current thread id.' % (thread_id,))
         return
 
-    variable = frame_tracker.obtain_as_variable(expression, result)
+    variable = frame_tracker.obtain_as_variable(expression, result, frame=frame)
     var_data = variable.get_var_data(fmt=fmt)
 
     body = pydevd_schema.EvaluateResponseBody(
@@ -982,7 +988,7 @@ def internal_set_expression_json(py_db, request, thread_id):
 
     # Now that the exec is done, get the actual value changed to return.
     result = pydevd_vars.evaluate_expression(py_db, frame, expression, is_exec=False)
-    variable = frame_tracker.obtain_as_variable(expression, result)
+    variable = frame_tracker.obtain_as_variable(expression, result, frame=frame)
     var_data = variable.get_var_data(fmt=fmt)
 
     body = pydevd_schema.SetExpressionResponseBody(

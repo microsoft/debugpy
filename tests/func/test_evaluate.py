@@ -59,19 +59,23 @@ def test_variables_and_evaluate(pyfile, run_as, start_method):
             'type': 'int',
             'value': '1',
             'name': ANY.such_that(lambda x: x.find('one') > 0),
-            'evaluateName': "b['one']"
+            'evaluateName': "b['one']",
+            'variablesReference': 0,
         }
         assert b_variables[1] == {
             'type': 'int',
             'value': '2',
             'name': ANY.such_that(lambda x: x.find('two') > 0),
-            'evaluateName': "b['two']"
+            'evaluateName': "b['two']",
+            'variablesReference': 0,
         }
         assert b_variables[2] == {
             'type': 'int',
             'value': '2',
             'name': '__len__',
-            'evaluateName': "len(b)"
+            'evaluateName': "len(b)",
+            'variablesReference': 0,
+            'presentationHint': {'attributes': ['readOnly']},
         }
 
         # simple variable
@@ -141,7 +145,8 @@ def test_set_variable(pyfile, run_as, start_method):
             'type': 'int',
             'value': '1',
             'name': 'a',
-            'evaluateName': "a"
+            'evaluateName': "a",
+            'variablesReference': 0,
         }
 
         resp_set_variable = session.send_request('setVariable', arguments={
@@ -408,7 +413,8 @@ def test_hex_numbers(pyfile, run_as, start_method):
             'name': 'a',
             'value': "0x64",
             'type': 'int',
-            'evaluateName': 'a'
+            'evaluateName': 'a',
+            'variablesReference': 0,
         })
 
         assert b == ANY.dict_with({
@@ -425,10 +431,10 @@ def test_hex_numbers(pyfile, run_as, start_method):
         }).wait_for_response()
         b_children = resp_variables.body['variables']
         assert b_children == [
-            {'name': '0x0', 'value': '0x1', 'type': 'int', 'evaluateName': 'b[0]'},
-            {'name': '0x1', 'value': '0xa', 'type': 'int', 'evaluateName': 'b[1]'},
-            {'name': '0x2', 'value': '0x64', 'type': 'int', 'evaluateName': 'b[2]'},
-            {'name': '__len__', 'value': '0x3', 'type': 'int', 'evaluateName': 'len(b)'},
+            {'name': '0x0', 'value': '0x1', 'type': 'int', 'evaluateName': 'b[0]', 'variablesReference': 0, },
+            {'name': '0x1', 'value': '0xa', 'type': 'int', 'evaluateName': 'b[1]', 'variablesReference': 0, },
+            {'name': '0x2', 'value': '0x64', 'type': 'int', 'evaluateName': 'b[2]', 'variablesReference': 0, },
+            {'name': '__len__', 'value': '0x3', 'type': 'int', 'evaluateName': 'len(b)', 'variablesReference': 0, 'presentationHint': {'attributes': ['readOnly']}, },
         ]
 
         assert c == ANY.dict_with({
@@ -445,10 +451,10 @@ def test_hex_numbers(pyfile, run_as, start_method):
         }).wait_for_response()
         c_children = resp_variables.body['variables']
         assert c_children == [
-            {'name': '0x3e8', 'value': '0x3e8', 'type': 'int', 'evaluateName': 'c[1000]'},
-            {'name': '0x64', 'value': '0x64', 'type': 'int', 'evaluateName': 'c[100]'},
-            {'name': '0xa', 'value': '0xa', 'type': 'int', 'evaluateName': 'c[10]'},
-            {'name': '__len__', 'value': '0x3', 'type': 'int', 'evaluateName': 'len(c)'}
+            {'name': '0x3e8', 'value': '0x3e8', 'type': 'int', 'evaluateName': 'c[1000]', 'variablesReference': 0, },
+            {'name': '0x64', 'value': '0x64', 'type': 'int', 'evaluateName': 'c[100]', 'variablesReference': 0, },
+            {'name': '0xa', 'value': '0xa', 'type': 'int', 'evaluateName': 'c[10]', 'variablesReference': 0, },
+            {'name': '__len__', 'value': '0x3', 'type': 'int', 'evaluateName': 'len(c)', 'variablesReference': 0, 'presentationHint': {'attributes': ['readOnly']}, }
         ]
 
         assert d == ANY.dict_with({
@@ -465,7 +471,7 @@ def test_hex_numbers(pyfile, run_as, start_method):
         d_children = resp_variables.body['variables']
         assert d_children == [
             {'name': '(0x1, 0xa, 0x64)', 'value': '(0x2710, 0x186a0, 0x186a0)', 'type': 'tuple', 'evaluateName': 'd[(1, 10, 100)]', 'variablesReference': ANY.dap_id},
-            {'name': '__len__', 'value': '0x1', 'type': 'int', 'evaluateName': 'len(d)'}
+            {'name': '__len__', 'value': '0x1', 'type': 'int', 'evaluateName': 'len(d)', 'variablesReference': 0, 'presentationHint': {'attributes': ['readOnly']}, }
         ]
 
         resp_variables = session.send_request('variables', arguments={
@@ -474,10 +480,10 @@ def test_hex_numbers(pyfile, run_as, start_method):
         }).wait_for_response()
         d_child_of_child = resp_variables.body['variables']
         assert d_child_of_child == [
-            {'name': '0x0', 'value': '0x2710', 'type': 'int', 'evaluateName': 'd[(1, 10, 100)][0]'},
-            {'name': '0x1', 'value': '0x186a0', 'type': 'int', 'evaluateName': 'd[(1, 10, 100)][1]'},
-            {'name': '0x2', 'value': '0x186a0', 'type': 'int', 'evaluateName': 'd[(1, 10, 100)][2]'},
-            {'name': '__len__', 'value': '0x3', 'type': 'int', 'evaluateName': 'len(d[(1, 10, 100)])'}
+            {'name': '0x0', 'value': '0x2710', 'type': 'int', 'evaluateName': 'd[(1, 10, 100)][0]', 'variablesReference': 0, },
+            {'name': '0x1', 'value': '0x186a0', 'type': 'int', 'evaluateName': 'd[(1, 10, 100)][1]', 'variablesReference': 0, },
+            {'name': '0x2', 'value': '0x186a0', 'type': 'int', 'evaluateName': 'd[(1, 10, 100)][2]', 'variablesReference': 0, },
+            {'name': '__len__', 'value': '0x3', 'type': 'int', 'evaluateName': 'len(d[(1, 10, 100)])', 'variablesReference': 0, 'presentationHint': {'attributes': ['readOnly']}, }
         ]
 
         session.send_request('continue').wait_for_response(freeze=False)

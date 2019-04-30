@@ -6,9 +6,11 @@ from _pydevd_bundle.pydevd_constants import get_frame, dict_items, RETURN_VALUES
     dict_iter_items
 from _pydevd_bundle.pydevd_xml import get_variable_details, get_type
 from _pydev_bundle.pydev_override import overrides
-from _pydevd_bundle.pydevd_resolver import sorted_attributes_key
+from _pydevd_bundle.pydevd_resolver import sorted_attributes_key, TOO_LARGE_ATTR
 from _pydevd_bundle.pydevd_safe_repr import SafeRepr
 from _pydev_bundle import pydev_log
+from _pydevd_bundle import pydevd_vars
+from _pydev_bundle.pydev_imports import Exec
 
 
 class _AbstractVariable(object):
@@ -54,6 +56,9 @@ class _AbstractVariable(object):
             attributes.append('readOnly')
             name = '(return) %s' % (name,)
 
+        elif name in (TOO_LARGE_ATTR, '__len__'):
+            attributes.append('readOnly')
+
         var_data = {
             'name': name,
             'value': value,
@@ -65,6 +70,8 @@ class _AbstractVariable(object):
 
         if resolver is not None:  # I.e.: it's a container
             var_data['variablesReference'] = self.get_variable_reference()
+        else:
+            var_data['variablesReference'] = 0  # It's mandatory (although if == 0 it doesn't have children).
 
         if len(attributes) > 0:
             var_data['presentationHint'] = {'attributes': attributes}
@@ -74,11 +81,18 @@ class _AbstractVariable(object):
     def get_children_variables(self, fmt=None):
         raise NotImplementedError()
 
+    def get_child_variable_named(self, name, fmt=None):
+        for child_var in self.get_children_variables(fmt=fmt):
+            if child_var.get_name() == name:
+                return child_var
+        return None
+
 
 class _ObjectVariable(_AbstractVariable):
 
-    def __init__(self, name, value, register_variable, is_return_value=False, evaluate_name=None):
+    def __init__(self, name, value, register_variable, is_return_value=False, evaluate_name=None, frame=None):
         _AbstractVariable.__init__(self)
+        self.frame = frame
         self.name = name
         self.value = value
         self._register_variable = register_variable
@@ -112,15 +126,56 @@ class _ObjectVariable(_AbstractVariable):
                         else:
                             evaluate_name = parent_evaluate_name + evaluate_name
                     variable = _ObjectVariable(
-                        key, val, self._register_variable, evaluate_name=evaluate_name)
+                        key, val, self._register_variable, evaluate_name=evaluate_name, frame=self.frame)
                     children_variables.append(variable)
             else:
                 for key, val, evaluate_name in lst:
                     # No evaluate name
-                    variable = _ObjectVariable(key, val, self._register_variable)
+                    variable = _ObjectVariable(key, val, self._register_variable, frame=self.frame)
                     children_variables.append(variable)
 
         return children_variables
+
+    def change_variable(self, name, value, py_db, fmt=None):
+
+        children_variable = self.get_child_variable_named(name)
+        if children_variable is None:
+            return None
+
+        var_data = children_variable.get_var_data()
+        evaluate_name = var_data.get('evaluateName')
+
+        if not evaluate_name:
+            # Note: right now we only pass control to the resolver in the cases where
+            # there's no evaluate name (the idea being that if we can evaluate it,
+            # we can use that evaluation to set the value too -- if in the future
+            # a case where this isn't true is found this logic may need to be changed).
+            _type, _type_name, container_resolver = get_type(self.value)
+            if hasattr(container_resolver, 'change_var_from_name'):
+                try:
+                    new_value = eval(value)
+                except:
+                    return None
+                new_key = container_resolver.change_var_from_name(self.value, name, new_value)
+                if new_key is not None:
+                    return _ObjectVariable(
+                        new_key, new_value, self._register_variable, evaluate_name=None, frame=self.frame)
+
+                return None
+            else:
+                return None
+
+        frame = self.frame
+        if frame is None:
+            return None
+
+        try:
+            # This handles the simple cases (such as dict, list, object)
+            Exec('%s=%s' % (evaluate_name, value), frame.f_globals, frame.f_locals)
+        except:
+            return None
+
+        return self.get_child_variable_named(name, fmt=fmt)
 
 
 def sorted_variables_key(obj):
@@ -139,6 +194,13 @@ class _FrameVariable(_AbstractVariable):
         self._register_variable = register_variable
         self._register_variable(self)
 
+    def change_variable(self, name, value, py_db, fmt=None):
+        frame = self.frame
+
+        pydevd_vars.change_attr_expression(frame, name, value, py_db)
+
+        return self.get_child_variable_named(name, fmt=fmt)
+
     @overrides(_AbstractVariable.get_children_variables)
     def get_children_variables(self, fmt=None):
         children_variables = []
@@ -147,10 +209,10 @@ class _FrameVariable(_AbstractVariable):
             if is_return_value:
                 for return_key, return_value in dict_iter_items(val):
                     variable = _ObjectVariable(
-                        return_key, return_value, self._register_variable, is_return_value, '%s[%r]' % (key, return_key))
+                        return_key, return_value, self._register_variable, is_return_value, '%s[%r]' % (key, return_key), frame=self.frame)
                     children_variables.append(variable)
             else:
-                variable = _ObjectVariable(key, val, self._register_variable, is_return_value, key)
+                variable = _ObjectVariable(key, val, self._register_variable, is_return_value, key, frame=self.frame)
                 children_variables.append(variable)
 
         # Frame variables always sorted.
@@ -199,7 +261,7 @@ class _FramesTracker(object):
         variable_reference = variable.get_variable_reference()
         self._variable_reference_to_variable[variable_reference] = variable
 
-    def obtain_as_variable(self, name, value, evaluate_name=None):
+    def obtain_as_variable(self, name, value, evaluate_name=None, frame=None):
         if evaluate_name is None:
             evaluate_name = name
 
@@ -210,7 +272,7 @@ class _FramesTracker(object):
 
         # Still not created, let's do it now.
         return _ObjectVariable(
-            name, value, self._register_variable, is_return_value=False, evaluate_name=evaluate_name)
+            name, value, self._register_variable, is_return_value=False, evaluate_name=evaluate_name, frame=frame)
 
     def get_main_thread_id(self):
         return self._main_thread_id

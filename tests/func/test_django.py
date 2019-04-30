@@ -78,7 +78,8 @@ def test_django_breakpoint_no_multiproc(bp_target, start_method):
                 'type': 'str',
                 'value': repr(bp_var_content),
                 'presentationHint': {'attributes': ['rawString']},
-                'evaluateName': 'content'
+                'evaluateName': 'content',
+                'variablesReference': 0,
             }]
 
         session.send_request('continue').wait_for_response(freeze=False)

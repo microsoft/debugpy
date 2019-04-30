@@ -39,7 +39,8 @@ def test_set_expression(pyfile, run_as, start_method):
             'type': 'int',
             'value': '1',
             'name': 'a',
-            'evaluateName': "a"
+            'evaluateName': "a",
+            'variablesReference': 0,
         }]
 
         resp_set_variable = session.send_request('setExpression', arguments={

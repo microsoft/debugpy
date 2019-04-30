@@ -405,6 +405,23 @@ class SetResolver:
         Resolves a set as dict id(object)->object
     '''
 
+    def get_contents_debug_adapter_protocol(self, obj, fmt=None):
+        ret = []
+
+        for i, item in enumerate(obj):
+            ret.append((str(id(item)), item, None))
+
+            if i > MAX_ITEMS_TO_HANDLE:
+                ret.append((TOO_LARGE_ATTR, TOO_LARGE_MSG, None))
+                break
+
+        ret.append(('__len__', len(obj), partial(_apply_evaluate_name, evaluate_name='len(%s)')))
+        # Needed in case the class extends the built-in type and has some additional fields.
+        from_default_resolver = defaultResolver.get_contents_debug_adapter_protocol(obj, fmt=fmt)
+        if from_default_resolver:
+            ret = from_default_resolver + ret
+        return ret
+
     def resolve(self, var, attribute):
         if attribute in ('__len__', TOO_LARGE_ATTR):
             return None
@@ -422,9 +439,7 @@ class SetResolver:
 
     def get_dictionary(self, var):
         d = {}
-        i = 0
-        for item in var:
-            i += 1
+        for i, item in enumerate(var):
             d[str(id(item))] = item
 
             if i > MAX_ITEMS_TO_HANDLE:
@@ -436,6 +451,24 @@ class SetResolver:
         additional_fields = defaultResolver.get_dictionary(var)
         d.update(additional_fields)
         return d
+
+    def change_var_from_name(self, container, name, new_value):
+        # The name given in this case must be the id(item), so, we can actually
+        # iterate in the set and see which item matches the given id.
+
+        try:
+            # Check that the new value can actually be added to a set (i.e.: it's hashable/comparable).
+            set().add(new_value)
+        except:
+            return None
+
+        for item in container:
+            if str(id(item)) == name:
+                container.remove(item)
+                container.add(new_value)
+                return str(id(new_value))
+
+        return None
 
 
 #=======================================================================================================================
