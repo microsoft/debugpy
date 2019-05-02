@@ -205,7 +205,20 @@ class CheckOutputThread(PyDBDaemonThread):
 
                 self.killReceived = True
 
+            self.wait_pydb_threads_to_finish()
+
             self.py_db.check_output_redirect()
+
+    def wait_pydb_threads_to_finish(self, timeout=0.5):
+        pydev_log.debug("Waiting for pydb daemon threads to finish")
+        pydb_daemon_threads = self.created_pydb_daemon_threads
+        started_at = time.time()
+        while time.time() < started_at + timeout:
+            if len(pydb_daemon_threads) == 1 and pydb_daemon_threads.get(self, None):
+                return
+            time.sleep(0.01)
+        pydev_log.debug("The following pydb threads may not have finished correctly: %s",
+                        ', '.join([t.getName() for t in pydb_daemon_threads if t is not self]))
 
     def do_kill_pydev_thread(self):
         self.killReceived = True
@@ -2089,6 +2102,7 @@ def settrace_forked():
     from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder
     GlobalDebuggerHolder.global_dbg = None
     threading.current_thread().additional_info = None
+    PyDBDaemonThread.created_pydb_daemon_threads = {}
 
     from _pydevd_frame_eval.pydevd_frame_eval_main import clear_thread_local_info
     host, port = dispatch()
