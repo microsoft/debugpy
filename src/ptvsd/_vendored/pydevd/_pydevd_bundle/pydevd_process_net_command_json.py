@@ -9,7 +9,7 @@ import types
 from _pydevd_bundle._debug_adapter import pydevd_base_schema
 from _pydevd_bundle._debug_adapter.pydevd_schema import (SourceBreakpoint, ScopesResponseBody, Scope,
     VariablesResponseBody, SetVariableResponseBody, ModulesResponseBody, SourceResponseBody,
-    GotoTargetsResponseBody, ExceptionOptions, SetExpressionResponseBody)
+    GotoTargetsResponseBody, ExceptionOptions, SetExpressionResponseBody, EvaluateResponseBody)
 from _pydevd_bundle._debug_adapter.pydevd_schema import CompletionsResponseBody
 from _pydevd_bundle.pydevd_api import PyDevdAPI
 from _pydevd_bundle.pydevd_comm_constants import (
@@ -627,8 +627,19 @@ class _PyDevJsonCommandProcessor(object):
         thread_id = py_db.suspended_frames_manager.get_thread_id_for_variable_reference(
             arguments.frameId)
 
-        self.api.request_exec_or_evaluate_json(
-            py_db, request, thread_id)
+        if thread_id is not None:
+            self.api.request_exec_or_evaluate_json(
+                py_db, request, thread_id)
+        else:
+            body = EvaluateResponseBody('', 0)
+            response = pydevd_base_schema.build_response(
+                request,
+                kwargs={
+                    'body': body,
+                    'success': False,
+                    'message': 'Unable to find thread for evaluation.'
+            })
+            return NetCommand(CMD_RETURN, 0, response, is_json=True)
 
     def on_setexpression_request(self, py_db, request):
         # : :type arguments: SetExpressionArguments
@@ -644,7 +655,7 @@ class _PyDevJsonCommandProcessor(object):
             response = pydevd_base_schema.build_response(
                 request,
                 kwargs={
-                    'body':body,
+                    'body': body,
                     'success': False,
                     'message': 'Unable to find thread to set expression.'
             })
@@ -676,7 +687,7 @@ class _PyDevJsonCommandProcessor(object):
             variables = []
             body = VariablesResponseBody(variables)
             variables_response = pydevd_base_schema.build_response(request, kwargs={
-                'body':body,
+                'body': body,
                 'success': False,
                 'message': 'Unable to find thread to evaluate variable reference.'
             })
@@ -695,7 +706,7 @@ class _PyDevJsonCommandProcessor(object):
             variables_response = pydevd_base_schema.build_response(
                 request,
                 kwargs={
-                    'body':body,
+                    'body': body,
                     'success': False,
                     'message': 'Unable to find thread to evaluate variable reference.'
             })

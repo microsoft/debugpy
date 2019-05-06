@@ -1473,6 +1473,43 @@ def test_evaluate(case_setup):
         writer.finished_ok = True
 
 
+def test_evaluate_failures(case_setup):
+    with case_setup.test_file('_debugger_case_completions.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_set_breakpoints(writer.get_line_index_with_content('Break here'))
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+
+        # First, try with wrong id.
+        exec_request = json_facade.write_request(
+            pydevd_schema.EvaluateRequest(pydevd_schema.EvaluateArguments('a = 10', frameId=9999, context='repl')))
+        exec_response = json_facade.wait_for_response(exec_request)
+        assert exec_response.success == False
+        assert exec_response.message == 'Wrong ID sent from the client: 9999'
+
+        first_hit = None
+        for i in range(2):
+            json_hit = json_facade.get_stack_as_json_hit(json_hit.thread_id)
+            if i == 0:
+                first_hit = json_hit
+
+            if i == 1:
+                # Now, check with a previously existing frameId.
+                exec_request = json_facade.write_request(
+                    pydevd_schema.EvaluateRequest(pydevd_schema.EvaluateArguments('a = 10', frameId=first_hit.frame_id, context='repl')))
+                exec_response = json_facade.wait_for_response(exec_request)
+                assert exec_response.success == False
+                assert exec_response.message == 'Unable to find thread for evaluation.'
+
+            json_facade.write_continue(wait_for_response=i == 0)
+            if i == 0:
+                json_hit = json_facade.wait_for_thread_stopped()
+
+        writer.finished_ok = True
+
+
 @pytest.mark.parametrize('max_frames', ['default', 'all', 10])  # -1 = default, 0 = all, 10 = 10 frames
 def test_exception_details(case_setup, max_frames):
     with case_setup.test_file('_debugger_case_large_exception_stack.py') as writer:
