@@ -65,16 +65,6 @@ PTVSD_DIR_PATH = os.path.dirname(os.path.abspath(get_abs_path_real_path_and_base
 NORM_PTVSD_DIR_PATH = os.path.normcase(PTVSD_DIR_PATH)
 
 
-def dont_trace_ptvsd_files(py_db, file_path):
-    """
-    Returns true if the file should not be traced.
-    """
-    return file_path.startswith(PTVSD_DIR_PATH) or file_path.endswith('ptvsd_launcher.py')
-
-
-pydevd.PyDB.dont_trace_external_files = dont_trace_ptvsd_files
-
-
 class UnsupportedPyDevdCommandError(Exception):
 
     def __init__(self, cmdid):
@@ -1296,13 +1286,11 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             default_success_exitcodes += [3]
         self._success_exitcodes = args.get('successExitCodes', default_success_exitcodes)
 
-        # Don't trace files under ptvsd, and ptvsd_launcher.py files
-        # TODO: un-comment this code after fixing https://github.com/Microsoft/ptvsd/issues/1355
-        # dont_trace_request = self._get_new_setDebuggerProperty_request(
-        #    dontTraceStartPatterns=[PTVSD_DIR_PATH],
-        #    dontTraceEndPatterns=['ptvsd_launcher.py']
-        # )
-        # yield self.pydevd_request(-1, dont_trace_request, is_json=True)
+        dont_trace_request = self._get_new_setDebuggerProperty_request(
+           dontTraceStartPatterns=[PTVSD_DIR_PATH],
+           dontTraceEndPatterns=['ptvsd_launcher.py']
+        )
+        yield self.pydevd_request(-1, dont_trace_request, is_json=True)
 
     def _handle_detach(self):
         ptvsd.log.info('Detaching ...')

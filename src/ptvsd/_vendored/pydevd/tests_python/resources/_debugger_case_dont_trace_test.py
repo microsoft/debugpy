@@ -14,4 +14,5 @@ def my_callback():
 
 if __name__ == '__main__':
     call_me_back(my_callback)
+    call_me_back(my_callback)
     print('TEST SUCEEDED!')

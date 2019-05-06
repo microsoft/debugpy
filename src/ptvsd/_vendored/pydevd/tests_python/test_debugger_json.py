@@ -305,6 +305,15 @@ class JsonFacade(object):
             variables_response = self.get_variables_response(variables_reference)
             return pydevd_schema.Variable(**variables_response.body.variables[index])
 
+    def write_set_debugger_property(self, dont_trace_start_patterns, dont_trace_end_patterns):
+        dbg_request = self.write_request(
+            pydevd_schema.SetDebuggerPropertyRequest(pydevd_schema.SetDebuggerPropertyArguments(
+                dontTraceStartPatterns=dont_trace_start_patterns,
+                dontTraceEndPatterns=dont_trace_end_patterns)))
+        response = self.wait_for_response(dbg_request)
+        assert response.success
+        return response
+
 
 def test_case_json_logpoints(case_setup):
     with case_setup.test_file('_debugger_case_change_breaks.py') as writer:
@@ -1628,18 +1637,30 @@ def test_goto(case_setup):
         writer.finished_ok = True
 
 
-@pytest.mark.parametrize('dbg_property', ['dont_trace', 'trace', 'change_pattern', 'dont_trace_after_start'])
+def _collect_stack_frames_ending_with(json_hit, end_with_pattern):
+    stack_trace_response = json_hit.stack_trace_response
+    dont_trace_frames = list(frame for frame in stack_trace_response.body.stackFrames
+                             if frame['source']['path'].endswith(end_with_pattern))
+    return dont_trace_frames
+
+
+def _check_dont_trace_filtered_out(json_hit):
+    assert _collect_stack_frames_ending_with(json_hit, 'dont_trace.py') == []
+
+
+def _check_dont_trace_not_filtered_out(json_hit):
+    assert len(_collect_stack_frames_ending_with(json_hit, 'dont_trace.py')) == 1
+
+
+@pytest.mark.parametrize('dbg_property', [
+    'dont_trace',
+    'trace',
+    'change_pattern',
+    'dont_trace_after_start'
+])
 def test_set_debugger_property(case_setup, dbg_property):
 
     kwargs = {}
-    if dbg_property == 'dont_trace_after_start':
-
-        def additional_output_checks(writer, stdout, stderr):
-            if "Calls to set or change don't trace patterns (via setDebuggerProperty) are not allowed since debugging has already started or don't trace patterns are already set." not in stderr:
-                raise AssertionError('Expected test to have error message.\nstdout:\n%s\n\nstderr:\n%s' % (
-                    stdout, stderr))
-
-        kwargs['additional_output_checks'] = additional_output_checks
 
     with case_setup.test_file('_debugger_case_dont_trace_test.py', **kwargs) as writer:
         json_facade = JsonFacade(writer)
@@ -1647,52 +1668,38 @@ def test_set_debugger_property(case_setup, dbg_property):
         json_facade.write_set_breakpoints(writer.get_line_index_with_content('Break here'))
 
         if dbg_property in ('dont_trace', 'change_pattern', 'dont_trace_after_start'):
-            dbg_request = json_facade.write_request(
-                pydevd_schema.SetDebuggerPropertyRequest(pydevd_schema.SetDebuggerPropertyArguments(
-                    dontTraceStartPatterns=[],
-                    dontTraceEndPatterns=['dont_trace.py'])))
-            dbg_response = json_facade.wait_for_response(dbg_request)
-            assert dbg_response.success
+            json_facade.write_set_debugger_property([], ['dont_trace.py'])
 
         if dbg_property == 'change_pattern':
-            # Attempting to change pattern after it is set but before start should succeed
-            dbg_request = json_facade.write_request(
-                pydevd_schema.SetDebuggerPropertyRequest(pydevd_schema.SetDebuggerPropertyArguments(
-                    dontTraceStartPatterns=[],
-                    dontTraceEndPatterns=['something_else.py'])))
-            dbg_response = json_facade.wait_for_response(dbg_request)
-            assert dbg_response.success
+            json_facade.write_set_debugger_property([], ['something_else.py'])
 
         json_facade.write_make_initial_run()
 
         json_hit = json_facade.wait_for_thread_stopped()
 
-        stack_trace_request = json_facade.write_request(
-            pydevd_schema.StackTraceRequest(pydevd_schema.StackTraceArguments(threadId=json_hit.thread_id)))
-        stack_trace_response = json_facade.wait_for_response(stack_trace_request)
+        if dbg_property in ('dont_trace', 'dont_trace_after_start'):
+            _check_dont_trace_filtered_out(json_hit)
+
+        elif dbg_property in ('change_pattern', 'trace'):
+            _check_dont_trace_not_filtered_out(json_hit)
+
+        else:
+            raise AssertionError('Unexpected: %s' % (dbg_property,))
 
         if dbg_property == 'dont_trace_after_start':
-            # Attempting to set don't trace after start should fail.
-            # This has the same effect of not setting the trace.
-            dbg_request = json_facade.write_request(
-                pydevd_schema.SetDebuggerPropertyRequest(pydevd_schema.SetDebuggerPropertyArguments(
-                    dontTraceStartPatterns=[],
-                    dontTraceEndPatterns=['something_else.py'])))
-            dbg_response = json_facade.wait_for_response(dbg_request)
-            assert not dbg_response.success
+            json_facade.write_set_debugger_property([], ['something_else.py'])
 
-        stack_trace_request = json_facade.write_request(
-            pydevd_schema.StackTraceRequest(pydevd_schema.StackTraceArguments(threadId=json_hit.thread_id)))
-        stack_trace_response = json_facade.wait_for_response(stack_trace_request)
-        dont_trace_frames = list(frame for frame in stack_trace_response.body.stackFrames
-                                 if frame['source']['path'].endswith('dont_trace.py'))
+        json_facade.write_continue()
+        json_hit = json_facade.wait_for_thread_stopped()
 
-        if dbg_property in ('dont_trace', 'dont_trace_after_start'):
-            # Since don't trace after start is expected to fail,
-            # the original pattern still holds.
-            assert dont_trace_frames == []
+        if dbg_property in ('dont_trace',):
+            _check_dont_trace_filtered_out(json_hit)
+
+        elif dbg_property in ('change_pattern', 'trace', 'dont_trace_after_start'):
+            _check_dont_trace_not_filtered_out(json_hit)
+
         else:
-            assert len(dont_trace_frames) == 1
+            raise AssertionError('Unexpected: %s' % (dbg_property,))
 
         json_facade.write_continue(wait_for_response=False)
 

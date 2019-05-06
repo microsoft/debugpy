@@ -784,40 +784,12 @@ class _PyDevJsonCommandProcessor(object):
         # See 'NetCommandFactoryJson.make_set_next_stmnt_status_message' for response
         return None
 
-    def _can_set_dont_trace_pattern(self, py_db, start_patterns, end_patterns):
-        if py_db.is_cache_file_type_empty():
-            return True
-
-        if py_db.dont_trace_external_files.__name__ == 'dont_trace_files_property_request':
-            return py_db.dont_trace_external_files.start_patterns == start_patterns and \
-                py_db.dont_trace_external_files.end_patterns == end_patterns
-
-        return False
-
     def on_setdebuggerproperty_request(self, py_db, request):
         args = request.arguments.kwargs
         if 'dontTraceStartPatterns' in args and 'dontTraceEndPatterns' in args:
             start_patterns = tuple(args['dontTraceStartPatterns'])
             end_patterns = tuple(args['dontTraceEndPatterns'])
-            if self._can_set_dont_trace_pattern(py_db, start_patterns, end_patterns):
-
-                def dont_trace_files_property_request(abs_path):
-                    result = abs_path.startswith(start_patterns) or \
-                            abs_path.endswith(end_patterns)
-                    return result
-
-                dont_trace_files_property_request.start_patterns = start_patterns
-                dont_trace_files_property_request.end_patterns = end_patterns
-                py_db.dont_trace_external_files = dont_trace_files_property_request
-            else:
-                # Don't trace pattern cannot be changed after it is set once. There are caches
-                # throughout the debugger which rely on always having the same file type.
-                message = ("Calls to set or change don't trace patterns (via setDebuggerProperty) are not "
-                           "allowed since debugging has already started or don't trace patterns are already set.")
-                pydev_log.critical(message)
-                response_args = {'success':False, 'body': {}, 'message': message}
-                response = pydevd_base_schema.build_response(request, kwargs=response_args)
-                return NetCommand(CMD_RETURN, 0, response, is_json=True)
+            self.api.set_dont_trace_start_end_patterns(py_db, start_patterns, end_patterns)
 
         # TODO: Support other common settings. Note that not all of these might be relevant to python.
         # JustMyCodeStepping: 0 or 1

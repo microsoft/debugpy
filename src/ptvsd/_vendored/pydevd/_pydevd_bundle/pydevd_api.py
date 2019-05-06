@@ -523,3 +523,34 @@ class PyDevdAPI(object):
         '''
         py_db.post_method_as_internal_command(
             thread_id, internal_change_variable_json, request)
+
+    def set_dont_trace_start_end_patterns(self, py_db, start_patterns, end_patterns):
+        # After it's set the first time, we can still change it, but we need to reset the
+        # related caches.
+        reset_caches = False
+        dont_trace_start_end_patterns_previously_set = \
+            py_db.dont_trace_external_files.__name__ == 'custom_dont_trace_external_files'
+
+        if not dont_trace_start_end_patterns_previously_set and not start_patterns and not end_patterns:
+            # If it wasn't set previously and start and end patterns are empty we don't need to do anything.
+            return
+
+        if not py_db.is_cache_file_type_empty():
+            # i.e.: custom function set in set_dont_trace_start_end_patterns.
+            if dont_trace_start_end_patterns_previously_set:
+                reset_caches = py_db.dont_trace_external_files.start_patterns != start_patterns or \
+                    py_db.dont_trace_external_files.end_patterns != end_patterns
+
+            else:
+                reset_caches = True
+
+        def custom_dont_trace_external_files(abs_path):
+            return abs_path.startswith(start_patterns) or abs_path.endswith(end_patterns)
+
+        custom_dont_trace_external_files.start_patterns = start_patterns
+        custom_dont_trace_external_files.end_patterns = end_patterns
+        py_db.dont_trace_external_files = custom_dont_trace_external_files
+
+        if reset_caches:
+            py_db.clear_dont_trace_start_end_patterns_caches()
+

@@ -593,7 +593,8 @@ class PyDB(object):
             False:
                 If files should be traced.
         '''
-        # By default all external files are traced.
+        # By default all external files are traced. Note: this function is expected to
+        # be changed for another function in PyDevdAPI.set_dont_trace_start_end_patterns.
         return False
 
     def get_file_type(self, abs_real_path_and_basename, _cache_file_type=_CACHE_FILE_TYPE):
@@ -738,6 +739,15 @@ class PyDB(object):
         self._exclude_filters_enabled = self._files_filtering.use_exclude_filters()
         self._is_libraries_filter_enabled = self._files_filtering.use_libraries_filter()
         self.is_files_filter_enabled = self._exclude_filters_enabled or self._is_libraries_filter_enabled
+
+    def clear_dont_trace_start_end_patterns_caches(self):
+        # When start/end patterns are changed we must clear all caches which would be
+        # affected by a change in get_file_type() and reset the tracing function
+        # as places which were traced may no longer need to be traced and vice-versa.
+        self.on_breakpoints_changed()
+        _CACHE_FILE_TYPE.clear()
+        self._clear_filters_caches()
+        self._clear_skip_caches()
 
     def _exclude_by_filter(self, frame, filename):
         '''
