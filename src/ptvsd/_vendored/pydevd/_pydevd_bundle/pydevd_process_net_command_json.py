@@ -280,6 +280,13 @@ class _PyDevJsonCommandProcessor(object):
         if bool(path_mappings):
             pydevd_file_utils.setup_client_server_paths(path_mappings)
 
+        if self._debug_options.get('REDIRECT_OUTPUT', False):
+            py_db.enable_output_redirection(True, True)
+        else:
+            py_db.enable_output_redirection(False, False)
+
+        self.api.set_show_return_values(py_db, self._debug_options.get('SHOW_RETURN_VALUE', False))
+
     def on_launch_request(self, py_db, request):
         '''
         :param LaunchRequest request:

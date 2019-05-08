@@ -1195,18 +1195,9 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     def _process_debug_options(self, opts):
         """Process the launch arguments to configure the debugger."""
-        if opts.get('REDIRECT_OUTPUT', False):
-            redirect_output = 'STDOUT\tSTDERR'
-        else:
-            redirect_output = ''
-        self.pydevd_request(pydevd_comm.CMD_REDIRECT_OUTPUT, redirect_output)
-
         if opts.get('STOP_ON_ENTRY', False) and self.start_reason == 'launch':
             info = pydevd_additional_thread_info.set_additional_thread_info(ptvsd.main_thread)
             info.pydev_step_cmd = pydevd_comm.CMD_STEP_INTO_MY_CODE
-
-        if opts.get('SHOW_RETURN_VALUE', False):
-            self.pydevd_request(pydevd_comm.CMD_SHOW_RETURN_VALUES, '1\t1')
 
         if opts.get('MULTIPROCESS', False):
             if not options.multiprocess:
@@ -1223,14 +1214,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         if isinstance(msg, bytes):
             msg = msg.decode('utf-8')
         self.pydevd_request(pydevd_comm.CMD_PYDEVD_JSON_CONFIG, msg)
-
-    def _is_just_my_code_stepping_enabled(self):
-        """Returns true if just-me-code stepping is enabled.
-
-        Note: for now we consider DEBUG_STDLIB = False as just-my-code.
-        """
-        dbg_stdlib = self.debug_options.get('DEBUG_STDLIB', False)
-        return not dbg_stdlib
 
     def _send_cmd_version_command(self):
         cmd = pydevd_comm.CMD_VERSION

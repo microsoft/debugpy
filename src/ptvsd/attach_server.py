@@ -3,12 +3,12 @@
 # for license information.
 
 import sys
+import warnings
 
 import ptvsd.log
 from ptvsd._remote import (
     attach as ptvsd_attach,
     enable_attach as ptvsd_enable_attach,
-    _pydevd_settrace,
 )
 from ptvsd.wrapper import debugger_attached
 
@@ -23,6 +23,10 @@ DEFAULT_PORT = 5678
 
 _pending_threads = set()
 
+_redirect_output_deprecation_msg = (
+    "'redirect_output' setting via enable_attach will be deprecated in the future versions of the debugger. "
+    "This can be set using redirectOutput in Launch config in VS Code, using Tee output option in Visual Studio, "
+    "or debugOptions configuration for any client.")
 
 def wait_for_attach(timeout=None):
     """If a remote debugger is attached, returns immediately. Otherwise,
@@ -38,7 +42,7 @@ def wait_for_attach(timeout=None):
     debugger_attached.wait(timeout)
 
 
-def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True, log_dir=None):
+def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=None, log_dir=None):
     """Enables a client to attach to this process remotely to debug Python code.
 
     Parameters
@@ -50,8 +54,8 @@ def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True, lo
         ``(hostname, port)``. On client side, the server is identified by the
         Qualifier string in the usual ``'hostname:port'`` format, e.g.:
         ``'myhost.cloudapp.net:5678'``. Default is ``('0.0.0.0', 5678)``.
-    redirect_output : bool, optional
-        Specifies whether any output (on both `stdout` and `stderr`) produced
+    redirect_output : bool, optional 
+        (Deprecated) Specifies whether any output (on both `stdout` and `stderr`) produced
         by this program should be sent to the debugger. Default is ``True``.
     log_dir : str, optional
         Name of the directory that debugger will create its log files in.
@@ -75,6 +79,10 @@ def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True, lo
     ptvsd.log.to_file()
     ptvsd.log.info('enable_attach{0!r}', (address, redirect_output))
 
+    if redirect_output is not None:
+        ptvsd.log.info('redirect_output deprecation warning.')
+        warnings.warn(_redirect_output_deprecation_msg, DeprecationWarning, stacklevel=2)
+
     if is_attached():
         ptvsd.log.info('enable_attach() ignored - already attached.')
         return
@@ -85,13 +93,10 @@ def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=True, lo
     port = address[1]
     address = (address[0], port if type(port) is int else int(port))
 
-    ptvsd_enable_attach(
-        address,
-        redirect_output=redirect_output,
-    )
+    ptvsd_enable_attach(address)
 
 
-def attach(address, redirect_output=True, log_dir=None):
+def attach(address, redirect_output=None, log_dir=None):
     """Attaches this process to the debugger listening on a given address.
 
     Parameters
@@ -102,7 +107,7 @@ def attach(address, redirect_output=True, log_dir=None):
         regular sockets of the `socket.AF_INET` family, i.e. a tuple of
         ``(hostname, port)``.
     redirect_output : bool, optional
-        Specifies whether any output (on both `stdout` and `stderr`) produced
+        (Deprecated) Specifies whether any output (on both `stdout` and `stderr`) produced
         by this program should be sent to the debugger. Default is ``True``.
     log_dir : str, optional
         Name of the directory that debugger will create its log files in.
@@ -114,6 +119,10 @@ def attach(address, redirect_output=True, log_dir=None):
     ptvsd.log.to_file()
     ptvsd.log.info('attach{0!r}', (address, redirect_output))
 
+    if redirect_output is not None:
+        ptvsd.log.info('redirect_output deprecation warning.')
+        warnings.warn(_redirect_output_deprecation_msg, DeprecationWarning)
+
     if is_attached():
         ptvsd.log.info('attach() ignored - already attached.')
         return
@@ -124,7 +133,7 @@ def attach(address, redirect_output=True, log_dir=None):
     port = address[1]
     address = (address[0], port if type(port) is int else int(port))
 
-    ptvsd_attach(address, redirect_output=redirect_output)
+    ptvsd_attach(address)
 
 
 def is_attached():
@@ -150,7 +159,18 @@ def break_into_debugger():
             get_abs_path_real_path_and_base_from_frame(stop_at_frame)) == global_debugger.PYDEV_FILE:
         stop_at_frame = stop_at_frame.f_back
 
-    _pydevd_settrace(
+
+    # pydevd.settrace() only enables debugging of the current
+    # thread and all future threads.  PyDevd is not enabled for
+    # existing threads (other than the current one).  Consequently,
+    # pydevd.settrace() must be called ASAP in the current thread.
+    # See issue #509.
+    #
+    # This is tricky, however, because settrace() will block until
+    # it receives a CMD_RUN message.  You can't just call it in a
+    # thread to avoid blocking; doing so would prevent the current
+    # thread from being debugged.
+    pydevd.settrace(
         suspend=True,
         trace_only_current_thread=True,
         patch_multiprocessing=False,

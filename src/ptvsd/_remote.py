@@ -16,32 +16,10 @@ from ptvsd.pydevd_hooks import install
 from ptvsd.daemon import session_not_bound, DaemonClosedError
 
 
-def _pydevd_settrace(redirect_output=None, _pydevd=pydevd, **kwargs):
-    if redirect_output is not None:
-        kwargs.setdefault('stdoutToServer', redirect_output)
-        kwargs.setdefault('stderrToServer', redirect_output)
-    # pydevd.settrace() only enables debugging of the current
-    # thread and all future threads.  PyDevd is not enabled for
-    # existing threads (other than the current one).  Consequently,
-    # pydevd.settrace() must be called ASAP in the current thread.
-    # See issue #509.
-    #
-    # This is tricky, however, because settrace() will block until
-    # it receives a CMD_RUN message.  You can't just call it in a
-    # thread to avoid blocking; doing so would prevent the current
-    # thread from being debugged.
-    _pydevd.settrace(**kwargs)
-
-
 global_next_session = lambda: None
 
 
-def enable_attach(address,
-                  redirect_output=True,
-                  _pydevd=pydevd,
-                  _install=install,
-                  on_attach=lambda: None,
-                  **kwargs):
+def enable_attach(address, on_attach=lambda: None, **kwargs):
 
     ptvsd.main_thread = threading.current_thread()
     host, port = address
@@ -76,12 +54,12 @@ def enable_attach(address,
         global_next_session = next_session
         return daemon._sock
 
-    daemon = _install(_pydevd,
-                      address,
-                      start_server=None,
-                      start_client=(lambda daemon, h, port: start_daemon()),
-                      singlesession=False,
-                      **kwargs)
+    daemon = install(pydevd,
+                     address,
+                     start_server=None,
+                     start_client=(lambda daemon, h, port: start_daemon()),
+                     singlesession=False,
+                     **kwargs)
 
     ptvsd.log.debug('Starting connection listener thread')
     connection_thread = new_hidden_thread('ptvsd.listen_for_connection',
@@ -93,36 +71,27 @@ def enable_attach(address,
         _setup_nodebug()
     else:
         ptvsd.log.debug('pydevd.settrace()')
-        _pydevd.settrace(host=host,
-                         stdoutToServer=redirect_output,
-                         stderrToServer=redirect_output,
-                         port=port,
-                         suspend=False,
-                         patch_multiprocessing=ptvsd.options.multiprocess)
+        pydevd.settrace(host=host,
+                        port=port,
+                        suspend=False,
+                        patch_multiprocessing=ptvsd.options.multiprocess)
 
     return daemon
 
 
-def attach(address,
-           redirect_output=True,
-           _pydevd=pydevd,
-           _install=install,
-           **kwargs):
-
+def attach(address, **kwargs):
     ptvsd.main_thread = threading.current_thread()
     host, port = address
-    daemon = _install(_pydevd, address, singlesession=False, **kwargs)
+    daemon = install(pydevd, address, singlesession=False, **kwargs)
 
     if ptvsd.options.no_debug:
         _setup_nodebug()
     else:
         ptvsd.log.debug('pydevd.settrace()')
-        _pydevd.settrace(host=host,
-                         port=port,
-                         stdoutToServer=redirect_output,
-                         stderrToServer=redirect_output,
-                         suspend=False,
-                         patch_multiprocessing=ptvsd.options.multiprocess)
+        pydevd.settrace(host=host,
+                        port=port,
+                        suspend=False,
+                        patch_multiprocessing=ptvsd.options.multiprocess)
 
     return daemon
 
