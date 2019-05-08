@@ -1600,14 +1600,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         tid = args['body']['threadId']
         self.send_event('thread', reason='exited', threadId=tid)
 
-    @pydevd_events.handler(pydevd_comm.CMD_THREAD_SUSPEND)
-    def on_pydevd_thread_suspend(self, seq, args):
-        pass  # We only care about the thread suspend single notification.
-
-    @pydevd_events.handler(pydevd_comm.CMD_THREAD_RUN)
-    def on_pydevd_thread_run(self, seq, args):
-        pass  # We only care about the thread suspend single notification.
-
     @pydevd_events.handler(pydevd_comm_constants.CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION)
     def on_pydevd_thread_suspend_single_notification(self, seq, args):
         # NOTE: We should add the thread to VSC thread map only if the
@@ -1650,25 +1642,8 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         if os.getenv('PTVSD_USE_CONTINUED'):
             self.send_event('continued', threadId=tid)
 
-    @pydevd_events.handler(pydevd_comm.CMD_SEND_CURR_EXCEPTION_TRACE)
-    def on_pydevd_send_curr_exception_trace(self, seq, args):
-        pass
-
-    @pydevd_events.handler(pydevd_comm.CMD_SEND_CURR_EXCEPTION_TRACE_PROCEEDED)
-    def on_pydevd_send_curr_exception_trace_proceeded(self, seq, args):
-        pass
-
     @pydevd_events.handler(pydevd_comm.CMD_WRITE_TO_CONSOLE)
     def on_pydevd_cmd_write_to_console2(self, seq, args):
         """Handle console output"""
         body = args.get('body', {})
         self.send_event('output', **body)
-
-    @pydevd_events.handler(pydevd_comm.CMD_GET_BREAKPOINT_EXCEPTION)
-    def on_pydevd_get_breakpoint_exception(self, seq, args):
-        # If pydevd sends exception info from a failed breakpoint condition, just ignore.
-        pass
-
-    @pydevd_events.handler(pydevd_comm.CMD_PROCESS_CREATED)
-    def on_pydevd_process_create(self, seq, args):
-        pass

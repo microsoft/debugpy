@@ -9,6 +9,18 @@ import json
 from _pydev_bundle import pydev_log
 
 
+class _NullNetCommand(object):
+
+    id = -1
+
+    def send(self, *args, **kwargs):
+        pass
+
+
+# Constant meant to be passed to the writer when the command is meant to be ignored.
+NULL_NET_COMMAND = _NullNetCommand()
+
+
 class NetCommand:
     """
     Commands received/sent over the network.

@@ -190,6 +190,7 @@ class ReaderThread(threading.Thread):
         self.sock = sock
         self._queue = Queue()
         self._kill = False
+        self.accept_xml_messages = True
 
     def set_messages_timeout(self, timeout):
         self.MESSAGES_TIMEOUT = timeout
@@ -224,6 +225,10 @@ class ReaderThread(threading.Thread):
 
             frame = None
             sys.stdout.write('Message returned in get_next_message(): %s --  ctx: %s, asked at:\n%s\n' % (unquote_plus(unquote_plus(msg)), context_message, frame_info))
+
+        if not self.accept_xml_messages:
+            if '<xml' in msg:
+                raise AssertionError('Xml messages disabled. Received: %s' % (msg,))
         return msg
 
     def _read(self, size):

@@ -31,6 +31,7 @@ class JsonFacade(object):
 
     def __init__(self, writer):
         self.writer = writer
+        writer.reader_thread.accept_xml_messages = False
         writer.write_set_protocol('http_json')
         writer.write_multi_threads_single_notification(True)
 

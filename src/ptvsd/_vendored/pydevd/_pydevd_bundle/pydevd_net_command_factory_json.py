@@ -16,7 +16,7 @@ from _pydevd_bundle.pydevd_comm_constants import CMD_THREAD_CREATE, CMD_RETURN, 
     CMD_SET_NEXT_STATEMENT, CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION, \
     CMD_THREAD_RESUME_SINGLE_NOTIFICATION, CMD_THREAD_KILL
 from _pydevd_bundle.pydevd_constants import get_thread_id, dict_values
-from _pydevd_bundle.pydevd_net_command import NetCommand
+from _pydevd_bundle.pydevd_net_command import NetCommand, NULL_NET_COMMAND
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
 from _pydevd_bundle.pydevd_utils import get_non_pydevd_threads
 import pydevd_file_utils
@@ -306,3 +306,28 @@ class NetCommandFactoryJson(NetCommandFactory):
             body={},
             message=(None if is_success else exception_msg))
         return NetCommand(CMD_RETURN, 0, response, is_json=True)
+
+    @overrides(NetCommandFactory.make_send_curr_exception_trace_message)
+    def make_send_curr_exception_trace_message(self, *args, **kwargs):
+        return NULL_NET_COMMAND  # Not a part of the debug adapter protocol
+
+    @overrides(NetCommandFactory.make_send_curr_exception_trace_proceeded_message)
+    def make_send_curr_exception_trace_proceeded_message(self, *args, **kwargs):
+        return NULL_NET_COMMAND  # Not a part of the debug adapter protocol
+
+    @overrides(NetCommandFactory.make_send_breakpoint_exception_message)
+    def make_send_breakpoint_exception_message(self, *args, **kwargs):
+        return NULL_NET_COMMAND  # Not a part of the debug adapter protocol
+
+    @overrides(NetCommandFactory.make_process_created_message)
+    def make_process_created_message(self, *args, **kwargs):
+        return NULL_NET_COMMAND  # Not a part of the debug adapter protocol
+
+    @overrides(NetCommandFactory.make_thread_suspend_message)
+    def make_thread_suspend_message(self, *args, **kwargs):
+        return NULL_NET_COMMAND  # Not a part of the debug adapter protocol
+
+    @overrides(NetCommandFactory.make_thread_run_message)
+    def make_thread_run_message(self, *args, **kwargs):
+        return NULL_NET_COMMAND  # Not a part of the debug adapter protocol
+
