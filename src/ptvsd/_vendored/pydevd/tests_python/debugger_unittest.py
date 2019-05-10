@@ -381,14 +381,15 @@ class DebuggerRunner(object):
         return args + ret
 
     @contextmanager
-    def check_case(self, writer_class):
+    def check_case(self, writer_class, wait_for_port=True):
         if callable(writer_class):
             writer = writer_class()
         else:
             writer = writer_class
         try:
             writer.start()
-            wait_for_condition(lambda: hasattr(writer, 'port'))
+            if wait_for_port:
+                wait_for_condition(lambda: hasattr(writer, 'port'))
             self.writer = writer
 
             args = self.get_command_line()
@@ -400,7 +401,8 @@ class DebuggerRunner(object):
 
             with self.run_process(args, writer) as dct_with_stdout_stder:
                 try:
-                    wait_for_condition(lambda: writer.finished_initialization)
+                    if wait_for_port:
+                        wait_for_condition(lambda: writer.finished_initialization)
                 except TimeoutError:
                     sys.stderr.write('Timed out waiting for initialization\n')
                     sys.stderr.write('stdout:\n%s\n\nstderr:\n%s\n' % (
@@ -717,18 +719,62 @@ class AbstractWriterThread(threading.Thread):
         if SHOW_WRITES_AND_READS:
             print('Waiting in socket.accept()')
         self.server_socket = server_socket
-        new_sock, addr = server_socket.accept()
+        new_socket, addr = server_socket.accept()
         if SHOW_WRITES_AND_READS:
-            print('Test Writer Thread Socket:', new_sock, addr)
+            print('Test Writer Thread Socket:', new_socket, addr)
 
-        reader_thread = self.reader_thread = ReaderThread(new_sock)
+        self._set_socket(new_socket)
+
+    def _set_socket(self, new_socket):
+        curr_socket = getattr(self, 'sock', None)
+        if curr_socket:
+            try:
+                curr_socket.shutdown(socket.SHUT_WR)
+            except:
+                pass
+            try:
+                curr_socket.close()
+            except:
+                pass
+
+        reader_thread = self.reader_thread = ReaderThread(new_socket)
+        self.sock = new_socket
         reader_thread.start()
-        self.sock = new_sock
 
         # initial command is always the version
         self.write_version()
         self.log.append('start_socket')
         self.finished_initialization = True
+
+    def start_socket_client(self, host, port):
+        self._sequence = -1
+        if SHOW_WRITES_AND_READS:
+            print("Connecting to %s:%s" % (host, port))
+
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        #  Set TCP keepalive on an open socket.
+        #  It activates after 1 second (TCP_KEEPIDLE,) of idleness,
+        #  then sends a keepalive ping once every 3 seconds (TCP_KEEPINTVL),
+        #  and closes the connection after 5 failed ping (TCP_KEEPCNT), or 15 seconds
+        try:
+            from socket import IPPROTO_TCP, SO_KEEPALIVE, TCP_KEEPIDLE, TCP_KEEPINTVL, TCP_KEEPCNT
+            s.setsockopt(socket.SOL_SOCKET, SO_KEEPALIVE, 1)
+            s.setsockopt(IPPROTO_TCP, TCP_KEEPIDLE, 1)
+            s.setsockopt(IPPROTO_TCP, TCP_KEEPINTVL, 3)
+            s.setsockopt(IPPROTO_TCP, TCP_KEEPCNT, 5)
+        except ImportError:
+            pass  # May not be available everywhere.
+
+        # 10 seconds default timeout
+        timeout = int(os.environ.get('PYDEVD_CONNECT_TIMEOUT', 10))
+        s.settimeout(timeout)
+        s.connect((host, port))
+        s.settimeout(None)  # no timeout after connected
+        if SHOW_WRITES_AND_READS:
+            print("Connected.")
+        self._set_socket(s)
+        return s
 
     def next_breakpoint_id(self):
         self._next_breakpoint_id += 1

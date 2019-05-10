@@ -25,6 +25,12 @@ class PyDevdAPI(object):
     def run(self, py_db):
         py_db.ready_to_run = True
 
+    def notify_configuration_done(self, py_db):
+        py_db.on_configuration_done()
+
+    def notify_disconnect(self, py_db):
+        py_db.on_disconnect()
+
     def set_protocol(self, py_db, seq, protocol):
         set_protocol(protocol.strip())
         if get_protocol() in (HTTP_JSON_PROTOCOL, JSON_PROTOCOL):
@@ -104,6 +110,14 @@ class PyDevdAPI(object):
         be used on disconnect/reconnect).
         '''
         py_db.set_enable_thread_notifications(enable)
+
+    def request_disconnect(self, py_db, resume_threads):
+        self.set_enable_thread_notifications(py_db, False)
+        self.remove_all_breakpoints(py_db, filename='*')
+        self.remove_all_exception_breakpoints(py_db)
+        self.notify_disconnect(py_db)
+        if resume_threads:
+            self.request_resume_thread(thread_id='*')
 
     def request_resume_thread(self, thread_id):
         threads = []

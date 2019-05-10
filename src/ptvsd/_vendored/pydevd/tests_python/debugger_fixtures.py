@@ -370,6 +370,51 @@ def case_setup_remote():
 
 
 @pytest.fixture
+def case_setup_remote_attach_to():
+    '''
+    The difference from this to case_setup_remote is that this one will connect to a server
+    socket started by the debugger and case_setup_remote will create the server socket and wait
+    for a connection from the debugger.
+    '''
+
+    runner = DebuggerRunnerRemote()
+
+    class WriterThread(debugger_unittest.AbstractWriterThread):
+
+        @overrides(debugger_unittest.AbstractWriterThread.run)
+        def run(self):
+            # I.e.: don't start socket on start(), rather, the test should call
+            # start_socket_client() when needed.
+            pass
+
+    class CaseSetup(object):
+
+        @contextmanager
+        def test_file(
+                self,
+                filename,
+                port,
+                **kwargs
+            ):
+
+            def update_command_line_args(writer, args):
+                ret = debugger_unittest.AbstractWriterThread.update_command_line_args(writer, args)
+                ret.append(str(port))
+                return ret
+
+            WriterThread.TEST_FILE = debugger_unittest._get_debugger_test_file(filename)
+            WriterThread.update_command_line_args = update_command_line_args
+            for key, value in kwargs.items():
+                assert hasattr(WriterThread, key)
+                setattr(WriterThread, key, value)
+
+            with runner.check_case(WriterThread, wait_for_port=False) as writer:
+                yield writer
+
+    return CaseSetup()
+
+
+@pytest.fixture
 def case_setup_multiprocessing():
 
     runner = DebuggerRunnerSimple()

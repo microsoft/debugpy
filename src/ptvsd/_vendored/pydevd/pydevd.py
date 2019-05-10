@@ -55,7 +55,8 @@ from pydevd_concurrency_analyser.pydevd_thread_wrappers import wrap_threads
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame, NORM_PATHS_AND_BASE_CONTAINER, get_abs_path_real_path_and_base_from_file
 from pydevd_file_utils import get_fullname, rPath, get_package_dir
 import pydevd_tracing
-from _pydevd_bundle.pydevd_comm import InternalThreadCommand, InternalThreadCommandForAnyThread
+from _pydevd_bundle.pydevd_comm import (InternalThreadCommand, InternalThreadCommandForAnyThread,
+    create_server_socket)
 from _pydevd_bundle.pydevd_comm import(InternalConsoleExec,
     PyDBDaemonThread, _queue, ReaderThread, GetGlobalDebugger, get_global_debugger,
     set_global_debugger, WriterThread,
@@ -65,6 +66,8 @@ from _pydevd_bundle.pydevd_comm import(InternalConsoleExec,
 from _pydevd_bundle.pydevd_breakpoints import stop_on_unhandled_exception
 from _pydevd_bundle.pydevd_collect_try_except_info import collect_try_except_info
 from _pydevd_bundle.pydevd_suspended_frames import SuspendedFramesManager
+from socket import SHUT_RDWR
+from _pydevd_bundle.pydevd_api import PyDevdAPI
 
 __version_info__ = (1, 3, 3)
 __version_info_str__ = []
@@ -129,11 +132,9 @@ try:
 except:
     pass
 
-connected = False
+_debugger_setup = False
 bufferStdOutToServer = False
 bufferStdErrToServer = False
-remote = False
-forked = False
 
 file_system_encoding = getfilesystemencoding()
 
@@ -219,9 +220,6 @@ class CheckOutputThread(PyDBDaemonThread):
             time.sleep(0.01)
         pydev_log.debug("The following pydb threads may not have finished correctly: %s",
                         ', '.join([t.getName() for t in pydb_daemon_threads if t is not self]))
-
-    def do_kill_pydev_thread(self):
-        self.killReceived = True
 
 
 class AbstractSingleNotificationBehavior(object):
@@ -388,6 +386,8 @@ class PyDB(object):
 
         self.reader = None
         self.writer = None
+        self._waiting_for_connection_thread = None
+        self._on_configuration_done_event = threading.Event()
         self.output_checker_thread = None
         self.py_db_command_thread = None
         self.quitting = None
@@ -516,6 +516,21 @@ class PyDB(object):
         self._in_project_scope_cache = {}
         self._exclude_by_filter_cache = {}
         self._apply_filter_cache = {}
+
+    def on_configuration_done(self):
+        '''
+        Note: only called when using the DAP (Debug Adapter Protocol).
+        '''
+        self._on_configuration_done_event.set()
+
+    def on_disconnect(self):
+        '''
+        Note: only called when using the DAP (Debug Adapter Protocol).
+        '''
+        self._on_configuration_done_event.clear()
+
+    def block_until_configuration_done(self):
+        self._on_configuration_done_event.wait()
 
     def add_fake_frame(self, thread_id, frame_id, frame):
         self.suspended_frames_manager.add_fake_frame(thread_id, frame_id, frame)
@@ -877,13 +892,20 @@ class PyDB(object):
     def finish_debugging_session(self):
         self._finish_debugging_session = True
 
-    def initialize_network(self, sock):
+    def initialize_network(self, sock, terminate_on_socket_close=True):
         try:
             sock.settimeout(None)  # infinite, no timeouts from now on - jython does not have it
         except:
             pass
-        self.writer = WriterThread(sock)
-        self.reader = ReaderThread(sock)
+        curr_reader = getattr(self, 'reader', None)
+        curr_writer = getattr(self, 'writer', None)
+        if curr_reader:
+            curr_reader.do_kill_pydev_thread()
+        if curr_writer:
+            curr_writer.do_kill_pydev_thread()
+
+        self.writer = WriterThread(sock, terminate_on_socket_close=terminate_on_socket_close)
+        self.reader = ReaderThread(sock, terminate_on_socket_close=terminate_on_socket_close)
         self.writer.start()
         self.reader.start()
 
@@ -896,6 +918,66 @@ class PyDB(object):
             s = start_server(port)
 
         self.initialize_network(s)
+
+    def create_wait_for_connection_thread(self):
+        if self._waiting_for_connection_thread is not None:
+            raise AssertionError('There is already another thread waiting for a connection.')
+
+        self._waiting_for_connection_thread = self._WaitForConnectionThread(self)
+        self._waiting_for_connection_thread.start()
+
+    class _WaitForConnectionThread(PyDBDaemonThread):
+
+        def __init__(self, py_db):
+            PyDBDaemonThread.__init__(self)
+            self.py_db = py_db
+            self._server_socket = None
+
+        def run(self):
+            host = SetupHolder.setup['client']
+            port = SetupHolder.setup['port']
+
+            self._server_socket = create_server_socket(host=host, port=port)
+
+            while not self.killReceived:
+                try:
+                    s = self._server_socket
+                    if s is None:
+                        return
+
+                    s.listen(1)
+                    new_socket, _addr = s.accept()
+                    if self.killReceived:
+                        pydev_log.info("Connection (from wait_for_attach) accepted but ignored as kill was already received.")
+                        return
+
+                    pydev_log.info("Connection (from wait_for_attach) accepted.")
+                    reader = getattr(self.py_db, 'reader', None)
+                    if reader is not None:
+                        # This is needed if a new connection is done without the client properly
+                        # sending a disconnect for the previous connection.
+                        api = PyDevdAPI()
+                        api.request_disconnect(self.py_db, resume_threads=False)
+
+                    self.py_db.initialize_network(new_socket, terminate_on_socket_close=False)
+
+                except:
+                    if DebugInfoHolder.DEBUG_TRACE_LEVEL > 0:
+                        pydev_log.exception()
+                        pydev_log.debug("Exiting _WaitForConnectionThread: %s\n", port)
+
+        def do_kill_pydev_thread(self):
+            PyDBDaemonThread.do_kill_pydev_thread(self)
+            s = self._server_socket
+            try:
+                s.shutdown(SHUT_RDWR)
+            except:
+                pass
+            try:
+                s.close()
+            except:
+                pass
+            self._server_socket = None
 
     def get_internal_queue(self, thread_id):
         """ returns internal command queue for a given thread.
@@ -1845,6 +1927,39 @@ def init_stderr_redirect(on_write=None):
         sys.stderr = pydevd_io.IORedirector(original, sys._pydevd_err_buffer_, wrap_buffer)  # @UndefinedVariable
 
 
+def _enable_attach(address):
+    '''
+    Starts accepting connections at the given host/port. The debugger will not be initialized nor
+    configured, it'll only start accepting connections (and will have the tracing setup in this
+    thread).
+
+    Meant to be used with the DAP (Debug Adapter Protocol) with _wait_for_attach().
+
+    :param address: (host, port)
+    :type address: tuple(str, int)
+    '''
+    host = address[0]
+    port = int(address[1])
+
+    if _debugger_setup:
+        if port != SetupHolder.setup['port']:
+            raise AssertionError('Unable to listen in port: %s (already listening in port: %s)' % (port, SetupHolder.setup['port']))
+    settrace(host=host, port=port, suspend=False, wait_for_ready_to_run=False, block_until_connected=False)
+
+
+def _wait_for_attach():
+    '''
+    Meant to be called after _enable_attach() -- the current thread will only unblock after a
+    connection is in place and the the DAP (Debug Adapter Protocol) sends the ConfigurationDone
+    request.
+    '''
+    py_db = get_global_debugger()
+    if py_db is None:
+        raise AssertionError('Debugger still not created. Please use _enable_attach() before using _wait_for_attach().')
+
+    py_db.block_until_configuration_done()
+
+
 #=======================================================================================================================
 # settrace
 #=======================================================================================================================
@@ -1858,6 +1973,8 @@ def settrace(
     overwrite_prev_trace=False,
     patch_multiprocessing=False,
     stop_at_frame=None,
+    block_until_connected=True,
+    wait_for_ready_to_run=True,
     ):
     '''Sets the tracing function with the pydev debug function and initializes needed facilities.
 
@@ -1884,9 +2001,15 @@ def settrace(
 
     @param stop_at_frame: if passed it'll stop at the given frame, otherwise it'll stop in the function which
         called this method.
+
+    @param wait_for_ready_to_run: if True settrace will block until the ready_to_run flag is set to True,
+        otherwise, it'll set ready_to_run to True and this function won't block.
+
+        Note that if wait_for_ready_to_run == False, there are no guarantees that the debugger is synchronized
+        with what's configured in the client (IDE), the only guarantee is that when leaving this function
+        the debugger will be already connected.
     '''
-    _set_trace_lock.acquire()
-    try:
+    with _set_trace_lock:
         _locked_settrace(
             host,
             stdoutToServer,
@@ -1896,9 +2019,9 @@ def settrace(
             trace_only_current_thread,
             patch_multiprocessing,
             stop_at_frame,
+            block_until_connected,
+            wait_for_ready_to_run,
         )
-    finally:
-        _set_trace_lock.release()
 
 
 _set_trace_lock = thread.allocate_lock()
@@ -1913,6 +2036,8 @@ def _locked_settrace(
     trace_only_current_thread,
     patch_multiprocessing,
     stop_at_frame,
+    block_until_connected,
+    wait_for_ready_to_run,
     ):
     if patch_multiprocessing:
         try:
@@ -1926,11 +2051,11 @@ def _locked_settrace(
         from _pydev_bundle import pydev_localhost
         host = pydev_localhost.get_localhost()
 
-    global connected
+    global _debugger_setup
     global bufferStdOutToServer
     global bufferStdErrToServer
 
-    if not connected:
+    if not _debugger_setup:
         pydevd_vm_type.setup_type()
 
         if SetupHolder.setup is None:
@@ -1945,10 +2070,15 @@ def _locked_settrace(
         debugger = get_global_debugger()
         if debugger is None:
             debugger = PyDB()
-        debugger.connect(host, port)  # Note: connect can raise error.
+        if block_until_connected:
+            debugger.connect(host, port)  # Note: connect can raise error.
+        else:
+            # Create a dummy writer and wait for the real connection.
+            debugger.writer = WriterThread(NULL, terminate_on_socket_close=False)
+            debugger.create_wait_for_connection_thread()
 
         # Mark connected only if it actually succeeded.
-        connected = True
+        _debugger_setup = True
         bufferStdOutToServer = stdoutToServer
         bufferStdErrToServer = stderrToServer
 
@@ -1963,18 +2093,18 @@ def _locked_settrace(
         t = threadingCurrentThread()
         additional_info = set_additional_thread_info(t)
 
+        if not wait_for_ready_to_run:
+            debugger.ready_to_run = True
+
         while not debugger.ready_to_run:
             time.sleep(0.1)  # busy wait until we receive run command
 
         # Set the tracing only
         debugger.set_trace_for_frame_and_parents(get_frame().f_back)
 
-        CustomFramesContainer.custom_frames_lock.acquire()  # @UndefinedVariable
-        try:
+        with CustomFramesContainer.custom_frames_lock:  # @UndefinedVariable
             for _frameId, custom_frame in dict_iter_items(CustomFramesContainer.custom_frames):
                 debugger.set_trace_for_frame_and_parents(custom_frame.frame)
-        finally:
-            CustomFramesContainer.custom_frames_lock.release()  # @UndefinedVariable
 
         debugger.start_auxiliary_daemon_threads()
 
@@ -2020,8 +2150,8 @@ def _locked_settrace(
 
 
 def stoptrace():
-    global connected
-    if connected:
+    global _debugger_setup
+    if _debugger_setup:
         pydevd_tracing.restore_sys_set_trace_func()
         sys.settrace(None)
         try:
@@ -2042,7 +2172,7 @@ def stoptrace():
 
             kill_all_pydev_threads()
 
-        connected = False
+        _debugger_setup = False
 
 
 class Dispatcher(object):
@@ -2121,10 +2251,8 @@ def settrace_forked():
     pydevd_tracing.restore_sys_set_trace_func()
 
     if port is not None:
-        global connected
-        connected = False
-        global forked
-        forked = True
+        global _debugger_setup
+        _debugger_setup = False
 
         custom_frames_container_init()
 
@@ -2347,8 +2475,8 @@ def main():
             pydev_log.exception()
             sys.exit(1)
 
-        global connected
-        connected = True  # Mark that we're connected when started from inside ide.
+        global _debugger_setup
+        _debugger_setup = True  # Mark that the debugger is setup when started from the ide.
 
         globals = debugger.run(setup['file'], None, None, is_module)
 

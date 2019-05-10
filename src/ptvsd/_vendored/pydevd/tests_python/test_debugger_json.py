@@ -13,6 +13,7 @@ from _pydevd_bundle.pydevd_constants import int_types
 from tests_python.debug_constants import *  # noqa
 import time
 from os.path import normcase
+from _pydev_bundle.pydev_localhost import get_socket_name
 
 pytest_plugins = [
     str('tests_python.debugger_fixtures'),
@@ -27,6 +28,13 @@ pytestmark = pytest.mark.skipif(IS_JYTHON, reason='Single notification is not OK
 MAX_EXPECTED_ID = 10000
 
 
+class _MessageWithMark(object):
+
+    def __init__(self, msg):
+        self.msg = msg
+        self.marked = False
+
+
 class JsonFacade(object):
 
     def __init__(self, writer):
@@ -34,29 +42,26 @@ class JsonFacade(object):
         writer.reader_thread.accept_xml_messages = False
         writer.write_set_protocol('http_json')
         writer.write_multi_threads_single_notification(True)
+        self._all_json_messages_found = []
 
-    def collect_messages_until_accepted(self, expected_class, accept_message=lambda obj:True):
-
-        collected_messages = []
-
-        def accept_json_message(msg):
-            if msg.startswith('{'):
-                decoded_msg = from_json(msg)
-                if isinstance(decoded_msg, expected_class):
-                    if accept_message(decoded_msg):
-                        return True
-                collected_messages.append(decoded_msg)
-
-            return False
-
-        msg = self.writer.wait_for_message(accept_json_message, unquote_msg=False, expect_xml=False)
-        return collected_messages, from_json(msg)
+    def mark_messages(self, expected_class, accept_message):
+        ret = []
+        for message_with_mark in self._all_json_messages_found:
+            if not message_with_mark.marked:
+                if isinstance(message_with_mark.msg, expected_class):
+                    if accept_message(message_with_mark.msg):
+                        message_with_mark.marked = True
+                        ret.append(message_with_mark.msg)
+        return ret
 
     def wait_for_json_message(self, expected_class, accept_message=lambda obj:True):
 
         def accept_json_message(msg):
             if msg.startswith('{'):
                 decoded_msg = from_json(msg)
+
+                self._all_json_messages_found.append(_MessageWithMark(decoded_msg))
+
                 if isinstance(decoded_msg, expected_class):
                     if accept_message(decoded_msg):
                         return True
@@ -101,7 +106,10 @@ class JsonFacade(object):
         assert stopped_event.body.reason == reason
         json_hit = self.get_stack_as_json_hit(stopped_event.body.threadId)
         if line is not None:
-            assert json_hit.stack_trace_response.body.stackFrames[0]['line'] == line
+            found_line = json_hit.stack_trace_response.body.stackFrames[0]['line']
+            if not isinstance(line, (tuple, list)):
+                line = [line]
+            assert found_line in line, 'Expect to break at line: %s. Found: %s' % (line, found_line)
         if file is not None:
             assert json_hit.stack_trace_response.body.stackFrames[0]['source']['path'].endswith(file)
         if name is not None:
@@ -453,9 +461,9 @@ def test_case_started_exited_threads_protocol(case_setup):
 
         json_facade.write_make_initial_run()
 
-        collected_messages, _stopped_event = json_facade.collect_messages_until_accepted(StoppedEvent)
-        started_events = [x for x in collected_messages if isinstance(x, ThreadEvent) and x.body.reason == 'started']
-        exited_events = [x for x in collected_messages if isinstance(x, ThreadEvent) and x.body.reason == 'exited']
+        _stopped_event = json_facade.wait_for_json_message(StoppedEvent)
+        started_events = json_facade.mark_messages(ThreadEvent, lambda x: x.body.reason == 'started')
+        exited_events = json_facade.mark_messages(ThreadEvent, lambda x: x.body.reason == 'exited')
         assert len(started_events) == 4
         assert len(exited_events) == 3  # Main is still running.
         json_facade.write_continue(wait_for_response=False)
@@ -1741,6 +1749,67 @@ def test_set_debugger_property(case_setup, dbg_property):
 
         json_facade.write_continue(wait_for_response=False)
 
+        writer.finished_ok = True
+
+
+def test_wait_for_attach(case_setup_remote_attach_to):
+    host_port = get_socket_name(close=True)
+
+    def check_thread_events(json_facade):
+        json_facade.write_list_threads()
+        # Check that we have the started thread event (whenever we reconnect).
+        started_events = json_facade.mark_messages(ThreadEvent, lambda x: x.body.reason == 'started')
+        assert len(started_events) == 1
+
+    with case_setup_remote_attach_to.test_file('_debugger_case_wait_for_attach.py', host_port[1]) as writer:
+        time.sleep(.5)  # Give some time for it to pass the first breakpoint and wait in 'wait_for_attach'.
+        writer.start_socket_client(*host_port)
+
+        json_facade = JsonFacade(writer)
+        check_thread_events(json_facade)
+
+        break1_line = writer.get_line_index_with_content('Break 1')
+        break2_line = writer.get_line_index_with_content('Break 2')
+        break3_line = writer.get_line_index_with_content('Break 3')
+
+        pause1_line = writer.get_line_index_with_content('Pause 1')
+        pause2_line = writer.get_line_index_with_content('Pause 2')
+
+        json_facade.write_set_breakpoints([break1_line, break2_line, break3_line])
+        json_facade.write_make_initial_run()
+        json_facade.wait_for_thread_stopped(line=break2_line)
+
+        # Upon disconnect, all threads should be running again.
+        json_facade.write_disconnect()
+
+        # Connect back (socket should remain open).
+        writer.start_socket_client(*host_port)
+        json_facade = JsonFacade(writer)
+        check_thread_events(json_facade)
+        json_facade.write_set_breakpoints([break1_line, break2_line, break3_line])
+        json_facade.write_make_initial_run()
+        json_facade.wait_for_thread_stopped(line=break3_line)
+
+        # Upon disconnect, all threads should be running again.
+        json_facade.write_disconnect()
+
+        # Connect back (socket should remain open).
+        writer.start_socket_client(*host_port)
+        json_facade = JsonFacade(writer)
+        check_thread_events(json_facade)
+
+        # Connect back without a disconnect (auto-disconnects previous and connects new client).
+        writer.start_socket_client(*host_port)
+        json_facade = JsonFacade(writer)
+        check_thread_events(json_facade)
+
+        json_facade.write_pause()
+        json_hit = json_facade.wait_for_thread_stopped(reason='pause', line=[pause1_line, pause2_line])
+
+        # Change value of 'a' for test to finish.
+        json_facade.write_set_variable(json_hit.frame_id, 'a', '10')
+
+        json_facade.write_disconnect()
         writer.finished_ok = True
 
 

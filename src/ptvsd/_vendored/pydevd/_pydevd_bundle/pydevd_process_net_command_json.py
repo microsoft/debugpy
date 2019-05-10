@@ -201,6 +201,8 @@ class _PyDevJsonCommandProcessor(object):
         :param ConfigurationDoneRequest request:
         '''
         self.api.run(py_db)
+        self.api.notify_configuration_done(py_db)
+
         configuration_done_response = pydevd_base_schema.build_response(request)
         return NetCommand(CMD_RETURN, 0, configuration_done_response, is_json=True)
 
@@ -421,10 +423,7 @@ class _PyDevJsonCommandProcessor(object):
         '''
         :param DisconnectRequest request:
         '''
-        self.api.set_enable_thread_notifications(py_db, False)
-        self.api.remove_all_breakpoints(py_db, filename='*')
-        self.api.remove_all_exception_breakpoints(py_db)
-        self.api.request_resume_thread(thread_id='*')
+        self.api.request_disconnect(py_db, resume_threads=True)
 
         response = pydevd_base_schema.build_response(request)
         return NetCommand(CMD_RETURN, 0, response, is_json=True)
