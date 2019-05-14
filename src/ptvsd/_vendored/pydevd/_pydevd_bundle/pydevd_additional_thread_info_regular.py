@@ -74,6 +74,7 @@ class PyDBAdditionalThreadInfo(object):
         'pydev_django_resolve_frame',
         'pydev_call_from_jinja2',
         'pydev_call_inside_jinja2',
+        'pydev_stop_on_entry',
         'is_tracing',
         'conditional_breakpoint_exception',
         'pydev_message',
@@ -97,6 +98,7 @@ class PyDBAdditionalThreadInfo(object):
         self.pydev_django_resolve_frame = False
         self.pydev_call_from_jinja2 = None
         self.pydev_call_inside_jinja2 = None
+        self.pydev_stop_on_entry = False
         self.is_tracing = False
         self.conditional_breakpoint_exception = None
         self.pydev_message = ''

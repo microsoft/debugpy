@@ -20,7 +20,7 @@ from _pydevd_bundle.pydevd_net_command import NetCommand, NULL_NET_COMMAND
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
 from _pydevd_bundle.pydevd_utils import get_non_pydevd_threads
 import pydevd_file_utils
-from _pydevd_bundle.pydevd_comm import build_exception_info_response
+from _pydevd_bundle.pydevd_comm import build_exception_info_response, pydevd_find_thread_by_id
 from _pydevd_bundle.pydevd_additional_thread_info_regular import set_additional_thread_info
 
 
@@ -262,7 +262,13 @@ class NetCommandFactoryJson(NetCommandFactory):
         exc_desc = None
         exc_name = None
         if stop_reason in self._STEP_REASONS:
-            stop_reason = 'step'
+            thread = pydevd_find_thread_by_id(thread_id)
+            info = set_additional_thread_info(thread)
+            if info.pydev_stop_on_entry:
+                stop_reason = 'entry'
+                info.pydev_stop_on_entry = False
+            else:
+                stop_reason = 'step'
         elif stop_reason in self._EXCEPTION_REASONS:
             stop_reason = 'exception'
         elif stop_reason == CMD_SET_BREAK:
@@ -286,7 +292,7 @@ class NetCommandFactoryJson(NetCommandFactory):
             threadId=thread_id,
             text=exc_name,
             allThreadsStopped=True,
-            preserveFocusHint=stop_reason not in ['step', 'exception', 'breakpoint'],
+            preserveFocusHint=stop_reason not in ['step', 'exception', 'breakpoint', 'entry'],
         )
         event = pydevd_schema.StoppedEvent(body)
         return NetCommand(CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION, 0, event, is_json=True)

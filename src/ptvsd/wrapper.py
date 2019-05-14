@@ -34,7 +34,6 @@ import _pydevd_bundle.pydevd_extension_utils as pydevd_extutil  # noqa
 import _pydevd_bundle.pydevd_frame as pydevd_frame  # noqa
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_file  # noqa
 from _pydevd_bundle.pydevd_dont_trace_files import PYDEV_FILE  # noqa
-from _pydevd_bundle import pydevd_additional_thread_info
 
 import ptvsd
 import ptvsd.log
@@ -1195,10 +1194,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     def _process_debug_options(self, opts):
         """Process the launch arguments to configure the debugger."""
-        if opts.get('STOP_ON_ENTRY', False) and self.start_reason == 'launch':
-            info = pydevd_additional_thread_info.set_additional_thread_info(ptvsd.main_thread)
-            info.pydev_step_cmd = pydevd_comm.CMD_STEP_INTO_MY_CODE
-
         if opts.get('MULTIPROCESS', False):
             if not options.multiprocess:
                 options.multiprocess = True

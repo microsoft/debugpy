@@ -252,7 +252,7 @@ class _PyDevJsonCommandProcessor(object):
             return cwd + (os.path.sep if append_pathsep else '')
         return remote_root
 
-    def _set_debug_options(self, py_db, args):
+    def _set_debug_options(self, py_db, args, start_reason):
         rules = args.get('rules')
         exclude_filters = []
 
@@ -289,12 +289,15 @@ class _PyDevJsonCommandProcessor(object):
 
         self.api.set_show_return_values(py_db, self._debug_options.get('SHOW_RETURN_VALUE', False))
 
+        if self._debug_options.get('STOP_ON_ENTRY', False) and start_reason == 'launch':
+            self.api.stop_on_entry()
+
     def on_launch_request(self, py_db, request):
         '''
         :param LaunchRequest request:
         '''
         self.api.set_enable_thread_notifications(py_db, True)
-        self._set_debug_options(py_db, request.arguments.kwargs)
+        self._set_debug_options(py_db, request.arguments.kwargs, start_reason='launch')
         response = pydevd_base_schema.build_response(request)
         return NetCommand(CMD_RETURN, 0, response, is_json=True)
 
@@ -303,7 +306,7 @@ class _PyDevJsonCommandProcessor(object):
         :param AttachRequest request:
         '''
         self.api.set_enable_thread_notifications(py_db, True)
-        self._set_debug_options(py_db, request.arguments.kwargs)
+        self._set_debug_options(py_db, request.arguments.kwargs, start_reason='attach')
         response = pydevd_base_schema.build_response(request)
         return NetCommand(CMD_RETURN, 0, response, is_json=True)
 

@@ -650,7 +650,7 @@ class DebugSession(object):
 
         assert thread_stopped.body['allThreadsStopped']
         assert thread_stopped.body['preserveFocusHint'] == \
-            (thread_stopped.body['reason'] not in ['step', 'exception', 'breakpoint'])
+            (thread_stopped.body['reason'] not in ['step', 'exception', 'breakpoint', 'entry'])
 
         assert tid is not None
 

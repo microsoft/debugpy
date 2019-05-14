@@ -9,7 +9,8 @@ from _pydevd_bundle.pydevd_comm import (InternalGetThreadStack, internal_get_com
     internal_get_description, internal_get_frame, internal_evaluate_expression, InternalConsoleExec,
     internal_get_variable_json, internal_change_variable, internal_change_variable_json,
     internal_evaluate_expression_json, internal_set_expression_json, internal_get_exception_details_json)
-from _pydevd_bundle.pydevd_comm_constants import CMD_THREAD_SUSPEND, file_system_encoding
+from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, file_system_encoding,
+    CMD_STEP_INTO_MY_CODE)
 from _pydevd_bundle.pydevd_constants import (get_current_thread_id, set_protocol, get_protocol,
     HTTP_JSON_PROTOCOL, JSON_PROTOCOL, STATE_RUN, IS_PY3K, DebugInfoHolder, dict_keys)
 from _pydevd_bundle.pydevd_net_command_factory_json import NetCommandFactoryJson
@@ -568,3 +569,11 @@ class PyDevdAPI(object):
         if reset_caches:
             py_db.clear_dont_trace_start_end_patterns_caches()
 
+    def stop_on_entry(self):
+        main_thread = pydevd_utils.get_main_thread()
+        if main_thread is None:
+            pydev_log.critical('Could not find main thread while setting Stop on Entry.')
+        else:
+            info = set_additional_thread_info(main_thread)
+            info.pydev_step_cmd = CMD_STEP_INTO_MY_CODE
+            info.pydev_stop_on_entry = True

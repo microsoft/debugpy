@@ -43,6 +43,16 @@ def is_current_thread_main_thread():
         return isinstance(threading.current_thread(), threading._MainThread)
 
 
+def get_main_thread():
+    if hasattr(threading, 'main_thread'):
+        return threading.main_thread()
+    else:
+        for t in threading.enumerate():
+            if isinstance(t, threading._MainThread):
+                return t
+    return None
+
+
 def to_number(x):
     if is_string(x):
         try:

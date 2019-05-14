@@ -470,7 +470,6 @@ class PyDB(object):
 
         # this flag disables frame evaluation even if it's available
         self.use_frame_eval = True
-        self.stop_on_start = False
 
         # If True, pydevd will send a single notification when all threads are suspended/resumed.
         self._threads_suspended_single_notification = ThreadsSuspendedSingleNotification(self)
@@ -1757,10 +1756,6 @@ class PyDB(object):
 
         # Notify that the main thread is created.
         self.notify_thread_created(thread_id, t)
-
-        if self.stop_on_start:
-            info = set_additional_thread_info(t)
-            t.additional_info.pydev_step_cmd = CMD_STEP_INTO_MY_CODE
 
         # Note: important: set the tracing right before calling _exec.
         if set_trace:

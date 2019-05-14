@@ -3,7 +3,6 @@
 # for license information.
 
 import pydevd
-import threading
 import time
 
 from _pydevd_bundle.pydevd_comm import get_global_debugger
@@ -21,7 +20,6 @@ global_next_session = lambda: None
 
 def enable_attach(address, on_attach=lambda: None, **kwargs):
 
-    ptvsd.main_thread = threading.current_thread()
     host, port = address
 
     def wait_for_connection(daemon, host, port, next_session=None):
@@ -80,7 +78,6 @@ def enable_attach(address, on_attach=lambda: None, **kwargs):
 
 
 def attach(address, **kwargs):
-    ptvsd.main_thread = threading.current_thread()
     host, port = address
     daemon = install(pydevd, address, singlesession=False, **kwargs)
 

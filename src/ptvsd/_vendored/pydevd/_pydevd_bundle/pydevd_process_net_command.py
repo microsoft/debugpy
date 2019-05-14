@@ -569,7 +569,8 @@ class _PyDevCommandProcessor(object):
         pydevd_utils.dump_threads()
 
     def cmd_stop_on_start(self, py_db, cmd_id, seq, text):
-        py_db.stop_on_start = text.strip() in ('True', 'true', '1')
+        if text.strip() in ('True', 'true', '1'):
+            self.api.stop_on_entry()
 
     def cmd_pydevd_json_config(self, py_db, cmd_id, seq, text):
         # Expected to receive a json string as:
