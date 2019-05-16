@@ -75,7 +75,8 @@ def test_nodebug(pyfile, run_as):
     with DebugSession() as session:
         session.no_debug = True
         session.initialize(target=(run_as, code_to_debug), start_method='launch', use_backchannel=True)
-        session.set_breakpoints(code_to_debug, [3])
+        breakpoints = session.set_breakpoints(code_to_debug, [3, 4])
+        assert breakpoints == [{'verified': False}, {'verified': False}]
         session.start_debugging()
 
         session.write_json(None)

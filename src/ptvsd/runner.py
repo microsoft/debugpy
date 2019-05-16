@@ -39,6 +39,19 @@ class Daemon(DaemonBase):
 
     class SESSION(DebugSession):
         class MESSAGE_PROCESSOR(VSCLifecycleMsgProcessor):
+
+            def on_setBreakpoints(self, request, args):
+                # Note: breakpoints is required (vscode will terminate
+                # the debugger if that's not the case).
+                # See: https://github.com/microsoft/ptvsd/issues/1408
+                self.send_response(
+                    request,
+                    success=True,
+                    breakpoints=(
+                        [{'verified': False}] * len(args.get('breakpoints', ()))
+                    )
+                )
+
             def on_invalid_request(self, request, args):
                 self.send_response(request, success=True)
 
