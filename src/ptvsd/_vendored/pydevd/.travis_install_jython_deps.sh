@@ -1,6 +1,4 @@
 #!/bin/bash
 set -ev
 
-pip install pytest
-pip install untangle
-pip install pathlib2
+pip install pytest==4.4.2 untangle pathlib2

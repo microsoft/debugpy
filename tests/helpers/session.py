@@ -517,9 +517,21 @@ class DebugSession(object):
         })
         if self.success_exitcodes is not None:
             self.start_method_args['successExitCodes'] = self.success_exitcodes
-        self.send_request(request, self.start_method_args).wait_for_response()
+        launch_or_attach_request = self.send_request(request, self.start_method_args)
 
-        if not self.no_debug:
+        if self.no_debug:
+            launch_or_attach_request.wait_for_response()
+        else:
+            self.wait_for_next(Event('process') & Response(launch_or_attach_request))
+
+            # 'process' is expected right after 'launch' or 'attach'.
+            self.expect_new(Event('process', {
+                'name': ANY.str,
+                'isLocalProcess': True,
+                'startMethod': 'launch' if self.start_method == 'launch' else 'attach',
+                'systemProcessId': self.pid if self.pid is not None else ANY.int,
+            }))
+
             # Issue 'threads' so that we get the 'thread' event for the main thread now,
             # rather than at some random time later during the test.
             # Note: it's actually possible that the 'thread' event was sent before the 'threads'
@@ -537,20 +549,7 @@ class DebugSession(object):
 
         configurationDone_request = self.send_request('configurationDone')
 
-        if self.no_debug:
-            start = self.wait_for_next(Response(configurationDone_request))
-        else:
-            # The relative ordering of 'process' and 'configurationDone' is not deterministic.
-            # (implementation varies depending on whether it's launch or attach, but in any
-            # case, it is an implementation detail).
-            start = self.wait_for_next(Event('process') & Response(configurationDone_request))
-
-            self.expect_new(Event('process', {
-                'name': ANY.str,
-                'isLocalProcess': True,
-                'startMethod': 'launch' if self.start_method == 'launch' else 'attach',
-                'systemProcessId': self.pid if self.pid is not None else ANY.int,
-            }))
+        start = self.wait_for_next(Response(configurationDone_request))
 
         if not freeze:
             self.proceed()

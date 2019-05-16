@@ -1040,7 +1040,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self.event_loop_thread = None
 
         # debugger state
-        self.is_process_created = False
+        self.is_process_created = False  # Note: is_process_created kept as it's used on_pause()
         self.is_process_created_lock = threading.Lock()
         self._success_exitcodes = []
         self.internals_filter = InternalsFilter()
@@ -1187,7 +1187,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         with self.is_process_created_lock:
             if not self.is_process_created:
                 self.is_process_created = True
-                self.send_process_event(self.start_reason)
 
         self._notify_ready()
         self.send_response(request)
@@ -1289,16 +1288,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     def _resume_all_threads(self):
         self.pydevd_notify(pydevd_comm.CMD_THREAD_RUN, '*')
-
-    def send_process_event(self, start_method):
-        # TODO: docstring
-        evt = {
-            'name': sys.argv[0],
-            'systemProcessId': os.getpid(),
-            'isLocalProcess': True,
-            'startMethod': start_method,
-        }
-        self.send_event('process', **evt)
 
     @async_handler
     def _forward_request_to_pydevd(self, request, args, send_response=True):
@@ -1571,12 +1560,16 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 if not debugger_attached.isSet():
                     return
                 self.is_process_created = True
-                self.send_process_event(self.start_reason)
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_KILL)
     def on_pydevd_thread_kill(self, seq, args):
         tid = args['body']['threadId']
         self.send_event('thread', reason='exited', threadId=tid)
+
+    @pydevd_events.handler(pydevd_comm.CMD_PROCESS_EVENT)
+    def on_pydevd_process_event(self, seq, args):
+        body = args['body']
+        self.send_event('process', **body)
 
     @pydevd_events.handler(pydevd_comm_constants.CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION)
     def on_pydevd_thread_suspend_single_notification(self, seq, args):
