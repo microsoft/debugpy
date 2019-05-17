@@ -4,6 +4,9 @@
 
 # Gotten from ptvsd for supporting the format expected there.
 import sys
+from _pydevd_bundle.pydevd_constants import IS_PY2
+import locale
+import json
 
 # Py3 compat - alias unicode to str, and xrange to range
 try:
@@ -17,6 +20,12 @@ except NameError:
 
 
 class SafeRepr(object):
+    # Can be used to override the encoding from locale.getpreferredencoding()
+    locale_preferred_encoding = None
+
+    # Can be used to override the encoding used for sys.stdout.encoding
+    sys_stdout_encoding = None
+
     # String types are truncated to maxstring_outer when at the outer-
     # most level, and truncated to maxstring_inner characters inside
     # collections.
@@ -74,8 +83,18 @@ class SafeRepr(object):
     raw_value = False
 
     def __call__(self, obj):
+        '''
+        :param object obj:
+            The object for which we want a representation.
+
+        :return str:
+            Returns bytes encoded as utf-8 on py2 and str on py3.
+        '''
         try:
-            return ''.join(self._repr(obj, 0))
+            if IS_PY2:
+                return ''.join((x.encode('utf-8') if isinstance(x, unicode) else x) for x in self._repr(obj, 0))
+            else:
+                return ''.join(self._repr(obj, 0))
         except Exception:
             try:
                 return 'An exception was raised: %r' % sys.exc_info()[1]
@@ -271,10 +290,14 @@ class SafeRepr(object):
         try:
             if self.raw_value:
                 # For raw value retrieval, ignore all limits.
+                if isinstance(obj, bytes):
+                    yield obj.decode('latin-1')
+                    return
+
                 try:
                     mv = memoryview(obj)
                 except Exception:
-                    yield unicode(obj)
+                    yield self._convert_to_unicode_or_bytes_repr(repr(obj))
                     return
                 else:
                     # Map bytes to Unicode codepoints with same values.
@@ -296,7 +319,7 @@ class SafeRepr(object):
         limit = limit_inner if level > 0 else limit_outer
 
         if limit >= len(obj_repr):
-            yield obj_repr
+            yield self._convert_to_unicode_or_bytes_repr(obj_repr)
             return
 
         # Slightly imprecise calculations - we may end up with a string that is
@@ -304,6 +327,80 @@ class SafeRepr(object):
         # you are using the wrong class.
         left_count, right_count = max(1, int(2 * limit / 3)), max(1, int(limit / 3))  # noqa
 
+        if IS_PY2 and isinstance(obj_repr, bytes):
+            # If we can convert to unicode before slicing, that's better (but don't do
+            # it if it's not possible as we may be dealing with actual binary data).
+
+            obj_repr = self._bytes_as_unicode_if_possible(obj_repr)
+            if isinstance(obj_repr, unicode):
+                # Deal with high-surrogate leftovers on Python 2.
+                try:
+                    if left_count > 0 and unichr(0xD800) <= obj_repr[left_count - 1] <= unichr(0xDBFF):
+                        left_count -= 1
+                except ValueError:
+                    # On Jython unichr(0xD800) will throw an error:
+                    # ValueError: unichr() arg is a lone surrogate in range (0xD800, 0xDFFF) (Jython UTF-16 encoding)
+                    # Just ignore it in this case.
+                    pass
+
+                start = obj_repr[:left_count]
+
+                # Note: yielding unicode is fine (it'll be properly converted to utf-8 if needed).
+                yield start
+                yield '...'
+
+                # Deal with high-surrogate leftovers on Python 2.
+                try:
+                    if right_count > 0 and unichr(0xD800) <= obj_repr[-right_count - 1] <= unichr(0xDBFF):
+                        right_count -= 1
+                except ValueError:
+                    # On Jython unichr(0xD800) will throw an error:
+                    # ValueError: unichr() arg is a lone surrogate in range (0xD800, 0xDFFF) (Jython UTF-16 encoding)
+                    # Just ignore it in this case.
+                    pass
+
+                yield obj_repr[-right_count:]
+                return
+            else:
+                # We can't decode it (binary string). Use repr() of bytes.
+                obj_repr = repr(obj_repr)
+
         yield obj_repr[:left_count]
         yield '...'
         yield obj_repr[-right_count:]
+
+    def _convert_to_unicode_or_bytes_repr(self, obj_repr):
+        if IS_PY2 and isinstance(obj_repr, bytes):
+            obj_repr = self._bytes_as_unicode_if_possible(obj_repr)
+            if isinstance(obj_repr, bytes):
+                # If we haven't been able to decode it this means it's some binary data
+                # we can't make sense of, so, we need its repr() -- otherwise json
+                # encoding may break later on.
+                obj_repr = repr(obj_repr)
+        return obj_repr
+
+    def _bytes_as_unicode_if_possible(self, obj_repr):
+        # We try to decode with 3 possible encoding (sys.stdout.encoding,
+        # locale.getpreferredencoding() and 'utf-8). If no encoding can decode
+        # the input, we return the original bytes.
+        try_encodings = []
+        encoding = self.sys_stdout_encoding or getattr(sys.stdout, 'encoding', '')
+        if encoding:
+            try_encodings.append(encoding.lower())
+
+        preferred_encoding = self.locale_preferred_encoding or locale.getpreferredencoding()
+        if preferred_encoding:
+            preferred_encoding = preferred_encoding.lower()
+            if preferred_encoding not in try_encodings:
+                try_encodings.append(preferred_encoding)
+
+        if 'utf-8' not in try_encodings:
+            try_encodings.append('utf-8')
+
+        for encoding in try_encodings:
+            try:
+                return obj_repr.decode(encoding)
+            except UnicodeDecodeError:
+                pass
+
+        return obj_repr  # Return the original version (in bytes)

@@ -270,10 +270,11 @@ class JsonFacade(object):
         arguments = pydevd_schema.StepInArguments(threadId=thread_id)
         self.wait_for_response(self.write_request(pydevd_schema.StepInRequest(arguments)))
 
-    def write_step_next(self, thread_id):
+    def write_step_next(self, thread_id, wait_for_response=True):
         next_request = self.write_request(
             pydevd_schema.NextRequest(pydevd_schema.NextArguments(thread_id)))
-        self.wait_for_response(next_request)
+        if wait_for_response:
+            self.wait_for_response(next_request)
 
     def write_step_out(self, thread_id):
         stepout_request = self.write_request(
@@ -628,7 +629,7 @@ def test_case_skipping_filters(case_setup, custom_setup):
         if IS_JYTHON:
             json_facade.write_continue(wait_for_response=False)
         else:
-            json_facade.write_step_next(json_hit.thread_id)
+            json_facade.write_step_next(json_hit.thread_id, wait_for_response=False)
 
         writer.finished_ok = True
 

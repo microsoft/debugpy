@@ -9,7 +9,6 @@ import pytest
 import sys
 import time
 
-
 #=========================================================================
 # Load filters with tests we should skip
 #=========================================================================
@@ -35,6 +34,8 @@ def is_in_xdist_node():
 
 
 connected = False
+
+
 def connect_to_server_for_communication_to_xml_rpc_on_xdist():
     global connected
     if connected:
@@ -68,7 +69,9 @@ def start_redirect():
 
 
 def get_curr_output():
-    return State.buf_out.getvalue(), State.buf_err.getvalue()
+    buf_out = State.buf_out
+    buf_err = State.buf_err
+    return buf_out.getvalue() if buf_out is not None else '', buf_err.getvalue() if buf_err is not None else ''
 
 
 def pytest_unconfigure():
@@ -136,6 +139,7 @@ def pytest_collection_modifyitems(session, config, items):
 
 from py.io import TerminalWriter
 
+
 def _get_error_contents_from_report(report):
     if report.longrepr is not None:
         tw = TerminalWriter(stringio=True)
@@ -148,10 +152,12 @@ def _get_error_contents_from_report(report):
 
     return ''
 
+
 def pytest_collectreport(report):
     error_contents = _get_error_contents_from_report(report)
     if error_contents:
         report_test('fail', '<collect errors>', '<collect errors>', '', error_contents, 0.0)
+
 
 def append_strings(s1, s2):
     if s1.__class__ == s2.__class__:
@@ -181,7 +187,6 @@ def append_strings(s1, s2):
             s2 = s2.decode('utf-8', 'replace')
 
         return s1 + s2
-
 
 
 def pytest_runtest_logreport(report):
@@ -254,8 +259,10 @@ def report_test(status, filename, test, captured_output, error_contents, duratio
     pydev_runfiles_xml_rpc.notifyTest(
         status, captured_output, error_contents, filename, test, time_str)
 
+
 if not hasattr(pytest, 'hookimpl'):
     raise AssertionError('Please upgrade pytest (the current version of pytest: %s is unsupported)' % (pytest.__version__,))
+
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
