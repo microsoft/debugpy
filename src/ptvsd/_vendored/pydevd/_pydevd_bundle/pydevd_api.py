@@ -54,9 +54,15 @@ class PyDevdAPI(object):
         else:
             py_db._set_breakpoints_with_id = False
 
-        pydevd_file_utils.set_ide_os(ide_os)
+        self.set_ide_os(ide_os)
 
         return py_db.cmd_factory.make_version_message(seq)
+
+    def set_ide_os(self, ide_os):
+        '''
+        :param ide_os: 'WINDOWS' or 'UNIX'
+        '''
+        pydevd_file_utils.set_ide_os(ide_os)
 
     def send_error_message(self, py_db, msg):
         sys.stderr.write('pydevd: %s\n' % (msg,))

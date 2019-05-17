@@ -907,7 +907,6 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
     def on_initialize(self, request, args):
         self._client_id = args.get('clientID', None)
         self._restart_debugger = False
-        self.is_process_created = False
         self.send_response(request, **INITIALIZE_RESPONSE)
         self.send_event('initialized')
 
@@ -1040,8 +1039,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self.event_loop_thread = None
 
         # debugger state
-        self.is_process_created = False  # Note: is_process_created kept as it's used on_pause()
-        self.is_process_created_lock = threading.Lock()
         self._success_exitcodes = []
         self.internals_filter = InternalsFilter()
 
@@ -1156,37 +1153,21 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             return None
 
     def _wait_for_pydevd_ready(self):
-        # TODO: Call self._ensure_pydevd_requests_handled?
         pass
 
     def _ensure_pydevd_requests_handled(self):
-        # PyDevd guarantees that a response means all previous requests
-        # have been handled.  (PyDevd handles messages sequentially.)
-        # See GH-448.
-        #
-        # This is particularly useful for those requests that do not
-        # have responses (e.g. CMD_SET_BREAK).
-        return self._send_cmd_version_command()
+        pass
 
     # VSC protocol handlers
 
     @async_handler
     def on_configurationDone(self, request, args):
         self._process_debug_options(self.debug_options)
-        yield self._ensure_pydevd_requests_handled()
 
+        self._forward_request_to_pydevd(request, args, send_response=False)
         debugger_attached.set()
 
-        self.pydevd_request(pydevd_comm.CMD_RUN, '')
-        self._wait_for_pydevd_ready()
         self._notify_debugger_ready()
-
-        # Send event notifying the creation of the process.
-        # If we do not do this and try to pause, VSC throws errors,
-        # complaining about debugger still initializing.
-        with self.is_process_created_lock:
-            if not self.is_process_created:
-                self.is_process_created = True
 
         self._notify_ready()
         self.send_response(request)
@@ -1198,16 +1179,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 options.multiprocess = True
                 multiproc.listen_for_subprocesses()
                 self.start_subprocess_notifier()
-
-        # Print on all but NameError, don't suspend on any.
-        msg = json.dumps(dict(
-            skip_suspend_on_breakpoint_exception=('BaseException',),
-            skip_print_breakpoint_exception=('NameError',),
-            multi_threads_single_notification=True,
-        ))
-        if isinstance(msg, bytes):
-            msg = msg.decode('utf-8')
-        self.pydevd_request(pydevd_comm.CMD_PYDEVD_JSON_CONFIG, msg)
 
     def _send_cmd_version_command(self):
         cmd = pydevd_comm.CMD_VERSION
@@ -1250,7 +1221,15 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self._client_os_type = client_os_type
 
         self.pydevd_request(pydevd_comm.CMD_SET_PROTOCOL, 'json')
-        yield self._send_cmd_version_command()
+        dont_trace_request = self._get_new_setDebuggerProperty_request(
+            dontTraceStartPatterns=[PTVSD_DIR_PATH],
+            dontTraceEndPatterns=['ptvsd_launcher.py'],
+            skipSuspendOnBreakpointException=('BaseException',),
+            skipPrintBreakpointException=('NameError',),
+            multiThreadsSingleNotification=True,
+            ideOS=self._client_os_type,
+        )
+        yield self.pydevd_request(-1, dont_trace_request, is_json=True)
 
         pydevd_request = copy.deepcopy(request)
         del pydevd_request['seq']  # A new seq should be created for pydevd.
@@ -1263,18 +1242,10 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             default_success_exitcodes += [3]
         self._success_exitcodes = args.get('successExitCodes', default_success_exitcodes)
 
-        dont_trace_request = self._get_new_setDebuggerProperty_request(
-           dontTraceStartPatterns=[PTVSD_DIR_PATH],
-           dontTraceEndPatterns=['ptvsd_launcher.py']
-        )
-        yield self.pydevd_request(-1, dont_trace_request, is_json=True)
-
     def _handle_detach(self):
         ptvsd.log.info('Detaching ...')
         # TODO: Skip if already detached?
         self._detached = True
-
-        self._clear_output_redirection()
 
         # No related pydevd command id (removes all breaks and resumes threads).
         self.pydevd_request(
@@ -1283,11 +1254,14 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             is_json=True
         )
 
-    def _clear_output_redirection(self):
-        self.pydevd_request(pydevd_comm.CMD_REDIRECT_OUTPUT, '')
-
+    @async_handler
     def _resume_all_threads(self):
-        self.pydevd_notify(pydevd_comm.CMD_THREAD_RUN, '*')
+        request = {
+            "command": "continue",
+            "arguments": {"threadId": "*"},
+            "type": "request"
+        }
+        yield self.pydevd_request(-1, request, is_json=True)
 
     @async_handler
     def _forward_request_to_pydevd(self, request, args, send_response=True):
@@ -1369,14 +1343,13 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     @async_handler
     def on_pause(self, request, args):
         # Pause requests cannot be serviced until pydevd is fully initialized.
-        with self.is_process_created_lock:
-            if not self.is_process_created:
-                self.send_response(
-                    request,
-                    success=False,
-                    message='Cannot pause while debugger is initializing',
-                )
-                return
+        if not debugger_attached.isSet():
+            self.send_response(
+                request,
+                success=False,
+                message='Cannot pause while debugger is initializing',
+            )
+            return
 
         pydevd_request = copy.deepcopy(request)
         del pydevd_request['seq']  # A new seq should be created for pydevd.
@@ -1553,13 +1526,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         tid = args['body']['threadId']
         self.send_event('thread', reason='started', threadId=tid)
 
-        # Report process creation as well if we're already attached and we still
-        # didn't report it.
-        with self.is_process_created_lock:
-            if not self.is_process_created:
-                if not debugger_attached.isSet():
-                    return
-                self.is_process_created = True
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_KILL)
     def on_pydevd_thread_kill(self, seq, args):

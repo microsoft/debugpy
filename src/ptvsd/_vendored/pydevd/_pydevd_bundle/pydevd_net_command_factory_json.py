@@ -88,6 +88,10 @@ class NetCommandFactoryJson(NetCommandFactory):
         NetCommandFactory.__init__(self)
         self.modules_manager = ModulesManager()
 
+    @overrides(NetCommandFactory.make_version_message)
+    def make_version_message(self, seq):
+        return NULL_NET_COMMAND  # Not a part of the debug adapter protocol
+
     @overrides(NetCommandFactory.make_thread_created_message)
     def make_thread_created_message(self, thread):
 

@@ -1,30 +1,32 @@
 import bisect
-from functools import partial
 import itertools
 import json
 import linecache
 import os
+import sys
 import types
+from functools import partial
 
+import pydevd_file_utils
+from _pydev_bundle import pydev_log
 from _pydevd_bundle._debug_adapter import pydevd_base_schema
-from _pydevd_bundle._debug_adapter.pydevd_schema import (SourceBreakpoint, ScopesResponseBody, Scope,
-    VariablesResponseBody, SetVariableResponseBody, ModulesResponseBody, SourceResponseBody,
-    GotoTargetsResponseBody, ExceptionOptions, SetExpressionResponseBody, EvaluateResponseBody,
-    ProcessEventBody, ProcessEvent)
-from _pydevd_bundle._debug_adapter.pydevd_schema import CompletionsResponseBody
+from _pydevd_bundle._debug_adapter.pydevd_schema import (
+    CompletionsResponseBody, EvaluateResponseBody, ExceptionOptions,
+    GotoTargetsResponseBody, ModulesResponseBody, ProcessEventBody,
+	ProcessEvent, Scope, ScopesResponseBody, SetExpressionResponseBody,
+	SetVariableResponseBody, SourceBreakpoint, SourceResponseBody,
+	VariablesResponseBody)
 from _pydevd_bundle.pydevd_api import PyDevdAPI
+from _pydevd_bundle.pydevd_breakpoints import get_exception_class
 from _pydevd_bundle.pydevd_comm_constants import (
-    CMD_RETURN, CMD_STEP_OVER_MY_CODE, CMD_STEP_OVER, CMD_STEP_INTO_MY_CODE,
-    CMD_STEP_INTO, CMD_STEP_RETURN_MY_CODE, CMD_STEP_RETURN, CMD_SET_NEXT_STATEMENT,
-    CMD_PROCESS_EVENT)
+    CMD_PROCESS_EVENT, CMD_RETURN, CMD_SET_NEXT_STATEMENT, CMD_STEP_INTO,
+	CMD_STEP_INTO_MY_CODE, CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE,
+	CMD_STEP_RETURN, CMD_STEP_RETURN_MY_CODE)
+from _pydevd_bundle.pydevd_constants import DebugInfoHolder, IS_WINDOWS
 from _pydevd_bundle.pydevd_filtering import ExcludeFilter
 from _pydevd_bundle.pydevd_json_debug_options import _extract_debug_options
 from _pydevd_bundle.pydevd_net_command import NetCommand
 from _pydevd_bundle.pydevd_utils import convert_dap_log_message_to_expression
-import pydevd_file_utils
-from _pydev_bundle import pydev_log
-from _pydevd_bundle.pydevd_constants import DebugInfoHolder
-import sys
 
 try:
     import dis
@@ -113,8 +115,8 @@ def _convert_rules_to_exclude_filters(rules, filename_to_server, on_error):
         # i.e.: if we have:
         # /sub1/sub2/sub3
         # a rule with /sub1/sub2 would match before a rule only with /sub1.
-        directory_exclude_filters = sorted(directory_exclude_filters, key=lambda exclude_filter:-len(exclude_filter.name))
-        module_exclude_filters = sorted(module_exclude_filters, key=lambda exclude_filter:-len(exclude_filter.name))
+        directory_exclude_filters = sorted(directory_exclude_filters, key=lambda exclude_filter: -len(exclude_filter.name))
+        module_exclude_filters = sorted(module_exclude_filters, key=lambda exclude_filter: -len(exclude_filter.name))
         exclude_filters = directory_exclude_filters + glob_exclude_filters + module_exclude_filters
 
     return exclude_filters
@@ -238,7 +240,7 @@ class _PyDevJsonCommandProcessor(object):
                     'body': body,
                     'success': False,
                     'message': 'Thread to get completions seems to have resumed already.'
-            })
+                })
             return NetCommand(CMD_RETURN, 0, variables_response, is_json=True)
 
         # Note: line and column are 1-based (convert to 0-based for pydevd).
@@ -265,7 +267,7 @@ class _PyDevJsonCommandProcessor(object):
 
         if rules is not None:
             exclude_filters = _convert_rules_to_exclude_filters(
-                rules, self.api.filename_to_server, lambda msg:self.api.send_error_message(py_db, msg))
+                rules, self.api.filename_to_server, lambda msg: self.api.send_error_message(py_db, msg))
 
         self.api.set_exclude_filters(py_db, exclude_filters)
 
@@ -450,6 +452,7 @@ class _PyDevJsonCommandProcessor(object):
         :param DisconnectRequest request:
         '''
         self._launch_or_attach_request_done = False
+        py_db.enable_output_redirection(False, False)
         self.api.request_disconnect(py_db, resume_threads=True)
 
         response = pydevd_base_schema.build_response(request)
@@ -647,7 +650,7 @@ class _PyDevJsonCommandProcessor(object):
         variables_reference = frame_id
         scopes = [Scope('Locals', int(variables_reference), False).to_dict()]
         body = ScopesResponseBody(scopes)
-        scopes_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
+        scopes_response = pydevd_base_schema.build_response(request, kwargs={'body': body})
         return NetCommand(CMD_RETURN, 0, scopes_response, is_json=True)
 
     def on_evaluate_request(self, py_db, request):
@@ -671,7 +674,7 @@ class _PyDevJsonCommandProcessor(object):
                     'body': body,
                     'success': False,
                     'message': 'Unable to find thread for evaluation.'
-            })
+                })
             return NetCommand(CMD_RETURN, 0, response, is_json=True)
 
     def on_setexpression_request(self, py_db, request):
@@ -691,7 +694,7 @@ class _PyDevJsonCommandProcessor(object):
                     'body': body,
                     'success': False,
                     'message': 'Unable to find thread to set expression.'
-            })
+                })
             return NetCommand(CMD_RETURN, 0, response, is_json=True)
 
     def on_variables_request(self, py_db, request):
@@ -742,14 +745,14 @@ class _PyDevJsonCommandProcessor(object):
                     'body': body,
                     'success': False,
                     'message': 'Unable to find thread to evaluate variable reference.'
-            })
+                })
             return NetCommand(CMD_RETURN, 0, variables_response, is_json=True)
 
     def on_modules_request(self, py_db, request):
         modules_manager = py_db.cmd_factory.modules_manager  # : :type modules_manager: ModulesManager
         modules_info = modules_manager.get_modules_info()
         body = ModulesResponseBody(modules_info)
-        variables_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
+        variables_response = pydevd_base_schema.build_response(request, kwargs={'body': body})
         return NetCommand(CMD_RETURN, 0, variables_response, is_json=True)
 
     def on_source_request(self, py_db, request):
@@ -816,7 +819,8 @@ class _PyDevJsonCommandProcessor(object):
         try:
             _, line = self._goto_targets_map.obtain_value(target_id)
         except KeyError:
-            response = pydevd_base_schema.build_response(request,
+            response = pydevd_base_schema.build_response(
+                request,
                 kwargs={
                     'body': {},
                     'success': False,
@@ -830,10 +834,24 @@ class _PyDevJsonCommandProcessor(object):
 
     def on_setdebuggerproperty_request(self, py_db, request):
         args = request.arguments.kwargs
+        if 'ideOS' in args:
+            self.api.set_ide_os(args['ideOS'])
+
         if 'dontTraceStartPatterns' in args and 'dontTraceEndPatterns' in args:
             start_patterns = tuple(args['dontTraceStartPatterns'])
             end_patterns = tuple(args['dontTraceEndPatterns'])
             self.api.set_dont_trace_start_end_patterns(py_db, start_patterns, end_patterns)
+
+        if 'skipSuspendOnBreakpointException' in args:
+            py_db.skip_suspend_on_breakpoint_exception = tuple(
+                get_exception_class(x) for x in args['skipSuspendOnBreakpointException'])
+
+        if 'skipPrintBreakpointException' in args:
+            py_db.skip_print_breakpoint_exception = tuple(
+                get_exception_class(x) for x in args['skipPrintBreakpointException'])
+
+        if 'multiThreadsSingleNotification' in args:
+            py_db.multi_threads_single_notification = args['multiThreadsSingleNotification']
 
         # TODO: Support other common settings. Note that not all of these might be relevant to python.
         # JustMyCodeStepping: 0 or 1
