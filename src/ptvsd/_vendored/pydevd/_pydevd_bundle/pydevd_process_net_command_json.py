@@ -833,25 +833,25 @@ class _PyDevJsonCommandProcessor(object):
         return None
 
     def on_setdebuggerproperty_request(self, py_db, request):
-        args = request.arguments.kwargs
-        if 'ideOS' in args:
-            self.api.set_ide_os(args['ideOS'])
+        args = request.arguments
+        if args.ideOS is not None:
+            self.api.set_ide_os(args.ideOS)
 
-        if 'dontTraceStartPatterns' in args and 'dontTraceEndPatterns' in args:
-            start_patterns = tuple(args['dontTraceStartPatterns'])
-            end_patterns = tuple(args['dontTraceEndPatterns'])
+        if args.dontTraceStartPatterns is not None and args.dontTraceEndPatterns is not None:
+            start_patterns = tuple(args.dontTraceStartPatterns)
+            end_patterns = tuple(args.dontTraceEndPatterns)
             self.api.set_dont_trace_start_end_patterns(py_db, start_patterns, end_patterns)
 
-        if 'skipSuspendOnBreakpointException' in args:
+        if args.skipSuspendOnBreakpointException is not None:
             py_db.skip_suspend_on_breakpoint_exception = tuple(
-                get_exception_class(x) for x in args['skipSuspendOnBreakpointException'])
+                get_exception_class(x) for x in args.skipSuspendOnBreakpointException)
 
-        if 'skipPrintBreakpointException' in args:
+        if args.skipPrintBreakpointException is not None:
             py_db.skip_print_breakpoint_exception = tuple(
-                get_exception_class(x) for x in args['skipPrintBreakpointException'])
+                get_exception_class(x) for x in args.skipPrintBreakpointException)
 
-        if 'multiThreadsSingleNotification' in args:
-            py_db.multi_threads_single_notification = args['multiThreadsSingleNotification']
+        if args.multiThreadsSingleNotification is not None:
+            py_db.multi_threads_single_notification = args.multiThreadsSingleNotification
 
         # TODO: Support other common settings. Note that not all of these might be relevant to python.
         # JustMyCodeStepping: 0 or 1

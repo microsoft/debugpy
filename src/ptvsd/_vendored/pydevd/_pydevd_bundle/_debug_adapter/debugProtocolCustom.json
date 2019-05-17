@@ -26,7 +26,32 @@
 		"SetDebuggerPropertyArguments": {
 			"type": "object",
 			"description": "Arguments for 'setDebuggerProperty' request.",
-			"properties": {	}
+			"properties": {
+				"ideOS": {
+					"type": [ "string" ],
+					"description": "OS where the ide is running. Supported values [Windows, Linux]"
+				},
+				"dontTraceStartPatterns": {
+					"type": [ "array" ],
+					"description": "Patterns to match with the start of the file paths. Matching paths will be added to a list of file where trace is ignored."
+				},
+				"dontTraceEndPatterns": {
+					"type": [ "array" ],
+					"description": "Patterns to match with the end of the file paths. Matching paths will be added to a list of file where trace is ignored."
+				},
+				"skipSuspendOnBreakpointException": {
+					"type": [ "array" ],
+					"description": "List of exceptions that should be skipped when doing condition evaluations."
+				},
+				"skipPrintBreakpointException": {
+					"type": [ "array" ],
+					"description": "List of exceptions that should skip printing to stderr when doing condition evaluations."
+				},
+				"multiThreadsSingleNotification": {
+					"type": [ "boolean" ],
+					"description": "If false then a notification is generated for each thread event. If true a single event is gnenerated, and all threads follow that behavior."
+				}
+			}
 		},
 		"SetDebuggerPropertyResponse": {
 			"allOf": [ { "$ref": "#/definitions/Response" }, {
