@@ -88,3 +88,30 @@ def test_nodebug(pyfile, run_as):
             'category': 'stdout',
             'output': 'ok',
         })))
+
+
+@pytest.mark.parametrize('run_as', ['script', 'module'])
+def test_run_vs(pyfile, run_as):
+    @pyfile
+    def code_to_debug():
+        # import_and_enable_debugger
+        import backchannel
+        backchannel.write_json('ok')
+
+    @pyfile
+    def ptvsd_launcher():
+        # import_and_enable_debugger
+        import ptvsd.debugger
+        import backchannel
+        args = tuple(backchannel.read_json())
+        print('debug%r' % (args,))
+        ptvsd.debugger.debug(*args)
+
+    with DebugSession() as session:
+        filename = 'code_to_debug' if run_as == 'module' else code_to_debug
+        session.before_connect = lambda: session.write_json([filename, session.ptvsd_port, None, None, run_as])
+
+        session.initialize(target=('file', ptvsd_launcher), start_method='custom_client', use_backchannel=True)
+        session.start_debugging()
+        assert session.read_json() == 'ok'
+        session.wait_for_exit()

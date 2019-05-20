@@ -40,7 +40,7 @@ class DebugSession(object):
     StopInfo = namedtuple('StopInfo', 'thread_stopped, stacktrace, thread_id, frame_id')
 
     def __init__(self, start_method='launch', ptvsd_port=None, pid=None):
-        assert start_method in ('launch', 'attach_pid', 'attach_socket_cmdline', 'attach_socket_import')
+        assert start_method in ('launch', 'attach_pid', 'attach_socket_cmdline', 'attach_socket_import', 'custom_client')
         assert ptvsd_port is None or start_method.startswith('attach_socket_')
 
         print('New debug session with method %r' % str(start_method))
@@ -198,6 +198,9 @@ class DebugSession(object):
         # argv += ['--pid', '<pid>']  # pid value to be appended later
         return argv
 
+    def _get_argv_for_custom_client(self):
+        return [sys.executable]
+
     def _get_target(self):
         argv = []
         run_as, path_or_code = self.target
@@ -242,9 +245,17 @@ class DebugSession(object):
         for k, v in kwargs.items():
             setattr(self, k, v)
 
-        assert self.start_method in ('launch', 'attach_pid', 'attach_socket_cmdline', 'attach_socket_import')
+        assert self.start_method in ('launch', 'attach_pid', 'attach_socket_cmdline', 'attach_socket_import', 'custom_client')
         assert len(self.target) == 2
         assert self.target[0] in ('file', 'module', 'code')
+
+    def before_connect(self):
+        """Invoked by initialize() before connecting to the debuggee, or before waiting
+        for an incoming connection, but after all the session parameters (port number etc)
+        are determined."""
+
+        # The default implementation does nothing - this is a hook for the tests to override.
+        pass
 
     def initialize(self, **kwargs):
         """Spawns ptvsd using the configured method, telling it to execute the
@@ -275,6 +286,9 @@ class DebugSession(object):
         elif self.start_method == 'attach_pid':
             self._listen()
             dbg_argv += self._get_argv_for_attach_using_pid()
+        elif self.start_method == 'custom_client':
+            self._listen()
+            dbg_argv += self._get_argv_for_custom_client()
         else:
             pytest.fail()
 
@@ -339,7 +353,9 @@ class DebugSession(object):
             temp_process = subprocess.Popen(dbg_argv)
             print('temp process has pid=%d' % temp_process.pid)
 
-        if self.start_method not in ('launch', 'attach_pid'):
+        self.before_connect()
+
+        if self.start_method not in ('launch', 'attach_pid', 'custom_client'):
             self.connect()
         self.connected.wait()
         assert self.ptvsd_port

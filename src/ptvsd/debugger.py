@@ -2,50 +2,44 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-import sys
-
 import ptvsd.log
-from ptvsd._local import run_module, run_file, run_main
+import ptvsd.options
+from ptvsd.__main__ import run_file, run_module, run_code
 
-
-# TODO: not needed?
-DONT_DEBUG = []
-
-LOCALHOST = 'localhost'
 
 RUNNERS = {
-    'module': run_module,  # python -m spam
-    'script': run_file,  # python spam.py
-    'code': run_file,  # python -c 'print("spam")'
-    None: run_file,  # catchall
+    'module': run_module,
+    'script': run_file,
+    'code': run_code,
 }
 
+# Not actually used, but VS will try to add entries to it.
+DONT_DEBUG = []
 
-def debug(filename, port_num, debug_id, debug_options, run_as,
-          _runners=RUNNERS, _extra=None, *args, **kwargs):
 
+# A legacy entrypoint for Visual Studio, to allow older versions to work with new ptvsd.
+# All new code should use the entrypoints in __main__ directly.
+def debug(filename, port_num, debug_id, debug_options, run_as):
     ptvsd.log.to_file()
     ptvsd.log.info('debug{0!r}', (filename, port_num, debug_id, debug_options, run_as))
 
-    if _extra is None:
-        _extra = sys.argv[1:]
-    address = (LOCALHOST, port_num)
     try:
-        run = _runners[run_as]
+        run = RUNNERS[run_as]
     except KeyError:
-        # TODO: fail?
-        run = _runners[None]
-    if _extra:
-        args = _extra + list(args)
-    kwargs.setdefault('singlesession', True)
-    run(address, filename, *args, **kwargs)
+        raise ValueError('run_as must be one of: {0!r}'.format(tuple(RUNNERS.keys())))
 
+    ptvsd.options.target_kind = 'file' if run_as == 'script' else run_as
+    ptvsd.options.target = filename
+    ptvsd.options.port = port_num
+    ptvsd.options.client = True
 
-def run(filename, port_num, run_as,
-        *args, **kwargs):
+    # debug_id is ignored because it has no meaning in DAP.
+    # debug_options are ignored, because they will be passed later via DAP "launch" request.
 
-    ptvsd.log.to_file()
-    ptvsd.log.info('run{0!r}', (filename, port_num, run_as))
+    run()
 
-    address = (LOCALHOST, port_num)
-    run_main(address, filename, run_as, *args, **kwargs)
+# A legacy entrypoint for Visual Studio, to allow older versions to work with new ptvsd.
+# All new code should use the entrypoints in __main__ directly.
+#def run(filename, port_num, run_as):
+#    ptvsd.options.no_debug = True
+#    return debug(filename, port_num, None, None, run_as)
