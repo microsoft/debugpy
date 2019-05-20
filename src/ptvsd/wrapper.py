@@ -43,7 +43,6 @@ from ptvsd import options
 from ptvsd.compat import unicode
 import ptvsd.ipcjson as ipcjson  # noqa
 import ptvsd.futures as futures  # noqa
-from ptvsd.pathutils import PathUnNormcase  # noqa
 from ptvsd.version import __version__  # noqa
 from ptvsd.socket import TimeoutError  # noqa
 
