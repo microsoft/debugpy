@@ -152,7 +152,7 @@
 							"reason": {
 								"type": "string",
 								"description": "The reason for the event.\nFor backward compatibility this string is shown in the UI if the 'description' attribute is missing (but it must not be translated).",
-								"_enum": [ "step", "breakpoint", "exception", "pause", "entry", "goto" ]
+								"_enum": [ "step", "breakpoint", "exception", "pause", "entry", "goto", "function breakpoint", "data breakpoint" ]
 							},
 							"description": {
 								"type": "string",
@@ -909,7 +909,7 @@
 		"SetFunctionBreakpointsRequest": {
 			"allOf": [ { "$ref": "#/definitions/Request" }, {
 				"type": "object",
-				"description": "Sets multiple function breakpoints and clears all previous function breakpoints.\nTo clear all function breakpoint, specify an empty array.\nWhen a function breakpoint is hit, a 'stopped' event (event type 'function breakpoint') is generated.",
+				"description": "Replaces all existing function breakpoints with new function breakpoints.\nTo clear all function breakpoints, specify an empty array.\nWhen a function breakpoint is hit, a 'stopped' event (with reason 'function breakpoint') is generated.",
 				"properties": {
 					"command": {
 						"type": "string",
@@ -1000,6 +1000,125 @@
 			"allOf": [ { "$ref": "#/definitions/Response" }, {
 				"type": "object",
 				"description": "Response to 'setExceptionBreakpoints' request. This is just an acknowledgement, so no body field is required."
+			}]
+		},
+
+		"DataBreakpointInfoRequest": {
+			"allOf": [ { "$ref": "#/definitions/Request" }, {
+				"type": "object",
+				"description": "Obtains information on a possible data breakpoint that could be set on an expression or variable.",
+				"properties": {
+					"command": {
+						"type": "string",
+						"enum": [ "dataBreakpointInfo" ]
+					},
+					"arguments": {
+						"$ref": "#/definitions/DataBreakpointInfoArguments"
+					}
+				},
+				"required": [ "command", "arguments"  ]
+			}]
+		},
+		"DataBreakpointInfoArguments": {
+			"type": "object",
+			"description": "Arguments for 'dataBreakpointInfo' request.",
+			"properties": {
+				"variablesReference": {
+					"type": "integer",
+					"description": "Reference to the Variable container if the data breakpoint is requested for a child of the container."
+				},
+				"name": {
+					"type": "string",
+					"description": "The name of the Variable's child to obtain data breakpoint information for. If variableReference isn’t provided, this can be an expression."
+				}
+			},
+			"required": [ "name" ]
+		},
+		"DataBreakpointInfoResponse": {
+			"allOf": [ { "$ref": "#/definitions/Response" }, {
+				"type": "object",
+				"description": "Response to 'dataBreakpointInfo' request.",
+				"properties": {
+					"body": {
+						"type": "object",
+						"properties": {
+							"dataId": {
+								"type": [ "string", "null" ],
+								"description": "An identifier for the data on which a data breakpoint can be registered with the setDataBreakpoints request or null if no data breakpoint is available."
+							},
+							"description": {
+								"type": "string",
+								"description": "UI string that describes on what data the breakpoint is set on or why a data breakpoint is not available."
+							},
+							"accessTypes": {
+								"type": "array",
+								"items": {
+									"$ref": "#/definitions/DataBreakpointAccessType"
+								},
+								"description": "Optional attribute listing the available access types for a potential data breakpoint. A UI frontend could surface this information."
+							},
+							"canPersist": {
+								"type": "boolean",
+								"description": "Optional attribute indicating that a potential data breakpoint could be persisted across sessions."
+							}
+						},
+						"required": [ "dataId", "description" ]
+					}
+				},
+				"required": [ "body" ]
+			}]
+		},
+
+		"SetDataBreakpointsRequest": {
+			"allOf": [ { "$ref": "#/definitions/Request" }, {
+				"type": "object",
+				"description": "Replaces all existing data breakpoints with new data breakpoints.\nTo clear all data breakpoints, specify an empty array.\nWhen a data breakpoint is hit, a 'stopped' event (with reason 'data breakpoint') is generated.",
+				"properties": {
+					"command": {
+						"type": "string",
+						"enum": [ "setDataBreakpoints" ]
+					},
+					"arguments": {
+						"$ref": "#/definitions/SetDataBreakpointsArguments"
+					}
+				},
+				"required": [ "command", "arguments"  ]
+			}]
+		},
+		"SetDataBreakpointsArguments": {
+			"type": "object",
+			"description": "Arguments for 'setDataBreakpoints' request.",
+			"properties": {
+				"breakpoints": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/DataBreakpoint"
+					},
+					"description": "The contents of this array replaces all existing data breakpoints. An empty array clears all data breakpoints."
+				}
+			},
+			"required": [ "breakpoints" ]
+		},
+		"SetDataBreakpointsResponse": {
+			"allOf": [ { "$ref": "#/definitions/Response" }, {
+				"type": "object",
+				"description": "Response to 'setDataBreakpoints' request.\nReturned is information about each breakpoint created by this request.",
+				"properties": {
+					"body": {
+						"type": "object",
+						"properties": {
+							"breakpoints": {
+								"type": "array",
+								"items": {
+									"$ref": "#/definitions/Breakpoint"
+								},
+								"description": "Information about the data breakpoints. The array elements correspond to the elements of the input argument 'breakpoints' array."
+							}
+						},
+						"required": [ "breakpoints" ]
+					}
+				},
+				"required": [ "body" ]
 			}]
 		},
 
@@ -1538,7 +1657,7 @@
 				},
 				"name": {
 					"type": "string",
-					"description": "The name of the variable."
+					"description": "The name of the variable in the container."
 				},
 				"value": {
 					"type": "string",
@@ -2324,6 +2443,10 @@
 				"supportsTerminateRequest": {
 					"type": "boolean",
 					"description": "The debug adapter supports the 'terminate' request."
+				},
+				"supportsDataBreakpoints": {
+					"type": "boolean",
+					"description": "The debug adapter supports data breakpoints."
 				}
 			}
 		},
@@ -2681,7 +2804,7 @@
 				"kind": {
 					"description": "The kind of variable. Before introducing additional values, try to use the listed values.",
 					"type": "string",
-					"_enum": [ "property", "method", "class", "data", "event", "baseClass", "innerClass", "interface", "mostDerivedClass", "virtual" ],
+					"_enum": [ "property", "method", "class", "data", "event", "baseClass", "innerClass", "interface", "mostDerivedClass", "virtual", "dataBreakpoint" ],
 					"enumDescriptions": [
 						"Indicates that the object is a property.",
 						"Indicates that the object is a method.",
@@ -2692,7 +2815,8 @@
 						"Indicates that the object is an inner class.",
 						"Indicates that the object is an interface.",
 						"Indicates that the object is the most derived class.",
-						"Indicates that the object is virtual, that means it is a synthetic object introduced by the adapter for rendering purposes, e.g. an index range for large arrays."
+						"Indicates that the object is virtual, that means it is a synthetic object introduced by the adapter for rendering purposes, e.g. an index range for large arrays.",
+						"Indicates that a data breakpoint is registered for the object."
 					]
 				},
 				"attributes": {
@@ -2766,6 +2890,36 @@
 				}
 			},
 			"required": [ "name" ]
+		},
+
+		"DataBreakpointAccessType": {
+			"type": "string",
+			"description": "This enumeration defines all possible access types for data breakpoints.",
+			"enum": [ "read", "write", "readWrite" ]
+		},
+
+		"DataBreakpoint": {
+			"type": "object",
+			"description": "Properties of a data breakpoint passed to the setDataBreakpoints request.",
+			"properties": {
+				"dataId": {
+					"type": "string",
+					"description": "An id representing the data. This id is returned from the dataBreakpointInfo request."
+				},
+				"accessType": {
+					"$ref": "#/definitions/DataBreakpointAccessType",
+					"description": "The access type of the data."
+				},
+				"condition": {
+					"type": "string",
+					"description": "An optional expression for conditional breakpoints."
+				},
+				"hitCondition": {
+					"type": "string",
+					"description": "An optional expression that controls how many hits of the breakpoint are ignored. The backend is expected to interpret the expression as needed."
+				}
+			},
+			"required": [ "dataId" ]
 		},
 
 		"Breakpoint": {
