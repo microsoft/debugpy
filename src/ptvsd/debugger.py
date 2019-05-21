@@ -37,9 +37,3 @@ def debug(filename, port_num, debug_id, debug_options, run_as):
     # debug_options are ignored, because they will be passed later via DAP "launch" request.
 
     run()
-
-# A legacy entrypoint for Visual Studio, to allow older versions to work with new ptvsd.
-# All new code should use the entrypoints in __main__ directly.
-#def run(filename, port_num, run_as):
-#    ptvsd.options.no_debug = True
-#    return debug(filename, port_num, None, None, run_as)
