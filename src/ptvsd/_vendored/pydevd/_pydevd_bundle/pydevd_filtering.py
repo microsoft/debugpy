@@ -7,6 +7,7 @@ from _pydev_bundle import pydev_log
 import pydevd_file_utils
 import json
 from collections import namedtuple
+from _pydev_imps._pydev_saved_modules import threading
 
 try:
     xrange  # noqa
@@ -147,11 +148,21 @@ class FilesFiltering(object):
     def _get_default_library_roots(cls):
         # Provide sensible defaults if not in env vars.
         import site
-        roots = [sys.prefix]
-        if hasattr(sys, 'base_prefix'):
-            roots.append(sys.base_prefix)
-        if hasattr(sys, 'real_prefix'):
-            roots.append(sys.real_prefix)
+
+        roots = []
+
+        try:
+            import sysconfig  # Python 2.7 onwards only.
+        except ImportError:
+            pass
+        else:
+            for path_name in set(('stdlib', 'platstdlib', 'purelib', 'platlib')) & set(sysconfig.get_path_names()):
+                roots.append(sysconfig.get_path(path_name))
+
+        # Make sure we always get at least the standard library location (based on the `os` and
+        # `threading` modules -- it's a bit weird that it may be different on the ci, but it happens).
+        roots.append(os.path.dirname(os.__file__))
+        roots.append(os.path.dirname(threading.__file__))
 
         if hasattr(site, 'getusersitepackages'):
             site_paths = site.getusersitepackages()
@@ -172,6 +183,8 @@ class FilesFiltering(object):
         for path in sys.path:
             if os.path.exists(path) and os.path.basename(path) == 'site-packages':
                 roots.append(path)
+
+        roots.extend([os.path.realpath(path) for path in roots])
 
         return sorted(set(roots))
 

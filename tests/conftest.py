@@ -51,24 +51,42 @@ def pytest_report_header(config):
     else:
         print('Number of processors: %s' % (multiprocessing.cpu_count(),))
 
+    import sysconfig
+    from os.path import realpath
+
     print('Relevant system paths:')
-    print('sys.prefix: %s' % (sys.prefix,))
+    print('sys.prefix: %s (%s)' % (sys.prefix, realpath(sys.prefix)))
 
     if hasattr(sys, 'base_prefix'):
-        print('sys.base_prefix: %s' % (sys.base_prefix,))
+        print('sys.base_prefix: %s (%s)' % (
+            sys.base_prefix, realpath(sys.base_prefix)))
 
     if hasattr(sys, 'real_prefix'):
-        print('sys.real_prefix: %s' % (sys.real_prefix,))
+        print('sys.real_prefix: %s (%s)' % (
+            sys.real_prefix, realpath(sys.real_prefix)))
 
     if hasattr(site, 'getusersitepackages'):
-        print('site.getusersitepackages(): %s' % (site.getusersitepackages(),))
+        print('site.getusersitepackages(): %s (%s)' % (
+            site.getusersitepackages(), realpath(site.getusersitepackages())))
 
     if hasattr(site, 'getsitepackages'):
-        print('site.getsitepackages(): %s' % (site.getsitepackages(),))
+        print('site.getsitepackages(): %s (%s)' % (
+            site.getsitepackages(), realpath(site.getsitepackages())))
 
     for path in sys.path:
         if os.path.exists(path) and os.path.basename(path) == 'site-packages':
-            print('Folder with "site-packages" in sys.path: %s' % (path,))
+            print('Folder with "site-packages" in sys.path: %s (%s)' % (
+                path, realpath(path)))
+
+    for path_name in sorted(sysconfig.get_path_names()):
+        print('sysconfig: %s: %s (%s)' % (
+            path_name, sysconfig.get_path(path_name), realpath(sysconfig.get_path(path_name))))
+
+    print('os module dir: %s (%s)' % (
+        os.path.dirname(os.__file__), realpath(os.path.dirname(os.__file__))))
+
+    print('threading module dir: %s (%s)' % (
+        os.path.dirname(threading.__file__), realpath(os.path.dirname(threading.__file__))))
 
 
 @pytest.hookimpl(hookwrapper=True, tryfirst=True)

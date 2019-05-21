@@ -9,7 +9,7 @@ import os.path
 import runpy
 import sys
 import site
-
+import sysconfig
 
 # ptvsd can also be invoked directly rather than via -m. In this case, the
 # first entry on sys.path is the one added automatically by Python for the
@@ -31,18 +31,18 @@ import site
 # ptvsd with that in effect, and then remove it before continuing execution.
 if __name__ == '__main__' and 'ptvsd' not in sys.modules:
     sys.path[0] = os.path.dirname(sys.path[0])
-    import ptvsd # noqa
+    import ptvsd  # noqa
     del sys.path[0]
 
-
 import pydevd
+
+import threading  # Import after pydevd.
 
 import ptvsd._remote
 import ptvsd.options
 import ptvsd.runner
 import ptvsd.version
 from ptvsd.multiproc import listen_for_subprocesses
-
 
 # When forming the command line involving __main__.py, it might be tempting to
 # import it as a module, and then use its __file__. However, that does not work
@@ -53,7 +53,6 @@ from ptvsd.multiproc import listen_for_subprocesses
 # So, to be able to correctly locate the script at any point, we compute the
 # absolute path at import time.
 __file__ = os.path.abspath(__file__)
-
 
 TARGET = '<filename> | -m <module> | -c <code> | --pid <pid>'
 
@@ -73,7 +72,9 @@ def string(s):
         s = s.decode(sys.getfilesystemencoding())
     return s
 
+
 def in_range(parser, start, stop):
+
     def parse(s):
         n = parser(s)
         if start is not None and n < start:
@@ -81,9 +82,11 @@ def in_range(parser, start, stop):
         if stop is not None and n >= stop:
             raise ValueError('must be < %s' % stop)
         return n
+
     return parse
 
-port = in_range(int, 0, 2**16)
+
+port = in_range(int, 0, 2 ** 16)
 
 pid = in_range(int, 0, None)
 
@@ -92,26 +95,37 @@ def print_help_and_exit(switch, it):
     print(HELP, file=sys.stderr)
     sys.exit(0)
 
+
 def print_version_and_exit(switch, it):
     print(ptvsd.version.__version__)
     sys.exit(0)
 
+
 def set_arg(varname, parser):
+
     def action(arg, it):
         value = parser(next(it))
         setattr(ptvsd.options, varname, value)
+
     return action
 
+
 def set_true(varname):
+
     def do(arg, it):
         setattr(ptvsd.options, varname, True)
+
     return do
 
+
 def set_target(kind, parser=None):
+
     def do(arg, it):
         ptvsd.options.target_kind = kind
         ptvsd.options.target = arg if parser is None else parser(next(it))
+
     return do
+
 
 def set_nodebug(arg, it):
     # --nodebug implies --client
@@ -124,26 +138,26 @@ switches = [
     # ======                    ===========         ======                                  ========
 
     # Switches that are documented for use by end users.
-    (('-?', '-h', '--help'),    None,               print_help_and_exit,                    False),
-    (('-V', '--version'),       None,               print_version_and_exit,                 False),
-    ('--host',                  '<address>',        set_arg('host', string),                True),
-    ('--port',                  '<port>',           set_arg('port', port),                  False),
-    ('--wait',                  None,               set_true('wait'),                       False),
-    ('--multiprocess',          None,               set_true('multiprocess'),               False),
-    ('--log-dir',               '<path>',           set_arg('log_dir', string),             False),
+    (('-?', '-h', '--help'), None, print_help_and_exit, False),
+    (('-V', '--version'), None, print_version_and_exit, False),
+    ('--host', '<address>', set_arg('host', string), True),
+    ('--port', '<port>', set_arg('port', port), False),
+    ('--wait', None, set_true('wait'), False),
+    ('--multiprocess', None, set_true('multiprocess'), False),
+    ('--log-dir', '<path>', set_arg('log_dir', string), False),
 
     # Switches that are used internally by the IDE or ptvsd itself.
-    ('--nodebug',               None,               set_nodebug,                            False),
-    ('--client',                None,               set_true('client'),                     False),
-    ('--subprocess-of',         '<pid>',            set_arg('subprocess_of', pid),          False),
-    ('--subprocess-notify',     '<port>',           set_arg('subprocess_notify', port),     False),
+    ('--nodebug', None, set_nodebug, False),
+    ('--client', None, set_true('client'), False),
+    ('--subprocess-of', '<pid>', set_arg('subprocess_of', pid), False),
+    ('--subprocess-notify', '<port>', set_arg('subprocess_notify', port), False),
 
     # Targets. The '' entry corresponds to positional command line arguments,
     # i.e. the ones not preceded by any switch name.
-    ('',                        '<filename>',       set_target('file'),                     False),
-    ('-m',                      '<module>',         set_target('module', string),           False),
-    ('-c',                      '<code>',           set_target('code', string),             False),
-    ('--pid',                   '<pid>',            set_target('pid', pid),                 False),
+    ('', '<filename>', set_target('file'), False),
+    ('-m', '<module>', set_target('module', string), False),
+    ('-c', '<code>', set_target('code', string), False),
+    ('--pid', '<pid>', set_target('pid', pid), False),
 ]
 
 
@@ -211,6 +225,13 @@ def setup_connection():
     for path in sys.path:
         if os.path.exists(path) and os.path.basename(path) == 'site-packages':
             ptvsd.log.debug('Folder with "site-packages" in sys.path: {0}', path)
+
+    for path_name in {'stdlib', 'platstdlib', 'purelib', 'platlib'} & set(
+            sysconfig.get_path_names()):
+        ptvsd.log.debug('sysconfig {0}: {1}', path_name, sysconfig.get_path(path_name))
+
+    ptvsd.log.debug('os dir: {0}', os.path.dirname(os.__file__))
+    ptvsd.log.debug('threading dir: {0}', os.path.dirname(threading.__file__))
 
     opts = ptvsd.options
     pydevd.apply_debugger_options({
@@ -328,13 +349,16 @@ def run_code():
 
 
 def attach_to_pid():
+
     def quoted_str(s):
         if s is None:
             return s
         assert not isinstance(s, bytes)
         unescaped = set(chr(ch) for ch in range(32, 127)) - {'"', "'", '\\'}
+
         def escape(ch):
             return ch if ch in unescaped else '\\u%04X' % ord(ch)
+
         return 'u"' + ''.join(map(escape, s)) + '"'
 
     ptvsd.log.info('Attaching to process with ID {0}', ptvsd.options.target)
