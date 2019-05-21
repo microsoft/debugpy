@@ -10,17 +10,19 @@ from _pydevd_bundle.pydevd_constants import IS_JYTHON, dict_iter_items, NEXT_VAL
 import signal
 
 try:
-    import cStringIO as StringIO #may not always be available @UnusedImport
+    import cStringIO as StringIO  # may not always be available @UnusedImport
 except:
     try:
-        import StringIO #@Reimport
+        import StringIO  # @Reimport
     except:
         import io as StringIO
+
 
 # =======================================================================================================================
 # BaseStdIn
 # =======================================================================================================================
 class BaseStdIn:
+
     def __init__(self, original_stdin=sys.stdin, *args, **kwargs):
         try:
             self.encoding = sys.stdin.encoding
@@ -32,7 +34,7 @@ class BaseStdIn:
         try:
             self.errors = sys.stdin.errors  # Who knew? sys streams have an errors attribute!
         except:
-            #Not sure if it's available in all Python versions...
+            # Not sure if it's available in all Python versions...
             pass
 
     def readline(self, *args, **kwargs):
@@ -85,7 +87,7 @@ class StdIn(BaseStdIn):
             server = xmlrpclib.Server('http://%s:%s' % (self.host, self.client_port))
             requested_input = server.RequestInput()
             if not requested_input:
-                return '\n' #Yes, a readline must return something (otherwise we can get an EOFError on the input() call).
+                return '\n'  # Yes, a readline must return something (otherwise we can get an EOFError on the input() call).
             else:
                 # readline should end with '\n' (not doing so makes IPython 5 remove the last *valid* character).
                 requested_input += '\n'
@@ -97,6 +99,7 @@ class StdIn(BaseStdIn):
 
     def close(self, *args, **kwargs):
         pass  # expected in StdIn
+
 
 #=======================================================================================================================
 # DebugConsoleStdIn
@@ -127,6 +130,7 @@ class DebugConsoleStdIn(BaseStdIn):
 
 
 class CodeFragment:
+
     def __init__(self, text, is_single_line=True):
         self.text = text
         self.is_single_line = is_single_line
@@ -141,6 +145,7 @@ class CodeFragment:
 # BaseInterpreterInterface
 # =======================================================================================================================
 class BaseInterpreterInterface:
+
     def __init__(self, mainThread, connect_status_queue=None):
         self.mainThread = mainThread
         self.interruptable = False
@@ -511,6 +516,7 @@ class BaseInterpreterInterface:
         t.start()
 
     def changeVariable(self, attr, value):
+
         def do_change_variable():
             Exec('%s=%s' % (attr, value), self.get_namespace(), self.get_namespace())
 
@@ -544,11 +550,10 @@ class BaseInterpreterInterface:
                 # Try to import the packages needed to attach the debugger
                 import pydevd
                 from _pydev_imps._pydev_saved_modules import threading
-
             except:
                 # This happens on Jython embedded in host eclipse
                 traceback.print_exc()
-                sys.stderr.write('pydevd is not available, cannot connect\n', )
+                sys.stderr.write('pydevd is not available, cannot connect\n')
 
             from _pydevd_bundle.pydevd_constants import set_thread_id
             from _pydev_bundle import pydev_localhost
@@ -604,6 +609,7 @@ class BaseInterpreterInterface:
             As with IPython, enabling multiple GUIs isn't an error, but
             only the last one's main loop runs and it may not work
         '''
+
         def do_enable_gui():
             from _pydev_bundle.pydev_versioncheck import versionok_for_gui
             if versionok_for_gui():

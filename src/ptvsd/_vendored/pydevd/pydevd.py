@@ -16,7 +16,6 @@ import os
 import traceback
 import weakref
 
-from _pydev_bundle import fix_getpass
 from _pydev_bundle import pydev_imports, pydev_log
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
 from _pydev_bundle.pydev_is_thread_alive import is_thread_alive
@@ -2326,8 +2325,6 @@ def main():
         except:
             pid = ''
         sys.stderr.write("pydev debugger: starting%s\n" % pid)
-
-    fix_getpass.fix_getpass()
 
     pydev_log.debug("Executing file %s" % setup['file'])
     pydev_log.debug("arguments: %s" % str(sys.argv))

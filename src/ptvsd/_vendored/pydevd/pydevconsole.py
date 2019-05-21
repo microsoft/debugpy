@@ -20,8 +20,7 @@ from _pydev_imps._pydev_saved_modules import threading
 from _pydevd_bundle.pydevd_constants import INTERACTIVE_MODE_AVAILABLE, dict_keys
 
 import traceback
-from _pydev_bundle import fix_getpass, pydev_log
-fix_getpass.fix_getpass()
+from _pydev_bundle import pydev_log
 
 from _pydevd_bundle import pydevd_vars, pydevd_save_locals
 
@@ -185,36 +184,43 @@ def init_mpl_in_console(interpreter):
 
 if sys.platform != 'win32':
 
-    def pid_exists(pid):
-        # Note that this function in the face of errors will conservatively consider that
-        # the pid is still running (because we'll exit the current process when it's
-        # no longer running, so, we need to be 100% sure it actually exited).
+    if not hasattr(os, 'kill'):  # Jython may not have it.
 
-        import errno
-        if pid == 0:
-            # According to "man 2 kill" PID 0 has a special meaning:
-            # it refers to <<every process in the process group of the
-            # calling process>> so we don't want to go any further.
-            # If we get here it means this UNIX platform *does* have
-            # a process with id 0.
+        def pid_exists(pid):
             return True
-        try:
-            os.kill(pid, 0)
-        except OSError as err:
-            if err.errno == errno.ESRCH:
-                # ESRCH == No such process
-                return False
-            elif err.errno == errno.EPERM:
-                # EPERM clearly means there's a process to deny access to
+
+    else:
+
+        def pid_exists(pid):
+            # Note that this function in the face of errors will conservatively consider that
+            # the pid is still running (because we'll exit the current process when it's
+            # no longer running, so, we need to be 100% sure it actually exited).
+
+            import errno
+            if pid == 0:
+                # According to "man 2 kill" PID 0 has a special meaning:
+                # it refers to <<every process in the process group of the
+                # calling process>> so we don't want to go any further.
+                # If we get here it means this UNIX platform *does* have
+                # a process with id 0.
                 return True
+            try:
+                os.kill(pid, 0)
+            except OSError as err:
+                if err.errno == errno.ESRCH:
+                    # ESRCH == No such process
+                    return False
+                elif err.errno == errno.EPERM:
+                    # EPERM clearly means there's a process to deny access to
+                    return True
+                else:
+                    # According to "man 2 kill" possible error values are
+                    # (EINVAL, EPERM, ESRCH) therefore we should never get
+                    # here. If we do, although it's an error, consider it
+                    # exists (see first comment in this function).
+                    return True
             else:
-                # According to "man 2 kill" possible error values are
-                # (EINVAL, EPERM, ESRCH) therefore we should never get
-                # here. If we do, although it's an error, consider it
-                # exists (see first comment in this function).
                 return True
-        else:
-            return True
 
 else:
 
@@ -304,8 +310,7 @@ def process_exec_queue(interpreter):
         except SystemExit:
             raise
         except:
-            type, value, tb = sys.exc_info()
-            traceback.print_exception(type, value, tb, file=sys.__stderr__)
+            pydev_log.exception('Error processing queue on pydevconsole.')
             exit()
 
 
