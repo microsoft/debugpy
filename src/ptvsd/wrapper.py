@@ -91,99 +91,6 @@ else:
         return s
 
 
-class IDMap(object):
-    """Maps VSCode entities to corresponding pydevd entities by ID.
-
-    VSCode entity IDs are generated here when necessary.
-
-    For VSCode, entity IDs are always integers, and uniquely identify
-    the entity among all other entities of the same type - e.g. all
-    frames across all threads have unique IDs.
-
-    For pydevd, IDs can be integer or strings, and are usually specific
-    to some scope - for example, a frame ID is only unique within a
-    given thread. To produce a truly unique ID, the IDs of all the outer
-    scopes have to be combined into a tuple. Thus, for example, a pydevd
-    frame ID is (thread_id, frame_id).
-
-    Variables (evaluation results) technically don't have IDs in pydevd,
-    as it doesn't have evaluation persistence. However, for a given
-    frame, any child can be identified by the path one needs to walk
-    from the root of the frame to get to that child - and that path,
-    represented as a sequence of its constituent components, is used by
-    pydevd commands to identify the variable. So we use the tuple
-    representation of the same as its pydevd ID.  For example, for
-    something like foo[1].bar, its ID is:
-      (thread_id, frame_id, 'FRAME', 'foo', 1, 'bar')
-
-    For pydevd breakpoints, the ID has to be specified by the caller
-    when creating, so we can just reuse the ID that was generated for
-    VSC. However, when referencing the pydevd breakpoint later (e.g. to
-    remove it), its ID must be specified together with path to file in
-    which that breakpoint is set - i.e. pydevd treats those IDs as
-    scoped to a file.  So, even though breakpoint IDs are unique across
-    files, use (path, bp_id) as pydevd ID.
-    """
-
-    def __init__(self):
-        self._vscode_to_pydevd = {}
-        self._pydevd_to_vscode = {}
-        self._next_id = 1
-        self._lock = threading.Lock()
-
-    def pairs(self):
-        # TODO: docstring
-        with self._lock:
-            return list(self._pydevd_to_vscode.items())
-
-    def add(self, pydevd_id):
-        # TODO: docstring
-        with self._lock:
-            vscode_id = self._next_id
-            if callable(pydevd_id):
-                pydevd_id = pydevd_id(vscode_id)
-            self._next_id += 1
-            self._vscode_to_pydevd[vscode_id] = pydevd_id
-            self._pydevd_to_vscode[pydevd_id] = vscode_id
-        return vscode_id
-
-    def remove(self, pydevd_id=None, vscode_id=None):
-        # TODO: docstring
-        with self._lock:
-            if pydevd_id is None:
-                pydevd_id = self._vscode_to_pydevd[vscode_id]
-            elif vscode_id is None:
-                vscode_id = self._pydevd_to_vscode[pydevd_id]
-            del self._vscode_to_pydevd[vscode_id]
-            del self._pydevd_to_vscode[pydevd_id]
-
-    def to_pydevd(self, vscode_id):
-        # TODO: docstring
-        return self._vscode_to_pydevd[vscode_id]
-
-    def to_vscode(self, pydevd_id, autogen):
-        # TODO: docstring
-        try:
-            return self._pydevd_to_vscode[pydevd_id]
-        except KeyError:
-            if autogen:
-                return self.add(pydevd_id)
-            else:
-                raise
-
-    def pydevd_ids(self):
-        # TODO: docstring
-        with self._lock:
-            ids = list(self._pydevd_to_vscode.keys())
-        return ids
-
-    def vscode_ids(self):
-        # TODO: docstring
-        with self._lock:
-            ids = list(self._vscode_to_pydevd.keys())
-        return ids
-
-
 class PydevdSocket(object):
     """A dummy socket-like object for communicating with pydevd.
 
@@ -432,88 +339,6 @@ class PydevdSocket(object):
 
         return fut
 
-
-class VariablesSorter(object):
-
-    def __init__(self):
-        self.variables = []  # variables that do not begin with underscores
-        self.single_underscore = []  # variables beginning with underscores
-        self.double_underscore = []  # variables beginning with two underscores
-        self.dunder = []  # variables that begin & end with double underscores
-
-    def append(self, var):
-        var_name = var['name']
-        if var_name.startswith('__'):
-            if var_name.endswith('__'):
-                self.dunder.append(var)
-            else:
-                self.double_underscore.append(var)
-        elif var_name.startswith('_'):
-            self.single_underscore.append(var)
-        else:
-            self.variables.append(var)
-
-    def get_sorted_variables(self):
-
-        def get_sort_key(o):
-            return o['name']
-
-        self.variables.sort(key=get_sort_key)
-        self.single_underscore.sort(key=get_sort_key)
-        self.double_underscore.sort(key=get_sort_key)
-        self.dunder.sort(key=get_sort_key)
-        return self.variables + self.single_underscore + self.double_underscore + self.dunder  # noqa
-
-
-class InternalsFilter(object):
-    """Identifies debugger internal artifacts.
-    """
-    # TODO: Move the internal thread identifier here
-
-    def __init__(self):
-        if platform.system() == 'Windows':
-            self._init_windows()
-        else:
-            self._init_default()
-
-    def _init_default(self):
-        self._ignore_files = [
-            '/ptvsd_launcher.py',
-        ]
-
-        self._ignore_path_prefixes = [
-            os.path.dirname(os.path.abspath(__file__)),
-        ]
-
-    def _init_windows(self):
-        self._init_default()
-        files = []
-        for f in self._ignore_files:
-            files.append(f.lower())
-        self._ignore_files = files
-
-        prefixes = []
-        for p in self._ignore_path_prefixes:
-            prefixes.append(p.lower())
-        self._ignore_path_prefixes = prefixes
-
-    def is_internal_path(self, abs_file_path):
-        # TODO: Remove replace('\\', '/') after the path mapping in pydevd
-        # is fixed. Currently if the client is windows and server is linux
-        # the path separators used are windows path separators for linux
-        # source paths.
-        is_windows = platform.system() == 'Windows'
-
-        file_path = abs_file_path.lower() if is_windows else abs_file_path
-        file_path = file_path.replace('\\', '/')
-        for f in self._ignore_files:
-            if file_path.endswith(f):
-                return True
-        for prefix in self._ignore_path_prefixes:
-            prefix_path = prefix.replace('\\', '/')
-            if file_path.startswith(prefix_path):
-                return True
-        return False
 
 ########################
 # the debug config
@@ -1039,7 +864,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         # debugger state
         self._success_exitcodes = []
-        self.internals_filter = InternalsFilter()
 
         # adapter state
         self._detached = False
@@ -1178,12 +1002,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                 options.multiprocess = True
                 multiproc.listen_for_subprocesses()
                 self.start_subprocess_notifier()
-
-    def _send_cmd_version_command(self):
-        cmd = pydevd_comm.CMD_VERSION
-
-        msg = '1.1\t{}\tID'.format(self._client_os_type)
-        return self.pydevd_request(cmd, msg)
 
     def _get_new_setDebuggerProperty_request(self, **kwargs):
         return {
