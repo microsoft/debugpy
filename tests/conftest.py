@@ -66,12 +66,22 @@ def pytest_report_header(config):
             sys.real_prefix, realpath(sys.real_prefix)))
 
     if hasattr(site, 'getusersitepackages'):
+        paths = site.getusersitepackages()
+        if isinstance(paths, (list, tuple)):
+            real_paths = list(realpath(p) for p in paths)
+        else:
+            real_paths = realpath(paths)
         print('site.getusersitepackages(): %s (%s)' % (
-            site.getusersitepackages(), realpath(site.getusersitepackages())))
+            site.getusersitepackages(), real_paths))
 
     if hasattr(site, 'getsitepackages'):
+        paths = site.getsitepackages()
+        if isinstance(paths, (list, tuple)):
+            real_paths = list(realpath(p) for p in paths)
+        else:
+            real_paths = realpath(paths)
         print('site.getsitepackages(): %s (%s)' % (
-            site.getsitepackages(), realpath(site.getsitepackages())))
+            site.getsitepackages(), real_paths))
 
     for path in sys.path:
         if os.path.exists(path) and os.path.basename(path) == 'site-packages':

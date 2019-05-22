@@ -265,12 +265,12 @@ class NetCommandFactoryJson(NetCommandFactory):
     def make_thread_suspend_single_notification(self, py_db, thread_id, stop_reason):
         exc_desc = None
         exc_name = None
+        thread = pydevd_find_thread_by_id(thread_id)
+        info = set_additional_thread_info(thread)
+
         if stop_reason in self._STEP_REASONS:
-            thread = pydevd_find_thread_by_id(thread_id)
-            info = set_additional_thread_info(thread)
             if info.pydev_stop_on_entry:
                 stop_reason = 'entry'
-                info.pydev_stop_on_entry = False
             else:
                 stop_reason = 'step'
         elif stop_reason in self._EXCEPTION_REASONS:
@@ -281,6 +281,9 @@ class NetCommandFactoryJson(NetCommandFactory):
             stop_reason = 'goto'
         else:
             stop_reason = 'pause'
+
+        # At this point we are stopped. This should be false going forward.
+        info.pydev_stop_on_entry = False
 
         if stop_reason == 'exception':
             exception_info_response = build_exception_info_response(
