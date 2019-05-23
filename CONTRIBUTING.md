@@ -16,9 +16,9 @@ a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow th
 provided by the bot. You will only need to do this once across all repos using our CLA.
 
 ### Prerequisites
-Use [test_requirements.txt](test_requirements.txt) file to install the packages needed to run tests:
+Use [tests/requirements.txt](tests/requirements.txt) file to install the packages needed to run tests:
 ```console
-pip install -r test_requirements.txt
+pip install -r tests/requirements.txt
 ```
 
 ### Linting

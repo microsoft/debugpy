@@ -1,0 +1,19 @@
+[build-system]
+requires = ["wheel", "setuptools"]
+build-backend = "setuptools.build_meta"
+
+
+[tool.black]
+# TODO: remove exclusions as code is reformatted to conform to the Black style.
+# The only exclusions that should remain in the end are _vendored and versioneer.
+exclude = '''
+( __pycache__
+| ^/setup.py
+| ^/versioneer.py
+| ^/src/ptvsd/_vendored
+| ^/src/ptvsd/_version.py
+| ^/src/ptvsd/common
+| ^/src/ptvsd/server
+| ^/tests
+)
+'''

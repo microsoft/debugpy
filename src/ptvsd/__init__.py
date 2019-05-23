@@ -3,16 +3,23 @@
 # for license information.
 
 __all__ = [
-    '__version__', '__author__',
-    'enable_attach', 'wait_for_attach', 'break_into_debugger', 'is_attached',
+    "__version__",
+    "attach",
+    "break_into_debugger",
+    "debug_this_thread",
+    "enable_attach",
+    "is_attached",
+    "wait_for_attach",
 ]
 
 
-# "force_pydevd" must be imported first to ensure (via side effects)
-# that the ptvsd-vendored copy of pydevd gets used.
-from ._vendored import force_pydevd
-from ptvsd.version import __version__, __author__
-from ptvsd.attach_server import (  # noqa
+from ._version import get_versions
+
+__version__ = get_versions()["version"]
+del get_versions
+
+
+from ptvsd.server import (
     attach,
     break_into_debugger,
     debug_this_thread,
@@ -20,4 +27,3 @@ from ptvsd.attach_server import (  # noqa
     is_attached,
     wait_for_attach,
 )
-del force_pydevd
