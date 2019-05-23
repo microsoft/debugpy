@@ -62,6 +62,7 @@ ACCEPTED_ARG_HANDLERS = [
     ArgHandlerBool('print-in-debugger-startup'),
     ArgHandlerBool('cmd-line'),
     ArgHandlerBool('module'),
+    ArgHandlerBool('json-dap'), # Protocol used by ptvsd to communicate with pydevd
 ]
 
 ARGV_REP_TO_HANDLER = {}

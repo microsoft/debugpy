@@ -1037,7 +1037,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         self._client_os_type = client_os_type
 
-        self.pydevd_request(pydevd_comm.CMD_SET_PROTOCOL, 'json')
         dont_trace_request = self._get_new_setDebuggerProperty_request(
             dontTraceStartPatterns=[PTVSD_DIR_PATH],
             dontTraceEndPatterns=['ptvsd_launcher.py'],

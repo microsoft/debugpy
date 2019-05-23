@@ -16,6 +16,7 @@ from ptvsd._util import new_hidden_thread
 
 
 PYDEVD_DEFAULTS = {
+    '--json-dap',
     '--qt-support=auto',
 }
 

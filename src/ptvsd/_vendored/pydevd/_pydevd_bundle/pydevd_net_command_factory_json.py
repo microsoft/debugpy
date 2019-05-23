@@ -92,6 +92,10 @@ class NetCommandFactoryJson(NetCommandFactory):
     def make_version_message(self, seq):
         return NULL_NET_COMMAND  # Not a part of the debug adapter protocol
 
+    @overrides(NetCommandFactory.make_protocol_set_message)
+    def make_protocol_set_message(self, seq):
+        return NULL_NET_COMMAND  # Not a part of the debug adapter protocol
+
     @overrides(NetCommandFactory.make_thread_created_message)
     def make_thread_created_message(self, thread):
 
