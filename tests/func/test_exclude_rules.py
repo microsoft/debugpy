@@ -123,6 +123,19 @@ def test_exceptions_and_partial_exclude_rules(pyfile, run_as, start_method, scen
         session.send_request('setExceptionBreakpoints', {
             'filters': filters
         }).wait_for_response()
+
+        if scenario == 'exclude_code_to_debug':
+            breakpoints = session.set_breakpoints(code_to_debug, [1])
+            assert breakpoints == [{
+                'verified': False,
+                'message': (
+                    'Breakpoint in file excluded by filters.\n'
+                    'Note: may be excluded because of "justMyCode" option (default == true).'
+                ),
+                'source': {},
+                'line': 1
+            }]
+
         session.start_debugging()
         session.write_json({'call_me_back_dir': call_me_back_dir})
 

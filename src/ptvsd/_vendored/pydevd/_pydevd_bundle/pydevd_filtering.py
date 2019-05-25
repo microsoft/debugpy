@@ -127,22 +127,23 @@ class FilesFiltering(object):
 
         # Stepping filters.
         pydevd_filters = os.getenv('PYDEVD_FILTERS', '')
-        if pydevd_filters.startswith('{'):
-            # dict(glob_pattern (str) -> exclude(True or False))
-            exclude_filters = []
-            for key, val in json.loads(pydevd_filters).items():
-                exclude_filters.append(ExcludeFilter(key, val, True))
-            self._exclude_filters = exclude_filters
-        else:
-            # A ';' separated list of strings with globs for the
-            # list of excludes.
-            filters = pydevd_filters.split(';')
-            pydev_log.debug("PYDEVD_FILTERS %s\n" % filters)
-            new_filters = []
-            for new_filter in filters:
-                if new_filter.strip():
-                    new_filters.append(ExcludeFilter(new_filter.strip(), True, True))
-            self._exclude_filters = new_filters
+        if pydevd_filters:
+            pydev_log.debug("PYDEVD_FILTERS %s", (pydevd_filters,))
+            if pydevd_filters.startswith('{'):
+                # dict(glob_pattern (str) -> exclude(True or False))
+                exclude_filters = []
+                for key, val in json.loads(pydevd_filters).items():
+                    exclude_filters.append(ExcludeFilter(key, val, True))
+                self._exclude_filters = exclude_filters
+            else:
+                # A ';' separated list of strings with globs for the
+                # list of excludes.
+                filters = pydevd_filters.split(';')
+                new_filters = []
+                for new_filter in filters:
+                    if new_filter.strip():
+                        new_filters.append(ExcludeFilter(new_filter.strip(), True, True))
+                self._exclude_filters = new_filters
 
     @classmethod
     def _get_default_library_roots(cls):
@@ -276,8 +277,6 @@ class FilesFiltering(object):
         for exclude_filter in self._exclude_filters:  # : :type exclude_filter: ExcludeFilter
             if exclude_filter.is_path:
                 if glob_matches_path(filename, exclude_filter.name):
-                    if exclude_filter.exclude:
-                        pydev_log.debug("File %s ignored by filter %s" % (filename, exclude_filter.name))
                     return exclude_filter.exclude
             else:
                 # Module filter.

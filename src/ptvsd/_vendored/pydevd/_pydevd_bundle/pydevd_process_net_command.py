@@ -257,8 +257,19 @@ class _PyDevCommandProcessor(object):
         filename = self.api.filename_to_server(filename)
         func_name = self.api.to_str(func_name)
 
-        self.api.add_breakpoint(
+        error_code = self.api.add_breakpoint(
             py_db, filename, btype, breakpoint_id, line, condition, func_name, expression, suspend_policy, hit_condition, is_logpoint)
+
+        if error_code:
+            if error_code == self.api.ADD_BREAKPOINT_FILE_NOT_FOUND:
+                pydev_log.critical('pydev debugger: warning: Trying to add breakpoint to file that does not exist: %s (will have no effect).' % (filename,))
+
+            elif error_code == self.api.ADD_BREAKPOINT_FILE_EXCLUDED_BY_FILTERS:
+                pydev_log.critical('pydev debugger: warning: Trying to add breakpoint to file that is excluded by filters: %s (will have no effect).' % (filename,))
+
+            else:
+                # Shouldn't get here.
+                pydev_log.critical('pydev debugger: warning: Breakpoint not validated (reason unknown -- please report as error): %s.' % (filename,))
 
     def cmd_remove_break(self, py_db, cmd_id, seq, text):
         # command to remove some breakpoint

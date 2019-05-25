@@ -99,6 +99,11 @@ def error_once(msg, *args):
         critical(message)
 
 
+def debug_once(msg, *args):
+    if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 3:
+        error_once(msg, *args)
+
+
 def show_compile_cython_command_line():
     if SHOW_COMPILE_CYTHON_COMMAND_LINE:
         dirname = os.path.dirname(os.path.dirname(__file__))

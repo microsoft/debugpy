@@ -227,7 +227,10 @@ class ReaderThread(PyDBDaemonThread):
                 self._buffer = self._buffer[size:]
                 return ret
 
-            r = self.sock.recv(max(size - buffer_len, 1024))
+            try:
+                r = self.sock.recv(max(size - buffer_len, 1024))
+            except OSError:
+                return b''
             if not r:
                 return b''
             self._buffer += r
@@ -241,7 +244,10 @@ class ReaderThread(PyDBDaemonThread):
                 self._buffer = self._buffer[i:]
                 return ret
             else:
-                r = self.sock.recv(1024)
+                try:
+                    r = self.sock.recv(1024)
+                except OSError:
+                    return b''
                 if not r:
                     return b''
                 self._buffer += r

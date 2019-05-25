@@ -120,10 +120,22 @@ class JsonFacade(object):
             assert json_hit.stack_trace_response.body.stackFrames[0]['name'] == name
         return json_hit
 
-    def write_set_breakpoints(self, lines, filename=None, line_to_info=None):
+    def write_set_breakpoints(
+            self,
+            lines,
+            filename=None,
+            line_to_info=None,
+            success=True,
+            verified=True,
+            send_launch_if_needed=True,
+            expected_lines_in_response=None,
+        ):
         '''
         Adds a breakpoint.
         '''
+        if send_launch_if_needed and not self._sent_launch_or_attach:
+            self.write_launch()
+
         if isinstance(lines, int):
             lines = [lines]
 
@@ -156,10 +168,20 @@ class JsonFacade(object):
         response = self.wait_for_response(self.write_request(request))
         body = response.body
 
-        # : :type body: SetBreakpointsResponseBody
-        assert len(body.breakpoints) == len(lines)
-        lines_in_response = [b['line'] for b in body.breakpoints]
-        assert set(lines_in_response) == set(lines)
+        assert response.success == success
+
+        if success:
+            # : :type body: SetBreakpointsResponseBody
+            assert len(body.breakpoints) == len(lines)
+            lines_in_response = [b['line'] for b in body.breakpoints]
+
+            if expected_lines_in_response is None:
+                expected_lines_in_response = lines
+            assert set(lines_in_response) == set(expected_lines_in_response)
+
+            for b in body.breakpoints:
+                assert b['verified'] == verified
+        return response
 
     def write_set_exception_breakpoints(self, filters=None, exception_options=None):
         '''
@@ -181,19 +203,21 @@ class JsonFacade(object):
         response = self.wait_for_response(self.write_request(request))
         assert response.success
 
-    def write_launch(self, **arguments):
+    def _write_launch_or_attach(self, command, **arguments):
+        assert not self._sent_launch_or_attach
         self._sent_launch_or_attach = True
         arguments['noDebug'] = False
-        request = {'type': 'request', 'command': 'launch', 'arguments': arguments, 'seq':-1}
+        request = {'type': 'request', 'command': command, 'arguments': arguments, 'seq':-1}
         self.wait_for_response(self.write_request(request))
+
+    def write_launch(self, **arguments):
+        return self._write_launch_or_attach('launch', **arguments)
 
     def write_attach(self, **arguments):
-        self._sent_launch_or_attach = True
-        arguments['noDebug'] = False
-        request = {'type': 'request', 'command': 'attach', 'arguments': arguments, 'seq':-1}
-        self.wait_for_response(self.write_request(request))
+        return self._write_launch_or_attach('attach', **arguments)
 
     def write_disconnect(self, wait_for_response=True):
+        assert self._sent_launch_or_attach
         self._sent_launch_or_attach = False
         arguments = pydevd_schema.DisconnectArguments(terminateDebuggee=False)
         request = pydevd_schema.DisconnectRequest(arguments)
@@ -387,8 +411,11 @@ def test_case_json_change_breaks(case_setup):
     with case_setup.test_file('_debugger_case_change_breaks.py') as writer:
         json_facade = JsonFacade(writer)
 
-        json_facade.write_launch()
         break1_line = writer.get_line_index_with_content('break 1')
+        # Note: we can only write breakpoints after the launch is received.
+        json_facade.write_set_breakpoints(break1_line, success=False, send_launch_if_needed=False)
+
+        json_facade.write_launch()
         json_facade.write_set_breakpoints(break1_line)
         json_facade.write_make_initial_run()
 
@@ -560,12 +587,27 @@ def test_case_skipping_filters(case_setup, custom_setup):
             )
 
         elif custom_setup == 'set_exclude_launch_path_match_folder':
+            not_my_code_dir = debugger_unittest._get_debugger_test_file('not_my_code')
             json_facade.write_launch(
                 debugOptions=['DebugStdLib'],
                 rules=[
-                    {'path': debugger_unittest._get_debugger_test_file('not_my_code'), 'include':False},
+                    {'path': not_my_code_dir, 'include':False},
                 ]
             )
+
+            other_filename = os.path.join(not_my_code_dir, 'other.py')
+            response = json_facade.write_set_breakpoints(1, filename=other_filename, verified=False)
+            assert response.body.breakpoints == [
+                {'verified': False, 'message': 'Breakpoint in file excluded by filters.', 'source': {}, 'line': 1}]
+            # Note: there's actually a use-case where we'd hit that breakpoint even if it was excluded
+            # by filters, so, we must actually clear it afterwards (the use-case is that when we're
+            # stepping into the context with the breakpoint we wouldn't skip it).
+            json_facade.write_set_breakpoints([], filename=other_filename)
+
+            other_filename = os.path.join(not_my_code_dir, 'file_that_does_not_exist.py')
+            response = json_facade.write_set_breakpoints(1, filename=other_filename, verified=False)
+            assert response.body.breakpoints == [
+                {'verified': False, 'message': 'Breakpoint in file that does not exist.', 'source': {}, 'line': 1}]
 
         elif custom_setup == 'set_exclude_launch_module_full':
             json_facade.write_launch(
@@ -587,6 +629,16 @@ def test_case_skipping_filters(case_setup, custom_setup):
             writer.write_set_project_roots([debugger_unittest._get_debugger_test_file('my_code')])
             json_facade.write_launch(debugOptions=[])
 
+            not_my_code_dir = debugger_unittest._get_debugger_test_file('not_my_code')
+            other_filename = os.path.join(not_my_code_dir, 'other.py')
+            response = json_facade.write_set_breakpoints(
+                33, filename=other_filename, verified=False, expected_lines_in_response=[14])
+            assert response.body.breakpoints == [{
+                'verified': False,
+                'message': 'Breakpoint in file excluded by filters.\nNote: may be excluded because of "justMyCode" option (default == true).',
+                'source': {},
+                'line': 14
+            }]
         elif custom_setup == 'set_just_my_code_and_include':
             # I.e.: nothing in my_code (add it with rule).
             writer.write_set_project_roots([debugger_unittest._get_debugger_test_file('launch')])
@@ -788,8 +840,8 @@ def test_return_value(case_setup):
         json_facade = JsonFacade(writer)
 
         break_line = writer.get_line_index_with_content('break here')
-        json_facade.write_set_breakpoints(break_line)
         json_facade.write_launch(debugOptions=['ShowReturnValue'])
+        json_facade.write_set_breakpoints(break_line)
         json_facade.write_make_initial_run()
 
         json_hit = json_facade.wait_for_thread_stopped()
@@ -1432,11 +1484,11 @@ def test_stepping(case_setup):
     with case_setup.test_file('_debugger_case_stepping.py') as writer:
         json_facade = JsonFacade(writer)
 
+        json_facade.write_launch(debugOptions=['DebugStdLib'])
         json_facade.write_set_breakpoints([
             writer.get_line_index_with_content('Break here 1'),
             writer.get_line_index_with_content('Break here 2')
         ])
-        json_facade.write_launch(debugOptions=['DebugStdLib'])
         json_facade.write_make_initial_run()
 
         json_hit = json_facade.wait_for_thread_stopped()
@@ -1626,6 +1678,8 @@ def test_breakpoint_adjustment(case_setup):
     with case_setup.test_file('_debugger_case_adjust_breakpoint.py') as writer:
         json_facade = JsonFacade(writer)
 
+        json_facade.write_launch()
+
         bp_requested = writer.get_line_index_with_content('requested')
         bp_expected = writer.get_line_index_with_content('expected')
 
@@ -1635,6 +1689,7 @@ def test_breakpoint_adjustment(case_setup):
                 breakpoints=[pydevd_schema.SourceBreakpoint(bp_requested).to_dict()]))
         )
         set_bp_response = json_facade.wait_for_response(set_bp_request)
+        assert set_bp_response.success
         assert set_bp_response.body.breakpoints[0]['line'] == bp_expected
 
         json_facade.write_make_initial_run()
@@ -1799,7 +1854,6 @@ def test_wait_for_attach(case_setup_remote_attach_to):
         process_events = json_facade.mark_messages(ProcessEvent)
         assert len(process_events) == 1
         assert next(iter(process_events)).body.startMethod == start_method
-        json_facade.write_make_initial_run()
 
     with case_setup_remote_attach_to.test_file('_debugger_case_wait_for_attach.py', host_port[1]) as writer:
         time.sleep(.5)  # Give some time for it to pass the first breakpoint and wait in 'wait_for_attach'.
@@ -1815,8 +1869,9 @@ def test_wait_for_attach(case_setup_remote_attach_to):
         pause1_line = writer.get_line_index_with_content('Pause 1')
         pause2_line = writer.get_line_index_with_content('Pause 2')
 
-        json_facade.write_set_breakpoints([break1_line, break2_line, break3_line])
         check_process_event(json_facade, start_method='launch')
+        json_facade.write_set_breakpoints([break1_line, break2_line, break3_line])
+        json_facade.write_make_initial_run()
         json_facade.wait_for_thread_stopped(line=break2_line)
 
         # Upon disconnect, all threads should be running again.
@@ -1826,8 +1881,9 @@ def test_wait_for_attach(case_setup_remote_attach_to):
         writer.start_socket_client(*host_port)
         json_facade = JsonFacade(writer)
         check_thread_events(json_facade)
-        json_facade.write_set_breakpoints([break1_line, break2_line, break3_line])
         check_process_event(json_facade, start_method='attach')
+        json_facade.write_set_breakpoints([break1_line, break2_line, break3_line])
+        json_facade.write_make_initial_run()
         json_facade.wait_for_thread_stopped(line=break3_line)
 
         # Upon disconnect, all threads should be running again.
@@ -1838,12 +1894,14 @@ def test_wait_for_attach(case_setup_remote_attach_to):
         json_facade = JsonFacade(writer)
         check_thread_events(json_facade)
         check_process_event(json_facade, start_method='attach')
+        json_facade.write_make_initial_run()
 
         # Connect back without a disconnect (auto-disconnects previous and connects new client).
         writer.start_socket_client(*host_port)
         json_facade = JsonFacade(writer)
         check_thread_events(json_facade)
         check_process_event(json_facade, start_method='attach')
+        json_facade.write_make_initial_run()
 
         json_facade.write_pause()
         json_hit = json_facade.wait_for_thread_stopped(reason='pause', line=[pause1_line, pause2_line])
@@ -1851,7 +1909,7 @@ def test_wait_for_attach(case_setup_remote_attach_to):
         # Change value of 'a' for test to finish.
         json_facade.write_set_variable(json_hit.frame_id, 'a', '10')
 
-        json_facade.write_disconnect()
+        json_facade.write_disconnect(wait_for_response=False)
         writer.finished_ok = True
 
 
@@ -1941,8 +1999,8 @@ def test_source_reference_no_file(case_setup, tmpdir):
     with case_setup.test_file('_debugger_case_source_reference.py', get_environ=get_environ) as writer:
         json_facade = JsonFacade(writer)
 
-        writer.write_add_breakpoint(writer.get_line_index_with_content('breakpoint'))
         json_facade.write_launch(debugOptions=['DebugStdLib'])
+        writer.write_add_breakpoint(writer.get_line_index_with_content('breakpoint'))
         json_facade.write_make_initial_run()
 
         # First hit is for breakpoint reached via a stack frame that doesn't have source.

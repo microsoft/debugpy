@@ -17,7 +17,6 @@ from tests.helpers.session import DebugSession
 from tests.helpers.timeline import Event
 from tests.helpers.pattern import ANY, Path
 
-
 BP_TEST_ROOT = get_test_root('bp')
 
 
@@ -75,6 +74,7 @@ def test_path_with_unicode(run_as, start_method):
     'hitCondition_mod',
 ])
 def test_conditional_breakpoint(pyfile, run_as, start_method, condition_key):
+
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
@@ -132,22 +132,24 @@ def test_conditional_breakpoint(pyfile, run_as, start_method, condition_key):
 
 
 def test_crossfile_breakpoint(pyfile, run_as, start_method):
+
     @pyfile
     def script1():
         from dbgimporter import import_and_enable_debugger  # noqa
+
         def do_something():
-            print('do something')
+            print('do something')  # @bp
 
     @pyfile
     def script2():
         from dbgimporter import import_and_enable_debugger
         import_and_enable_debugger()
         import script1
-        script1.do_something()
+        script1.do_something()  # @bp
         print('Done')
 
-    bp_script1_line = 3
-    bp_script2_line = 4
+    bp_script1_line = get_marked_line_numbers(script1)['bp']
+    bp_script2_line = get_marked_line_numbers(script2)['bp']
     with DebugSession() as session:
         session.initialize(
             target=(run_as, script2),
@@ -177,13 +179,16 @@ def test_crossfile_breakpoint(pyfile, run_as, start_method):
     'OtherError',
 ])
 def test_error_in_condition(pyfile, run_as, start_method, error_name):
+
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
         import_and_enable_debugger()
+
         def do_something_bad():
             raise ArithmeticError()
-        for i in range(1, 10):
+
+        for i in range(1, 10):  # @bp
             pass
 
     # NOTE: NameError in condition, is a special case. Pydevd is configured to skip
@@ -194,7 +199,7 @@ def test_error_in_condition(pyfile, run_as, start_method, error_name):
         'OtherError': ('do_something_bad()==5')  # throws some error
     }
 
-    bp_line = 5
+    bp_line = get_marked_line_numbers(code_to_debug)['bp']
     with DebugSession() as session:
         session.initialize(
             target=(run_as, code_to_debug),
@@ -218,6 +223,7 @@ def test_error_in_condition(pyfile, run_as, start_method, error_name):
 
 
 def test_log_point(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
@@ -265,6 +271,7 @@ def test_log_point(pyfile, run_as, start_method):
 
 
 def test_condition_with_log_point(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
@@ -356,6 +363,7 @@ def test_package_launch():
 
 
 def test_add_and_remove_breakpoint(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
@@ -392,26 +400,53 @@ def test_add_and_remove_breakpoint(pyfile, run_as, start_method):
         assert list(range(0, 10)) == output
 
 
+def test_breakpoints_in_filtered_files(pyfile, run_as, start_method):
+
+    @pyfile
+    def code_to_debug():
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
+
+    with DebugSession() as session:
+        session.initialize(
+            target=(run_as, code_to_debug),
+            start_method=start_method,
+        )
+
+        breakpoints = session.set_breakpoints('invalid_file.py', [1])
+        assert breakpoints == [{
+            'verified': False,
+            'message': 'Breakpoint in file that does not exist.',
+            'source': {},
+            'line': 1
+        }]
+
+        session.start_debugging()
+
+        session.wait_for_exit()
+
+
 def test_invalid_breakpoints(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
         import_and_enable_debugger()
 
         b = True
-        while b:        #@bp1-expected
-            pass        #@bp1-requested
+        while b:  # @bp1-expected
+            pass  # @bp1-requested
             break
 
-        print()         #@bp2-expected
-        [               #@bp2-requested
-            1, 2, 3,    #@bp3-expected
-        ]               #@bp3-requested
+        print()  # @bp2-expected
+        [  # @bp2-requested
+            1, 2, 3,  # @bp3-expected
+        ]  # @bp3-requested
 
         # Python 2.7 only.
-        print()         #@bp4-expected
-        print(1,        #@bp4-requested-1
-              2, 3,     #@bp4-requested-2
+        print()  # @bp4-expected
+        print(1,  # @bp4-requested-1
+              2, 3,  # @bp4-requested-2
               4, 5, 6)
 
     line_numbers = get_marked_line_numbers(code_to_debug)
@@ -473,6 +508,7 @@ def test_invalid_breakpoints(pyfile, run_as, start_method):
 
 
 def test_deep_stacks(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
@@ -480,9 +516,10 @@ def test_deep_stacks(pyfile, run_as, start_method):
 
         def deep_stack(level):
             if level <= 0:
-                print('done')  #@bp
+                print('done')  # @bp
                 return level
             deep_stack(level - 1)
+
         deep_stack(100)
 
     line_numbers = get_marked_line_numbers(code_to_debug)

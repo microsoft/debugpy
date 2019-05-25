@@ -339,7 +339,6 @@ class PydevdSocket(object):
 
         return fut
 
-
 ########################
 # the debug config
 
@@ -1220,16 +1219,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         while not self._path_mappings_applied:
             yield self.sleep()
 
-        pydevd_request = copy.deepcopy(request)
-        del pydevd_request['seq']  # A new seq should be created for pydevd.
-
-        _, _, resp_args = yield self.pydevd_request(
-            pydevd_comm.CMD_SET_BREAK,
-            pydevd_request,
-            is_json=True)
-
-        breakpoints = resp_args['body']['breakpoints']
-        self.send_response(request, breakpoints=breakpoints)
+        self._forward_request_to_pydevd(request, args)
 
     def on_setExceptionBreakpoints(self, request, args):
         self._forward_request_to_pydevd(request, args)
@@ -1341,7 +1331,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         # thread creation anyways).
         tid = args['body']['threadId']
         self.send_event('thread', reason='started', threadId=tid)
-
 
     @pydevd_events.handler(pydevd_comm.CMD_THREAD_KILL)
     def on_pydevd_thread_kill(self, seq, args):
