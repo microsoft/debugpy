@@ -9,7 +9,7 @@ import threading
 import time
 import sys
 
-import ptvsd.log
+import ptvsd.common.log
 
 
 @contextlib.contextmanager
@@ -19,7 +19,7 @@ def ignore_errors(log=None):
         yield
     except Exception:
         if log is not None:
-            ptvsd.log.exception('Ignoring error', category='I')
+            ptvsd.common.log.exception('Ignoring error', category='I')
 
 
 def call_all(callables, *args, **kwargs):
@@ -132,7 +132,7 @@ def _wait(check, timeout):
         return False
 
 
-def new_hidden_thread(name, target, prefix='ptvsd.', daemon=True, **kwargs):
+def new_hidden_thread(name, target, prefix='ptvsd.common.', daemon=True, **kwargs):
     """Return a thread that will be ignored by pydevd."""
     if prefix is not None and not name.startswith(prefix):
         name = prefix + name

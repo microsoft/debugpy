@@ -12,7 +12,7 @@ import socket
 import threading
 import time
 
-from ptvsd.messaging import JsonIOStream, JsonMessageChannel, RequestFailure
+from ptvsd.common.messaging import JsonIOStream, JsonMessageChannel, RequestFailure
 from .helpers.messaging import JsonMemoryStream, LoggingJsonStream
 
 

@@ -7,7 +7,7 @@ from __future__ import print_function, with_statement, absolute_import
 __all__ = ['print', 'wait_for_output']
 
 import threading
-from ptvsd.compat import queue
+from ptvsd.common.compat import queue
 from tests.helpers import timestamp, colors
 
 

@@ -110,6 +110,9 @@ if __name__ == '__main__':
         package_dir={'': 'src'},
         packages=[
             'ptvsd',
+            'ptvsd.common',
+            'ptvsd.adapter',
+            'ptvsd.server',
             'ptvsd._vendored',
         ],
         package_data={

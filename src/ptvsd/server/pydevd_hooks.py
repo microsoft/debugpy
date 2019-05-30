@@ -10,15 +10,15 @@ from _pydev_bundle import pydev_monkey
 from _pydevd_bundle import pydevd_comm
 
 import ptvsd
-import ptvsd.log
-from ptvsd import multiproc
-from ptvsd.socket import Address
-from ptvsd.daemon import Daemon, DaemonStoppedError, DaemonClosedError
-from ptvsd._util import new_hidden_thread
-from ptvsd import options
+import ptvsd.server.log
+from ptvsd.server import multiproc
+from ptvsd.server.socket import Address
+from ptvsd.server.daemon import Daemon, DaemonStoppedError, DaemonClosedError
+from ptvsd.server._util import new_hidden_thread
+from ptvsd.server import options
 
 
-@ptvsd.log.escaped_exceptions
+@ptvsd.server.log.escaped_exceptions
 def start_server(daemon, host, port, **kwargs):
     """Return a socket to a (new) local pydevd-handling daemon.
 
@@ -31,28 +31,28 @@ def start_server(daemon, host, port, **kwargs):
 
     def handle_next():
         try:
-            ptvsd.log.debug('Waiting for session...')
+            ptvsd.server.log.debug('Waiting for session...')
             session = next_session(**kwargs)
-            ptvsd.log.debug('Got session')
+            ptvsd.server.log.debug('Got session')
             return session
         except (DaemonClosedError, DaemonStoppedError):
             # Typically won't happen.
-            ptvsd.log.exception('Daemon stopped while waiting for session', category='D')
+            ptvsd.server.log.exception('Daemon stopped while waiting for session', category='D')
             raise
         except Exception:
-            ptvsd.log.exception()
+            ptvsd.server.log.exception()
             return None
 
     def serve_forever():
-        ptvsd.log.debug('Waiting for initial connection...')
+        ptvsd.server.log.debug('Waiting for initial connection...')
         handle_next()
         while True:
-            ptvsd.log.debug('Waiting for next connection...')
+            ptvsd.server.log.debug('Waiting for next connection...')
             try:
                 handle_next()
             except (DaemonClosedError, DaemonStoppedError):
                 break
-        ptvsd.log.debug('Done serving')
+        ptvsd.server.log.debug('Done serving')
 
     t = new_hidden_thread(
         target=serve_forever,
@@ -62,7 +62,7 @@ def start_server(daemon, host, port, **kwargs):
     return sock
 
 
-@ptvsd.log.escaped_exceptions
+@ptvsd.server.log.escaped_exceptions
 def start_client(daemon, host, port, **kwargs):
     """Return a socket to an existing "remote" pydevd-handling daemon.
 
@@ -77,12 +77,12 @@ def start_client(daemon, host, port, **kwargs):
 
 
 # See pydevd/_vendored/pydevd/_pydev_bundle/pydev_monkey.py
-@ptvsd.log.escaped_exceptions
+@ptvsd.server.log.escaped_exceptions
 def get_python_c_args(host, port, indC, args, setup):
     runner = '''
 import sys
 sys.path.append(r'{ptvsd_syspath}')
-from ptvsd import multiproc
+from ptvsd.server import multiproc
 multiproc.init_subprocess(
     {initial_pid},
     {initial_request},
@@ -97,7 +97,7 @@ multiproc.init_subprocess(
     first_port, last_port = multiproc.subprocess_port_range
 
     # __file__ will be .../ptvsd/__init__.py, and we want the ...
-    ptvsd_syspath = os.path.join(ptvsd.__file__, '../..')
+    ptvsd_syspath = os.path.join(ptvsd.server.__file__, '../..')
 
     return runner.format(
         initial_pid=multiproc.initial_pid,
@@ -122,7 +122,7 @@ def install(pydevd_module, address,
     change).
     """
 
-    ptvsd.log.debug('Installing pydevd hooks.')
+    ptvsd.server.log.debug('Installing pydevd hooks.')
 
     addr = Address.from_raw(address)
     daemon = Daemon(**kwargs)
@@ -141,7 +141,7 @@ def install(pydevd_module, address,
     if not options.multiprocess and not options.no_debug:
         # This means '--multiprocess' flag was not passed via command line args. Patch the
         # new process functions here to handle multiprocess being enabled via debug options.
-        ptvsd.log.debug('Monkey-patching multiprocess functions.')
+        ptvsd.server.log.debug('Monkey-patching multiprocess functions.')
         pydev_monkey.patch_new_process_functions()
 
     # Ensure that pydevd is using our functions.

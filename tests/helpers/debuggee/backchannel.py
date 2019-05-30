@@ -11,12 +11,12 @@ fixture and its backchannel method."""
 import os
 import socket
 
-import ptvsd.log
-from ptvsd.messaging import JsonIOStream
+import ptvsd.common.log as log
+from ptvsd.common.messaging import JsonIOStream
 
 
 port = int(os.getenv('PTVSD_BACKCHANNEL_PORT'))
-ptvsd.log.debug('Connecting to bchan#{0}', port)
+log.debug('Connecting to bchan#{0}', port)
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.connect(('localhost', port))

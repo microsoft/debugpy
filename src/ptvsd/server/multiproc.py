@@ -19,11 +19,11 @@ try:
 except ImportError:
     import Queue as queue
 
-import ptvsd.log
-from ptvsd import options
-from ptvsd.socket import create_server, create_client
-from ptvsd.messaging import JsonIOStream, JsonMessageChannel
-from ptvsd._util import new_hidden_thread
+import ptvsd.server.log
+from ptvsd.server import options
+from ptvsd.server.socket import create_server, create_client
+from ptvsd.server.messaging import JsonIOStream, JsonMessageChannel
+from ptvsd.server._util import new_hidden_thread
 
 from _pydev_bundle import pydev_monkey
 from _pydevd_bundle.pydevd_comm import get_global_debugger
@@ -74,7 +74,7 @@ def listen_for_subprocesses():
     assert subprocess_listener_socket is None
 
     subprocess_listener_socket = create_server('localhost', 0)
-    ptvsd.log.debug(
+    ptvsd.server.log.debug(
         'Listening for subprocess notifications on port {0}.',
         subprocess_listener_port())
 
@@ -84,7 +84,7 @@ def listen_for_subprocesses():
 
 
 def stop_listening_for_subprocesses():
-    ptvsd.log.debug('Stopping listening for subprocess notifications.')
+    ptvsd.server.log.debug('Stopping listening for subprocess notifications.')
 
     global subprocess_listener_socket
     if subprocess_listener_socket is None:
@@ -100,16 +100,16 @@ def kill_subprocesses():
     with subprocess_lock:
         pids = list(subprocesses.keys())
 
-    ptvsd.log.debug('Killing remaining subprocesses: PID={0}', pids)
+    ptvsd.server.log.debug('Killing remaining subprocesses: PID={0}', pids)
 
     for pid in pids:
-        ptvsd.log.debug('Killing subprocess with PID={0}.', pid)
+        ptvsd.server.log.debug('Killing subprocess with PID={0}.', pid)
         with subprocess_lock:
             subprocesses.pop(pid, None)
         try:
             os.kill(pid, signal.SIGTERM)
         except Exception:
-            ptvsd.log.exception('Failed to kill process with PID={0}.', pid, category='D')
+            ptvsd.server.log.exception('Failed to kill process with PID={0}.', pid, category='D')
 
 
 def subprocess_listener_port():
@@ -129,7 +129,7 @@ def _subprocess_listener():
 
         n = next(counter)
         name = 'subprocess-{}'.format(n)
-        ptvsd.log.debug('Accepted incoming connection from {0}', name)
+        ptvsd.server.log.debug('Accepted incoming connection from {0}', name)
 
         stream = JsonIOStream.from_socket(sock, name=name)
         _handle_subprocess(n, stream)
@@ -153,7 +153,7 @@ def _handle_subprocess(n, stream):
             with subprocess_lock:
                 subprocesses[self._pid] = channel
 
-            ptvsd.log.debug(
+            ptvsd.server.log.debug(
                 'Subprocess {0} (PID={1}) registered, notifying IDE.',
                 stream.name,
                 self._pid)
@@ -164,7 +164,7 @@ def _handle_subprocess(n, stream):
             return response
 
         def disconnect(self):
-            ptvsd.log.debug('Subprocess {0} disconnected, presumed to have terminated.', self._pid)
+            ptvsd.server.log.debug('Subprocess {0} disconnected, presumed to have terminated.', self._pid)
             if self._pid is not None:
                 with subprocess_lock:
                     subprocesses.pop(self._pid, None)
@@ -177,7 +177,7 @@ def _handle_subprocess(n, stream):
 def notify_root(port):
     assert options.subprocess_of
 
-    ptvsd.log.debug('Subprocess (PID={0}) notifying root process at port {1}', os.getpid(), options.subprocess_notify)
+    ptvsd.server.log.debug('Subprocess (PID={0}) notifying root process at port {1}', os.getpid(), options.subprocess_notify)
     conn = create_client()
     conn.connect(('localhost', options.subprocess_notify))
     stream = JsonIOStream.from_socket(conn, 'root-process')
@@ -200,7 +200,7 @@ def notify_root(port):
     try:
         response = request.wait_for_response()
     except Exception:
-        ptvsd.log.exception('Failed to send subprocess notification; exiting')
+        ptvsd.server.log.exception('Failed to send subprocess notification; exiting')
         sys.exit(0)
 
     # Keep the channel open until we exit - root process uses open channels to keep
@@ -208,7 +208,7 @@ def notify_root(port):
     atexit.register(lambda: channel.close())
 
     if not response['incomingConnection']:
-        ptvsd.log.debug('No IDE connection is expected for this subprocess; unpausing.')
+        ptvsd.server.log.debug('No IDE connection is expected for this subprocess; unpausing.')
         debugger = get_global_debugger()
         while debugger is None:
             time.sleep(0.1)
@@ -219,7 +219,7 @@ def notify_root(port):
 def patch_args(args):
     """
     Patches a command line invoking Python such that it has the same meaning, but
-    the process runs under ptvsd. In general, this means that given something like:
+    the process runs under ptvsd.server. In general, this means that given something like:
 
         python -R -Q warn -m app
 
@@ -232,7 +232,7 @@ def patch_args(args):
         return args
 
     args = list(args)
-    ptvsd.log.debug('Patching subprocess command line: {0!r}', args)
+    ptvsd.server.log.debug('Patching subprocess command line: {0!r}', args)
 
     # First, let's find the target of the invocation. This is one of:
     #
@@ -307,11 +307,11 @@ def patch_args(args):
         '--subprocess-of', str(os.getpid()),
         '--subprocess-notify', str(options.subprocess_notify or subprocess_listener_port()),
     ]
-    if options.log_dir:
-        ptvsd_args += ['--log-dir', options.log_dir]
+    if ptvsd.common.options.log_dir:
+        ptvsd_args += ['--log-dir', ptvsd.common.options.log_dir]
     args[i:i] = ptvsd_args
 
-    ptvsd.log.debug('Patched subprocess command line: {0!r}', args)
+    ptvsd.server.log.debug('Patched subprocess command line: {0!r}', args)
     return args
 
 

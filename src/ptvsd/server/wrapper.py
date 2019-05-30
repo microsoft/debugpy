@@ -36,15 +36,15 @@ from pydevd_file_utils import get_abs_path_real_path_and_base_from_file  # noqa
 from _pydevd_bundle.pydevd_dont_trace_files import PYDEV_FILE  # noqa
 
 import ptvsd
-import ptvsd.log
-from ptvsd import _util
-from ptvsd import multiproc
-from ptvsd import options
-from ptvsd.compat import unicode
-import ptvsd.ipcjson as ipcjson  # noqa
-import ptvsd.futures as futures  # noqa
-from ptvsd.version import __version__  # noqa
-from ptvsd.socket import TimeoutError  # noqa
+import ptvsd.server.log
+from ptvsd.server import _util
+from ptvsd.server import multiproc
+from ptvsd.server import options
+from ptvsd.server.compat import unicode
+import ptvsd.server.ipcjson as ipcjson  # noqa
+import ptvsd.server.futures as futures  # noqa
+from ptvsd import __version__  # noqa
+from ptvsd.server.socket import TimeoutError  # noqa
 
 WAIT_FOR_THREAD_FINISH_TIMEOUT = 1  # seconds
 
@@ -321,10 +321,10 @@ class PydevdSocket(object):
                 assert data.endswith(b'\n')
                 data = self._decode_and_unquote(data[:-1])
                 cmd_id, seq, args = data.split('\t', 2)
-                if ptvsd.log.is_enabled():
+                if ptvsd.server.log.is_enabled():
                     trace_fmt = '{cmd_name} {seq}\n{args}'
         except:
-            ptvsd.log.exception(trace_prefix + trace_fmt, data=data)
+            ptvsd.server.log.exception(trace_prefix + trace_fmt, data=data)
             raise
 
         seq = int(seq)
@@ -339,7 +339,7 @@ class PydevdSocket(object):
 
         if requesting_handler is not None:
             trace_prefix = '(requested while handling {requesting_handler})\n' + trace_prefix
-        ptvsd.log.debug(
+        ptvsd.server.log.debug(
             trace_prefix + trace_fmt,
             data=data,
             cmd_id=cmd_id,
@@ -350,7 +350,7 @@ class PydevdSocket(object):
         )
 
         if fut is None:
-            with ptvsd.log.handling((cmd_name, seq)):
+            with ptvsd.server.log.handling((cmd_name, seq)):
                 self._handle_msg(cmd_id, seq, args)
         else:
             loop.call_soon_threadsafe(fut.set_result, (cmd_id, seq, args))
@@ -369,12 +369,12 @@ class PydevdSocket(object):
             seq = self.seq
             self.seq += 1
 
-        if ptvsd.log.is_enabled():
+        if ptvsd.server.log.is_enabled():
             try:
                 cmd_name = pydevd_comm.ID_TO_MEANING[str(cmd_id)]
             except KeyError:
                 cmd_name = cmd_id
-            ptvsd.log.debug('PYD <-- {0} {1} {2}', cmd_name, seq, args)
+            ptvsd.server.log.debug('PYD <-- {0} {1} {2}', cmd_name, seq, args)
 
         s = '{}\t{}\t{}\n'.format(cmd_id, seq, args)
         return seq, s
@@ -386,7 +386,7 @@ class PydevdSocket(object):
             self.seq += 1
             args['seq'] = seq
 
-        ptvsd.log.debug('PYD <-- {0!j}', args)
+        ptvsd.server.log.debug('PYD <-- {0!j}', args)
 
         s = json.dumps(args)
         return seq, s
@@ -422,7 +422,7 @@ class PydevdSocket(object):
         fut = loop.create_future()
 
         with self.lock:
-            self.requests[seq] = loop, fut, ptvsd.log.current_handler()
+            self.requests[seq] = loop, fut, ptvsd.server.log.current_handler()
             as_bytes = s
             if not isinstance(as_bytes, bytes):
                 as_bytes = as_bytes.encode('utf-8')
@@ -482,7 +482,7 @@ class InternalsFilter(object):
         ]
 
         self._ignore_path_prefixes = [
-            os.path.dirname(os.path.abspath(__file__)),
+            os.path.dirname(os.path.abspath(ptvsd.__file__)),
         ]
 
     def _init_windows(self):
@@ -696,14 +696,14 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
             try:
                 self.process_messages()
             except (EOFError, TimeoutError):
-                ptvsd.log.exception('Client socket closed', category='I')
+                ptvsd.server.log.exception('Client socket closed', category='I')
                 with self._connlock:
                     _util.lock_release(self._listening)
                     _util.lock_release(self._connected)
                 self.close()
             except socket.error as exc:
                 if exc.errno == errno.ECONNRESET:
-                    ptvsd.log.exception('Client socket forcibly closed', category='I')
+                    ptvsd.server.log.exception('Client socket forcibly closed', category='I')
                     with self._connlock:
                         _util.lock_release(self._listening)
                         _util.lock_release(self._connected)
@@ -731,7 +731,7 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
         if self.closed:
             return
         self._closing = True
-        ptvsd.log.debug('Raw closing')
+        ptvsd.server.log.debug('Raw closing')
 
         self._notify_closing()
         # Close the editor-side socket.
@@ -774,7 +774,7 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
                 self.socket.close()
                 self._set_disconnected()
             except Exception:
-                ptvsd.log.exception('Error on socket shutdown')
+                ptvsd.server.log.exception('Error on socket shutdown')
 
     # methods for subclasses to override
 
@@ -1146,7 +1146,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
                     raise UnsupportedPyDevdCommandError(cmd_id)
                 return f(self, seq, args)
             except:
-                ptvsd.log.exception('Error handling pydevd event: {0}', args)
+                ptvsd.server.log.exception('Error handling pydevd event: {0}', args)
                 raise
         else:
             return None
@@ -1199,7 +1199,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         client_os_type = self.debug_options.get('CLIENT_OS_TYPE', '').upper().strip()
         if client_os_type and client_os_type not in ('WINDOWS', 'UNIX'):
-            ptvsd.log.warn('Invalid CLIENT_OS_TYPE passed: %s (must be either "WINDOWS" or "UNIX").' % (client_os_type,))
+            ptvsd.server.log.warn('Invalid CLIENT_OS_TYPE passed: %s (must be either "WINDOWS" or "UNIX").' % (client_os_type,))
             client_os_type = ''
 
         if not client_os_type:
@@ -1242,7 +1242,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self._success_exitcodes = args.get('successExitCodes', default_success_exitcodes)
 
     def _handle_detach(self):
-        ptvsd.log.info('Detaching ...')
+        ptvsd.server.log.info('Detaching ...')
         # TODO: Skip if already detached?
         self._detached = True
 
@@ -1550,17 +1550,17 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             exc_desc = body['description']
 
             if not self.debug_options.get('BREAK_SYSTEMEXIT_ZERO', False) and exc_name == 'SystemExit':
-                ptvsd.log.info('{0}({1!r})', exc_name, exc_desc)
+                ptvsd.server.log.info('{0}({1!r})', exc_name, exc_desc)
                 try:
                     exit_code = int(exc_desc)
                 except ValueError:
                     # It is legal to invoke exit() with a non-integer argument, and SystemExit will
                     # pass that through. It's considered an error exit, same as non-zero integer.
-                    ptvsd.log.info('Exit code {0!r} cannot be converted to int, treating as failure', exc_desc)
+                    ptvsd.server.log.info('Exit code {0!r} cannot be converted to int, treating as failure', exc_desc)
                     ignore = False
                 else:
                     ignore = exit_code in self._success_exitcodes
-                    ptvsd.log.info(
+                    ptvsd.server.log.info(
                         'Process exiting with {0} exit code {1}',
                         'success' if ignore else 'failure',
                         exc_desc,

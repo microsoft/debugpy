@@ -6,7 +6,7 @@ import os
 import pytest
 import ptvsd
 
-from ptvsd.wrapper import InternalsFilter
+from ptvsd.server.wrapper import InternalsFilter
 
 INTERNAL_DIR = os.path.dirname(os.path.abspath(ptvsd.__file__))
 @pytest.mark.parametrize('path', [

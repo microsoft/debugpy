@@ -10,10 +10,6 @@ import os
 """ptvsd command-line options that need to be globally available.
 """
 
-log_dir = os.getenv('PTVSD_LOG_DIR')
-"""If not None, debugger logs its activity to a file named ptvsd-<pid>.log in
-the specified directory, where <pid> is the return value of os.getpid().
-"""
 
 target_kind = None
 """One of: None, 'file', 'module', 'code', or 'pid'.
@@ -35,13 +31,13 @@ If target_kind is 'pid', then target is the process ID to attach to.
 """
 
 host = 'localhost'
-"""Name or IP address of the network interface used by ptvsd. If runing in server
+"""Name or IP address of the network interface used by ptvsd.server. If runing in server
 mode, this is the interface on which it listens for incoming connections. If running
 in client mode, this is the interface to which it connects.
 """
 
 port = 5678
-"""Port number used by ptvsd. If running in server mode, this is the port on which it
+"""Port number used by ptvsd.server. If running in server mode, this is the port on which it
 listens for incoming connections. If running in client mode, this is port to which it
 connects.
 """

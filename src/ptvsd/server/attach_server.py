@@ -5,12 +5,12 @@
 import sys
 import warnings
 
-import ptvsd.log
-from ptvsd._remote import (
+import ptvsd.server.log
+from ptvsd.server._remote import (
     attach as ptvsd_attach,
     enable_attach as ptvsd_enable_attach,
 )
-from ptvsd.wrapper import debugger_attached
+from ptvsd.server.wrapper import debugger_attached
 
 import pydevd
 from _pydevd_bundle.pydevd_constants import get_global_debugger
@@ -38,7 +38,7 @@ def wait_for_attach(timeout=None):
     timeout : float, optional
         The timeout for the operation in seconds (or fractions thereof).
     """
-    ptvsd.log.info('wait_for_attach{0!r}', (timeout,))
+    ptvsd.server.log.info('wait_for_attach{0!r}', (timeout,))
     debugger_attached.wait(timeout)
 
 
@@ -65,7 +65,7 @@ def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=None, lo
     -----
     This function returns immediately after setting up the debugging server,
     and does not block program execution. If you need to block until debugger
-    is attached, call `ptvsd.wait_for_attach`. The debugger can be detached
+    is attached, call `ptvsd.server.wait_for_attach`. The debugger can be detached
     and re-attached multiple times after `enable_attach` is called.
 
     Only the thread on which this function is called, and any threads that are
@@ -75,16 +75,16 @@ def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=None, lo
     """
 
     if log_dir:
-        ptvsd.options.log_dir = log_dir
-    ptvsd.log.to_file()
-    ptvsd.log.info('enable_attach{0!r}', (address, redirect_output))
+        ptvsd.common.options.log_dir = log_dir
+    ptvsd.server.log.to_file()
+    ptvsd.server.log.info('enable_attach{0!r}', (address, redirect_output))
 
     if redirect_output is not None:
-        ptvsd.log.info('redirect_output deprecation warning.')
+        ptvsd.server.log.info('redirect_output deprecation warning.')
         warnings.warn(_redirect_output_deprecation_msg, DeprecationWarning, stacklevel=2)
 
     if is_attached():
-        ptvsd.log.info('enable_attach() ignored - already attached.')
+        ptvsd.server.log.info('enable_attach() ignored - already attached.')
         return
 
     debugger_attached.clear()
@@ -115,16 +115,16 @@ def attach(address, redirect_output=None, log_dir=None):
     """
 
     if log_dir:
-        ptvsd.options.log_dir = log_dir
-    ptvsd.log.to_file()
-    ptvsd.log.info('attach{0!r}', (address, redirect_output))
+        ptvsd.common.options.log_dir = log_dir
+    ptvsd.server.log.to_file()
+    ptvsd.server.log.info('attach{0!r}', (address, redirect_output))
 
     if redirect_output is not None:
-        ptvsd.log.info('redirect_output deprecation warning.')
+        ptvsd.server.log.info('redirect_output deprecation warning.')
         warnings.warn(_redirect_output_deprecation_msg, DeprecationWarning)
 
     if is_attached():
-        ptvsd.log.info('attach() ignored - already attached.')
+        ptvsd.server.log.info('attach() ignored - already attached.')
         return
 
     debugger_attached.clear()
@@ -146,10 +146,10 @@ def break_into_debugger():
     and breaks into the debugger with current thread as active.
     """
 
-    ptvsd.log.info('break_into_debugger()')
+    ptvsd.server.log.info('break_into_debugger()')
 
     if not is_attached():
-        ptvsd.log.info('break_into_debugger() ignored - debugger not attached')
+        ptvsd.server.log.info('break_into_debugger() ignored - debugger not attached')
         return
 
     # Get the first frame in the stack that's not an internal frame.

@@ -17,7 +17,7 @@ import time
 import traceback
 
 import ptvsd
-import ptvsd.options
+import ptvsd.common.options
 
 
 class Formatter(string.Formatter):
@@ -59,7 +59,7 @@ def write(category, fmt, *args, **kwargs):
     try:
         message = formatter.format(fmt, *args, **kwargs)
     except Exception:
-        exception('ptvsd.log.write({0!r}): invalid format string', (category, fmt, args, kwargs))
+        exception('ptvsd.common.log.write({0!r}): invalid format string', (category, fmt, args, kwargs))
         raise
 
     prefix = '{}{:09.3f}: '.format(category, t)
@@ -119,8 +119,8 @@ def escaped_exceptions(f):
 def to_file():
     global file
 
-    if ptvsd.options.log_dir and not file:
-        filename = ptvsd.options.log_dir + '/ptvsd-{}.log'.format(os.getpid())
+    if ptvsd.common.options.log_dir and not file:
+        filename = ptvsd.common.options.log_dir + '/ptvsd-{}.log'.format(os.getpid())
         file = io.open(filename, 'w', encoding='utf-8')
 
     info(

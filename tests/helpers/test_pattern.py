@@ -6,7 +6,7 @@ from __future__ import print_function, with_statement, absolute_import
 
 import pytest
 
-from ptvsd.messaging import RequestFailure
+from ptvsd.common.messaging import RequestFailure
 
 from .pattern import ANY, SUCCESS, FAILURE
 

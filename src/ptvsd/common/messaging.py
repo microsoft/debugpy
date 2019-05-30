@@ -10,8 +10,8 @@ import json
 import sys
 import threading
 
-import ptvsd.log
-from ptvsd._util import new_hidden_thread
+import ptvsd.common.log
+from ptvsd.common._util import new_hidden_thread
 
 
 class JsonIOStream(object):
@@ -96,7 +96,7 @@ class JsonIOStream(object):
             if not (0 <= length <= self.MAX_BODY_SIZE):
                 raise ValueError
         except (KeyError, ValueError):
-            ptvsd.log.exception('{0} --> {1}', self.name, headers)
+            ptvsd.common.log.exception('{0} --> {1}', self.name, headers)
             raise IOError('Content-Length is missing or invalid')
 
         try:
@@ -115,16 +115,16 @@ class JsonIOStream(object):
             try:
                 body = body.decode('utf-8')
             except Exception:
-                ptvsd.log.exception('{0} --> {1}', self.name, body)
+                ptvsd.common.log.exception('{0} --> {1}', self.name, body)
                 raise
 
         try:
             body = json.loads(body)
         except Exception:
-            ptvsd.log.exception('{0} --> {1}', self.name, body)
+            ptvsd.common.log.exception('{0} --> {1}', self.name, body)
             raise
 
-        ptvsd.log.debug('{0} --> {1!j}', self.name, body)
+        ptvsd.common.log.debug('{0} --> {1!j}', self.name, body)
         return body
 
 
@@ -137,7 +137,7 @@ class JsonIOStream(object):
         try:
             body = json.dumps(value, sort_keys=True)
         except Exception:
-            ptvsd.log.exception('{0} <-- {1!r}', self.name, value)
+            ptvsd.common.log.exception('{0} <-- {1!r}', self.name, value)
 
         if not isinstance(body, bytes):
             body = body.encode('utf-8')
@@ -150,10 +150,10 @@ class JsonIOStream(object):
             self._writer.write(header)
             self._writer.write(body)
         except Exception:
-            ptvsd.log.exception('{0} <-- {1!j}', self.name, value)
+            ptvsd.common.log.exception('{0} <-- {1!j}', self.name, value)
             raise
 
-        ptvsd.log.debug('{0} <-- {1!j}', self.name, value)
+        ptvsd.common.log.debug('{0} <-- {1!j}', self.name, value)
 
 
 
@@ -437,13 +437,13 @@ class JsonMessageChannel(object):
                 try:
                     self.on_message(message)
                 except Exception:
-                    ptvsd.log.exception('Error while processing message for {0}:\n\n{1!r}', self.name, message)
+                    ptvsd.common.log.exception('Error while processing message for {0}:\n\n{1!r}', self.name, message)
                     raise
         finally:
             try:
                 self.on_disconnect()
             except Exception:
-                ptvsd.log.exception('Error while processing disconnect for {0}', self.name)
+                ptvsd.common.log.exception('Error while processing disconnect for {0}', self.name)
                 raise
 
 

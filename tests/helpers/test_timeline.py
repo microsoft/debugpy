@@ -8,7 +8,7 @@ import pytest
 import threading
 import time
 
-from ptvsd.messaging import RequestFailure
+from ptvsd.common.messaging import RequestFailure
 
 from .pattern import ANY, SUCCESS, FAILURE, Is
 from .timeline import Timeline, Mark, Event, Request, Response

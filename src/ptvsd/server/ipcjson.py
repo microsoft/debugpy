@@ -15,8 +15,8 @@ import time
 import threading
 import traceback
 
-import ptvsd.log
-from ptvsd.socket import TimeoutError, convert_eof
+import ptvsd.server.log
+from ptvsd.server.socket import TimeoutError, convert_eof
 
 
 SKIP_TB_PREFIXES = [
@@ -85,7 +85,7 @@ class SocketIO(object):
         self.__own_socket = own_socket
 
     def _send(self, **payload):
-        ptvsd.log.debug('IDE <-- {0!j}', payload)
+        ptvsd.server.log.debug('IDE <-- {0!j}', payload)
         content = json.dumps(payload).encode('utf-8')
         headers = ('Content-Length: {}\r\n\r\n'.format(len(content))
                    ).encode('ascii')
@@ -185,13 +185,13 @@ class SocketIO(object):
         content = self._buffered_read_as_utf8(length)
         try:
             msg = json.loads(content)
-            ptvsd.log.debug('IDE --> {0!j}', msg)
+            ptvsd.server.log.debug('IDE --> {0!j}', msg)
             self._receive_message(msg)
         except ValueError:
-            ptvsd.log.exception('IDE --> {0}', content)
+            ptvsd.server.log.exception('IDE --> {0}', content)
             raise InvalidContentError('Error deserializing message content.')
         except json.decoder.JSONDecodeError:
-            ptvsd.log.exception('IDE --> {0}', content)
+            ptvsd.server.log.exception('IDE --> {0}', content)
             raise InvalidContentError('Error deserializing message content.')
 
     def _close(self):
@@ -259,7 +259,7 @@ class IpcChannel(object):
             except (AssertionError, EOFError):
                 raise
             except Exception:
-                ptvsd.log.exception(category=('D' if self.__exit else 'E'))
+                ptvsd.server.log.exception(category=('D' if self.__exit else 'E'))
                 if not self.__exit:
                     raise
 
@@ -285,7 +285,7 @@ class IpcChannel(object):
         what.pop('arguments', None)
         what.pop('body', None)
 
-        with ptvsd.log.handling(what):
+        with ptvsd.server.log.handling(what):
             try:
                 if msg['type'] == 'request':
                     self.on_request(msg)
@@ -296,10 +296,10 @@ class IpcChannel(object):
                 else:
                     self.on_invalid_request(msg, {})
             except AssertionError:
-                ptvsd.log.exception()
+                ptvsd.server.log.exception()
                 raise
             except Exception:
-                ptvsd.log.exception()
+                ptvsd.server.log.exception()
 
     def on_request(self, request):
         # TODO: docstring

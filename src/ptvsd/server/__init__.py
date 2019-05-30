@@ -5,3 +5,8 @@
 # "force_pydevd" must be imported first to ensure (via side effects)
 # that the ptvsd-vendored copy of pydevd gets used.
 import ptvsd._vendored.force_pydevd
+
+
+# Treat all modules in ptvsd.common as if they were also in this package for now.
+import ptvsd.common
+__path__ += ptvsd.common.__path__

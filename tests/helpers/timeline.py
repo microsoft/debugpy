@@ -8,7 +8,7 @@ import contextlib
 import itertools
 import threading
 
-from ptvsd.compat import queue
+from ptvsd.common.compat import queue
 
 from tests.helpers import colors, pattern, print, timestamp
 

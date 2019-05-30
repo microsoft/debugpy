@@ -17,8 +17,8 @@ import time
 import traceback
 
 import ptvsd
-import ptvsd.__main__
-from ptvsd.messaging import JsonIOStream, JsonMessageChannel, MessageHandlers
+import ptvsd.server.__main__
+from ptvsd.common.messaging import JsonIOStream, JsonMessageChannel, MessageHandlers
 
 import tests.helpers
 from . import colors, debuggee, print
@@ -278,7 +278,7 @@ class DebugSession(object):
         elif self.start_method == 'attach_socket_import':
             dbg_argv += self._get_argv_for_attach_using_import()
             # TODO: Remove adding to python path after enabling TOX
-            ptvsd_path = os.path.dirname(os.path.dirname(ptvsd.__main__.__file__))
+            ptvsd_path = os.path.dirname(os.path.dirname(ptvsd.server.__main__.__file__))
             self.env['PYTHONPATH'] = ptvsd_path + os.pathsep + self.env['PYTHONPATH']
             self.env[PTVSD_ENABLE_KEY] = '1'
             self.env[PTVSD_HOST_KEY] = 'localhost'
@@ -366,7 +366,8 @@ class DebugSession(object):
         assert telemetry == Event('output', {
             'category': 'telemetry',
             'output': 'ptvsd',
-            'data': {'version': ptvsd.__version__},
+            'data': {'version': ANY},
+            #'data': {'version': ptvsd.__version__},
         })
 
         if self.perform_handshake:

@@ -5,7 +5,7 @@
 import os.path
 import sys
 
-from ptvsd.compat import unicode
+from ptvsd.common.compat import unicode
 from pydevd_file_utils import get_path_with_real_case
 
 

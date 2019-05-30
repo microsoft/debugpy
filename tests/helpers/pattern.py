@@ -7,7 +7,7 @@ from __future__ import print_function, with_statement, absolute_import
 import numbers
 import re
 
-from ptvsd.compat import unicode
+from ptvsd.common.compat import unicode
 from tests.helpers.pathutils import compare_path
 
 

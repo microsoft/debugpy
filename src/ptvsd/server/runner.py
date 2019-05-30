@@ -5,9 +5,9 @@
 import pydevd
 import threading
 
-from ptvsd.daemon import DaemonBase
-from ptvsd.session import DebugSession
-from ptvsd.wrapper import VSCLifecycleMsgProcessor
+from ptvsd.server.daemon import DaemonBase
+from ptvsd.server.session import DebugSession
+from ptvsd.server.wrapper import VSCLifecycleMsgProcessor
 from pydevd import init_stdout_redirect, init_stderr_redirect
 
 

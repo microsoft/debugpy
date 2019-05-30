@@ -8,7 +8,7 @@ import pytest
 from tests.helpers.pattern import ANY
 from tests.helpers.session import DebugSession
 from tests.helpers.timeline import Event
-from ptvsd.messaging import RequestFailure
+from ptvsd.common.messaging import RequestFailure
 from tests.helpers import get_marked_line_numbers
 
 expected_at_line = {

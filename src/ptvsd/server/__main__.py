@@ -38,11 +38,10 @@ import pydevd
 
 import threading  # Import after pydevd.
 
-import ptvsd._remote
-import ptvsd.options
-import ptvsd.runner
-import ptvsd.version
-from ptvsd.multiproc import listen_for_subprocesses
+import ptvsd.server._remote
+import ptvsd.server.options
+import ptvsd.server.runner
+from ptvsd.server.multiproc import listen_for_subprocesses
 
 # When forming the command line involving __main__.py, it might be tempting to
 # import it as a module, and then use its __file__. However, that does not work
@@ -62,7 +61,7 @@ See https://aka.ms/ptvsd for documentation.
 Usage: ptvsd --host <address> [--port <port>] [--wait] [--multiprocess]
              [--log-dir <path>]
              ''' + TARGET + '''
-''') % (ptvsd.version.__version__,)
+''') % (ptvsd.__version__,)
 
 
 # In Python 2, arguments are passed as bytestrings in locale encoding
@@ -97,7 +96,7 @@ def print_help_and_exit(switch, it):
 
 
 def print_version_and_exit(switch, it):
-    print(ptvsd.version.__version__)
+    print(ptvsd.__version__)
     sys.exit(0)
 
 
@@ -105,7 +104,7 @@ def set_arg(varname, parser):
 
     def action(arg, it):
         value = parser(next(it))
-        setattr(ptvsd.options, varname, value)
+        setattr(ptvsd.server.options, varname, value)
 
     return action
 
@@ -113,7 +112,15 @@ def set_arg(varname, parser):
 def set_true(varname):
 
     def do(arg, it):
-        setattr(ptvsd.options, varname, True)
+        setattr(ptvsd.server.options, varname, True)
+
+    return do
+
+
+def set_log_dir():
+
+    def do(arg, it):
+        ptvsd.common.options.log_dir = string(next(it))
 
     return do
 
@@ -121,16 +128,16 @@ def set_true(varname):
 def set_target(kind, parser=None):
 
     def do(arg, it):
-        ptvsd.options.target_kind = kind
-        ptvsd.options.target = arg if parser is None else parser(next(it))
+        ptvsd.server.options.target_kind = kind
+        ptvsd.server.options.target = arg if parser is None else parser(next(it))
 
     return do
 
 
 def set_nodebug(arg, it):
     # --nodebug implies --client
-    ptvsd.options.no_debug = True
-    ptvsd.options.client = True
+    ptvsd.server.options.no_debug = True
+    ptvsd.server.options.client = True
 
 
 switches = [
@@ -144,7 +151,7 @@ switches = [
     ('--port', '<port>', set_arg('port', port), False),
     ('--wait', None, set_true('wait'), False),
     ('--multiprocess', None, set_true('multiprocess'), False),
-    ('--log-dir', '<path>', set_arg('log_dir', string), False),
+    ('--log-dir', '<path>', set_log_dir(), False),
 
     # Switches that are used internally by the IDE or ptvsd itself.
     ('--nodebug', None, set_nodebug, False),
@@ -189,7 +196,7 @@ def parse(args):
         except Exception as ex:
             raise ValueError('invalid %s %s: %s' % (switch, placeholder, str(ex)))
 
-        if ptvsd.options.target is not None:
+        if ptvsd.server.options.target is not None:
             break
 
     for sw, placeholder, _, required in unseen_switches:
@@ -208,32 +215,32 @@ daemon = None
 
 
 def setup_connection():
-    ptvsd.log.debug('sys.prefix: {0}', (sys.prefix,))
+    ptvsd.common.log.debug('sys.prefix: {0}', (sys.prefix,))
 
     if hasattr(sys, 'base_prefix'):
-        ptvsd.log.debug('sys.base_prefix: {0}', sys.base_prefix)
+        ptvsd.common.log.debug('sys.base_prefix: {0}', sys.base_prefix)
 
     if hasattr(sys, 'real_prefix'):
-        ptvsd.log.debug('sys.real_prefix: {0}', sys.real_prefix)
+        ptvsd.common.log.debug('sys.real_prefix: {0}', sys.real_prefix)
 
     if hasattr(site, 'getusersitepackages'):
-        ptvsd.log.debug('site.getusersitepackages(): {0}', site.getusersitepackages())
+        ptvsd.common.log.debug('site.getusersitepackages(): {0}', site.getusersitepackages())
 
     if hasattr(site, 'getsitepackages'):
-        ptvsd.log.debug('site.getsitepackages(): {0}', site.getsitepackages())
+        ptvsd.common.log.debug('site.getsitepackages(): {0}', site.getsitepackages())
 
     for path in sys.path:
         if os.path.exists(path) and os.path.basename(path) == 'site-packages':
-            ptvsd.log.debug('Folder with "site-packages" in sys.path: {0}', path)
+            ptvsd.common.log.debug('Folder with "site-packages" in sys.path: {0}', path)
 
     for path_name in {'stdlib', 'platstdlib', 'purelib', 'platlib'} & set(
             sysconfig.get_path_names()):
-        ptvsd.log.debug('sysconfig {0}: {1}', path_name, sysconfig.get_path(path_name))
+        ptvsd.common.log.debug('sysconfig {0}: {1}', path_name, sysconfig.get_path(path_name))
 
-    ptvsd.log.debug('os dir: {0}', os.path.dirname(os.__file__))
-    ptvsd.log.debug('threading dir: {0}', os.path.dirname(threading.__file__))
+    ptvsd.common.log.debug('os dir: {0}', os.path.dirname(os.__file__))
+    ptvsd.common.log.debug('threading dir: {0}', os.path.dirname(threading.__file__))
 
-    opts = ptvsd.options
+    opts = ptvsd.server.options
     pydevd.apply_debugger_options({
         'server': not opts.client,
         'client': opts.host,
@@ -270,23 +277,23 @@ def setup_connection():
             else:
                 _, _, _, sys.argv[0] = runpy._get_module_details(opts.target)
         except Exception:
-            ptvsd.log.exception('Error determining module path for sys.argv')
+            ptvsd.common.log.exception('Error determining module path for sys.argv')
     else:
         assert False
 
-    ptvsd.log.debug('sys.argv after patching: {0!r}', sys.argv)
+    ptvsd.common.log.debug('sys.argv after patching: {0!r}', sys.argv)
 
     addr = (opts.host, opts.port)
 
     global daemon
     if opts.no_debug:
-        daemon = ptvsd.runner.Daemon()
+        daemon = ptvsd.server.runner.Daemon()
         if not daemon.wait_for_launch(addr):
             return
     elif opts.client:
-        daemon = ptvsd._remote.attach(addr)
+        daemon = ptvsd.server._remote.attach(addr)
     else:
-        daemon = ptvsd._remote.enable_attach(addr)
+        daemon = ptvsd.server._remote.enable_attach(addr)
 
     if opts.wait:
         ptvsd.wait_for_attach()
@@ -295,8 +302,8 @@ def setup_connection():
 def run_file():
     setup_connection()
 
-    target = ptvsd.options.target
-    ptvsd.log.info('Running file {0}', target)
+    target = ptvsd.server.options.target
+    ptvsd.common.log.info('Running file {0}', target)
 
     # run_path has one difference with invoking Python from command-line:
     # if the target is a file (rather than a directory), it does not add its
@@ -304,10 +311,10 @@ def run_file():
     # same directory is broken unless sys.path is patched here.
     if os.path.isfile(target):
         dir = os.path.dirname(target)
-        ptvsd.log.debug('Adding {0} to sys.path.', dir)
+        ptvsd.common.log.debug('Adding {0} to sys.path.', dir)
         sys.path.insert(0, dir)
     else:
-        ptvsd.log.debug('Not a file: {0}', target)
+        ptvsd.common.log.debug('Not a file: {0}', target)
 
     runpy.run_path(target, run_name='__main__')
 
@@ -318,11 +325,11 @@ def run_module():
     # On Python 2, module name must be a non-Unicode string, because it ends up
     # a part of module's __package__, and Python will refuse to run the module
     # if __package__ is Unicode.
-    target = ptvsd.options.target
+    target = ptvsd.server.options.target
     if sys.version_info < (3,) and not isinstance(target, bytes):
         target = target.encode(sys.getfilesystemencoding())
 
-    ptvsd.log.info('Running module {0}', target)
+    ptvsd.common.log.info('Running module {0}', target)
 
     # Docs say that runpy.run_module is equivalent to -m, but it's not actually
     # the case for packages - -m sets __name__ to '__main__', but run_module sets
@@ -332,18 +339,18 @@ def run_module():
     try:
         run_module_as_main = runpy._run_module_as_main
     except AttributeError:
-        ptvsd.log.warning('runpy._run_module_as_main is missing, falling back to run_module.')
+        ptvsd.common.log.warning('runpy._run_module_as_main is missing, falling back to run_module.')
         runpy.run_module(target, alter_sys=True)
     else:
         run_module_as_main(target, alter_argv=True)
 
 
 def run_code():
-    ptvsd.log.info('Running code:\n\n{0}', ptvsd.options.target)
+    ptvsd.common.log.info('Running code:\n\n{0}', ptvsd.server.options.target)
 
     # Add current directory to path, like Python itself does for -c.
     sys.path.insert(0, '')
-    code = compile(ptvsd.options.target, '<string>', 'exec')
+    code = compile(ptvsd.server.options.target, '<string>', 'exec')
     setup_connection()
     eval(code, {})
 
@@ -361,15 +368,15 @@ def attach_to_pid():
 
         return 'u"' + ''.join(map(escape, s)) + '"'
 
-    ptvsd.log.info('Attaching to process with ID {0}', ptvsd.options.target)
+    ptvsd.common.log.info('Attaching to process with ID {0}', ptvsd.server.options.target)
 
-    pid = ptvsd.options.target
-    host = quoted_str(ptvsd.options.host)
-    port = ptvsd.options.port
-    client = ptvsd.options.client
-    log_dir = quoted_str(ptvsd.options.log_dir)
+    pid = ptvsd.server.options.target
+    host = quoted_str(ptvsd.server.options.host)
+    port = ptvsd.server.options.port
+    client = ptvsd.server.options.client
+    log_dir = quoted_str(ptvsd.common.options.log_dir)
 
-    ptvsd_path = os.path.abspath(os.path.join(ptvsd.__file__, '../..'))
+    ptvsd_path = os.path.abspath(os.path.join(ptvsd.server.__file__, '../..'))
     if isinstance(ptvsd_path, bytes):
         ptvsd_path = ptvsd_path.decode(sys.getfilesystemencoding())
     ptvsd_path = quoted_str(ptvsd_path)
@@ -384,24 +391,24 @@ sys.path.insert(0, {ptvsd_path})
 import ptvsd
 del sys.path[0]
 
-import ptvsd.options
-ptvsd.options.log_dir = {log_dir}
-ptvsd.options.client = {client}
-ptvsd.options.host = {host}
-ptvsd.options.port = {port}
+import ptvsd.server.options
+ptvsd.common.options.log_dir = {log_dir}
+ptvsd.server.options.client = {client}
+ptvsd.server.options.host = {host}
+ptvsd.server.options.port = {port}
 
-import ptvsd.log
-ptvsd.log.to_file()
-ptvsd.log.info("Debugger successfully injected")
+import ptvsd.common.log
+ptvsd.common.log.to_file()
+ptvsd.common.log.info("Debugger successfully injected")
 
-if ptvsd.options.client:
-    from ptvsd._remote import attach
+if ptvsd.server.options.client:
+    from ptvsd.server._remote import attach
     attach(({host}, {port}))
 else:
-    ptvsd.enable_attach()
+    ptvsd.server.enable_attach()
 '''.format(**locals())
 
-    ptvsd.log.debug('Injecting debugger into target process: \n"""{0}\n"""'.format(code))
+    ptvsd.common.log.debug('Injecting debugger into target process: \n"""{0}\n"""'.format(code))
     assert "'" not in code, 'Injected code should not contain any single quotes'
 
     pydevd_attach_to_process_path = os.path.join(
@@ -420,9 +427,9 @@ def main(argv=sys.argv):
         print(HELP + '\nError: ' + str(ex), file=sys.stderr)
         sys.exit(2)
 
-    ptvsd.log.to_file()
-    ptvsd.log.info('main({0!r})', saved_argv)
-    ptvsd.log.info('sys.argv after parsing: {0!r}', sys.argv)
+    ptvsd.common.log.to_file()
+    ptvsd.common.log.info('main({0!r})', saved_argv)
+    ptvsd.common.log.info('sys.argv after parsing: {0!r}', sys.argv)
 
     try:
         run = {
@@ -430,10 +437,10 @@ def main(argv=sys.argv):
             'module': run_module,
             'code': run_code,
             'pid': attach_to_pid,
-        }[ptvsd.options.target_kind]
+        }[ptvsd.server.options.target_kind]
         run()
     except SystemExit as ex:
-        ptvsd.log.exception('Debuggee exited via SystemExit', category='D')
+        ptvsd.common.log.exception('Debuggee exited via SystemExit', category='D')
         if daemon is not None:
             if ex.code is None:
                 daemon.exitcode = 0
@@ -445,4 +452,4 @@ def main(argv=sys.argv):
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+    main()

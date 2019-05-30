@@ -8,8 +8,8 @@ import sys
 import threading
 import traceback
 
-import ptvsd.log
-from ptvsd.reraise import reraise
+import ptvsd.server.log
+from ptvsd.server.reraise import reraise
 
 
 class Future(object):
@@ -22,10 +22,10 @@ class Future(object):
         self._observed = False
         self._done_callbacks = []
         self._exc_info = None
-        self._handling = ptvsd.log.current_handler()
+        self._handling = ptvsd.server.log.current_handler()
 
         # It's expensive, so only capture the origin if logging is enabled.
-        if ptvsd.log.is_enabled():
+        if ptvsd.server.log.is_enabled():
             self._origin = traceback.extract_stack()
         else:
             self._origin = None
@@ -44,7 +44,7 @@ class Future(object):
                 if origin:
                     origin = '\n'.join(traceback.format_list(origin))
                     msg += ' originating from:\n\n{origin}\n\n'
-                ptvsd.log.exception(msg, origin=origin, exc_info=exc_info)
+                ptvsd.server.log.exception(msg, origin=origin, exc_info=exc_info)
                 traceback.print_exception(*exc_info, file=sys.__stderr__)
 
     def result(self):
@@ -136,7 +136,7 @@ class EventLoop(object):
                 # Try to log it, but guard against the possibility of shutdown
                 # in the middle of it.
                 try:
-                    ptvsd.log.exception('Exception escaped to event loop')
+                    ptvsd.server.log.exception('Exception escaped to event loop')
                 except:
                     pass
 
@@ -169,7 +169,7 @@ def wrap_async(f):
             result.set_result(None)
             return result
 
-        async_handler = ptvsd.log.current_handler()
+        async_handler = ptvsd.server.log.current_handler()
 
         def resume(fut):
             try:
@@ -192,7 +192,7 @@ def wrap_async(f):
                     result.set_result(x.value)
                 else:
                     def callback(fut):
-                        with ptvsd.log.handling(async_handler):
+                        with ptvsd.server.log.handling(async_handler):
                             resume(fut)
                     x.add_done_callback(callback)
 

@@ -19,7 +19,7 @@ __version__ = get_versions()["version"]
 del get_versions
 
 
-from ptvsd.server import (
+from ptvsd.server.attach_server import (
     attach,
     break_into_debugger,
     debug_this_thread,

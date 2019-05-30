@@ -4,8 +4,8 @@
 
 import platform
 import pytest
-from ptvsd.socket import Address
-from ptvsd.socket import create_server, close_socket
+from ptvsd.common.socket import Address
+from ptvsd.common.socket import create_server, close_socket
 
 
 class TestSocketServerReuse(object):

@@ -9,8 +9,8 @@ try:
 except ImportError:
     pass
 
-import ptvsd.options
-from ptvsd.__main__ import parse
+import ptvsd.server.options
+from ptvsd.server.__main__ import parse
 
 from tests.helpers.pattern import ANY
 
@@ -55,10 +55,10 @@ def test_targets(target_kind, client, wait, nodebug, multiproc, extra):
         extra = []
 
     print(args)
-    reload(ptvsd.options)
+    reload(ptvsd.server.options)
     rest = parse(args)
     assert list(rest) == extra
-    assert vars(ptvsd.options) == ANY.dict_with({
+    assert vars(ptvsd.server.options) == ANY.dict_with({
         'target_kind': target_kind,
         'target': target,
         'host': 'localhost',
@@ -70,7 +70,7 @@ def test_targets(target_kind, client, wait, nodebug, multiproc, extra):
 
 
 def test_unsupported_arg():
-    reload(ptvsd.options)
+    reload(ptvsd.server.options)
     with pytest.raises(Exception):
         parse([
             '--port', '8888',
@@ -80,7 +80,7 @@ def test_unsupported_arg():
 
 
 def test_host_required():
-    reload(ptvsd.options)
+    reload(ptvsd.server.options)
     with pytest.raises(Exception):
         parse([
             '--port', '8888',
@@ -89,12 +89,12 @@ def test_host_required():
 
 
 def test_host_empty():
-    reload(ptvsd.options)
+    reload(ptvsd.server.options)
     parse(['--host', '', '--port', '8888', 'spam.py'])
-    assert ptvsd.options.host == ''
+    assert ptvsd.server.options.host == ''
 
 
 def test_port_default():
-    reload(ptvsd.options)
+    reload(ptvsd.server.options)
     parse(['--host', 'localhost', 'spam.py'])
-    assert ptvsd.options.port == 5678
+    assert ptvsd.server.options.port == 5678
