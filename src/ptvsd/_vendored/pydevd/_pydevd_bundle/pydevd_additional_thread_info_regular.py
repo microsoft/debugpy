@@ -68,13 +68,13 @@ class PyDBAdditionalThreadInfo(object):
     __slots__ = [
         'pydev_state',
         'pydev_step_stop',
+        'pydev_original_step_cmd',
         'pydev_step_cmd',
         'pydev_notify_kill',
         'pydev_smart_step_stop',
         'pydev_django_resolve_frame',
         'pydev_call_from_jinja2',
         'pydev_call_inside_jinja2',
-        'pydev_stop_on_entry',
         'is_tracing',
         'conditional_breakpoint_exception',
         'pydev_message',
@@ -92,13 +92,21 @@ class PyDBAdditionalThreadInfo(object):
     def __init__(self):
         self.pydev_state = STATE_RUN  # STATE_RUN or STATE_SUSPEND
         self.pydev_step_stop = None
+
+        # Note: we have `pydev_original_step_cmd` and `pydev_step_cmd` because the original is to
+        # say the action that started it and the other is to say what's the current tracing behavior
+        # (because it's possible that we start with a step over but may have to switch to a
+        # different step strategy -- for instance, if a step over is done and we return the current
+        # method the strategy is changed to a step in).
+
+        self.pydev_original_step_cmd = -1  # Something as CMD_STEP_INTO, CMD_STEP_OVER, etc.
         self.pydev_step_cmd = -1  # Something as CMD_STEP_INTO, CMD_STEP_OVER, etc.
+
         self.pydev_notify_kill = False
         self.pydev_smart_step_stop = None
         self.pydev_django_resolve_frame = False
         self.pydev_call_from_jinja2 = None
         self.pydev_call_inside_jinja2 = None
-        self.pydev_stop_on_entry = False
         self.is_tracing = False
         self.conditional_breakpoint_exception = None
         self.pydev_message = ''

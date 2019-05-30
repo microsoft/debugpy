@@ -612,6 +612,7 @@ class InternalRunThread(InternalThreadCommand):
     def do_it(self, dbg):
         t = pydevd_find_thread_by_id(self.thread_id)
         if t:
+            t.additional_info.pydev_original_step_cmd = -1
             t.additional_info.pydev_step_cmd = -1
             t.additional_info.pydev_step_stop = None
             t.additional_info.pydev_state = STATE_RUN
@@ -626,6 +627,7 @@ class InternalStepThread(InternalThreadCommand):
     def do_it(self, dbg):
         t = pydevd_find_thread_by_id(self.thread_id)
         if t:
+            t.additional_info.pydev_original_step_cmd = self.cmd_id
             t.additional_info.pydev_step_cmd = self.cmd_id
             t.additional_info.pydev_state = STATE_RUN
 
@@ -648,6 +650,7 @@ class InternalSetNextStatementThread(InternalThreadCommand):
     def do_it(self, dbg):
         t = pydevd_find_thread_by_id(self.thread_id)
         if t:
+            t.additional_info.pydev_original_step_cmd = self.cmd_id
             t.additional_info.pydev_step_cmd = self.cmd_id
             t.additional_info.pydev_next_line = int(self.line)
             t.additional_info.pydev_func_name = self.func_name
@@ -1260,7 +1263,7 @@ class InternalSendCurrExceptionTrace(InternalThreadCommand):
 
     def do_it(self, dbg):
         try:
-            cmd = dbg.cmd_factory.make_send_curr_exception_trace_message(self.sequence, self.thread_id, self.curr_frame_id, *self.arg)
+            cmd = dbg.cmd_factory.make_send_curr_exception_trace_message(dbg, self.sequence, self.thread_id, self.curr_frame_id, *self.arg)
             del self.arg
             dbg.writer.add_command(cmd)
         except:

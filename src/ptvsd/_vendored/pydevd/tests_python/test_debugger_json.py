@@ -578,6 +578,7 @@ def test_case_skipping_filters(case_setup, custom_setup):
     with case_setup.test_file('my_code/my_code.py') as writer:
         json_facade = JsonFacade(writer)
 
+        expect_just_my_code = False
         if custom_setup == 'set_exclude_launch_path_match_filename':
             json_facade.write_launch(
                 debugOptions=['DebugStdLib'],
@@ -626,6 +627,7 @@ def test_case_skipping_filters(case_setup, custom_setup):
             )
 
         elif custom_setup == 'set_just_my_code':
+            expect_just_my_code = True
             writer.write_set_project_roots([debugger_unittest._get_debugger_test_file('my_code')])
             json_facade.write_launch(debugOptions=[])
 
@@ -640,6 +642,7 @@ def test_case_skipping_filters(case_setup, custom_setup):
                 'line': 14
             }]
         elif custom_setup == 'set_just_my_code_and_include':
+            expect_just_my_code = True
             # I.e.: nothing in my_code (add it with rule).
             writer.write_set_project_roots([debugger_unittest._get_debugger_test_file('launch')])
             json_facade.write_launch(
@@ -664,6 +667,13 @@ def test_case_skipping_filters(case_setup, custom_setup):
 
         json_hit = json_facade.wait_for_thread_stopped('step', name='callback1')
 
+        messages = json_facade.mark_messages(
+            OutputEvent, lambda output_event: 'Frame skipped from debugging during step-in.' in output_event.body.output)
+        assert len(messages) == 1
+        found_just_my_code = 'Note: may have been skipped because of \"justMyCode\" option (default == true)' in next(iter(messages)).body.output
+
+        assert found_just_my_code == expect_just_my_code
+
         json_facade.write_step_in(json_hit.thread_id)
         json_hit = json_facade.wait_for_thread_stopped('step', name='callback2')
 
@@ -682,6 +692,10 @@ def test_case_skipping_filters(case_setup, custom_setup):
             json_facade.write_continue(wait_for_response=False)
         else:
             json_facade.write_step_next(json_hit.thread_id, wait_for_response=False)
+
+        # Check that it's sent only once.
+        assert len(json_facade.mark_messages(
+            OutputEvent, lambda output_event: 'Frame skipped from debugging during step-in.' in output_event.body.output)) == 0
 
         writer.finished_ok = True
 

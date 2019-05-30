@@ -20,7 +20,7 @@ from _pydevd_bundle.pydevd_comm_constants import (
     filesystem_encoding_is_utf8, file_system_encoding, CMD_RELOAD_CODE)
 from _pydevd_bundle.pydevd_constants import (DebugInfoHolder, get_thread_id, IS_IRONPYTHON,
     get_global_debugger, GetGlobalDebugger, set_global_debugger)  # Keep for backward compatibility @UnusedImport
-from _pydevd_bundle.pydevd_net_command import NetCommand
+from _pydevd_bundle.pydevd_net_command import NetCommand, NULL_NET_COMMAND
 from _pydevd_bundle.pydevd_utils import quote_smart as quote, get_non_pydevd_threads
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame
 import pydevd_file_utils
@@ -112,7 +112,7 @@ class NetCommandFactory(object):
                         # be different if it was an exception).
                         topmost_frame, frame_id_to_lineno = info
 
-                    cmd_text.append(self.make_thread_stack_str(topmost_frame, frame_id_to_lineno))
+                    cmd_text.append(self.make_thread_stack_str(py_db, topmost_frame, frame_id_to_lineno))
                 finally:
                     topmost_frame = None
             cmd_text.append('</thread></xml>')
@@ -176,7 +176,7 @@ class NetCommandFactory(object):
 
             frame = frame.f_back
 
-    def make_thread_stack_str(self, frame, frame_id_to_lineno=None):
+    def make_thread_stack_str(self, py_db, frame, frame_id_to_lineno=None):
         '''
         :param frame_id_to_lineno:
             If available, the line number for the frame will be gotten from this dict,
@@ -192,7 +192,6 @@ class NetCommandFactory(object):
         curr_frame = frame
         frame = None  # Clear frame reference
         try:
-            py_db = get_global_debugger()
             for frame_id, frame, method_name, _original_filename, filename_in_utf8, lineno in self._iter_visible_frames_info(
                     py_db, curr_frame, frame_id_to_lineno
                 ):
@@ -212,6 +211,7 @@ class NetCommandFactory(object):
 
     def make_thread_suspend_str(
         self,
+        py_db,
         thread_id,
         frame,
         stop_reason=None,
@@ -256,16 +256,16 @@ class NetCommandFactory(object):
         if suspend_type is not None:
             append(' suspend_type="%s"' % (suspend_type,))
         append('>')
-        thread_stack_str = self.make_thread_stack_str(frame, frame_id_to_lineno)
+        thread_stack_str = self.make_thread_stack_str(py_db, frame, frame_id_to_lineno)
         append(thread_stack_str)
         append("</thread></xml>")
 
         return ''.join(cmd_text_list), thread_stack_str
 
-    def make_thread_suspend_message(self, thread_id, frame, stop_reason, message, suspend_type, frame_id_to_lineno=None):
+    def make_thread_suspend_message(self, py_db, thread_id, frame, stop_reason, message, suspend_type, frame_id_to_lineno=None):
         try:
             thread_suspend_str, thread_stack_str = self.make_thread_suspend_str(
-                thread_id, frame, stop_reason, message, suspend_type, frame_id_to_lineno=frame_id_to_lineno)
+                py_db, thread_id, frame, stop_reason, message, suspend_type, frame_id_to_lineno=frame_id_to_lineno)
             cmd = NetCommand(CMD_THREAD_SUSPEND, 0, thread_suspend_str)
             cmd.thread_stack_str = thread_stack_str
             cmd.thread_suspend_str = thread_suspend_str
@@ -348,7 +348,7 @@ class NetCommandFactory(object):
         except Exception:
             return self.make_error_message(seq, get_exception_traceback_str())
 
-    def _make_send_curr_exception_trace_str(self, thread_id, exc_type, exc_desc, trace_obj):
+    def _make_send_curr_exception_trace_str(self, py_db, thread_id, exc_type, exc_desc, trace_obj):
         while trace_obj.tb_next is not None:
             trace_obj = trace_obj.tb_next
 
@@ -356,19 +356,19 @@ class NetCommandFactory(object):
         exc_desc = pydevd_xml.make_valid_xml_value(str(exc_desc)).replace('\t', '  ') or 'exception: no description'
 
         thread_suspend_str, thread_stack_str = self.make_thread_suspend_str(
-            thread_id, trace_obj.tb_frame, CMD_SEND_CURR_EXCEPTION_TRACE, '')
+            py_db, thread_id, trace_obj.tb_frame, CMD_SEND_CURR_EXCEPTION_TRACE, '')
         return exc_type, exc_desc, thread_suspend_str, thread_stack_str
 
-    def make_send_curr_exception_trace_message(self, seq, thread_id, curr_frame_id, exc_type, exc_desc, trace_obj):
+    def make_send_curr_exception_trace_message(self, py_db, seq, thread_id, curr_frame_id, exc_type, exc_desc, trace_obj):
         try:
             exc_type, exc_desc, thread_suspend_str, _thread_stack_str = self._make_send_curr_exception_trace_str(
-                thread_id, exc_type, exc_desc, trace_obj)
+                py_db, thread_id, exc_type, exc_desc, trace_obj)
             payload = str(curr_frame_id) + '\t' + exc_type + "\t" + exc_desc + "\t" + thread_suspend_str
             return NetCommand(CMD_SEND_CURR_EXCEPTION_TRACE, seq, payload)
         except Exception:
             return self.make_error_message(seq, get_exception_traceback_str())
 
-    def make_get_exception_details_message(self, seq, thread_id, topmost_frame):
+    def make_get_exception_details_message(self, py_db, seq, thread_id, topmost_frame):
         """Returns exception details as XML """
         try:
             # If the debugger is not suspended, just return the thread and its id.
@@ -383,7 +383,7 @@ class NetCommandFactory(object):
                             arg = frame.f_locals.get('arg', None)
                             if arg is not None:
                                 exc_type, exc_desc, _thread_suspend_str, thread_stack_str = self._make_send_curr_exception_trace_str(
-                                    thread_id, *arg)
+                                    py_db, thread_id, *arg)
                                 cmd_text.append('exc_type="%s" ' % (exc_type,))
                                 cmd_text.append('exc_desc="%s" ' % (exc_desc,))
                                 cmd_text.append('>')
@@ -420,9 +420,10 @@ class NetCommandFactory(object):
     def make_load_source_message(self, seq, source):
         return NetCommand(CMD_LOAD_SOURCE, seq, '%s' % source)
 
-    def make_show_console_message(self, thread_id, frame):
+    def make_show_console_message(self, py_db, thread_id, frame):
         try:
-            thread_suspended_str, _thread_stack_str = self.make_thread_suspend_str(thread_id, frame, CMD_SHOW_CONSOLE, '')
+            thread_suspended_str, _thread_stack_str = self.make_thread_suspend_str(
+                py_db, thread_id, frame, CMD_SHOW_CONSOLE, '')
             return NetCommand(CMD_SHOW_CONSOLE, 0, thread_suspended_str)
         except:
             return self.make_error_message(0, get_exception_traceback_str())
@@ -460,3 +461,6 @@ class NetCommandFactory(object):
             return NetCommand(CMD_GET_NEXT_STATEMENT_TARGETS, seq, payload)
         except Exception:
             return self.make_error_message(seq, get_exception_traceback_str())
+
+    def make_skipped_step_in_because_of_filters(self, py_db, frame):
+        return NULL_NET_COMMAND  # Not a part of the xml protocol

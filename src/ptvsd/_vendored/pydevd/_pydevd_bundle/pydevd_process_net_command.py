@@ -610,7 +610,7 @@ class _PyDevCommandProcessor(object):
             additional_info = set_additional_thread_info(t)
             frame = additional_info.get_topmost_frame(t)
         try:
-            return py_db.cmd_factory.make_get_exception_details_message(seq, thread_id, frame)
+            return py_db.cmd_factory.make_get_exception_details_message(py_db, seq, thread_id, frame)
         finally:
             frame = None
             t = None

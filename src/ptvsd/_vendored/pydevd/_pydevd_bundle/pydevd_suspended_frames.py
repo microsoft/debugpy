@@ -359,7 +359,7 @@ class _FramesTracker(object):
             frame = self._frame_id_to_frame[frame_ids[0]]
 
             cmd = self.py_db.cmd_factory.make_thread_suspend_message(
-                thread_id, frame, stop_reason, message, suspend_type, frame_id_to_lineno=self._frame_id_to_lineno)
+                self.py_db, thread_id, frame, stop_reason, message, suspend_type, frame_id_to_lineno=self._frame_id_to_lineno)
 
             frame = None
             return cmd

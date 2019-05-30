@@ -1085,6 +1085,9 @@ class PyDB(object):
         except:
             pass
 
+    def notify_skipped_step_in_because_of_filters(self, frame):
+        self.writer.add_command(self.cmd_factory.make_skipped_step_in_because_of_filters(self, frame))
+
     def notify_thread_created(self, thread_id, thread, use_lock=True):
         if self.writer is None:
             # Protect about threads being created before the communication structure is in place
@@ -1280,6 +1283,9 @@ class PyDB(object):
         info = set_additional_thread_info(thread)
         info.suspend_type = PYTHON_SUSPEND
         thread.stop_reason = stop_reason
+
+        # Note: don't set the 'pydev_original_step_cmd' here if unset.
+
         if info.pydev_step_cmd == -1:
             # If the step command is not specified, set it to step into
             # to make sure it'll break as soon as possible.
@@ -1543,6 +1549,7 @@ class PyDB(object):
 
             else:
                 # Set next did not work...
+                info.pydev_original_step_cmd = -1
                 info.pydev_step_cmd = -1
                 info.pydev_state = STATE_SUSPEND
                 thread.stop_reason = CMD_THREAD_SUSPEND
@@ -1571,6 +1578,7 @@ class PyDB(object):
                 # (the previous frame would be the awt event, but this doesn't make part of 'jython', only 'java')
                 # so, if we're doing a step return in this situation, it's the same as just making it run
                 info.pydev_step_stop = None
+                info.pydev_original_step_cmd = -1
                 info.pydev_step_cmd = -1
                 info.pydev_state = STATE_RUN
 
@@ -1833,7 +1841,7 @@ class PyDB(object):
         thread_id = get_current_thread_id(thread)
         self.add_fake_frame(thread_id, id(frame), frame)
 
-        cmd = self.cmd_factory.make_show_console_message(thread_id, frame)
+        cmd = self.cmd_factory.make_show_console_message(self, thread_id, frame)
         self.writer.add_command(cmd)
 
         while True:
@@ -2153,6 +2161,7 @@ def _locked_settrace(
             # If the step was set we have to go to run state and
             # set the proper frame for it to stop.
             additional_info.pydev_state = STATE_RUN
+            additional_info.pydev_original_step_cmd = CMD_STEP_OVER
             additional_info.pydev_step_cmd = CMD_STEP_OVER
             additional_info.pydev_step_stop = stop_at_frame
             additional_info.suspend_type = PYTHON_SUSPEND
