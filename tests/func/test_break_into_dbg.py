@@ -46,7 +46,7 @@ def test_breakpoint_function(pyfile, run_as, start_method):
         # and attach cases. For attach this is always after wait_for_attach
         from dbgimporter import import_and_enable_debugger
         import_and_enable_debugger()
-        breakpoint()
+        breakpoint() # noqa
         print('break here')
 
     with DebugSession() as session:

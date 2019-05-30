@@ -4,8 +4,6 @@
 
 from __future__ import print_function, with_statement, absolute_import
 
-import os
-
 
 """ptvsd command-line options that need to be globally available.
 """
