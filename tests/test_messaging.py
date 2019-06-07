@@ -219,6 +219,183 @@ class TestJsonMessageChannel(object):
         assert response3 is request3.response
         assert response3.body == {'threadId': 5}
 
+    def test_yield(self):
+        REQUESTS = [
+            {'seq': 10, 'type': 'request', 'command': 'launch', 'arguments': {'noDebug': False}},
+            {'seq': 20, 'type': 'request', 'command': 'setBreakpoints', 'arguments': {'main.py': 1}},
+            {'seq': 30, 'type': 'event', 'event': 'expected'},
+            {'seq': 40, 'type': 'request', 'command': 'launch', 'arguments': {'noDebug': True}},  # test re-entrancy
+            {'seq': 50, 'type': 'request', 'command': 'setBreakpoints', 'arguments': {'main.py': 2}},
+            {'seq': 60, 'type': 'event', 'event': 'unexpected'},
+            {'seq': 80, 'type': 'request', 'command': 'configurationDone'},
+            {'seq': 90, 'type': 'request', 'command': 'launch'},  # test handler not yielding body
+        ]
+
+        class Handlers(object):
+
+            received = {
+                'launch': 0,
+                'setBreakpoints': 0,
+                'configurationDone': 0,
+                'expected': 0,
+                'unexpected': 0,
+            }
+
+            def launch_request(self, request):
+                assert request.seq in (10, 40, 90)
+                self.received['launch'] += 1
+
+                if request.seq == 10:  # launch #1
+                    assert self.received == {
+                        'launch': 1,
+                        'setBreakpoints': 0,
+                        'configurationDone': 0,
+                        'expected': 0,
+                        'unexpected': 0,
+                    }
+
+                    msg = yield  # setBreakpoints #1
+                    assert msg.seq == 20
+                    assert self.received == {
+                        'launch': 1,
+                        'setBreakpoints': 1,
+                        'configurationDone': 0,
+                        'expected': 0,
+                        'unexpected': 0,
+                    }
+
+                    msg = yield  # expected
+                    assert msg.seq == 30
+                    assert self.received == {
+                        'launch': 1,
+                        'setBreakpoints': 1,
+                        'configurationDone': 0,
+                        'expected': 1,
+                        'unexpected': 0,
+                    }
+
+                    msg = yield  # launch #2 + nested messages
+                    assert msg.seq == 40
+                    assert self.received == {
+                        'launch': 2,
+                        'setBreakpoints': 2,
+                        'configurationDone': 0,
+                        'expected': 1,
+                        'unexpected': 1,
+                    }
+
+                    # We should see that it failed, but no exception bubbling up here.
+                    assert not msg.response.success
+                    assert msg.response.body == RequestFailure('test failure')
+
+                    msg = yield  # configurationDone
+                    assert msg.seq == 80
+                    assert self.received == {
+                        'launch': 2,
+                        'setBreakpoints': 2,
+                        'configurationDone': 1,
+                        'expected': 1,
+                        'unexpected': 1,
+                    }
+
+                    yield {'answer': 42}
+
+                elif request.seq == 40:  # launch #1
+                    assert self.received == {
+                        'launch': 2,
+                        'setBreakpoints': 1,
+                        'configurationDone': 0,
+                        'expected': 1,
+                        'unexpected': 0,
+                    }
+
+                    msg = yield  # setBreakpoints #2
+                    assert msg.seq == 50
+                    assert self.received == {
+                        'launch': 2,
+                        'setBreakpoints': 2,
+                        'configurationDone': 0,
+                        'expected': 1,
+                        'unexpected': 0,
+                    }
+
+                    msg = yield  # unexpected
+                    assert msg.seq == 60
+                    assert self.received == {
+                        'launch': 2,
+                        'setBreakpoints': 2,
+                        'configurationDone': 0,
+                        'expected': 1,
+                        'unexpected': 1,
+                    }
+
+                    raise RequestFailure('test failure')
+
+                elif request.seq == 90:  # launch #3
+                    assert self.received == {
+                        'launch': 3,
+                        'setBreakpoints': 2,
+                        'configurationDone': 1,
+                        'expected': 1,
+                        'unexpected': 1,
+                    }
+
+                    # Don't yield anything.
+                    pass
+
+            def setBreakpoints_request(self, request):
+                assert request.seq in (20, 50, 70)
+                self.received['setBreakpoints'] += 1
+                return {'which': self.received['setBreakpoints']}
+
+            def request(self, request):
+                assert request.seq == 80
+                assert request.command == 'configurationDone'
+                self.received['configurationDone'] += 1
+
+            def expected_event(self, event):
+                assert event.seq == 30
+                self.received['expected'] += 1
+
+            def event(self, event):
+                assert event.seq == 60
+                assert event.event == 'unexpected'
+                self.received['unexpected'] += 1
+
+        input, input_exhausted = self.iter_with_event(REQUESTS)
+        output = []
+        stream = LoggingJsonStream(JsonMemoryStream(input, output))
+        channel = JsonMessageChannel(stream, Handlers())
+        channel.start()
+        input_exhausted.wait()
+
+        assert output == [
+            {
+                'seq': 1, 'type': 'response', 'request_seq': 20, 'command': 'setBreakpoints',
+                'success': True, 'body': {'which': 1},
+            },
+            {
+                'seq': 2, 'type': 'response', 'request_seq': 50, 'command': 'setBreakpoints',
+                'success': True, 'body': {'which': 2},
+            },
+            {
+                'seq': 3, 'type': 'response', 'request_seq': 40, 'command': 'launch',
+                'success': False, 'message': 'test failure',
+            },
+            {
+                'seq': 4, 'type': 'response', 'request_seq': 80, 'command': 'configurationDone',
+                'success': True,
+            },
+            {
+                'seq': 5, 'type': 'response', 'request_seq': 10, 'command': 'launch',
+                'success': True, 'body': {'answer': 42},
+            },
+            {
+                'seq': 6, 'type': 'response', 'request_seq': 90, 'command': 'launch',
+                'success': True,
+            },
+        ]
+
     def test_fuzz(self):
         # Set up two channels over the same stream that send messages to each other
         # asynchronously, and record everything that they send and receive.
@@ -345,4 +522,3 @@ class TestJsonMessageChannel(object):
         assert fuzzer2.sent == fuzzer1.received
         assert fuzzer1.responses_sent == fuzzer2.responses_received
         assert fuzzer2.responses_sent == fuzzer1.responses_received
-
