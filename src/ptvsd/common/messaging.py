@@ -2,7 +2,7 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-from __future__ import print_function, with_statement, absolute_import
+from __future__ import absolute_import, print_function, unicode_literals
 
 import contextlib
 import inspect
@@ -11,7 +11,7 @@ import json
 import sys
 import threading
 
-import ptvsd.common.log
+from ptvsd.common import log
 from ptvsd.common._util import new_hidden_thread
 
 
@@ -84,6 +84,11 @@ class JsonIOStream(object):
         if there are no more objects to be read.
         """
 
+        # Parse the message, and try to log any failures using as much information
+        # as we already have at the point of the failure. For example, if it fails
+        # after decoding during JSON parsing, log as a Unicode string, rather than
+        # a bytestring.
+
         headers = {}
         while True:
             line = self._read_line()
@@ -97,7 +102,7 @@ class JsonIOStream(object):
             if not (0 <= length <= self.MAX_BODY_SIZE):
                 raise ValueError
         except (KeyError, ValueError):
-            ptvsd.common.log.exception('{0} --> {1}', self.name, headers)
+            log.exception('{0} --> {1}', self.name, headers)
             raise IOError('Content-Length is missing or invalid')
 
         try:
@@ -112,20 +117,19 @@ class JsonIOStream(object):
             else:
                 raise
 
-        if isinstance(body, bytes):
-            try:
-                body = body.decode('utf-8')
-            except Exception:
-                ptvsd.common.log.exception('{0} --> {1}', self.name, body)
-                raise
+        try:
+            body = body.decode('utf-8')
+        except Exception:
+            log.exception('{0} --> {1}', self.name, body)
+            raise
 
         try:
             body = json.loads(body)
         except Exception:
-            ptvsd.common.log.exception('{0} --> {1}', self.name, body)
+            log.exception('{0} --> {1}', self.name, body)
             raise
 
-        ptvsd.common.log.debug('{0} --> {1!j}', self.name, body)
+        log.debug('{0} --> {1!j}', self.name, body)
         return body
 
 
@@ -138,26 +142,34 @@ class JsonIOStream(object):
         try:
             body = json.dumps(value, sort_keys=True)
         except Exception:
-            ptvsd.common.log.exception('{0} <-- {1!r}', self.name, value)
+            log.exception('{0} <-- {1!r}', self.name, value)
 
         if not isinstance(body, bytes):
             body = body.encode('utf-8')
 
-        try:
-            header = 'Content-Length: %d\r\n\r\n' % len(body)
-            if not isinstance(header, bytes):
-                header = header.encode('ascii')
+        header = u'Content-Length: {0}\r\n\r\n'.format(len(body))
+        header = header.encode('ascii')
 
+        try:
             self._writer.write(header)
             self._writer.write(body)
         except Exception:
-            ptvsd.common.log.exception('{0} <-- {1!j}', self.name, value)
+            log.exception('{0} <-- {1!j}', self.name, value)
             raise
 
-        ptvsd.common.log.debug('{0} <-- {1!j}', self.name, value)
+        log.debug('{0} <-- {1!j}', self.name, value)
 
 
-class Request(object):
+class Message(object):
+    """Represents an incoming or an outgoing message.
+    """
+
+    def __init__(self, channel, seq):
+        self.channel = channel
+        self.seq = seq
+
+
+class Request(Message):
     """Represents an incoming or an outgoing request.
 
     Incoming requests are represented by instances of this class.
@@ -167,8 +179,7 @@ class Request(object):
     """
 
     def __init__(self, channel, seq, command, arguments):
-        self.channel = channel
-        self.seq = seq
+        super(Request, self).__init__(channel, seq)
         self.command = command
         self.arguments = arguments
         self.response = None
@@ -179,8 +190,8 @@ class OutgoingRequest(Request):
     response to be received, and register a response callback.
     """
 
-    def __init__(self, *args):
-        super(OutgoingRequest, self).__init__(*args)
+    def __init__(self, channel, seq, command, arguments):
+        super(OutgoingRequest, self).__init__(channel, seq, command, arguments)
         self._lock = threading.Lock()
         self._got_response = threading.Event()
         self._callback = lambda _: None
@@ -228,13 +239,12 @@ class OutgoingRequest(Request):
         callback(response)
 
 
-class Response(object):
-    """Represents a response to a Request.
+class Response(Message):
+    """Represents an incoming or an outgoing response to a Request.
     """
 
     def __init__(self, channel, seq, request, body):
-        self.channel = channel
-        self.seq = seq
+        super(Response, self).__init__(channel, seq)
 
         self.request = request
         """Request object that this is a response to.
@@ -257,13 +267,12 @@ class Response(object):
         return not isinstance(self.body, Exception)
 
 
-class Event(object):
-    """Represents a received event.
+class Event(Message):
+    """Represents an incoming event.
     """
 
     def __init__(self, channel, seq, event, body):
-        self.channel = channel
-        self.seq = seq
+        super(Event, self).__init__(channel, seq)
         self.event = event
         self.body = body
 
@@ -344,6 +353,17 @@ class JsonMessageChannel(object):
             d['body'] = body
         with self._send_message('event', d):
             pass
+
+    def propagate(self, message):
+        """Sends a new message with the same type and payload.
+
+        If it was a request, returns the new OutgoingRequest object for it.
+        """
+
+        if isinstance(message, Request):
+            return self.send_request(message.command, message.arguments)
+        else:
+            return self.send_event(message.event, message.body)
 
     def _send_response(self, request, body):
         d = {
@@ -467,7 +487,7 @@ class JsonMessageChannel(object):
         try:
             return self.on_message(message)
         except Exception:
-            ptvsd.common.log.exception('Error while processing message for {0}:\n\n{1!r}', self.name, message)
+            log.exception('Error while processing message for {0}:\n\n{1!r}', self.name, message)
             raise
 
     def _process_incoming_messages(self):
@@ -481,7 +501,7 @@ class JsonMessageChannel(object):
             try:
                 self.on_disconnect()
             except Exception:
-                ptvsd.common.log.exception('Error while processing disconnect for {0}', self.name)
+                log.exception('Error while processing disconnect for {0}', self.name)
                 raise
 
 
@@ -494,3 +514,16 @@ class MessageHandlers(object):
     def __init__(self, **kwargs):
         for name, func in kwargs.items():
             setattr(self, name, func)
+
+
+def raise_failure(fmt, *args, **kwargs):
+    """Raises RequestFailure from the point at which it is invoked with the specified
+    formatted message. The message is also immediately logged.
+    """
+
+    msg = log.formatter.format(fmt, *args, **kwargs)
+    try:
+        raise RequestFailure(msg)
+    except RequestFailure:
+        log.exception()
+        raise
