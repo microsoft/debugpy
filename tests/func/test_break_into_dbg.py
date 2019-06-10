@@ -37,7 +37,7 @@ def test_with_wait_for_attach(pyfile, run_as, start_method):
 
 
 @pytest.mark.parametrize('run_as', ['file', 'module', 'code'])
-@pytest.mark.skipif(sys.version_info < (3, 7), reason='Supported from 3.7+')
+@pytest.mark.skip(reason='https://github.com/microsoft/ptvsd/issues/1505')
 def test_breakpoint_function(pyfile, run_as, start_method):
 
     @pyfile
@@ -46,6 +46,7 @@ def test_breakpoint_function(pyfile, run_as, start_method):
         # and attach cases. For attach this is always after wait_for_attach
         from dbgimporter import import_and_enable_debugger
         import_and_enable_debugger()
+        # TODO: use ptvsd.break_into_debugger() on <3.7
         breakpoint() # noqa
         print('break here')
 
