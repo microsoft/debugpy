@@ -5,7 +5,6 @@
 from __future__ import print_function, with_statement, absolute_import
 
 import pytest
-import sys
 from tests.helpers.session import DebugSession
 
 
