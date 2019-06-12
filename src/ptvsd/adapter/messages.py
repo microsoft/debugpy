@@ -66,7 +66,7 @@ class IDEMessages(Messages):
 
     # The contents of the "initialize" response that is sent from the adapter to the IDE,
     # and is expected to match what the debug server sends to the adapter once connected.
-    _INITIALIZE_RESPONSE_BODY = {
+    _INITIALIZE_RESULT = {
         "supportsCompletionsRequest": True,
         "supportsConditionalBreakpoints": True,
         "supportsConfigurationDoneRequest": True,
@@ -119,8 +119,7 @@ class IDEMessages(Messages):
     # Generic request handler, used if there's no specific handler below.
     @_replay_to_server
     def request(self, request):
-        response = self._server.message(request).wait_for_response()
-        return response.body
+        return self._server.delegate(request)
 
     @_replay_to_server
     @_only_allowed_while("starting")
@@ -128,7 +127,7 @@ class IDEMessages(Messages):
         with Shared() as shared:
             shared.client_id = str(request.arguments.get("clientID", ""))
         state.change("initializing")
-        return self._INITIALIZE_RESPONSE_BODY
+        return self._INITIALIZE_RESULT
 
     # Handles various attributes common to both "launch" and "attach".
     def _debug_config(self, request):
@@ -181,20 +180,20 @@ class IDEMessages(Messages):
     @_only_allowed_while("configuring")
     def configurationDone_request(self, request):
         state.change("running")
-        return self._server.propagate(request)
+        return self._server.delegate(request)
 
     # Handle a "disconnect" or a "terminate" request.
     def _shutdown(self, request, terminate):
         if request.arguments.get("restart", False):
             messaging.raise_failure("Restart is not supported")
 
-        response = self._server.propagate(request)
+        result = self._server.delegate(request)
         state.change("shutting_down")
 
         if terminate:
             debuggee.terminate()
 
-        return response
+        return result
 
     @_only_allowed_while("running")
     def disconnect_request(self, request):
@@ -214,7 +213,7 @@ class IDEMessages(Messages):
         try:
             if state.current() == "shutting_down":
                 # Graceful disconnect. We have already received "disconnect" or
-                # "terminate", and propagated it to the server. Nothing to do.
+                # "terminate", and delegated it to the server. Nothing to do.
                 return
 
             # Can happen if the IDE was force-closed or crashed.
@@ -258,7 +257,7 @@ class ServerMessages(Messages):
 
     # Generic request handler, used if there's no specific handler below.
     def request(self, request):
-        return self._ide.propagate(request)
+        return self._ide.delegate(request)
 
     # Generic event handler, used if there's no specific handler below.
     def event(self, event):

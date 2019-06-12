@@ -266,6 +266,17 @@ class Response(Message):
     def success(self):
         return not isinstance(self.body, Exception)
 
+    @property
+    def result(self):
+        """Result of the request. Returns the value of response.body, unless it
+        is an exception, in which case it is raised instead.
+        """
+
+        if self.success:
+            return self.body
+        else:
+            raise self.body
+
 
 class Event(Message):
     """Represents an incoming event.
@@ -363,7 +374,15 @@ class JsonMessageChannel(object):
         if isinstance(message, Request):
             return self.send_request(message.command, message.arguments)
         else:
-            return self.send_event(message.event, message.body)
+            self.send_event(message.event, message.body)
+
+    def delegate(self, request):
+        """Propagates a request, waits for response, and returns its body.
+
+        If the request failed, raises RequestFailure, just like wait_for_response().
+        """
+        assert isinstance(request, Request)
+        return self.propagate(request).wait_for_response()
 
     def _send_response(self, request, body):
         d = {
