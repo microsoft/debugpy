@@ -7,10 +7,8 @@ from __future__ import print_function, absolute_import, unicode_literals
 import contextlib
 import functools
 import io
-import json
 import platform
 import os
-import string
 import sys
 import threading
 import time
@@ -18,18 +16,11 @@ import traceback
 
 import ptvsd
 import ptvsd.common.options
-
-
-class Formatter(string.Formatter):
-    def convert_field(self, value, conversion):
-        if conversion == 'j':
-            return json.dumps(value, indent=4)
-        return super(Formatter, self).convert_field(value, conversion)
+from ptvsd.common import fmt
 
 
 lock = threading.Lock()
 file = None
-formatter = Formatter()
 tls = threading.local()
 
 
@@ -49,7 +40,7 @@ def is_enabled():
     return bool(file)
 
 
-def write(category, fmt, *args, **kwargs):
+def write(category, format_string, *args, **kwargs):
     assert category in 'DIWE'
     if not file and category not in 'WE':
         return
@@ -57,7 +48,7 @@ def write(category, fmt, *args, **kwargs):
     t = timestamp()
 
     try:
-        message = formatter.format(fmt, *args, **kwargs)
+        message = fmt(format_string, *args, **kwargs)
     except Exception:
         exception('ptvsd.common.log.write({0!r}): invalid format string', (category, fmt, args, kwargs))
         raise

@@ -8,12 +8,14 @@ import json
 import io
 import pytest
 import random
+import re
 import socket
 import threading
 import time
 
-from ptvsd.common.messaging import JsonIOStream, JsonMessageChannel, RequestFailure
-from .helpers.messaging import JsonMemoryStream, LoggingJsonStream
+from ptvsd.common import fmt, messaging
+from tests.helpers.messaging import JsonMemoryStream, LoggingJsonStream
+from tests.helpers.pattern import Regex
 
 
 pytestmark = pytest.mark.timeout(5)
@@ -36,7 +38,7 @@ class TestJsonIOStream(object):
 
     def test_read(self):
         data = io.BytesIO(self.SERIALIZED_MESSAGES)
-        stream = JsonIOStream(data, data)
+        stream = messaging.JsonIOStream(data, data)
         for expected_message in self.MESSAGES:
             message = stream.read_json()
             assert message == expected_message
@@ -45,7 +47,7 @@ class TestJsonIOStream(object):
 
     def test_write(self):
         data = io.BytesIO()
-        stream = JsonIOStream(data, data)
+        stream = messaging.JsonIOStream(data, data)
         for message in self.MESSAGES:
             stream.write_json(message)
         data = data.getvalue()
@@ -105,7 +107,7 @@ class TestJsonMessageChannel(object):
 
         input, input_exhausted = self.iter_with_event(EVENTS)
         stream = LoggingJsonStream(JsonMemoryStream(input, []))
-        channel = JsonMessageChannel(stream, Handlers())
+        channel = messaging.JsonMessageChannel(stream, Handlers())
         channel.start()
         input_exhausted.wait()
 
@@ -131,16 +133,17 @@ class TestJsonMessageChannel(object):
 
             def request(self, request):
                 requests_received.append((request.channel, request.command, request.arguments))
+                return {}
 
             def pause_request(self, request):
                 assert request.command == 'pause'
                 requests_received.append((request.channel, request.arguments))
-                raise RequestFailure('pause error')
+                request.cant_handle('pause error')
 
         input, input_exhausted = self.iter_with_event(REQUESTS)
         output = []
         stream = LoggingJsonStream(JsonMemoryStream(input, output))
-        channel = JsonMessageChannel(stream, Handlers())
+        channel = messaging.JsonMessageChannel(stream, Handlers())
         channel.start()
         input_exhausted.wait()
 
@@ -163,14 +166,25 @@ class TestJsonMessageChannel(object):
 
         def iter_responses():
             request1_sent.wait()
-            yield {'seq': 1, 'type': 'response', 'request_seq': 1, 'command': 'next', 'success': True, 'body': {'threadId': 3}}
+            yield {
+                'seq': 1, 'type': 'response', 'request_seq': 1, 'command': 'next',
+                'success': True, 'body': {'threadId': 3},
+            }
+
             request2_sent.wait()
-            yield {'seq': 2, 'type': 'response', 'request_seq': 2, 'command': 'pause', 'success': False, 'message': 'pause error'}
+            yield {
+                'seq': 2, 'type': 'response', 'request_seq': 2, 'command': 'pause',
+                'success': False, 'message': 'Invalid message: pause not supported',
+            }
+
             request3_sent.wait()
-            yield {'seq': 3, 'type': 'response', 'request_seq': 3, 'command': 'next', 'success': True, 'body': {'threadId': 5}}
+            yield {
+                'seq': 3, 'type': 'response', 'request_seq': 3, 'command': 'next',
+                'success': True, 'body': {'threadId': 5},
+            }
 
         stream = LoggingJsonStream(JsonMemoryStream(iter_responses(), []))
-        channel = JsonMessageChannel(stream, None)
+        channel = messaging.JsonMessageChannel(stream, None)
         channel.start()
 
         # Blocking wait.
@@ -199,7 +213,7 @@ class TestJsonMessageChannel(object):
         assert not response2.success
         assert response2.request is request2
         assert response2 is request2.response
-        assert response2.body == RequestFailure('pause error')
+        assert response2.body == messaging.InvalidMessageError('pause not supported', request2)
 
         # Async callback, registered after response is received.
         request3 = channel.send_request('next')
@@ -228,7 +242,7 @@ class TestJsonMessageChannel(object):
             {'seq': 50, 'type': 'request', 'command': 'setBreakpoints', 'arguments': {'main.py': 2}},
             {'seq': 60, 'type': 'event', 'event': 'unexpected'},
             {'seq': 80, 'type': 'request', 'command': 'configurationDone'},
-            {'seq': 90, 'type': 'request', 'command': 'launch'},  # test handler not yielding body
+            {'seq': 90, 'type': 'request', 'command': 'launch'},  # test handler yielding empty body
         ]
 
         class Handlers(object):
@@ -286,7 +300,7 @@ class TestJsonMessageChannel(object):
 
                     # We should see that it failed, but no exception bubbling up here.
                     assert not msg.response.success
-                    assert msg.response.body == RequestFailure('test failure')
+                    assert msg.response.body == messaging.MessageHandlingError('test failure', msg)
 
                     msg = yield  # configurationDone
                     assert msg.seq == 80
@@ -329,7 +343,7 @@ class TestJsonMessageChannel(object):
                         'unexpected': 1,
                     }
 
-                    raise RequestFailure('test failure')
+                    request.cant_handle('test failure')
 
                 elif request.seq == 90:  # launch #3
                     assert self.received == {
@@ -339,9 +353,7 @@ class TestJsonMessageChannel(object):
                         'expected': 1,
                         'unexpected': 1,
                     }
-
-                    # Don't yield anything.
-                    pass
+                    #yield {}
 
             def setBreakpoints_request(self, request):
                 assert request.seq in (20, 50, 70)
@@ -352,6 +364,7 @@ class TestJsonMessageChannel(object):
                 assert request.seq == 80
                 assert request.command == 'configurationDone'
                 self.received['configurationDone'] += 1
+                return {}
 
             def expected_event(self, event):
                 assert event.seq == 30
@@ -365,7 +378,7 @@ class TestJsonMessageChannel(object):
         input, input_exhausted = self.iter_with_event(REQUESTS)
         output = []
         stream = LoggingJsonStream(JsonMemoryStream(input, output))
-        channel = JsonMessageChannel(stream, Handlers())
+        channel = messaging.JsonMessageChannel(stream, Handlers())
         channel.start()
         input_exhausted.wait()
 
@@ -396,6 +409,62 @@ class TestJsonMessageChannel(object):
             },
         ]
 
+    def test_invalid_request_handling(self):
+        REQUESTS = [
+            {
+                'seq': 1, 'type': 'request', 'command': 'stackTrace',
+                'arguments': {"AAA": {}},
+            },
+            {'seq': 2, 'type': 'request', 'command': 'stackTrace', 'arguments': {}},
+            {'seq': 3, 'type': 'request', 'command': 'unknown', 'arguments': None},
+            {'seq': 4, 'type': 'request', 'command': 'pause'},
+        ]
+
+        class Handlers(object):
+            def stackTrace_request(self, request):
+                print(request.arguments["AAA"])
+                print(request.arguments["AAA"]["BBB"])
+
+            def request(self, request):
+                print(request.arguments["CCC"])
+
+            def pause_request(self, request):
+                print(request.arguments["DDD"])
+
+        input, input_exhausted = self.iter_with_event(REQUESTS)
+        output = []
+        stream = LoggingJsonStream(JsonMemoryStream(input, output))
+        channel = messaging.JsonMessageChannel(stream, Handlers())
+        channel.start()
+        input_exhausted.wait()
+
+        def missing_property(name):
+            return Regex("^Invalid message:.*" + re.escape(name))
+
+        assert output == [
+            {
+                'seq': 1, 'type': 'response', 'request_seq': 1,
+                'command': 'stackTrace', 'success': False,
+                'message': missing_property("BBB"),
+            },
+            {
+                'seq': 2, 'type': 'response', 'request_seq': 2,
+                'command': 'stackTrace', 'success': False,
+                'message': missing_property("AAA"),
+            },
+            {
+                'seq': 3, 'type': 'response', 'request_seq': 3,
+                'command': 'unknown', 'success': False,
+                'message': missing_property("CCC"),
+            },
+            {
+                'seq': 4, 'type': 'response', 'request_seq': 4,
+                'command': 'pause', 'success': False,
+                'message': missing_property("DDD"),
+            },
+        ]
+
+
     def test_fuzz(self):
         # Set up two channels over the same stream that send messages to each other
         # asynchronously, and record everything that they send and receive.
@@ -409,6 +478,7 @@ class TestJsonMessageChannel(object):
                 self.received = []
                 self.responses_sent = []
                 self.responses_received = []
+                self.done = False
 
             def start(self, channel):
                 self._worker = threading.Thread(name=self.name, target=lambda: self._send_requests_and_events(channel))
@@ -417,6 +487,10 @@ class TestJsonMessageChannel(object):
 
             def wait(self):
                 self._worker.join()
+
+            def done_event(self, event):
+                with self.lock:
+                    self.done = True
 
             def fizz_event(self, event):
                 assert event.event == 'fizz'
@@ -435,7 +509,11 @@ class TestJsonMessageChannel(object):
             def make_and_log_response(self, request):
                 x = random.randint(-100, 100)
                 if x < 0:
-                    x = RequestFailure(str(x))
+                    exc_type = (
+                        messaging.InvalidMessageError if x % 2
+                        else messaging.MessageHandlingError
+                    )
+                    x = exc_type(str(x), request)
                 with self.lock:
                     self.responses_sent.append((request.seq, x))
                 return x
@@ -457,30 +535,36 @@ class TestJsonMessageChannel(object):
                     self.received.append(('request', request.command, request.arguments))
                 return self.make_and_log_response(request)
 
+            def _got_response(self, response):
+                with self.lock:
+                    self.responses_received.append((response.request.seq, response.body))
+
             def _send_requests_and_events(self, channel):
-                pending_requests = [0]
-                for _ in range(0, 100):
-                    typ = random.choice(('event', 'request'))
+                types = [random.choice(('event', 'request')) for _ in range(0, 100)]
+
+                for typ in types:
                     name = random.choice(('fizz', 'buzz', 'fizzbuzz'))
                     body = random.randint(0, 100)
+
                     with self.lock:
                         self.sent.append((typ, name, body))
+
                     if typ == 'event':
                         channel.send_event(name, body)
                     elif typ == 'request':
-                        with self.lock:
-                            pending_requests[0] += 1
                         req = channel.send_request(name, body)
-                        def response_handler(response):
-                            with self.lock:
-                                self.responses_received.append((response.request.seq, response.body))
-                                pending_requests[0] -= 1
-                        req.on_response(response_handler)
-                # Spin until we get responses to all requests.
+                        req.on_response(self._got_response)
+
+                channel.send_event("done")
+
+                # Spin until we receive "done", and also get responses to all requests.
+                requests_sent = types.count("request")
+                print(fmt("{0} waiting for {1} responses ...", self.name, requests_sent))
                 while True:
                     with self.lock:
-                        if pending_requests[0] == 0:
-                            break
+                        if self.done:
+                            if requests_sent == len(self.responses_received):
+                                break
                     time.sleep(0.1)
 
         fuzzer1 = Fuzzer('fuzzer1')
@@ -501,13 +585,13 @@ class TestJsonMessageChannel(object):
             io1 = socket1.makefile('rwb', 0)
             io2 = socket2.makefile('rwb', 0)
 
-            stream1 = LoggingJsonStream(JsonIOStream(io1, io1))
-            channel1 = JsonMessageChannel(stream1, fuzzer1)
+            stream1 = LoggingJsonStream(messaging.JsonIOStream(io1, io1))
+            channel1 = messaging.JsonMessageChannel(stream1, fuzzer1)
             channel1.start()
             fuzzer1.start(channel1)
 
-            stream2 = LoggingJsonStream(JsonIOStream(io2, io2))
-            channel2 = JsonMessageChannel(stream2, fuzzer2)
+            stream2 = LoggingJsonStream(messaging.JsonIOStream(io2, io2))
+            channel2 = messaging.JsonMessageChannel(stream2, fuzzer2)
             channel2.start()
             fuzzer2.start(channel2)
 

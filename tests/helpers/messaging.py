@@ -11,8 +11,8 @@ from . import print, colors
 
 
 class JsonMemoryStream(object):
-    """Like JsonIOStream, but without serialization, working directly
-    with values stored as-is in memory.
+    """Like JsonIOStream, but working directly with values stored in memory.
+    Values are round-tripped through JSON serialization.
 
     For input, values are read from the supplied sequence or iterator.
     For output, values are appended to the supplied collection.
@@ -25,13 +25,17 @@ class JsonMemoryStream(object):
     def close(self):
         pass
 
-    def read_json(self):
+    def read_json(self, decoder=None):
+        decoder = decoder if decoder is not None else json.JSONDecoder()
         try:
-            return next(self.input)
+            value = next(self.input)
         except StopIteration:
             raise EOFError
+        return decoder.decode(json.dumps(value))
 
-    def write_json(self, value):
+    def write_json(self, value, encoder=None):
+        encoder = encoder if encoder is not None else json.JSONEncoder()
+        value = json.loads(encoder.encode(value))
         self.output.append(value)
 
 
@@ -49,13 +53,13 @@ class LoggingJsonStream(object):
     def close(self):
         self.stream.close()
 
-    def read_json(self):
-        value = self.stream.read_json()
+    def read_json(self, decoder=None):
+        value = self.stream.read_json(decoder)
         s = colors.colorize_json(json.dumps(value))
         print('%s%s --> %s%s' % (colors.LIGHT_CYAN, self.id, colors.RESET, s))
         return value
 
-    def write_json(self, value):
+    def write_json(self, value, encoder=None):
         s = colors.colorize_json(json.dumps(value))
         print('%s%s <-- %s%s' % (colors.LIGHT_CYAN, self.id, colors.RESET, s))
-        self.stream.write_json(value)
+        self.stream.write_json(value, encoder)

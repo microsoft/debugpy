@@ -48,7 +48,7 @@ class Any(BasePattern):
             d1 == ANY.dict_with(d2)     # True (subset matches)
         """
 
-        class AnyDictWith(dict):
+        class AnyDictWith(object):
 
             def __repr__(self):
                 return repr(items)[:-1] + ', ...}'
@@ -57,14 +57,14 @@ class Any(BasePattern):
                 if not isinstance(other, dict):
                     return NotImplemented
                 d = {key: ANY for key in other}
-                d.update(self)
+                d.update(items)
                 return d == other
 
             def __ne__(self, other):
                 return not (self == other)
 
         items = dict(items)
-        return AnyDictWith(items)
+        return AnyDictWith()
 
 
 class Maybe(BasePattern):
@@ -172,4 +172,3 @@ ANY.int.name = 'ANY.int'
 # incremented sequentially, this should be reasonable for tests.
 ANY.dap_id = ANY.such_that(lambda x: isinstance(x, numbers.Integral) and 0 <= x < 10000)
 ANY.dap_id.name = 'ANY.dap_id'
-

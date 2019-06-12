@@ -4,6 +4,13 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+"""An implementation of the session and presentation layers as used in the Debug
+Adapter Protocol (DAP): channels and their lifetime, JSON messages, requests,
+responses, and events.
+
+https://microsoft.github.io/debug-adapter-protocol/overview#base-protocol
+"""
+
 import contextlib
 import inspect
 import itertools
@@ -11,61 +18,80 @@ import json
 import sys
 import threading
 
-from ptvsd.common import log
+from ptvsd.common import compat, fmt, log
 from ptvsd.common._util import new_hidden_thread
 
 
 class JsonIOStream(object):
     """Implements a JSON value stream over two byte streams (input and output).
 
-    Each value is encoded as a packet consisting of a header and a body, as defined by the
-    Debug Adapter Protocol (https://microsoft.github.io/debug-adapter-protocol/overview).
+    Each value is encoded as a DAP packet, with metadata headers and a JSON payload.
     """
 
     MAX_BODY_SIZE = 0xFFFFFF
 
     @classmethod
-    def from_stdio(cls, name='???'):
+    def from_stdio(cls, name="stdio"):
+        """Creates a new instance that receives messages from sys.stdin, and sends
+        them to sys.stdout.
+
+        On Win32, this also sets stdin and stdout to binary mode, since the protocol
+        requires that to work properly.
+        """
         if sys.version_info >= (3,):
             stdin = sys.stdin.buffer
             stdout = sys.stdout.buffer
         else:
             stdin = sys.stdin
             stdout = sys.stdout
-            if sys.platform == 'win32':
+            if sys.platform == "win32":
                 import os, msvcrt
+
                 msvcrt.setmode(stdin.fileno(), os.O_BINARY)
                 msvcrt.setmode(stdout.fileno(), os.O_BINARY)
         return cls(stdin, stdout, name)
 
     @classmethod
-    def from_socket(cls, socket, name='???'):
+    def from_socket(cls, socket, name=None):
+        """Creates a new instance that sends and receives messages over a socket.
+        """
         if socket.gettimeout() is not None:
-            raise ValueError('Socket must be in blocking mode')
-        socket_io = socket.makefile('rwb', 0)
+            raise ValueError("Socket must be in blocking mode")
+        if name is None:
+            name = repr(socket)
+        socket_io = socket.makefile("rwb", 0)
         return cls(socket_io, socket_io, name)
 
-    def __init__(self, reader, writer, name='???'):
+    def __init__(self, reader, writer, name=None):
         """Creates a new JsonIOStream.
 
-        reader is a BytesIO-like object from which incoming messages are read;
-        reader.readline() must treat '\n' as the line terminator, and must leave
-        '\r' as is (i.e. it must not translate '\r\n' to just plain '\n'!).
+        reader must be a BytesIO-like object, from which incoming messages will be
+        read by read_json().
 
-        writer is a BytesIO-like object to which outgoing messages are written.
+        writer must be a BytesIO-like object, into which outgoing messages will be
+        written by write_json().
+
+        reader.readline() must treat "\n" as the line terminator, and must leave "\r"
+        as is - it must not replace "\r\n" with "\n" automatically, as TextIO does.
         """
+
+        if name is None:
+            name = fmt("reader={0!r}, writer={1!r}", reader, writer)
+
         self.name = name
         self._reader = reader
         self._writer = writer
         self._is_closing = False
 
     def close(self):
+        """Closes the stream, the reader, and the writer.
+        """
         self._is_closing = True
         self._reader.close()
         self._writer.close()
 
     def _read_line(self):
-        line = b''
+        line = b""
         while True:
             try:
                 line += self._reader.readline()
@@ -73,16 +99,18 @@ class JsonIOStream(object):
                 raise EOFError
             if not line:
                 raise EOFError
-            if line.endswith(b'\r\n'):
+            if line.endswith(b"\r\n"):
                 line = line[0:-2]
                 return line
 
-    def read_json(self):
+    def read_json(self, decoder=None):
         """Read a single JSON value from reader.
 
-        Returns JSON value as parsed by json.loads(), or raises EOFError
-        if there are no more objects to be read.
+        Returns JSON value as parsed by decoder.decode(), or raises EOFError if
+        there are no more values to be read.
         """
+
+        decoder = decoder if decoder is not None else json.JSONDecoder()
 
         # Parse the message, and try to log any failures using as much information
         # as we already have at the point of the failure. For example, if it fails
@@ -92,21 +120,21 @@ class JsonIOStream(object):
         headers = {}
         while True:
             line = self._read_line()
-            if line == b'':
+            if line == b"":
                 break
-            key, _, value = line.partition(b':')
+            key, _, value = line.partition(b":")
             headers[key] = value
 
         try:
-            length = int(headers[b'Content-Length'])
+            length = int(headers[b"Content-Length"])
             if not (0 <= length <= self.MAX_BODY_SIZE):
                 raise ValueError
         except (KeyError, ValueError):
-            log.exception('{0} --> {1}', self.name, headers)
-            raise IOError('Content-Length is missing or invalid')
+            log.exception("{0} --> {1}", self.name, headers)
+            raise IOError("Content-Length is missing or invalid")
 
         try:
-            body = b''
+            body = b""
             while length > 0:
                 chunk = self._reader.read(length)
                 body += chunk
@@ -118,61 +146,180 @@ class JsonIOStream(object):
                 raise
 
         try:
-            body = body.decode('utf-8')
+            body = body.decode("utf-8")
         except Exception:
-            log.exception('{0} --> {1}', self.name, body)
+            log.exception("{0} --> {1}", self.name, body)
             raise
 
         try:
-            body = json.loads(body)
+            body = decoder.decode(body)
         except Exception:
-            log.exception('{0} --> {1}', self.name, body)
+            log.exception("{0} --> {1}", self.name, body)
             raise
 
-        log.debug('{0} --> {1!j}', self.name, body)
+        log.debug("{0} --> {1!j}", self.name, body)
         return body
 
+    def write_json(self, value, encoder=None):
+        """Write a single JSON value into writer.
 
-    def write_json(self, value):
-        """Write a single JSON object to writer.
-
-        object must be in the format suitable for json.dump().
+        Value is written as encoded by encoder.encode().
         """
 
+        encoder = encoder if encoder is not None else json.JSONEncoder(sort_keys=True)
+
+        # Format the value as a message, and try to log any failures using as much
+        # information as we already have at the point of the failure. For example,
+        # if it fails after it is serialized to JSON, log that JSON.
+
         try:
-            body = json.dumps(value, sort_keys=True)
+            body = encoder.encode(value)
         except Exception:
-            log.exception('{0} <-- {1!r}', self.name, value)
+            log.exception("{0} <-- {1!r}", self.name, value)
 
         if not isinstance(body, bytes):
-            body = body.encode('utf-8')
+            body = body.encode("utf-8")
 
-        header = u'Content-Length: {0}\r\n\r\n'.format(len(body))
-        header = header.encode('ascii')
-
+        header = fmt("Content-Length: {0}\r\n\r\n", len(body)).encode("ascii")
         try:
             self._writer.write(header)
             self._writer.write(body)
         except Exception:
-            log.exception('{0} <-- {1!j}', self.name, value)
+            log.exception("{0} <-- {1!j}", self.name, value)
             raise
 
-        log.debug('{0} <-- {1!j}', self.name, value)
+        log.debug("{0} <-- {1!j}", self.name, value)
+
+    def __repr__(self):
+        return fmt("{0}({1!r})", type(self).__name__, self.name)
+
+
+class MessageDict(dict):
+    """A specialized dict that is used for JSON message payloads - Request.arguments,
+    Response.body, and Event.body.
+
+    For all members that normally throw KeyError when a requested key is missing, this
+    dict raises InvalidMessageError instead. Thus, a message handler can skip checks
+    for missing properties, and just work directly with the payload on the assumption
+    that it is valid according to the protocol specification; if anything is missing,
+    it will be reported automatically in the proper manner.
+
+    If the value for the requested key is itself a dict, it is returned as is, and not
+    automatically converted to MessageDict. Thus, to enable convenient chaining - e.g.
+    d["a"]["b"]["c"] - the dict must consistently use MessageDict instances rather than
+    vanilla dicts for all its values, recursively. This is guaranteed for the payload
+    of all freshly received messages (unless and until it is mutated), but there is no
+    such guarantee for outgoing messages.
+    """
+
+    def __init__(self, message, mapping=None):
+        assert message is None or isinstance(message, Message)
+
+        if mapping is None:
+            super(MessageDict, self).__init__()
+        else:
+            super(MessageDict, self).__init__(mapping)
+
+        self.message = message
+        """The Message object that owns this dict. If None, then MessageDict behaves
+        like a regular dict - i.e. raises KeyError.
+
+        For any instance exposed via a Message object corresponding to some incoming
+        message, it is guaranteed to reference that Message object. There is no similar
+        guarantee for outgoing messages.
+        """
+
+    def _invalid_if_no_key(func):
+        def wrap(self, key, *args, **kwargs):
+            try:
+                return func(self, key, *args, **kwargs)
+            except KeyError:
+                if self.message is None:
+                    raise
+                else:
+                    self.message.isnt_valid("missing property {0!r}", key)
+
+        return wrap
+
+    __getitem__ = _invalid_if_no_key(dict.__getitem__)
+    __delitem__ = _invalid_if_no_key(dict.__delitem__)
+    pop = _invalid_if_no_key(dict.pop)
+
+    del _invalid_if_no_key
 
 
 class Message(object):
-    """Represents an incoming or an outgoing message.
+    """Represents a fully parsed incoming or outgoing message.
     """
 
     def __init__(self, channel, seq):
         self.channel = channel
+
         self.seq = seq
+        """Sequence number of the message in its channel.
+
+        This can be None for synthesized Responses.
+        """
+
+    def is_event(self, event=None):
+        if not isinstance(self, Event):
+            return False
+        return event is None or self.event == event
+
+    def is_request(self, command=None):
+        if not isinstance(self, Request):
+            return False
+        return command is None or self.command == command
+
+    @staticmethod
+    def raise_error(*args, **kwargs):
+        """raise_error([self], exc_type, format_string, *args, **kwargs)
+
+        Raises a new exception of the specified type from the point at which it is
+        invoke, with the specified formatted message as the reason.
+
+        This method can be used either as a static method, or as an instance method.
+        If invoked as an instance method, the resulting exception will have its cause
+        set to the Message object on which raise_error() was called.
+        """
+
+        if isinstance(args[0], Message):
+            cause, exc_type, format_string = args[0:3]
+            args = args[3:]
+        else:
+            cause = None
+            exc_type, format_string = args[0:2]
+            args = args[2:]
+
+        assert issubclass(exc_type, MessageHandlingError)
+        reason = fmt(format_string, *args, **kwargs)
+        raise exc_type(reason, cause)  # will log it
+
+    def isnt_valid(*args, **kwargs):
+        """isnt_valid([self], format_string, *args, **kwargs)
+
+        Same as raise_error(InvalidMessageError, ...).
+        """
+        if isinstance(args[0], Message):
+            args[0].raise_error(InvalidMessageError, *args[1:], **kwargs)
+        else:
+            Message.raise_error(InvalidMessageError, *args, **kwargs)
+
+    def cant_handle(*args, **kwargs):
+        """cant_handle([self], format_string, *args, **kwargs)
+
+        Same as raise_error(MessageHandlingError, ...).
+        """
+        if isinstance(args[0], Message):
+            args[0].raise_error(MessageHandlingError, *args[1:], **kwargs)
+        else:
+            Message.raise_error(MessageHandlingError, *args, **kwargs)
 
 
 class Request(Message):
     """Represents an incoming or an outgoing request.
 
-    Incoming requests are represented by instances of this class.
+    Incoming requests are represented directly by instances of this class.
 
     Outgoing requests are represented by instances of OutgoingRequest, which
     provides additional functionality to handle responses.
@@ -180,9 +327,26 @@ class Request(Message):
 
     def __init__(self, channel, seq, command, arguments):
         super(Request, self).__init__(channel, seq)
+
         self.command = command
+
         self.arguments = arguments
+        """Request arguments.
+
+        For incoming requests, it is guaranteed that this is a MessageDict, and that
+        any nested dicts are also MessageDict instances. If "arguments" was missing
+        or null in JSON, arguments is an empty MessageDict - it is never None.
+        """
+
         self.response = None
+        """Set to Response object for the corresponding response, once the request
+        is handled.
+
+        For incoming requests, it is set as soon as the request handler returns.
+
+        For outgoing requests, it is set as soon as the response is received, and
+        before Response.on_request is invoked.
+        """
 
 
 class OutgoingRequest(Request):
@@ -192,51 +356,70 @@ class OutgoingRequest(Request):
 
     def __init__(self, channel, seq, command, arguments):
         super(OutgoingRequest, self).__init__(channel, seq, command, arguments)
-        self._lock = threading.Lock()
         self._got_response = threading.Event()
         self._callback = lambda _: None
 
-    def _handle_response(self, seq, command, body):
+    def _handle_response(self, response):
+        assert self is response.request
         assert self.response is None
-        with self._lock:
-            response = Response(self.channel, seq, self, body)
+        assert self.channel is response.channel
+
+        with self.channel:
             self.response = response
             callback = self._callback
+
         callback(response)
         self._got_response.set()
-        return response
 
     def wait_for_response(self, raise_if_failed=True):
-        """Waits until a response is received for this request, records that
-        response as a new Response object accessible via self.response, and
-        returns self.response.body.
+        """Waits until a response is received for this request, records the Response
+        object for it in self.response, and returns response.body.
 
-        If raise_if_failed is True, and the received response does not indicate
-        success, raises RequestFailure. Otherwise, self.response.body has to be
-        inspected to determine whether the request failed or succeeded.
+        If no response was received from the other party before the channel closed,
+        self.response is a synthesized Response, which has EOFError() as its body.
+
+        If raise_if_failed=True and response.success is False, raises response.body
+        instead of returning.
         """
-
         self._got_response.wait()
         if raise_if_failed and not self.response.success:
             raise self.response.body
         return self.response.body
 
     def on_response(self, callback):
-        """Registers a callback to invoke when a response is received for this
-        request. If response was already received, invokes callback immediately.
-        Callback is invoked with Response as the sole arugment.
+        """Registers a callback to invoke when a response is received for this request.
+        If response has already been received, invokes the callback immediately. The
+        callback is invoked with Response as its sole argument.
+
+        It is guaranteed that self.response is set before the callback is invoked.
+
+        If no response was received from the other party before the channel closed,
+        a Response with body=EOFError() is synthesized.
 
         The callback is invoked on an unspecified background thread that performs
         processing of incoming messages; therefore, no further message processing
-        occurs until the callback returns.
+        on the same channel is performed until the callback returns.
         """
 
-        with self._lock:
+        # Locking the channel ensures that there's no race condition with disconnect
+        # calling no_response(). Either we already have the synthesized response from
+        # there, in which case we will invoke it below; or we don't, in which case
+        # no_response() is yet to be called, and will invoke the callback.
+        with self.channel:
             response = self.response
             if response is None:
                 self._callback = callback
                 return
+
         callback(response)
+
+    def no_response(self):
+        """Indicates that this request is never going to receive a proper response.
+
+        Synthesizes the appopriate dummy Response, and invokes the callback with it.
+        """
+        response = Response(self.channel, None, self, EOFError("No response"))
+        self._handle_response(response)
 
 
 class Response(Message):
@@ -247,23 +430,24 @@ class Response(Message):
         super(Response, self).__init__(channel, seq)
 
         self.request = request
-        """Request object that this is a response to.
-        """
 
         self.body = body
         """Body of the response if the request was successful, or an instance
         of some class derived from Exception it it was not.
 
-        If a response was received from the other side, but it was marked as
-        failure, it is an instance of RequestFailure, capturing the received
-        error message.
+        If a response was received from the other side, but request failed, it is an
+        instance of MessageHandlingError containing the received error message. If the
+        error message starts with InvalidMessageError.PREFIX, then it's an instance of
+        the InvalidMessageError specifically, and that prefix is stripped.
 
-        If a response was never received from the other side (e.g. because it
-        disconnected before sending a response), it is EOFError.
+        If no response was received from the other party before the channel closed,
+        it is an instance of EOFError.
         """
 
     @property
     def success(self):
+        """Whether the request succeeded or not.
+        """
         return not isinstance(self.body, Exception)
 
     @property
@@ -271,7 +455,6 @@ class Response(Message):
         """Result of the request. Returns the value of response.body, unless it
         is an exception, in which case it is raised instead.
         """
-
         if self.success:
             return self.body
         else:
@@ -288,81 +471,249 @@ class Event(Message):
         self.body = body
 
 
-class RequestFailure(Exception):
-    def __init__(self, message):
-        self.message = message
+class MessageHandlingError(Exception):
+    """Indicates that a message couldn't be handled for some reason.
+
+    If the reason is a contract violation - i.e. the message that was handled did not
+    conform to the protocol specification - InvalidMessageError, which is a subclass,
+    should be used instead.
+
+    If any message handler raises an exception not derived from this class, it will
+    escape the message loop unhandled, and terminate the process.
+
+    If any message handler raises this exception, but its cause is not None, and does
+    not refer to the message being handled, then it is treated same as above. Thus,
+    if a request handler issues another request of its own, and that one fails, the
+    failure is not silently propagated. However, a request that is delegated via
+    Request.delegate() will also propagate failures back automatically. For manual
+    propagation, catch the exception, and call exc.propagate().
+
+    If any event handler raises this exception for the message that it is handling,
+    it is silently swallowed.
+
+    If any request handler raises this exception for the message that it is handling,
+    it is silently swallowed, and a failure response is sent with "message" set to
+    str(reason).
+
+    Note that, while errors are not logged when they're swallowed by the message loop,
+    by that time they have already been logged by __init__ (when instantiated).
+    """
+
+    def __init__(self, reason, cause=None):
+        """Creates a new instance of this class, and immediately logs the exception.
+
+        Message handling errors are logged immediately, so that the precise context
+        in which they occured can be determined from the surrounding log entries.
+        """
+
+        self.reason = reason
+        """Why it couldn't be handled. This can be any object, but usually it's either
+        str or Exception.
+        """
+
+        assert cause is None or isinstance(cause, Message)
+        self.cause = cause
+        """The Message object for the message that couldn't be handled. For responses
+        to unknown requests, this is a synthetic Request.
+        """
+
+        try:
+            raise self
+        except MessageHandlingError:
+            # TODO: change to E after unifying logging with tests
+            log.exception(category="I")
 
     def __hash__(self):
-        return hash(self.message)
+        return hash((self.reason, id(self.cause)))
 
     def __eq__(self, other):
-        if not isinstance(other, RequestFailure):
+        if not isinstance(other, MessageHandlingError):
             return NotImplemented
-        return self.message == other.message
+        if type(self) is not type(other):
+            return NotImplemented
+        if self.reason != other.reason:
+            return False
+        if self.cause is not None and other.cause is not None:
+            if self.cause.seq !=  other.cause.seq:
+                return False
+        return True
 
     def __ne__(self, other):
         return not self == other
 
+    def __str__(self):
+        return str(self.reason)
+
     def __repr__(self):
-        return 'RequestFailure(%r)' % self.message
+        s = type(self).__name__
+        if self.cause is None:
+            s += fmt("(reason={0!r})", self.reason)
+        else:
+            s += fmt(
+                "(channel={0!r}, cause={1!r}, reason={2!r})",
+                self.cause.channel.name,
+                self.cause.seq,
+                self.reason,
+            )
+        return s
+
+    def applies_to(self, message):
+        """Whether this MessageHandlingError can be treated a the reason why handling
+        of message failed.
+
+        If self.cause is None, this is always true.
+
+        If self.cause is not None, this is only true if cause is message.
+        """
+        return self.cause is None or self.cause is message
+
+    def propagate(self, new_cause):
+        """Propagates this error, raising a new instance of the same class with the
+        same reason, but a different cause.
+        """
+        raise type(self)(self.reason, new_cause)
+
+
+class InvalidMessageError(MessageHandlingError):
+    """Indicates that an incoming message did not follow the protocol specification -
+    for example, it was missing properties that are required, or the message itself
+    is not allowed in the current state.
+
+    Raised by MessageDict in lieu of KeyError for missing keys.
+    """
+
+    PREFIX = "Invalid message: "
+    """Automatically prepended to the "message" property in JSON responses, when the
+    handler raises InvalidMessageError.
+
+    If a failed response has "message" property that starts with this prefix, it is
+    reported as InvalidMessageError rather than MessageHandlingError.
+    """
 
     def __str__(self):
-        return self.message
+        return InvalidMessageError.PREFIX + str(self.reason)
 
 
 class JsonMessageChannel(object):
     """Implements a JSON message channel on top of a JSON stream, with
     support for generic Request, Response and Event messages as defined by the
     Debug Adapter Protocol (https://microsoft.github.io/debug-adapter-protocol/overview).
+
+    The channel can be locked for exclusive use via the with-statement::
+
+        with channel:
+            channel.send_request(...)
+            # Guaranteed to have no interleaving messages here.
+            channel.send_event(...)
+    """
+
+    report_unhandled_events = True
+    """If True, any event that couldn't be handled successfully will be reported
+    by sending a corresponding "event_not_handled" event in response. Can be set
+    per-instance.
+
+    This helps diagnose why important events are seemingly ignored, when the only
+    message log that is available is the one for the other end of the channel.
     """
 
     def __init__(self, stream, handlers=None, name=None):
         self.stream = stream
+        self.handlers = handlers
         self.name = name if name is not None else stream.name
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._seq_iter = itertools.count(1)
         self._requests = {}
-        self._handlers = handlers
-        self._worker = new_hidden_thread('{} message channel worker'.format(self.name), self._process_incoming_messages)
+        self._worker = new_hidden_thread(repr(self), self._process_incoming_messages)
         self._worker.daemon = True
 
+    def __repr__(self):
+        return fmt("{0}({1!r})", type(self).__name__, self.name)
+
+    def __enter__(self):
+        self._lock.acquire()
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        self._lock.release()
+
     def close(self):
+        """Closes the underlying stream.
+
+        This does not immediately terminate any handlers that were already running,
+        but they will be unable to respond.
+        """
         self.stream.close()
 
     def start(self):
+        """Starts a message loop on a background thread, which invokes on_message
+        for every new incoming message, until the channel is closed.
+
+        Incoming messages will not be processed at all until this is invoked.
+        """
         self._worker.start()
 
     def wait(self):
+        """Waits until the message loop terminates.
+        """
         self._worker.join()
 
     @contextlib.contextmanager
-    def _send_message(self, type, rest={}):
-        with self._lock:
+    def _send_message(self, message):
+        """Sends a new message to the other party.
+
+        Generates a new sequence number for the message, and provides it to the
+        caller before the message is sent, using the context manager protocol::
+
+            with send_message(...) as seq:
+                # The message hasn't been sent yet, but we know its seq.
+
+            # Now the message has been sent.
+
+        Safe to call concurrently for the same channel from different threads.
+        """
+
+        assert "seq" not in message
+        with self:
             seq = next(self._seq_iter)
-        message = {
-            'seq': seq,
-            'type': type,
-        }
-        message.update(rest)
-        with self._lock:
+        message["seq"] = seq
+
+        with self:
             yield seq
             self.stream.write_json(message)
 
     def send_request(self, command, arguments=None):
-        d = {'command': command}
+        """Sends a new request, and returns the OutgoingRequest object for it.
+
+        If arguments is None or {}, "arguments" will be omitted in JSON.
+
+        Does not wait for response - use OutgoingRequest.wait_for_response().
+
+        Safe to call concurrently for the same channel from different threads.
+        """
+
+        d = {"type": "request", "command": command}
         if arguments is not None and arguments != {}:
-            d['arguments'] = arguments
-        with self._send_message('request', d) as seq:
+            d["arguments"] = arguments
+
+        with self._send_message(d) as seq:
             request = OutgoingRequest(self, seq, command, arguments)
             self._requests[seq] = request
         return request
 
     def send_event(self, event, body=None):
-        d = {'event': event}
+        """Sends a new event.
+
+        If body is None or {}, "body" will be omitted in JSON.
+
+        Safe to call concurrently for the same channel from different threads.
+        """
+
+        d = {"type": "event", "event": event}
         if body is not None and body != {}:
-            d['body'] = body
-        with self._send_message('event', d):
+            d["body"] = body
+
+        with self._send_message(d):
             pass
 
     def propagate(self, message):
@@ -370,94 +721,198 @@ class JsonMessageChannel(object):
 
         If it was a request, returns the new OutgoingRequest object for it.
         """
-
         if isinstance(message, Request):
             return self.send_request(message.command, message.arguments)
         else:
             self.send_event(message.event, message.body)
 
     def delegate(self, request):
-        """Propagates a request, waits for response, and returns its body.
-
-        If the request failed, raises RequestFailure, just like wait_for_response().
+        """Like propagate(request).wait_for_response(), but will also propagate
+        any resulting MessageHandlingError.
         """
         assert isinstance(request, Request)
-        return self.propagate(request).wait_for_response()
+        try:
+            return self.propagate(request).wait_for_response()
+        except MessageHandlingError as exc:
+            exc.propagate(request)
 
     def _send_response(self, request, body):
-        d = {
-            'request_seq': request.seq,
-            'command': request.command,
-        }
-        if isinstance(body, Exception):
-            d['success'] = False
-            d['message'] = str(body)
-        else:
-            d['success'] = True
-            if body is not None and body != {}:
-                d['body'] = body
+        d = {"type": "response", "request_seq": request.seq, "command": request.command}
 
-        with self._send_message('response', d) as seq:
+        if isinstance(body, Exception):
+            d["success"] = False
+            d["message"] = str(body)
+        else:
+            d["success"] = True
+            if body != {}:
+                d["body"] = body
+
+        with self._send_message(d) as seq:
             pass
-        return Response(self, seq, request, body)
+
+        response = Response(self, seq, request.seq, body)
+        response.request = request
+        return response
+
+    @staticmethod
+    def _get_payload(message, name):
+        """Retrieves payload from deserialized message.
+
+        Same as message[name], but if payload is missing or null, it is treated
+        as if it were {}.
+        """
+
+        payload = message.get(name, None)
+        if payload is not None:
+            if isinstance(payload, dict):  # not always true
+                assert isinstance(payload, MessageDict)
+            return payload
+
+        # Missing payload. Construct a dummy MessageDict, and make it look like
+        # it was deserialized. See _process_incoming_message for associate_with.
+
+        def associate_with(message):
+            payload.message = message
+
+        payload = MessageDict(None)
+        payload.associate_with = associate_with
+        return payload
 
     def on_message(self, message):
-        seq = message['seq']
-        typ = message['type']
-        if typ == 'request':
-            command = message['command']
-            arguments = message.get('arguments', None)
+        """Invoked for every incoming message after deserialization, but before any
+        further processing.
+
+        The default implementation invokes on_request or on_event as needed, and also
+        handles responses to any previously issued requests via Request.on_response.
+        """
+
+        seq = message["seq"]
+        typ = message["type"]
+        if typ == "request":
+            command = message["command"]
+            arguments = self._get_payload(message, "arguments")
             return self.on_request(seq, command, arguments)
-        elif typ == 'event':
-            event = message['event']
-            body = message.get('body', None)
+        elif typ == "event":
+            event = message["event"]
+            body = self._get_payload(message, "body")
             return self.on_event(seq, event, body)
-        elif typ == 'response':
-            request_seq = message['request_seq']
-            success = message['success']
-            command = message['command']
-            error_message = message.get('message', None)
-            body = message.get('body', None)
-            return self.on_response(seq, request_seq, success, command, error_message, body)
+        elif typ == "response":
+            request_seq = message["request_seq"]
+            success = message["success"]
+            command = message["command"]
+            error_message = message.get("message", None)
+            body = self._get_payload(message, "body") if success else None
+            return self.on_response(
+                seq, request_seq, success, command, error_message, body
+            )
         else:
-            raise IOError('Incoming message has invalid "type":\n%r' % message)
+            message.isnt_valid('invalid "type": {0!r}', message.type)
+
+    def _get_handler_for(self, type, name):
+        for handler_name in (name + "_" + type, type):
+            try:
+                return getattr(self.handlers, handler_name)
+            except AttributeError:
+                continue
+        raise AttributeError(
+            fmt(
+                "{0} has no {1} handler for {2!r}",
+                compat.srcnameof(self.handlers),
+                type,
+                repr(name),
+            )
+        )
 
     def on_request(self, seq, command, arguments):
-        handler_name = '%s_request' % command
-        handler = getattr(self._handlers, handler_name, None)
-        if handler is None:
-            try:
-                handler = getattr(self._handlers, 'request')
-            except AttributeError:
-                raise AttributeError('%r has no handler for request %r' % (self._handlers, command))
+        """Invoked for every incoming request after deserialization and parsing, but
+        before handling.
 
+        It is guaranteed that arguments is a MessageDict, and all nested dicts in it are
+        also MessageDict instances. If "arguments" was missing or null in JSON, this
+        method receives an empty MessageDict. All dicts have owner=None, but it can be
+        changed with arguments.associate_with().
+
+        The default implementation tries to find a handler for command in self.handlers,
+        and invoke it. Given command=X, if handlers.X_command exists, then it is the
+        specific handler for this request. Otherwise, handlers.request must exist, and
+        it is the generic handler for this request. A missing handler is a fatal error.
+
+        The handler is then invoked with the Request object as its sole argument. It can
+        either be a simple function that returns a value directly, or a generator that
+        yields.
+
+        If the handler returns a value directly, the response is sent immediately, with
+        Response.body as the returned value. If the value is None, it is a fatal error.
+        No further incoming messages are processed until the handler returns.
+
+        If the handler returns a generator object, it will be iterated until it yields
+        a non-None value. Every yield of None is treated as request to process another
+        pending message recursively (which may cause re-entrancy in the handler), after
+        which the generator is resumed with the Message object for that message.
+
+        Once a non-None value is yielded from the generator, it is treated the same as
+        in non-generator case. It is a fatal error for the generator to not yield such
+        a value before it stops.
+
+        Thus, when a request handler needs to wait until another request or event is
+        handled before it can respond, it should yield in a loop, so that any other
+        messages can be processed until that happens::
+
+            while True:
+                msg = yield
+                if msg.is_event('party'):
+                    break
+
+        or when it's waiting for some change in state:
+
+            self.ready = False
+            while not self.ready:
+                yield  # some other handler must set self.ready = True
+
+        To report an error, the handler must raise MessageHandlingError with a matching
+        cause. Use Message.isnt_valid to report invalid requests, and Message.cant_handle
+        to report valid requests that could not be processed.
+        """
+
+        handler = self._get_handler_for("request", command)
         request = Request(self, seq, command, arguments)
+
+        if isinstance(arguments, dict):
+            arguments.associate_with(request)
+
+        def _assert_response(result):
+            assert result is not None, fmt(
+                "Request handler {0} must provide a response for {1!r}.",
+                compat.srcnameof(handler),
+                command,
+            )
+
         try:
             result = handler(request)
-        except RequestFailure as ex:
-            result = ex
+        except MessageHandlingError as exc:
+            if not exc.applies_to(request):
+                raise
+            result = exc
+        _assert_response(result)
 
-        # A request handler can either be a simple function that returns the body of the
-        # response directly, or a generator that yields. If it is a generator, then every
-        # yield of None is treated as request to process another pending message recursively,
-        # after which the generator is resumed. Once any object other than None is yielded,
-        # that is the body of the response. If the generator stops before yielding a body,
-        # it is treated as if it had yielded {}.
         if inspect.isgenerator(result):
             gen = result
         else:
             # Wrap a non-generator return into a generator, to unify processing below.
-            # Note that return None is the same as return {} in this case, unlike yield.
             def gen():
-                yield {} if result is None else result
+                yield result
+
             gen = gen()
 
+        # Process messages recursively until generator yields the response.
         last_message = None
         while True:
             try:
                 response_body = gen.send(last_message)
-            except RequestFailure as ex:
-                response_body = ex
+            except MessageHandlingError as exc:
+                if not exc.applies_to(request):
+                    raise
+                response_body = exc
                 break
             except StopIteration:
                 response_body = {}
@@ -465,48 +920,172 @@ class JsonMessageChannel(object):
             if response_body is not None:
                 gen.close()
                 break
+
             last_message = self._process_incoming_message()  # re-entrant
 
+        _assert_response(response_body)
         request.response = self._send_response(request, response_body)
         return request
 
     def on_event(self, seq, event, body):
-        handler_name = '%s_event' % event
-        handler = getattr(self._handlers, handler_name, None)
-        if handler is None:
-            try:
-                handler = getattr(self._handlers, 'event')
-            except AttributeError:
-                raise AttributeError('%r has no handler for event %r' % (self._handlers, event))
+        """Invoked for every incoming event after deserialization and parsing, but
+        before handling.
 
+        It is guaranteed that body is a MessageDict, and all nested dicts in it are
+        also MessageDict instances. If "body" was missing or null in JSON, this method
+        receives an empty MessageDict. All dicts have owner=None, but it can be changed
+        with body.associate_with().
+
+        The default implementation tries to find a handler for event in self.handlers,
+        and invoke it. Given event=X, if handlers.X_event exists, then it is the
+        specific handler for this event. Otherwise, handlers.event must exist, and
+        it is the generic handler for this event. A missing handler is a fatal error.
+
+        No further incoming messages are processed until the handler returns.
+
+        To report an error, the handler must raise MessageHandlingError with a matching
+        cause. Use Message.isnt_valid to report invalid events, and Message.cant_handle
+        to report valid events that could not be processed. If report_unhandled_events
+        is True, then an error reported in this manner will be propagated back to the
+        sender as an "event_not_handled" event. Otherwise, the sender does not receive
+        any notifications.
+        """
+
+        handler = self._get_handler_for("event", event)
         event = Event(self, seq, event, body)
-        handler(event)
+
+        if isinstance(body, dict):
+            body.associate_with(event)
+
+        try:
+            result = handler(event)
+        except MessageHandlingError as exc:
+            if not exc.applies_to(event):
+                raise
+            if self.report_unhandled_events:
+                message = exc.reason
+                if isinstance(exc, InvalidMessageError):
+                    message = InvalidMessageError.PREFIX + message
+                self.send_event(
+                    "event_not_handled", {"event_seq": seq, "message": message}
+                )
+
+        assert result is None, fmt(
+            "Event handler {0} tried to respond to {1!r}.",
+            compat.srcnameof(handler),
+            event.event,
+        )
+
         return event
 
     def on_response(self, seq, request_seq, success, command, error_message, body):
+        """Invoked for every incoming response after deserialization and parsing, but
+        before handling.
+
+        error_message corresponds to "message" in JSON, and is renamed for clarity.
+
+        If success is False, body is None. Otherwise, it is guaranteed that body is
+        a MessageDict, and all nested dicts in it are also MessageDict instances. If
+        "body" was missing or null in JSON, this method receives an empty MessageDict.
+        All dicts have owner=None, but it can be changed with body.associate_with().
+
+        The default implementation delegates to the OutgoingRequest object for the
+        request to which this is the response further for handling. If it is a response
+        to an unknown request, it is logged and then ignored.
+
+        See OutgoingRequest.on_response and OutgoingRequest.wait_for_response for
+        high-level response handling facilities.
+
+        No further incoming messages are processed until the handler returns.
+        """
+
+        # Synthetic Request that only has seq and command as specified in response JSON.
+        # It is replaced with the actual Request later, if we can find it.
+        request = OutgoingRequest(self, request_seq, command, "<unknown>")
+
+        if not success:
+            error_message = str(error_message)
+            exc_type = MessageHandlingError
+            if error_message.startswith(InvalidMessageError.PREFIX):
+                error_message = error_message[len(InvalidMessageError.PREFIX) :]
+                exc_type = InvalidMessageError
+            body = exc_type(error_message, request)
+
+        response = Response(self, seq, request, body)
+
+        if isinstance(body, dict):
+            body.associate_with(response)
+
         try:
-            with self._lock:
+            with self:
                 request = self._requests.pop(request_seq)
         except KeyError:
-            raise KeyError('Received response to unknown request %d', request_seq)
-        if not success:
-            body = RequestFailure(error_message)
-        return request._handle_response(seq, command, body)
+            response.isnt_valid(
+                "request_seq={0} does not match any known request", request_seq
+            )
+
+        # Replace synthetic Request with real one.
+        response.request = request
+        if isinstance(response.body, MessageHandlingError):
+            response.body.request = request
+
+        request._handle_response(response)
 
     def on_disconnect(self):
-        # There's no more incoming messages, so any requests that are still pending
-        # must be marked as failed to unblock anyone waiting on them.
-        with self._lock:
+        """Invoked when the channel is closed.
+
+        No further message handlers will be invoked after this one returns.
+
+        The default implementation ensures that any requests that are still outstanding
+        automatically receive synthesized "no response" responses, and then invokes
+        handlers.disconnect with no arguments, if it exists.
+        """
+
+        # Lock the channel to properly synchronize with the instant callback logic
+        # in Request.on_response().
+        with self:
             for request in self._requests.values():
-                request._handle_response(None, request.command, EOFError('No response'))
-        getattr(self._handlers, 'disconnect', lambda: None)()
+                request.no_response()
+
+        getattr(self.handlers, "disconnect", lambda: None)()
 
     def _process_incoming_message(self):
-        message = self.stream.read_json()
+        # Set up a dedicated decoder for this message, to create MessageDict instances
+        # for all JSON objects, and track them so that they can be later wired up to
+        # the Message they belong to, once it is instantiated.
+        def object_hook(d):
+            d = MessageDict(None, d)
+            d.associate_with = associate_with
+            message_dicts.append(d)
+            return d
+
+        # A hack to work around circular dependency between messages, and instances of
+        # MessageDict in their payload. We need to set message for all of them, but it
+        # cannot be done until the actual Message is created - which happens after the
+        # dicts are created during deserialization.
+        #
+        # So, upon deserialization, every dict in the message payload gets a method
+        # that can be called to set MessageDict.message for _all_ dicts in that message.
+        # Then, on_request, on_event, and on_response can use it once they have parsed
+        # the dicts, and created the appropriate Request/Event/Response instance.
+        def associate_with(message):
+            for d in message_dicts:
+                d.message = message
+                del d.associate_with
+
+        message_dicts = []
+        decoder = json.JSONDecoder(object_hook=object_hook)
+        message = self.stream.read_json(decoder)
+        assert isinstance(message, MessageDict)  # make sure stream used decoder
+
         try:
             return self.on_message(message)
         except Exception:
-            log.exception('Error while processing message for {0}:\n\n{1!r}', self.name, message)
+            log.exception(
+                "Fatal error while processing message for {0}:\n\n{1!r}",
+                self.name,
+                message,
+            )
             raise
 
     def _process_incoming_messages(self):
@@ -520,29 +1099,16 @@ class JsonMessageChannel(object):
             try:
                 self.on_disconnect()
             except Exception:
-                log.exception('Error while processing disconnect for {0}', self.name)
+                log.exception("Error while processing disconnect for {0}", self.name)
                 raise
 
 
 class MessageHandlers(object):
     """A simple delegating message handlers object for use with JsonMessageChannel.
-    For every argument provided, the object has an attribute with the corresponding
+    For every argument provided, the object gets an attribute with the corresponding
     name and value.
     """
 
     def __init__(self, **kwargs):
         for name, func in kwargs.items():
             setattr(self, name, func)
-
-
-def raise_failure(fmt, *args, **kwargs):
-    """Raises RequestFailure from the point at which it is invoked with the specified
-    formatted message. The message is also immediately logged.
-    """
-
-    msg = log.formatter.format(fmt, *args, **kwargs)
-    try:
-        raise RequestFailure(msg)
-    except RequestFailure:
-        log.exception()
-        raise

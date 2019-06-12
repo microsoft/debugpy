@@ -8,7 +8,7 @@ import pytest
 from tests.helpers.pattern import ANY
 from tests.helpers.session import DebugSession
 from tests.helpers.timeline import Event
-from ptvsd.common.messaging import RequestFailure
+from ptvsd.common.messaging import MessageHandlingError
 from tests.helpers import get_marked_line_numbers
 
 expected_at_line = {
@@ -146,13 +146,13 @@ def test_completions_cases(pyfile, run_as, start_method):
         assert not response.body['targets']
 
         # Check errors
-        with pytest.raises(RequestFailure) as request_failure:
+        with pytest.raises(MessageHandlingError) as error:
             response = session.send_request('completions', arguments={
                 'frameId': 9999999,  # frameId not available.
                 'text': 'not_there',
                 'column': 10,
             }).wait_for_response()
-        assert 'Wrong ID sent from the client:' in request_failure.value.message
+        assert 'Wrong ID sent from the client:' in str(error)
 
         session.send_request('continue').wait_for_response(freeze=False)
         session.wait_for_exit()

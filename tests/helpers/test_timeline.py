@@ -8,8 +8,6 @@ import pytest
 import threading
 import time
 
-from ptvsd.common.messaging import RequestFailure
-
 from .pattern import ANY, SUCCESS, FAILURE, Is
 from .timeline import Timeline, Mark, Event, Request, Response
 
@@ -114,7 +112,7 @@ def test_request_response(make_timeline, outcome):
         timeline.expect_realized(Request('next'))
         timeline.expect_realized(Request('next', {'threadId': 3}))
 
-    response_body = {} if outcome == 'success' else RequestFailure('error!')
+    response_body = {} if outcome == 'success' else Exception('error!')
     response = timeline.record_response(request, response_body)
 
     assert response == Response(request, response_body)

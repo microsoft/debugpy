@@ -6,8 +6,6 @@ from __future__ import print_function, with_statement, absolute_import
 
 import pytest
 
-from ptvsd.common.messaging import RequestFailure
-
 from .pattern import ANY, SUCCESS, FAILURE
 
 
@@ -54,7 +52,7 @@ def test_success():
 
 
 def test_failure():
-    error = RequestFailure('error!')
+    error = Exception('error!')
     assert error != SUCCESS
     assert error == FAILURE
 

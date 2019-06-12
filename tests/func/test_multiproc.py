@@ -10,7 +10,7 @@ import sys
 
 from tests.helpers.pattern import ANY
 from tests.helpers.session import DebugSession
-from tests.helpers.timeline import Event, Request, Response
+from tests.helpers.timeline import Event, Request
 
 
 @pytest.mark.timeout(30)
@@ -217,8 +217,8 @@ def test_autokill(pyfile, run_as, start_method):
             if parent_session.start_method == 'launch':
                 # In launch scenario, terminate the parent process by disconnecting from it.
                 parent_session.expected_returncode = ANY
-                disconnect = parent_session.send_request('disconnect', {})
-                parent_session.wait_for_next(Response(disconnect))
+                parent_session.send_request('disconnect')
+                parent_session.wait_for_disconnect()
             else:
                 # In attach scenario, just let the parent process run to completion.
                 parent_session.expected_returncode = 0

@@ -20,21 +20,23 @@ class Messages(singleton.Singleton):
 
     _channels = channels.Channels()
 
+    # Shortcut for the IDE channel. There's no equivalent for _channels.server so
+    # as to enforce the use of get_server() for proper error handling.
     @property
     def _ide(self):
         return self._channels.ide
 
+    # Returns the server channel if connected to server, otherwise indicates failure.
     @property
     def _server(self):
         """Raises RequestFailure if the server is not available.
 
-        To test whether it is available or not, use _channels.server instead, and
+         To test whether it is available or not, use _channels.server instead, and
         check for None.
         """
-
         server = self._channels.server
         if server is None:
-            messaging.raise_failure("Connection to debug server is not established yet")
+            messaging.Message.isnt_valid("Connection to debug server is not established yet")
         return server
 
     # Specifies the allowed adapter states for a message handler - if the corresponding
@@ -47,7 +49,7 @@ class Messages(singleton.Singleton):
                 if current_state in states:
                     return handler(self, message)
                 if isinstance(message, messaging.Request):
-                    messaging.raise_failure(
+                    message.isnt_valid(
                         "Request {0!r} is not allowed in adapter state {1!r}.",
                         message.command,
                         current_state,
@@ -113,8 +115,8 @@ class IDEMessages(Messages):
     # case some events appear in future protocol versions.
     @_replay_to_server
     def event(self, event):
-        if self._server is not None:
-            self._server.propagate(event)
+        if self._channels.server is not None:
+            self._channels.server.propagate(event)
 
     # Generic request handler, used if there's no specific handler below.
     @_replay_to_server
@@ -185,7 +187,7 @@ class IDEMessages(Messages):
     # Handle a "disconnect" or a "terminate" request.
     def _shutdown(self, request, terminate):
         if request.arguments.get("restart", False):
-            messaging.raise_failure("Restart is not supported")
+            request.isnt_valid("Restart is not supported")
 
         result = self._server.delegate(request)
         state.change("shutting_down")
@@ -220,7 +222,7 @@ class IDEMessages(Messages):
             log.warn('IDE disconnected without sending "disconnect" or "terminate".')
             state.change("shutting_down")
 
-            if self._server is None:
+            if self._channels.server is None:
                 if self.terminate_on_disconnect:
                     # It happened before we connected to the server, so we cannot gracefully
                     # terminate the debuggee. Force-kill it immediately.
@@ -230,7 +232,7 @@ class IDEMessages(Messages):
             # Try to shut down the server gracefully, even though the adapter wasn't.
             command = "terminate" if self.terminate_on_disconnect else "disconnect"
             try:
-                self._server.send_request(command)
+                self._channels.server.send_request(command)
             except Exception:
                 # The server might have already disconnected as well, or it might fail
                 # to handle the request. But we can't report failure to the IDE at this
