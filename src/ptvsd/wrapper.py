@@ -1109,45 +1109,11 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     def on_variables(self, request, args):
         self._forward_request_to_pydevd(request, args)
 
-    @async_handler
     def on_setVariable(self, request, args):
-        """Handles DAP SetVariableRequest."""
-        var_name = args['name']
+        self._forward_request_to_pydevd(request, args)
 
-        if var_name.startswith('(return) '):
-            self.send_error_response(
-                request,
-                'Cannot change return value')
-            return
-
-        pydevd_request = copy.deepcopy(request)
-        del pydevd_request['seq']  # A new seq should be created for pydevd.
-        _, _, resp_args = yield self.pydevd_request(
-            pydevd_comm.CMD_CHANGE_VARIABLE,
-            pydevd_request,
-            is_json=True)
-
-        body = resp_args['body']
-        self.send_response(request, **body)
-
-    @async_handler
     def on_evaluate(self, request, args):
-        """Handles DAP EvaluateRequest."""
-
-        pydevd_request = copy.deepcopy(request)
-        del pydevd_request['seq']  # A new seq should be created for pydevd.
-        _, _, resp_args = yield self.pydevd_request(
-            pydevd_comm.CMD_EVALUATE_EXPRESSION,
-            pydevd_request,
-            is_json=True)
-
-        body = resp_args['body']
-
-        # Currently there is an issue in VSC where returning success=false for a eval request,
-        # in repl context. VSC does not show the error response in the debug console.
-        if args.get('context', None) == 'repl' and not resp_args['success']:
-            body['result'] = resp_args['message']
-        self.send_response(request, **body)
+        self._forward_request_to_pydevd(request, args)
 
     def on_setExpression(self, request, args):
         self._forward_request_to_pydevd(request, args)

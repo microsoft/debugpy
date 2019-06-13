@@ -765,20 +765,29 @@ class _PyDevJsonCommandProcessor(object):
         arguments = request.arguments  # : :type arguments: SetVariableArguments
         variables_reference = arguments.variablesReference
 
+        if arguments.name.startswith('(return) '):
+            response = pydevd_base_schema.build_response(
+                request,
+                kwargs={
+                    'body': SetVariableResponseBody(''),
+                    'success': False,
+                    'message': 'Cannot change return value'
+                })
+            return NetCommand(CMD_RETURN, 0, response, is_json=True)
+
         thread_id = py_db.suspended_frames_manager.get_thread_id_for_variable_reference(
             variables_reference)
         if thread_id is not None:
             self.api.request_change_variable_json(py_db, request, thread_id)
         else:
-            body = SetVariableResponseBody('')
-            variables_response = pydevd_base_schema.build_response(
+            response = pydevd_base_schema.build_response(
                 request,
                 kwargs={
-                    'body': body,
+                    'body': SetVariableResponseBody(''),
                     'success': False,
                     'message': 'Unable to find thread to evaluate variable reference.'
                 })
-            return NetCommand(CMD_RETURN, 0, variables_response, is_json=True)
+            return NetCommand(CMD_RETURN, 0, response, is_json=True)
 
     def on_modules_request(self, py_db, request):
         modules_manager = py_db.cmd_factory.modules_manager  # : :type modules_manager: ModulesManager

@@ -885,7 +885,7 @@ def _evaluate_response(py_db, request, result, error_message=''):
         variables_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
         py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response, is_json=True))
     else:
-        body = pydevd_schema.EvaluateResponseBody(result='', variablesReference=0)
+        body = pydevd_schema.EvaluateResponseBody(result=result, variablesReference=0)
         variables_response = pydevd_base_schema.build_response(request, kwargs={
             'body':body, 'success':False, 'message': error_message})
         py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response, is_json=True))
@@ -926,7 +926,10 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
                 pydevd_vars.evaluate_expression(py_db, frame, expression, is_exec=True)
             except Exception as ex:
                 err = ''.join(traceback.format_exception_only(type(ex), ex))
-                _evaluate_response(py_db, request, result='', error_message=err)
+                # Currently there is an issue in VSC where returning success=false for an
+                # eval request, in repl context, VSC does not show the error response in
+                # the debug console. So return the error message in result as well.
+                _evaluate_response(py_db, request, result=err, error_message=err)
                 return
             # No result on exec.
             _evaluate_response(py_db, request, result='')
@@ -936,7 +939,7 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
     frame_tracker = py_db.suspended_frames_manager.get_frame_tracker(thread_id)
     if frame_tracker is None:
         # This is not really expected.
-        _evaluate_response(py_db, request, result, error_message='Thread id: %s is not current thread id.' % (thread_id,))
+        _evaluate_response(py_db, request, result='', error_message='Thread id: %s is not current thread id.' % (thread_id,))
         return
 
     variable = frame_tracker.obtain_as_variable(expression, result, frame=frame)
