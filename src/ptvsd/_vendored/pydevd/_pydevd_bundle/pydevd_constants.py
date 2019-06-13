@@ -62,6 +62,8 @@ from _pydevd_bundle import pydevd_vm_type
 # Constant detects when running on Jython/windows properly later on.
 IS_WINDOWS = sys.platform == 'win32'
 
+IS_64BIT_PROCESS = sys.maxsize > (2 ** 32)
+
 IS_JYTHON = pydevd_vm_type.get_vm_type() == pydevd_vm_type.PydevdVmType.JYTHON
 IS_JYTH_LESS25 = False
 
@@ -111,6 +113,25 @@ try:
         IS_PY24 = True
 except AttributeError:
     pass  # Not all versions have sys.version_info
+
+def version_str(v):
+    return '%d.%d.%d%s%d' % (
+        v.major,
+        v.minor,
+        v.micro,
+        v.releaselevel,
+        v.serial)
+
+PY_VERSION_STR = version_str(sys.version_info)
+try:
+    PY_IMPL_VERSION_STR = version_str(sys.implementation.version)
+except AttributeError:
+    PY_IMPL_VERSION_STR = ''
+
+try:
+    PY_IMPL_NAME = sys.implementation.name
+except AttributeError:
+    PY_IMPL_NAME = ''
 
 try:
     SUPPORT_GEVENT = os.getenv('GEVENT_SUPPORT', 'False') == 'True'

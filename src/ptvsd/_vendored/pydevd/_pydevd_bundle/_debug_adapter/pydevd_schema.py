@@ -12490,6 +12490,401 @@ class SetDebuggerPropertyResponse(BaseSchema):
         return dct
 
 
+@register_request('pydevdSystemInfo')
+@register
+class PydevdSystemInfoRequest(BaseSchema):
+    """
+    The request can be used retrieve system information, python version, etc.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "seq": {
+            "type": "integer",
+            "description": "Sequence number."
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "request"
+            ]
+        },
+        "command": {
+            "type": "string",
+            "enum": [
+                "pydevdSystemInfo"
+            ]
+        },
+        "arguments": {
+            "type": "PydevdSystemInfoArguments"
+        }
+    }
+    __refs__ = set(['arguments'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, seq=-1, arguments=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string type: 
+        :param string command: 
+        :param integer seq: Sequence number.
+        :param PydevdSystemInfoArguments arguments: 
+        """
+        self.type = 'request'
+        self.command = 'pydevdSystemInfo'
+        self.seq = seq
+        if arguments is None:
+            self.arguments = PydevdSystemInfoArguments()
+        else:
+            self.arguments = PydevdSystemInfoArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  PydevdSystemInfoArguments else arguments
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        seq = self.seq
+        arguments = self.arguments
+        dct = {
+            'type': type,
+            'command': command,
+            'seq': seq,
+        }
+        if arguments is not None:
+            dct['arguments'] = arguments.to_dict(update_ids_to_dap=update_ids_to_dap)
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class PydevdSystemInfoArguments(BaseSchema):
+    """
+    Arguments for 'pydevdSystemInfo' request.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {}
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+    
+        """
+    
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        dct = {
+        }
+        dct.update(self.kwargs)
+        return dct
+
+
+@register_response('pydevdSystemInfo')
+@register
+class PydevdSystemInfoResponse(BaseSchema):
+    """
+    Response to 'pydevdSystemInfo' request.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "seq": {
+            "type": "integer",
+            "description": "Sequence number."
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "response"
+            ]
+        },
+        "request_seq": {
+            "type": "integer",
+            "description": "Sequence number of the corresponding request."
+        },
+        "success": {
+            "type": "boolean",
+            "description": "Outcome of the request."
+        },
+        "command": {
+            "type": "string",
+            "description": "The command requested."
+        },
+        "message": {
+            "type": "string",
+            "description": "Contains error message if success == false."
+        },
+        "body": {
+            "type": "object",
+            "properties": {
+                "python": {
+                    "$ref": "#/definitions/PydevdPythonInfo",
+                    "description": "Information about the python version running in the current process."
+                },
+                "platform": {
+                    "$ref": "#/definitions/PydevdPlatformInfo",
+                    "description": "Information about the plarforn on which the current process is running."
+                },
+                "process": {
+                    "$ref": "#/definitions/PydevdProcessInfo",
+                    "description": "Information about the current process."
+                }
+            },
+            "required": [
+                "python",
+                "platform",
+                "process"
+            ]
+        }
+    }
+    __refs__ = set(['body'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string type: 
+        :param integer request_seq: Sequence number of the corresponding request.
+        :param boolean success: Outcome of the request.
+        :param string command: The command requested.
+        :param PydevdSystemInfoResponseBody body: 
+        :param integer seq: Sequence number.
+        :param string message: Contains error message if success == false.
+        """
+        self.type = 'response'
+        self.request_seq = request_seq
+        self.success = success
+        self.command = command
+        if body is None:
+            self.body = PydevdSystemInfoResponseBody()
+        else:
+            self.body = PydevdSystemInfoResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  PydevdSystemInfoResponseBody else body
+        self.seq = seq
+        self.message = message
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
+        dct = {
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
+        }
+        if message is not None:
+            dct['message'] = message
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class PydevdPythonInfo(BaseSchema):
+    """
+    This object contains python version and implementation details.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "version": {
+            "type": "string",
+            "description": "Python version as a string in semver format: <major>.<minor>.<micro><releaselevel><serial>."
+        },
+        "implementation": {
+            "description": "Python version as a string in this format <major>.<minor>.<micro><releaselevel><serial>.",
+            "type": "PydevdPythonImplementationInfo"
+        }
+    }
+    __refs__ = set(['implementation'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, version=None, implementation=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string version: Python version as a string in semver format: <major>.<minor>.<micro><releaselevel><serial>.
+        :param PydevdPythonImplementationInfo implementation: Python version as a string in this format <major>.<minor>.<micro><releaselevel><serial>.
+        """
+        self.version = version
+        if implementation is None:
+            self.implementation = PydevdPythonImplementationInfo()
+        else:
+            self.implementation = PydevdPythonImplementationInfo(update_ids_from_dap=update_ids_from_dap, **implementation) if implementation.__class__ !=  PydevdPythonImplementationInfo else implementation
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        version = self.version
+        implementation = self.implementation
+        dct = {
+        }
+        if version is not None:
+            dct['version'] = version
+        if implementation is not None:
+            dct['implementation'] = implementation.to_dict(update_ids_to_dap=update_ids_to_dap)
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class PydevdPythonImplementationInfo(BaseSchema):
+    """
+    This object contains python implementation details.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "name": {
+            "type": "string",
+            "description": "Python implementation name."
+        },
+        "version": {
+            "type": "string",
+            "description": "Python version as a string in semver format: <major>.<minor>.<micro><releaselevel><serial>."
+        },
+        "description": {
+            "type": "string",
+            "description": "Optional description for this python implementation."
+        }
+    }
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, name=None, version=None, description=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string name: Python implementation name.
+        :param string version: Python version as a string in semver format: <major>.<minor>.<micro><releaselevel><serial>.
+        :param string description: Optional description for this python implementation.
+        """
+        self.name = name
+        self.version = version
+        self.description = description
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        name = self.name
+        version = self.version
+        description = self.description
+        dct = {
+        }
+        if name is not None:
+            dct['name'] = name
+        if version is not None:
+            dct['version'] = version
+        if description is not None:
+            dct['description'] = description
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class PydevdPlatformInfo(BaseSchema):
+    """
+    This object contains python version and implementation details.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "name": {
+            "type": "string",
+            "description": "Name of the platform as returned by 'sys.platform'."
+        }
+    }
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, name=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string name: Name of the platform as returned by 'sys.platform'.
+        """
+        self.name = name
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        name = self.name
+        dct = {
+        }
+        if name is not None:
+            dct['name'] = name
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class PydevdProcessInfo(BaseSchema):
+    """
+    This object contains python process details.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "pid": {
+            "type": "integer",
+            "description": "Process ID for the current process."
+        },
+        "executable": {
+            "type": "string",
+            "description": "Path to the executable as returned by 'sys.executable'."
+        },
+        "bitness": {
+            "type": "integer",
+            "description": "Integer value indicating the bitness of the current process."
+        }
+    }
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, pid=None, executable=None, bitness=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param integer pid: Process ID for the current process.
+        :param string executable: Path to the executable as returned by 'sys.executable'.
+        :param integer bitness: Integer value indicating the bitness of the current process.
+        """
+        self.pid = pid
+        self.executable = executable
+        self.bitness = bitness
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        pid = self.pid
+        executable = self.executable
+        bitness = self.bitness
+        dct = {
+        }
+        if pid is not None:
+            dct['pid'] = pid
+        if executable is not None:
+            dct['executable'] = executable
+        if bitness is not None:
+            dct['bitness'] = bitness
+        dct.update(self.kwargs)
+        return dct
+
+
 @register
 class ErrorResponseBody(BaseSchema):
     """
@@ -14345,6 +14740,66 @@ class MessageVariables(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         dct = {
+        }
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class PydevdSystemInfoResponseBody(BaseSchema):
+    """
+    "body" of PydevdSystemInfoResponse
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "python": {
+            "description": "Information about the python version running in the current process.",
+            "type": "PydevdPythonInfo"
+        },
+        "platform": {
+            "description": "Information about the plarforn on which the current process is running.",
+            "type": "PydevdPlatformInfo"
+        },
+        "process": {
+            "description": "Information about the current process.",
+            "type": "PydevdProcessInfo"
+        }
+    }
+    __refs__ = set(['python', 'platform', 'process'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, python, platform, process, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param PydevdPythonInfo python: Information about the python version running in the current process.
+        :param PydevdPlatformInfo platform: Information about the plarforn on which the current process is running.
+        :param PydevdProcessInfo process: Information about the current process.
+        """
+        if python is None:
+            self.python = PydevdPythonInfo()
+        else:
+            self.python = PydevdPythonInfo(update_ids_from_dap=update_ids_from_dap, **python) if python.__class__ !=  PydevdPythonInfo else python
+        if platform is None:
+            self.platform = PydevdPlatformInfo()
+        else:
+            self.platform = PydevdPlatformInfo(update_ids_from_dap=update_ids_from_dap, **platform) if platform.__class__ !=  PydevdPlatformInfo else platform
+        if process is None:
+            self.process = PydevdProcessInfo()
+        else:
+            self.process = PydevdProcessInfo(update_ids_from_dap=update_ids_from_dap, **process) if process.__class__ !=  PydevdProcessInfo else process
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        python = self.python
+        platform = self.platform
+        process = self.process
+        dct = {
+            'python': python.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'platform': platform.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'process': process.to_dict(update_ids_to_dap=update_ids_to_dap),
         }
         dct.update(self.kwargs)
         return dct

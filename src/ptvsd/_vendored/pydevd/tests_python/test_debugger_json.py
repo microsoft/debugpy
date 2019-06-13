@@ -9,10 +9,12 @@ from _pydevd_bundle._debug_adapter.pydevd_schema import (ThreadEvent, ModuleEven
 from tests_python import debugger_unittest
 import json
 from collections import namedtuple
-from _pydevd_bundle.pydevd_constants import int_types
+from _pydevd_bundle.pydevd_constants import (int_types, IS_64BIT_PROCESS,
+    PY_VERSION_STR, PY_IMPL_VERSION_STR, PY_IMPL_NAME)
 from tests_python.debug_constants import *  # noqa
 import time
 from os.path import normcase
+import sys
 from _pydev_bundle.pydev_localhost import get_socket_name
 
 pytest_plugins = [
@@ -2332,6 +2334,41 @@ def test_redirect_output(case_setup):
         assert msgs == new_expected
         writer.finished_ok = True
 
+
+def test_pydevd_systeminfo(case_setup):
+    with case_setup.test_file('_debugger_case_print.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'))
+
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        assert json_hit.thread_id
+
+        info_request = json_facade.write_request(
+            pydevd_schema.PydevdSystemInfoRequest(
+                pydevd_schema.PydevdSystemInfoArguments()
+            )
+        )
+        info_response = json_facade.wait_for_response(info_request)
+        body = info_response.to_dict()['body']
+
+
+        assert body['python']['version'] == PY_VERSION_STR
+        assert body['python']['implementation']['name'] == PY_IMPL_NAME
+        assert body['python']['implementation']['version'] == PY_IMPL_VERSION_STR
+        assert 'description' in body['python']['implementation']
+
+        assert body['platform'] == {'name': sys.platform}
+
+        assert 'pid' in body['process']
+        assert body['process']['executable'] == sys.executable
+        assert body['process']['bitness'] == 64 if IS_64BIT_PROCESS else 32
+
+        json_facade.write_continue(wait_for_response=False)
+
+        writer.finished_ok = True
 
 if __name__ == '__main__':
     pytest.main(['-k', 'test_case_skipping_filters', '-s'])

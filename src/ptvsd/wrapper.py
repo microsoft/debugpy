@@ -1231,60 +1231,27 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self._forward_request_to_pydevd(request, args)
 
     # Custom ptvsd message
+    @async_handler
     def on_ptvsd_systemInfo(self, request, args):
-        try:
-            pid = os.getpid()
-        except AttributeError:
-            pid = None
-
-        try:
-            impl_desc = platform.python_implementation()
-        except AttributeError:
-            try:
-                impl_desc = sys.implementation.name
-            except AttributeError:
-                impl_desc = None
-
-        def version_str(v):
-            return '{}.{}.{}{}{}'.format(
-                v.major,
-                v.minor,
-                v.micro,
-                v.releaselevel,
-                v.serial)
-
-        try:
-            impl_name = sys.implementation.name
-        except AttributeError:
-            impl_name = None
-
-        try:
-            impl_version = version_str(sys.implementation.version)
-        except AttributeError:
-            impl_version = None
-
         sys_info = {
             'ptvsd': {
                 'version': __version__,
             },
-            'python': {
-                'version': version_str(sys.version_info),
-                'implementation': {
-                    'name': impl_name,
-                    'version': impl_version,
-                    'description': impl_desc,
-                },
-            },
-            'platform': {
-                'name': sys.platform,
-            },
-            'process': {
-                'pid': pid,
-                'executable': sys.executable,
-                'bitness': 64 if sys.maxsize > 2 ** 32 else 32,
-            },
         }
-        self.send_response(request, **sys_info)
+        pydevd_request = copy.deepcopy(request)
+        pydevd_request['command'] = 'pydevdSystemInfo'
+        del pydevd_request['seq']  # A new seq should be created for pydevd.
+        cmd_id = -1  # It's actually unused on json requests.
+        _, _, resp_args = yield self.pydevd_request(cmd_id, pydevd_request, is_json=True)
+
+        if not resp_args.get('success'):
+            self.send_error_response(request, message=resp_args.get('message', ''))
+        else:
+            body = resp_args.get('body')
+            if body is None:
+                body = {}
+            sys_info.update(body)
+            self.send_response(request, **sys_info)
 
     # VS specific custom message handlers
 
