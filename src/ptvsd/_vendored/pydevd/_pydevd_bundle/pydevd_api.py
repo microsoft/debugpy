@@ -4,15 +4,16 @@ from _pydev_imps._pydev_saved_modules import threading
 from _pydevd_bundle import pydevd_utils
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
 from _pydevd_bundle.pydevd_comm import (InternalGetThreadStack, internal_get_completions,
-    pydevd_find_thread_by_id, InternalStepThread, InternalSetNextStatementThread, internal_reload_code,
+    pydevd_find_thread_by_id, InternalSetNextStatementThread, internal_reload_code,
     InternalGetVariable, InternalGetArray, InternalLoadFullValue,
     internal_get_description, internal_get_frame, internal_evaluate_expression, InternalConsoleExec,
     internal_get_variable_json, internal_change_variable, internal_change_variable_json,
-    internal_evaluate_expression_json, internal_set_expression_json, internal_get_exception_details_json)
+    internal_evaluate_expression_json, internal_set_expression_json, internal_get_exception_details_json,
+    internal_step_in_thread, internal_run_thread)
 from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, file_system_encoding,
     CMD_STEP_INTO_MY_CODE, CMD_STOP_ON_START)
 from _pydevd_bundle.pydevd_constants import (get_current_thread_id, set_protocol, get_protocol,
-    HTTP_JSON_PROTOCOL, JSON_PROTOCOL, STATE_RUN, IS_PY3K, DebugInfoHolder, dict_keys)
+    HTTP_JSON_PROTOCOL, JSON_PROTOCOL, IS_PY3K, DebugInfoHolder, dict_keys)
 from _pydevd_bundle.pydevd_net_command_factory_json import NetCommandFactoryJson
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
 import pydevd_file_utils
@@ -140,11 +141,8 @@ class PyDevdAPI(object):
         for t in threads:
             if t is None:
                 continue
-            additional_info = set_additional_thread_info(t)
-            additional_info.pydev_original_step_cmd = -1
-            additional_info.pydev_step_cmd = -1
-            additional_info.pydev_step_stop = None
-            additional_info.pydev_state = STATE_RUN
+
+            internal_run_thread(t, set_additional_thread_info=set_additional_thread_info)
 
     def request_completions(self, py_db, seq, thread_id, frame_id, act_tok, line=-1, column=-1):
         py_db.post_method_as_internal_command(
@@ -167,14 +165,19 @@ class PyDevdAPI(object):
             thread_id,
             max_frames,
             set_additional_thread_info=set_additional_thread_info,
-            iter_visible_frames_info=py_db.cmd_factory._iter_visible_frames_info)
+            iter_visible_frames_info=py_db.cmd_factory._iter_visible_frames_info,
+        )
 
     def request_step(self, py_db, thread_id, step_cmd_id):
         t = pydevd_find_thread_by_id(thread_id)
         if t:
-            int_cmd = InternalStepThread(thread_id, step_cmd_id)
-            py_db.post_internal_command(int_cmd, thread_id)
-
+            py_db.post_method_as_internal_command(
+                thread_id,
+                internal_step_in_thread,
+                thread_id,
+                step_cmd_id,
+                set_additional_thread_info=set_additional_thread_info,
+            )
         elif thread_id.startswith('__frame__:'):
             sys.stderr.write("Can't make tasklet step command: %s\n" % (thread_id,))
 
@@ -561,6 +564,9 @@ class PyDevdAPI(object):
         :param unicode project_roots:
         '''
         py_db.set_project_roots(project_roots)
+
+    def set_stepping_resumes_all_threads(self, py_db, stepping_resumes_all_threads):
+        py_db.stepping_resumes_all_threads = stepping_resumes_all_threads
 
     # Add it to the namespace so that it's available as PyDevdAPI.ExcludeFilter
     from _pydevd_bundle.pydevd_filtering import ExcludeFilter  # noqa

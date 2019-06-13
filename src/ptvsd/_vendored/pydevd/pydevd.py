@@ -478,6 +478,9 @@ class PyDB(object):
         # If True, pydevd will send a single notification when all threads are suspended/resumed.
         self._threads_suspended_single_notification = ThreadsSuspendedSingleNotification(self)
 
+        # If True a step command will do a step in one thread and will also resume all other threads.
+        self.stepping_resumes_all_threads = False
+
         self._local_thread_trace_func = threading.local()
 
         # Bind many locals to the debugger because upon teardown those names may become None
@@ -1069,11 +1072,12 @@ class PyDB(object):
 
     def _activate_mpl_if_needed(self):
         if len(self.mpl_modules_for_patching) > 0:
-            if is_current_thread_main_thread():
+            if is_current_thread_main_thread():  # Note that we call only in the main thread.
                 for module in dict_keys(self.mpl_modules_for_patching):
                     if module in sys.modules:
-                        activate_function = self.mpl_modules_for_patching.pop(module)
-                        activate_function()
+                        activate_function = self.mpl_modules_for_patching.pop(module, None)
+                        if activate_function is not None:
+                            activate_function()
                         self.mpl_in_use = True
 
     def _call_mpl_hook(self):
@@ -1492,19 +1496,25 @@ class PyDB(object):
         info = thread.additional_info
         keep_suspended = False
 
-        if info.pydev_state == STATE_SUSPEND and not self._finish_debugging_session:
-            in_main_thread = is_current_thread_main_thread()
+        with self._main_lock:  # Use lock to check if suspended state changed
+            activate_matplotlib = info.pydev_state == STATE_SUSPEND and not self._finish_debugging_session
+
+        in_main_thread = is_current_thread_main_thread()
+        if activate_matplotlib and in_main_thread:
             # before every stop check if matplotlib modules were imported inside script code
-            if in_main_thread:
-                self._activate_mpl_if_needed()
+            self._activate_mpl_if_needed()
 
-            while info.pydev_state == STATE_SUSPEND and not self._finish_debugging_session:
-                if in_main_thread and self.mpl_in_use:
-                    # call input hooks if only matplotlib is in use
-                    self._call_mpl_hook()
+        while True:
+            with self._main_lock:  # Use lock to check if suspended state changed
+                if info.pydev_state != STATE_SUSPEND or self._finish_debugging_session:
+                    break
 
-                self.process_internal_commands()
-                time.sleep(0.01)
+            if in_main_thread and self.mpl_in_use:
+                # call input hooks if only matplotlib is in use
+                self._call_mpl_hook()
+
+            self.process_internal_commands()
+            time.sleep(0.01)
 
         self.cancel_async_evaluation(get_current_thread_id(thread), str(id(frame)))
 

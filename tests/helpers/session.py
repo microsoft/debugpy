@@ -56,6 +56,7 @@ class DebugSession(object):
         self.path_mappings = []
         self.success_exitcodes = None
         self.rules = []
+        self.stepping_resumes_all_threads = None
         self.env = os.environ.copy()
         self.env['PYTHONPATH'] = os.path.dirname(debuggee.__file__)
         self.cwd = None
@@ -531,8 +532,12 @@ class DebugSession(object):
             'pathMappings': self.path_mappings,
             'rules': self.rules,
         })
+        if self.stepping_resumes_all_threads is not None:
+            self.start_method_args['steppingResumesAllThreads'] = self.stepping_resumes_all_threads
+
         if self.success_exitcodes is not None:
             self.start_method_args['successExitCodes'] = self.success_exitcodes
+
         launch_or_attach_request = self.send_request(request, self.start_method_args)
 
         if self.no_debug:

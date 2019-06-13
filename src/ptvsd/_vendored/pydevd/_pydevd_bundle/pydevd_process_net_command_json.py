@@ -259,6 +259,9 @@ class _PyDevJsonCommandProcessor(object):
 
     def _set_debug_options(self, py_db, args, start_reason):
         rules = args.get('rules')
+        stepping_resumes_all_threads = args.get('steppingResumesAllThreads', True)
+        self.api.set_stepping_resumes_all_threads(py_db, stepping_resumes_all_threads)
+
         exclude_filters = []
 
         if rules is not None:

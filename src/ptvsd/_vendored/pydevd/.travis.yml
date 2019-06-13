@@ -1,5 +1,8 @@
 language: python
 
+services:
+  - xvfb
+
 matrix:
   include:
     # Note: python is always 2.7 because it's the installed version
@@ -85,12 +88,8 @@ before_install:
   # Jython setup
   - if [ "$PYDEVD_TEST_JYTHON" == "YES" ]; then wget $JYTHON_URL -O jython_installer.jar; java -jar jython_installer.jar -s -d $HOME/jython; export PATH=$HOME/jython:$HOME/jython/bin:$PATH; fi
   - if [ "$PYDEVD_TEST_JYTHON" == "YES" ]; then jython -c "print('')"; fi
-  # The next couple lines fix a crash with multiprocessing on Travis and are not specific to using Miniconda
-  - sudo rm -rf /dev/shm
-  - sudo ln -s /run/shm /dev/shm
   # Fix issue with testGui
   - "export DISPLAY=:99.0"
-  - "sh -e /etc/init.d/xvfb start"
 # Install packages
 install:
   # Both

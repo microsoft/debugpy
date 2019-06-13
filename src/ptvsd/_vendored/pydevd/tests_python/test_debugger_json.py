@@ -300,10 +300,11 @@ class JsonFacade(object):
         if wait_for_response:
             self.wait_for_response(next_request)
 
-    def write_step_out(self, thread_id):
+    def write_step_out(self, thread_id, wait_for_response=True):
         stepout_request = self.write_request(
             pydevd_schema.StepOutRequest(pydevd_schema.StepOutArguments(thread_id)))
-        self.wait_for_response(stepout_request)
+        if wait_for_response:
+            self.wait_for_response(stepout_request)
 
     def write_set_variable(self, frame_variables_reference, name, value, success=True):
         set_variable_request = self.write_request(
@@ -1488,6 +1489,104 @@ def test_pause_and_continue(case_setup):
         set_variable_response = json_facade.write_set_variable(frame_variables_reference, 'loop', 'False')
         set_variable_response_as_dict = set_variable_response.to_dict()['body']
         assert set_variable_response_as_dict == {'value': "False", 'type': 'bool', 'variablesReference': 0}
+
+        json_facade.write_continue(wait_for_response=False)
+
+        writer.finished_ok = True
+
+
+@pytest.mark.parametrize('stepping_resumes_all_threads', [False, True])
+def test_step_out_multi_threads(case_setup, stepping_resumes_all_threads):
+    with case_setup.test_file('_debugger_case_multi_threads_stepping.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch(steppingResumesAllThreads=stepping_resumes_all_threads)
+        json_facade.write_set_breakpoints([
+            writer.get_line_index_with_content('Break thread 1'),
+        ])
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+
+        response = json_facade.write_list_threads()
+        assert len(response.body.threads) == 3
+
+        thread_name_to_id = dict((t['name'], t['id']) for t in response.body.threads)
+        assert json_hit.thread_id == thread_name_to_id['thread1']
+
+        if stepping_resumes_all_threads:
+            # If we're stepping with multiple threads, we'll exit here.
+            json_facade.write_step_out(thread_name_to_id['thread1'], wait_for_response=False)
+        else:
+            json_facade.write_step_out(thread_name_to_id['thread1'])
+
+            # Timeout is expected... make it shorter.
+            writer.reader_thread.set_messages_timeout(2)
+            try:
+                json_hit = json_facade.wait_for_thread_stopped('step')
+                raise AssertionError('Expected timeout!')
+            except debugger_unittest.TimeoutError:
+                pass
+
+            json_facade.write_step_out(thread_name_to_id['thread2'])
+            json_facade.write_step_next(thread_name_to_id['MainThread'])
+            json_hit = json_facade.wait_for_thread_stopped('step')
+            assert json_hit.thread_id == thread_name_to_id['MainThread']
+            json_facade.write_continue(wait_for_response=False)
+
+        writer.finished_ok = True
+
+
+@pytest.mark.parametrize('stepping_resumes_all_threads', [True, False])
+@pytest.mark.parametrize('step_mode', ['step_next', 'step_in'])
+def test_step_next_step_in_multi_threads(case_setup, stepping_resumes_all_threads, step_mode):
+    with case_setup.test_file('_debugger_case_multi_threads_stepping.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch(steppingResumesAllThreads=stepping_resumes_all_threads)
+        json_facade.write_set_breakpoints([
+            writer.get_line_index_with_content('Break thread 1'),
+        ])
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+
+        response = json_facade.write_list_threads()
+        assert len(response.body.threads) == 3
+
+        thread_name_to_id = dict((t['name'], t['id']) for t in response.body.threads)
+        assert json_hit.thread_id == thread_name_to_id['thread1']
+
+        for _i in range(20):
+            if step_mode == 'step_next':
+                json_facade.write_step_next(thread_name_to_id['thread1'])
+
+            elif step_mode == 'step_in':
+                json_facade.write_step_in(thread_name_to_id['thread1'])
+
+            else:
+                raise AssertionError('Unexpected step_mode: %s' % (step_mode,))
+
+            json_hit = json_facade.wait_for_thread_stopped('step')
+            assert json_hit.thread_id == thread_name_to_id['thread1']
+            local_var = json_facade.get_local_var(json_hit.frame_id, '_event2_set')
+
+            # We're stepping in a single thread which depends on events being set in
+            # another thread, so, we can only get here if the other thread was also released.
+            if local_var.value == 'True':
+                if stepping_resumes_all_threads:
+                    break
+                else:
+                    raise AssertionError('Did not expect _event2_set to be set when not resuming other threads on step.')
+
+            time.sleep(.01)
+        else:
+            if stepping_resumes_all_threads:
+                raise AssertionError('Expected _event2_set to be set already.')
+            else:
+                # That's correct, we should never reach the condition where _event2_set is set if
+                # we're not resuming other threads on step.
+                pass
 
         json_facade.write_continue(wait_for_response=False)
 

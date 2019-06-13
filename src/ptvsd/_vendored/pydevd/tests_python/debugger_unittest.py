@@ -591,6 +591,15 @@ class AbstractWriterThread(threading.Thread):
                 'from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info',
                 "RuntimeWarning: Parent module '_pydevd_bundle._debug_adapter' not found while handling absolute import",
                 'import json',
+
+                # Issues with Jython and Java 9.
+                'WARNING: Illegal reflective access by org.python.core.PySystemState',
+                'WARNING: Please consider reporting this to the maintainers of org.python.core.PySystemState',
+                'WARNING: An illegal reflective access operation has occurred',
+                'WARNING: Illegal reflective access by jnr.posix.JavaLibCHelper',
+                'WARNING: Please consider reporting this to the maintainers of jnr.posix.JavaLibCHelper',
+                'WARNING: Use --illegal-access=warn to enable warnings of further illegal reflective access operations',
+                'WARNING: All illegal access operations will be denied in a future release',
                 ):
                 if expected in line:
                     return True
