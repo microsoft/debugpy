@@ -1666,7 +1666,7 @@ def test_evaluate(case_setup):
             pydevd_schema.EvaluateRequest(pydevd_schema.EvaluateArguments('var_1 = "abc"/6', frameId=stack_frame_id, context='repl')))
         exec_response = json_facade.wait_for_response(exec_request)
         assert exec_response.success == False
-        assert exec_response.body.result == ''
+        assert exec_response.body.result.find('TypeError') > -1
         assert exec_response.message.find('TypeError') > -1
 
         json_facade.write_continue(wait_for_response=False)
@@ -2354,7 +2354,6 @@ def test_pydevd_systeminfo(case_setup):
         info_response = json_facade.wait_for_response(info_request)
         body = info_response.to_dict()['body']
 
-
         assert body['python']['version'] == PY_VERSION_STR
         assert body['python']['implementation']['name'] == PY_IMPL_NAME
         assert body['python']['implementation']['version'] == PY_IMPL_VERSION_STR
@@ -2369,6 +2368,7 @@ def test_pydevd_systeminfo(case_setup):
         json_facade.write_continue(wait_for_response=False)
 
         writer.finished_ok = True
+
 
 if __name__ == '__main__':
     pytest.main(['-k', 'test_case_skipping_filters', '-s'])

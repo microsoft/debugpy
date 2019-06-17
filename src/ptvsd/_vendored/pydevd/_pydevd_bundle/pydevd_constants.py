@@ -114,13 +114,10 @@ try:
 except AttributeError:
     pass  # Not all versions have sys.version_info
 
+
 def version_str(v):
-    return '%d.%d.%d%s%d' % (
-        v.major,
-        v.minor,
-        v.micro,
-        v.releaselevel,
-        v.serial)
+    return '.'.join((str(x) for x in v[:3])) + ''.join((str(x) for x in v[3:]))
+
 
 PY_VERSION_STR = version_str(sys.version_info)
 try:
