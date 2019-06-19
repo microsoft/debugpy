@@ -134,30 +134,34 @@ def set_nodebug(arg, it):
 
 
 switches = [
+    # fmt: off
+
     # Switch                    Placeholder         Action                                  Required
     # ======                    ===========         ======                                  ========
 
     # Switches that are documented for use by end users.
-    (('-?', '-h', '--help'), None, print_help_and_exit, False),
-    (('-V', '--version'), None, print_version_and_exit, False),
-    ('--host', '<address>', set_arg('host', string), True),
-    ('--port', '<port>', set_arg('port', port), False),
-    ('--wait', None, set_true('wait'), False),
-    ('--multiprocess', None, set_true('multiprocess'), False),
-    ('--log-dir', '<path>', set_arg('log_dir', string), False),
+    (('-?', '-h', '--help'),    None,               print_help_and_exit,                    False),
+    (('-V', '--version'),       None,               print_version_and_exit,                 False),
+    ('--host',                  '<address>',        set_arg('host', string),                True),
+    ('--port',                  '<port>',           set_arg('port', port),                  False),
+    ('--wait',                  None,               set_true('wait'),                       False),
+    ('--multiprocess',          None,               set_true('multiprocess'),               False),
+    ('--log-dir',               '<path>',           set_arg('log_dir', string),             False),
 
     # Switches that are used internally by the IDE or ptvsd itself.
-    ('--nodebug', None, set_nodebug, False),
-    ('--client', None, set_true('client'), False),
-    ('--subprocess-of', '<pid>', set_arg('subprocess_of', pid), False),
-    ('--subprocess-notify', '<port>', set_arg('subprocess_notify', port), False),
+    ('--nodebug',               None,               set_nodebug,                            False),
+    ('--client',                None,               set_true('client'),                     False),
+    ('--subprocess-of',         '<pid>',            set_arg('subprocess_of', pid),          False),
+    ('--subprocess-notify',     '<port>',           set_arg('subprocess_notify', port),     False),
 
     # Targets. The '' entry corresponds to positional command line arguments,
     # i.e. the ones not preceded by any switch name.
-    ('', '<filename>', set_target('file'), False),
-    ('-m', '<module>', set_target('module', string), False),
-    ('-c', '<code>', set_target('code', string), False),
-    ('--pid', '<pid>', set_target('pid', pid), False),
+    ('',                        '<filename>',       set_target('file'),                     False),
+    ('-m',                      '<module>',         set_target('module', string),           False),
+    ('-c',                      '<code>',           set_target('code', string),             False),
+    ('--pid',                   '<pid>',            set_target('pid', pid),                 False),
+
+    # fmt: on
 ]
 
 
