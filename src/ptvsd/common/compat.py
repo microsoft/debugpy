@@ -16,12 +16,12 @@ from ptvsd.common import fmt
 try:
     import builtins
 except ImportError:
-    import __builtin__ as builtins # noqa
+    import __builtin__ as builtins  # noqa
 
 try:
     import queue
 except ImportError:
-    import Queue as queue # noqa
+    import Queue as queue  # noqa
 
 try:
     unicode = builtins.unicode

@@ -52,7 +52,7 @@ class Formatter(string.Formatter, types.ModuleType):
         return self.format(format_string, *args, **kwargs)
 
     def convert_field(self, value, conversion):
-        if conversion == 'j':
+        if conversion == "j":
             return self.json_encoder.encode(value)
         return super(self.Formatter, self).convert_field(value, conversion)
 

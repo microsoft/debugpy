@@ -78,7 +78,7 @@ class ThreadSafeSingleton(Singleton):
 
     def __getattribute__(self, name):
         value = object.__getattribute__(self, name)
-        if not getattr(value, 'is_threadsafe_method', False):
+        if not getattr(value, "is_threadsafe_method", False):
             ThreadSafeSingleton.assert_locked(self)
         return value
 

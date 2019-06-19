@@ -35,7 +35,9 @@ class Messages(singleton.Singleton):
         """
         server = self._channels.server
         if server is None:
-            messaging.Message.isnt_valid("Connection to debug server is not established yet")
+            messaging.Message.isnt_valid(
+                "Connection to debug server is not established yet"
+            )
         return server
 
     # Specifies the allowed adapter states for a message handler - if the corresponding

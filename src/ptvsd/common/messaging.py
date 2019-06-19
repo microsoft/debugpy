@@ -535,7 +535,7 @@ class MessageHandlingError(Exception):
         if self.reason != other.reason:
             return False
         if self.cause is not None and other.cause is not None:
-            if self.cause.seq !=  other.cause.seq:
+            if self.cause.seq != other.cause.seq:
                 return False
         return True
 
