@@ -276,7 +276,7 @@ class Message(object):
         """raise_error([self], exc_type, format_string, *args, **kwargs)
 
         Raises a new exception of the specified type from the point at which it is
-        invoke, with the specified formatted message as the reason.
+        invoked, with the specified formatted message as the reason.
 
         This method can be used either as a static method, or as an instance method.
         If invoked as an instance method, the resulting exception will have its cause
@@ -388,17 +388,18 @@ class OutgoingRequest(Request):
 
     def on_response(self, callback):
         """Registers a callback to invoke when a response is received for this request.
-        If response has already been received, invokes the callback immediately. The
-        callback is invoked with Response as its sole argument.
+        The callback is invoked with Response as its sole argument.
+        
+        If response has already been received, invokes the callback immediately. 
 
         It is guaranteed that self.response is set before the callback is invoked.
 
         If no response was received from the other party before the channel closed,
         a Response with body=EOFError() is synthesized.
 
-        The callback is invoked on an unspecified background thread that performs
-        processing of incoming messages; therefore, no further message processing
-        on the same channel is performed until the callback returns.
+        The callback may be invoked on an unspecified background thread that performs
+        processing of incoming messages; in that case, no further message processing
+        on the same channel will be performed until the callback returns.
         """
 
         # Locking the channel ensures that there's no race condition with disconnect
@@ -481,22 +482,22 @@ class MessageHandlingError(Exception):
     If any message handler raises an exception not derived from this class, it will
     escape the message loop unhandled, and terminate the process.
 
-    If any message handler raises this exception, but its cause is not None, and does
-    not refer to the message being handled, then it is treated same as above. Thus,
-    if a request handler issues another request of its own, and that one fails, the
-    failure is not silently propagated. However, a request that is delegated via
-    Request.delegate() will also propagate failures back automatically. For manual
-    propagation, catch the exception, and call exc.propagate().
+    If any message handler raises this exception, but applies_to(message) is False, it
+    is treated as if it was a generic exception, as desribed above. Thus, if a request
+    handler issues another request of its own, and that one fails, the failure is not
+    silently propagated. However, a request that is delegated via Request.delegate()
+    will also propagate failures back automatically. For manual propagation, catch the
+    exception, and call exc.propagate().
 
-    If any event handler raises this exception for the message that it is handling,
-    it is silently swallowed.
+    If any event handler raises this exception, and applies_to(event) is True, the
+    exception is silently swallowed by the message loop.
 
-    If any request handler raises this exception for the message that it is handling,
-    it is silently swallowed, and a failure response is sent with "message" set to
-    str(reason).
+    If any request handler raises this exception, and applies_to(request) is True, the
+    exception is silently swallowed by the message loop, and a failure response is sent
+    with "message" set to str(reason).
 
     Note that, while errors are not logged when they're swallowed by the message loop,
-    by that time they have already been logged by __init__ (when instantiated).
+    by that time they have already been logged by their __init__ (when instantiated).
     """
 
     def __init__(self, reason, cause=None):
@@ -558,8 +559,8 @@ class MessageHandlingError(Exception):
         return s
 
     def applies_to(self, message):
-        """Whether this MessageHandlingError can be treated a the reason why handling
-        of message failed.
+        """Whether this MessageHandlingError can be treated as a reason why the
+        handling of message failed.
 
         If self.cause is None, this is always true.
 
@@ -595,15 +596,14 @@ class InvalidMessageError(MessageHandlingError):
 
 
 class JsonMessageChannel(object):
-    """Implements a JSON message channel on top of a JSON stream, with
-    support for generic Request, Response and Event messages as defined by the
-    Debug Adapter Protocol (https://microsoft.github.io/debug-adapter-protocol/overview).
-
+    """Implements a JSON message channel on top of a raw JSON message stream, with
+    support for DAP requests, responses, and events.
+    
     The channel can be locked for exclusive use via the with-statement::
 
         with channel:
             channel.send_request(...)
-            # Guaranteed to have no interleaving messages here.
+            # No interleaving messages can be sent here from other threads.
             channel.send_event(...)
     """
 
@@ -728,7 +728,7 @@ class JsonMessageChannel(object):
 
     def delegate(self, request):
         """Like propagate(request).wait_for_response(), but will also propagate
-        any resulting MessageHandlingError.
+        any resulting MessageHandlingError back.
         """
         assert isinstance(request, Request)
         try:
@@ -756,20 +756,21 @@ class JsonMessageChannel(object):
 
     @staticmethod
     def _get_payload(message, name):
-        """Retrieves payload from deserialized message.
+        """Retrieves payload from a deserialized message.
 
-        Same as message[name], but if payload is missing or null, it is treated
+        Same as message[name], but if that value is missing or null, it is treated
         as if it were {}.
         """
 
         payload = message.get(name, None)
         if payload is not None:
-            if isinstance(payload, dict):  # not always true
+            if isinstance(payload, dict):  # can be int, str, list...
                 assert isinstance(payload, MessageDict)
             return payload
 
         # Missing payload. Construct a dummy MessageDict, and make it look like
-        # it was deserialized. See _process_incoming_message for associate_with.
+        # it was deserialized. See _process_incoming_message for why it needs to
+        # have associate_with().
 
         def associate_with(message):
             payload.message = message
@@ -819,7 +820,7 @@ class JsonMessageChannel(object):
                 "{0} has no {1} handler for {2!r}",
                 compat.srcnameof(self.handlers),
                 type,
-                repr(name),
+                name,
             )
         )
 
@@ -833,7 +834,7 @@ class JsonMessageChannel(object):
         changed with arguments.associate_with().
 
         The default implementation tries to find a handler for command in self.handlers,
-        and invoke it. Given command=X, if handlers.X_command exists, then it is the
+        and invoke it. Given command=X, if handlers.X_request exists, then it is the
         specific handler for this request. Otherwise, handlers.request must exist, and
         it is the generic handler for this request. A missing handler is a fatal error.
 
@@ -869,9 +870,10 @@ class JsonMessageChannel(object):
             while not self.ready:
                 yield  # some other handler must set self.ready = True
 
-        To report an error, the handler must raise MessageHandlingError with a matching
-        cause. Use Message.isnt_valid to report invalid requests, and Message.cant_handle
-        to report valid requests that could not be processed.
+        To fail the request, the handler must raise an instance of MessageHandlingError
+        that applies_to() the Request object it was handling. Use Message.isnt_valid
+        to report invalid requests, and Message.cant_handle to report valid requests
+        that could not be processed.
         """
 
         handler = self._get_handler_for("request", command)
@@ -943,12 +945,14 @@ class JsonMessageChannel(object):
 
         No further incoming messages are processed until the handler returns.
 
-        To report an error, the handler must raise MessageHandlingError with a matching
-        cause. Use Message.isnt_valid to report invalid events, and Message.cant_handle
-        to report valid events that could not be processed. If report_unhandled_events
-        is True, then an error reported in this manner will be propagated back to the
-        sender as an "event_not_handled" event. Otherwise, the sender does not receive
-        any notifications.
+        To report failure to handle the event, the handler must raise an instance of
+        MessageHandlingError that applies_to() the Event object it was handling. Use
+        Message.isnt_valid to report invalid events, and Message.cant_handle to report
+        valid events that could not be processed.
+
+        If report_unhandled_events is True, then failure to handle the event will be
+        reported to the sender as an "event_not_handled" event. Otherwise, the sender
+        does not receive any notifications.
         """
 
         handler = self._get_handler_for("event", event)
@@ -990,8 +994,8 @@ class JsonMessageChannel(object):
         All dicts have owner=None, but it can be changed with body.associate_with().
 
         The default implementation delegates to the OutgoingRequest object for the
-        request to which this is the response further for handling. If it is a response
-        to an unknown request, it is logged and then ignored.
+        request to which this is the response for further handling. If there is no
+        such object - i.e. it is an unknown request - the response logged and ignored.
 
         See OutgoingRequest.on_response and OutgoingRequest.wait_for_response for
         high-level response handling facilities.
