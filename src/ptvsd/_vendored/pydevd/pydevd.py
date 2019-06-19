@@ -912,6 +912,7 @@ class PyDB(object):
         self._finish_debugging_session = True
 
     def initialize_network(self, sock, terminate_on_socket_close=True):
+        assert sock is not None
         try:
             sock.settimeout(None)  # infinite, no timeouts from now on - jython does not have it
         except:

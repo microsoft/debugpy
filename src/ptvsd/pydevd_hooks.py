@@ -127,9 +127,15 @@ def install(pydevd_module, address,
     addr = Address.from_raw(address)
     daemon = Daemon(**kwargs)
 
-    _start_server = (lambda p: start_server(daemon, addr.host, p))
+    def _start_server(p):
+        ptvsd.log.debug('ptvsd: install._start_server.')
+        return start_server(daemon, addr.host, p)
+
+    def _start_client(h, p):
+        ptvsd.log.debug('ptvsd: install._start_client.')
+        return start_client(daemon, h, p)
+
     _start_server.orig = start_server
-    _start_client = (lambda h, p: start_client(daemon, h, p))
     _start_client.orig = start_client
 
     # These are the functions pydevd invokes to get a socket to the client.

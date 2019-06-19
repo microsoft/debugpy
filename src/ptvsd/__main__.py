@@ -350,66 +350,50 @@ def run_code():
 
 def attach_to_pid():
 
-    def quoted_str(s):
-        if s is None:
-            return s
-        assert not isinstance(s, bytes)
-        unescaped = set(chr(ch) for ch in range(32, 127)) - {'"', "'", '\\'}
-
-        def escape(ch):
-            return ch if ch in unescaped else '\\u%04X' % ord(ch)
-
-        return 'u"' + ''.join(map(escape, s)) + '"'
-
     ptvsd.log.info('Attaching to process with ID {0}', ptvsd.options.target)
 
     pid = ptvsd.options.target
-    host = quoted_str(ptvsd.options.host)
+    host = ptvsd.options.host
     port = ptvsd.options.port
     client = ptvsd.options.client
-    log_dir = quoted_str(ptvsd.options.log_dir)
+    log_dir = ptvsd.options.log_dir
+    if log_dir is None:
+        log_dir = ""
 
-    ptvsd_path = os.path.abspath(os.path.join(ptvsd.__file__, '../..'))
-    if isinstance(ptvsd_path, bytes):
-        ptvsd_path = ptvsd_path.decode(sys.getfilesystemencoding())
-    ptvsd_path = quoted_str(ptvsd_path)
-
-    # pydevd requires injected code to not contain any single quotes.
-    code = '''
-import os
-assert os.getpid() == {pid}
-
-import sys
-sys.path.insert(0, {ptvsd_path})
-import ptvsd
-del sys.path[0]
-
-import ptvsd.options
-ptvsd.options.log_dir = {log_dir}
-ptvsd.options.client = {client}
-ptvsd.options.host = {host}
-ptvsd.options.port = {port}
-
-import ptvsd.log
-ptvsd.log.to_file()
-ptvsd.log.info("Debugger successfully injected")
-
-if ptvsd.options.client:
-    from ptvsd._remote import attach
-    attach(({host}, {port}))
-else:
-    ptvsd.enable_attach()
-'''.format(**locals())
-
-    ptvsd.log.debug('Injecting debugger into target process: \n"""{0}\n"""'.format(code))
-    assert "'" not in code, 'Injected code should not contain any single quotes'
-
+    # pydevd requires injected code to not contain any single quotes nor new lines and
+    # double quotes must be escaped properly.
     pydevd_attach_to_process_path = os.path.join(
         os.path.dirname(pydevd.__file__),
         'pydevd_attach_to_process')
-    sys.path.insert(0, pydevd_attach_to_process_path)
-    from add_code_to_python_process import run_python_code
-    run_python_code(pid, code, connect_debugger_tracing=True)
+
+    sys.path.append(pydevd_attach_to_process_path)
+
+    import add_code_to_python_process  # noqa
+    show_debug_info_on_target_process = 0  # hard-coded (1 to debug)
+
+    ptvsd_dirname = os.path.dirname(os.path.dirname(__file__))
+    log_dir = log_dir.replace('\\', '/')
+    setup = {'host': host, 'port': port, 'client': client, 'log_dir': log_dir, 'pid': pid}
+
+    if sys.platform == 'win32':
+        setup['pythonpath'] = ptvsd_dirname.replace('\\', '/')
+        python_code = '''import sys;
+sys.path.append("%(pythonpath)s");
+from ptvsd import attach_script_ptvsd_pid;
+attach_script_ptvsd_pid.attach(port=%(port)s, host="%(host)s", client=%(client)s, log_dir="%(log_dir)s");
+'''.replace('\r\n', '').replace('\r', '').replace('\n', '')
+    else:
+        setup['pythonpath'] = ptvsd_dirname
+        # We have to pass it a bit differently for gdb
+        python_code = '''import sys;
+sys.path.append(\\\"%(pythonpath)s\\\");
+from ptvsd import attach_script_ptvsd_pid;
+attach_script_ptvsd_pid.attach(port=%(port)s, host=\\\"%(host)s\\\", client=%(client)s, log_dir=\\\"%(log_dir)s\\\");
+'''.replace('\r\n', '').replace('\r', '').replace('\n', '')
+
+    python_code = python_code % setup
+    add_code_to_python_process.run_python_code(
+        setup['pid'], python_code, connect_debugger_tracing=True, show_debug_info=show_debug_info_on_target_process)
 
 
 def main(argv=sys.argv):
