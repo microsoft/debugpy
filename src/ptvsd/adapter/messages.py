@@ -20,8 +20,7 @@ class Messages(singleton.Singleton):
 
     _channels = channels.Channels()
 
-    # Shortcut for the IDE channel. There's no equivalent for _channels.server so
-    # as to enforce the use of get_server() for proper error handling.
+    # Shortcut for the IDE channel.
     @property
     def _ide(self):
         return self._channels.ide
