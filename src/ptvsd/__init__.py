@@ -20,4 +20,5 @@ from ptvsd.attach_server import (  # noqa
     is_attached,
     wait_for_attach,
 )
+from ptvsd.tracing import tracing  # noqa
 del force_pydevd
