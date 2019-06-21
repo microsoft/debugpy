@@ -4,7 +4,7 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-
+import ptvsd
 from ptvsd.common import log, messaging, singleton
 from ptvsd.adapter import channels, debuggee, state
 
@@ -246,6 +246,31 @@ class IDEMessages(Messages):
                 # then force-kill. Since the IDE is gone already, and nobody is waiting
                 # for us to respond, there's no rush.
                 debuggee.terminate(after=60)
+
+    @_only_allowed_while("running")
+    def pause_request(self, request):
+        request.arguments["threadId"] = "*"
+        self._server.delegate(request)
+        return {}
+
+    @_only_allowed_while("running")
+    def continue_request(self, request):
+        request.arguments["threadId"] = "*"
+        self._server.delegate(request)
+        return {"allThreadsContinued": True}
+
+    def on_ptvsd_systemInfo(self, request):
+        sys_info = {"ptvsd": {"version": ptvsd.__version__}}
+
+        try:
+            result = self._server.send_request("pydevdSystemInfo").wait_for_response()
+            sys_info.update(result)
+        except messaging.MessageHandlingError as exc:
+            request.cant_handle(
+                "System info request to server failed with: " + str(exc)
+            )
+
+        return sys_info
 
 
 class ServerMessages(Messages):
