@@ -50,6 +50,10 @@ def enable_attach(address, on_attach=lambda: None, **kwargs):
         _, next_session = daemon.start_server(addr=(host, port))
         global global_next_session
         global_next_session = next_session
+        if port == 0:
+            _, ptvsd.options.port = daemon._server.getsockname()
+        else:
+            ptvsd.options.port = port
         return daemon._sock
 
     daemon = install(pydevd,
