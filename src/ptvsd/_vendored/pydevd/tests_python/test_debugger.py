@@ -2457,6 +2457,32 @@ def test_remote_debugger_basic(case_setup_remote):
 
 
 @pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
+def test_remote_debugger_threads(case_setup_remote):
+    with case_setup_remote.test_file('_debugger_case_remote_threads.py') as writer:
+        writer.write_make_initial_run()
+
+        hit_in_main = writer.wait_for_breakpoint_hit()
+
+        bp_line = writer.get_line_index_with_content('break here')
+        writer.write_add_breakpoint(bp_line)
+
+        # Break in the 2 threads.
+        hit_in_thread1 = writer.wait_for_breakpoint_hit(line=bp_line)
+        hit_in_thread2 = writer.wait_for_breakpoint_hit(line=bp_line)
+
+        writer.write_change_variable(hit_in_thread1.thread_id, hit_in_thread1.frame_id, 'wait', 'False')
+        writer.wait_for_var('<xml><var name="" type="bool"')
+        writer.write_change_variable(hit_in_thread2.thread_id, hit_in_thread2.frame_id, 'wait', 'False')
+        writer.wait_for_var('<xml><var name="" type="bool"')
+
+        writer.write_run_thread(hit_in_main.thread_id)
+        writer.write_run_thread(hit_in_thread1.thread_id)
+        writer.write_run_thread(hit_in_thread2.thread_id)
+
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
 def test_py_37_breakpoint_remote(case_setup_remote):
     with case_setup_remote.test_file('_debugger_case_breakpoint_remote.py') as writer:
         writer.write_make_initial_run()

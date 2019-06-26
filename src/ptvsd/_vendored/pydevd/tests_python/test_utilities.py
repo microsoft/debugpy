@@ -3,6 +3,9 @@ import threading
 from _pydevd_bundle.pydevd_comm import pydevd_find_thread_by_id
 from _pydevd_bundle.pydevd_utils import convert_dap_log_message_to_expression
 from tests_python.debug_constants import IS_PY26, IS_PY3K
+import sys
+from _pydevd_bundle.pydevd_constants import IS_CPYTHON
+import pytest
 
 
 def test_is_main_thread():
@@ -150,3 +153,33 @@ def test_pydevd_log():
 
         assert 'foo\n' in stream.getvalue()
         assert 'raise RuntimeError()' in stream.getvalue()
+
+
+@pytest.mark.skipif(not IS_CPYTHON, reason='Functionality to trace other threads requires CPython.')
+def test_tracing_other_threads():
+    import pydevd_tracing
+    import time
+
+    def method(i):
+        while True:
+            trace_func = sys.gettrace()
+            if trace_func:
+                threading.current_thread().trace_func = trace_func
+                break
+            time.sleep(.01)
+
+    threads = []
+    for i in range(10):
+        threads.append(threading.Thread(target=method, args=(i,)))
+
+    def tracing_func(frame, event, args):
+        return tracing_func
+
+    for t in threads:
+        t.start()
+
+    assert pydevd_tracing.set_trace_to_threads(tracing_func, threads) == 0
+
+    for t in threads:
+        t.join(5)
+        assert t.trace_func == tracing_func

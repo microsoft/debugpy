@@ -31,8 +31,8 @@ Other implementations:
 - pyrasite.com:
     GPL
     Windows/linux (in Linux it also uses gdb to connect -- although specifics are different as we use a dll to execute
-    code with other threads stopped). It's Windows approach is more limited because it doesn't seem to deal properly with 
-    Python 3 if threading is disabled. 
+    code with other threads stopped). It's Windows approach is more limited because it doesn't seem to deal properly with
+    Python 3 if threading is disabled.
 
 - https://github.com/google/pyringe:
     Apache v2.
@@ -77,6 +77,7 @@ import struct
 import subprocess
 import sys
 import time
+
 
 class AutoExit(object):
 
@@ -245,6 +246,7 @@ class GenShellCodeHelper(object):
         code = ''.join(lines)  # Remove new lines
         return code.decode('hex')
 
+
 def resolve_label(process, label):
     for i in range(3):
         try:
@@ -260,12 +262,15 @@ def resolve_label(process, label):
                 raise
             time.sleep(2)
 
+
 def is_python_64bit():
     return (struct.calcsize('P') == 8)
+
 
 def is_mac():
     import platform
     return platform.system() == 'Darwin'
+
 
 def run_python_code_windows(pid, python_code, connect_debugger_tracing=False, show_debug_info=0):
     assert '\'' not in python_code, 'Having a single quote messes with our command.'
@@ -285,7 +290,6 @@ def run_python_code_windows(pid, python_code, connect_debugger_tracing=False, sh
 
     print('Connecting to %s bits target' % (bits,))
     assert resolve_label(process, compat.b('PyGILState_Ensure'))
-
 
     filedir = os.path.dirname(__file__)
     if is_64:
@@ -310,20 +314,47 @@ def run_python_code_windows(pid, python_code, connect_debugger_tracing=False, sh
     process.write(code_address, python_code)
 
     print('Allocating return value memory in target process')
-    return_code_address = process.malloc(ctypes.sizeof(ctypes.c_int))
-    assert return_code_address
+    attach_info_address = process.malloc(ctypes.sizeof(ctypes.c_int))
+    assert attach_info_address
 
     CONNECT_DEBUGGER = 2
 
-    startup_info = 0
+    attach_info = 0
     if show_debug_info:
         SHOW_DEBUG_INFO = 1
-        startup_info |= SHOW_DEBUG_INFO # Uncomment to show debug info
+        attach_info |= SHOW_DEBUG_INFO  # Uncomment to show debug info
 
     if connect_debugger_tracing:
-        startup_info |= CONNECT_DEBUGGER
+        attach_info |= CONNECT_DEBUGGER
 
-    process.write_int(return_code_address, startup_info)
+    # Note: previously the attach_info address was treated as read/write to have the return
+    # value, but it seems that sometimes when the program wrote back the memory became
+    # unreadable with the stack trace below when trying to read, so, we just write and
+    # no longer inspect the return value.
+    # i.e.:
+    # Traceback (most recent call last):
+    #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\attach_pydevd.py", line 72, in <module>
+    #     main(process_command_line(sys.argv[1:]))
+    #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\attach_pydevd.py", line 68, in main
+    #     setup['pid'], python_code, connect_debugger_tracing=True, show_debug_info=show_debug_info_on_target_process)
+    #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\add_code_to_python_process.py", line 392, in run_python_code_windows
+    #     return_code = process.read_int(return_code_address)
+    #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\winappdbg\process.py", line 1673, in read_int
+    #     return self.__read_c_type(lpBaseAddress, compat.b('@l'), ctypes.c_int)
+    #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\winappdbg\process.py", line 1568, in __read_c_type
+    #     packed = self.read(address, size)
+    #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\winappdbg\process.py", line 1598, in read
+    #     if not self.is_buffer(lpBaseAddress, nSize):
+    #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\winappdbg\process.py", line 2843, in is_buffer
+    #     mbi = self.mquery(address)
+    #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\winappdbg\process.py", line 2533, in mquery
+    #     return win32.VirtualQueryEx(hProcess, lpAddress)
+    #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\winappdbg\win32\kernel32.py", line 3742, in VirtualQueryEx
+    #     raise ctypes.WinError()
+    # PermissionError: [WinError 5] Access is denied.
+    # Process finished with exitValue: 1
+
+    process.write_int(attach_info_address, attach_info)
 
     helper = GenShellCodeHelper(is_64)
     if is_64:
@@ -343,7 +374,7 @@ def run_python_code_windows(pid, python_code, connect_debugger_tracing=False, sh
 
                         with helper.push('rdi'):  # Note: pop is automatic.
                             helper.mov_to_register_addr('rcx', helper.pack_address(code_address))
-                            helper.mov_to_register_addr('rdx', helper.pack_address(return_code_address))
+                            helper.mov_to_register_addr('rdx', helper.pack_address(attach_info_address))
                             helper.mov_to_register_addr('rbx', helper.pack_address(attach_func))
                             helper.call('rbx')
 
@@ -355,7 +386,7 @@ def run_python_code_windows(pid, python_code, connect_debugger_tracing=False, sh
                     with helper.preserve_stack():
                         # Put our code as a parameter in the stack (on x86, we push parameters to
                         # the stack)
-                        helper.push_addr(helper.pack_address(return_code_address))
+                        helper.push_addr(helper.pack_address(attach_info_address))
                         helper.push_addr(helper.pack_address(code_address))
                         helper.mov_to_register_addr('ebx', helper.pack_address(attach_func))
                         helper.call('ebx')
@@ -363,7 +394,6 @@ def run_python_code_windows(pid, python_code, connect_debugger_tracing=False, sh
     helper.ret()
 
     code = helper.get_code()
-
 
     # Uncomment to see the disassembled version of what we just did...
 #     with open('f.asm', 'wb') as stream:
@@ -384,16 +414,16 @@ def run_python_code_windows(pid, python_code, connect_debugger_tracing=False, sh
     print('Waiting for code to complete')
     thread.wait(timeout)
 
-    return_code = process.read_int(return_code_address)
-    if return_code == 0:
-        print('Attach finished successfully.')
-    else:
-        print('Error when injecting code in target process. Error code: %s (on windows)' % (return_code,))
+    # return_code = process.read_int(attach_info_address)
+    # if return_code == 0:
+    #     print('Attach finished successfully.')
+    # else:
+    #     print('Error when injecting code in target process. Error code: %s (on windows)' % (return_code,))
 
     process.free(thread.pInjectedMemory)
     process.free(code_address)
-    process.free(return_code_address)
-    return return_code
+    process.free(attach_info_address)
+    return 0
 
 
 def run_python_code_linux(pid, python_code, connect_debugger_tracing=False, show_debug_info=0):
@@ -411,16 +441,14 @@ def run_python_code_linux(pid, python_code, connect_debugger_tracing=False, show
         suffix = 'x86'
         arch = 'i386'
 
-    print('Attaching with arch: %s'% (arch,))
+    print('Attaching with arch: %s' % (arch,))
 
     target_dll = os.path.join(filedir, 'attach_linux_%s.so' % suffix)
     target_dll = os.path.abspath(os.path.normpath(target_dll))
     if not os.path.exists(target_dll):
         raise RuntimeError('Could not find dll file to inject: %s' % target_dll)
 
-    gdb_threads_settrace_file = find_helper_script(filedir, 'gdb_threads_settrace.py')
-
-    # Note: we currently don't support debug builds 
+    # Note: we currently don't support debug builds
     is_debug = 0
     # Note that the space in the beginning of each line in the multi-line is important!
     cmd = [
@@ -445,13 +473,7 @@ def run_python_code_linux(pid, python_code, connect_debugger_tracing=False, show
             is_debug, python_code, show_debug_info)
     ])
 
-
-    if connect_debugger_tracing:
-        cmd.extend([
-            "--command='%s'" % (gdb_threads_settrace_file,),
-        ])
-
-    #print ' '.join(cmd)
+    # print ' '.join(cmd)
 
     env = os.environ.copy()
     # Remove the PYTHONPATH (if gdb has a builtin Python it could fail if we
@@ -474,12 +496,12 @@ def run_python_code_linux(pid, python_code, connect_debugger_tracing=False, show
 
 
 def find_helper_script(filedir, script_name):
-    lldb_threads_settrace_file = os.path.join(filedir, 'linux', script_name)
-    lldb_threads_settrace_file = os.path.normpath(lldb_threads_settrace_file)
-    if not os.path.exists(lldb_threads_settrace_file):
-        raise RuntimeError('Could not find file to settrace: %s' % lldb_threads_settrace_file)
+    target_filename = os.path.join(filedir, 'linux', script_name)
+    target_filename = os.path.normpath(target_filename)
+    if not os.path.exists(target_filename):
+        raise RuntimeError('Could not find helper script: %s' % target_filename)
 
-    return lldb_threads_settrace_file
+    return target_filename
 
 
 def run_python_code_mac(pid, python_code, connect_debugger_tracing=False, show_debug_info=0):
@@ -497,14 +519,13 @@ def run_python_code_mac(pid, python_code, connect_debugger_tracing=False, show_d
         suffix = 'x86.dylib'
         arch = 'i386'
 
-    print('Attaching with arch: %s'% (arch,))
+    print('Attaching with arch: %s' % (arch,))
 
     target_dll = os.path.join(filedir, 'attach_%s' % suffix)
     target_dll = os.path.normpath(target_dll)
     if not os.path.exists(target_dll):
         raise RuntimeError('Could not find dll file to inject: %s' % target_dll)
 
-    lldb_threads_settrace_file = find_helper_script(filedir, 'lldb_threads_settrace.py')
     lldb_prepare_file = find_helper_script(filedir, 'lldb_prepare.py')
     # Note: we currently don't support debug builds
 
@@ -522,27 +543,19 @@ def run_python_code_mac(pid, python_code, connect_debugger_tracing=False, show_d
         #         '--batch-silent',
     ]
 
-
     cmd.extend([
-        "-o 'process attach --pid %d'"%pid,
+        "-o 'process attach --pid %d'" % pid,
         "-o 'command script import \"%s\"'" % (lldb_prepare_file,),
         "-o 'load_lib_and_attach \"%s\" %s \"%s\" %s'" % (target_dll,
             is_debug, python_code, show_debug_info),
     ])
-
-
-    if connect_debugger_tracing:
-        cmd.extend([
-            # "-o 'expr (int) SetSysTraceFunc(0, 0);'",
-            "-o 'command script import \"%s\"'" % (lldb_threads_settrace_file,),
-            ])
 
     cmd.extend([
         "-o 'process detach'",
         "-o 'script import os; os._exit(1)'",
     ])
 
-    #print ' '.join(cmd)
+    # print ' '.join(cmd)
 
     env = os.environ.copy()
     # Remove the PYTHONPATH (if gdb has a builtin Python it could fail if we
@@ -571,6 +584,7 @@ elif is_mac():
 else:
     run_python_code = run_python_code_linux
 
+
 def test():
     print('Running with: %s' % (sys.executable,))
     code = '''
@@ -597,6 +611,7 @@ if __name__ == '__main__':
     finally:
         p.kill()
 
+
 def main(args):
     # Otherwise, assume the first parameter is the pid and anything else is code to be executed
     # in the target process.
@@ -607,6 +622,7 @@ def main(args):
     # Note: on Linux the python code may not have a single quote char: '
     run_python_code(pid, python_code)
 
+
 if __name__ == '__main__':
     args = sys.argv[1:]
     if not args:
@@ -616,5 +632,4 @@ if __name__ == '__main__':
             test()
         else:
             main(args)
-
 

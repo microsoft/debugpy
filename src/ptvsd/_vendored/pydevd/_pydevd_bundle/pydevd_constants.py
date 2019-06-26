@@ -2,6 +2,7 @@
 This module holds the constants used for specifying the states of the debugger.
 '''
 from __future__ import nested_scopes
+import platform
 
 STATE_RUN = 1
 STATE_SUSPEND = 2
@@ -30,6 +31,8 @@ class DebugInfoHolder:
     DEBUG_RECORD_SOCKET_READS = False
     DEBUG_TRACE_BREAKPOINTS = -1
 
+
+IS_CPYTHON = platform.python_implementation() == 'CPython'
 
 # Hold a reference to the original _getframe (because psyco will change that as soon as it's imported)
 IS_IRONPYTHON = sys.platform == 'cli'
@@ -61,6 +64,8 @@ from _pydevd_bundle import pydevd_vm_type
 
 # Constant detects when running on Jython/windows properly later on.
 IS_WINDOWS = sys.platform == 'win32'
+IS_LINUX = sys.platform in ('linux', 'linux2')
+IS_MAC = sys.platform == 'darwin'
 
 IS_64BIT_PROCESS = sys.maxsize > (2 ** 32)
 

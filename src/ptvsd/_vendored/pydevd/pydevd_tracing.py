@@ -1,6 +1,13 @@
 
-from _pydevd_bundle.pydevd_constants import get_frame
-from _pydev_imps._pydev_saved_modules import thread
+from _pydevd_bundle.pydevd_constants import get_frame, IS_CPYTHON, IS_64BIT_PROCESS, IS_WINDOWS, \
+    IS_LINUX, IS_MAC
+from _pydev_imps._pydev_saved_modules import thread, threading
+from _pydev_bundle import pydev_log
+from os.path import os
+try:
+    import ctypes
+except ImportError:
+    ctypes = None
 
 try:
     import cStringIO as StringIO  # may not always be available @UnusedImport
@@ -96,3 +103,76 @@ def restore_sys_set_trace_func():
     if TracingFunctionHolder._original_tracing is not None:
         sys.settrace = TracingFunctionHolder._original_tracing
         TracingFunctionHolder._original_tracing = None
+
+
+def set_trace_to_threads(tracing_func, target_threads=None):
+    if not IS_CPYTHON or ctypes is None or sys.version_info[:2] > (3, 7):
+        return -1
+
+    if IS_WINDOWS:
+        if IS_64BIT_PROCESS:
+            suffix = 'amd64'
+        else:
+            suffix = 'x86'
+
+        filename = os.path.join(os.path.dirname(__file__), 'pydevd_attach_to_process', 'attach_%s.dll' % (suffix,))
+
+    elif IS_LINUX:
+        if IS_64BIT_PROCESS:
+            suffix = 'amd64'
+        else:
+            suffix = 'x86'
+
+        filename = os.path.join(os.path.dirname(__file__), 'pydevd_attach_to_process', 'attach_linux_%s.so' % (suffix,))
+
+    elif IS_MAC:
+        if IS_64BIT_PROCESS:
+            suffix = 'x86_64.dylib'
+        else:
+            suffix = 'x86.dylib'
+
+        filename = os.path.join(os.path.dirname(__file__), 'pydevd_attach_to_process', 'attach_%s' % (suffix,))
+
+    else:
+        pydev_log.info('Unable to set trace to all threads in platform: %s', sys.platform)
+        return -1
+
+    if not os.path.exists(filename):
+        pydev_log.critical('Expected: %s to exist.', filename)
+        return -1
+
+    try:
+        lib = ctypes.cdll.LoadLibrary(filename)
+    except:
+        pydev_log.exception('Error loading: %s', filename)
+        return -1
+
+    if hasattr(sys, 'getswitchinterval'):
+        get_interval, set_interval = sys.getswitchinterval, sys.setswitchinterval
+    else:
+        get_interval, set_interval = sys.getcheckinterval, sys.setcheckinterval
+
+    prev_value = get_interval()
+    ret = 0
+    try:
+        # Prevent going to any other thread... if we switch the thread during this operation we
+        # could potentially corrupt the interpreter.
+        set_interval(2 ** 15)
+
+        set_trace_func = TracingFunctionHolder._original_tracing or sys.settrace
+
+        if target_threads is None:
+            target_threads = list(threading.enumerate())
+
+        for t in target_threads:
+            if t and not getattr(t, 'pydev_do_not_trace', None):
+                show_debug_info = 0
+                result = lib.AttachDebuggerTracing(ctypes.c_int(show_debug_info), ctypes.py_object(set_trace_func), ctypes.py_object(tracing_func), ctypes.c_uint(t.ident))
+                if result != 0:
+                    pydev_log.info('Unable to set tracing for existing threads. Result: %s', result)
+                    ret = result
+    finally:
+        set_interval(prev_value)
+
+    return ret
+

@@ -10,12 +10,13 @@ from tests.helpers.session import DebugSession
 from tests.helpers.pathutils import get_test_root
 from tests.helpers.timeline import Event
 from tests.helpers.pattern import ANY
+from tests.helpers import get_marked_line_numbers
 
 
 @pytest.mark.parametrize('wait_for_attach', ['waitOn', 'waitOff'])
 @pytest.mark.parametrize('is_attached', ['attachCheckOn', 'attachCheckOff'])
 @pytest.mark.parametrize('break_into', ['break', 'pause'])
-def test_attach(run_as, wait_for_attach, is_attached, break_into):
+def test_attach_basic(run_as, wait_for_attach, is_attached, break_into):
     testfile = os.path.join(get_test_root('attach'), 'attach1.py')
 
     with DebugSession() as session:
@@ -65,6 +66,7 @@ def test_attach(run_as, wait_for_attach, is_attached, break_into):
 
 @pytest.mark.parametrize('start_method', ['attach_socket_cmdline', 'attach_socket_import'])
 def test_reattach(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         import time
@@ -73,12 +75,12 @@ def test_reattach(pyfile, run_as, start_method):
         from dbgimporter import import_and_enable_debugger
         import_and_enable_debugger()
         ptvsd.break_into_debugger()
-        print('first')
+        print('first')  # @break1
         backchannel.write_json('continued')
         for _ in range(0, 100):
             time.sleep(0.1)
             ptvsd.break_into_debugger()
-            print('second')
+            print('second')  # @break2
 
     with DebugSession() as session:
         session.initialize(
@@ -88,10 +90,13 @@ def test_reattach(pyfile, run_as, start_method):
             kill_ptvsd=False,
             skip_capture=True,
         )
+
+        marked_line_numbers = get_marked_line_numbers(code_to_debug)
+
         session.start_debugging()
         hit = session.wait_for_thread_stopped()
         frames = hit.stacktrace.body['stackFrames']
-        assert 7 == frames[0]['line']
+        assert marked_line_numbers['break1'] == frames[0]['line']
         session.send_request('disconnect').wait_for_response(freeze=False)
         session.wait_for_disconnect()
         assert session.read_json() == 'continued'
@@ -103,7 +108,7 @@ def test_reattach(pyfile, run_as, start_method):
         session2.start_debugging()
         hit = session2.wait_for_thread_stopped()
         frames = hit.stacktrace.body['stackFrames']
-        assert 12 == frames[0]['line']
+        assert marked_line_numbers['break2'] == frames[0]['line']
         session2.send_request('disconnect').wait_for_response(freeze=False)
         session2.wait_for_disconnect()
 
@@ -112,16 +117,20 @@ def test_reattach(pyfile, run_as, start_method):
 @pytest.mark.parametrize('run_as', ['file', 'module', 'code'])
 @pytest.mark.skip(reason='Enable after #846, #863 and #1144 are fixed')
 def test_attaching_by_pid(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         # import_and_enable_debugger()
         import time
+
         def do_something(i):
             time.sleep(0.1)
-            print(i)
+            print(i)  # @break
+
         for i in range(100):
             do_something(i)
-    bp_line = 5
+
+    bp_line = get_marked_line_numbers(code_to_debug)['break']
     with DebugSession() as session:
         session.initialize(
             target=(run_as, code_to_debug),

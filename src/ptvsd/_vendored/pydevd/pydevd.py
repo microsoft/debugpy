@@ -36,7 +36,7 @@ from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, CMD_STEP_I
 from _pydevd_bundle.pydevd_constants import (IS_JYTH_LESS25, get_thread_id, get_current_thread_id,
     dict_keys, dict_iter_items, DebugInfoHolder, PYTHON_SUSPEND, STATE_SUSPEND, STATE_RUN, get_frame,
     clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, IS_PY34_OR_GREATER, IS_PY2, NULL,
-    NO_FTRACE, IS_IRONPYTHON, JSON_PROTOCOL)
+    NO_FTRACE, IS_IRONPYTHON, JSON_PROTOCOL, IS_CPYTHON)
 from _pydevd_bundle.pydevd_defaults import PydevdCustomization
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
 from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE
@@ -44,7 +44,6 @@ from _pydevd_bundle.pydevd_extension_api import DebuggerEventHandler
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, remove_exception_from_frame
 from _pydevd_bundle.pydevd_kill_all_pydevd_threads import kill_all_pydev_threads
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
-from _pydevd_bundle.pydevd_net_command_factory_json import NetCommandFactoryJson
 from _pydevd_bundle.pydevd_trace_dispatch import (
     trace_dispatch as _trace_dispatch, global_cache_skips, global_cache_frame_skips, fix_top_level_trace_and_get_trace_func)
 from _pydevd_bundle.pydevd_utils import save_main_module, is_current_thread_main_thread
@@ -654,7 +653,7 @@ class PyDB(object):
             thread_trace_func = self.trace_dispatch
         return thread_trace_func
 
-    def enable_tracing(self, thread_trace_func=None):
+    def enable_tracing(self, thread_trace_func=None, apply_to_all_threads=False):
         '''
         Enables tracing.
 
@@ -662,18 +661,34 @@ class PyDB(object):
         function for this thread -- by default it's `PyDB.trace_dispatch`, but after
         `PyDB.enable_tracing` is called with a `thread_trace_func`, the given function will
         be the default for the given thread.
+
+        :param bool apply_to_all_threads:
+            If True we'll set the tracing function in all threads, not only in the current thread.
+            If False only the tracing for the current function should be changed.
+            In general apply_to_all_threads should only be true if this is the first time
+            this function is called on a multi-threaded program (either programatically or attach
+            to pid).
         '''
         if self.frame_eval_func is not None:
             self.frame_eval_func()
             pydevd_tracing.SetTrace(self.dummy_trace_dispatch)
+
+            if IS_CPYTHON and apply_to_all_threads:
+                pydevd_tracing.set_trace_to_threads(self.dummy_trace_dispatch)
             return
 
-        if thread_trace_func is None:
-            thread_trace_func = self.get_thread_local_trace_func()
+        if apply_to_all_threads:
+            # If applying to all threads, don't use the local thread trace function.
+            assert thread_trace_func is not None
         else:
-            self._local_thread_trace_func.thread_trace_func = thread_trace_func
+            if thread_trace_func is None:
+                thread_trace_func = self.get_thread_local_trace_func()
+            else:
+                self._local_thread_trace_func.thread_trace_func = thread_trace_func
 
         pydevd_tracing.SetTrace(thread_trace_func)
+        if IS_CPYTHON and apply_to_all_threads:
+            pydevd_tracing.set_trace_to_threads(thread_trace_func)
 
     def disable_tracing(self):
         pydevd_tracing.SetTrace(None)
@@ -2139,11 +2154,13 @@ def _locked_settrace(
 
         debugger.start_auxiliary_daemon_threads()
 
-        debugger.enable_tracing()
-
-        if not trace_only_current_thread:
-            # Trace future threads?
+        if trace_only_current_thread:
+            debugger.enable_tracing()
+        else:
+            # Trace future threads.
             debugger.patch_threads()
+
+            debugger.enable_tracing(debugger.trace_dispatch, apply_to_all_threads=True)
 
             # As this is the first connection, also set tracing for any untraced threads
             debugger.set_tracing_for_untraced_contexts(ignore_current_thread=True)
@@ -2160,11 +2177,12 @@ def _locked_settrace(
         t = threadingCurrentThread()
         additional_info = set_additional_thread_info(t)
 
-        debugger.enable_tracing()
-
-        if not trace_only_current_thread:
-            # Trace future threads?
+        if trace_only_current_thread:
+            debugger.enable_tracing()
+        else:
+            # Trace future threads.
             debugger.patch_threads()
+            debugger.enable_tracing(debugger.trace_dispatch, apply_to_all_threads=True)
 
     # Suspend as the last thing after all tracing is in place.
     if suspend:

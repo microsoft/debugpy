@@ -5,7 +5,7 @@ def attach(port, host, protocol=''):
             pydevd_defaults.PydevdCustomization.DEFAULT_PROTOCOL = protocol
 
         import pydevd
-        pydevd.stoptrace() #I.e.: disconnect if already connected
+        pydevd.stoptrace()  # I.e.: disconnect if already connected
         # pydevd.DebugInfoHolder.DEBUG_RECORD_SOCKET_READS = True
         # pydevd.DebugInfoHolder.DEBUG_TRACE_BREAKPOINTS = 3
         # pydevd.DebugInfoHolder.DEBUG_TRACE_LEVEL = 3
