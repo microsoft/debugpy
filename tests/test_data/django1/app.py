@@ -37,7 +37,7 @@ settings.configure(
 def home(request):
     title = 'hello'
     content = 'Django-Django-Test'
-    template = loader.get_template('hello.html')
+    template = loader.get_template('hello.html') # @bphome
     context = {
         'title': title,
         'content': content,

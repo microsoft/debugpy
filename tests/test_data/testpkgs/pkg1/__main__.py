@@ -1,3 +1,3 @@
-print('one')
-print('two')
-print('three')
+print('one') # @one
+print('two') # @two
+print('three') # @three

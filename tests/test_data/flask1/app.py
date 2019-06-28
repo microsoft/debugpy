@@ -8,6 +8,7 @@ app = Flask(__name__)
 @app.route("/")
 def home():
     content = 'Flask-Jinja-Test'
+    print('break here') # @bphome
     return render_template(
         "hello.html",
         title='Hello',

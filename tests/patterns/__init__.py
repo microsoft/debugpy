@@ -45,11 +45,6 @@ class Some(object):
         """
         return Either(self, pattern)
 
-    def such_that(self, condition):
-        """Same pattern, but it only matches if condition() is true.
-        """
-        return SuchThat(self, condition)
-
     def in_range(self, start, stop):
         """Same pattern, but it only matches if the start <= value < stop.
         """

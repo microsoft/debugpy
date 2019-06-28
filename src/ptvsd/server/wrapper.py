@@ -465,56 +465,6 @@ class VariablesSorter(object):
         return self.variables + self.single_underscore + self.double_underscore + self.dunder  # noqa
 
 
-class InternalsFilter(object):
-    """Identifies debugger internal artifacts.
-    """
-    # TODO: Move the internal thread identifier here
-
-    def __init__(self):
-        if platform.system() == 'Windows':
-            self._init_windows()
-        else:
-            self._init_default()
-
-    def _init_default(self):
-        self._ignore_files = [
-            '/ptvsd_launcher.py',
-        ]
-
-        self._ignore_path_prefixes = [
-            os.path.dirname(os.path.abspath(ptvsd.__file__)),
-        ]
-
-    def _init_windows(self):
-        self._init_default()
-        files = []
-        for f in self._ignore_files:
-            files.append(f.lower())
-        self._ignore_files = files
-
-        prefixes = []
-        for p in self._ignore_path_prefixes:
-            prefixes.append(p.lower())
-        self._ignore_path_prefixes = prefixes
-
-    def is_internal_path(self, abs_file_path):
-        # TODO: Remove replace('\\', '/') after the path mapping in pydevd
-        # is fixed. Currently if the client is windows and server is linux
-        # the path separators used are windows path separators for linux
-        # source paths.
-        is_windows = platform.system() == 'Windows'
-
-        file_path = abs_file_path.lower() if is_windows else abs_file_path
-        file_path = file_path.replace('\\', '/')
-        for f in self._ignore_files:
-            if file_path.endswith(f):
-                return True
-        for prefix in self._ignore_path_prefixes:
-            prefix_path = prefix.replace('\\', '/')
-            if file_path.startswith(prefix_path):
-                return True
-        return False
-
 ########################
 # the debug config
 
@@ -1039,7 +989,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         # debugger state
         self._success_exitcodes = []
-        self.internals_filter = InternalsFilter()
 
         # adapter state
         self._detached = False

@@ -73,7 +73,7 @@ the return value of `wait_until()` is the first occurrence that realized the exp
 
 A *basic* expectation is described by the circumstances of the occurrence the expectation is to be realized (`expectation.circumstances`). Whereas the circumstances of an occurrence is a data object, the circumstances of the expectation is a *pattern*, as represented by a `Pattern` object from the `pattern` module. An expectation is realized by an occurrence if `occurrence.circumstances in expectation.circumstances` is true (where `in` is an overloaded operator of the `Pattern` object that is used to match values against it; see the docstrings for the `pattern` module for details on patterns). For example, given a basic expectation with these circumstances:
 ```py
-('Event', ANY, ANY.dict_with({'threadId': 1}))
+('Event', ANY, some.dict.containing({'threadId': 1}))
 ```
 It can be realized by any of these occurrences:
 ```py
@@ -177,7 +177,7 @@ initialized = debug_session.wait_until(Event('initialized'))
 assert (
     initialize
     >>
-    Event('output', ANY.dict_with({'category': 'telemetry'}))
+    Event('output', some.dict.containing({'category': 'telemetry'}))
     >>
     initialized
 ) in debug_session.timeline
@@ -307,7 +307,7 @@ debug_session.send_request('setBreakpoints', [
 Once all the initial setup is performed, we can start execution:
 ```py
 debug_session.start_debugging()
-debug_session.wait_until(Event('stopped', ANY.dict_with({'reason': 'breakpoint'})))
+debug_session.wait_until(Event('stopped', some.dict.containing({'reason': 'breakpoint'})))
 ```
 
 

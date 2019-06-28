@@ -12,30 +12,31 @@ from tests import debug
 
 @contextlib.contextmanager
 def check_logs(tmpdir, session):
-    assert not tmpdir.listdir('ptvsd-*.log')
+    assert not tmpdir.listdir("ptvsd-*.log")
     yield
-    assert len(tmpdir.listdir('ptvsd-*.log')) == 1
-    log_name = 'ptvsd-{}.log'.format(session.pid)
+    assert len(tmpdir.listdir("ptvsd-*.log")) == 1
+    log_name = "ptvsd-{}.log".format(session.pid)
     assert tmpdir.join(log_name).size() > 0
 
 
-@pytest.mark.parametrize('cli', ['arg', 'env'])
+@pytest.mark.parametrize("cli", ["arg", "env"])
 def test_log_cli(pyfile, tmpdir, start_method, run_as, cli):
-    if cli == 'arg' and start_method == 'attach_socket_import':
+    if cli == "arg" and start_method == "attach_socket_import":
         pytest.skip()
 
     @pyfile
     def code_to_debug():
-        from dbgimporter import import_and_enable_debugger
-        import_and_enable_debugger()
+        import debug_me  # noqa
 
     with debug.Session() as session:
         with check_logs(tmpdir, session):
-            if cli == 'arg':
+            if cli == "arg":
                 session.log_dir = str(tmpdir)
             else:
-                session.env['PTVSD_LOG_DIR'] = str(tmpdir)
-            session.initialize(target=(run_as, code_to_debug), start_method=start_method)
+                session.env["PTVSD_LOG_DIR"] = str(tmpdir)
+            session.initialize(
+                target=(run_as, code_to_debug), start_method=start_method
+            )
             session.start_debugging()
             session.wait_for_exit()
 
@@ -43,13 +44,16 @@ def test_log_cli(pyfile, tmpdir, start_method, run_as, cli):
 def test_log_api(pyfile, tmpdir, run_as):
     @pyfile
     def code_to_debug():
-        import sys
-        from dbgimporter import import_and_enable_debugger
-        import_and_enable_debugger(log_dir=str(sys.argv[1]))
+        # import sys
+        import debug_me  # noqa
+
+        # import_and_enable_debugger(log_dir=str(sys.argv[1]))
 
     with debug.Session() as session:
         with check_logs(tmpdir, session):
             session.program_args += [str(tmpdir)]
-            session.initialize(target=(run_as, code_to_debug), start_method='attach_socket_import')
+            session.initialize(
+                target=(run_as, code_to_debug), start_method="attach_socket_import"
+            )
             session.start_debugging()
             session.wait_for_exit()
