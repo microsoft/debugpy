@@ -34,7 +34,6 @@ class Formatter(string.Formatter, types.ModuleType):
     # that were imported globally, but that are referenced by method bodies that
     # can run after substitition occurred, must be re-imported here, so that they
     # can be accessed via self.
-    import types
 
     json_encoder = json.JSONEncoder(indent=4)
 
@@ -43,7 +42,9 @@ class Formatter(string.Formatter, types.ModuleType):
 
     def __init__(self):
         # Set self up as a proper module, and copy globals.
-        self.types.ModuleType.__init__(self, __name__)
+        # types must be re-imported, because globals aren't there yet at this point.
+        import types
+        types.ModuleType.__init__(self, __name__)
         self.__dict__.update(sys.modules[__name__].__dict__)
 
     def __call__(self, format_string, *args, **kwargs):

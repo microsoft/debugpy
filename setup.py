@@ -9,6 +9,7 @@ import os.path
 import subprocess
 import sys
 
+
 pure = None
 if '--pure' in sys.argv:
     pure = True
@@ -21,11 +22,14 @@ elif '--abi' in sys.argv:
 
 
 from setuptools import setup  # noqa
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import versioneer  # noqa
+del sys.path[0]
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src'))
-import ptvsd  # noqa
-import ptvsd._vendored  # noqa
+import ptvsd
+import ptvsd._vendored
 del sys.path[0]
 
 

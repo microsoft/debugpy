@@ -37,7 +37,7 @@ def start_server(daemon, host, port, **kwargs):
             return session
         except (DaemonClosedError, DaemonStoppedError):
             # Typically won't happen.
-            ptvsd.server.log.exception('Daemon stopped while waiting for session', category='D')
+            ptvsd.server.log.exception('Daemon stopped while waiting for session', level='debug')
             raise
         except Exception:
             ptvsd.server.log.exception()

@@ -440,7 +440,7 @@ def main(argv=sys.argv):
         }[ptvsd.server.options.target_kind]
         run()
     except SystemExit as ex:
-        ptvsd.common.log.exception('Debuggee exited via SystemExit', category='D')
+        ptvsd.common.log.exception('Debuggee exited via SystemExit', level='debug')
         if daemon is not None:
             if ex.code is None:
                 daemon.exitcode = 0

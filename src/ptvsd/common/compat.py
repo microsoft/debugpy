@@ -19,11 +19,6 @@ except ImportError:
     import __builtin__ as builtins  # noqa
 
 try:
-    import queue
-except ImportError:
-    import Queue as queue  # noqa
-
-try:
     unicode = builtins.unicode
     bytes = builtins.str
 except AttributeError:
@@ -34,6 +29,17 @@ try:
     xrange = builtins.xrange
 except AttributeError:
     xrange = builtins.range
+
+try:
+    reload = builtins.reload
+except AttributeError:
+    from importlib import reload  # noqa
+
+try:
+    import queue
+except ImportError:
+    import Queue as queue  # noqa
+
 
 
 def force_unicode(s, encoding, errors="strict"):

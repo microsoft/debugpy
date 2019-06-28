@@ -11,71 +11,103 @@ import platform
 import os
 import sys
 import threading
-import time
 import traceback
 
 import ptvsd
-import ptvsd.common.options
-from ptvsd.common import fmt
+from ptvsd.common import compat, fmt, options, timestamp
 
 
-lock = threading.Lock()
+LEVELS = (
+    "debug",
+    "info",
+    "warning",
+    "error",
+)
+"""Logging levels, lowest to highest importance.
+"""
+
+stderr_levels = {"warning", "error"}
+"""What should be logged to stderr.
+"""
+
+file_levels = set(LEVELS)
+"""What should be logged to file, when it is not None.
+"""
+
 file = None
-tls = threading.local()
+"""If not None, which file to log to.
+
+This can be automatically set by to_file().
+"""
+
+timestamp_format = "09.3f"
+"""Format spec used for timestamps. Can be changed to dial precision up or down.
+"""
 
 
-if sys.version_info >= (3, 5):
-    clock = time.monotonic
-else:
-    clock = time.clock
+_lock = threading.Lock()
+_tls = threading.local()
 
 
-timestamp_zero = clock()
+def write(level, text):
+    assert level in LEVELS
 
-def timestamp():
-    return clock() - timestamp_zero
+    t = timestamp.current()
+    format_string = "{0}+{1:" + timestamp_format + "}: "
+    prefix = fmt(format_string, level[0].upper(), t)
 
-
-def is_enabled():
-    return bool(file)
-
-
-def write(category, format_string, *args, **kwargs):
-    assert category in 'DIWE'
-    if not file and category not in 'WE':
-        return
-
-    t = timestamp()
-
-    try:
-        message = fmt(format_string, *args, **kwargs)
-    except Exception:
-        exception('ptvsd.common.log.write({0!r}): invalid format string', (category, fmt, args, kwargs))
-        raise
-
-    prefix = '{}{:09.3f}: '.format(category, t)
     indent = '\n' + (' ' * len(prefix))
-    message = indent.join(message.split('\n'))
+    output = indent.join(text.split('\n'))
 
     if current_handler():
         prefix += '(while handling {}){}'.format(current_handler(), indent)
 
-    message = prefix + message + '\n\n'
-    with lock:
-        if file:
-            file.write(message)
-            file.flush()
-        if category in 'WE':
+    output = prefix + output + '\n\n'
+
+    with _lock:
+        if level in stderr_levels:
             try:
-                sys.__stderr__.write(message)
-            except:
+                sys.__stderr__.write(output)
+            except Exception:
                 pass
 
+        if file and level in file_levels:
+            try:
+                file.write(output)
+                file.flush()
+            except Exception:
+                pass
 
-debug = functools.partial(write, 'D')
-info = functools.partial(write, 'I')
-warn = functools.partial(write, 'W')
-error = functools.partial(write, 'E')
+    return text
+
+
+def write_format(level, format_string, *args, **kwargs):
+    try:
+        text = fmt(format_string, *args, **kwargs)
+    except Exception:
+        exception()
+        raise
+    return write(level, text)
+
+
+debug = functools.partial(write_format, 'debug')
+info = functools.partial(write_format, 'info')
+warning = functools.partial(write_format, 'warning')
+
+
+def error(*args, **kwargs):
+    """Logs an error.
+
+    Returns the output wrapped in AssertionError. Thus, the following::
+
+        raise log.error(...)
+
+    has the same effect as::
+
+        log.error(...)
+        assert False, fmt(...)
+    """
+    return AssertionError(write_format('error', *args, **kwargs))
 
 
 def stack(title='Stack trace'):
@@ -83,36 +115,64 @@ def stack(title='Stack trace'):
     debug('{0}:\n\n{1}', title, stack)
 
 
-def exception(fmt='', *args, **kwargs):
-    category = kwargs.pop('category', 'E')
-    exc_info = kwargs.pop('exc_info', None)
+def exception(format_string='', *args, **kwargs):
+    """Logs an exception with full traceback.
 
-    if fmt:
-        fmt += '\n\n'
-    fmt += '{exception}'
+    If format_string is specified, it is formatted with fmt(*args, **kwargs), and
+    prepended to the exception traceback on a separate line.
 
-    exception = traceback.format_exception(*exc_info) if exc_info else traceback.format_exc()
-    write(category, fmt, *args, exception=exception, **kwargs)
+    If exc_info is specified, the exception it describes will be logged. Otherwise,
+    sys.exc_info() - i.e. the exception being handled currently - will be logged.
+
+    If level is specified, the exception will be logged as a message of that level.
+    The default is "error".
+
+    Returns the exception object, for convenient re-raising::
+
+        try:
+            ...
+        except Exception:
+            raise log.exception()  # log it and re-raise
+    """
+
+    level = kwargs.pop('level', 'error')
+    exc_info = kwargs.pop('exc_info', sys.exc_info())
+
+    if format_string:
+        format_string += '\n\n'
+    format_string += '{exception}'
+
+    exception = "".join(traceback.format_exception(*exc_info))
+    write_format(level, format_string, *args, exception=exception, **kwargs)
+
+    return exc_info[1]
 
 
 def escaped_exceptions(f):
     def g(*args, **kwargs):
         try:
             return f(*args, **kwargs)
-        except:
+        except Exception:
             # Must not use try/except here to avoid overwriting the caught exception.
-            name = f.__qualname__ if hasattr(f, '__qualname__') else f.__name__
-            exception('Exception escaped from {0}', name)
+            exception('Exception escaped from {0}', compat.srcnameof(f))
             raise
+
     return g
 
 
-def to_file():
+def to_file(filename=None):
+    # TODO: warn when options.log_dir is unset, after fixing improper use in ptvsd.server
     global file
+    if file is not None or options.log_dir is None:
+        return
 
-    if ptvsd.common.options.log_dir and not file:
-        filename = ptvsd.common.options.log_dir + '/ptvsd-{}.log'.format(os.getpid())
-        file = io.open(filename, 'w', encoding='utf-8')
+    if filename is None:
+        if options.log_dir is None:
+            warning("ptvsd.to_file() cannot generate log file name - ptvsd.options.log_dir is not set")
+            return
+        filename = fmt("{0}/ptvsd-{1}.log", options.log_dir, os.getpid())
+
+    file = io.open(filename, 'w', encoding='utf-8')
 
     info(
         '{0} {1}\n{2} {3} ({4}-bit)\nptvsd {5}',
@@ -127,27 +187,27 @@ def to_file():
 
 def current_handler():
     try:
-        return tls.current_handler
+        return _tls.current_handler
     except AttributeError:
-        tls.current_handler = None
+        _tls.current_handler = None
         return None
 
 
 @contextlib.contextmanager
 def handling(what):
-    assert current_handler() is None, "Can't handle {} - already handling {}".format(what, current_handler())
-    tls.current_handler = what
+    assert current_handler() is None, fmt("Can't handle {0} - already handling {1}", what, current_handler())
+    _tls.current_handler = what
     try:
         yield
     finally:
-        tls.current_handler = None
+        _tls.current_handler = None
 
 
 @contextlib.contextmanager
 def suspend_handling():
     what = current_handler()
-    tls.current_handler = None
+    _tls.current_handler = None
     try:
         yield
     finally:
-        tls.current_handler = what
+        _tls.current_handler = what

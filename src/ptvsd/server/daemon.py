@@ -190,7 +190,7 @@ class DaemonBase(object):
                 ptvsd.server.log.debug('Session started.')
                 return self._session
             except Exception:
-                ptvsd.server.log.exception(category=('D' if hidebadsessions else 'E'))
+                ptvsd.server.log.exception(level=('debug' if hidebadsessions else 'error'))
                 with ignore_errors():
                     self._finish_session()
                 if hidebadsessions:
@@ -356,7 +356,7 @@ class DaemonBase(object):
             try:
                 sessionlock.release()
             except Exception:  # TODO: Make it more specific?
-                ptvsd.server.log.exception('Session lock not released', category='D')
+                ptvsd.server.log.exception('Session lock not released', level='debug')
             else:
                 ptvsd.server.log.debug('Session lock released')
 

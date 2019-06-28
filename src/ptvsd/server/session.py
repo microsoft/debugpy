@@ -69,7 +69,7 @@ class DebugSession(Startable, Closeable):
                     try:
                         proc.wait_while_connected(10)  # seconds
                     except TimeoutError:
-                        ptvsd.server.log.exception('timed out waiting for disconnect', category='D')
+                        ptvsd.server.log.exception('timed out waiting for disconnect', level='debug')
                 close_socket(self._sock)
 
             self.add_close_handler(handle_closing)

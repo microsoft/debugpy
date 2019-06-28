@@ -148,14 +148,12 @@ class JsonIOStream(object):
         try:
             body = body.decode("utf-8")
         except Exception:
-            log.exception("{0} --> {1}", self.name, body)
-            raise
+            raise log.exception("{0} --> {1}", self.name, body)
 
         try:
             body = decoder.decode(body)
         except Exception:
-            log.exception("{0} --> {1}", self.name, body)
-            raise
+            raise log.exception("{0} --> {1}", self.name, body)
 
         log.debug("{0} --> {1!j}", self.name, body)
         return body
@@ -175,18 +173,18 @@ class JsonIOStream(object):
         try:
             body = encoder.encode(value)
         except Exception:
-            log.exception("{0} <-- {1!r}", self.name, value)
-
+            raise log.exception("{0} <-- {1!r}", self.name, value)
         if not isinstance(body, bytes):
             body = body.encode("utf-8")
 
-        header = fmt("Content-Length: {0}\r\n\r\n", len(body)).encode("ascii")
+        header = fmt("Content-Length: {0}\r\n\r\n", len(body))
+        header = header.encode("ascii")
+
         try:
-            self._writer.write(header)
-            self._writer.write(body)
+            self._writer.write(header + body)
+            self._writer.flush()
         except Exception:
-            log.exception("{0} <-- {1!j}", self.name, value)
-            raise
+            raise log.exception("{0} <-- {1!j}", self.name, value)
 
         log.debug("{0} <-- {1!j}", self.name, value)
 
@@ -389,8 +387,8 @@ class OutgoingRequest(Request):
     def on_response(self, callback):
         """Registers a callback to invoke when a response is received for this request.
         The callback is invoked with Response as its sole argument.
-        
-        If response has already been received, invokes the callback immediately. 
+
+        If response has already been received, invokes the callback immediately.
 
         It is guaranteed that self.response is set before the callback is invoked.
 
@@ -522,7 +520,7 @@ class MessageHandlingError(Exception):
             raise self
         except MessageHandlingError:
             # TODO: change to E after unifying logging with tests
-            log.exception(category="I")
+            log.exception(level="info")
 
     def __hash__(self):
         return hash((self.reason, id(self.cause)))
@@ -598,7 +596,7 @@ class InvalidMessageError(MessageHandlingError):
 class JsonMessageChannel(object):
     """Implements a JSON message channel on top of a raw JSON message stream, with
     support for DAP requests, responses, and events.
-    
+
     The channel can be locked for exclusive use via the with-statement::
 
         with channel:

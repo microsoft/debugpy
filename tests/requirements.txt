@@ -1,10 +1,20 @@
-colorama
-django
-requests
-flask
-psutil
-pygments
+## Used to run the tests:
+
+# pytest>=5 does not support Python 2.7
 pytest<5
+
 pytest-timeout
 pytest-xdist
 tox
+
+## Used by test helpers:
+
+colorama
+psutil
+pygments
+
+## Used in Python code that is run/debugged by the tests:
+
+django
+flask
+requests

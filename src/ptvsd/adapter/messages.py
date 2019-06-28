@@ -220,7 +220,7 @@ class IDEMessages(Messages):
                 return
 
             # Can happen if the IDE was force-closed or crashed.
-            log.warn('IDE disconnected without sending "disconnect" or "terminate".')
+            log.warning('IDE disconnected without sending "disconnect" or "terminate".')
             state.change("shutting_down")
 
             if self._channels.server is None:

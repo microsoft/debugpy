@@ -1,0 +1,10 @@
+This is not a subpackage!
+
+PYTHONPATH has an entry for this directory automatically appended for all Python code
+that is executed via tests.debug.Session.
+
+Thus, it should be used for modules that are meant to be importable by such debugged
+code, and that are not test-specific - for example, backchannel.
+
+Because this code runs in the debuggee process, it cannot import anything from the
+top-level tests package. It can, however, import ptvsd and pydevd.

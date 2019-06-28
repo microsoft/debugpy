@@ -19,7 +19,7 @@ def ignore_errors(log=None):
         yield
     except Exception:
         if log is not None:
-            ptvsd.common.log.exception('Ignoring error', category='I')
+            ptvsd.common.log.exception('Ignoring error', level='info')
 
 
 def call_all(callables, *args, **kwargs):

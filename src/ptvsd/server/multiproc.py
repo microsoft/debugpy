@@ -109,7 +109,7 @@ def kill_subprocesses():
         try:
             os.kill(pid, signal.SIGTERM)
         except Exception:
-            ptvsd.server.log.exception('Failed to kill process with PID={0}.', pid, category='D')
+            ptvsd.server.log.exception('Failed to kill process with PID={0}.', pid, level='debug')
 
 
 def subprocess_listener_port():

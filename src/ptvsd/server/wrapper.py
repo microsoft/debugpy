@@ -321,7 +321,7 @@ class PydevdSocket(object):
                 assert data.endswith(b'\n')
                 data = self._decode_and_unquote(data[:-1])
                 cmd_id, seq, args = data.split('\t', 2)
-                if ptvsd.server.log.is_enabled():
+                if ptvsd.server.log.file:
                     trace_fmt = '{cmd_name} {seq}\n{args}'
         except:
             ptvsd.server.log.exception(trace_prefix + trace_fmt, data=data)
@@ -369,7 +369,7 @@ class PydevdSocket(object):
             seq = self.seq
             self.seq += 1
 
-        if ptvsd.server.log.is_enabled():
+        if ptvsd.server.log.file:
             try:
                 cmd_name = pydevd_comm.ID_TO_MEANING[str(cmd_id)]
             except KeyError:
@@ -696,14 +696,14 @@ class VSCodeMessageProcessorBase(ipcjson.SocketIO, ipcjson.IpcChannel):
             try:
                 self.process_messages()
             except (EOFError, TimeoutError):
-                ptvsd.server.log.exception('Client socket closed', category='I')
+                ptvsd.server.log.exception('Client socket closed', level='info')
                 with self._connlock:
                     _util.lock_release(self._listening)
                     _util.lock_release(self._connected)
                 self.close()
             except socket.error as exc:
                 if exc.errno == errno.ECONNRESET:
-                    ptvsd.server.log.exception('Client socket forcibly closed', category='I')
+                    ptvsd.server.log.exception('Client socket forcibly closed', level='info')
                     with self._connlock:
                         _util.lock_release(self._listening)
                         _util.lock_release(self._connected)
@@ -1199,7 +1199,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
         client_os_type = self.debug_options.get('CLIENT_OS_TYPE', '').upper().strip()
         if client_os_type and client_os_type not in ('WINDOWS', 'UNIX'):
-            ptvsd.server.log.warn('Invalid CLIENT_OS_TYPE passed: %s (must be either "WINDOWS" or "UNIX").' % (client_os_type,))
+            ptvsd.server.log.warning('Invalid CLIENT_OS_TYPE passed: %s (must be either "WINDOWS" or "UNIX").' % (client_os_type,))
             client_os_type = ''
 
         if not client_os_type:

@@ -25,7 +25,7 @@ class Future(object):
         self._handling = ptvsd.server.log.current_handler()
 
         # It's expensive, so only capture the origin if logging is enabled.
-        if ptvsd.server.log.is_enabled():
+        if ptvsd.server.log.file:
             self._origin = traceback.extract_stack()
         else:
             self._origin = None

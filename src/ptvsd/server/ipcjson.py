@@ -259,7 +259,7 @@ class IpcChannel(object):
             except (AssertionError, EOFError):
                 raise
             except Exception:
-                ptvsd.server.log.exception(category=('D' if self.__exit else 'E'))
+                ptvsd.server.log.exception(level=('debug' if self.__exit else 'error'))
                 if not self.__exit:
                     raise
 
