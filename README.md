@@ -6,7 +6,7 @@
 [![PyPI](https://img.shields.io/pypi/v/ptvsd.svg)](https://pypi.org/project/ptvsd/)
 [![PyPI](https://img.shields.io/pypi/pyversions/ptvsd.svg)](https://pypi.org/project/ptvsd/)
 
-This debugger is based on the Debug Adapter Protocol for VS Code: [debugProtocol.json](https://github.com/Microsoft/vscode-debugadapter-node/blob/master/debugProtocol.json)
+This debugger is based on the [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/) created for VS Code: [debugProtocol.json](https://github.com/Microsoft/debug-adapter-protocol/blob/gh-pages/debugAdapterProtocol.json)
 
 ## `ptvsd` CLI Usage
 ### Debugging a script file
