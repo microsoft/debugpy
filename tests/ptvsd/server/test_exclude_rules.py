@@ -112,12 +112,11 @@ def test_exceptions_and_partial_exclude_rules(pyfile, start_method, run_as, scen
 
         if scenario == "exclude_code_to_debug":
             # Stop at handled
-            hit = session.wait_for_thread_stopped(reason="exception")
-            frames = hit.stacktrace.body["stackFrames"]
+            hit = session.wait_for_stop(reason="exception")
             # We don't stop at the raise line but rather at the callback module which is
             # not excluded.
-            assert len(frames) == 1
-            assert frames[0] == some.dict.containing(
+            assert len(hit.frames) == 1
+            assert hit.frames[0] == some.dict.containing(
                 {
                     "line": 2,
                     "source": some.dict.containing(
@@ -129,30 +128,29 @@ def test_exceptions_and_partial_exclude_rules(pyfile, start_method, run_as, scen
                     ),
                 }
             )
-            # assert frames[1] == some.dict.containing({ -- filtered out
+            # assert hit.frames[1] == some.dict.containing({ -- filtered out
             #     'line': line_numbers['call_me_back_line'],
             #     'source': some.dict.containing({
             #         'path': some.path(code_to_debug)
             #     })
             # })
             # 'continue' should terminate the debuggee
-            session.send_request("continue").wait_for_response(freeze=False)
+            session.send_continue()
 
             # Note: does not stop at unhandled exception because raise was in excluded file.
 
         elif scenario == "exclude_callback_dir":
             # Stop at handled raise_line
-            hit = session.wait_for_thread_stopped(reason="exception")
-            frames = hit.stacktrace.body["stackFrames"]
+            hit = session.wait_for_stop(reason="exception")
             assert [
                 (frame["name"], os.path.basename(frame["source"]["path"]))
-                for frame in frames
+                for frame in hit.frames
             ] == [
                 ("call_func", "code_to_debug.py"),
                 # ('call_me_back', 'call_me_back.py'), -- filtered out
                 ("<module>", "code_to_debug.py"),
             ]
-            assert frames[0] == some.dict.containing(
+            assert hit.frames[0] == some.dict.containing(
                 {
                     "line": line_numbers["raise_line"],
                     "source": some.dict.containing({"path": some.path(code_to_debug)}),
@@ -161,13 +159,12 @@ def test_exceptions_and_partial_exclude_rules(pyfile, start_method, run_as, scen
             session.send_request("continue").wait_for_response()
 
             # Stop at handled call_me_back_line
-            hit = session.wait_for_thread_stopped(reason="exception")
-            frames = hit.stacktrace.body["stackFrames"]
+            hit = session.wait_for_stop(reason="exception")
             assert [
                 (frame["name"], os.path.basename(frame["source"]["path"]))
-                for frame in frames
+                for frame in hit.frames
             ] == [("<module>", "code_to_debug.py")]
-            assert frames[0] == some.dict.containing(
+            assert hit.frames[0] == some.dict.containing(
                 {
                     "line": line_numbers["call_me_back_line"],
                     "source": some.dict.containing({"path": some.path(code_to_debug)}),
@@ -176,24 +173,23 @@ def test_exceptions_and_partial_exclude_rules(pyfile, start_method, run_as, scen
             session.send_request("continue").wait_for_response()
 
             # Stop at unhandled
-            hit = session.wait_for_thread_stopped(reason="exception")
-            frames = hit.stacktrace.body["stackFrames"]
+            hit = session.wait_for_stop(reason="exception")
             assert [
                 (frame["name"], os.path.basename(frame["source"]["path"]))
-                for frame in frames
+                for frame in hit.frames
             ] == [
                 ("call_func", "code_to_debug.py"),
                 # ('call_me_back', 'call_me_back.py'), -- filtered out
                 ("<module>", "code_to_debug.py"),
             ]
 
-            assert frames[0] == some.dict.containing(
+            assert hit.frames[0] == some.dict.containing(
                 {
                     "line": line_numbers["raise_line"],
                     "source": some.dict.containing({"path": some.path(code_to_debug)}),
                 }
             )
-            session.send_request("continue").wait_for_response(freeze=False)
+            session.send_continue()
         else:
             raise AssertionError("Unexpected scenario: %s" % (scenario,))
 

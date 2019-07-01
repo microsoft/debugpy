@@ -29,4 +29,4 @@ if pause_test:
         print('looping')
 else:
     ptvsd.break_into_debugger()
-    print('done')
+    print('done') # @bp

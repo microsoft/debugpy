@@ -35,8 +35,8 @@ def test_wait_on_normal_exit_enabled(pyfile, start_method, run_as):
         )
         session.start_debugging()
 
-        session.wait_for_thread_stopped()
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.wait_for_stop()
+        session.send_continue()
 
         session.expected_returncode = some.int
         assert session.read_json() == "done"
@@ -77,8 +77,8 @@ def test_wait_on_abnormal_exit_enabled(pyfile, start_method, run_as):
         )
         session.start_debugging()
 
-        session.wait_for_thread_stopped()
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.wait_for_stop()
+        session.send_continue()
 
         session.expected_returncode = some.int
         assert session.read_json() == "done"
@@ -115,8 +115,8 @@ def test_exit_normally_with_wait_on_abnormal_exit_enabled(pyfile, start_method, 
         )
         session.start_debugging()
 
-        session.wait_for_thread_stopped()
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.wait_for_stop()
+        session.send_continue()
 
         session.wait_for_termination()
 

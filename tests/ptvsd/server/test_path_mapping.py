@@ -51,16 +51,15 @@ def test_client_ide_from_path_mapping_linux_backend(
             [code_to_debug.lines["break_here"]],
         )
         session.start_debugging()
-        hit = session.wait_for_thread_stopped("breakpoint")
-        frames = hit.stacktrace.body["stackFrames"]
-        assert frames[0]["source"]["path"] == "C:\\TEMP\\src\\" + os.path.basename(
+        hit = session.wait_for_stop("breakpoint")
+        assert hit.frames[0]["source"]["path"] == "C:\\TEMP\\src\\" + os.path.basename(
             code_to_debug
         )
 
         json_read = session.read_json()
         assert json_read == {"ide_os": "WINDOWS"}
 
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.send_continue()
         session.wait_for_exit()
 
 
@@ -92,16 +91,15 @@ def test_with_dot_remote_root(pyfile, tmpdir, start_method, run_as):
         )
         session.set_breakpoints(path_remote, [code_to_debug["bp"]])
         session.start_debugging()
-        hit = session.wait_for_thread_stopped("breakpoint")
-        frames = hit.stacktrace.body["stackFrames"]
+        hit = session.wait_for_stop("breakpoint")
         print("Local Path: " + path_local)
-        print("Frames: " + str(frames))
-        assert frames[0]["source"]["path"] == some.path(path_local)
+        print("Frames: " + str(hit.frames))
+        assert hit.frames[0]["source"]["path"] == some.path(path_local)
 
         remote_code_path = session.read_json()
         assert path_remote == some.path(remote_code_path)
 
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.send_continue()
         session.wait_for_exit()
 
 
@@ -146,15 +144,14 @@ def test_with_path_mappings(pyfile, tmpdir, start_method, run_as):
         session.set_breakpoints(path_remote, [code_to_debug.lines["bp"]])
         session.start_debugging()
         session.write_json({"call_me_back_dir": call_me_back_dir})
-        hit = session.wait_for_thread_stopped("breakpoint")
+        hit = session.wait_for_stop("breakpoint")
 
-        frames = hit.stacktrace.body["stackFrames"]
-        assert frames[0]["source"]["path"] == some.path(path_local)
-        source_reference = frames[0]["source"]["sourceReference"]
+        assert hit.frames[0]["source"]["path"] == some.path(path_local)
+        source_reference = hit.frames[0]["source"]["sourceReference"]
         assert source_reference == 0  # Mapped files should be found locally.
 
-        assert frames[1]["source"]["path"].endswith("call_me_back.py")
-        source_reference = frames[1]["source"]["sourceReference"]
+        assert hit.frames[1]["source"]["path"].endswith("call_me_back.py")
+        source_reference = hit.frames[1]["source"]["sourceReference"]
         assert source_reference > 0  # Unmapped file should have a source reference.
 
         resp_source = session.send_request(
@@ -174,5 +171,5 @@ def test_with_path_mappings(pyfile, tmpdir, start_method, run_as):
         remote_code_path = session.read_json()
         assert path_remote == some.path(remote_code_path)
 
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.send_continue()
         session.wait_for_exit()

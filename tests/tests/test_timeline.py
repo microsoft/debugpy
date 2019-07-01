@@ -26,7 +26,7 @@ def make_timeline(request):
         timelines.append(timeline)
         with timeline.frozen():
             assert timeline.beginning is not None
-            initial_history = [Is(timeline.beginning)]
+            initial_history = [some.object.same_as(timeline.beginning)]
             assert timeline.history() == initial_history
         return timeline, initial_history
 
@@ -63,23 +63,23 @@ def test_occurrences(make_timeline):
     assert mark3.id == 'dum'
 
     with timeline.frozen():
-        assert timeline.history() == initial_history + [Is(mark1), Is(mark2), Is(mark3)]
+        assert timeline.history() == initial_history + [some.object.same_as(mark1), some.object.same_as(mark2), some.object.same_as(mark3)]
         timeline.finalize()
 
-    assert timeline.all_occurrences_of(Mark('dum')) == (Is(mark1), Is(mark3))
-    assert timeline.all_occurrences_of(Mark('dee')) == (Is(mark2),)
+    assert timeline.all_occurrences_of(Mark('dum')) == (some.object.same_as(mark1), some.object.same_as(mark3))
+    assert timeline.all_occurrences_of(Mark('dee')) == (some.object.same_as(mark2),)
 
-    assert timeline[:].all_occurrences_of(Mark('dum')) == (Is(mark1), Is(mark3))
+    assert timeline[:].all_occurrences_of(Mark('dum')) == (some.object.same_as(mark1), some.object.same_as(mark3))
 
     # Lower boundary is inclusive.
-    assert timeline[mark1:].all_occurrences_of(Mark('dum')) == (Is(mark1), Is(mark3))
-    assert timeline[mark2:].all_occurrences_of(Mark('dum')) == (Is(mark3),)
-    assert timeline[mark3:].all_occurrences_of(Mark('dum')) == (Is(mark3),)
+    assert timeline[mark1:].all_occurrences_of(Mark('dum')) == (some.object.same_as(mark1), some.object.same_as(mark3))
+    assert timeline[mark2:].all_occurrences_of(Mark('dum')) == (some.object.same_as(mark3),)
+    assert timeline[mark3:].all_occurrences_of(Mark('dum')) == (some.object.same_as(mark3),)
 
     # Upper boundary is exclusive.
     assert timeline[:mark1].all_occurrences_of(Mark('dum')) == ()
-    assert timeline[:mark2].all_occurrences_of(Mark('dum')) == (Is(mark1),)
-    assert timeline[:mark3].all_occurrences_of(Mark('dum')) == (Is(mark1),)
+    assert timeline[:mark2].all_occurrences_of(Mark('dum')) == (some.object.same_as(mark1),)
+    assert timeline[:mark3].all_occurrences_of(Mark('dum')) == (some.object.same_as(mark1),)
 
 
 def test_event(make_timeline):
@@ -90,7 +90,7 @@ def test_event(make_timeline):
 
     with timeline.frozen():
         assert timeline.last is event
-        assert timeline.history() == initial_history + [Is(event)]
+        assert timeline.history() == initial_history + [some.object.same_as(event)]
         timeline.expect_realized(Event('stopped', {'reason': 'pause'}))
 
 
@@ -108,7 +108,7 @@ def test_request_response(make_timeline, outcome):
 
     with timeline.frozen():
         assert timeline.last is request
-        assert timeline.history() == initial_history + [Is(request)]
+        assert timeline.history() == initial_history + [some.object.same_as(request)]
         timeline.expect_realized(Request('next'))
         timeline.expect_realized(Request('next', {'threadId': 3}))
 
@@ -116,24 +116,24 @@ def test_request_response(make_timeline, outcome):
     response = timeline.record_response(request, response_body)
 
     assert response == Response(request, response_body)
-    assert response == Response(request, ANY)
+    assert response == Response(request, some.object)
     if outcome == 'success':
-        assert response == Response(request, SUCCESS)
-        assert response != Response(request, FAILURE)
+        assert response == Response(request, ~some.error)
+        assert response != Response(request, some.error)
     else:
-        assert response != Response(request, SUCCESS)
-        assert response == Response(request, FAILURE)
+        assert response != Response(request, ~some.error)
+        assert response == Response(request, some.error)
 
     assert response == Response(request_expectation, response_body)
-    assert response == Response(request_expectation, ANY)
+    assert response == Response(request_expectation, some.object)
     if outcome == 'success':
-        assert response == Response(request_expectation, SUCCESS)
-        assert response != Response(request_expectation, FAILURE)
+        assert response == Response(request_expectation, ~some.error)
+        assert response != Response(request_expectation, some.error)
     else:
-        assert response != Response(request_expectation, SUCCESS)
-        assert response == Response(request_expectation, FAILURE)
+        assert response != Response(request_expectation, ~some.error)
+        assert response == Response(request_expectation, some.error)
 
-    assert response.circumstances == ('Response', Is(request), response_body)
+    assert response.circumstances == ('Response', some.object.same_as(request), response_body)
     assert response.request is request
     assert response.body == response_body
     if outcome == 'success':
@@ -143,24 +143,24 @@ def test_request_response(make_timeline, outcome):
 
     with timeline.frozen():
         assert timeline.last is response
-        assert timeline.history() == initial_history + [Is(request), Is(response)]
+        assert timeline.history() == initial_history + [some.object.same_as(request), some.object.same_as(response)]
         timeline.expect_realized(Response(request, response_body))
-        timeline.expect_realized(Response(request, ANY))
+        timeline.expect_realized(Response(request, some.object))
         if outcome == 'success':
-            timeline.expect_realized(Response(request, SUCCESS))
-            timeline.expect_not_realized(Response(request, FAILURE))
+            timeline.expect_realized(Response(request, ~some.error))
+            timeline.expect_not_realized(Response(request, some.error))
         else:
-            timeline.expect_not_realized(Response(request, SUCCESS))
-            timeline.expect_realized(Response(request, FAILURE))
+            timeline.expect_not_realized(Response(request, ~some.error))
+            timeline.expect_realized(Response(request, some.error))
 
         timeline.expect_realized(Response(request_expectation, response_body))
-        timeline.expect_realized(Response(request_expectation, ANY))
+        timeline.expect_realized(Response(request_expectation, some.object))
         if outcome == 'success':
-            timeline.expect_realized(Response(request_expectation, SUCCESS))
-            timeline.expect_not_realized(Response(request_expectation, FAILURE))
+            timeline.expect_realized(Response(request_expectation, ~some.error))
+            timeline.expect_not_realized(Response(request_expectation, some.error))
         else:
-            timeline.expect_not_realized(Response(request_expectation, SUCCESS))
-            timeline.expect_realized(Response(request_expectation, FAILURE))
+            timeline.expect_not_realized(Response(request_expectation, ~some.error))
+            timeline.expect_realized(Response(request_expectation, some.error))
 
 
 def test_after(make_timeline):
@@ -303,9 +303,9 @@ def test_xor(make_timeline):
 
 def test_conditional(make_timeline):
     def is_exciting(occ):
-        return occ.circumstances == ('Event', ANY, 'exciting')
+        return occ.circumstances == ('Event', some.object, 'exciting')
 
-    something = Event('something', ANY)
+    something = Event('something', some.object)
     something_exciting = something.when(is_exciting)
     timeline, _ = make_timeline()
     t = timeline.beginning

@@ -31,6 +31,7 @@ Usage::
     assert 123.456 == some.number
     assert 123 == some.int
     assert Exception() == some.error
+    assert object() == some.object.same_as(object())
 
     assert u"abc" == some.str
     if sys.version_info < (3,):

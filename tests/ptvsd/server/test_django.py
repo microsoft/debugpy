@@ -107,9 +107,8 @@ def test_django_template_exception_no_multiproc(start_method):
         with django:
             web_request = django.get("badtemplate")
 
-            hit = session.wait_for_thread_stopped(reason="exception")
-            frames = hit.stacktrace.body["stackFrames"]
-            assert frames[0] == some.dict.containing(
+            hit = session.wait_for_stop(reason="exception")
+            assert hit.frames[0] == some.dict.containing(
                 {
                     "id": some.dap_id,
                     "name": "Django TemplateSyntaxError",
@@ -151,11 +150,11 @@ def test_django_template_exception_no_multiproc(start_method):
                 }
             )
 
-            session.send_request("continue").wait_for_response(freeze=False)
+            session.send_continue()
 
             # And a second time when the exception reaches the user code.
-            hit = session.wait_for_thread_stopped(reason="exception")
-            session.send_request("continue").wait_for_response(freeze=False)
+            hit = session.wait_for_stop(reason="exception")
+            session.send_continue()
 
             # ignore response for exception tests
             web_request.wait_for_response()
@@ -240,7 +239,7 @@ def test_django_exception_no_multiproc(ex_type, start_method):
                 "column": 1,
             }
 
-            session.send_request("continue").wait_for_response(freeze=False)
+            session.send_continue()
 
             # ignore response for exception tests
             web_request.wait_for_response()
@@ -338,7 +337,7 @@ def test_django_breakpoint_multiproc(start_method):
                     }
                 ]
 
-                child_session.send_request("continue").wait_for_response(freeze=False)
+                child_session.send_continue()
 
                 web_content = web_request.wait_for_response()
                 assert web_content.find(bp_var_content) != -1

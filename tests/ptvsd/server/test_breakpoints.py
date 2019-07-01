@@ -52,12 +52,11 @@ def test_path_with_unicode(start_method, run_as):
         session.initialize(target=(run_as, test_py), start_method=start_method)
         session.set_breakpoints(test_py, [lines["bp"]])
         session.start_debugging()
-        hit = session.wait_for_thread_stopped("breakpoint")
-        frames = hit.stacktrace.body["stackFrames"]
-        assert frames[0]["source"]["path"] == some.path(test_py)
-        assert "ಏನಾದರೂ_ಮಾಡು" == frames[0]["name"]
+        hit = session.wait_for_stop("breakpoint")
+        assert hit.frames[0]["source"]["path"] == some.path(test_py)
+        assert "ಏನಾದರೂ_ಮಾಡು" == hit.frames[0]["name"]
 
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.send_continue()
         session.wait_for_exit()
 
 
@@ -105,9 +104,8 @@ def test_conditional_breakpoint(pyfile, start_method, run_as, condition_key):
             },
         ).wait_for_response()
         session.start_debugging()
-        hit = session.wait_for_thread_stopped()
-        frames = hit.stacktrace.body["stackFrames"]
-        assert lines["bp"] == frames[0]["line"]
+        hit = session.wait_for_stop()
+        assert lines["bp"] == hit.frames[0]["line"]
 
         resp_scopes = session.send_request(
             "scopes", arguments={"frameId": hit.frame_id}
@@ -128,10 +126,10 @@ def test_conditional_breakpoint(pyfile, start_method, run_as, condition_key):
             )
         ]
 
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.send_continue()
         for i in range(1, hits):
-            session.wait_for_thread_stopped()
-            session.send_request("continue").wait_for_response(freeze=False)
+            session.wait_for_stop()
+            session.send_continue()
         session.wait_for_exit()
 
 
@@ -157,18 +155,16 @@ def test_crossfile_breakpoint(pyfile, start_method, run_as):
         session.set_breakpoints(script2, lines=[script2.lines["bp"]])
         session.start_debugging()
 
-        hit = session.wait_for_thread_stopped()
-        frames = hit.stacktrace.body["stackFrames"]
-        assert script2.lines["bp"] == frames[0]["line"]
-        assert frames[0]["source"]["path"] == some.path(script2)
+        hit = session.wait_for_stop()
+        assert script2.lines["bp"] == hit.frames[0]["line"]
+        assert hit.frames[0]["source"]["path"] == some.path(script2)
 
-        session.send_request("continue").wait_for_response(freeze=False)
-        hit = session.wait_for_thread_stopped()
-        frames = hit.stacktrace.body["stackFrames"]
-        assert script1.lines["bp"] == frames[0]["line"]
-        assert frames[0]["source"]["path"] == some.path(script1)
+        session.send_continue()
+        hit = session.wait_for_stop()
+        assert script1.lines["bp"] == hit.frames[0]["line"]
+        assert hit.frames[0]["source"]["path"] == some.path(script1)
 
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.send_continue()
         session.wait_for_exit()
 
 
@@ -242,11 +238,10 @@ def test_log_point(pyfile, start_method, run_as):
         session.start_debugging()
 
         # Breakpoint at the end just to make sure we get all output events.
-        hit = session.wait_for_thread_stopped()
-        frames = hit.stacktrace.body["stackFrames"]
-        assert lines["end"] == frames[0]["line"]
+        hit = session.wait_for_stop()
+        assert lines["end"] == hit.frames[0]["line"]
 
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.send_continue()
 
         session.wait_for_exit()
         assert session.get_stderr_as_string() == b""
@@ -292,9 +287,8 @@ def test_condition_with_log_point(pyfile, start_method, run_as):
             },
         ).wait_for_response()
         session.start_debugging()
-        hit = session.wait_for_thread_stopped()
-        frames = hit.stacktrace.body["stackFrames"]
-        assert lines["end"] == frames[0]["line"]
+        hit = session.wait_for_stop()
+        assert lines["end"] == hit.frames[0]["line"]
 
         resp_scopes = session.send_request(
             "scopes", arguments={"frameId": hit.frame_id}
@@ -315,13 +309,12 @@ def test_condition_with_log_point(pyfile, start_method, run_as):
             )
         ]
 
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.send_continue()
 
         # Breakpoint at the end just to make sure we get all output events.
-        hit = session.wait_for_thread_stopped()
-        frames = hit.stacktrace.body["stackFrames"]
-        assert lines["end"] == frames[0]["line"]
-        session.send_request("continue").wait_for_response(freeze=False)
+        hit = session.wait_for_stop()
+        assert lines["end"] == hit.frames[0]["line"]
+        session.send_continue()
 
         session.wait_for_exit()
         assert session.get_stderr_as_string() == b""
@@ -347,11 +340,10 @@ def test_package_launch():
         session.set_breakpoints(test_py, [lines["two"]])
         session.start_debugging()
 
-        hit = session.wait_for_thread_stopped()
-        frames = hit.stacktrace.body["stackFrames"]
-        assert lines["two"] == frames[0]["line"]
+        hit = session.wait_for_stop()
+        assert lines["two"] == hit.frames[0]["line"]
 
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.send_continue()
         session.wait_for_exit()
 
 
@@ -374,13 +366,12 @@ def test_add_and_remove_breakpoint(pyfile, start_method, run_as):
         session.set_breakpoints(code_to_debug, [lines["bp"]])
         session.start_debugging()
 
-        hit = session.wait_for_thread_stopped()
-        frames = hit.stacktrace.body["stackFrames"]
-        assert lines["bp"] == frames[0]["line"]
+        hit = session.wait_for_stop()
+        assert lines["bp"] == hit.frames[0]["line"]
 
         # remove breakpoints in file
         session.set_breakpoints(code_to_debug, [])
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.send_continue()
 
         session.wait_for_next(
             Event("output", some.dict.containing({"category": "stdout", "output": "9"}))
@@ -404,17 +395,23 @@ def test_invalid_breakpoints(pyfile, start_method, run_as):
     def code_to_debug():
         import debug_me  # noqa
 
+        # fmt: off
         b = True
-        while b:  # @bp1-expected
-            pass  # @bp1-requested
+        while b:         # @bp1-expected
+            pass         # @bp1-requested
             break
 
         print()  # @bp2-expected
-        [1, 2, 3]  # @bp2-requested  # @bp3-expected  # @bp3-requested
+        [  # @bp2-requested
+            1, 2, 3,    # @bp3-expected
+        ]               # @bp3-requested
 
         # Python 2.7 only.
-        print()  # @bp4-expected
-        print(1, 2, 3, 4, 5, 6)  # @bp4-requested-1  # @bp4-requested-2
+        print()         # @bp4-expected
+        print(1,        # @bp4-requested-1
+              2, 3,     # @bp4-requested-2
+              4, 5, 6)
+        # fmt: on
 
     line_numbers = code_to_debug.lines
     print(line_numbers)
@@ -456,9 +453,8 @@ def test_invalid_breakpoints(pyfile, start_method, run_as):
         expected_bps = sorted(set(expected_bps))
 
         while expected_bps:
-            hit = session.wait_for_thread_stopped()
-            frames = hit.stacktrace.body["stackFrames"]
-            line = frames[0]["line"]
+            hit = session.wait_for_stop()
+            line = hit.frames[0]["line"]
             assert line == expected_bps[0]
             del expected_bps[0]
             session.send_request("continue").wait_for_response()
@@ -487,8 +483,8 @@ def test_deep_stacks(pyfile, start_method, run_as):
         actual_bps = [bp["line"] for bp in actual_bps]
         session.start_debugging()
 
-        hit = session.wait_for_thread_stopped()
-        full_frames = hit.stacktrace.body["stackFrames"]
+        hit = session.wait_for_stop()
+        full_frames = hit.frames
         assert len(full_frames) > 100
 
         # Construct stack from parts

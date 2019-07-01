@@ -59,20 +59,19 @@ def test_vsc_exception_options_raise_with_except(
         )
 
         if raised == "raisedOn":
-            hit = session.wait_for_thread_stopped(
+            hit = session.wait_for_stop(
                 reason="exception",
                 text=some.str.such_that(lambda s: s.endswith("ArithmeticError")),
                 description="bad code",
             )
-            frames = hit.stacktrace.body["stackFrames"]
-            assert ex_line == frames[0]["line"]
+            assert ex_line == hit.frames[0]["line"]
 
             resp_exc_info = session.send_request(
                 "exceptionInfo", {"threadId": hit.thread_id}
             ).wait_for_response()
 
             assert resp_exc_info.body == expected
-            session.send_request("continue").wait_for_response(freeze=False)
+            session.send_continue()
 
         # uncaught should not 'stop' matter since the exception is caught
 
@@ -129,28 +128,26 @@ def test_vsc_exception_options_raise_without_except(
         )
 
         if raised == "raisedOn":
-            hit = session.wait_for_thread_stopped(reason="exception")
-            frames = hit.stacktrace.body["stackFrames"]
-            assert ex_line == frames[0]["line"]
+            hit = session.wait_for_stop(reason="exception")
+            assert ex_line == hit.frames[0]["line"]
 
             resp_exc_info = session.send_request(
                 "exceptionInfo", {"threadId": hit.thread_id}
             ).wait_for_response()
 
             assert resp_exc_info.body == expected
-            session.send_request("continue").wait_for_response(freeze=False)
+            session.send_continue()
 
             # NOTE: debugger stops at each frame if raised and is uncaught
             # This behavior can be changed by updating 'notify_on_handled_exceptions'
             # setting we send to pydevd to notify only once. In our test code, we have
             # two frames, hence two stops.
-            session.wait_for_thread_stopped(reason="exception")
-            session.send_request("continue").wait_for_response(freeze=False)
+            session.wait_for_stop(reason="exception")
+            session.send_continue()
 
         if uncaught == "uncaughtOn":
-            hit = session.wait_for_thread_stopped(reason="exception")
-            frames = hit.stacktrace.body["stackFrames"]
-            assert ex_line == frames[0]["line"]
+            hit = session.wait_for_stop(reason="exception")
+            assert ex_line == hit.frames[0]["line"]
 
             resp_exc_info = session.send_request(
                 "exceptionInfo", {"threadId": hit.thread_id}
@@ -176,7 +173,7 @@ def test_vsc_exception_options_raise_without_except(
             )
 
             assert resp_exc_info.body == expected
-            session.send_request("continue").wait_for_response(freeze=False)
+            session.send_continue()
 
         session.wait_for_exit()
 
@@ -224,15 +221,13 @@ def test_systemexit(pyfile, start_method, run_as, raised, uncaught, zero, exit_c
         # When breaking on raised exceptions, we'll stop on both lines,
         # unless it's SystemExit(0) and we asked to ignore that.
         if raised and (zero or exit_code != 0):
-            hit = session.wait_for_thread_stopped(reason="exception")
-            frames = hit.stacktrace.body["stackFrames"]
-            assert frames[0]["line"] == line_numbers["handled"]
-            session.send_request("continue").wait_for_response(freeze=False)
+            hit = session.wait_for_stop(reason="exception")
+            assert hit.frames[0]["line"] == line_numbers["handled"]
+            session.send_continue()
 
-            hit = session.wait_for_thread_stopped(reason="exception")
-            frames = hit.stacktrace.body["stackFrames"]
-            assert frames[0]["line"] == line_numbers["unhandled"]
-            session.send_request("continue").wait_for_response(freeze=False)
+            hit = session.wait_for_stop(reason="exception")
+            assert hit.frames[0]["line"] == line_numbers["unhandled"]
+            session.send_continue()
 
         # When breaking on uncaught exceptions, we'll stop on the second line,
         # unless it's SystemExit(0) and we asked to ignore that.
@@ -241,10 +236,9 @@ def test_systemexit(pyfile, start_method, run_as, raised, uncaught, zero, exit_c
         # for it unwinding the stack without finding a handler. The block above
         # takes care of the first stop, so here we just take care of the second.
         if uncaught and (zero or exit_code != 0):
-            hit = session.wait_for_thread_stopped(reason="exception")
-            frames = hit.stacktrace.body["stackFrames"]
-            assert frames[0]["line"] == line_numbers["unhandled"]
-            session.send_request("continue").wait_for_response(freeze=False)
+            hit = session.wait_for_stop(reason="exception")
+            assert hit.frames[0]["line"] == line_numbers["unhandled"]
+            session.send_continue()
 
         session.wait_for_exit()
 
@@ -329,11 +323,10 @@ def test_raise_exception_options(pyfile, start_method, run_as, exceptions, break
         session.start_debugging()
 
         for expected_exception in expect_exceptions:
-            hit = session.wait_for_thread_stopped(reason="exception")
-            frames = hit.stacktrace.body["stackFrames"]
-            assert frames[0]["source"]["path"].endswith("code_to_debug.py")
-            assert frames[0]["line"] == code_to_debug.lines[expected_exception]
-            session.send_request("continue").wait_for_response(freeze=False)
+            hit = session.wait_for_stop(reason="exception")
+            assert hit.frames[0]["source"]["path"].endswith("code_to_debug.py")
+            assert hit.frames[0]["line"] == code_to_debug.lines[expected_exception]
+            session.send_continue()
 
         session.wait_for_exit()
 
@@ -363,8 +356,8 @@ def test_success_exitcodes(pyfile, start_method, run_as, exit_code):
         session.start_debugging()
 
         if exit_code == 0:
-            session.wait_for_thread_stopped(reason="exception")
-            session.send_request("continue").wait_for_response(freeze=False)
+            session.wait_for_stop(reason="exception")
+            session.send_continue()
 
         session.wait_for_exit()
 
@@ -412,9 +405,8 @@ def test_exception_stack(pyfile, start_method, run_as, max_frames):
         ).wait_for_response()
         session.start_debugging()
 
-        hit = session.wait_for_thread_stopped(reason="exception")
-        frames = hit.stacktrace.body["stackFrames"]
-        assert frames[0]["line"] == code_to_debug.lines["unhandled"]
+        hit = session.wait_for_stop(reason="exception")
+        assert hit.frames[0]["line"] == code_to_debug.lines["unhandled"]
 
         resp_exc_info = session.send_request(
             "exceptionInfo", {"threadId": hit.thread_id}
@@ -439,6 +431,6 @@ def test_exception_stack(pyfile, start_method, run_as, max_frames):
         stack_line_count = len(stack_str.split("\n"))
         assert min_expected_lines <= stack_line_count <= max_expected_lines
 
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.send_continue()
 
         session.wait_for_exit()

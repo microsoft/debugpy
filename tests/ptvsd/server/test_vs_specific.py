@@ -35,7 +35,7 @@ def test_stack_format(pyfile, start_method, run_as, module, line):
         session.set_breakpoints(test_module, [code_to_debug.lines["bp"]])
         session.start_debugging()
 
-        hit = session.wait_for_thread_stopped()
+        hit = session.wait_for_stop()
         resp_stacktrace = session.send_request(
             "stackTrace",
             arguments={
@@ -52,7 +52,7 @@ def test_stack_format(pyfile, start_method, run_as, module, line):
 
         assert module == (frames[0]["name"].find("test_module") > -1)
 
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.send_continue()
         session.wait_for_exit()
 
 
@@ -85,7 +85,7 @@ def test_module_events(pyfile, start_method, run_as):
         session.set_breakpoints(module2, [module2.lines["bp"]])
         session.start_debugging()
 
-        session.wait_for_thread_stopped()
+        session.wait_for_stop()
         modules = session.all_occurrences_of(Event("module"))
         modules = [
             (m.body["module"]["name"], m.body["module"]["path"]) for m in modules
@@ -96,5 +96,5 @@ def test_module_events(pyfile, start_method, run_as):
             ("__main__", some.path(test_code)),
         ]
 
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.send_continue()
         session.wait_for_exit()

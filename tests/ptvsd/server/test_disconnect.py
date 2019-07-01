@@ -31,9 +31,8 @@ def test_continue_on_disconnect_for_attach(pyfile, start_method, run_as):
         )
         session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])
         session.start_debugging()
-        hit = session.wait_for_thread_stopped("breakpoint")
-        frames = hit.stacktrace.body["stackFrames"]
-        assert frames[0]["line"] == code_to_debug.lines["bp"]
+        hit = session.wait_for_stop("breakpoint")
+        assert hit.frames[0]["line"] == code_to_debug.lines["bp"]
         session.send_request("disconnect").wait_for_response()
         session.wait_for_disconnect()
         assert "continued" == session.read_json()
@@ -61,9 +60,8 @@ def test_exit_on_disconnect_for_launch(pyfile, start_method, run_as):
         )
         session.set_breakpoints(code_to_debug, code_to_debug.lines["bp"])
         session.start_debugging()
-        hit = session.wait_for_thread_stopped("breakpoint")
-        frames = hit.stacktrace.body["stackFrames"]
-        assert frames[0]["line"] == code_to_debug.lines["bp"]
+        hit = session.wait_for_stop("breakpoint")
+        assert hit.frames[0]["line"] == code_to_debug.lines["bp"]
         session.send_request("disconnect").wait_for_response()
         session.wait_for_exit()
         fp = os.join(os.path.dirname(os.path.abspath(code_to_debug)), "here.txt")

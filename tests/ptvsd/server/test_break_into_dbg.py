@@ -18,16 +18,15 @@ def test_with_wait_for_attach(pyfile, start_method, run_as):
         from debug_me import ptvsd
 
         ptvsd.break_into_debugger()
-        print("break here")
+        print("break here") # @break
 
     with debug.Session() as session:
         session.initialize(target=(run_as, code_to_debug), start_method=start_method)
         session.start_debugging()
-        hit = session.wait_for_thread_stopped()
-        frames = hit.stacktrace.body["stackFrames"]
-        assert frames[0]["line"] == 7
+        hit = session.wait_for_stop()
+        assert hit.frames[0]["line"] == code_to_debug.lines["break"]
 
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.send_continue()
         session.wait_for_exit()
 
 
@@ -42,16 +41,15 @@ def test_breakpoint_function(pyfile, start_method, run_as):
 
         # TODO: use ptvsd.break_into_debugger() on <3.7
         breakpoint()  # noqa
-        print("break here")
+        print("break here") # @break
 
     with debug.Session() as session:
         session.initialize(target=(run_as, code_to_debug), start_method=start_method)
         session.start_debugging()
-        hit = session.wait_for_thread_stopped()
-        frames = hit.stacktrace.body["stackFrames"]
-        path = frames[0]["source"]["path"]
+        hit = session.wait_for_stop()
+        path = hit.frames[0]["source"]["path"]
         assert path.endswith("code_to_debug.py") or path.endswith("<string>")
-        assert frames[0]["line"] == 6
+        assert hit.frames[0]["line"] == code_to_debug.lines["break"]
 
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.send_continue()
         session.wait_for_exit()

@@ -9,8 +9,10 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 import sys
+import time
 import threading
 import traceback
+import pytest_timeout
 
 from ptvsd.common import log
 
@@ -58,7 +60,7 @@ def dump_after(secs):
 
     def dumper():
         time.sleep(secs)
-        dump_stacks()
+        pytest_timeout.dump_stacks()
 
     thread = threading.Thread(target=dumper)
     thread.daemon = True

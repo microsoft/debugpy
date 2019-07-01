@@ -6,7 +6,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import pytest
 
-from tests import debug, test_data
+from tests import code, debug, test_data
 from tests.patterns import some
 from tests.timeline import Event
 
@@ -16,6 +16,7 @@ from tests.timeline import Event
 @pytest.mark.parametrize("break_into", ["break", "pause"])
 def test_attach(run_as, wait_for_attach, is_attached, break_into):
     attach1_py = str(test_data / "attach" / "attach1.py")
+    lines = code.get_marked_line_numbers(attach1_py)
     with debug.Session() as session:
         env = {
             "PTVSD_TEST_HOST": "localhost",
@@ -44,20 +45,18 @@ def test_attach(run_as, wait_for_attach, is_attached, break_into):
 
         if break_into == "break":
             assert session.read_json() == "break_into_debugger"
-            hit = session.wait_for_thread_stopped()
-            frames = hit.stacktrace.body["stackFrames"]
-            assert 32 == frames[0]["line"]
+            hit = session.wait_for_stop()
+            assert lines["bp"] == hit.frames[0]["line"]
         else:
             # pause test
             session.write_json("pause_test")
             session.send_request("pause").wait_for_response(freeze=False)
-            hit = session.wait_for_thread_stopped(reason="pause")
-            frames = hit.stacktrace.body["stackFrames"]
+            hit = session.wait_for_stop(reason="pause")
             # Note: no longer asserting line as it can even stop on different files
             # (such as as backchannel.py).
-            # assert frames[0]['line'] in [27, 28, 29]
+            # assert hit.frames[0]['line'] in [27, 28, 29]
 
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.send_continue()
         session.wait_for_exit()
 
 
@@ -72,12 +71,12 @@ def test_reattach(pyfile, start_method, run_as):
         import backchannel
 
         ptvsd.break_into_debugger()
-        print("first")
+        print("first") # @first
         backchannel.write_json("continued")
         for _ in range(0, 100):
             time.sleep(0.1)
             ptvsd.break_into_debugger()
-            print("second")
+            print("second") # @second
 
     with debug.Session() as session:
         session.initialize(
@@ -88,9 +87,8 @@ def test_reattach(pyfile, start_method, run_as):
             skip_capture=True,
         )
         session.start_debugging()
-        hit = session.wait_for_thread_stopped()
-        frames = hit.stacktrace.body["stackFrames"]
-        assert 7 == frames[0]["line"]
+        hit = session.wait_for_stop()
+        assert code_to_debug.lines["first"] == hit.frames[0]["line"]
         session.send_request("disconnect").wait_for_response(freeze=False)
         session.wait_for_disconnect()
         assert session.read_json() == "continued"
@@ -98,9 +96,8 @@ def test_reattach(pyfile, start_method, run_as):
     # re-attach
     with session.connect_with_new_session(target=(run_as, code_to_debug)) as session2:
         session2.start_debugging()
-        hit = session2.wait_for_thread_stopped()
-        frames = hit.stacktrace.body["stackFrames"]
-        assert 12 == frames[0]["line"]
+        hit = session2.wait_for_stop()
+        assert code_to_debug.lines["second"] == hit.frames[0]["line"]
         session2.send_request("disconnect").wait_for_response(freeze=False)
         session2.wait_for_disconnect()
 
@@ -125,13 +122,12 @@ def test_attaching_by_pid(pyfile, run_as, start_method):
         session.initialize(target=(run_as, code_to_debug), start_method=start_method)
         session.set_breakpoints(code_to_debug, [code_to_debug.lines["break"]])
         session.start_debugging()
-        hit = session.wait_for_thread_stopped()
-        frames = hit.stacktrace.body["stackFrames"]
-        assert code_to_debug.lines["break"] == frames[0]["line"]
+        hit = session.wait_for_stop()
+        assert code_to_debug.lines["break"] == hit.frames[0]["line"]
 
         # remove breakpoint and continue
         session.set_breakpoints(code_to_debug, [])
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.send_continue()
         session.wait_for_next(
             Event("output", some.dict.containing({"category": "stdout"}))
         )

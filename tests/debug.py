@@ -660,7 +660,7 @@ class Session(object):
     def wait_for_next_event(self, event, body=some.object):
         return self.timeline.wait_for_next(Event(event, body)).body
 
-    def wait_for_stop(self, reason, expected_frames=None, expected_text=None, expected_description=None):
+    def wait_for_stop(self, reason=some.str, expected_frames=None, expected_text=None, expected_description=None):
         stopped_event = self.wait_for_next(Event('stopped', some.dict.containing({'reason': reason})))
         stopped = stopped_event.body
 

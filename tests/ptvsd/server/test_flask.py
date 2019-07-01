@@ -64,64 +64,42 @@ def test_flask_breakpoint_no_multiproc(bp_target, start_method):
         session.set_breakpoints(bp_file, [bp_line])
         session.start_debugging()
 
-        # wait for Flask web server to start
-        wait_for_connection(FLASK_PORT)
-        link = FLASK_LINK
-        web_request = get_web_content(link, {})
+        with flask_server:
+            home_request = flask_server.get("/")
 
-        thread_stopped = session.wait_for_next(
-            Event("stopped"), some.dict.containing({"reason": "breakpoint"})
-        )
-        assert thread_stopped.body["threadId"] is not None
-
-        tid = thread_stopped.body["threadId"]
-
-        resp_stacktrace = session.send_request(
-            "stackTrace", arguments={"threadId": tid}
-        ).wait_for_response()
-        assert resp_stacktrace.body["totalFrames"] > 0
-        frames = resp_stacktrace.body["stackFrames"]
-        assert frames[0] == {
-            "id": some.dap_id,
-            "name": bp_name,
-            "source": {"sourceReference": some.dap_id, "path": some.path(bp_file)},
-            "line": bp_line,
-            "column": 1,
-        }
-
-        fid = frames[0]["id"]
-        resp_scopes = session.send_request(
-            "scopes", arguments={"frameId": fid}
-        ).wait_for_response()
-        scopes = resp_scopes.body["scopes"]
-        assert len(scopes) > 0
-
-        resp_variables = session.send_request(
-            "variables",
-            arguments={"variablesReference": scopes[0]["variablesReference"]},
-        ).wait_for_response()
-        variables = list(
-            v for v in resp_variables.body["variables"] if v["name"] == "content"
-        )
-        assert variables == [
-            {
-                "name": "content",
-                "type": "str",
-                "value": repr(bp_var_content),
-                "presentationHint": {"attributes": ["rawString"]},
-                "evaluateName": "content",
-                "variablesReference": 0,
+            hit = session.wait_for_stop(reason="breakpoint")
+            assert hit.frames[0] == {
+                "id": some.dap_id,
+                "name": bp_name,
+                "source": {"sourceReference": some.dap_id, "path": some.path(bp_file)},
+                "line": bp_line,
+                "column": 1,
             }
-        ]
 
-        session.send_request("continue").wait_for_response(freeze=False)
+            resp_scopes = session.send_request(
+                "scopes", arguments={"frameId": hit.frame_id}
+            ).wait_for_response()
+            scopes = resp_scopes.body["scopes"]
+            assert len(scopes) > 0
 
-        web_content = web_request.wait_for_response()
-        assert web_content.find(bp_var_content) != -1
+            resp_variables = session.send_request(
+                "variables",
+                arguments={"variablesReference": scopes[0]["variablesReference"]},
+            ).wait_for_response()
+            variables = [v for v in resp_variables.body["variables"] if v["name"] == "content"]
+            assert variables == [
+                {
+                    "name": "content",
+                    "type": "str",
+                    "value": repr(bp_var_content),
+                    "presentationHint": {"attributes": ["rawString"]},
+                    "evaluateName": "content",
+                    "variablesReference": 0,
+                }
+            ]
 
-        # shutdown to web server
-        link = FLASK_LINK + "exit"
-        get_web_content(link).wait_for_response()
+            session.send_continue()
+            assert bp_var_content in home_request.response_text()
 
         session.wait_for_exit()
 
@@ -139,65 +117,57 @@ def test_flask_template_exception_no_multiproc(start_method):
         session.start_debugging()
 
         # wait for Flask web server to start
-        wait_for_connection(FLASK_PORT)
-        base_link = FLASK_LINK
-        part = "badtemplate"
-        link = base_link + part if base_link.endswith("/") else ("/" + part)
-        web_request = get_web_content(link, {})
+        with flask_server:
+            web_request = flask_server.get("badtemplate")
 
-        hit = session.wait_for_thread_stopped()
-        frames = hit.stacktrace.body["stackFrames"]
-        assert frames[0] == some.dict.containing(
-            {
-                "id": some.dap_id,
-                "name": "template"
-                if sys.version_info[0] >= 3
-                else "Jinja2 TemplateSyntaxError",
-                "source": some.dict.containing(
-                    {
-                        "sourceReference": some.dap_id,
-                        "path": some.path(FLASK1_BAD_TEMPLATE),
-                    }
-                ),
-                "line": 8,
-                "column": 1,
-            }
-        )
+            hit = session.wait_for_stop()
+            assert hit.frames[0] == some.dict.containing(
+                {
+                    "id": some.dap_id,
+                    "name": "template"
+                    if sys.version_info[0] >= 3
+                    else "Jinja2 TemplateSyntaxError",
+                    "source": some.dict.containing(
+                        {
+                            "sourceReference": some.dap_id,
+                            "path": some.path(FLASK1_BAD_TEMPLATE),
+                        }
+                    ),
+                    "line": 8,
+                    "column": 1,
+                }
+            )
 
-        resp_exception_info = session.send_request(
-            "exceptionInfo", arguments={"threadId": hit.thread_id}
-        ).wait_for_response()
-        exception = resp_exception_info.body
-        assert exception == some.dict.containing(
-            {
-                "exceptionId": some.str.such_that(
-                    lambda s: s.endswith("TemplateSyntaxError")
-                ),
-                "breakMode": "always",
-                "description": some.str.such_that(
-                    lambda s: s.find("doesnotexist") > -1
-                ),
-                "details": some.dict.containing(
-                    {
-                        "message": some.str.such_that(
-                            lambda s: s.find("doesnotexist") > -1
-                        ),
-                        "typeName": some.str.such_that(
-                            lambda s: s.endswith("TemplateSyntaxError")
-                        ),
-                    }
-                ),
-            }
-        )
+            resp_exception_info = session.send_request(
+                "exceptionInfo", arguments={"threadId": hit.thread_id}
+            ).wait_for_response()
+            exception = resp_exception_info.body
+            assert exception == some.dict.containing(
+                {
+                    "exceptionId": some.str.such_that(
+                        lambda s: s.endswith("TemplateSyntaxError")
+                    ),
+                    "breakMode": "always",
+                    "description": some.str.such_that(
+                        lambda s: s.find("doesnotexist") > -1
+                    ),
+                    "details": some.dict.containing(
+                        {
+                            "message": some.str.such_that(
+                                lambda s: s.find("doesnotexist") > -1
+                            ),
+                            "typeName": some.str.such_that(
+                                lambda s: s.endswith("TemplateSyntaxError")
+                            ),
+                        }
+                    ),
+                }
+            )
 
-        session.send_request("continue").wait_for_response(freeze=False)
+            session.send_continue()
 
-        # ignore response for exception tests
-        web_request.wait_for_response()
-
-        # shutdown to web server
-        link = base_link + "exit" if base_link.endswith("/") else "/exit"
-        get_web_content(link).wait_for_response()
+            # ignore response for exception tests
+            web_request.wait_for_response()
 
         session.wait_for_exit()
 
@@ -217,64 +187,57 @@ def test_flask_exception_no_multiproc(ex_type, start_method):
 
         session.start_debugging()
 
-        # wait for Flask web server to start
-        wait_for_connection(FLASK_PORT)
-        base_link = FLASK_LINK
-        link = base_link + ex_type if base_link.endswith("/") else ("/" + ex_type)
-        web_request = get_web_content(link, {})
+        with flask_server:
+            web_request = flask_server.get(ex_type)
 
-        thread_stopped = session.wait_for_next(
-            Event("stopped", some.dict.containing({"reason": "exception"}))
-        )
-        assert thread_stopped == Event(
-            "stopped",
-            some.dict.containing(
-                {
-                    "reason": "exception",
-                    "text": some.str.such_that(lambda s: s.endswith("ArithmeticError")),
-                    "description": "Hello",
-                }
-            ),
-        )
+            thread_stopped = session.wait_for_next(
+                Event("stopped", some.dict.containing({"reason": "exception"}))
+            )
+            assert thread_stopped == Event(
+                "stopped",
+                some.dict.containing(
+                    {
+                        "reason": "exception",
+                        "text": some.str.such_that(lambda s: s.endswith("ArithmeticError")),
+                        "description": "Hello",
+                    }
+                ),
+            )
 
-        tid = thread_stopped.body["threadId"]
-        resp_exception_info = session.send_request(
-            "exceptionInfo", arguments={"threadId": tid}
-        ).wait_for_response()
-        exception = resp_exception_info.body
-        assert exception == {
-            "exceptionId": some.str.such_that(lambda s: s.endswith("ArithmeticError")),
-            "breakMode": "always",
-            "description": "Hello",
-            "details": {
-                "message": "Hello",
-                "typeName": some.str.such_that(lambda s: s.endswith("ArithmeticError")),
-                "source": some.path(FLASK1_APP),
-                "stackTrace": some.str.such_that(lambda s: True),
-            },
-        }
+            tid = thread_stopped.body["threadId"]
+            resp_exception_info = session.send_request(
+                "exceptionInfo", arguments={"threadId": tid}
+            ).wait_for_response()
+            exception = resp_exception_info.body
+            assert exception == {
+                "exceptionId": some.str.such_that(lambda s: s.endswith("ArithmeticError")),
+                "breakMode": "always",
+                "description": "Hello",
+                "details": {
+                    "message": "Hello",
+                    "typeName": some.str.such_that(lambda s: s.endswith("ArithmeticError")),
+                    "source": some.path(FLASK1_APP),
+                    "stackTrace": some.str.such_that(lambda s: True),
+                },
+            }
 
-        resp_stacktrace = session.send_request(
-            "stackTrace", arguments={"threadId": tid}
-        ).wait_for_response()
-        assert resp_stacktrace.body["totalFrames"] > 0
-        frames = resp_stacktrace.body["stackFrames"]
-        assert frames[0] == {
-            "id": some.dap_id,
-            "name": "bad_route_" + ex_type,
-            "source": {"sourceReference": some.dap_id, "path": some.path(FLASK1_APP)},
-            "line": ex_line,
-            "column": 1,
-        }
+            resp_stacktrace = session.send_request(
+                "stackTrace", arguments={"threadId": tid}
+            ).wait_for_response()
+            assert resp_stacktrace.body["totalFrames"] > 0
+            frames = resp_stacktrace.body["stackFrames"]
+            assert frames[0] == {
+                "id": some.dap_id,
+                "name": "bad_route_" + ex_type,
+                "source": {"sourceReference": some.dap_id, "path": some.path(FLASK1_APP)},
+                "line": ex_line,
+                "column": 1,
+            }
 
-        session.send_request("continue").wait_for_response(freeze=False)
+            session.send_continue()
 
-        # ignore response for exception tests
-        web_request.wait_for_response()
-
-        # shutdown to web server
-        link = base_link + "exit" if base_link.endswith("/") else "/exit"
-        get_web_content(link).wait_for_response()
+            # ignore response for exception tests
+            web_request.wait_for_response()
 
         session.wait_for_exit()
 
@@ -318,66 +281,47 @@ def test_flask_breakpoint_multiproc(start_method):
             ).wait_for_response()
             child_session.start_debugging()
 
-            # wait for Flask server to start
-            wait_for_connection(FLASK_PORT)
-            web_request = get_web_content(FLASK_LINK, {})
+            with flask_server:
+                web_request = flask_server.get("/")
 
-            thread_stopped = child_session.wait_for_next(
-                Event("stopped", some.dict.containing({"reason": "breakpoint"}))
-            )
-            assert thread_stopped.body["threadId"] is not None
-
-            tid = thread_stopped.body["threadId"]
-
-            resp_stacktrace = child_session.send_request(
-                "stackTrace", arguments={"threadId": tid}
-            ).wait_for_response()
-            assert resp_stacktrace.body["totalFrames"] > 0
-            frames = resp_stacktrace.body["stackFrames"]
-            assert frames[0] == {
-                "id": some.dap_id,
-                "name": "home",
-                "source": {
-                    "sourceReference": some.dap_id,
-                    "path": some.path(FLASK1_APP),
-                },
-                "line": bp_line,
-                "column": 1,
-            }
-
-            fid = frames[0]["id"]
-            resp_scopes = child_session.send_request(
-                "scopes", arguments={"frameId": fid}
-            ).wait_for_response()
-            scopes = resp_scopes.body["scopes"]
-            assert len(scopes) > 0
-
-            resp_variables = child_session.send_request(
-                "variables",
-                arguments={"variablesReference": scopes[0]["variablesReference"]},
-            ).wait_for_response()
-            variables = [
-                v for v in resp_variables.body["variables"] if v["name"] == "content"
-            ]
-            assert variables == [
-                {
-                    "name": "content",
-                    "type": "str",
-                    "value": repr(bp_var_content),
-                    "presentationHint": {"attributes": ["rawString"]},
-                    "evaluateName": "content",
-                    "variablesReference": 0,
+                hit = child_session.wait_for_stop(reason="breakpoint")
+                assert hit.frames[0] == {
+                    "id": some.dap_id,
+                    "name": "home",
+                    "source": {
+                        "sourceReference": some.dap_id,
+                        "path": some.path(FLASK1_APP),
+                    },
+                    "line": bp_line,
+                    "column": 1,
                 }
-            ]
 
-            child_session.send_request("continue").wait_for_response(freeze=False)
+                resp_scopes = child_session.send_request(
+                    "scopes", arguments={"frameId": hit.frames_id}
+                ).wait_for_response()
+                scopes = resp_scopes.body["scopes"]
+                assert len(scopes) > 0
 
-            web_content = web_request.wait_for_response()
-            assert web_content.find(bp_var_content) != -1
+                resp_variables = child_session.send_request(
+                    "variables",
+                    arguments={"variablesReference": scopes[0]["variablesReference"]},
+                ).wait_for_response()
+                variables = [
+                    v for v in resp_variables.body["variables"] if v["name"] == "content"
+                ]
+                assert variables == [
+                    {
+                        "name": "content",
+                        "type": "str",
+                        "value": repr(bp_var_content),
+                        "presentationHint": {"attributes": ["rawString"]},
+                        "evaluateName": "content",
+                        "variablesReference": 0,
+                    }
+                ]
 
-            # shutdown to web server
-            link = FLASK_LINK + "exit"
-            get_web_content(link).wait_for_response()
+                child_session.send_continue()
+                assert bp_var_content in web_request.response_text()
 
             child_session.wait_for_termination()
             parent_session.wait_for_exit()

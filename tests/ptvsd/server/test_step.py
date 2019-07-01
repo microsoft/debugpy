@@ -36,9 +36,8 @@ def test_set_next_statement(pyfile, start_method, run_as):
         session.set_breakpoints(code_to_debug, [line_numbers["inner1"]])
         session.start_debugging()
 
-        stop = session.wait_for_thread_stopped()
-        frames = stop.stacktrace.body["stackFrames"]
-        line = frames[0]["line"]
+        hit = session.wait_for_stop()
+        line = hit.frames[0]["line"]
         assert line == line_numbers["inner1"]
 
         targets = (
@@ -57,7 +56,7 @@ def test_set_next_statement(pyfile, start_method, run_as):
 
         with pytest.raises(Exception):
             session.send_request(
-                "goto", {"threadId": stop.thread_id, "targetId": outer3_target}
+                "goto", {"threadId": hit.thread_id, "targetId": outer3_target}
             ).wait_for_response()
 
         targets = (
@@ -75,14 +74,13 @@ def test_set_next_statement(pyfile, start_method, run_as):
         inner2_target = targets[0]["id"]
 
         session.send_request(
-            "goto", {"threadId": stop.thread_id, "targetId": inner2_target}
+            "goto", {"threadId": hit.thread_id, "targetId": inner2_target}
         ).wait_for_response()
 
         session.wait_for_next(Event("continued"))
 
-        stop = session.wait_for_thread_stopped(reason="goto")
-        frames = stop.stacktrace.body["stackFrames"]
-        line = frames[0]["line"]
+        hit = session.wait_for_stop(reason="goto")
+        line = hit.frames[0]["line"]
         assert line == line_numbers["inner2"]
 
         session.send_request("continue").wait_for_response()

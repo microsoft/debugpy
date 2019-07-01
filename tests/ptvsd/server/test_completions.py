@@ -8,7 +8,6 @@ import pytest
 
 from ptvsd.common import messaging
 from tests import debug
-from tests.patterns import some
 from tests.timeline import Event
 
 
@@ -64,26 +63,13 @@ def test_completions_scope(pyfile, bp_label, start_method, run_as):
         session.set_breakpoints(code_to_debug, [code_to_debug.lines[bp_label]])
         session.start_debugging()
 
-        thread_stopped = session.wait_for_next(
-            Event("stopped", some.dict.containing({"reason": "breakpoint"}))
-        )
-        assert thread_stopped.body["threadId"] is not None
-        tid = thread_stopped.body["threadId"]
-
-        resp_stacktrace = session.send_request(
-            "stackTrace", arguments={"threadId": tid}
-        ).wait_for_response()
-        assert resp_stacktrace.body["totalFrames"] > 0
-        frames = resp_stacktrace.body["stackFrames"]
-        assert len(frames) > 0
-
-        fid = frames[0]["id"]
+        hit = session.wait_for_stop(reason="breakpoint")
         resp_completions = session.send_request(
-            "completions", arguments={"text": "some", "frameId": fid, "column": 5}
+            "completions", arguments={"text": "some", "frameId": hit.frame_id, "column": 5}
         ).wait_for_response()
         targets = resp_completions.body["targets"]
 
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.send_continue()
 
         targets.sort(key=lambda t: t["label"])
         expected.sort(key=lambda t: t["label"])
@@ -106,7 +92,7 @@ def test_completions_cases(pyfile, start_method, run_as):
         session.initialize(target=(run_as, code_to_debug), start_method=start_method)
         session.set_breakpoints(code_to_debug, [code_to_debug.lines["break"]])
         session.start_debugging()
-        hit = session.wait_for_thread_stopped()
+        hit = session.wait_for_stop()
 
         response = session.send_request(
             "completions",
@@ -150,5 +136,5 @@ def test_completions_cases(pyfile, start_method, run_as):
             ).wait_for_response()
         assert "Wrong ID sent from the client:" in str(error)
 
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.send_continue()
         session.wait_for_exit()

@@ -32,29 +32,20 @@ def test_stop_on_entry(pyfile, start_method, run_as, with_bp):
         session.start_debugging()
 
         if bool(with_bp):
-            thread_stopped, resp_stacktrace, thread_id, _ = session.wait_for_thread_stopped(
-                reason="breakpoint"
-            )
-            frames = resp_stacktrace.body["stackFrames"]
-            assert frames[0]["line"] == 1
-            assert frames[0]["source"]["path"] == some.path(code_to_debug)
+            hit = session.wait_for_stop(reason="breakpoint")
+            assert hit.frames[0]["line"] == 1
+            assert hit.frames[0]["source"]["path"] == some.path(code_to_debug)
 
-            session.send_request("next", {"threadId": thread_id}).wait_for_response()
-            thread_stopped, resp_stacktrace, thread_id, _ = session.wait_for_thread_stopped(
-                reason="step"
-            )
-            frames = resp_stacktrace.body["stackFrames"]
-            assert frames[0]["line"] == 3
-            assert frames[0]["source"]["path"] == some.path(code_to_debug)
+            session.send_request("next", {"threadId": hit.thread_id}).wait_for_response()
+            hit = session.wait_for_stop(reason="step")
+            assert hit.frames[0]["line"] == 3
+            assert hit.frames[0]["source"]["path"] == some.path(code_to_debug)
         else:
-            thread_stopped, resp_stacktrace, tid, _ = session.wait_for_thread_stopped(
-                reason="entry"
-            )
-            frames = resp_stacktrace.body["stackFrames"]
-            assert frames[0]["line"] == 1
-            assert frames[0]["source"]["path"] == some.path(code_to_debug)
+            hit = session.wait_for_stop(reason="entry")
+            assert hit.frames[0]["line"] == 1
+            assert hit.frames[0]["source"]["path"] == some.path(code_to_debug)
 
-        session.send_request("continue").wait_for_response(freeze=False)
+        session.send_continue()
         session.wait_for_termination()
 
         assert session.read_json() == "done"

@@ -31,9 +31,8 @@ def test_justmycode_frames(pyfile, start_method, run_as, jmc):
         actual_bps = [bp["line"] for bp in actual_bps]
         session.start_debugging()
 
-        hit = session.wait_for_thread_stopped()
-        frames = hit.stacktrace.body["stackFrames"]
-        assert frames[0] == some.dict.containing(
+        hit = session.wait_for_stop()
+        assert hit.frames[0] == some.dict.containing(
             {
                 "line": bp_line,
                 "source": some.dict.containing({"path": some.path(code_to_debug)}),
@@ -41,23 +40,22 @@ def test_justmycode_frames(pyfile, start_method, run_as, jmc):
         )
 
         if jmc == "jmcOn":
-            assert len(frames) == 1
+            assert len(hit.frames) == 1
             session.send_request(
                 "stepIn", {"threadId": hit.thread_id}
             ).wait_for_response()
             # 'step' should terminate the debuggee
         else:
-            assert len(frames) >= 1
+            assert len(hit.frames) >= 1
             session.send_request(
                 "stepIn", {"threadId": hit.thread_id}
             ).wait_for_response()
 
             # 'step' should enter stdlib
-            hit2 = session.wait_for_thread_stopped()
-            frames2 = hit2.stacktrace.body["stackFrames"]
-            assert frames2[0]["source"]["path"] != some.path(code_to_debug)
+            hit2 = session.wait_for_stop()
+            assert hit2.frames[0]["source"]["path"] != some.path(code_to_debug)
 
             # 'continue' should terminate the debuggee
-            session.send_request("continue").wait_for_response(freeze=False)
+            session.send_continue()
 
         session.wait_for_exit()
