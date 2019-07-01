@@ -14,7 +14,7 @@ from _pydevd_bundle.pydevd_comm_constants import CMD_THREAD_CREATE, CMD_RETURN, 
     CMD_WRITE_TO_CONSOLE, CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE, \
     CMD_STEP_RETURN, CMD_STEP_CAUGHT_EXCEPTION, CMD_ADD_EXCEPTION_BREAK, CMD_SET_BREAK, \
     CMD_SET_NEXT_STATEMENT, CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION, \
-    CMD_THREAD_RESUME_SINGLE_NOTIFICATION, CMD_THREAD_KILL
+    CMD_THREAD_RESUME_SINGLE_NOTIFICATION, CMD_THREAD_KILL, CMD_INPUT_REQUESTED
 from _pydevd_bundle.pydevd_constants import get_thread_id, dict_values
 from _pydevd_bundle.pydevd_net_command import NetCommand, NULL_NET_COMMAND
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
@@ -344,3 +344,7 @@ class NetCommandFactoryJson(NetCommandFactory):
     def make_thread_run_message(self, *args, **kwargs):
         return NULL_NET_COMMAND  # Not a part of the debug adapter protocol
 
+    @overrides(NetCommandFactory.make_input_requested_message)
+    def make_input_requested_message(self, started):
+        event = pydevd_schema.PydevdInputEvent(body={})
+        return NetCommand(CMD_INPUT_REQUESTED, 0, event, is_json=True)

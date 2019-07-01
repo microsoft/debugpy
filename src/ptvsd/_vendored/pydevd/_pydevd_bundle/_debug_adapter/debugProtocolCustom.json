@@ -20,7 +20,7 @@
 						"$ref": "#/definitions/SetDebuggerPropertyArguments"
 					}
 				},
-				"required": [ "command", "arguments"  ]
+				"required": [ "command", "arguments" ]
 			}]
 		},
 		"SetDebuggerPropertyArguments": {
@@ -58,7 +58,21 @@
 				"type": "object",
 				"description": "Response to 'setDebuggerProperty' request. This is just an acknowledgement, so no body field is required."
 			}]
+		},
+
+		"PydevdInputRequestedEvent": {
+			"allOf": [ { "$ref": "#/definitions/Event" }, {
+				"type": "object",
+				"description": "The event indicates input was requested by debuggee.",
+				"properties": {
+					"event": {
+						"type": "string",
+						"enum": [ "pydevdInputRequested" ]
+					}
+				},
+				"required": [ "event" ]
+			}]
 		}
 
-    }
+	}
 }

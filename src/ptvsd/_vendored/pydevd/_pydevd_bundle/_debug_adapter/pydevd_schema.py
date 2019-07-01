@@ -12490,6 +12490,79 @@ class SetDebuggerPropertyResponse(BaseSchema):
         return dct
 
 
+@register_event('pydevdInputRequested')
+@register
+class PydevdInputRequestedEvent(BaseSchema):
+    """
+    The event indicates input was requested by debuggee.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "seq": {
+            "type": "integer",
+            "description": "Sequence number."
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "event"
+            ]
+        },
+        "event": {
+            "type": "string",
+            "enum": [
+                "pydevdInputRequested"
+            ]
+        },
+        "body": {
+            "type": [
+                "array",
+                "boolean",
+                "integer",
+                "null",
+                "number",
+                "object",
+                "string"
+            ],
+            "description": "Event-specific information."
+        }
+    }
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, seq=-1, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string type: 
+        :param string event: 
+        :param integer seq: Sequence number.
+        :param ['array', 'boolean', 'integer', 'null', 'number', 'object', 'string'] body: Event-specific information.
+        """
+        self.type = 'event'
+        self.event = 'pydevdInputRequested'
+        self.seq = seq
+        self.body = body
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        event = self.event
+        seq = self.seq
+        body = self.body
+        dct = {
+            'type': type,
+            'event': event,
+            'seq': seq,
+        }
+        if body is not None:
+            dct['body'] = body
+        dct.update(self.kwargs)
+        return dct
+
+
 @register
 class ErrorResponseBody(BaseSchema):
     """
