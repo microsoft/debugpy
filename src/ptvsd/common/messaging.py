@@ -11,6 +11,7 @@ responses, and events.
 https://microsoft.github.io/debug-adapter-protocol/overview#base-protocol
 """
 
+import collections
 import contextlib
 import inspect
 import itertools
@@ -55,8 +56,7 @@ class JsonIOStream(object):
     def from_socket(cls, socket, name=None):
         """Creates a new instance that sends and receives messages over a socket.
         """
-        if socket.gettimeout() is not None:
-            raise ValueError("Socket must be in blocking mode")
+        socket.settimeout(None)  # make socket blocking
         if name is None:
             name = repr(socket)
         socket_io = socket.makefile("rwb", 0)
@@ -95,10 +95,10 @@ class JsonIOStream(object):
         while True:
             try:
                 line += self._reader.readline()
-            except Exception:
-                raise EOFError
+            except Exception as ex:
+                raise EOFError(str(ex))
             if not line:
-                raise EOFError
+                raise EOFError("No more data")
             if line.endswith(b"\r\n"):
                 line = line[0:-2]
                 return line
@@ -112,16 +112,45 @@ class JsonIOStream(object):
 
         decoder = decoder if decoder is not None else json.JSONDecoder()
 
-        # Parse the message, and try to log any failures using as much information
-        # as we already have at the point of the failure. For example, if it fails
-        # after decoding during JSON parsing, log as a Unicode string, rather than
-        # a bytestring.
+        # If any error occurs while reading and parsing the message, log the original
+        # raw message data as is, so that it's possible to diagnose missing or invalid
+        # headers, encoding issues, JSON syntax errors etc.
+        def log_message_and_exception(format_string="", *args, **kwargs):
+            if format_string:
+                format_string += "\n\n"
+            format_string += "{name} -->\n{raw_lines}"
 
+            raw_lines = b"".join(raw_chunks).split(b"\n")
+            raw_lines = "\n".join(repr(line) for line in raw_lines)
+
+            return log.exception(
+                format_string,
+                *args,
+                name=self.name,
+                raw_lines=raw_lines,
+                **kwargs
+            )
+
+        raw_chunks = []
         headers = {}
+
         while True:
-            line = self._read_line()
+            try:
+                line = self._read_line()
+            except Exception:
+                # Only log it if we have already read some headers, and are looking
+                # for a blank line terminating them. If this is the very first read,
+                # there's no message data to log in any case, and the caller might
+                # be anticipating the error - e.g. EOFError on disconnect.
+                if headers:
+                    raise log_message_and_exception("Error while reading message headers:")
+                else:
+                    raise
+
+            raw_chunks += [line, b"\n"]
             if line == b"":
                 break
+
             key, _, value = line.partition(b":")
             headers[key] = value
 
@@ -130,31 +159,41 @@ class JsonIOStream(object):
             if not (0 <= length <= self.MAX_BODY_SIZE):
                 raise ValueError
         except (KeyError, ValueError):
-            log.exception("{0} --> {1}", self.name, headers)
-            raise IOError("Content-Length is missing or invalid")
+            try:
+                raise IOError("Content-Length is missing or invalid:")
+            except Exception:
+                raise log_message_and_exception()
 
-        try:
-            body = b""
-            while length > 0:
-                chunk = self._reader.read(length)
-                body += chunk
-                length -= len(chunk)
-        except Exception:
-            if self._is_closing:
-                raise EOFError
-            else:
-                raise
+        body_start = len(raw_chunks)
+        body_remaining = length
+        while body_remaining > 0:
+            try:
+                chunk = self._reader.read(body_remaining)
+            except Exception:
+                if self._is_closing:
+                    raise EOFError
+                else:
+                    raise log_message_and_exception(
+                        "Couldn't read the expected {0} bytes of body:",
+                        length,
+                    )
 
+            raw_chunks.append(chunk)
+            body_remaining -= len(chunk)
+        assert body_remaining == 0
+
+        body = b"".join(raw_chunks[body_start:])
         try:
             body = body.decode("utf-8")
         except Exception:
-            raise log.exception("{0} --> {1}", self.name, body)
+            raise log_message_and_exception()
 
         try:
             body = decoder.decode(body)
         except Exception:
-            raise log.exception("{0} --> {1}", self.name, body)
+            raise log_message_and_exception()
 
+        # If parsed successfully, log as JSON for readability.
         log.debug("{0} --> {1!j}", self.name, body)
         return body
 
@@ -192,7 +231,7 @@ class JsonIOStream(object):
         return fmt("{0}({1!r})", type(self).__name__, self.name)
 
 
-class MessageDict(dict):
+class MessageDict(collections.OrderedDict):
     """A specialized dict that is used for JSON message payloads - Request.arguments,
     Response.body, and Event.body.
 
@@ -210,13 +249,13 @@ class MessageDict(dict):
     such guarantee for outgoing messages.
     """
 
-    def __init__(self, message, mapping=None):
+    def __init__(self, message, items=None):
         assert message is None or isinstance(message, Message)
 
-        if mapping is None:
+        if items is None:
             super(MessageDict, self).__init__()
         else:
-            super(MessageDict, self).__init__(mapping)
+            super(MessageDict, self).__init__(items)
 
         self.message = message
         """The Message object that owns this dict. If None, then MessageDict behaves
@@ -239,9 +278,9 @@ class MessageDict(dict):
 
         return wrap
 
-    __getitem__ = _invalid_if_no_key(dict.__getitem__)
-    __delitem__ = _invalid_if_no_key(dict.__delitem__)
-    pop = _invalid_if_no_key(dict.pop)
+    __getitem__ = _invalid_if_no_key(collections.OrderedDict.__getitem__)
+    __delitem__ = _invalid_if_no_key(collections.OrderedDict.__delitem__)
+    pop = _invalid_if_no_key(collections.OrderedDict.pop)
 
     del _invalid_if_no_key
 
@@ -656,6 +695,31 @@ class JsonMessageChannel(object):
         """
         self._worker.join()
 
+    @staticmethod
+    def _prettify(message_dict):
+        """Reorders items in a MessageDict such that it is more readable.
+        """
+        # https://microsoft.github.io/debug-adapter-protocol/specification
+        keys = (
+            "seq",
+            "type",
+            "request_seq",
+            "success",
+            "command",
+            "event",
+            "message",
+            "arguments",
+            "body",
+            "error",
+        )
+        for key in keys:
+            try:
+                value = message_dict[key]
+            except KeyError:
+                continue
+            del message_dict[key]
+            message_dict[key] = value
+
     @contextlib.contextmanager
     def _send_message(self, message):
         """Sends a new message to the other party.
@@ -674,7 +738,10 @@ class JsonMessageChannel(object):
         assert "seq" not in message
         with self:
             seq = next(self._seq_iter)
+
+        message = MessageDict(None, message)
         message["seq"] = seq
+        self._prettify(message)
 
         with self:
             yield seq
@@ -1057,6 +1124,8 @@ class JsonMessageChannel(object):
         # the Message they belong to, once it is instantiated.
         def object_hook(d):
             d = MessageDict(None, d)
+            if "seq" in d:
+                self._prettify(d)
             d.associate_with = associate_with
             message_dicts.append(d)
             return d
@@ -1082,20 +1151,23 @@ class JsonMessageChannel(object):
 
         try:
             return self.on_message(message)
+        except EOFError:
+            raise
         except Exception:
-            log.exception(
+            raise log.exception(
                 "Fatal error while processing message for {0}:\n\n{1!r}",
                 self.name,
                 message,
             )
-            raise
 
     def _process_incoming_messages(self):
         try:
+            log.debug("Starting message loop for {0}", self.name)
             while True:
                 try:
                     self._process_incoming_message()
-                except EOFError:
+                except EOFError as ex:
+                    log.debug("Exiting message loop for {0}: {1}", self.name, str(ex))
                     return False
         finally:
             try:

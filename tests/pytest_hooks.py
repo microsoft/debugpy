@@ -14,7 +14,32 @@ import sys
 import sysconfig
 import threading  # noqa
 
-from ptvsd.common import fmt, log, timestamp
+from ptvsd.common import fmt, log
+from tests import debug, pydevd_log
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--ptvsd-logs",
+        action="store_true",
+        help="Write ptvsd logs to {rootdir}/tests/_logs/",
+    )
+    parser.addoption(
+        "--pydevd-logs",
+        action="store_true",
+        help="Write pydevd logs to {rootdir}/tests/_logs/",
+    )
+
+
+def pytest_configure(config):
+    log_dir = config.rootdir / "tests" / "_logs"
+    if config.option.ptvsd_logs:
+        log.info("ptvsd logs will be in {0}", log_dir)
+        debug.PTVSD_ENV["PTVSD_LOG_DIR"] = str(log_dir)
+    if config.option.pydevd_logs:
+        log.info("pydevd logs will be in {0}", log_dir)
+        debug.PTVSD_ENV["PYDEVD_DEBUG"] = "True"
+        debug.PTVSD_ENV["PYDEVD_DEBUG_FILE"] = str(log_dir / "pydevd.log")
 
 
 def pytest_report_header(config):
@@ -82,39 +107,8 @@ def pytest_runtest_makereport(item, call):
     setattr(item, result.when + '_result', result)
 
 
-@pytest.hookimpl(hookwrapper=True, tryfirst=True)
-def pytest_pyfunc_call(pyfuncitem):
-    # Resets the timestamp to zero for every new test.
-    timestamp.reset()
-    yield
-
-
 # If a test times out and pytest tries to print the stacks of where it was hanging,
 # we want to print the pydevd log as well. This is not a normal pytest hook - we
 # just detour pytest_timeout.dump_stacks directly.
-
-def print_pydevd_log(what):
-    assert what
-
-    pydevd_debug_file = os.environ.get('PYDEVD_DEBUG_FILE')
-    if not pydevd_debug_file:
-        return
-
-    try:
-        f = open(pydevd_debug_file)
-    except Exception:
-        print('Test {0}, but no ptvsd log found'.format(what))
-        return
-
-    with f:
-        print('Test {0}; dumping pydevd log:'.format(what))
-        print(f.read())
-
-
-def dump_stacks_and_print_pydevd_log():
-    print_pydevd_log('timed out')
-    dump_stacks()
-
-
-dump_stacks = pytest_timeout.dump_stacks
-pytest_timeout.dump_stacks = dump_stacks_and_print_pydevd_log
+_dump_stacks = pytest_timeout.dump_stacks
+pytest_timeout.dump_stacks = lambda: (_dump_stacks(), pydevd_log.dump("timed out"))

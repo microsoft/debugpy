@@ -26,6 +26,10 @@ from tests.timeline import Timeline, Event, Response
 PTVSD_DIR = py.path.local(ptvsd.__file__) / ".."
 PTVSD_PORT = net.get_test_server_port(5678, 5800)
 
+# Added to the environment variables of every new debug.Session - after copying
+# os.environ(), but before setting any session-specific variables.
+PTVSD_ENV = {
+}
 
 # Code that is injected into the debuggee process when it does `import debug_me`,
 # and start_method is attach_socket_*
@@ -73,6 +77,7 @@ class Session(object):
         self.log_dir = None
 
         self.env = os.environ.copy()
+        self.env.update(PTVSD_ENV)
         self.env['PYTHONPATH'] = str(test_data / "_PYTHONPATH")
         self.env['PTVSD_SESSION_ID'] = str(self.id)
 
@@ -109,6 +114,9 @@ class Session(object):
         self.all_occurrences_of = self.timeline.all_occurrences_of
         self.observe_all = self.timeline.observe_all
 
+    def __str__(self):
+        return fmt("ptvsd-{0}", self.id)
+
     def __enter__(self):
         return self
 
@@ -140,9 +148,6 @@ class Session(object):
     @ignore_unobserved.setter
     def ignore_unobserved(self, value):
         self.timeline.ignore_unobserved = value
-
-    def __str__(self):
-        return fmt("ptvsd-{0}", self.id)
 
     def close(self):
         if self.socket:
@@ -349,30 +354,33 @@ class Session(object):
             self.backchannel.listen()
             self.env['PTVSD_BACKCHANNEL_PORT'] = str(self.backchannel.port)
 
+        # Force env to use str everywhere - this is needed for Python 2.7 on Windows.
+        env = {str(k): str(v) for k, v in self.env.items()}
+
+        env_str = "\n".join((
+            fmt("{0}={1}", env_name, env[env_name])
+            for env_name in sorted(self.env.keys())
+        ))
         log.info(
-            '{6} will have:\n\n'
-            'ptvsd: {0}\n'
-            'port: {7}\n'
-            'start method: {1}\n'
-            'target: ({2}) {3}\n'
-            'current directory: {4}\n'
-            'PYTHONPATH: {5}',
+            '{0} will have:\n\n'
+            'ptvsd: {1}\n'
+            'port: {2}\n'
+            'start method: {3}\n'
+            'target: ({4}) {5}\n'
+            'current directory: {6}\n'
+            'environment variables:\n\n{7}',
+            self,
             py.path.local(ptvsd.__file__).dirpath(),
+            self.ptvsd_port,
             self.start_method,
             self.target[0],
             self.target[1],
             self.cwd,
-            self.env['PYTHONPATH'],
-            self,
-            self.ptvsd_port,
+            env_str,
         )
 
         spawn_args = usr_argv if self.start_method == 'attach_pid' else dbg_argv
-        log.info('Spawning {0}: {1!r}', self, spawn_args)
-
-        # Force env to use str everywhere - this is needed for Python 2.7 on Windows.
-        env = {str(k): str(v) for k, v in self.env.items()}
-
+        log.info('Spawning {0}: {1!j}', self, spawn_args)
         self.process = subprocess.Popen(
             spawn_args,
             env=env,
@@ -615,6 +623,15 @@ class Session(object):
 
     def _process_event(self, event):
         self.timeline.record_event(event.event, event.body, block=False)
+        if event.event == "terminated":
+            # Stop the message loop, since the ptvsd is going to close the connection
+            # from its end shortly after sending this event, and no further messages
+            # are expected.
+            log.info(
+                'Received "terminated" event from {0}; stopping message processing.',
+                self,
+            )
+            raise EOFError(fmt("{0} terminated", self))
 
     def _process_response(self, request_occ, response):
         self.timeline.record_response(request_occ, response.body, block=False)

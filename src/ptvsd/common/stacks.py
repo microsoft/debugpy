@@ -12,13 +12,12 @@ import sys
 import time
 import threading
 import traceback
-import pytest_timeout
 
 from ptvsd.common import log
 
 
 def dump():
-    """Dump the stacks of all threads except the current thread.
+    """Dump stacks of all threads in this process, except for the current thread.
     """
 
     tid = threading.current_thread().ident
@@ -53,14 +52,14 @@ def dump():
 
 def dump_after(secs):
     """Invokes dump() on a background thread after waiting for the specified time.
-
-    Can be called from debugged code before the point after which it hangs,
-    to determine the cause of the hang when debugging a test.
     """
 
     def dumper():
         time.sleep(secs)
-        pytest_timeout.dump_stacks()
+        try:
+            dump()
+        except:
+            log.exception()
 
     thread = threading.Thread(target=dumper)
     thread.daemon = True

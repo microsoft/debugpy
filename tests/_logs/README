@@ -1,0 +1,13 @@
+Pass --ptvsd-logs and/or --pydevd-logs to pytest to create log files here for a run.
+For example:
+
+    tox -e py37 -- --ptvsd-logs "tests/ptvsd/server/test_run.py::test_run[launch-file]"
+
+A separate ptvsd-{pid}.log file will be created for every ptvsd process spawned by
+the tests. However, because process IDs are reused by OS, logs may end up overwriting
+earlier logs.
+
+All pydevd logs go into the same file named pydevd.log - and subsequent tests will
+overwrite earlier logs.
+
+Thus, it is best to use this when running a single test, or a small number of tests.

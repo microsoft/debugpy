@@ -7,16 +7,19 @@ from __future__ import absolute_import, print_function, unicode_literals
 import contextlib
 import os
 
+from ptvsd.common import log
+
 
 @contextlib.contextmanager
 def enabled(filename):
     os.environ['PYDEVD_DEBUG'] = 'True'
     os.environ['PYDEVD_DEBUG_FILE'] = filename
-
-    yield
-
-    del os.environ['PYDEVD_DEBUG']
-    del os.environ['PYDEVD_DEBUG_FILE']
+    log.debug("pydevd log will be at {0}", filename)
+    try:
+        yield
+    finally:
+        del os.environ['PYDEVD_DEBUG']
+        del os.environ['PYDEVD_DEBUG_FILE']
 
 
 def dump(why):
@@ -28,10 +31,10 @@ def dump(why):
 
     try:
         f = open(pydevd_debug_file)
+        with f:
+            pydevd_log = f.read()
     except Exception:
-        print('Test {0}, but no ptvsd log found'.format(why))
+        log.exception("Test {0}, but pydevd log {1} could not be retrieved.", why, pydevd_debug_file)
         return
 
-    with f:
-        print('Test {0}; dumping pydevd log:'.format(why))
-        print(f.read())
+    log.info("Test {0}; pydevd log:\n\n{1}", why, pydevd_log)

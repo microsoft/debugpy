@@ -24,6 +24,7 @@ import os
 
 # Needs to be set before backchannel can set things up.
 session_id = int(os.getenv('PTVSD_SESSION_ID'))
+name = "ptvsd-" + str(session_id)
 
 # For `from debug_me import ...`.
 import backchannel  # noqa

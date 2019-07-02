@@ -18,12 +18,14 @@ import sys
 assert "debug_me" in sys.modules
 import debug_me
 
-from ptvsd.common import fmt, messaging
+from ptvsd.common import fmt, log, messaging
 
 
+name = fmt("backchannel-{0}", debug_me.session_id)
 port = int(os.getenv('PTVSD_BACKCHANNEL_PORT', 0))
+
 if port:
-    print(fmt('Connecting backchannel-{0} to port {1}...', debug_me.session_id, port))
+    log.info('Connecting {0} to port {1}...', name, port)
 
     _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     _socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -35,8 +37,13 @@ if port:
 
     @atexit.register
     def _atexit_handler():
-        print(fmt('Shutting down backchannel-{0}...', debug_me.session_id))
+        log.info('Shutting down {0}...', name)
         try:
             _socket.shutdown(socket.SHUT_RDWR)
         except Exception:
             pass
+        finally:
+            try:
+                _socket.close()
+            except Exception:
+                pass

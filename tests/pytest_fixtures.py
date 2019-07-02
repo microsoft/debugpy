@@ -12,6 +12,7 @@ import tempfile
 import threading
 import types
 
+from ptvsd.common import timestamp
 from tests import code, pydevd_log
 
 __all__ = ['run_as', 'start_method', 'with_pydevd_log', 'daemon', 'pyfile']
@@ -39,6 +40,13 @@ def run_as(request):
 @pytest.fixture(params=START_METHODS)
 def start_method(request):
     return request.param
+
+
+@pytest.fixture(autouse=True)
+def reset_timestamp(request):
+    timestamp.reset()
+    print("\n")  # make sure logs start on a new line
+    yield
 
 
 @pytest.fixture(autouse=True)
