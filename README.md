@@ -74,15 +74,25 @@ while True:
 ```json5
 {
     "debugOptions":  [
-            "RedirectOutput",       // Whether to redirect stdout and stderr (see pydevd_comm.CMD_REDIRECT_OUTPUT)
-            "WaitOnNormalExit",     // Wait for user input after user code exits normally
-            "WaitOnAbnormalExit",   // Wait for user input after user code exits with error
-            "Django",               // Enables Django Template debugging
-            "Jinja",                // Enables Jinja (Flask) Template debugging
-            "FixFilePathCase",      // See FIX_FILE_PATH_CASE in wrapper.py
-            "DebugStdLib",          // Whether to enable debugging of standard library functions
-            "StopOnEntry",          // Whether to stop at first line of user code
-            "ShowReturnValue",      // Show return values of functions
+            "RedirectOutput",        // Whether to redirect stdout and stderr (see pydevd_comm.CMD_REDIRECT_OUTPUT)
+            "WaitOnNormalExit",      // Wait for user input after user code exits normally
+            "WaitOnAbnormalExit",    // Wait for user input after user code exits with error
+            "BreakOnSystemExitZero", // Trigger exception break on SystemExit exception even when exitcode is 0
+            "Django",                // Enables Django Template debugging
+            "Flask",                 // Enables Jinja2 (Flask) Template debugging
+            "Jinja",                 // Enables Jinja2 (Flask) Template debugging
+            "FixFilePathCase",       // See FIX_FILE_PATH_CASE in wrapper.py
+            "DebugStdLib",           // Whether to enable debugging of standard library functions
+            "StopOnEntry",           // Whether to stop at first line of user code
+            "ShowReturnValue",       // Show return values of functions
+            "Multiprocess",          // Enable multiprocess debugging
+    ],
+    "pathMappings": [
+        {
+            "localRoot": "C:\\Project\\src",   // Local root  (where source and debugger running)
+            "remoteRoot": "/home/smith/proj"   // Remote root (where remote code is running)
+        },
+        // Add more path mappings
     ]
 }
 ```
@@ -93,12 +103,14 @@ while True:
     "debugOptions":  [
             "RedirectOutput",       // Whether to redirect stdout and stderr (see pydevd_comm.CMD_REDIRECT_OUTPUT)
             "Django",               // Enables Django Template debugging
+            "Flask",                // Enables Jinja2 (Flask) Template debugging
             "Jinja",                // Enables Jinja (Flask) Template debugging
             "FixFilePathCase",      // See FIX_FILE_PATH_CASE in wrapper.py
             "DebugStdLib",          // Whether to enable debugging of standard library functions
             "WindowsClient",        // Whether client OS is Windows
             "UnixClient",           // Whether client OS is Unix
             "ShowReturnValue",      // Show return values of functions
+            "Multiprocess",         // Enable multiprocess debugging
     ],
     "pathMappings": [
         {
@@ -125,4 +137,3 @@ ptvsd.enable_attach(log_dir='path/to/logs')
 In both cases, the environment variable `PTVSD_LOG_DIR` can also be set to the same effect.
 
 When logging is enabled, ptvsd will create a log file with a name `ptvsd-<pid>.log` in the specified directory, where `<pid>` is the ID of the process being debugged. When subprocess debugging is enabled, a separate log is created for every subprocess.
-
