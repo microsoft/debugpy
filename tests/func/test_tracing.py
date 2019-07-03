@@ -11,6 +11,7 @@ from tests.helpers.pattern import ANY
 
 
 def test_tracing(pyfile, start_method, run_as):
+
     @pyfile
     def code_to_debug():
         from dbgimporter import import_and_enable_debugger
@@ -61,7 +62,7 @@ def test_tracing(pyfile, start_method, run_as):
             target=(run_as, code_to_debug),
             start_method=start_method,
             ignore_unobserved=[Event('continued')],
-            env={'PTVSD_USE_CONTINUED': '1'},
+            client_id='vscode',
         )
 
         session.set_breakpoints(code_to_debug, line_numbers.values())

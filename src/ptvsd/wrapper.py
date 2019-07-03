@@ -665,6 +665,7 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
         # https://github.com/Microsoft/VSDebugAdapterHost/wiki/Differences-between-Visual-Studio-Code-and-the-Visual-Studio-Debug-Adapter-Host # noqa
         # VS expects a single stopped event in a multi-threaded scenario.
         self._client_id = None
+        self._initialize_received = False
 
         # adapter state
         self.start_reason = None
@@ -730,6 +731,7 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
     def on_initialize(self, request, args):
         self._client_id = args.get('clientID', None)
         self._restart_debugger = False
+        self._initialize_received = True
         self.send_response(request, **INITIALIZE_RESPONSE)
         self.send_event('initialized')
 
@@ -1312,10 +1314,17 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     @pydevd_events.handler(pydevd_comm_constants.CMD_THREAD_RESUME_SINGLE_NOTIFICATION)
     def on_pydevd_thread_resume_single_notification(self, seq, args):
-        tid = args['body']['threadId']
-
-        if os.getenv('PTVSD_USE_CONTINUED'):
-            self.send_event('continued', threadId=tid)
+        if not self._initialize_received:
+            return  # This may happen when we disconnect and later reconnect too fast.
+        body = args['body']
+        if self._client_id not in ('visualstudio', 'vsformac'):
+            # In visual studio any step/continue action already marks all the
+            # threads as running until a suspend, so, the continued is not
+            # needed (and can in fact break the UI in some cases -- see:
+            # https://github.com/microsoft/ptvsd/issues/1358).
+            # It is however needed in vscode -- see:
+            # https://github.com/microsoft/ptvsd/issues/1530.
+            self.send_event('continued', **body)
 
     @pydevd_events.handler(pydevd_comm.CMD_WRITE_TO_CONSOLE)
     def on_pydevd_cmd_write_to_console2(self, seq, args):

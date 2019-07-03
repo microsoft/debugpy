@@ -45,6 +45,9 @@ class DebugSession(object):
 
         print('New debug session with method %r' % str(start_method))
 
+        # Note: with 'visualstudio' we don't send continued events.
+        self.client_id = 'visualstudio'
+
         self.target = ('code', 'print("OK")')
         self.start_method = start_method
         self.start_method_args = {}
@@ -271,6 +274,8 @@ class DebugSession(object):
         print('Initializing debug session for ptvsd#%d' % self.ptvsd_port)
         dbg_argv = []
         usr_argv = []
+        if 'client_id' in kwargs:
+            self.client_id = kwargs['client_id']
         if self.start_method == 'launch':
             self._listen()
             dbg_argv += self._get_argv_for_launch()
@@ -523,7 +528,10 @@ class DebugSession(object):
         to finalize the configuration stage, and start running code.
         """
 
-        self.send_request('initialize', {'adapterID': 'test'}).wait_for_response()
+        self.send_request(
+            'initialize',
+            {'adapterID': 'test', 'clientID': self.client_id}
+        ).wait_for_response()
         self.wait_for_next(Event('initialized', {}))
 
         request = 'launch' if self.start_method == 'launch' else 'attach'
@@ -729,5 +737,6 @@ class DebugSession(object):
             ns.handshake()
         except:
             ns.close()
+            raise
         else:
             return ns
