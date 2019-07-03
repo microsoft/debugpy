@@ -80,7 +80,7 @@ def test_django_breakpoint_no_multiproc(start_method, bp_target):
                 }
             ]
 
-            session.send_continue()
+            session.request_continue()
             assert bp_var_content in home_request.response_text()
 
         session.wait_for_exit()
@@ -150,11 +150,11 @@ def test_django_template_exception_no_multiproc(start_method):
                 }
             )
 
-            session.send_continue()
+            session.request_continue()
 
             # And a second time when the exception reaches the user code.
             hit = session.wait_for_stop(reason="exception")
-            session.send_continue()
+            session.request_continue()
 
             # ignore response for exception tests
             web_request.wait_for_response()
@@ -239,7 +239,7 @@ def test_django_exception_no_multiproc(ex_type, start_method):
                 "column": 1,
             }
 
-            session.send_continue()
+            session.request_continue()
 
             # ignore response for exception tests
             web_request.wait_for_response()
@@ -337,7 +337,7 @@ def test_django_breakpoint_multiproc(start_method):
                     }
                 ]
 
-                child_session.send_continue()
+                child_session.request_continue()
 
                 web_content = web_request.wait_for_response()
                 assert web_content.find(bp_var_content) != -1

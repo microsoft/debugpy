@@ -7,7 +7,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 import os.path
 import pytest
 
-from tests import debug, test_data
+from tests import debug, log, test_data
 from tests.patterns import some
 
 
@@ -38,11 +38,12 @@ def test_exceptions_and_exclude_rules(
         raise AssertionError("Unexpected exception_type: %s" % (exception_type,))
 
     if scenario == "exclude_by_name":
-        rules = [{"path": "**/" + os.path.basename(code_to_debug), "include": False}]
+        rules = [{"path": "**/" + code_to_debug.basename, "include": False}]
     elif scenario == "exclude_by_dir":
-        rules = [{"path": os.path.dirname(code_to_debug), "include": False}]
+        rules = [{"path": code_to_debug.dirname, "include": False}]
     else:
-        raise AssertionError("Unexpected scenario: %s" % (scenario,))
+        pytest.fail(scenario)
+    log.info("Rules: {0!j}", rules)
 
     with debug.Session() as session:
         session.initialize(
@@ -70,7 +71,7 @@ def test_exceptions_and_partial_exclude_rules(pyfile, start_method, run_as, scen
         from debug_me import backchannel
         import sys
 
-        json = backchannel.read_json()
+        json = backchannel.receive()
         call_me_back_dir = json["call_me_back_dir"]
         sys.path.append(call_me_back_dir)
 
@@ -86,17 +87,18 @@ def test_exceptions_and_partial_exclude_rules(pyfile, start_method, run_as, scen
     call_me_back_dir = test_data / "call_me_back"
 
     if scenario == "exclude_code_to_debug":
-        rules = [{"path": "**/" + os.path.basename(code_to_debug), "include": False}]
+        rules = [{"path": "**/" + code_to_debug.basename, "include": False}]
     elif scenario == "exclude_callback_dir":
         rules = [{"path": call_me_back_dir, "include": False}]
     else:
-        raise AssertionError("Unexpected scenario: %s" % (scenario,))
+        pytest.fail(scenario)
+    log.info("Rules: {0!j}", rules)
 
     with debug.Session() as session:
+        backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            use_backchannel=True,
             rules=rules,
         )
         # TODO: The process returncode doesn't match the one returned from the DAP.
@@ -108,7 +110,7 @@ def test_exceptions_and_partial_exclude_rules(pyfile, start_method, run_as, scen
             "setExceptionBreakpoints", {"filters": filters}
         ).wait_for_response()
         session.start_debugging()
-        session.write_json({"call_me_back_dir": call_me_back_dir})
+        backchannel.send({"call_me_back_dir": call_me_back_dir})
 
         if scenario == "exclude_code_to_debug":
             # Stop at handled
@@ -135,7 +137,7 @@ def test_exceptions_and_partial_exclude_rules(pyfile, start_method, run_as, scen
             #     })
             # })
             # 'continue' should terminate the debuggee
-            session.send_continue()
+            session.request_continue()
 
             # Note: does not stop at unhandled exception because raise was in excluded file.
 
@@ -189,8 +191,8 @@ def test_exceptions_and_partial_exclude_rules(pyfile, start_method, run_as, scen
                     "source": some.dict.containing({"path": some.path(code_to_debug)}),
                 }
             )
-            session.send_continue()
+            session.request_continue()
         else:
-            raise AssertionError("Unexpected scenario: %s" % (scenario,))
+            pytest.fail(scenario)
 
         session.wait_for_exit()

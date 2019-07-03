@@ -50,7 +50,7 @@ def test_thread_count(pyfile, start_method, run_as, count):
 
         assert len(resp_threads.body["threads"]) == count
 
-        session.send_continue()
+        session.request_continue()
         session.wait_for_exit()
 
 
@@ -111,5 +111,5 @@ def test_debug_this_thread(pyfile, start_method, run_as):
         session.start_debugging()
 
         session.wait_for_stop()
-        session.send_continue()
+        session.request_continue()
         session.wait_for_exit()

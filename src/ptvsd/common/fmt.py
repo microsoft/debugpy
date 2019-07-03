@@ -24,10 +24,10 @@ class JsonObject(object):
     representation via str() or format().
     """
 
-    json_encoder_type = json.JSONEncoder
+    json_encoder_factory = json.JSONEncoder
     """Used by __format__ when format_spec is not empty."""
 
-    json_encoder = json_encoder_type(indent=4)
+    json_encoder = json_encoder_factory(indent=4)
     """The default encoder used by __format__ when format_spec is empty."""
 
     def __init__(self, value):
@@ -42,8 +42,8 @@ class JsonObject(object):
     def __format__(self, format_spec):
         """If format_spec is empty, uses self.json_encoder to serialize self.value
         as a string. Otherwise, format_spec is treated as an argument list to be
-        passed to self.json_encoder_type - which defaults to JSONEncoder - and then
-        the resulting formatter is used to serialize self.value as a string.
+        passed to self.json_encoder_factory - which defaults to JSONEncoder - and
+        then the resulting formatter is used to serialize self.value as a string.
 
         Example::
 
@@ -54,11 +54,13 @@ class JsonObject(object):
             # "indent=4,sort_keys=True". What we want is to build a function call
             # from that which looks like:
             #
-            #   json_encoder_type(indent=4,sort_keys=True)
+            #   json_encoder_factory(indent=4,sort_keys=True)
             #
             # which we can then eval() to create our encoder instance.
-            make_encoder = "json_encoder_type(" + format_spec + ")"
-            encoder = eval(make_encoder, {"json_encoder_type": self.json_encoder_type})
+            make_encoder = "json_encoder_factory(" + format_spec + ")"
+            encoder = eval(make_encoder, {
+                "json_encoder_factory": self.json_encoder_factory
+            })
         else:
             encoder = self.json_encoder
         return encoder.encode(self.value)

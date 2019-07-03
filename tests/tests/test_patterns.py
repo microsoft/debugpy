@@ -127,6 +127,22 @@ def test_list():
     assert [1, 2, 3] == [1, some.thing, 3]
     assert [1, 2, 3, 4] != [1, some.thing, 4]
 
+    assert [1, 2, 3, 4] == some.list.containing(1)
+    assert [1, 2, 3, 4] == some.list.containing(2)
+    assert [1, 2, 3, 4] == some.list.containing(3)
+    assert [1, 2, 3, 4] == some.list.containing(4)
+    assert [1, 2, 3, 4] == some.list.containing(1, 2)
+    assert [1, 2, 3, 4] == some.list.containing(2, 3)
+    assert [1, 2, 3, 4] == some.list.containing(3, 4)
+    assert [1, 2, 3, 4] == some.list.containing(1, 2, 3)
+    assert [1, 2, 3, 4] == some.list.containing(2, 3, 4)
+    assert [1, 2, 3, 4] == some.list.containing(1, 2, 3, 4)
+
+    assert [1, 2, 3, 4] != some.list.containing(5)
+    assert [1, 2, 3, 4] != some.list.containing(1, 3)
+    assert [1, 2, 3, 4] != some.list.containing(1, 2, 4)
+    assert [1, 2, 3, 4] != some.list.containing(2, 3, 5)
+
 
 def test_dict():
     pattern = {'a': some.thing, 'b': 2}

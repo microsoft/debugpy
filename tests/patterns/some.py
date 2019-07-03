@@ -65,15 +65,17 @@ Usage::
 __all__  = [
     "bool",
     "dap_id",
+    "dict",
     "error",
     "instanceof",
     "int",
+    "list",
     "number",
     "path",
     "source",
     "str",
-    "such_that",
     "thing",
+    "tuple",
 ]
 
 import numbers
@@ -83,7 +85,6 @@ from ptvsd.common.compat import builtins
 from tests import patterns as some
 
 
-such_that = some.SuchThat
 object = some.Object()
 thing = some.Thing()
 instanceof = some.InstanceOf
@@ -93,6 +94,7 @@ path = some.Path
 bool = instanceof(builtins.bool)
 number = instanceof(numbers.Real, "number")
 int = instanceof(numbers.Integral, "int")
+tuple = instanceof(builtins.tuple)
 error = instanceof(Exception)
 
 
@@ -104,6 +106,10 @@ if sys.version_info < (3,):
 else:
     str = instanceof(builtins.str)
 str.matching = some.StrMatching
+
+
+list = instanceof(builtins.list)
+list.containing = some.ListContaining
 
 
 dict = instanceof(builtins.dict)

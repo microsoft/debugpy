@@ -8,6 +8,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 """
 
 import inspect
+import itertools
 import sys
 
 from ptvsd.common import fmt
@@ -31,6 +32,11 @@ except AttributeError:
     xrange = builtins.range
 
 try:
+    izip = itertools.izip
+except AttributeError:
+    izip = builtins.zip
+
+try:
     reload = builtins.reload
 except AttributeError:
     from importlib import reload  # noqa
@@ -41,54 +47,101 @@ except ImportError:
     import Queue as queue  # noqa
 
 
-
 def force_unicode(s, encoding, errors="strict"):
     """Converts s to Unicode, using the provided encoding. If s is already Unicode,
     it is returned as is.
     """
-    return s.decode(encoding, errors) if isinstance(s, bytes) else s
+    return s.decode(encoding, errors) if isinstance(s, bytes) else unicode(s)
 
 
-def maybe_utf8(s, errors="strict"):
-    """Converts s to Unicode, assuming it is UTF-8. If s is already Unicode, it is
-    returned as is
+def force_bytes(s, encoding, errors="strict"):
+    """Converts s to bytes, using the provided encoding. If s is already bytes,
+    it is returned as is.
+
+    If errors="strict" and s is bytes, its encoding is verified by decoding it;
+    UnicodeError is raised if it cannot be decoded.
     """
-    return force_unicode(s, "utf-8", errors)
+    if isinstance(s, unicode):
+        return s.encode(encoding, errors)
+    else:
+        s = bytes(s)
+        if errors == "strict":
+            # Return value ignored - invoked solely for verification.
+            s.decode(encoding, errors)
+        return s
+
+
+def force_str(s, encoding, errors="strict"):
+    """Converts s to str (which is bytes on Python 2, and unicode on Python 3), using
+    the provided encoding if necessary. If s is already str, it is returned as is.
+
+    If errors="strict", str is bytes, and s is str, its encoding is verified by decoding
+    it; UnicodeError is raised if it cannot be decoded.
+    """
+    return (force_bytes if str is bytes else force_unicode)(s, encoding, errors)
+
+
+def force_ascii(s, errors="strict"):
+    """Same as force_bytes(s, "ascii", errors)
+    """
+    return force_bytes(s, "ascii", errors)
+
+
+def force_utf8(s, errors="strict"):
+    """Same as force_bytes(s, "utf8", errors)
+    """
+    return force_bytes(s, "utf8", errors)
 
 
 def filename(s, errors="strict"):
-    """Ensures that filename is Unicode.
+    """Same as force_unicode(s, sys.getfilesystemencoding(), errors)
     """
     return force_unicode(s, sys.getfilesystemencoding(), errors)
 
 
+def filename_bytes(s, errors="strict"):
+    """Same as force_bytes(s, sys.getfilesystemencoding(), errors)
+    """
+    return force_bytes(s, sys.getfilesystemencoding(), errors)
+
+
 def nameof(obj, quote=False):
     """Returns the most descriptive name of a Python module, class, or function,
-    as a Unicode string.
+    as a Unicode string
 
     If quote=True, name is quoted with repr().
+
+    Best-effort, but guaranteed to not fail - always returns something.
     """
 
     try:
         name = obj.__qualname__
-    except AttributeError:
+    except Exception:
         try:
             name = obj.__name__
-        except AttributeError:
+        except Exception:
             # Fall back to raw repr(), and skip quoting.
             try:
-                return maybe_utf8(repr(obj), "replace")
+                name = repr(obj)
             except Exception:
                 return "<unknown>"
+            else:
+                quote = False
 
     if quote:
-        name = repr(name)
-    return maybe_utf8(name, "replace")
+        try:
+            name = repr(name)
+        except Exception:
+            pass
+
+    return force_unicode(name, "utf-8", "replace")
 
 
 def srcnameof(obj):
     """Returns the most descriptive name of a Python module, class, or function,
     including source information (filename and linenumber), if available.
+
+    Best-effort, but guaranteed to not fail - always returns something.
     """
 
     name = nameof(obj, quote=True)

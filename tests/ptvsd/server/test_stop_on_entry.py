@@ -17,9 +17,10 @@ def test_stop_on_entry(pyfile, start_method, run_as, with_bp):
     def code_to_debug():
         from debug_me import backchannel  # @bp
 
-        backchannel.write_json("done")
+        backchannel.send("done")
 
     with debug.Session() as session:
+        backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
@@ -45,9 +46,9 @@ def test_stop_on_entry(pyfile, start_method, run_as, with_bp):
             assert hit.frames[0]["line"] == 1
             assert hit.frames[0]["source"]["path"] == some.path(code_to_debug)
 
-        session.send_continue()
+        session.request_continue()
         session.wait_for_termination()
 
-        assert session.read_json() == "done"
+        assert backchannel.receive() == "done"
 
         session.wait_for_exit()

@@ -59,17 +59,18 @@ def test_multiprocessing(pyfile, start_method, run_as):
             p = multiprocessing.Process(target=child, args=(q,))
             p.start()
             print("child spawned")
-            backchannel.write_json(p.pid)
+            backchannel.send(p.pid)
 
             q.put(1)
-            assert backchannel.read_json() == "continue"
+            assert backchannel.receive() == "continue"
             q.put(2)
             p.join()
             assert q.get() == 4
             q.close()
-            backchannel.write_json("done")
+            backchannel.send("done")
 
     with debug.Session() as parent_session:
+        parent_backchannel = parent_session.setup_backchannel()
         parent_session.initialize(
             multiprocess=True,
             target=(run_as, code_to_debug),
@@ -84,7 +85,7 @@ def test_multiprocessing(pyfile, start_method, run_as):
         root_process, = parent_session.all_occurrences_of(Event("process"))
         root_pid = int(root_process.body["systemProcessId"])
 
-        child_pid = parent_session.read_json()
+        child_pid = parent_backchannel.receive()
 
         child_subprocess = parent_session.wait_for_next(Event("ptvsd_subprocess"))
         assert child_subprocess == Event(
@@ -132,12 +133,12 @@ def test_multiprocessing(pyfile, start_method, run_as):
             ) as grandchild_session:
                 grandchild_session.start_debugging()
 
-                parent_session.write_json("continue")
+                parent_backchannel.send("continue")
 
                 grandchild_session.wait_for_termination()
                 child_session.wait_for_termination()
 
-                assert parent_session.read_json() == "done"
+                assert parent_backchannel.receive() == "done"
                 parent_session.wait_for_exit()
 
 
@@ -153,7 +154,7 @@ def test_subprocess(pyfile, start_method, run_as):
         import backchannel
         import debug_me  # noqa
 
-        backchannel.write_json(sys.argv)
+        backchannel.send(sys.argv)
 
     @pyfile
     def parent():
@@ -175,6 +176,7 @@ def test_subprocess(pyfile, start_method, run_as):
 
     with debug.Session() as parent_session:
         parent_session.program_args += [child]
+        parent_backchannel = parent_session.setup_backchannel()
         parent_session.initialize(
             multiprocess=True,
             target=(run_as, parent),
@@ -210,7 +212,7 @@ def test_subprocess(pyfile, start_method, run_as):
         with parent_session.connect_to_child_session(child_subprocess) as child_session:
             child_session.start_debugging()
 
-            child_argv = parent_session.read_json()
+            child_argv = parent_backchannel.receive()
             assert child_argv == [child, "--arg1", "--arg2", "--arg3"]
 
             child_session.wait_for_termination()
@@ -247,10 +249,11 @@ def test_autokill(pyfile, start_method, run_as):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        backchannel.read_json()
+        backchannel.receive()
 
     with debug.Session() as parent_session:
         parent_session.program_args += [child]
+        parent_backchannel = parent_session.setup_backchannel()
         parent_session.initialize(
             multiprocess=True,
             target=(run_as, parent),
@@ -270,7 +273,7 @@ def test_autokill(pyfile, start_method, run_as):
             else:
                 # In attach scenario, just let the parent process run to completion.
                 parent_session.expected_returncode = 0
-                parent_session.write_json(None)
+                parent_backchannel.send(None)
 
             child_session.wait_for_termination()
             parent_session.wait_for_exit()
@@ -316,12 +319,13 @@ def test_argv_quoting(pyfile, start_method, run_as):
 
         from args import args as expected_args
 
-        backchannel.write_json(expected_args)
+        backchannel.send(expected_args)
 
         actual_args = sys.argv[1:]
-        backchannel.write_json(actual_args)
+        backchannel.send(actual_args)
 
     with debug.Session() as session:
+        backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, parent),
             start_method=start_method,
@@ -331,8 +335,8 @@ def test_argv_quoting(pyfile, start_method, run_as):
 
         session.start_debugging()
 
-        expected_args = session.read_json()
-        actual_args = session.read_json()
+        expected_args = backchannel.receive()
+        actual_args = backchannel.receive()
         assert expected_args == actual_args
 
         session.wait_for_exit()

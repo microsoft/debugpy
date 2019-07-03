@@ -31,6 +31,17 @@ class JsonIOStream(object):
 
     MAX_BODY_SIZE = 0xFFFFFF
 
+    json_decoder_factory = json.JSONDecoder
+    """Used by read_json() when decoder is None."""
+
+    json_encoder_factory = json.JSONEncoder
+    """Used by write_json() when encoder is None."""
+
+    # @staticmethod
+    # def json_encoder_factory(*args, **kwargs):
+    #     """Used by write_json() when encoder is None."""
+    #     return json.JSONEncoder(*args, sort_keys=True, **kwargs)
+
     @classmethod
     def from_stdio(cls, name="stdio"):
         """Creates a new instance that receives messages from sys.stdin, and sends
@@ -110,7 +121,7 @@ class JsonIOStream(object):
         there are no more values to be read.
         """
 
-        decoder = decoder if decoder is not None else json.JSONDecoder()
+        decoder = decoder if decoder is not None else self.json_decoder_factory()
 
         # If any error occurs while reading and parsing the message, log the original
         # raw message data as is, so that it's possible to diagnose missing or invalid
@@ -203,7 +214,7 @@ class JsonIOStream(object):
         Value is written as encoded by encoder.encode().
         """
 
-        encoder = encoder if encoder is not None else json.JSONEncoder(sort_keys=True)
+        encoder = encoder if encoder is not None else self.json_encoder_factory()
 
         # Format the value as a message, and try to log any failures using as much
         # information as we already have at the point of the failure. For example,
@@ -265,6 +276,9 @@ class MessageDict(collections.OrderedDict):
         message, it is guaranteed to reference that Message object. There is no similar
         guarantee for outgoing messages.
         """
+
+    def __repr__(self):
+        return dict.__repr__(self)
 
     def _invalid_if_no_key(func):
         def wrap(self, key, *args, **kwargs):
@@ -1145,7 +1159,7 @@ class JsonMessageChannel(object):
                 del d.associate_with
 
         message_dicts = []
-        decoder = json.JSONDecoder(object_hook=object_hook)
+        decoder = self.stream.json_decoder_factory(object_hook=object_hook)
         message = self.stream.read_json(decoder)
         assert isinstance(message, MessageDict)  # make sure stream used decoder
 
@@ -1155,7 +1169,7 @@ class JsonMessageChannel(object):
             raise
         except Exception:
             raise log.exception(
-                "Fatal error while processing message for {0}:\n\n{1!r}",
+                "Fatal error while processing message for {0}:\n\n{1!j}",
                 self.name,
                 message,
             )

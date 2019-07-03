@@ -32,6 +32,9 @@ class JsonMemoryStream(object):
     For output, values are appended to the supplied collection.
     """
 
+    json_decoder_factory = messaging.JsonIOStream.json_decoder_factory
+    json_encoder_factory = messaging.JsonIOStream.json_encoder_factory
+
     def __init__(self, input, output, name="memory"):
         self.name = name
         self.input = iter(input)
@@ -41,7 +44,7 @@ class JsonMemoryStream(object):
         pass
 
     def read_json(self, decoder=None):
-        decoder = decoder if decoder is not None else json.JSONDecoder()
+        decoder = decoder if decoder is not None else self.json_decoder_factory()
         try:
             value = next(self.input)
         except StopIteration:
@@ -49,7 +52,7 @@ class JsonMemoryStream(object):
         return decoder.decode(json.dumps(value))
 
     def write_json(self, value, encoder=None):
-        encoder = encoder if encoder is not None else json.JSONEncoder()
+        encoder = encoder if encoder is not None else self.json_encoder_factory()
         value = json.loads(encoder.encode(value))
         self.output.append(value)
 

@@ -32,7 +32,7 @@ def test_stack_format(pyfile, start_method, run_as, module, line):
             start_method=start_method,
             ignore_unobserved=[Event("stopped")],
         )
-        session.set_breakpoints(test_module, [code_to_debug.lines["bp"]])
+        session.set_breakpoints(test_module, [test_module.lines["bp"]])
         session.start_debugging()
 
         hit = session.wait_for_stop()
@@ -47,12 +47,12 @@ def test_stack_format(pyfile, start_method, run_as, module, line):
         frames = resp_stacktrace.body["stackFrames"]
 
         assert line == (
-            frames[0]["name"].find(": " + str(code_to_debug.lines["bp"])) > -1
+            frames[0]["name"].find(": " + str(test_module.lines["bp"])) > -1
         )
 
         assert module == (frames[0]["name"].find("test_module") > -1)
 
-        session.send_continue()
+        session.request_continue()
         session.wait_for_exit()
 
 
@@ -96,5 +96,5 @@ def test_module_events(pyfile, start_method, run_as):
             ("__main__", some.path(test_code)),
         ]
 
-        session.send_continue()
+        session.request_continue()
         session.wait_for_exit()

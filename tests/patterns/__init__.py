@@ -11,11 +11,13 @@ from __future__ import absolute_import, print_function, unicode_literals
 # builtin names like str, int etc without affecting the implementations in this
 # file - some.* then provides shorthand aliases.
 
+import itertools
+import py.path
 import re
 import sys
 
 from ptvsd.common import compat, fmt
-from ptvsd.common.compat import unicode
+from ptvsd.common.compat import unicode, xrange
 import pydevd_file_utils
 
 
@@ -44,6 +46,11 @@ class Some(object):
         """Union pattern - matches if either of the two patterns match.
         """
         return Either(self, pattern)
+
+    def such_that(self, condition):
+        """Same pattern, but it only matches if condition() is true.
+        """
+        return SuchThat(self, condition)
 
     def in_range(self, start, stop):
         """Same pattern, but it only matches if the start <= value < stop.
@@ -229,27 +236,62 @@ class Path(Some):
     """
 
     def __init__(self, path):
+        if isinstance(path, py.path.local):
+            path = path.strpath
+        if isinstance(path, bytes):
+            path = path.encode(sys.getfilesystemencoding())
+        assert isinstance(path, unicode)
         self.path = path
 
     def __repr__(self):
         return fmt("some.path({0!r})", self.path)
 
     def __eq__(self, other):
-        if not (isinstance(other, bytes) or isinstance(other, unicode)):
+        if isinstance(other, py.path.local):
+            other = other.strpath
+
+        if isinstance(other, unicode):
+            pass
+        elif isinstance(other, bytes):
+            other = other.encode(sys.getfilesystemencoding())
+        else:
             return NotImplemented
 
-        left, right = self.path, other
-
-        # If there's a unicode/bytes mismatch, make both unicode.
-        if isinstance(left, unicode):
-            if not isinstance(right, unicode):
-                right = right.decode(sys.getfilesystemencoding())
-            elif isinstance(right, unicode):
-                right = right.encode(sys.getfilesystemencoding())
-
-        left = pydevd_file_utils.get_path_with_real_case(left)
-        right = pydevd_file_utils.get_path_with_real_case(right)
+        left = pydevd_file_utils.get_path_with_real_case(self.path)
+        right = pydevd_file_utils.get_path_with_real_case(other)
         return left == right
+
+
+class ListContaining(Some):
+    """Matches any list that contains the specified subsequence of elements.
+    """
+
+    def __init__(self, *items):
+        self.items = tuple(items)
+
+    def __repr__(self):
+        if not self.items:
+            return "[...]"
+        s = repr(list(self.items))
+        return fmt("[..., {0}, ...]", s[1:-1])
+
+    def __eq__(self, other):
+        if not isinstance(other, list):
+            return NotImplemented
+
+        items = self.items
+        if not items:
+            return True  # every list contains an empty sequence
+        if len(items) == 1:
+            return self.items[0] in other
+
+        # Zip the other list with itself, shifting by one every time, to produce
+        # tuples of equal length with items - i.e. all potential subsequences. So,
+        # given other=[1, 2, 3, 4, 5] and items=(2, 3, 4), we want to get a list
+        # like [(1, 2, 3), (2, 3, 4), (3, 4, 5)] - and then search for items in it.
+        iters = [itertools.islice(other, i, None) for i in xrange(0, len(items))]
+        subseqs = compat.izip(*iters)
+        return any(subseq == items for subseq in subseqs)
 
 
 class DictContaining(Some):

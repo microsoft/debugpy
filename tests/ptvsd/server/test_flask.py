@@ -98,7 +98,7 @@ def test_flask_breakpoint_no_multiproc(bp_target, start_method):
                 }
             ]
 
-            session.send_continue()
+            session.request_continue()
             assert bp_var_content in home_request.response_text()
 
         session.wait_for_exit()
@@ -164,7 +164,7 @@ def test_flask_template_exception_no_multiproc(start_method):
                 }
             )
 
-            session.send_continue()
+            session.request_continue()
 
             # ignore response for exception tests
             web_request.wait_for_response()
@@ -234,7 +234,7 @@ def test_flask_exception_no_multiproc(ex_type, start_method):
                 "column": 1,
             }
 
-            session.send_continue()
+            session.request_continue()
 
             # ignore response for exception tests
             web_request.wait_for_response()
@@ -320,7 +320,7 @@ def test_flask_breakpoint_multiproc(start_method):
                     }
                 ]
 
-                child_session.send_continue()
+                child_session.request_continue()
                 assert bp_var_content in web_request.response_text()
 
             child_session.wait_for_termination()

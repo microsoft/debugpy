@@ -54,14 +54,14 @@ def test_variables_and_evaluate(pyfile, start_method, run_as):
         assert b_variables[0] == {
             "type": "int",
             "value": "1",
-            "name": some.str.such_that(lambda x: x.find("one") > 0),
+            "name": some.str.matching(r".*one.*"),
             "evaluateName": "b['one']",
             "variablesReference": 0,
         }
         assert b_variables[1] == {
             "type": "int",
             "value": "2",
-            "name": some.str.such_that(lambda x: x.find("two") > 0),
+            "name": some.str.matching(r".*two.*"),
             "evaluateName": "b['two']",
             "variablesReference": 0,
         }
@@ -99,7 +99,7 @@ def test_variables_and_evaluate(pyfile, start_method, run_as):
             {"type": "int", "result": "2"}
         )
 
-        session.send_continue()
+        session.request_continue()
         session.wait_for_exit()
 
 
@@ -110,9 +110,10 @@ def test_set_variable(pyfile, start_method, run_as):
 
         a = 1
         ptvsd.break_into_debugger()
-        backchannel.write_json(a)
+        backchannel.send(a)
 
     with debug.Session() as session:
+        backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
@@ -155,9 +156,9 @@ def test_set_variable(pyfile, start_method, run_as):
             {"type": "int", "value": "1000"}
         )
 
-        session.send_continue()
+        session.request_continue()
 
-        assert session.read_json() == 1000
+        assert backchannel.receive() == 1000
 
         session.wait_for_exit()
 
@@ -247,7 +248,7 @@ def test_variable_sort(pyfile, start_method, run_as):
         # NOTE: this is commented out due to sorting bug #213
         # assert variable_names[:3] == ['1', '2', '10']
 
-        session.send_continue()
+        session.request_continue()
         session.wait_for_exit()
 
 
@@ -273,7 +274,7 @@ def test_return_values(pyfile, start_method, run_as):
             "value": "'did something'",
             "type": "str",
             "presentationHint": some.dict.containing(
-                {"attributes": some.str.such_that(lambda x: "readOnly" in x)}
+                {"attributes": some.list.containing("readOnly")}
             ),
         }
     )
@@ -284,7 +285,7 @@ def test_return_values(pyfile, start_method, run_as):
             "value": "'did more things'",
             "type": "str",
             "presentationHint": some.dict.containing(
-                {"attributes": some.str.such_that(lambda x: "readOnly" in x)}
+                {"attributes": some.list.containing("readOnly")}
             ),
         }
     )
@@ -370,7 +371,7 @@ def test_unicode(pyfile, start_method, run_as):
         else:
             assert resp_eval.body == some.dict.containing({"type": "SyntaxError"})
 
-        session.send_continue()
+        session.request_continue()
         session.wait_for_exit()
 
 
@@ -595,5 +596,5 @@ def test_hex_numbers(pyfile, start_method, run_as):
             },
         ]
 
-        session.send_continue()
+        session.request_continue()
         session.wait_for_exit()

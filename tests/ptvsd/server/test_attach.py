@@ -15,7 +15,7 @@ from tests.timeline import Event
 @pytest.mark.parametrize("is_attached", ["attachCheckOn", "attachCheckOff"])
 @pytest.mark.parametrize("break_into", ["break", "pause"])
 def test_attach(run_as, wait_for_attach, is_attached, break_into):
-    attach1_py = str(test_data / "attach" / "attach1.py")
+    attach1_py = test_data / "attach" / "attach1.py"
     lines = code.get_marked_line_numbers(attach1_py)
     with debug.Session() as session:
         env = {
@@ -29,6 +29,7 @@ def test_attach(run_as, wait_for_attach, is_attached, break_into):
         if break_into == "break":
             env["PTVSD_BREAK_INTO_DBG"] = "1"
 
+        backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, attach1_py),
             start_method="launch",
@@ -38,18 +39,18 @@ def test_attach(run_as, wait_for_attach, is_attached, break_into):
         session.start_debugging()
 
         if wait_for_attach == "waitOn":
-            assert session.read_json() == "wait_for_attach"
+            assert backchannel.receive() == "wait_for_attach"
 
         if is_attached == "attachCheckOn":
-            assert session.read_json() == "is_attached"
+            assert backchannel.receive() == "is_attached"
 
         if break_into == "break":
-            assert session.read_json() == "break_into_debugger"
+            assert backchannel.receive() == "break_into_debugger"
             hit = session.wait_for_stop()
             assert lines["bp"] == hit.frames[0]["line"]
         else:
             # pause test
-            session.write_json("pause_test")
+            backchannel.send("pause_test")
             session.send_request("pause").wait_for_response(freeze=False)
             hit = session.wait_for_stop(reason="pause")
             # Note: no longer asserting line as it can even stop on different files
@@ -72,13 +73,14 @@ def test_reattach(pyfile, start_method, run_as):
 
         ptvsd.break_into_debugger()
         print("first") # @first
-        backchannel.write_json("continued")
+        backchannel.send("continued")
         for _ in range(0, 100):
             time.sleep(0.1)
             ptvsd.break_into_debugger()
             print("second") # @second
 
     with debug.Session() as session:
+        backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
@@ -91,7 +93,7 @@ def test_reattach(pyfile, start_method, run_as):
         assert code_to_debug.lines["first"] == hit.frames[0]["line"]
         session.send_request("disconnect").wait_for_response(freeze=False)
         session.wait_for_disconnect()
-        assert session.read_json() == "continued"
+        assert backchannel.receive() == "continued"
 
     # re-attach
     with session.connect_with_new_session(target=(run_as, code_to_debug)) as session2:

@@ -44,7 +44,7 @@ def test_with_tab_in_output(pyfile, start_method, run_as):
 
         # Breakpoint at the end just to make sure we get all output events.
         session.wait_for_stop()
-        session.send_continue()
+        session.request_continue()
         session.wait_for_exit()
 
         output = session.all_occurrences_of(
@@ -76,7 +76,7 @@ def test_redirect_output(pyfile, start_method, run_as, redirect):
 
         # Breakpoint at the end just to make sure we get all output events.
         session.wait_for_stop()
-        session.send_continue()
+        session.request_continue()
         session.wait_for_exit()
 
         output = session.all_occurrences_of(

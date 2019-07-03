@@ -20,9 +20,10 @@ def test_continue_on_disconnect_for_attach(pyfile, start_method, run_as):
     def code_to_debug():
         from debug_me import backchannel
 
-        backchannel.write_json("continued")  # @bp
+        backchannel.send("continued")  # @bp
 
     with debug.Session() as session:
+        backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
@@ -35,7 +36,7 @@ def test_continue_on_disconnect_for_attach(pyfile, start_method, run_as):
         assert hit.frames[0]["line"] == code_to_debug.lines["bp"]
         session.send_request("disconnect").wait_for_response()
         session.wait_for_disconnect()
-        assert "continued" == session.read_json()
+        assert "continued" == backchannel.receive()
 
 
 @pytest.mark.parametrize("start_method", ["launch"])

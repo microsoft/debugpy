@@ -12,7 +12,7 @@ import tempfile
 import threading
 import types
 
-from ptvsd.common import timestamp
+from ptvsd.common import compat, timestamp
 from tests import code, pydevd_log
 
 __all__ = ['run_as', 'start_method', 'with_pydevd_log', 'daemon', 'pyfile']
@@ -126,7 +126,7 @@ def pyfile(request, tmpdir):
     it cannot reuse top-level module imports - it must import all the modules
     that it uses locally. When linter complains, use #noqa.
 
-    The returned object is a subclass of str that has an additional attribute "lines".
+    Returns a py.path.local instance that has the additional attribute "lines".
     After the source is writen to disk, tests.code.get_marked_line_numbers() is
     invoked on the resulting file to compute the value of that attribute.
     """
@@ -157,16 +157,15 @@ def pyfile(request, tmpdir):
         line = source[0]
         indent = len(line) - len(line.lstrip())
         source = [l[indent:] if l.strip() else '\n' for l in source]
+        source = ''.join(source)
 
         # Write it to file.
-        source = ''.join(source)
-        tmpfile = tmpdir.join(name + '.py')
+        tmpfile = tmpdir / (name + '.py')
+        tmpfile.strpath = compat.filename(tmpfile.strpath)
         assert not tmpfile.check()
         tmpfile.write(source)
 
-        class PyFile(str):
-            lines = code.get_marked_line_numbers(tmpfile.strpath)
-
-        return PyFile(tmpfile.strpath)
+        tmpfile.lines = code.get_marked_line_numbers(tmpfile)
+        return tmpfile
 
     return factory

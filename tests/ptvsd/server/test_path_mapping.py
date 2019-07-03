@@ -29,10 +29,11 @@ def test_client_ide_from_path_mapping_linux_backend(
         from debug_me import backchannel
         import pydevd_file_utils
 
-        backchannel.write_json({"ide_os": pydevd_file_utils._ide_os})
+        backchannel.send({"ide_os": pydevd_file_utils._ide_os})
         print("done")  # @break_here
 
     with debug.Session() as session:
+        backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
@@ -56,10 +57,10 @@ def test_client_ide_from_path_mapping_linux_backend(
             code_to_debug
         )
 
-        json_read = session.read_json()
+        json_read = backchannel.receive()
         assert json_read == {"ide_os": "WINDOWS"}
 
-        session.send_continue()
+        session.request_continue()
         session.wait_for_exit()
 
 
@@ -69,7 +70,7 @@ def test_with_dot_remote_root(pyfile, tmpdir, start_method, run_as):
         from debug_me import backchannel
         import os
 
-        backchannel.write_json(os.path.abspath(__file__))
+        backchannel.send(os.path.abspath(__file__))
         print("done")  # @bp
 
     path_local = tmpdir.mkdir("local").join("code_to_debug.py").strpath
@@ -82,6 +83,7 @@ def test_with_dot_remote_root(pyfile, tmpdir, start_method, run_as):
     shutil.copyfile(code_to_debug, path_remote)
 
     with debug.Session() as session:
+        backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, path_remote),
             start_method=start_method,
@@ -96,10 +98,10 @@ def test_with_dot_remote_root(pyfile, tmpdir, start_method, run_as):
         print("Frames: " + str(hit.frames))
         assert hit.frames[0]["source"]["path"] == some.path(path_local)
 
-        remote_code_path = session.read_json()
+        remote_code_path = backchannel.receive()
         assert path_remote == some.path(remote_code_path)
 
-        session.send_continue()
+        session.request_continue()
         session.wait_for_exit()
 
 
@@ -110,7 +112,7 @@ def test_with_path_mappings(pyfile, tmpdir, start_method, run_as):
         import os
         import sys
 
-        json = backchannel.read_json()
+        json = backchannel.receive()
         call_me_back_dir = json["call_me_back_dir"]
         sys.path.append(call_me_back_dir)
 
@@ -119,7 +121,7 @@ def test_with_path_mappings(pyfile, tmpdir, start_method, run_as):
         def call_func():
             print("break here")  # @bp
 
-        backchannel.write_json(os.path.abspath(__file__))
+        backchannel.send(os.path.abspath(__file__))
         call_me_back.call_me_back(call_func)
         print("done")
 
@@ -135,6 +137,7 @@ def test_with_path_mappings(pyfile, tmpdir, start_method, run_as):
     call_me_back_dir = test_data / "call_me_back"
 
     with debug.Session() as session:
+        backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, path_remote),
             start_method=start_method,
@@ -143,7 +146,7 @@ def test_with_path_mappings(pyfile, tmpdir, start_method, run_as):
         )
         session.set_breakpoints(path_remote, [code_to_debug.lines["bp"]])
         session.start_debugging()
-        session.write_json({"call_me_back_dir": call_me_back_dir})
+        backchannel.send({"call_me_back_dir": call_me_back_dir})
         hit = session.wait_for_stop("breakpoint")
 
         assert hit.frames[0]["source"]["path"] == some.path(path_local)
@@ -168,8 +171,8 @@ def test_with_path_mappings(pyfile, tmpdir, start_method, run_as):
         ).wait_for_response()
         assert "def call_me_back(callback):" in (resp_source.body["content"])
 
-        remote_code_path = session.read_json()
+        remote_code_path = backchannel.receive()
         assert path_remote == some.path(remote_code_path)
 
-        session.send_continue()
+        session.request_continue()
         session.wait_for_exit()

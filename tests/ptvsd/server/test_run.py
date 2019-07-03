@@ -23,7 +23,7 @@ def test_run(pyfile, start_method, run_as):
         import sys
 
         print("begin")
-        assert backchannel.receive() == "continue"
+        backchannel.wait_for("continue")
         backchannel.send(path.abspath(sys.modules["ptvsd"].__file__))
         print("end")
 
@@ -37,24 +37,25 @@ def test_run(pyfile, start_method, run_as):
         expected_name = (
             "-c"
             if run_as == "code"
-            else some.str.matching(re.escape(code_to_debug) + r"(c|o)?$")
+            else some.str.matching(re.escape(code_to_debug.strpath) + r"(c|o)?$")
         )
         assert process_event == Event(
             "process", some.dict.containing({"name": expected_name})
         )
 
         backchannel.send("continue")
-        ptvsd_path = backchannel.receive()
+
         expected_ptvsd_path = path.abspath(ptvsd.__file__)
-        assert re.match(re.escape(expected_ptvsd_path) + r"(c|o)?$", ptvsd_path)
+        backchannel.expect(some.str.matching(
+            re.escape(expected_ptvsd_path) + r"(c|o)?$"
+        ))
 
         session.wait_for_exit()
 
 
 def test_run_submodule():
-    cwd = str(test_data / "testpkgs")
     with debug.Session("launch") as session:
-        session.initialize(target=("module", "pkg1.sub"), cwd=cwd)
+        session.initialize(target=("module", "pkg1.sub"), cwd=test_data / "testpkgs")
         session.start_debugging()
         session.wait_for_next(
             Event(

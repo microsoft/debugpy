@@ -18,7 +18,7 @@ import threading
 import time
 
 import ptvsd
-from ptvsd.common import fmt, log, messaging
+from ptvsd.common import compat, fmt, log, messaging
 from tests import net, test_data
 from tests.patterns import some
 from tests.timeline import Timeline, Event, Response
@@ -60,6 +60,7 @@ class Session(object):
         self.id = next(self._counter)
         log.info('Starting debug session {0} via {1!r}', self.id, start_method)
 
+        self.lock = threading.RLock()
         self.target = ('code', 'print("OK")')
         self.start_method = start_method
         self.start_method_args = {}
@@ -78,7 +79,7 @@ class Session(object):
 
         self.env = os.environ.copy()
         self.env.update(PTVSD_ENV)
-        self.env['PYTHONPATH'] = str(test_data / "_PYTHONPATH")
+        self.env['PYTHONPATH'] = (test_data / "_PYTHONPATH").strpath
         self.env['PTVSD_SESSION_ID'] = str(self.id)
 
         self.is_running = False
@@ -90,9 +91,10 @@ class Session(object):
         self.socket = None
         self.server_socket = None
         self.connected = threading.Event()
-        self._output_capture_threads = []
-        self.output_data = {'stdout': [], 'stderr': []}
         self.backchannel = None
+
+        self._output_lines = {'stdout': [], 'stderr': []}
+        self._output_worker_threads = []
 
         self.timeline = Timeline(ignore_unobserved=[
             Event('output'),
@@ -150,21 +152,30 @@ class Session(object):
         self.timeline.ignore_unobserved = value
 
     def close(self):
-        if self.socket:
-            try:
-                self.socket.shutdown(socket.SHUT_RDWR)
-            except Exception:
-                pass
-            self.socket = None
-            log.debug('Closed socket to {0}', self)
+        with self.lock:
+            if self.socket:
+                try:
+                    self.socket.shutdown(socket.SHUT_RDWR)
+                except Exception:
+                    pass
+                try:
+                    self.socket.close()
+                except Exception:
+                    pass
+                self.socket = None
+                log.debug('Closed socket to {0}', self)
 
-        if self.server_socket:
-            try:
-                self.server_socket.shutdown(socket.SHUT_RDWR)
-            except Exception:
-                pass
-            self.server_socket = None
-            log.debug('Closed server socket for {0}', self)
+            if self.server_socket:
+                try:
+                    self.server_socket.shutdown(socket.SHUT_RDWR)
+                except Exception:
+                    pass
+                try:
+                    self.server_socket.close()
+                except Exception:
+                    pass
+                self.server_socket = None
+                log.debug('Closed server socket for {0}', self)
 
         if self.backchannel:
             self.backchannel.close()
@@ -174,22 +185,22 @@ class Session(object):
             if self.kill_ptvsd:
                 try:
                     self._kill_process_tree()
-                except:
+                except Exception:
                     log.exception('Error killing {0} (pid={1}) process tree', self, self.pid)
                 log.info('Killed {0} (pid={1}) process tree', self, self.pid)
 
             # Clean up pipes to avoid leaking OS handles.
             try:
                 self.process.stdin.close()
-            except:
+            except Exception:
                 pass
             try:
                 self.process.stdout.close()
-            except:
+            except Exception:
                 pass
             try:
                 self.process.stderr.close()
-            except:
+            except Exception:
                 pass
 
         self._wait_for_remaining_output()
@@ -200,21 +211,21 @@ class Session(object):
 
     def _get_argv_for_launch(self):
         argv = [sys.executable]
-        argv += [str(PTVSD_DIR)]
+        argv += [PTVSD_DIR.strpath]
         argv += ['--client']
         argv += ['--host', 'localhost', '--port', str(self.ptvsd_port)]
         return argv
 
     def _get_argv_for_attach_using_cmdline(self):
         argv = [sys.executable]
-        argv += [str(PTVSD_DIR)]
+        argv += [PTVSD_DIR.strpath]
         argv += ['--wait']
         argv += ['--host', 'localhost', '--port', str(self.ptvsd_port)]
         return argv
 
     def _get_argv_for_attach_using_pid(self):
         argv = [sys.executable]
-        argv += [str(PTVSD_DIR)]
+        argv += [PTVSD_DIR.strpath]
         argv += ['--client', '--host', 'localhost', '--port', str(self.ptvsd_port)]
         # argv += ['--pid', '<pid>']  # pid value to be appended later
         return argv
@@ -236,6 +247,8 @@ class Session(object):
     def _get_target(self):
         argv = []
         run_as, path_or_code = self.target
+        if isinstance(path_or_code, py.path.local):
+            path_or_code = path_or_code.strpath
         if run_as == 'file':
             self._validate_pyfile(path_or_code)
             argv += [path_or_code]
@@ -245,7 +258,7 @@ class Session(object):
             if os.path.isfile(path_or_code) or os.path.isdir(path_or_code):
                 self.env['PYTHONPATH'] += os.pathsep + os.path.dirname(path_or_code)
                 try:
-                    module = path_or_code[len(os.path.dirname(path_or_code)) + 1:-3]
+                    module = path_or_code[(len(os.path.dirname(path_or_code)) + 1) : -3]
                 except Exception:
                     module = 'code_to_debug'
                 argv += ['-m', module]
@@ -318,7 +331,7 @@ class Session(object):
         elif self.start_method == 'attach_socket_import':
             dbg_argv += self._get_argv_for_attach_using_import()
             # TODO: Remove adding to python path after enabling Tox
-            self.env['PYTHONPATH'] = str(PTVSD_DIR / "..") + os.pathsep + self.env['PYTHONPATH']
+            self.env['PYTHONPATH'] = (PTVSD_DIR / "..").strpath + os.pathsep + self.env['PYTHONPATH']
             self.env['PTVSD_DEBUG_ME'] = fmt(PTVSD_DEBUG_ME, ptvsd_port=self.ptvsd_port)
         elif self.start_method == 'attach_pid':
             self._listen()
@@ -354,13 +367,22 @@ class Session(object):
             self.backchannel.listen()
             self.env['PTVSD_BACKCHANNEL_PORT'] = str(self.backchannel.port)
 
-        # Force env to use str everywhere - this is needed for Python 2.7 on Windows.
-        env = {str(k): str(v) for k, v in self.env.items()}
+        # Force env to use str everywhere - this is needed for Python 2.7.
+        # Assume that values are filenames - it's usually either that, or numbers.
+        env = {
+            compat.force_str(k, "ascii"): compat.filename(v)
+            for k, v in self.env.items()
+        }
 
         env_str = "\n".join((
             fmt("{0}={1}", env_name, env[env_name])
-            for env_name in sorted(self.env.keys())
+            for env_name in sorted(env.keys())
         ))
+
+        cwd = self.cwd
+        if isinstance(cwd, py.path.local):
+            cwd = cwd.strpath
+
         log.info(
             '{0} will have:\n\n'
             'ptvsd: {1}\n'
@@ -380,6 +402,9 @@ class Session(object):
         )
 
         spawn_args = usr_argv if self.start_method == 'attach_pid' else dbg_argv
+        # Force args to use str everywhere - this is needed for Python 2.7.
+        spawn_args = [compat.filename(s) for s in spawn_args]
+
         log.info('Spawning {0}: {1!j}', self, spawn_args)
         self.process = subprocess.Popen(
             spawn_args,
@@ -387,7 +412,8 @@ class Session(object):
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            cwd=self.cwd)
+            cwd=cwd,
+        )
         self.pid = self.process.pid
         self.psutil_process = psutil.Process(self.pid)
         self.is_running = True
@@ -435,7 +461,7 @@ class Session(object):
         if close:
             self.timeline.close()
 
-    def wait_for_termination(self):
+    def wait_for_termination(self, close=False):
         log.info('Waiting for {0} to terminate', self)
 
         # BUG: ptvsd sometimes exits without sending 'terminate' or 'exited', likely due to
@@ -457,7 +483,8 @@ class Session(object):
         if Event('terminated') in self:
             self.expect_realized(Event('exited') >> Event('terminated', {}))
 
-        self.timeline.close()
+        if close:
+            self.timeline.close()
 
     def wait_for_exit(self):
         """Waits for the spawned ptvsd process to exit. If it doesn't exit within
@@ -470,10 +497,12 @@ class Session(object):
 
         assert self.psutil_process is not None
 
+        killed = []
         def kill():
             time.sleep(self.WAIT_FOR_EXIT_TIMEOUT)
             if self.is_running:
                 log.warning('{0!r} (pid={1}) timed out, killing it', self, self.pid)
+                killed[:] = [True]
                 self._kill_process_tree()
 
         kill_thread = threading.Thread(target=kill, name=fmt('{0} watchdog (pid={1})', self, self.pid))
@@ -483,22 +512,23 @@ class Session(object):
         log.info('Waiting for {0} (pid={1}) to terminate', self, self.pid)
         returncode = self.psutil_process.wait()
 
+        assert not killed, "wait_for_exit() timed out"
         assert returncode == self.expected_returncode
 
         self.is_running = False
-        self.wait_for_termination()
+        self.wait_for_termination(close=not killed)
 
     def _kill_process_tree(self):
         assert self.psutil_process is not None
         procs = [self.psutil_process]
         try:
             procs += self.psutil_process.children(recursive=True)
-        except:
+        except Exception:
             pass
         for p in procs:
             try:
                 p.kill()
-            except:
+            except Exception:
                 pass
 
     def _listen(self):
@@ -508,11 +538,35 @@ class Session(object):
         self.server_socket.listen(0)
 
         def accept_worker():
+            with self.lock:
+                server_socket = self.server_socket
+                if server_socket is None:
+                    return
+
             log.info('Listening for incoming connection from {0} on port {1}...', self, self.ptvsd_port)
-            self.socket, _ = self.server_socket.accept()
-            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            try:
+                sock, _ = server_socket.accept()
+            except Exception:
+                log.exception()
+                return
             log.info('Incoming connection from {0} accepted.', self)
-            self._setup_channel()
+
+            try:
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                with self.lock:
+                    if self.server_socket is not None:
+                        self.socket = sock
+                        sock = None
+                        self._setup_channel()
+                    else:
+                        # self.close() has been called concurrently.
+                        pass
+            finally:
+                if sock is not None:
+                    try:
+                        sock.close()
+                    except Exception:
+                        pass
 
         accept_thread = threading.Thread(target=accept_worker, name=fmt('{0} listener', self))
         accept_thread.daemon = True
@@ -641,14 +695,15 @@ class Session(object):
 
     def _capture_output(self, pipe, name):
         thread = threading.Thread(
-            target=lambda: self._capture_output_worker(pipe, name),
+            target=lambda: self._output_worker(pipe, name),
             name=fmt("{0} {1}", self, name)
         )
         thread.daemon = True
         thread.start()
-        self._output_capture_threads.append(thread)
+        self._output_worker_threads.append(thread)
 
-    def _capture_output_worker(self, pipe, name):
+    def _output_worker(self, pipe, name):
+        output_lines = self._output_lines[name]
         while True:
             try:
                 line = pipe.readline()
@@ -657,13 +712,57 @@ class Session(object):
 
             if line:
                 log.info("{0} {1}> {2}", self, name, line.rstrip())
-                self.output_data[name].append(line)
+                with self.lock:
+                    output_lines.append(line)
             else:
                 break
 
     def _wait_for_remaining_output(self, timeout=None):
-        for thread in self._output_capture_threads:
-            thread.join(timeout)
+        for t in self._output_worker_threads:
+            t.join(timeout)
+
+    def _output(self, which, encoding, lines):
+        assert self.timeline.is_frozen
+        with self.lock:
+            result = list(self._output_lines[which])
+
+        if encoding is not None:
+            for i, s in enumerate(result):
+                result[i] = s.decode(encoding)
+
+        if not lines:
+            sep = b'' if encoding is None else u''
+            result = sep.join(result)
+
+        return result
+
+    def stdout(self, encoding=None):
+        """Returns stdout captured from the debugged process, as a single string.
+
+        If encoding is None, returns bytes. Otherwise, returns unicode.
+        """
+        return self._output("stdout", encoding, lines=False)
+
+    def stderr(self, encoding=None):
+        """Returns stderr captured from the debugged process, as a single string.
+
+        If encoding is None, returns bytes. Otherwise, returns unicode.
+        """
+        return self._output("stderr", encoding, lines=False)
+
+    def stdout_lines(self, encoding=None):
+        """Returns stdout captured from the debugged process, as a list of lines.
+
+        If encoding is None, each line is bytes. Otherwise, each line is unicode.
+        """
+        return self._output("stdout", encoding, lines=True)
+
+    def stderr_lines(self, encoding=None):
+        """Returns stderr captured from the debugged process, as a list of lines.
+
+        If encoding is None, each line is bytes. Otherwise, each line is unicode.
+        """
+        return self._output("stderr", encoding, lines=True)
 
     def request_continue(self):
         self.send_request('continue').wait_for_response(freeze=False)
@@ -718,7 +817,7 @@ class Session(object):
             child_session.rules = self.rules
             child_session.connect()
             child_session.handshake()
-        except:
+        except Exception:
             child_session.close()
             raise
         else:
@@ -727,12 +826,6 @@ class Session(object):
     def connect_to_next_child_session(self):
         ptvsd_subprocess = self.wait_for_next(Event('ptvsd_subprocess'))
         return self.connect_to_child_session(ptvsd_subprocess)
-
-    def get_stdout_as_string(self):
-        return b''.join(self.output_data['stdout'])
-
-    def get_stderr_as_string(self):
-        return b''.join(self.output_data['stderr'])
 
     def connect_with_new_session(self, **kwargs):
         ns = Session(start_method='attach_socket_import', ptvsd_port=self.ptvsd_port)
@@ -750,7 +843,7 @@ class Session(object):
             ns.connect()
             ns.connected.wait()
             ns.handshake()
-        except:
+        except Exception:
             ns.close()
         else:
             return ns
@@ -802,6 +895,9 @@ class BackChannel(object):
     def receive(self):
         self._established.wait()
         return self._stream.read_json()
+
+    def expect(self, value):
+        assert self.receive() == value
 
     def send(self, value):
         self._established.wait()

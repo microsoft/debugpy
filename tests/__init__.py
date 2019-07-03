@@ -7,9 +7,12 @@ from __future__ import absolute_import, print_function, unicode_literals
 """ptvsd tests
 """
 
+import json
 import pkgutil
 import pytest
 import py.path
+
+# Do not import anything from ptvsd until assert rewriting is enabled below!
 
 
 _tests_dir = py.path.local(__file__) / ".."
@@ -29,6 +32,7 @@ Idiomatic use is via from .. import::
 # tests will hang indefinitely if they time out.
 __import__("pytest_timeout")
 
+
 # We want pytest to rewrite asserts (for better error messages) in the common code
 # code used by the tests, and in all the test helpers. This does not affect ptvsd
 # inside debugged processes.
@@ -44,8 +48,25 @@ for _, submodule, _ in tests_submodules:
     submodule = str("{0}.{1}".format(__name__, submodule))
     _register_assert_rewrite(submodule)
 
+
+# Now we can import these, and pytest will rewrite asserts in them.
+from ptvsd.common import fmt, log, messaging
+
+
 # Enable full logging to stderr, and make timestamps shorter to match maximum test
 # run time better.
-from ptvsd.common import log
 log.stderr_levels = set(log.LEVELS)
 log.timestamp_format = "06.3f"
+
+
+# Enable JSON serialization for py.path.local
+
+class JSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, py.path.local):
+            return obj.strpath
+        return super(JSONEncoder, self).default(obj)
+
+fmt.JsonObject.json_encoder = JSONEncoder(indent=4)
+fmt.JsonObject.json_encoder_factory = JSONEncoder
+messaging.JsonIOStream.json_encoder_factory = JSONEncoder

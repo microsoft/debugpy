@@ -15,7 +15,7 @@ from tests.patterns import some
 @pytest.mark.parametrize("start_method", ["launch"])
 @pytest.mark.skipif(
     sys.version_info < (3, 0) and platform.system() == "Windows",
-    reason="On Win32 Python2.7, unable to send key strokes to test.",
+    reason="On Windows + Python 2, unable to send key strokes to test.",
 )
 def test_wait_on_normal_exit_enabled(pyfile, start_method, run_as):
     @pyfile
@@ -24,9 +24,10 @@ def test_wait_on_normal_exit_enabled(pyfile, start_method, run_as):
         import ptvsd
 
         ptvsd.break_into_debugger()
-        backchannel.write_json("done")
+        backchannel.send("done")
 
     with debug.Session() as session:
+        backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
@@ -36,26 +37,21 @@ def test_wait_on_normal_exit_enabled(pyfile, start_method, run_as):
         session.start_debugging()
 
         session.wait_for_stop()
-        session.send_continue()
+        session.request_continue()
 
         session.expected_returncode = some.int
-        assert session.read_json() == "done"
+        assert backchannel.receive() == "done"
 
         session.process.stdin.write(b" \r\n")
         session.wait_for_exit()
 
-        decoded = "\n".join(
-            (x.decode("utf-8") if isinstance(x, bytes) else x)
-            for x in session.output_data["OUT"]
-        )
-
-        assert "Press" in decoded
+        assert any(s.startswith("Press") for s in session.stdout_lines("utf-8"))
 
 
 @pytest.mark.parametrize("start_method", ["launch"])
 @pytest.mark.skipif(
     sys.version_info < (3, 0) and platform.system() == "Windows",
-    reason="On windows py2.7 unable to send key strokes to test.",
+    reason="On Windows + Python 2, unable to send key strokes to test.",
 )
 def test_wait_on_abnormal_exit_enabled(pyfile, start_method, run_as):
     @pyfile
@@ -65,10 +61,11 @@ def test_wait_on_abnormal_exit_enabled(pyfile, start_method, run_as):
         import ptvsd
 
         ptvsd.break_into_debugger()
-        backchannel.write_json("done")
+        backchannel.send("done")
         sys.exit(12345)
 
     with debug.Session() as session:
+        backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
@@ -78,22 +75,15 @@ def test_wait_on_abnormal_exit_enabled(pyfile, start_method, run_as):
         session.start_debugging()
 
         session.wait_for_stop()
-        session.send_continue()
+        session.request_continue()
 
         session.expected_returncode = some.int
-        assert session.read_json() == "done"
+        assert backchannel.receive() == "done"
 
         session.process.stdin.write(b" \r\n")
         session.wait_for_exit()
 
-        def _decode(text):
-            if isinstance(text, bytes):
-                return text.decode("utf-8")
-            return text
-
-        assert any(
-            l for l in session.output_data["OUT"] if _decode(l).startswith("Press")
-        )
+        assert any(s.startswith("Press") for s in session.stdout_lines("utf-8"))
 
 
 @pytest.mark.parametrize("start_method", ["launch"])
@@ -104,9 +94,10 @@ def test_exit_normally_with_wait_on_abnormal_exit_enabled(pyfile, start_method, 
         import ptvsd
 
         ptvsd.break_into_debugger()
-        backchannel.write_json("done")
+        backchannel.send("done")
 
     with debug.Session() as session:
+        backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
@@ -116,10 +107,10 @@ def test_exit_normally_with_wait_on_abnormal_exit_enabled(pyfile, start_method, 
         session.start_debugging()
 
         session.wait_for_stop()
-        session.send_continue()
+        session.request_continue()
 
         session.wait_for_termination()
 
-        assert session.read_json() == "done"
+        assert backchannel.receive() == "done"
 
         session.wait_for_exit()
