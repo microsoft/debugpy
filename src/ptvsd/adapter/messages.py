@@ -105,8 +105,8 @@ class IDEMessages(Messages):
     # and that must be replayed to the server once it is established.
     def _replay_to_server(handler):
         def store_and_handle(self, message):
-            if self.initial_messages is not None:
-                self.initial_messages.append(message)
+            if self._initial_messages is not None:
+                self._initial_messages.append(message)
             return handler(self, message)
 
         return store_and_handle

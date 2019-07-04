@@ -5,6 +5,7 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 from ptvsd.common import messaging, singleton
+from ptvsd.common.socket import create_server
 
 
 class Channels(singleton.ThreadSafeSingleton):
@@ -28,13 +29,19 @@ class Channels(singleton.ThreadSafeSingleton):
     """
 
     @singleton.autolocked_method
-    def connect_to_ide(self):
+    def connect_to_ide(self, address=None):
         assert self.ide is None
 
         # Import message handlers lazily to avoid circular imports.
         from ptvsd.adapter import messages
 
-        ide_channel = messaging.JsonIOStream.from_stdio("IDE")
+        if address is None:
+            ide_channel = messaging.JsonIOStream.from_stdio("IDE")
+        else:
+            host, port = address
+            sock = create_server(host, port).accept()
+            ide_channel = messaging.JsonIOStream.from_socket(sock, "IDE")
+
         self.ide = messaging.JsonMessageChannel(
             ide_channel, messages.IDEMessages(), ide_channel.name
         )

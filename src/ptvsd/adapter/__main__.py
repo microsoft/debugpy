@@ -5,9 +5,16 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import sys
+import argparse
 
 # WARNING: ptvsd and submodules must not be imported on top level in this module,
 # and should be imported locally inside main() instead.
+
+
+def _get_parsed_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--debug-port", nargs="?", default=None, const=6789)
+    return parser.parse_args(sys.argv[1:])
 
 
 def main():
@@ -15,10 +22,11 @@ def main():
     from ptvsd.common import log
     from ptvsd.adapter import channels
 
+    args = _get_parsed_args()
     log.to_file()
 
     chan = channels.Channels()
-    chan.connect_to_ide()
+    chan.connect_to_ide(address=("localhost", int(args.debug_port)))
 
     chan.ide.send_event(
         "output",
