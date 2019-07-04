@@ -194,6 +194,32 @@ def test_case_breakpoint_condition_exc(case_setup, skip_suspend_on_breakpoint_ex
         writer.finished_ok = True
 
 
+def test_case_remove_breakpoint(case_setup):
+    with case_setup.test_file('_debugger_case_remove_breakpoint.py') as writer:
+        breakpoint_id = writer.write_add_breakpoint(writer.get_line_index_with_content('break here'))
+        writer.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit()
+        writer.write_remove_breakpoint(breakpoint_id)
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+
+
+def test_case_double_remove_breakpoint(case_setup):
+
+    with case_setup.test_file('_debugger_case_remove_breakpoint.py') as writer:
+        breakpoint_id = writer.write_add_breakpoint(writer.get_line_index_with_content('break here'))
+        writer.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit()
+        writer.write_remove_breakpoint(breakpoint_id)
+        writer.write_remove_breakpoint(breakpoint_id)  # Double-remove (just check that we don't have an error).
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+
+
 @pytest.mark.skipif(IS_IRONPYTHON, reason='This test fails once in a while due to timing issues on IronPython, so, skipping it.')
 def test_case_3(case_setup):
     with case_setup.test_file('_debugger_case3.py') as writer:

@@ -217,9 +217,16 @@ class FilesFiltering(object):
         '''
         Note: don't call directly. Use PyDb.in_project_scope (no caching here).
         '''
+        if filename.startswith('<'):  # Note: always use only startswith (pypy can have: "<builtin>some other name").
+            # This is a dummy filename that is usually used for eval or exec. Assume
+            # that it is user code, with one exception: <frozen ...> is used in the
+            # standard library.
+            in_project = not filename.startswith('<frozen ')
+            return in_project
+
         project_roots = self._get_project_roots()
-        if not filename.endswith('>'):
-            filename = self._normpath(filename)
+
+        filename = self._normpath(filename)
 
         found_in_project = []
         for root in project_roots:
@@ -236,13 +243,7 @@ class FilesFiltering(object):
             # If we have no project roots configured, consider it being in the project
             # roots if it's not found in site-packages (because we have defaults for those
             # and not the other way around).
-            if filename.endswith('>'):
-                # This is a dummy filename that is usually used for eval or exec. Assume
-                # that it is user code, with one exception: <frozen ...> is used in the
-                # standard library.
-                in_project = not filename.startswith('<frozen ')
-            else:
-                in_project = not found_in_library
+            in_project = not found_in_library
         else:
             in_project = False
             if found_in_project:

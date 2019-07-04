@@ -50,6 +50,7 @@ from _pydevd_bundle.pydevd_utils import save_main_module, is_current_thread_main
 from _pydevd_frame_eval.pydevd_frame_eval_main import (
     frame_eval_func, dummy_trace_dispatch)
 import pydev_ipython  # @UnusedImport
+from _pydevd_bundle.pydevd_source_mapping import SourceMapping
 from pydevd_concurrency_analyser.pydevd_concurrency_logger import ThreadingLogger, AsyncioLogger, send_message, cur_time
 from pydevd_concurrency_analyser.pydevd_thread_wrappers import wrap_threads
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame, NORM_PATHS_AND_BASE_CONTAINER, get_abs_path_real_path_and_base_from_file
@@ -362,9 +363,6 @@ class ThreadsSuspendedSingleNotification(AbstractSingleNotificationBehavior):
             yield
 
 
-#=======================================================================================================================
-# PyDB
-#=======================================================================================================================
 class PyDB(object):
     """ Main debugging class
     Lots of stuff going on here:
@@ -395,7 +393,13 @@ class PyDB(object):
         self._cmd_queue = defaultdict(_queue.Queue)  # Key is thread id or '*', value is Queue
         self.suspended_frames_manager = SuspendedFramesManager()
         self._files_filtering = FilesFiltering()
+        self.source_mapping = SourceMapping()
 
+        # These are the breakpoints received by the PyDevdAPI. They are meant to store
+        # the breakpoints in the api -- its actual contents are managed by the api.
+        self.api_received_breakpoints = {}
+
+        # These are the breakpoints meant to be consumed during runtime.
         self.breakpoints = {}
 
         # Set communication protocol

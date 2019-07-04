@@ -1595,6 +1595,8 @@ class RunInTerminalRequestArguments(BaseSchema):
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         cwd = self.cwd
         args = self.args
+        if args and hasattr(args[0], "to_dict"):
+            args = [x.to_dict() for x in args]
         kind = self.kind
         title = self.title
         env = self.env
@@ -3360,7 +3362,11 @@ class SetBreakpointsArguments(BaseSchema):
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         source = self.source
         breakpoints = self.breakpoints
+        if breakpoints and hasattr(breakpoints[0], "to_dict"):
+            breakpoints = [x.to_dict() for x in breakpoints]
         lines = self.lines
+        if lines and hasattr(lines[0], "to_dict"):
+            lines = [x.to_dict() for x in lines]
         sourceModified = self.sourceModified
         dct = {
             'source': source.to_dict(update_ids_to_dap=update_ids_to_dap),
@@ -3589,6 +3595,8 @@ class SetFunctionBreakpointsArguments(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         breakpoints = self.breakpoints
+        if breakpoints and hasattr(breakpoints[0], "to_dict"):
+            breakpoints = [x.to_dict() for x in breakpoints]
         dct = {
             'breakpoints': [FunctionBreakpoint.update_dict_ids_to_dap(o) for o in breakpoints] if (update_ids_to_dap and breakpoints) else breakpoints,
         }
@@ -3809,7 +3817,11 @@ class SetExceptionBreakpointsArguments(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         filters = self.filters
+        if filters and hasattr(filters[0], "to_dict"):
+            filters = [x.to_dict() for x in filters]
         exceptionOptions = self.exceptionOptions
+        if exceptionOptions and hasattr(exceptionOptions[0], "to_dict"):
+            exceptionOptions = [x.to_dict() for x in exceptionOptions]
         dct = {
             'filters': filters,
         }
@@ -4264,6 +4276,8 @@ class SetDataBreakpointsArguments(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         breakpoints = self.breakpoints
+        if breakpoints and hasattr(breakpoints[0], "to_dict"):
+            breakpoints = [x.to_dict() for x in breakpoints]
         dct = {
             'breakpoints': [DataBreakpoint.update_dict_ids_to_dap(o) for o in breakpoints] if (update_ids_to_dap and breakpoints) else breakpoints,
         }
@@ -7834,6 +7848,8 @@ class TerminateThreadsArguments(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         threadIds = self.threadIds
+        if threadIds and hasattr(threadIds[0], "to_dict"):
+            threadIds = [x.to_dict() for x in threadIds]
         dct = {
         }
         if threadIds is not None:
@@ -10034,6 +10050,8 @@ class Capabilities(BaseSchema):
         supportsHitConditionalBreakpoints = self.supportsHitConditionalBreakpoints
         supportsEvaluateForHovers = self.supportsEvaluateForHovers
         exceptionBreakpointFilters = self.exceptionBreakpointFilters
+        if exceptionBreakpointFilters and hasattr(exceptionBreakpointFilters[0], "to_dict"):
+            exceptionBreakpointFilters = [x.to_dict() for x in exceptionBreakpointFilters]
         supportsStepBack = self.supportsStepBack
         supportsSetVariable = self.supportsSetVariable
         supportsRestartFrame = self.supportsRestartFrame
@@ -10042,7 +10060,11 @@ class Capabilities(BaseSchema):
         supportsCompletionsRequest = self.supportsCompletionsRequest
         supportsModulesRequest = self.supportsModulesRequest
         additionalModuleColumns = self.additionalModuleColumns
+        if additionalModuleColumns and hasattr(additionalModuleColumns[0], "to_dict"):
+            additionalModuleColumns = [x.to_dict() for x in additionalModuleColumns]
         supportedChecksumAlgorithms = self.supportedChecksumAlgorithms
+        if supportedChecksumAlgorithms and hasattr(supportedChecksumAlgorithms[0], "to_dict"):
+            supportedChecksumAlgorithms = [x.to_dict() for x in supportedChecksumAlgorithms]
         supportsRestartRequest = self.supportsRestartRequest
         supportsExceptionOptions = self.supportsExceptionOptions
         supportsValueFormattingOptions = self.supportsValueFormattingOptions
@@ -10516,6 +10538,8 @@ class ModulesViewDescriptor(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         columns = self.columns
+        if columns and hasattr(columns[0], "to_dict"):
+            columns = [x.to_dict() for x in columns]
         dct = {
             'columns': [ColumnDescriptor.update_dict_ids_to_dap(o) for o in columns] if (update_ids_to_dap and columns) else columns,
         }
@@ -10684,8 +10708,12 @@ class Source(BaseSchema):
         presentationHint = self.presentationHint
         origin = self.origin
         sources = self.sources
+        if sources and hasattr(sources[0], "to_dict"):
+            sources = [x.to_dict() for x in sources]
         adapterData = self.adapterData
         checksums = self.checksums
+        if checksums and hasattr(checksums[0], "to_dict"):
+            checksums = [x.to_dict() for x in checksums]
         dct = {
         }
         if name is not None:
@@ -11206,6 +11234,8 @@ class VariablePresentationHint(BaseSchema):
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         kind = self.kind
         attributes = self.attributes
+        if attributes and hasattr(attributes[0], "to_dict"):
+            attributes = [x.to_dict() for x in attributes]
         visibility = self.visibility
         dct = {
         }
@@ -12046,6 +12076,8 @@ class ExceptionOptions(BaseSchema):
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         breakMode = self.breakMode
         path = self.path
+        if path and hasattr(path[0], "to_dict"):
+            path = [x.to_dict() for x in path]
         dct = {
             'breakMode': breakMode,
         }
@@ -12137,6 +12169,8 @@ class ExceptionPathSegment(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         names = self.names
+        if names and hasattr(names[0], "to_dict"):
+            names = [x.to_dict() for x in names]
         negate = self.negate
         dct = {
             'names': names,
@@ -12216,6 +12250,8 @@ class ExceptionDetails(BaseSchema):
         evaluateName = self.evaluateName
         stackTrace = self.stackTrace
         innerException = self.innerException
+        if innerException and hasattr(innerException[0], "to_dict"):
+            innerException = [x.to_dict() for x in innerException]
         dct = {
         }
         if message is not None:
@@ -12486,6 +12522,298 @@ class SetDebuggerPropertyResponse(BaseSchema):
             dct['message'] = message
         if body is not None:
             dct['body'] = body
+        dct.update(self.kwargs)
+        return dct
+
+
+@register_request('setPydevdSourceMap')
+@register
+class SetPydevdSourceMapRequest(BaseSchema):
+    """
+    Sets multiple PydevdSourceMap for a single source and clears all previous PydevdSourceMap in that
+    source.
+    
+    i.e.: Maps paths and lines in a 1:N mapping (use case: map a single file in the IDE to multiple
+    IPython cells).
+    
+    To clear all PydevdSourceMap for a source, specify an empty array.
+    
+    Interaction with breakpoints: When a new mapping is sent, breakpoints that match the source (or
+    previously matched a source) are reapplied.
+    
+    Interaction with launch pathMapping: both mappings are independent. This mapping is applied after
+    the launch pathMapping.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "seq": {
+            "type": "integer",
+            "description": "Sequence number."
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "request"
+            ]
+        },
+        "command": {
+            "type": "string",
+            "enum": [
+                "setPydevdSourceMap"
+            ]
+        },
+        "arguments": {
+            "type": "SetPydevdSourceMapArguments"
+        }
+    }
+    __refs__ = set(['arguments'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string type: 
+        :param string command: 
+        :param SetPydevdSourceMapArguments arguments: 
+        :param integer seq: Sequence number.
+        """
+        self.type = 'request'
+        self.command = 'setPydevdSourceMap'
+        if arguments is None:
+            self.arguments = SetPydevdSourceMapArguments()
+        else:
+            self.arguments = SetPydevdSourceMapArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  SetPydevdSourceMapArguments else arguments
+        self.seq = seq
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
+        dct = {
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
+        }
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class SetPydevdSourceMapArguments(BaseSchema):
+    """
+    Arguments for 'setPydevdSourceMap' request.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "source": {
+            "description": "The source location of the PydevdSourceMap; 'source.path' must be specified (e.g.: for an ipython notebook this could be something as /home/notebook/note.py).",
+            "type": "Source"
+        },
+        "pydevdSourceMaps": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/PydevdSourceMap"
+            },
+            "description": "The PydevdSourceMaps to be set to the given source (provide an empty array to clear the source mappings for a given path)."
+        }
+    }
+    __refs__ = set(['source'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, source, pydevdSourceMaps=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param Source source: The source location of the PydevdSourceMap; 'source.path' must be specified (e.g.: for an ipython notebook this could be something as /home/notebook/note.py).
+        :param array pydevdSourceMaps: The PydevdSourceMaps to be set to the given source (provide an empty array to clear the source mappings for a given path).
+        """
+        if source is None:
+            self.source = Source()
+        else:
+            self.source = Source(update_ids_from_dap=update_ids_from_dap, **source) if source.__class__ !=  Source else source
+        self.pydevdSourceMaps = pydevdSourceMaps
+        if update_ids_from_dap and self.pydevdSourceMaps:
+            for o in self.pydevdSourceMaps:
+                PydevdSourceMap.update_dict_ids_from_dap(o)
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        source = self.source
+        pydevdSourceMaps = self.pydevdSourceMaps
+        if pydevdSourceMaps and hasattr(pydevdSourceMaps[0], "to_dict"):
+            pydevdSourceMaps = [x.to_dict() for x in pydevdSourceMaps]
+        dct = {
+            'source': source.to_dict(update_ids_to_dap=update_ids_to_dap),
+        }
+        if pydevdSourceMaps is not None:
+            dct['pydevdSourceMaps'] = [PydevdSourceMap.update_dict_ids_to_dap(o) for o in pydevdSourceMaps] if (update_ids_to_dap and pydevdSourceMaps) else pydevdSourceMaps
+        dct.update(self.kwargs)
+        return dct
+
+
+@register_response('setPydevdSourceMap')
+@register
+class SetPydevdSourceMapResponse(BaseSchema):
+    """
+    Response to 'setPydevdSourceMap' request. This is just an acknowledgement, so no body field is
+    required.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "seq": {
+            "type": "integer",
+            "description": "Sequence number."
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "response"
+            ]
+        },
+        "request_seq": {
+            "type": "integer",
+            "description": "Sequence number of the corresponding request."
+        },
+        "success": {
+            "type": "boolean",
+            "description": "Outcome of the request."
+        },
+        "command": {
+            "type": "string",
+            "description": "The command requested."
+        },
+        "message": {
+            "type": "string",
+            "description": "Contains error message if success == false."
+        },
+        "body": {
+            "type": [
+                "array",
+                "boolean",
+                "integer",
+                "null",
+                "number",
+                "object",
+                "string"
+            ],
+            "description": "Contains request result if success is true and optional error details if success is false."
+        }
+    }
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string type: 
+        :param integer request_seq: Sequence number of the corresponding request.
+        :param boolean success: Outcome of the request.
+        :param string command: The command requested.
+        :param integer seq: Sequence number.
+        :param string message: Contains error message if success == false.
+        :param ['array', 'boolean', 'integer', 'null', 'number', 'object', 'string'] body: Contains request result if success is true and optional error details if success is false.
+        """
+        self.type = 'response'
+        self.request_seq = request_seq
+        self.success = success
+        self.command = command
+        self.seq = seq
+        self.message = message
+        self.body = body
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
+        dct = {
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
+        }
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class PydevdSourceMap(BaseSchema):
+    """
+    Information that allows mapping a local line to a remote source/line.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "line": {
+            "type": "integer",
+            "description": "The local line to which the mapping should map to (e.g.: for an ipython notebook this would be the first line of the cell in the file)."
+        },
+        "endLine": {
+            "type": "integer",
+            "description": "The end line."
+        },
+        "runtimeSource": {
+            "description": "The path that the user has remotely -- 'source.path' must be specified (e.g.: for an ipython notebook this could be something as '<ipython-input-1-4561234>')",
+            "type": "Source"
+        },
+        "runtimeLine": {
+            "type": "integer",
+            "description": "The remote line to which the mapping should map to (e.g.: for an ipython notebook this would be always 1 as it'd map the start of the cell)."
+        }
+    }
+    __refs__ = set(['runtimeSource'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, line, endLine, runtimeSource, runtimeLine, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param integer line: The local line to which the mapping should map to (e.g.: for an ipython notebook this would be the first line of the cell in the file).
+        :param integer endLine: The end line.
+        :param Source runtimeSource: The path that the user has remotely -- 'source.path' must be specified (e.g.: for an ipython notebook this could be something as '<ipython-input-1-4561234>')
+        :param integer runtimeLine: The remote line to which the mapping should map to (e.g.: for an ipython notebook this would be always 1 as it'd map the start of the cell).
+        """
+        self.line = line
+        self.endLine = endLine
+        if runtimeSource is None:
+            self.runtimeSource = Source()
+        else:
+            self.runtimeSource = Source(update_ids_from_dap=update_ids_from_dap, **runtimeSource) if runtimeSource.__class__ !=  Source else runtimeSource
+        self.runtimeLine = runtimeLine
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        line = self.line
+        endLine = self.endLine
+        runtimeSource = self.runtimeSource
+        runtimeLine = self.runtimeLine
+        dct = {
+            'line': line,
+            'endLine': endLine,
+            'runtimeSource': runtimeSource.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'runtimeLine': runtimeLine,
+        }
         dct.update(self.kwargs)
         return dct
 
@@ -13732,6 +14060,8 @@ class SetBreakpointsResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         breakpoints = self.breakpoints
+        if breakpoints and hasattr(breakpoints[0], "to_dict"):
+            breakpoints = [x.to_dict() for x in breakpoints]
         dct = {
             'breakpoints': [Breakpoint.update_dict_ids_to_dap(o) for o in breakpoints] if (update_ids_to_dap and breakpoints) else breakpoints,
         }
@@ -13773,6 +14103,8 @@ class SetFunctionBreakpointsResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         breakpoints = self.breakpoints
+        if breakpoints and hasattr(breakpoints[0], "to_dict"):
+            breakpoints = [x.to_dict() for x in breakpoints]
         dct = {
             'breakpoints': [Breakpoint.update_dict_ids_to_dap(o) for o in breakpoints] if (update_ids_to_dap and breakpoints) else breakpoints,
         }
@@ -13837,6 +14169,8 @@ class DataBreakpointInfoResponseBody(BaseSchema):
         dataId = self.dataId
         description = self.description
         accessTypes = self.accessTypes
+        if accessTypes and hasattr(accessTypes[0], "to_dict"):
+            accessTypes = [x.to_dict() for x in accessTypes]
         canPersist = self.canPersist
         dct = {
             'dataId': dataId,
@@ -13884,6 +14218,8 @@ class SetDataBreakpointsResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         breakpoints = self.breakpoints
+        if breakpoints and hasattr(breakpoints[0], "to_dict"):
+            breakpoints = [x.to_dict() for x in breakpoints]
         dct = {
             'breakpoints': [Breakpoint.update_dict_ids_to_dap(o) for o in breakpoints] if (update_ids_to_dap and breakpoints) else breakpoints,
         }
@@ -13968,6 +14304,8 @@ class StackTraceResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         stackFrames = self.stackFrames
+        if stackFrames and hasattr(stackFrames[0], "to_dict"):
+            stackFrames = [x.to_dict() for x in stackFrames]
         totalFrames = self.totalFrames
         dct = {
             'stackFrames': [StackFrame.update_dict_ids_to_dap(o) for o in stackFrames] if (update_ids_to_dap and stackFrames) else stackFrames,
@@ -14012,6 +14350,8 @@ class ScopesResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         scopes = self.scopes
+        if scopes and hasattr(scopes[0], "to_dict"):
+            scopes = [x.to_dict() for x in scopes]
         dct = {
             'scopes': [Scope.update_dict_ids_to_dap(o) for o in scopes] if (update_ids_to_dap and scopes) else scopes,
         }
@@ -14053,6 +14393,8 @@ class VariablesResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         variables = self.variables
+        if variables and hasattr(variables[0], "to_dict"):
+            variables = [x.to_dict() for x in variables]
         dct = {
             'variables': [Variable.update_dict_ids_to_dap(o) for o in variables] if (update_ids_to_dap and variables) else variables,
         }
@@ -14228,6 +14570,8 @@ class ThreadsResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         threads = self.threads
+        if threads and hasattr(threads[0], "to_dict"):
+            threads = [x.to_dict() for x in threads]
         dct = {
             'threads': [Thread.update_dict_ids_to_dap(o) for o in threads] if (update_ids_to_dap and threads) else threads,
         }
@@ -14275,6 +14619,8 @@ class ModulesResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         modules = self.modules
+        if modules and hasattr(modules[0], "to_dict"):
+            modules = [x.to_dict() for x in modules]
         totalModules = self.totalModules
         dct = {
             'modules': [Module.update_dict_ids_to_dap(o) for o in modules] if (update_ids_to_dap and modules) else modules,
@@ -14319,6 +14665,8 @@ class LoadedSourcesResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         sources = self.sources
+        if sources and hasattr(sources[0], "to_dict"):
+            sources = [x.to_dict() for x in sources]
         dct = {
             'sources': [Source.update_dict_ids_to_dap(o) for o in sources] if (update_ids_to_dap and sources) else sources,
         }
@@ -14563,6 +14911,8 @@ class StepInTargetsResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         targets = self.targets
+        if targets and hasattr(targets[0], "to_dict"):
+            targets = [x.to_dict() for x in targets]
         dct = {
             'targets': [StepInTarget.update_dict_ids_to_dap(o) for o in targets] if (update_ids_to_dap and targets) else targets,
         }
@@ -14604,6 +14954,8 @@ class GotoTargetsResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         targets = self.targets
+        if targets and hasattr(targets[0], "to_dict"):
+            targets = [x.to_dict() for x in targets]
         dct = {
             'targets': [GotoTarget.update_dict_ids_to_dap(o) for o in targets] if (update_ids_to_dap and targets) else targets,
         }
@@ -14645,6 +14997,8 @@ class CompletionsResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         targets = self.targets
+        if targets and hasattr(targets[0], "to_dict"):
+            targets = [x.to_dict() for x in targets]
         dct = {
             'targets': [CompletionItem.update_dict_ids_to_dap(o) for o in targets] if (update_ids_to_dap and targets) else targets,
         }

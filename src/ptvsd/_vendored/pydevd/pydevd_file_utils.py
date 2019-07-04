@@ -50,7 +50,6 @@ from _pydev_bundle.pydev_log import error_once
 import json
 import os.path
 import sys
-import traceback
 import itertools
 import ntpath
 from functools import partial
@@ -603,8 +602,8 @@ def setup_client_server_paths(paths):
                     if not translated.startswith('<'):
                         # This is a configuration error, so, write it always so
                         # that the user can fix it.
-                        error_once('pydev debugger: unable to find translation for: "%s" in [%s] (please revise your path mappings).\n' %
-                            (filename, ', '.join(['"%s"' % (x[0],) for x in paths_from_eclipse_to_python])))
+                        error_once('pydev debugger: unable to find translation for: "%s" in [%s] (please revise your path mappings).\n',
+                            filename, ', '.join(['"%s"' % (x[0],) for x in paths_from_eclipse_to_python]))
                 else:
                     # It's possible that we had some round trip (say, we sent /usr/lib and received
                     # it back, so, having no translation is ok too).

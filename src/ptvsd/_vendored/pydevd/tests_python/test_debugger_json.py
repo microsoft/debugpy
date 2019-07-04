@@ -15,6 +15,7 @@ from tests_python.debug_constants import *  # noqa
 import time
 from os.path import normcase
 from _pydev_bundle.pydev_localhost import get_socket_name
+from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
 
 pytest_plugins = [
     str('tests_python.debugger_fixtures'),
@@ -107,11 +108,22 @@ class JsonFacade(object):
         return self.wait_for_response(self.write_request(pydevd_schema.ThreadsRequest()))
 
     def wait_for_thread_stopped(self, reason='breakpoint', line=None, file=None, name=None):
+        '''
+        :param file:
+            utf-8 bytes encoded file or unicode
+        '''
         stopped_event = self.wait_for_json_message(StoppedEvent)
         assert stopped_event.body.reason == reason
         json_hit = self.get_stack_as_json_hit(stopped_event.body.threadId)
         if file is not None:
-            assert json_hit.stack_trace_response.body.stackFrames[0]['source']['path'].endswith(file)
+            path = json_hit.stack_trace_response.body.stackFrames[0]['source']['path']
+            if IS_PY2:
+                if isinstance(file, bytes):
+                    file = file.decode('utf-8')
+                if isinstance(path, bytes):
+                    path = path.decode('utf-8')
+
+            assert path.endswith(file)
         if name is not None:
             assert json_hit.stack_trace_response.body.stackFrames[0]['name'] == name
         if line is not None:
@@ -145,6 +157,10 @@ class JsonFacade(object):
 
         if filename is None:
             filename = self.writer.get_main_filename()
+
+        if isinstance(filename, bytes):
+            filename = filename.decode(file_system_encoding)  # file is in the filesystem encoding but protocol needs it in utf-8
+            filename = filename.encode('utf-8')
 
         source = pydevd_schema.Source(path=filename)
         breakpoints = []
@@ -360,6 +376,16 @@ class JsonFacade(object):
                 dontTraceEndPatterns=dont_trace_end_patterns)))
         response = self.wait_for_response(dbg_request)
         assert response.success
+        return response
+
+    def write_set_pydevd_source_map(self, source, pydevd_source_maps, success=True):
+        dbg_request = self.write_request(
+            pydevd_schema.SetPydevdSourceMapRequest(pydevd_schema.SetPydevdSourceMapArguments(
+                source=source,
+                pydevdSourceMaps=pydevd_source_maps,
+            )))
+        response = self.wait_for_response(dbg_request)
+        assert response.success == success
         return response
 
 
@@ -639,19 +665,19 @@ def test_case_path_translation_not_skipped(case_setup):
     if isinstance(sys_folder, (list, tuple)):
         sys_folder = next(iter(sys_folder))
 
-    def get_environ(writer):
-        env = os.environ.copy()
+    with case_setup.test_file('my_code/my_code.py') as writer:
+        json_facade = JsonFacade(writer)
+
         # We need to set up path mapping to enable source references.
         my_code = debugger_unittest._get_debugger_test_file('my_code')
 
-        env["PATHS_FROM_ECLIPSE_TO_PYTHON"] = json.dumps([
-            (sys_folder, my_code),
-        ])
-        env['PYDEVD_FILTER_LIBRARIES'] = '1'
-        return env
-
-    with case_setup.test_file('my_code/my_code.py', get_environ=get_environ) as writer:
-        json_facade = JsonFacade(writer)
+        json_facade.write_launch(
+            debugOptions=['DebugStdLib'],
+            pathMappings=[{
+                'localRoot': sys_folder,
+                'remoteRoot': my_code,
+            }]
+        )
 
         bp_line = writer.get_line_index_with_content('break here')
         json_facade.write_set_breakpoints(
@@ -2047,6 +2073,92 @@ def test_set_debugger_property(case_setup, dbg_property):
         writer.finished_ok = True
 
 
+def test_source_mapping_errors(case_setup):
+    from _pydevd_bundle._debug_adapter.pydevd_schema import Source
+    from _pydevd_bundle._debug_adapter.pydevd_schema import PydevdSourceMap
+
+    with case_setup.test_file('_debugger_case_source_mapping.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        map_to_cell_1_line2 = writer.get_line_index_with_content('map to cell1, line 2')
+        map_to_cell_2_line2 = writer.get_line_index_with_content('map to cell2, line 2')
+
+        cell1_map = PydevdSourceMap(map_to_cell_1_line2, map_to_cell_1_line2 + 1, Source(path='<cell1>'), 2)
+        cell2_map = PydevdSourceMap(map_to_cell_2_line2, map_to_cell_2_line2 + 1, Source(path='<cell2>'), 2)
+        pydevd_source_maps = [
+            cell1_map, cell2_map
+        ]
+
+        json_facade.write_set_pydevd_source_map(
+            Source(path=writer.TEST_FILE),
+            pydevd_source_maps=pydevd_source_maps,
+        )
+        # This will fail because file mappings must be 1:N, not M:N (i.e.: if there's a mapping from file1.py to <cell1>,
+        # there can be no other mapping from any other file to <cell1>).
+        # This is a limitation to make it easier to remove existing breakpoints when new breakpoints are
+        # set to a file (so, any file matching that breakpoint can be removed instead of needing to check
+        # which lines are corresponding to that file).
+        json_facade.write_set_pydevd_source_map(
+            Source(path=os.path.join(os.path.dirname(writer.TEST_FILE), 'foo.py')),
+            pydevd_source_maps=pydevd_source_maps,
+            success=False,
+        )
+        json_facade.write_make_initial_run()
+
+        writer.finished_ok = True
+
+
+def test_source_mapping(case_setup):
+    from _pydevd_bundle._debug_adapter.pydevd_schema import Source
+    from _pydevd_bundle._debug_adapter.pydevd_schema import PydevdSourceMap
+
+    case_setup.check_non_ascii = True
+
+    with case_setup.test_file('_debugger_case_source_mapping.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch(
+            debugOptions=['DebugStdLib'],
+        )
+
+        map_to_cell_1_line2 = writer.get_line_index_with_content('map to cell1, line 2')
+        map_to_cell_2_line2 = writer.get_line_index_with_content('map to cell2, line 2')
+
+        cell1_map = PydevdSourceMap(map_to_cell_1_line2, map_to_cell_1_line2 + 1, Source(path='<cell1>'), 2)
+        cell2_map = PydevdSourceMap(map_to_cell_2_line2, map_to_cell_2_line2 + 1, Source(path='<cell2>'), 2)
+        pydevd_source_maps = [
+            cell1_map, cell2_map, cell2_map,  # The one repeated should be ignored.
+        ]
+
+        # Set breakpoints before setting the source map (check that we reapply them).
+        json_facade.write_set_breakpoints(map_to_cell_1_line2)
+
+        test_file = writer.TEST_FILE
+        if isinstance(test_file, bytes):
+            # file is in the filesystem encoding (needed for launch) but protocol needs it in utf-8
+            test_file = test_file.decode(file_system_encoding)
+            test_file = test_file.encode('utf-8')
+
+        json_facade.write_set_pydevd_source_map(
+            Source(path=test_file),
+            pydevd_source_maps=pydevd_source_maps,
+        )
+
+        json_facade.write_make_initial_run()
+
+        json_facade.wait_for_thread_stopped(line=map_to_cell_1_line2, file=os.path.basename(test_file))
+        # Check that we no longer stop at the cell1 breakpoint (its mapping should be removed when
+        # the new one is added and we should only stop at cell2).
+        json_facade.write_set_breakpoints(map_to_cell_2_line2)
+        json_facade.write_continue()
+
+        json_facade.wait_for_thread_stopped(line=map_to_cell_2_line2, file=os.path.basename(test_file))
+        json_facade.write_set_breakpoints([])  # Clears breakpoints
+        json_facade.write_continue(wait_for_response=False)
+
+        writer.finished_ok = True
+
+
 def test_wait_for_attach(case_setup_remote_attach_to):
     host_port = get_socket_name(close=True)
 
@@ -2131,36 +2243,40 @@ def test_wait_for_attach(case_setup_remote_attach_to):
 @pytest.mark.skipif(IS_JYTHON, reason='Flaky on Jython.')
 def test_path_translation_and_source_reference(case_setup):
 
+    translated_dir_not_ascii = u'áéíóú汉字'
+
+    if IS_PY2:
+        translated_dir_not_ascii = translated_dir_not_ascii.encode(file_system_encoding)
+
     def get_file_in_client(writer):
         # Instead of using: test_python/_debugger_case_path_translation.py
         # we'll set the breakpoints at foo/_debugger_case_path_translation.py
         file_in_client = os.path.dirname(os.path.dirname(writer.TEST_FILE))
-        return os.path.join(os.path.dirname(file_in_client), 'foo', '_debugger_case_path_translation.py')
+        return os.path.join(os.path.dirname(file_in_client), translated_dir_not_ascii, '_debugger_case_path_translation.py')
 
     def get_environ(writer):
         env = os.environ.copy()
 
         env["PYTHONIOENCODING"] = 'utf-8'
-
-        assert writer.TEST_FILE.endswith('_debugger_case_path_translation.py')
-        env["PATHS_FROM_ECLIPSE_TO_PYTHON"] = json.dumps([
-            (
-                os.path.dirname(get_file_in_client(writer)),
-                os.path.dirname(writer.TEST_FILE)
-            )
-        ])
         return env
 
     with case_setup.test_file('_debugger_case_path_translation.py', get_environ=get_environ) as writer:
         file_in_client = get_file_in_client(writer)
         assert 'tests_python' not in file_in_client
-        assert 'foo' in file_in_client
+        assert translated_dir_not_ascii in file_in_client
 
         json_facade = JsonFacade(writer)
 
         bp_line = writer.get_line_index_with_content('break here')
+        assert writer.TEST_FILE.endswith('_debugger_case_path_translation.py')
+        local_root = os.path.dirname(get_file_in_client(writer))
+        if IS_PY2:
+            local_root = local_root.decode(file_system_encoding).encode('utf-8')
+        json_facade.write_launch(pathMappings=[{
+            'localRoot': local_root,
+            'remoteRoot': os.path.dirname(writer.TEST_FILE),
+        }])
         json_facade.write_set_breakpoints(bp_line, filename=file_in_client)
-
         json_facade.write_make_initial_run()
 
         json_hit = json_facade.wait_for_thread_stopped()
@@ -2179,7 +2295,16 @@ def test_path_translation_and_source_reference(case_setup):
         stack_trace_response_body = stack_trace_response.body
         stack_frame = stack_trace_response_body.stackFrames[0]
         assert stack_frame['name'] == '__main__.call_this : %s' % (bp_line,)
-        assert stack_frame['source']['path'] == file_in_client
+
+        path = stack_frame['source']['path']
+        file_in_client_unicode = file_in_client
+        if IS_PY2:
+            if isinstance(path, bytes):
+                path = path.decode('utf-8')
+            if isinstance(file_in_client_unicode, bytes):
+                file_in_client_unicode = file_in_client_unicode.decode(file_system_encoding)
+
+        assert path == file_in_client_unicode
         source_reference = stack_frame['source']['sourceReference']
         assert source_reference == 0  # When it's translated the source reference must be == 0
 
@@ -2203,18 +2328,16 @@ def test_path_translation_and_source_reference(case_setup):
 @pytest.mark.skipif(IS_JYTHON, reason='Flaky on Jython.')
 def test_source_reference_no_file(case_setup, tmpdir):
 
-    def get_environ(writer):
-        env = os.environ.copy()
-        # We need to set up path mapping to enable source references.
-        env["PATHS_FROM_ECLIPSE_TO_PYTHON"] = json.dumps([
-            (os.path.dirname(writer.TEST_FILE), os.path.dirname(writer.TEST_FILE))
-        ])
-        return env
-
-    with case_setup.test_file('_debugger_case_source_reference.py', get_environ=get_environ) as writer:
+    with case_setup.test_file('_debugger_case_source_reference.py') as writer:
         json_facade = JsonFacade(writer)
 
-        json_facade.write_launch(debugOptions=['DebugStdLib'])
+        json_facade.write_launch(
+            debugOptions=['DebugStdLib'],
+            pathMappings=[{
+                'localRoot': os.path.dirname(writer.TEST_FILE),
+                'remoteRoot': os.path.dirname(writer.TEST_FILE),
+        }])
+
         writer.write_add_breakpoint(writer.get_line_index_with_content('breakpoint'))
         json_facade.write_make_initial_run()
 

@@ -1190,6 +1190,9 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     def on_completions(self, request, args):
         self._forward_request_to_pydevd(request, args)
 
+    def on_setPydevdSourceMap(self, request, args):
+        self._forward_request_to_pydevd(request, args)
+
     # Custom ptvsd message
     @async_handler
     def on_ptvsd_systemInfo(self, request, args):

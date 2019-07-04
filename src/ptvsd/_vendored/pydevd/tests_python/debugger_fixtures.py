@@ -1,3 +1,4 @@
+# coding: utf-8
 from contextlib import contextmanager
 import os
 import threading
@@ -8,6 +9,8 @@ from tests_python import debugger_unittest
 from tests_python.debugger_unittest import get_free_port, overrides, IS_CPYTHON, IS_JYTHON, IS_IRONPYTHON, \
     IS_PY3K, CMD_ADD_DJANGO_EXCEPTION_BREAK, CMD_REMOVE_DJANGO_EXCEPTION_BREAK, \
     CMD_ADD_EXCEPTION_BREAK
+from tests_python.debug_constants import IS_PY2
+from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
 
 import sys
 import time
@@ -285,7 +288,7 @@ class DebuggerRunnerRemote(debugger_unittest.DebuggerRunner):
 
 
 @pytest.fixture
-def case_setup():
+def case_setup(tmpdir):
 
     runner = DebuggerRunnerSimple()
 
@@ -294,13 +297,35 @@ def case_setup():
 
     class CaseSetup(object):
 
+        check_non_ascii = False
+        NON_ASCII_CHARS = u'áéíóú汉字'
+
         @contextmanager
         def test_file(
                 self,
                 filename,
                 **kwargs
             ):
-            WriterThread.TEST_FILE = debugger_unittest._get_debugger_test_file(filename)
+            import shutil
+            filename = debugger_unittest._get_debugger_test_file(filename)
+            if self.check_non_ascii:
+                basedir = str(tmpdir)
+                if isinstance(basedir, bytes):
+                    basedir = basedir.decode('utf-8')
+                if isinstance(filename, bytes):
+                    filename = filename.decode('utf-8')
+
+                new_dir = os.path.join(basedir, self.NON_ASCII_CHARS)
+                os.makedirs(new_dir)
+
+                new_filename = os.path.join(new_dir, self.NON_ASCII_CHARS + os.path.basename(filename))
+                shutil.copyfile(filename, new_filename)
+                filename = new_filename
+
+                if IS_PY2:
+                    filename = filename.encode(file_system_encoding)
+
+            WriterThread.TEST_FILE = filename
             for key, value in kwargs.items():
                 assert hasattr(WriterThread, key)
                 setattr(WriterThread, key, value)

@@ -1,7 +1,9 @@
 # coding: utf-8
 import os.path
-from _pydevd_bundle.pydevd_constants import IS_WINDOWS, IS_JYTHON, IS_PY2
+from _pydevd_bundle.pydevd_constants import IS_WINDOWS, IS_PY2
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
+import io
+from _pydev_bundle.pydev_log import log_context
 
 
 def test_convert_utilities(tmpdir):
@@ -107,6 +109,13 @@ def test_to_server_and_to_client(tmpdir):
         import pydevd_file_utils
         if IS_WINDOWS:
             # Check with made-up files
+
+            pydevd_file_utils.setup_client_server_paths([('c:\\foo', 'c:\\bar'), ('c:\\foo2', 'c:\\bar2')])
+
+            stream = io.StringIO()
+            with log_context(0, stream=stream):
+                pydevd_file_utils.norm_file_to_server('y:\\only_exists_in_client_not_in_server')
+            assert r'pydev debugger: unable to find translation for: "y:\only_exists_in_client_not_in_server" in ["c:\foo", "c:\foo2"] (please revise your path mappings).' in stream.getvalue()
 
             # Client and server are on windows.
             pydevd_file_utils.set_ide_os('WINDOWS')
@@ -294,3 +303,47 @@ def test_zip_paths(tmpdir):
 
         assert zipfile_path in pydevd_file_utils._ZIP_SEARCH_CACHE, '%s not in %s' % (
             zipfile_path, '\n'.join(sorted(pydevd_file_utils._ZIP_SEARCH_CACHE.keys())))
+
+
+def test_source_mapping():
+
+    from _pydevd_bundle.pydevd_source_mapping import SourceMapping, SourceMappingEntry
+    source_mapping = SourceMapping()
+    mapping = [
+        SourceMappingEntry(source_filename='file1.py', line=3, end_line=6, runtime_line=5, runtime_source='<cell1>'),
+        SourceMappingEntry(source_filename='file1.py', line=10, end_line=11, runtime_line=1, runtime_source='<cell2>'),
+    ]
+    source_mapping.set_source_mapping('file1.py', mapping)
+
+    # Map to server
+    assert source_mapping.map_to_server('file1.py', 1) == ('file1.py', 1, False)
+    assert source_mapping.map_to_server('file1.py', 2) == ('file1.py', 2, False)
+
+    assert source_mapping.map_to_server('file1.py', 3) == ('<cell1>', 5, True)
+    assert source_mapping.map_to_server('file1.py', 4) == ('<cell1>', 6, True)
+    assert source_mapping.map_to_server('file1.py', 5) == ('<cell1>', 7, True)
+    assert source_mapping.map_to_server('file1.py', 6) == ('<cell1>', 8, True)
+
+    assert source_mapping.map_to_server('file1.py', 7) == ('file1.py', 7, False)
+
+    assert source_mapping.map_to_server('file1.py', 10) == ('<cell2>', 1, True)
+    assert source_mapping.map_to_server('file1.py', 11) == ('<cell2>', 2, True)
+
+    assert source_mapping.map_to_server('file1.py', 12) == ('file1.py', 12, False)
+
+    # Map to client
+    assert source_mapping.map_to_client('file1.py', 1) == ('file1.py', 1, False)
+    assert source_mapping.map_to_client('file1.py', 2) == ('file1.py', 2, False)
+
+    assert source_mapping.map_to_client('<cell1>', 5) == ('file1.py', 3, True)
+    assert source_mapping.map_to_client('<cell1>', 6) == ('file1.py', 4, True)
+    assert source_mapping.map_to_client('<cell1>', 7) == ('file1.py', 5, True)
+    assert source_mapping.map_to_client('<cell1>', 8) == ('file1.py', 6, True)
+
+    assert source_mapping.map_to_client('file1.py', 7) == ('file1.py', 7, False)
+
+    assert source_mapping.map_to_client('<cell2>', 1) == ('file1.py', 10, True)
+    assert source_mapping.map_to_client('<cell2>', 2) == ('file1.py', 11, True)
+
+    assert source_mapping.map_to_client('file1.py', 12) == ('file1.py', 12, False)
+

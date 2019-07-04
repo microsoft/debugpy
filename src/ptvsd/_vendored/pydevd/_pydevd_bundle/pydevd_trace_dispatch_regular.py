@@ -466,7 +466,6 @@ class ThreadTracer(object):
                             back_frame_cache_key = (back_frame.f_code.co_firstlineno, back_frame.f_code.co_name, back_frame.f_code.co_filename)
                             cache_skips[back_frame_cache_key] = 1
                             # if DEBUG: print('skipped: trace_dispatch (filtered out: 1)', frame_cache_key, frame.f_lineno, event, frame.f_code.co_name)
-
                             return None if event == 'call' else NO_FTRACE
                     else:
                         # if DEBUG: print('skipped: trace_dispatch (filtered out: 2)', frame_cache_key, frame.f_lineno, event, frame.f_code.co_name)

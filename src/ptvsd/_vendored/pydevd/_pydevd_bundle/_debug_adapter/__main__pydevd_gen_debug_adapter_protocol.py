@@ -132,6 +132,9 @@ def create_classes_to_generate_structure(json_schema_data):
                     properties.update(definition.get('properties', {}))
                     required.update(_OrderedSet(definition.get('required', _OrderedSet())))
 
+        if isinstance(description, (list, tuple)):
+            description = '\n'.join(description)
+
         class_to_generatees[name] = dict(
             name=name,
             properties=properties,
@@ -279,6 +282,10 @@ def update_class_to_generate_to_json(class_to_generate):
         namespace = dict(prop_name=prop_name, noqa=_get_noqa_for_var(prop_name))
         to_dict_body.append('    %(prop_name)s = self.%(prop_name)s%(noqa)s' % namespace)
 
+        if prop.get('type') == 'array':
+            to_dict_body.append('    if %(prop_name)s and hasattr(%(prop_name)s[0], "to_dict"):' % namespace)
+            to_dict_body.append('        %(prop_name)s = [x.to_dict() for x in %(prop_name)s]' % namespace)
+
     if translate_prop_names:
         to_dict_body.append('    if update_ids_to_dap:')
         for prop_name in translate_prop_names:
@@ -411,6 +418,9 @@ def update_class_to_generate_init(class_to_generate):
 
         prop_type = prop['type']
         prop_description = prop.get('description', '')
+
+        if isinstance(prop_description, (list, tuple)):
+            prop_description = '\n    '.join(prop_description)
 
         docstring.append(':param %(prop_type)s %(prop_name)s: %(prop_description)s' % dict(
             prop_type=prop_type, prop_name=prop_name, prop_description=prop_description))

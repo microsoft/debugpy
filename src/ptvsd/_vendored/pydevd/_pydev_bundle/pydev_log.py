@@ -93,7 +93,14 @@ error = exception
 
 
 def error_once(msg, *args):
-    message = msg % args
+    try:
+        if args:
+            message = msg % args
+        else:
+            message = str(msg)
+    except:
+        message = '%s - %s' % (msg, args)
+
     if message not in WARN_ONCE_MAP:
         WARN_ONCE_MAP[message] = True
         critical(message)

@@ -154,6 +154,13 @@ def test_pydevd_log():
         assert 'foo\n' in stream.getvalue()
         assert 'raise RuntimeError()' in stream.getvalue()
 
+    stream = io.StringIO()
+    with log_context(0, stream=stream):
+        pydev_log.error_once('always %s %s', 1)
+
+    # Even if there's an error in the formatting, don't fail, just print the message and args.
+    assert stream.getvalue() == 'always %s %s - (1,)\n'
+
 
 @pytest.mark.skipif(not IS_CPYTHON, reason='Functionality to trace other threads requires CPython.')
 def test_tracing_other_threads():
@@ -183,3 +190,4 @@ def test_tracing_other_threads():
     for t in threads:
         t.join(5)
         assert t.trace_func == tracing_func
+

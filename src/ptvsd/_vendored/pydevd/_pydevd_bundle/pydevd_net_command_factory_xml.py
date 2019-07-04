@@ -17,7 +17,7 @@ from _pydevd_bundle.pydevd_comm_constants import (
     CMD_THREAD_RESUME_SINGLE_NOTIFICATION,
     CMD_GET_NEXT_STATEMENT_TARGETS, CMD_VERSION,
     CMD_RETURN, CMD_SET_PROTOCOL, CMD_ERROR, MAX_IO_MSG_SIZE, VERSION_STRING,
-    filesystem_encoding_is_utf8, file_system_encoding, CMD_RELOAD_CODE)
+    CMD_RELOAD_CODE)
 from _pydevd_bundle.pydevd_constants import (DebugInfoHolder, get_thread_id, IS_IRONPYTHON,
     get_global_debugger, GetGlobalDebugger, set_global_debugger)  # Keep for backward compatibility @UnusedImport
 from _pydevd_bundle.pydevd_net_command import NetCommand, NULL_NET_COMMAND
@@ -167,10 +167,11 @@ class NetCommandFactory(object):
                 frame = frame.f_back
                 continue
 
-            filename_in_utf8 = pydevd_file_utils.norm_file_to_client(abs_path_real_path_and_base[0])
-
             frame_id = id(frame)
             lineno = frame_id_to_lineno.get(frame_id, frame.f_lineno)
+
+            filename_in_utf8, lineno, changed = py_db.source_mapping.map_to_client(abs_path_real_path_and_base[0], lineno)
+            filename_in_utf8 = pydevd_file_utils.norm_file_to_client(filename_in_utf8)
 
             yield frame_id, frame, method_name, abs_path_real_path_and_base[0], filename_in_utf8, lineno
 
