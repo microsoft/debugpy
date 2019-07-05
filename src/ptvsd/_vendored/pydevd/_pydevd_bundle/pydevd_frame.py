@@ -643,8 +643,7 @@ class PyDBFrame:
                             stop = True
 
                     elif is_return and frame.f_back is not None:
-                        if main_debugger.get_file_type(
-                                get_abs_path_real_path_and_base_from_frame(frame.f_back)) == main_debugger.PYDEV_FILE:
+                        if main_debugger.get_file_type(frame.f_back) == main_debugger.PYDEV_FILE:
                             stop = False
                         else:
                             if force_check_project_scope or main_debugger.is_files_filter_enabled:
@@ -699,8 +698,7 @@ class PyDBFrame:
                 if stop and step_cmd != -1 and is_return and IS_PY3K and hasattr(frame, "f_back"):
                     f_code = getattr(frame.f_back, 'f_code', None)
                     if f_code is not None:
-                        if main_debugger.get_file_type(
-                                get_abs_path_real_path_and_base_from_file(f_code.co_filename)) == main_debugger.PYDEV_FILE:
+                        if main_debugger.get_file_type(frame.f_back) == main_debugger.PYDEV_FILE:
                             stop = False
 
                 if plugin_stop:

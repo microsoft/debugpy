@@ -3307,6 +3307,29 @@ def test_step_over_my_code_global_setting_and_explicit_include(case_setup):
         writer.finished_ok = True
 
 
+def test_namedtuple(case_setup):
+    '''
+    Check that we don't step into <string> in the namedtuple constructor.
+    '''
+    with case_setup.test_file('_debugger_case_namedtuple.py') as writer:
+        line = writer.get_line_index_with_content('break here')
+        writer.write_add_breakpoint(line)
+        writer.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit()
+
+        expected_line = line
+
+        for _ in range(2):
+            expected_line += 1
+            writer.write_step_in(hit.thread_id)
+            hit = writer.wait_for_breakpoint_hit(
+                reason=REASON_STEP_INTO, file='_debugger_case_namedtuple.py', line=expected_line)
+
+        writer.write_run_thread(hit.thread_id)
+        writer.finished_ok = True
+
+
 def test_matplotlib_activation(case_setup):
     try:
         import matplotlib

@@ -1,6 +1,8 @@
 from _pydevd_bundle.pydevd_constants import IS_PY3K
 
+
 class Frame(object):
+
     def __init__(
             self,
             f_back,
@@ -21,9 +23,11 @@ class Frame(object):
 
 
 class FCode(object):
+
     def __init__(self, name, filename):
         self.co_name = name
         self.co_filename = filename
+        self.co_firstlineno = 1
 
 
 def add_exception_to_frame(frame, exception_info):
@@ -36,10 +40,12 @@ def remove_exception_from_frame(frame):
 
 FILES_WITH_IMPORT_HOOKS = ['pydev_monkey_qt.py', 'pydev_import_hook.py']
 
+
 def just_raised(trace):
     if trace is None:
         return False
     return trace.tb_next is None
+
 
 def ignore_exception_trace(trace):
     while trace is not None:
@@ -58,11 +64,11 @@ def ignore_exception_trace(trace):
 
     return False
 
+
 def cached_call(obj, func, *args):
     cached_name = '_cached_' + func.__name__
     if not hasattr(obj, cached_name):
         setattr(obj, cached_name, func(*args))
 
     return getattr(obj, cached_name)
-
 

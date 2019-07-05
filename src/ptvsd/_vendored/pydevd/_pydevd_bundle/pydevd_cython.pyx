@@ -793,8 +793,7 @@ cdef class PyDBFrame:
                             stop = True
 
                     elif is_return and frame.f_back is not None:
-                        if main_debugger.get_file_type(
-                                get_abs_path_real_path_and_base_from_frame(frame.f_back)) == main_debugger.PYDEV_FILE:
+                        if main_debugger.get_file_type(frame.f_back) == main_debugger.PYDEV_FILE:
                             stop = False
                         else:
                             if force_check_project_scope or main_debugger.is_files_filter_enabled:
@@ -849,8 +848,7 @@ cdef class PyDBFrame:
                 if stop and step_cmd != -1 and is_return and IS_PY3K and hasattr(frame, "f_back"):
                     f_code = getattr(frame.f_back, 'f_code', None)
                     if f_code is not None:
-                        if main_debugger.get_file_type(
-                                get_abs_path_real_path_and_base_from_file(f_code.co_filename)) == main_debugger.PYDEV_FILE:
+                        if main_debugger.get_file_type(frame.f_back) == main_debugger.PYDEV_FILE:
                             stop = False
 
                 if plugin_stop:
@@ -1347,11 +1345,11 @@ cdef class ThreadTracer:
                 abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(frame)
 
             filename = abs_path_real_path_and_base[1]
-            file_type = py_db.get_file_type(abs_path_real_path_and_base)  # we don't want to debug threading or anything related to pydevd
+            file_type = py_db.get_file_type(frame, abs_path_real_path_and_base)  # we don't want to debug threading or anything related to pydevd
 
             if file_type is not None:
                 if file_type == 1:  # inlining LIB_FILE = 1
-                    if not py_db.in_project_scope(filename):
+                    if not py_db.in_project_scope(frame, abs_path_real_path_and_base[0]):
                         # if DEBUG: print('skipped: trace_dispatch (not in scope)', abs_path_real_path_and_base[-1], frame.f_lineno, event, frame.f_code.co_name, file_type)
                         cache_skips[frame_cache_key] = 1
                         return None if event == 'call' else NO_FTRACE

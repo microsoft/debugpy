@@ -39,7 +39,7 @@ from _pydevd_bundle.pydevd_constants import (IS_JYTH_LESS25, get_thread_id, get_
     NO_FTRACE, IS_IRONPYTHON, JSON_PROTOCOL, IS_CPYTHON)
 from _pydevd_bundle.pydevd_defaults import PydevdCustomization
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
-from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE
+from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE, LIB_FILE
 from _pydevd_bundle.pydevd_extension_api import DebuggerEventHandler
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, remove_exception_from_frame
 from _pydevd_bundle.pydevd_kill_all_pydevd_threads import kill_all_pydev_threads
@@ -521,6 +521,7 @@ class PyDB(object):
         self.get_exception_breakpoint = get_exception_breakpoint
         self._dont_trace_get_file_type = DONT_TRACE.get
         self.PYDEV_FILE = PYDEV_FILE
+        self.LIB_FILE = LIB_FILE
 
         self._in_project_scope_cache = {}
         self._exclude_by_filter_cache = {}
@@ -632,7 +633,7 @@ class PyDB(object):
         # be changed for another function in PyDevdAPI.set_dont_trace_start_end_patterns.
         return False
 
-    def get_file_type(self, abs_real_path_and_basename, _cache_file_type=_CACHE_FILE_TYPE):
+    def get_file_type(self, frame, abs_real_path_and_basename=None, _cache_file_type=_CACHE_FILE_TYPE):
         '''
         :param abs_real_path_and_basename:
             The result from get_abs_path_real_path_and_base_from_file or
@@ -649,17 +650,65 @@ class PyDB(object):
             None:
                 If it's a regular user file which should be traced.
         '''
+        if abs_real_path_and_basename is None:
+            try:
+                # Make fast path faster!
+                abs_real_path_and_basename = NORM_PATHS_AND_BASE_CONTAINER[frame.f_code.co_filename]
+            except:
+                abs_real_path_and_basename = get_abs_path_real_path_and_base_from_frame(frame)
+
+        # Note 1: we have to take into account that we may have files as '<string>', and that in
+        # this case the cache key can't rely only on the filename. With the current cache, there's
+        # still a potential miss if 2 functions which have exactly the same content are compiled
+        # with '<string>', but in practice as we only separate the one from python -c from the rest
+        # this shouldn't be a problem in practice.
+
+        # Note 2: firstlineno added to make misses faster in the first comparison.
+
+        # Note 3: this cache key is repeated in pydevd_frame_evaluator.pyx:get_func_code_info (for
+        # speedups).
+        cache_key = (frame.f_code.co_firstlineno, abs_real_path_and_basename[0], frame.f_code)
         try:
-            return _cache_file_type[abs_real_path_and_basename[0]]
+            return _cache_file_type[cache_key]
         except:
+            if abs_real_path_and_basename[0] == '<string>':
+
+                # Consider it an untraceable file unless there's no back frame (ignoring
+                # internal files and runpy.py).
+                f = frame.f_back
+                while f is not None:
+                    if (self.get_file_type(f) != self.PYDEV_FILE and
+                            get_abs_path_real_path_and_base_from_file(f.f_code.co_filename)[2] != 'runpy.py'):
+                        # We found some back frame that's not internal, which means we must consider
+                        # this a library file.
+                        # This is done because we only want to trace files as <string> if they don't
+                        # have any back frame (which is the case for python -c ...), for all other
+                        # cases we don't want to trace them because we can't show the source to the
+                        # user (at least for now...).
+
+                        # Note that we return as a LIB_FILE and not PYDEV_FILE because we still want
+                        # to show it in the stack.
+                        _cache_file_type[cache_key] = LIB_FILE
+                        return LIB_FILE
+                    f = f.f_back
+                else:
+                    # This is a top-level file (used in python -c), so, trace it as usual... we
+                    # still won't be able to show the sources, but some tests require this to work.
+                    _cache_file_type[cache_key] = None
+                    return None
+
             file_type = self._internal_get_file_type(abs_real_path_and_basename)
             if file_type is None:
-                file_type = PYDEV_FILE if self.dont_trace_external_files(abs_real_path_and_basename[0]) else None
-            _cache_file_type[abs_real_path_and_basename[0]] = file_type
+                if self.dont_trace_external_files(abs_real_path_and_basename[0]):
+                    file_type = PYDEV_FILE
+            _cache_file_type[cache_key] = file_type
             return file_type
 
     def is_cache_file_type_empty(self):
         return not _CACHE_FILE_TYPE
+
+    def get_cache_file_type(self, _cache=_CACHE_FILE_TYPE):  # i.e.: Make it local.
+        return _cache
 
     def get_thread_local_trace_func(self):
         try:
@@ -681,7 +730,7 @@ class PyDB(object):
             If True we'll set the tracing function in all threads, not only in the current thread.
             If False only the tracing for the current function should be changed.
             In general apply_to_all_threads should only be true if this is the first time
-            this function is called on a multi-threaded program (either programatically or attach
+            this function is called on a multi-threaded program (either programmatically or attach
             to pid).
         '''
         if self.frame_eval_func is not None:
@@ -765,23 +814,54 @@ class PyDB(object):
             self.plugin = PluginManager(self)
         return self.plugin
 
-    def in_project_scope(self, filename):
+    def in_project_scope(self, frame, filename=None):
         '''
         Note: in general this method should not be used (apply_files_filter should be used
         in most cases as it also handles the project scope check).
+
+        :param frame:
+            The frame we want to check.
+
+        :param filename:
+            Must be the result from get_abs_path_real_path_and_base_from_frame(frame)[0] (can
+            be used to speed this function a bit if it's already available to the caller, but
+            in general it's not needed).
         '''
         try:
-            return self._in_project_scope_cache[filename]
+            if filename is None:
+                try:
+                    # Make fast path faster!
+                    abs_real_path_and_basename = NORM_PATHS_AND_BASE_CONTAINER[frame.f_code.co_filename]
+                except:
+                    abs_real_path_and_basename = get_abs_path_real_path_and_base_from_frame(frame)
+
+                filename = abs_real_path_and_basename[0]
+
+            cache_key = (frame.f_code.co_firstlineno, filename, frame.f_code)
+
+            return self._in_project_scope_cache[cache_key]
         except KeyError:
             cache = self._in_project_scope_cache
-            abs_real_path_and_basename = get_abs_path_real_path_and_base_from_file(filename)
-            # pydevd files are never considered to be in the project scope.
-            if self.get_file_type(abs_real_path_and_basename) == self.PYDEV_FILE:
-                cache[filename] = False
-            else:
-                cache[filename] = self._files_filtering.in_project_roots(filename)
+            try:
+                abs_real_path_and_basename  # If we've gotten it previously, use it again.
+            except NameError:
+                abs_real_path_and_basename = get_abs_path_real_path_and_base_from_frame(frame)
 
-            return cache[filename]
+            # pydevd files are never considered to be in the project scope.
+            file_type = self.get_file_type(frame, abs_real_path_and_basename)
+            if file_type == self.PYDEV_FILE:
+                cache[cache_key] = False
+
+            elif file_type == self.LIB_FILE and filename == '<string>':
+                # This means it's a <string> which should be considered to be a library file and
+                # shouldn't be considered as a part of the project.
+                # (i.e.: lib files must be traced if they're put inside a project).
+                cache[cache_key] = False
+
+            else:
+                cache[cache_key] = self._files_filtering.in_project_roots(filename)
+
+            return cache[cache_key]
 
     def _clear_filters_caches(self):
         self._in_project_scope_cache.clear()
@@ -814,9 +894,8 @@ class PyDB(object):
         except KeyError:
             cache = self._exclude_by_filter_cache
 
-            abs_real_path_and_basename = get_abs_path_real_path_and_base_from_file(filename)
             # pydevd files are always filtered out
-            if self.get_file_type(abs_real_path_and_basename) == self.PYDEV_FILE:
+            if self.get_file_type(frame) == self.PYDEV_FILE:
                 cache[cache_key] = True
             else:
                 module_name = None
@@ -841,7 +920,7 @@ class PyDB(object):
             True if it should be excluded when stepping and False if it should be
             included.
         '''
-        cache_key = (frame.f_code.co_firstlineno, frame.f_code.co_name, filename, force_check_project_scope)
+        cache_key = (frame.f_code.co_firstlineno, filename, force_check_project_scope, frame.f_code)
         try:
             return self._apply_filter_cache[cache_key]
         except KeyError:
@@ -867,7 +946,7 @@ class PyDB(object):
                         self._apply_filter_cache[cache_key] = False
                         return False
 
-            if (self._is_libraries_filter_enabled or force_check_project_scope) and not self.in_project_scope(filename):
+            if (self._is_libraries_filter_enabled or force_check_project_scope) and not self.in_project_scope(frame):
                 # ignore library files while stepping
                 self._apply_filter_cache[cache_key] = True
                 if force_check_project_scope:
@@ -899,7 +978,7 @@ class PyDB(object):
         ignore_libraries = exception_breakpoint.ignore_libraries
         exclude_filters_enabled = self._exclude_filters_enabled
 
-        if (ignore_libraries and not self.in_project_scope(trace.tb_frame.f_code.co_filename)) \
+        if (ignore_libraries and not self.in_project_scope(trace.tb_frame)) \
                 or (exclude_filters_enabled and self._exclude_by_filter(trace.tb_frame, trace.tb_frame.f_code.co_filename)):
             return True
 
@@ -1652,14 +1731,8 @@ class PyDB(object):
         assert not kwargs
 
         while frame is not None:
-            try:
-                # Make fast path faster!
-                abs_path_real_path_and_base = NORM_PATHS_AND_BASE_CONTAINER[frame.f_code.co_filename]
-            except:
-                abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(frame)
-
             # Don't change the tracing on debugger-related files
-            file_type = self.get_file_type(abs_path_real_path_and_base)
+            file_type = self.get_file_type(frame)
 
             if file_type is None:
                 if disable:

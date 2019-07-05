@@ -14,7 +14,6 @@ from ptvsd.wrapper import debugger_attached
 
 import pydevd
 from _pydevd_bundle.pydevd_constants import get_global_debugger
-from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame
 
 WAIT_TIMEOUT = 1.0
 
@@ -27,6 +26,7 @@ _redirect_output_deprecation_msg = (
     "'redirect_output' setting via enable_attach will be deprecated in the future versions of the debugger. "
     "This can be set using redirectOutput in Launch config in VS Code, using Tee output option in Visual Studio, "
     "or debugOptions configuration for any client.")
+
 
 def wait_for_attach(timeout=None):
     """If a remote debugger is attached, returns immediately. Otherwise,
@@ -54,7 +54,7 @@ def enable_attach(address=(DEFAULT_HOST, DEFAULT_PORT), redirect_output=None, lo
         ``(hostname, port)``. On client side, the server is identified by the
         Qualifier string in the usual ``'hostname:port'`` format, e.g.:
         ``'myhost.cloudapp.net:5678'``. Default is ``('0.0.0.0', 5678)``.
-    redirect_output : bool, optional 
+    redirect_output : bool, optional
         (Deprecated) Specifies whether any output (on both `stdout` and `stderr`) produced
         by this program should be sent to the debugger. Default is ``True``.
     log_dir : str, optional
@@ -162,9 +162,8 @@ def break_into_debugger():
     global_debugger = get_global_debugger()
     stop_at_frame = sys._getframe().f_back
     while stop_at_frame is not None and global_debugger.get_file_type(
-            get_abs_path_real_path_and_base_from_frame(stop_at_frame)) == global_debugger.PYDEV_FILE:
+            stop_at_frame) == global_debugger.PYDEV_FILE:
         stop_at_frame = stop_at_frame.f_back
-
 
     # pydevd.settrace() only enables debugging of the current
     # thread and all future threads.  PyDevd is not enabled for

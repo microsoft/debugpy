@@ -437,11 +437,11 @@ class ThreadTracer(object):
                 abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(frame)
 
             filename = abs_path_real_path_and_base[1]
-            file_type = py_db.get_file_type(abs_path_real_path_and_base)  # we don't want to debug threading or anything related to pydevd
+            file_type = py_db.get_file_type(frame, abs_path_real_path_and_base)  # we don't want to debug threading or anything related to pydevd
 
             if file_type is not None:
                 if file_type == 1:  # inlining LIB_FILE = 1
-                    if not py_db.in_project_scope(filename):
+                    if not py_db.in_project_scope(frame, abs_path_real_path_and_base[0]):
                         # if DEBUG: print('skipped: trace_dispatch (not in scope)', abs_path_real_path_and_base[-1], frame.f_lineno, event, frame.f_code.co_name, file_type)
                         cache_skips[frame_cache_key] = 1
                         return None if event == 'call' else NO_FTRACE

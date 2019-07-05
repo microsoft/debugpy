@@ -162,7 +162,7 @@ class NetCommandFactory(object):
                 continue  # IronPython sometimes does not have it!
 
             abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(frame)
-            if py_db.get_file_type(abs_path_real_path_and_base) == py_db.PYDEV_FILE:
+            if py_db.get_file_type(frame, abs_path_real_path_and_base) == py_db.PYDEV_FILE:
                 # Skip pydevd files.
                 frame = frame.f_back
                 continue

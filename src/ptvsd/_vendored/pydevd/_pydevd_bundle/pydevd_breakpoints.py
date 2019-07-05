@@ -121,7 +121,7 @@ def stop_on_unhandled_exception(py_db, thread, additional_info, arg):
 
     while tb:
         frame = tb.tb_frame
-        if exception_breakpoint.ignore_libraries and py_db.in_project_scope(frame.f_code.co_filename):
+        if exception_breakpoint.ignore_libraries and py_db.in_project_scope(frame):
             user_frame = tb.tb_frame
         frames.append(tb.tb_frame)
         tb = tb.tb_next

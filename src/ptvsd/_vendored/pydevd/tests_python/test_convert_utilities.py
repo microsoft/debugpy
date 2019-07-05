@@ -310,8 +310,8 @@ def test_source_mapping():
     from _pydevd_bundle.pydevd_source_mapping import SourceMapping, SourceMappingEntry
     source_mapping = SourceMapping()
     mapping = [
-        SourceMappingEntry(source_filename='file1.py', line=3, end_line=6, runtime_line=5, runtime_source='<cell1>'),
-        SourceMappingEntry(source_filename='file1.py', line=10, end_line=11, runtime_line=1, runtime_source='<cell2>'),
+        SourceMappingEntry(line=3, end_line=6, runtime_line=5, runtime_source='<cell1>'),
+        SourceMappingEntry(line=10, end_line=11, runtime_line=1, runtime_source='<cell2>'),
     ]
     source_mapping.set_source_mapping('file1.py', mapping)
 

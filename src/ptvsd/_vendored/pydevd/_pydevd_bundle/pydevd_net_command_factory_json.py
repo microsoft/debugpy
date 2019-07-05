@@ -215,7 +215,7 @@ class NetCommandFactoryJson(NetCommandFactory):
                         if py_db.is_files_filter_enabled and py_db.apply_files_filter(frame, original_filename, False):
                             continue
 
-                        if not py_db.in_project_scope(original_filename):
+                        if not py_db.in_project_scope(frame):
                             presentation_hint = 'subtle'
 
                     formatted_name = self._format_frame_name(fmt, method_name, module_name, lineno, filename_in_utf8)
