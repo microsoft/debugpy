@@ -300,6 +300,13 @@ class _PyDevJsonCommandProcessor(object):
 
         self.api.set_show_return_values(py_db, self._debug_options.get('SHOW_RETURN_VALUE', False))
 
+        if not self._debug_options.get('BREAK_SYSTEMEXIT_ZERO', False):
+            ignore_system_exit_codes = [0]
+            if self._debug_options.get('DJANGO_DEBUG', False):
+                ignore_system_exit_codes += [3]
+
+            self.api.set_ignore_system_exit_codes(py_db, ignore_system_exit_codes)
+
         if self._debug_options.get('STOP_ON_ENTRY', False) and start_reason == 'launch':
             self.api.stop_on_entry()
 

@@ -632,3 +632,7 @@ class PyDevdAPI(object):
             info = set_additional_thread_info(main_thread)
             info.pydev_original_step_cmd = CMD_STOP_ON_START
             info.pydev_step_cmd = CMD_STEP_INTO_MY_CODE
+
+    def set_ignore_system_exit_codes(self, py_db, ignore_system_exit_codes):
+        py_db.set_ignore_system_exit_codes(ignore_system_exit_codes)
+

@@ -316,7 +316,10 @@ def test_raise_exception_options(pyfile, run_as, start_method, exceptions, break
 
 
 @pytest.mark.parametrize('exit_code', [0, 3])
-def test_success_exitcodes(pyfile, run_as, start_method, exit_code):
+@pytest.mark.parametrize('break_on_system_exit_zero', [True, False])
+@pytest.mark.parametrize('expect_django', [True, False])
+def test_success_exitcodes(
+        pyfile, run_as, start_method, exit_code, break_on_system_exit_zero, expect_django):
 
     @pyfile
     def code_to_debug():
@@ -329,7 +332,10 @@ def test_success_exitcodes(pyfile, run_as, start_method, exit_code):
 
     with DebugSession() as session:
         session.program_args = [repr(exit_code)]
-        session.success_exitcodes = [3]
+        if break_on_system_exit_zero:
+            session.debug_options += ['BreakOnSystemExitZero']
+        if expect_django:
+            session.debug_options += ['Django']
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
@@ -340,7 +346,12 @@ def test_success_exitcodes(pyfile, run_as, start_method, exit_code):
         }).wait_for_response()
         session.start_debugging()
 
-        if exit_code == 0:
+        if break_on_system_exit_zero or (not expect_django and exit_code == 3):
+            # If break_on_system_exit_zero, we should always break.
+            # Otherwise, we should not break on system exit considered successful
+            # (which means that we should break only in the case where
+            # exit_code == 3 and django is not expected).
+
             session.wait_for_thread_stopped(reason='exception')
             session.send_request('continue').wait_for_response(freeze=False)
 

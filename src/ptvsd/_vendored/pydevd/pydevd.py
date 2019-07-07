@@ -521,6 +521,7 @@ class PyDB(object):
         self._in_project_scope_cache = {}
         self._exclude_by_filter_cache = {}
         self._apply_filter_cache = {}
+        self._ignore_system_exit_codes = set()
 
     def on_configuration_done(self):
         '''
@@ -533,6 +534,16 @@ class PyDB(object):
         Note: only called when using the DAP (Debug Adapter Protocol).
         '''
         self._on_configuration_done_event.clear()
+
+    def set_ignore_system_exit_codes(self, ignore_system_exit_codes):
+        assert isinstance(ignore_system_exit_codes, (list, tuple, set))
+        self._ignore_system_exit_codes = set(ignore_system_exit_codes)
+
+    def ignore_system_exit_code(self, system_exit_exc):
+        if hasattr(system_exit_exc, 'code'):
+            return system_exit_exc.code in self._ignore_system_exit_codes
+        else:
+            return system_exit_exc in self._ignore_system_exit_codes
 
     def block_until_configuration_done(self):
         self._on_configuration_done_event.wait()

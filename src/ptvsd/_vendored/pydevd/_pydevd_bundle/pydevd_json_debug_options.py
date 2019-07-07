@@ -33,6 +33,7 @@ else:
 DEBUG_OPTIONS_PARSER = {
     'WAIT_ON_ABNORMAL_EXIT': bool_parser,
     'WAIT_ON_NORMAL_EXIT': bool_parser,
+    'BREAK_SYSTEMEXIT_ZERO': bool_parser,
     'REDIRECT_OUTPUT': bool_parser,
     'VERSION': unquote,
     'INTERPRETER_OPTIONS': unquote,
@@ -51,6 +52,7 @@ DEBUG_OPTIONS_BY_FLAG = {
     'RedirectOutput': 'REDIRECT_OUTPUT=True',
     'WaitOnNormalExit': 'WAIT_ON_NORMAL_EXIT=True',
     'WaitOnAbnormalExit': 'WAIT_ON_ABNORMAL_EXIT=True',
+    'BreakOnSystemExitZero': 'BREAK_SYSTEMEXIT_ZERO=True',
     'Django': 'DJANGO_DEBUG=True',
     'Flask': 'FLASK_DEBUG=True',
     'Jinja': 'FLASK_DEBUG=True',
@@ -73,15 +75,6 @@ def _build_debug_options(flags):
 
 def _parse_debug_options(opts):
     """Debug options are semicolon separated key=value pairs
-        WAIT_ON_ABNORMAL_EXIT=True|False
-        WAIT_ON_NORMAL_EXIT=True|False
-        REDIRECT_OUTPUT=True|False
-        VERSION=string
-        INTERPRETER_OPTIONS=string
-        WEB_BROWSER_URL=string url
-        DJANGO_DEBUG=True|False
-        CLIENT_OS_TYPE=WINDOWS|UNIX
-        DEBUG_STDLIB=True|False
     """
     options = {}
     if not opts:

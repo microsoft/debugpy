@@ -14,7 +14,6 @@ from _pydevd_bundle.pydevd_constants import (int_types, IS_64BIT_PROCESS,
 from tests_python.debug_constants import *  # noqa
 import time
 from os.path import normcase
-import sys
 from _pydev_bundle.pydev_localhost import get_socket_name
 
 pytest_plugins = [
@@ -111,15 +110,15 @@ class JsonFacade(object):
         stopped_event = self.wait_for_json_message(StoppedEvent)
         assert stopped_event.body.reason == reason
         json_hit = self.get_stack_as_json_hit(stopped_event.body.threadId)
+        if file is not None:
+            assert json_hit.stack_trace_response.body.stackFrames[0]['source']['path'].endswith(file)
+        if name is not None:
+            assert json_hit.stack_trace_response.body.stackFrames[0]['name'] == name
         if line is not None:
             found_line = json_hit.stack_trace_response.body.stackFrames[0]['line']
             if not isinstance(line, (tuple, list)):
                 line = [line]
             assert found_line in line, 'Expect to break at line: %s. Found: %s' % (line, found_line)
-        if file is not None:
-            assert json_hit.stack_trace_response.body.stackFrames[0]['source']['path'].endswith(file)
-        if name is not None:
-            assert json_hit.stack_trace_response.body.stackFrames[0]['name'] == name
         return json_hit
 
     def write_set_breakpoints(
@@ -447,6 +446,107 @@ def test_case_handled_exception_breaks(case_setup):
         # Clear so that the last one is not hit.
         json_facade.write_set_exception_breakpoints([])
         json_facade.write_continue(wait_for_response=False)
+
+        writer.finished_ok = True
+
+
+def test_case_unhandled_exception(case_setup):
+
+    def check_test_suceeded_msg(writer, stdout, stderr):
+        # Don't call super (we have an unhandled exception in the stack trace).
+        return 'TEST SUCEEDED' in ''.join(stdout) and 'TEST SUCEEDED' in ''.join(stderr)
+
+    def additional_output_checks(writer, stdout, stderr):
+        if 'raise Exception' not in stderr:
+            raise AssertionError('Expected test to have an unhandled exception.\nstdout:\n%s\n\nstderr:\n%s' % (
+                stdout, stderr))
+
+    with case_setup.test_file(
+            '_debugger_case_unhandled_exceptions.py',
+            check_test_suceeded_msg=check_test_suceeded_msg,
+            additional_output_checks=additional_output_checks,
+            EXPECTED_RETURNCODE=1,
+        ) as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch()
+        json_facade.write_set_exception_breakpoints(['uncaught'])
+        json_facade.write_make_initial_run()
+
+        line_in_thread1 = writer.get_line_index_with_content('in thread 1')
+        line_in_thread2 = writer.get_line_index_with_content('in thread 2')
+        line_in_main = writer.get_line_index_with_content('in main')
+        json_facade.wait_for_thread_stopped(
+            reason='exception', line=(line_in_thread1, line_in_thread2), file='_debugger_case_unhandled_exceptions.py')
+        json_facade.write_continue()
+
+        json_facade.wait_for_thread_stopped(
+            reason='exception', line=(line_in_thread1, line_in_thread2), file='_debugger_case_unhandled_exceptions.py')
+        json_facade.write_continue()
+
+        json_facade.wait_for_thread_stopped(
+            reason='exception', line=line_in_main, file='_debugger_case_unhandled_exceptions.py')
+        json_facade.write_continue(wait_for_response=False)
+
+        writer.finished_ok = True
+
+
+def test_case_sys_exit_unhandled_exception(case_setup):
+
+    with case_setup.test_file('_debugger_case_sysexit.py', EXPECTED_RETURNCODE=1) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_set_exception_breakpoints(['uncaught'])
+        json_facade.write_make_initial_run()
+
+        break_line = writer.get_line_index_with_content('sys.exit(1)')
+        json_facade.wait_for_thread_stopped(
+            reason='exception', line=break_line)
+        json_facade.write_continue(wait_for_response=False)
+
+        writer.finished_ok = True
+
+
+@pytest.mark.parametrize('break_on_system_exit_zero', [True, False])
+def test_case_sys_exit_0_unhandled_exception(case_setup, break_on_system_exit_zero):
+
+    with case_setup.test_file('_debugger_case_sysexit_0.py', EXPECTED_RETURNCODE=0) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(
+            debugOptions=['BreakOnSystemExitZero'] if break_on_system_exit_zero else [],
+        )
+        json_facade.write_set_exception_breakpoints(['uncaught'])
+        json_facade.write_make_initial_run()
+
+        break_line = writer.get_line_index_with_content('sys.exit(0)')
+        if break_on_system_exit_zero:
+            json_facade.wait_for_thread_stopped(
+                reason='exception', line=break_line)
+            json_facade.write_continue(wait_for_response=False)
+
+        writer.finished_ok = True
+
+
+@pytest.mark.parametrize('break_on_system_exit_zero', [True, False])
+def test_case_sys_exit_0_handled_exception(case_setup, break_on_system_exit_zero):
+
+    with case_setup.test_file('_debugger_case_sysexit_0.py', EXPECTED_RETURNCODE=0) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(
+            debugOptions=['BreakOnSystemExitZero'] if break_on_system_exit_zero else [],
+        )
+        json_facade.write_set_exception_breakpoints(['raised'])
+        json_facade.write_make_initial_run()
+
+        break_line = writer.get_line_index_with_content('sys.exit(0)')
+        break_main_line = writer.get_line_index_with_content('call_main_line')
+        if break_on_system_exit_zero:
+            json_facade.wait_for_thread_stopped(
+                reason='exception', line=break_line)
+            json_facade.write_continue()
+
+            json_facade.wait_for_thread_stopped(
+                reason='exception', line=break_main_line)
+            json_facade.write_continue(wait_for_response=False)
 
         writer.finished_ok = True
 

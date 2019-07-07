@@ -863,9 +863,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self.loop = None
         self.event_loop_thread = None
 
-        # debugger state
-        self._success_exitcodes = []
-
         # adapter state
         self._detached = False
         self._path_mappings_received = False
@@ -1053,11 +1050,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         yield self.pydevd_request(-1, pydevd_request, is_json=True)
 
         self._path_mappings_applied = True
-
-        default_success_exitcodes = [0]
-        if self.debug_options.get('DJANGO_DEBUG', False):
-            default_success_exitcodes += [3]
-        self._success_exitcodes = args.get('successExitCodes', default_success_exitcodes)
 
     def _handle_detach(self):
         ptvsd.log.info('Detaching ...')
@@ -1279,37 +1271,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
 
     @pydevd_events.handler(pydevd_comm_constants.CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION)
     def on_pydevd_thread_suspend_single_notification(self, seq, args):
-        # NOTE: We should add the thread to VSC thread map only if the
-        # thread is seen here for the first time in 'attach' scenario.
-        # If we are here in 'launch' scenario and we get KeyError then
-        # there is an issue in reporting of thread creation.
         body = args['body']
-
-        reason = body['reason']
-        if reason == 'exception':
-            exc_name = body['text']
-            exc_desc = body['description']
-
-            if not self.debug_options.get('BREAK_SYSTEMEXIT_ZERO', False) and exc_name == 'SystemExit':
-                ptvsd.log.info('{0}({1!r})', exc_name, exc_desc)
-                try:
-                    exit_code = int(exc_desc)
-                except ValueError:
-                    # It is legal to invoke exit() with a non-integer argument, and SystemExit will
-                    # pass that through. It's considered an error exit, same as non-zero integer.
-                    ptvsd.log.info('Exit code {0!r} cannot be converted to int, treating as failure', exc_desc)
-                    ignore = False
-                else:
-                    ignore = exit_code in self._success_exitcodes
-                    ptvsd.log.info(
-                        'Process exiting with {0} exit code {1}',
-                        'success' if ignore else 'failure',
-                        exc_desc,
-                    )
-                if ignore:
-                    self._resume_all_threads()
-                    return
-
         self.send_event('stopped', **body)
 
     @pydevd_events.handler(pydevd_comm_constants.CMD_THREAD_RESUME_SINGLE_NOTIFICATION)

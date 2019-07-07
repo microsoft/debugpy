@@ -303,6 +303,9 @@ cdef class PyDBFrame:
                         exception, main_debugger.break_on_caught_exceptions)
 
                     if exception_breakpoint is not None:
+                        if exception is SystemExit and main_debugger.ignore_system_exit_code(value):
+                            return False, frame
+
                         if exception_breakpoint.condition is not None:
                             eval_result = main_debugger.handle_breakpoint_condition(info, exception_breakpoint, frame)
                             if not eval_result:

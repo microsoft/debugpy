@@ -543,9 +543,6 @@ class DebugSession(object):
         if self.stepping_resumes_all_threads is not None:
             self.start_method_args['steppingResumesAllThreads'] = self.stepping_resumes_all_threads
 
-        if self.success_exitcodes is not None:
-            self.start_method_args['successExitCodes'] = self.success_exitcodes
-
         launch_or_attach_request = self.send_request(request, self.start_method_args)
 
         if self.no_debug:
