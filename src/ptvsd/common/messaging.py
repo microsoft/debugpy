@@ -135,11 +135,7 @@ class JsonIOStream(object):
             raw_lines = "\n".join(repr(line) for line in raw_lines)
 
             return log.exception(
-                format_string,
-                *args,
-                name=self.name,
-                raw_lines=raw_lines,
-                **kwargs
+                format_string, *args, name=self.name, raw_lines=raw_lines, **kwargs
             )
 
         raw_chunks = []
@@ -154,7 +150,9 @@ class JsonIOStream(object):
                 # there's no message data to log in any case, and the caller might
                 # be anticipating the error - e.g. EOFError on disconnect.
                 if headers:
-                    raise log_message_and_exception("Error while reading message headers:")
+                    raise log_message_and_exception(
+                        "Error while reading message headers:"
+                    )
                 else:
                     raise
 
@@ -185,8 +183,7 @@ class JsonIOStream(object):
                     raise EOFError
                 else:
                     raise log_message_and_exception(
-                        "Couldn't read the expected {0} bytes of body:",
-                        length,
+                        "Couldn't read the expected {0} bytes of body:", length
                     )
 
             raw_chunks.append(chunk)

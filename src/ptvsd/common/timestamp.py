@@ -10,7 +10,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 import sys
 import time
 
-__all__ = ['current', 'reset']
+__all__ = ["current", "reset"]
 
 
 if sys.version_info >= (3, 5):

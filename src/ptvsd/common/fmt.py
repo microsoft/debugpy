@@ -58,9 +58,9 @@ class JsonObject(object):
             #
             # which we can then eval() to create our encoder instance.
             make_encoder = "json_encoder_factory(" + format_spec + ")"
-            encoder = eval(make_encoder, {
-                "json_encoder_factory": self.json_encoder_factory
-            })
+            encoder = eval(
+                make_encoder, {"json_encoder_factory": self.json_encoder_factory}
+            )
         else:
             encoder = self.json_encoder
         return encoder.encode(self.value)
@@ -84,6 +84,7 @@ class Formatter(string.Formatter, types.ModuleType):
         # Set self up as a proper module, and copy globals.
         # types must be re-imported, because globals aren't there yet at this point.
         import types
+
         types.ModuleType.__init__(self, __name__)
         self.__dict__.update(sys.modules[__name__].__dict__)
 

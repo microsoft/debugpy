@@ -17,12 +17,7 @@ import ptvsd
 from ptvsd.common import compat, fmt, options, timestamp
 
 
-LEVELS = (
-    "debug",
-    "info",
-    "warning",
-    "error",
-)
+LEVELS = ("debug", "info", "warning", "error")
 """Logging levels, lowest to highest importance.
 """
 
@@ -56,13 +51,13 @@ def write(level, text):
     format_string = "{0}+{1:" + timestamp_format + "}: "
     prefix = fmt(format_string, level[0].upper(), t)
 
-    indent = '\n' + (' ' * len(prefix))
-    output = indent.join(text.split('\n'))
+    indent = "\n" + (" " * len(prefix))
+    output = indent.join(text.split("\n"))
 
     if current_handler():
-        prefix += '(while handling {}){}'.format(current_handler(), indent)
+        prefix += "(while handling {}){}".format(current_handler(), indent)
 
-    output = prefix + output + '\n\n'
+    output = prefix + output + "\n\n"
 
     with _lock:
         if level in stderr_levels:
@@ -90,9 +85,9 @@ def write_format(level, format_string, *args, **kwargs):
     return write(level, text)
 
 
-debug = functools.partial(write_format, 'debug')
-info = functools.partial(write_format, 'info')
-warning = functools.partial(write_format, 'warning')
+debug = functools.partial(write_format, "debug")
+info = functools.partial(write_format, "info")
+warning = functools.partial(write_format, "warning")
 
 
 def error(*args, **kwargs):
@@ -107,15 +102,15 @@ def error(*args, **kwargs):
         log.error(...)
         assert False, fmt(...)
     """
-    return AssertionError(write_format('error', *args, **kwargs))
+    return AssertionError(write_format("error", *args, **kwargs))
 
 
-def stack(title='Stack trace'):
-    stack = '\n'.join(traceback.format_stack())
-    debug('{0}:\n\n{1}', title, stack)
+def stack(title="Stack trace"):
+    stack = "\n".join(traceback.format_stack())
+    debug("{0}:\n\n{1}", title, stack)
 
 
-def exception(format_string='', *args, **kwargs):
+def exception(format_string="", *args, **kwargs):
     """Logs an exception with full traceback.
 
     If format_string is specified, it is formatted with fmt(*args, **kwargs), and
@@ -135,12 +130,12 @@ def exception(format_string='', *args, **kwargs):
             raise log.exception()  # log it and re-raise
     """
 
-    level = kwargs.pop('level', 'error')
-    exc_info = kwargs.pop('exc_info', sys.exc_info())
+    level = kwargs.pop("level", "error")
+    exc_info = kwargs.pop("exc_info", sys.exc_info())
 
     if format_string:
-        format_string += '\n\n'
-    format_string += '{exception}'
+        format_string += "\n\n"
+    format_string += "{exception}"
 
     exception = "".join(traceback.format_exception(*exc_info))
     write_format(level, format_string, *args, exception=exception, **kwargs)
@@ -154,7 +149,7 @@ def escaped_exceptions(f):
             return f(*args, **kwargs)
         except Exception:
             # Must not use try/except here to avoid overwriting the caught exception.
-            exception('Exception escaped from {0}', compat.srcnameof(f))
+            exception("Exception escaped from {0}", compat.srcnameof(f))
             raise
 
     return g
@@ -168,19 +163,21 @@ def to_file(filename=None):
 
     if filename is None:
         if options.log_dir is None:
-            warning("ptvsd.to_file() cannot generate log file name - ptvsd.options.log_dir is not set")
+            warning(
+                "ptvsd.to_file() cannot generate log file name - ptvsd.options.log_dir is not set"
+            )
             return
         filename = fmt("{0}/ptvsd-{1}.log", options.log_dir, os.getpid())
 
-    file = io.open(filename, 'w', encoding='utf-8')
+    file = io.open(filename, "w", encoding="utf-8")
 
     info(
-        '{0} {1}\n{2} {3} ({4}-bit)\nptvsd {5}',
+        "{0} {1}\n{2} {3} ({4}-bit)\nptvsd {5}",
         platform.platform(),
         platform.machine(),
         platform.python_implementation(),
         platform.python_version(),
-        64 if sys.maxsize > 2**32 else 32,
+        64 if sys.maxsize > 2 ** 32 else 32,
         ptvsd.__version__,
     )
 
@@ -195,7 +192,9 @@ def current_handler():
 
 @contextlib.contextmanager
 def handling(what):
-    assert current_handler() is None, fmt("Can't handle {0} - already handling {1}", what, current_handler())
+    assert current_handler() is None, fmt(
+        "Can't handle {0} - already handling {1}", what, current_handler()
+    )
     _tls.current_handler = what
     try:
         yield

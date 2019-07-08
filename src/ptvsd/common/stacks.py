@@ -37,7 +37,7 @@ def dump():
         else:
             t_name = t_daemon = "<unknown>"
 
-        stack = ''.join(traceback.format_stack(frame))
+        stack = "".join(traceback.format_stack(frame))
         log.info(
             "Stack of thread {0} (tid={1}, pid={2}, daemon={3}):\n\n{4}",
             t_name,
