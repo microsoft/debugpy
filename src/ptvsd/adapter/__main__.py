@@ -11,37 +11,41 @@ import argparse
 # and should be imported locally inside main() instead.
 
 
-def _get_parsed_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--debug-port", nargs="?", default=None, const=6789)
-    return parser.parse_args(sys.argv[1:])
-
-
-def main():
-    import ptvsd
+def main(args):
     from ptvsd.common import log
     from ptvsd.adapter import channels
 
-    args = _get_parsed_args()
     log.to_file()
 
+    if args.debug_server is None:
+        address = None
+    else:
+        address = ("localhost", args.debug_server)
+        # If in debugServer mode, log everything to stderr.
+        log.stderr_levels = set(log.LEVELS)
+
     chan = channels.Channels()
-    chan.connect_to_ide(address=("localhost", int(args.debug_port)))
-
-    chan.ide.send_event(
-        "output",
-        {
-            "category": "telemetry",
-            "output": "ptvsd.adapter",
-            "data": {"version": ptvsd.__version__},
-        },
-    )
-
+    chan.connect_to_ide(address)
     chan.ide.wait()
 
     # There might not be a server connection yet at this point.
     if chan.server is not None:
         chan.server.wait()
+
+
+def _parse_argv():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-d",
+        "--debug-server",
+        type=int,
+        nargs="?",
+        default=None,
+        const=8765,
+        metavar="PORT",
+        help="start the adapter in debugServer mode on the specified port",
+    )
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
@@ -72,4 +76,4 @@ if __name__ == "__main__":
         __import__("ptvsd")
         del sys.path[0]
 
-    main()
+    main(_parse_argv())

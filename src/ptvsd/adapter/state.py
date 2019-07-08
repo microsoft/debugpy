@@ -33,7 +33,7 @@ class State(singleton.ThreadSafeSingleton):
     def state(self, new_state):
         assert STATES.index(self._state) < STATES.index(new_state)
         log.debug("Adapter state changed from {0!r} to {1!r}", self._state, new_state)
-        self._state = self.new_state
+        self._state = new_state
 
 
 def current():

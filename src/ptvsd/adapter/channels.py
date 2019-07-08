@@ -4,8 +4,8 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-from ptvsd.common import messaging, singleton
-from ptvsd.common.socket import create_server
+import ptvsd
+from ptvsd.common import log, messaging, singleton, socket
 
 
 class Channels(singleton.ThreadSafeSingleton):
@@ -36,16 +36,35 @@ class Channels(singleton.ThreadSafeSingleton):
         from ptvsd.adapter import messages
 
         if address is None:
-            ide_channel = messaging.JsonIOStream.from_stdio("IDE")
+            ide_stream = messaging.JsonIOStream.from_stdio("IDE")
         else:
             host, port = address
-            sock = create_server(host, port).accept()
-            ide_channel = messaging.JsonIOStream.from_socket(sock, "IDE")
+            server_sock = socket.create_server(host, port)
+            try:
+                log.info(
+                    "ptvsd debugServer waiting for connection on {0}:{1}...",
+                    host,
+                    port,
+                )
+                sock, (ide_host, ide_port) = server_sock.accept()
+            finally:
+                server_sock.close()
+            log.info("IDE connection accepted from {0}:{1}.", ide_host, ide_port)
+            ide_stream = messaging.JsonIOStream.from_socket(sock, "IDE")
 
         self.ide = messaging.JsonMessageChannel(
-            ide_channel, messages.IDEMessages(), ide_channel.name
+            ide_stream, messages.IDEMessages(), ide_stream.name
         )
         self.ide.start()
+        self.ide.send_event(
+            "output",
+            {
+                "category": "telemetry",
+                "output": "ptvsd.adapter",
+                "data": {"version": ptvsd.__version__},
+            },
+        )
+
 
     @singleton.autolocked_method
     def connect_to_server(self, address):

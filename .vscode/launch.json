@@ -1,0 +1,36 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "ptvsd.adapter --debug-server",
+            "type": "python",
+            "request": "launch",
+            "console": "integratedTerminal",
+            "program": "${workspaceFolder}/src/ptvsd/adapter",
+            "args": ["--debug-server", "8765"],
+            "customDebugger": true,
+        },
+
+        // For these, ptvsd.adapter must be started first via the above configuration.
+        {
+            "name": "Launch Python file [debugServer]",
+            "type": "python",
+            "request": "launch",
+            "debugServer": 8765,
+            "console": "integratedTerminal",
+            //"program": "${file}",
+            "program": "${workspaceFolder}/tests/test_data/testpkgs/pkg1/__main__.py",
+        },
+        {
+            "name": "Attach [debugServer]",
+            "type": "python",
+            "request": "attach",
+            "debugServer": 8765,
+            "host": "localhost",
+            "port": 5678,
+        },
+    ]
+}

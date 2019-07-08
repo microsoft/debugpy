@@ -43,6 +43,7 @@ class Messages(singleton.Singleton):
     # Specifies the allowed adapter states for a message handler - if the corresponding
     # message is received in a state that is not listed, the handler is not invoked.
     # If the message is a request, a failed response is returned.
+    @staticmethod
     def _only_allowed_while(*states):
         def decorate(handler):
             def handle_if_allowed(self, message):
