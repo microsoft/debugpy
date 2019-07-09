@@ -15,9 +15,9 @@ import py.path
 # Do not import anything from ptvsd until assert rewriting is enabled below!
 
 
-_tests_dir = py.path.local(__file__) / ".."
+root = py.path.local(__file__) / ".."
 
-test_data = _tests_dir / "test_data"
+test_data = root / "test_data"
 """A py.path.local object for the tests/test_data/ directory.
 
 Idiomatic use is via from .. import::
@@ -43,7 +43,7 @@ def _register_assert_rewrite(modname):
     pytest.register_assert_rewrite(modname)
 
 _register_assert_rewrite("ptvsd.common")
-tests_submodules = pkgutil.iter_modules([str(_tests_dir)])
+tests_submodules = pkgutil.iter_modules([str(root)])
 for _, submodule, _ in tests_submodules:
     submodule = str("{0}.{1}".format(__name__, submodule))
     _register_assert_rewrite(submodule)

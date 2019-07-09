@@ -61,9 +61,8 @@ def test_thread_count(pyfile, start_method, run_as, count):
 def test_debug_this_thread(pyfile, start_method, run_as):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        from debug_me import ptvsd
         import platform
-        import ptvsd
         import threading
 
         def foo(x):

@@ -57,7 +57,7 @@ def test_attach(run_as, wait_for_attach, is_attached, break_into):
             # (such as as backchannel.py).
             # assert hit.frames[0]['line'] in [27, 28, 29]
 
-        session.send_continue()
+        session.request_continue()
         session.wait_for_exit()
 
 
@@ -67,9 +67,8 @@ def test_attach(run_as, wait_for_attach, is_attached, break_into):
 def test_reattach(pyfile, start_method, run_as):
     @pyfile
     def code_to_debug():
-        from debug_me import ptvsd
+        from debug_me import backchannel, ptvsd
         import time
-        import backchannel
 
         ptvsd.break_into_debugger()
         print("first") # @first
@@ -86,7 +85,7 @@ def test_reattach(pyfile, start_method, run_as):
             start_method=start_method,
             use_backchannel=True,
             kill_ptvsd=False,
-            skip_capture=True,
+            capture_output=False,
         )
         session.start_debugging()
         hit = session.wait_for_stop()
@@ -129,7 +128,7 @@ def test_attaching_by_pid(pyfile, run_as, start_method):
 
         # remove breakpoint and continue
         session.set_breakpoints(code_to_debug, [])
-        session.send_continue()
+        session.request_continue()
         session.wait_for_next(
             Event("output", some.dict.containing({"category": "stdout"}))
         )

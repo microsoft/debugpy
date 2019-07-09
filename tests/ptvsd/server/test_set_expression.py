@@ -11,8 +11,7 @@ from tests.patterns import some
 def test_set_expression(pyfile, start_method, run_as):
     @pyfile
     def code_to_debug():
-        from debug_me import backchannel
-        import ptvsd
+        from debug_me import backchannel, ptvsd
 
         a = 1
         ptvsd.break_into_debugger()

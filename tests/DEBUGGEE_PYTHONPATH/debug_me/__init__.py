@@ -18,27 +18,27 @@ both as global variables, specifically so that it is possible to write::
     from debug_me import ptvsd, pydevd, backchannel
 """
 
-__all__ = ["backchannel", "ptvsd", "pydevd", "session_id"]
+__all__ = ["ptvsd", "pydevd", "session_id"]
 
 import os
 
-# Needs to be set before backchannel can set things up.
-session_id = int(os.getenv('PTVSD_SESSION_ID'))
-name = "ptvsd-" + str(session_id)
-
 # For `from debug_me import ...`.
-import backchannel  # noqa
-import ptvsd  # noqa
-import pydevd  # noqa
+import ptvsd
+import pydevd
+
+
+# Used by backchannel.
+session_id = int(os.getenv("PTVSD_SESSION_ID"))
+name = "ptvsd-" + str(session_id)
 
 
 # For all start methods except for "attach_socket_import", DebugSession itself
 # will take care of starting the debuggee process correctly.
-
+#
 # For "attach_socket_import", DebugSession will supply the code that needs to
 # be executed in the debuggee to enable debugging and establish connection back
 # to DebugSession - the debuggee simply needs to execute it as is.
 _code = os.getenv("PTVSD_DEBUG_ME")
 if _code:
-    _code = compile(_code, "<ptvsd-setup>", "exec")
+    _code = compile(_code, "<PTVSD_DEBUG_ME>", "exec")
     eval(_code, {})

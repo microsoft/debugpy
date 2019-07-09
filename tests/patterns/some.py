@@ -64,6 +64,7 @@ Usage::
 
 __all__  = [
     "bool",
+    "bytes",
     "dap_id",
     "dict",
     "error",
@@ -98,14 +99,17 @@ tuple = instanceof(builtins.tuple)
 error = instanceof(Exception)
 
 
-str = None
+bytes = instanceof(builtins.bytes)
+bytes.matching = some.Matching
+
+
 """In Python 2, matches both str and unicode. In Python 3, only matches str.
 """
 if sys.version_info < (3,):
     str = instanceof((builtins.str, builtins.unicode), "str")
 else:
     str = instanceof(builtins.str)
-str.matching = some.StrMatching
+str.matching = some.Matching
 
 
 list = instanceof(builtins.list)

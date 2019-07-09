@@ -113,7 +113,7 @@ def test_str():
         assert b"abc" != some.str
 
 
-def test_str_matching():
+def test_matching():
     pattern = some.str.matching(r".(b+).")
     log_repr(pattern)
     assert pattern == "abbbc"
@@ -121,6 +121,14 @@ def test_str_matching():
     pattern = some.str.matching(r"bbb")
     log_repr(pattern)
     assert pattern != "abbbc"
+
+    pattern = some.bytes.matching(br".(b+).")
+    log_repr(pattern)
+    assert pattern == b"abbbc"
+
+    pattern = some.bytes.matching(br"bbb")
+    log_repr(pattern)
+    assert pattern != b"abbbc"
 
 
 def test_list():

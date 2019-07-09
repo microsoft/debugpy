@@ -7,8 +7,6 @@ from __future__ import absolute_import, print_function, unicode_literals
 import pytest
 
 from tests import debug
-from tests.patterns import some
-from tests.timeline import Event
 
 
 def test_with_no_output(pyfile, start_method, run_as):
@@ -22,8 +20,11 @@ def test_with_no_output(pyfile, start_method, run_as):
         session.initialize(target=(run_as, code_to_debug), start_method=start_method)
         session.start_debugging()
         session.wait_for_exit()
-        assert b"" == session.get_stdout_as_string()
-        assert b"" == session.get_stderr_as_string()
+
+        assert not session.output("stdout")
+        assert not session.output("stderr")
+        assert not session.captured_stdout()
+        assert not session.captured_stderr()
 
 
 def test_with_tab_in_output(pyfile, start_method, run_as):
@@ -47,11 +48,7 @@ def test_with_tab_in_output(pyfile, start_method, run_as):
         session.request_continue()
         session.wait_for_exit()
 
-        output = session.all_occurrences_of(
-            Event("output", some.dict.containing({"category": "stdout"}))
-        )
-        output_str = "".join(o.body["output"] for o in output)
-        assert output_str.startswith("Hello\tWorld")
+        assert session.output("stdout").startswith("Hello\tWorld")
 
 
 @pytest.mark.parametrize("redirect", ["RedirectOutput", ""])
@@ -79,10 +76,7 @@ def test_redirect_output(pyfile, start_method, run_as, redirect):
         session.request_continue()
         session.wait_for_exit()
 
-        output = session.all_occurrences_of(
-            Event("output", some.dict.containing({"category": "stdout"}))
-        )
-        expected = ["111", "222", "333", "444"] if bool(redirect) else []
-        assert expected == list(
-            o.body["output"] for o in output if len(o.body["output"]) == 3
-        )
+        if redirect:
+            assert session.output("stdout") == "111\n222\n333\n444\n\n"
+        else:
+            assert not session.output("stdout")

@@ -13,11 +13,8 @@ __all__ = ["port", "receive", "send"]
 import atexit
 import os
 import socket
-import sys
 
-assert "debug_me" in sys.modules
 import debug_me
-
 from ptvsd.common import fmt, log, messaging
 
 
@@ -30,16 +27,16 @@ if port is not None:
 
 
 if port:
-    log.info('Connecting {0} to port {1}...', name, port)
+    log.info("Connecting {0} to port {1}...", name, port)
 
     _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     _socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-    _socket.connect(('localhost', port))
-    _stream = messaging.JsonIOStream.from_socket(_socket, name='backchannel')
+    _socket.connect(("localhost", port))
+    _stream = messaging.JsonIOStream.from_socket(_socket, name="backchannel")
 
     @atexit.register
     def _atexit_handler():
-        log.info('Shutting down {0}...', name)
+        log.info("Shutting down {0}...", name)
         try:
             _socket.shutdown(socket.SHUT_RDWR)
         except Exception:
@@ -50,7 +47,9 @@ if port:
             except Exception:
                 pass
 
+
 else:
+
     class _stream:
         def _error(*_):
             raise AssertionError("Backchannel is not set up for this process")
@@ -66,5 +65,10 @@ def receive():
     return _stream.read_json()
 
 
-def wait_for(value):
-    assert receive() == value
+def wait_for(expected):
+    actual = receive()
+    assert expected == actual, fmt(
+        "Debuggee expected {0!r} on backchannel, but got {1!r} from the test",
+        expected,
+        actual,
+    )

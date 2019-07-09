@@ -47,7 +47,7 @@ def test_multiprocessing(pyfile, start_method, run_as):
             print("leaving child")
 
         if __name__ == "__main__":
-            import backchannel
+            from debug_me import backchannel
 
             if sys.version_info >= (3, 4):
                 multiprocessing.set_start_method("spawn")
@@ -151,8 +151,7 @@ def test_subprocess(pyfile, start_method, run_as):
     @pyfile
     def child():
         import sys
-        import backchannel
-        import debug_me  # noqa
+        from debug_me import backchannel
 
         backchannel.send(sys.argv)
 
@@ -234,11 +233,10 @@ def test_autokill(pyfile, start_method, run_as):
 
     @pyfile
     def parent():
-        import backchannel
         import os
         import subprocess
         import sys
-        import debug_me  # noqa
+        from debug_me import backchannel
 
         argv = [sys.executable, sys.argv[1]]
         env = os.environ.copy()
@@ -313,8 +311,7 @@ def test_argv_quoting(pyfile, start_method, run_as):
 
     @pyfile
     def child():
-        import debug_me  # noqa
-        import backchannel
+        from debug_me import backchannel
         import sys
 
         from args import args as expected_args

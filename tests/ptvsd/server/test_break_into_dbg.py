@@ -26,7 +26,7 @@ def test_with_wait_for_attach(pyfile, start_method, run_as):
         hit = session.wait_for_stop()
         assert hit.frames[0]["line"] == code_to_debug.lines["break"]
 
-        session.send_continue()
+        session.request_continue()
         session.wait_for_exit()
 
 
@@ -51,5 +51,5 @@ def test_breakpoint_function(pyfile, start_method, run_as):
         assert path.endswith("code_to_debug.py") or path.endswith("<string>")
         assert hit.frames[0]["line"] == code_to_debug.lines["break"]
 
-        session.send_continue()
+        session.request_continue()
         session.wait_for_exit()

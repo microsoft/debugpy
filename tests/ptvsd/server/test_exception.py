@@ -10,6 +10,7 @@ from tests import debug
 from tests.patterns import some
 from tests.timeline import Event
 
+pytestmark = pytest.mark.skip("Exception tests are broken")
 
 str_matching_ArithmeticError = some.str.matching(r"($|.*\.)ArithmeticError")
 

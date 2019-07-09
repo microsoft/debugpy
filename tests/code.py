@@ -10,6 +10,8 @@ from __future__ import absolute_import, print_function, unicode_literals
 import py.path
 import re
 
+from ptvsd.common import compat
+
 
 def get_marked_line_numbers(path):
     """Given a path to a Python source file, extracts line numbers for all lines
@@ -27,11 +29,12 @@ def get_marked_line_numbers(path):
     if isinstance(path, py.path.local):
         path = path.strpath
 
-    with open(path) as f:
+    # Read as bytes, to avoid decoding errors on Python 3.
+    with open(path, "rb") as f:
         lines = {}
         for i, line in enumerate(f):
-            match = re.search(r"#\s*@\s*(.+?)\s*$", line)
+            match = re.search(br"#\s*@\s*(.+?)\s*$", line)
             if match:
-                marker = match.group(1)
+                marker = compat.force_unicode(match.group(1), "ascii")
                 lines[marker] = i + 1
         return lines

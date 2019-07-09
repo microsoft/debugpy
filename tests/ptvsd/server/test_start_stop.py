@@ -20,8 +20,7 @@ from tests.patterns import some
 def test_wait_on_normal_exit_enabled(pyfile, start_method, run_as):
     @pyfile
     def code_to_debug():
-        from debug_me import backchannel
-        import ptvsd
+        from debug_me import backchannel, ptvsd
 
         ptvsd.break_into_debugger()
         backchannel.send("done")
@@ -56,9 +55,8 @@ def test_wait_on_normal_exit_enabled(pyfile, start_method, run_as):
 def test_wait_on_abnormal_exit_enabled(pyfile, start_method, run_as):
     @pyfile
     def code_to_debug():
-        from debug_me import backchannel
+        from debug_me import backchannel, ptvsd
         import sys
-        import ptvsd
 
         ptvsd.break_into_debugger()
         backchannel.send("done")
@@ -90,8 +88,7 @@ def test_wait_on_abnormal_exit_enabled(pyfile, start_method, run_as):
 def test_exit_normally_with_wait_on_abnormal_exit_enabled(pyfile, start_method, run_as):
     @pyfile
     def code_to_debug():
-        from debug_me import backchannel
-        import ptvsd
+        from debug_me import backchannel, ptvsd
 
         ptvsd.break_into_debugger()
         backchannel.send("done")

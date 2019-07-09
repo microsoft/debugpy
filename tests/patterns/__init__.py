@@ -210,20 +210,28 @@ class SameAs(Some):
         return self.obj is value
 
 
-class StrMatching(Some):
+class Matching(Some):
     """Matches any string that matches the specified regular expression.
     """
 
     def __init__(self, regex):
+        assert isinstance(regex, bytes) or isinstance(regex, unicode)
         self.regex = regex
 
     def __repr__(self):
-        return fmt("/{0}/", self.regex)
+        s = repr(self.regex)
+        if s[0] in "bu":
+            return s[0] + "/" + s[2:-1] + "/"
+        else:
+            return "/" + s[1:-1] + "/"
 
     def __eq__(self, other):
-        if not (isinstance(other, bytes) or isinstance(other, unicode)):
+        regex = self.regex
+        if isinstance(regex, bytes) and not isinstance(other, bytes):
             return NotImplemented
-        return re.match(self.regex, other) is not None
+        if isinstance(regex, unicode) and not isinstance(other, unicode):
+            return NotImplemented
+        return re.match(regex, other) is not None
 
 
 class Path(Some):

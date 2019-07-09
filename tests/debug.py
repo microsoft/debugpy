@@ -19,7 +19,8 @@ import time
 
 import ptvsd
 from ptvsd.common import compat, fmt, log, messaging
-from tests import net, test_data
+import tests
+from tests import net
 from tests.patterns import some
 from tests.timeline import Timeline, Event, Response
 
@@ -79,7 +80,7 @@ class Session(object):
 
         self.env = os.environ.copy()
         self.env.update(PTVSD_ENV)
-        self.env['PYTHONPATH'] = (test_data / "_PYTHONPATH").strpath
+        self.env['PYTHONPATH'] = (tests.root / "DEBUGGEE_PYTHONPATH").strpath
         self.env['PTVSD_SESSION_ID'] = str(self.id)
 
         self.is_running = False
@@ -87,14 +88,13 @@ class Session(object):
         self.pid = pid
         self.psutil_process = psutil.Process(self.pid) if self.pid else None
         self.kill_ptvsd = True
-        self.skip_capture = False
         self.socket = None
         self.server_socket = None
         self.connected = threading.Event()
         self.backchannel = None
 
-        self._output_lines = {'stdout': [], 'stderr': []}
-        self._output_worker_threads = []
+        self.capture_output = True
+        self.captured_output = CapturedOutput(self)
 
         self.timeline = Timeline(ignore_unobserved=[
             Event('output'),
@@ -130,7 +130,7 @@ class Session(object):
             # If it failed in the middle of the test, the debuggee process might still
             # be alive, and waiting for the test to tell it to continue. In this case,
             # it will never close its stdout/stderr, so use a reasonable timeout here.
-            self._wait_for_remaining_output(timeout=1)
+            self.captured_output.wait(timeout=1)
 
         was_final = self.timeline.is_final
         self.close()
@@ -203,7 +203,7 @@ class Session(object):
             except Exception:
                 pass
 
-        self._wait_for_remaining_output()
+        self.captured_output.wait()
 
     def _get_argv_for_attach_using_import(self):
         argv = [sys.executable]
@@ -235,10 +235,10 @@ class Session(object):
 
     def _validate_pyfile(self, filename):
         assert os.path.isfile(filename)
-        with open(filename) as f:
+        with open(filename, "rb") as f:
             code = f.read()
             if self.start_method != "custom_client":
-                assert 'debug_me' in code, (
+                assert b"debug_me" in code, (
                     "Python source code that is run via tests.debug.Session must "
                     "import debug_me"
                 )
@@ -367,10 +367,11 @@ class Session(object):
             self.backchannel.listen()
             self.env['PTVSD_BACKCHANNEL_PORT'] = str(self.backchannel.port)
 
-        # Force env to use str everywhere - this is needed for Python 2.7.
+        # Normalize args to either bytes or unicode, depending on Python version.
         # Assume that values are filenames - it's usually either that, or numbers.
+        make_filename = compat.filename_bytes if sys.version_info < (3,) else compat.filename
         env = {
-            compat.force_str(k, "ascii"): compat.filename(v)
+            compat.force_str(k, "ascii"): make_filename(v)
             for k, v in self.env.items()
         }
 
@@ -402,10 +403,11 @@ class Session(object):
         )
 
         spawn_args = usr_argv if self.start_method == 'attach_pid' else dbg_argv
-        # Force args to use str everywhere - this is needed for Python 2.7.
-        spawn_args = [compat.filename(s) for s in spawn_args]
 
-        log.info('Spawning {0}: {1!j}', self, spawn_args)
+        # Normalize args to either bytes or unicode, depending on Python version.
+        spawn_args = [make_filename(s) for s in spawn_args]
+
+        log.info('Spawning {0}:\n\n{1}', self, "\n".join((repr(s) for s in spawn_args)))
         self.process = subprocess.Popen(
             spawn_args,
             env=env,
@@ -419,9 +421,8 @@ class Session(object):
         self.is_running = True
         # watchdog.create(self.pid)
 
-        if not self.skip_capture:
-            self._capture_output(self.process.stdout, 'stdout')
-            self._capture_output(self.process.stderr, 'stderr')
+        if self.capture_output:
+            self.captured_output.capture(self.process)
 
         if self.start_method == 'attach_pid':
             # This is a temp process spawned to inject debugger into the debuggee.
@@ -455,7 +456,8 @@ class Session(object):
         """
 
         log.info('Waiting for {0} to disconnect', self)
-        self._wait_for_remaining_output()
+
+        self.captured_output.wait()
         self.channel.close()
         self.timeline.finalize()
         if close:
@@ -693,77 +695,6 @@ class Session(object):
     def _process_request(self, request):
         assert False, 'ptvsd should not be sending requests.'
 
-    def _capture_output(self, pipe, name):
-        thread = threading.Thread(
-            target=lambda: self._output_worker(pipe, name),
-            name=fmt("{0} {1}", self, name)
-        )
-        thread.daemon = True
-        thread.start()
-        self._output_worker_threads.append(thread)
-
-    def _output_worker(self, pipe, name):
-        output_lines = self._output_lines[name]
-        while True:
-            try:
-                line = pipe.readline()
-            except Exception:
-                line = None
-
-            if line:
-                log.info("{0} {1}> {2}", self, name, line.rstrip())
-                with self.lock:
-                    output_lines.append(line)
-            else:
-                break
-
-    def _wait_for_remaining_output(self, timeout=None):
-        for t in self._output_worker_threads:
-            t.join(timeout)
-
-    def _output(self, which, encoding, lines):
-        assert self.timeline.is_frozen
-        with self.lock:
-            result = list(self._output_lines[which])
-
-        if encoding is not None:
-            for i, s in enumerate(result):
-                result[i] = s.decode(encoding)
-
-        if not lines:
-            sep = b'' if encoding is None else u''
-            result = sep.join(result)
-
-        return result
-
-    def stdout(self, encoding=None):
-        """Returns stdout captured from the debugged process, as a single string.
-
-        If encoding is None, returns bytes. Otherwise, returns unicode.
-        """
-        return self._output("stdout", encoding, lines=False)
-
-    def stderr(self, encoding=None):
-        """Returns stderr captured from the debugged process, as a single string.
-
-        If encoding is None, returns bytes. Otherwise, returns unicode.
-        """
-        return self._output("stderr", encoding, lines=False)
-
-    def stdout_lines(self, encoding=None):
-        """Returns stdout captured from the debugged process, as a list of lines.
-
-        If encoding is None, each line is bytes. Otherwise, each line is unicode.
-        """
-        return self._output("stdout", encoding, lines=True)
-
-    def stderr_lines(self, encoding=None):
-        """Returns stderr captured from the debugged process, as a list of lines.
-
-        If encoding is None, each line is bytes. Otherwise, each line is unicode.
-        """
-        return self._output("stderr", encoding, lines=True)
-
     def request_continue(self):
         self.send_request('continue').wait_for_response(freeze=False)
 
@@ -848,6 +779,121 @@ class Session(object):
         else:
             return ns
 
+    def output(self, category):
+        """Returns all output of a given category as a single string, assembled from
+        all the "output" events received for that category so far.
+        """
+        events = self.all_occurrences_of(
+            Event("output", some.dict.containing({"category": category}))
+        )
+        return "".join(event.body["output"] for event in events)
+
+    def captured_stdout(self, encoding=None):
+        return self.captured_output.stdout(encoding)
+
+    def captured_stderr(self, encoding=None):
+        return self.captured_output.stderr(encoding)
+
+
+class CapturedOutput(object):
+    """Captured stdout and stderr of the debugged process.
+    """
+
+    def __init__(self, session):
+        self.session = session
+        self._lock = threading.Lock()
+        self._lines = {}
+        self._worker_threads = []
+
+    def _worker(self, pipe, name):
+        lines = self._lines[name]
+        while True:
+            try:
+                line = pipe.readline()
+            except Exception:
+                line = None
+
+            if line:
+                log.info("{0} {1}> {2!r}", self.session, name, line)
+                with self._lock:
+                    lines.append(line)
+            else:
+                break
+
+    def _capture(self, pipe, name):
+        assert name not in self._lines
+        self._lines[name] = []
+
+        thread = threading.Thread(
+            target=lambda: self._worker(pipe, name),
+            name=fmt("{0} {1}", self, name)
+        )
+        thread.daemon = True
+        thread.start()
+        self._worker_threads.append(thread)
+
+    def capture(self, process):
+        """Start capturing stdout and stderr of the process.
+        """
+        assert not self._worker_threads
+        self._capture(process.stdout, "stdout")
+        self._capture(process.stderr, "stderr")
+
+    def wait(self, timeout=None):
+        """Wait for all remaining output to be captured.
+        """
+        for t in self._worker_threads:
+            t.join(timeout)
+
+    def _output(self, which, encoding, lines):
+        assert self.session.timeline.is_frozen
+
+        try:
+            result = self._lines[which]
+        except KeyError:
+            raise AssertionError(fmt("{0} was not captured for {1}", which, self.session))
+
+        # The list might still be appended to concurrently, so take a snapshot of it.
+        with self._lock:
+            result = list(result)
+
+        if encoding is not None:
+            result = [s.decode(encoding) for s in result]
+
+        if not lines:
+            sep = b'' if encoding is None else u''
+            result = sep.join(result)
+
+        return result
+
+    def stdout(self, encoding=None):
+        """Returns stdout captured from the debugged process, as a single string.
+
+        If encoding is None, returns bytes. Otherwise, returns unicode.
+        """
+        return self._output("stdout", encoding, lines=False)
+
+    def stderr(self, encoding=None):
+        """Returns stderr captured from the debugged process, as a single string.
+
+        If encoding is None, returns bytes. Otherwise, returns unicode.
+        """
+        return self._output("stderr", encoding, lines=False)
+
+    def stdout_lines(self, encoding=None):
+        """Returns stdout captured from the debugged process, as a list of lines.
+
+        If encoding is None, each line is bytes. Otherwise, each line is unicode.
+        """
+        return self._output("stdout", encoding, lines=True)
+
+    def stderr_lines(self, encoding=None):
+        """Returns stderr captured from the debugged process, as a list of lines.
+
+        If encoding is None, each line is bytes. Otherwise, each line is unicode.
+        """
+        return self._output("stderr", encoding, lines=True)
+
 
 class BackChannel(object):
     TIMEOUT = 20
@@ -896,15 +942,20 @@ class BackChannel(object):
         self._established.wait()
         return self._stream.read_json()
 
-    def expect(self, value):
-        assert self.receive() == value
-
     def send(self, value):
         self._established.wait()
         self.session.timeline.unfreeze()
         t = self.session.timeline.mark(('sending', value))
         self._stream.write_json(value)
         return t
+
+    def expect(self, expected):
+        actual = self.receive()
+        assert expected == actual, fmt(
+            "Test expected {0!r} on backchannel, but got {1!r} from the debuggee",
+            expected,
+            actual,
+        )
 
     def close(self):
         if self._socket:

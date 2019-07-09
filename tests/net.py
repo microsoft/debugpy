@@ -31,11 +31,11 @@ def get_test_server_port(start, stop):
     """
 
     try:
-        worker_id = os.environ['PYTEST_XDIST_WORKER']
+        worker_id = compat.force_ascii(os.environ['PYTEST_XDIST_WORKER'])
     except KeyError:
         n = 0
     else:
-        assert worker_id == some.str.matching(r"gw(\d+)"), (
+        assert worker_id == some.str.matching(br"gw(\d+)"), (
             "Unrecognized PYTEST_XDIST_WORKER format"
         )
         n = int(worker_id[2:])
@@ -93,7 +93,7 @@ class WebRequest(object):
         """
 
         method = getattr(requests, method)
-        self._worker.thread = threading.Thread(
+        self._worker_thread = threading.Thread(
             target=lambda: self._worker(method, url, *args, **kwargs),
             name=fmt("WebRequest({0!r})", url)
         )
@@ -104,7 +104,7 @@ class WebRequest(object):
     def wait_for_response(self, timeout=None):
         """Blocks until the request completes, and returns self.request.
         """
-        self._worker.thread.join(timeout)
+        self._worker_thread.join(timeout)
         return self.request
 
     def response_text(self):

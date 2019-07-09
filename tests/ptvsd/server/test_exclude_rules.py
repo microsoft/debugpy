@@ -67,7 +67,6 @@ def test_exceptions_and_exclude_rules(
 def test_exceptions_and_partial_exclude_rules(pyfile, start_method, run_as, scenario):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
         from debug_me import backchannel
         import sys
 
