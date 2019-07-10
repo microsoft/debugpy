@@ -47,7 +47,7 @@ def home(request):
 
 def bad_route_handled(request):
     try:
-        raise ArithmeticError('Hello')
+        raise ArithmeticError('Hello')  # @exc_handled
     except Exception:
         pass
     title = 'hello'
@@ -61,7 +61,7 @@ def bad_route_handled(request):
 
 
 def bad_route_unhandled(request):
-    raise ArithmeticError('Hello')
+    raise ArithmeticError('Hello')  # @exc_unhandled
     title = 'hello'
     content = 'Django-Django-Test'
     template = loader.get_template('hello.html')

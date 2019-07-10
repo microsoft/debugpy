@@ -12,6 +12,8 @@ import re
 
 from ptvsd.common import compat
 
+_marked_line_numbers_cache = {}
+
 
 def get_marked_line_numbers(path):
     """Given a path to a Python source file, extracts line numbers for all lines
@@ -29,6 +31,11 @@ def get_marked_line_numbers(path):
     if isinstance(path, py.path.local):
         path = path.strpath
 
+    try:
+        return _marked_line_numbers_cache[path]
+    except KeyError:
+        pass
+
     # Read as bytes, to avoid decoding errors on Python 3.
     with open(path, "rb") as f:
         lines = {}
@@ -37,4 +44,6 @@ def get_marked_line_numbers(path):
             if match:
                 marker = compat.force_unicode(match.group(1), "ascii")
                 lines[marker] = i + 1
-        return lines
+
+    _marked_line_numbers_cache[path] = lines
+    return lines

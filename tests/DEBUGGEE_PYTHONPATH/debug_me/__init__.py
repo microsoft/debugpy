@@ -40,5 +40,10 @@ name = "ptvsd-" + str(session_id)
 # to DebugSession - the debuggee simply needs to execute it as is.
 _code = os.getenv("PTVSD_DEBUG_ME")
 if _code:
+    # Remove it, so that subprocesses don't try to manually configure ptvsd on the
+    # same port. In multiprocess scenarios, subprocesses are supposed to load ptvsd
+    # via code that is automatically injected into the subprocess by its parent.
+    del os.environ["PTVSD_DEBUG_ME"]
+
     _code = compile(_code, "<PTVSD_DEBUG_ME>", "exec")
     eval(_code, {})

@@ -25,7 +25,6 @@ def test_stop_on_entry(pyfile, start_method, run_as, with_bp):
             target=(run_as, code_to_debug),
             start_method=start_method,
             debug_options=["StopOnEntry"],
-            use_backchannel=True,
         )
         if bool(with_bp):
             session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])

@@ -60,7 +60,7 @@ def test_redirect_output(pyfile, start_method, run_as, redirect):
         for i in [111, 222, 333, 444]:
             print(i)
 
-        print()  # @bp1
+        ()  # @bp1
 
     with debug.Session() as session:
         # By default 'RedirectOutput' is always set. So using this way
@@ -77,6 +77,6 @@ def test_redirect_output(pyfile, start_method, run_as, redirect):
         session.wait_for_exit()
 
         if redirect:
-            assert session.output("stdout") == "111\n222\n333\n444\n\n"
+            assert session.output("stdout") == "111\n222\n333\n444\n"
         else:
             assert not session.output("stdout")

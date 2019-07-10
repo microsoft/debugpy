@@ -33,14 +33,20 @@ Usage::
     assert Exception() == some.error
     assert object() == some.object.same_as(object())
 
+    assert b"abc" == some.bytes
     assert u"abc" == some.str
     if sys.version_info < (3,):
         assert b"abc" == some.str
     else:
         assert b"abc" != some.str
 
-    assert "abbbc" == some.str.matching(r".(b+).")
-    assert "abbbc" != some.str.matching(r"bbb")
+    assert "abbc" == some.str.starting_with("ab")
+    assert "abbc" == some.str.ending_with("bc")
+    assert "abbc" == some.str.containing("bb")
+
+    assert "abbc" == some.str.matching(r".(b+).")
+    assert "abbc" != some.str.matching(r"ab")
+    assert "abbc" != some.str.matching(r"bc")
 
     if platform.system() == "Windows":
         assert "\\Foo\\Bar" == some.path("/foo/bar")
@@ -65,7 +71,7 @@ Usage::
 __all__  = [
     "bool",
     "bytes",
-    "dap_id",
+    "dap",
     "dict",
     "error",
     "instanceof",
@@ -73,23 +79,23 @@ __all__  = [
     "list",
     "number",
     "path",
-    "source",
     "str",
     "thing",
     "tuple",
 ]
 
 import numbers
+import re
 import sys
 
 from ptvsd.common.compat import builtins
-from tests import patterns as some
+from tests.patterns import _impl
 
 
-object = some.Object()
-thing = some.Thing()
-instanceof = some.InstanceOf
-path = some.Path
+object = _impl.Object()
+thing = _impl.Thing()
+instanceof = _impl.InstanceOf
+path = _impl.Path
 
 
 bool = instanceof(builtins.bool)
@@ -100,7 +106,9 @@ error = instanceof(Exception)
 
 
 bytes = instanceof(builtins.bytes)
-bytes.matching = some.Matching
+bytes.starting_with = lambda prefix: bytes.matching(re.escape(prefix) + b".*", re.DOTALL)
+bytes.ending_with = lambda suffix: bytes.matching(b".*" + re.escape(suffix), re.DOTALL)
+bytes.containing = lambda sub: bytes.matching(b".*" + re.escape(sub) + b".*", re.DOTALL)
 
 
 """In Python 2, matches both str and unicode. In Python 3, only matches str.
@@ -109,24 +117,19 @@ if sys.version_info < (3,):
     str = instanceof((builtins.str, builtins.unicode), "str")
 else:
     str = instanceof(builtins.str)
-str.matching = some.Matching
+
+str.starting_with = lambda prefix: str.matching(re.escape(prefix) + ".*", re.DOTALL)
+str.ending_with = lambda suffix: str.matching(".*" + re.escape(suffix), re.DOTALL)
+str.containing = lambda sub: str.matching(".*" + re.escape(sub) + ".*", re.DOTALL)
 
 
 list = instanceof(builtins.list)
-list.containing = some.ListContaining
+list.containing = _impl.ListContaining
 
 
 dict = instanceof(builtins.dict)
-dict.containing = some.DictContaining
+dict.containing = _impl.DictContaining
 
 
-dap_id = int.in_range(0, 10000)
-"""Matches a DAP "id", assuming some reasonable range for an implementation that
-generates those ids sequentially.
-"""
-
-
-def source(path):
-    """Matches "source": {"path": ...} values in DAP.
-    """
-    return dict.containing({"path": path})
+# Set in __init__.py to avoid circular dependency.
+dap = None

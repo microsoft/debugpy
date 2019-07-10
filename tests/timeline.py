@@ -6,7 +6,6 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import contextlib
 import itertools
-import pytest
 import threading
 
 from ptvsd.common import fmt, log, timestamp
@@ -232,7 +231,7 @@ class Timeline(object):
             log.info('No matching {0!r}', expectation)
             occurrences = list(first.and_following())
             log.info("Occurrences considered: {0!r}", occurrences)
-            pytest.fail("Expectation not matched")
+            raise AssertionError("Expectation not matched")
 
         occs = tuple(reasons.values())
         assert occs

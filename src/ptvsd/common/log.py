@@ -21,6 +21,8 @@ LEVELS = ("debug", "info", "warning", "error")
 """Logging levels, lowest to highest importance.
 """
 
+stderr = sys.__stderr__
+
 stderr_levels = {"warning", "error"}
 """What should be logged to stderr.
 """
@@ -44,6 +46,17 @@ _lock = threading.Lock()
 _tls = threading.local()
 
 
+# Used to inject a newline into stderr if logging there, to clean up the output
+# when it's intermixed with regular prints from other sources.
+def newline(level="info"):
+    with _lock:
+        if level in stderr_levels:
+            try:
+                stderr.write("\n")
+            except Exception:
+                pass
+
+
 def write(level, text):
     assert level in LEVELS
 
@@ -62,7 +75,7 @@ def write(level, text):
     with _lock:
         if level in stderr_levels:
             try:
-                sys.__stderr__.write(output)
+                stderr.write(output)
             except Exception:
                 pass
 

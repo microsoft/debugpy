@@ -4,20 +4,18 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-import os.path
 import pytest
 
-from tests import debug, log, test_data
+from tests import code, debug, log, test_data
 from tests.patterns import some
 
 
 @pytest.mark.parametrize("scenario", ["exclude_by_name", "exclude_by_dir"])
-@pytest.mark.parametrize("exception_type", ["RuntimeError", "SysExit"])
+@pytest.mark.parametrize("exc_type", ["RuntimeError", "SystemExit"])
 def test_exceptions_and_exclude_rules(
-    pyfile, start_method, run_as, scenario, exception_type
+    pyfile, start_method, run_as, scenario, exc_type
 ):
-
-    if exception_type == "RuntimeError":
+    if exc_type == "RuntimeError":
 
         @pyfile
         def code_to_debug():
@@ -25,7 +23,7 @@ def test_exceptions_and_exclude_rules(
 
             raise RuntimeError("unhandled error")  # @raise_line
 
-    elif exception_type == "SysExit":
+    elif exc_type == "SystemExit":
 
         @pyfile
         def code_to_debug():
@@ -35,7 +33,7 @@ def test_exceptions_and_exclude_rules(
             sys.exit(1)  # @raise_line
 
     else:
-        raise AssertionError("Unexpected exception_type: %s" % (exception_type,))
+        pytest.fail(exc_type)
 
     if scenario == "exclude_by_name":
         rules = [{"path": "**/" + code_to_debug.basename, "include": False}]
@@ -45,18 +43,16 @@ def test_exceptions_and_exclude_rules(
         pytest.fail(scenario)
     log.info("Rules: {0!j}", rules)
 
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         session.initialize(
-            target=(run_as, code_to_debug), start_method=start_method, rules=rules
+            target=(run_as, code_to_debug),
+            rules=rules,
+            # https://github.com/Microsoft/ptvsd/issues/1278:
+            expected_returncode=some.int,
         )
-        # TODO: The process returncode doesn't match the one returned from the DAP.
-        # See: https://github.com/Microsoft/ptvsd/issues/1278
-        session.expected_returncode = some.int
-        filters = ["raised", "uncaught"]
-
-        session.send_request(
-            "setExceptionBreakpoints", {"filters": filters}
-        ).wait_for_response()
+        session.request(
+            "setExceptionBreakpoints", {"filters": ["raised", "uncaught"]}
+        )
         session.start_debugging()
 
         # No exceptions should be seen.
@@ -70,20 +66,20 @@ def test_exceptions_and_partial_exclude_rules(pyfile, start_method, run_as, scen
         from debug_me import backchannel
         import sys
 
-        json = backchannel.receive()
-        call_me_back_dir = json["call_me_back_dir"]
-        sys.path.append(call_me_back_dir)
+        call_me_back_dir = backchannel.receive()
+        sys.path.insert(0, call_me_back_dir)
 
         import call_me_back
 
         def call_func():
-            raise RuntimeError("unhandled error")  # @raise_line
+            raise RuntimeError("unhandled error")  # @raise
 
-        call_me_back.call_me_back(call_func)  # @call_me_back_line
+        call_me_back.call_me_back(call_func)  # @call_me_back
         print("done")
 
-    line_numbers = code_to_debug.lines
     call_me_back_dir = test_data / "call_me_back"
+    call_me_back_py = call_me_back_dir / "call_me_back.py"
+    call_me_back_py.lines = code.get_marked_line_numbers(call_me_back_py)
 
     if scenario == "exclude_code_to_debug":
         rules = [{"path": "**/" + code_to_debug.basename, "include": False}]
@@ -93,104 +89,113 @@ def test_exceptions_and_partial_exclude_rules(pyfile, start_method, run_as, scen
         pytest.fail(scenario)
     log.info("Rules: {0!j}", rules)
 
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, code_to_debug),
-            start_method=start_method,
             rules=rules,
+            # https://github.com/Microsoft/ptvsd/issues/1278:
+            expected_returncode=some.int,
         )
-        # TODO: The process returncode doesn't match the one returned from the DAP.
-        # See: https://github.com/Microsoft/ptvsd/issues/1278
-        session.expected_returncode = some.int
-        filters = ["raised", "uncaught"]
-
-        session.send_request(
-            "setExceptionBreakpoints", {"filters": filters}
-        ).wait_for_response()
+        session.request(
+            "setExceptionBreakpoints", {"filters": ["raised", "uncaught"]}
+        )
         session.start_debugging()
-        backchannel.send({"call_me_back_dir": call_me_back_dir})
+        backchannel.send(call_me_back_dir)
 
         if scenario == "exclude_code_to_debug":
-            # Stop at handled
-            hit = session.wait_for_stop(reason="exception")
-            # We don't stop at the raise line but rather at the callback module which is
-            # not excluded.
-            assert len(hit.frames) == 1
-            assert hit.frames[0] == some.dict.containing(
-                {
-                    "line": 2,
-                    "source": some.dict.containing(
-                        {
-                            "path": some.path(
-                                os.path.join(call_me_back_dir, "call_me_back.py")
-                            )
-                        }
-                    ),
-                }
-            )
-            # assert hit.frames[1] == some.dict.containing({ -- filtered out
-            #     'line': line_numbers['call_me_back_line'],
-            #     'source': some.dict.containing({
-            #         'path': some.path(code_to_debug)
-            #     })
-            # })
-            # 'continue' should terminate the debuggee
-            session.request_continue()
+            # Stop at handled exception, with code_to_debug.py excluded.
+            #
+            # Since the module raising the exception is excluded, it must not stop at
+            # @raise, but rather at @callback (i.e. the closest non-excluded frame).
 
-            # Note: does not stop at unhandled exception because raise was in excluded file.
+            stop = session.wait_for_stop(
+                "exception",
+                expected_frames=[
+                    some.dap.frame(
+                        some.dap.source(call_me_back_py),
+                        line=call_me_back_py.lines["callback"],
+                    ),
+                ],
+            )
+            assert stop.frames != some.list.containing([
+                some.dap.frame(some.dap.source(code_to_debug), line=some.int),
+            ])
+
+            # As exception unwinds the stack, we shouldn't stop at @call_me_back,
+            # since that line is in the excluded file. Furthermore, although the
+            # exception is unhandled, we shouldn't get a stop for that, either,
+            # because the exception is last seen in an excluded file.
+            session.request_continue()
 
         elif scenario == "exclude_callback_dir":
-            # Stop at handled raise_line
-            hit = session.wait_for_stop(reason="exception")
-            assert [
-                (frame["name"], os.path.basename(frame["source"]["path"]))
-                for frame in hit.frames
-            ] == [
-                ("call_func", "code_to_debug.py"),
-                # ('call_me_back', 'call_me_back.py'), -- filtered out
-                ("<module>", "code_to_debug.py"),
-            ]
-            assert hit.frames[0] == some.dict.containing(
-                {
-                    "line": line_numbers["raise_line"],
-                    "source": some.dict.containing({"path": some.path(code_to_debug)}),
-                }
-            )
-            session.send_request("continue").wait_for_response()
+            # Stop at handled exception, with call_me_back.py excluded.
+            #
+            # Since the module raising the exception is not excluded, it must stop at
+            # @raise.
 
-            # Stop at handled call_me_back_line
-            hit = session.wait_for_stop(reason="exception")
-            assert [
-                (frame["name"], os.path.basename(frame["source"]["path"]))
-                for frame in hit.frames
-            ] == [("<module>", "code_to_debug.py")]
-            assert hit.frames[0] == some.dict.containing(
-                {
-                    "line": line_numbers["call_me_back_line"],
-                    "source": some.dict.containing({"path": some.path(code_to_debug)}),
-                }
+            stop = session.wait_for_stop(
+                "exception",
+                expected_frames=[
+                    some.dap.frame(
+                        some.dap.source(code_to_debug),
+                        name="call_func",
+                        line=code_to_debug.lines["raise"],
+                    ),
+                    some.dap.frame(
+                        some.dap.source(code_to_debug),
+                        name="<module>",
+                        line=code_to_debug.lines["call_me_back"],
+                    ),
+                ],
             )
-            session.send_request("continue").wait_for_response()
+            assert stop.frames != some.list.containing([
+                some.dap.frame(some.dap.source(call_me_back_py), line=some.int),
+            ])
 
-            # Stop at unhandled
-            hit = session.wait_for_stop(reason="exception")
-            assert [
-                (frame["name"], os.path.basename(frame["source"]["path"]))
-                for frame in hit.frames
-            ] == [
-                ("call_func", "code_to_debug.py"),
-                # ('call_me_back', 'call_me_back.py'), -- filtered out
-                ("<module>", "code_to_debug.py"),
-            ]
-
-            assert hit.frames[0] == some.dict.containing(
-                {
-                    "line": line_numbers["raise_line"],
-                    "source": some.dict.containing({"path": some.path(code_to_debug)}),
-                }
-            )
             session.request_continue()
+
+            # As exception unwinds the stack, it must not stop at @callback, since that
+            # line is in the excluded file. However, it must stop at @call_me_back.
+            stop = session.wait_for_stop(
+                "exception",
+                expected_frames=[
+                    some.dap.frame(
+                        some.dap.source(code_to_debug),
+                        name="<module>",
+                        line=code_to_debug.lines["call_me_back"],
+                    ),
+                ],
+            )
+            assert stop.frames != some.list.containing([
+                some.dap.frame(some.dap.source(call_me_back_py), line=some.int),
+            ])
+
+            session.request_continue()
+
+            # Now the exception is unhandled, and should be reported as such.
+            stop = session.wait_for_stop(
+                "exception",
+                expected_frames=[
+                    some.dap.frame(
+                        some.dap.source(code_to_debug),
+                        name="call_func",
+                        line=code_to_debug.lines["raise"],
+                    ),
+                    some.dap.frame(
+                        some.dap.source(code_to_debug),
+                        name="<module>",
+                        line=code_to_debug.lines["call_me_back"],
+                    ),
+                ],
+            )
+            assert stop.frames != some.list.containing([
+                some.dap.frame(some.dap.source(call_me_back_py), line=some.int),
+            ])
+
+            # Let the process crash due to unhandled exception.
+            session.request_continue()
+
         else:
             pytest.fail(scenario)
 

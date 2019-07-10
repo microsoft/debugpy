@@ -37,7 +37,7 @@ def test_run(pyfile, start_method, run_as):
         expected_name = (
             "-c"
             if run_as == "code"
-            else some.str.matching(re.escape(code_to_debug.strpath) + r"(c|o)?$")
+            else some.str.matching(re.escape(code_to_debug.strpath) + r"(c|o)?")
         )
         assert process_event == Event(
             "process", some.dict.containing({"name": expected_name})
@@ -47,7 +47,7 @@ def test_run(pyfile, start_method, run_as):
 
         expected_ptvsd_path = path.abspath(ptvsd.__file__)
         backchannel.expect(some.str.matching(
-            re.escape(expected_ptvsd_path) + r"(c|o)?$"
+            re.escape(expected_ptvsd_path) + r"(c|o)?"
         ))
 
         session.wait_for_exit()
@@ -80,9 +80,7 @@ def test_nodebug(pyfile, run_as):
         backchannel = session.setup_backchannel()
         session.initialize(target=(run_as, code_to_debug))
 
-        breakpoints = session.set_breakpoints(
-            code_to_debug, [code_to_debug.lines["bp1"], code_to_debug.lines["bp2"]]
-        )
+        breakpoints = session.set_breakpoints(code_to_debug, all)
         assert breakpoints == [{"verified": False}, {"verified": False}]
 
         session.start_debugging()
@@ -113,16 +111,17 @@ def test_run_vs(pyfile, run_as):
         import ptvsd.debugger
 
         args = tuple(backchannel.receive())
-        print("debug{0!r}".format(args))
         ptvsd.debugger.debug(*args)
 
     filename = "code_to_debug" if run_as == "module" else code_to_debug
     with debug.Session("custom_client") as session:
         backchannel = session.setup_backchannel()
 
-        session.before_connect = lambda: backchannel.send(
-            [filename, session.ptvsd_port, None, None, run_as]
-        )
+        @session.before_connect
+        def before_connect():
+            backchannel.send(
+                [filename, session.ptvsd_port, None, None, run_as]
+            )
 
         session.initialize(target=("file", ptvsd_launcher))
         session.start_debugging()

@@ -4,11 +4,8 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-import os
 import pytest
-import shutil
 import sys
-import traceback
 
 from tests import debug, test_data
 from tests.patterns import some
@@ -29,36 +26,39 @@ def test_client_ide_from_path_mapping_linux_backend(
         from debug_me import backchannel
         import pydevd_file_utils
 
-        backchannel.send({"ide_os": pydevd_file_utils._ide_os})
-        print("done")  # @break_here
+        backchannel.send(pydevd_file_utils._ide_os)
+        print("done")  # @bp
 
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, code_to_debug),
-            start_method=start_method,
-            use_backchannel=True,
             path_mappings=[
                 {
                     "localRoot": "C:\\TEMP\\src",
-                    "remoteRoot": os.path.dirname(code_to_debug),
+                    "remoteRoot": code_to_debug.dirname,
                 }
             ],
         )
         if invalid_os_type:
             session.debug_options.append("CLIENT_OS_TYPE=INVALID")
         session.set_breakpoints(
-            "c:\\temp\\src\\" + os.path.basename(code_to_debug),
-            [code_to_debug.lines["break_here"]],
+            "c:\\temp\\src\\" + code_to_debug.basename,
+            [code_to_debug.lines["bp"]],
         )
         session.start_debugging()
-        hit = session.wait_for_stop("breakpoint")
-        assert hit.frames[0]["source"]["path"] == "C:\\TEMP\\src\\" + os.path.basename(
-            code_to_debug
-        )
 
-        json_read = backchannel.receive()
-        assert json_read == {"ide_os": "WINDOWS"}
+        assert backchannel.receive() == "WINDOWS"
+
+        session.wait_for_stop(
+            "breakpoint",
+            expected_frames=[
+                some.dap.frame(
+                    some.dap.source("C:\\TEMP\src\\" + code_to_debug.basename),
+                    line=code_to_debug.lines["bp"],
+                ),
+            ],
+        )
 
         session.request_continue()
         session.wait_for_exit()
@@ -73,33 +73,37 @@ def test_with_dot_remote_root(pyfile, tmpdir, start_method, run_as):
         backchannel.send(os.path.abspath(__file__))
         print("done")  # @bp
 
-    path_local = tmpdir.mkdir("local").join("code_to_debug.py").strpath
-    path_remote = tmpdir.mkdir("remote").join("code_to_debug.py").strpath
+    path_local = tmpdir.mkdir("local") / "code_to_debug.py"
+    path_remote = tmpdir.mkdir("remote") / "code_to_debug.py"
 
-    dir_local = os.path.dirname(path_local)
-    dir_remote = os.path.dirname(path_remote)
+    dir_local = path_local.dirname
+    dir_remote = path_remote.dirname
 
-    shutil.copyfile(code_to_debug, path_local)
-    shutil.copyfile(code_to_debug, path_remote)
+    code_to_debug.copy(path_local)
+    code_to_debug.copy(path_remote)
 
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, path_remote),
-            start_method=start_method,
-            use_backchannel=True,
-            path_mappings=[{"localRoot": dir_local, "remoteRoot": "."}],
             cwd=dir_remote,
+            path_mappings=[{"localRoot": dir_local, "remoteRoot": "."}],
         )
-        session.set_breakpoints(path_remote, [code_to_debug["bp"]])
+        session.set_breakpoints(path_local, all)
         session.start_debugging()
-        hit = session.wait_for_stop("breakpoint")
-        print("Local Path: " + path_local)
-        print("Frames: " + str(hit.frames))
-        assert hit.frames[0]["source"]["path"] == some.path(path_local)
 
-        remote_code_path = backchannel.receive()
-        assert path_remote == some.path(remote_code_path)
+        actual_path_remote = backchannel.receive()
+        assert some.path(actual_path_remote) == path_remote
+
+        session.wait_for_stop(
+            "breakpoint",
+            expected_frames=[
+                some.dap.frame(
+                    some.dap.source(path_local),
+                    line="bp",
+                ),
+            ],
+        )
 
         session.request_continue()
         session.wait_for_exit()
@@ -112,67 +116,79 @@ def test_with_path_mappings(pyfile, tmpdir, start_method, run_as):
         import os
         import sys
 
-        json = backchannel.receive()
-        call_me_back_dir = json["call_me_back_dir"]
-        sys.path.append(call_me_back_dir)
+        backchannel.send(os.path.abspath(__file__))
+        call_me_back_dir = backchannel.receive()
+        sys.path.insert(0, call_me_back_dir)
 
         import call_me_back
 
         def call_func():
             print("break here")  # @bp
 
-        backchannel.send(os.path.abspath(__file__))
-        call_me_back.call_me_back(call_func)
+        call_me_back.call_me_back(call_func)  # @call_me_back
         print("done")
 
-    path_local = tmpdir.mkdir("local").join("code_to_debug.py").strpath
-    path_remote = tmpdir.mkdir("remote").join("code_to_debug.py").strpath
+    dir_local = tmpdir.mkdir("local")
+    dir_remote = tmpdir.mkdir("remote")
 
-    dir_local = os.path.dirname(path_local)
-    dir_remote = os.path.dirname(path_remote)
+    path_local = dir_local / "code_to_debug.py"
+    path_remote = dir_remote / "code_to_debug.py"
 
-    shutil.copyfile(code_to_debug, path_local)
-    shutil.copyfile(code_to_debug, path_remote)
+    code_to_debug.copy(path_local)
+    code_to_debug.copy(path_remote)
 
     call_me_back_dir = test_data / "call_me_back"
+    call_me_back_py = call_me_back_dir / "call_me_back.py"
 
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, path_remote),
-            start_method=start_method,
-            use_backchannel=True,
             path_mappings=[{"localRoot": dir_local, "remoteRoot": dir_remote}],
         )
-        session.set_breakpoints(path_remote, [code_to_debug.lines["bp"]])
+        session.set_breakpoints(path_local, ["bp"])
         session.start_debugging()
-        backchannel.send({"call_me_back_dir": call_me_back_dir})
-        hit = session.wait_for_stop("breakpoint")
 
-        assert hit.frames[0]["source"]["path"] == some.path(path_local)
-        source_reference = hit.frames[0]["source"]["sourceReference"]
-        assert source_reference == 0  # Mapped files should be found locally.
+        actual_path_remote = backchannel.receive()
+        assert some.path(actual_path_remote) == path_remote
+        backchannel.send(call_me_back_dir)
 
-        assert hit.frames[1]["source"]["path"].endswith("call_me_back.py")
-        source_reference = hit.frames[1]["source"]["sourceReference"]
-        assert source_reference > 0  # Unmapped file should have a source reference.
+        stop = session.wait_for_stop(
+            "breakpoint",
+            expected_frames=[
+                some.dap.frame(
+                    # Mapped files should not have a sourceReference, so that the IDE
+                    # doesn't try to fetch them instead of opening the local file.
+                    some.dap.source(path_local, sourceReference=0),
+                    line="bp",
+                ),
+                some.dap.frame(
+                    # Unmapped files should have a sourceReference, since there's no
+                    # local file for the IDE to open.
+                    some.dap.source(call_me_back_py, sourceReference=some.int.not_equal_to(0)),
+                    line="callback",
 
-        resp_source = session.send_request(
-            "source", arguments={"sourceReference": 0}
-        ).wait_for_response(raise_if_failed=False)
-        assert not resp_source.success
-        text = "".join(
-            traceback.format_exception_only(type(resp_source.body), resp_source.body)
+                ),
+                some.dap.frame(
+                    # Mapped files should not have a sourceReference, so that the IDE
+                    # doesn't try to fetch them instead of opening the local file.
+                    some.dap.source(path_local, sourceReference=0),
+                    line="call_me_back",
+                ),
+            ],
         )
-        assert "Source unavailable" in text
 
-        resp_source = session.send_request(
-            "source", arguments={"sourceReference": source_reference}
-        ).wait_for_response()
-        assert "def call_me_back(callback):" in (resp_source.body["content"])
+        srcref = stop.frames[1]["source"]["sourceReference"]
 
-        remote_code_path = backchannel.receive()
-        assert path_remote == some.path(remote_code_path)
+        try:
+            session.request("source", {"sourceReference": 0})
+        except Exception as ex:
+            assert "Source unavailable" in str(ex)
+        else:
+            pytest.fail("sourceReference=0 should not be valid")
+
+        source = session.request("source", {"sourceReference": srcref})
+        assert "def call_me_back(callback):" in source["content"]
 
         session.request_continue()
         session.wait_for_exit()

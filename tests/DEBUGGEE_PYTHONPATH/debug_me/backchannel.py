@@ -18,45 +18,6 @@ import debug_me
 from ptvsd.common import fmt, log, messaging
 
 
-name = fmt("backchannel-{0}", debug_me.session_id)
-port = os.getenv("PTVSD_BACKCHANNEL_PORT")
-if port is not None:
-    port = int(port)
-    # Remove it, so that child processes don't try to use the same backchannel.
-    del os.environ["PTVSD_BACKCHANNEL_PORT"]
-
-
-if port:
-    log.info("Connecting {0} to port {1}...", name, port)
-
-    _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    _socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-    _socket.connect(("localhost", port))
-    _stream = messaging.JsonIOStream.from_socket(_socket, name="backchannel")
-
-    @atexit.register
-    def _atexit_handler():
-        log.info("Shutting down {0}...", name)
-        try:
-            _socket.shutdown(socket.SHUT_RDWR)
-        except Exception:
-            pass
-        finally:
-            try:
-                _socket.close()
-            except Exception:
-                pass
-
-
-else:
-
-    class _stream:
-        def _error(*_):
-            raise AssertionError("Backchannel is not set up for this process")
-
-        read_json = write_json = _error
-
-
 def send(value):
     _stream.write_json(value)
 
@@ -72,3 +33,52 @@ def wait_for(expected):
         expected,
         actual,
     )
+
+
+def close():
+    global _socket, _stream
+    if _socket is None:
+        return
+
+    log.info("Shutting down {0}...", name)
+    try:
+        _socket.shutdown(socket.SHUT_RDWR)
+    except Exception:
+        pass
+    finally:
+        _socket = None
+        try:
+            _stream.close()
+        except Exception:
+            pass
+        finally:
+            _stream = None
+
+
+class _stream:
+    def _error(*_):
+        raise AssertionError("Backchannel is not set up for this process")
+
+    read_json = write_json = _error
+    close = lambda: None
+
+
+name = fmt("backchannel-{0}", debug_me.session_id)
+port = os.getenv("PTVSD_BACKCHANNEL_PORT")
+if port is not None:
+    port = int(port)
+    log.info("Connecting {0} to port {1}...", name, port)
+
+    # Remove it, so that subprocesses don't try to use the same backchannel.
+    del os.environ["PTVSD_BACKCHANNEL_PORT"]
+
+    _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        _socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        _socket.connect(("localhost", port))
+    except Exception:
+        _socket.close()
+        raise
+    else:
+        _stream = messaging.JsonIOStream.from_socket(_socket, name="backchannel")  # noqa
+        atexit.register(close)

@@ -70,7 +70,13 @@ class JsonIOStream(object):
         socket.settimeout(None)  # make socket blocking
         if name is None:
             name = repr(socket)
+
+        # TODO: investigate switching to buffered sockets; readline() on unbuffered
+        # sockets is very slow! Although the implementation of readline() itself is
+        # native code, it calls read(1) in a loop - and that then ultimately calls
+        # SocketIO.readinto(), which is implemented in Python.
         socket_io = socket.makefile("rwb", 0)
+
         return cls(socket_io, socket_io, name)
 
     def __init__(self, reader, writer, name=None):
@@ -668,7 +674,7 @@ class JsonMessageChannel(object):
         self.stream = stream
         self.handlers = handlers
         self.name = name if name is not None else stream.name
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._stop = threading.Event()
         self._seq_iter = itertools.count(1)
         self._requests = {}

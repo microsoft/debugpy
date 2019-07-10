@@ -19,7 +19,7 @@ def home():
 @app.route("/handled")
 def bad_route_handled():
     try:
-        raise ArithmeticError('Hello')
+        raise ArithmeticError('Hello')  # @exc_handled
     except Exception:
         pass
     return render_template(
@@ -31,7 +31,7 @@ def bad_route_handled():
 
 @app.route("/unhandled")
 def bad_route_unhandled():
-    raise ArithmeticError('Hello')
+    raise ArithmeticError('Hello')  # @exc_unhandled
     return render_template(
         "hello.html",
         title='Hello',

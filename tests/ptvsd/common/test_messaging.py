@@ -7,6 +7,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 """Tests for JSON message streams and channels.
 """
 
+import collections
 import json
 import io
 import pytest
@@ -66,7 +67,7 @@ class TestJsonIOStream(object):
     def setup_class(cls):
         for seq in range(0, 3):
             message_body = cls.MESSAGE_BODY_TEMPLATE % seq
-            message = json.loads(message_body)
+            message = json.loads(message_body, object_pairs_hook=collections.OrderedDict)
             message_body = message_body.encode("utf-8")
             cls.MESSAGES.append(message)
             message_header = "Content-Length: %d\r\n\r\n" % len(message_body)
@@ -592,7 +593,7 @@ class TestJsonMessageChannel(object):
         input_exhausted.wait()
 
         def missing_property(name):
-            return some.str.matching("Invalid message:.*" + re.escape(name))
+            return some.str.matching("Invalid message:.*" + re.escape(name) + ".*")
 
         assert output == [
             {

@@ -34,7 +34,6 @@ def test_attach(run_as, wait_for_attach, is_attached, break_into):
             target=(run_as, attach1_py),
             start_method="launch",
             env=env,
-            use_backchannel=True,
         )
         session.start_debugging()
 
@@ -83,7 +82,6 @@ def test_reattach(pyfile, start_method, run_as):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            use_backchannel=True,
             kill_ptvsd=False,
             capture_output=False,
         )
@@ -94,8 +92,7 @@ def test_reattach(pyfile, start_method, run_as):
         session.wait_for_disconnect()
         assert backchannel.receive() == "continued"
 
-    # re-attach
-    with session.connect_with_new_session(target=(run_as, code_to_debug)) as session2:
+    with session.reattach(target=(run_as, code_to_debug)) as session2:
         session2.start_debugging()
         hit = session2.wait_for_stop()
         assert code_to_debug.lines["second"] == hit.frames[0]["line"]

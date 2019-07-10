@@ -4,7 +4,7 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-from collections import namedtuple
+import collections
 import itertools
 import os
 import platform
@@ -20,9 +20,9 @@ import time
 import ptvsd
 from ptvsd.common import compat, fmt, log, messaging
 import tests
-from tests import net
+from tests import code, net
 from tests.patterns import some
-from tests.timeline import Timeline, Event, Response
+from tests.timeline import Timeline, Event, Request, Response
 
 PTVSD_DIR = py.path.local(ptvsd.__file__) / ".."
 PTVSD_PORT = net.get_test_server_port(5678, 5800)
@@ -41,7 +41,7 @@ ptvsd.wait_for_attach()
 """
 
 
-StopInfo = namedtuple('StopInfo', [
+StopInfo = collections.namedtuple('StopInfo', [
     'body',
     'frames',
     'thread_id',
@@ -51,11 +51,25 @@ StopInfo = namedtuple('StopInfo', [
 
 class Session(object):
     WAIT_FOR_EXIT_TIMEOUT = 10
+    """Timeout used by wait_for_exit() before it kills the ptvsd process.
+    """
+
+    START_METHODS = {
+        'launch',  # ptvsd --client ... foo.py
+        'attach_socket_cmdline',  #  ptvsd ... foo.py
+        'attach_socket_import',  #  python foo.py (foo.py must import debug_me)
+        'attach_pid',  # python foo.py && ptvsd ... --pid
+        'custom_client',  # python foo.py (foo.py has to manually call ptvsd.attach)
+        'custom_server',  # python foo.py (foo.py has to manually call ptvsd.enable_attach)
+    }
+
+    DEBUG_ME_START_METHODS = {"attach_socket_import"}
+    """Start methods that require import debug_me."""
 
     _counter = itertools.count(1)
 
     def __init__(self, start_method='launch', ptvsd_port=None, pid=None):
-        assert start_method in ('launch', 'attach_pid', 'attach_socket_cmdline', 'attach_socket_import', 'custom_client')
+        assert start_method in self.START_METHODS
         assert ptvsd_port is None or start_method.startswith('attach_socket_')
 
         self.id = next(self._counter)
@@ -77,6 +91,7 @@ class Session(object):
         self.expected_returncode = 0
         self.program_args = []
         self.log_dir = None
+        self._before_connect = lambda: None
 
         self.env = os.environ.copy()
         self.env.update(PTVSD_ENV)
@@ -230,6 +245,9 @@ class Session(object):
         # argv += ['--pid', '<pid>']  # pid value to be appended later
         return argv
 
+    def _get_argv_for_custom_server(self):
+        return [sys.executable]
+
     def _get_argv_for_custom_client(self):
         return [sys.executable]
 
@@ -237,11 +255,13 @@ class Session(object):
         assert os.path.isfile(filename)
         with open(filename, "rb") as f:
             code = f.read()
-            if self.start_method != "custom_client":
-                assert b"debug_me" in code, (
-                    "Python source code that is run via tests.debug.Session must "
-                    "import debug_me"
+            if self.start_method in self.DEBUG_ME_START_METHODS:
+                assert b"debug_me" in code, fmt(
+                    "{0} is started via {1}, but it doesn't import debug_me.",
+                    filename,
+                    self.start_method,
                 )
+
             return code
 
     def _get_target(self):
@@ -289,7 +309,7 @@ class Session(object):
         for k, v in kwargs.items():
             setattr(self, k, v)
 
-        assert self.start_method in ('launch', 'attach_pid', 'attach_socket_cmdline', 'attach_socket_import', 'custom_client')
+        assert self.start_method in self.START_METHODS
         assert len(self.target) == 2
         assert self.target[0] in ('file', 'module', 'code')
 
@@ -304,13 +324,11 @@ class Session(object):
         self.backchannel = BackChannel(self)
         return self.backchannel
 
-    def before_connect(self):
-        """Invoked by initialize() before connecting to the debuggee, or before waiting
-        for an incoming connection, but after all the session parameters (port number etc)
-        are determined."""
-
-        # The default implementation does nothing - this is a hook for the tests to override.
-        pass
+    def before_connect(self, func):
+        """Registers a function to be invoked by initialize() before connecting to
+        the debuggee, or before waiting for an incoming connection, but after all
+        the session parameters (port number etc) are determined."""
+        self._before_connect = func
 
     def initialize(self, **kwargs):
         """Spawns ptvsd using the configured method, telling it to execute the
@@ -319,26 +337,32 @@ class Session(object):
 
         If perform_handshake is True, calls self.handshake() before returning.
         """
+
         self._setup_session(**kwargs)
+        start_method = self.start_method
+
         log.info('Initializing debug session for {0}', self)
         dbg_argv = []
         usr_argv = []
-        if self.start_method == 'launch':
+
+        if start_method == 'launch':
             self._listen()
             dbg_argv += self._get_argv_for_launch()
-        elif self.start_method == 'attach_socket_cmdline':
+        elif start_method == 'attach_socket_cmdline':
             dbg_argv += self._get_argv_for_attach_using_cmdline()
-        elif self.start_method == 'attach_socket_import':
+        elif start_method == 'attach_socket_import':
             dbg_argv += self._get_argv_for_attach_using_import()
             # TODO: Remove adding to python path after enabling Tox
             self.env['PYTHONPATH'] = (PTVSD_DIR / "..").strpath + os.pathsep + self.env['PYTHONPATH']
             self.env['PTVSD_DEBUG_ME'] = fmt(PTVSD_DEBUG_ME, ptvsd_port=self.ptvsd_port)
-        elif self.start_method == 'attach_pid':
+        elif start_method == 'attach_pid':
             self._listen()
             dbg_argv += self._get_argv_for_attach_using_pid()
-        elif self.start_method == 'custom_client':
+        elif start_method == 'custom_client':
             self._listen()
             dbg_argv += self._get_argv_for_custom_client()
+        elif start_method == 'custom_server':
+            dbg_argv += self._get_argv_for_custom_server()
         else:
             pytest.fail()
 
@@ -348,14 +372,14 @@ class Session(object):
         if self.no_debug:
             dbg_argv += ['--nodebug']
 
-        if self.start_method == 'attach_pid':
+        if start_method == 'attach_pid':
             usr_argv += [sys.executable]
             usr_argv += self._get_target()
         else:
             dbg_argv += self._get_target()
 
         if self.program_args:
-            if self.start_method == 'attach_pid':
+            if start_method == 'attach_pid':
                 usr_argv += list(self.program_args)
             else:
                 dbg_argv += list(self.program_args)
@@ -371,7 +395,7 @@ class Session(object):
         # Assume that values are filenames - it's usually either that, or numbers.
         make_filename = compat.filename_bytes if sys.version_info < (3,) else compat.filename
         env = {
-            compat.force_str(k, "ascii"): make_filename(v)
+            compat.force_str(k): make_filename(v)
             for k, v in self.env.items()
         }
 
@@ -395,14 +419,14 @@ class Session(object):
             self,
             py.path.local(ptvsd.__file__).dirpath(),
             self.ptvsd_port,
-            self.start_method,
+            start_method,
             self.target[0],
             self.target[1],
             self.cwd,
             env_str,
         )
 
-        spawn_args = usr_argv if self.start_method == 'attach_pid' else dbg_argv
+        spawn_args = usr_argv if start_method == 'attach_pid' else dbg_argv
 
         # Normalize args to either bytes or unicode, depending on Python version.
         spawn_args = [make_filename(s) for s in spawn_args]
@@ -424,18 +448,19 @@ class Session(object):
         if self.capture_output:
             self.captured_output.capture(self.process)
 
-        if self.start_method == 'attach_pid':
+        if start_method == 'attach_pid':
             # This is a temp process spawned to inject debugger into the debuggee.
             dbg_argv += ['--pid', str(self.pid)]
             log.info('Spawning {0} attach helper: {1!r}', self, dbg_argv)
             attach_helper = subprocess.Popen(dbg_argv)
             log.info('Spawned {0} attach helper with pid={1}', self, attach_helper.pid)
 
-        self.before_connect()
+        self._before_connect()
 
-        if self.start_method not in ('launch', 'attach_pid', 'custom_client'):
+        if start_method.startswith("attach_socket_") or start_method == "custom_server":
             self.connect()
         self.connected.wait()
+
         assert self.ptvsd_port
         assert self.socket
         log.info('Spawned {0} with pid={1}', self, self.pid)
@@ -695,17 +720,25 @@ class Session(object):
     def _process_request(self, request):
         assert False, 'ptvsd should not be sending requests.'
 
-    def request_continue(self):
-        self.send_request('continue').wait_for_response(freeze=False)
-
-    def set_breakpoints(self, path, lines=()):
-        return self.request('setBreakpoints', arguments={
-            'source': {'path': path},
-            'breakpoints': [{'line': bp_line} for bp_line in lines],
-        }).get('breakpoints', {})
-
     def wait_for_next_event(self, event, body=some.object):
         return self.timeline.wait_for_next(Event(event, body)).body
+
+    def output(self, category):
+        """Returns all output of a given category as a single string, assembled from
+        all the "output" events received for that category so far.
+        """
+        events = self.all_occurrences_of(
+            Event("output", some.dict.containing({"category": category}))
+        )
+        return "".join(event.body["output"] for event in events)
+
+    def captured_stdout(self, encoding=None):
+        return self.captured_output.stdout(encoding)
+
+    def captured_stderr(self, encoding=None):
+        return self.captured_output.stderr(encoding)
+
+    # Helpers for specific DAP patterns.
 
     def wait_for_stop(self, reason=some.str, expected_frames=None, expected_text=None, expected_description=None):
         stopped_event = self.wait_for_next(Event('stopped', some.dict.containing({'reason': reason})))
@@ -737,7 +770,108 @@ class Session(object):
 
         return StopInfo(stopped, frames, tid, fid)
 
-    def connect_to_child_session(self, ptvsd_subprocess):
+    def request_continue(self):
+        self.send_request('continue').wait_for_response(freeze=False)
+
+    def set_breakpoints(self, path, lines):
+        """Sets breakpoints in the specified file, and returns the list of all the
+        corresponding DAP Breakpoint objects in the same order.
+
+        If lines are specified, it should be an iterable in which every element is
+        either a line number or a string. If it is a string, then it is translated
+        to the corresponding line number via get_marked_line_numbers(path).
+
+        If lines=all, breakpoints will be set on all the marked lines in the file.
+        """
+
+        # Don't fetch line markers unless needed - in some cases, the breakpoints
+        # might be set in a file that does not exist on disk (e.g. remote attach).
+        def get_marked_line_numbers():
+            try:
+                return get_marked_line_numbers.cached
+            except AttributeError:
+                get_marked_line_numbers.cached = code.get_marked_line_numbers(path)
+                return get_marked_line_numbers()
+
+        if lines is all:
+            lines = get_marked_line_numbers().keys()
+
+        def make_breakpoint(line):
+            if isinstance(line, int):
+                descr = str(line)
+            else:
+                marker = line
+                line = get_marked_line_numbers()[marker]
+                descr = fmt("{0} (@{1})", line, marker)
+            bp_log.append((line, descr))
+            return {'line': line}
+
+        bp_log = []
+        breakpoints = self.request(
+            'setBreakpoints',
+            {
+                'source': {'path': path},
+                'breakpoints': [make_breakpoint(line) for line in lines],
+            },
+        ).get('breakpoints', [])
+
+        bp_log = sorted(bp_log, key=lambda pair: pair[0])
+        bp_log = ", ".join((descr for _, descr in bp_log))
+        log.info("Breakpoints set in {0}: {1}", path, bp_log)
+
+        return breakpoints
+
+    def get_variables(self, *varnames, **kwargs):
+        """Fetches the specified variables from the frame specified by frame_id, or
+        from the topmost frame in the last "stackTrace" response if frame_id is not
+        specified.
+
+        If varnames is empty, then all variables in the frame are returned. The result
+        is an OrderedDict, in which every entry has variable name as the key, and a
+        DAP Variable object as the value. The original order of variables as reported
+        by the debugger is preserved.
+
+        If varnames is not empty, then only the specified variables are returned.
+        The result is a tuple, in which every entry is a DAP Variable object; those
+        entries are in the same order as varnames.
+        """
+
+        assert self.timeline.is_frozen
+
+        frame_id = kwargs.pop("frame_id", None)
+        if frame_id is None:
+            stackTrace_responses = self.all_occurrences_of(
+                Response(Request("stackTrace"))
+            )
+            assert stackTrace_responses, (
+                'get_variables() without frame_id requires at least one response '
+                'to a "stackTrace" request in the timeline.'
+            )
+            stack_trace = stackTrace_responses[-1].body
+            frame_id = stack_trace["stackFrames"][0]["id"]
+
+        scopes = self.request("scopes", {"frameId": frame_id})["scopes"]
+        assert len(scopes) > 0
+
+        variables = self.request(
+            "variables", {"variablesReference": scopes[0]["variablesReference"]}
+        )["variables"]
+
+        variables = collections.OrderedDict(((v["name"], v) for v in variables))
+        if varnames:
+            assert set(varnames) <= set(variables.keys())
+            return tuple((variables[name] for name in varnames))
+        else:
+            return variables
+
+    def get_variable(self, varname, frame_id=None):
+        """Same as get_variables(...)[0].
+        """
+        return self.get_variables(varname, frame_id=frame_id)[0]
+
+    def attach_to_subprocess(self, ptvsd_subprocess):
+        assert ptvsd_subprocess == Event("ptvsd_subprocess")
+
         child_port = ptvsd_subprocess.body['port']
         assert child_port != 0
 
@@ -754,11 +888,20 @@ class Session(object):
         else:
             return child_session
 
-    def connect_to_next_child_session(self):
+    def attach_to_next_subprocess(self):
         ptvsd_subprocess = self.wait_for_next(Event('ptvsd_subprocess'))
-        return self.connect_to_child_session(ptvsd_subprocess)
+        return self.attach_to_subprocess(ptvsd_subprocess)
 
-    def connect_with_new_session(self, **kwargs):
+    def reattach(self, **kwargs):
+        """Creates and initializes a new Session that tries to attach to the same
+        process.
+
+        Upon return, handshake() has been performed, but the caller is responsible
+        for invoking start_debugging().
+        """
+
+        assert self.start_method.startswith("attach_socket_")
+
         ns = Session(start_method='attach_socket_import', ptvsd_port=self.ptvsd_port)
         try:
             ns._setup_session(**kwargs)
@@ -776,23 +919,9 @@ class Session(object):
             ns.handshake()
         except Exception:
             ns.close()
+            raise
         else:
             return ns
-
-    def output(self, category):
-        """Returns all output of a given category as a single string, assembled from
-        all the "output" events received for that category so far.
-        """
-        events = self.all_occurrences_of(
-            Event("output", some.dict.containing({"category": category}))
-        )
-        return "".join(event.body["output"] for event in events)
-
-    def captured_stdout(self, encoding=None):
-        return self.captured_output.stdout(encoding)
-
-    def captured_stderr(self, encoding=None):
-        return self.captured_output.stderr(encoding)
 
 
 class CapturedOutput(object):

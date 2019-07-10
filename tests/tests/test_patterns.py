@@ -39,6 +39,9 @@ def test_value(x):
     log_repr(some.object.equal_to(x))
     assert x == some.object.equal_to(x)
 
+    log_repr(some.object.not_equal_to(x))
+    assert x != some.object.not_equal_to(x)
+
     log_repr(some.object.same_as(x))
     assert x == some.object.same_as(x)
 
@@ -66,6 +69,11 @@ def test_none():
 def test_equal():
     assert 123.0 == some.object.equal_to(123)
     assert NAN != some.object.equal_to(NAN)
+
+
+def test_not_equal():
+    assert 123.0 != some.object.not_equal_to(123)
+    assert NAN == some.object.not_equal_to(NAN)
 
 
 def test_same():
@@ -129,6 +137,58 @@ def test_matching():
     pattern = some.bytes.matching(br"bbb")
     log_repr(pattern)
     assert pattern != b"abbbc"
+
+
+def test_starting_with():
+    pattern = some.str.starting_with("aa")
+    log_repr(pattern)
+    assert pattern == "aabbbb"
+    assert pattern != "bbbbaa"
+    assert pattern != "bbaabb"
+    assert pattern != "ababab"
+
+    pattern = some.bytes.starting_with(b"aa")
+    log_repr(pattern)
+    assert pattern == b"aabbbb"
+    assert pattern != b"bbbbaa"
+    assert pattern != b"bbaabb"
+    assert pattern != b"ababab"
+
+
+def test_ending_with():
+    pattern = some.str.ending_with("aa")
+    log_repr(pattern)
+    assert pattern == "bbbbaa"
+    assert pattern == "bb\nbb\naa"
+    assert pattern != "aabbbb"
+    assert pattern != "bbaabb"
+    assert pattern != "ababab"
+
+    pattern = some.bytes.ending_with(b"aa")
+    log_repr(pattern)
+    assert pattern == b"bbbbaa"
+    assert pattern == b"bb\nbb\naa"
+    assert pattern != b"aabbbb"
+    assert pattern != b"bbaabb"
+    assert pattern != b"ababab"
+
+
+def test_containing():
+    pattern = some.str.containing("aa")
+    log_repr(pattern)
+    assert pattern == "aabbbb"
+    assert pattern == "bbbbaa"
+    assert pattern == "bbaabb"
+    assert pattern == "bb\naa\nbb"
+    assert pattern != "ababab"
+
+    pattern = some.bytes.containing(b"aa")
+    log_repr(pattern)
+    assert pattern == b"aabbbb"
+    assert pattern == b"bbbbaa"
+    assert pattern == b"bbaabb"
+    assert pattern == b"bb\naa\nbb"
+    assert pattern != b"ababab"
 
 
 def test_list():

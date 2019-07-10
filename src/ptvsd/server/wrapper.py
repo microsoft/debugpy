@@ -32,7 +32,7 @@ import _pydevd_bundle.pydevd_comm_constants as pydevd_comm_constants  # noqa
 import _pydevd_bundle.pydevd_extension_api as pydevd_extapi  # noqa
 import _pydevd_bundle.pydevd_extension_utils as pydevd_extutil  # noqa
 import _pydevd_bundle.pydevd_frame as pydevd_frame  # noqa
-from pydevd_file_utils import get_abs_path_real_path_and_base_from_file  # noqa
+import pydevd_file_utils
 from _pydevd_bundle.pydevd_dont_trace_files import PYDEV_FILE  # noqa
 
 import ptvsd
@@ -59,8 +59,7 @@ def path_to_unicode(s):
     return s if isinstance(s, unicode) else s.decode(sys.getfilesystemencoding())
 
 
-PTVSD_DIR_PATH = os.path.dirname(os.path.abspath(get_abs_path_real_path_and_base_from_file(__file__)[0])) + os.path.sep
-NORM_PTVSD_DIR_PATH = os.path.normcase(PTVSD_DIR_PATH)
+PTVSD_DIR_PATH = pydevd_file_utils.normcase(os.path.dirname(ptvsd.__file__) + os.path.sep)
 
 
 class UnsupportedPyDevdCommandError(Exception):

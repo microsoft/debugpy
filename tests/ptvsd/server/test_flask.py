@@ -8,86 +8,88 @@ import platform
 import pytest
 import sys
 
-from tests import code, debug, net, test_data
+from ptvsd.common import compat
+from tests import code, debug, log, net, test_data
 from tests.patterns import some
-from tests.timeline import Event
+
+pytestmark = pytest.mark.timeout(60)
+
+flask = net.WebServer(net.get_test_server_port(7000, 7100))
 
 
-FLASK1_ROOT = test_data / "flask1"
-FLASK1_APP = FLASK1_ROOT / "app.py"
-FLASK1_TEMPLATE = FLASK1_ROOT / "templates" / "hello.html"
-FLASK1_BAD_TEMPLATE = FLASK1_ROOT / "templates" / "bad.html"
-FLASK_PORT = net.get_test_server_port(7000, 7100)
-
-flask_server = net.WebServer(FLASK_PORT)
-app_py_lines = code.get_marked_line_numbers(FLASK1_APP)
+class paths:
+    flask1 = test_data / "flask1"
+    app_py = flask1 / "app.py"
+    hello_html = flask1 / "templates" / "hello.html"
+    bad_html = flask1 / "templates" / "bad.html"
 
 
-def _initialize_flask_session_no_multiproc(session, start_method):
-    env = {"FLASK_APP": "app.py", "FLASK_ENV": "development", "FLASK_DEBUG": "0"}
+class lines:
+    app_py = code.get_marked_line_numbers(paths.app_py)
+
+
+def _initialize_session(session, multiprocess=False):
+    env = {
+        "FLASK_APP": paths.app_py,
+        "FLASK_ENV": "development",
+        "FLASK_DEBUG": "1" if multiprocess else "0",
+    }
     if platform.system() != "Windows":
         locale = "en_US.utf8" if platform.system() == "Linux" else "en_US.UTF-8"
         env.update({"LC_ALL": locale, "LANG": locale})
 
-    session.initialize(
-        start_method=start_method,
-        target=("module", "flask"),
-        program_args=[
-            "run",
+    program_args = [
+        "run",
+        "--port",
+        str(flask.port),
+    ]
+    if not multiprocess:
+        program_args[1:1] = [
             "--no-debugger",
             "--no-reload",
             "--with-threads",
-            "--port",
-            str(FLASK_PORT),
-        ],
-        ignore_unobserved=[Event("stopped")],
+        ]
+
+    session.initialize(
+        target=("module", "flask"),
+        program_args=program_args,
         debug_options=["Jinja"],
-        cwd=FLASK1_ROOT,
+        cwd=paths.flask1,
         env=env,
+        multiprocess=multiprocess,
         expected_returncode=some.int,  # No clean way to kill Flask server
     )
 
 
-@pytest.mark.parametrize("bp_target", ["code", "template"])
 @pytest.mark.parametrize("start_method", ["launch", "attach_socket_cmdline"])
-@pytest.mark.timeout(60)
-def test_flask_breakpoint_no_multiproc(bp_target, start_method):
+@pytest.mark.parametrize("bp_target", ["code", "template"])
+def test_flask_breakpoint_no_multiproc(start_method, bp_target):
     bp_file, bp_line, bp_name = {
-        "code": (FLASK1_APP, app_py_lines["bphome"], "home"),
-        "template": (FLASK1_TEMPLATE, 8, "template"),
+        "code": (paths.app_py, lines.app_py["bphome"], "home"),
+        "template": (paths.hello_html, 8, "template"),
     }[bp_target]
+    bp_var_content = compat.force_str("Flask-Jinja-Test")
 
-    with debug.Session() as session:
-        _initialize_flask_session_no_multiproc(session, start_method)
-
-        bp_var_content = "Flask-Jinja-Test"
+    with debug.Session(start_method) as session:
+        _initialize_session(session)
         session.set_breakpoints(bp_file, [bp_line])
         session.start_debugging()
 
-        with flask_server:
-            home_request = flask_server.get("/")
+        with flask:
+            home_request = flask.get("/")
+            session.wait_for_stop(
+                "breakpoint",
+                expected_frames=[
+                    some.dap.frame(
+                        some.dap.source(bp_file),
+                        name=bp_name,
+                        line=bp_line,
+                    ),
+                ],
+            )
 
-            hit = session.wait_for_stop(reason="breakpoint")
-            assert hit.frames[0] == {
-                "id": some.dap_id,
-                "name": bp_name,
-                "source": {"sourceReference": some.dap_id, "path": some.path(bp_file)},
-                "line": bp_line,
-                "column": 1,
-            }
-
-            resp_scopes = session.send_request(
-                "scopes", arguments={"frameId": hit.frame_id}
-            ).wait_for_response()
-            scopes = resp_scopes.body["scopes"]
-            assert len(scopes) > 0
-
-            resp_variables = session.send_request(
-                "variables",
-                arguments={"variablesReference": scopes[0]["variablesReference"]},
-            ).wait_for_response()
-            variables = [v for v in resp_variables.body["variables"] if v["name"] == "content"]
-            assert variables == [
+            var_content = session.get_variable("content")
+            assert var_content == some.dict.containing(
                 {
                     "name": "content",
                     "type": "str",
@@ -96,7 +98,7 @@ def test_flask_breakpoint_no_multiproc(bp_target, start_method):
                     "evaluateName": "content",
                     "variablesReference": 0,
                 }
-            ]
+            )
 
             session.request_continue()
             assert bp_var_content in home_request.response_text()
@@ -105,60 +107,37 @@ def test_flask_breakpoint_no_multiproc(bp_target, start_method):
 
 
 @pytest.mark.parametrize("start_method", ["launch", "attach_socket_cmdline"])
-@pytest.mark.timeout(60)
 def test_flask_template_exception_no_multiproc(start_method):
-    with debug.Session() as session:
-        _initialize_flask_session_no_multiproc(session, start_method)
-
-        session.send_request(
-            "setExceptionBreakpoints", arguments={"filters": ["raised", "uncaught"]}
-        ).wait_for_response()
-
+    with debug.Session(start_method) as session:
+        _initialize_session(session)
+        session.request("setExceptionBreakpoints", {"filters": ["raised", "uncaught"]})
         session.start_debugging()
 
-        # wait for Flask web server to start
-        with flask_server:
-            web_request = flask_server.get("badtemplate")
-
-            hit = session.wait_for_stop()
-            assert hit.frames[0] == some.dict.containing(
-                {
-                    "id": some.dap_id,
-                    "name": "template"
-                    if sys.version_info[0] >= 3
-                    else "Jinja2 TemplateSyntaxError",
-                    "source": some.dict.containing(
-                        {
-                            "sourceReference": some.dap_id,
-                            "path": some.path(FLASK1_BAD_TEMPLATE),
-                        }
+        with flask:
+            flask.get("/badtemplate")
+            stop = session.wait_for_stop(
+                "exception",
+                expected_frames=[
+                    some.dap.frame(
+                        some.dap.source(paths.bad_html),
+                        name=some.str,  # varies depending on Jinja version
+                        line=8,
                     ),
-                    "line": 8,
-                    "column": 1,
-                }
+                ],
             )
 
-            resp_exception_info = session.send_request(
-                "exceptionInfo", arguments={"threadId": hit.thread_id}
-            ).wait_for_response()
-            exception = resp_exception_info.body
-            assert exception == some.dict.containing(
+            exception_info = session.request(
+                "exceptionInfo", {"threadId": stop.thread_id}
+            )
+            assert exception_info == some.dict.containing(
                 {
-                    "exceptionId": some.str.such_that(
-                        lambda s: s.endswith("TemplateSyntaxError")
-                    ),
+                    "exceptionId": some.str.ending_with("TemplateSyntaxError"),
                     "breakMode": "always",
-                    "description": some.str.such_that(
-                        lambda s: s.find("doesnotexist") > -1
-                    ),
+                    "description": some.str.containing("doesnotexist"),
                     "details": some.dict.containing(
                         {
-                            "message": some.str.such_that(
-                                lambda s: s.find("doesnotexist") > -1
-                            ),
-                            "typeName": some.str.such_that(
-                                lambda s: s.endswith("TemplateSyntaxError")
-                            ),
+                            "message": some.str.containing("doesnotexist"),
+                            "typeName": some.str.ending_with("TemplateSyntaxError"),
                         }
                     ),
                 }
@@ -166,150 +145,107 @@ def test_flask_template_exception_no_multiproc(start_method):
 
             session.request_continue()
 
-            # ignore response for exception tests
-            web_request.wait_for_response()
+            log.info("Exception will be reported again in {0}", paths.app_py)
+            session.wait_for_stop("exception")
+            session.request_continue()
+
+            # In Python 2, Flask reports this exception one more time, and it is
+            # reported for both frames again.
+            if sys.version_info < (3,):
+                log.info("Exception gets double-reported in Python 2.")
+                session.wait_for_stop("exception")
+                session.request_continue()
+                session.wait_for_stop("exception")
+                session.request_continue()
 
         session.wait_for_exit()
 
 
-@pytest.mark.parametrize("ex_type", ["handled", "unhandled"])
 @pytest.mark.parametrize("start_method", ["launch", "attach_socket_cmdline"])
-@pytest.mark.timeout(60)
-def test_flask_exception_no_multiproc(ex_type, start_method):
-    ex_line = {"handled": 21, "unhandled": 33}[ex_type]
+@pytest.mark.parametrize("exc_type", ["handled", "unhandled"])
+def test_flask_exception_no_multiproc(start_method, exc_type):
+    exc_line = lines.app_py["exc_" + exc_type]
 
-    with debug.Session() as session:
-        _initialize_flask_session_no_multiproc(session, start_method)
-
-        session.send_request(
-            "setExceptionBreakpoints", arguments={"filters": ["raised", "uncaught"]}
-        ).wait_for_response()
-
+    with debug.Session(start_method) as session:
+        _initialize_session(session)
+        session.request("setExceptionBreakpoints", {"filters": ["raised", "uncaught"]})
         session.start_debugging()
 
-        with flask_server:
-            web_request = flask_server.get(ex_type)
+        with flask:
+            flask.get("/" + exc_type)
+            stopped = session.wait_for_stop(
+                "exception",
+                expected_frames=[
+                    some.dap.frame(
+                        some.dap.source(paths.app_py),
+                        line=exc_line,
+                        name="bad_route_" + exc_type,
+                    )
+                ],
+            ).body
 
-            thread_stopped = session.wait_for_next(
-                Event("stopped", some.dict.containing({"reason": "exception"}))
-            )
-            assert thread_stopped == Event(
-                "stopped",
-                some.dict.containing(
-                    {
-                        "reason": "exception",
-                        "text": some.str.such_that(lambda s: s.endswith("ArithmeticError")),
-                        "description": "Hello",
-                    }
-                ),
+            assert stopped == some.dict.containing(
+                {
+                    "reason": "exception",
+                    "text": some.str.ending_with("ArithmeticError"),
+                    "description": "Hello",
+                }
             )
 
-            tid = thread_stopped.body["threadId"]
-            resp_exception_info = session.send_request(
-                "exceptionInfo", arguments={"threadId": tid}
-            ).wait_for_response()
-            exception = resp_exception_info.body
-            assert exception == {
-                "exceptionId": some.str.such_that(lambda s: s.endswith("ArithmeticError")),
+            exception_info = session.request(
+                "exceptionInfo", {"threadId": stopped["threadId"]}
+            )
+
+            assert exception_info == {
+                "exceptionId": some.str.ending_with("ArithmeticError"),
                 "breakMode": "always",
                 "description": "Hello",
                 "details": {
                     "message": "Hello",
-                    "typeName": some.str.such_that(lambda s: s.endswith("ArithmeticError")),
-                    "source": some.path(FLASK1_APP),
-                    "stackTrace": some.str.such_that(lambda s: True),
+                    "typeName": some.str.ending_with("ArithmeticError"),
+                    "source": some.path(paths.app_py),
+                    "stackTrace": some.str,
                 },
-            }
-
-            resp_stacktrace = session.send_request(
-                "stackTrace", arguments={"threadId": tid}
-            ).wait_for_response()
-            assert resp_stacktrace.body["totalFrames"] > 0
-            frames = resp_stacktrace.body["stackFrames"]
-            assert frames[0] == {
-                "id": some.dap_id,
-                "name": "bad_route_" + ex_type,
-                "source": {"sourceReference": some.dap_id, "path": some.path(FLASK1_APP)},
-                "line": ex_line,
-                "column": 1,
             }
 
             session.request_continue()
 
-            # ignore response for exception tests
-            web_request.wait_for_response()
-
         session.wait_for_exit()
 
 
-@pytest.mark.timeout(120)
 @pytest.mark.parametrize("start_method", ["launch"])
 @pytest.mark.skipif(
-    (sys.version_info < (3, 0)) and (platform.system() != "Windows"), reason="Bug #935"
+    sys.version_info < (3, 0) and platform.system() != "Windows",
+    reason="https://github.com/microsoft/ptvsd/issues/935",
 )
 def test_flask_breakpoint_multiproc(start_method):
-    env = {"FLASK_APP": "app", "FLASK_ENV": "development", "FLASK_DEBUG": "1"}
-    if platform.system() != "Windows":
-        locale = "en_US.utf8" if platform.system() == "Linux" else "en_US.UTF-8"
-        env.update({"LC_ALL": locale, "LANG": locale})
+    bp_line = lines.app_py["bphome"]
+    bp_var_content = compat.force_str("Flask-Jinja-Test")
 
-    with debug.Session() as parent_session:
-        parent_session.initialize(
-            start_method=start_method,
-            target=("module", "flask"),
-            multiprocess=True,
-            program_args=["run", "--port", str(FLASK_PORT)],
-            ignore_unobserved=[Event("stopped")],
-            debug_options=["Jinja"],
-            cwd=FLASK1_ROOT,
-            env=env,
-            expected_returncode=some.int,  # No clean way to kill Flask server
-        )
-
-        bp_line = app_py_lines["bphome"]
-        bp_var_content = "Flask-Jinja-Test"
-        parent_session.set_breakpoints(FLASK1_APP, [bp_line])
+    with debug.Session(start_method) as parent_session:
+        _initialize_session(parent_session, multiprocess=True)
+        parent_session.set_breakpoints(paths.app_py, [bp_line])
         parent_session.start_debugging()
 
-        with parent_session.connect_to_next_child_session() as child_session:
-            child_session.send_request(
-                "setBreakpoints",
-                arguments={
-                    "source": {"path": FLASK1_APP},
-                    "breakpoints": [{"line": bp_line}],
-                },
-            ).wait_for_response()
+        with parent_session.attach_to_next_subprocess() as child_session:
+            child_session.set_breakpoints(paths.app_py, [bp_line])
             child_session.start_debugging()
 
-            with flask_server:
-                web_request = flask_server.get("/")
+            with flask:
+                home_request = flask.get("/")
+                child_session.wait_for_stop(
+                    "breakpoint",
+                    expected_frames=[
+                        some.dap.frame(
+                            some.dap.source(paths.app_py),
+                            line=bp_line,
+                            name="home",
+                        ),
+                    ],
+                )
 
-                hit = child_session.wait_for_stop(reason="breakpoint")
-                assert hit.frames[0] == {
-                    "id": some.dap_id,
-                    "name": "home",
-                    "source": {
-                        "sourceReference": some.dap_id,
-                        "path": some.path(FLASK1_APP),
-                    },
-                    "line": bp_line,
-                    "column": 1,
-                }
-
-                resp_scopes = child_session.send_request(
-                    "scopes", arguments={"frameId": hit.frames_id}
-                ).wait_for_response()
-                scopes = resp_scopes.body["scopes"]
-                assert len(scopes) > 0
-
-                resp_variables = child_session.send_request(
-                    "variables",
-                    arguments={"variablesReference": scopes[0]["variablesReference"]},
-                ).wait_for_response()
-                variables = [
-                    v for v in resp_variables.body["variables"] if v["name"] == "content"
-                ]
-                assert variables == [
+                var_content = child_session.get_variable("content")
+                assert var_content == some.dict.containing(
                     {
                         "name": "content",
                         "type": "str",
@@ -318,10 +254,10 @@ def test_flask_breakpoint_multiproc(start_method):
                         "evaluateName": "content",
                         "variablesReference": 0,
                     }
-                ]
+                )
 
                 child_session.request_continue()
-                assert bp_var_content in web_request.response_text()
+                assert bp_var_content in home_request.response_text()
 
             child_session.wait_for_termination()
             parent_session.wait_for_exit()

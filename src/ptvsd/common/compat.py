@@ -71,7 +71,7 @@ def force_bytes(s, encoding, errors="strict"):
         return s
 
 
-def force_str(s, encoding, errors="strict"):
+def force_str(s, encoding="ascii", errors="strict"):
     """Converts s to str (which is bytes on Python 2, and unicode on Python 3), using
     the provided encoding if necessary. If s is already str, it is returned as is.
 
@@ -135,6 +135,12 @@ def nameof(obj, quote=False):
             pass
 
     return force_unicode(name, "utf-8", "replace")
+
+
+def unicode_repr(obj):
+    """Like repr(), but guarantees that the result is Unicode even on Python 2.
+    """
+    return force_unicode(repr(obj), "ascii")
 
 
 def srcnameof(obj):

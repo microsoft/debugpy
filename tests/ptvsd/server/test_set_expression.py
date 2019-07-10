@@ -22,7 +22,6 @@ def test_set_expression(pyfile, start_method, run_as):
         session.initialize(
             target=(run_as, code_to_debug),
             start_method=start_method,
-            use_backchannel=True,
         )
         session.start_debugging()
         hit = session.wait_for_stop()

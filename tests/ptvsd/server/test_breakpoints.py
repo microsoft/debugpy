@@ -11,25 +11,26 @@ import re
 import sys
 
 from ptvsd.common import fmt
-from tests import code, debug, test_data
+from tests import debug, test_data
 from tests.patterns import some
 
 
-BP_TEST_ROOT = test_data / "bp"
+bp_root = test_data / "bp"
 
 
 def test_path_with_ampersand(start_method, run_as):
-    test_py = BP_TEST_ROOT / "a&b" / "test.py"
-    lines = code.get_marked_line_numbers(test_py)
+    test_py = bp_root / "a&b" / "test.py"
 
     with debug.Session(start_method) as session:
         session.initialize(target=(run_as, test_py))
-        session.set_breakpoints(test_py, [lines["two"]])
+        session.set_breakpoints(test_py, ["two"])
         session.start_debugging()
 
         session.wait_for_stop(
             "breakpoint",
-            expected_frames=[some.dict.containing({"source": some.source(test_py)})],
+            expected_frames=[
+                some.dap.frame(test_py, line="two"),
+            ],
         )
 
         session.request_continue()
@@ -44,20 +45,17 @@ def test_path_with_ampersand(start_method, run_as):
     reason="https://github.com/Microsoft/ptvsd/issues/1124#issuecomment-459506802",
 )
 def test_path_with_unicode(start_method, run_as):
-    test_py = BP_TEST_ROOT / "ನನ್ನ_ಸ್ಕ್ರಿಪ್ಟ್.py"
-    lines = code.get_marked_line_numbers(test_py)
+    test_py = bp_root / "ನನ್ನ_ಸ್ಕ್ರಿಪ್ಟ್.py"
 
-    with debug.Session() as session:
-        session.initialize(target=(run_as, test_py), start_method=start_method)
-        session.set_breakpoints(test_py, [lines["bp"]])
+    with debug.Session(start_method) as session:
+        session.initialize(target=(run_as, test_py))
+        session.set_breakpoints(test_py, ["bp"])
         session.start_debugging()
 
-        session.wait_for_stop("breakpoint", expected_frames=[
-            some.dict.containing({
-                "source": some.source(test_py),
-                "name": "ಏನಾದರೂ_ಮಾಡು",
-            }),
-        ])
+        session.wait_for_stop(
+            "breakpoint",
+            expected_frames=[some.dap.frame(test_py, name="ಏನಾದರೂ_ಮಾಡು", line="bp")],
+        )
 
         session.request_continue()
         session.wait_for_exit()
@@ -66,14 +64,14 @@ def test_path_with_unicode(start_method, run_as):
 @pytest.mark.parametrize(
     "condition_kind",
     [
-        ("condition",),
-        ("hitCondition",),
-        ("hitCondition", "eq"),
-        ("hitCondition", "gt"),
-        ("hitCondition", "ge"),
-        ("hitCondition", "lt"),
-        ("hitCondition", "le"),
-        ("hitCondition", "mod"),
+        "condition",
+        "hitCondition",
+        "hitCondition-eq",
+        "hitCondition-gt",
+        "hitCondition-ge",
+        "hitCondition-lt",
+        "hitCondition-le",
+        "hitCondition-mod",
     ],
 )
 def test_conditional_breakpoint(pyfile, start_method, run_as, condition_kind):
@@ -84,51 +82,41 @@ def test_conditional_breakpoint(pyfile, start_method, run_as, condition_kind):
         for i in range(0, 10):
             print(i)  # @bp
 
-    condition_property = condition_kind[0]
+    condition_property = condition_kind.partition("-")[0]
     condition, value, hits = {
-        ("condition",): ("i==5", "5", 1),
-        ("hitCondition",): ("5", "4", 1),
-        ("hitCondition", "eq"): ("==5", "4", 1),
-        ("hitCondition", "gt"): (">5", "5", 5),
-        ("hitCondition", "ge"): (">=5", "4", 6),
-        ("hitCondition", "lt"): ("<5", "0", 4),
-        ("hitCondition", "le"): ("<=5", "0", 5),
-        ("hitCondition", "mod"): ("%3", "2", 3),
+        "condition": ("i==5", "5", 1),
+        "hitCondition": ("5", "4", 1),
+        "hitCondition-eq": ("==5", "4", 1),
+        "hitCondition-gt": (">5", "5", 5),
+        "hitCondition-ge": (">=5", "4", 6),
+        "hitCondition-lt": ("<5", "0", 4),
+        "hitCondition-le": ("<=5", "0", 5),
+        "hitCondition-mod": ("%3", "2", 3),
     }[condition_kind]
 
-    lines = code_to_debug.lines
-    with debug.Session() as session:
-        session.initialize(target=(run_as, code_to_debug), start_method=start_method)
+    with debug.Session(start_method) as session:
+        session.initialize(target=(run_as, code_to_debug))
         session.request(
             "setBreakpoints",
-            arguments={
+            {
                 "source": {"path": code_to_debug},
-                "breakpoints": [{"line": lines["bp"], condition_property: condition}],
+                "breakpoints": [
+                    {"line": code_to_debug.lines["bp"], condition_property: condition}
+                ],
             },
         )
         session.start_debugging()
 
-        frame_id = session.wait_for_stop(expected_frames=[
-            some.dict.containing({"line": lines["bp"]})
-        ]).frame_id
+        session.wait_for_stop(
+            expected_frames=[some.dap.frame(code_to_debug, line="bp")]
+        )
 
-        scopes = session.request(
-            "scopes", arguments={"frameId": frame_id}
-        )["scopes"]
+        session.get_variables()
 
-        assert len(scopes) > 0
-
-        variables = session.request(
-            "variables",
-            arguments={"variablesReference": scopes[0]["variablesReference"]},
-        )["variables"]
-
-        variables = [v for v in variables if v["name"] == "i"]
-        assert variables == [
-            some.dict.containing(
-                {"name": "i", "type": "int", "value": value, "evaluateName": "i"}
-            )
-        ]
+        var_i = session.get_variable("i")
+        assert var_i == some.dict.containing(
+            {"name": "i", "type": "int", "value": value, "evaluateName": "i"}
+        )
 
         session.request_continue()
         for i in range(1, hits):
@@ -153,27 +141,17 @@ def test_crossfile_breakpoint(pyfile, start_method, run_as):
         script1.do_something()  # @bp
         print("Done")
 
-    with debug.Session() as session:
-        session.initialize(target=(run_as, script2), start_method=start_method)
-        session.set_breakpoints(script1, lines=[script1.lines["bp"]])
-        session.set_breakpoints(script2, lines=[script2.lines["bp"]])
+    with debug.Session(start_method) as session:
+        session.initialize(target=(run_as, script2))
+        session.set_breakpoints(script1, all)
+        session.set_breakpoints(script2, all)
         session.start_debugging()
 
-        session.wait_for_stop(expected_frames=[
-            some.dict.containing({
-                "source": some.source(script2),
-                "line": script2.lines["bp"],
-            })
-        ])
+        session.wait_for_stop(expected_frames=[some.dap.frame(script2, line="bp")])
 
         session.request_continue()
 
-        session.wait_for_stop(expected_frames=[
-            some.dict.containing({
-                "source": some.source(script1),
-                "line": script1.lines["bp"],
-            })
-        ])
+        session.wait_for_stop(expected_frames=[some.dap.frame(script1, line="bp")])
 
         session.request_continue()
         session.wait_for_exit()
@@ -198,17 +176,17 @@ def test_error_in_condition(pyfile, start_method, run_as, error_name):
         "ZeroDivisionError": ("1 / 0", True),
     }[error_name]
 
-    with debug.Session() as session:
-        session.initialize(target=(run_as, code_to_debug), start_method=start_method)
-        session.send_request(
+    with debug.Session(start_method) as session:
+        session.initialize(target=(run_as, code_to_debug))
+        session.request(
             "setBreakpoints",
-            arguments={
+            {
                 "source": {"path": code_to_debug},
                 "breakpoints": [
                     {"line": code_to_debug.lines["bp"], "condition": condition}
                 ],
             },
-        ).wait_for_response()
+        )
         session.start_debugging()
         session.wait_for_exit()
 
@@ -231,8 +209,8 @@ def test_log_point(pyfile, start_method, run_as, condition):
             print(i * 10)  # @bp
 
     lines = code_to_debug.lines
-    with debug.Session() as session:
-        session.initialize(target=(run_as, code_to_debug), start_method=start_method)
+    with debug.Session(start_method) as session:
+        session.initialize(target=(run_as, code_to_debug))
 
         bp = {"line": lines["bp"], "logMessage": "{i}"}
         if condition:
@@ -240,37 +218,22 @@ def test_log_point(pyfile, start_method, run_as, condition):
 
         session.request(
             "setBreakpoints",
-            arguments={
-                "source": {"path": code_to_debug},
-                "breakpoints": [bp],
-            },
+            arguments={"source": {"path": code_to_debug}, "breakpoints": [bp]},
         )
         session.start_debugging()
 
         if condition:
-            frame_id = session.wait_for_stop(expected_frames=[
-                some.dict.containing({
-                    "line": lines["bp"]
-                })
-            ]).frame_id
+            session.wait_for_stop(
+                "breakpoint",
+                expected_frames=[
+                    some.dap.frame(code_to_debug, line="bp")
+                ],
+            )
 
-            scopes = session.request(
-                "scopes", arguments={"frameId": frame_id}
-            )["scopes"]
-
-            assert len(scopes) > 0
-
-            variables = session.request(
-                "variables",
-                arguments={"variablesReference": scopes[0]["variablesReference"]},
-            )["variables"]
-            variables = [v for v in variables if v["name"] == "i"]
-
-            assert variables == [
-                some.dict.containing(
-                    {"name": "i", "type": "int", "value": "5", "evaluateName": "i"}
-                )
-            ]
+            var_i = session.get_variable("i")
+            assert var_i == some.dict.containing(
+                {"name": "i",  "evaluateName": "i", "type": "int", "value": "5"},
+            )
 
             session.request_continue()
 
@@ -278,25 +241,30 @@ def test_log_point(pyfile, start_method, run_as, condition):
 
         assert not session.captured_stderr()
 
-        expected_stdout = "".join((
-            fmt(r"{0}\r?\n{1}\r?\n", re.escape(str(i)), re.escape(str(i * 10)))
-            for i in range(0, 10)
-        ))
+        expected_stdout = "".join(
+            (
+                fmt(r"{0}\r?\n{1}\r?\n", re.escape(str(i)), re.escape(str(i * 10)))
+                for i in range(0, 10)
+            )
+        )
         assert session.output("stdout") == some.str.matching(expected_stdout)
 
 
 def test_package_launch():
     cwd = test_data / "testpkgs"
     test_py = cwd / "pkg1" / "__main__.py"
-    lines = code.get_marked_line_numbers(test_py)
 
-    with debug.Session() as session:
-        session.initialize(target=("module", "pkg1"), start_method="launch", cwd=cwd)
-        session.set_breakpoints(test_py, [lines["two"]])
+    with debug.Session("launch") as session:
+        session.initialize(target=("module", "pkg1"), cwd=cwd)
+        session.set_breakpoints(test_py, ["two"])
         session.start_debugging()
 
-        hit = session.wait_for_stop()
-        assert lines["two"] == hit.frames[0]["line"]
+        session.wait_for_stop(
+            "breakpoint",
+            expected_frames=[
+                some.dap.frame(test_py, line="two"),
+            ],
+        )
 
         session.request_continue()
         session.wait_for_exit()
@@ -310,19 +278,19 @@ def test_add_and_remove_breakpoint(pyfile, start_method, run_as):
         for i in range(0, 10):
             print(i)  # @bp
 
-    lines = code_to_debug.lines
-    with debug.Session() as session:
-        session.initialize(
-            target=(run_as, code_to_debug),
-            start_method=start_method,
-        )
-        session.set_breakpoints(code_to_debug, [lines["bp"]])
+    with debug.Session(start_method) as session:
+        session.initialize(target=(run_as, code_to_debug))
+        session.set_breakpoints(code_to_debug, ["bp"])
         session.start_debugging()
 
-        hit = session.wait_for_stop()
-        assert lines["bp"] == hit.frames[0]["line"]
+        session.wait_for_stop(
+            "breakpoint",
+            expected_frames=[
+                some.dap.frame(code_to_debug, line="bp"),
+            ],
+        )
 
-        # remove breakpoints in file
+        # Remove breakpoints in file.
         session.set_breakpoints(code_to_debug, [])
         session.request_continue()
         session.wait_for_exit()
@@ -354,48 +322,37 @@ def test_invalid_breakpoints(pyfile, start_method, run_as):
               4, 5, 6)
         # fmt: on
 
-    lines = code_to_debug.lines
-    with debug.Session() as session:
-        session.initialize(target=(run_as, code_to_debug), start_method=start_method)
+    with debug.Session(start_method) as session:
+        session.initialize(target=(run_as, code_to_debug))
 
-        requested_bps = [
-            lines["bp1-requested"],
-            lines["bp2-requested"],
-            lines["bp3-requested"],
-        ]
+        bp_markers = ["bp1-requested", "bp2-requested", "bp3-requested"]
         if sys.version_info < (3,):
-            requested_bps += [
-                lines["bp4-requested-1"],
-                lines["bp4-requested-2"],
-            ]
+            bp_markers += ["bp4-requested-1", "bp4-requested-2"]
 
-        actual_bps = session.set_breakpoints(code_to_debug, requested_bps)
-        actual_bps = [bp["line"] for bp in actual_bps]
+        bps = session.set_breakpoints(code_to_debug, bp_markers)
+        actual_lines = [bp["line"] for bp in bps]
 
-        expected_bps = [
-            lines["bp1-expected"],
-            lines["bp2-expected"],
-            lines["bp3-expected"],
-        ]
+        expected_markers = ["bp1-expected", "bp2-expected", "bp3-expected"]
         if sys.version_info < (3,):
-            expected_bps += [lines["bp4-expected"], lines["bp4-expected"]]
+            expected_markers += ["bp4-expected", "bp4-expected"]
+        expected_lines = [code_to_debug.lines[marker] for marker in expected_markers]
 
-        assert expected_bps == actual_bps
+        assert actual_lines == expected_lines
 
         # Now let's make sure that we hit all of the expected breakpoints,
         # and stop where we expect them to be.
-
         session.start_debugging()
 
         # If there's multiple breakpoints on the same line, we only stop once,
         # so remove duplicates first.
-        expected_bps = sorted(set(expected_bps))
+        expected_lines = sorted(set(expected_lines))
 
-        while expected_bps:
-            expected_line = expected_bps.pop(0)
-            session.wait_for_stop(expected_frames=[
-                some.dict.containing({"line": expected_line})
-            ])
+        while expected_lines:
+            expected_line = expected_lines.pop(0)
+            session.wait_for_stop(
+                "breakpoint",
+                expected_frames=[some.dap.frame(code_to_debug, line=expected_line)],
+            )
             session.request_continue()
 
         session.wait_for_exit()
@@ -414,11 +371,9 @@ def test_deep_stacks(pyfile, start_method, run_as):
 
         deep_stack(100)
 
-    with debug.Session() as session:
-        session.initialize(target=(run_as, code_to_debug), start_method=start_method)
-
-        actual_bps = session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])
-        actual_bps = [bp["line"] for bp in actual_bps]
+    with debug.Session(start_method) as session:
+        session.initialize(target=(run_as, code_to_debug))
+        session.set_breakpoints(code_to_debug, all)
         session.start_debugging()
 
         stop = session.wait_for_stop()

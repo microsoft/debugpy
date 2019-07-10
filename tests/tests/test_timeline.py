@@ -8,6 +8,7 @@ import pytest
 import threading
 import time
 
+from ptvsd.common import log
 from tests.patterns import some
 from tests.timeline import Timeline, Mark, Event, Request, Response
 
@@ -31,6 +32,7 @@ def make_timeline(request):
         return timeline, initial_history
 
     yield factory
+    log.newline()
 
     try:
         failed = request.node.call_result.failed

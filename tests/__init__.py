@@ -11,6 +11,7 @@ import json
 import pkgutil
 import pytest
 import py.path
+import sys
 
 # Do not import anything from ptvsd until assert rewriting is enabled below!
 
@@ -55,6 +56,7 @@ from ptvsd.common import fmt, log, messaging
 
 # Enable full logging to stderr, and make timestamps shorter to match maximum test
 # run time better.
+log.stderr = sys.stderr  # use pytest-captured stderr rather than __stderr__
 log.stderr_levels = set(log.LEVELS)
 log.timestamp_format = "06.3f"
 
