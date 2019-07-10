@@ -4,6 +4,7 @@
 [![Build Status](https://travis-ci.org/Microsoft/ptvsd.svg?branch=master)](https://travis-ci.org/Microsoft/ptvsd)
 [![GitHub](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://raw.githubusercontent.com/Microsoft/ptvsd/master/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/ptvsd.svg)](https://pypi.org/project/ptvsd/)
+[![Conda Version](https://img.shields.io/conda/vn/conda-forge/ptvsd.svg)](https://anaconda.org/conda-forge/ptvsd)
 [![PyPI](https://img.shields.io/pypi/pyversions/ptvsd.svg)](https://pypi.org/project/ptvsd/)
 
 This debugger is based on the [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/) created for VS Code: [debugProtocol.json](https://github.com/Microsoft/debug-adapter-protocol/blob/gh-pages/debugAdapterProtocol.json)
