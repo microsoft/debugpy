@@ -2,7 +2,7 @@ colorama
 coverage
 django
 requests
-flask
+flask==1.0.3
 psutil
 pygments
 pytest<5
