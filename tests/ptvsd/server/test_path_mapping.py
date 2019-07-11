@@ -54,7 +54,7 @@ def test_client_ide_from_path_mapping_linux_backend(
             "breakpoint",
             expected_frames=[
                 some.dap.frame(
-                    some.dap.source("C:\\TEMP\src\\" + code_to_debug.basename),
+                    some.dap.source("C:\\TEMP\\src\\" + code_to_debug.basename),
                     line=code_to_debug.lines["bp"],
                 ),
             ],

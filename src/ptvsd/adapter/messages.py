@@ -4,6 +4,8 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+import functools
+
 import ptvsd
 from ptvsd.common import log, messaging, singleton
 from ptvsd.adapter import channels, debuggee, state, options
@@ -46,6 +48,7 @@ class Messages(singleton.Singleton):
     @staticmethod
     def _only_allowed_while(*states):
         def decorate(handler):
+            @functools.wraps(handler)
             def handle_if_allowed(self, message):
                 current_state = state.current()
                 if current_state in states:
@@ -105,6 +108,7 @@ class IDEMessages(Messages):
     # connection to the debug server can be established while handling attach/launch,
     # and that must be replayed to the server once it is established.
     def _replay_to_server(handler):
+        @functools.wraps(handler)
         def store_and_handle(self, message):
             if self._initial_messages is not None:
                 self._initial_messages.append(message)

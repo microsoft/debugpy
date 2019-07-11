@@ -105,6 +105,12 @@ def filename_bytes(s, errors="strict"):
     return force_bytes(s, sys.getfilesystemencoding(), errors)
 
 
+def filename_str(s, errors="strict"):
+    """Same as force_str(s, sys.getfilesystemencoding(), errors)
+    """
+    return force_str(s, sys.getfilesystemencoding(), errors)
+
+
 def nameof(obj, quote=False):
     """Returns the most descriptive name of a Python module, class, or function,
     as a Unicode string

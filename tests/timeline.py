@@ -4,18 +4,21 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+import collections
 import contextlib
 import itertools
 import threading
 
-from ptvsd.common import fmt, log, timestamp
+from ptvsd.common import compat, fmt, log, messaging, timestamp
 from ptvsd.common.compat import queue
 
 from tests.patterns import some
 
 
 class Timeline(object):
-    def __init__(self, ignore_unobserved=None):
+    def __init__(self, name=None, ignore_unobserved=None):
+        self.name = str(name if name is not None else id(self))
+
         self._ignore_unobserved = ignore_unobserved or []
         self._index_iter = itertools.count(1)
         self._accepting_new = threading.Event()
@@ -23,7 +26,7 @@ class Timeline(object):
         self._recorded_new = threading.Condition()
         self._record_queue = queue.Queue()
 
-        self._recorder_thread = threading.Thread(target=self._recorder_worker, name='Timeline-%d recorder' % id(self))
+        self._recorder_thread = threading.Thread(target=self._recorder_worker, name=fmt("{0} recorder", self))
         self._recorder_thread.daemon = True
         self._recorder_thread.start()
 
@@ -32,7 +35,7 @@ class Timeline(object):
         self._beginning = None
         self._accepting_new.set()
 
-        self._beginning = self.mark('begin')
+        self._beginning = self.mark('START')
         assert self._last is self._beginning
         self._proceeding_from = self._beginning
 
@@ -122,7 +125,7 @@ class Timeline(object):
 
         log.info('Finalizing timeline ...')
         with self.unfrozen():
-            self.mark('finalized')
+            self.mark('FINISH')
 
         with self.unfrozen():
             self._finalized.set()
@@ -310,40 +313,22 @@ class Timeline(object):
                 self._record_queue.task_done()
 
     def mark(self, id, block=True):
-        occ = Occurrence('Mark', id)
+        occ = Occurrence('mark', id)
         occ.id = id
         occ.observed = True
         return self._record(occ, block)
 
-    def record_request(self, command, arguments, block=True):
-        occ = Occurrence('Request', command, arguments)
-        occ.command = command
-        occ.arguments = arguments
+    def record_event(self, message, block=True):
+        occ = EventOccurrence(message)
+        return self._record(occ, block)
+
+    def record_request(self, message, block=True):
+        occ = RequestOccurrence(message)
         occ.observed = True
-
-        def wait_for_response(freeze=True, raise_if_failed=True):
-            response = Response(occ, some.object).wait_until_realized(freeze)
-            assert response.observed
-            if raise_if_failed and not response.success:
-                raise response.body
-            else:
-                return response
-        occ.wait_for_response = wait_for_response
-
         return self._record(occ, block)
 
-    def record_response(self, request, body, block=True):
-        assert isinstance(request, Occurrence)
-        occ = Occurrence('Response', request, body)
-        occ.request = request
-        occ.body = body
-        occ.success = not isinstance(occ.body, Exception)
-        return self._record(occ, block)
-
-    def record_event(self, event, body, block=True):
-        occ = Occurrence('Event', event, body)
-        occ.event = event
-        occ.body = body
+    def record_response(self, request_occ, message, block=True):
+        occ = ResponseOccurrence(request_occ, message)
         return self._record(occ, block)
 
     def _snapshot(self):
@@ -359,7 +344,7 @@ class Timeline(object):
         return '|' + ' >> '.join(repr(occ) for occ in self._snapshot()) + '|'
 
     def __str__(self):
-        return '\n'.join(repr(occ) for occ in self._snapshot())
+        return "Timeline-" + self.name
 
 
 class Interval(tuple):
@@ -630,28 +615,95 @@ class PatternExpectation(Expectation):
             if occ.circumstances == self.circumstances:
                 yield {self: occ}
 
+    def describe(self):
+        rest = repr(self.circumstances[1:])
+        if rest.endswith(",)"):
+            rest = rest[:-2] + ")"
+        return fmt("<{0}{1}>", self.circumstances[0], rest)
+
     def __repr__(self):
-        return '%s%r' % (self.circumstances[0], self.circumstances[1:])
+        return self.describe()
 
 
 def Mark(id):
-    return PatternExpectation('Mark', id)
+    return PatternExpectation('mark', id)
 
 
-def Request(command, arguments=some.object):
-    return PatternExpectation('Request', command, arguments)
+def _describe_message(message_type, *items):
+    items = (("type", message_type),) + items
+    d = collections.OrderedDict(items)
 
+    # Keep it all on one line if it's short enough, but indent longer ones.
+    for format_string in "{0!j:indent=None}", "{0!j}":
+        s = fmt(format_string, d)
+        s = "{..., " + s[1:]
 
-def Response(request, body=some.object):
-    assert isinstance(request, Expectation) or isinstance(request, Occurrence)
-    exp = PatternExpectation('Response', request, body)
-    exp.timeline = request.timeline
-    exp.has_lower_bound = request.has_lower_bound
-    return exp
+        # Used by some.dict.containing to inject ... as needed.
+        s = s.replace(r'"\u0002...": "...\u0003"', "...")
+        # Used by some.* and by Event/Request/Response expectations below.
+        s = s.replace(r'"\u0002', '')
+        s = s.replace(r'\u0003"', '')
+
+        if len(s) <= 70:
+            break
+
+    return s
 
 
 def Event(event, body=some.object):
-    return PatternExpectation('Event', event, body)
+    exp = PatternExpectation('event', event, body)
+    items = (("event", event),)
+    if body is some.object:
+        items += (("\002...", "...\003"),)
+    else:
+        items += (("body", body),)
+    exp.describe = lambda: _describe_message("event", *items)
+    return exp
+
+
+def Request(command, arguments=some.object):
+    exp = PatternExpectation('request', command, arguments)
+    items = (("command", command),)
+    if arguments is some.object:
+        items += (("\002...", "...\003"),)
+    else:
+        items += (("arguments", arguments),)
+    exp.describe = lambda: _describe_message("request", *items)
+    return exp
+
+
+def Response(request, body=some.object):
+    assert isinstance(request, Expectation) or isinstance(request, RequestOccurrence)
+
+    exp = PatternExpectation('response', request, body)
+    exp.timeline = request.timeline
+    exp.has_lower_bound = request.has_lower_bound
+
+    # Try to be as specific as possible.
+    if isinstance(request, Expectation):
+        if request.circumstances[0] != "request":
+            exp.describe = lambda: fmt("response to {0!r}", request)
+            return
+        else:
+            items = (("command", request.circumstances[1]),)
+    else:
+        items = (("command", request.command),)
+
+    if isinstance(request, Occurrence):
+        items += (("request_seq", request.seq),)
+
+    if body is some.object:
+        items += (("\002...", "...\003"),)
+    elif body is some.error or body == some.error:
+        log.error("??? {0!r}", body)
+        items += (("success", False),)
+        if body == some.error:
+            items += (("message", compat.force_str(body)),)
+    else:
+        items += (("body", body),)
+
+    exp.describe = lambda: _describe_message("response", *items)
+    return exp
 
 
 class Occurrence(Expectation):
@@ -766,10 +818,184 @@ class Occurrence(Expectation):
         return hash(id(self))
 
     def __repr__(self):
-        s = '%s!%s%r' % (self.index, self.circumstances[0], self.circumstances[1:])
-        if not self.observed:
-            s = '*' + s
+        return fmt(
+            "{2}{0}.{1}",
+            self.index,
+            self.describe_circumstances(),
+            "" if self.observed else "*",
+        )
+
+    def describe_circumstances(self):
+        rest = repr(self.circumstances[1:])
+        if rest.endswith(",)"):
+            rest = rest[:-2] + ")"
+        return fmt("{0}{1}", self.circumstances[0], rest)
+
+
+class MessageOccurrence(Occurrence):
+    """An occurrence representing a DAP message (event, request, or response).
+
+    Its circumstances == (self.TYPE, self._key, self._data).
+    """
+
+    TYPE = None
+    """Used for self.circumstances[0].
+
+    Must be defined by subclasses.
+    """
+
+    def __init__(self, message):
+        assert self.TYPE
+        assert isinstance(message, messaging.Message)
+
+        # Assign message first for the benefit of self._data in child classes.
+        self.message = message
+        super(MessageOccurrence, self).__init__(self.TYPE, self._key, self._data)
+
+    @property
+    def seq(self):
+        return self.message.seq
+
+    @property
+    def _key(self):
+        """The part of the message that describes it in general terms - e.g. for
+        an event, it's the name of the event.
+        """
+        raise NotImplementedError
+
+    @property
+    def _data(self):
+        """The part of the message that is used for matching expectations, excluding
+        self._key.
+        """
+        raise NotImplementedError
+
+    @property
+    def _id(self):
+        """The part of the message that is necessary and sufficient to uniquely
+        identify it. Used for __repr__().
+
+        Must be an ordered list of key-value tuples, suitable for OrderedDict().
+        """
+        return [("seq", self.message.seq), ("type", self.TYPE)]
+
+    def describe_circumstances(self):
+        id  = collections.OrderedDict(self._id)
+
+        # Keep it all on one line if it's short enough, but indent longer ones.
+        s = fmt("{0!j:indent=None}", id)
+        if len(s) > 70:
+            s = fmt("{0!j}", id)
         return s
+
+    # For messages, we don't want to include their index, because they already have
+    # "seq" to identify them uniquely, and including both is confusing.
+    def __repr__(self):
+        return ("" if self.observed else "*") + self.describe_circumstances()
+
+
+class EventOccurrence(MessageOccurrence):
+    TYPE = "event"
+
+    def __init__(self, message):
+        assert isinstance(message, messaging.Event)
+        super(EventOccurrence, self).__init__(message)
+
+    @property
+    def event(self):
+        return self.message.event
+
+    @property
+    def body(self):
+        return self.message.body
+
+    @property
+    def _key(self):
+        return self.event
+
+    @property
+    def _data(self):
+        return self.body
+
+    @property
+    def _id(self):
+        return super(EventOccurrence, self)._id + [("event", self.message.event)]
+
+
+class RequestOccurrence(MessageOccurrence):
+    TYPE = "request"
+
+    def __init__(self, message):
+        assert isinstance(message, messaging.Request)
+        super(RequestOccurrence, self).__init__(message)
+
+    @property
+    def command(self):
+        return self.message.command
+
+    @property
+    def arguments(self):
+        return self.message.arguments
+
+    @property
+    def _key(self):
+        return self.command
+
+    @property
+    def _data(self):
+        return self.arguments
+
+    @property
+    def _id(self):
+        return super(RequestOccurrence, self)._id + [("command", self.message.command)]
+
+    def wait_for_response(self, freeze=True, raise_if_failed=True):
+        response = Response(self, some.object).wait_until_realized(freeze)
+        assert response.observed
+        if raise_if_failed and not response.success:
+            raise response.body
+        else:
+            return response
+
+
+class ResponseOccurrence(MessageOccurrence):
+    TYPE = "response"
+
+    def __init__(self, request_occ, message):
+        assert isinstance(request_occ, RequestOccurrence)
+        assert isinstance(message, messaging.Response)
+
+        # Assign request first for the benefit of self._key.
+        self.request = request_occ
+        super(ResponseOccurrence, self).__init__(message)
+
+    @property
+    def body(self):
+        return self.message.body
+
+    @property
+    def success(self):
+        return self.message.success
+
+    @property
+    def _key(self):
+        return self.request
+
+    @property
+    def _data(self):
+        return self.body
+
+    @property
+    def _id(self):
+        return super(ResponseOccurrence, self)._id + [
+            ("command", self.message.request.command),
+            ("request_seq", self.message.request.seq),
+        ]
+
+    def causing(self, *expectations):
+        for exp in expectations:
+            (self >> exp).wait()
+        return self
 
 
 def earliest_of(occurrences):

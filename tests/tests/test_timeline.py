@@ -4,13 +4,33 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+import collections
+import functools
+import itertools
 import pytest
 import threading
 import time
 
-from ptvsd.common import log
+from ptvsd.common import log, messaging
 from tests.patterns import some
 from tests.timeline import Timeline, Mark, Event, Request, Response
+
+
+class MessageFactory(object):
+    """A factory for DAP messages that are not bound to a message channel.
+    """
+
+    def __init__(self):
+        self._seq_iter = itertools.count(1)
+        self.messages = collections.OrderedDict()
+        self.event = functools.partial(self._make, messaging.Event)
+        self.request = functools.partial(self._make, messaging.Request)
+        self.response = functools.partial(self._make, messaging.Response)
+
+    def _make(self, message_type, *args, **kwargs):
+        message = message_type(None, next(self._seq_iter), *args, **kwargs)
+        self.messages[message.seq] = message
+        return message
 
 
 @pytest.fixture
@@ -45,7 +65,7 @@ def make_timeline(request):
                 history = timeline.history()
                 history.sort(key=lambda occ: occ.timestamp)
                 assert history == timeline.history()
-                assert history[-1] == Mark('finalized')
+                assert history[-1] == Mark('FINISH')
                 timeline.close()
 
 
@@ -84,85 +104,127 @@ def test_occurrences(make_timeline):
     assert timeline[:mark3].all_occurrences_of(Mark('dum')) == (some.object.same_as(mark1),)
 
 
+def expectation_of(message):
+    if isinstance(message, messaging.Event):
+        return Event(
+            some.str.equal_to(message.event),
+            some.dict.equal_to(message.body),
+        )
+    elif isinstance(message, messaging.Request):
+        return Request(
+            some.str.equal_to(message.command),
+            some.dict.equal_to(message.arguments),
+        )
+    else:
+        raise AssertionError("Unsupported message type")
+
+
 def test_event(make_timeline):
     timeline, initial_history = make_timeline()
+    messages = MessageFactory()
 
-    event = timeline.record_event('stopped', {'reason': 'pause'})
-    assert event.circumstances == ('Event', 'stopped', {'reason': 'pause'})
+    event_msg = messages.event("stopped", {'reason': 'pause'})
+    event_exp = expectation_of(event_msg)
+    event = timeline.record_event(event_msg)
+
+    assert event == event_exp
+    assert event.message is event_msg
+    assert event.circumstances == (
+        "event",
+        event_msg.event,
+        event_msg.body,
+    )
 
     with timeline.frozen():
         assert timeline.last is event
         assert timeline.history() == initial_history + [some.object.same_as(event)]
-        timeline.expect_realized(Event('stopped', {'reason': 'pause'}))
+        timeline.expect_realized(event_exp)
 
 
 @pytest.mark.parametrize('outcome', ['success', 'failure'])
 def test_request_response(make_timeline, outcome):
     timeline, initial_history = make_timeline()
+    messages = MessageFactory()
 
-    request = timeline.record_request('next', {'threadId': 3})
-    request_expectation = Request('next', {'threadId': 3})
+    request_msg = messages.request('next', {'threadId': 3})
+    request_exp = expectation_of(request_msg)
+    request = timeline.record_request(request_msg)
 
-    assert request == request_expectation
-    assert request.circumstances == ('Request', 'next', {'threadId': 3})
-    assert request.command == 'next'
-    assert request.arguments == {'threadId': 3}
+    assert request == request_exp
+    assert request.command == request_msg.command
+    assert request.arguments == request_msg.arguments
+    assert request.circumstances == (
+        'request',
+        request_msg.command,
+        request_msg.arguments,
+    )
 
     with timeline.frozen():
         assert timeline.last is request
         assert timeline.history() == initial_history + [some.object.same_as(request)]
+        timeline.expect_realized(request_exp)
         timeline.expect_realized(Request('next'))
-        timeline.expect_realized(Request('next', {'threadId': 3}))
 
-    response_body = {} if outcome == 'success' else Exception('error!')
-    response = timeline.record_response(request, response_body)
-
-    assert response == Response(request, response_body)
-    assert response == Response(request, some.object)
-    if outcome == 'success':
-        assert response == Response(request, ~some.error)
-        assert response != Response(request, some.error)
-    else:
-        assert response != Response(request, ~some.error)
-        assert response == Response(request, some.error)
-
-    assert response == Response(request_expectation, response_body)
-    assert response == Response(request_expectation, some.object)
-    if outcome == 'success':
-        assert response == Response(request_expectation, ~some.error)
-        assert response != Response(request_expectation, some.error)
-    else:
-        assert response != Response(request_expectation, ~some.error)
-        assert response == Response(request_expectation, some.error)
-
-    assert response.circumstances == ('Response', some.object.same_as(request), response_body)
+    response_msg = messages.response(
+        request_msg,
+        {} if outcome == 'success' else Exception('error!'),
+    )
+    response = timeline.record_response(request, response_msg)
     assert response.request is request
-    assert response.body == response_body
+    assert response.body == response_msg.body
     if outcome == 'success':
         assert response.success
     else:
         assert not response.success
+    assert response.circumstances == ('response', request, response_msg.body)
+
+    assert response == Response(request, response_msg.body)
+    assert response == Response(request, some.object)
+    assert response == Response(request)
+
+    if outcome == 'success':
+        assert response == Response(request, some.dict)
+        assert response != Response(request, some.error)
+    else:
+        assert response != Response(request, some.dict)
+        assert response == Response(request, some.error)
+
+    assert response == Response(request_exp, response_msg.body)
+    assert response == Response(request_exp, some.object)
+    assert response == Response(request_exp)
+
+    if outcome == 'success':
+        assert response == Response(request_exp, some.dict)
+        assert response != Response(request_exp, some.error)
+    else:
+        assert response != Response(request_exp, some.dict)
+        assert response == Response(request_exp, some.error)
 
     with timeline.frozen():
         assert timeline.last is response
         assert timeline.history() == initial_history + [some.object.same_as(request), some.object.same_as(response)]
-        timeline.expect_realized(Response(request, response_body))
+
+        timeline.expect_realized(Response(request))
+        timeline.expect_realized(Response(request, response_msg.body))
         timeline.expect_realized(Response(request, some.object))
+
         if outcome == 'success':
-            timeline.expect_realized(Response(request, ~some.error))
+            timeline.expect_realized(Response(request, some.dict))
             timeline.expect_not_realized(Response(request, some.error))
         else:
-            timeline.expect_not_realized(Response(request, ~some.error))
+            timeline.expect_not_realized(Response(request, some.dict))
             timeline.expect_realized(Response(request, some.error))
 
-        timeline.expect_realized(Response(request_expectation, response_body))
-        timeline.expect_realized(Response(request_expectation, some.object))
+        timeline.expect_realized(Response(request))
+        timeline.expect_realized(Response(request_exp, response_msg.body))
+        timeline.expect_realized(Response(request_exp, some.object))
+
         if outcome == 'success':
-            timeline.expect_realized(Response(request_expectation, ~some.error))
-            timeline.expect_not_realized(Response(request_expectation, some.error))
+            timeline.expect_realized(Response(request_exp, some.dict))
+            timeline.expect_not_realized(Response(request_exp, some.error))
         else:
-            timeline.expect_not_realized(Response(request_expectation, ~some.error))
-            timeline.expect_realized(Response(request_expectation, some.error))
+            timeline.expect_not_realized(Response(request_exp, some.dict))
+            timeline.expect_realized(Response(request_exp, some.error))
 
 
 def test_after(make_timeline):
@@ -305,19 +367,21 @@ def test_xor(make_timeline):
 
 def test_conditional(make_timeline):
     def is_exciting(occ):
-        return occ.circumstances == ('Event', some.object, 'exciting')
+        return occ == Event(some.str, 'exciting')
+
+    messages = MessageFactory()
 
     something = Event('something', some.object)
     something_exciting = something.when(is_exciting)
     timeline, _ = make_timeline()
     t = timeline.beginning
 
-    timeline.record_event('something', 'boring')
+    timeline.record_event(messages.event('something', 'boring'))
     with timeline.frozen():
         timeline.expect_realized(t >> something)
         timeline.expect_not_realized(t >> something_exciting)
 
-    timeline.record_event('something', 'exciting')
+    timeline.record_event(messages.event('something', 'exciting'))
     with timeline.frozen():
         timeline.expect_realized(t >> something_exciting)
 
@@ -383,16 +447,18 @@ def test_unobserved(make_timeline, daemon):
 
     @daemon
     def worker():
+        messages = MessageFactory()
+
         worker_can_proceed.wait()
         worker_can_proceed.clear()
-        timeline.record_event('dum', {})
+        timeline.record_event(messages.event('dum', {}))
         print('dum')
 
         worker_can_proceed.wait()
-        timeline.record_event('dee', {})
+        timeline.record_event(messages.event('dee', {}))
         print('dee')
 
-        timeline.record_event('dum', {})
+        timeline.record_event(messages.event('dum', {}))
         print('dum')
 
     timeline.freeze()

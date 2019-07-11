@@ -505,10 +505,15 @@ class Session(object):
             if self.start_method == 'attach_socket_import' and platform.system() == 'Windows':
                 expected_returncode = some.int
 
-            self.expect_realized(Event('exited', {'exitCode': expected_returncode}))
+            self.expect_realized(
+                Event(
+                    'exited',
+                    some.dict.containing({'exitCode': expected_returncode})
+                )
+            )
 
         if Event('terminated') in self:
-            self.expect_realized(Event('exited') >> Event('terminated', {}))
+            self.expect_realized(Event('exited') >> Event('terminated'))
 
         if close:
             self.timeline.close()
@@ -628,15 +633,15 @@ class Session(object):
         if self.timeline.is_frozen and proceed:
             self.proceed()
 
-        def causing(*expectations):
-            for exp in expectations:
-                (request >> exp).wait()
-            return request
+        message = self.channel.send_request(command, arguments)
+        request = self.timeline.record_request(message)
 
-        request = self.timeline.record_request(command, arguments)
-        request.sent = self.channel.send_request(command, arguments)
-        request.sent.on_response(lambda response: self._process_response(request, response))
-        request.causing = causing
+        # Register callback after recording the request, so that there's no race
+        # between it being recorded, and the response to it being received.
+        message.on_response(
+            lambda response: self._process_response(request, response)
+        )
+
         return request
 
     def request(self, *args, **kwargs):
@@ -653,7 +658,7 @@ class Session(object):
         """
 
         self.request('initialize', {'adapterID': 'test'})
-        self.wait_for_next(Event('initialized', {}))
+        self.wait_for_next(Event('initialized'))
 
         request = 'launch' if self.start_method == 'launch' else 'attach'
         self.start_method_args.update({
@@ -694,7 +699,6 @@ class Session(object):
         """
 
         configurationDone_request = self.send_request('configurationDone')
-
         start = self.wait_for_next(Response(configurationDone_request))
 
         if not freeze:
@@ -703,7 +707,7 @@ class Session(object):
         return start
 
     def _process_event(self, event):
-        self.timeline.record_event(event.event, event.body, block=False)
+        self.timeline.record_event(event, block=False)
         if event.event == "terminated":
             # Stop the message loop, since the ptvsd is going to close the connection
             # from its end shortly after sending this event, and no further messages
@@ -714,11 +718,11 @@ class Session(object):
             )
             raise EOFError(fmt("{0} terminated", self))
 
-    def _process_response(self, request_occ, response):
-        self.timeline.record_response(request_occ, response.body, block=False)
-
     def _process_request(self, request):
-        assert False, 'ptvsd should not be sending requests.'
+        self.timeline.record_request(request, block=False)
+
+    def _process_response(self, request_occ, response):
+        self.timeline.record_response(request_occ, response, block=False)
 
     def wait_for_next_event(self, event, body=some.object):
         return self.timeline.wait_for_next(Event(event, body)).body

@@ -15,11 +15,10 @@ import collections
 import contextlib
 import inspect
 import itertools
-import json
 import sys
 import threading
 
-from ptvsd.common import compat, fmt, log
+from ptvsd.common import compat, fmt, json, log
 from ptvsd.common._util import new_hidden_thread
 
 
@@ -31,16 +30,11 @@ class JsonIOStream(object):
 
     MAX_BODY_SIZE = 0xFFFFFF
 
-    json_decoder_factory = json.JSONDecoder
+    json_decoder_factory = json.JsonDecoder
     """Used by read_json() when decoder is None."""
 
-    json_encoder_factory = json.JSONEncoder
+    json_encoder_factory = json.JsonEncoder
     """Used by write_json() when encoder is None."""
-
-    # @staticmethod
-    # def json_encoder_factory(*args, **kwargs):
-    #     """Used by write_json() when encoder is None."""
-    #     return json.JSONEncoder(*args, sort_keys=True, **kwargs)
 
     @classmethod
     def from_stdio(cls, name="stdio"):
@@ -745,8 +739,8 @@ class JsonMessageChannel(object):
         caller before the message is sent, using the context manager protocol::
 
             with send_message(...) as seq:
-                # The message hasn't been sent yet, but we know its seq.
-
+                # The message hasn't been sent yet.
+                ...
             # Now the message has been sent.
 
         Safe to call concurrently for the same channel from different threads.
@@ -764,10 +758,13 @@ class JsonMessageChannel(object):
             yield seq
             self.stream.write_json(message)
 
-    def send_request(self, command, arguments=None):
+    def send_request(self, command, arguments=None, on_before_send=None):
         """Sends a new request, and returns the OutgoingRequest object for it.
 
         If arguments is None or {}, "arguments" will be omitted in JSON.
+
+        If on_before_send is not None, invokes on_before_send() with the request
+        object as the sole argument, before the request actually gets sent.
 
         Does not wait for response - use OutgoingRequest.wait_for_response().
 
@@ -780,6 +777,8 @@ class JsonMessageChannel(object):
 
         with self._send_message(d) as seq:
             request = OutgoingRequest(self, seq, command, arguments)
+            if on_before_send is not None:
+                on_before_send(request)
             self._requests[seq] = request
         return request
 
@@ -861,12 +860,12 @@ class JsonMessageChannel(object):
         payload.associate_with = associate_with
         return payload
 
-    def on_message(self, message):
+    def _on_message(self, message):
         """Invoked for every incoming message after deserialization, but before any
         further processing.
 
-        The default implementation invokes on_request or on_event as needed, and also
-        handles responses to any previously issued requests via Request.on_response.
+        The default implementation invokes _on_request, _on_response or _on_event,
+        according to the type of the message.
         """
 
         seq = message["seq"]
@@ -874,18 +873,18 @@ class JsonMessageChannel(object):
         if typ == "request":
             command = message["command"]
             arguments = self._get_payload(message, "arguments")
-            return self.on_request(seq, command, arguments)
+            return self._on_request(seq, command, arguments)
         elif typ == "event":
             event = message["event"]
             body = self._get_payload(message, "body")
-            return self.on_event(seq, event, body)
+            return self._on_event(seq, event, body)
         elif typ == "response":
             request_seq = message["request_seq"]
             success = message["success"]
             command = message["command"]
             error_message = message.get("message", None)
             body = self._get_payload(message, "body") if success else None
-            return self.on_response(
+            return self._on_response(
                 seq, request_seq, success, command, error_message, body
             )
         else:
@@ -906,7 +905,7 @@ class JsonMessageChannel(object):
             )
         )
 
-    def on_request(self, seq, command, arguments):
+    def _on_request(self, seq, command, arguments):
         """Invoked for every incoming request after deserialization and parsing, but
         before handling.
 
@@ -1011,7 +1010,7 @@ class JsonMessageChannel(object):
         request.response = self._send_response(request, response_body)
         return request
 
-    def on_event(self, seq, event, body):
+    def _on_event(self, seq, event, body):
         """Invoked for every incoming event after deserialization and parsing, but
         before handling.
 
@@ -1064,7 +1063,7 @@ class JsonMessageChannel(object):
 
         return event
 
-    def on_response(self, seq, request_seq, success, command, error_message, body):
+    def _on_response(self, seq, request_seq, success, command, error_message, body):
         """Invoked for every incoming response after deserialization and parsing, but
         before handling.
 
@@ -1154,7 +1153,7 @@ class JsonMessageChannel(object):
         #
         # So, upon deserialization, every dict in the message payload gets a method
         # that can be called to set MessageDict.message for _all_ dicts in that message.
-        # Then, on_request, on_event, and on_response can use it once they have parsed
+        # Then, _on_request, _on_event, and _on_response can use it once they have parsed
         # the dicts, and created the appropriate Request/Event/Response instance.
         def associate_with(message):
             for d in message_dicts:
@@ -1167,7 +1166,7 @@ class JsonMessageChannel(object):
         assert isinstance(message, MessageDict)  # make sure stream used decoder
 
         try:
-            return self.on_message(message)
+            return self._on_message(message)
         except EOFError:
             raise
         except Exception:

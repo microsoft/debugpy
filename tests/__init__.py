@@ -7,7 +7,6 @@ from __future__ import absolute_import, print_function, unicode_literals
 """ptvsd tests
 """
 
-import json
 import pkgutil
 import pytest
 import py.path
@@ -51,7 +50,7 @@ for _, submodule, _ in tests_submodules:
 
 
 # Now we can import these, and pytest will rewrite asserts in them.
-from ptvsd.common import fmt, log, messaging
+from ptvsd.common import json, log
 
 
 # Enable full logging to stderr, and make timestamps shorter to match maximum test
@@ -61,14 +60,12 @@ log.stderr_levels = set(log.LEVELS)
 log.timestamp_format = "06.3f"
 
 
-# Enable JSON serialization for py.path.local
+# Enable JSON serialization for py.path.local.
 
-class JSONEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, py.path.local):
-            return obj.strpath
-        return super(JSONEncoder, self).default(obj)
+def json_default(self, obj):
+    if isinstance(obj, py.path.local):
+        return obj.strpath
+    return self.original_default(obj)
 
-fmt.JsonObject.json_encoder = JSONEncoder(indent=4)
-fmt.JsonObject.json_encoder_factory = JSONEncoder
-messaging.JsonIOStream.json_encoder_factory = JSONEncoder
+json.JsonEncoder.original_default = json.JsonEncoder.default
+json.JsonEncoder.default = json_default

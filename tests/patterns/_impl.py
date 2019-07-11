@@ -8,6 +8,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 # builtin names like str, int etc without affecting the implementations in this
 # file - some.* then provides shorthand aliases.
 
+import collections
 import itertools
 import py.path
 import re
@@ -71,6 +72,16 @@ class Some(object):
         a match that corresponds to the entire string.
         """
         return Matching(self, regex, flags)
+
+    # Used to obtain the JSON representation for logging. This is a hack, because
+    # JSON serialization doesn't allow to customize raw output - this function can
+    # only substitute for another object that is normally JSON-serializable. But
+    # for patterns, we want <...> in the logs, not'"<...>". Thus, we insert dummy
+    # marker chars here, such that it looks like "\002<...>\003" in serialized JSON -
+    # and then tests.timeline._describe_message does a string substitution on the
+    # result to strip out '"\002' and '\003"'.
+    def __getstate__(self):
+        return "\002" + repr(self) + "\003"
 
 
 class Not(Some):
@@ -172,7 +183,16 @@ class Path(Some):
         self.path = path
 
     def __repr__(self):
-        return fmt("some.path({0!r})", self.path)
+        return fmt("path({0!r})", self.path)
+
+    def __str__(self):
+        return compat.filename_str(self.path)
+
+    def __unicode__(self):
+        return self.path
+
+    def __getstate__(self):
+        return self.path
 
     def matches(self, other):
         if isinstance(other, py.path.local):
@@ -203,6 +223,15 @@ class ListContaining(Some):
         s = repr(list(self.items))
         return fmt("[..., {0}, ...]", s[1:-1])
 
+    def __getstate__(self):
+        items = ["\002...\003"]
+        if not self.items:
+            return items
+        items *= 2
+        items[1:1] = self.items
+        return items
+
+
     def matches(self, other):
         if not isinstance(other, list):
             return NotImplemented
@@ -232,10 +261,15 @@ class DictContaining(Some):
     """
 
     def __init__(self, items):
-        self.items = dict(items)
+        self.items = collections.OrderedDict(items)
 
     def __repr__(self):
-        return repr(self.items)[:-1] + ', ...}'
+        return dict.__repr__(self.items)[:-1] + ", ...}"
+
+    def __getstate__(self):
+        items = self.items.copy()
+        items["\002..."] = "...\003"
+        return items
 
     def matches(self, other):
         if not isinstance(other, dict):
@@ -308,6 +342,15 @@ class EqualTo(Also):
     def __repr__(self):
         return repr(self.obj)
 
+    def __str__(self):
+        return str(self.obj)
+
+    def __unicode__(self):
+        return unicode(self.obj)
+
+    def __getstate__(self):
+        return self.obj
+
     def _also(self, value):
         return self.obj == value
 
@@ -321,7 +364,7 @@ class NotEqualTo(Also):
         self.obj = obj
 
     def __repr__(self):
-        return repr(self.obj)
+        return fmt("<!={0!r}>", self.obj)
 
     def _also(self, value):
         return self.obj != value
@@ -336,7 +379,7 @@ class SameAs(Also):
         self.obj = obj
 
     def __repr__(self):
-        return fmt("is {0!r}", self.obj)
+        return fmt("<is {0!r}>", self.obj)
 
     def _also(self, value):
         return self.obj is value

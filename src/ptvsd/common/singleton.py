@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+import functools
 import threading
 
 
@@ -102,6 +103,7 @@ def autolocked_method(func):
     class by locking the singleton for the duration of each call.
     """
 
+    @functools.wraps(func)
     @threadsafe_method
     def lock_and_call(self, *args, **kwargs):
         with self:

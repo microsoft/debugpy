@@ -13,57 +13,9 @@ can be invoked directly after it has been imported::
     fmt("{0} is {value}", name, value=x)
 """
 
-import json
 import string
 import sys
 import types
-
-
-class JsonObject(object):
-    """A wrapped Python object that formats itself as JSON when asked for a string
-    representation via str() or format().
-    """
-
-    json_encoder_factory = json.JSONEncoder
-    """Used by __format__ when format_spec is not empty."""
-
-    json_encoder = json_encoder_factory(indent=4)
-    """The default encoder used by __format__ when format_spec is empty."""
-
-    def __init__(self, value):
-        self.value = value
-
-    def __repr__(self):
-        return repr(self.value)
-
-    def __str__(self):
-        return format(self)
-
-    def __format__(self, format_spec):
-        """If format_spec is empty, uses self.json_encoder to serialize self.value
-        as a string. Otherwise, format_spec is treated as an argument list to be
-        passed to self.json_encoder_factory - which defaults to JSONEncoder - and
-        then the resulting formatter is used to serialize self.value as a string.
-
-        Example::
-
-            fmt("{0!j} {0!j:indent=4,sort_keys=True}", x)
-        """
-        if format_spec:
-            # At this point, format_spec is a string that looks something like
-            # "indent=4,sort_keys=True". What we want is to build a function call
-            # from that which looks like:
-            #
-            #   json_encoder_factory(indent=4,sort_keys=True)
-            #
-            # which we can then eval() to create our encoder instance.
-            make_encoder = "json_encoder_factory(" + format_spec + ")"
-            encoder = eval(
-                make_encoder, {"json_encoder_factory": self.json_encoder_factory}
-            )
-        else:
-            encoder = self.json_encoder
-        return encoder.encode(self.value)
 
 
 class Formatter(string.Formatter, types.ModuleType):
@@ -80,6 +32,8 @@ class Formatter(string.Formatter, types.ModuleType):
     # Because globals() go away after the module object substitution, all method bodies
     # below must access globals via self instead, or re-import modules locally.
 
+    from ptvsd.common import json
+
     def __init__(self):
         # Set self up as a proper module, and copy globals.
         # types must be re-imported, because globals aren't there yet at this point.
@@ -95,7 +49,7 @@ class Formatter(string.Formatter, types.ModuleType):
 
     def convert_field(self, value, conversion):
         if conversion == "j":
-            return self.JsonObject(value)
+            return self.json.JsonObject(value)
         return super(self.Formatter, self).convert_field(value, conversion)
 
 
