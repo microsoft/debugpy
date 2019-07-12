@@ -1240,9 +1240,10 @@ class PyDB(object):
             if thread is None:
                 return
 
-            was_notified = thread.additional_info.pydev_notify_kill
+            additional_info = set_additional_thread_info(thread)
+            was_notified = additional_info.pydev_notify_kill
             if not was_notified:
-                thread.additional_info.pydev_notify_kill = True
+                additional_info.pydev_notify_kill = True
 
         self.writer.add_command(self.cmd_factory.make_thread_killed_message(thread_id))
 
