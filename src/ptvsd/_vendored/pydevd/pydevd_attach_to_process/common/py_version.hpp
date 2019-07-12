@@ -26,7 +26,7 @@ enum PythonVersion {
 typedef const char* (GetVersionFunc)();
 
 static PythonVersion GetPythonVersion(HMODULE hMod) {
-    auto versionFunc = (GetVersionFunc*)GetProcAddress(hMod, "Py_GetVersion");
+    auto versionFunc = reinterpret_cast<GetVersionFunc*>(GetProcAddress(hMod, "Py_GetVersion"));
     if (versionFunc == nullptr) {
         return PythonVersion_Unknown;
     }

@@ -104,6 +104,13 @@ int InternalSetSysTraceFunc(MODULE_TYPE module, bool isDebug, bool showDebugInfo
     int retVal = 0;
     // find what index is holding onto the thread state...
     auto curPyThread = getPythonThread ? getPythonThread() : *curPythonThread;
+    
+    if(curPyThread == nullptr){
+        PRINT("Getting the current python thread returned nullptr.");
+        return 345;
+    }
+
+    
     int threadStateIndex = -1;
     for (int i = 0; i < 100000; i++) {
         void* value = getThreadTls(i);
@@ -114,7 +121,7 @@ int InternalSetSysTraceFunc(MODULE_TYPE module, bool isDebug, bool showDebugInfo
     }
     
     if(threadStateIndex == -1){
-        PRINT("Unable to find threadStateIndex for the current thread!");
+        printf("Unable to find threadStateIndex for the current thread. curPyThread: %p\n", curPyThread);
         return 350;
     }
 

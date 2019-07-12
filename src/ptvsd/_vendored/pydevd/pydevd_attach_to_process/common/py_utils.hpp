@@ -24,7 +24,7 @@ typedef void* (PyThread_get_key_value)(int);
 typedef int (PyThread_set_key_value)(int, void*);
 typedef void (PyThread_delete_key_value)(int);
 typedef int (PyObject_Not) (PyObject *o);
-
+typedef PyObject* (PyDict_New)();
 
 // holder to ensure we release the GIL even in error conditions
 class GilHolder {
@@ -46,7 +46,7 @@ public:
 #define PRINT(msg) {std::cout << msg << std::endl << std::flush;}
 
 #define DEFINE_PROC_NO_CHECK(func, funcType, funcNameStr, errorCode) \
-                    funcType func=(funcType)GetProcAddress(module, funcNameStr);
+                    funcType func=reinterpret_cast<funcType>(GetProcAddress(module, funcNameStr));
 
 #define DEFINE_PROC(func, funcType, funcNameStr, errorCode) \
                     DEFINE_PROC_NO_CHECK(func, funcType, funcNameStr, errorCode); \

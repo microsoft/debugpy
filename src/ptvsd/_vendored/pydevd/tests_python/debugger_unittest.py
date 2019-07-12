@@ -436,6 +436,7 @@ class DebuggerRunner(object):
     @contextmanager
     def run_process(self, args, writer):
         process = self.create_process(args, writer)
+        writer.process = process
         stdout = []
         stderr = []
         finish = [False]
@@ -541,6 +542,7 @@ class AbstractWriterThread(threading.Thread):
 
     def __init__(self, *args, **kwargs):
         threading.Thread.__init__(self, *args, **kwargs)
+        self.process = None  # Set after the process is created.
         self.setDaemon(True)
         self.finished_ok = False
         self.finished_initialization = False

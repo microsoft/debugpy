@@ -23,6 +23,7 @@
 typedef unsigned int DWORD;
 typedef ssize_t SSIZE_T;
 #endif
+typedef SSIZE_T Py_ssize_t;
 
 // defines limited header of Python API for compatible access across a number of Pythons.
 

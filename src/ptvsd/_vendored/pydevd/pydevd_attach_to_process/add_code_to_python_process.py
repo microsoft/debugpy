@@ -99,77 +99,77 @@ class GenShellCodeHelper(object):
         self._code = []
         if not is_64:
             self._translations = {
-                'push esi': compat.b('\x56'),
-                'push eax': compat.b('\x50'),
-                'push ebp': compat.b('\x55'),
-                'push ebx': compat.b('\x53'),
+                'push esi': b'\x56',
+                'push eax': b'\x50',
+                'push ebp': b'\x55',
+                'push ebx': b'\x53',
 
-                'pop esi': compat.b('\x5E'),
-                'pop eax': compat.b('\x58'),
-                'pop ebp': compat.b('\x5D'),
-                'pop ebx': compat.b('\x5B'),
+                'pop esi': b'\x5E',
+                'pop eax': b'\x58',
+                'pop ebp': b'\x5D',
+                'pop ebx': b'\x5B',
 
-                'mov esi': compat.b('\xBE'),
-                'mov eax': compat.b('\xB8'),
-                'mov ebp': compat.b('\xBD'),
-                'mov ebx': compat.b('\xBB'),
+                'mov esi': b'\xBE',
+                'mov eax': b'\xB8',
+                'mov ebp': b'\xBD',
+                'mov ebx': b'\xBB',
 
-                'call ebp': compat.b('\xFF\xD5'),
-                'call eax': compat.b('\xFF\xD0'),
-                'call ebx': compat.b('\xFF\xD3'),
+                'call ebp': b'\xFF\xD5',
+                'call eax': b'\xFF\xD0',
+                'call ebx': b'\xFF\xD3',
 
-                'mov ebx,eax': compat.b('\x89\xC3'),
-                'mov eax,ebx': compat.b('\x89\xD8'),
-                'mov ebp,esp': compat.b('\x89\xE5'),
-                'mov esp,ebp': compat.b('\x89\xEC'),
-                'push dword': compat.b('\x68'),
+                'mov ebx,eax': b'\x89\xC3',
+                'mov eax,ebx': b'\x89\xD8',
+                'mov ebp,esp': b'\x89\xE5',
+                'mov esp,ebp': b'\x89\xEC',
+                'push dword': b'\x68',
 
-                'mov ebp,eax': compat.b('\x89\xC5'),
-                'mov eax,ebp': compat.b('\x89\xE8'),
+                'mov ebp,eax': b'\x89\xC5',
+                'mov eax,ebp': b'\x89\xE8',
 
-                'ret': compat.b('\xc3'),
+                'ret': b'\xc3',
             }
         else:
             # Translate 64 bits
             self._translations = {
-                'push rsi': compat.b('\x56'),
-                'push rax': compat.b('\x50'),
-                'push rbp': compat.b('\x55'),
-                'push rbx': compat.b('\x53'),
-                'push rsp': compat.b('\x54'),
-                'push rdi': compat.b('\x57'),
+                'push rsi': b'\x56',
+                'push rax': b'\x50',
+                'push rbp': b'\x55',
+                'push rbx': b'\x53',
+                'push rsp': b'\x54',
+                'push rdi': b'\x57',
 
-                'pop rsi': compat.b('\x5E'),
-                'pop rax': compat.b('\x58'),
-                'pop rbp': compat.b('\x5D'),
-                'pop rbx': compat.b('\x5B'),
-                'pop rsp': compat.b('\x5C'),
-                'pop rdi': compat.b('\x5F'),
+                'pop rsi': b'\x5E',
+                'pop rax': b'\x58',
+                'pop rbp': b'\x5D',
+                'pop rbx': b'\x5B',
+                'pop rsp': b'\x5C',
+                'pop rdi': b'\x5F',
 
-                'mov rsi': compat.b('\x48\xBE'),
-                'mov rax': compat.b('\x48\xB8'),
-                'mov rbp': compat.b('\x48\xBD'),
-                'mov rbx': compat.b('\x48\xBB'),
-                'mov rdi': compat.b('\x48\xBF'),
-                'mov rcx': compat.b('\x48\xB9'),
-                'mov rdx': compat.b('\x48\xBA'),
+                'mov rsi': b'\x48\xBE',
+                'mov rax': b'\x48\xB8',
+                'mov rbp': b'\x48\xBD',
+                'mov rbx': b'\x48\xBB',
+                'mov rdi': b'\x48\xBF',
+                'mov rcx': b'\x48\xB9',
+                'mov rdx': b'\x48\xBA',
 
-                'call rbp': compat.b('\xFF\xD5'),
-                'call rax': compat.b('\xFF\xD0'),
-                'call rbx': compat.b('\xFF\xD3'),
+                'call rbp': b'\xFF\xD5',
+                'call rax': b'\xFF\xD0',
+                'call rbx': b'\xFF\xD3',
 
-                'mov rbx,rax': compat.b('\x48\x89\xC3'),
-                'mov rax,rbx': compat.b('\x48\x89\xD8'),
-                'mov rbp,rsp': compat.b('\x48\x89\xE5'),
-                'mov rsp,rbp': compat.b('\x48\x89\xEC'),
-                'mov rcx,rbp': compat.b('\x48\x89\xE9'),
+                'mov rbx,rax': b'\x48\x89\xC3',
+                'mov rax,rbx': b'\x48\x89\xD8',
+                'mov rbp,rsp': b'\x48\x89\xE5',
+                'mov rsp,rbp': b'\x48\x89\xEC',
+                'mov rcx,rbp': b'\x48\x89\xE9',
 
-                'mov rbp,rax': compat.b('\x48\x89\xC5'),
-                'mov rax,rbp': compat.b('\x48\x89\xE8'),
+                'mov rbp,rax': b'\x48\x89\xC5',
+                'mov rax,rbp': b'\x48\x89\xE8',
 
-                'mov rdi,rbp': compat.b('\x48\x89\xEF'),
+                'mov rdi,rbp': b'\x48\x89\xEF',
 
-                'ret': compat.b('\xc3'),
+                'ret': b'\xc3',
             }
 
     def push_addr(self, addr):
@@ -204,8 +204,7 @@ class GenShellCodeHelper(object):
         self._code.append(self.translate('ret'))
 
     def get_code(self):
-        from winappdbg import compat
-        return compat.b('').join(self._code)
+        return b''.join(self._code)
 
     def translate(self, code):
         return self._translations[code]
@@ -248,19 +247,20 @@ class GenShellCodeHelper(object):
 
 
 def resolve_label(process, label):
-    for i in range(3):
+    max_attempts = 10
+    for i in range(max_attempts):
         try:
             address = process.resolve_label(label)
-            assert address
             return address
         except:
             try:
                 process.scan_modules()
             except:
                 pass
-            if i == 2:
+            if i == max_attempts - 1:
                 raise
-            time.sleep(2)
+            # At most 4 seconds to resolve it.
+            time.sleep(4. / max_attempts)
 
 
 def is_python_64bit():
@@ -274,10 +274,9 @@ def is_mac():
 
 def run_python_code_windows(pid, python_code, connect_debugger_tracing=False, show_debug_info=0):
     assert '\'' not in python_code, 'Having a single quote messes with our command.'
-    from winappdbg import compat
     from winappdbg.process import Process
-    if not isinstance(python_code, compat.bytes):
-        python_code = compat.b(python_code)
+    if not isinstance(python_code, bytes):
+        python_code = python_code.encode('utf-8')
 
     process = Process(pid)
     bits = process.get_bits()
@@ -289,7 +288,7 @@ def run_python_code_windows(pid, python_code, connect_debugger_tracing=False, sh
         "Current Python 64 bits: %s" % (is_64, is_python_64bit()))
 
     print('Connecting to %s bits target' % (bits,))
-    assert resolve_label(process, compat.b('PyGILState_Ensure'))
+    assert resolve_label(process, b'PyGILState_Ensure')
 
     filedir = os.path.dirname(__file__)
     if is_64:
@@ -304,10 +303,11 @@ def run_python_code_windows(pid, python_code, connect_debugger_tracing=False, sh
     print('Dll injected')
 
     process.scan_modules()
-    attach_func = resolve_label(process, compat.b('AttachAndRunPythonCode'))
+    attach_func = resolve_label(process, b'AttachAndRunPythonCode')
     assert attach_func
 
     print('Allocating code in target process')
+    assert isinstance(python_code, bytes)
     code_address = process.malloc(len(python_code))
     assert code_address
     print('Writing code in target process')
@@ -340,7 +340,7 @@ def run_python_code_windows(pid, python_code, connect_debugger_tracing=False, sh
     #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\add_code_to_python_process.py", line 392, in run_python_code_windows
     #     return_code = process.read_int(return_code_address)
     #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\winappdbg\process.py", line 1673, in read_int
-    #     return self.__read_c_type(lpBaseAddress, compat.b('@l'), ctypes.c_int)
+    #     return self.__read_c_type(lpBaseAddress, b'@l', ctypes.c_int)
     #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\winappdbg\process.py", line 1568, in __read_c_type
     #     packed = self.read(address, size)
     #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\winappdbg\process.py", line 1598, in read
@@ -496,7 +496,7 @@ def run_python_code_linux(pid, python_code, connect_debugger_tracing=False, show
 
 
 def find_helper_script(filedir, script_name):
-    target_filename = os.path.join(filedir, 'linux', script_name)
+    target_filename = os.path.join(filedir, 'linux_and_mac', script_name)
     target_filename = os.path.normpath(target_filename)
     if not os.path.exists(target_filename):
         raise RuntimeError('Could not find helper script: %s' % target_filename)

@@ -376,22 +376,32 @@ def attach_to_pid():
     show_debug_info_on_target_process = 0  # hard-coded (1 to debug)
 
     ptvsd_dirname = os.path.dirname(os.path.dirname(__file__))
+    attach_script_ptvsd_pid_dirname = os.path.join(ptvsd_dirname, 'ptvsd')
+    assert os.path.exists(ptvsd_dirname)
+    assert os.path.exists(attach_script_ptvsd_pid_dirname)
     log_dir = log_dir.replace('\\', '/')
     setup = {'host': host, 'port': port, 'client': client, 'log_dir': log_dir, 'pid': pid}
 
     if sys.platform == 'win32':
         setup['pythonpath'] = ptvsd_dirname.replace('\\', '/')
+
+        # We need to be able to import attach_script_ptvsd_pid without importing ptvsd first.
+        setup['pythonpath2'] = attach_script_ptvsd_pid_dirname.replace('\\', '/')
+
         python_code = '''import sys;
 sys.path.append("%(pythonpath)s");
-from ptvsd import attach_script_ptvsd_pid;
+sys.path.append("%(pythonpath2)s");
+import attach_script_ptvsd_pid;
 attach_script_ptvsd_pid.attach(port=%(port)s, host="%(host)s", client=%(client)s, log_dir="%(log_dir)s");
 '''.replace('\r\n', '').replace('\r', '').replace('\n', '')
     else:
         setup['pythonpath'] = ptvsd_dirname
+        setup['pythonpath2'] = attach_script_ptvsd_pid_dirname
         # We have to pass it a bit differently for gdb
         python_code = '''import sys;
 sys.path.append(\\\"%(pythonpath)s\\\");
-from ptvsd import attach_script_ptvsd_pid;
+sys.path.append(\\\"%(pythonpath2)s\\\");
+import attach_script_ptvsd_pid;
 attach_script_ptvsd_pid.attach(port=%(port)s, host=\\\"%(host)s\\\", client=%(client)s, log_dir=\\\"%(log_dir)s\\\");
 '''.replace('\r\n', '').replace('\r', '').replace('\n', '')
 

@@ -3,6 +3,11 @@ language: python
 services:
   - xvfb
 
+addons:
+  apt:
+    packages:
+      - gdb
+
 matrix:
   include:
     # Note: python is always 2.7 because it's the installed version
@@ -92,6 +97,7 @@ before_install:
   - "export DISPLAY=:99.0"
 # Install packages
 install:
+  - sudo sysctl kernel.yama.ptrace_scope=0
   # Both
   - export PYTHONPATH=.
   # Python setup

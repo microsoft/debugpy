@@ -9,6 +9,11 @@ python:
   - "3.6"
   - "3.7"
 
+addons:
+  apt:
+    packages:
+      - gdb
+
 stages:
   - lint
   - test
@@ -23,6 +28,7 @@ jobs:
         - flake8
 
 install:
+  - sudo sysctl kernel.yama.ptrace_scope=0
   - pip install -U pip setuptools tox tox-travis
 
 script:

@@ -6,9 +6,9 @@ import threading
 import pytest
 
 from tests_python import debugger_unittest
-from tests_python.debugger_unittest import get_free_port, overrides, IS_CPYTHON, IS_JYTHON, IS_IRONPYTHON, \
-    IS_PY3K, CMD_ADD_DJANGO_EXCEPTION_BREAK, CMD_REMOVE_DJANGO_EXCEPTION_BREAK, \
-    CMD_ADD_EXCEPTION_BREAK
+from tests_python.debugger_unittest import (get_free_port, overrides, IS_CPYTHON, IS_JYTHON, IS_IRONPYTHON,
+    IS_PY3K, CMD_ADD_DJANGO_EXCEPTION_BREAK, CMD_REMOVE_DJANGO_EXCEPTION_BREAK,
+    CMD_ADD_EXCEPTION_BREAK, wait_for_condition)
 from tests_python.debug_constants import IS_PY2
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
 
@@ -374,11 +374,13 @@ def case_setup_remote():
         def test_file(
                 self,
                 filename,
+                wait_for_port=True,
                 **kwargs
             ):
 
             def update_command_line_args(writer, args):
                 ret = debugger_unittest.AbstractWriterThread.update_command_line_args(writer, args)
+                wait_for_condition(lambda: hasattr(writer, 'port'))
                 ret.append(str(writer.port))
                 return ret
 
@@ -388,7 +390,7 @@ def case_setup_remote():
                 assert hasattr(WriterThread, key)
                 setattr(WriterThread, key, value)
 
-            with runner.check_case(WriterThread) as writer:
+            with runner.check_case(WriterThread, wait_for_port=wait_for_port) as writer:
                 yield writer
 
     return CaseSetup()
