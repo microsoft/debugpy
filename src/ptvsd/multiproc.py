@@ -28,7 +28,6 @@ from ptvsd._util import new_hidden_thread
 from _pydev_bundle import pydev_monkey
 from _pydevd_bundle.pydevd_comm import get_global_debugger
 
-
 subprocess_lock = threading.Lock()
 
 subprocess_listener_socket = None
@@ -136,6 +135,7 @@ def _subprocess_listener():
 
 
 def _handle_subprocess(n, stream):
+
     class Handlers(object):
         _pid = None
 
@@ -250,6 +250,8 @@ def patch_args(args):
     for i, arg in enumerate(args):
         # Skip Python binary.
         if i == 0:
+            if not pydev_monkey.is_python(arg):
+                return args  # We're not dealing with Python, so, don't do anything.
             continue
 
         if arg == '-':

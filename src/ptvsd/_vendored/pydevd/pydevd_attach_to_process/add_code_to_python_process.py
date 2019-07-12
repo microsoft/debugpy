@@ -251,6 +251,8 @@ def resolve_label(process, label):
     for i in range(max_attempts):
         try:
             address = process.resolve_label(label)
+            if not address:
+                raise AssertionError('%s not resolved.' % (label,))
             return address
         except:
             try:

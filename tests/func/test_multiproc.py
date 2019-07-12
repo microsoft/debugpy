@@ -18,6 +18,7 @@ from tests.helpers.timeline import Event, Request, Response
                     reason='Debugging multiprocessing module only works on Windows')
 @pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
 def test_multiprocessing(pyfile, run_as, start_method):
+
     @pyfile
     def code_to_debug():
         import multiprocessing
@@ -127,6 +128,7 @@ def test_multiprocessing(pyfile, run_as, start_method):
                     reason='Bug #935')
 @pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
 def test_subprocess(pyfile, run_as, start_method):
+
     @pyfile
     def child():
         import sys
@@ -186,6 +188,7 @@ def test_subprocess(pyfile, run_as, start_method):
                     reason='Bug #935')
 @pytest.mark.parametrize('start_method', ['launch', 'attach_socket_cmdline'])
 def test_autokill(pyfile, run_as, start_method):
+
     @pyfile
     def child():
         from dbgimporter import import_and_enable_debugger
@@ -231,10 +234,11 @@ def test_autokill(pyfile, run_as, start_method):
 @pytest.mark.skipif(sys.version_info < (3, 0) and (platform.system() != 'Windows'),
                     reason='Bug #935')
 def test_argv_quoting(pyfile, run_as, start_method):
+
     @pyfile
     def args():
         # import_and_enable_debugger
-        args = [ # noqa
+        args = [  # noqa
             r'regular',
             r'',
             r'with spaces'
@@ -285,4 +289,51 @@ def test_argv_quoting(pyfile, run_as, start_method):
         actual_args = session.read_json()
         assert expected_args == actual_args
 
+        session.wait_for_exit()
+
+
+def test_echo_and_shell(pyfile, run_as, start_method):
+    '''
+    Checks https://github.com/microsoft/ptvsd/issues/1548
+    '''
+
+    @pyfile
+    def code_to_run():
+        from dbgimporter import import_and_enable_debugger
+        import_and_enable_debugger()
+
+        import sys
+        import subprocess
+        import os
+
+        if sys.platform == 'win32':
+            args = ['dir', '-c', '.']
+        else:
+            args = ['ls', '-c', '-la']
+
+        p = subprocess.Popen(
+            args,
+            shell=True,
+            stderr=subprocess.STDOUT,
+            stdout=subprocess.PIPE,
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+        )
+        stdout, _stderr = p.communicate()
+        if sys.version_info[0] >= 3:
+            stdout = stdout.decode('utf-8')
+
+        if "code_to_run.py" not in stdout:
+            raise AssertionError(
+                'Did not find "code_to_run.py" when listing this dir with subprocess. Contents: %s' % (
+                    stdout,)
+            )
+
+    with DebugSession() as session:
+        session.multiprocess = True
+        session.initialize(
+            target=(run_as, code_to_run),
+            start_method=start_method,
+        )
+
+        session.start_debugging()
         session.wait_for_exit()
