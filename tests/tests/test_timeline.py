@@ -452,14 +452,14 @@ def test_unobserved(make_timeline, daemon):
         worker_can_proceed.wait()
         worker_can_proceed.clear()
         timeline.record_event(messages.event('dum', {}))
-        print('dum')
+        log.debug('dum')
 
         worker_can_proceed.wait()
         timeline.record_event(messages.event('dee', {}))
-        print('dee')
+        log.debug('dee')
 
         timeline.record_event(messages.event('dum', {}))
-        print('dum')
+        log.debug('dum')
 
     timeline.freeze()
     assert timeline.is_frozen

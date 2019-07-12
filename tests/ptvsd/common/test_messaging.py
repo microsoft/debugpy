@@ -17,7 +17,7 @@ import socket
 import threading
 import time
 
-from ptvsd.common import fmt, messaging
+from ptvsd.common import log, messaging
 from tests.patterns import some
 
 
@@ -576,14 +576,14 @@ class TestJsonMessageChannel(object):
 
         class Handlers(object):
             def stackTrace_request(self, request):
-                print(request.arguments["AAA"])
-                print(request.arguments["AAA"]["BBB"])
+                request.arguments["AAA"]
+                request.arguments["AAA"]["BBB"]
 
             def request(self, request):
-                print(request.arguments["CCC"])
+                request.arguments["CCC"]
 
             def pause_request(self, request):
-                print(request.arguments["DDD"])
+                request.arguments["DDD"]
 
         input, input_exhausted = self.iter_with_event(REQUESTS)
         output = []
@@ -732,9 +732,7 @@ class TestJsonMessageChannel(object):
 
                 # Spin until we receive "done", and also get responses to all requests.
                 requests_sent = types.count("request")
-                print(
-                    fmt("{0} waiting for {1} responses ...", self.name, requests_sent)
-                )
+                log.info("{0} waiting for {1} responses...", self.name, requests_sent)
                 while True:
                     with self.lock:
                         if self.done:

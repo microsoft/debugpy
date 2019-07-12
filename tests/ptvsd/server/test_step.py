@@ -24,7 +24,6 @@ def test_set_next_statement(pyfile, start_method, run_as):
         func()
 
     line_numbers = code_to_debug.lines
-    print(line_numbers)
 
     with debug.Session() as session:
         session.initialize(

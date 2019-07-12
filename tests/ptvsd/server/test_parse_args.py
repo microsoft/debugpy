@@ -6,6 +6,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import pytest
 
+from ptvsd.common import log
 from ptvsd.common.compat import reload
 from ptvsd.server import options, __main__
 from tests.patterns import some
@@ -64,7 +65,7 @@ def test_targets(target_kind, client, wait, nodebug, multiproc, extra):
     else:
         extra = []
 
-    print(args)
+    log.debug("args = {0!r}", args)
     reload(options)
     rest = __main__.parse(args)
     assert list(rest) == extra
