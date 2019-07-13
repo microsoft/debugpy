@@ -639,10 +639,10 @@ def _describe_message(message_type, *items):
         s = "{..., " + s[1:]
 
         # Used by some.dict.containing to inject ... as needed.
-        s = s.replace(r'"\u0002...": "...\u0003"', "...")
+        s = s.replace('"\\u0002...": "...\\u0003"', "...")
         # Used by some.* and by Event/Request/Response expectations below.
-        s = s.replace(r'"\u0002', '')
-        s = s.replace(r'\u0003"', '')
+        s = s.replace('"\\u0002', '')
+        s = s.replace('\\u0003"', '')
 
         if len(s) <= 70:
             break
