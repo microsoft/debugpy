@@ -15,6 +15,16 @@ from ptvsd.common.compat import queue
 from tests.patterns import some
 
 
+SINGLE_LINE_REPR_LIMIT = 80
+"""If repr() of an expectation or an occurrence is longer than this value, it will
+be formatted to use multiple shorter lines if possible.
+"""
+
+# For use by Expectation.__repr__. Uses fmt() to create unique instances.
+_INDENT = fmt("{0}", "_INDENT")
+_DEDENT = fmt("{0}", "_DEDENT")
+
+
 class Timeline(object):
     def __init__(self, name=None, ignore_unobserved=None):
         self.name = str(name if name is not None else id(self))
@@ -260,7 +270,7 @@ class Timeline(object):
         assert expectation not in self.new()
 
     def _explain_how_realized(self, expectation, reasons):
-        message = fmt("Realized {0}", expectation)
+        message = fmt("Realized {0!r}", expectation)
 
         # For the breakdown, we want to skip any expectations that were exact occurrences,
         # since there's no point explaining that occurrence was realized by itself.
@@ -268,10 +278,21 @@ class Timeline(object):
         for exp in skip:
             reasons.pop(exp, None)
 
-        if reasons:
+        if reasons == {expectation: some.object}:
+            # If there's only one expectation left to explain, and it's the top-level
+            # one, then we have already printed it, so just add the explanation.
+            reason = reasons[expectation]
+            if "\n" in message:
+                message += fmt(" == {0!r}", reason)
+            else:
+                message += fmt("\n      == {0!r}", reason)
+        elif reasons:
+            # Otherwise, break it down expectation by expectation.
             message += ":"
             for exp, reason in reasons.items():
-                message += fmt("\n\n{0!r} == {1!r}", exp, reason)
+                message += fmt("\n\n   where {0!r}\n      == {1!r}", exp, reason)
+        else:
+            message += "."
 
         log.info("{0}", message)
 
@@ -391,8 +412,8 @@ class Interval(tuple):
             return
 
         raise log.error(
-            "Unobserved occurrences detected:\n{0}",
-            ''.join('   ' + repr(occ) for occ in unobserved)
+            "Unobserved occurrences detected:\n\n{0}",
+            '\n\n'.join(repr(occ) for occ in unobserved)
         )
 
 
@@ -446,7 +467,7 @@ class Expectation(object):
         return hash(id(self))
 
     def __repr__(self):
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 class DerivativeExpectation(Expectation):
@@ -471,8 +492,102 @@ class DerivativeExpectation(Expectation):
     def has_lower_bound(self):
         return all(exp.has_lower_bound for exp in self.expectations)
 
+    def flatten(self):
+        """Flattens nested expectation chains.
+
+        If self is of type E, and given an expectation like::
+
+            E(E(e1, E(e2, e3)), E(E(e4, e5), E(e6)))
+
+        flatten() produces an iterator over::
+
+            e1, e2, e3, e4, e5, e6
+        """
+        for exp in self.expectations:
+            if type(exp) is type(self):
+                for exp in exp.flatten():
+                    yield exp
+            else:
+                yield exp
+
+    def describe(self, newline):
+        """Returns an iterator describing this expectation. This method is used
+        to implement repr().
+
+        For every yielded _INDENT and _DEDENT, a newline and the appropriate amount
+        of spaces for correct indentation at the current level is added to the repr.
+
+        For every yielded Expectation, describe() is invoked recursively.
+
+        For every other yielded value, str(value) added to the repr.
+
+        newline is set to either "" or "\n", depending on whether the repr must be
+        single-line or multiline. Implementations of describe() should use it in
+        lieu of raw "\n" insofar as possible; however, repr() will automatically
+        fall back to multiline mode if "\n" occurs in single-line mode.
+
+        The default implementation produces a description that looks like::
+
+            (e1 OP e2 OP e3 OP ...)
+
+        where OP is the value of self.OPERATOR.
+        """
+        op = self.OPERATOR
+
+        yield "("
+        yield _INDENT
+
+        first = True
+        for exp in self.flatten():
+            if first:
+                first = False
+            else:
+                yield " " + op + " "
+                yield newline
+            yield exp
+
+        yield _DEDENT
+        yield ")"
+
+    def __repr__(self):
+        def indent():
+            return indent.level * "    " if newline else ""
+
+        def recurse(exp):
+            for item in exp.describe(newline):
+                if isinstance(item, DerivativeExpectation):
+                    recurse(item)
+                elif item is _INDENT:
+                    indent.level += 1
+                    result.append(newline + indent())
+                elif item is _DEDENT:
+                    assert indent.level > 0, "_DEDENT without matching _INDENT"
+                    indent.level -= 1
+                    result.append(newline + indent())
+                else:
+                    item = str(item).replace("\n", "\n" + indent())
+                    result.append(item)
+
+        # Try single-line repr first.
+        indent.level = 0
+        newline = ""
+        result = []
+        recurse(self)
+        s = "".join(result)
+        if len(s) <= SINGLE_LINE_REPR_LIMIT or "\n" in s:
+            return s
+
+        # If it was too long, or had newlines anyway, fall back to multiline.
+        assert indent.level == 0
+        newline = "\n"
+        result[:] = []
+        recurse(self)
+        return "".join(result)
+
 
 class SequencedExpectation(DerivativeExpectation):
+    OPERATOR = ">>"
+
     def __init__(self, first, second):
         super(SequencedExpectation, self).__init__(first, second)
 
@@ -501,11 +616,10 @@ class SequencedExpectation(DerivativeExpectation):
     def has_lower_bound(self):
         return self.first.has_lower_bound or self.second.has_lower_bound
 
-    def __repr__(self):
-        return '(%r >> %r)' % (self.first, self.second)
-
 
 class OrExpectation(DerivativeExpectation):
+    OPERATOR = "|"
+
     def test(self, first, last):
         assert isinstance(first, Occurrence)
         assert isinstance(last, Occurrence)
@@ -518,11 +632,10 @@ class OrExpectation(DerivativeExpectation):
         assert isinstance(other, Expectation)
         return OrExpectation(*(self.expectations + (other,)))
 
-    def __repr__(self):
-        return '(' + ' | '.join(repr(exp) for exp in self.expectations) + ')'
-
 
 class AndExpectation(DerivativeExpectation):
+    OPERATOR = "&"
+
     def test(self, first, last):
         assert isinstance(first, Occurrence)
         assert isinstance(last, Occurrence)
@@ -554,6 +667,8 @@ class AndExpectation(DerivativeExpectation):
 
 
 class XorExpectation(DerivativeExpectation):
+    OPERATOR = "^"
+
     def test(self, first, last):
         assert isinstance(first, Occurrence)
         assert isinstance(last, Occurrence)
@@ -577,9 +692,6 @@ class XorExpectation(DerivativeExpectation):
         assert isinstance(other, Expectation)
         return XorExpectation(*(self.expectations + (other,)))
 
-    def __repr__(self):
-        return '(' + ' ^ '.join(repr(exp) for exp in self.expectations) + ')'
-
 
 class ConditionalExpectation(DerivativeExpectation):
     def __init__(self, expectation, condition):
@@ -599,8 +711,9 @@ class ConditionalExpectation(DerivativeExpectation):
             if self.condition(*occs):
                 yield reasons
 
-    def __repr__(self):
-        return '%r?' % self.expectation
+    def describe(self, newline):
+        yield "?"
+        yield self.expectation
 
 
 class PatternExpectation(Expectation):
@@ -644,7 +757,7 @@ def _describe_message(message_type, *items):
         s = s.replace('"\\u0002', '')
         s = s.replace('\\u0003"', '')
 
-        if len(s) <= 70:
+        if len(s) <= SINGLE_LINE_REPR_LIMIT:
             break
 
     return s
@@ -695,7 +808,6 @@ def Response(request, body=some.object):
     if body is some.object:
         items += (("\002...", "...\003"),)
     elif body is some.error or body == some.error:
-        log.error("??? {0!r}", body)
         items += (("success", False),)
         if body == some.error:
             items += (("message", compat.force_str(body)),)
@@ -884,7 +996,7 @@ class MessageOccurrence(Occurrence):
 
         # Keep it all on one line if it's short enough, but indent longer ones.
         s = fmt("{0!j:indent=None}", id)
-        if len(s) > 70:
+        if len(s) > SINGLE_LINE_REPR_LIMIT:
             s = fmt("{0!j}", id)
         return s
 
