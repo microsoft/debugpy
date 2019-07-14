@@ -9,16 +9,25 @@ import pytest
 from tests import debug
 
 
+# When debuggee exits, there's no guarantee currently that all "output" events have
+# already been sent. To ensure that they are, all tests below must set a breakpoint
+# on the last line of the debuggee, and stop on it. Since debugger sends its events
+# sequentially, by the time we get to "stopped", we also have all the output events.
+
+
 def test_with_no_output(pyfile, start_method, run_as):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
+        ()  # @wait_for_output
 
-        # Do nothing, and check if there is any output
+    with debug.Session(start_method) as session:
+        session.initialize(target=(run_as, code_to_debug))
+        session.set_breakpoints(code_to_debug, all)
 
-    with debug.Session() as session:
-        session.initialize(target=(run_as, code_to_debug), start_method=start_method)
         session.start_debugging()
+        session.wait_for_stop("breakpoint")
+        session.request_continue()
         session.wait_for_exit()
 
         assert not session.output("stdout")
@@ -34,16 +43,13 @@ def test_with_tab_in_output(pyfile, start_method, run_as):
 
         a = "\t".join(("Hello", "World"))
         print(a)
-        # Break here so we are sure to get the output event.
-        a = 1  # @bp1
+        ()  # @wait_for_output
 
-    with debug.Session() as session:
-        session.initialize(target=(run_as, code_to_debug), start_method=start_method)
+    with debug.Session(start_method) as session:
+        session.initialize(target=(run_as, code_to_debug))
 
-        session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp1"]])
+        session.set_breakpoints(code_to_debug, all)
         session.start_debugging()
-
-        # Breakpoint at the end just to make sure we get all output events.
         session.wait_for_stop()
         session.request_continue()
         session.wait_for_exit()
@@ -51,7 +57,7 @@ def test_with_tab_in_output(pyfile, start_method, run_as):
         assert session.output("stdout").startswith("Hello\tWorld")
 
 
-@pytest.mark.parametrize("redirect", ["RedirectOutput", ""])
+@pytest.mark.parametrize("redirect", ["enabled", "disabled"])
 def test_redirect_output(pyfile, start_method, run_as, redirect):
     @pyfile
     def code_to_debug():
@@ -60,23 +66,20 @@ def test_redirect_output(pyfile, start_method, run_as, redirect):
         for i in [111, 222, 333, 444]:
             print(i)
 
-        ()  # @bp1
+        ()  # @wait_for_output
 
-    with debug.Session() as session:
-        # By default 'RedirectOutput' is always set. So using this way
-        #  to override the default in session.
-        session.debug_options = [redirect] if bool(redirect) else []
-        session.initialize(target=(run_as, code_to_debug), start_method=start_method)
-
-        session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp1"]])
+    with debug.Session(start_method) as session:
+        if redirect == "disabled":
+            session.debug_options -= {"RedirectOutput"}  # enabled by default
+        session.initialize(target=(run_as, code_to_debug))
+        session.set_breakpoints(code_to_debug, all)
         session.start_debugging()
 
-        # Breakpoint at the end just to make sure we get all output events.
         session.wait_for_stop()
         session.request_continue()
         session.wait_for_exit()
 
-        if redirect:
+        if redirect == "enabled":
             assert session.output("stdout") == "111\n222\n333\n444\n"
         else:
             assert not session.output("stdout")

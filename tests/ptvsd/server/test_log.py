@@ -29,15 +29,13 @@ def test_log_cli(pyfile, tmpdir, start_method, run_as, cli):
     def code_to_debug():
         import debug_me  # noqa
 
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         with check_logs(tmpdir, session):
             if cli == "arg":
                 session.log_dir = str(tmpdir)
             else:
                 session.env["PTVSD_LOG_DIR"] = str(tmpdir)
-            session.initialize(
-                target=(run_as, code_to_debug), start_method=start_method
-            )
+            session.initialize(target=(run_as, code_to_debug))
             session.start_debugging()
             session.wait_for_exit()
 

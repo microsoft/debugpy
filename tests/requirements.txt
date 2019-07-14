@@ -16,5 +16,8 @@ pygments
 ## Used in Python code that is run/debugged by the tests:
 
 django
-flask
 requests
+
+# https://github.com/microsoft/ptvsd/issues/1574
+# Remove specific version once Flask 1.1.2 is released.
+flask==1.0.3

@@ -47,3 +47,10 @@ if _code:
 
     _code = compile(_code, "<PTVSD_DEBUG_ME>", "exec")
     eval(_code, {})
+
+
+# For non-blocking communication between the test and the debuggee. The debuggee
+# can access this as a normal dict - scratchpad["foo"] etc. The test should assign
+# to session.scratchpad[...], which will automatically perform "evaluate" requests
+# as needed to assign the value.
+scratchpad = {}

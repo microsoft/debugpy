@@ -53,10 +53,9 @@ def test_completions_scope(pyfile, bp_label, start_method, run_as):
 
     expected = expected_at_line[bp_label]
 
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         session.initialize(
             target=(run_as, code_to_debug),
-            start_method=start_method,
             ignore_unobserved=[Event("stopped")],
         )
 
@@ -88,8 +87,8 @@ def test_completions_cases(pyfile, start_method, run_as):
         c = 3
         print([a, b, c])  # @break
 
-    with debug.Session() as session:
-        session.initialize(target=(run_as, code_to_debug), start_method=start_method)
+    with debug.Session(start_method) as session:
+        session.initialize(target=(run_as, code_to_debug))
         session.set_breakpoints(code_to_debug, [code_to_debug.lines["break"]])
         session.start_debugging()
         hit = session.wait_for_stop()

@@ -20,8 +20,8 @@ def test_variables_and_evaluate(pyfile, start_method, run_as):
         c = 3
         print([a, b, c])  # @bp
 
-    with debug.Session() as session:
-        session.initialize(target=(run_as, code_to_debug), start_method=start_method)
+    with debug.Session(start_method) as session:
+        session.initialize(target=(run_as, code_to_debug))
         session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])
         session.start_debugging()
         hit = session.wait_for_stop()
@@ -112,12 +112,9 @@ def test_set_variable(pyfile, start_method, run_as):
         ptvsd.break_into_debugger()
         backchannel.send(a)
 
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         backchannel = session.setup_backchannel()
-        session.initialize(
-            target=(run_as, code_to_debug),
-            start_method=start_method,
-        )
+        session.initialize(target=(run_as, code_to_debug))
         session.start_debugging()
         hit = session.wait_for_stop()
 
@@ -182,8 +179,8 @@ def test_variable_sort(pyfile, start_method, run_as):
         d = 3  # noqa
         print("done")  # @bp
 
-    with debug.Session() as session:
-        session.initialize(target=(run_as, code_to_debug), start_method=start_method)
+    with debug.Session(start_method) as session:
+        session.initialize(target=(run_as, code_to_debug))
         session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])
         session.start_debugging()
         hit = session.wait_for_stop()
@@ -289,11 +286,10 @@ def test_return_values(pyfile, start_method, run_as):
         }
     )
 
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         session.initialize(
             target=(run_as, code_to_debug),
-            start_method=start_method,
-            debug_options=["ShowReturnValue"],
+            debug_options={"ShowReturnValue"},
         )
         session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])
         session.start_debugging()
@@ -354,8 +350,8 @@ def test_unicode(pyfile, start_method, run_as):
         ptvsd.break_into_debugger()
         print("break")
 
-    with debug.Session() as session:
-        session.initialize(target=(run_as, code_to_debug), start_method=start_method)
+    with debug.Session(start_method) as session:
+        session.initialize(target=(run_as, code_to_debug))
         session.start_debugging()
         hit = session.wait_for_stop()
 
@@ -385,8 +381,8 @@ def test_hex_numbers(pyfile, start_method, run_as):
         d = {(1, 10, 100): (10000, 100000, 100000)}
         print((a, b, c, d))  # @bp
 
-    with debug.Session() as session:
-        session.initialize(target=(run_as, code_to_debug), start_method=start_method)
+    with debug.Session(start_method) as session:
+        session.initialize(target=(run_as, code_to_debug))
         session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])
         session.start_debugging()
         hit = session.wait_for_stop()

@@ -69,13 +69,10 @@ def test_multiprocessing(pyfile, start_method, run_as):
             q.close()
             backchannel.send("done")
 
-    with debug.Session() as parent_session:
+    with debug.Session(start_method) as parent_session:
         parent_backchannel = parent_session.setup_backchannel()
-        parent_session.initialize(
-            multiprocess=True,
-            target=(run_as, code_to_debug),
-            start_method=start_method,
-        )
+        parent_session.debug_options |= {"Multiprocess"}
+        parent_session.initialize(target=(run_as, code_to_debug))
         parent_session.start_debugging()
 
         root_start_request, = parent_session.all_occurrences_of(
@@ -172,14 +169,11 @@ def test_subprocess(pyfile, start_method, run_as):
         )
         process.wait()
 
-    with debug.Session() as parent_session:
-        parent_session.program_args += [child]
+    with debug.Session(start_method) as parent_session:
         parent_backchannel = parent_session.setup_backchannel()
-        parent_session.initialize(
-            multiprocess=True,
-            target=(run_as, parent),
-            start_method=start_method,
-        )
+        parent_session.program_args += [child]
+        parent_session.debug_options |= {"Multiprocess"}
+        parent_session.initialize(target=(run_as, parent))
         parent_session.start_debugging()
 
         root_start_request, = parent_session.all_occurrences_of(
@@ -247,14 +241,11 @@ def test_autokill(pyfile, start_method, run_as):
         )
         backchannel.receive()
 
-    with debug.Session() as parent_session:
-        parent_session.program_args += [child]
+    with debug.Session(start_method) as parent_session:
         parent_backchannel = parent_session.setup_backchannel()
-        parent_session.initialize(
-            multiprocess=True,
-            target=(run_as, parent),
-            start_method=start_method,
-        )
+        parent_session.program_args += [child]
+        parent_session.debug_options |= {"Multiprocess"}
+        parent_session.initialize(target=(run_as, parent))
         parent_session.start_debugging()
 
         with parent_session.attach_to_next_subprocess() as child_session:
@@ -321,11 +312,10 @@ def test_argv_quoting(pyfile, start_method, run_as):
         actual_args = sys.argv[1:]
         backchannel.send(actual_args)
 
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, parent),
-            start_method=start_method,
             program_args=[child],
         )
 

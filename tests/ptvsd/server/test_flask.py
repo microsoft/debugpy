@@ -29,34 +29,26 @@ class lines:
 
 
 def _initialize_session(session, multiprocess=False):
-    env = {
+    session.env.update({
         "FLASK_APP": paths.app_py,
         "FLASK_ENV": "development",
         "FLASK_DEBUG": "1" if multiprocess else "0",
-    }
+    })
     if platform.system() != "Windows":
         locale = "en_US.utf8" if platform.system() == "Linux" else "en_US.UTF-8"
-        env.update({"LC_ALL": locale, "LANG": locale})
+        session.env.update({"LC_ALL": locale, "LANG": locale})
 
-    program_args = [
-        "run",
-        "--port",
-        str(flask.port),
-    ]
+    session.program_args = ["run", "--port", str(flask.port)]
     if not multiprocess:
-        program_args[1:1] = [
-            "--no-debugger",
-            "--no-reload",
-            "--with-threads",
-        ]
+        session.program_args[1:1] = ["--no-debugger", "--no-reload", "--with-threads"]
+
+    session.debug_options |= {"Jinja"}
+    if multiprocess:
+        session.debug_options |= {"Multiprocess"}
 
     session.initialize(
         target=("module", "flask"),
-        program_args=program_args,
-        debug_options=["Jinja"],
         cwd=paths.flask1,
-        env=env,
-        multiprocess=multiprocess,
         expected_returncode=some.int,  # No clean way to kill Flask server
     )
 

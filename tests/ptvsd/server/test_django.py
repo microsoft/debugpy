@@ -29,22 +29,17 @@ class lines:
 
 
 def _initialize_session(session, multiprocess=False):
-    program_args = [
-        "runserver",
-        "--",
-        str(django.port),
-    ]
+    session.program_args = ["runserver", "--", str(django.port)]
     if not multiprocess:
-        program_args[1:1] = [
-            "--noreload",
-        ]
+        session.program_args[1:1] = ["--noreload"]
+
+    session.debug_options |= {"Django"}
+    if multiprocess:
+        session.debug_options |= {"Multiprocess"}
 
     session.initialize(
         target=("file", paths.app_py),
-        program_args=program_args,
-        debug_options=["Django"],
         cwd=paths.django1,
-        multiprocess=multiprocess,
         expected_returncode=some.int,  # No clean way to kill Django server
     )
 

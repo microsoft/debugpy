@@ -35,8 +35,8 @@ def test_vsc_exception_options_raise_with_except(
     filters += ["raised"] if raised == "raisedOn" else []
     filters += ["uncaught"] if uncaught == "uncaughtOn" else []
 
-    with debug.Session() as session:
-        session.initialize(target=(run_as, code_to_debug), start_method=start_method)
+    with debug.Session(start_method) as session:
+        session.initialize(target=(run_as, code_to_debug))
         session.request("setExceptionBreakpoints", {"filters": filters})
         session.start_debugging()
 
@@ -93,10 +93,9 @@ def test_vsc_exception_options_raise_without_except(
     filters = []
     filters += ["raised"] if raised == "raisedOn" else []
     filters += ["uncaught"] if uncaught == "uncaughtOn" else []
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         session.initialize(
             target=(run_as, code_to_debug),
-            start_method=start_method,
             ignore_unobserved=[Event("stopped")],
             expected_returncode=some.int,
         )
@@ -193,13 +192,12 @@ def test_systemexit(pyfile, start_method, run_as, raised, uncaught, zero, exit_c
     if uncaught:
         filters += ["uncaught"]
 
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         session.program_args = [repr(exit_code)]
         if zero:
-            session.debug_options += ["BreakOnSystemExitZero"]
+            session.debug_options |= {"BreakOnSystemExitZero"}
         session.initialize(
             target=(run_as, code_to_debug),
-            start_method=start_method,
             expected_returncode=some.int,
         )
         session.send_request(
@@ -287,10 +285,9 @@ def test_raise_exception_options(pyfile, start_method, run_as, exceptions, break
             except IndexError:
                 pass
 
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         session.initialize(
             target=(run_as, code_to_debug),
-            start_method=start_method,
             ignore_unobserved=[Event("stopped")],
             expected_returncode=some.int,
         )
@@ -331,12 +328,11 @@ def test_success_exitcodes(pyfile, start_method, run_as, exit_code):
         print("sys.exit(%r)" % (exit_code,))
         sys.exit(exit_code)
 
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         session.program_args = [repr(exit_code)]
         session.success_exitcodes = [3]
         session.initialize(
             target=(run_as, code_to_debug),
-            start_method=start_method,
             expected_returncode=exit_code,
         )
         session.send_request(
@@ -382,10 +378,9 @@ def test_exception_stack(pyfile, start_method, run_as, max_frames):
         max_expected_lines = 21
         args = {"maxExceptionStackFrames": 10}
 
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         session.initialize(
             target=(run_as, code_to_debug),
-            start_method=start_method,
             expected_returncode=some.int,
             args=args,
         )

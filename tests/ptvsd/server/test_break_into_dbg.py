@@ -20,8 +20,8 @@ def test_with_wait_for_attach(pyfile, start_method, run_as):
         ptvsd.break_into_debugger()
         print("break here") # @break
 
-    with debug.Session() as session:
-        session.initialize(target=(run_as, code_to_debug), start_method=start_method)
+    with debug.Session(start_method) as session:
+        session.initialize(target=(run_as, code_to_debug))
         session.start_debugging()
         hit = session.wait_for_stop()
         assert hit.frames[0]["line"] == code_to_debug.lines["break"]
@@ -43,8 +43,8 @@ def test_breakpoint_function(pyfile, start_method, run_as):
         breakpoint()  # noqa
         print("break here") # @break
 
-    with debug.Session() as session:
-        session.initialize(target=(run_as, code_to_debug), start_method=start_method)
+    with debug.Session(start_method) as session:
+        session.initialize(target=(run_as, code_to_debug))
         session.start_debugging()
         hit = session.wait_for_stop()
         path = hit.frames[0]["source"]["path"]

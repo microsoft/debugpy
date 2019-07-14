@@ -26,11 +26,10 @@ def test_wait_on_normal_exit_enabled(pyfile, start_method, run_as):
         ptvsd.break_into_debugger()
         print()  # line on which it'll actually break
 
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         session.initialize(
             target=(run_as, code_to_debug),
-            start_method=start_method,
-            debug_options=["WaitOnNormalExit"],
+            debug_options={"WaitOnNormalExit"},
             expected_returncode=some.int,
         )
         session.start_debugging()
@@ -60,12 +59,11 @@ def test_wait_on_abnormal_exit_enabled(pyfile, start_method, run_as):
         backchannel.send("done")
         sys.exit(12345)
 
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, code_to_debug),
-            start_method=start_method,
-            debug_options=["WaitOnAbnormalExit"],
+            debug_options={"WaitOnAbnormalExit"},
             expected_returncode=some.int,
         )
         session.start_debugging()
@@ -90,12 +88,11 @@ def test_exit_normally_with_wait_on_abnormal_exit_enabled(pyfile, start_method, 
         ptvsd.break_into_debugger()
         backchannel.send("done")
 
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, code_to_debug),
-            start_method=start_method,
-            debug_options=["WaitOnAbnormalExit"],
+            debug_options={"WaitOnAbnormalExit"},
         )
         session.start_debugging()
 

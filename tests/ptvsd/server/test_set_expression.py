@@ -17,12 +17,9 @@ def test_set_expression(pyfile, start_method, run_as):
         ptvsd.break_into_debugger()
         backchannel.send(a)
 
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         backchannel = session.setup_backchannel()
-        session.initialize(
-            target=(run_as, code_to_debug),
-            start_method=start_method,
-        )
+        session.initialize(target=(run_as, code_to_debug))
         session.start_debugging()
         hit = session.wait_for_stop()
 

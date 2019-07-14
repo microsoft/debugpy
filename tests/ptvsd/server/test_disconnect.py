@@ -22,11 +22,10 @@ def test_continue_on_disconnect_for_attach(pyfile, start_method, run_as):
 
         backchannel.send("continued")  # @bp
 
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, code_to_debug),
-            start_method=start_method,
             ignore_unobserved=[Event("exited"), Event("terminated")],
         )
         session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])
@@ -51,10 +50,9 @@ def test_exit_on_disconnect_for_launch(pyfile, start_method, run_as):
         with open(fp, "w") as f:
             print("Should not continue after disconnect on launch", file=f)
 
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         session.initialize(
             target=(run_as, code_to_debug),
-            start_method=start_method,
             expected_returncode=some.int,
         )
         session.set_breakpoints(code_to_debug, code_to_debug.lines["bp"])

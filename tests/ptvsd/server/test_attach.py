@@ -6,55 +6,47 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import pytest
 
-from tests import code, debug, test_data
+from tests import debug, test_data
 from tests.patterns import some
 from tests.timeline import Event
 
 
-@pytest.mark.parametrize("wait_for_attach", ["waitOn", "waitOff"])
-@pytest.mark.parametrize("is_attached", ["attachCheckOn", "attachCheckOff"])
-@pytest.mark.parametrize("break_into", ["break", "pause"])
-def test_attach(run_as, wait_for_attach, is_attached, break_into):
+@pytest.mark.parametrize("wait_for_attach", ["wait_for_attach", ""])
+@pytest.mark.parametrize("is_attached", ["is_attached", ""])
+@pytest.mark.parametrize("break_into_debugger", ["break_into_debugger", ""])
+def test_attach(run_as, wait_for_attach, is_attached, break_into_debugger):
     attach1_py = test_data / "attach" / "attach1.py"
-    lines = code.get_marked_line_numbers(attach1_py)
-    with debug.Session() as session:
-        env = {
-            "PTVSD_TEST_HOST": "localhost",
-            "PTVSD_TEST_PORT": str(session.ptvsd_port),
-        }
-        if wait_for_attach == "waitOn":
-            env["PTVSD_WAIT_FOR_ATTACH"] = "1"
-        if is_attached == "attachCheckOn":
-            env["PTVSD_IS_ATTACHED"] = "1"
-        if break_into == "break":
-            env["PTVSD_BREAK_INTO_DBG"] = "1"
+
+    with debug.Session("custom_server") as session:
+        session.env.update({
+            "ATTACH1_TEST_PORT": str(session.ptvsd_port),
+            "ATTACH1_WAIT_FOR_ATTACH": "1" if wait_for_attach else "0",
+            "ATTACH1_IS_ATTACHED":  "1" if is_attached else "0",
+            "ATTACH1_BREAK_INTO_DEBUGGER": "1" if break_into_debugger else "0",
+        })
 
         backchannel = session.setup_backchannel()
-        session.initialize(
-            target=(run_as, attach1_py),
-            start_method="launch",
-            env=env,
-        )
+        session.initialize(target=(run_as, attach1_py))
         session.start_debugging()
 
-        if wait_for_attach == "waitOn":
+        if wait_for_attach:
             assert backchannel.receive() == "wait_for_attach"
 
-        if is_attached == "attachCheckOn":
+        if is_attached:
             assert backchannel.receive() == "is_attached"
 
-        if break_into == "break":
-            assert backchannel.receive() == "break_into_debugger"
-            hit = session.wait_for_stop()
-            assert lines["bp"] == hit.frames[0]["line"]
+        if break_into_debugger:
+            assert backchannel.receive() == "break_into_debugger?"
+            backchannel.send("proceed")
+            session.wait_for_stop(expected_frames=[
+                some.dap.frame(attach1_py, "break_into_debugger")
+            ])
         else:
-            # pause test
-            backchannel.send("pause_test")
-            session.send_request("pause").wait_for_response(freeze=False)
-            hit = session.wait_for_stop(reason="pause")
-            # Note: no longer asserting line as it can even stop on different files
-            # (such as as backchannel.py).
-            # assert hit.frames[0]['line'] in [27, 28, 29]
+            assert backchannel.receive() == "loop?"
+            backchannel.send("proceed")
+            session.request("pause", freeze=False)
+            session.wait_for_stop("pause")
+            session.scratchpad["paused"] = True
 
         session.request_continue()
         session.wait_for_exit()
@@ -63,41 +55,43 @@ def test_attach(run_as, wait_for_attach, is_attached, break_into):
 @pytest.mark.parametrize(
     "start_method", ["attach_socket_cmdline", "attach_socket_import"]
 )
+# @pytest.mark.skip(reason="Test fails often in local runs. Uncomment as needed.")
 def test_reattach(pyfile, start_method, run_as):
     @pyfile
     def code_to_debug():
-        from debug_me import backchannel, ptvsd
+        from debug_me import ptvsd, scratchpad
         import time
 
         ptvsd.break_into_debugger()
-        print("first") # @first
-        backchannel.send("continued")
-        for _ in range(0, 100):
+        object()  # @first
+
+        scratchpad["exit"] = False
+        while not scratchpad["exit"]:
             time.sleep(0.1)
             ptvsd.break_into_debugger()
-            print("second") # @second
+            object()  # @second
 
-    with debug.Session() as session:
-        backchannel = session.setup_backchannel()
+    with debug.Session(start_method) as session:
         session.initialize(
             target=(run_as, code_to_debug),
-            start_method=start_method,
             kill_ptvsd=False,
             capture_output=False,
         )
         session.start_debugging()
-        hit = session.wait_for_stop()
-        assert code_to_debug.lines["first"] == hit.frames[0]["line"]
-        session.send_request("disconnect").wait_for_response(freeze=False)
+        session.wait_for_stop(expected_frames=[
+            some.dap.frame(code_to_debug, "first"),
+        ])
+        session.request_disconnect()
         session.wait_for_disconnect()
-        assert backchannel.receive() == "continued"
 
     with session.reattach(target=(run_as, code_to_debug)) as session2:
         session2.start_debugging()
-        hit = session2.wait_for_stop()
-        assert code_to_debug.lines["second"] == hit.frames[0]["line"]
-        session2.send_request("disconnect").wait_for_response(freeze=False)
-        session2.wait_for_disconnect()
+        session2.wait_for_stop(expected_frames=[
+            some.dap.frame(code_to_debug, "second"),
+        ])
+        session.scratchpad["exit"] = True
+        session.request_disconnect()
+        session.wait_for_disconnect()
 
 
 @pytest.mark.parametrize("start_method", ["attach_pid"])
@@ -111,22 +105,25 @@ def test_attaching_by_pid(pyfile, run_as, start_method):
 
         def do_something(i):
             time.sleep(0.1)
-            print(i)  # @break
+            print(i)  # @bp
 
         for i in range(100):
             do_something(i)
 
-    with debug.Session() as session:
-        session.initialize(target=(run_as, code_to_debug), start_method=start_method)
-        session.set_breakpoints(code_to_debug, [code_to_debug.lines["break"]])
+    with debug.Session(start_method) as session:
+        session.initialize(target=(run_as, code_to_debug))
+        session.set_breakpoints(code_to_debug, all)
         session.start_debugging()
-        hit = session.wait_for_stop()
-        assert code_to_debug.lines["break"] == hit.frames[0]["line"]
 
-        # remove breakpoint and continue
+        session.wait_for_stop(expected_frames=[
+            some.dap.frame(code_to_debug, "bp"),
+        ])
+
+        # Remove breakpoint and continue.
         session.set_breakpoints(code_to_debug, [])
         session.request_continue()
         session.wait_for_next(
             Event("output", some.dict.containing({"category": "stdout"}))
         )
+
         session.wait_for_exit()

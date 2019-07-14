@@ -10,7 +10,7 @@ from tests import debug
 from tests.patterns import some
 
 
-@pytest.mark.parametrize("jmc", ["jmcOn", "jmcOff"])
+@pytest.mark.parametrize("jmc", ["jmc", ""])
 def test_justmycode_frames(pyfile, start_method, run_as, jmc):
     @pyfile
     def code_to_debug():
@@ -18,15 +18,12 @@ def test_justmycode_frames(pyfile, start_method, run_as, jmc):
 
         print("break here")  # @bp
 
-    with debug.Session() as session:
-        session.initialize(
-            target=(run_as, code_to_debug),
-            start_method=start_method,
-            debug_options=[] if jmc == "jmcOn" else ["DebugStdLib"],
-        )
+    with debug.Session(start_method) as session:
+        if not jmc:
+            session.debug_options |= {"DebugStdLib"}
+        session.initialize(target=(run_as, code_to_debug))
 
         bp_line = code_to_debug.lines["bp"]
-
         actual_bps = session.set_breakpoints(code_to_debug, [bp_line])
         actual_bps = [bp["line"] for bp in actual_bps]
         session.start_debugging()
@@ -39,7 +36,7 @@ def test_justmycode_frames(pyfile, start_method, run_as, jmc):
             }
         )
 
-        if jmc == "jmcOn":
+        if jmc:
             assert len(hit.frames) == 1
             session.send_request(
                 "stepIn", {"threadId": hit.thread_id}

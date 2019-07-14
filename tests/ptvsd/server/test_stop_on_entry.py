@@ -10,28 +10,25 @@ from tests import debug
 from tests.patterns import some
 
 
-@pytest.mark.parametrize("start_method", ["launch"])
-@pytest.mark.parametrize("with_bp", ["with_breakpoint", ""])
-def test_stop_on_entry(pyfile, start_method, run_as, with_bp):
+@pytest.mark.parametrize("breakpoint", ["breakpoint", ""])
+def test_stop_on_entry(pyfile, run_as, breakpoint):
     @pyfile
     def code_to_debug():
         from debug_me import backchannel  # @bp
 
         backchannel.send("done")
 
-    with debug.Session() as session:
+    with debug.Session("launch") as session:
         backchannel = session.setup_backchannel()
         session.initialize(
             target=(run_as, code_to_debug),
-            start_method=start_method,
-            debug_options=["StopOnEntry"],
+            debug_options={"StopOnEntry"},
         )
-        if bool(with_bp):
-            session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])
-
+        if breakpoint:
+            session.set_breakpoints(code_to_debug, all)
         session.start_debugging()
 
-        if bool(with_bp):
+        if breakpoint:
             hit = session.wait_for_stop(reason="breakpoint")
             assert hit.frames[0]["line"] == 1
             assert hit.frames[0]["source"]["path"] == some.path(code_to_debug)

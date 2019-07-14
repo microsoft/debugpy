@@ -7,14 +7,15 @@ from __future__ import absolute_import, print_function, unicode_literals
 import pytest
 import sys
 
+from ptvsd.common import fmt
 from tests import debug, test_data
 from tests.patterns import some
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Linux/Mac only test.")
-@pytest.mark.parametrize("invalid_os_type", [True])
+@pytest.mark.parametrize("os_type", ["INVALID", ""])
 def test_client_ide_from_path_mapping_linux_backend(
-    pyfile, tmpdir, start_method, run_as, invalid_os_type
+    pyfile, tmpdir, start_method, run_as, os_type
 ):
     """
     Test simulating that the backend is on Linux and the client is on Windows
@@ -31,6 +32,8 @@ def test_client_ide_from_path_mapping_linux_backend(
 
     with debug.Session(start_method) as session:
         backchannel = session.setup_backchannel()
+        if os_type:
+            session.debug_options |= {fmt("CLIENT_OS_TYPE={0}", os_type)}
         session.initialize(
             target=(run_as, code_to_debug),
             path_mappings=[
@@ -40,8 +43,6 @@ def test_client_ide_from_path_mapping_linux_backend(
                 }
             ],
         )
-        if invalid_os_type:
-            session.debug_options.append("CLIENT_OS_TYPE=INVALID")
         session.set_breakpoints(
             "c:\\temp\\src\\" + code_to_debug.basename,
             [code_to_debug.lines["bp"]],

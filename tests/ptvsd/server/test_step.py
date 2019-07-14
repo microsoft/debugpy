@@ -25,10 +25,9 @@ def test_set_next_statement(pyfile, start_method, run_as):
 
     line_numbers = code_to_debug.lines
 
-    with debug.Session() as session:
+    with debug.Session(start_method) as session:
         session.initialize(
             target=(run_as, code_to_debug),
-            start_method=start_method,
             ignore_unobserved=[Event("continued")],
             env={"PTVSD_USE_CONTINUED": "1"},
         )

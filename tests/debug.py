@@ -68,22 +68,20 @@ class Session(object):
 
     _counter = itertools.count(1)
 
-    def __init__(self, start_method='launch', ptvsd_port=None, pid=None):
+    def __init__(self, start_method, ptvsd_port=None, pid=None):
         assert start_method in self.START_METHODS
         assert ptvsd_port is None or start_method.startswith('attach_socket_')
 
         self.id = next(self._counter)
-        log.info('Starting debug session {0} via {1!r}', self.id, start_method)
+        log.info('New debug session {0}; will be started via {1!r}.', self, start_method)
 
         self.lock = threading.RLock()
-        self.target = ('code', 'print("OK")')
+        self.target = None
         self.start_method = start_method
         self.start_method_args = {}
         self.no_debug = False
         self.ptvsd_port = ptvsd_port or PTVSD_PORT
-        self.multiprocess = False
-        self.multiprocess_port_range = None
-        self.debug_options = ['RedirectOutput']
+        self.debug_options = {'RedirectOutput'}
         self.path_mappings = []
         self.success_exitcodes = None
         self.rules = []
@@ -107,6 +105,7 @@ class Session(object):
         self.server_socket = None
         self.connected = threading.Event()
         self.backchannel = None
+        self.scratchpad = ScratchPad(self)
 
         self.capture_output = True
         self.captured_output = CapturedOutput(self)
@@ -169,6 +168,7 @@ class Session(object):
     def close(self):
         with self.lock:
             if self.socket:
+                log.debug('Closing socket to {0}...', self)
                 try:
                     self.socket.shutdown(socket.SHUT_RDWR)
                 except Exception:
@@ -181,6 +181,7 @@ class Session(object):
                 log.debug('Closed socket to {0}', self)
 
             if self.server_socket:
+                log.debug('Closing server socket for {0}...', self)
                 try:
                     self.server_socket.shutdown(socket.SHUT_RDWR)
                 except Exception:
@@ -198,6 +199,7 @@ class Session(object):
 
         if self.process:
             if self.kill_ptvsd:
+                log.info('Killing {0} (pid={1}) process tree...', self, self.pid)
                 try:
                     self._kill_process_tree()
                 except Exception:
@@ -205,6 +207,7 @@ class Session(object):
                 log.info('Killed {0} (pid={1}) process tree', self, self.pid)
 
             # Clean up pipes to avoid leaking OS handles.
+            log.debug('Closing stdio pipes of {0}...', self)
             try:
                 self.process.stdin.close()
             except Exception:
@@ -217,8 +220,12 @@ class Session(object):
                 self.process.stderr.close()
             except Exception:
                 pass
+            log.debug('Closed stdio pipes of {0}', self)
 
+        log.debug('Waiting for remaining captured output of {0}...', self)
         self.captured_output.wait()
+
+        log.info('{0} closed', self)
 
     def _get_argv_for_attach_using_import(self):
         argv = [sys.executable]
@@ -301,8 +308,8 @@ class Session(object):
         self.env.update(kwargs.pop('env', {}))
         self.start_method_args.update(kwargs.pop('args', {}))
 
+        self.debug_options |= set(kwargs.pop('debug_options', []))
         self.path_mappings += kwargs.pop('path_mappings', [])
-        self.debug_options += kwargs.pop('debug_options', [])
         self.program_args += kwargs.pop('program_args', [])
         self.rules += kwargs.pop('rules', [])
 
@@ -341,7 +348,13 @@ class Session(object):
         self._setup_session(**kwargs)
         start_method = self.start_method
 
-        log.info('Initializing debug session for {0}', self)
+        log.debug('Initializing debug session for {0}', self)
+        if self.ignore_unobserved:
+            log.info(
+                "Will not complain about unobserved:\n\n{0}",
+                "\n\n".join(repr(exp) for exp in self.ignore_unobserved)
+            )
+
         dbg_argv = []
         usr_argv = []
 
@@ -383,9 +396,6 @@ class Session(object):
                 usr_argv += list(self.program_args)
             else:
                 dbg_argv += list(self.program_args)
-
-        if self.multiprocess and 'Multiprocess' not in self.debug_options:
-            self.debug_options += ['Multiprocess']
 
         if self.backchannel:
             self.backchannel.listen()
@@ -432,13 +442,14 @@ class Session(object):
         spawn_args = [make_filename(s) for s in spawn_args]
 
         log.info('Spawning {0}:\n\n{1}', self, "\n".join((repr(s) for s in spawn_args)))
+        stdio = {}
+        if self.capture_output:
+            stdio["stdin"] = stdio["stdout"] = stdio["stderr"] = subprocess.PIPE
         self.process = subprocess.Popen(
             spawn_args,
             env=env,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
             cwd=cwd,
+            **stdio
         )
         self.pid = self.process.pid
         self.psutil_process = psutil.Process(self.pid)
@@ -645,7 +656,12 @@ class Session(object):
         return request
 
     def request(self, *args, **kwargs):
-        return self.send_request(*args, **kwargs).wait_for_response().body
+        freeze = kwargs.pop("freeze", True)
+        raise_if_failed = kwargs.pop("raise_if_failed", True)
+        return self.send_request(*args, **kwargs).wait_for_response(
+            freeze=freeze,
+            raise_if_failed=raise_if_failed,
+        ).body
 
     def handshake(self):
         """Performs the handshake that establishes the debug session ('initialized'
@@ -662,7 +678,7 @@ class Session(object):
 
         request = 'launch' if self.start_method == 'launch' else 'attach'
         self.start_method_args.update({
-            'debugOptions': self.debug_options,
+            'debugOptions': list(self.debug_options),
             'pathMappings': self.path_mappings,
             'rules': self.rules,
         })
@@ -775,7 +791,10 @@ class Session(object):
         return StopInfo(stopped, frames, tid, fid)
 
     def request_continue(self):
-        self.send_request('continue').wait_for_response(freeze=False)
+        self.request('continue', freeze=False)
+
+    def request_disconnect(self):
+        self.request('disconnect', freeze=False)
 
     def set_breakpoints(self, path, lines):
         """Sets breakpoints in the specified file, and returns the list of all the
@@ -879,7 +898,7 @@ class Session(object):
         child_port = ptvsd_subprocess.body['port']
         assert child_port != 0
 
-        child_session = Session(start_method='attach_socket_cmdline', ptvsd_port=child_port)
+        child_session = Session('attach_socket_cmdline', ptvsd_port=child_port)
         try:
             child_session.ignore_unobserved = self.ignore_unobserved
             child_session.debug_options = self.debug_options
@@ -906,12 +925,12 @@ class Session(object):
 
         assert self.start_method.startswith("attach_socket_")
 
-        ns = Session(start_method='attach_socket_import', ptvsd_port=self.ptvsd_port)
+        ns = Session('attach_socket_import', ptvsd_port=self.ptvsd_port)
         try:
             ns._setup_session(**kwargs)
-            ns.ignore_unobserved = self.ignore_unobserved
-            ns.debug_options = self.debug_options
-            ns.rules = self.rules
+            ns.ignore_unobserved = list(self.ignore_unobserved)
+            ns.debug_options = set(self.debug_options)
+            ns.rules = list(self.rules)
 
             ns.pid = self.pid
             ns.process = self.process
@@ -1106,3 +1125,39 @@ class BackChannel(object):
                 pass
             self._server_socket = None
             log.debug('Closed server socket for {0} to {1}', self, self.session)
+
+
+class ScratchPad(object):
+    def __init__(self, session):
+        self.session = session
+
+    def __getitem__(self, key):
+        raise NotImplementedError
+
+    def __setitem__(self, key, value):
+        """Sets debug_me.scratchpad[key] = value inside the debugged process.
+        """
+
+        stackTrace_responses = self.session.all_occurrences_of(
+            Response(Request("stackTrace"))
+        )
+        assert stackTrace_responses, (
+            'scratchpad requires at least one "stackTrace" request in the timeline.'
+        )
+        stack_trace = stackTrace_responses[-1].body
+        frame_id = stack_trace["stackFrames"][0]["id"]
+
+        log.info("{0} debug_me.scratchpad[{1!r}] = {2!r}", self.session, key, value)
+        expr = fmt(
+            "__import__('debug_me').scratchpad[{0!r}] = {1!r}",
+            key,
+            value,
+        )
+        self.session.request(
+            "evaluate",
+            {
+                "frameId": frame_id,
+                "context": "repl",
+                "expression": expr,
+            },
+        )
