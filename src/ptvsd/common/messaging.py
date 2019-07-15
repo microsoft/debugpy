@@ -13,6 +13,7 @@ https://microsoft.github.io/debug-adapter-protocol/overview#base-protocol
 
 import collections
 import contextlib
+import functools
 import inspect
 import itertools
 import sys
@@ -101,11 +102,12 @@ class JsonIOStream(object):
         self._reader.close()
         self._writer.close()
 
-    def _read_line(self):
+    @staticmethod
+    def _read_line(reader):
         line = b""
         while True:
             try:
-                line += self._reader.readline()
+                line += reader.readline()
             except Exception as ex:
                 raise EOFError(str(ex))
             if not line:
@@ -122,6 +124,8 @@ class JsonIOStream(object):
         """
 
         decoder = decoder if decoder is not None else self.json_decoder_factory()
+        reader = self._reader
+        read_line = functools.partial(self._read_line, reader)
 
         # If any error occurs while reading and parsing the message, log the original
         # raw message data as is, so that it's possible to diagnose missing or invalid
@@ -143,7 +147,7 @@ class JsonIOStream(object):
 
         while True:
             try:
-                line = self._read_line()
+                line = read_line()
             except Exception:
                 # Only log it if we have already read some headers, and are looking
                 # for a blank line terminating them. If this is the very first read,
@@ -177,7 +181,7 @@ class JsonIOStream(object):
         body_remaining = length
         while body_remaining > 0:
             try:
-                chunk = self._reader.read(body_remaining)
+                chunk = reader.read(body_remaining)
                 if not chunk:
                     raise EOFError("No more data")
             except Exception:
@@ -214,6 +218,7 @@ class JsonIOStream(object):
         """
 
         encoder = encoder if encoder is not None else self.json_encoder_factory()
+        writer = self._writer
 
         # Format the value as a message, and try to log any failures using as much
         # information as we already have at the point of the failure. For example,
@@ -229,9 +234,18 @@ class JsonIOStream(object):
         header = fmt("Content-Length: {0}\r\n\r\n", len(body))
         header = header.encode("ascii")
 
+        data = header + body
+        data_written = 0
         try:
-            self._writer.write(header + body)
-            self._writer.flush()
+            while data_written < len(data):
+                written = writer.write(data[data_written:])
+                # On Python 2, socket.makefile().write() does not properly implement
+                # BytesIO.write(), and always returns None instead of the number of
+                # bytes written - but also guarantees that it is always a full write.
+                if written is None:
+                    break
+                data_written += written
+            writer.flush()
         except Exception:
             raise log.exception("{0} <-- {1!j}", self.name, value)
 
