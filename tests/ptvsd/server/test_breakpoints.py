@@ -288,10 +288,11 @@ def test_add_and_remove_breakpoint(pyfile, start_method, run_as):
 
         for i in range(0, 10):
             print(i)  # @bp
+        ()  # @wait_for_output
 
     with debug.Session(start_method) as session:
         session.initialize(target=(run_as, code_to_debug))
-        session.set_breakpoints(code_to_debug, ["bp"])
+        session.set_breakpoints(code_to_debug, all)
         session.start_debugging()
 
         session.wait_for_stop(
@@ -301,8 +302,16 @@ def test_add_and_remove_breakpoint(pyfile, start_method, run_as):
             ],
         )
 
-        # Remove breakpoints in file.
-        session.set_breakpoints(code_to_debug, [])
+        # Remove breakpoint inside the loop.
+        session.set_breakpoints(code_to_debug, ["wait_for_output"])
+        session.request_continue()
+
+        session.wait_for_stop(
+            "breakpoint",
+            expected_frames=[
+                some.dap.frame(code_to_debug, line="wait_for_output")
+            ],
+        )
         session.request_continue()
         session.wait_for_exit()
 
