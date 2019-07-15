@@ -178,6 +178,8 @@ class JsonIOStream(object):
         while body_remaining > 0:
             try:
                 chunk = self._reader.read(body_remaining)
+                if not chunk:
+                    raise EOFError("No more data")
             except Exception:
                 if self._is_closing:
                     raise EOFError
