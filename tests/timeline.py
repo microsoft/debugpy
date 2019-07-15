@@ -15,7 +15,7 @@ from ptvsd.common.compat import queue
 from tests.patterns import some
 
 
-SINGLE_LINE_REPR_LIMIT = 80
+SINGLE_LINE_REPR_LIMIT = 120
 """If repr() of an expectation or an occurrence is longer than this value, it will
 be formatted to use multiple shorter lines if possible.
 """
@@ -133,7 +133,7 @@ class Timeline(object):
         if self.is_final:
             return
 
-        log.info('Finalizing timeline ...')
+        log.info('Finalizing timeline...')
         with self.unfrozen():
             self.mark('FINISH')
 
@@ -574,7 +574,7 @@ class DerivativeExpectation(Expectation):
         result = []
         recurse(self)
         s = "".join(result)
-        if len(s) <= SINGLE_LINE_REPR_LIMIT or "\n" in s:
+        if len(s) <= SINGLE_LINE_REPR_LIMIT and "\n" not in s:
             return s
 
         # If it was too long, or had newlines anyway, fall back to multiline.
