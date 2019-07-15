@@ -207,6 +207,7 @@ def test_log_point(pyfile, start_method, run_as, condition):
 
         for i in range(0, 10):
             print(i * 10)  # @bp
+        ()  # @wait_for_output
 
     lines = code_to_debug.lines
     with debug.Session(start_method) as session:
@@ -218,7 +219,10 @@ def test_log_point(pyfile, start_method, run_as, condition):
 
         session.request(
             "setBreakpoints",
-            arguments={"source": {"path": code_to_debug}, "breakpoints": [bp]},
+            arguments={
+                "source": {"path": code_to_debug},
+                "breakpoints": [bp, {"line": lines["wait_for_output"]}],
+            },
         )
         session.start_debugging()
 
@@ -237,6 +241,13 @@ def test_log_point(pyfile, start_method, run_as, condition):
 
             session.request_continue()
 
+        session.wait_for_stop(
+            "breakpoint",
+            expected_frames=[
+                some.dap.frame(code_to_debug, line="wait_for_output")
+            ],
+        )
+        session.request_continue()
         session.wait_for_exit()
 
         assert not session.captured_stderr()
