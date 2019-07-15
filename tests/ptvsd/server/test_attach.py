@@ -55,7 +55,7 @@ def test_attach(run_as, wait_for_attach, is_attached, break_into_debugger):
 @pytest.mark.parametrize(
     "start_method", ["attach_socket_cmdline", "attach_socket_import"]
 )
-# @pytest.mark.skip(reason="Test fails often in local runs. Uncomment as needed.")
+@pytest.mark.skip(reason="https://github.com/microsoft/ptvsd/issues/1594")
 def test_reattach(pyfile, start_method, run_as):
     @pyfile
     def code_to_debug():
