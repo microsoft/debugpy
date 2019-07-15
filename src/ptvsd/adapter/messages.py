@@ -6,7 +6,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import ptvsd
 from ptvsd.common import log, messaging, singleton
-from ptvsd.adapter import channels, debuggee, state
+from ptvsd.adapter import channels, debuggee, state, options
 
 
 class Shared(singleton.ThreadSafeSingleton):
@@ -136,8 +136,11 @@ class IDEMessages(Messages):
     # Handles various attributes common to both "launch" and "attach".
     def _debug_config(self, request):
         assert request.command in ("launch", "attach")
-        pass  # TODO: options and debugOptions
-        pass  # TODO: pathMappings (unless server does that entirely?)
+
+        # TODO: Change all old VS style debugger settings to debugOptions
+        # See https://github.com/microsoft/ptvsd/issues/1219
+        pass
+
 
     @_replay_to_server
     @_only_allowed_while("initializing")
@@ -155,8 +158,10 @@ class IDEMessages(Messages):
         self.terminate_on_disconnect = False
         self._debug_config(request)
 
-        # TODO: get address and port
-        channels.connect_to_server()
+        options.host = request.arguments.get("host", options.host)
+        options.port = int(request.arguments.get("port", options.port))
+
+        self._channels.connect_to_server(address=(options.host, options.port))
 
         return self._configure()
 
@@ -166,7 +171,7 @@ class IDEMessages(Messages):
     def _configure(self):
         log.debug("Replaying previously received messages to server.")
 
-        for msg in self.initial_messages:
+        for msg in self._initial_messages:
             # TODO: validate server response to ensure it matches our own earlier.
             self._server.propagate(msg)
 

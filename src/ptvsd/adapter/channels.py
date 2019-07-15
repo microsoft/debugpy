@@ -42,9 +42,7 @@ class Channels(singleton.ThreadSafeSingleton):
             server_sock = socket.create_server(host, port)
             try:
                 log.info(
-                    "ptvsd debugServer waiting for connection on {0}:{1}...",
-                    host,
-                    port,
+                    "ptvsd debugServer waiting for connection on {0}:{1}...", host, port
                 )
                 sock, (ide_host, ide_port) = server_sock.accept()
             finally:
@@ -65,13 +63,44 @@ class Channels(singleton.ThreadSafeSingleton):
             },
         )
 
-
     @singleton.autolocked_method
     def connect_to_server(self, address):
         assert self.server is None
-        raise NotImplementedError
+
+        # Import message handlers lazily to avoid circular imports.
+        from ptvsd.adapter import messages
+
+        host, port = address
+        sock = socket.create_client()
+        sock.connect(address)
+
+        server_stream = messaging.JsonIOStream.from_socket(sock, "server")
+
+        self.server = messaging.JsonMessageChannel(
+            server_stream, messages.ServerMessages(), server_stream.name
+        )
+        self.server.start()
 
     @singleton.autolocked_method
     def accept_connection_from_server(self, address):
         assert self.server is None
-        raise NotImplementedError
+
+        # Import message handlers lazily to avoid circular imports.
+        from ptvsd.adapter import messages
+
+        host, port = address
+        server_sock = socket.create_server(host, port)
+        try:
+            log.info(
+                "ptvsd adapter waiting for connection on {0}:{1}...", host, port
+            )
+            sock, (server_host, server_port) = server_sock.accept()
+        finally:
+            server_sock.close()
+        log.info("Debug server connection accepted from {0}:{1}.", server_host, server_port)
+        server_stream = messaging.JsonIOStream.from_socket(sock, "server")
+
+        self.server = messaging.JsonMessageChannel(
+            server_stream, messages.ServerMessages(), server_stream.name
+        )
+        self.server.start()
