@@ -13,6 +13,7 @@ are automatically killed.
 
 __all__  = ["start", "register_spawn", "unregister_spawn"]
 
+import atexit
 import os
 import sys
 import psutil
@@ -43,6 +44,13 @@ def start():
 
     _stream = messaging.JsonIOStream(_process.stdout, _process.stdin, watchdog_name)
     assert _stream.read_json() == "ready"
+    atexit.register(stop)
+
+
+def stop():
+    if _stream is None:
+        return
+    _stream.write_json(["stop"])
 
 
 def register_spawn(pid, name):

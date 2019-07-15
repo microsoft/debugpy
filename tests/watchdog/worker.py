@@ -45,10 +45,17 @@ def main(tests_pid):
             except Exception:
                 break
 
-            command, pid, name = message
-            pid = int(pid)
+            command = message[0]
+            args = message[1:]
 
-            if command == "register_spawn":
+            if command == "stop":
+                assert not args
+                break
+
+            elif command == "register_spawn":
+                pid, name = args
+                pid = int(pid)
+
                 log.debug(
                     "watchdog-{0} registering spawned process {1} (pid={2})",
                     tests_pid,
@@ -59,6 +66,9 @@ def main(tests_pid):
                 spawned_processes[pid] = psutil.Process(pid)
 
             elif command == "unregister_spawn":
+                pid, name = args
+                pid = int(pid)
+
                 log.debug(
                     "watchdog-{0} unregistering spawned process {1} (pid={2})",
                     tests_pid,
