@@ -20,7 +20,7 @@ import time
 import ptvsd
 from ptvsd.common import compat, fmt, log, messaging
 import tests
-from tests import code, net
+from tests import code, net, watchdog
 from tests.patterns import some
 from tests.timeline import Timeline, Event, Request, Response
 
@@ -51,7 +51,7 @@ StopInfo = collections.namedtuple('StopInfo', [
 
 class Session(object):
     WAIT_FOR_EXIT_TIMEOUT = 10
-    """Timeout used by wait_for_exit() before it kills the ptvsd process.
+    """Timeout used by wait_for_exit() before it kills the ptvsd process tree.
     """
 
     START_METHODS = {
@@ -71,6 +71,8 @@ class Session(object):
     def __init__(self, start_method, ptvsd_port=None, pid=None):
         assert start_method in self.START_METHODS
         assert ptvsd_port is None or start_method.startswith('attach_socket_')
+
+        watchdog.start()
 
         self.id = next(self._counter)
         log.info('New debug session {0}; will be started via {1!r}.', self, start_method)
@@ -98,9 +100,10 @@ class Session(object):
 
         self.is_running = False
         self.process = None
+        self.process_terminated = False
         self.pid = pid
         self.psutil_process = psutil.Process(self.pid) if self.pid else None
-        self.kill_ptvsd = True
+        self.kill_ptvsd_on_close = True
         self.socket = None
         self.server_socket = None
         self.connected = threading.Event()
@@ -133,13 +136,21 @@ class Session(object):
     def __str__(self):
         return fmt("ptvsd-{0}", self.id)
 
+    def __del__(self):
+        # Always kill the process tree, even if kill_ptvsd_on_close is False. Any
+        # test that wants to keep it alive should do so explicitly by keeping the
+        # Session object alive for the requisite amount of time after it is closed.
+        # But there is no valid scenario in which any ptvsd process should outlive
+        # the test in which it was spawned.
+        self.kill_process_tree()
+
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         # If we're exiting a failed test, make sure that all output from the debuggee
         # process has been received and logged, before we close the sockets and kill
-        # the debuggee process. In success case, wait_for_exit() takes care of that.
+        # the process tree. In success case, wait_for_exit() takes care of that.
         if exc_type is not None:
             # If it failed in the middle of the test, the debuggee process might still
             # be alive, and waiting for the test to tell it to continue. In this case,
@@ -168,7 +179,7 @@ class Session(object):
     def close(self):
         with self.lock:
             if self.socket:
-                log.debug('Closing socket to {0}...', self)
+                log.debug('Closing {0} socket...', self)
                 try:
                     self.socket.shutdown(socket.SHUT_RDWR)
                 except Exception:
@@ -178,10 +189,9 @@ class Session(object):
                 except Exception:
                     pass
                 self.socket = None
-                log.debug('Closed socket to {0}', self)
 
             if self.server_socket:
-                log.debug('Closing server socket for {0}...', self)
+                log.debug('Closing {0} server socket...', self)
                 try:
                     self.server_socket.shutdown(socket.SHUT_RDWR)
                 except Exception:
@@ -191,39 +201,13 @@ class Session(object):
                 except Exception:
                     pass
                 self.server_socket = None
-                log.debug('Closed server socket for {0}', self)
 
         if self.backchannel:
             self.backchannel.close()
             self.backchannel = None
 
-        if self.process:
-            if self.kill_ptvsd:
-                log.info('Killing {0} (pid={1}) process tree...', self, self.pid)
-                try:
-                    self._kill_process_tree()
-                except Exception:
-                    log.exception('Error killing {0} (pid={1}) process tree', self, self.pid)
-                log.info('Killed {0} (pid={1}) process tree', self, self.pid)
-
-            # Clean up pipes to avoid leaking OS handles.
-            log.debug('Closing stdio pipes of {0}...', self)
-            try:
-                self.process.stdin.close()
-            except Exception:
-                pass
-            try:
-                self.process.stdout.close()
-            except Exception:
-                pass
-            try:
-                self.process.stderr.close()
-            except Exception:
-                pass
-            log.debug('Closed stdio pipes of {0}', self)
-
-        log.debug('Waiting for remaining captured output of {0}...', self)
-        self.captured_output.wait()
+        if self.kill_ptvsd_on_close:
+            self.kill_process_tree()
 
         log.info('{0} closed', self)
 
@@ -454,7 +438,8 @@ class Session(object):
         self.pid = self.process.pid
         self.psutil_process = psutil.Process(self.pid)
         self.is_running = True
-        # watchdog.create(self.pid)
+        log.info('Spawned {0} with pid={1}', self, self.pid)
+        watchdog.register_spawn(self.pid, str(self))
 
         if self.capture_output:
             self.captured_output.capture(self.process)
@@ -462,9 +447,20 @@ class Session(object):
         if start_method == 'attach_pid':
             # This is a temp process spawned to inject debugger into the debuggee.
             dbg_argv += ['--pid', str(self.pid)]
-            log.info('Spawning {0} attach helper: {1!r}', self, dbg_argv)
-            attach_helper = subprocess.Popen(dbg_argv)
-            log.info('Spawned {0} attach helper with pid={1}', self, attach_helper.pid)
+            attach_helper_name = fmt("attach_helper-{0}", self.id)
+            log.info(
+                "Spawning {0} for {1}:\n\n{2}",
+                attach_helper_name,
+                self,
+                "\n".join((repr(s) for s in dbg_argv))
+            )
+            attach_helper = psutil.Popen(dbg_argv)
+            log.info('Spawned {0} with pid={1}', attach_helper_name, attach_helper.pid)
+            watchdog.register_spawn(attach_helper.pid, attach_helper_name)
+            try:
+                attach_helper.wait()
+            finally:
+                watchdog.unregister_spawn(attach_helper.pid, attach_helper_name)
 
         self._before_connect()
 
@@ -474,7 +470,6 @@ class Session(object):
 
         assert self.ptvsd_port
         assert self.socket
-        log.info('Spawned {0} with pid={1}', self, self.pid)
 
         telemetry = self.wait_for_next_event('output')
         assert telemetry == {
@@ -500,8 +495,6 @@ class Session(object):
             self.timeline.close()
 
     def wait_for_termination(self, close=False):
-        log.info('Waiting for {0} to terminate', self)
-
         # BUG: ptvsd sometimes exits without sending 'terminate' or 'exited', likely due to
         # https://github.com/Microsoft/ptvsd/issues/530. So rather than wait for them, wait until
         # we disconnect, then check those events for proper body only if they're actually present.
@@ -531,8 +524,8 @@ class Session(object):
 
     def wait_for_exit(self):
         """Waits for the spawned ptvsd process to exit. If it doesn't exit within
-        WAIT_FOR_EXIT_TIMEOUT seconds, forcibly kills the process. After the process
-        exits, validates its return code to match expected_returncode.
+        WAIT_FOR_EXIT_TIMEOUT seconds, forcibly kills the process tree. After the
+        process exits, validates its return code to match expected_returncode.
         """
 
         if not self.is_running:
@@ -540,39 +533,87 @@ class Session(object):
 
         assert self.psutil_process is not None
 
-        killed = []
-        def kill():
+        timed_out = []
+        def kill_after_timeout():
             time.sleep(self.WAIT_FOR_EXIT_TIMEOUT)
             if self.is_running:
-                log.warning('{0!r} (pid={1}) timed out, killing it', self, self.pid)
-                killed[:] = [True]
-                self._kill_process_tree()
+                log.warning(
+                    'wait_for_exit() timed out while waiting for {0} (pid={1})',
+                    self,
+                    self.pid,
+                )
+                timed_out[:] = [True]
+                self.kill_process_tree()
 
-        kill_thread = threading.Thread(target=kill, name=fmt('{0} watchdog (pid={1})', self, self.pid))
+        kill_thread = threading.Thread(
+            target=kill_after_timeout,
+            name=fmt(
+                'wait_for_exit({0!r}, pid={1!r})',
+                self,
+                self.pid,
+            ),
+        )
         kill_thread.daemon = True
         kill_thread.start()
 
-        log.info('Waiting for {0} (pid={1}) to terminate', self, self.pid)
+        log.info('Waiting for {0} (pid={1}) to terminate...', self, self.pid)
         returncode = self.psutil_process.wait()
+        watchdog.unregister_spawn(self.pid, str(self))
+        self.process_terminated = True
 
-        assert not killed, "wait_for_exit() timed out"
+        assert not timed_out, "wait_for_exit() timed out"
         assert returncode == self.expected_returncode
 
         self.is_running = False
-        self.wait_for_termination(close=not killed)
+        self.wait_for_termination(close=True)
 
-    def _kill_process_tree(self):
+    def kill_process_tree(self):
+        if self.process is None or self.process_terminated:
+            return
+
+        log.info('Killing {0} process tree...', self)
+
         assert self.psutil_process is not None
         procs = [self.psutil_process]
         try:
             procs += self.psutil_process.children(recursive=True)
         except Exception:
             pass
+
         for p in procs:
+            log.warning(
+                "Killing {0} {1}process (pid={2})",
+                self,
+                "" if p.pid == self.pid else "child ",
+                p.pid,
+            )
             try:
                 p.kill()
-            except Exception:
+            except psutil.NoSuchProcess:
                 pass
+            except Exception:
+                log.exception()
+
+        self.process_terminated = True
+        log.info('Killed {0} process tree', self)
+
+        self.captured_output.wait()
+        self.close_stdio()
+
+    def close_stdio(self):
+        log.debug('Closing stdio pipes of {0}...', self)
+        try:
+            self.process.stdin.close()
+        except Exception:
+            pass
+        try:
+            self.process.stdout.close()
+        except Exception:
+            pass
+        try:
+            self.process.stderr.close()
+        except Exception:
+            pass
 
     def _listen(self):
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -724,7 +765,10 @@ class Session(object):
 
     def _process_event(self, event):
         self.timeline.record_event(event, block=False)
-        if event.event == "terminated":
+        if event.event == "ptvsd_subprocess":
+            pid = event.body["processId"]
+            watchdog.register_spawn(pid, fmt("{0}-subprocess-{1}", self, pid))
+        elif event.event == "terminated":
             # Stop the message loop, since the ptvsd is going to close the connection
             # from its end shortly after sending this event, and no further messages
             # are expected.
@@ -957,6 +1001,9 @@ class CapturedOutput(object):
         self._lines = {}
         self._worker_threads = []
 
+    def __str__(self):
+        return fmt("CapturedOutput({0!r})", self.session)
+
     def _worker(self, pipe, name):
         lines = self._lines[name]
         while True:
@@ -988,14 +1035,19 @@ class CapturedOutput(object):
         """Start capturing stdout and stderr of the process.
         """
         assert not self._worker_threads
+        log.info('Capturing {0} stdout and stderr', self.session)
         self._capture(process.stdout, "stdout")
         self._capture(process.stderr, "stderr")
 
     def wait(self, timeout=None):
         """Wait for all remaining output to be captured.
         """
+        if not self._worker_threads:
+            return
+        log.debug('Waiting for remaining {0} stdout and stderr...', self.session)
         for t in self._worker_threads:
             t.join(timeout)
+        self._worker_threads[:] = []
 
     def _output(self, which, encoding, lines):
         assert self.session.timeline.is_frozen
@@ -1111,20 +1163,20 @@ class BackChannel(object):
 
     def close(self):
         if self._socket:
+            log.debug('Closing {0} socket of {1}...', self, self.session)
             try:
                 self._socket.shutdown(socket.SHUT_RDWR)
             except Exception:
                 pass
             self._socket = None
-            log.debug('Closed socket for {0} to {1}', self, self.session)
 
         if self._server_socket:
+            log.debug('Closing {0} server socket of {1}...', self, self.session)
             try:
                 self._server_socket.shutdown(socket.SHUT_RDWR)
             except Exception:
                 pass
             self._server_socket = None
-            log.debug('Closed server socket for {0} to {1}', self, self.session)
 
 
 class ScratchPad(object):

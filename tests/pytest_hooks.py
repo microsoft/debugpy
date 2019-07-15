@@ -43,7 +43,7 @@ def pytest_configure(config):
 
 
 def pytest_report_header(config):
-    result = ["Test environment:\n\n"]
+    result = [fmt("Test environment for tests-{0}:\n\n", os.getpid())]
 
     def report(*args, **kwargs):
         result.append(fmt(*args, **kwargs))

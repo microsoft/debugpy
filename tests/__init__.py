@@ -52,12 +52,13 @@ for _, submodule, _ in tests_submodules:
 # Now we can import these, and pytest will rewrite asserts in them.
 from ptvsd.common import json, log
 
-
 # Enable full logging to stderr, and make timestamps shorter to match maximum test
 # run time better.
 log.stderr = sys.stderr  # use pytest-captured stderr rather than __stderr__
 log.stderr_levels = set(log.LEVELS)
 log.timestamp_format = "06.3f"
+log.filename_prefix = "tests"
+log.to_file()
 
 
 # Enable JSON serialization for py.path.local.
