@@ -13,8 +13,8 @@ from tests.timeline import Event
 
 @pytest.mark.parametrize("wait_for_attach", ["wait_for_attach", ""])
 @pytest.mark.parametrize("is_attached", ["is_attached", ""])
-@pytest.mark.parametrize("break_into_debugger", ["break_into_debugger", ""])
-def test_attach(run_as, wait_for_attach, is_attached, break_into_debugger):
+@pytest.mark.parametrize("stop_method", ["break_into_debugger", "pause"])
+def test_attach(run_as, wait_for_attach, is_attached, stop_method):
     attach1_py = test_data / "attach" / "attach1.py"
 
     with debug.Session("custom_server") as session:
@@ -22,7 +22,9 @@ def test_attach(run_as, wait_for_attach, is_attached, break_into_debugger):
             "ATTACH1_TEST_PORT": str(session.ptvsd_port),
             "ATTACH1_WAIT_FOR_ATTACH": "1" if wait_for_attach else "0",
             "ATTACH1_IS_ATTACHED":  "1" if is_attached else "0",
-            "ATTACH1_BREAK_INTO_DEBUGGER": "1" if break_into_debugger else "0",
+            "ATTACH1_BREAK_INTO_DEBUGGER": (
+                "1" if stop_method == "break_into_debugger" else "0"
+            ),
         })
 
         backchannel = session.setup_backchannel()
@@ -35,18 +37,20 @@ def test_attach(run_as, wait_for_attach, is_attached, break_into_debugger):
         if is_attached:
             assert backchannel.receive() == "is_attached"
 
-        if break_into_debugger:
+        if stop_method == "break_into_debugger":
             assert backchannel.receive() == "break_into_debugger?"
             backchannel.send("proceed")
             session.wait_for_stop(expected_frames=[
                 some.dap.frame(attach1_py, "break_into_debugger")
             ])
-        else:
+        elif stop_method == "pause":
             assert backchannel.receive() == "loop?"
             backchannel.send("proceed")
             session.request("pause", freeze=False)
             session.wait_for_stop("pause")
             session.scratchpad["paused"] = True
+        else:
+            pytest.fail(stop_method)
 
         session.request_continue()
         session.wait_for_exit()
