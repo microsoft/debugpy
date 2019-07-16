@@ -45,7 +45,13 @@ def start():
         os.getpid(),
         "\n".join(repr(s) for s in args),
     )
-    _process = psutil.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+
+    _process = psutil.Popen(
+        args,
+        bufsize=0,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+    )
 
     _stream = messaging.JsonIOStream(_process.stdout, _process.stdin, _name)
 

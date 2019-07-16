@@ -131,8 +131,8 @@ def test_multiprocessing(pyfile, start_method, run_as):
 
                 parent_backchannel.send("continue")
 
-                grandchild_session.wait_for_termination()
-                child_session.wait_for_termination()
+                grandchild_session.wait_for_exit()
+                child_session.wait_for_exit()
 
                 assert parent_backchannel.receive() == "done"
                 parent_session.wait_for_exit()

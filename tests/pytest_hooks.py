@@ -33,7 +33,7 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     log_dir = config.rootdir / "tests" / "_logs"
-    if config.option.ptvsd_logs:
+    if True or config.option.ptvsd_logs:
         log.info("ptvsd logs will be in {0}", log_dir)
         debug.PTVSD_ENV["PTVSD_LOG_DIR"] = str(log_dir)
     if config.option.pydevd_logs:

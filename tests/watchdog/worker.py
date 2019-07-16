@@ -11,12 +11,16 @@ from __future__ import absolute_import, print_function, unicode_literals
 # Do not import ptvsd on top level, either - sys.path needs to be fixed first -
 # this is done in main().
 
+import collections
 import os
-import sys
 import platform
 import psutil
+import sys
 import tempfile
 import time
+
+
+ProcessInfo = collections.namedtuple("ProcessInfo", ["process", "name"])
 
 
 def main(tests_pid):
@@ -27,7 +31,7 @@ def main(tests_pid):
 
     from ptvsd.common import fmt, log, messaging
 
-    log.stderr_levels |= {"info"}
+    # log.stderr_levels |= {"info"}
     log.timestamp_format = "06.3f"
     log.filename_prefix = "watchdog"
     log.to_file()
@@ -37,7 +41,7 @@ def main(tests_pid):
     tests_process = psutil.Process(tests_pid)
     stream.write_json(["watchdog", log.filename()])
 
-    spawned_processes = {}
+    spawned_processes = {}  # pid -> ProcessInfo
     try:
         stop = False
         while not stop:
@@ -57,20 +61,30 @@ def main(tests_pid):
                 pid, name = args
                 pid = int(pid)
 
-                log.debug(
+                log.info(
                     "watchdog-{0} registering spawned process {1} (pid={2})",
                     tests_pid,
                     name,
                     pid,
                 )
-                assert pid not in spawned_processes
-                spawned_processes[pid] = psutil.Process(pid)
+                try:
+                    _, old_name = spawned_processes[pid]
+                except KeyError:
+                    pass
+                else:
+                    log.warning(
+                        "watchdog-{0} already tracks a process with pid={1}: {2}",
+                        tests_pid,
+                        pid,
+                        old_name,
+                    )
+                spawned_processes[pid] = ProcessInfo(psutil.Process(pid), name)
 
             elif command == "unregister_spawn":
                 pid, name = args
                 pid = int(pid)
 
-                log.debug(
+                log.info(
                     "watchdog-{0} unregistering spawned process {1} (pid={2})",
                     tests_pid,
                     name,
@@ -92,8 +106,8 @@ def main(tests_pid):
         sys.stdout.close()
         tests_process.wait()
 
-        leftover_processes = set(spawned_processes.values())
-        for proc in spawned_processes.values():
+        leftover_processes = {proc for proc, _ in spawned_processes.values()}
+        for proc, _ in spawned_processes.values():
             try:
                 leftover_processes |= proc.children(recursive=True)
             except Exception:
@@ -126,7 +140,7 @@ def main(tests_pid):
                     # gcore will automatically add pid to the filename
                     core_file = os.path.join(tempfile.gettempdir(), "ptvsd_core")
                     gcore_cmd = fmt("gcore -o {0} {1}", core_file, proc.pid)
-                    log.warning("{0}", gcore_cmd)
+                    log.warning("watchdog-{0}: {1}", tests_pid, gcore_cmd)
                     os.system(gcore_cmd)
                 except Exception:
                     log.exception()
@@ -138,7 +152,7 @@ def main(tests_pid):
             except Exception:
                 log.exception()
 
-        log.debug("watchdog-{0} exiting", tests_pid)
+        log.info("watchdog-{0} exiting", tests_pid)
 
 
 if __name__ == "__main__":
