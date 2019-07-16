@@ -45,9 +45,9 @@ timestamp_format = "09.3f"
 """Format spec used for timestamps. Can be changed to dial precision up or down.
 """
 
-
 _lock = threading.Lock()
 _tls = threading.local()
+_filename = None
 
 
 # Used to inject a newline into stderr if logging there, to clean up the output
@@ -94,6 +94,12 @@ def write(level, text):
 
 
 def write_format(level, format_string, *args, **kwargs):
+    # Don't spend cycles doing expensive formatting if we don't have to. Errors are
+    # always formatted, so that error() can return the text even if it's not logged.
+    if level != "error":
+        if not (level in stderr_levels or (file and level in file_levels)):
+            return
+
     try:
         text = fmt(format_string, *args, **kwargs)
     except Exception:
@@ -173,21 +179,22 @@ def escaped_exceptions(f):
 
 
 def to_file(filename=None):
+    global file, _filename
+
     # TODO: warn when options.log_dir is unset, after fixing improper use in ptvsd.server
-    global file
     if file is not None or options.log_dir is None:
         return
 
-    if filename is None:
+    _filename = _filename or filename
+    if _filename is None:
         if options.log_dir is None:
             warning(
                 "ptvsd.to_file() cannot generate log file name - ptvsd.options.log_dir is not set"
             )
             return
-        filename = fmt("{0}/{1}-{2}.log", options.log_dir, filename_prefix, os.getpid())
+        _filename = fmt("{0}/{1}-{2}.log", options.log_dir, filename_prefix, os.getpid())
 
-    file = io.open(filename, "w", encoding="utf-8")
-
+    file = io.open(_filename, "w", encoding="utf-8")
     info(
         "{0} {1}\n{2} {3} ({4}-bit)\nptvsd {5}",
         platform.platform(),
@@ -197,6 +204,11 @@ def to_file(filename=None):
         64 if sys.maxsize > 2 ** 32 else 32,
         ptvsd.__version__,
     )
+    return _filename
+
+
+def filename():
+    return _filename
 
 
 def current_handler():

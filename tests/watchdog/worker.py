@@ -27,7 +27,7 @@ def main(tests_pid):
 
     from ptvsd.common import fmt, log, messaging
 
-    log.stderr_levels = set(log.LEVELS)
+    log.stderr_levels |= {"info"}
     log.timestamp_format = "06.3f"
     log.filename_prefix = "watchdog"
     log.to_file()
@@ -35,11 +35,12 @@ def main(tests_pid):
     stream = messaging.JsonIOStream.from_stdio(fmt("tests-{0}", tests_pid))
     log.info("Spawned watchdog-{0} for tests-{0}", tests_pid)
     tests_process = psutil.Process(tests_pid)
-    stream.write_json("ready")
+    stream.write_json(["watchdog", log.filename()])
 
     spawned_processes = {}
     try:
-        while True:
+        stop = False
+        while not stop:
             try:
                 message = stream.read_json()
             except Exception:
@@ -50,7 +51,7 @@ def main(tests_pid):
 
             if command == "stop":
                 assert not args
-                break
+                stop = True
 
             elif command == "register_spawn":
                 pid, name = args
@@ -80,10 +81,15 @@ def main(tests_pid):
             else:
                 raise AssertionError(fmt("Unknown watchdog command: {0!r}", command))
 
-    except Exception:
+            stream.write_json(["ok"])
+
+    except Exception as ex:
+        stream.write_json(["error", str(ex)])
         raise log.exception()
 
     finally:
+        stream.close()
+        sys.stdout.close()
         tests_process.wait()
 
         leftover_processes = set(spawned_processes.values())

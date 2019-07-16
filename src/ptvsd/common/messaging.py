@@ -102,6 +102,13 @@ class JsonIOStream(object):
         self._reader.close()
         self._writer.close()
 
+    def _log_message(self, dir, data, logger=log.debug):
+        format_string = (
+            "{0} {1} " +
+            ("{2!j:indent=None}" if isinstance(data, list) else "{2!j}")
+        )
+        return logger(format_string, self.name, dir, data)
+
     @staticmethod
     def _read_line(reader):
         line = b""
@@ -208,7 +215,7 @@ class JsonIOStream(object):
             raise log_message_and_exception()
 
         # If parsed successfully, log as JSON for readability.
-        log.debug("{0} --> {1!j}", self.name, body)
+        self._log_message("-->", body)
         return body
 
     def write_json(self, value, encoder=None):
@@ -227,7 +234,7 @@ class JsonIOStream(object):
         try:
             body = encoder.encode(value)
         except Exception:
-            raise log.exception("{0} <-- {1!r}", self.name, value)
+            raise self._log_message("<--", value, logger=log.exception)
         if not isinstance(body, bytes):
             body = body.encode("utf-8")
 
@@ -247,9 +254,9 @@ class JsonIOStream(object):
                 data_written += written
             writer.flush()
         except Exception:
-            raise log.exception("{0} <-- {1!j}", self.name, value)
+            raise self._log_message("<--", value, logger=log.exception)
 
-        log.debug("{0} <-- {1!j}", self.name, value)
+        self._log_message("<--", value)
 
     def __repr__(self):
         return fmt("{0}({1!r})", type(self).__name__, self.name)
