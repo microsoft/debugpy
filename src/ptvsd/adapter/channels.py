@@ -10,27 +10,37 @@ from ptvsd.common import log, messaging, singleton, socket
 
 class Channels(singleton.ThreadSafeSingleton):
 
-    ide = None
-    """DAP channel to the IDE over stdin/stdout.
+    _ide = None
 
-    Created by main() as soon as the adapter process starts.
+    @property
+    @singleton.autolocked_method
+    def ide(self):
+        """DAP channel to the IDE over stdin/stdout.
 
-    When the IDE disconnects, the channel remains, but is closed, and will raise
-    EOFError on writes.
-    """
+        Created by main() as soon as the adapter process starts.
 
-    server = None
-    """DAP channel to the debug server over a socket.
+        When the IDE disconnects, the channel remains, but is closed, and will raise
+        EOFError on writes.
+        """
+        return self._ide
 
-    Created when handling the "attach" or "launch" request.
+    _server = None
 
-    When the server disconnects, the channel remains, but is closed, and will raise
-    EOFError on writes.
-    """
+    @property
+    @singleton.autolocked_method
+    def server(self):
+        """DAP channel to the debug server over a socket.
+
+        Created when handling the "attach" or "launch" request.
+
+        When the server disconnects, the channel remains, but is closed, and will raise
+        EOFError on writes.
+        """
+        return self._server
 
     @singleton.autolocked_method
     def connect_to_ide(self, address=None):
-        assert self.ide is None
+        assert self._ide is None
 
         # Import message handlers lazily to avoid circular imports.
         from ptvsd.adapter import messages
@@ -50,11 +60,11 @@ class Channels(singleton.ThreadSafeSingleton):
             log.info("IDE connection accepted from {0}:{1}.", ide_host, ide_port)
             ide_stream = messaging.JsonIOStream.from_socket(sock, "IDE")
 
-        self.ide = messaging.JsonMessageChannel(
+        self._ide = messaging.JsonMessageChannel(
             ide_stream, messages.IDEMessages(), ide_stream.name
         )
-        self.ide.start()
-        self.ide.send_event(
+        self._ide.start()
+        self._ide.send_event(
             "output",
             {
                 "category": "telemetry",
@@ -65,7 +75,7 @@ class Channels(singleton.ThreadSafeSingleton):
 
     @singleton.autolocked_method
     def connect_to_server(self, address):
-        assert self.server is None
+        assert self._server is None
 
         # Import message handlers lazily to avoid circular imports.
         from ptvsd.adapter import messages
@@ -76,14 +86,14 @@ class Channels(singleton.ThreadSafeSingleton):
 
         server_stream = messaging.JsonIOStream.from_socket(sock, "server")
 
-        self.server = messaging.JsonMessageChannel(
+        self._server = messaging.JsonMessageChannel(
             server_stream, messages.ServerMessages(), server_stream.name
         )
-        self.server.start()
+        self._server.start()
 
     @singleton.autolocked_method
     def accept_connection_from_server(self, address):
-        assert self.server is None
+        assert self._server is None
 
         # Import message handlers lazily to avoid circular imports.
         from ptvsd.adapter import messages
@@ -100,7 +110,7 @@ class Channels(singleton.ThreadSafeSingleton):
         log.info("Debug server connection accepted from {0}:{1}.", server_host, server_port)
         server_stream = messaging.JsonIOStream.from_socket(sock, "server")
 
-        self.server = messaging.JsonMessageChannel(
+        self._server = messaging.JsonMessageChannel(
             server_stream, messages.ServerMessages(), server_stream.name
         )
-        self.server.start()
+        self._server.start()

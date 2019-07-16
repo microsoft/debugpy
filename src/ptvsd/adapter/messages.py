@@ -188,8 +188,10 @@ class IDEMessages(Messages):
 
     @_only_allowed_while("configuring")
     def configurationDone_request(self, request):
+        ret = self._server.delegate(request)
         state.change("running")
-        return self._server.delegate(request)
+        ServerMessages().release_events()
+        return ret
 
     # Handle a "disconnect" or a "terminate" request.
     def _shutdown(self, request, terminate):
@@ -284,6 +286,8 @@ class ServerMessages(Messages):
     """
 
     _channels = channels.Channels()
+    _saved_messages = []
+    _hold_messages = True
 
     # Socket was closed by the server.
     def disconnect(self):
@@ -295,4 +299,26 @@ class ServerMessages(Messages):
 
     # Generic event handler, used if there's no specific handler below.
     def event(self, event):
-        self._ide.propagate(event)
+        # NOTE: This is temporary until debug server is updated to follow
+        # DAP spec so we don't receive debugger events before configuration
+        # done is finished.
+        with self._lock:
+            if self._hold_messages:
+                self._saved_messages.append(event)
+            else:
+                self._ide.propagate(event)
+
+    def initialized_event(self, event):
+        # NOTE: This should be suppressed from server, if we want to remove
+        # this then we should ensure that debug server follows DAP spec and
+        # also remove the 'initialized' event sent from IDE messages.
+        pass
+
+    def release_events(self):
+        # NOTE: This is temporary until debug server is updated to follow
+        # DAP spec so we don't receive debugger events before configuration
+        # done is finished.
+        with self._lock:
+            self._hold_messages = False
+            for e in self._saved_messages:
+                self._ide.propagate(e)
