@@ -504,13 +504,13 @@ class _PyDevJsonCommandProcessor(object):
                     error_msg = 'Breakpoint not validated (reason unknown -- please report as bug).'
 
                 breakpoints_set.append(pydevd_schema.Breakpoint(
-                    verified=False, line=result.translated_line, message=error_msg).to_dict())
+                    verified=False, line=result.translated_line, message=error_msg, source=arguments.source).to_dict())
             else:
                 # Note that the id is made up (the id for pydevd is unique only within a file, so, the
                 # line is used for it).
                 # Also, the id is currently not used afterwards, so, we don't even keep a mapping.
                 breakpoints_set.append(pydevd_schema.Breakpoint(
-                    verified=True, id=self._next_breakpoint_id(), line=result.translated_line).to_dict())
+                    verified=True, id=self._next_breakpoint_id(), line=result.translated_line, source=arguments.source).to_dict())
 
         body = {'breakpoints': breakpoints_set}
         set_breakpoints_response = pydevd_base_schema.build_response(request, kwargs={'body': body})

@@ -132,7 +132,9 @@ def test_exceptions_and_partial_exclude_rules(pyfile, run_as, start_method, scen
                     'Breakpoint in file excluded by filters.\n'
                     'Note: may be excluded because of "justMyCode" option (default == true).'
                 ),
-                'source': {},
+                'source': ANY.dict_with({
+                    'path': Path(code_to_debug)
+                }),
                 'line': 1
             }]
 
