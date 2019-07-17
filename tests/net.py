@@ -58,19 +58,22 @@ def wait_until_port_is_listening(port, interval=1, max_attempts=1000):
     Connection is immediately closed before returning.
     """
 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        for i in compat.xrange(1, max_attempts + 1):
-            try:
-                log.info("Probing localhost:{0} (attempt {1})...", port, i)
-                sock.connect(("localhost", port))
-            except socket.error:
-                time.sleep(interval)
-            else:
-                log.info("localhost:{0} is listening - server is up!", port)
-                return
-    finally:
-        sock.close()
+    for i in compat.xrange(1, max_attempts + 1):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            log.info("Probing localhost:{0} (attempt {1})...", port, i)
+            sock.connect(("localhost", port))
+        except socket.error:
+            # The first attempt will almost always fail, because the port isn't
+            # open yet. But if it keeps failing after that, we want to know why.
+            if i > 1:
+                log.exception()
+            time.sleep(interval)
+        else:
+            log.info("localhost:{0} is listening - server is up!", port)
+            return
+        finally:
+            sock.close()
 
 
 class WebRequest(object):
