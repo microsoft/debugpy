@@ -21,8 +21,8 @@ if int(os.environ["ATTACH1_BREAK_INTO_DEBUGGER"]):
     ptvsd.break_into_debugger()
     print("break")  # @break_into_debugger
 else:
-    backchannel.send("loop?")
     scratchpad["paused"] = False
+    backchannel.send("loop?")
     assert backchannel.receive() == "proceed"
     while not scratchpad["paused"]:
         print("looping until paused")
