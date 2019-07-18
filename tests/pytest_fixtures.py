@@ -7,6 +7,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 import inspect
 import os
 import platform
+import py.path
 import pytest
 import tempfile
 import threading
@@ -97,8 +98,30 @@ def daemon(request):
                 assert not thread.is_alive()
 
 
+if platform.system() != 'Windows':
+    @pytest.fixture
+    def long_tmpdir(request, tmpdir):
+        return tmpdir
+else:
+    import ctypes
+
+    GetLongPathNameW = ctypes.windll.kernel32.GetLongPathNameW
+    GetLongPathNameW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_uint32]
+    GetLongPathNameW.restype = ctypes.c_uint32
+
+    @pytest.fixture
+    def long_tmpdir(request, tmpdir):
+        """Like tmpdir, but ensures that it's a long rather than short filename on Win32.
+        """
+        path = compat.filename(tmpdir.strpath)
+        buffer = ctypes.create_unicode_buffer(512)
+        if GetLongPathNameW(path, buffer, len(buffer)):
+            path = buffer.value
+        return py.path.local(path)
+
+
 @pytest.fixture
-def pyfile(request, tmpdir):
+def pyfile(request, long_tmpdir):
     """A fixture providing a factory function that generates .py files.
 
     The returned factory takes a single function with an empty argument list,
@@ -160,7 +183,7 @@ def pyfile(request, tmpdir):
         source = ''.join(source)
 
         # Write it to file.
-        tmpfile = tmpdir / (name + '.py')
+        tmpfile = long_tmpdir / (name + '.py')
         tmpfile.strpath = compat.filename(tmpfile.strpath)
         assert not tmpfile.check()
         tmpfile.write(source)

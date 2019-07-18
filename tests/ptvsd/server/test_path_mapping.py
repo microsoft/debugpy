@@ -15,7 +15,7 @@ from tests.patterns import some
 @pytest.mark.skipif(sys.platform == "win32", reason="Linux/Mac only test.")
 @pytest.mark.parametrize("os_type", ["INVALID", ""])
 def test_client_ide_from_path_mapping_linux_backend(
-    pyfile, tmpdir, start_method, run_as, os_type
+    pyfile, start_method, run_as, os_type
 ):
     """
     Test simulating that the backend is on Linux and the client is on Windows
@@ -65,7 +65,7 @@ def test_client_ide_from_path_mapping_linux_backend(
         session.wait_for_exit()
 
 
-def test_with_dot_remote_root(pyfile, tmpdir, start_method, run_as):
+def test_with_dot_remote_root(pyfile, long_tmpdir, start_method, run_as):
     @pyfile
     def code_to_debug():
         from debug_me import backchannel
@@ -74,8 +74,8 @@ def test_with_dot_remote_root(pyfile, tmpdir, start_method, run_as):
         backchannel.send(os.path.abspath(__file__))
         print("done")  # @bp
 
-    path_local = tmpdir.mkdir("local") / "code_to_debug.py"
-    path_remote = tmpdir.mkdir("remote") / "code_to_debug.py"
+    path_local = long_tmpdir.mkdir("local") / "code_to_debug.py"
+    path_remote = long_tmpdir.mkdir("remote") / "code_to_debug.py"
 
     dir_local = path_local.dirname
     dir_remote = path_remote.dirname
@@ -110,7 +110,7 @@ def test_with_dot_remote_root(pyfile, tmpdir, start_method, run_as):
         session.wait_for_exit()
 
 
-def test_with_path_mappings(pyfile, tmpdir, start_method, run_as):
+def test_with_path_mappings(pyfile, long_tmpdir, start_method, run_as):
     @pyfile
     def code_to_debug():
         from debug_me import backchannel
@@ -129,8 +129,8 @@ def test_with_path_mappings(pyfile, tmpdir, start_method, run_as):
         call_me_back.call_me_back(call_func)  # @call_me_back
         print("done")
 
-    dir_local = tmpdir.mkdir("local")
-    dir_remote = tmpdir.mkdir("remote")
+    dir_local = long_tmpdir.mkdir("local")
+    dir_remote = long_tmpdir.mkdir("remote")
 
     path_local = dir_local / "code_to_debug.py"
     path_remote = dir_remote / "code_to_debug.py"
