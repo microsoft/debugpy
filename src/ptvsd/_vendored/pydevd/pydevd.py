@@ -515,6 +515,9 @@ class PyDB(object):
         self._exclude_by_filter_cache = {}
         self._apply_filter_cache = {}
 
+        # State for use with DAP based connections
+        self.dap_debugger_attached = threading.Event()
+
     def on_configuration_done(self):
         '''
         Note: only called when using the DAP (Debug Adapter Protocol).

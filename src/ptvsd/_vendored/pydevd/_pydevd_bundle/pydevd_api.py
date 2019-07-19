@@ -27,6 +27,7 @@ class PyDevdAPI(object):
         py_db.ready_to_run = True
 
     def notify_configuration_done(self, py_db):
+        py_db.dap_debugger_attached.set()
         py_db.on_configuration_done()
 
     def notify_disconnect(self, py_db):
@@ -123,6 +124,7 @@ class PyDevdAPI(object):
         self.remove_all_breakpoints(py_db, filename='*')
         self.remove_all_exception_breakpoints(py_db)
         self.notify_disconnect(py_db)
+        py_db.dap_debugger_attached.clear()
         if resume_threads:
             self.request_resume_thread(thread_id='*')
 

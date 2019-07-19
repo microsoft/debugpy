@@ -13,15 +13,15 @@ from _pydevd_bundle._debug_adapter import pydevd_base_schema
 from _pydevd_bundle._debug_adapter.pydevd_schema import (
     CompletionsResponseBody, EvaluateResponseBody, ExceptionOptions,
     GotoTargetsResponseBody, ModulesResponseBody, ProcessEventBody,
-	ProcessEvent, Scope, ScopesResponseBody, SetExpressionResponseBody,
-	SetVariableResponseBody, SourceBreakpoint, SourceResponseBody,
-	VariablesResponseBody)
+    ProcessEvent, Scope, ScopesResponseBody, SetExpressionResponseBody,
+    SetVariableResponseBody, SourceBreakpoint, SourceResponseBody,
+    VariablesResponseBody)
 from _pydevd_bundle.pydevd_api import PyDevdAPI
 from _pydevd_bundle.pydevd_breakpoints import get_exception_class
 from _pydevd_bundle.pydevd_comm_constants import (
     CMD_PROCESS_EVENT, CMD_RETURN, CMD_SET_NEXT_STATEMENT, CMD_STEP_INTO,
-	CMD_STEP_INTO_MY_CODE, CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE,
-	CMD_STEP_RETURN, CMD_STEP_RETURN_MY_CODE)
+    CMD_STEP_INTO_MY_CODE, CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE,
+    CMD_STEP_RETURN, CMD_STEP_RETURN_MY_CODE)
 from _pydevd_bundle.pydevd_constants import DebugInfoHolder, IS_WINDOWS
 from _pydevd_bundle.pydevd_filtering import ExcludeFilter
 from _pydevd_bundle.pydevd_json_debug_options import _extract_debug_options

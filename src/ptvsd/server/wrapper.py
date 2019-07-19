@@ -48,9 +48,6 @@ from ptvsd.server.socket import TimeoutError  # noqa
 
 WAIT_FOR_THREAD_FINISH_TIMEOUT = 1  # seconds
 
-debugger_attached = threading.Event()
-
-
 def NOOP(*args, **kwargs):
     pass
 
@@ -876,7 +873,6 @@ class VSCLifecycleMsgProcessor(VSCodeMessageProcessorBase):
     def on_disconnect(self, request, args):
         multiproc.kill_subprocesses()
 
-        debugger_attached.clear()
         self._restart_debugger = args.get('restart', False)
 
         # TODO: docstring
@@ -1112,7 +1108,6 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
         self._process_debug_options(self.debug_options)
 
         self._forward_request_to_pydevd(request, args, send_response=False)
-        debugger_attached.set()
 
         self._notify_debugger_ready()
 
@@ -1290,7 +1285,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
     @async_handler
     def on_pause(self, request, args):
         # Pause requests cannot be serviced until pydevd is fully initialized.
-        if not debugger_attached.isSet():
+        if not ptvsd.is_attached():
             self.send_response(
                 request,
                 success=False,
@@ -1468,7 +1463,7 @@ class VSCodeMessageProcessor(VSCLifecycleMsgProcessor):
             }
         '''
         # When we receive the thread on tests (due to a threads request), it's possible
-        # that the `debugger_attached` is still unset (but we should report about the
+        # that the `is_attached` return false (but we should report about the
         # thread creation anyways).
         tid = args['body']['threadId']
         self.send_event('thread', reason='started', threadId=tid)
