@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+import errno
 import os.path
 import platform
 import pytest
@@ -114,14 +115,16 @@ def test_launcher(pyfile, mode, exit_code, run_as):
         while not outstr.endswith(b". . . "):
             outstr += p.stdout.read(1)
 
+        exc_type = BrokenPipeError if sys.version_info >= (3,) else IOError
+
         while p.poll() is None:
             try:
                 p.stdin.write(b"\n")
                 p.stdin.flush()
-            except BrokenPipeError:
-                # This can occur if the console exited before 
-                # flush was called.
-                pass
+            except exc_type as exc:
+                # This can occur if the process exits before write completes.
+                if isinstance(exc, IOError) and exc.errno != errno.EPIPE:
+                    raise
     else:
         p.wait()
 
