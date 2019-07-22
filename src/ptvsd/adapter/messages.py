@@ -220,11 +220,11 @@ class IDEMessages(Messages):
         if server is not None:
             try:
                 result = server.delegate(request)
-            except messaging.MessageHandlingError as server_exc:
+            except messaging.MessageHandlingError as exc:
                 # If the server was there, but failed to handle the request, we want
                 # to propagate that failure back to the IDE - but only after we have
                 # recorded the state transition and terminated the debuggee if needed.
-                pass
+                server_exc = exc
             except Exception:
                 # The server might have already disconnected - this is not an error.
                 pass
