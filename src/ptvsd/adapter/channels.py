@@ -4,29 +4,24 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-import ptvsd
 from ptvsd.common import log, messaging, singleton, socket
 
 
 class Channels(singleton.ThreadSafeSingleton):
-
     _ide = None
 
-    @property
     @singleton.autolocked_method
     def ide(self):
         """DAP channel to the IDE over stdin/stdout.
 
         Created by main() as soon as the adapter process starts.
 
-        When the IDE disconnects, the channel remains, but is closed, and will raise
-        EOFError on writes.
+        If the IDE has disconnected, this method still returns the closed channel.
         """
         return self._ide
 
     _server = None
 
-    @property
     @singleton.autolocked_method
     def server(self):
         """DAP channel to the debug server over a socket.
@@ -40,6 +35,15 @@ class Channels(singleton.ThreadSafeSingleton):
 
     @singleton.autolocked_method
     def connect_to_ide(self, address=None):
+        """Creates a DAP message channel to the IDE, and returns that channel.
+
+        If address is not None, the channel is established by connecting to the TCP
+        socket listening on that address. Otherwise, the channel is established over
+        stdio.
+
+        Caller is responsible for calling start() on the returned channel.
+        """
+
         assert self._ide is None
 
         # Import message handlers lazily to avoid circular imports.
@@ -63,18 +67,18 @@ class Channels(singleton.ThreadSafeSingleton):
         self._ide = messaging.JsonMessageChannel(
             ide_stream, messages.IDEMessages(), ide_stream.name
         )
-        self._ide.start()
-        self._ide.send_event(
-            "output",
-            {
-                "category": "telemetry",
-                "output": "ptvsd.adapter",
-                "data": {"version": ptvsd.__version__},
-            },
-        )
+        return self._ide
 
     @singleton.autolocked_method
     def connect_to_server(self, address):
+        """Creates a DAP message channel to the server, and returns that channel.
+
+        The channel is established by connecting to the TCP socket listening on the
+        specified address
+
+        Caller is responsible for calling start() on the returned channel.
+        """
+
         assert self._server is None
 
         # Import message handlers lazily to avoid circular imports.
@@ -89,10 +93,18 @@ class Channels(singleton.ThreadSafeSingleton):
         self._server = messaging.JsonMessageChannel(
             server_stream, messages.ServerMessages(), server_stream.name
         )
-        self._server.start()
+        return self._server
 
     @singleton.autolocked_method
     def accept_connection_from_server(self, address):
+        """Creates a DAP message channel to the server, and returns that channel.
+
+        The channel is established by listening on the specified address until there
+        is an incoming TCP connection. Only one incoming connection is accepted.
+
+        Caller is responsible for calling start() on the returned channel.
+        """
+
         assert self._server is None
 
         # Import message handlers lazily to avoid circular imports.
@@ -113,4 +125,13 @@ class Channels(singleton.ThreadSafeSingleton):
         self._server = messaging.JsonMessageChannel(
             server_stream, messages.ServerMessages(), server_stream.name
         )
-        self._server.start()
+        return self._server
+
+    @singleton.autolocked_method
+    def close_server(self):
+        assert self._server is not None
+        try:
+            self._server.close()
+        except Exception:
+            log.exception("Error while closing server channel:")
+        self._server = None

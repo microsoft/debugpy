@@ -8,13 +8,12 @@ import functools
 
 import ptvsd
 from ptvsd.common import log, messaging, singleton
-from ptvsd.adapter import channels, debuggee, state, options
+from ptvsd.adapter import channels, contract, debuggee, options, state
 
 
 class Shared(singleton.ThreadSafeSingleton):
-    """Global state shared between IDE and server handlers."""
-
-    client_id = ""  # always a string to avoid None checks
+    """Global state shared between IDE and server handlers, other than contracts.
+    """
 
 
 class Messages(singleton.Singleton):
@@ -22,20 +21,22 @@ class Messages(singleton.Singleton):
 
     _channels = channels.Channels()
 
-    # Shortcut for the IDE channel.
+    # Shortcut for the IDE channel. This one does not check for None, because in the
+    # normal stdio channel scenario, the channel will never disconnect. The debugServer
+    # scenario is for testing purposes only, so it's okay to crash if IDE suddenly
+    # disconnects in that case.
     @property
     def _ide(self):
-        return self._channels.ide
+        return self._channels.ide()
 
-    # Returns the server channel if connected to server, otherwise indicates failure.
     @property
     def _server(self):
-        """Raises RequestFailure if the server is not available.
+        """Raises MessageHandingError if the server is not available.
 
-         To test whether it is available or not, use _channels.server instead, and
-        check for None.
+        To test whether it is available or not, use _channels.server() instead,
+        following the guidelines in its docstring.
         """
-        server = self._channels.server
+        server = self._channels.server()
         if server is None:
             messaging.Message.isnt_valid(
                 "Connection to debug server is not established yet"
@@ -96,7 +97,7 @@ class IDEMessages(Messages):
         ],
     }
 
-    # Until "launch" or "attach", there's no _channels.server, and so we can't propagate
+    # Until "launch" or "attach", there's no debug server yet, and so we can't propagate
     # messages. But they will need to be replayed once we establish connection to server,
     # so store them here until then. After all messages are replayed, it is set to None.
     _initial_messages = []
@@ -121,19 +122,18 @@ class IDEMessages(Messages):
     # case some events appear in future protocol versions.
     @_replay_to_server
     def event(self, event):
-        if self._channels.server is not None:
-            self._channels.server.propagate(event)
+        server = self._channels.server()
+        if server is not None:
+            server.propagate(event)
 
     # Generic request handler, used if there's no specific handler below.
-    @_replay_to_server
     def request(self, request):
         return self._server.delegate(request)
 
     @_replay_to_server
     @_only_allowed_while("starting")
     def initialize_request(self, request):
-        with Shared() as shared:
-            shared.client_id = str(request.arguments.get("clientID", ""))
+        contract.ide.parse(request)
         state.change("initializing")
         return self._INITIALIZE_RESULT
 
@@ -144,7 +144,6 @@ class IDEMessages(Messages):
         # TODO: Change all old VS style debugger settings to debugOptions
         # See https://github.com/microsoft/ptvsd/issues/1219
         pass
-
 
     @_replay_to_server
     @_only_allowed_while("initializing")
@@ -164,7 +163,6 @@ class IDEMessages(Messages):
 
         options.host = request.arguments.get("host", options.host)
         options.port = int(request.arguments.get("port", options.port))
-
         self._channels.connect_to_server(address=(options.host, options.port))
 
         return self._configure()
@@ -174,6 +172,19 @@ class IDEMessages(Messages):
     # https://github.com/microsoft/vscode/issues/4902#issuecomment-368583522
     def _configure(self):
         log.debug("Replaying previously received messages to server.")
+
+        assert len(self._initial_messages)
+        initialize = self._initial_messages.pop(0)
+        assert initialize.is_request("initialize")
+
+        # We want to make sure that no other server message handler can execute until
+        # we receive and parse the response to "initialize", to avoid race conditions
+        # with those handlers accessing contract.server. Thus, we send the request and
+        # register the callback first, and only then start the server message loop.
+        server_initialize = self._server.propagate(initialize)
+        server_initialize.on_response(lambda response: contract.server.parse(response))
+        self._server.start()
+        server_initialize.wait_for_response()
 
         for msg in self._initial_messages:
             # TODO: validate server response to ensure it matches our own earlier.
@@ -197,29 +208,47 @@ class IDEMessages(Messages):
         ServerMessages().release_events()
         return ret
 
-    # Handle a "disconnect" or a "terminate" request.
+    # Common part of the handlers for "disconnect" and "terminate" requests.
     def _shutdown(self, request, terminate):
         if request.arguments.get("restart", False):
             request.isnt_valid("Restart is not supported")
 
-        result = self._server.delegate(request)
+        # "disconnect" or "terminate" can come before we even connect to the server.
+        server = self._channels.server()
+        server_exc = None
+        result = {}
+        if server is not None:
+            try:
+                result = server.delegate(request)
+            except messaging.MessageHandlingError as server_exc:
+                # If the server was there, but failed to handle the request, we want
+                # to propagate that failure back to the IDE - but only after we have
+                # recorded the state transition and terminated the debuggee if needed.
+                pass
+            except Exception:
+                # The server might have already disconnected - this is not an error.
+                pass
+
         state.change("shutting_down")
 
         if terminate:
             debuggee.terminate()
 
-        return result
+        if server_exc is None:
+            return result
+        else:
+            server_exc.propagate(request)
 
-    @_only_allowed_while("running")
+    @_only_allowed_while("initializing", "configuring", "running")
     def disconnect_request(self, request):
-        # We've already decided earlier based on whether it was launch or attach, but
-        # let the request override that.
+        # We've already decided earlier based on whether it was "launch" or "attach",
+        # but let the request override that.
         terminate = request.arguments.get(
             "terminateDebuggee", self.terminate_on_disconnect
         )
         return self._shutdown(request, terminate)
 
-    @_only_allowed_while("running")
+    @_only_allowed_while("initializing", "configuring", "running")
     def terminate_request(self, request):
         return self._shutdown(request, terminate=True)
 
@@ -235,7 +264,8 @@ class IDEMessages(Messages):
             log.warning('IDE disconnected without sending "disconnect" or "terminate".')
             state.change("shutting_down")
 
-            if self._channels.server is None:
+            server = self._channels.server()
+            if server is None:
                 if self.terminate_on_disconnect:
                     # It happened before we connected to the server, so we cannot gracefully
                     # terminate the debuggee. Force-kill it immediately.
@@ -245,7 +275,7 @@ class IDEMessages(Messages):
             # Try to shut down the server gracefully, even though the adapter wasn't.
             command = "terminate" if self.terminate_on_disconnect else "disconnect"
             try:
-                self._channels.server.send_request(command)
+                server.send_request(command)
             except Exception:
                 # The server might have already disconnected as well, or it might fail
                 # to handle the request. But we can't report failure to the IDE at this
@@ -271,18 +301,20 @@ class IDEMessages(Messages):
         self._server.delegate(request)
         return {"allThreadsContinued": True}
 
-    def on_ptvsd_systemInfo(self, request):
-        sys_info = {"ptvsd": {"version": ptvsd.__version__}}
-
-        try:
-            result = self._server.send_request("pydevdSystemInfo").wait_for_response()
-            sys_info.update(result)
-        except messaging.MessageHandlingError as exc:
-            request.cant_handle(
-                "System info request to server failed with: " + str(exc)
-            )
-
-        return sys_info
+    @_only_allowed_while("configuring", "running")
+    def ptvsd_systemInfo_request(self, request):
+        result = {"ptvsd": {"version": ptvsd.__version__}}
+        server = self._channels.server()
+        if server is not None:
+            try:
+                pydevd_info = server.request("pydevdSystemInfo")
+            except Exception:
+                # If the server has already disconnected, or couldn't handle it,
+                # report what we've got.
+                pass
+            else:
+                result.update(pydevd_info)
+        return result
 
 
 class ServerMessages(Messages):
@@ -296,6 +328,7 @@ class ServerMessages(Messages):
     # Socket was closed by the server.
     def disconnect(self):
         log.info("Debug server disconnected")
+        self._channels.close_server()
 
     # Generic request handler, used if there's no specific handler below.
     def request(self, request):

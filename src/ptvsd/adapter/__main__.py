@@ -12,6 +12,7 @@ import argparse
 
 
 def main(args):
+    import ptvsd
     from ptvsd.common import log
     from ptvsd.adapter import channels
 
@@ -25,12 +26,28 @@ def main(args):
         log.stderr_levels = set(log.LEVELS)
 
     chan = channels.Channels()
-    chan.connect_to_ide(address)
-    chan.ide.wait()
+    ide = chan.connect_to_ide(address)
 
-    # There might not be a server connection yet at this point.
-    if chan.server is not None:
-        chan.server.wait()
+    ide.start()
+    ide.send_event(
+        "output",
+        {
+            "category": "telemetry",
+            "output": "ptvsd.adapter",
+            "data": {"version": ptvsd.__version__},
+        },
+    )
+
+    # Wait until the IDE debug session is over - everything interesting is going to
+    # be happening on the background threads running the IDE and the server message
+    # loops from here on.
+    ide.wait()
+
+    # Make sure the server message loop is also done, but only if the server connection
+    # has been established.
+    server = chan.server()
+    if server is not None:
+        server.wait()
 
 
 def _parse_argv():
