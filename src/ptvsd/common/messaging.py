@@ -351,7 +351,7 @@ class Message(object):
     def is_response(self, command=None):
         if not isinstance(self, Response):
             return False
-        return command is None or self.command == command
+        return command is None or self.request.command == command
 
     @staticmethod
     def raise_error(*args, **kwargs):
