@@ -7,7 +7,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 import os.path
 import sys
 
-__all__ = []
+__all__ = ["main"]
 
 # Force absolute path on Python 2.
 __file__ = os.path.abspath(__file__)
@@ -44,10 +44,11 @@ if __name__ == "__main__":
     if "pydevd" not in sys.modules:
         assert "threading" not in sys.modules
 
-    # Ensure that both packages are loaded before ptvsd.server.__main__ is imported -
-    # this simplifies imports in the latter.
-    import ptvsd  # noqa
-    import pydevd  # noqa
-    from ptvsd.server.__main__ import main
+# Ensure that both packages are loaded before ptvsd.server.__main__ is imported -
+# this simplifies imports in the latter.
+import ptvsd  # noqa
+import pydevd  # noqa
+from ptvsd.server.__main__ import main
 
+if __name__ == "__main__":
     main()
