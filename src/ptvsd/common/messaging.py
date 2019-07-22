@@ -332,6 +332,13 @@ class Message(object):
         This can be None for synthesized Responses.
         """
 
+    @property
+    def payload(self):
+        """Payload of the message - self.body or self.arguments, depending on the
+        message type.
+        """
+        raise NotImplementedError
+
     def is_event(self, event=None):
         if not isinstance(self, Event):
             return False
@@ -339,6 +346,11 @@ class Message(object):
 
     def is_request(self, command=None):
         if not isinstance(self, Request):
+            return False
+        return command is None or self.command == command
+
+    def is_response(self, command=None):
+        if not isinstance(self, Response):
             return False
         return command is None or self.command == command
 
@@ -418,6 +430,10 @@ class Request(Message):
         For outgoing requests, it is set as soon as the response is received, and
         before Response.on_request is invoked.
         """
+
+    @property
+    def payload(self):
+        return self.arguments
 
 
 class OutgoingRequest(Request):
@@ -517,6 +533,10 @@ class Response(Message):
         """
 
     @property
+    def payload(self):
+        return self.body
+
+    @property
     def success(self):
         """Whether the request succeeded or not.
         """
@@ -541,6 +561,10 @@ class Event(Message):
         super(Event, self).__init__(channel, seq)
         self.event = event
         self.body = body
+
+    @property
+    def payload(self):
+        return self.body
 
 
 class MessageHandlingError(Exception):
@@ -819,6 +843,11 @@ class JsonMessageChannel(object):
 
         with self._send_message(d):
             pass
+
+    def request(self, *args, **kwargs):
+        """Same as send_request(...).wait_for_response()
+        """
+        return self.send_request(*args, **kwargs).wait_for_response()
 
     def propagate(self, message):
         """Sends a new message with the same type and payload.
