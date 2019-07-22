@@ -1,0 +1,10 @@
+# https://help.github.com/en/articles/about-code-owners
+
+# Absolute paths match from root of the repository. Relative paths match anywhere
+# in the repository, i.e. bar/baz will match /bar/baz and /foo/bar/baz.
+
+# The default owners for everything that is not overridden by specific patterns below.
+* @int19h @karthiknadig
+
+# Order is important: the last matching pattern overrides all the preceding ones.
+/src/ptvsd/_vendored/pydevd/ @fabioz
