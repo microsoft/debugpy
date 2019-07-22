@@ -48,6 +48,6 @@ if __name__ == "__main__":
     # this simplifies imports in the latter.
     import ptvsd  # noqa
     import pydevd  # noqa
-
     from ptvsd.server.__main__ import main
+
     main()

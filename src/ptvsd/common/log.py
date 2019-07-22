@@ -192,7 +192,9 @@ def to_file(filename=None):
                 "ptvsd.to_file() cannot generate log file name - ptvsd.options.log_dir is not set"
             )
             return
-        _filename = fmt("{0}/{1}-{2}.log", options.log_dir, filename_prefix, os.getpid())
+        _filename = fmt(
+            "{0}/{1}-{2}.log", options.log_dir, filename_prefix, os.getpid()
+        )
 
     file = io.open(_filename, "w", encoding="utf-8")
     info(

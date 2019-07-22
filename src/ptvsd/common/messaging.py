@@ -103,9 +103,8 @@ class JsonIOStream(object):
         self._writer.close()
 
     def _log_message(self, dir, data, logger=log.debug):
-        format_string = (
-            "{0} {1} " +
-            ("{2!j:indent=None}" if isinstance(data, list) else "{2!j}")
+        format_string = "{0} {1} " + (
+            "{2!j:indent=None}" if isinstance(data, list) else "{2!j}"
         )
         return logger(format_string, self.name, dir, data)
 

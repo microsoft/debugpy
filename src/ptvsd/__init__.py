@@ -19,20 +19,21 @@ __all__ = [
     "wait_for_attach",
 ]
 
-# Force absolute path on Python 2.
+import codecs
 from os import path
+
+# Force absolute path on Python 2.
 __file__ = path.abspath(__file__)
-del path
 
 # Preload encodings that we're going to use to avoid import deadlocks on Python 2.
-import codecs
-codecs.lookup('ascii')
-codecs.lookup('utf8')
-codecs.lookup('utf-8')
-codecs.lookup('latin1')
-codecs.lookup('latin-1')
+codecs.lookup("ascii")
+codecs.lookup("utf8")
+codecs.lookup("utf-8")
+codecs.lookup("latin1")
+codecs.lookup("latin-1")
 
 from ptvsd import _version
+
 __version__ = _version.get_versions()["version"]
 del _version
 
