@@ -107,10 +107,16 @@ def _invoke(command, *args):
     else:
         assert not timeout.occurred, str(timeout.occurred)
 
+
 def stop():
     if _stream is None:
         return
-    _invoke("stop")
+
+    try:
+        _invoke("stop")
+        _stream.close()
+    except Exception:
+        log.exception()
 
 
 def register_spawn(pid, name):

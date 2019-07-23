@@ -99,8 +99,16 @@ class JsonIOStream(object):
         """Closes the stream, the reader, and the writer.
         """
         self._is_closing = True
-        self._reader.close()
-        self._writer.close()
+
+        # Close the writer first, so that the other end of the connection has its
+        # message loop waiting on read() unblocked. If there is an exception while
+        # closing the writer, we still want to try to close the reader - only one
+        # exception can bubble up, so if both fail, it'll be the one from reader.
+        try:
+            self._writer.close()
+        finally:
+            if self._reader is not self._writer:
+                self._reader.close()
 
     def _log_message(self, dir, data, logger=log.debug):
         format_string = "{0} {1} " + (

@@ -102,9 +102,29 @@ def main(tests_pid):
         raise log.exception()
 
     finally:
-        stream.close()
-        sys.stdout.close()
-        tests_process.wait()
+        try:
+            stream.close()
+        except Exception:
+            log.exception()
+
+        # If the test runner becomes a zombie process, it is still considered alive,
+        # and wait() will block indefinitely. Poll status instead.
+        while True:
+            try:
+                status = tests_process.status()
+            except Exception:
+                # If we can't even get its status, assume that it's dead.
+                break
+
+            # If it's dead or a zombie, time to clean it up.
+            if status in (psutil.STATUS_DEAD, psutil.STATUS_ZOMBIE):
+                break
+
+            # Otherwise, let's wait a bit to see if anything changes.
+            try:
+                tests_process.wait(0.1)
+            except Exception:
+                pass
 
         leftover_processes = {proc for proc, _ in spawned_processes.values()}
         for proc, _ in spawned_processes.values():
