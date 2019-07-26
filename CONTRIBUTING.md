@@ -30,7 +30,7 @@ VSC Python settings for formating:
 ```json
 "python.formatting.provider": "autopep8",
 "python.formatting.autopep8Args": [
-    "--ignore", "E24,E121,E123,E125,E126,E221,E226,E266,E704,E265,E722,E501,E731,E306,E401,E302,E222"
+    "--ignore", "E24,E121,E123,E125,E126,E221,E226,E266,E704,E265,E722,E501,E731,E306,E401,E302,E222,E303,E402,E305,E261,E262"
 ],
 ```
 
@@ -40,6 +40,7 @@ We are currently migrating the tests to use `pytest`. Please run both set of tes
 ```
 C:\> git clone https://github.com/Microsoft/ptvsd
 C:\> cd ptvsd
+C:\> set PYTHONPATH=C:\ptvsd\src
 C:\ptvsd> py -3.7 -m pip install -r test_requirements.txt
 C:\ptvsd> py -3.7 -m pytest -v
 ```
@@ -47,6 +48,7 @@ C:\ptvsd> py -3.7 -m pytest -v
 ```
 ~: git clone https://github.com/Microsoft/ptvsd
 ~: cd ptvsd
+~: export PYTHONPATH=/home/<user>/ptvsd/src
 ~/ptvsd: python3 -m pip install -r ./test_requirements.txt
 ~/ptvsd: python3 -m pytest -v
 ```
@@ -56,14 +58,14 @@ C:\ptvsd> py -3.7 -m pytest -v
 Set `PYTHONPATH` to point to cloned version of ptvsd, in `launch.json`, to debug any python project to test the debugger you are working on:
 ```json
 {
-    "name": "Terminal (integrated)",
+    "name": "Terminal",
     "type": "python",
     "request": "launch",
-    "pythonPath": "${config:python.pythonPath}",
     "program": "${file}",
-    "cwd": "${workspaceFolder}",
     "console": "integratedTerminal",
-    "env": {"PYTHONPATH":"C:\\GIT\\ptvsd"},
-    "internalConsoleOptions": "neverOpen",
+    "customDebugger": true,
+    "env": {
+        "PYTHONPATH":"C:\\GIT\\ptvsd\\src"
+    }
 },
 ```
