@@ -7,7 +7,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 """Runtime contracts for the IDE and the server.
 """
 
-from ptvsd.common import fmt, log, singleton
+from ptvsd.common import fmt, json, log, singleton
 
 
 class Capabilities(dict):
@@ -20,13 +20,9 @@ class Capabilities(dict):
     by instances of this class. Keys are names, and values are either default values
     or validators.
 
-    If the value is callable, it is a validator. The validator is invoked with the
-    actual value of the JSON property passed to it as the sole argument; or if the
-    property is missing in JSON, then () is passed. The validator must either raise
-    ValueError describing why the property value is invalid, or return the value;
-    in case where () was passed, it must return the default value replacing that.
-
-    If the value is not callable, it is as if default(value) validator was used.
+    If the value is callable, it must be a JSON validator; see ptvsd.common.json for
+    details. If the value is not callable, it is as if json.default(value) validator
+    was used instead.
     """
 
     def __init__(self, message):
@@ -40,59 +36,22 @@ class Capabilities(dict):
         for name, validate in self.PROPERTIES.items():
             value = payload.get(name, ())
             if not callable(validate):
-                validate = default(validate)
+                validate = json.default(validate)
 
             try:
                 value = validate(value)
             except Exception as exc:
-                message.isnt_valid("{0!r} {1}", name, exc)
+                message.isnt_valid("{0!j} {1}", name, exc)
 
             assert value != (), fmt(
-                "{0!r} must provide a default value for missing properties.", validate
+                "{0!j} must provide a default value for missing properties.", validate
             )
             self[name] = value
 
-        log.info("{0}", self)
+        log.debug("{0}", self)
 
     def __repr__(self):
         return fmt("{0}: {1!j}", type(self).__name__, dict(self))
-
-
-def default(default):
-    """Returns a validator for a JSON property with a default value.
-
-    The validator will only allow property values that have the same type as the
-    specified default value.
-    """
-
-    def validate(value):
-        if value == ():
-            return default
-        elif isinstance(value, type(default)):
-            return value
-        else:
-            raise ValueError(fmt("must be a {0}", type(default).__name__))
-
-    return validate
-
-
-def enum(*values):
-    """Returns a validator for a JSON enum.
-
-    The validator will only allow property values that match one of those specified.
-    If property is missing, the first value specified is used as the default.
-    """
-
-    def validate(value):
-        if value == ():
-            return values[0]
-        elif value in values:
-            return value
-        else:
-            raise ValueError(fmt("must be one of: {0!r}", list(values)))
-
-    assert len(values)
-    return validate
 
 
 class IDECapabilities(Capabilities):
@@ -143,7 +102,7 @@ class IDEExpectations(Capabilities):
         "locale": "en-US",
         "linesStartAt1": True,
         "columnsStartAt1": True,
-        "pathFormat": enum("path", "uri"),
+        "pathFormat": json.enum("path"),  # we don't support "uri"
     }
 
 

@@ -307,6 +307,46 @@ class MessageDict(collections.OrderedDict):
     def __repr__(self):
         return dict.__repr__(self)
 
+    def __call__(self, key, validate, optional=False):
+        """Like get(), but with validation.
+
+        The item is first retrieved as if with self.get(key, default=()) - the default
+        value is () rather than None, so that JSON nulls are distinguishable from
+        missing properties.
+
+        If optional=True, and the value is (), it's returned as is. Otherwise, the
+        item is validated by invoking validate(item) on it.
+
+        If validate=False, it's treated as if it were (lambda x: x) - i.e. any value
+        is considered valid, and is returned unchanged. If validate is a type or a
+        tuple, it's treated as if it were json.of_type(validate).
+
+        If validate() returns successfully, the item is substituted with the value
+        it returns - thus, the validator can e.g. replace () with a suitable default
+        value for the property.
+
+        If validate() raises TypeError or ValueError, and self.message is not None,
+        __call__ raises InvalidMessageError that applies_to(self.message) with the
+        same text. If self.message is None, the exception is propagated as is.
+
+        See ptvsd.common.json for reusable validators.
+        """
+
+        if not validate:
+            validate = lambda x: x
+        elif isinstance(validate, type) or isinstance(validate, tuple):
+            validate = json.of_type(validate)
+
+        value = self.get(key, ())
+        try:
+            value = validate(value)
+        except (TypeError, ValueError) as exc:
+            if self.message is None:
+                raise
+            else:
+                self.message.isnt_valid("{0!r} {1}", key, exc)
+        return value
+
     def _invalid_if_no_key(func):
         def wrap(self, key, *args, **kwargs):
             try:
@@ -345,6 +385,14 @@ class Message(object):
         message type.
         """
         raise NotImplementedError
+
+    def __call__(self, *args, **kwargs):
+        """Same as self.payload(...)."""
+        return self.payload(*args, **kwargs)
+
+    def __contains__(self, key):
+        """Same as (key in self.payload)."""
+        return key in self.payload
 
     def is_event(self, event=None):
         if not isinstance(self, Event):

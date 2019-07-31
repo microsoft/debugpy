@@ -17,6 +17,7 @@ import threading
 assert "pydevd" in sys.modules
 
 import pydevd
+from ptvsd.common import log
 import ptvsd.server._remote
 import ptvsd.server.options
 import ptvsd.server.runner
@@ -95,6 +96,14 @@ def set_log_dir():
     return do
 
 
+def set_log_stderr():
+
+    def do(arg, it):
+        log.stderr_levels |= set(log.LEVELS)
+
+    return do
+
+
 def set_target(kind, parser=None):
 
     def do(arg, it):
@@ -122,6 +131,7 @@ switches = [
     ('--wait', None, set_true('wait'), False),
     ('--multiprocess', None, set_true('multiprocess'), False),
     ('--log-dir', '<path>', set_log_dir(), False),
+    ('--log-stderr', None, set_log_stderr(), False),
 
     # Switches that are used internally by the IDE or ptvsd itself.
     ('--nodebug', None, set_nodebug, False),

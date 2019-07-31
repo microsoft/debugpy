@@ -16,14 +16,19 @@ def main(args):
     from ptvsd.common import log
     from ptvsd.adapter import channels
 
+    if args.cls:
+        print("\033c")
+
+    log.stderr_levels |= {"info"}
+    log.filename_prefix = "ptvsd.adapter"
     log.to_file()
 
     if args.debug_server is None:
         address = None
     else:
         address = ("localhost", args.debug_server)
-        # If in debugServer mode, log everything to stderr.
-        log.stderr_levels = set(log.LEVELS)
+        # If in debugServer mode, log "debug" to stderr as well.
+        log.stderr_levels |= {"debug"}
 
     chan = channels.Channels()
     ide = chan.connect_to_ide(address)
@@ -52,6 +57,7 @@ def main(args):
 
 def _parse_argv():
     parser = argparse.ArgumentParser()
+
     parser.add_argument(
         "-d",
         "--debug-server",
@@ -62,6 +68,13 @@ def _parse_argv():
         metavar="PORT",
         help="start the adapter in debugServer mode on the specified port",
     )
+
+    parser.add_argument(
+        "--cls",
+        action='store_true',
+        help="clear screen before starting the debuggee",
+    )
+
     return parser.parse_args()
 
 

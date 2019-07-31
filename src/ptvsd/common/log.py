@@ -6,6 +6,7 @@ from __future__ import print_function, absolute_import, unicode_literals
 
 import contextlib
 import functools
+import inspect
 import io
 import platform
 import os
@@ -158,10 +159,20 @@ def exception(format_string="", *args, **kwargs):
 
     if format_string:
         format_string += "\n\n"
-    format_string += "{exception}"
+    format_string += "{exception}\nStack where logged:\n{stack}"
 
     exception = "".join(traceback.format_exception(*exc_info))
-    write_format(level, format_string, *args, exception=exception, **kwargs)
+
+    f = inspect.currentframe()
+    f = f.f_back if f else f  # don't log this frame
+    try:
+        stack = "".join(traceback.format_stack(f))
+    finally:
+        del f  # avoid cycles
+
+    write_format(
+        level, format_string, *args, exception=exception, stack=stack, **kwargs
+    )
 
     return exc_info[1]
 
@@ -241,3 +252,18 @@ def suspend_handling():
         yield
     finally:
         _tls.current_handler = what
+
+
+# The following are helper shortcuts for printf debugging. They must never be used
+# in production code.
+
+
+def _repr(value):
+    warning("$REPR {0!r}", value)
+
+
+def _vars(*names):
+    locals = inspect.currentframe().f_back.f_locals
+    if names:
+        locals = {name: locals[name] for name in names if name in locals}
+    warning("$VARS {0!r}", locals)

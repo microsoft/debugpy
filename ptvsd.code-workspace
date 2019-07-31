@@ -8,6 +8,8 @@
         "python.linting.enabled": true,
         "python.linting.pylintEnabled": false,
         "python.envFile": "${workspaceFolder}/.env",
+        "python.formatting.provider": "black",
+
         "files.exclude": {
             "**/*.pyc": true,
             "**/__pycache__": true,

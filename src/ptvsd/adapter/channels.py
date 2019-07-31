@@ -53,14 +53,14 @@ class Channels(singleton.ThreadSafeSingleton):
             ide_stream = messaging.JsonIOStream.from_stdio("IDE")
         else:
             host, port = address
-            server_sock = socket.create_server(host, port)
+            listener = socket.create_server(host, port)
             try:
                 log.info(
-                    "ptvsd debugServer waiting for connection on {0}:{1}...", host, port
+                    "Adapter waiting for connection from IDE on {0}:{1}...", host, port
                 )
-                sock, (ide_host, ide_port) = server_sock.accept()
+                sock, (ide_host, ide_port) = listener.accept()
             finally:
-                server_sock.close()
+                listener.close()
             log.info("IDE connection accepted from {0}:{1}.", ide_host, ide_port)
             ide_stream = messaging.JsonIOStream.from_socket(sock, "IDE")
 
@@ -96,11 +96,15 @@ class Channels(singleton.ThreadSafeSingleton):
         return self._server
 
     @singleton.autolocked_method
-    def accept_connection_from_server(self, address):
+    def accept_connection_from_server(self, address, before_accept=(lambda _: None)):
         """Creates a DAP message channel to the server, and returns that channel.
 
         The channel is established by listening on the specified address until there
         is an incoming TCP connection. Only one incoming connection is accepted.
+
+        before_accept((host, port)) is invoked after the listener socket has been
+        set up, but before the thread blocks waiting for incoming connection. This
+        provides access to the actual port number if port=0.
 
         Caller is responsible for calling start() on the returned channel.
         """
@@ -111,21 +115,24 @@ class Channels(singleton.ThreadSafeSingleton):
         from ptvsd.adapter import messages
 
         host, port = address
-        server_sock = socket.create_server(host, port)
+        listener = socket.create_server(host, port)
+        host, port = listener.getsockname()
+        log.info("Adapter waiting for connection from debug server on {0}:{1}...", host, port)
+        before_accept((host, port))
+
         try:
-            log.info(
-                "ptvsd adapter waiting for connection on {0}:{1}...", host, port
-            )
-            sock, (server_host, server_port) = server_sock.accept()
+            sock, (server_host, server_port) = listener.accept()
         finally:
-            server_sock.close()
-        log.info("Debug server connection accepted from {0}:{1}.", server_host, server_port)
+            listener.close()
+        log.info(
+            "Debug server connection accepted from {0}:{1}.", server_host, server_port
+        )
         server_stream = messaging.JsonIOStream.from_socket(sock, "server")
 
-        self._server = messaging.JsonMessageChannel(
+        self._server = server = messaging.JsonMessageChannel(
             server_stream, messages.ServerMessages(), server_stream.name
         )
-        return self._server
+        return server
 
     @singleton.autolocked_method
     def close_server(self):

@@ -7,19 +7,27 @@ from __future__ import absolute_import, print_function, unicode_literals
 import functools
 
 import ptvsd
-from ptvsd.common import log, messaging, singleton
-from ptvsd.adapter import channels, contract, debuggee, options, state
+from ptvsd.common import json, log, messaging, singleton
+from ptvsd.adapter import channels, debuggee, contract, options, state
 
 
-class Shared(singleton.ThreadSafeSingleton):
+class _Shared(singleton.ThreadSafeSingleton):
     """Global state shared between IDE and server handlers, other than contracts.
     """
+
+    # Only attributes that are set by IDEMessages and marked as readonly before
+    # connecting to the server can go in here.
+    threadsafe_attrs = {"start_method", "terminate_on_disconnect"}
+
+    start_method = None
+    """Either "launch" or "attach", depending on the request used."""
+
+    terminate_on_disconnect = True
+    """Whether the debuggee process should be terminated on disconnect."""
 
 
 class Messages(singleton.Singleton):
     # Misc helpers that are identical for both IDEMessages and ServerMessages.
-
-    _channels = channels.Channels()
 
     # Shortcut for the IDE channel. This one does not check for None, because in the
     # normal stdio channel scenario, the channel will never disconnect. The debugServer
@@ -27,7 +35,7 @@ class Messages(singleton.Singleton):
     # disconnects in that case.
     @property
     def _ide(self):
-        return self._channels.ide()
+        return _channels.ide()
 
     @property
     def _server(self):
@@ -36,7 +44,7 @@ class Messages(singleton.Singleton):
         To test whether it is available or not, use _channels.server() instead,
         following the guidelines in its docstring.
         """
-        server = self._channels.server()
+        server = _channels.server()
         if server is None:
             messaging.Message.isnt_valid(
                 "Connection to debug server is not established yet"
@@ -97,12 +105,16 @@ class IDEMessages(Messages):
         ],
     }
 
+    # Until the server message loop is, this isn't really shared, so we can simplify
+    # synchronization by keeping it exclusive until then. This way, all attributes
+    # that are computed during initialization and never change after don't need to be
+    # synchronized at all.
+    _shared = _Shared(shared=False)
+
     # Until "launch" or "attach", there's no debug server yet, and so we can't propagate
     # messages. But they will need to be replayed once we establish connection to server,
     # so store them here until then. After all messages are replayed, it is set to None.
     _initial_messages = []
-
-    terminate_on_disconnect = True
 
     # A decorator to add the message to initial_messages if needed before handling it.
     # Must be applied to the handler for every message that can be received before
@@ -122,7 +134,7 @@ class IDEMessages(Messages):
     # case some events appear in future protocol versions.
     @_replay_to_server
     def event(self, event):
-        server = self._channels.server()
+        server = _channels.server()
         if server is not None:
             server.propagate(event)
 
@@ -140,9 +152,14 @@ class IDEMessages(Messages):
     # Handles various attributes common to both "launch" and "attach".
     def _debug_config(self, request):
         assert request.command in ("launch", "attach")
+        self._shared.start_method = request.command
+        _Shared.readonly_attrs.add("start_method")
 
-        # TODO: Change all old VS style debugger settings to debugOptions
-        # See https://github.com/microsoft/ptvsd/issues/1219
+        # We're about to connect to the server and start the message loop for its
+        # handlers, so _shared is actually going to be shared from now on.
+        self._shared.share()
+
+        # TODO: handle "logToFile". Maybe also "trace" (to Debug Output) like Node.js?
         pass
 
     @_replay_to_server
@@ -151,19 +168,20 @@ class IDEMessages(Messages):
         self._debug_config(request)
 
         # TODO: nodebug
-        debuggee.launch_and_connect(request)
+        debuggee.spawn_and_connect(request)
 
         return self._configure()
 
     @_replay_to_server
     @_only_allowed_while("initializing")
     def attach_request(self, request):
-        self.terminate_on_disconnect = False
+        self._shared.terminate_on_disconnect = False
+        _Shared.readonly_attrs.add("terminate_on_disconnect")
         self._debug_config(request)
 
         options.host = request.arguments.get("host", options.host)
         options.port = int(request.arguments.get("port", options.port))
-        self._channels.connect_to_server(address=(options.host, options.port))
+        _channels.connect_to_server(address=(options.host, options.port))
 
         return self._configure()
 
@@ -208,86 +226,56 @@ class IDEMessages(Messages):
         ServerMessages().release_events()
         return ret
 
-    # Common part of the handlers for "disconnect" and "terminate" requests.
-    def _shutdown(self, request, terminate):
-        if request.arguments.get("restart", False):
+    def _disconnect_or_terminate_request(self, request):
+        assert request.is_request("disconnect") or request.is_request("terminate")
+
+        if request("restart", json.default(False)):
             request.isnt_valid("Restart is not supported")
 
-        # "disconnect" or "terminate" can come before we even connect to the server.
-        server = self._channels.server()
-        server_exc = None
-        result = {}
-        if server is not None:
-            try:
-                result = server.delegate(request)
-            except messaging.MessageHandlingError as exc:
-                # If the server was there, but failed to handle the request, we want
-                # to propagate that failure back to the IDE - but only after we have
-                # recorded the state transition and terminated the debuggee if needed.
-                server_exc = exc
-            except Exception:
-                # The server might have already disconnected - this is not an error.
-                pass
+        terminate = (request.command == "terminate") or request(
+            "terminateDebuggee", json.default(self._shared.terminate_on_disconnect)
+        )
 
-        state.change("shutting_down")
+        server = _channels.server()
+        server_exc = None
+        terminate_requested = False
+        result = {}
+
+        try:
+            state.change("shutting_down")
+        except state.InvalidStateTransition:
+            # Can happen if the IDE or the server disconnect while we were handling
+            # this. If it was the server, we want to move on so that we can report
+            # to the IDE before exiting. If it was the IDE, disconnect() handler has
+            # already dealt with the server, and there isn't anything else we can do.
+            pass
+        else:
+            if server is not None:
+                try:
+                    result = server.delegate(request)
+                except messaging.MessageHandlingError as exc:
+                    # If the server was there, but failed to handle the request, we want
+                    # to propagate that failure back to the IDE - but only after we have
+                    # recorded the state transition and terminated the debuggee if needed.
+                    server_exc = exc
+                except Exception:
+                    # The server might have already disconnected - this is not an error.
+                    pass
+                else:
+                    terminate_requested = terminate
 
         if terminate:
-            debuggee.terminate()
+            # If we asked the server to terminate, give it some time to do so before
+            # we kill the debuggee process. Otherwise, just kill it immediately.
+            debuggee.terminate(5 if terminate_requested else 0)
 
         if server_exc is None:
             return result
         else:
             server_exc.propagate(request)
 
-    @_only_allowed_while("initializing", "configuring", "running")
-    def disconnect_request(self, request):
-        # We've already decided earlier based on whether it was "launch" or "attach",
-        # but let the request override that.
-        terminate = request.arguments.get(
-            "terminateDebuggee", self.terminate_on_disconnect
-        )
-        return self._shutdown(request, terminate)
-
-    @_only_allowed_while("initializing", "configuring", "running")
-    def terminate_request(self, request):
-        return self._shutdown(request, terminate=True)
-
-    # Adapter's stdout was closed by IDE.
-    def disconnect(self):
-        try:
-            if state.current() == "shutting_down":
-                # Graceful disconnect. We have already received "disconnect" or
-                # "terminate", and delegated it to the server. Nothing to do.
-                return
-
-            # Can happen if the IDE was force-closed or crashed.
-            log.warning('IDE disconnected without sending "disconnect" or "terminate".')
-            state.change("shutting_down")
-
-            server = self._channels.server()
-            if server is None:
-                if self.terminate_on_disconnect:
-                    # It happened before we connected to the server, so we cannot gracefully
-                    # terminate the debuggee. Force-kill it immediately.
-                    debuggee.terminate()
-                return
-
-            # Try to shut down the server gracefully, even though the adapter wasn't.
-            command = "terminate" if self.terminate_on_disconnect else "disconnect"
-            try:
-                server.send_request(command)
-            except Exception:
-                # The server might have already disconnected as well, or it might fail
-                # to handle the request. But we can't report failure to the IDE at this
-                # point, and it's already logged, so just move on.
-                pass
-
-        finally:
-            if self.terminate_on_disconnect:
-                # If debuggee is still there, give it some time to terminate itself,
-                # then force-kill. Since the IDE is gone already, and nobody is waiting
-                # for us to respond, there's no rush.
-                debuggee.terminate(after=60)
+    disconnect_request = _disconnect_or_terminate_request
+    terminate_request = _disconnect_or_terminate_request
 
     @_only_allowed_while("running")
     def pause_request(self, request):
@@ -304,7 +292,7 @@ class IDEMessages(Messages):
     @_only_allowed_while("configuring", "running")
     def ptvsd_systemInfo_request(self, request):
         result = {"ptvsd": {"version": ptvsd.__version__}}
-        server = self._channels.server()
+        server = _channels.server()
         if server is not None:
             try:
                 pydevd_info = server.request("pydevdSystemInfo")
@@ -316,23 +304,67 @@ class IDEMessages(Messages):
                 result.update(pydevd_info)
         return result
 
+    # Adapter's stdout was closed by IDE.
+    def disconnect(self):
+        terminate_on_disconnect = self._shared.terminate_on_disconnect
+        try:
+            try:
+                state.change("shutting_down")
+            except state.InvalidStateTransition:
+                # Either we have already received "disconnect" or "terminate" from the
+                # IDE and delegated it to the server, or the server dropped connection.
+                # Either way, everything that needed to be done is already done.
+                return
+            else:
+                # Can happen if the IDE was force-closed or crashed.
+                log.warning(
+                    'IDE disconnected without sending "disconnect" or "terminate".'
+                )
+
+            server = _channels.server()
+            if server is None:
+                if terminate_on_disconnect:
+                    # It happened before we connected to the server, so we cannot gracefully
+                    # terminate the debuggee. Force-kill it immediately.
+                    debuggee.terminate()
+                return
+
+            # Try to shut down the server gracefully, even though the adapter wasn't.
+            command = "terminate" if terminate_on_disconnect else "disconnect"
+            try:
+                server.send_request(command)
+            except Exception:
+                # The server might have already disconnected as well, or it might fail
+                # to handle the request. But we can't report failure to the IDE at this
+                # point, and it's already logged, so just move on.
+                pass
+
+        finally:
+            if terminate_on_disconnect:
+                # If debuggee is still there, give it some time to terminate itself,
+                # then force-kill. Since the IDE is gone already, and nobody is waiting
+                # for us to respond, there's no rush.
+                debuggee.terminate(after=60)
+
 
 class ServerMessages(Messages):
     """Message handlers and the associated global state for the server channel.
     """
 
-    _channels = channels.Channels()
+    _only_allowed_while = Messages._only_allowed_while
+
+    _shared = _Shared()
     _saved_messages = []
     _hold_messages = True
 
-    # Socket was closed by the server.
-    def disconnect(self):
-        log.info("Debug server disconnected")
-        self._channels.close_server()
-
     # Generic request handler, used if there's no specific handler below.
     def request(self, request):
-        return self._ide.delegate(request)
+        # Do not delegate requests from the server by default. There is a security
+        # boundary between the server and the adapter, and we cannot trust arbitrary
+        # requests sent over that boundary, since they may contain arbitrary code
+        # that the IDE will execute - e.g. "runInTerminal". The adapter must only
+        # propagate requests that it knows are safe.
+        request.isnt_valid("Requests from the debug server to the IDE are not allowed.")
 
     # Generic event handler, used if there's no specific handler below.
     def event(self, event):
@@ -351,6 +383,53 @@ class ServerMessages(Messages):
         # also remove the 'initialized' event sent from IDE messages.
         pass
 
+    @_only_allowed_while("running")
+    def ptvsd_subprocess_event(self, event):
+        sub_pid = event("processId", int)
+        try:
+            debuggee.register_subprocess(sub_pid)
+        except Exception as exc:
+            event.cant_handle("{0}", exc)
+        self._ide.propagate(event)
+
+    def terminated_event(self, event):
+        # Do not propagate this, since we'll report our own.
+        pass
+
+    @_only_allowed_while("running")
+    def exited_event(self, event):
+        # For "launch", the adapter will report the event itself by observing the
+        # debuggee process directly, allowing the exit code to be captured more
+        # accurately. Thus, there's no need to propagate it in that case.
+        if self._shared.start_method == "attach":
+            self._ide.propagate(event)
+
+    # Socket was closed by the server.
+    def disconnect(self):
+        log.info("Debug server disconnected.")
+        _channels.close_server()
+
+        # In "launch", we must always report "exited", since we did not propagate it
+        # when the server reported it. In "attach", if the server disconnected without
+        # reporting "exited", we have no way to retrieve the exit code of the remote
+        # debuggee process - indeed, we don't even know if it exited or not.
+        report_exit = self._shared.start_method == "launch"
+
+        try:
+            state.change("shutting_down")
+        except state.InvalidStateTransition:
+            # The IDE has either disconnected already, or requested "disconnect".
+            # There's no point reporting "exited" anymore.
+            report_exit = False
+
+        if report_exit:
+            # The debuggee process should exit shortly after it has disconnected, but just
+            # in case it gets stuck, don't wait forever, and force-kill it if needed.
+            debuggee.terminate(after=5)
+            self._ide.send_event("exited", {"exitCode": debuggee.exit_code})
+
+        self._ide.send_event("terminated")
+
     def release_events(self):
         # NOTE: This is temporary until debug server is updated to follow
         # DAP spec so we don't receive debugger events before configuration
@@ -359,3 +438,6 @@ class ServerMessages(Messages):
             self._hold_messages = False
             for e in self._saved_messages:
                 self._ide.propagate(e)
+
+
+_channels = channels.Channels()

@@ -4,9 +4,14 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+__all__ = ["main"]
 
+import os.path
 import subprocess
 import sys
+
+# Force absolute path on Python 2.
+__file__ = os.path.abspath(__file__)
 
 
 WAIT_ON_NORMAL_SWITCH = "--wait-on-normal"

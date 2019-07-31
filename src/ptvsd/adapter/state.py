@@ -7,7 +7,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 """Tracks the overall state of the adapter, and enforces valid state transitions.
 """
 
-from ptvsd.common import log, singleton
+from ptvsd.common import fmt, log, singleton
 
 
 # Order defines valid transitions.
@@ -20,19 +20,32 @@ STATES = (
 )
 
 
+class InvalidStateTransition(RuntimeError):
+    pass
+
+
 class State(singleton.ThreadSafeSingleton):
     _state = STATES[0]
 
     @property
     @singleton.autolocked_method
     def state(self):
+        """Returns the current state.
+        """
         return self._state
 
     @state.setter
     @singleton.autolocked_method
     def state(self, new_state):
-        assert STATES.index(self._state) < STATES.index(new_state)
-        log.debug("Adapter state changed from {0!r} to {1!r}", self._state, new_state)
+        """Transitions to the new state, or raises InvalidStateTransition if the
+        state transition is not legal.
+        """
+        state = self._state
+        if STATES.index(state) >= STATES.index(new_state):
+            raise InvalidStateTransition(
+                fmt("Cannot change adapter state from {0!r} to {1!r}", state, new_state)
+            )
+        log.debug("Adapter state changed from {0!r} to {1!r}", state, new_state)
         self._state = new_state
 
 
