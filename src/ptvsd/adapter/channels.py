@@ -29,7 +29,7 @@ class Channels(singleton.ThreadSafeSingleton):
         Created when handling the "attach" or "launch" request.
 
         When the server disconnects, the channel remains, but is closed, and will raise
-        EOFError on writes.
+        NoMoreMessages on writes.
         """
         return self._server
 

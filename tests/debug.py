@@ -801,7 +801,7 @@ class Session(object):
                 'Received "terminated" event from {0}; stopping message processing.',
                 self,
             )
-            raise EOFError(fmt("{0} terminated", self))
+            raise messaging.NoMoreMessages(fmt("{0} terminated", self))
 
     def _process_request(self, request):
         self.timeline.record_request(request, block=False)

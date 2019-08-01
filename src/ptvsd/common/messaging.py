@@ -22,6 +22,25 @@ import threading
 from ptvsd.common import compat, fmt, json, log, util
 
 
+class NoMoreMessages(EOFError):
+    """Indicates that there are no more messages to be read from the stream.
+    """
+
+    def __init__(self, *args, **kwargs):
+        stream = kwargs.pop("stream", None)
+        args = args if len(args) else ["No more messages"]
+        super(NoMoreMessages, self).__init__(*args, **kwargs)
+
+        self.stream = stream
+        """The stream that doesn't have any more messages.
+
+        Set by JsonIOStream.read_json().
+
+        JsonMessageChannel relies on this value to decide whether a NoMoreMessages
+        instance that bubbles up to the message loop is related to that loop.
+        """
+
+
 class JsonIOStream(object):
     """Implements a JSON value stream over two byte streams (input and output).
 
@@ -115,16 +134,15 @@ class JsonIOStream(object):
         )
         return logger(format_string, self.name, dir, data)
 
-    @staticmethod
-    def _read_line(reader):
+    def _read_line(self, reader):
         line = b""
         while True:
             try:
                 line += reader.readline()
             except Exception as ex:
-                raise EOFError(str(ex))
+                raise NoMoreMessages(str(ex), stream=self)
             if not line:
-                raise EOFError("No more data")
+                raise NoMoreMessages(stream=self)
             if line.endswith(b"\r\n"):
                 line = line[0:-2]
                 return line
@@ -132,8 +150,8 @@ class JsonIOStream(object):
     def read_json(self, decoder=None):
         """Read a single JSON value from reader.
 
-        Returns JSON value as parsed by decoder.decode(), or raises EOFError if
-        there are no more values to be read.
+        Returns JSON value as parsed by decoder.decode(), or raises NoMoreMessages
+        if there are no more values to be read.
         """
 
         decoder = decoder if decoder is not None else self.json_decoder_factory()
@@ -165,7 +183,7 @@ class JsonIOStream(object):
                 # Only log it if we have already read some headers, and are looking
                 # for a blank line terminating them. If this is the very first read,
                 # there's no message data to log in any case, and the caller might
-                # be anticipating the error - e.g. EOFError on disconnect.
+                # be anticipating the error - e.g. NoMoreMessages on disconnect.
                 if headers:
                     raise log_message_and_exception(
                         "Error while reading message headers:"
@@ -196,10 +214,10 @@ class JsonIOStream(object):
             try:
                 chunk = reader.read(body_remaining)
                 if not chunk:
-                    raise EOFError("No more data")
-            except Exception:
-                if self._is_closing:
                     raise EOFError
+            except Exception as exc:
+                if self._is_closing:
+                    raise NoMoreMessages(str(exc), stream=self)
                 else:
                     raise log_message_and_exception(
                         "Couldn't read the expected {0} bytes of body:", length
@@ -517,7 +535,7 @@ class OutgoingRequest(Request):
         object for it in self.response, and returns response.body.
 
         If no response was received from the other party before the channel closed,
-        self.response is a synthesized Response, which has EOFError() as its body.
+        self.response is a synthesized Response, which has NoMoreMessages() as its body.
 
         If raise_if_failed=True and response.success is False, raises response.body
         instead of returning.
@@ -536,7 +554,7 @@ class OutgoingRequest(Request):
         It is guaranteed that self.response is set before the callback is invoked.
 
         If no response was received from the other party before the channel closed,
-        a Response with body=EOFError() is synthesized.
+        a Response with body=NoMoreMessages() is synthesized.
 
         The callback may be invoked on an unspecified background thread that performs
         processing of incoming messages; in that case, no further message processing
@@ -560,7 +578,12 @@ class OutgoingRequest(Request):
 
         Synthesizes the appopriate dummy Response, and invokes the callback with it.
         """
-        response = Response(self.channel, None, self, EOFError("No response"))
+        response = Response(
+            self.channel,
+            None,
+            self,
+            NoMoreMessages("No response", stream=self.channel.stream),
+        )
         self._handle_response(response)
 
 
@@ -583,7 +606,7 @@ class Response(Message):
         the InvalidMessageError specifically, and that prefix is stripped.
 
         If no response was received from the other party before the channel closed,
-        it is an instance of EOFError.
+        it is an instance of NoMoreMessages.
         """
 
     @property
@@ -1061,6 +1084,10 @@ class JsonMessageChannel(object):
         that applies_to() the Request object it was handling. Use Message.isnt_valid
         to report invalid requests, and Message.cant_handle to report valid requests
         that could not be processed.
+
+        The handler can raise an instance of NoMoreMessages with either stream=None or
+        stream=self.stream to indicate that this is the last incoming message, and no
+        further messages should be read and processed from the stream.
         """
 
         handler = self._get_handler_for("request", command)
@@ -1140,6 +1167,10 @@ class JsonMessageChannel(object):
         If report_unhandled_events is True, then failure to handle the event will be
         reported to the sender as an "event_not_handled" event. Otherwise, the sender
         does not receive any notifications.
+
+        The handler can raise an instance of NoMoreMessages with either stream=None or
+        stream=self.stream to indicate that this is the last incoming message, and no
+        further messages should be read and processed from the stream.
         """
 
         handler = self._get_handler_for("event", event)
@@ -1188,6 +1219,10 @@ class JsonMessageChannel(object):
         high-level response handling facilities.
 
         No further incoming messages are processed until the handler returns.
+
+        The handler can raise an instance of NoMoreMessages with either stream=None or
+        stream=self.stream to indicate that this is the last incoming message, and no
+        further messages should be read and processed from the stream.
         """
 
         # Synthetic Request that only has seq and command as specified in response JSON.
@@ -1273,7 +1308,7 @@ class JsonMessageChannel(object):
 
         try:
             return self._on_message(message)
-        except EOFError:
+        except NoMoreMessages:
             raise
         except Exception:
             raise log.exception(
@@ -1288,9 +1323,14 @@ class JsonMessageChannel(object):
             while True:
                 try:
                     self._process_incoming_message()
-                except EOFError as ex:
-                    log.debug("Exiting message loop for {0}: {1}", self.name, str(ex))
-                    return False
+                except NoMoreMessages as exc:
+                    if exc.stream is None or exc.stream is self.stream:
+                        log.debug(
+                            "Exiting message loop for {0}: {1}", self.name, str(exc)
+                        )
+                        return False
+                    else:
+                        raise
         finally:
             try:
                 self.on_disconnect()

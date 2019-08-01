@@ -8,6 +8,7 @@ import platform
 import pytest
 import sys
 
+from ptvsd.common import messaging
 from tests import debug
 from tests.patterns import some
 from tests.timeline import Event, Request
@@ -256,7 +257,8 @@ def test_autokill(pyfile, start_method, run_as):
                 parent_session.expected_returncode = some.int
                 try:
                     parent_session.request("disconnect")
-                except EOFError:
+                except messaging.NoMoreMessages:
+                    # Can happen if ptvsd drops connection before sending the response.
                     pass
                 parent_session.wait_for_disconnect()
             else:

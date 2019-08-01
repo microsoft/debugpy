@@ -49,7 +49,7 @@ class JsonMemoryStream(object):
         try:
             value = next(self.input)
         except StopIteration:
-            raise EOFError
+            raise messaging.NoMoreMessages(stream=self)
         return decoder.decode(json.dumps(value))
 
     def write_json(self, value, encoder=None):
@@ -79,8 +79,9 @@ class TestJsonIOStream(object):
         for expected_message in self.MESSAGES:
             message = stream.read_json()
             assert message == expected_message
-        with pytest.raises(EOFError):
+        with pytest.raises(messaging.NoMoreMessages) as exc_info:
             stream.read_json()
+        assert exc_info.value.stream is stream
 
     def test_write(self):
         data = io.BytesIO()
@@ -102,8 +103,9 @@ class TestJsonMemoryStream(object):
         for expected_message in self.MESSAGES:
             message = stream.read_json()
             assert message == expected_message
-        with pytest.raises(EOFError):
+        with pytest.raises(messaging.NoMoreMessages) as exc_info:
             stream.read_json()
+        assert exc_info.value.stream is stream
 
     def test_write(self):
         messages = []
