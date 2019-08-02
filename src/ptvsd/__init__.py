@@ -37,7 +37,7 @@ from ptvsd import _version
 __version__ = _version.get_versions()["version"]
 del _version
 
-from ptvsd.server.attach_server import (
+from ptvsd.server.attach import (
     attach,
     break_into_debugger,
     debug_this_thread,

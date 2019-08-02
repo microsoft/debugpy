@@ -2,9 +2,8 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-from __future__ import absolute_import, print_function, with_statement
+from __future__ import absolute_import, print_function, unicode_literals
 
-import numbers
 import os.path
 import runpy
 import site
@@ -18,9 +17,8 @@ assert "pydevd" in sys.modules
 
 import pydevd
 from ptvsd.common import log
-import ptvsd.server._remote
 import ptvsd.server.options
-import ptvsd.server.runner
+import ptvsd.server.attach
 from ptvsd.server.multiproc import listen_for_subprocesses
 
 
@@ -191,9 +189,6 @@ def parse(args):
     return it
 
 
-daemon = None
-
-
 def setup_connection():
     ptvsd.common.log.debug('sys.prefix: {0}', (sys.prefix,))
 
@@ -265,15 +260,10 @@ def setup_connection():
 
     addr = (opts.host, opts.port)
 
-    global daemon
-    if opts.no_debug:
-        daemon = ptvsd.server.runner.Daemon()
-        if not daemon.wait_for_launch(addr):
-            return
-    elif opts.client:
-        daemon = ptvsd.server._remote.attach(addr)
+    if opts.client:
+        ptvsd.server.attach.attach(addr)
     else:
-        daemon = ptvsd.server._remote.enable_attach(addr)
+        ptvsd.server.attach.enable_attach(addr)
 
     if opts.wait:
         ptvsd.wait_for_attach()
@@ -420,14 +410,7 @@ def main(argv=sys.argv):
         }[ptvsd.server.options.target_kind]
         run()
     except SystemExit as ex:
-        ptvsd.common.log.exception('Debuggee exited via SystemExit', level='debug')
-        if daemon is not None:
-            if ex.code is None:
-                daemon.exitcode = 0
-            elif isinstance(ex.code, numbers.Integral):
-                daemon.exitcode = int(ex.code)
-            else:
-                daemon.exitcode = 1
+        ptvsd.common.log.exception('Debuggee exited via SystemExit: {0!r}', ex.code, level='debug')
         raise
 
 

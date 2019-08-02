@@ -38,6 +38,7 @@ from _pydevd_bundle.pydevd_constants import (IS_JYTH_LESS25, get_thread_id, get_
     clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, IS_PY34_OR_GREATER, IS_PY2, NULL,
     NO_FTRACE, IS_IRONPYTHON)
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
+from _pydevd_bundle.pydevd_defaults import PydevdCustomization
 from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE
 from _pydevd_bundle.pydevd_extension_api import DebuggerEventHandler
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, remove_exception_from_frame
@@ -397,6 +398,9 @@ class PyDB(object):
 
         self.breakpoints = {}
 
+        # Set communication protocol
+        PyDevdAPI().set_protocol(self, 0, PydevdCustomization.DEFAULT_PROTOCOL)
+
         # mtime to be raised when breakpoints change
         self.mtime = 0
 
@@ -475,6 +479,9 @@ class PyDB(object):
 
         self._local_thread_trace_func = threading.local()
 
+        self._server_socket_ready_event = threading.Event()
+        self._server_socket_name = None
+
         # Bind many locals to the debugger because upon teardown those names may become None
         # in the namespace (and thus can't be relied upon unless the reference was previously
         # saved).
@@ -515,14 +522,20 @@ class PyDB(object):
         self._exclude_by_filter_cache = {}
         self._apply_filter_cache = {}
 
-        # State for use with DAP based connections
-        self.dap_debugger_attached = threading.Event()
+    def on_initialize(self):
+        '''
+        Note: only called when using the DAP (Debug Adapter Protocol).
+        '''
+        self._on_configuration_done_event.clear()
 
     def on_configuration_done(self):
         '''
         Note: only called when using the DAP (Debug Adapter Protocol).
         '''
         self._on_configuration_done_event.set()
+
+    def is_attached(self):
+        return self._on_configuration_done_event.is_set()
 
     def on_disconnect(self):
         '''
@@ -924,8 +937,15 @@ class PyDB(object):
         if self._waiting_for_connection_thread is not None:
             raise AssertionError('There is already another thread waiting for a connection.')
 
+        self._server_socket_ready_event.clear()
         self._waiting_for_connection_thread = self._WaitForConnectionThread(self)
         self._waiting_for_connection_thread.start()
+
+    def set_server_socket_ready(self):
+        self._server_socket_ready_event.set()
+
+    def wait_for_server_socket_ready(self):
+        self._server_socket_ready_event.wait()
 
     class _WaitForConnectionThread(PyDBDaemonThread):
 
@@ -939,6 +959,8 @@ class PyDB(object):
             port = SetupHolder.setup['port']
 
             self._server_socket = create_server_socket(host=host, port=port)
+            self.py_db._server_socket_name = self._server_socket.getsockname()
+            self.py_db.set_server_socket_ready()
 
             while not self.killReceived:
                 try:
@@ -1726,7 +1748,6 @@ class PyDB(object):
             sys.path.insert(0, os.path.split(rPath(file))[0])
 
         if set_trace:
-
             while not self.ready_to_run:
                 time.sleep(0.1)  # busy wait until we receive run command
 
@@ -1942,12 +1963,15 @@ def _enable_attach(address):
         if port != SetupHolder.setup['port']:
             raise AssertionError('Unable to listen in port: %s (already listening in port: %s)' % (port, SetupHolder.setup['port']))
     settrace(host=host, port=port, suspend=False, wait_for_ready_to_run=False, block_until_connected=False)
+    py_db = get_global_debugger()
+    py_db.wait_for_server_socket_ready()
+    return py_db._server_socket_name
 
 
 def _wait_for_attach():
     '''
     Meant to be called after _enable_attach() -- the current thread will only unblock after a
-    connection is in place and the the DAP (Debug Adapter Protocol) sends the ConfigurationDone
+    connection is in place and the DAP (Debug Adapter Protocol) sends the ConfigurationDone
     request.
     '''
     py_db = get_global_debugger()
@@ -1956,6 +1980,14 @@ def _wait_for_attach():
 
     py_db.block_until_configuration_done()
 
+
+def _is_attached():
+    '''
+    Can be called any time to check if the connection was established and the DAP (Debug Adapter Protocol) has sent
+    the ConfigurationDone request.
+    '''
+    py_db = get_global_debugger()
+    return (py_db is not None) and py_db.is_attached()
 
 #=======================================================================================================================
 # settrace

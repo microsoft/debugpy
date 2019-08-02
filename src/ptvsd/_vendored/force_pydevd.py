@@ -1,3 +1,9 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License. See LICENSE in the project root
+# for license information.
+
+from __future__ import absolute_import, print_function, unicode_literals
+
 from importlib import import_module
 import warnings
 
@@ -50,3 +56,15 @@ def ptvsd_breakpointhook():
 
 
 pydevd.install_breakpointhook(ptvsd_breakpointhook)
+
+# Ensure that pydevd uses JSON protocol
+from _pydevd_bundle import pydevd_constants
+from _pydevd_bundle import pydevd_defaults
+pydevd_defaults.PydevdCustomization.DEFAULT_PROTOCOL = pydevd_constants.HTTP_JSON_PROTOCOL
+
+# Ensure our patch args is used. This is invoked when a child process is spawned 
+# with multiproc debugging enabled.
+from _pydev_bundle import pydev_monkey
+from ptvsd.server import multiproc
+pydev_monkey.patch_args = multiproc.patch_and_quote_args
+pydev_monkey.patch_new_process_functions()

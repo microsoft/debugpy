@@ -2,8 +2,9 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-import ptvsd.server.log
-import ptvsd.server.options
+from __future__ import absolute_import, print_function, unicode_literals
+
+from ptvsd.server import log, options
 from ptvsd.server.__main__ import run_file, run_module, run_code
 
 
@@ -16,8 +17,8 @@ DONT_DEBUG = []
 # A legacy entrypoint for Visual Studio, to allow older versions to work with new ptvsd.server.
 # All new code should use the entrypoints in ptvsd.server.__main__ directly.
 def debug(filename, port_num, debug_id, debug_options, run_as):
-    ptvsd.server.log.to_file()
-    ptvsd.server.log.info(
+    log.to_file()
+    log.info(
         "debug{0!r}", (filename, port_num, debug_id, debug_options, run_as)
     )
 
@@ -26,10 +27,10 @@ def debug(filename, port_num, debug_id, debug_options, run_as):
     except KeyError:
         raise ValueError("run_as must be one of: {0!r}".format(tuple(RUNNERS.keys())))
 
-    ptvsd.server.options.target_kind = "file" if run_as == "script" else run_as
-    ptvsd.server.options.target = filename
-    ptvsd.server.options.port = port_num
-    ptvsd.server.options.client = True
+    options.target_kind = "file" if run_as == "script" else run_as
+    options.target = filename
+    options.port = port_num
+    options.client = True
 
     # debug_id is ignored because it has no meaning in DAP.
     # debug_options are ignored, because they will be passed later via DAP "launch" request.

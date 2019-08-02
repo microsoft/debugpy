@@ -2,6 +2,8 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+from __future__ import absolute_import, print_function, unicode_literals
+
 # This file helps to compute a version number in source trees obtained from
 # git-archive tarball (such as those provided by githubs download-from-tag
 # feature). Distribution tarballs (built by setup.py sdist) and build

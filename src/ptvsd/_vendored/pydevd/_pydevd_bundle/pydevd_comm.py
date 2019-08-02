@@ -71,9 +71,9 @@ from _pydev_bundle.pydev_imports import _queue
 from _pydev_imps._pydev_saved_modules import time
 from _pydev_imps._pydev_saved_modules import thread
 from _pydev_imps._pydev_saved_modules import threading
-from socket import AF_INET, SOCK_STREAM, SHUT_RD, SHUT_WR, SOL_SOCKET, SO_REUSEADDR, SHUT_RDWR
-from _pydevd_bundle.pydevd_constants import (DebugInfoHolder, get_thread_id, IS_JYTHON, IS_PY2,
-    IS_PY36_OR_GREATER, STATE_RUN, dict_keys, ASYNC_EVAL_TIMEOUT_SEC, GlobalDebuggerHolder,
+from socket import AF_INET, SOCK_STREAM, SHUT_RD, SHUT_WR, SOL_SOCKET, SO_REUSEADDR, SHUT_RDWR, IPPROTO_TCP
+from _pydevd_bundle.pydevd_constants import (DebugInfoHolder, get_thread_id, IS_WINDOWS, IS_JYTHON,
+    IS_PY2, IS_PY36_OR_GREATER, STATE_RUN, dict_keys, ASYNC_EVAL_TIMEOUT_SEC, GlobalDebuggerHolder,
     get_global_debugger, GetGlobalDebugger, set_global_debugger)  # Keep for backward compatibility @UnusedImport
 from _pydev_bundle.pydev_override import overrides
 import weakref
@@ -227,7 +227,10 @@ class ReaderThread(PyDBDaemonThread):
                 self._buffer = self._buffer[size:]
                 return ret
 
-            r = self.sock.recv(max(size - buffer_len, 1024))
+            try:
+                r = self.sock.recv(max(size - buffer_len, 1024))
+            except OSError:
+                return b''
             if not r:
                 return b''
             self._buffer += r
@@ -241,7 +244,10 @@ class ReaderThread(PyDBDaemonThread):
                 self._buffer = self._buffer[i:]
                 return ret
             else:
-                r = self.sock.recv(1024)
+                try:
+                    r = self.sock.recv(1024)
+                except OSError:
+                    return b''
                 if not r:
                     return b''
                 self._buffer += r
@@ -343,7 +349,7 @@ class WriterThread(PyDBDaemonThread):
     def add_command(self, cmd):
         ''' cmd is NetCommand '''
         if not self.killReceived:  # we don't take new data after everybody die
-            self.cmdQueue.put(cmd)
+            self.cmdQueue.put(cmd, False)
 
     @overrides(PyDBDaemonThread._on_run)
     def _on_run(self):
@@ -353,7 +359,7 @@ class WriterThread(PyDBDaemonThread):
             while True:
                 try:
                     try:
-                        cmd = self.cmdQueue.get(1, 0.1)
+                        cmd = self.cmdQueue.get(True, 0.1)
                     except _queue.Empty:
                         if self.killReceived:
                             try:
@@ -367,6 +373,9 @@ class WriterThread(PyDBDaemonThread):
 
                             return  # break if queue is empty and killReceived
                         else:
+                            if time is None:
+                                break  # interpreter shutdown
+                            time.sleep(self.timeout)
                             continue
                 except:
                     # pydev_log.info('Finishing debug communication...(1)')
@@ -404,18 +413,21 @@ class WriterThread(PyDBDaemonThread):
 
 
 def create_server_socket(host, port):
-    s = socket(AF_INET, SOCK_STREAM)
-    s.settimeout(None)
-
     try:
-        from socket import SO_REUSEPORT
-        s.setsockopt(SOL_SOCKET, SO_REUSEPORT, 1)
-    except ImportError:
-        s.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        server = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
+        if IS_WINDOWS:
+            from socket import SO_EXCLUSIVEADDRUSE
+            server.setsockopt(SOL_SOCKET, SO_EXCLUSIVEADDRUSE, 1)
+        else:
+            server.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 
-    s.bind((host, port))
-    pydev_log.info("Bound to port :%s", port)
-    return s
+        server.bind((host, port))
+        server.settimeout(None)
+    except Exception:
+        server.close()
+        raise
+
+    return server
 
 
 def start_server(port):

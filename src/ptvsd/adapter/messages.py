@@ -5,9 +5,11 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import functools
+import platform
 
 import ptvsd
 from ptvsd.common import json, log, messaging, singleton
+from ptvsd.common.compat import unicode
 from ptvsd.adapter import channels, debuggee, contract, options, state
 
 
@@ -170,7 +172,7 @@ class IDEMessages(Messages):
         # TODO: nodebug
         debuggee.spawn_and_connect(request)
 
-        return self._configure()
+        return self._configure(request)
 
     @_replay_to_server
     @_only_allowed_while("initializing")
@@ -183,12 +185,34 @@ class IDEMessages(Messages):
         options.port = int(request.arguments.get("port", options.port))
         _channels.connect_to_server(address=(options.host, options.port))
 
-        return self._configure()
+        return self._configure(request)
+
+    def _set_debugger_properties(self, request):
+        debug_options = set(request("debugOptions", json.array(unicode)))
+        client_os_type = None
+        if 'WindowsClient' in debug_options or 'WINDOWS' in debug_options:
+            client_os_type = 'WINDOWS'
+        elif 'UnixClient' in debug_options or 'UNIX' in debug_options:
+            client_os_type = 'UNIX'
+        else:
+            client_os_type = 'WINDOWS' if platform.system() == 'Windows' else 'UNIX'
+
+        try:
+            self._server.request("setDebuggerProperty", arguments={
+                "dontTraceStartPatterns": ["\\ptvsd\\", "/ptvsd/"],
+                "dontTraceEndPatterns": ["ptvsd_launcher.py"],
+                "skipSuspendOnBreakpointException": ("BaseException",),
+                "skipPrintBreakpointException": ("NameError",),
+                "multiThreadsSingleNotification": True,
+                "ideOS": client_os_type,
+            })
+        except messaging.MessageHandlingError as exc:
+            exc.propagate(request)
 
     # Handles the configuration request sequence for "launch" or "attach", from when
     # the "initialized" event is sent, to when "configurationDone" is received; see
     # https://github.com/microsoft/vscode/issues/4902#issuecomment-368583522
-    def _configure(self):
+    def _configure(self, request):
         log.debug("Replaying previously received messages to server.")
 
         assert len(self._initial_messages)
@@ -210,6 +234,8 @@ class IDEMessages(Messages):
 
         log.debug("Finished replaying messages to server.")
         self.initial_messages = None
+
+        self._set_debugger_properties(request)
 
         # Let the IDE know that it can begin configuring the adapter.
         state.change("configuring")

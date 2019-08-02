@@ -195,7 +195,6 @@ class _PyDevJsonCommandProcessor(object):
 
         py_db._main_lock.acquire()
         try:
-
             cmd = on_request(py_db, request)
             if cmd is not None:
                 py_db.writer.add_command(cmd)
@@ -225,6 +224,7 @@ class _PyDevJsonCommandProcessor(object):
                 {'filter': 'uncaught', 'label': 'Uncaught Exceptions', 'default': True},
             ],
         }
+        self.api.notify_initialize(py_db)
         response = pydevd_base_schema.build_response(request, kwargs={'body': body})
         return NetCommand(CMD_RETURN, 0, response, is_json=True)
 

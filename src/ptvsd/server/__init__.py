@@ -2,11 +2,8 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+from __future__ import absolute_import, print_function, unicode_literals
+
 # "force_pydevd" must be imported first to ensure (via side effects)
 # that the ptvsd-vendored copy of pydevd gets used.
-import ptvsd._vendored.force_pydevd
-
-
-# Treat all modules in ptvsd.common as if they were also in this package for now.
-import ptvsd.common
-__path__ += ptvsd.common.__path__
+import ptvsd._vendored.force_pydevd # noqa

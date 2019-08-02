@@ -19,8 +19,7 @@ import itertools
 import sys
 import threading
 
-from ptvsd.common import compat, fmt, json, log
-from ptvsd.common._util import new_hidden_thread
+from ptvsd.common import compat, fmt, json, log, util
 
 
 class JsonIOStream(object):
@@ -774,7 +773,7 @@ class JsonMessageChannel(object):
         self._stop = threading.Event()
         self._seq_iter = itertools.count(1)
         self._requests = {}
-        self._worker = new_hidden_thread(repr(self), self._process_incoming_messages)
+        self._worker = util.new_hidden_thread(repr(self), self._process_incoming_messages)
         self._worker.daemon = True
 
     def __repr__(self):
@@ -1199,7 +1198,7 @@ class JsonMessageChannel(object):
             error_message = str(error_message)
             exc_type = MessageHandlingError
             if error_message.startswith(InvalidMessageError.PREFIX):
-                error_message = error_message[len(InvalidMessageError.PREFIX) :]
+                error_message = error_message[len(InvalidMessageError.PREFIX):]
                 exc_type = InvalidMessageError
             body = exc_type(error_message, request)
 
