@@ -48,7 +48,7 @@ class Messages(singleton.Singleton):
         """
         server = _channels.server()
         if server is None:
-            messaging.Message.isnt_valid(
+            raise messaging.Message.isnt_valid(
                 "Connection to debug server is not established yet"
             )
         return server
@@ -64,12 +64,11 @@ class Messages(singleton.Singleton):
                 current_state = state.current()
                 if current_state in states:
                     return handler(self, message)
-                if isinstance(message, messaging.Request):
-                    message.isnt_valid(
-                        "Request {0!r} is not allowed in adapter state {1!r}.",
-                        message.command,
-                        current_state,
-                    )
+                raise message.isnt_valid(
+                    "{0} is not allowed in adapter state {1!r}.",
+                    message.describe(),
+                    current_state,
+                )
 
             return handle_if_allowed
 
@@ -118,6 +117,9 @@ class IDEMessages(Messages):
     # so store them here until then. After all messages are replayed, it is set to None.
     _initial_messages = []
 
+    # "launch" or "attach" request that started debugging.
+    _start_request = None
+
     # A decorator to add the message to initial_messages if needed before handling it.
     # Must be applied to the handler for every message that can be received before
     # connection to the debug server can be established while handling attach/launch,
@@ -153,7 +155,7 @@ class IDEMessages(Messages):
 
     # Handles various attributes common to both "launch" and "attach".
     def _debug_config(self, request):
-        assert request.command in ("launch", "attach")
+        assert request.is_request("launch", "attach")
         self._shared.start_method = request.command
         _Shared.readonly_attrs.add("start_method")
 
@@ -181,8 +183,8 @@ class IDEMessages(Messages):
         _Shared.readonly_attrs.add("terminate_on_disconnect")
         self._debug_config(request)
 
-        options.host = request.arguments.get("host", options.host)
-        options.port = int(request.arguments.get("port", options.port))
+        options.host = request("host", options.host)
+        options.port = request("port", options.port)
         _channels.connect_to_server(address=(options.host, options.port))
 
         return self._configure(request)
@@ -190,20 +192,23 @@ class IDEMessages(Messages):
     def _set_debugger_properties(self, request):
         debug_options = set(request("debugOptions", json.array(unicode)))
         client_os_type = None
-        if 'WindowsClient' in debug_options or 'WINDOWS' in debug_options:
-            client_os_type = 'WINDOWS'
-        elif 'UnixClient' in debug_options or 'UNIX' in debug_options:
-            client_os_type = 'UNIX'
+        if "WindowsClient" in debug_options or "WINDOWS" in debug_options:
+            client_os_type = "WINDOWS"
+        elif "UnixClient" in debug_options or "UNIX" in debug_options:
+            client_os_type = "UNIX"
         else:
-            client_os_type = 'WINDOWS' if platform.system() == 'Windows' else 'UNIX'
+            client_os_type = "WINDOWS" if platform.system() == "Windows" else "UNIX"
 
         try:
-            self._server.request("setDebuggerProperty", arguments={
-                "skipSuspendOnBreakpointException": ("BaseException",),
-                "skipPrintBreakpointException": ("NameError",),
-                "multiThreadsSingleNotification": True,
-                "ideOS": client_os_type,
-            })
+            self._server.request(
+                "setDebuggerProperty",
+                arguments={
+                    "skipSuspendOnBreakpointException": ("BaseException",),
+                    "skipPrintBreakpointException": ("NameError",),
+                    "multiThreadsSingleNotification": True,
+                    "ideOS": client_os_type,
+                },
+            )
         except messaging.MessageHandlingError as exc:
             exc.propagate(request)
 
@@ -211,6 +216,7 @@ class IDEMessages(Messages):
     # the "initialized" event is sent, to when "configurationDone" is received; see
     # https://github.com/microsoft/vscode/issues/4902#issuecomment-368583522
     def _configure(self, request):
+        assert request.is_request("launch", "attach")
         log.debug("Replaying previously received messages to server.")
 
         assert len(self._initial_messages)
@@ -231,30 +237,45 @@ class IDEMessages(Messages):
             self._server.propagate(msg)
 
         log.debug("Finished replaying messages to server.")
-        self.initial_messages = None
+        self._initial_messages = None
+        self._start_request = request
+
+        if request.command == "launch":
+            # Wait until we have the debuggee PID - we either know it already because we
+            # have launched it directly, or we'll find out eventually from the "process"
+            # server event. Either way, we need to know the PID before we can tell the
+            # server to start debugging, because we need to be able to kill the debuggee
+            # process if anything goes wrong.
+            #
+            # However, we can't block forever, because the debug server can also crash
+            # before it had a chance to send the event - so wake up periodically, and
+            # check whether server channel is still alive.
+            while not debuggee.wait_for_pid(1):
+                if _channels.server() is None:
+                    raise request.cant_handle("Debug server disconnected unexpectedly.")
 
         self._set_debugger_properties(request)
 
         # Let the IDE know that it can begin configuring the adapter.
         state.change("configuring")
         self._ide.send_event("initialized")
-
-        # Process further incoming messages, until we get "configurationDone".
-        while state.current() == "configuring":
-            yield
+        return messaging.NO_RESPONSE  # will respond on "configurationDone"
 
     @_only_allowed_while("configuring")
     def configurationDone_request(self, request):
-        ret = self._server.delegate(request)
+        assert self._start_request is not None
+
+        result = self._server.delegate(request)
         state.change("running")
         ServerMessages().release_events()
-        return ret
+        request.respond(result)
+        self._start_request.respond({})
 
     def _disconnect_or_terminate_request(self, request):
         assert request.is_request("disconnect") or request.is_request("terminate")
 
         if request("restart", json.default(False)):
-            request.isnt_valid("Restart is not supported")
+            raise request.isnt_valid("Restart is not supported")
 
         terminate = (request.command == "terminate") or request(
             "terminateDebuggee", json.default(self._shared.terminate_on_disconnect)
@@ -388,7 +409,9 @@ class ServerMessages(Messages):
         # requests sent over that boundary, since they may contain arbitrary code
         # that the IDE will execute - e.g. "runInTerminal". The adapter must only
         # propagate requests that it knows are safe.
-        request.isnt_valid("Requests from the debug server to the IDE are not allowed.")
+        raise request.isnt_valid(
+            "Requests from the debug server to the IDE are not allowed."
+        )
 
     # Generic event handler, used if there's no specific handler below.
     def event(self, event):
@@ -407,13 +430,24 @@ class ServerMessages(Messages):
         # also remove the 'initialized' event sent from IDE messages.
         pass
 
+    @_only_allowed_while("initializing")
+    def process_event(self, event):
+        if self._shared.start_method == "launch":
+            try:
+                debuggee.parse_pid(event)
+            except Exception:
+                # If we couldn't retrieve or validate PID, we can't safely continue
+                # debugging, so shut everything down.
+                self.disconnect()
+        self._ide.propagate(event)
+
     @_only_allowed_while("running")
     def ptvsd_subprocess_event(self, event):
         sub_pid = event("processId", int)
         try:
             debuggee.register_subprocess(sub_pid)
         except Exception as exc:
-            event.cant_handle("{0}", exc)
+            raise event.cant_handle("{0}", exc)
         self._ide.propagate(event)
 
     def terminated_event(self, event):
@@ -450,7 +484,10 @@ class ServerMessages(Messages):
             # The debuggee process should exit shortly after it has disconnected, but just
             # in case it gets stuck, don't wait forever, and force-kill it if needed.
             debuggee.terminate(after=5)
-            self._ide.send_event("exited", {"exitCode": debuggee.exit_code})
+            exit_code = debuggee.exit_code
+            self._ide.send_event(
+                "exited", {"exitCode": -1 if exit_code is None else exit_code}
+            )
 
         self._ide.send_event("terminated")
 

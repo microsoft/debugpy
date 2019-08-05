@@ -23,7 +23,7 @@ def _get_dont_trace_patterns():
     ptvsd_path = os.path.dirname(ptvsd_path)
     start_patterns = [ptvsd_path]
     end_patterns = ["ptvsd_launcher.py"]
-    log.info('Dont trace patterns: {0!r}, {1!r}', (start_patterns, end_patterns))
+    log.info('Dont trace patterns: {0!r}, {1!r}', start_patterns, end_patterns)
     return (start_patterns, end_patterns)
 
 def wait_for_attach(timeout=None):

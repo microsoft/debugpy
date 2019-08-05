@@ -103,6 +103,8 @@ def of_type(*classinfo, **kwargs):
         if (optional and value == ()) or isinstance(value, classinfo):
             return value
         else:
+            if not optional and value == ():
+                raise ValueError("must be specified")
             raise TypeError("must be " + " or ".join(t.__name__ for t in classinfo))
 
     return validate

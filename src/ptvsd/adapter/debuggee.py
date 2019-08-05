@@ -34,6 +34,10 @@ exit_code = None
 pid = None
 """Debuggee process ID."""
 
+_got_pid = threading.Event()
+"""A threading.Event that is set when pid is set.
+"""
+
 _exited = None
 """A threading.Event that is set when the debuggee process exits.
 
@@ -110,7 +114,7 @@ def _parse_request(request, address):
         assert prop_name[0].islower() and flag_name[0].isupper()
         value = request(prop_name, json.default(flag_name in debug_options))
         if value is False and flag_name in debug_options:
-            request.isnt_valid(
+            raise request.isnt_valid(
                 '{0!r}:false and "debugOptions":[{1!r}] are mutually exclusive',
                 prop_name,
                 flag_name,
@@ -125,7 +129,7 @@ def _parse_request(request, address):
     )
     if console != "internalConsole":
         if not contract.ide.capabilities["supportsRunInTerminalRequest"]:
-            request.cant_handle(
+            raise request.cant_handle(
                 'Unable to launch via "console":{0!j}, because the IDE is does not '
                 'have the "supportsRunInTerminalRequest" capability',
                 console,
@@ -136,7 +140,7 @@ def _parse_request(request, address):
     cmdline = []
     if property_or_debug_option("sudo", "Sudo"):
         if platform.system() == "Windows":
-            request.cant_handle('"sudo":true is not supported on Windows.')
+            raise request.cant_handle('"sudo":true is not supported on Windows.')
         else:
             cmdline += ["sudo"]
 
@@ -145,7 +149,9 @@ def _parse_request(request, address):
     python_key = "python"
     if python_key in request:
         if "pythonPath" in request:
-            request.isnt_valid('"pythonPath" is not valid if "python" is specified')
+            raise request.isnt_valid(
+                '"pythonPath" is not valid if "python" is specified'
+            )
     elif "pythonPath" in request:
         python_key = "pythonPath"
     python = request(python_key, json.array(unicode, vectorize=True, size=(1,)))
@@ -185,9 +191,13 @@ def _parse_request(request, address):
 
     num_targets = len([x for x in (program, module, code) if x != ()])
     if num_targets == 0:
-        request.isnt_valid('either "program", "module", or "code" must be specified')
+        raise request.isnt_valid(
+            'either "program", "module", or "code" must be specified'
+        )
     elif num_targets != 1:
-        request.isnt_valid('"program", "module", and "code" are mutually exclusive')
+        raise request.isnt_valid(
+            '"program", "module", and "code" are mutually exclusive'
+        )
 
     cmdline += request("args", json.array(unicode))
 
@@ -209,7 +219,7 @@ def _spawn_popen(request, spawn_info):
     try:
         proc = subprocess.Popen(spawn_info.cmdline, cwd=spawn_info.cwd, env=env)
     except Exception as exc:
-        request.cant_handle(
+        raise request.cant_handle(
             "Error launching process: {0}\n\nCommand line:{1!r}",
             exc,
             spawn_info.cmdline,
@@ -220,6 +230,7 @@ def _spawn_popen(request, spawn_info):
     global pid
     try:
         pid = proc.pid
+        _got_pid.set()
         ProcessTracker().track(pid)
     except Exception:
         # If we can't track it, we won't be able to terminate it if asked; but aside
@@ -258,19 +269,51 @@ def _spawn_terminal(request, spawn_info):
     }
 
     try:
-        result = channels.Channels().ide().request("runInTerminal", body)
+        channels.Channels().ide().request("runInTerminal", body)
     except messaging.MessageHandlingError as exc:
         exc.propagate(request)
 
+    # Although "runInTerminal" response has "processId", it's optional, and in practice
+    # it is not used by VSCode: https://github.com/microsoft/vscode/issues/61640.
+    # Thus, we can only retrieve the PID via the "process" event, and only then we can
+    # start tracking it. Until then, nothing else to do.
+    pass
+
+
+def parse_pid(process_event):
+    assert process_event.is_event("process")
+
+    if _got_pid.is_set():
+        # If we already have the PID, there's nothing to do.
+        return
+
     global pid
-    pid = result("processId", int)
+    sys_pid = process_event("systemProcessId", int)
+
+    def after_exit(code):
+        global exit_code
+        exit_code = code
+        _exited.set()
 
     try:
-        ProcessTracker().track(pid, after_exit=lambda: _exited.set())
+        pid = sys_pid
+        _got_pid.set()
+        ProcessTracker().track(pid, after_exit=after_exit)
     except Exception as exc:
         # If we can't track it, we won't be able to detect if it exited or retrieve
         # the exit code, so fail immediately.
-        request.cant_handle("Couldn't get debuggee process handle: {0}", str(exc))
+        raise process_event.cant_handle(
+            "Couldn't get debuggee process handle: {0}", str(exc)
+        )
+
+
+def wait_for_pid(timeout=None):
+    """Waits for debuggee PID to be determined.
+
+    Returns True if PID was determined, False if the wait timed out. If it returned
+    True, then pid is guaranteed to be set.
+    """
+    return _got_pid.wait(timeout)
 
 
 def wait_for_exit(timeout=None):
@@ -279,6 +322,13 @@ def wait_for_exit(timeout=None):
     Returns True if the process exited, False if the wait timed out. If it returned
     True, then exit_code is guaranteed to be set.
     """
+
+    if pid is None:
+        # Debugee was launched with "runInTerminal", but the debug session fell apart
+        # before we got a "process" event and found out what its PID is. It's not a
+        # fatal error, but there's nothing to wait on. Debuggee process should have
+        # exited (or crashed) by now in any case.
+        return
 
     assert _exited is not None
     timed_out = not _exited.wait(timeout)

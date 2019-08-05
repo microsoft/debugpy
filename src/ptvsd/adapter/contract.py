@@ -41,7 +41,7 @@ class Capabilities(dict):
             try:
                 value = validate(value)
             except Exception as exc:
-                message.isnt_valid("{0!j} {1}", name, exc)
+                raise message.isnt_valid("{0!j} {1}", name, exc)
 
             assert value != (), fmt(
                 "{0!j} must provide a default value for missing properties.", validate

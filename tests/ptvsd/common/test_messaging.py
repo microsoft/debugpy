@@ -8,6 +8,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 """
 
 import collections
+import functools
 import json
 import io
 import pytest
@@ -44,17 +45,26 @@ class JsonMemoryStream(object):
     def close(self):
         pass
 
+    def _log_message(self, dir, data):
+        format_string = "{0} {1} " + (
+            "{2!j:indent=None}" if isinstance(data, list) else "{2!j}"
+        )
+        return log.debug(format_string, self.name, dir, data)
+
     def read_json(self, decoder=None):
         decoder = decoder if decoder is not None else self.json_decoder_factory()
         try:
             value = next(self.input)
         except StopIteration:
             raise messaging.NoMoreMessages(stream=self)
-        return decoder.decode(json.dumps(value))
+        value = decoder.decode(json.dumps(value))
+        self._log_message("-->", value)
+        return value
 
     def write_json(self, value, encoder=None):
         encoder = encoder if encoder is not None else self.json_encoder_factory()
         value = json.loads(encoder.encode(value))
+        self._log_message("<--", value)
         self.output.append(value)
 
 
@@ -67,7 +77,9 @@ class TestJsonIOStream(object):
     def setup_class(cls):
         for seq in range(0, 3):
             message_body = cls.MESSAGE_BODY_TEMPLATE % seq
-            message = json.loads(message_body, object_pairs_hook=collections.OrderedDict)
+            message = json.loads(
+                message_body, object_pairs_hook=collections.OrderedDict
+            )
             message_body = message_body.encode("utf-8")
             cls.MESSAGES.append(message)
             message_header = "Content-Length: %d\r\n\r\n" % len(message_body)
@@ -115,6 +127,48 @@ class TestJsonMemoryStream(object):
         assert messages == self.MESSAGES
 
 
+class MessageHandlerRecorder(list):
+    def __call__(self, handler):
+        @functools.wraps(handler)
+        def record_and_handle(instance, message):
+            name = handler.__name__
+            if isinstance(name, bytes):
+                name = name.decode("utf-8")
+            record = {"channel": message.channel, "handler": name}
+
+            if isinstance(message, messaging.Event):
+                record.update(
+                    {"type": "event", "event": message.event, "body": message.body}
+                )
+            elif isinstance(message, messaging.Request):
+                record.update(
+                    {
+                        "type": "request",
+                        "command": message.command,
+                        "arguments": message.arguments,
+                    }
+                )
+
+            self.append(record)
+            return handler(instance, message)
+
+        return record_and_handle
+
+    def expect(self, channel, inputs, handlers):
+        expected_records = []
+        for input, handler in zip(inputs, handlers):
+            expected_record = {"channel": channel, "handler": handler}
+            expected_record.update(
+                {
+                    key: value
+                    for key, value in input.items()
+                    if key in ("type", "event", "command", "body", "arguments")
+                }
+            )
+            expected_records.append(expected_record)
+        assert expected_records == self
+
+
 class TestJsonMessageChannel(object):
     @staticmethod
     def iter_with_event(collection):
@@ -146,26 +200,23 @@ class TestJsonMessageChannel(object):
             },
         ]
 
-        events_received = []
+        recorder = MessageHandlerRecorder()
 
         class Handlers(object):
+            @recorder
             def stopped_event(self, event):
                 assert event.event == "stopped"
-                events_received.append((event.channel, event.body))
 
+            @recorder
             def event(self, event):
-                events_received.append((event.channel, event.event, event.body))
+                assert event.event == "unknown"
 
-        input, input_exhausted = self.iter_with_event(EVENTS)
-        stream = JsonMemoryStream(input, [])
+        stream = JsonMemoryStream(EVENTS, [])
         channel = messaging.JsonMessageChannel(stream, Handlers())
         channel.start()
-        input_exhausted.wait()
+        channel.wait()
 
-        assert events_received == [
-            (channel, EVENTS[0]["body"]),
-            (channel, "unknown", EVENTS[1]["body"]),
-        ]
+        recorder.expect(channel, EVENTS, ["stopped_event", "event"])
 
     def test_requests(self):
         REQUESTS = [
@@ -178,50 +229,59 @@ class TestJsonMessageChannel(object):
             {
                 "seq": 2,
                 "type": "request",
+                "command": "launch",
+                "arguments": {"program": "main.py"},
+            },
+            {
+                "seq": 3,
+                "type": "request",
                 "command": "unknown",
                 "arguments": {"answer": 42},
             },
             {
-                "seq": 3,
+                "seq": 4,
                 "type": "request",
                 "command": "pause",
                 "arguments": {"threadId": 5},
             },
         ]
 
-        requests_received = []
+        recorder = MessageHandlerRecorder()
 
         class Handlers(object):
+            @recorder
             def next_request(self, request):
                 assert request.command == "next"
-                requests_received.append((request.channel, request.arguments))
                 return {"threadId": 7}
 
-            def request(self, request):
-                requests_received.append(
-                    (request.channel, request.command, request.arguments)
-                )
-                return {}
+            @recorder
+            def launch_request(self, request):
+                assert request.command == "launch"
+                self._launch = request
+                return messaging.NO_RESPONSE
 
+            @recorder
+            def request(self, request):
+                request.respond({})
+
+            @recorder
             def pause_request(self, request):
                 assert request.command == "pause"
-                requests_received.append((request.channel, request.arguments))
-                request.cant_handle("pause error")
+                self._launch.respond({"processId": 9})
+                raise request.cant_handle("pause error")
 
-        input, input_exhausted = self.iter_with_event(REQUESTS)
-        output = []
-        stream = JsonMemoryStream(input, output)
+        stream = JsonMemoryStream(REQUESTS, [])
         channel = messaging.JsonMessageChannel(stream, Handlers())
         channel.start()
-        input_exhausted.wait()
+        channel.wait()
 
-        assert requests_received == [
-            (channel, REQUESTS[0]["arguments"]),
-            (channel, "unknown", REQUESTS[1]["arguments"]),
-            (channel, REQUESTS[2]["arguments"]),
-        ]
+        recorder.expect(
+            channel,
+            REQUESTS,
+            ["next_request", "launch_request", "request", "pause_request"],
+        )
 
-        assert output == [
+        assert stream.output == [
             {
                 "seq": 1,
                 "type": "response",
@@ -233,14 +293,22 @@ class TestJsonMessageChannel(object):
             {
                 "seq": 2,
                 "type": "response",
-                "request_seq": 2,
+                "request_seq": 3,
                 "command": "unknown",
                 "success": True,
             },
             {
                 "seq": 3,
                 "type": "response",
-                "request_seq": 3,
+                "request_seq": 2,
+                "command": "launch",
+                "success": True,
+                "body": {"processId": 9},
+            },
+            {
+                "seq": 4,
+                "type": "response",
+                "request_seq": 4,
                 "command": "pause",
                 "success": False,
                 "message": "pause error",
@@ -251,6 +319,7 @@ class TestJsonMessageChannel(object):
         request1_sent = threading.Event()
         request2_sent = threading.Event()
         request3_sent = threading.Event()
+        request4_sent = threading.Event()
 
         def iter_responses():
             request1_sent.wait()
@@ -283,6 +352,8 @@ class TestJsonMessageChannel(object):
                 "body": {"threadId": 5},
             }
 
+            request4_sent.wait()
+
         stream = JsonMemoryStream(iter_responses(), [])
         channel = messaging.JsonMessageChannel(stream, None)
         channel.start()
@@ -290,6 +361,7 @@ class TestJsonMessageChannel(object):
         # Blocking wait.
         request1 = channel.send_request("next")
         request1_sent.set()
+        log.info("Waiting for response...")
         response1_body = request1.wait_for_response()
         response1 = request1.response
 
@@ -307,8 +379,11 @@ class TestJsonMessageChannel(object):
             response2.append(resp)
             response2_received.set()
 
+        log.info("Registering callback")
         request2.on_response(response2_handler)
         request2_sent.set()
+
+        log.info("Waiting for callback...")
         response2_received.wait()
         response2, = response2
 
@@ -330,7 +405,10 @@ class TestJsonMessageChannel(object):
             response3.append(resp)
             response3_received.set()
 
+        log.info("Registering callback")
         request3.on_response(response3_handler)
+
+        log.info("Waiting for callback...")
         response3_received.wait()
         response3, = response3
 
@@ -339,229 +417,28 @@ class TestJsonMessageChannel(object):
         assert response3 is request3.response
         assert response3.body == {"threadId": 5}
 
-    def test_yield(self):
-        REQUESTS = [
-            {
-                "seq": 10,
-                "type": "request",
-                "command": "launch",
-                "arguments": {"noDebug": False},
-            },
-            {
-                "seq": 20,
-                "type": "request",
-                "command": "setBreakpoints",
-                "arguments": {"main.py": 1},
-            },
-            {"seq": 30, "type": "event", "event": "expected"},
-            {
-                "seq": 40,
-                "type": "request",
-                "command": "launch",
-                "arguments": {"noDebug": True},
-            },  # test re-entrancy
-            {
-                "seq": 50,
-                "type": "request",
-                "command": "setBreakpoints",
-                "arguments": {"main.py": 2},
-            },
-            {"seq": 60, "type": "event", "event": "unexpected"},
-            {"seq": 80, "type": "request", "command": "configurationDone"},
-            {
-                "seq": 90,
-                "type": "request",
-                "command": "launch",
-            },  # test handler yielding empty body
-        ]
+        # Async callback, registered after channel is closed.
+        request4 = channel.send_request("next")
+        request4_sent.set()
+        channel.wait()
+        response4 = []
+        response4_received = threading.Event()
 
-        class Handlers(object):
+        def response4_handler(resp):
+            response4.append(resp)
+            response4_received.set()
 
-            received = {
-                "launch": 0,
-                "setBreakpoints": 0,
-                "configurationDone": 0,
-                "expected": 0,
-                "unexpected": 0,
-            }
+        log.info("Registering callback")
+        request4.on_response(response4_handler)
 
-            def launch_request(self, request):
-                assert request.seq in (10, 40, 90)
-                self.received["launch"] += 1
+        log.info("Waiting for callback...")
+        response4_received.wait()
+        response4, = response4
 
-                if request.seq == 10:  # launch #1
-                    assert self.received == {
-                        "launch": 1,
-                        "setBreakpoints": 0,
-                        "configurationDone": 0,
-                        "expected": 0,
-                        "unexpected": 0,
-                    }
-
-                    msg = yield  # setBreakpoints #1
-                    assert msg.seq == 20
-                    assert self.received == {
-                        "launch": 1,
-                        "setBreakpoints": 1,
-                        "configurationDone": 0,
-                        "expected": 0,
-                        "unexpected": 0,
-                    }
-
-                    msg = yield  # expected
-                    assert msg.seq == 30
-                    assert self.received == {
-                        "launch": 1,
-                        "setBreakpoints": 1,
-                        "configurationDone": 0,
-                        "expected": 1,
-                        "unexpected": 0,
-                    }
-
-                    msg = yield  # launch #2 + nested messages
-                    assert msg.seq == 40
-                    assert self.received == {
-                        "launch": 2,
-                        "setBreakpoints": 2,
-                        "configurationDone": 0,
-                        "expected": 1,
-                        "unexpected": 1,
-                    }
-
-                    # We should see that it failed, but no exception bubbling up here.
-                    assert not msg.response.success
-                    assert msg.response.body == messaging.MessageHandlingError(
-                        "test failure", msg
-                    )
-
-                    msg = yield  # configurationDone
-                    assert msg.seq == 80
-                    assert self.received == {
-                        "launch": 2,
-                        "setBreakpoints": 2,
-                        "configurationDone": 1,
-                        "expected": 1,
-                        "unexpected": 1,
-                    }
-
-                    yield {"answer": 42}
-
-                elif request.seq == 40:  # launch #1
-                    assert self.received == {
-                        "launch": 2,
-                        "setBreakpoints": 1,
-                        "configurationDone": 0,
-                        "expected": 1,
-                        "unexpected": 0,
-                    }
-
-                    msg = yield  # setBreakpoints #2
-                    assert msg.seq == 50
-                    assert self.received == {
-                        "launch": 2,
-                        "setBreakpoints": 2,
-                        "configurationDone": 0,
-                        "expected": 1,
-                        "unexpected": 0,
-                    }
-
-                    msg = yield  # unexpected
-                    assert msg.seq == 60
-                    assert self.received == {
-                        "launch": 2,
-                        "setBreakpoints": 2,
-                        "configurationDone": 0,
-                        "expected": 1,
-                        "unexpected": 1,
-                    }
-
-                    request.cant_handle("test failure")
-
-                elif request.seq == 90:  # launch #3
-                    assert self.received == {
-                        "launch": 3,
-                        "setBreakpoints": 2,
-                        "configurationDone": 1,
-                        "expected": 1,
-                        "unexpected": 1,
-                    }
-                    # yield {}
-
-            def setBreakpoints_request(self, request):
-                assert request.seq in (20, 50, 70)
-                self.received["setBreakpoints"] += 1
-                return {"which": self.received["setBreakpoints"]}
-
-            def request(self, request):
-                assert request.seq == 80
-                assert request.command == "configurationDone"
-                self.received["configurationDone"] += 1
-                return {}
-
-            def expected_event(self, event):
-                assert event.seq == 30
-                self.received["expected"] += 1
-
-            def event(self, event):
-                assert event.seq == 60
-                assert event.event == "unexpected"
-                self.received["unexpected"] += 1
-
-        input, input_exhausted = self.iter_with_event(REQUESTS)
-        output = []
-        stream = JsonMemoryStream(input, output)
-        channel = messaging.JsonMessageChannel(stream, Handlers())
-        channel.start()
-        input_exhausted.wait()
-
-        assert output == [
-            {
-                "seq": 1,
-                "type": "response",
-                "request_seq": 20,
-                "command": "setBreakpoints",
-                "success": True,
-                "body": {"which": 1},
-            },
-            {
-                "seq": 2,
-                "type": "response",
-                "request_seq": 50,
-                "command": "setBreakpoints",
-                "success": True,
-                "body": {"which": 2},
-            },
-            {
-                "seq": 3,
-                "type": "response",
-                "request_seq": 40,
-                "command": "launch",
-                "success": False,
-                "message": "test failure",
-            },
-            {
-                "seq": 4,
-                "type": "response",
-                "request_seq": 80,
-                "command": "configurationDone",
-                "success": True,
-            },
-            {
-                "seq": 5,
-                "type": "response",
-                "request_seq": 10,
-                "command": "launch",
-                "success": True,
-                "body": {"answer": 42},
-            },
-            {
-                "seq": 6,
-                "type": "response",
-                "request_seq": 90,
-                "command": "launch",
-                "success": True,
-            },
-        ]
+        assert not response4.success
+        assert response4.request is request4
+        assert response4 is request4.response
+        assert isinstance(response4.body, messaging.NoMoreMessages)
 
     def test_invalid_request_handling(self):
         REQUESTS = [
@@ -587,12 +464,11 @@ class TestJsonMessageChannel(object):
             def pause_request(self, request):
                 request.arguments["DDD"]
 
-        input, input_exhausted = self.iter_with_event(REQUESTS)
         output = []
-        stream = JsonMemoryStream(input, output)
+        stream = JsonMemoryStream(REQUESTS, output)
         channel = messaging.JsonMessageChannel(stream, Handlers())
         channel.start()
-        input_exhausted.wait()
+        channel.wait()
 
         def missing_property(name):
             return some.str.matching("Invalid message:.*" + re.escape(name) + ".*")

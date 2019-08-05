@@ -16,7 +16,7 @@ def main(args):
     from ptvsd.common import log, options
     from ptvsd.adapter import channels
 
-    if args.cls:
+    if args.cls and args.debug_server is not None:
         print("\033c")
 
     options.log_dir = args.log_dir
