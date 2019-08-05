@@ -543,8 +543,8 @@ class PyDB(object):
         '''
         self._on_configuration_done_event.clear()
 
-    def block_until_configuration_done(self):
-        self._on_configuration_done_event.wait()
+    def block_until_configuration_done(self, timeout=None):
+        return self._on_configuration_done_event.wait(timeout)
 
     def add_fake_frame(self, thread_id, frame_id, frame):
         self.suspended_frames_manager.add_fake_frame(thread_id, frame_id, frame)
@@ -1968,7 +1968,7 @@ def _enable_attach(address):
     return py_db._server_socket_name
 
 
-def _wait_for_attach():
+def _wait_for_attach(cancel=None):
     '''
     Meant to be called after _enable_attach() -- the current thread will only unblock after a
     connection is in place and the DAP (Debug Adapter Protocol) sends the ConfigurationDone
@@ -1978,7 +1978,12 @@ def _wait_for_attach():
     if py_db is None:
         raise AssertionError('Debugger still not created. Please use _enable_attach() before using _wait_for_attach().')
 
-    py_db.block_until_configuration_done()
+    if cancel is None:
+        py_db.block_until_configuration_done()
+    else:
+        while not cancel.is_set():
+            if py_db.block_until_configuration_done(0.1):
+                break
 
 
 def _is_attached():

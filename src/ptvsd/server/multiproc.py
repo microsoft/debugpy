@@ -19,7 +19,7 @@ except ImportError:
     import Queue as queue
 
 from ptvsd.common import log, messaging, options as common_opts, socket, util
-from ptvsd.server import options as server_opts
+from ptvsd.server import options as server_opts, attach
 from _pydev_bundle import pydev_monkey
 from _pydevd_bundle.pydevd_comm import get_global_debugger
 
@@ -205,15 +205,8 @@ def notify_root(port):
     if not response['incomingConnection']:
         log.debug('No IDE connection is expected for this subprocess; unpausing.')
 
-        # TODO: The code here exists to cancel any wait for attach in an indirect way. We need a cleaner
-        # way to cancel wait_for_attach. Ideally, a cancellable wait_for_attach, which ensures that it
-        # does not mess up the pydevd internal debugger states.
-
-        # debugger = get_global_debugger()
-        # while debugger is None:
-        #     time.sleep(0.1)
-        #     debugger = get_global_debugger()
-        # debugger.ready_to_run = True
+        if attach._cancel_wait_for_attach is not None:
+            attach._cancel_wait_for_attach.is_set()
 
 
 def patch_args(args):

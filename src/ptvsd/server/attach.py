@@ -6,12 +6,15 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import sys
 import pydevd
+import threading
 
 from ptvsd.common import log, options as common_opts
 from ptvsd.server import multiproc, options as server_opts
 from _pydevd_bundle.pydevd_constants import get_global_debugger
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame
 
+
+_cancel_wait_for_attach = None
 
 def wait_for_attach(timeout=None):
     """If a remote debugger is attached, returns immediately. Otherwise,
@@ -30,7 +33,9 @@ def wait_for_attach(timeout=None):
         log.info(msg)
         raise AssertionError(msg)
 
-    pydevd._wait_for_attach()
+    global _cancel_wait_for_attach
+    _cancel_wait_for_attach = threading.Event()
+    pydevd._wait_for_attach(cancel=_cancel_wait_for_attach)
 
 
 def enable_attach(
