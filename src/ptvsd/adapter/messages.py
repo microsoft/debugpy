@@ -199,8 +199,6 @@ class IDEMessages(Messages):
 
         try:
             self._server.request("setDebuggerProperty", arguments={
-                "dontTraceStartPatterns": ["\\ptvsd\\", "/ptvsd/"],
-                "dontTraceEndPatterns": ["ptvsd_launcher.py"],
                 "skipSuspendOnBreakpointException": ("BaseException",),
                 "skipPrintBreakpointException": ("NameError",),
                 "multiThreadsSingleNotification": True,

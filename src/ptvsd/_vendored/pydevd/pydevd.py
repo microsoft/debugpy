@@ -1945,7 +1945,11 @@ def init_stderr_redirect(on_write=None):
         sys.stderr = pydevd_io.IORedirector(original, sys._pydevd_err_buffer_, wrap_buffer)  # @UndefinedVariable
 
 
-def _enable_attach(address):
+def _enable_attach(
+    address,
+    dont_trace_start_patterns=[],
+    dont_trace_end_paterns=[],
+    ):
     '''
     Starts accepting connections at the given host/port. The debugger will not be initialized nor
     configured, it'll only start accepting connections (and will have the tracing setup in this
@@ -1962,7 +1966,15 @@ def _enable_attach(address):
     if _debugger_setup:
         if port != SetupHolder.setup['port']:
             raise AssertionError('Unable to listen in port: %s (already listening in port: %s)' % (port, SetupHolder.setup['port']))
-    settrace(host=host, port=port, suspend=False, wait_for_ready_to_run=False, block_until_connected=False)
+    settrace(
+        host=host,
+        port=port,
+        suspend=False,
+        wait_for_ready_to_run=False,
+        block_until_connected=False,
+        dont_trace_start_patterns=dont_trace_start_patterns,
+        dont_trace_end_paterns=dont_trace_end_paterns,
+    )
     py_db = get_global_debugger()
     py_db.wait_for_server_socket_ready()
     return py_db._server_socket_name
@@ -2009,6 +2021,8 @@ def settrace(
     stop_at_frame=None,
     block_until_connected=True,
     wait_for_ready_to_run=True,
+    dont_trace_start_patterns=[],
+    dont_trace_end_paterns=[],
     ):
     '''Sets the tracing function with the pydev debug function and initializes needed facilities.
 
@@ -2042,6 +2056,12 @@ def settrace(
         Note that if wait_for_ready_to_run == False, there are no guarantees that the debugger is synchronized
         with what's configured in the client (IDE), the only guarantee is that when leaving this function
         the debugger will be already connected.
+
+    @param dont_trace_start_patterns: if set, then any path that starts with one fo the patterns in the collection
+        will not be traced
+
+    @param dont_trace_end_paterns:  if set, then any path that ends with one fo the patterns in the collection
+        will not be traced
     '''
     with _set_trace_lock:
         _locked_settrace(
@@ -2055,6 +2075,8 @@ def settrace(
             stop_at_frame,
             block_until_connected,
             wait_for_ready_to_run,
+            dont_trace_start_patterns,
+            dont_trace_end_paterns
         )
 
 
@@ -2072,6 +2094,8 @@ def _locked_settrace(
     stop_at_frame,
     block_until_connected,
     wait_for_ready_to_run,
+    dont_trace_start_patterns,
+    dont_trace_end_paterns,
     ):
     if patch_multiprocessing:
         try:
@@ -2110,6 +2134,9 @@ def _locked_settrace(
             # Create a dummy writer and wait for the real connection.
             debugger.writer = WriterThread(NULL, terminate_on_socket_close=False)
             debugger.create_wait_for_connection_thread()
+
+        if dont_trace_start_patterns or dont_trace_end_paterns:
+            PyDevdAPI().set_dont_trace_start_end_patterns(debugger, dont_trace_start_patterns, dont_trace_end_paterns)
 
         # Mark connected only if it actually succeeded.
         _debugger_setup = True

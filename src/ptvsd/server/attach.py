@@ -4,17 +4,27 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+import os
 import sys
 import pydevd
 import threading
 
+import ptvsd
 from ptvsd.common import log, options as common_opts
 from ptvsd.server import multiproc, options as server_opts
 from _pydevd_bundle.pydevd_constants import get_global_debugger
-from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame
+from pydevd_file_utils import get_abs_path_real_path_and_base_from_file, get_abs_path_real_path_and_base_from_frame
 
 
 _cancel_wait_for_attach = None
+
+def _get_dont_trace_patterns():
+    ptvsd_path, _, _ = get_abs_path_real_path_and_base_from_file(ptvsd.__file__)
+    ptvsd_path = os.path.dirname(ptvsd_path)
+    start_patterns = [ptvsd_path]
+    end_patterns = ["ptvsd_launcher.py"]
+    log.info('Dont trace patterns: {0!r}, {1!r}', (start_patterns, end_patterns))
+    return (start_patterns, end_patterns)
 
 def wait_for_attach(timeout=None):
     """If a remote debugger is attached, returns immediately. Otherwise,
@@ -81,8 +91,13 @@ def enable_attach(
     # Ensure port is int
     host, port = address
     address = (host, int(port))
+    start_patterns, end_patterns = _get_dont_trace_patterns()
 
-    server_opts.host, server_opts.port = pydevd._enable_attach(address)
+    server_opts.host, server_opts.port = pydevd._enable_attach(
+        address,
+        dont_trace_start_patterns=start_patterns,
+        dont_trace_end_paterns=end_patterns,
+    )
 
     if server_opts.subprocess_notify:
         multiproc.notify_root(server_opts.port)
@@ -119,12 +134,17 @@ def attach(address, log_dir=None):
     address = (host, int(port))
     server_opts.host, server_opts.port = address
 
+    start_patterns, end_patterns = _get_dont_trace_patterns()
+
     log.debug('pydevd.settrace()')
     pydevd.settrace(
         host=host,
         port=port,
         suspend=False,
-        patch_multiprocessing=server_opts.multiprocess)
+        patch_multiprocessing=server_opts.multiprocess,
+        dont_trace_start_patterns=start_patterns,
+        dont_trace_end_paterns=end_patterns,
+    )
 
 
 def is_attached():
