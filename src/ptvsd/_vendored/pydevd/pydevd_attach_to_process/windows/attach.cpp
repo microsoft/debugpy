@@ -463,11 +463,15 @@ extern "C"
                 SuspendThreads(suspendedThreads, addPendingCall, threadsInited);
                 
                 if(!threadsInited()){ // Check again with threads suspended.
-                    std::cout << "ENTERED if (!threadsInited()) {" << std::endl << std::flush;
+                    if (showDebugInfo) {
+                        std::cout << "ENTERED if (!threadsInited()) {" << std::endl << std::flush;
+                    }
                     auto curPyThread = getPythonThread ? getPythonThread() : *curPythonThread;
                     
                     if (curPyThread == nullptr) {
-                        std::cout << "ENTERED if (curPyThread == nullptr) {" << std::endl << std::flush;
+                        if (showDebugInfo) {
+                            std::cout << "ENTERED if (curPyThread == nullptr) {" << std::endl << std::flush;
+                        }
                          // no threads are currently running, it is safe to initialize multi threading.
                          PyGILState_STATE gilState;
                          if (version >= PythonVersion_34) {
@@ -497,7 +501,9 @@ extern "C"
                             gilState = PyGILState_LOCKED; // prevent compiler warning
                          }
     
-                        std::cout << "Called initThreads()" << std::endl << std::flush;
+                        if (showDebugInfo) {
+                            std::cout << "Called initThreads()" << std::endl << std::flush;
+                        }
                         // Initialize threads in our secondary thread (this is NOT ideal because
                         // this thread will be the thread head), but is still better than not being
                         // able to attach if the main thread is not actually running any code.
@@ -670,7 +676,7 @@ extern "C"
     /**
      * This function may be called to set a tracing function to existing python threads.
      **/
-    DECLDIR int AttachDebuggerTracing(bool showDebugInfo, void* pSetTraceFunc, void* pTraceFunc, unsigned int threadId)
+    DECLDIR int AttachDebuggerTracing(bool showDebugInfo, void* pSetTraceFunc, void* pTraceFunc, unsigned int threadId, void* pPyNone)
     {
         ModuleInfo moduleInfo = GetPythonModule();
         if (moduleInfo.errorGettingModule != 0) {
@@ -683,7 +689,9 @@ extern "C"
         int attached = 0;
         PyObjectHolder traceFunc(moduleInfo.isDebug, reinterpret_cast<PyObject*>(pTraceFunc), true);
         PyObjectHolder setTraceFunc(moduleInfo.isDebug, reinterpret_cast<PyObject*>(pSetTraceFunc), true);
-        int temp = InternalSetSysTraceFunc(module, moduleInfo.isDebug, showDebugInfo, &traceFunc, &setTraceFunc, threadId);
+        PyObjectHolder pyNone(moduleInfo.isDebug, reinterpret_cast<PyObject*>(pPyNone), true);
+        
+        int temp = InternalSetSysTraceFunc(module, moduleInfo.isDebug, showDebugInfo, &traceFunc, &setTraceFunc, threadId, &pyNone);
         if (temp == 0) {
             // we've successfully attached the debugger
             return 0;

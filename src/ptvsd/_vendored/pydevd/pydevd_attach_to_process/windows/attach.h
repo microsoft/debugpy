@@ -49,7 +49,8 @@ extern "C"
         bool showDebugInfo, 
         void* pSetTraceFunc, // Actually PyObject*, but we don't want to include it here.
         void* pTraceFunc,  // Actually PyObject*, but we don't want to include it here.
-        unsigned int threadId
+        unsigned int threadId,
+        void* pPyNone  // Actually PyObject*, but we don't want to include it here.
     );
 }
 

@@ -728,7 +728,7 @@ def test_case_skipping_filters(case_setup, custom_setup):
             other_filename = os.path.join(not_my_code_dir, 'other.py')
             response = json_facade.write_set_breakpoints(1, filename=other_filename, verified=False)
             assert response.body.breakpoints == [
-                {'verified': False, 'message': 'Breakpoint in file excluded by filters.', 'source': {}, 'line': 1}]
+                {'verified': False, 'message': 'Breakpoint in file excluded by filters.', 'source': {'path': other_filename}, 'line': 1}]
             # Note: there's actually a use-case where we'd hit that breakpoint even if it was excluded
             # by filters, so, we must actually clear it afterwards (the use-case is that when we're
             # stepping into the context with the breakpoint we wouldn't skip it).
@@ -737,7 +737,7 @@ def test_case_skipping_filters(case_setup, custom_setup):
             other_filename = os.path.join(not_my_code_dir, 'file_that_does_not_exist.py')
             response = json_facade.write_set_breakpoints(1, filename=other_filename, verified=False)
             assert response.body.breakpoints == [
-                {'verified': False, 'message': 'Breakpoint in file that does not exist.', 'source': {}, 'line': 1}]
+                {'verified': False, 'message': 'Breakpoint in file that does not exist.', 'source': {'path': other_filename}, 'line': 1}]
 
         elif custom_setup == 'set_exclude_launch_module_full':
             json_facade.write_launch(
@@ -767,7 +767,7 @@ def test_case_skipping_filters(case_setup, custom_setup):
             assert response.body.breakpoints == [{
                 'verified': False,
                 'message': 'Breakpoint in file excluded by filters.\nNote: may be excluded because of "justMyCode" option (default == true).',
-                'source': {},
+                'source': {'path': other_filename},
                 'line': 14
             }]
         elif custom_setup == 'set_just_my_code_and_include':

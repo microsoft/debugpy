@@ -1,8 +1,8 @@
 
 from _pydevd_bundle.pydevd_constants import get_frame, IS_CPYTHON, IS_64BIT_PROCESS, IS_WINDOWS, \
-    IS_LINUX, IS_MAC, IS_PY2, DebugInfoHolder
+    IS_LINUX, IS_MAC, IS_PY2, IS_PY37_OR_GREATER, DebugInfoHolder
 from _pydev_imps._pydev_saved_modules import thread, threading
-from _pydev_bundle import pydev_log
+from _pydev_bundle import pydev_log, pydev_monkey
 from os.path import os
 try:
     import ctypes
@@ -146,7 +146,10 @@ def load_python_helper_lib():
         lib = ctypes.pydll.LoadLibrary(filename)
         return lib
     except:
-        pydev_log.exception('Error loading: %s', filename)
+        if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 1:
+            # Only show message if tracing is on (we don't have pre-compiled
+            # binaries for all architectures -- i.e.: ARM).
+            pydev_log.exception('Error loading: %s', filename)
         return None
 
 
@@ -163,9 +166,12 @@ def set_trace_to_threads(tracing_func):
     prev_value = get_interval()
     ret = 0
     try:
-        # Prevent going to any other thread... if we switch the thread during this operation we
-        # could potentially corrupt the interpreter.
-        set_interval(2 ** 15)
+        if not IS_PY37_OR_GREATER:
+            # Prevent going to any other thread... if we switch the thread during this operation we
+            # could potentially corrupt the interpreter.
+            # Note: on CPython 3.7 onwards this is not needed (we have a different implementation
+            # for setting the tracing for other threads in this case).
+            set_interval(2 ** 15)
 
         set_trace_func = TracingFunctionHolder._original_tracing or sys.settrace
 
@@ -216,12 +222,37 @@ def set_trace_to_threads(tracing_func):
             # show_debug_info = 1 if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 1 else 0
             show_debug_info = 0
 
-            result = lib.AttachDebuggerTracing(ctypes.c_int(show_debug_info), ctypes.py_object(set_trace_func), ctypes.py_object(tracing_func), ctypes.c_uint(thread_ident))
+            if IS_PY37_OR_GREATER:
+                # Hack to increase _Py_TracingPossible.
+                # See comments on py_settrace_37.hpp
+                proceed = thread.allocate_lock()
+                proceed.acquire()
+
+                def dummy_trace_on_py37(frame, event, arg):
+                    return dummy_trace_on_py37
+
+                def increase_tracing_count_on_py37():
+                    SetTrace(dummy_trace_on_py37)
+                    proceed.release()
+
+                start_new_thread = pydev_monkey.get_original_start_new_thread(thread)
+                start_new_thread(increase_tracing_count_on_py37, ())
+                proceed.acquire()  # Only proceed after the release() is done.
+                proceed = None
+
+            result = lib.AttachDebuggerTracing(
+                ctypes.c_int(show_debug_info),
+                ctypes.py_object(set_trace_func),
+                ctypes.py_object(tracing_func),
+                ctypes.c_uint(thread_ident),
+                ctypes.py_object(None),
+            )
             if result != 0:
                 pydev_log.info('Unable to set tracing for existing threads. Result: %s', result)
                 ret = result
     finally:
-        set_interval(prev_value)
+        if not IS_PY37_OR_GREATER:
+            set_interval(prev_value)
 
     return ret
 

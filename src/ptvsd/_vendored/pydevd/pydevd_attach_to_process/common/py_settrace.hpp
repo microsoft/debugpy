@@ -4,6 +4,7 @@
 #include "ref_utils.hpp"
 #include "py_utils.hpp"
 #include "python.h"
+#include "py_settrace_37.hpp"
 #include <unordered_set>
 
 
@@ -36,7 +37,14 @@ DWORD GetPythonThreadId(PythonVersion version, PyThreadState* curThread) {
 /**
  * This function may be called to set a tracing function to existing python threads.
  */
-int InternalSetSysTraceFunc(MODULE_TYPE module, bool isDebug, bool showDebugInfo, PyObjectHolder* traceFunc, PyObjectHolder* setTraceFunc, unsigned int threadId)
+int InternalSetSysTraceFunc(
+    MODULE_TYPE module,
+    bool isDebug,
+    bool showDebugInfo,
+    PyObjectHolder* traceFunc,
+    PyObjectHolder* setTraceFunc,
+    unsigned int threadId,
+    PyObjectHolder* pyNone)
 {
     
     if(showDebugInfo){
@@ -71,15 +79,8 @@ int InternalSetSysTraceFunc(MODULE_TYPE module, bool isDebug, bool showDebugInfo
         intFromLong = intFromLongPy2;
     }
     
-    DEFINE_PROC(errOccurred, PyErr_Occurred*, "PyErr_Occurred", 210);
-    DEFINE_PROC(pyErrFetch, PyErr_Fetch*, "PyErr_Fetch", 220);
-    DEFINE_PROC(pyErrRestore, PyErr_Restore*, "PyErr_Restore", 230);
-    DEFINE_PROC(pyImportMod, PyImport_ImportModule*, "PyImport_ImportModule", 240);
     DEFINE_PROC(pyGetAttr, PyObject_GetAttrString*, "PyObject_GetAttrString", 250);
     DEFINE_PROC(pyHasAttr, PyObject_HasAttrString*, "PyObject_HasAttrString", 260);
-    DEFINE_PROC(getThreadTls, PyThread_get_key_value*, "PyThread_get_key_value", 270);
-    DEFINE_PROC(setThreadTls, PyThread_set_key_value*, "PyThread_set_key_value", 280);
-    DEFINE_PROC(delThreadTls, PyThread_delete_key_value*, "PyThread_delete_key_value", 290);
     DEFINE_PROC_NO_CHECK(PyCFrame_Type, PyTypeObject*, "PyCFrame_Type", 300);  // optional
     
     DEFINE_PROC_NO_CHECK(curPythonThread, PyThreadState**, "_PyThreadState_Current", 310);  // optional
@@ -111,67 +112,117 @@ int InternalSetSysTraceFunc(MODULE_TYPE module, bool isDebug, bool showDebugInfo
     }
 
     
-    int threadStateIndex = -1;
-    for (int i = 0; i < 100000; i++) {
-        void* value = getThreadTls(i);
-        if (value == curPyThread) {
-            threadStateIndex = i;
+    if (version < PythonVersion_37) 
+    {
+        DEFINE_PROC(errOccurred, PyErr_Occurred*, "PyErr_Occurred", 210);
+        DEFINE_PROC(pyErrFetch, PyErr_Fetch*, "PyErr_Fetch", 220);
+        DEFINE_PROC(pyErrRestore, PyErr_Restore*, "PyErr_Restore", 230);
+        DEFINE_PROC(getThreadTls, PyThread_get_key_value*, "PyThread_get_key_value", 270);
+        DEFINE_PROC(setThreadTls, PyThread_set_key_value*, "PyThread_set_key_value", 280);
+        DEFINE_PROC(delThreadTls, PyThread_delete_key_value*, "PyThread_delete_key_value", 290);
+        int threadStateIndex = -1;
+        for (int i = 0; i < 100000; i++) {
+            void* value = getThreadTls(i);
+            if (value == curPyThread) {
+                threadStateIndex = i;
+                break;
+            }
+        }
+        
+        if(threadStateIndex == -1){
+            printf("Unable to find threadStateIndex for the current thread. curPyThread: %p\n", curPyThread);
+            return 350;
+        }
+    
+        
+        bool found = false;
+        for (auto curThread = threadHead(head); curThread != nullptr; curThread = threadNext(curThread)) {
+            if (GetPythonThreadId(version, curThread) != threadId) {
+                continue;
+            }
+            found = true;
+            
+    
+            // switch to our new thread so we can call sys.settrace on it...
+            // all of the work here needs to be minimal - in particular we shouldn't
+            // ever evaluate user defined code as we could end up switching to this
+            // thread on the main thread and corrupting state.
+            delThreadTls(threadStateIndex);
+            setThreadTls(threadStateIndex, curThread);
+            auto prevThread = threadSwap(curThread);
+    
+            // save and restore the error in case something funky happens...
+            auto errOccured = errOccurred();
+            PyObject* type = nullptr;
+            PyObject* value = nullptr;
+            PyObject* traceback = nullptr;
+            if (errOccured) {
+                pyErrFetch(&type, &value, &traceback);
+                retVal = 1;
+            }
+    
+            if(showDebugInfo){
+                printf("setting trace for thread: %d\n", threadId);
+            }
+    
+            DecRef(call(setTraceFunc->ToPython(), traceFunc->ToPython(), nullptr), isDebug);
+    
+            if (errOccured) {
+                pyErrRestore(type, value, traceback);
+            }
+    
+            delThreadTls(threadStateIndex);
+            setThreadTls(threadStateIndex, prevThread);
+            threadSwap(prevThread);
             break;
         }
-    }
-    
-    if(threadStateIndex == -1){
-        printf("Unable to find threadStateIndex for the current thread. curPyThread: %p\n", curPyThread);
-        return 350;
-    }
-
-    
-    bool found = false;
-    for (auto curThread = threadHead(head); curThread != nullptr; curThread = threadNext(curThread)) {
-        if (GetPythonThreadId(version, curThread) != threadId) {
-            continue;
-        }
-        found = true;
         
-
-        // switch to our new thread so we can call sys.settrace on it...
-        // all of the work here needs to be minimal - in particular we shouldn't
-        // ever evaluate user defined code as we could end up switching to this
-        // thread on the main thread and corrupting state.
-        delThreadTls(threadStateIndex);
-        setThreadTls(threadStateIndex, curThread);
-        auto prevThread = threadSwap(curThread);
-
-        // save and restore the error in case something funky happens...
-        auto errOccured = errOccurred();
-        PyObject* type = nullptr;
-        PyObject* value = nullptr;
-        PyObject* traceback = nullptr;
-        if (errOccured) {
-            pyErrFetch(&type, &value, &traceback);
-            retVal = 1;
+        if(!found) {
+            retVal = 500;
         }
-
-        if(showDebugInfo){
-            printf("setting trace for thread: %d\n", threadId);
+    } 
+    else  
+    {
+        // See comments on py_settrace_37.hpp for why we need a different implementation in Python 3.7 onwards.
+        DEFINE_PROC(pyUnicode_InternFromString, PyUnicode_InternFromString*, "PyUnicode_InternFromString", 520);
+        DEFINE_PROC(pyObject_FastCallDict, _PyObject_FastCallDict*, "_PyObject_FastCallDict", 530);
+        DEFINE_PROC(pyTraceBack_Here, PyTraceBack_Here*, "PyTraceBack_Here", 540);
+        DEFINE_PROC(pyEval_SetTrace, PyEval_SetTrace*, "PyEval_SetTrace", 550);
+        
+        bool found = false;
+        for (PyThreadState* curThread = threadHead(head); curThread != nullptr; curThread = threadNext(curThread)) {
+            if (GetPythonThreadId(version, curThread) != threadId) {
+                continue;
+            }
+            found = true;
+            
+            if(showDebugInfo){
+                printf("setting trace for thread: %d\n", threadId);
+            }
+            
+            if(!InternalIsTraceInitialized_37())
+            {
+                InternalInitializeSettrace_37 *internalInitializeSettrace_37 = new InternalInitializeSettrace_37();
+                
+                IncRef(pyNone->ToPython());
+                internalInitializeSettrace_37->pyNone = pyNone->ToPython();
+                
+                internalInitializeSettrace_37->pyUnicode_InternFromString = pyUnicode_InternFromString;
+                internalInitializeSettrace_37->pyObject_FastCallDict = pyObject_FastCallDict;
+                internalInitializeSettrace_37->isDebug = isDebug;
+                internalInitializeSettrace_37->pyTraceBack_Here = pyTraceBack_Here;
+                internalInitializeSettrace_37->pyEval_SetTrace = pyEval_SetTrace;
+                
+                InternalTraceInit_37(internalInitializeSettrace_37);
+            }
+            InternalPySetTrace_37(curThread, traceFunc, isDebug);
+            break;
         }
-
-        DecRef(call(setTraceFunc->ToPython(), traceFunc->ToPython(), nullptr), isDebug);
-
-        if (errOccured) {
-            pyErrRestore(type, value, traceback);
+        if(!found) {
+            retVal = 501;
         }
-
-        delThreadTls(threadStateIndex);
-        setThreadTls(threadStateIndex, prevThread);
-        threadSwap(prevThread);
-        break;
     }
-    
-    if(!found) {
-        retVal = 500;
-    }
-    
+
     return retVal;
 
 }

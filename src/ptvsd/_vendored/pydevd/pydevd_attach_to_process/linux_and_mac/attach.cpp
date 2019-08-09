@@ -40,13 +40,6 @@ int hello()
 }
 
 
-// This is the function which enables us to set the sys.settrace for all the threads
-// which are already running.
-// isDebug is pretty important! Must be true on python debug builds (python_d)
-// If this value is passed wrongly the program will crash.
-extern "C" int AttachDebuggerTracing(bool showDebugInfo, void* pSetTraceFunc, void* pTraceFunc, unsigned int threadId);
-extern "C" int DoAttach(bool isDebug, const char *command, bool showDebugInfo);
-
 // Internal function to keep on the tracing
 int _PYDEVD_ExecWithGILSetSysStrace(bool showDebugInfo, bool isDebug);
 
@@ -56,6 +49,9 @@ typedef int (*PyEval_ThreadsInitialized)();
 typedef unsigned long (*_PyEval_GetSwitchInterval)(void);
 typedef void (*_PyEval_SetSwitchInterval)(unsigned long microseconds);
 
+// isDebug is pretty important! Must be true on python debug builds (python_d)
+// If this value is passed wrongly the program will crash.
+extern "C" int DoAttach(bool isDebug, const char *command, bool showDebugInfo);
 
 int DoAttach(bool isDebug, const char *command, bool showDebugInfo)
 {
@@ -99,12 +95,17 @@ int DoAttach(bool isDebug, const char *command, bool showDebugInfo)
 }
 
 
-int AttachDebuggerTracing(bool showDebugInfo, void* pSetTraceFunc, void* pTraceFunc, unsigned int threadId)
+// This is the function which enables us to set the sys.settrace for all the threads
+// which are already running.
+extern "C" int AttachDebuggerTracing(bool showDebugInfo, void* pSetTraceFunc, void* pTraceFunc, unsigned int threadId, void* pPyNone);
+
+int AttachDebuggerTracing(bool showDebugInfo, void* pSetTraceFunc, void* pTraceFunc, unsigned int threadId, void* pPyNone)
 {
     void *module = dlopen(nullptr, 0x2);
     bool isDebug = false;
     PyObjectHolder traceFunc(isDebug, (PyObject*) pTraceFunc, true);
     PyObjectHolder setTraceFunc(isDebug, (PyObject*) pSetTraceFunc, true);
-    return InternalSetSysTraceFunc(module, isDebug, showDebugInfo, &traceFunc, &setTraceFunc, threadId);
+    PyObjectHolder pyNone(isDebug, reinterpret_cast<PyObject*>(pPyNone), true);
+    return InternalSetSysTraceFunc(module, isDebug, showDebugInfo, &traceFunc, &setTraceFunc, threadId, &pyNone);
 }
 

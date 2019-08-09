@@ -25,6 +25,13 @@ typedef int (PyThread_set_key_value)(int, void*);
 typedef void (PyThread_delete_key_value)(int);
 typedef int (PyObject_Not) (PyObject *o);
 typedef PyObject* (PyDict_New)();
+typedef PyObject* (PyUnicode_InternFromString)(const char *u);
+typedef PyObject * (_PyObject_FastCallDict)(
+    PyObject *callable, PyObject *const *args, Py_ssize_t nargs, PyObject *kwargs);
+typedef int (PyTraceBack_Here)(PyFrameObject *frame);
+
+typedef void (PyEval_SetTrace)(Py_tracefunc, PyObject *);
+typedef int (*Py_tracefunc)(PyObject *, PyFrameObject *frame, int, PyObject *);
 
 // holder to ensure we release the GIL even in error conditions
 class GilHolder {
