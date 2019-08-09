@@ -303,7 +303,7 @@ class NetCommandFactoryJson(NetCommandFactory):
             threadId=thread_id,
             text=exc_name,
             allThreadsStopped=True,
-            preserveFocusHint=stop_reason not in ['step', 'exception', 'breakpoint', 'entry'],
+            preserveFocusHint=stop_reason not in ['step', 'exception', 'breakpoint', 'entry', 'goto'],
         )
         event = pydevd_schema.StoppedEvent(body)
         return NetCommand(CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION, 0, event, is_json=True)
