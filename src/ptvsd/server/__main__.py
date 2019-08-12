@@ -158,7 +158,7 @@ def parse(args):
 
         switch = arg if arg.startswith('-') else ''
         for i, (sw, placeholder, action, _) in enumerate(unseen_switches):
-            if isinstance(sw, str):
+            if not isinstance(sw, tuple):
                 sw = (sw,)
             if switch in sw:
                 del unseen_switches[i]
@@ -179,7 +179,7 @@ def parse(args):
 
     for sw, placeholder, _, required in unseen_switches:
         if required:
-            if not isinstance(sw, str):
+            if isinstance(sw, tuple):
                 sw = sw[0]
             message = 'missing required %s' % sw
             if placeholder is not None:
