@@ -357,7 +357,8 @@ class MessageDict(collections.OrderedDict):
 
         If validate=False, it's treated as if it were (lambda x: x) - i.e. any value
         is considered valid, and is returned unchanged. If validate is a type or a
-        tuple, it's treated as if it were json.of_type(validate).
+        tuple, it's treated as json.of_type(validate). Otherwise, if validate is not
+        callable(), it's treated as json.default(validate).
 
         If validate() returns successfully, the item is substituted with the value
         it returns - thus, the validator can e.g. replace () with a suitable default
@@ -373,6 +374,8 @@ class MessageDict(collections.OrderedDict):
             validate = lambda x: x
         elif isinstance(validate, type) or isinstance(validate, tuple):
             validate = json.of_type(validate)
+        elif not callable(validate):
+            validate = json.default(validate)
 
         value = self.get(key, ())
         try:
