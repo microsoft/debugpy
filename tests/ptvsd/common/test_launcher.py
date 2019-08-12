@@ -17,7 +17,7 @@ from ptvsd.common import launcher
 launcher_py = os.path.abspath(launcher.__file__)
 
 
-@pytest.mark.parametrize("run_as", ["file", "module", "code"])
+@pytest.mark.parametrize("run_as", ["program", "module", "code"])
 @pytest.mark.parametrize("mode", ["normal", "abnormal", "normal+abnormal", ""])
 @pytest.mark.parametrize("seperator", ["seperator", ""])
 def test_launcher_parser(mode, seperator, run_as):
@@ -51,7 +51,7 @@ def test_launcher_parser(mode, seperator, run_as):
             actual = launcher.parse(args)
 
 
-@pytest.mark.parametrize("run_as", ["file", "module", "code"])
+@pytest.mark.parametrize("run_as", ["program", "module", "code"])
 @pytest.mark.parametrize("mode", ["normal", "abnormal", "normal+abnormal", ""])
 @pytest.mark.parametrize("exit_code", [0, 10])
 @pytest.mark.timeout(5)

@@ -11,30 +11,23 @@ import threading
 
 import ptvsd
 from ptvsd.common import log, options as common_opts
-from ptvsd.server import multiproc, options as server_opts
+from ptvsd.server import options as server_opts
 from _pydevd_bundle.pydevd_constants import get_global_debugger
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_file, get_abs_path_real_path_and_base_from_frame
 
 
-_cancel_wait_for_attach = None
-
 def _get_dont_trace_patterns():
     ptvsd_path, _, _ = get_abs_path_real_path_and_base_from_file(ptvsd.__file__)
     ptvsd_path = os.path.dirname(ptvsd_path)
-    start_patterns = [ptvsd_path]
-    end_patterns = ["ptvsd_launcher.py"]
+    start_patterns = (ptvsd_path,)
+    end_patterns = ("ptvsd_launcher.py",)
     log.info('Dont trace patterns: {0!r}, {1!r}', start_patterns, end_patterns)
     return (start_patterns, end_patterns)
 
-def wait_for_attach(timeout=None):
+def wait_for_attach():
     """If a remote debugger is attached, returns immediately. Otherwise,
     blocks until a remote debugger attaches to this process, or until the
     optional timeout occurs.
-
-    Parameters
-    ----------
-    timeout : float, optional
-        The timeout for the operation in seconds (or fractions thereof).
     """
     log.info('wait_for_attach()')
     dbg = get_global_debugger()
@@ -43,9 +36,9 @@ def wait_for_attach(timeout=None):
         log.info(msg)
         raise AssertionError(msg)
 
-    global _cancel_wait_for_attach
-    _cancel_wait_for_attach = threading.Event()
-    pydevd._wait_for_attach(cancel=_cancel_wait_for_attach)
+    cancel_event = threading.Event()
+    wait_for_attach.cancel = cancel_event.set
+    pydevd._wait_for_attach(cancel=cancel_event)
 
 
 def enable_attach(
@@ -100,6 +93,7 @@ def enable_attach(
     )
 
     if server_opts.subprocess_notify:
+        from ptvsd.server import multiproc
         multiproc.notify_root(server_opts.port)
 
     return (server_opts.host, server_opts.port)

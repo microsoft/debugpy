@@ -21,7 +21,7 @@ def test_variables_and_evaluate(pyfile, start_method, run_as):
         print([a, b, c])  # @bp
 
     with debug.Session(start_method) as session:
-        session.initialize(target=(run_as, code_to_debug))
+        session.configure(run_as, code_to_debug)
         session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])
         session.start_debugging()
         hit = session.wait_for_stop()
@@ -100,7 +100,7 @@ def test_variables_and_evaluate(pyfile, start_method, run_as):
         )
 
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()
 
 
 def test_set_variable(pyfile, start_method, run_as):
@@ -112,9 +112,9 @@ def test_set_variable(pyfile, start_method, run_as):
         ptvsd.break_into_debugger()
         backchannel.send(a)
 
-    with debug.Session(start_method) as session:
-        backchannel = session.setup_backchannel()
-        session.initialize(target=(run_as, code_to_debug))
+    with debug.Session(start_method, backchannel=True) as session:
+        backchannel = session.backchannel
+        session.configure(run_as, code_to_debug)
         session.start_debugging()
         hit = session.wait_for_stop()
 
@@ -156,7 +156,7 @@ def test_set_variable(pyfile, start_method, run_as):
 
         assert backchannel.receive() == 1000
 
-        session.wait_for_exit()
+        session.stop_debugging()
 
 
 def test_variable_sort(pyfile, start_method, run_as):
@@ -180,7 +180,7 @@ def test_variable_sort(pyfile, start_method, run_as):
         print("done")  # @bp
 
     with debug.Session(start_method) as session:
-        session.initialize(target=(run_as, code_to_debug))
+        session.configure(run_as, code_to_debug)
         session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])
         session.start_debugging()
         hit = session.wait_for_stop()
@@ -245,7 +245,7 @@ def test_variable_sort(pyfile, start_method, run_as):
         # assert variable_names[:3] == ['1', '2', '10']
 
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()
 
 
 def test_return_values(pyfile, start_method, run_as):
@@ -287,9 +287,9 @@ def test_return_values(pyfile, start_method, run_as):
     )
 
     with debug.Session(start_method) as session:
-        session.initialize(
-            target=(run_as, code_to_debug),
-            debug_options={"ShowReturnValue"},
+        session.configure(
+            run_as, code_to_debug,
+            showReturnValue=True
         )
         session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])
         session.start_debugging()
@@ -333,7 +333,7 @@ def test_return_values(pyfile, start_method, run_as):
         assert variables == [expected1, expected2]
 
         session.send_request("continue").wait_for_response()
-        session.wait_for_exit()
+        session.stop_debugging()
 
 
 def test_unicode(pyfile, start_method, run_as):
@@ -351,7 +351,7 @@ def test_unicode(pyfile, start_method, run_as):
         print("break")
 
     with debug.Session(start_method) as session:
-        session.initialize(target=(run_as, code_to_debug))
+        session.configure(run_as, code_to_debug)
         session.start_debugging()
         hit = session.wait_for_stop()
 
@@ -367,7 +367,7 @@ def test_unicode(pyfile, start_method, run_as):
             assert resp_eval.body == some.dict.containing({"type": "SyntaxError"})
 
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()
 
 
 def test_hex_numbers(pyfile, start_method, run_as):
@@ -382,7 +382,7 @@ def test_hex_numbers(pyfile, start_method, run_as):
         print((a, b, c, d))  # @bp
 
     with debug.Session(start_method) as session:
-        session.initialize(target=(run_as, code_to_debug))
+        session.configure(run_as, code_to_debug)
         session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])
         session.start_debugging()
         hit = session.wait_for_stop()
@@ -592,4 +592,4 @@ def test_hex_numbers(pyfile, start_method, run_as):
         ]
 
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()

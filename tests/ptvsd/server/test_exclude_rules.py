@@ -44,19 +44,14 @@ def test_exceptions_and_exclude_rules(
     log.info("Rules: {0!j}", rules)
 
     with debug.Session(start_method) as session:
-        session.initialize(
-            target=(run_as, code_to_debug),
-            rules=rules,
-            # https://github.com/Microsoft/ptvsd/issues/1278:
-            expected_returncode=some.int,
-        )
+        session.configure(run_as, code_to_debug, rules=rules)
         session.request(
             "setExceptionBreakpoints", {"filters": ["raised", "uncaught"]}
         )
         session.start_debugging()
 
         # No exceptions should be seen.
-        session.wait_for_exit()
+        session.stop_debugging()
 
 
 @pytest.mark.parametrize("scenario", ["exclude_code_to_debug", "exclude_callback_dir"])
@@ -89,14 +84,9 @@ def test_exceptions_and_partial_exclude_rules(pyfile, start_method, run_as, scen
         pytest.fail(scenario)
     log.info("Rules: {0!j}", rules)
 
-    with debug.Session(start_method) as session:
-        backchannel = session.setup_backchannel()
-        session.initialize(
-            target=(run_as, code_to_debug),
-            rules=rules,
-            # https://github.com/Microsoft/ptvsd/issues/1278:
-            expected_returncode=some.int,
-        )
+    with debug.Session(start_method, backchannel=True) as session:
+        backchannel = session.backchannel
+        session.configure(run_as, code_to_debug, rules=rules)
         session.request(
             "setExceptionBreakpoints", {"filters": ["raised", "uncaught"]}
         )
@@ -199,4 +189,4 @@ def test_exceptions_and_partial_exclude_rules(pyfile, start_method, run_as, scen
         else:
             pytest.fail(scenario)
 
-        session.wait_for_exit()
+        session.stop_debugging()

@@ -10,7 +10,7 @@ from tests import debug
 from tests.patterns import some
 
 
-@pytest.mark.parametrize("run_as", ["file", "module", "code"])
+@pytest.mark.parametrize("run_as", ["program", "module", "code"])
 def test_args(pyfile, start_method, run_as):
     @pyfile
     def code_to_debug():
@@ -18,15 +18,15 @@ def test_args(pyfile, start_method, run_as):
         import sys
         backchannel.send(sys.argv)
 
-    with debug.Session(start_method) as session:
-        backchannel = session.setup_backchannel()
-        session.initialize(
-            target=(run_as, code_to_debug),
-            program_args=["--arg1", "arg2", "-arg3", "--", "arg4", "-a"]
+    with debug.Session(start_method, backchannel=True) as session:
+        expected = ["--arg1", "arg2", "-arg3", "--", "arg4", "-a"]
+        session.configure(
+            run_as, code_to_debug,
+            args=expected
         )
         session.start_debugging()
 
-        argv = backchannel.receive()
-        assert argv == [some.str] + session.program_args
+        argv = session.backchannel.receive()
+        assert argv == [some.str] + expected
 
-        session.wait_for_exit()
+        session.stop_debugging()

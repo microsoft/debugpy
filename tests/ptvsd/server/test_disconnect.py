@@ -7,13 +7,12 @@ from __future__ import absolute_import, print_function, unicode_literals
 import os.path
 import pytest
 
-from tests import debug
+from tests import debug, start_methods
 from tests.patterns import some
-from tests.timeline import Event
 
 
 @pytest.mark.parametrize(
-    "start_method", ["attach_socket_cmdline", "attach_socket_import"]
+    "start_method", [start_methods.AttachSocketCmdLine, start_methods.AttachSocketImport]
 )
 def test_continue_on_disconnect_for_attach(pyfile, start_method, run_as):
     @pyfile
@@ -22,12 +21,9 @@ def test_continue_on_disconnect_for_attach(pyfile, start_method, run_as):
 
         backchannel.send("continued")  # @bp
 
-    with debug.Session(start_method) as session:
-        backchannel = session.setup_backchannel()
-        session.initialize(
-            target=(run_as, code_to_debug),
-            ignore_unobserved=[Event("exited"), Event("terminated")],
-        )
+    with debug.Session(start_method, backchannel=True) as session:
+        backchannel = session.backchannel
+        session.configure(run_as, code_to_debug)
         session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])
         session.start_debugging()
         hit = session.wait_for_stop("breakpoint")
@@ -37,7 +33,7 @@ def test_continue_on_disconnect_for_attach(pyfile, start_method, run_as):
         assert "continued" == backchannel.receive()
 
 
-@pytest.mark.parametrize("start_method", ["launch"])
+@pytest.mark.parametrize("start_method", [start_methods.Launch])
 @pytest.mark.skip(reason="Bug #1052")
 def test_exit_on_disconnect_for_launch(pyfile, start_method, run_as):
     @pyfile
@@ -51,15 +47,12 @@ def test_exit_on_disconnect_for_launch(pyfile, start_method, run_as):
             print("Should not continue after disconnect on launch", file=f)
 
     with debug.Session(start_method) as session:
-        session.initialize(
-            target=(run_as, code_to_debug),
-            expected_returncode=some.int,
-        )
+        session.configure(run_as, code_to_debug)
         session.set_breakpoints(code_to_debug, code_to_debug.lines["bp"])
         session.start_debugging()
         hit = session.wait_for_stop("breakpoint")
         assert hit.frames[0]["line"] == code_to_debug.lines["bp"]
         session.send_request("disconnect").wait_for_response()
-        session.wait_for_exit()
+        session.stop_debugging(exitCode=some.int)
         fp = os.join(os.path.dirname(os.path.abspath(code_to_debug)), "here.txt")
         assert not os.path.exists(fp)

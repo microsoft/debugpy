@@ -26,11 +26,7 @@ def test_set_next_statement(pyfile, start_method, run_as):
     line_numbers = code_to_debug.lines
 
     with debug.Session(start_method) as session:
-        session.initialize(
-            target=(run_as, code_to_debug),
-            ignore_unobserved=[Event("continued")],
-            env={"PTVSD_USE_CONTINUED": "1"},
-        )
+        session.configure(run_as, code_to_debug)
         session.set_breakpoints(code_to_debug, [line_numbers["inner1"]])
         session.start_debugging()
 
@@ -82,4 +78,4 @@ def test_set_next_statement(pyfile, start_method, run_as):
         assert line == line_numbers["inner2"]
 
         session.send_request("continue").wait_for_response()
-        session.wait_for_exit()
+        session.stop_debugging()

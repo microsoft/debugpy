@@ -15,7 +15,7 @@ from tests.patterns import some
 EXPECTED_EXTRA = ["--"]
 
 
-@pytest.mark.parametrize("target_kind", ["file", "module", "code"])
+@pytest.mark.parametrize("target_kind", ["program", "module", "code"])
 @pytest.mark.parametrize("client", ["", "client"])
 @pytest.mark.parametrize("wait", ["", "wait"])
 @pytest.mark.parametrize("nodebug", ["", "nodebug"])

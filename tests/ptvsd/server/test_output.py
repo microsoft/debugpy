@@ -22,13 +22,13 @@ def test_with_no_output(pyfile, start_method, run_as):
         ()  # @wait_for_output
 
     with debug.Session(start_method) as session:
-        session.initialize(target=(run_as, code_to_debug))
+        session.configure(run_as, code_to_debug)
         session.set_breakpoints(code_to_debug, all)
 
         session.start_debugging()
         session.wait_for_stop("breakpoint")
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()
 
         assert not session.output("stdout")
         assert not session.output("stderr")
@@ -46,13 +46,13 @@ def test_with_tab_in_output(pyfile, start_method, run_as):
         ()  # @wait_for_output
 
     with debug.Session(start_method) as session:
-        session.initialize(target=(run_as, code_to_debug))
+        session.configure(run_as, code_to_debug)
 
         session.set_breakpoints(code_to_debug, all)
         session.start_debugging()
         session.wait_for_stop()
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()
 
         assert session.output("stdout").startswith("Hello\tWorld")
 
@@ -71,13 +71,13 @@ def test_redirect_output(pyfile, start_method, run_as, redirect):
     with debug.Session(start_method) as session:
         if redirect == "disabled":
             session.debug_options -= {"RedirectOutput"}  # enabled by default
-        session.initialize(target=(run_as, code_to_debug))
+        session.configure(run_as, code_to_debug)
         session.set_breakpoints(code_to_debug, all)
         session.start_debugging()
 
         session.wait_for_stop()
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()
 
         if redirect == "enabled":
             assert session.output("stdout") == "111\n222\n333\n444\n"

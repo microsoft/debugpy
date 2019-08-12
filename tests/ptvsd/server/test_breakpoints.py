@@ -11,7 +11,7 @@ import re
 import sys
 
 from ptvsd.common import fmt
-from tests import debug, test_data
+from tests import debug, test_data, start_methods
 from tests.patterns import some
 
 
@@ -22,7 +22,7 @@ def test_path_with_ampersand(start_method, run_as):
     test_py = bp_root / "a&b" / "test.py"
 
     with debug.Session(start_method) as session:
-        session.initialize(target=(run_as, test_py))
+        session.configure(run_as, test_py)
         session.set_breakpoints(test_py, ["two"])
         session.start_debugging()
 
@@ -34,7 +34,7 @@ def test_path_with_ampersand(start_method, run_as):
         )
 
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()
 
 
 @pytest.mark.skipif(
@@ -48,7 +48,7 @@ def test_path_with_unicode(start_method, run_as):
     test_py = bp_root / "ನನ್ನ_ಸ್ಕ್ರಿಪ್ಟ್.py"
 
     with debug.Session(start_method) as session:
-        session.initialize(target=(run_as, test_py))
+        session.configure(run_as, test_py)
         session.set_breakpoints(test_py, ["bp"])
         session.start_debugging()
 
@@ -58,7 +58,7 @@ def test_path_with_unicode(start_method, run_as):
         )
 
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()
 
 
 @pytest.mark.parametrize(
@@ -95,7 +95,7 @@ def test_conditional_breakpoint(pyfile, start_method, run_as, condition_kind):
     }[condition_kind]
 
     with debug.Session(start_method) as session:
-        session.initialize(target=(run_as, code_to_debug))
+        session.configure(run_as, code_to_debug)
         session.request(
             "setBreakpoints",
             {
@@ -122,7 +122,7 @@ def test_conditional_breakpoint(pyfile, start_method, run_as, condition_kind):
         for i in range(1, hits):
             session.wait_for_stop()
             session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()
 
 
 def test_crossfile_breakpoint(pyfile, start_method, run_as):
@@ -142,7 +142,7 @@ def test_crossfile_breakpoint(pyfile, start_method, run_as):
         print("Done")
 
     with debug.Session(start_method) as session:
-        session.initialize(target=(run_as, script2))
+        session.configure(run_as, script2)
         session.set_breakpoints(script1, all)
         session.set_breakpoints(script2, all)
         session.start_debugging()
@@ -154,7 +154,7 @@ def test_crossfile_breakpoint(pyfile, start_method, run_as):
         session.wait_for_stop(expected_frames=[some.dap.frame(script1, line="bp")])
 
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()
 
 
 @pytest.mark.parametrize("error_name", ["NameError", ""])
@@ -177,7 +177,7 @@ def test_error_in_condition(pyfile, start_method, run_as, error_name):
     }[error_name]
 
     with debug.Session(start_method) as session:
-        session.initialize(target=(run_as, code_to_debug))
+        session.configure(run_as, code_to_debug)
         session.request(
             "setBreakpoints",
             {
@@ -188,7 +188,7 @@ def test_error_in_condition(pyfile, start_method, run_as, error_name):
             },
         )
         session.start_debugging()
-        session.wait_for_exit()
+        session.stop_debugging()
 
         assert not session.captured_stdout()
 
@@ -211,7 +211,7 @@ def test_log_point(pyfile, start_method, run_as, condition):
 
     lines = code_to_debug.lines
     with debug.Session(start_method) as session:
-        session.initialize(target=(run_as, code_to_debug))
+        session.configure(run_as, code_to_debug)
 
         bp = {"line": lines["bp"], "logMessage": "{i}"}
         if condition:
@@ -248,7 +248,7 @@ def test_log_point(pyfile, start_method, run_as, condition):
             ],
         )
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()
 
         assert not session.captured_stderr()
 
@@ -265,9 +265,8 @@ def test_package_launch():
     cwd = test_data / "testpkgs"
     test_py = cwd / "pkg1" / "__main__.py"
 
-    with debug.Session("launch") as session:
-        session.expected_returncode = 42
-        session.initialize(target=("module", "pkg1"), cwd=cwd)
+    with debug.Session(start_methods.Launch) as session:
+        session.configure("module", "pkg1", cwd=cwd)
         session.set_breakpoints(test_py, ["two"])
         session.start_debugging()
 
@@ -279,7 +278,7 @@ def test_package_launch():
         )
 
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging(exitCode=42)
 
 
 def test_add_and_remove_breakpoint(pyfile, start_method, run_as):
@@ -292,7 +291,7 @@ def test_add_and_remove_breakpoint(pyfile, start_method, run_as):
         ()  # @wait_for_output
 
     with debug.Session(start_method) as session:
-        session.initialize(target=(run_as, code_to_debug))
+        session.configure(run_as, code_to_debug)
         session.set_breakpoints(code_to_debug, all)
         session.start_debugging()
 
@@ -314,7 +313,7 @@ def test_add_and_remove_breakpoint(pyfile, start_method, run_as):
             ],
         )
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()
 
         expected_stdout = "".join((fmt("{0}\n", i) for i in range(0, 10)))
         assert session.output("stdout") == expected_stdout
@@ -344,7 +343,7 @@ def test_invalid_breakpoints(pyfile, start_method, run_as):
         # fmt: on
 
     with debug.Session(start_method) as session:
-        session.initialize(target=(run_as, code_to_debug))
+        session.configure(run_as, code_to_debug)
 
         bp_markers = ["bp1-requested", "bp2-requested", "bp3-requested"]
         if sys.version_info < (3,):
@@ -376,7 +375,7 @@ def test_invalid_breakpoints(pyfile, start_method, run_as):
             )
             session.request_continue()
 
-        session.wait_for_exit()
+        session.stop_debugging()
 
 
 def test_deep_stacks(pyfile, start_method, run_as):
@@ -393,7 +392,7 @@ def test_deep_stacks(pyfile, start_method, run_as):
         deep_stack(100)
 
     with debug.Session(start_method) as session:
-        session.initialize(target=(run_as, code_to_debug))
+        session.configure(run_as, code_to_debug)
         session.set_breakpoints(code_to_debug, all)
         session.start_debugging()
 
@@ -418,4 +417,4 @@ def test_deep_stacks(pyfile, start_method, run_as):
         assert stop.frames == frames
 
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()

@@ -14,7 +14,7 @@ import threading
 import types
 
 from ptvsd.common import compat, timestamp
-from tests import code, pydevd_log
+from tests import code, pydevd_log, start_methods
 
 __all__ = ['run_as', 'start_method', 'with_pydevd_log', 'daemon', 'pyfile']
 
@@ -22,15 +22,11 @@ __all__ = ['run_as', 'start_method', 'with_pydevd_log', 'daemon', 'pyfile']
 # Set up the test matrix for various code types and attach methods. Most tests will
 # use both run_as and start_method, so the matrix is a cross product of them.
 
-RUN_AS = ['file']
-START_METHODS = ['launch']
+RUN_AS = ['program']
+START_METHODS = [start_methods.Launch, start_methods.AttachSocketImport, start_methods.AttachSocketCmdLine]
 
 if os.environ.get('PTVSD_SIMPLE_TESTS', '').lower() not in ('1', 'true'):
     RUN_AS += ['module']
-    START_METHODS += ['attach_socket_cmdline']
-    #START_METHODS += ['attach_pid']
-    if platform.system() == 'Windows':
-        START_METHODS += ['attach_socket_import']
 
 
 @pytest.fixture(params=RUN_AS)

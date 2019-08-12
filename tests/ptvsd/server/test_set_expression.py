@@ -17,9 +17,9 @@ def test_set_expression(pyfile, start_method, run_as):
         ptvsd.break_into_debugger()
         backchannel.send(a)
 
-    with debug.Session(start_method) as session:
-        backchannel = session.setup_backchannel()
-        session.initialize(target=(run_as, code_to_debug))
+    with debug.Session(start_method, backchannel=True) as session:
+        backchannel = session.backchannel
+        session.configure(run_as, code_to_debug)
         session.start_debugging()
         hit = session.wait_for_stop()
 
@@ -58,4 +58,4 @@ def test_set_expression(pyfile, start_method, run_as):
 
         assert backchannel.receive() == 1000
 
-        session.wait_for_exit()
+        session.stop_debugging()

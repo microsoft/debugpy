@@ -9,7 +9,7 @@ import pytest
 from tests import debug
 
 
-@pytest.mark.parametrize("run_as", ["file", "module", "code"])
+@pytest.mark.parametrize("run_as", ["program", "module", "code"])
 def test_with_wait_for_attach(pyfile, start_method, run_as):
     @pyfile
     def code_to_debug():
@@ -21,16 +21,16 @@ def test_with_wait_for_attach(pyfile, start_method, run_as):
         print("break here") # @break
 
     with debug.Session(start_method) as session:
-        session.initialize(target=(run_as, code_to_debug))
+        session.configure(run_as, code_to_debug)
         session.start_debugging()
         hit = session.wait_for_stop()
         assert hit.frames[0]["line"] == code_to_debug.lines["break"]
 
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()
 
 
-@pytest.mark.parametrize("run_as", ["file", "module", "code"])
+@pytest.mark.parametrize("run_as", ["program", "module", "code"])
 @pytest.mark.skip(reason="https://github.com/microsoft/ptvsd/issues/1505")
 def test_breakpoint_function(pyfile, start_method, run_as):
     @pyfile
@@ -44,7 +44,7 @@ def test_breakpoint_function(pyfile, start_method, run_as):
         print("break here") # @break
 
     with debug.Session(start_method) as session:
-        session.initialize(target=(run_as, code_to_debug))
+        session.configure(run_as, code_to_debug)
         session.start_debugging()
         hit = session.wait_for_stop()
         path = hit.frames[0]["source"]["path"]
@@ -52,4 +52,4 @@ def test_breakpoint_function(pyfile, start_method, run_as):
         assert hit.frames[0]["line"] == code_to_debug.lines["break"]
 
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()

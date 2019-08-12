@@ -54,10 +54,8 @@ def test_completions_scope(pyfile, bp_label, start_method, run_as):
     expected = expected_at_line[bp_label]
 
     with debug.Session(start_method) as session:
-        session.initialize(
-            target=(run_as, code_to_debug),
-            ignore_unobserved=[Event("stopped")],
-        )
+        session.ignore_unobserved += [Event("stopped")]
+        session.configure(run_as, code_to_debug)
 
         session.set_breakpoints(code_to_debug, [code_to_debug.lines[bp_label]])
         session.start_debugging()
@@ -74,7 +72,7 @@ def test_completions_scope(pyfile, bp_label, start_method, run_as):
         expected.sort(key=lambda t: t["label"])
         assert targets == expected
 
-        session.wait_for_exit()
+        session.stop_debugging()
 
 
 def test_completions_cases(pyfile, start_method, run_as):
@@ -88,7 +86,7 @@ def test_completions_cases(pyfile, start_method, run_as):
         print([a, b, c])  # @break
 
     with debug.Session(start_method) as session:
-        session.initialize(target=(run_as, code_to_debug))
+        session.configure(run_as, code_to_debug)
         session.set_breakpoints(code_to_debug, [code_to_debug.lines["break"]])
         session.start_debugging()
         hit = session.wait_for_stop()
@@ -136,4 +134,4 @@ def test_completions_cases(pyfile, start_method, run_as):
         assert "Wrong ID sent from the client:" in str(error)
 
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()

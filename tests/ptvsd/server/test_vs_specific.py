@@ -27,10 +27,8 @@ def test_stack_format(pyfile, start_method, run_as, module, line):
             print("break here")  # @bp
 
     with debug.Session(start_method) as session:
-        session.initialize(
-            target=(run_as, code_to_debug),
-            ignore_unobserved=[Event("stopped")],
-        )
+        session.ignore_unobserved += [Event("stopped")]
+        session.configure(run_as, code_to_debug)
         session.set_breakpoints(test_module, [test_module.lines["bp"]])
         session.start_debugging()
 
@@ -52,7 +50,7 @@ def test_stack_format(pyfile, start_method, run_as, module, line):
         assert module == (frames[0]["name"].find("test_module") > -1)
 
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()
 
 
 def test_module_events(pyfile, start_method, run_as):
@@ -76,10 +74,8 @@ def test_module_events(pyfile, start_method, run_as):
         do_something()
 
     with debug.Session(start_method) as session:
-        session.initialize(
-            target=(run_as, test_code),
-            ignore_unobserved=[Event("stopped")],
-        )
+        session.ignore_unobserved += [Event("stopped")]
+        session.configure(run_as, test_code)
         session.set_breakpoints(module2, [module2.lines["bp"]])
         session.start_debugging()
 
@@ -95,4 +91,4 @@ def test_module_events(pyfile, start_method, run_as):
         ]
 
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()

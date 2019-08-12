@@ -6,7 +6,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import pytest
 
-from tests import debug, test_data
+from tests import debug, test_data, start_methods
 from tests.patterns import some
 from tests.timeline import Event
 
@@ -17,7 +17,7 @@ from tests.timeline import Event
 def test_attach(run_as, wait_for_attach, is_attached, stop_method):
     attach1_py = test_data / "attach" / "attach1.py"
 
-    with debug.Session("custom_server") as session:
+    with debug.Session("custom_server", backchannel=True) as session:
         session.env.update({
             "ATTACH1_TEST_PORT": str(session.ptvsd_port),
             "ATTACH1_WAIT_FOR_ATTACH": "1" if wait_for_attach else "0",
@@ -27,8 +27,8 @@ def test_attach(run_as, wait_for_attach, is_attached, stop_method):
             ),
         })
 
-        backchannel = session.setup_backchannel()
-        session.initialize(target=(run_as, attach1_py))
+        backchannel = session.backchannel
+        session.configure(run_as, attach1_py)
         session.start_debugging()
 
         if wait_for_attach:
@@ -53,7 +53,7 @@ def test_attach(run_as, wait_for_attach, is_attached, stop_method):
             pytest.fail(stop_method)
 
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()
 
 
 @pytest.mark.parametrize(
@@ -76,8 +76,8 @@ def test_reattach(pyfile, start_method, run_as):
             object()  # @second
 
     with debug.Session(start_method) as session:
-        session.initialize(
-            target=(run_as, code_to_debug),
+        session.configure(
+            run_as, code_to_debug,
             kill_ptvsd=False,
             capture_output=False,
         )
@@ -98,8 +98,8 @@ def test_reattach(pyfile, start_method, run_as):
         session.wait_for_disconnect()
 
 
-@pytest.mark.parametrize("start_method", ["attach_pid"])
-@pytest.mark.parametrize("run_as", ["file", "module", "code"])
+@pytest.mark.parametrize("start_method", [start_methods.AttachProcessId])
+@pytest.mark.parametrize("run_as", ["program", "module", "code"])
 @pytest.mark.skip(reason="Enable after #846, #863 and #1144 are fixed")
 def test_attaching_by_pid(pyfile, run_as, start_method):
     @pyfile
@@ -115,7 +115,7 @@ def test_attaching_by_pid(pyfile, run_as, start_method):
             do_something(i)
 
     with debug.Session(start_method) as session:
-        session.initialize(target=(run_as, code_to_debug))
+        session.configure(run_as, code_to_debug)
         session.set_breakpoints(code_to_debug, all)
         session.start_debugging()
 
@@ -130,4 +130,4 @@ def test_attaching_by_pid(pyfile, run_as, start_method):
             Event("output", some.dict.containing({"category": "stdout"}))
         )
 
-        session.wait_for_exit()
+        session.stop_debugging()

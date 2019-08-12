@@ -6,7 +6,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import pytest
 
-from tests import debug
+from tests import debug, start_methods
 from tests.patterns import some
 
 
@@ -18,11 +18,11 @@ def test_stop_on_entry(pyfile, run_as, breakpoint):
 
         backchannel.send("done")
 
-    with debug.Session("launch") as session:
-        backchannel = session.setup_backchannel()
-        session.initialize(
-            target=(run_as, code_to_debug),
-            debug_options={"StopOnEntry"},
+    with debug.Session(start_methods.Launch, backchannel=True) as session:
+        backchannel = session.backchannel
+        session.configure(
+            run_as, code_to_debug,
+            stopOnEntry=True,
         )
         if breakpoint:
             session.set_breakpoints(code_to_debug, all)
@@ -47,4 +47,4 @@ def test_stop_on_entry(pyfile, run_as, breakpoint):
 
         assert backchannel.receive() == "done"
 
-        session.wait_for_exit()
+        session.stop_debugging()

@@ -11,7 +11,6 @@ import re
 import signal
 import sys
 import threading
-import time
 
 try:
     import queue
@@ -21,7 +20,6 @@ except ImportError:
 from ptvsd.common import log, messaging, options as common_opts, socket, util
 from ptvsd.server import options as server_opts, attach
 from _pydev_bundle import pydev_monkey
-from _pydevd_bundle.pydevd_comm import get_global_debugger
 
 
 subprocess_lock = threading.Lock()
@@ -205,8 +203,8 @@ def notify_root(port):
     if not response['incomingConnection']:
         log.debug('No IDE connection is expected for this subprocess; unpausing.')
 
-        if attach._cancel_wait_for_attach is not None:
-            attach._cancel_wait_for_attach.is_set()
+        if hasattr(attach.wait_for_attach, "cancel"):
+            attach.wait_for_attach.cancel()
 
 
 def patch_args(args):

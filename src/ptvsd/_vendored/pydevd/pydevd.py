@@ -1947,8 +1947,8 @@ def init_stderr_redirect(on_write=None):
 
 def _enable_attach(
     address,
-    dont_trace_start_patterns=[],
-    dont_trace_end_paterns=[],
+    dont_trace_start_patterns=(),
+    dont_trace_end_paterns=(),
     ):
     '''
     Starts accepting connections at the given host/port. The debugger will not be initialized nor
@@ -1995,7 +1995,8 @@ def _wait_for_attach(cancel=None):
     else:
         while not cancel.is_set():
             if py_db.block_until_configuration_done(0.1):
-                break
+                cancel.set() # Set cancel to prevent reuse
+                return
 
 
 def _is_attached():
@@ -2021,8 +2022,8 @@ def settrace(
     stop_at_frame=None,
     block_until_connected=True,
     wait_for_ready_to_run=True,
-    dont_trace_start_patterns=[],
-    dont_trace_end_paterns=[],
+    dont_trace_start_patterns=(),
+    dont_trace_end_paterns=(),
     ):
     '''Sets the tracing function with the pydev debug function and initializes needed facilities.
 

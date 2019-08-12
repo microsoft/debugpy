@@ -35,9 +35,9 @@ def test_log_cli(pyfile, tmpdir, start_method, run_as, cli):
                 session.log_dir = str(tmpdir)
             else:
                 session.env["PTVSD_LOG_DIR"] = str(tmpdir)
-            session.initialize(target=(run_as, code_to_debug))
+            session.configure(run_as, code_to_debug)
             session.start_debugging()
-            session.wait_for_exit()
+            session.stop_debugging()
 
 
 def test_log_api(pyfile, tmpdir, run_as):
@@ -49,14 +49,14 @@ def test_log_api(pyfile, tmpdir, run_as):
         ptvsd.wait_for_attach()
 
     log_dir = compat.filename(tmpdir)
-    with debug.Session("custom_server") as session:
-        backchannel = session.setup_backchannel()
+    with debug.Session("custom_server", backchannel=True) as session:
+        backchannel = session.backchannel
 
         @session.before_connect
         def before_connect():
             backchannel.send([session.ptvsd_port, log_dir])
 
         with check_logs(tmpdir, session):
-            session.initialize(target=(run_as, code_to_debug))
+            session.configure(run_as, code_to_debug)
             session.start_debugging()
-            session.wait_for_exit()
+            session.stop_debugging()

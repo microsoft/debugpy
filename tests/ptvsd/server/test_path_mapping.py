@@ -30,13 +30,13 @@ def test_client_ide_from_path_mapping_linux_backend(
         backchannel.send(pydevd_file_utils._ide_os)
         print("done")  # @bp
 
-    with debug.Session(start_method) as session:
-        backchannel = session.setup_backchannel()
+    with debug.Session(start_method, backchannel=True) as session:
+        backchannel = session.backchannel
         if os_type:
             session.debug_options |= {fmt("CLIENT_OS_TYPE={0}", os_type)}
-        session.initialize(
-            target=(run_as, code_to_debug),
-            path_mappings=[
+        session.configure(
+            run_as, code_to_debug,
+            pathMappings=[
                 {
                     "localRoot": "C:\\TEMP\\src",
                     "remoteRoot": code_to_debug.dirname,
@@ -62,7 +62,7 @@ def test_client_ide_from_path_mapping_linux_backend(
         )
 
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()
 
 
 def test_with_dot_remote_root(pyfile, long_tmpdir, start_method, run_as):
@@ -83,12 +83,12 @@ def test_with_dot_remote_root(pyfile, long_tmpdir, start_method, run_as):
     code_to_debug.copy(path_local)
     code_to_debug.copy(path_remote)
 
-    with debug.Session(start_method) as session:
-        backchannel = session.setup_backchannel()
-        session.initialize(
-            target=(run_as, path_remote),
+    with debug.Session(start_method, backchannel=True) as session:
+        backchannel = session.backchannel
+        session.configure(
+            run_as, path_remote,
             cwd=dir_remote,
-            path_mappings=[{"localRoot": dir_local, "remoteRoot": "."}],
+            pathMappings=[{"localRoot": dir_local, "remoteRoot": "."}],
         )
         session.set_breakpoints(path_local, all)
         session.start_debugging()
@@ -107,7 +107,7 @@ def test_with_dot_remote_root(pyfile, long_tmpdir, start_method, run_as):
         )
 
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()
 
 
 def test_with_path_mappings(pyfile, long_tmpdir, start_method, run_as):
@@ -141,11 +141,11 @@ def test_with_path_mappings(pyfile, long_tmpdir, start_method, run_as):
     call_me_back_dir = test_data / "call_me_back"
     call_me_back_py = call_me_back_dir / "call_me_back.py"
 
-    with debug.Session(start_method) as session:
-        backchannel = session.setup_backchannel()
-        session.initialize(
-            target=(run_as, path_remote),
-            path_mappings=[{"localRoot": dir_local, "remoteRoot": dir_remote}],
+    with debug.Session(start_method, backchannel=True) as session:
+        backchannel = session.backchannel
+        session.configure(
+            run_as, path_remote,
+            pathMappings=[{"localRoot": dir_local, "remoteRoot": dir_remote}],
         )
         session.set_breakpoints(path_local, ["bp"])
         session.start_debugging()
@@ -192,4 +192,4 @@ def test_with_path_mappings(pyfile, long_tmpdir, start_method, run_as):
         assert "def call_me_back(callback):" in source["content"]
 
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()

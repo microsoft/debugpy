@@ -38,9 +38,9 @@ def test_thread_count(pyfile, start_method, run_as, count):
         stop = True
 
     with debug.Session(start_method) as session:
-        session.initialize(
-            target=(run_as, code_to_debug),
-            program_args=[str(count)],
+        session.configure(
+            run_as, code_to_debug,
+            args=[str(count)],
         )
         session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])
         session.start_debugging()
@@ -50,7 +50,7 @@ def test_thread_count(pyfile, start_method, run_as, count):
         assert len(resp_threads.body["threads"]) == count
 
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()
 
 
 @pytest.mark.skipif(
@@ -104,10 +104,10 @@ def test_debug_this_thread(pyfile, start_method, run_as):
         event.wait()
 
     with debug.Session(start_method) as session:
-        session.initialize(target=(run_as, code_to_debug))
+        session.configure(run_as, code_to_debug)
         session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])
         session.start_debugging()
 
         session.wait_for_stop()
         session.request_continue()
-        session.wait_for_exit()
+        session.stop_debugging()
