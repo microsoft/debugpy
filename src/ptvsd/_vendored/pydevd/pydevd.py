@@ -379,7 +379,6 @@ class PyDB(object):
 
     def __init__(self, set_as_global=True):
         if set_as_global:
-            set_global_debugger(self)
             pydevd_tracing.replace_sys_set_trace_func()
 
         self.reader = None
@@ -527,6 +526,10 @@ class PyDB(object):
         self._exclude_by_filter_cache = {}
         self._apply_filter_cache = {}
         self._ignore_system_exit_codes = set()
+
+        if set_as_global:
+            # Set as the global instance only after it's initialized.
+            set_global_debugger(self)
 
     def on_configuration_done(self):
         '''
@@ -1515,6 +1518,8 @@ class PyDB(object):
     def send_process_created_message(self):
         """Sends a message that a new process has been created.
         """
+        if self.writer is None or self.cmd_factory is None:
+            return
         cmd = self.cmd_factory.make_process_created_message()
         self.writer.add_command(cmd)
 
