@@ -25,7 +25,7 @@ if (-not $pack) {
         & $_ -m pip install -U pip
         & $_ -m pip install -U pyfindvs setuptools wheel cython
 
-        Push-Location "$root\..\src\ptvsd\_vendored\pydevd"
+        Push-Location "$root\..\..\src\ptvsd\_vendored\pydevd"
         & $_ setup_cython.py enable_msbuildcompiler build_ext -b "$bin" -t "$obj"
         Pop-Location
     }
