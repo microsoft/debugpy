@@ -4,6 +4,9 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+import os
+import sys
+
 from ptvsd.common import log, messaging, singleton, socket
 
 
@@ -51,6 +54,10 @@ class Channels(singleton.ThreadSafeSingleton):
 
         if address is None:
             ide_stream = messaging.JsonIOStream.from_stdio("IDE")
+            # Make sure that nothing else tries to interfere with the stdio streams
+            # that are going to be used for DAP communication from now on.
+            sys.stdout = sys.stderr
+            sys.stdin = open(os.devnull, "r")
         else:
             host, port = address
             listener = socket.create_server(host, port)
@@ -117,7 +124,9 @@ class Channels(singleton.ThreadSafeSingleton):
         host, port = address
         listener = socket.create_server(host, port)
         host, port = listener.getsockname()
-        log.info("Adapter waiting for connection from debug server on {0}:{1}...", host, port)
+        log.info(
+            "Adapter waiting for connection from debug server on {0}:{1}...", host, port
+        )
         before_accept((host, port))
 
         try:

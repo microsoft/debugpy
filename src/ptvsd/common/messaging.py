@@ -606,7 +606,7 @@ class Event(Message):
             if not exc.applies_to(self):
                 raise
             log.error(
-                "Handler {0} couldn't handle {1} in channel {2}: {3}\n\n{4}",
+                "Handler {0} couldn't handle {1} in channel {2}:\n\n{3}\n\n{4}",
                 compat.srcnameof(handler),
                 self.describe(),
                 self.channel,
@@ -736,7 +736,7 @@ class Request(Message):
                     raise
                 result = exc
                 log.error(
-                    "Handler {0} couldn't handle {1} in channel {2}: {3}\n\n{4}",
+                    "Handler {0} couldn't handle {1} in channel {2}:\n\n{3}\n\n{4}",
                     compat.srcnameof(handler),
                     self.describe(),
                     self.channel,
@@ -844,7 +844,7 @@ class OutgoingRequest(Request):
                         raise
                     # Detailed exception info was already logged by its constructor.
                     log.error(
-                        "Handler {0} couldn't handle {1}: {2}",
+                        "Handler {0} couldn't handle {1}:\n\n{2}",
                         compat.srcnameof(handler),
                         self.describe(),
                         str(exc),

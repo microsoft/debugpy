@@ -4,8 +4,9 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-import sys
 import argparse
+import locale
+import sys
 
 # WARNING: ptvsd and submodules must not be imported on top level in this module,
 # and should be imported locally inside main() instead.
@@ -113,5 +114,8 @@ if __name__ == "__main__":
         sys.path[0] = sys.path[0] + "/../../"
         __import__("ptvsd")
         del sys.path[0]
+
+    # Load locale settings.
+    locale.setlocale(locale.LC_ALL, "")
 
     main(_parse_argv())

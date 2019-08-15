@@ -451,13 +451,18 @@ class ServerMessages(Messages):
 
     @_only_allowed_while("running")
     def continued_event(self, event):
-        if self._shared.client_id not in ('visualstudio', 'vsformac'):
+        if self._shared.client_id not in ("visualstudio", "vsformac"):
             # In visual studio any step/continue action already marks all the
             # threads as running until a suspend, so, the continued is not
             # needed (and can in fact break the UI in some cases -- see:
             # https://github.com/microsoft/ptvsd/issues/1358).
             # It is however needed in vscode -- see:
             # https://github.com/microsoft/ptvsd/issues/1530.
+            self._ide.propagate(event)
+
+    def output_event(self, event):
+        category = event("category", "console")
+        if category not in debuggee.captured_output:
             self._ide.propagate(event)
 
     @_only_allowed_while("running")
