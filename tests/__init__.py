@@ -30,7 +30,7 @@ Idiomatic use is via from .. import::
 # This is only imported to ensure that the module is actually installed and the
 # timeout setting in pytest.ini is active, since otherwise most timeline-based
 # tests will hang indefinitely if they time out.
-__import__("pytest_timeout")
+import pytest_timeout  # noqa
 
 
 # We want pytest to rewrite asserts (for better error messages) in the common code
@@ -51,6 +51,7 @@ for _, submodule, _ in tests_submodules:
 
 # Now we can import these, and pytest will rewrite asserts in them.
 from ptvsd.common import json, log
+import ptvsd.server  # noqa
 
 # Enable full logging to stderr, and make timestamps shorter to match maximum test
 # run time better.

@@ -14,11 +14,10 @@ import subprocess
 import sys
 import time
 
-from ptvsd.common import compat, fmt, log
-from tests import helpers
+from ptvsd.common import compat, fmt, json, log
+from ptvsd.common.compat import unicode
+from tests import helpers, net, timeline, watchdog
 from tests.patterns import some
-from tests.timeline import Event, Response
-from tests import net, watchdog
 
 
 PTVSD_DIR = py.path.local(ptvsd.__file__) / ".."
@@ -32,22 +31,15 @@ ptvsd.enable_attach(("127.0.0.1", {ptvsd_port}), log_dir={log_dir})
 ptvsd.wait_for_attach()
 """
 
-# Normalize args to either bytes or unicode, depending on Python version.
-# Assume that values are filenames - it's usually either that, or numbers.
-make_filename = compat.filename_bytes if sys.version_info < (3,) else compat.filename
-
-class CommandNotSupported(Exception):
-    pass
 
 class DebugStartBase(object):
+    ignore_unobserved = []
+
     def __init__(self, session, method="base"):
         self.session = session
         self.method = method
         self.captured_output = helpers.CapturedOutput(self.session)
         self.debugee_process = None
-
-    def get_ignored(self):
-        return []
 
     def configure(self, run_as, target, **kwargs):
         pass
@@ -58,8 +50,8 @@ class DebugStartBase(object):
     def stop_debugging(self, **kwargs):
         pass
 
-    def run_in_terminal(self, **kwargs):
-        raise CommandNotSupported()
+    def run_in_terminal(self, request, **kwargs):
+        raise request.isnt_valid("not supported")
 
     def _build_common_args(
         self,
@@ -115,7 +107,8 @@ class DebugStartBase(object):
 
         # VS Code uses noDebug in both attach and launch cases. Even though
         # noDebug on attach does not make any sense.
-        args["noDebug"] = bool(noDebug)
+        if noDebug:
+            args["noDebug"] = True
 
         if subProcess:
             args["subProcess"] = subProcess
@@ -218,7 +211,7 @@ class Launch(DebugStartBase):
                 env["PYTHONPATH"] += os.pathsep + os.path.dirname(target_str)
                 try:
                     launch_args["module"] = target_str[
-                        (len(os.path.dirname(target_str)) + 1): -3
+                        (len(os.path.dirname(target_str)) + 1) : -3
                     ]
                 except Exception:
                     launch_args["module"] = "code_to_debug"
@@ -233,72 +226,68 @@ class Launch(DebugStartBase):
         self._build_common_args(launch_args, **kwargs)
         return launch_args
 
+    def _wait_for_process_event(self):
+        process_body = self.session.wait_for_next_event("process")
+        assert process_body == {
+            "name": some.str,
+            "isLocalProcess": True,
+            "startMethod": "launch",
+            "systemProcessId": some.int,
+        }
+        return process_body
+
     def configure(self, run_as, target, **kwargs):
         self._launch_args = self._build_launch_args({}, run_as, target, **kwargs)
         self._launch_request = self.session.send_request("launch", self._launch_args)
-        self.session.wait_for_next(Event("initialized"))
-        if self._launch_args["noDebug"]:
-            self.session.wait_for_next(Event("process"))
+
+        self.session.wait_for_next_event("initialized")
+
+        if self._launch_args.get("noDebug", False):
+            self._wait_for_process_event()
+            self._launch_request.wait_for_response()
 
     def start_debugging(self):
-        self.session.send_request("configurationDone").wait_for_response()
-        if self._launch_args["noDebug"]:
+        if not self._launch_args.get("noDebug", False):
+            self.session.request("configurationDone")
             self._launch_request.wait_for_response()
-        else:
-            self.session.wait_for_next(Response(self._launch_request))
-
-            self.session.expect_new(
-                Event(
-                    "process",
-                    {
-                        "name": some.str,
-                        "isLocalProcess": True,
-                        "startMethod": "launch",
-                        "systemProcessId": some.int,
-                    },
-                )
-            )
+            self._wait_for_process_event()
 
             # Issue 'threads' so that we get the 'thread' event for the main thread now,
             # rather than at some random time later during the test.
             # Note: it's actually possible that the 'thread' event was sent before the 'threads'
             # request (although the 'threads' will force 'thread' to be sent if it still wasn't).
             self.session.send_request("threads").wait_for_response()
-            self.session.expect_realized(Event("thread"))
+            self.session.expect_realized(timeline.Event("thread"))
 
-    def stop_debugging(self, exitCode=0, **kwargs):
-        self.session.wait_for_next(Event("exited", {"exitCode": exitCode}))
-        self.session.wait_for_next(Event("terminated"))
+    def stop_debugging(self, exit_code=0, **kwargs):
+        exited_body = self.session.wait_for_next_event("exited")
+        assert exited_body == some.dict.containing({"exitCode": exit_code})
+
+        self.session.wait_for_next_event("terminated")
         try:
             self.debugee_process.wait()
         finally:
-            watchdog.unregister_spawn(self.debugee_process.pid, fmt("debuggee-{0}", self.session.id))
+            watchdog.unregister_spawn(
+                self.debugee_process.pid, self.session.debuggee_id
+            )
 
     def run_in_terminal(self, request):
-        kind = request.arguments["kind"]
-        assert kind in ("integrated", "external")
-        args = request.arguments["args"]
-        cwd = request.arguments["cwd"]
-        env = request.arguments["env"]
+        args = request("args", json.array(unicode))
+        cwd = request("cwd", unicode)
+        env = request("env", json.object(unicode))
 
-        env_str = "\n".join((
-            fmt("{0}={1}", env_name, env[env_name])
-            for env_name in sorted(env.keys())
-        ))
+        if sys.version_info < (3,):
+            args = [compat.filename_str(s) for s in args]
+            env = {
+                compat.filename_str(k): compat.filename_str(v) for k, v in env.items()
+            }
 
         log.info(
-            "Spawning debuggee {0} via runInTerminal:\n\n{1}\n\n"
-            "kind:{2}\n\n"
-            "cwd:{3}\n\n"
-            "env:{4}\n\n",
+            '{0} spawning {1} via "runInTerminal" request',
             self.session,
-            "\n".join((repr(s) for s in args)),
-            kind,
-            cwd,
-            env_str
+            self.session.debuggee_id,
         )
-
-        self.debugee_process = subprocess.Popen(
+        self.debugee_process = psutil.Popen(
             args,
             cwd=cwd,
             env=env,
@@ -307,18 +296,18 @@ class Launch(DebugStartBase):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        watchdog.register_spawn(self.debugee_process.pid, self.session.debuggee_id)
         self.captured_output.capture(self.debugee_process)
-        watchdog.register_spawn(self.debugee_process.pid, fmt("debuggee-{0}", self.session.id))
-        request.respond({"processId": self.debugee_process.pid})
+        return {}
 
 
 class AttachBase(DebugStartBase):
+    ignore_unobserved = DebugStartBase.ignore_unobserved + [
+    ]
+
     def __init__(self, session, name):
         super(AttachBase, self).__init__(session, name)
         self._attach_args = {}
-
-    def get_ignored(self):
-        return [Event("exited"), Event("terminated")] + super().get_ignored()
 
     def _build_attach_args(
         self,
@@ -356,7 +345,7 @@ class AttachBase(DebugStartBase):
         if isinstance(target, py.path.local):
             target_str = target.strpath
 
-        env = kwargs.get("env")
+        env = kwargs["env"]
 
         cli_args = kwargs.get("cli_args")
         if run_as == "program":
@@ -365,7 +354,7 @@ class AttachBase(DebugStartBase):
             if os.path.isfile(target_str) or os.path.isdir(target_str):
                 env["PYTHONPATH"] += os.pathsep + os.path.dirname(target_str)
                 try:
-                    module = target_str[(len(os.path.dirname(target_str)) + 1): -3]
+                    module = target_str[(len(os.path.dirname(target_str)) + 1) : -3]
                 except Exception:
                     module = "code_to_debug"
             else:
@@ -378,7 +367,7 @@ class AttachBase(DebugStartBase):
             pytest.fail()
 
         cli_args += kwargs.get("args")
-        cli_args = [make_filename(s) for s in cli_args]
+        cli_args = [compat.filename_str(s) for s in cli_args]
 
         cwd = kwargs.get("cwd")
         if cwd:
@@ -391,18 +380,13 @@ class AttachBase(DebugStartBase):
         if "pathMappings" not in self._attach_args:
             self._attach_args["pathMappings"] = [{"localRoot": cwd, "remoteRoot": "."}]
 
-        env_str = "\n".join((
-            fmt("{0}={1}", env_name, env[env_name])
-            for env_name in sorted(env.keys())
-        ))
+        env_str = "\n".join((fmt("    {0}={1}", k, env[k]) for k in sorted(env.keys())))
         log.info(
-            "Spawning debuggee {0}:\n\n{1}\n\n"
-            "cwd:{2}\n\n"
-            "env:{3}\n\n",
-            self.session,
-            "\n".join((repr(s) for s in cli_args)),
+            "Spawning {0}: {1!j}\n\n" "with cwd:\n    {2!j}\n\n" "with env:\n{3}",
+            self.session.debuggee_id,
+            cli_args,
             cwd,
-            env_str
+            env_str,
         )
         self.debugee_process = subprocess.Popen(
             cli_args,
@@ -413,53 +397,53 @@ class AttachBase(DebugStartBase):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        watchdog.register_spawn(self.debugee_process.pid, self.session.debuggee_id)
         self.captured_output.capture(self.debugee_process)
-        watchdog.register_spawn(self.debugee_process.pid, fmt("debuggee-{0}", self.session.id))
 
         connected = False
         pid = self.debugee_process.pid
         while connected is False:
             time.sleep(0.1)
             connections = psutil.net_connections()
-            connected = len(list(p for (_, _, _, _, _, _, p) in connections if p == pid)) > 0
-
+            connected = (
+                len(list(p for (_, _, _, _, _, _, p) in connections if p == pid)) > 0
+            )
 
         self._attach_request = self.session.send_request("attach", self._attach_args)
-        self.session.wait_for_next(Event("initialized"))
-
+        self.session.wait_for_next_event("initialized")
 
     def start_debugging(self):
-        self.session.send_request("configurationDone").wait_for_response()
-        if self._attach_args["noDebug"]:
+        self.session.request("configurationDone")
+        if self._attach_args.get("noDebug"):
             self._attach_request.wait_for_response()
         else:
-            self.session.wait_for_next(Event("process"))
-            self.session.wait_for_next(Response(self._attach_request))
-
-            self.session.expect_new(
-                Event(
-                    "process",
-                    {
-                        "name": some.str,
-                        "isLocalProcess": True,
-                        "startMethod": "attach",
-                        "systemProcessId": some.int,
-                    },
-                )
+            process_body = self.session.wait_for_next_event("process")
+            assert process_body == some.dict.containing(
+                {
+                    "name": some.str,
+                    "isLocalProcess": True,
+                    "startMethod": "attach",
+                    "systemProcessId": some.int,
+                }
             )
+
+            self._attach_request.wait_for_response()
 
             # Issue 'threads' so that we get the 'thread' event for the main thread now,
             # rather than at some random time later during the test.
             # Note: it's actually possible that the 'thread' event was sent before the 'threads'
             # request (although the 'threads' will force 'thread' to be sent if it still wasn't).
-            self.session.send_request("threads").wait_for_response()
-            self.session.expect_realized(Event("thread"))
+            self.session.request("threads")
+            self.session.expect_realized(timeline.Event("thread"))
 
     def stop_debugging(self, **kwargs):
         try:
             self.debugee_process.wait()
         finally:
-            watchdog.unregister_spawn(self.debugee_process.pid, fmt("debuggee-{0}", self.session.id))
+            watchdog.unregister_spawn(
+                self.debugee_process.pid, self.session.debuggee_id
+            )
+
 
 class AttachSocketImport(AttachBase):
     def __init__(self, session):
@@ -498,7 +482,7 @@ class AttachSocketImport(AttachBase):
         ptvsd_port = self._attach_args["port"]
         log_dir = None
         if self._attach_args.get("logToFile", False):
-            log_dir = "\"" + self.session.log_dir + "\""
+            log_dir = '"' + self.session.log_dir + '"'
 
         env["PTVSD_DEBUG_ME"] = fmt(
             PTVSD_DEBUG_ME, ptvsd_port=ptvsd_port, log_dir=log_dir
@@ -507,14 +491,14 @@ class AttachSocketImport(AttachBase):
         self._check_ready_for_import(target)
 
         cli_args = [pythonPath]
-        super(AttachSocketImport, self).configure(run_as, target, cwd=cwd, env=env, args=args, cli_args=cli_args, **kwargs)
-
+        super(AttachSocketImport, self).configure(
+            run_as, target, cwd=cwd, env=env, args=args, cli_args=cli_args, **kwargs
+        )
 
 
 class AttachSocketCmdLine(AttachBase):
     def __init__(self, session):
         super(AttachSocketCmdLine, self).__init__(session, "attach_socket_cmdline")
-
 
     def configure(
         self,
@@ -530,8 +514,13 @@ class AttachSocketCmdLine(AttachBase):
 
         cli_args = [pythonPath]
         cli_args += [PTVSD_DIR.strpath]
-        cli_args += ['--wait']
-        cli_args += ['--host', self._attach_args["host"], '--port', str(self._attach_args["port"])]
+        cli_args += ["--wait"]
+        cli_args += [
+            "--host",
+            self._attach_args["host"],
+            "--port",
+            str(self._attach_args["port"]),
+        ]
 
         log_dir = (
             self.session.log_dir if self._attach_args.get("logToFile", False) else None
@@ -542,8 +531,9 @@ class AttachSocketCmdLine(AttachBase):
         if self._attach_args.get("multiprocess", False):
             cli_args += ["--multiprocess"]
 
-        super(AttachSocketCmdLine, self).configure(run_as, target, cwd=cwd, env=env, args=args, cli_args=cli_args, **kwargs)
-
+        super(AttachSocketCmdLine, self).configure(
+            run_as, target, cwd=cwd, env=env, args=args, cli_args=cli_args, **kwargs
+        )
 
 
 class AttachProcessId(DebugStartBase):

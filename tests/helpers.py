@@ -21,7 +21,7 @@ class CapturedOutput(object):
         self._worker_threads = []
 
     def __str__(self):
-        return fmt("CapturedOutput({0!r})", self.session)
+        return fmt("CapturedOutput({0})", self.session)
 
     def _worker(self, pipe, name):
         lines = self._lines[name]
@@ -118,6 +118,7 @@ class CapturedOutput(object):
         """
         return self._output("stderr", encoding, lines=True)
 
+
 class BackChannel(object):
     TIMEOUT = 20
 
@@ -196,6 +197,7 @@ class BackChannel(object):
             except Exception:
                 pass
             self._server_socket = None
+
 
 class ScratchPad(object):
     def __init__(self, session):

@@ -26,17 +26,19 @@ _DEDENT = fmt("{0}", "_DEDENT")
 
 
 class Timeline(object):
-    def __init__(self, name=None, ignore_unobserved=None):
+    def __init__(self, name=None):
         self.name = str(name if name is not None else id(self))
+        self.ignore_unobserved = []
 
-        self._ignore_unobserved = ignore_unobserved or []
         self._index_iter = itertools.count(1)
         self._accepting_new = threading.Event()
         self._finalized = threading.Event()
         self._recorded_new = threading.Condition()
         self._record_queue = queue.Queue()
 
-        self._recorder_thread = threading.Thread(target=self._recorder_worker, name=fmt("{0} recorder", self))
+        self._recorder_thread = threading.Thread(
+            target=self._recorder_worker, name=fmt("{0} recorder", self)
+        )
         self._recorder_thread.daemon = True
         self._recorder_thread.start()
 
@@ -45,13 +47,13 @@ class Timeline(object):
         self._beginning = None
         self._accepting_new.set()
 
-        self._beginning = self.mark('START')
+        self._beginning = self.mark("START")
         assert self._last is self._beginning
         self._proceeding_from = self._beginning
 
     def expect_frozen(self):
         if not self.is_frozen:
-            raise Exception('Timeline can only be inspected while frozen.')
+            raise Exception("Timeline can only be inspected while frozen.")
 
     def __iter__(self):
         self.expect_frozen()
@@ -90,15 +92,6 @@ class Timeline(object):
         return self.last.and_preceding()
 
     @property
-    def ignore_unobserved(self):
-        return self._ignore_unobserved
-
-    @ignore_unobserved.setter
-    def ignore_unobserved(self, expectations):
-        self.expect_frozen()
-        self._ignore_unobserved = expectations
-
-    @property
     def is_frozen(self):
         return not self._accepting_new.is_set()
 
@@ -133,9 +126,9 @@ class Timeline(object):
         if self.is_final:
             return
 
-        log.info('Finalizing timeline...')
+        log.info("Finalizing timeline...")
         with self.unfrozen():
-            self.mark('FINISH')
+            self.mark("FINISH")
 
         with self.unfrozen():
             self._finalized.set()
@@ -145,7 +138,7 @@ class Timeline(object):
             self._record_queue.put(None)
             self._recorder_thread.join()
 
-        assert self._record_queue.empty(), 'Finalized timeline had pending records'
+        assert self._record_queue.empty(), "Finalized timeline had pending records"
 
     def close(self):
         self.finalize()
@@ -190,7 +183,9 @@ class Timeline(object):
             if freeze:
                 self.freeze()
 
-    def _wait_until_realized(self, expectation, freeze=None, explain=True, observe=True):
+    def _wait_until_realized(
+        self, expectation, freeze=None, explain=True, observe=True
+    ):
         def has_been_realized():
             for reasons in expectation.test(self.beginning, self.last):
                 if observe:
@@ -202,24 +197,26 @@ class Timeline(object):
 
     def wait_until_realized(self, expectation, freeze=None, explain=True, observe=True):
         if explain:
-            log.info('Waiting for {0!r}', expectation)
+            log.info("Waiting for {0!r}", expectation)
         return self._wait_until_realized(expectation, freeze, explain, observe)
 
     def wait_for(self, expectation, freeze=None, explain=True):
         assert expectation.has_lower_bound, (
-            'Expectation must have a lower time bound to be used with wait_for()! '
-            'Use >> to sequence an expectation against an occurrence to establish a lower bound, '
-            'or wait_for_next() to wait for the next expectation since the timeline was last '
-            'frozen, or wait_until_realized() when a lower bound is really not necessary.'
+            "Expectation must have a lower time bound to be used with wait_for()! "
+            "Use >> to sequence an expectation against an occurrence to establish a lower bound, "
+            "or wait_for_next() to wait for the next expectation since the timeline was last "
+            "frozen, or wait_until_realized() when a lower bound is really not necessary."
         )
         if explain:
-            log.info('Waiting for {0!r}', expectation)
+            log.info("Waiting for {0!r}", expectation)
         return self._wait_until_realized(expectation, freeze, explain=explain)
 
     def wait_for_next(self, expectation, freeze=True, explain=True, observe=True):
         if explain:
-            log.info('Waiting for next {0!r}', expectation)
-        return self._wait_until_realized(self._proceeding_from >> expectation, freeze, explain, observe)
+            log.info("Waiting for next {0!r}", expectation)
+        return self._wait_until_realized(
+            self._proceeding_from >> expectation, freeze, explain, observe
+        )
 
     def new(self):
         self.expect_frozen()
@@ -227,7 +224,7 @@ class Timeline(object):
         if first_new is not None:
             return self[first_new:]
         else:
-            return self[self.last:self.last]
+            return self[self.last : self.last]
 
     def proceed(self):
         self.expect_frozen()
@@ -241,7 +238,7 @@ class Timeline(object):
         try:
             reasons = next(expectation.test(first, self.last))
         except StopIteration:
-            log.info('No matching {0!r}', expectation)
+            log.info("No matching {0!r}", expectation)
             occurrences = list(first.and_following())
             log.info("Occurrences considered: {0!r}", occurrences)
             raise AssertionError("Expectation not matched")
@@ -258,8 +255,12 @@ class Timeline(object):
         return self._expect_realized(expectation, self.beginning, explain, observe)
 
     def expect_new(self, expectation, explain=True, observe=True):
-        assert self._proceeding_from.next is not None, 'No new occurrences since last proceed()'
-        return self._expect_realized(expectation, self._proceeding_from.next, explain, observe)
+        assert (
+            self._proceeding_from.next is not None
+        ), "No new occurrences since last proceed()"
+        return self._expect_realized(
+            expectation, self._proceeding_from.next, explain, observe
+        )
 
     def expect_not_realized(self, expectation):
         self.expect_frozen()
@@ -300,7 +301,9 @@ class Timeline(object):
         assert isinstance(occurrence, Occurrence)
         assert occurrence.timeline is None
         assert occurrence.timestamp is None
-        assert not self.is_final, 'Trying to record a new occurrence in a finalized timeline'
+        assert (
+            not self.is_final
+        ), "Trying to record a new occurrence in a finalized timeline"
 
         self._record_queue.put(occurrence, block=block)
         if block:
@@ -334,7 +337,7 @@ class Timeline(object):
                 self._record_queue.task_done()
 
     def mark(self, id, block=True):
-        occ = Occurrence('mark', id)
+        occ = Occurrence("mark", id)
         occ.id = id
         occ.observed = True
         return self._record(occ, block)
@@ -362,7 +365,7 @@ class Timeline(object):
             occ = occ._next
 
     def __repr__(self):
-        return '|' + ' >> '.join(repr(occ) for occ in self._snapshot()) + '|'
+        return "|" + " >> ".join(repr(occ) for occ in self._snapshot()) + "|"
 
     def __str__(self):
         return "Timeline-" + self.name
@@ -403,17 +406,18 @@ class Interval(tuple):
             return
 
         unobserved = [
-            occ for occ in self
-            if not occ.observed and all(
-                exp != occ for exp in self.timeline.ignore_unobserved
-            )
+            occ
+            for occ in self
+            if not occ.observed
+            and all(exp != occ for exp in self.timeline.ignore_unobserved)
         ]
         if not unobserved:
             return
 
         raise log.error(
-            "Unobserved occurrences detected:\n\n{0}",
-            '\n\n'.join(repr(occ) for occ in unobserved)
+            "Unobserved occurrences detected:\n\n{0}\n\nignoring unobserved:\n\n{1}",
+            "\n\n".join(repr(occ) for occ in unobserved),
+            "\n\n".join(repr(exp) for exp in self.timeline.ignore_unobserved),
         )
 
 
@@ -425,7 +429,9 @@ class Expectation(object):
         raise NotImplementedError()
 
     def wait(self, freeze=None, explain=True):
-        assert self.timeline is not None, 'Expectation must be bound to a timeline to be waited on.'
+        assert (
+            self.timeline is not None
+        ), "Expectation must be bound to a timeline to be waited on."
         return self.timeline.wait_for(self, freeze, explain)
 
     def wait_until_realized(self, freeze=None):
@@ -481,10 +487,11 @@ class DerivativeExpectation(Expectation):
         if len(timelines) > 1:
             offending_expectations = ""
             for tl_id, tl in timelines.items():
-                offending_expectations += fmt('\n    {0}: {1!r}\n', tl_id, tl)
+                offending_expectations += fmt("\n    {0}: {1!r}\n", tl_id, tl)
             raise log.error(
-                'Cannot mix expectations from multiple timelines:\n{0}',
-                offending_expectations)
+                "Cannot mix expectations from multiple timelines:\n{0}",
+                offending_expectations,
+            )
         for tl in timelines.values():
             self.timeline = tl
 
@@ -663,7 +670,7 @@ class AndExpectation(DerivativeExpectation):
         return AndExpectation(*(self.expectations + (other,)))
 
     def __repr__(self):
-        return '(' + ' & '.join(repr(exp) for exp in self.expectations) + ')'
+        return "(" + " & ".join(repr(exp) for exp in self.expectations) + ")"
 
 
 class XorExpectation(DerivativeExpectation):
@@ -739,7 +746,7 @@ class PatternExpectation(Expectation):
 
 
 def Mark(id):
-    return PatternExpectation('mark', id)
+    return PatternExpectation("mark", id)
 
 
 def _describe_message(message_type, *items):
@@ -754,8 +761,8 @@ def _describe_message(message_type, *items):
         # Used by some.dict.containing to inject ... as needed.
         s = s.replace('"\\u0002...": "...\\u0003"', "...")
         # Used by some.* and by Event/Request/Response expectations below.
-        s = s.replace('"\\u0002', '')
-        s = s.replace('\\u0003"', '')
+        s = s.replace('"\\u0002', "")
+        s = s.replace('\\u0003"', "")
 
         if len(s) <= SINGLE_LINE_REPR_LIMIT:
             break
@@ -764,7 +771,7 @@ def _describe_message(message_type, *items):
 
 
 def Event(event, body=some.object):
-    exp = PatternExpectation('event', event, body)
+    exp = PatternExpectation("event", event, body)
     items = (("event", event),)
     if body is some.object:
         items += (("\002...", "...\003"),)
@@ -775,7 +782,7 @@ def Event(event, body=some.object):
 
 
 def Request(command, arguments=some.object):
-    exp = PatternExpectation('request', command, arguments)
+    exp = PatternExpectation("request", command, arguments)
     items = (("command", command),)
     if arguments is some.object:
         items += (("\002...", "...\003"),)
@@ -788,7 +795,7 @@ def Request(command, arguments=some.object):
 def Response(request, body=some.object):
     assert isinstance(request, Expectation) or isinstance(request, RequestOccurrence)
 
-    exp = PatternExpectation('response', request, body)
+    exp = PatternExpectation("response", request, body)
     exp.timeline = request.timeline
     exp.has_lower_bound = request.has_lower_bound
 
@@ -992,7 +999,7 @@ class MessageOccurrence(Occurrence):
         return [("seq", self.message.seq), ("type", self.TYPE)]
 
     def describe_circumstances(self):
-        id  = collections.OrderedDict(self._id)
+        id = collections.OrderedDict(self._id)
 
         # Keep it all on one line if it's short enough, but indent longer ones.
         s = fmt("{0!j:indent=None}", id)

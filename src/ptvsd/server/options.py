@@ -45,10 +45,6 @@ client = False
 to the IDE, instead of waiting for an incoming connection from the IDE.
 """
 
-no_debug = False
-"""If true, execute the target without debugging.
-"""
-
 wait = False
 """If True, wait until the debugger is connected before running any code."
 """

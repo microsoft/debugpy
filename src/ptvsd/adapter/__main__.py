@@ -24,6 +24,7 @@ def main(args):
     log.stderr_levels |= {"info"}
     log.filename_prefix = "ptvsd.adapter"
     log.to_file()
+    log.describe_environment("ptvsd.adapter startup environment:")
 
     if args.debug_server is None:
         address = None

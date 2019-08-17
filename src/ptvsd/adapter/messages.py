@@ -475,6 +475,7 @@ class ServerMessages(Messages):
             # https://github.com/microsoft/ptvsd/issues/1530.
             self._ide.propagate(event)
 
+    @_only_allowed_while("configuring", "running")
     def output_event(self, event):
         category = event("category", "console")
         if category not in debuggee.captured_output:

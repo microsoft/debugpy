@@ -17,8 +17,9 @@ try:
 except ImportError:
     import Queue as queue
 
+import ptvsd
 from ptvsd.common import log, messaging, options as common_opts, sockets, util
-from ptvsd.server import options as server_opts, attach
+from ptvsd.server import options as server_opts
 from _pydev_bundle import pydev_monkey
 
 
@@ -203,8 +204,8 @@ def notify_root(port):
     if not response['incomingConnection']:
         log.debug('No IDE connection is expected for this subprocess; unpausing.')
 
-        if hasattr(attach.wait_for_attach, "cancel"):
-            attach.wait_for_attach.cancel()
+        if hasattr(ptvsd.wait_for_attach, "cancel"):
+            ptvsd.wait_for_attach.cancel()
 
 
 def patch_args(args):

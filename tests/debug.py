@@ -15,10 +15,10 @@ import sys
 import tests
 
 import ptvsd
-from ptvsd.common import compat, fmt, log, messaging
-from tests import code, watchdog, helpers
+from ptvsd.common import compat, fmt, json, log, messaging
+from ptvsd.common.compat import unicode
+from tests import code, watchdog, helpers, timeline
 from tests.patterns import some
-from tests.timeline import Timeline, Event, Request, Response
 
 StopInfo = collections.namedtuple(
     "StopInfo", ["body", "frames", "thread_id", "frame_id"]
@@ -29,14 +29,7 @@ PTVSD_ADAPTER_DIR = PTVSD_DIR / "adapter"
 
 # Added to the environment variables of every new debug.Session - after copying
 # os.environ(), but before setting any session-specific variables.
-PTVSD_ENV = {}
-
-counter = itertools.count(1)
-WAIT_TIMEOUT_FOR_DA = 5
-
-# Normalize args to either bytes or unicode, depending on Python version.
-# Assume that values are filenames - it's usually either that, or numbers.
-make_filename = compat.filename_bytes if sys.version_info < (3,) else compat.filename
+PTVSD_ENV = {"PYTHONUNBUFFERED": "1"}
 
 
 def kill_process_tree(process):
@@ -64,22 +57,33 @@ def kill_process_tree(process):
 
 
 class Session(object):
-    def __init__(self, start_method, log_dir=None, client_id="vscode", backchannel=False):
+    counter = itertools.count(1)
+
+    _ignore_unobserved = [
+        timeline.Event("module"),
+        timeline.Event("continued"),
+        timeline.Event("exited"),
+        timeline.Event("terminated"),
+        timeline.Event("thread", some.dict.containing({"reason": "exited"})),
+        timeline.Event("output", some.dict.containing({"category": "stdout"})),
+        timeline.Event("output", some.dict.containing({"category": "stderr"})),
+    ]
+
+    def __init__(
+        self, start_method, log_dir=None, client_id="vscode", backchannel=False
+    ):
         watchdog.start()
-        self.id = next(counter)
+        self.id = next(Session.counter)
         self.log_dir = log_dir
         self.start_method = start_method(self)
         self.client_id = client_id
 
-        self.timeline = Timeline(
-            ignore_unobserved=[
-                Event("output"),
-                Event("thread", some.dict.containing({"reason": "exited"})),
-                Event("module"),
-                Event("continued"),
-            ]
-            + self.start_method.get_ignored()
-        )
+        self.timeline = timeline.Timeline(str(self))
+        self.ignore_unobserved.extend(self._ignore_unobserved)
+        self.ignore_unobserved.extend(self.start_method.ignore_unobserved)
+
+        self.backchannel = helpers.BackChannel(self) if backchannel else None
+
         # Expose some common members of timeline directly - these should be the ones
         # that are the most straightforward to use, and are difficult to use incorrectly.
         # Conversely, most tests should restrict themselves to this subset of the API,
@@ -93,13 +97,19 @@ class Session(object):
         self.all_occurrences_of = self.timeline.all_occurrences_of
         self.observe_all = self.timeline.observe_all
 
-        self.backchannel = helpers.BackChannel(self) if backchannel else None
-
     def __str__(self):
         return fmt("ptvsd-{0}", self.id)
 
+    @property
+    def adapter_id(self):
+        return fmt("adapter-{0}", self.id)
+
+    @property
+    def debuggee_id(self):
+        return fmt("debuggee-{0}", self.id)
+
     def __enter__(self):
-        self._setup_adapter_and_channel()
+        self._start_adapter()
         self._handshake()
         return self
 
@@ -107,7 +117,7 @@ class Session(object):
         if exc_type is not None:
             # Log the error, in case another one happens during shutdown.
             log.exception(exc_info=(exc_type, exc_val, exc_tb))
-        self._stop_debug_adapter()
+        self._stop_adapter()
 
     @property
     def process(self):
@@ -116,10 +126,6 @@ class Session(object):
     @property
     def ignore_unobserved(self):
         return self.timeline.ignore_unobserved
-
-    @ignore_unobserved.setter
-    def ignore_unobserved(self, value):
-        self.timeline.ignore_unobserved = value
 
     def request(self, *args, **kwargs):
         freeze = kwargs.pop("freeze", True)
@@ -145,14 +151,16 @@ class Session(object):
 
     def _process_event(self, event):
         if event.event == "ptvsd_subprocess":
-            pid = event.body["processId"]
+            pid = event("processId", int)
             watchdog.register_spawn(pid, fmt("{0}-subprocess-{1}", self, pid))
         self.timeline.record_event(event, block=False)
 
     def _process_request(self, request):
         self.timeline.record_request(request, block=False)
         if request.command == "runInTerminal":
-            self.start_method.run_in_terminal(request)
+            return self.start_method.run_in_terminal(request)
+        else:
+            raise request.isnt_valid("not supported")
 
     def _process_response(self, request, response):
         self.timeline.record_response(request, response, block=False)
@@ -162,30 +170,26 @@ class Session(object):
             # are expected.
             log.info(
                 'Received "disconnect" response from {0}; stopping message processing.',
-                "ptvsd.adapter",
+                self.adapter_id,
             )
             try:
                 self.channel.close()
             except Exception:
                 pass
 
-    def _setup_adapter_and_channel(self):
+    def _start_adapter(self):
         args = [sys.executable, PTVSD_ADAPTER_DIR]
 
         if self.log_dir is not None:
             args += ["--log-dir", self.log_dir]
 
-        args = [make_filename(s) for s in args]
-
-        log.info(
-            "Spawning adapter {0}:\n\n{1}", self, "\n".join((repr(s) for s in args))
-        )
-        self.adapter_process = subprocess.Popen(
+        log.info("Spawning {0}: {1!j}", self.adapter_id, args)
+        args = [compat.filename_str(s) for s in args]
+        self.adapter_process = psutil.Popen(
             args, bufsize=0, stdin=subprocess.PIPE, stdout=subprocess.PIPE
         )
-        self.psutil_adapter_process = psutil.Process(self.adapter_process.pid)
-        log.info("Spawned adapter {0} with pid={1}", self, self.adapter_process.pid)
-        watchdog.register_spawn(self.adapter_process.pid, fmt("ptvsd.adapter-{0}", self.id))
+        log.info("Spawned {0} with PID={1}", self.adapter_id, self.adapter_process.pid)
+        watchdog.register_spawn(self.adapter_process.pid, self.adapter_id)
 
         stream = messaging.JsonIOStream.from_process(
             self.adapter_process, name=str(self)
@@ -196,16 +200,18 @@ class Session(object):
         self.channel = messaging.JsonMessageChannel(stream, handlers)
         self.channel.start()
 
-    def _stop_debug_adapter(self):
+    def _stop_adapter(self):
         self.channel.close()
         self.timeline.finalize()
         self.timeline.close()
 
         log.info(
-            "Waiting for debug adapter with pid={0} to exit.", self.adapter_process.pid
+            "Waiting for {0} with PID={1} to exit.",
+            self.adapter_id,
+            self.adapter_process.pid,
         )
         self.adapter_process.wait()
-        watchdog.unregister_spawn(self.adapter_process.pid, "ptvsd.adapter")
+        watchdog.unregister_spawn(self.adapter_process.pid, self.adapter_id)
 
     def _handshake(self):
         telemetry = self.wait_for_next_event("output")
@@ -216,7 +222,7 @@ class Session(object):
         }
 
         self.send_request(
-            "initialize", 
+            "initialize",
             {
                 "pathFormat": "path",
                 "clientID": self.client_id,
@@ -229,26 +235,28 @@ class Session(object):
                 # "supportsMemoryReferences":true,
                 # "supportsHandshakeRequest":true,
                 # "AdditionalProperties":{}
-            }
+            },
         ).wait_for_response()
 
     def configure(self, run_as, target, env=os.environ.copy(), **kwargs):
         env.update(PTVSD_ENV)
-        if "PYTHONPATH" in env:
-            env["PYTHONPATH"] += os.pathsep + (tests.root / "DEBUGGEE_PYTHONPATH").strpath
-        else:
-            env["PYTHONPATH"] = (tests.root / "DEBUGGEE_PYTHONPATH").strpath
+
+        pythonpath = env.get("PYTHONPATH", "")
+        if pythonpath:
+            pythonpath += os.pathsep
+        pythonpath += (tests.root / "DEBUGGEE_PYTHONPATH").strpath
+        env["PYTHONPATH"] = pythonpath
+
         env["PTVSD_SESSION_ID"] = str(self.id)
 
         if self.backchannel is not None:
             self.backchannel.listen()
-            env['PTVSD_BACKCHANNEL_PORT'] = str(self.backchannel.port)
+            env["PTVSD_BACKCHANNEL_PORT"] = str(self.backchannel.port)
 
-        log_to_file = (self.log_dir is not None) or kwargs.get("logToFile", False)
+        if self.log_dir is not None:
+            kwargs["logToFile"] = True
 
-        self.start_method.configure(
-            run_as, target, env=env, logToFile=log_to_file, **kwargs
-        )
+        self.start_method.configure(run_as, target, env=env, **kwargs)
 
     def start_debugging(self):
         self.start_method.start_debugging()
@@ -272,12 +280,7 @@ class Session(object):
 
         # Don't fetch line markers unless needed - in some cases, the breakpoints
         # might be set in a file that does not exist on disk (e.g. remote attach).
-        def get_marked_line_numbers():
-            try:
-                return get_marked_line_numbers.cached
-            except AttributeError:
-                get_marked_line_numbers.cached = code.get_marked_line_numbers(path)
-                return get_marked_line_numbers()
+        get_marked_line_numbers = lambda: code.get_marked_line_numbers(path)
 
         if lines is all:
             lines = get_marked_line_numbers().keys()
@@ -299,7 +302,7 @@ class Session(object):
                 "source": {"path": path},
                 "breakpoints": [make_breakpoint(line) for line in lines],
             },
-        ).get("breakpoints", [])
+        )("breakpoints", json.array())
 
         bp_log = sorted(bp_log, key=lambda pair: pair[0])
         bp_log = ", ".join((descr for _, descr in bp_log))
@@ -327,23 +330,25 @@ class Session(object):
         frame_id = kwargs.pop("frame_id", None)
         if frame_id is None:
             stackTrace_responses = self.all_occurrences_of(
-                Response(Request("stackTrace"))
+                timeline.Response(timeline.Request("stackTrace"))
             )
             assert stackTrace_responses, (
                 "get_variables() without frame_id requires at least one response "
                 'to a "stackTrace" request in the timeline.'
             )
-            stack_trace = stackTrace_responses[-1].body
-            frame_id = stack_trace["stackFrames"][0]["id"]
+            stack_trace = stackTrace_responses[-1]
+            frame_id = stack_trace("stackFrames", json.array())[0]("id", int)
 
-        scopes = self.request("scopes", {"frameId": frame_id})["scopes"]
+        scopes = self.request("scopes", {"frameId": frame_id})("scopes", json.array())
         assert len(scopes) > 0
 
         variables = self.request(
-            "variables", {"variablesReference": scopes[0]["variablesReference"]}
-        )["variables"]
+            "variables", {"variablesReference": scopes[0]("variablesReference", int)}
+        )("variables", json.object())
 
-        variables = collections.OrderedDict(((v["name"], v) for v in variables))
+        variables = collections.OrderedDict(
+            ((v("name", unicode), v) for v in variables)
+        )
         if varnames:
             assert set(varnames) <= set(variables.keys())
             return tuple((variables[name] for name in varnames))
@@ -362,48 +367,49 @@ class Session(object):
         expected_text=None,
         expected_description=None,
     ):
-        stopped_event = self.wait_for_next(
-            Event("stopped", some.dict.containing({"reason": reason}))
-        )
-        stopped = stopped_event.body
+        stopped = self.wait_for_next_event("stopped")
 
+        expected_stopped = {
+            "reason": reason,
+            "threadId": some.int,
+            "allThreadsStopped": True,
+        }
         if expected_text is not None:
-            assert expected_text == stopped["text"]
-
+            expected_stopped["text"] = expected_text
         if expected_description is not None:
-            assert expected_description == stopped["description"]
+            expected_stopped["description"] = expected_description
+        if stopped("reason", unicode) not in [
+            "step",
+            "exception",
+            "breakpoint",
+            "entry",
+        ]:
+            expected_stopped["preserveFocusHint"] = True
+        assert stopped == some.dict.containing(expected_stopped)
 
-        tid = stopped["threadId"]
-        assert tid == some.int
-
-        assert stopped["allThreadsStopped"]
-        if stopped["reason"] not in ["step", "exception", "breakpoint", "entry"]:
-            assert stopped["preserveFocusHint"]
-
-        stack_trace = self.request("stackTrace", arguments={"threadId": tid})
-        frames = stack_trace["stackFrames"] or []
-        assert len(frames) == stack_trace["totalFrames"]
+        tid = stopped("threadId", int)
+        stack_trace = self.request("stackTrace", {"threadId": tid})
+        frames = stack_trace("stackFrames", json.array()) or []
+        assert len(frames) == stack_trace("totalFrames", int)
 
         if expected_frames:
             assert len(expected_frames) <= len(frames)
-            assert expected_frames == frames[0: len(expected_frames)]
+            assert expected_frames == frames[0 : len(expected_frames)]
 
-        fid = frames[0]["id"]
-        assert fid == some.int
-
+        fid = frames[0]("id", int)
         return StopInfo(stopped, frames, tid, fid)
 
     def wait_for_next_event(self, event, body=some.object):
-        return self.timeline.wait_for_next(Event(event, body)).body
+        return self.timeline.wait_for_next(timeline.Event(event, body)).body
 
     def output(self, category):
         """Returns all output of a given category as a single string, assembled from
         all the "output" events received for that category so far.
         """
         events = self.all_occurrences_of(
-            Event("output", some.dict.containing({"category": category}))
+            timeline.Event("output", some.dict.containing({"category": category}))
         )
-        return "".join(event.body["output"] for event in events)
+        return "".join(event("output", unicode) for event in events)
 
     def captured_stdout(self, encoding=None):
         return self.start_method.captured_output.stdout(encoding)

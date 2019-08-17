@@ -4,7 +4,6 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-import contextlib
 import functools
 import inspect
 import io
@@ -71,10 +70,6 @@ def write(level, text):
 
     indent = "\n" + (" " * len(prefix))
     output = indent.join(text.split("\n"))
-
-    if current_handler():
-        prefix += "(while handling {}){}".format(current_handler(), indent)
-
     output = prefix + output + "\n\n"
 
     with _lock:
@@ -177,18 +172,6 @@ def exception(format_string="", *args, **kwargs):
     return exc_info[1]
 
 
-def escaped_exceptions(f):
-    def g(*args, **kwargs):
-        try:
-            return f(*args, **kwargs)
-        except Exception:
-            # Must not use try/except here to avoid overwriting the caught exception.
-            exception("Exception escaped from {0}", compat.srcnameof(f))
-            raise
-
-    return g
-
-
 def to_file(filename=None):
     global file, _filename
 
@@ -224,34 +207,71 @@ def filename():
     return _filename
 
 
-def current_handler():
-    try:
-        return _tls.current_handler
-    except AttributeError:
-        _tls.current_handler = None
-        return None
+def describe_environment(header):
+    import multiprocessing
+    import sysconfig
+    import site  # noqa
 
+    result = [header, "\n\n"]
 
-@contextlib.contextmanager
-def handling(what):
-    assert current_handler() is None, fmt(
-        "Can't handle {0} - already handling {1}", what, current_handler()
-    )
-    _tls.current_handler = what
-    try:
-        yield
-    finally:
-        _tls.current_handler = None
+    def report(*args, **kwargs):
+        result.append(fmt(*args, **kwargs))
 
+    def report_paths(get_paths, label=None):
+        prefix = fmt("    {0}: ", label or get_paths)
 
-@contextlib.contextmanager
-def suspend_handling():
-    what = current_handler()
-    _tls.current_handler = None
-    try:
-        yield
-    finally:
-        _tls.current_handler = what
+        expr = None
+        if not callable(get_paths):
+            expr = get_paths
+            get_paths = lambda: eval(expr, {}, sys.modules)
+        try:
+            paths = get_paths()
+        except AttributeError:
+            report("{0}<missing>\n", prefix)
+            return
+        except Exception:
+            exception(
+                "Error evaluating {0}",
+                repr(expr) if expr else compat.srcnameof(get_paths),
+            )
+            return
+
+        if not isinstance(paths, (list, tuple)):
+            paths = [paths]
+
+        for p in sorted(paths):
+            report("{0}{1}", prefix, p)
+            rp = os.path.realpath(p)
+            if p != rp:
+                report("({0})", rp)
+            report("\n")
+
+            prefix = " " * len(prefix)
+
+    report("CPU count: {0}\n\n", multiprocessing.cpu_count())
+    report("System paths:\n")
+    report_paths("sys.prefix")
+    report_paths("sys.base_prefix")
+    report_paths("sys.real_prefix")
+    report_paths("site.getsitepackages()")
+    report_paths("site.getusersitepackages()")
+
+    site_packages = [
+        p
+        for p in sys.path
+        if os.path.exists(p) and os.path.basename(p) == "site-packages"
+    ]
+    report_paths(lambda: site_packages, "sys.path (site-packages)")
+
+    for name in sysconfig.get_path_names():
+        expr = fmt("sysconfig.get_path({0!r})", name)
+        report_paths(expr)
+
+    report_paths("os.__file__")
+    report_paths("threading.__file__")
+
+    result = "".join(result).rstrip("\n")
+    info("{0}", result)
 
 
 # The following are helper shortcuts for printf debugging. They must never be used

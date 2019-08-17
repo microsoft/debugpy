@@ -14,6 +14,9 @@ __file__ = os.path.abspath(__file__)
 
 
 if __name__ == "__main__":
+    if "pydevd" not in sys.modules:
+        assert "threading" not in sys.modules
+
     # ptvsd can also be invoked directly rather than via -m. In this case, the first
     # entry on sys.path is the one added automatically by Python for the directory
     # containing this file. This means that import ptvsd will not work, since we need
@@ -38,17 +41,11 @@ if __name__ == "__main__":
     if "ptvsd" not in sys.modules:
         # Do not use dirname() to walk up - this can be a relative path, e.g. ".".
         sys.path[0] = sys.path[0] + "/../"
-        __import__("ptvsd")
+        import ptvsd  # noqa
         del sys.path[0]
 
-    if "pydevd" not in sys.modules:
-        assert "threading" not in sys.modules
+    # if "pydevd" not in sys.modules:
+    #     assert "threading" not in sys.modules
 
-# Ensure that both packages are loaded before ptvsd.server.__main__ is imported -
-# this simplifies imports in the latter.
-import ptvsd  # noqa
-import pydevd  # noqa
-from ptvsd.server.__main__ import main
-
-if __name__ == "__main__":
-    main()
+    from ptvsd.server import main
+    main.main()

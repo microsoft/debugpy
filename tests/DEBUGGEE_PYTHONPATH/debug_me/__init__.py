@@ -24,6 +24,7 @@ import os
 
 # For `from debug_me import ...`.
 import ptvsd
+import ptvsd.server
 import pydevd
 
 

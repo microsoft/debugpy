@@ -247,11 +247,13 @@ def _spawn_popen(request, spawn_info):
     pid_server_port = start_process_pid_server()
     env["PTVSD_PID_SERVER_PORT"] = str(pid_server_port)
 
+    cmdline = spawn_info.cmdline
     if sys.version_info < (3,):
-        # env is all Unicode strings at this point, but Popen() expects bytes, so we
-        # need to encode. Assume that values are filenames - it's usually either that,
-        # or numbers - but don't allow encoding to fail if we guessed wrong.
+        # Popen() expects command line and environment to be bytes, not Unicode.
+        # Assume that values are filenames - it's usually either that, or numbers -
+        # but don't allow encoding to fail if we guessed wrong.
         encode = functools.partial(compat.filename_bytes, errors="replace")
+        cmdline = [encode(s) for s in cmdline]
         env = {encode(k): encode(v) for k, v in env.items()}
 
     close_fds = set()
