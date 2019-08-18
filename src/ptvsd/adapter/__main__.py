@@ -72,16 +72,14 @@ def _parse_argv():
     )
 
     parser.add_argument(
-        "--cls",
-        action='store_true',
-        help="clear screen before starting the debuggee",
+        "--cls", action="store_true", help="clear screen before starting the debuggee"
     )
 
     parser.add_argument(
         "--log-dir",
         type=str,
         metavar="DIR",
-        help="enable logging and use DIR to save adapter logs"
+        help="enable logging and use DIR to save adapter logs",
     )
 
     return parser.parse_args()

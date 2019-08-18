@@ -17,7 +17,7 @@ try:
 except ImportError:
     import Queue as queue
 
-from ptvsd.common import log, messaging, options as common_opts, socket, util
+from ptvsd.common import log, messaging, options as common_opts, sockets, util
 from ptvsd.server import options as server_opts, attach
 from _pydev_bundle import pydev_monkey
 
@@ -66,7 +66,7 @@ def listen_for_subprocesses():
     global subprocess_listener_socket
     assert subprocess_listener_socket is None
 
-    subprocess_listener_socket = socket.create_server('localhost', 0)
+    subprocess_listener_socket = sockets.create_server('localhost', 0)
     log.debug(
         'Listening for subprocess notifications on port {0}.',
         subprocess_listener_port())
@@ -83,7 +83,7 @@ def stop_listening_for_subprocesses():
     if subprocess_listener_socket is None:
         return
     try:
-        socket.shut_down(subprocess_listener_socket)
+        sockets.shut_down(subprocess_listener_socket)
     except Exception:
         pass
     subprocess_listener_socket = None
@@ -171,7 +171,7 @@ def notify_root(port):
     assert server_opts.subprocess_of
 
     log.debug('Subprocess (PID={0}) notifying root process at port {1}', os.getpid(), server_opts.subprocess_notify)
-    conn = socket.create_client()
+    conn = sockets.create_client()
     conn.connect(('localhost', server_opts.subprocess_notify))
     stream = messaging.JsonIOStream.from_socket(conn, 'root-process')
     channel = messaging.JsonMessageChannel(stream)

@@ -16,6 +16,7 @@ import locale
 import os
 import platform
 import signal
+import socket
 import subprocess
 import sys
 import threading
@@ -71,11 +72,13 @@ def spawn_and_connect(request):
     Caller is responsible for calling start() on the returned channel.
     """
 
-    channel = channels.Channels().accept_connection_from_server(
-        ("127.0.0.1", 0),
-        before_accept=lambda address: _parse_request_and_spawn(request, address),
-    )
-    return channel
+    if request("noDebug", json.default(False)):
+        _parse_request_and_spawn(request, None)
+    else:
+        channels.Channels().accept_connection_from_server(
+            ("127.0.0.1", 0),
+            before_accept=lambda address: _parse_request_and_spawn(request, address),
+        )
 
 
 def _parse_request_and_spawn(request, address):
@@ -117,7 +120,6 @@ def _parse_request(request, address):
     """
 
     assert request.is_request("launch")
-    host, port = address
     debug_options = set(request("debugOptions", json.array(unicode)))
 
     # Handling of properties that can also be specified as legacy "debugOptions" flags.
@@ -178,16 +180,23 @@ def _parse_request(request, address):
     if property_or_debug_option("waitOnAbnormalExit", "WaitOnAbnormalExit"):
         cmdline += ["--wait-on-abnormal"]
 
-    ptvsd_args = request("ptvsdArgs", json.array(unicode))
-    cmdline += [
-        "--",
-        compat.filename(ptvsd.__main__.__file__),
-        "--client",
-        "--host",
-        host,
-        "--port",
-        str(port),
-    ] + ptvsd_args
+    pid_server_port = start_process_pid_server()
+    cmdline += ["--internal-port", str(pid_server_port)]
+
+    if request("noDebug", json.default(False)):
+        cmdline += ["--"]
+    else:
+        host, port = address
+        ptvsd_args = request("ptvsdArgs", json.array(unicode))
+        cmdline += [
+            "--",
+            compat.filename(ptvsd.__main__.__file__),
+            "--client",
+            "--host",
+            host,
+            "--port",
+            str(port),
+        ] + ptvsd_args
 
     program = module = code = ()
     if "program" in request:
@@ -235,6 +244,9 @@ def _spawn_popen(request, spawn_info):
     env = os.environ.copy()
     env.update(spawn_info.env)
 
+    pid_server_port = start_process_pid_server()
+    env["PTVSD_PID_SERVER_PORT"] = str(pid_server_port)
+
     if sys.version_info < (3,):
         # env is all Unicode strings at this point, but Popen() expects bytes, so we
         # need to encode. Assume that values are filenames - it's usually either that,
@@ -243,6 +255,7 @@ def _spawn_popen(request, spawn_info):
         env = {encode(k): encode(v) for k, v in env.items()}
 
     close_fds = set()
+
     try:
         if spawn_info.redirect_output:
             # subprocess.PIPE behavior can vary substantially depending on Python version
@@ -273,12 +286,9 @@ def _spawn_popen(request, spawn_info):
                 spawn_info.cmdline,
             )
 
-        log.info("Spawned debuggee process with PID={0}.", proc.pid)
-
-        global pid
+        log.info("Spawned launcher process with PID={0}.", proc.pid)
         try:
-            pid = proc.pid
-            _got_pid.set()
+            wait_for_pid()
             ProcessTracker().track(pid)
         except Exception:
             # If we can't track it, we won't be able to terminate it if asked; but aside
@@ -342,37 +352,22 @@ def _spawn_terminal(request, spawn_info):
     except messaging.MessageHandlingError as exc:
         exc.propagate(request)
 
-    # Although "runInTerminal" response has "processId", it's optional, and in practice
-    # it is not used by VSCode: https://github.com/microsoft/vscode/issues/61640.
-    # Thus, we can only retrieve the PID via the "process" event, and only then we can
-    # start tracking it. Until then, nothing else to do.
-    pass
-
-
-def parse_pid(process_event):
-    assert process_event.is_event("process")
-
-    if _got_pid.is_set():
-        # If we already have the PID, there's nothing to do.
-        return
-
-    global pid
-    sys_pid = process_event("systemProcessId", int)
-
     def after_exit(code):
         global exit_code
         exit_code = code
         _exited.set()
 
     try:
-        pid = sys_pid
-        _got_pid.set()
+        wait_for_pid()
         ProcessTracker().track(pid, after_exit=after_exit)
     except Exception as exc:
-        # If we can't track it, we won't be able to detect if it exited or retrieve
-        # the exit code, so fail immediately.
-        raise process_event.cant_handle(
-            "Couldn't get debuggee process handle: {0}", str(exc)
+        # If we can't track it, we won't be able to terminate it if asked; but aside
+        # from that, it does not prevent debugging.
+        log.exception(
+            "Unable to track debuggee process with PID={0}: {1}.",
+            pid,
+            str(exc),
+            category="warning",
         )
 
 
@@ -386,14 +381,14 @@ def wait_for_pid(timeout=None):
 
 
 def wait_for_exit(timeout=None):
-    """Waits for the debugee process to exit.
+    """Waits for the debuggee process to exit.
 
     Returns True if the process exited, False if the wait timed out. If it returned
     True, then exit_code is guaranteed to be set.
     """
 
     if pid is None:
-        # Debugee was launched with "runInTerminal", but the debug session fell apart
+        # Debuggee was launched with "runInTerminal", but the debug session fell apart
         # before we got a "process" event and found out what its PID is. It's not a
         # fatal error, but there's nothing to wait on. Debuggee process should have
         # exited (or crashed) by now in any case.
@@ -411,12 +406,12 @@ def wait_for_exit(timeout=None):
 
 
 def terminate(after=0):
-    """Waits for the debugee process to exit for the specified number of seconds. If
+    """Waits for the debuggee process to exit for the specified number of seconds. If
     the process or any subprocesses are still alive after that time, force-kills them.
 
     If any errors occur while trying to kill any process, logs and swallows them.
 
-    If the debugee process hasn't been spawned yet, does nothing.
+    If the debuggee process hasn't been spawned yet, does nothing.
     """
 
     if _exited is None:
@@ -607,3 +602,32 @@ class CaptureOutput(object):
 
         # Flush any remaining data in the incremental decoder.
         self._send_output_event(b"", final=True)
+
+
+def start_process_pid_server():
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    host, port = listener.getsockname()
+    log.info("Adapter waiting for connection from launcher on {0}:{1}...", host, port)
+
+    def _worker():
+        try:
+            sock, (l_host, l_port) = listener.accept()
+        finally:
+            listener.close()
+        log.info("Launcher connection accepted from {0}:{1}.", l_host, l_port)
+
+        try:
+            data = sock.makefile().read()
+        finally:
+            sock.close()
+        global pid
+        pid = -1 if data == b"" else int(data)
+        _got_pid.set()
+        log.info("Debuggee process Id received: {0}", pid)
+
+    wait_thread = threading.Thread(target=_worker, name="Process Pid Server")
+    wait_thread.daemon = True
+    wait_thread.start()
+    return port

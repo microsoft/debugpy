@@ -16,6 +16,7 @@ STATES = (
     "initializing",  # until "initialized" is sent
     "configuring",  # until "configurationDone" is received
     "running",  # until "disconnect" or "terminate" is received
+    "running_nodebug",  # until "disconnect" or "terminate" is received
     "shutting_down",  # until the adapter process exits
 )
 
