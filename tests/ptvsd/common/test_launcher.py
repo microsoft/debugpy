@@ -8,6 +8,7 @@ import errno
 import os.path
 import platform
 import pytest
+import socket
 import subprocess
 import sys
 
@@ -17,10 +18,31 @@ from ptvsd.common import launcher
 launcher_py = os.path.abspath(launcher.__file__)
 
 
+class ReceivePid(object):
+    def start_server(self):
+        self.listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.listener.bind(("127.0.0.1", 0))
+        self.listener.listen(1)
+        self.host, self.port = self.listener.getsockname()
+        return (self.host, self.port)
+
+    def wait_for_pid(self):
+        try:
+            sock, _ = self.listener.accept()
+        finally:
+            self.listener.close()
+        try:
+            data = sock.makefile().read()
+        finally:
+            sock.close()
+        return -1 if data == b"" else int(data)
+
+
 @pytest.mark.parametrize("run_as", ["program", "module", "code"])
 @pytest.mark.parametrize("mode", ["normal", "abnormal", "normal+abnormal", ""])
 @pytest.mark.parametrize("seperator", ["seperator", ""])
-def test_launcher_parser(mode, seperator, run_as):
+@pytest.mark.parametrize("port", ["12345", ""])
+def test_launcher_parser(mode, seperator, run_as, port):
     args = []
 
     switch = mode.split("+")
@@ -31,8 +53,12 @@ def test_launcher_parser(mode, seperator, run_as):
     if "abnormal" in switch:
         args += [launcher.WAIT_ON_ABNORMAL_SWITCH]
 
+    if port:
+        args += [launcher.INTERNAL_PORT_SWITCH, port]
+
     if seperator:
         args += ["--"]
+
 
     if run_as == "file":
         expected = ["myscript.py", "--arg1", "--arg2", "--arg3", "--", "more args"]
@@ -67,11 +93,16 @@ def test_launcher(pyfile, mode, exit_code, run_as):
 
     switch = mode.split("+")
 
+    pid_server = ReceivePid()
+    _, port = pid_server.start_server()
+
     if "normal" in switch:
         args += [launcher.WAIT_ON_NORMAL_SWITCH]
 
     if "abnormal" in switch:
         args += [launcher.WAIT_ON_ABNORMAL_SWITCH]
+
+    args += [launcher.INTERNAL_PORT_SWITCH, str(port)]
 
     args += ["--"]
 
@@ -109,6 +140,8 @@ def test_launcher(pyfile, mode, exit_code, run_as):
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
         )
+
+    assert pid_server.wait_for_pid() >= -1
 
     if wait_for_user:
         outstr = b""

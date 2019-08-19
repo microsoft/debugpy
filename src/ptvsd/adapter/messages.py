@@ -199,9 +199,12 @@ class IDEMessages(Messages):
         _Shared.readonly_attrs.add("terminate_on_disconnect")
         self._debug_config(request)
 
-        options.host = request("host", options.host)
-        options.port = request("port", options.port)
-        _channels.connect_to_server(address=(options.host, options.port))
+        if "processId" in request:
+            debuggee.attach_by_pid(request)
+        else:
+            options.host = request("host", options.host)
+            options.port = request("port", options.port)
+            _channels.connect_to_server(address=(options.host, options.port))
 
         return self._configure(request)
 
