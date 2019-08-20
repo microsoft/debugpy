@@ -2324,7 +2324,7 @@ def test_multiprocessing_simple(case_setup_multiprocessing, file_to_check):
         writer.write_make_initial_run()
         hit2 = writer.wait_for_breakpoint_hit()
         secondary_process_thread_communication.join(10)
-        if secondary_process_thread_communication.isAlive():
+        if secondary_process_thread_communication.is_alive():
             raise AssertionError('The SecondaryProcessThreadCommunication did not finish')
         writer.write_run_thread(hit2.thread_id)
         writer.finished_ok = True
@@ -2391,7 +2391,7 @@ def test_multiprocessing_with_stopped_breakpoints(case_setup_multiprocessing):
         main_hit = writer.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT)
 
         secondary_process_thread_communication.join(10)
-        if secondary_process_thread_communication.isAlive():
+        if secondary_process_thread_communication.is_alive():
             raise AssertionError('The SecondaryProcessThreadCommunication did not finish')
 
         writer.write_run_thread(hit2.thread_id)
@@ -2455,7 +2455,7 @@ def test_subprocess_quoted_args(case_setup_multiprocessing):
         writer.write_make_initial_run()
 
         secondary_process_thread_communication.join(10)
-        if secondary_process_thread_communication.isAlive():
+        if secondary_process_thread_communication.is_alive():
             raise AssertionError('The SecondaryProcessThreadCommunication did not finish')
 
         writer.finished_ok = True

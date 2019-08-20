@@ -3,7 +3,8 @@ import pytest
 
 from _pydevd_bundle._debug_adapter import pydevd_schema, pydevd_base_schema
 from _pydevd_bundle._debug_adapter.pydevd_base_schema import from_json
-from tests_python.debugger_unittest import IS_JYTHON, IS_APPVEYOR, overrides
+from tests_python.debugger_unittest import IS_JYTHON, IS_APPVEYOR, overrides, wait_for_condition, \
+    get_free_port
 from _pydevd_bundle._debug_adapter.pydevd_schema import (ThreadEvent, ModuleEvent, OutputEvent,
     ExceptionOptions, Response, StoppedEvent, ContinuedEvent, ProcessEvent)
 from tests_python import debugger_unittest
@@ -16,6 +17,7 @@ import time
 from os.path import normcase
 from _pydev_bundle.pydev_localhost import get_socket_name
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
+from tests_python.debug_constants import TEST_CHERRYPY
 
 pytest_plugins = [
     str('tests_python.debugger_fixtures'),
@@ -2156,6 +2158,139 @@ def test_source_mapping(case_setup):
         json_facade.write_set_breakpoints([])  # Clears breakpoints
         json_facade.write_continue(wait_for_response=False)
 
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not TEST_CHERRYPY, reason='No CherryPy available')
+def test_process_autoreload_cherrypy(case_setup_multiprocessing, tmpdir):
+    '''
+    CherryPy does an os.execv(...) which will kill the running process and replace
+    it with a new process when a reload takes place, so, it mostly works as
+    a new process connection (everything is the same except that the
+    existing process is stopped).
+    '''
+    port = get_free_port()
+    # We write a temp file because we'll change it to autoreload later on.
+    f = tmpdir.join('_debugger_case_cherrypy.py')
+
+    tmplt = '''
+import cherrypy
+cherrypy.config.update({
+    'engine.autoreload.on': True,
+    'checker.on': False,
+    'server.socket_port': %(port)s,
+})
+class HelloWorld(object):
+
+    @cherrypy.expose
+    def index(self):
+        print('TEST SUCEEDED')
+        return "Hello World %(str)s!"  # break here
+    @cherrypy.expose('/exit')
+    def exit(self):
+        cherrypy.engine.exit()
+
+cherrypy.quickstart(HelloWorld())
+'''
+
+    f.write(tmplt % dict(port=port, str='INITIAL'))
+
+    file_to_check = str(f)
+
+    def get_environ(writer):
+        env = os.environ.copy()
+
+        env["PYTHONIOENCODING"] = 'utf-8'
+        env["PYTHONPATH"] = str(tmpdir)
+        return env
+
+    import threading
+    from tests_python.debugger_unittest import AbstractWriterThread
+    with case_setup_multiprocessing.test_file(file_to_check, get_environ=get_environ) as writer:
+
+        original_ignore_stderr_line = writer._ignore_stderr_line
+
+        @overrides(writer._ignore_stderr_line)
+        def _ignore_stderr_line(line):
+            if original_ignore_stderr_line(line):
+                return True
+            return 'ENGINE ' in line or 'CherryPy Checker' in line or 'has an empty config' in line
+
+        writer._ignore_stderr_line = _ignore_stderr_line
+
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(debugOptions=['DebugStdLib'])
+
+        break1_line = writer.get_line_index_with_content('break here')
+        json_facade.write_set_breakpoints(break1_line)
+
+        server_socket = writer.server_socket
+
+        class SecondaryProcessWriterThread(AbstractWriterThread):
+
+            TEST_FILE = writer.get_main_filename()
+            _sequence = -1
+
+        class SecondaryProcessThreadCommunication(threading.Thread):
+
+            def run(self):
+                from tests_python.debugger_unittest import ReaderThread
+                expected_connections = 1
+                for _ in range(expected_connections):
+                    server_socket.listen(1)
+                    self.server_socket = server_socket
+                    new_sock, addr = server_socket.accept()
+
+                    reader_thread = ReaderThread(new_sock)
+                    reader_thread.name = '  *** Multiprocess Reader Thread'
+                    reader_thread.start()
+
+                    writer2 = SecondaryProcessWriterThread()
+
+                    writer2.reader_thread = reader_thread
+                    writer2.sock = new_sock
+
+                    writer2.write_version()
+                    writer2.write_add_breakpoint(break1_line)
+                    writer2.write_make_initial_run()
+
+                # Give it some time to startup
+                time.sleep(2)
+                t = writer.create_request_thread('http://127.0.0.1:%s/' % (port,))
+                t.start()
+
+                hit = writer2.wait_for_breakpoint_hit()
+                writer2.write_run_thread(hit.thread_id)
+
+                contents = t.wait_for_contents()
+                assert 'Hello World NEW!' in contents
+
+                t = writer.create_request_thread('http://127.0.0.1:%s/exit' % (port,))
+                t.start()
+
+        secondary_process_thread_communication = SecondaryProcessThreadCommunication()
+        secondary_process_thread_communication.start()
+        json_facade.write_make_initial_run()
+
+        # Give it some time to startup
+        time.sleep(2)
+
+        t = writer.create_request_thread('http://127.0.0.1:%s/' % (port,))
+        t.start()
+        json_facade.wait_for_thread_stopped()
+        json_facade.write_continue()
+
+        contents = t.wait_for_contents()
+        assert 'Hello World INITIAL!' in contents
+
+        # Sleep a bit more to make sure that the initial timestamp was gotten in the
+        # CherryPy background thread.
+        time.sleep(2)
+        f.write(tmplt % dict(port=port, str='NEW'))
+
+        secondary_process_thread_communication.join(10)
+        if secondary_process_thread_communication.is_alive():
+            raise AssertionError('The SecondaryProcessThreadCommunication did not finish')
         writer.finished_ok = True
 
 

@@ -22,6 +22,7 @@ if sys.version_info[0] == 3 and sys.version_info[1] == 6:
 
 TEST_DJANGO = False
 TEST_FLASK = False
+TEST_CHERRYPY = False
 
 try:
     import django
@@ -32,5 +33,11 @@ except:
 try:
     import flask
     TEST_FLASK = True
+except:
+    pass
+
+try:
+    import cherrypy
+    TEST_CHERRYPY = True
 except:
     pass

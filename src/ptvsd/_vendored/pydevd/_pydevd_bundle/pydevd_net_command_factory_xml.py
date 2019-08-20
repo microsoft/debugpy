@@ -20,7 +20,7 @@ from _pydevd_bundle.pydevd_comm_constants import (
     CMD_RELOAD_CODE)
 from _pydevd_bundle.pydevd_constants import (DebugInfoHolder, get_thread_id, IS_IRONPYTHON,
     get_global_debugger, GetGlobalDebugger, set_global_debugger)  # Keep for backward compatibility @UnusedImport
-from _pydevd_bundle.pydevd_net_command import NetCommand, NULL_NET_COMMAND
+from _pydevd_bundle.pydevd_net_command import NetCommand, NULL_NET_COMMAND, NULL_EXIT_COMMAND
 from _pydevd_bundle.pydevd_utils import quote_smart as quote, get_non_pydevd_threads
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame
 import pydevd_file_utils
@@ -449,13 +449,7 @@ class NetCommandFactory(object):
             return self.make_error_message(seq, get_exception_traceback_str())
 
     def make_exit_message(self):
-        try:
-            net = NetCommand(CMD_EXIT, 0, '')
-
-        except:
-            net = self.make_error_message(0, get_exception_traceback_str())
-
-        return net
+        return NULL_EXIT_COMMAND
 
     def make_get_next_statement_targets_message(self, seq, payload):
         try:

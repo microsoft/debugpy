@@ -34,8 +34,9 @@ fi
 
 if [ "$PYDEVD_PYTHON_VERSION" = "3.7" ]; then
     conda install --yes pyqt=5 matplotlib
-    # Note: track the latest django
+    # Note: track the latest web framework versions.
     pip install "django"
+    pip install "cherrypy"
 fi
 
 pip install untangle

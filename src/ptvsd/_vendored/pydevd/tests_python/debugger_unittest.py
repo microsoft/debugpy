@@ -1237,6 +1237,39 @@ class AbstractWriterThread(threading.Thread):
 
         wait_for_condition(condition, msg, timeout=5, sleep=.5)
 
+    def create_request_thread(self, full_url):
+
+        class T(threading.Thread):
+
+            def wait_for_contents(self):
+                for _ in range(10):
+                    if hasattr(self, 'contents'):
+                        break
+                    time.sleep(.3)
+                else:
+                    raise AssertionError('Unable to get contents from server. Url: %s' % (full_url,))
+                return self.contents
+
+            def run(self):
+                try:
+                    from urllib.request import urlopen
+                except ImportError:
+                    from urllib import urlopen
+                for _ in range(10):
+                    try:
+                        stream = urlopen(full_url)
+                        contents = stream.read()
+                        if IS_PY3K:
+                            contents = contents.decode('utf-8')
+                        self.contents = contents
+                        break
+                    except IOError:
+                        continue
+
+        t = T()
+        t.daemon = True
+        return t
+
 
 def _get_debugger_test_file(filename):
     try:

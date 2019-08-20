@@ -182,10 +182,10 @@ class PyDBCommandThread(PyDBDaemonThread):
 
 
 #=======================================================================================================================
-# CheckOutputThread
+# CheckAliveThread
 # Non-daemon thread: guarantees that all data is written even if program is finished
 #=======================================================================================================================
-class CheckOutputThread(PyDBDaemonThread):
+class CheckAliveThread(PyDBDaemonThread):
 
     def __init__(self, py_db):
         PyDBDaemonThread.__init__(self)
@@ -221,6 +221,12 @@ class CheckOutputThread(PyDBDaemonThread):
             time.sleep(1 / 30.)
         pydev_log.debug("The following pydb threads may not have finished correctly: %s",
                         ', '.join([t.getName() for t in pydb_daemon_threads if t is not self]))
+
+    def join(self, timeout=None):
+        # If someone tries to join this thread, mark it to be killed.
+        # This is the case for CherryPy when auto-reload is turned on.
+        self.do_kill_pydev_thread()
+        PyDBDaemonThread.join(self, timeout=timeout)
 
 
 class AbstractSingleNotificationBehavior(object):
@@ -1781,7 +1787,7 @@ class PyDB(object):
         if curr_output_checker_thread is not None:
             curr_output_checker_thread.do_kill_pydev_thread()
 
-        output_checker_thread = self.output_checker_thread = CheckOutputThread(self)
+        output_checker_thread = self.output_checker_thread = CheckAliveThread(self)
         output_checker_thread.start()
 
     def start_auxiliary_daemon_threads(self):

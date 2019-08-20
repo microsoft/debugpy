@@ -2,7 +2,7 @@ from _pydev_imps._pydev_saved_modules import threading
 from _pydevd_bundle.pydevd_constants import DebugInfoHolder, IS_PY2, \
     get_global_debugger, GetGlobalDebugger, set_global_debugger  # Keep for backward compatibility @UnusedImport
 from _pydevd_bundle.pydevd_utils import quote_smart as quote, to_string
-from _pydevd_bundle.pydevd_comm_constants import ID_TO_MEANING
+from _pydevd_bundle.pydevd_comm_constants import ID_TO_MEANING, CMD_EXIT
 from _pydevd_bundle.pydevd_constants import HTTP_PROTOCOL, HTTP_JSON_PROTOCOL, \
     get_protocol, IS_JYTHON
 import json
@@ -17,8 +17,16 @@ class _NullNetCommand(object):
         pass
 
 
+class _NullExitCommand(_NullNetCommand):
+
+    id = CMD_EXIT
+
+
 # Constant meant to be passed to the writer when the command is meant to be ignored.
 NULL_NET_COMMAND = _NullNetCommand()
+
+# Exit command -- only internal (we don't want/need to send this to the IDE).
+NULL_EXIT_COMMAND = _NullExitCommand()
 
 
 class NetCommand:
