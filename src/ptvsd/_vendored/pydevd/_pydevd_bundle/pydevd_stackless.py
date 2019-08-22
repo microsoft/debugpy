@@ -222,9 +222,8 @@ def _schedule_callback(prev, next):
                         if frame is current_frame:
                             frame = frame.f_back
                         if frame is not None:
-                            abs_real_path_and_base = get_abs_path_real_path_and_base_from_frame(frame)
                             # print >>sys.stderr, "SchedCB: %r, %d, '%s', '%s'" % (tasklet, frame.f_lineno, _filename, base)
-                            if debugger.get_file_type(abs_real_path_and_base) is None:
+                            if debugger.get_file_type(frame) is None:
                                 tasklet_info.update_name()
                                 if tasklet_info.frame_id is None:
                                     tasklet_info.frame_id = add_custom_frame(frame, tasklet_info.tasklet_name, tasklet.thread_id)
@@ -290,8 +289,7 @@ if not hasattr(stackless.tasklet, "trace_function"):
                         if tasklet.paused or tasklet.blocked or tasklet.scheduled:
                             if tasklet.frame and tasklet.frame.f_back:
                                 f_back = tasklet.frame.f_back
-                                abs_real_path_and_base = get_abs_path_real_path_and_base_from_frame(f_back)
-                                if debugger.get_file_type(abs_real_path_and_base) is None:
+                                if debugger.get_file_type(f_back) is None:
                                     if tasklet_info.frame_id is None:
                                         tasklet_info.frame_id = add_custom_frame(f_back, tasklet_info.tasklet_name, tasklet.thread_id)
                                     else:

@@ -140,16 +140,16 @@ def decref_py(obj):
     Py_DECREF(obj)
 
 
-def get_func_code_info_py(code_obj) -> FuncCodeInfo:
+def get_func_code_info_py(frame, code_obj) -> FuncCodeInfo:
     '''
     Helper to be called from Python.
     '''
-    return get_func_code_info(<PyCodeObject *> code_obj)
+    return get_func_code_info(<PyFrameObject *> frame, <PyCodeObject *> code_obj)
 
 
 _code_extra_index: Py_SIZE = -1
 
-cdef FuncCodeInfo get_func_code_info(PyCodeObject * code_obj):
+cdef FuncCodeInfo get_func_code_info(PyFrameObject * frame_obj, PyCodeObject * code_obj):
     '''
     Provides code-object related info.
 
@@ -181,6 +181,8 @@ cdef FuncCodeInfo get_func_code_info(PyCodeObject * code_obj):
     cdef str co_filename = <str> code_obj.co_filename
     cdef str co_name = <str> code_obj.co_name
     cdef set break_at_lines
+    cdef dict cache_file_type
+    cdef tuple cache_file_type_key
 
     func_code_info = FuncCodeInfo()
     func_code_info.breakpoints_mtime = main_debugger.mtime
@@ -194,8 +196,16 @@ cdef FuncCodeInfo get_func_code_info(PyCodeObject * code_obj):
             abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_file(co_filename)
 
         func_code_info.real_path = abs_path_real_path_and_base[1]
+        
+        cache_file_type = main_debugger.get_cache_file_type()
+        # Note: this cache key must be the same from PyDB.get_file_type() -- see it for comments
+        # on the cache.
+        cache_file_type_key = (frame_obj.f_code.co_firstlineno, abs_path_real_path_and_base[0], <object>frame_obj.f_code)
+        try:
+            file_type = cache_file_type[cache_file_type_key]  # Make it faster
+        except:
+            file_type = main_debugger.get_file_type(<object>frame_obj, abs_path_real_path_and_base)  # we don't want to debug anything related to pydevd
 
-        file_type = main_debugger.get_file_type(abs_path_real_path_and_base)  # we don't want to debug anything related to pydevd
         if file_type is not None:
             func_code_info.always_skip_code = True
 
@@ -311,7 +321,7 @@ cdef PyObject * get_bytecode_while_frame_eval(PyFrameObject * frame_obj, int exc
             else:
                 frame.f_trace = <object> main_debugger.trace_dispatch
         else:
-            func_code_info: FuncCodeInfo = get_func_code_info(frame_obj.f_code)
+            func_code_info: FuncCodeInfo = get_func_code_info(frame_obj, frame_obj.f_code)
             # if DEBUG:
             #     print('get_bytecode_while_frame_eval always skip', func_code_info.always_skip_code)
             if not func_code_info.always_skip_code:

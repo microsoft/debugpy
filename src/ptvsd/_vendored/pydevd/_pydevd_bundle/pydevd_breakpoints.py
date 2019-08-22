@@ -110,6 +110,9 @@ def stop_on_unhandled_exception(py_db, thread, additional_info, arg):
     if exctype is KeyboardInterrupt:
         return
 
+    if exctype is SystemExit and py_db.ignore_system_exit_code(value):
+        return
+
     if py_db.exclude_exception_by_filter(exception_breakpoint, tb, True):
         return
 
@@ -118,7 +121,7 @@ def stop_on_unhandled_exception(py_db, thread, additional_info, arg):
 
     while tb:
         frame = tb.tb_frame
-        if exception_breakpoint.ignore_libraries and py_db.in_project_scope(frame.f_code.co_filename):
+        if exception_breakpoint.ignore_libraries and py_db.in_project_scope(frame):
             user_frame = tb.tb_frame
         frames.append(tb.tb_frame)
         tb = tb.tb_next

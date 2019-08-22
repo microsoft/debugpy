@@ -3,6 +3,9 @@ import threading
 from _pydevd_bundle.pydevd_comm import pydevd_find_thread_by_id
 from _pydevd_bundle.pydevd_utils import convert_dap_log_message_to_expression
 from tests_python.debug_constants import IS_PY26, IS_PY3K
+import sys
+from _pydevd_bundle.pydevd_constants import IS_CPYTHON
+import pytest
 
 
 def test_is_main_thread():
@@ -150,3 +153,129 @@ def test_pydevd_log():
 
         assert 'foo\n' in stream.getvalue()
         assert 'raise RuntimeError()' in stream.getvalue()
+
+    stream = io.StringIO()
+    with log_context(0, stream=stream):
+        pydev_log.error_once('always %s %s', 1)
+
+    # Even if there's an error in the formatting, don't fail, just print the message and args.
+    assert stream.getvalue() == 'always %s %s - (1,)\n'
+
+
+def _check_tracing_other_threads():
+    import pydevd_tracing
+    import time
+    from tests_python.debugger_unittest import wait_for_condition
+    try:
+        import _thread
+    except ImportError:
+        import thread as _thread
+
+    def method():
+        while True:
+            trace_func = sys.gettrace()
+            if trace_func:
+                threading.current_thread().trace_func = trace_func
+                break
+            time.sleep(.01)
+
+    def dummy_thread_method():
+        threads.append(threading.current_thread())
+        method()
+
+    threads = []
+    threads.append(threading.Thread(target=method))
+    threads[-1].start()
+    _thread.start_new_thread(dummy_thread_method, ())
+
+    wait_for_condition(lambda: len(threads) == 2, msg=lambda:'Found threads: %s' % (threads,))
+
+    def tracing_func(frame, event, args):
+        return tracing_func
+
+    assert pydevd_tracing.set_trace_to_threads(tracing_func) == 0
+
+    def check_threads_tracing_func():
+        for t in threads:
+            if getattr(t, 'trace_func', None) != tracing_func:
+                return False
+        return True
+
+    wait_for_condition(check_threads_tracing_func)
+
+    assert tracing_func == sys.gettrace()
+
+
+def _build_launch_env():
+    import os
+    import pydevd
+
+    environ = os.environ.copy()
+    cwd = os.path.abspath(os.path.dirname(__file__))
+    assert os.path.isdir(cwd)
+
+    resources_dir = os.path.join(os.path.dirname(pydevd.__file__), 'tests_python', 'resources')
+    assert os.path.isdir(resources_dir)
+
+    attach_to_process_dir = os.path.join(os.path.dirname(pydevd.__file__), 'pydevd_attach_to_process')
+    assert os.path.isdir(attach_to_process_dir)
+
+    pydevd_dir = os.path.dirname(pydevd.__file__)
+    assert os.path.isdir(pydevd_dir)
+
+    environ['PYTHONPATH'] = (
+            cwd + os.pathsep +
+            resources_dir + os.pathsep +
+            attach_to_process_dir + os.pathsep +
+            pydevd_dir + os.pathsep +
+            environ.get('PYTHONPATH', '')
+    )
+    return cwd, environ
+
+
+def _check_in_separate_process(method_name, module_name='test_utilities'):
+    import subprocess
+    cwd, environ = _build_launch_env()
+
+    subprocess.check_call(
+        [sys.executable, '-c', 'import %(module_name)s;%(module_name)s.%(method_name)s()' % dict(
+            method_name=method_name, module_name=module_name)],
+        env=environ,
+        cwd=cwd
+    )
+
+
+@pytest.mark.skipif(not IS_CPYTHON, reason='Functionality to trace other threads requires CPython.')
+def test_tracing_other_threads():
+    # Note: run this test in a separate process so that it doesn't mess with any current tracing
+    # in our current process.
+    _check_in_separate_process('_check_tracing_other_threads')
+
+
+@pytest.mark.skipif(not IS_CPYTHON, reason='Functionality to trace other threads requires CPython.')
+def test_find_main_thread_id():
+    # Note: run the checks below in a separate process because they rely heavily on what's available
+    # in the env (such as threads or having threading imported).
+    _check_in_separate_process('check_main_thread_id_simple', '_pydevd_test_find_main_thread_id')
+    _check_in_separate_process('check_main_thread_id_multiple_threads', '_pydevd_test_find_main_thread_id')
+    _check_in_separate_process('check_win_threads', '_pydevd_test_find_main_thread_id')
+    _check_in_separate_process('check_fix_main_thread_id_multiple_threads', '_pydevd_test_find_main_thread_id')
+
+    import subprocess
+    import os
+    import pydevd
+    cwd, environ = _build_launch_env()
+
+    subprocess.check_call(
+        [sys.executable, '-m', '_pydevd_test_find_main_thread_id'],
+        env=environ,
+        cwd=cwd
+    )
+
+    resources_dir = os.path.join(os.path.dirname(pydevd.__file__), 'tests_python', 'resources')
+
+    subprocess.check_call(
+        [sys.executable, os.path.join(resources_dir, '_pydevd_test_find_main_thread_id.py') ],
+        env=environ,
+        cwd=cwd
+    )

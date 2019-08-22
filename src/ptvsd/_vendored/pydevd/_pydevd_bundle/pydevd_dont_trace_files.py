@@ -111,6 +111,7 @@ DONT_TRACE = {
     'pydevd_schema.py': PYDEV_FILE,
     'pydevd_schema_log.py': PYDEV_FILE,
     'pydevd_signature.py': PYDEV_FILE,
+    'pydevd_source_mapping.py': PYDEV_FILE,
     'pydevd_stackless.py': PYDEV_FILE,
     'pydevd_suspended_frames.py': PYDEV_FILE,
     'pydevd_thread_wrappers.py': PYDEV_FILE,

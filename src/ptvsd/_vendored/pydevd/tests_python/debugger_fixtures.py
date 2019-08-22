@@ -1,3 +1,4 @@
+# coding: utf-8
 from contextlib import contextmanager
 import os
 import threading
@@ -5,9 +6,11 @@ import threading
 import pytest
 
 from tests_python import debugger_unittest
-from tests_python.debugger_unittest import get_free_port, overrides, IS_CPYTHON, IS_JYTHON, IS_IRONPYTHON, \
-    IS_PY3K, CMD_ADD_DJANGO_EXCEPTION_BREAK, CMD_REMOVE_DJANGO_EXCEPTION_BREAK, \
-    CMD_ADD_EXCEPTION_BREAK
+from tests_python.debugger_unittest import (get_free_port, overrides, IS_CPYTHON, IS_JYTHON, IS_IRONPYTHON,
+    IS_PY3K, CMD_ADD_DJANGO_EXCEPTION_BREAK, CMD_REMOVE_DJANGO_EXCEPTION_BREAK,
+    CMD_ADD_EXCEPTION_BREAK, wait_for_condition)
+from tests_python.debug_constants import IS_PY2
+from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
 
 import sys
 import time
@@ -131,38 +134,8 @@ class AbstractWriterThreadCaseFlask(debugger_unittest.AbstractWriterThread):
         return False
 
     def create_request_thread(self, url=''):
-        outer = self
-
-        class T(threading.Thread):
-
-            def wait_for_contents(self):
-                for _ in range(10):
-                    if hasattr(self, 'contents'):
-                        break
-                    time.sleep(.3)
-                else:
-                    raise AssertionError('Django did not return contents properly!')
-                return self.contents
-
-            def run(self):
-                try:
-                    from urllib.request import urlopen
-                except ImportError:
-                    from urllib import urlopen
-                for _ in range(10):
-                    try:
-                        stream = urlopen('http://127.0.0.1:%s%s' % (outer.flask_port, url))
-                        contents = stream.read()
-                        if IS_PY3K:
-                            contents = contents.decode('utf-8')
-                        self.contents = contents
-                        break
-                    except IOError:
-                        continue
-
-        t = T()
-        t.daemon = True
-        return t
+        return debugger_unittest.AbstractWriterThread.create_request_thread(
+            self, 'http://127.0.0.1:%s%s' % (self.flask_port, url))
 
 
 class AbstractWriterThreadCaseDjango(debugger_unittest.AbstractWriterThread):
@@ -208,39 +181,9 @@ class AbstractWriterThreadCaseDjango(debugger_unittest.AbstractWriterThread):
     def write_remove_exception_breakpoint_django(self, exception='Exception'):
         self.write('%s\t%s\t%s' % (CMD_REMOVE_DJANGO_EXCEPTION_BREAK, self.next_seq(), exception))
 
-    def create_request_thread(self, uri):
-        outer = self
-
-        class T(threading.Thread):
-
-            def wait_for_contents(self):
-                for _ in range(10):
-                    if hasattr(self, 'contents'):
-                        break
-                    time.sleep(.3)
-                else:
-                    raise AssertionError('Django did not return contents properly!')
-                return self.contents
-
-            def run(self):
-                try:
-                    from urllib.request import urlopen
-                except ImportError:
-                    from urllib import urlopen
-                for _ in range(10):
-                    try:
-                        stream = urlopen('http://127.0.0.1:%s/%s' % (outer.django_port, uri))
-                        contents = stream.read()
-                        if IS_PY3K:
-                            contents = contents.decode('utf-8')
-                        self.contents = contents
-                        break
-                    except IOError:
-                        continue
-
-        t = T()
-        t.daemon = True
-        return t
+    def create_request_thread(self, url=''):
+        return debugger_unittest.AbstractWriterThread.create_request_thread(
+            self, 'http://127.0.0.1:%s/%s' % (self.django_port, url))
 
 
 class DebuggerRunnerSimple(debugger_unittest.DebuggerRunner):
@@ -285,7 +228,7 @@ class DebuggerRunnerRemote(debugger_unittest.DebuggerRunner):
 
 
 @pytest.fixture
-def case_setup():
+def case_setup(tmpdir):
 
     runner = DebuggerRunnerSimple()
 
@@ -294,13 +237,35 @@ def case_setup():
 
     class CaseSetup(object):
 
+        check_non_ascii = False
+        NON_ASCII_CHARS = u'áéíóú汉字'
+
         @contextmanager
         def test_file(
                 self,
                 filename,
                 **kwargs
             ):
-            WriterThread.TEST_FILE = debugger_unittest._get_debugger_test_file(filename)
+            import shutil
+            filename = debugger_unittest._get_debugger_test_file(filename)
+            if self.check_non_ascii:
+                basedir = str(tmpdir)
+                if isinstance(basedir, bytes):
+                    basedir = basedir.decode('utf-8')
+                if isinstance(filename, bytes):
+                    filename = filename.decode('utf-8')
+
+                new_dir = os.path.join(basedir, self.NON_ASCII_CHARS)
+                os.makedirs(new_dir)
+
+                new_filename = os.path.join(new_dir, self.NON_ASCII_CHARS + os.path.basename(filename))
+                shutil.copyfile(filename, new_filename)
+                filename = new_filename
+
+                if IS_PY2:
+                    filename = filename.encode(file_system_encoding)
+
+            WriterThread.TEST_FILE = filename
             for key, value in kwargs.items():
                 assert hasattr(WriterThread, key)
                 setattr(WriterThread, key, value)
@@ -349,11 +314,13 @@ def case_setup_remote():
         def test_file(
                 self,
                 filename,
+                wait_for_port=True,
                 **kwargs
             ):
 
             def update_command_line_args(writer, args):
                 ret = debugger_unittest.AbstractWriterThread.update_command_line_args(writer, args)
+                wait_for_condition(lambda: hasattr(writer, 'port'))
                 ret.append(str(writer.port))
                 return ret
 
@@ -363,7 +330,7 @@ def case_setup_remote():
                 assert hasattr(WriterThread, key)
                 setattr(WriterThread, key, value)
 
-            with runner.check_case(WriterThread) as writer:
+            with runner.check_case(WriterThread, wait_for_port=wait_for_port) as writer:
                 yield writer
 
     return CaseSetup()

@@ -1332,6 +1332,10 @@ class ProcessEvent(BaseSchema):
                         "Debugger attached to an existing process.",
                         "A project launcher component has launched a new process in a suspended state and then asked the debugger to attach."
                     ]
+                },
+                "pointerSize": {
+                    "type": "integer",
+                    "description": "The size of a pointer or address for this process, in bits. This value may be used by clients when formatting addresses for display."
                 }
             },
             "required": [
@@ -1595,6 +1599,8 @@ class RunInTerminalRequestArguments(BaseSchema):
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         cwd = self.cwd
         args = self.args
+        if args and hasattr(args[0], "to_dict"):
+            args = [x.to_dict() for x in args]
         kind = self.kind
         title = self.title
         env = self.env
@@ -1836,13 +1842,17 @@ class InitializeRequestArguments(BaseSchema):
         "supportsRunInTerminalRequest": {
             "type": "boolean",
             "description": "Client supports the runInTerminal request."
+        },
+        "supportsMemoryReferences": {
+            "type": "boolean",
+            "description": "Client supports memory references."
         }
     }
     __refs__ = set()
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, adapterID, clientID=None, clientName=None, locale=None, linesStartAt1=None, columnsStartAt1=None, pathFormat=None, supportsVariableType=None, supportsVariablePaging=None, supportsRunInTerminalRequest=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, adapterID, clientID=None, clientName=None, locale=None, linesStartAt1=None, columnsStartAt1=None, pathFormat=None, supportsVariableType=None, supportsVariablePaging=None, supportsRunInTerminalRequest=None, supportsMemoryReferences=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string adapterID: The ID of the debug adapter.
         :param string clientID: The ID of the (frontend) client using this adapter.
@@ -1854,6 +1864,7 @@ class InitializeRequestArguments(BaseSchema):
         :param boolean supportsVariableType: Client supports the optional type attribute for variables.
         :param boolean supportsVariablePaging: Client supports the paging of variables.
         :param boolean supportsRunInTerminalRequest: Client supports the runInTerminal request.
+        :param boolean supportsMemoryReferences: Client supports memory references.
         """
         self.adapterID = adapterID
         self.clientID = clientID
@@ -1865,6 +1876,7 @@ class InitializeRequestArguments(BaseSchema):
         self.supportsVariableType = supportsVariableType
         self.supportsVariablePaging = supportsVariablePaging
         self.supportsRunInTerminalRequest = supportsRunInTerminalRequest
+        self.supportsMemoryReferences = supportsMemoryReferences
         self.kwargs = kwargs
 
 
@@ -1879,6 +1891,7 @@ class InitializeRequestArguments(BaseSchema):
         supportsVariableType = self.supportsVariableType
         supportsVariablePaging = self.supportsVariablePaging
         supportsRunInTerminalRequest = self.supportsRunInTerminalRequest
+        supportsMemoryReferences = self.supportsMemoryReferences
         dct = {
             'adapterID': adapterID,
         }
@@ -1900,6 +1913,8 @@ class InitializeRequestArguments(BaseSchema):
             dct['supportsVariablePaging'] = supportsVariablePaging
         if supportsRunInTerminalRequest is not None:
             dct['supportsRunInTerminalRequest'] = supportsRunInTerminalRequest
+        if supportsMemoryReferences is not None:
+            dct['supportsMemoryReferences'] = supportsMemoryReferences
         dct.update(self.kwargs)
         return dct
 
@@ -3360,7 +3375,11 @@ class SetBreakpointsArguments(BaseSchema):
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         source = self.source
         breakpoints = self.breakpoints
+        if breakpoints and hasattr(breakpoints[0], "to_dict"):
+            breakpoints = [x.to_dict() for x in breakpoints]
         lines = self.lines
+        if lines and hasattr(lines[0], "to_dict"):
+            lines = [x.to_dict() for x in lines]
         sourceModified = self.sourceModified
         dct = {
             'source': source.to_dict(update_ids_to_dap=update_ids_to_dap),
@@ -3589,6 +3608,8 @@ class SetFunctionBreakpointsArguments(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         breakpoints = self.breakpoints
+        if breakpoints and hasattr(breakpoints[0], "to_dict"):
+            breakpoints = [x.to_dict() for x in breakpoints]
         dct = {
             'breakpoints': [FunctionBreakpoint.update_dict_ids_to_dap(o) for o in breakpoints] if (update_ids_to_dap and breakpoints) else breakpoints,
         }
@@ -3809,7 +3830,11 @@ class SetExceptionBreakpointsArguments(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         filters = self.filters
+        if filters and hasattr(filters[0], "to_dict"):
+            filters = [x.to_dict() for x in filters]
         exceptionOptions = self.exceptionOptions
+        if exceptionOptions and hasattr(exceptionOptions[0], "to_dict"):
+            exceptionOptions = [x.to_dict() for x in exceptionOptions]
         dct = {
             'filters': filters,
         }
@@ -4264,6 +4289,8 @@ class SetDataBreakpointsArguments(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         breakpoints = self.breakpoints
+        if breakpoints and hasattr(breakpoints[0], "to_dict"):
+            breakpoints = [x.to_dict() for x in breakpoints]
         dct = {
             'breakpoints': [DataBreakpoint.update_dict_ids_to_dap(o) for o in breakpoints] if (update_ids_to_dap and breakpoints) else breakpoints,
         }
@@ -7834,6 +7861,8 @@ class TerminateThreadsArguments(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         threadIds = self.threadIds
+        if threadIds and hasattr(threadIds[0], "to_dict"):
+            threadIds = [x.to_dict() for x in threadIds]
         dct = {
         }
         if threadIds is not None:
@@ -8574,6 +8603,10 @@ class EvaluateResponse(BaseSchema):
                 "indexedVariables": {
                     "type": "number",
                     "description": "The number of indexed child variables.\nThe client can use this optional information to present the variables in a paged UI and fetch them in chunks."
+                },
+                "memoryReference": {
+                    "type": "string",
+                    "description": "Memory reference to a location appropriate for this result. For pointer type eval results, this is generally a reference to the memory address contained in the pointer."
                 }
             },
             "required": [
@@ -9827,6 +9860,469 @@ class ExceptionInfoResponse(BaseSchema):
         return dct
 
 
+@register_request('readMemory')
+@register
+class ReadMemoryRequest(BaseSchema):
+    """
+    Reads bytes from memory at the provided location.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "seq": {
+            "type": "integer",
+            "description": "Sequence number."
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "request"
+            ]
+        },
+        "command": {
+            "type": "string",
+            "enum": [
+                "readMemory"
+            ]
+        },
+        "arguments": {
+            "type": "ReadMemoryArguments"
+        }
+    }
+    __refs__ = set(['arguments'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string type: 
+        :param string command: 
+        :param ReadMemoryArguments arguments: 
+        :param integer seq: Sequence number.
+        """
+        self.type = 'request'
+        self.command = 'readMemory'
+        if arguments is None:
+            self.arguments = ReadMemoryArguments()
+        else:
+            self.arguments = ReadMemoryArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  ReadMemoryArguments else arguments
+        self.seq = seq
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
+        dct = {
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
+        }
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class ReadMemoryArguments(BaseSchema):
+    """
+    Arguments for 'readMemory' request.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "memoryReference": {
+            "type": "string",
+            "description": "Memory reference to the base location from which data should be read."
+        },
+        "offset": {
+            "type": "integer",
+            "description": "Optional offset (in bytes) to be applied to the reference location before reading data. Can be negative."
+        },
+        "count": {
+            "type": "integer",
+            "description": "Number of bytes to read at the specified location and offset."
+        }
+    }
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, memoryReference, count, offset=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string memoryReference: Memory reference to the base location from which data should be read.
+        :param integer count: Number of bytes to read at the specified location and offset.
+        :param integer offset: Optional offset (in bytes) to be applied to the reference location before reading data. Can be negative.
+        """
+        self.memoryReference = memoryReference
+        self.count = count
+        self.offset = offset
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        memoryReference = self.memoryReference
+        count = self.count
+        offset = self.offset
+        dct = {
+            'memoryReference': memoryReference,
+            'count': count,
+        }
+        if offset is not None:
+            dct['offset'] = offset
+        dct.update(self.kwargs)
+        return dct
+
+
+@register_response('readMemory')
+@register
+class ReadMemoryResponse(BaseSchema):
+    """
+    Response to 'readMemory' request.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "seq": {
+            "type": "integer",
+            "description": "Sequence number."
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "response"
+            ]
+        },
+        "request_seq": {
+            "type": "integer",
+            "description": "Sequence number of the corresponding request."
+        },
+        "success": {
+            "type": "boolean",
+            "description": "Outcome of the request."
+        },
+        "command": {
+            "type": "string",
+            "description": "The command requested."
+        },
+        "message": {
+            "type": "string",
+            "description": "Contains error message if success == false."
+        },
+        "body": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "description": "The address of the first byte of data returned. Treated as a hex value if prefixed with '0x', or as a decimal value otherwise."
+                },
+                "unreadableBytes": {
+                    "type": "integer",
+                    "description": "The number of unreadable bytes encountered after the last successfully read byte. This can be used to determine the number of bytes that must be skipped before a subsequent 'readMemory' request will succeed."
+                },
+                "data": {
+                    "type": "string",
+                    "description": "The bytes read from memory, encoded using base64."
+                }
+            },
+            "required": [
+                "address"
+            ]
+        }
+    }
+    __refs__ = set(['body'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string type: 
+        :param integer request_seq: Sequence number of the corresponding request.
+        :param boolean success: Outcome of the request.
+        :param string command: The command requested.
+        :param integer seq: Sequence number.
+        :param string message: Contains error message if success == false.
+        :param ReadMemoryResponseBody body: 
+        """
+        self.type = 'response'
+        self.request_seq = request_seq
+        self.success = success
+        self.command = command
+        self.seq = seq
+        self.message = message
+        if body is None:
+            self.body = ReadMemoryResponseBody()
+        else:
+            self.body = ReadMemoryResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  ReadMemoryResponseBody else body
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
+        dct = {
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
+        }
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body.to_dict(update_ids_to_dap=update_ids_to_dap)
+        dct.update(self.kwargs)
+        return dct
+
+
+@register_request('disassemble')
+@register
+class DisassembleRequest(BaseSchema):
+    """
+    Disassembles code stored at the provided location.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "seq": {
+            "type": "integer",
+            "description": "Sequence number."
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "request"
+            ]
+        },
+        "command": {
+            "type": "string",
+            "enum": [
+                "disassemble"
+            ]
+        },
+        "arguments": {
+            "type": "DisassembleArguments"
+        }
+    }
+    __refs__ = set(['arguments'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string type: 
+        :param string command: 
+        :param DisassembleArguments arguments: 
+        :param integer seq: Sequence number.
+        """
+        self.type = 'request'
+        self.command = 'disassemble'
+        if arguments is None:
+            self.arguments = DisassembleArguments()
+        else:
+            self.arguments = DisassembleArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  DisassembleArguments else arguments
+        self.seq = seq
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
+        dct = {
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
+        }
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class DisassembleArguments(BaseSchema):
+    """
+    Arguments for 'disassemble' request.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "memoryReference": {
+            "type": "string",
+            "description": "Memory reference to the base location containing the instructions to disassemble."
+        },
+        "offset": {
+            "type": "integer",
+            "description": "Optional offset (in bytes) to be applied to the reference location before disassembling. Can be negative."
+        },
+        "instructionOffset": {
+            "type": "integer",
+            "description": "Optional offset (in instructions) to be applied after the byte offset (if any) before disassembling. Can be negative."
+        },
+        "instructionCount": {
+            "type": "integer",
+            "description": "Number of instructions to disassemble starting at the specified location and offset. An adapter must return exactly this number of instructions - any unavailable instructions should be replaced with an implementation-defined 'invalid instruction' value."
+        },
+        "resolveSymbols": {
+            "type": "boolean",
+            "description": "If true, the adapter should attempt to resolve memory addresses and other values to symbolic names."
+        }
+    }
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, memoryReference, instructionCount, offset=None, instructionOffset=None, resolveSymbols=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string memoryReference: Memory reference to the base location containing the instructions to disassemble.
+        :param integer instructionCount: Number of instructions to disassemble starting at the specified location and offset. An adapter must return exactly this number of instructions - any unavailable instructions should be replaced with an implementation-defined 'invalid instruction' value.
+        :param integer offset: Optional offset (in bytes) to be applied to the reference location before disassembling. Can be negative.
+        :param integer instructionOffset: Optional offset (in instructions) to be applied after the byte offset (if any) before disassembling. Can be negative.
+        :param boolean resolveSymbols: If true, the adapter should attempt to resolve memory addresses and other values to symbolic names.
+        """
+        self.memoryReference = memoryReference
+        self.instructionCount = instructionCount
+        self.offset = offset
+        self.instructionOffset = instructionOffset
+        self.resolveSymbols = resolveSymbols
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        memoryReference = self.memoryReference
+        instructionCount = self.instructionCount
+        offset = self.offset
+        instructionOffset = self.instructionOffset
+        resolveSymbols = self.resolveSymbols
+        dct = {
+            'memoryReference': memoryReference,
+            'instructionCount': instructionCount,
+        }
+        if offset is not None:
+            dct['offset'] = offset
+        if instructionOffset is not None:
+            dct['instructionOffset'] = instructionOffset
+        if resolveSymbols is not None:
+            dct['resolveSymbols'] = resolveSymbols
+        dct.update(self.kwargs)
+        return dct
+
+
+@register_response('disassemble')
+@register
+class DisassembleResponse(BaseSchema):
+    """
+    Response to 'disassemble' request.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "seq": {
+            "type": "integer",
+            "description": "Sequence number."
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "response"
+            ]
+        },
+        "request_seq": {
+            "type": "integer",
+            "description": "Sequence number of the corresponding request."
+        },
+        "success": {
+            "type": "boolean",
+            "description": "Outcome of the request."
+        },
+        "command": {
+            "type": "string",
+            "description": "The command requested."
+        },
+        "message": {
+            "type": "string",
+            "description": "Contains error message if success == false."
+        },
+        "body": {
+            "type": "object",
+            "properties": {
+                "instructions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/DisassembledInstruction"
+                    },
+                    "description": "The list of disassembled instructions."
+                }
+            },
+            "required": [
+                "instructions"
+            ]
+        }
+    }
+    __refs__ = set(['body'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string type: 
+        :param integer request_seq: Sequence number of the corresponding request.
+        :param boolean success: Outcome of the request.
+        :param string command: The command requested.
+        :param integer seq: Sequence number.
+        :param string message: Contains error message if success == false.
+        :param DisassembleResponseBody body: 
+        """
+        self.type = 'response'
+        self.request_seq = request_seq
+        self.success = success
+        self.command = command
+        self.seq = seq
+        self.message = message
+        if body is None:
+            self.body = DisassembleResponseBody()
+        else:
+            self.body = DisassembleResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  DisassembleResponseBody else body
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
+        dct = {
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
+        }
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body.to_dict(update_ids_to_dap=update_ids_to_dap)
+        dct.update(self.kwargs)
+        return dct
+
+
 @register
 class Capabilities(BaseSchema):
     """
@@ -9952,13 +10448,21 @@ class Capabilities(BaseSchema):
         "supportsDataBreakpoints": {
             "type": "boolean",
             "description": "The debug adapter supports data breakpoints."
+        },
+        "supportsReadMemoryRequest": {
+            "type": "boolean",
+            "description": "The debug adapter supports the 'readMemory' request."
+        },
+        "supportsDisassembleRequest": {
+            "type": "boolean",
+            "description": "The debug adapter supports the 'disassemble' request."
         }
     }
     __refs__ = set()
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, supportsConfigurationDoneRequest=None, supportsFunctionBreakpoints=None, supportsConditionalBreakpoints=None, supportsHitConditionalBreakpoints=None, supportsEvaluateForHovers=None, exceptionBreakpointFilters=None, supportsStepBack=None, supportsSetVariable=None, supportsRestartFrame=None, supportsGotoTargetsRequest=None, supportsStepInTargetsRequest=None, supportsCompletionsRequest=None, supportsModulesRequest=None, additionalModuleColumns=None, supportedChecksumAlgorithms=None, supportsRestartRequest=None, supportsExceptionOptions=None, supportsValueFormattingOptions=None, supportsExceptionInfoRequest=None, supportTerminateDebuggee=None, supportsDelayedStackTraceLoading=None, supportsLoadedSourcesRequest=None, supportsLogPoints=None, supportsTerminateThreadsRequest=None, supportsSetExpression=None, supportsTerminateRequest=None, supportsDataBreakpoints=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, supportsConfigurationDoneRequest=None, supportsFunctionBreakpoints=None, supportsConditionalBreakpoints=None, supportsHitConditionalBreakpoints=None, supportsEvaluateForHovers=None, exceptionBreakpointFilters=None, supportsStepBack=None, supportsSetVariable=None, supportsRestartFrame=None, supportsGotoTargetsRequest=None, supportsStepInTargetsRequest=None, supportsCompletionsRequest=None, supportsModulesRequest=None, additionalModuleColumns=None, supportedChecksumAlgorithms=None, supportsRestartRequest=None, supportsExceptionOptions=None, supportsValueFormattingOptions=None, supportsExceptionInfoRequest=None, supportTerminateDebuggee=None, supportsDelayedStackTraceLoading=None, supportsLoadedSourcesRequest=None, supportsLogPoints=None, supportsTerminateThreadsRequest=None, supportsSetExpression=None, supportsTerminateRequest=None, supportsDataBreakpoints=None, supportsReadMemoryRequest=None, supportsDisassembleRequest=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param boolean supportsConfigurationDoneRequest: The debug adapter supports the 'configurationDone' request.
         :param boolean supportsFunctionBreakpoints: The debug adapter supports function breakpoints.
@@ -9987,6 +10491,8 @@ class Capabilities(BaseSchema):
         :param boolean supportsSetExpression: The debug adapter supports the 'setExpression' request.
         :param boolean supportsTerminateRequest: The debug adapter supports the 'terminate' request.
         :param boolean supportsDataBreakpoints: The debug adapter supports data breakpoints.
+        :param boolean supportsReadMemoryRequest: The debug adapter supports the 'readMemory' request.
+        :param boolean supportsDisassembleRequest: The debug adapter supports the 'disassemble' request.
         """
         self.supportsConfigurationDoneRequest = supportsConfigurationDoneRequest
         self.supportsFunctionBreakpoints = supportsFunctionBreakpoints
@@ -10024,6 +10530,8 @@ class Capabilities(BaseSchema):
         self.supportsSetExpression = supportsSetExpression
         self.supportsTerminateRequest = supportsTerminateRequest
         self.supportsDataBreakpoints = supportsDataBreakpoints
+        self.supportsReadMemoryRequest = supportsReadMemoryRequest
+        self.supportsDisassembleRequest = supportsDisassembleRequest
         self.kwargs = kwargs
 
 
@@ -10034,6 +10542,8 @@ class Capabilities(BaseSchema):
         supportsHitConditionalBreakpoints = self.supportsHitConditionalBreakpoints
         supportsEvaluateForHovers = self.supportsEvaluateForHovers
         exceptionBreakpointFilters = self.exceptionBreakpointFilters
+        if exceptionBreakpointFilters and hasattr(exceptionBreakpointFilters[0], "to_dict"):
+            exceptionBreakpointFilters = [x.to_dict() for x in exceptionBreakpointFilters]
         supportsStepBack = self.supportsStepBack
         supportsSetVariable = self.supportsSetVariable
         supportsRestartFrame = self.supportsRestartFrame
@@ -10042,7 +10552,11 @@ class Capabilities(BaseSchema):
         supportsCompletionsRequest = self.supportsCompletionsRequest
         supportsModulesRequest = self.supportsModulesRequest
         additionalModuleColumns = self.additionalModuleColumns
+        if additionalModuleColumns and hasattr(additionalModuleColumns[0], "to_dict"):
+            additionalModuleColumns = [x.to_dict() for x in additionalModuleColumns]
         supportedChecksumAlgorithms = self.supportedChecksumAlgorithms
+        if supportedChecksumAlgorithms and hasattr(supportedChecksumAlgorithms[0], "to_dict"):
+            supportedChecksumAlgorithms = [x.to_dict() for x in supportedChecksumAlgorithms]
         supportsRestartRequest = self.supportsRestartRequest
         supportsExceptionOptions = self.supportsExceptionOptions
         supportsValueFormattingOptions = self.supportsValueFormattingOptions
@@ -10055,6 +10569,8 @@ class Capabilities(BaseSchema):
         supportsSetExpression = self.supportsSetExpression
         supportsTerminateRequest = self.supportsTerminateRequest
         supportsDataBreakpoints = self.supportsDataBreakpoints
+        supportsReadMemoryRequest = self.supportsReadMemoryRequest
+        supportsDisassembleRequest = self.supportsDisassembleRequest
         dct = {
         }
         if supportsConfigurationDoneRequest is not None:
@@ -10111,6 +10627,10 @@ class Capabilities(BaseSchema):
             dct['supportsTerminateRequest'] = supportsTerminateRequest
         if supportsDataBreakpoints is not None:
             dct['supportsDataBreakpoints'] = supportsDataBreakpoints
+        if supportsReadMemoryRequest is not None:
+            dct['supportsReadMemoryRequest'] = supportsReadMemoryRequest
+        if supportsDisassembleRequest is not None:
+            dct['supportsDisassembleRequest'] = supportsDisassembleRequest
         dct.update(self.kwargs)
         return dct
 
@@ -10516,6 +11036,8 @@ class ModulesViewDescriptor(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         columns = self.columns
+        if columns and hasattr(columns[0], "to_dict"):
+            columns = [x.to_dict() for x in columns]
         dct = {
             'columns': [ColumnDescriptor.update_dict_ids_to_dap(o) for o in columns] if (update_ids_to_dap and columns) else columns,
         }
@@ -10684,8 +11206,12 @@ class Source(BaseSchema):
         presentationHint = self.presentationHint
         origin = self.origin
         sources = self.sources
+        if sources and hasattr(sources[0], "to_dict"):
+            sources = [x.to_dict() for x in sources]
         adapterData = self.adapterData
         checksums = self.checksums
+        if checksums and hasattr(checksums[0], "to_dict"):
+            checksums = [x.to_dict() for x in checksums]
         dct = {
         }
         if name is not None:
@@ -10745,6 +11271,10 @@ class StackFrame(BaseSchema):
             "type": "integer",
             "description": "An optional end column of the range covered by the stack frame."
         },
+        "instructionPointerReference": {
+            "type": "string",
+            "description": "Optional memory reference for the current instruction pointer in this frame."
+        },
         "moduleId": {
             "type": [
                 "integer",
@@ -10766,7 +11296,7 @@ class StackFrame(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, id, name, line, column, source=None, endLine=None, endColumn=None, moduleId=None, presentationHint=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, id, name, line, column, source=None, endLine=None, endColumn=None, instructionPointerReference=None, moduleId=None, presentationHint=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer id: An identifier for the stack frame. It must be unique across all threads. This id can be used to retrieve the scopes of the frame with the 'scopesRequest' or to restart the execution of a stackframe.
         :param string name: The name of the stack frame, typically a method name.
@@ -10775,6 +11305,7 @@ class StackFrame(BaseSchema):
         :param Source source: The optional source of the frame.
         :param integer endLine: An optional end line of the range covered by the stack frame.
         :param integer endColumn: An optional end column of the range covered by the stack frame.
+        :param string instructionPointerReference: Optional memory reference for the current instruction pointer in this frame.
         :param ['integer', 'string'] moduleId: The module associated with this frame, if any.
         :param string presentationHint: An optional hint for how to present this frame in the UI. A value of 'label' can be used to indicate that the frame is an artificial frame that is used as a visual label or separator. A value of 'subtle' can be used to change the appearance of a frame in a 'subtle' way.
         """
@@ -10788,6 +11319,7 @@ class StackFrame(BaseSchema):
             self.source = Source(update_ids_from_dap=update_ids_from_dap, **source) if source.__class__ !=  Source else source
         self.endLine = endLine
         self.endColumn = endColumn
+        self.instructionPointerReference = instructionPointerReference
         self.moduleId = moduleId
         self.presentationHint = presentationHint
         if update_ids_from_dap:
@@ -10809,6 +11341,7 @@ class StackFrame(BaseSchema):
         source = self.source
         endLine = self.endLine
         endColumn = self.endColumn
+        instructionPointerReference = self.instructionPointerReference
         moduleId = self.moduleId
         presentationHint = self.presentationHint
         if update_ids_to_dap:
@@ -10826,6 +11359,8 @@ class StackFrame(BaseSchema):
             dct['endLine'] = endLine
         if endColumn is not None:
             dct['endColumn'] = endColumn
+        if instructionPointerReference is not None:
+            dct['instructionPointerReference'] = instructionPointerReference
         if moduleId is not None:
             dct['moduleId'] = moduleId
         if presentationHint is not None:
@@ -10852,7 +11387,21 @@ class Scope(BaseSchema):
     __props__ = {
         "name": {
             "type": "string",
-            "description": "Name of the scope such as 'Arguments', 'Locals'."
+            "description": "Name of the scope such as 'Arguments', 'Locals', or 'Registers'. This string is shown in the UI as is and can be translated."
+        },
+        "presentationHint": {
+            "type": "string",
+            "description": "An optional hint for how to present this scope in the UI. If this attribute is missing, the scope is shown with a generic UI.",
+            "_enum": [
+                "arguments",
+                "locals",
+                "registers"
+            ],
+            "enumDescriptions": [
+                "Scope contains method arguments.",
+                "Scope contains local variables.",
+                "Scope contains registers. Only a single 'registers' scope should be returned from a 'scopes' request."
+            ]
         },
         "variablesReference": {
             "type": "integer",
@@ -10895,11 +11444,12 @@ class Scope(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, name, variablesReference, expensive, namedVariables=None, indexedVariables=None, source=None, line=None, column=None, endLine=None, endColumn=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, name, variablesReference, expensive, presentationHint=None, namedVariables=None, indexedVariables=None, source=None, line=None, column=None, endLine=None, endColumn=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
-        :param string name: Name of the scope such as 'Arguments', 'Locals'.
+        :param string name: Name of the scope such as 'Arguments', 'Locals', or 'Registers'. This string is shown in the UI as is and can be translated.
         :param integer variablesReference: The variables of this scope can be retrieved by passing the value of variablesReference to the VariablesRequest.
         :param boolean expensive: If true, the number of variables in this scope is large or expensive to retrieve.
+        :param string presentationHint: An optional hint for how to present this scope in the UI. If this attribute is missing, the scope is shown with a generic UI.
         :param integer namedVariables: The number of named variables in this scope.
         The client can use this optional information to present the variables in a paged UI and fetch them in chunks.
         :param integer indexedVariables: The number of indexed variables in this scope.
@@ -10913,6 +11463,7 @@ class Scope(BaseSchema):
         self.name = name
         self.variablesReference = variablesReference
         self.expensive = expensive
+        self.presentationHint = presentationHint
         self.namedVariables = namedVariables
         self.indexedVariables = indexedVariables
         if source is None:
@@ -10938,6 +11489,7 @@ class Scope(BaseSchema):
         name = self.name
         variablesReference = self.variablesReference
         expensive = self.expensive
+        presentationHint = self.presentationHint
         namedVariables = self.namedVariables
         indexedVariables = self.indexedVariables
         source = self.source
@@ -10953,6 +11505,8 @@ class Scope(BaseSchema):
             'variablesReference': variablesReference,
             'expensive': expensive,
         }
+        if presentationHint is not None:
+            dct['presentationHint'] = presentationHint
         if namedVariables is not None:
             dct['namedVariables'] = namedVariables
         if indexedVariables is not None:
@@ -11032,13 +11586,17 @@ class Variable(BaseSchema):
         "indexedVariables": {
             "type": "integer",
             "description": "The number of indexed child variables.\nThe client can use this optional information to present the children in a paged UI and fetch them in chunks."
+        },
+        "memoryReference": {
+            "type": "string",
+            "description": "Optional memory reference for the variable if the variable represents executable code, such as a function pointer."
         }
     }
     __refs__ = set(['presentationHint'])
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, name, value, variablesReference, type=None, presentationHint=None, evaluateName=None, namedVariables=None, indexedVariables=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, name, value, variablesReference, type=None, presentationHint=None, evaluateName=None, namedVariables=None, indexedVariables=None, memoryReference=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string name: The variable's name.
         :param string value: The variable's value. This can be a multi-line text, e.g. for a function the body of a function.
@@ -11050,6 +11608,7 @@ class Variable(BaseSchema):
         The client can use this optional information to present the children in a paged UI and fetch them in chunks.
         :param integer indexedVariables: The number of indexed child variables.
         The client can use this optional information to present the children in a paged UI and fetch them in chunks.
+        :param string memoryReference: Optional memory reference for the variable if the variable represents executable code, such as a function pointer.
         """
         self.name = name
         self.value = value
@@ -11062,6 +11621,7 @@ class Variable(BaseSchema):
         self.evaluateName = evaluateName
         self.namedVariables = namedVariables
         self.indexedVariables = indexedVariables
+        self.memoryReference = memoryReference
         if update_ids_from_dap:
             self.variablesReference = self._translate_id_from_dap(self.variablesReference)
         self.kwargs = kwargs
@@ -11082,6 +11642,7 @@ class Variable(BaseSchema):
         evaluateName = self.evaluateName
         namedVariables = self.namedVariables
         indexedVariables = self.indexedVariables
+        memoryReference = self.memoryReference
         if update_ids_to_dap:
             if variablesReference is not None:
                 variablesReference = self._translate_id_to_dap(variablesReference)
@@ -11100,6 +11661,8 @@ class Variable(BaseSchema):
             dct['namedVariables'] = namedVariables
         if indexedVariables is not None:
             dct['indexedVariables'] = indexedVariables
+        if memoryReference is not None:
+            dct['memoryReference'] = memoryReference
         dct.update(self.kwargs)
         return dct    
     
@@ -11206,6 +11769,8 @@ class VariablePresentationHint(BaseSchema):
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         kind = self.kind
         attributes = self.attributes
+        if attributes and hasattr(attributes[0], "to_dict"):
+            attributes = [x.to_dict() for x in attributes]
         visibility = self.visibility
         dct = {
         }
@@ -11619,13 +12184,17 @@ class GotoTarget(BaseSchema):
         "endColumn": {
             "type": "integer",
             "description": "An optional end column of the range covered by the goto target."
+        },
+        "instructionPointerReference": {
+            "type": "string",
+            "description": "Optional memory reference for the instruction pointer value represented by this target."
         }
     }
     __refs__ = set()
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, id, label, line, column=None, endLine=None, endColumn=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, id, label, line, column=None, endLine=None, endColumn=None, instructionPointerReference=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer id: Unique identifier for a goto target. This is used in the goto request.
         :param string label: The name of the goto target (shown in the UI).
@@ -11633,6 +12202,7 @@ class GotoTarget(BaseSchema):
         :param integer column: An optional column of the goto target.
         :param integer endLine: An optional end line of the range covered by the goto target.
         :param integer endColumn: An optional end column of the range covered by the goto target.
+        :param string instructionPointerReference: Optional memory reference for the instruction pointer value represented by this target.
         """
         self.id = id
         self.label = label
@@ -11640,6 +12210,7 @@ class GotoTarget(BaseSchema):
         self.column = column
         self.endLine = endLine
         self.endColumn = endColumn
+        self.instructionPointerReference = instructionPointerReference
         self.kwargs = kwargs
 
 
@@ -11650,6 +12221,7 @@ class GotoTarget(BaseSchema):
         column = self.column
         endLine = self.endLine
         endColumn = self.endColumn
+        instructionPointerReference = self.instructionPointerReference
         dct = {
             'id': id,
             'label': label,
@@ -11661,6 +12233,8 @@ class GotoTarget(BaseSchema):
             dct['endLine'] = endLine
         if endColumn is not None:
             dct['endColumn'] = endColumn
+        if instructionPointerReference is not None:
+            dct['instructionPointerReference'] = instructionPointerReference
         dct.update(self.kwargs)
         return dct
 
@@ -12046,6 +12620,8 @@ class ExceptionOptions(BaseSchema):
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         breakMode = self.breakMode
         path = self.path
+        if path and hasattr(path[0], "to_dict"):
+            path = [x.to_dict() for x in path]
         dct = {
             'breakMode': breakMode,
         }
@@ -12137,6 +12713,8 @@ class ExceptionPathSegment(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         names = self.names
+        if names and hasattr(names[0], "to_dict"):
+            names = [x.to_dict() for x in names]
         negate = self.negate
         dct = {
             'names': names,
@@ -12216,6 +12794,8 @@ class ExceptionDetails(BaseSchema):
         evaluateName = self.evaluateName
         stackTrace = self.stackTrace
         innerException = self.innerException
+        if innerException and hasattr(innerException[0], "to_dict"):
+            innerException = [x.to_dict() for x in innerException]
         dct = {
         }
         if message is not None:
@@ -12230,6 +12810,115 @@ class ExceptionDetails(BaseSchema):
             dct['stackTrace'] = stackTrace
         if innerException is not None:
             dct['innerException'] = [ExceptionDetails.update_dict_ids_to_dap(o) for o in innerException] if (update_ids_to_dap and innerException) else innerException
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class DisassembledInstruction(BaseSchema):
+    """
+    Represents a single disassembled instruction.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "address": {
+            "type": "string",
+            "description": "The address of the instruction. Treated as a hex value if prefixed with '0x', or as a decimal value otherwise."
+        },
+        "instructionBytes": {
+            "type": "string",
+            "description": "Optional raw bytes representing the instruction and its operands, in an implementation-defined format."
+        },
+        "instruction": {
+            "type": "string",
+            "description": "Text representing the instruction and its operands, in an implementation-defined format."
+        },
+        "symbol": {
+            "type": "string",
+            "description": "Name of the symbol that correponds with the location of this instruction, if any."
+        },
+        "location": {
+            "description": "Source location that corresponds to this instruction, if any. Should always be set (if available) on the first instruction returned, but can be omitted afterwards if this instruction maps to the same source file as the previous instruction.",
+            "type": "Source"
+        },
+        "line": {
+            "type": "integer",
+            "description": "The line within the source location that corresponds to this instruction, if any."
+        },
+        "column": {
+            "type": "integer",
+            "description": "The column within the line that corresponds to this instruction, if any."
+        },
+        "endLine": {
+            "type": "integer",
+            "description": "The end line of the range that corresponds to this instruction, if any."
+        },
+        "endColumn": {
+            "type": "integer",
+            "description": "The end column of the range that corresponds to this instruction, if any."
+        }
+    }
+    __refs__ = set(['location'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, address, instruction, instructionBytes=None, symbol=None, location=None, line=None, column=None, endLine=None, endColumn=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string address: The address of the instruction. Treated as a hex value if prefixed with '0x', or as a decimal value otherwise.
+        :param string instruction: Text representing the instruction and its operands, in an implementation-defined format.
+        :param string instructionBytes: Optional raw bytes representing the instruction and its operands, in an implementation-defined format.
+        :param string symbol: Name of the symbol that correponds with the location of this instruction, if any.
+        :param Source location: Source location that corresponds to this instruction, if any. Should always be set (if available) on the first instruction returned, but can be omitted afterwards if this instruction maps to the same source file as the previous instruction.
+        :param integer line: The line within the source location that corresponds to this instruction, if any.
+        :param integer column: The column within the line that corresponds to this instruction, if any.
+        :param integer endLine: The end line of the range that corresponds to this instruction, if any.
+        :param integer endColumn: The end column of the range that corresponds to this instruction, if any.
+        """
+        self.address = address
+        self.instruction = instruction
+        self.instructionBytes = instructionBytes
+        self.symbol = symbol
+        if location is None:
+            self.location = Source()
+        else:
+            self.location = Source(update_ids_from_dap=update_ids_from_dap, **location) if location.__class__ !=  Source else location
+        self.line = line
+        self.column = column
+        self.endLine = endLine
+        self.endColumn = endColumn
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        address = self.address
+        instruction = self.instruction
+        instructionBytes = self.instructionBytes
+        symbol = self.symbol
+        location = self.location
+        line = self.line
+        column = self.column
+        endLine = self.endLine
+        endColumn = self.endColumn
+        dct = {
+            'address': address,
+            'instruction': instruction,
+        }
+        if instructionBytes is not None:
+            dct['instructionBytes'] = instructionBytes
+        if symbol is not None:
+            dct['symbol'] = symbol
+        if location is not None:
+            dct['location'] = location.to_dict(update_ids_to_dap=update_ids_to_dap)
+        if line is not None:
+            dct['line'] = line
+        if column is not None:
+            dct['column'] = column
+        if endLine is not None:
+            dct['endLine'] = endLine
+        if endColumn is not None:
+            dct['endColumn'] = endColumn
         dct.update(self.kwargs)
         return dct
 
@@ -12486,6 +13175,693 @@ class SetDebuggerPropertyResponse(BaseSchema):
             dct['message'] = message
         if body is not None:
             dct['body'] = body
+        dct.update(self.kwargs)
+        return dct
+
+
+@register_request('setPydevdSourceMap')
+@register
+class SetPydevdSourceMapRequest(BaseSchema):
+    """
+    Sets multiple PydevdSourceMap for a single source and clears all previous PydevdSourceMap in that
+    source.
+    
+    i.e.: Maps paths and lines in a 1:N mapping (use case: map a single file in the IDE to multiple
+    IPython cells).
+    
+    To clear all PydevdSourceMap for a source, specify an empty array.
+    
+    Interaction with breakpoints: When a new mapping is sent, breakpoints that match the source (or
+    previously matched a source) are reapplied.
+    
+    Interaction with launch pathMapping: both mappings are independent. This mapping is applied after
+    the launch pathMapping.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "seq": {
+            "type": "integer",
+            "description": "Sequence number."
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "request"
+            ]
+        },
+        "command": {
+            "type": "string",
+            "enum": [
+                "setPydevdSourceMap"
+            ]
+        },
+        "arguments": {
+            "type": "SetPydevdSourceMapArguments"
+        }
+    }
+    __refs__ = set(['arguments'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string type: 
+        :param string command: 
+        :param SetPydevdSourceMapArguments arguments: 
+        :param integer seq: Sequence number.
+        """
+        self.type = 'request'
+        self.command = 'setPydevdSourceMap'
+        if arguments is None:
+            self.arguments = SetPydevdSourceMapArguments()
+        else:
+            self.arguments = SetPydevdSourceMapArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  SetPydevdSourceMapArguments else arguments
+        self.seq = seq
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
+        dct = {
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
+        }
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class SetPydevdSourceMapArguments(BaseSchema):
+    """
+    Arguments for 'setPydevdSourceMap' request.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "source": {
+            "description": "The source location of the PydevdSourceMap; 'source.path' must be specified (e.g.: for an ipython notebook this could be something as /home/notebook/note.py).",
+            "type": "Source"
+        },
+        "pydevdSourceMaps": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/PydevdSourceMap"
+            },
+            "description": "The PydevdSourceMaps to be set to the given source (provide an empty array to clear the source mappings for a given path)."
+        }
+    }
+    __refs__ = set(['source'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, source, pydevdSourceMaps=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param Source source: The source location of the PydevdSourceMap; 'source.path' must be specified (e.g.: for an ipython notebook this could be something as /home/notebook/note.py).
+        :param array pydevdSourceMaps: The PydevdSourceMaps to be set to the given source (provide an empty array to clear the source mappings for a given path).
+        """
+        if source is None:
+            self.source = Source()
+        else:
+            self.source = Source(update_ids_from_dap=update_ids_from_dap, **source) if source.__class__ !=  Source else source
+        self.pydevdSourceMaps = pydevdSourceMaps
+        if update_ids_from_dap and self.pydevdSourceMaps:
+            for o in self.pydevdSourceMaps:
+                PydevdSourceMap.update_dict_ids_from_dap(o)
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        source = self.source
+        pydevdSourceMaps = self.pydevdSourceMaps
+        if pydevdSourceMaps and hasattr(pydevdSourceMaps[0], "to_dict"):
+            pydevdSourceMaps = [x.to_dict() for x in pydevdSourceMaps]
+        dct = {
+            'source': source.to_dict(update_ids_to_dap=update_ids_to_dap),
+        }
+        if pydevdSourceMaps is not None:
+            dct['pydevdSourceMaps'] = [PydevdSourceMap.update_dict_ids_to_dap(o) for o in pydevdSourceMaps] if (update_ids_to_dap and pydevdSourceMaps) else pydevdSourceMaps
+        dct.update(self.kwargs)
+        return dct
+
+
+@register_response('setPydevdSourceMap')
+@register
+class SetPydevdSourceMapResponse(BaseSchema):
+    """
+    Response to 'setPydevdSourceMap' request. This is just an acknowledgement, so no body field is
+    required.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "seq": {
+            "type": "integer",
+            "description": "Sequence number."
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "response"
+            ]
+        },
+        "request_seq": {
+            "type": "integer",
+            "description": "Sequence number of the corresponding request."
+        },
+        "success": {
+            "type": "boolean",
+            "description": "Outcome of the request."
+        },
+        "command": {
+            "type": "string",
+            "description": "The command requested."
+        },
+        "message": {
+            "type": "string",
+            "description": "Contains error message if success == false."
+        },
+        "body": {
+            "type": [
+                "array",
+                "boolean",
+                "integer",
+                "null",
+                "number",
+                "object",
+                "string"
+            ],
+            "description": "Contains request result if success is true and optional error details if success is false."
+        }
+    }
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string type: 
+        :param integer request_seq: Sequence number of the corresponding request.
+        :param boolean success: Outcome of the request.
+        :param string command: The command requested.
+        :param integer seq: Sequence number.
+        :param string message: Contains error message if success == false.
+        :param ['array', 'boolean', 'integer', 'null', 'number', 'object', 'string'] body: Contains request result if success is true and optional error details if success is false.
+        """
+        self.type = 'response'
+        self.request_seq = request_seq
+        self.success = success
+        self.command = command
+        self.seq = seq
+        self.message = message
+        self.body = body
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
+        dct = {
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
+        }
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class PydevdSourceMap(BaseSchema):
+    """
+    Information that allows mapping a local line to a remote source/line.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "line": {
+            "type": "integer",
+            "description": "The local line to which the mapping should map to (e.g.: for an ipython notebook this would be the first line of the cell in the file)."
+        },
+        "endLine": {
+            "type": "integer",
+            "description": "The end line."
+        },
+        "runtimeSource": {
+            "description": "The path that the user has remotely -- 'source.path' must be specified (e.g.: for an ipython notebook this could be something as '<ipython-input-1-4561234>')",
+            "type": "Source"
+        },
+        "runtimeLine": {
+            "type": "integer",
+            "description": "The remote line to which the mapping should map to (e.g.: for an ipython notebook this would be always 1 as it'd map the start of the cell)."
+        }
+    }
+    __refs__ = set(['runtimeSource'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, line, endLine, runtimeSource, runtimeLine, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param integer line: The local line to which the mapping should map to (e.g.: for an ipython notebook this would be the first line of the cell in the file).
+        :param integer endLine: The end line.
+        :param Source runtimeSource: The path that the user has remotely -- 'source.path' must be specified (e.g.: for an ipython notebook this could be something as '<ipython-input-1-4561234>')
+        :param integer runtimeLine: The remote line to which the mapping should map to (e.g.: for an ipython notebook this would be always 1 as it'd map the start of the cell).
+        """
+        self.line = line
+        self.endLine = endLine
+        if runtimeSource is None:
+            self.runtimeSource = Source()
+        else:
+            self.runtimeSource = Source(update_ids_from_dap=update_ids_from_dap, **runtimeSource) if runtimeSource.__class__ !=  Source else runtimeSource
+        self.runtimeLine = runtimeLine
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        line = self.line
+        endLine = self.endLine
+        runtimeSource = self.runtimeSource
+        runtimeLine = self.runtimeLine
+        dct = {
+            'line': line,
+            'endLine': endLine,
+            'runtimeSource': runtimeSource.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'runtimeLine': runtimeLine,
+        }
+        dct.update(self.kwargs)
+        return dct
+
+
+@register_request('pydevdSystemInfo')
+@register
+class PydevdSystemInfoRequest(BaseSchema):
+    """
+    The request can be used retrieve system information, python version, etc.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "seq": {
+            "type": "integer",
+            "description": "Sequence number."
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "request"
+            ]
+        },
+        "command": {
+            "type": "string",
+            "enum": [
+                "pydevdSystemInfo"
+            ]
+        },
+        "arguments": {
+            "type": "PydevdSystemInfoArguments"
+        }
+    }
+    __refs__ = set(['arguments'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, seq=-1, arguments=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string type: 
+        :param string command: 
+        :param integer seq: Sequence number.
+        :param PydevdSystemInfoArguments arguments: 
+        """
+        self.type = 'request'
+        self.command = 'pydevdSystemInfo'
+        self.seq = seq
+        if arguments is None:
+            self.arguments = PydevdSystemInfoArguments()
+        else:
+            self.arguments = PydevdSystemInfoArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  PydevdSystemInfoArguments else arguments
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        seq = self.seq
+        arguments = self.arguments
+        dct = {
+            'type': type,
+            'command': command,
+            'seq': seq,
+        }
+        if arguments is not None:
+            dct['arguments'] = arguments.to_dict(update_ids_to_dap=update_ids_to_dap)
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class PydevdSystemInfoArguments(BaseSchema):
+    """
+    Arguments for 'pydevdSystemInfo' request.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {}
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+    
+        """
+    
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        dct = {
+        }
+        dct.update(self.kwargs)
+        return dct
+
+
+@register_response('pydevdSystemInfo')
+@register
+class PydevdSystemInfoResponse(BaseSchema):
+    """
+    Response to 'pydevdSystemInfo' request.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "seq": {
+            "type": "integer",
+            "description": "Sequence number."
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "response"
+            ]
+        },
+        "request_seq": {
+            "type": "integer",
+            "description": "Sequence number of the corresponding request."
+        },
+        "success": {
+            "type": "boolean",
+            "description": "Outcome of the request."
+        },
+        "command": {
+            "type": "string",
+            "description": "The command requested."
+        },
+        "message": {
+            "type": "string",
+            "description": "Contains error message if success == false."
+        },
+        "body": {
+            "type": "object",
+            "properties": {
+                "python": {
+                    "$ref": "#/definitions/PydevdPythonInfo",
+                    "description": "Information about the python version running in the current process."
+                },
+                "platform": {
+                    "$ref": "#/definitions/PydevdPlatformInfo",
+                    "description": "Information about the plarforn on which the current process is running."
+                },
+                "process": {
+                    "$ref": "#/definitions/PydevdProcessInfo",
+                    "description": "Information about the current process."
+                }
+            },
+            "required": [
+                "python",
+                "platform",
+                "process"
+            ]
+        }
+    }
+    __refs__ = set(['body'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string type: 
+        :param integer request_seq: Sequence number of the corresponding request.
+        :param boolean success: Outcome of the request.
+        :param string command: The command requested.
+        :param PydevdSystemInfoResponseBody body: 
+        :param integer seq: Sequence number.
+        :param string message: Contains error message if success == false.
+        """
+        self.type = 'response'
+        self.request_seq = request_seq
+        self.success = success
+        self.command = command
+        if body is None:
+            self.body = PydevdSystemInfoResponseBody()
+        else:
+            self.body = PydevdSystemInfoResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  PydevdSystemInfoResponseBody else body
+        self.seq = seq
+        self.message = message
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
+        dct = {
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
+        }
+        if message is not None:
+            dct['message'] = message
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class PydevdPythonInfo(BaseSchema):
+    """
+    This object contains python version and implementation details.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "version": {
+            "type": "string",
+            "description": "Python version as a string in semver format: <major>.<minor>.<micro><releaselevel><serial>."
+        },
+        "implementation": {
+            "description": "Python version as a string in this format <major>.<minor>.<micro><releaselevel><serial>.",
+            "type": "PydevdPythonImplementationInfo"
+        }
+    }
+    __refs__ = set(['implementation'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, version=None, implementation=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string version: Python version as a string in semver format: <major>.<minor>.<micro><releaselevel><serial>.
+        :param PydevdPythonImplementationInfo implementation: Python version as a string in this format <major>.<minor>.<micro><releaselevel><serial>.
+        """
+        self.version = version
+        if implementation is None:
+            self.implementation = PydevdPythonImplementationInfo()
+        else:
+            self.implementation = PydevdPythonImplementationInfo(update_ids_from_dap=update_ids_from_dap, **implementation) if implementation.__class__ !=  PydevdPythonImplementationInfo else implementation
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        version = self.version
+        implementation = self.implementation
+        dct = {
+        }
+        if version is not None:
+            dct['version'] = version
+        if implementation is not None:
+            dct['implementation'] = implementation.to_dict(update_ids_to_dap=update_ids_to_dap)
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class PydevdPythonImplementationInfo(BaseSchema):
+    """
+    This object contains python implementation details.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "name": {
+            "type": "string",
+            "description": "Python implementation name."
+        },
+        "version": {
+            "type": "string",
+            "description": "Python version as a string in semver format: <major>.<minor>.<micro><releaselevel><serial>."
+        },
+        "description": {
+            "type": "string",
+            "description": "Optional description for this python implementation."
+        }
+    }
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, name=None, version=None, description=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string name: Python implementation name.
+        :param string version: Python version as a string in semver format: <major>.<minor>.<micro><releaselevel><serial>.
+        :param string description: Optional description for this python implementation.
+        """
+        self.name = name
+        self.version = version
+        self.description = description
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        name = self.name
+        version = self.version
+        description = self.description
+        dct = {
+        }
+        if name is not None:
+            dct['name'] = name
+        if version is not None:
+            dct['version'] = version
+        if description is not None:
+            dct['description'] = description
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class PydevdPlatformInfo(BaseSchema):
+    """
+    This object contains python version and implementation details.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "name": {
+            "type": "string",
+            "description": "Name of the platform as returned by 'sys.platform'."
+        }
+    }
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, name=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string name: Name of the platform as returned by 'sys.platform'.
+        """
+        self.name = name
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        name = self.name
+        dct = {
+        }
+        if name is not None:
+            dct['name'] = name
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class PydevdProcessInfo(BaseSchema):
+    """
+    This object contains python process details.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "pid": {
+            "type": "integer",
+            "description": "Process ID for the current process."
+        },
+        "executable": {
+            "type": "string",
+            "description": "Path to the executable as returned by 'sys.executable'."
+        },
+        "bitness": {
+            "type": "integer",
+            "description": "Integer value indicating the bitness of the current process."
+        }
+    }
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, pid=None, executable=None, bitness=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param integer pid: Process ID for the current process.
+        :param string executable: Path to the executable as returned by 'sys.executable'.
+        :param integer bitness: Integer value indicating the bitness of the current process.
+        """
+        self.pid = pid
+        self.executable = executable
+        self.bitness = bitness
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        pid = self.pid
+        executable = self.executable
+        bitness = self.bitness
+        dct = {
+        }
+        if pid is not None:
+            dct['pid'] = pid
+        if executable is not None:
+            dct['executable'] = executable
+        if bitness is not None:
+            dct['bitness'] = bitness
         dct.update(self.kwargs)
         return dct
 
@@ -13227,23 +14603,29 @@ class ProcessEventBody(BaseSchema):
                 "Debugger attached to an existing process.",
                 "A project launcher component has launched a new process in a suspended state and then asked the debugger to attach."
             ]
+        },
+        "pointerSize": {
+            "type": "integer",
+            "description": "The size of a pointer or address for this process, in bits. This value may be used by clients when formatting addresses for display."
         }
     }
     __refs__ = set()
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, name, systemProcessId=None, isLocalProcess=None, startMethod=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, name, systemProcessId=None, isLocalProcess=None, startMethod=None, pointerSize=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string name: The logical name of the process. This is usually the full path to process's executable file. Example: /home/example/myproj/program.js.
         :param integer systemProcessId: The system process id of the debugged process. This property will be missing for non-system processes.
         :param boolean isLocalProcess: If true, the process is running on the same computer as the debug adapter.
         :param string startMethod: Describes how the debug engine started debugging this process.
+        :param integer pointerSize: The size of a pointer or address for this process, in bits. This value may be used by clients when formatting addresses for display.
         """
         self.name = name
         self.systemProcessId = systemProcessId
         self.isLocalProcess = isLocalProcess
         self.startMethod = startMethod
+        self.pointerSize = pointerSize
         self.kwargs = kwargs
 
 
@@ -13252,6 +14634,7 @@ class ProcessEventBody(BaseSchema):
         systemProcessId = self.systemProcessId
         isLocalProcess = self.isLocalProcess
         startMethod = self.startMethod
+        pointerSize = self.pointerSize
         dct = {
             'name': name,
         }
@@ -13261,6 +14644,8 @@ class ProcessEventBody(BaseSchema):
             dct['isLocalProcess'] = isLocalProcess
         if startMethod is not None:
             dct['startMethod'] = startMethod
+        if pointerSize is not None:
+            dct['pointerSize'] = pointerSize
         dct.update(self.kwargs)
         return dct
 
@@ -13410,6 +14795,8 @@ class SetBreakpointsResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         breakpoints = self.breakpoints
+        if breakpoints and hasattr(breakpoints[0], "to_dict"):
+            breakpoints = [x.to_dict() for x in breakpoints]
         dct = {
             'breakpoints': [Breakpoint.update_dict_ids_to_dap(o) for o in breakpoints] if (update_ids_to_dap and breakpoints) else breakpoints,
         }
@@ -13451,6 +14838,8 @@ class SetFunctionBreakpointsResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         breakpoints = self.breakpoints
+        if breakpoints and hasattr(breakpoints[0], "to_dict"):
+            breakpoints = [x.to_dict() for x in breakpoints]
         dct = {
             'breakpoints': [Breakpoint.update_dict_ids_to_dap(o) for o in breakpoints] if (update_ids_to_dap and breakpoints) else breakpoints,
         }
@@ -13515,6 +14904,8 @@ class DataBreakpointInfoResponseBody(BaseSchema):
         dataId = self.dataId
         description = self.description
         accessTypes = self.accessTypes
+        if accessTypes and hasattr(accessTypes[0], "to_dict"):
+            accessTypes = [x.to_dict() for x in accessTypes]
         canPersist = self.canPersist
         dct = {
             'dataId': dataId,
@@ -13562,6 +14953,8 @@ class SetDataBreakpointsResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         breakpoints = self.breakpoints
+        if breakpoints and hasattr(breakpoints[0], "to_dict"):
+            breakpoints = [x.to_dict() for x in breakpoints]
         dct = {
             'breakpoints': [Breakpoint.update_dict_ids_to_dap(o) for o in breakpoints] if (update_ids_to_dap and breakpoints) else breakpoints,
         }
@@ -13646,6 +15039,8 @@ class StackTraceResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         stackFrames = self.stackFrames
+        if stackFrames and hasattr(stackFrames[0], "to_dict"):
+            stackFrames = [x.to_dict() for x in stackFrames]
         totalFrames = self.totalFrames
         dct = {
             'stackFrames': [StackFrame.update_dict_ids_to_dap(o) for o in stackFrames] if (update_ids_to_dap and stackFrames) else stackFrames,
@@ -13690,6 +15085,8 @@ class ScopesResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         scopes = self.scopes
+        if scopes and hasattr(scopes[0], "to_dict"):
+            scopes = [x.to_dict() for x in scopes]
         dct = {
             'scopes': [Scope.update_dict_ids_to_dap(o) for o in scopes] if (update_ids_to_dap and scopes) else scopes,
         }
@@ -13731,6 +15128,8 @@ class VariablesResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         variables = self.variables
+        if variables and hasattr(variables[0], "to_dict"):
+            variables = [x.to_dict() for x in variables]
         dct = {
             'variables': [Variable.update_dict_ids_to_dap(o) for o in variables] if (update_ids_to_dap and variables) else variables,
         }
@@ -13906,6 +15305,8 @@ class ThreadsResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         threads = self.threads
+        if threads and hasattr(threads[0], "to_dict"):
+            threads = [x.to_dict() for x in threads]
         dct = {
             'threads': [Thread.update_dict_ids_to_dap(o) for o in threads] if (update_ids_to_dap and threads) else threads,
         }
@@ -13953,6 +15354,8 @@ class ModulesResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         modules = self.modules
+        if modules and hasattr(modules[0], "to_dict"):
+            modules = [x.to_dict() for x in modules]
         totalModules = self.totalModules
         dct = {
             'modules': [Module.update_dict_ids_to_dap(o) for o in modules] if (update_ids_to_dap and modules) else modules,
@@ -13997,6 +15400,8 @@ class LoadedSourcesResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         sources = self.sources
+        if sources and hasattr(sources[0], "to_dict"):
+            sources = [x.to_dict() for x in sources]
         dct = {
             'sources': [Source.update_dict_ids_to_dap(o) for o in sources] if (update_ids_to_dap and sources) else sources,
         }
@@ -14036,13 +15441,17 @@ class EvaluateResponseBody(BaseSchema):
         "indexedVariables": {
             "type": "number",
             "description": "The number of indexed child variables.\nThe client can use this optional information to present the variables in a paged UI and fetch them in chunks."
+        },
+        "memoryReference": {
+            "type": "string",
+            "description": "Memory reference to a location appropriate for this result. For pointer type eval results, this is generally a reference to the memory address contained in the pointer."
         }
     }
     __refs__ = set(['presentationHint'])
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, result, variablesReference, type=None, presentationHint=None, namedVariables=None, indexedVariables=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, result, variablesReference, type=None, presentationHint=None, namedVariables=None, indexedVariables=None, memoryReference=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string result: The result of the evaluate request.
         :param number variablesReference: If variablesReference is > 0, the evaluate result is structured and its children can be retrieved by passing variablesReference to the VariablesRequest.
@@ -14052,6 +15461,7 @@ class EvaluateResponseBody(BaseSchema):
         The client can use this optional information to present the variables in a paged UI and fetch them in chunks.
         :param number indexedVariables: The number of indexed child variables.
         The client can use this optional information to present the variables in a paged UI and fetch them in chunks.
+        :param string memoryReference: Memory reference to a location appropriate for this result. For pointer type eval results, this is generally a reference to the memory address contained in the pointer.
         """
         self.result = result
         self.variablesReference = variablesReference
@@ -14062,6 +15472,7 @@ class EvaluateResponseBody(BaseSchema):
             self.presentationHint = VariablePresentationHint(update_ids_from_dap=update_ids_from_dap, **presentationHint) if presentationHint.__class__ !=  VariablePresentationHint else presentationHint
         self.namedVariables = namedVariables
         self.indexedVariables = indexedVariables
+        self.memoryReference = memoryReference
         if update_ids_from_dap:
             self.variablesReference = self._translate_id_from_dap(self.variablesReference)
         self.kwargs = kwargs
@@ -14080,6 +15491,7 @@ class EvaluateResponseBody(BaseSchema):
         presentationHint = self.presentationHint
         namedVariables = self.namedVariables
         indexedVariables = self.indexedVariables
+        memoryReference = self.memoryReference
         if update_ids_to_dap:
             if variablesReference is not None:
                 variablesReference = self._translate_id_to_dap(variablesReference)
@@ -14095,6 +15507,8 @@ class EvaluateResponseBody(BaseSchema):
             dct['namedVariables'] = namedVariables
         if indexedVariables is not None:
             dct['indexedVariables'] = indexedVariables
+        if memoryReference is not None:
+            dct['memoryReference'] = memoryReference
         dct.update(self.kwargs)
         return dct    
     
@@ -14241,6 +15655,8 @@ class StepInTargetsResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         targets = self.targets
+        if targets and hasattr(targets[0], "to_dict"):
+            targets = [x.to_dict() for x in targets]
         dct = {
             'targets': [StepInTarget.update_dict_ids_to_dap(o) for o in targets] if (update_ids_to_dap and targets) else targets,
         }
@@ -14282,6 +15698,8 @@ class GotoTargetsResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         targets = self.targets
+        if targets and hasattr(targets[0], "to_dict"):
+            targets = [x.to_dict() for x in targets]
         dct = {
             'targets': [GotoTarget.update_dict_ids_to_dap(o) for o in targets] if (update_ids_to_dap and targets) else targets,
         }
@@ -14323,6 +15741,8 @@ class CompletionsResponseBody(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         targets = self.targets
+        if targets and hasattr(targets[0], "to_dict"):
+            targets = [x.to_dict() for x in targets]
         dct = {
             'targets': [CompletionItem.update_dict_ids_to_dap(o) for o in targets] if (update_ids_to_dap and targets) else targets,
         }
@@ -14396,6 +15816,102 @@ class ExceptionInfoResponseBody(BaseSchema):
 
 
 @register
+class ReadMemoryResponseBody(BaseSchema):
+    """
+    "body" of ReadMemoryResponse
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "address": {
+            "type": "string",
+            "description": "The address of the first byte of data returned. Treated as a hex value if prefixed with '0x', or as a decimal value otherwise."
+        },
+        "unreadableBytes": {
+            "type": "integer",
+            "description": "The number of unreadable bytes encountered after the last successfully read byte. This can be used to determine the number of bytes that must be skipped before a subsequent 'readMemory' request will succeed."
+        },
+        "data": {
+            "type": "string",
+            "description": "The bytes read from memory, encoded using base64."
+        }
+    }
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, address, unreadableBytes=None, data=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string address: The address of the first byte of data returned. Treated as a hex value if prefixed with '0x', or as a decimal value otherwise.
+        :param integer unreadableBytes: The number of unreadable bytes encountered after the last successfully read byte. This can be used to determine the number of bytes that must be skipped before a subsequent 'readMemory' request will succeed.
+        :param string data: The bytes read from memory, encoded using base64.
+        """
+        self.address = address
+        self.unreadableBytes = unreadableBytes
+        self.data = data
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        address = self.address
+        unreadableBytes = self.unreadableBytes
+        data = self.data
+        dct = {
+            'address': address,
+        }
+        if unreadableBytes is not None:
+            dct['unreadableBytes'] = unreadableBytes
+        if data is not None:
+            dct['data'] = data
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class DisassembleResponseBody(BaseSchema):
+    """
+    "body" of DisassembleResponse
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "instructions": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/DisassembledInstruction"
+            },
+            "description": "The list of disassembled instructions."
+        }
+    }
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, instructions, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param array instructions: The list of disassembled instructions.
+        """
+        self.instructions = instructions
+        if update_ids_from_dap and self.instructions:
+            for o in self.instructions:
+                DisassembledInstruction.update_dict_ids_from_dap(o)
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        instructions = self.instructions
+        if instructions and hasattr(instructions[0], "to_dict"):
+            instructions = [x.to_dict() for x in instructions]
+        dct = {
+            'instructions': [DisassembledInstruction.update_dict_ids_to_dap(o) for o in instructions] if (update_ids_to_dap and instructions) else instructions,
+        }
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
 class MessageVariables(BaseSchema):
     """
     "variables" of Message
@@ -14418,6 +15934,66 @@ class MessageVariables(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         dct = {
+        }
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class PydevdSystemInfoResponseBody(BaseSchema):
+    """
+    "body" of PydevdSystemInfoResponse
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "python": {
+            "description": "Information about the python version running in the current process.",
+            "type": "PydevdPythonInfo"
+        },
+        "platform": {
+            "description": "Information about the plarforn on which the current process is running.",
+            "type": "PydevdPlatformInfo"
+        },
+        "process": {
+            "description": "Information about the current process.",
+            "type": "PydevdProcessInfo"
+        }
+    }
+    __refs__ = set(['python', 'platform', 'process'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, python, platform, process, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param PydevdPythonInfo python: Information about the python version running in the current process.
+        :param PydevdPlatformInfo platform: Information about the plarforn on which the current process is running.
+        :param PydevdProcessInfo process: Information about the current process.
+        """
+        if python is None:
+            self.python = PydevdPythonInfo()
+        else:
+            self.python = PydevdPythonInfo(update_ids_from_dap=update_ids_from_dap, **python) if python.__class__ !=  PydevdPythonInfo else python
+        if platform is None:
+            self.platform = PydevdPlatformInfo()
+        else:
+            self.platform = PydevdPlatformInfo(update_ids_from_dap=update_ids_from_dap, **platform) if platform.__class__ !=  PydevdPlatformInfo else platform
+        if process is None:
+            self.process = PydevdProcessInfo()
+        else:
+            self.process = PydevdProcessInfo(update_ids_from_dap=update_ids_from_dap, **process) if process.__class__ !=  PydevdProcessInfo else process
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        python = self.python
+        platform = self.platform
+        process = self.process
+        dct = {
+            'python': python.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'platform': platform.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'process': process.to_dict(update_ids_to_dap=update_ids_to_dap),
         }
         dct.update(self.kwargs)
         return dct

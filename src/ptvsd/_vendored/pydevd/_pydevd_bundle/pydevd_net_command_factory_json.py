@@ -14,7 +14,7 @@ from _pydevd_bundle.pydevd_comm_constants import CMD_THREAD_CREATE, CMD_RETURN, 
     CMD_WRITE_TO_CONSOLE, CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE, \
     CMD_STEP_RETURN, CMD_STEP_CAUGHT_EXCEPTION, CMD_ADD_EXCEPTION_BREAK, CMD_SET_BREAK, \
     CMD_SET_NEXT_STATEMENT, CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION, \
-    CMD_THREAD_RESUME_SINGLE_NOTIFICATION, CMD_THREAD_KILL, CMD_INPUT_REQUESTED
+    CMD_THREAD_RESUME_SINGLE_NOTIFICATION, CMD_THREAD_KILL, CMD_STOP_ON_START, CMD_INPUT_REQUESTED
 from _pydevd_bundle.pydevd_constants import get_thread_id, dict_values
 from _pydevd_bundle.pydevd_net_command import NetCommand, NULL_NET_COMMAND
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
@@ -90,6 +90,10 @@ class NetCommandFactoryJson(NetCommandFactory):
 
     @overrides(NetCommandFactory.make_version_message)
     def make_version_message(self, seq):
+        return NULL_NET_COMMAND  # Not a part of the debug adapter protocol
+
+    @overrides(NetCommandFactory.make_protocol_set_message)
+    def make_protocol_set_message(self, seq):
         return NULL_NET_COMMAND  # Not a part of the debug adapter protocol
 
     @overrides(NetCommandFactory.make_thread_created_message)
@@ -211,7 +215,7 @@ class NetCommandFactoryJson(NetCommandFactory):
                         if py_db.is_files_filter_enabled and py_db.apply_files_filter(frame, original_filename, False):
                             continue
 
-                        if not py_db.in_project_scope(original_filename):
+                        if not py_db.in_project_scope(frame):
                             presentation_hint = 'subtle'
 
                     formatted_name = self._format_frame_name(fmt, method_name, module_name, lineno, filename_in_utf8)
@@ -269,7 +273,10 @@ class NetCommandFactoryJson(NetCommandFactory):
         info = set_additional_thread_info(thread)
 
         if stop_reason in self._STEP_REASONS:
-            if info.pydev_stop_on_entry:
+            if info.pydev_original_step_cmd == CMD_STOP_ON_START:
+
+                # Just to make sure that's not set as the original reason anymore.
+                info.pydev_original_step_cmd = -1
                 stop_reason = 'entry'
             else:
                 stop_reason = 'step'
@@ -281,9 +288,6 @@ class NetCommandFactoryJson(NetCommandFactory):
             stop_reason = 'goto'
         else:
             stop_reason = 'pause'
-
-        # At this point we are stopped. This should be false going forward.
-        info.pydev_stop_on_entry = False
 
         if stop_reason == 'exception':
             exception_info_response = build_exception_info_response(
@@ -299,7 +303,7 @@ class NetCommandFactoryJson(NetCommandFactory):
             threadId=thread_id,
             text=exc_name,
             allThreadsStopped=True,
-            preserveFocusHint=stop_reason not in ['step', 'exception', 'breakpoint', 'entry'],
+            preserveFocusHint=stop_reason not in ['step', 'exception', 'breakpoint', 'entry', 'goto'],
         )
         event = pydevd_schema.StoppedEvent(body)
         return NetCommand(CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION, 0, event, is_json=True)
@@ -346,5 +350,16 @@ class NetCommandFactoryJson(NetCommandFactory):
 
     @overrides(NetCommandFactory.make_input_requested_message)
     def make_input_requested_message(self, started):
-        event = pydevd_schema.PydevdInputEvent(body={})
+        event = pydevd_schema.PydevdInputRequestedEvent(body={})
         return NetCommand(CMD_INPUT_REQUESTED, 0, event, is_json=True)
+
+    @overrides(NetCommandFactory.make_skipped_step_in_because_of_filters)
+    def make_skipped_step_in_because_of_filters(self, py_db, frame):
+        msg = 'Frame skipped from debugging during step-in.'
+        if py_db.get_use_libraries_filter():
+            msg += '\nNote: may have been skipped because of "justMyCode" option (default == true).'
+
+        body = OutputEventBody(msg, category='console')
+        event = OutputEvent(body)
+        return NetCommand(CMD_WRITE_TO_CONSOLE, 0, event, is_json=True)
+

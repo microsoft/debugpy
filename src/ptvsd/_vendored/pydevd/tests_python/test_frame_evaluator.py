@@ -41,7 +41,7 @@ def test_thread_info(_times):
 
 
 def method():
-    pass
+    return sys._getframe()
 
 
 @pytest.fixture
@@ -60,17 +60,17 @@ def test_func_code_info(_times, _custom_global_dbg):
     # Must be called before get_func_code_info_py to initialize the _code_extra_index.
     pydevd_frame_evaluator.get_thread_info_py()
 
-    func_info = pydevd_frame_evaluator.get_func_code_info_py(method.__code__)
+    func_info = pydevd_frame_evaluator.get_func_code_info_py(method(), method.__code__)
     assert func_info.co_filename is method.__code__.co_filename
-    func_info2 = pydevd_frame_evaluator.get_func_code_info_py(method.__code__)
+    func_info2 = pydevd_frame_evaluator.get_func_code_info_py(method(), method.__code__)
     assert func_info is func_info2
 
-    some_func = eval('lambda:0')
-    func_info3 = pydevd_frame_evaluator.get_func_code_info_py(some_func.__code__)
+    some_func = eval('lambda:sys._getframe()')
+    func_info3 = pydevd_frame_evaluator.get_func_code_info_py(some_func(), some_func.__code__)
     del some_func
     del func_info3
 
-    some_func = eval('lambda:0')
-    pydevd_frame_evaluator.get_func_code_info_py(some_func.__code__)
-    func_info = pydevd_frame_evaluator.get_func_code_info_py(some_func.__code__)
-    assert pydevd_frame_evaluator.get_func_code_info_py(some_func.__code__) is func_info
+    some_func = eval('lambda:sys._getframe()')
+    pydevd_frame_evaluator.get_func_code_info_py(some_func(), some_func.__code__)
+    func_info = pydevd_frame_evaluator.get_func_code_info_py(some_func(), some_func.__code__)
+    assert pydevd_frame_evaluator.get_func_code_info_py(some_func(), some_func.__code__) is func_info

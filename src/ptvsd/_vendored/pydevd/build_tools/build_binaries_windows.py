@@ -13,17 +13,15 @@ import os
 import subprocess
 import sys
 
-miniconda_envs = os.getenv('MINICONDA_ENVS', r'C:\bin\Miniconda\envs')
+miniconda_envs = os.getenv('MINICONDA_ENVS', r'C:\bin\Miniconda3\envs')
 
 python_installations = [
     r'%s\py27_32\python.exe' % miniconda_envs,
-    r'%s\py34_32\python.exe' % miniconda_envs,
     r'%s\py35_32\python.exe' % miniconda_envs,
     r'%s\py36_32\python.exe' % miniconda_envs,
     r'%s\py37_32\python.exe' % miniconda_envs,
 
     r'%s\py27_64\python.exe' % miniconda_envs,
-    r'%s\py34_64\python.exe' % miniconda_envs,
     r'%s\py35_64\python.exe' % miniconda_envs,
     r'%s\py36_64\python.exe' % miniconda_envs,
     r'%s\py37_64\python.exe' % miniconda_envs,
@@ -61,8 +59,8 @@ def main():
 
     for i, python_install in enumerate(python_installations):
         print()
-        print('*'*80)
-        print('*'*80)
+        print('*' * 80)
+        print('*' * 80)
         print()
         new_name = 'pydevd_cython_%s_%s' % (sys.platform, extract_version(python_install))
         args = [

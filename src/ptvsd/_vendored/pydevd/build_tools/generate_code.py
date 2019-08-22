@@ -7,6 +7,7 @@ from __future__ import print_function
 
 import os
 import struct
+import re
 
 
 def is_python_64bit():
@@ -21,6 +22,8 @@ def get_cython_contents(filename):
         filename = filename[:-1]
 
     state = 'regular'
+
+    replacements = []
 
     new_contents = []
     with open(filename, 'r') as stream:
@@ -50,7 +53,16 @@ def get_cython_contents(filename):
                     continue
 
                 assert strip.startswith('# '), 'Line inside # IFDEF CYTHON must start with "# ". Found: %s' % (strip,)
-                new_contents.append(line.replace('# ', '', 1))
+                strip = strip.replace('# ', '', 1).strip()
+
+                if strip.startswith('cython_inline_constant:'):
+                    strip = strip.replace('cython_inline_constant:', '')
+                    word_to_replace, replacement = strip.split('=')
+                    replacements.append((word_to_replace.strip(), replacement.strip()))
+                    continue
+
+                line = line.replace('# ', '', 1)
+                new_contents.append(line)
 
             elif state == 'nocython':
                 if strip == '# ENDIF':
@@ -61,7 +73,12 @@ def get_cython_contents(filename):
 
     assert state == 'regular', 'Error: # IFDEF CYTHON found without # ENDIF'
 
-    return ''.join(new_contents)
+    ret = ''.join(new_contents)
+
+    for (word_to_replace, replacement) in replacements:
+        ret = re.sub(r"\b%s\b" % (word_to_replace,), replacement, ret)
+
+    return ret
 
 
 def _generate_cython_from_files(target, modules):

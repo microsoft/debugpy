@@ -44,6 +44,7 @@ class DummyPyDb(PyDB):
             self, thread, frame, event, arg, *args, **kwargs):
         from _pydevd_bundle.pydevd_constants import STATE_RUN
         info = thread.additional_info
+        info.pydev_original_step_cmd = -1
         info.pydev_step_cmd = -1
         info.pydev_step_stop = None
         info.pydev_state = STATE_RUN

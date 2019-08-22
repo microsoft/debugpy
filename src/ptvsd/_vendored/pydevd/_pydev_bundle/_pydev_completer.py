@@ -192,6 +192,8 @@ def completions_to_xml(completions):
     msg = ["<xml>"]
 
     for comp in completions:
+        if IS_PY2:
+            comp = [(x.encode('utf-8') if x.__class__ == unicode else x) for x in comp]
         msg.append('<comp p0="')
         msg.append(valid_xml(quote(comp[0], '/>_= \t')))
         msg.append('" p1="')

@@ -1,17 +1,10 @@
 import linecache
 import os.path
 import re
-import sys
-import traceback  # @Reimport
 
 from _pydev_bundle import pydev_log
 from _pydevd_bundle import pydevd_dont_trace
-from _pydevd_bundle import pydevd_vars
-from _pydevd_bundle.pydevd_comm_constants import (CMD_STEP_CAUGHT_EXCEPTION, CMD_STEP_RETURN, CMD_STEP_OVER, CMD_SET_BREAK, \
-    CMD_STEP_INTO, CMD_SMART_STEP_INTO, CMD_RUN_TO_LINE, CMD_SET_NEXT_STATEMENT, CMD_STEP_INTO_MY_CODE,
-    CMD_STEP_RETURN_MY_CODE, CMD_STEP_OVER_MY_CODE)
-from _pydevd_bundle.pydevd_constants import STATE_SUSPEND, get_current_thread_id, STATE_RUN, dict_iter_values, IS_PY3K, \
-    dict_keys, RETURN_VALUES_DICT, NO_FTRACE
+from _pydevd_bundle.pydevd_constants import (dict_iter_values, IS_PY3K, RETURN_VALUES_DICT, NO_FTRACE)
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, just_raised, remove_exception_from_frame, ignore_exception_trace
 from _pydevd_bundle.pydevd_utils import get_clsname_for_code
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame, get_abs_path_real_path_and_base_from_file
@@ -19,7 +12,33 @@ try:
     from inspect import CO_GENERATOR
 except:
     CO_GENERATOR = 0
-from _pydevd_bundle.pydevd_constants import IS_PY2
+
+# IFDEF CYTHON
+# cython_inline_constant: CMD_STEP_INTO = 107
+# cython_inline_constant: CMD_STEP_INTO_MY_CODE = 144
+# cython_inline_constant: CMD_STEP_RETURN = 109
+# cython_inline_constant: CMD_STEP_RETURN_MY_CODE = 160
+# cython_inline_constant: CMD_STEP_OVER = 108
+# cython_inline_constant: CMD_STEP_OVER_MY_CODE = 159
+# cython_inline_constant: CMD_STEP_CAUGHT_EXCEPTION = 137
+# cython_inline_constant: CMD_SET_BREAK = 111
+# cython_inline_constant: CMD_SMART_STEP_INTO = 128
+# cython_inline_constant: STATE_RUN = 1
+# cython_inline_constant: STATE_SUSPEND = 2
+# ELSE
+# Note: those are now inlined on cython.
+CMD_STEP_INTO = 107
+CMD_STEP_INTO_MY_CODE = 144
+CMD_STEP_RETURN = 109
+CMD_STEP_RETURN_MY_CODE = 160
+CMD_STEP_OVER = 108
+CMD_STEP_OVER_MY_CODE = 159
+CMD_STEP_CAUGHT_EXCEPTION = 137
+CMD_SET_BREAK = 111
+CMD_SMART_STEP_INTO = 128
+STATE_RUN = 1
+STATE_SUSPEND = 2
+# ENDIF
 
 try:
     from _pydevd_bundle.pydevd_signature import send_signature_call_trace, send_signature_return_trace
@@ -134,6 +153,9 @@ class PyDBFrame:
                         exception, main_debugger.break_on_caught_exceptions)
 
                     if exception_breakpoint is not None:
+                        if exception is SystemExit and main_debugger.ignore_system_exit_code(value):
+                            return False, frame
+
                         if exception_breakpoint.condition is not None:
                             eval_result = main_debugger.handle_breakpoint_condition(info, exception_breakpoint, frame)
                             if not eval_result:
@@ -403,8 +425,7 @@ class PyDBFrame:
 
             if is_exception_event:
                 breakpoints_for_file = None
-                # CMD_STEP_OVER = 108, CMD_STEP_OVER_MY_CODE = 159
-                if stop_frame and stop_frame is not frame and step_cmd in (108, 159) and \
+                if stop_frame and stop_frame is not frame and step_cmd in (CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE) and \
                                 arg[0] in (StopIteration, GeneratorExit) and arg[2] is None:
                     if step_cmd == CMD_STEP_OVER:
                         info.pydev_step_cmd = CMD_STEP_INTO
@@ -418,11 +439,9 @@ class PyDBFrame:
                 # to make a step in or step over at that location).
                 # Note: this is especially troublesome when we're skipping code with the
                 # @DontTrace comment.
-                if stop_frame is frame and is_return and step_cmd in (108, 109, 159, 160):
-                    # CMD_STEP_OVER = 108, CMD_STEP_RETURN = 109, CMD_STEP_OVER_MY_CODE = 159, CMD_STEP_RETURN_MY_CODE = 160
-
+                if stop_frame is frame and is_return and step_cmd in (CMD_STEP_OVER, CMD_STEP_RETURN, CMD_STEP_OVER_MY_CODE, CMD_STEP_RETURN_MY_CODE):
                     if not frame.f_code.co_flags & 0x20:  # CO_GENERATOR = 0x20 (inspect.CO_GENERATOR)
-                        if step_cmd in (108, 109):
+                        if step_cmd in (CMD_STEP_OVER, CMD_STEP_RETURN):
                             info.pydev_step_cmd = CMD_STEP_INTO
                         else:
                             info.pydev_step_cmd = CMD_STEP_INTO_MY_CODE
@@ -436,17 +455,15 @@ class PyDBFrame:
                     # we can skip if:
                     # - we have no stop marked
                     # - we should make a step return/step over and we're not in the current frame
-                    # CMD_STEP_OVER = 108, CMD_STEP_RETURN = 109, CMD_STEP_OVER_MY_CODE = 159, CMD_STEP_RETURN_MY_CODE = 160
                     can_skip = (step_cmd == -1 and stop_frame is None) \
-                        or (step_cmd in (108, 109, 159, 160) and stop_frame is not frame)
+                        or (step_cmd in (CMD_STEP_OVER, CMD_STEP_RETURN, CMD_STEP_OVER_MY_CODE, CMD_STEP_RETURN_MY_CODE) and stop_frame is not frame)
 
                     if can_skip:
                         if plugin_manager is not None and (
                                 main_debugger.has_plugin_line_breaks or main_debugger.has_plugin_exception_breaks):
                             can_skip = plugin_manager.can_skip(main_debugger, frame)
 
-                        # CMD_STEP_OVER = 108, CMD_STEP_OVER_MY_CODE = 159
-                        if can_skip and main_debugger.show_return_values and info.pydev_step_cmd in (108, 159) and frame.f_back is info.pydev_step_stop:
+                        if can_skip and main_debugger.show_return_values and info.pydev_step_cmd in (CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE) and frame.f_back is info.pydev_step_stop:
                             # trace function for showing return values after step over
                             can_skip = False
 
@@ -626,8 +643,7 @@ class PyDBFrame:
                             stop = True
 
                     elif is_return and frame.f_back is not None:
-                        if main_debugger.get_file_type(
-                                get_abs_path_real_path_and_base_from_frame(frame.f_back)) == main_debugger.PYDEV_FILE:
+                        if main_debugger.get_file_type(frame.f_back) == main_debugger.PYDEV_FILE:
                             stop = False
                         else:
                             if force_check_project_scope or main_debugger.is_files_filter_enabled:
@@ -682,8 +698,7 @@ class PyDBFrame:
                 if stop and step_cmd != -1 and is_return and IS_PY3K and hasattr(frame, "f_back"):
                     f_code = getattr(frame.f_back, 'f_code', None)
                     if f_code is not None:
-                        if main_debugger.get_file_type(
-                                get_abs_path_real_path_and_base_from_file(f_code.co_filename)) == main_debugger.PYDEV_FILE:
+                        if main_debugger.get_file_type(frame.f_back) == main_debugger.PYDEV_FILE:
                             stop = False
 
                 if plugin_stop:
@@ -724,6 +739,7 @@ class PyDBFrame:
                         else:
                             # in jython we may not have a back frame
                             info.pydev_step_stop = None
+                            info.pydev_original_step_cmd = -1
                             info.pydev_step_cmd = -1
                             info.pydev_state = STATE_RUN
 
@@ -732,6 +748,7 @@ class PyDBFrame:
             except:
                 try:
                     pydev_log.exception()
+                    info.pydev_original_step_cmd = -1
                     info.pydev_step_cmd = -1
                 except:
                     return None if is_call else NO_FTRACE

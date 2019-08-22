@@ -436,6 +436,7 @@ class DebuggerRunner(object):
     @contextmanager
     def run_process(self, args, writer):
         process = self.create_process(args, writer)
+        writer.process = process
         stdout = []
         stderr = []
         finish = [False]
@@ -541,6 +542,7 @@ class AbstractWriterThread(threading.Thread):
 
     def __init__(self, *args, **kwargs):
         threading.Thread.__init__(self, *args, **kwargs)
+        self.process = None  # Set after the process is created.
         self.setDaemon(True)
         self.finished_ok = False
         self.finished_initialization = False
@@ -591,6 +593,15 @@ class AbstractWriterThread(threading.Thread):
                 'from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info',
                 "RuntimeWarning: Parent module '_pydevd_bundle._debug_adapter' not found while handling absolute import",
                 'import json',
+
+                # Issues with Jython and Java 9.
+                'WARNING: Illegal reflective access by org.python.core.PySystemState',
+                'WARNING: Please consider reporting this to the maintainers of org.python.core.PySystemState',
+                'WARNING: An illegal reflective access operation has occurred',
+                'WARNING: Illegal reflective access by jnr.posix.JavaLibCHelper',
+                'WARNING: Please consider reporting this to the maintainers of jnr.posix.JavaLibCHelper',
+                'WARNING: Use --illegal-access=warn to enable warnings of further illegal reflective access operations',
+                'WARNING: All illegal access operations will be denied in a future release',
                 ):
                 if expected in line:
                     return True
@@ -1225,6 +1236,39 @@ class AbstractWriterThread(threading.Thread):
             return 'Found stack: %s' % (self.get_frame_names(main_thread_id),)
 
         wait_for_condition(condition, msg, timeout=5, sleep=.5)
+
+    def create_request_thread(self, full_url):
+
+        class T(threading.Thread):
+
+            def wait_for_contents(self):
+                for _ in range(10):
+                    if hasattr(self, 'contents'):
+                        break
+                    time.sleep(.3)
+                else:
+                    raise AssertionError('Unable to get contents from server. Url: %s' % (full_url,))
+                return self.contents
+
+            def run(self):
+                try:
+                    from urllib.request import urlopen
+                except ImportError:
+                    from urllib import urlopen
+                for _ in range(10):
+                    try:
+                        stream = urlopen(full_url)
+                        contents = stream.read()
+                        if IS_PY3K:
+                            contents = contents.decode('utf-8')
+                        self.contents = contents
+                        break
+                    except IOError:
+                        continue
+
+        t = T()
+        t.daemon = True
+        return t
 
 
 def _get_debugger_test_file(filename):

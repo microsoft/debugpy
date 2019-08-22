@@ -22,6 +22,8 @@ from _pydevd_bundle.pydevd_constants import IS_WINDOWS
 from _pydevd_bundle.pydevd_comm_constants import CMD_RELOAD_CODE
 import json
 import pydevd_file_utils
+import subprocess
+import threading
 try:
     from urllib import unquote
 except ImportError:
@@ -190,6 +192,32 @@ def test_case_breakpoint_condition_exc(case_setup, skip_suspend_on_breakpoint_ex
         writer.write_remove_breakpoint(breakpoint_id)
 
         writer.write_run_thread(thread_id)
+
+        writer.finished_ok = True
+
+
+def test_case_remove_breakpoint(case_setup):
+    with case_setup.test_file('_debugger_case_remove_breakpoint.py') as writer:
+        breakpoint_id = writer.write_add_breakpoint(writer.get_line_index_with_content('break here'))
+        writer.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit()
+        writer.write_remove_breakpoint(breakpoint_id)
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+
+
+def test_case_double_remove_breakpoint(case_setup):
+
+    with case_setup.test_file('_debugger_case_remove_breakpoint.py') as writer:
+        breakpoint_id = writer.write_add_breakpoint(writer.get_line_index_with_content('break here'))
+        writer.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit()
+        writer.write_remove_breakpoint(breakpoint_id)
+        writer.write_remove_breakpoint(breakpoint_id)  # Double-remove (just check that we don't have an error).
+        writer.write_run_thread(hit.thread_id)
 
         writer.finished_ok = True
 
@@ -2296,7 +2324,7 @@ def test_multiprocessing_simple(case_setup_multiprocessing, file_to_check):
         writer.write_make_initial_run()
         hit2 = writer.wait_for_breakpoint_hit()
         secondary_process_thread_communication.join(10)
-        if secondary_process_thread_communication.isAlive():
+        if secondary_process_thread_communication.is_alive():
             raise AssertionError('The SecondaryProcessThreadCommunication did not finish')
         writer.write_run_thread(hit2.thread_id)
         writer.finished_ok = True
@@ -2363,7 +2391,7 @@ def test_multiprocessing_with_stopped_breakpoints(case_setup_multiprocessing):
         main_hit = writer.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT)
 
         secondary_process_thread_communication.join(10)
-        if secondary_process_thread_communication.isAlive():
+        if secondary_process_thread_communication.is_alive():
             raise AssertionError('The SecondaryProcessThreadCommunication did not finish')
 
         writer.write_run_thread(hit2.thread_id)
@@ -2427,8 +2455,61 @@ def test_subprocess_quoted_args(case_setup_multiprocessing):
         writer.write_make_initial_run()
 
         secondary_process_thread_communication.join(10)
-        if secondary_process_thread_communication.isAlive():
+        if secondary_process_thread_communication.is_alive():
             raise AssertionError('The SecondaryProcessThreadCommunication did not finish')
+
+        writer.finished_ok = True
+
+
+def _attach_to_writer_pid(writer):
+    import pydevd
+    assert writer.process is not None
+
+    def attach():
+        attach_pydevd_file = os.path.join(os.path.dirname(pydevd.__file__), 'pydevd_attach_to_process', 'attach_pydevd.py')
+        subprocess.call([sys.executable, attach_pydevd_file, '--pid', str(writer.process.pid), '--port', str(writer.port)])
+
+    threading.Thread(target=attach).start()
+
+    wait_for_condition(lambda: writer.finished_initialization)
+
+
+@pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
+def test_attach_to_pid_no_threads(case_setup_remote):
+    with case_setup_remote.test_file('_debugger_case_attach_to_pid_simple.py', wait_for_port=False) as writer:
+        time.sleep(1)  # Give it some time to initialize to get to the while loop.
+        _attach_to_writer_pid(writer)
+
+        bp_line = writer.get_line_index_with_content('break here')
+        writer.write_add_breakpoint(bp_line)
+        writer.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit(line=bp_line)
+
+        writer.write_change_variable(hit.thread_id, hit.frame_id, 'wait', 'False')
+        writer.wait_for_var('<xml><var name="" type="bool"')
+
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
+def test_attach_to_pid_halted(case_setup_remote):
+    with case_setup_remote.test_file('_debugger_case_attach_to_pid_multiple_threads.py', wait_for_port=False) as writer:
+        time.sleep(1)  # Give it some time to initialize and get to the proper halting condition
+        _attach_to_writer_pid(writer)
+
+        bp_line = writer.get_line_index_with_content('break thread here')
+        writer.write_add_breakpoint(bp_line)
+        writer.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit(line=bp_line)
+
+        writer.write_change_variable(hit.thread_id, hit.frame_id, 'wait', 'False')
+        writer.wait_for_var('<xml><var name="" type="bool"')
+
+        writer.write_run_thread(hit.thread_id)
 
         writer.finished_ok = True
 
@@ -2452,6 +2533,32 @@ def test_remote_debugger_basic(case_setup_remote):
             writer.log.append('assert failed!')
             raise
         writer.log.append('asserted')
+
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
+def test_remote_debugger_threads(case_setup_remote):
+    with case_setup_remote.test_file('_debugger_case_remote_threads.py') as writer:
+        writer.write_make_initial_run()
+
+        hit_in_main = writer.wait_for_breakpoint_hit()
+
+        bp_line = writer.get_line_index_with_content('break here')
+        writer.write_add_breakpoint(bp_line)
+
+        # Break in the 2 threads.
+        hit_in_thread1 = writer.wait_for_breakpoint_hit(line=bp_line)
+        hit_in_thread2 = writer.wait_for_breakpoint_hit(line=bp_line)
+
+        writer.write_change_variable(hit_in_thread1.thread_id, hit_in_thread1.frame_id, 'wait', 'False')
+        writer.wait_for_var('<xml><var name="" type="bool"')
+        writer.write_change_variable(hit_in_thread2.thread_id, hit_in_thread2.frame_id, 'wait', 'False')
+        writer.wait_for_var('<xml><var name="" type="bool"')
+
+        writer.write_run_thread(hit_in_main.thread_id)
+        writer.write_run_thread(hit_in_thread1.thread_id)
+        writer.write_run_thread(hit_in_thread2.thread_id)
 
         writer.finished_ok = True
 
@@ -3250,6 +3357,29 @@ def test_step_over_my_code_global_setting_and_explicit_include(case_setup):
 
         # Although we filtered out non-project files, other.py is explicitly included.
         assert hit.name == 'call_me_back1'
+
+        writer.write_run_thread(hit.thread_id)
+        writer.finished_ok = True
+
+
+def test_namedtuple(case_setup):
+    '''
+    Check that we don't step into <string> in the namedtuple constructor.
+    '''
+    with case_setup.test_file('_debugger_case_namedtuple.py') as writer:
+        line = writer.get_line_index_with_content('break here')
+        writer.write_add_breakpoint(line)
+        writer.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit()
+
+        expected_line = line
+
+        for _ in range(2):
+            expected_line += 1
+            writer.write_step_in(hit.thread_id)
+            hit = writer.wait_for_breakpoint_hit(
+                reason=REASON_STEP_INTO, file='_debugger_case_namedtuple.py', line=expected_line)
 
         writer.write_run_thread(hit.thread_id)
         writer.finished_ok = True

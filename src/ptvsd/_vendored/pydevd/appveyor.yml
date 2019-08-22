@@ -63,6 +63,7 @@ install:
   - cmd: IF "%TEST_IRONPYTHON%"=="" (%PYTHON_EXE% -m pip install ipython --no-warn-script-location)
   - cmd: IF "%TEST_IRONPYTHON%"=="" (%PYTHON_EXE% -m pip install untangle --no-warn-script-location)
   - cmd: IF "%TEST_IRONPYTHON%"=="" IF %PYTHON_FOLDER%=="C:\\Python27" (%PYTHON_EXE% -m pip install django>=1.7,<1.8)
+  - cmd: IF "%TEST_IRONPYTHON%"=="" IF %PYTHON_FOLDER%=="C:\\Python37-x64" (%PYTHON_EXE% -m pip install cherrypy)
   - cmd: IF "%TEST_IRONPYTHON%"=="" (%PYTHON_EXE% -m pip install scapy==2.4.0 --no-warn-script-location)
   - cmd: "set PYTHONPATH=%PYTHONPATH%;%APPVEYOR_BUILD_FOLDER%"
 

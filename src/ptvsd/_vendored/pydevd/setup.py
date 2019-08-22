@@ -21,17 +21,20 @@ build_tools\pydevd_release_process.txt
 for release process.
 '''
 
-
 from setuptools import setup
 from setuptools.dist import Distribution
 from distutils.extension import Extension
 import os
 
+
 class BinaryDistribution(Distribution):
+
     def is_pure(self):
         return False
 
+
 data_files = []
+
 
 def accept_file(f):
     f = f.lower()
@@ -40,6 +43,7 @@ def accept_file(f):
             return True
 
     return f in ['readme', 'makefile']
+
 
 data_files.append(('pydevd_attach_to_process', [os.path.join('pydevd_attach_to_process', f) for f in os.listdir('pydevd_attach_to_process') if accept_file(f)]))
 for root, dirs, files in os.walk("pydevd_attach_to_process"):
@@ -52,7 +56,7 @@ version = pydevd.__version__
 args = dict(
     name='pydevd',
     version=version,
-    description = 'PyDev.Debugger (used in PyDev, PyCharm and VSCode Python)',
+    description='PyDev.Debugger (used in PyDev, PyCharm and VSCode Python)',
     author='Fabio Zadrozny and others',
     url='https://github.com/fabioz/PyDev.Debugger/',
     license='EPL (Eclipse Public License)',
@@ -67,7 +71,7 @@ args = dict(
 
         # 'pydev_sitecustomize', -- Not actually a package (not added)
 
-        # 'pydevd_attach_to_process', -- Not actually a package (included in MANIFEST.in)
+        'pydevd_attach_to_process',
 
         'pydevd_concurrency_analyser',
         'pydevd_plugins',
@@ -119,8 +123,6 @@ args = dict(
     zip_safe=False,
 )
 
-
-
 import sys
 try:
     args_with_binaries = args.copy()
@@ -129,7 +131,7 @@ try:
         ext_modules=[
             # In this setup, don't even try to compile with cython, just go with the .c file which should've
             # been properly generated from a tested version.
-            Extension('_pydevd_bundle.pydevd_cython', ["_pydevd_bundle/pydevd_cython.c",])
+            Extension('_pydevd_bundle.pydevd_cython', ["_pydevd_bundle/pydevd_cython.c", ])
         ]
     ))
     setup(**args_with_binaries)

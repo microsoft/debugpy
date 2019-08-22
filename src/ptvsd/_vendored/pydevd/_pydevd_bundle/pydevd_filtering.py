@@ -127,22 +127,23 @@ class FilesFiltering(object):
 
         # Stepping filters.
         pydevd_filters = os.getenv('PYDEVD_FILTERS', '')
-        if pydevd_filters.startswith('{'):
-            # dict(glob_pattern (str) -> exclude(True or False))
-            exclude_filters = []
-            for key, val in json.loads(pydevd_filters).items():
-                exclude_filters.append(ExcludeFilter(key, val, True))
-            self._exclude_filters = exclude_filters
-        else:
-            # A ';' separated list of strings with globs for the
-            # list of excludes.
-            filters = pydevd_filters.split(';')
-            pydev_log.debug("PYDEVD_FILTERS %s\n" % filters)
-            new_filters = []
-            for new_filter in filters:
-                if new_filter.strip():
-                    new_filters.append(ExcludeFilter(new_filter.strip(), True, True))
-            self._exclude_filters = new_filters
+        if pydevd_filters:
+            pydev_log.debug("PYDEVD_FILTERS %s", (pydevd_filters,))
+            if pydevd_filters.startswith('{'):
+                # dict(glob_pattern (str) -> exclude(True or False))
+                exclude_filters = []
+                for key, val in json.loads(pydevd_filters).items():
+                    exclude_filters.append(ExcludeFilter(key, val, True))
+                self._exclude_filters = exclude_filters
+            else:
+                # A ';' separated list of strings with globs for the
+                # list of excludes.
+                filters = pydevd_filters.split(';')
+                new_filters = []
+                for new_filter in filters:
+                    if new_filter.strip():
+                        new_filters.append(ExcludeFilter(new_filter.strip(), True, True))
+                self._exclude_filters = new_filters
 
     @classmethod
     def _get_default_library_roots(cls):
@@ -216,9 +217,16 @@ class FilesFiltering(object):
         '''
         Note: don't call directly. Use PyDb.in_project_scope (no caching here).
         '''
+        if filename.startswith('<'):  # Note: always use only startswith (pypy can have: "<builtin>some other name").
+            # This is a dummy filename that is usually used for eval or exec. Assume
+            # that it is user code, with one exception: <frozen ...> is used in the
+            # standard library.
+            in_project = not filename.startswith('<frozen ')
+            return in_project
+
         project_roots = self._get_project_roots()
-        if not filename.endswith('>'):
-            filename = self._normpath(filename)
+
+        filename = self._normpath(filename)
 
         found_in_project = []
         for root in project_roots:
@@ -235,13 +243,7 @@ class FilesFiltering(object):
             # If we have no project roots configured, consider it being in the project
             # roots if it's not found in site-packages (because we have defaults for those
             # and not the other way around).
-            if filename.endswith('>'):
-                # This is a dummy filename that is usually used for eval or exec. Assume
-                # that it is user code, with one exception: <frozen ...> is used in the
-                # standard library.
-                in_project = not filename.startswith('<frozen ')
-            else:
-                in_project = not found_in_library
+            in_project = not found_in_library
         else:
             in_project = False
             if found_in_project:
@@ -276,8 +278,6 @@ class FilesFiltering(object):
         for exclude_filter in self._exclude_filters:  # : :type exclude_filter: ExcludeFilter
             if exclude_filter.is_path:
                 if glob_matches_path(filename, exclude_filter.name):
-                    if exclude_filter.exclude:
-                        pydev_log.debug("File %s ignored by filter %s" % (filename, exclude_filter.name))
                     return exclude_filter.exclude
             else:
                 # Module filter.
