@@ -16,7 +16,7 @@ import time
 
 from ptvsd.common import compat, fmt, json, log
 from ptvsd.common.compat import unicode
-from tests import helpers, net, timeline, watchdog
+from tests import helpers, net, watchdog
 from tests.patterns import some
 
 
@@ -252,13 +252,6 @@ class Launch(DebugStartBase):
             self._launch_request.wait_for_response()
             self._wait_for_process_event()
 
-            # Issue 'threads' so that we get the 'thread' event for the main thread now,
-            # rather than at some random time later during the test.
-            # Note: it's actually possible that the 'thread' event was sent before the 'threads'
-            # request (although the 'threads' will force 'thread' to be sent if it still wasn't).
-            self.session.send_request("threads").wait_for_response()
-            self.session.expect_realized(timeline.Event("thread"))
-
     def stop_debugging(self, exit_code=0, **kwargs):
         exited_body = self.session.wait_for_next_event("exited")
         assert exited_body == some.dict.containing({"exitCode": exit_code})
@@ -428,13 +421,6 @@ class AttachBase(DebugStartBase):
             )
 
             self._attach_request.wait_for_response()
-
-            # Issue 'threads' so that we get the 'thread' event for the main thread now,
-            # rather than at some random time later during the test.
-            # Note: it's actually possible that the 'thread' event was sent before the 'threads'
-            # request (although the 'threads' will force 'thread' to be sent if it still wasn't).
-            self.session.request("threads")
-            self.session.expect_realized(timeline.Event("thread"))
 
     def stop_debugging(self, **kwargs):
         try:

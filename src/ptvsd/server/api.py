@@ -119,6 +119,7 @@ def break_into_debugger():
     while (
         stop_at_frame is not None
         and global_debugger.get_file_type(
+            stop_at_frame,
             get_abs_path_real_path_and_base_from_frame(stop_at_frame)
         )
         == global_debugger.PYDEV_FILE

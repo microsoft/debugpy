@@ -64,6 +64,7 @@ class Session(object):
         timeline.Event("continued"),
         timeline.Event("exited"),
         timeline.Event("terminated"),
+        timeline.Event("thread", some.dict.containing({"reason": "started"})),
         timeline.Event("thread", some.dict.containing({"reason": "exited"})),
         timeline.Event("output", some.dict.containing({"category": "stdout"})),
         timeline.Event("output", some.dict.containing({"category": "stderr"})),
@@ -337,14 +338,14 @@ class Session(object):
                 'to a "stackTrace" request in the timeline.'
             )
             stack_trace = stackTrace_responses[-1]
-            frame_id = stack_trace("stackFrames", json.array())[0]("id", int)
+            frame_id = stack_trace.body.get("stackFrames", json.array())[0]("id", int)
 
         scopes = self.request("scopes", {"frameId": frame_id})("scopes", json.array())
         assert len(scopes) > 0
 
         variables = self.request(
             "variables", {"variablesReference": scopes[0]("variablesReference", int)}
-        )("variables", json.object())
+        )("variables", json.array())
 
         variables = collections.OrderedDict(
             ((v("name", unicode), v) for v in variables)
