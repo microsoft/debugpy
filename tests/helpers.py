@@ -167,8 +167,8 @@ class BackChannel(object):
         return self._stream.read_json()
 
     def send(self, value):
-        self._established.wait()
         self.session.timeline.unfreeze()
+        self._established.wait()
         t = self.session.timeline.mark(('sending', value))
         self._stream.write_json(value)
         return t

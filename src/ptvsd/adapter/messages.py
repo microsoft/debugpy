@@ -14,6 +14,7 @@ from ptvsd.adapter import channels, debuggee, contract, options, state
 
 WAIT_FOR_PID_TIMEOUT = 10
 
+
 class _Shared(singleton.ThreadSafeSingleton):
     """Global state shared between IDE and server handlers, other than contracts.
     """
@@ -286,8 +287,19 @@ class IDEMessages(Messages):
             self._ide.send_event("initialized")
             return messaging.NO_RESPONSE  # will respond on "configurationDone"
         else:
+            request.respond({})
             state.change("running_nodebug")
-            return {}
+
+            # No server to send the "process" event, so do that here.
+            self._ide.send_event(
+                "process",
+                {
+                    "systemProcessId": debuggee.pid,
+                    "name": debuggee.process_name,
+                    "isLocalProcess": True,
+                    "startMethod": request.command,
+                },
+            )
 
     @_only_allowed_while("configuring")
     def configurationDone_request(self, request):
@@ -405,9 +417,10 @@ class IDEMessages(Messages):
                 return
 
             # Try to shut down the server gracefully, even though the adapter wasn't.
-            command = "terminate" if terminate_on_disconnect else "disconnect"
             try:
-                server.send_request(command)
+                server.send_request("disconnect", {
+                    "terminateDebuggee": terminate_on_disconnect,
+                })
             except Exception:
                 # The server might have already disconnected as well, or it might fail
                 # to handle the request. But we can't report failure to the IDE at this
@@ -481,7 +494,7 @@ class ServerMessages(Messages):
     @_only_allowed_while("configuring", "running")
     def output_event(self, event):
         category = event("category", "console")
-        if category not in debuggee.captured_output:
+        if debuggee.is_capturing_output(category):
             self._ide.propagate(event)
 
     @_only_allowed_while("running")
@@ -499,6 +512,9 @@ class ServerMessages(Messages):
 
     @_only_allowed_while("running")
     def exited_event(self, event):
+        # Make sure that all "output" events are sent before "exited".
+        debuggee.wait_for_remaining_output()
+
         # For "launch", the adapter will report the event itself by observing the
         # debuggee process directly, allowing the exit code to be captured more
         # accurately. Thus, there's no need to propagate it in that case.
@@ -510,28 +526,20 @@ class ServerMessages(Messages):
         log.info("Debug server disconnected.")
         _channels.close_server()
 
-        # In "launch", we must always report "exited", since we did not propagate it
-        # when the server reported it. In "attach", if the server disconnected without
-        # reporting "exited", we have no way to retrieve the exit code of the remote
-        # debuggee process - indeed, we don't even know if it exited or not.
-        report_exit = self._shared.start_method == "launch"
+        # The debuggee process should exit shortly after it has disconnected, but just
+        # in case it gets stuck, don't wait forever, and force-kill it if needed.
+        debuggee.terminate(after=5)
 
         try:
             state.change("shutting_down")
         except state.InvalidStateTransition:
             # The IDE has either disconnected already, or requested "disconnect".
-            # There's no point reporting "exited" anymore.
-            report_exit = False
+            pass
 
-        if report_exit:
-            # The debuggee process should exit shortly after it has disconnected, but just
-            # in case it gets stuck, don't wait forever, and force-kill it if needed.
-            debuggee.terminate(after=5)
-            exit_code = debuggee.exit_code
-            self._ide.send_event(
-                "exited", {"exitCode": -1 if exit_code is None else exit_code}
-            )
+        # Make sure that all "output" events are sent before "terminated".
+        debuggee.wait_for_remaining_output()
 
+        # Let the IDE know that we're not debugging anymore.
         self._ide.send_event("terminated")
 
     def release_events(self):

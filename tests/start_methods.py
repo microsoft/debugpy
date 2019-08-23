@@ -39,7 +39,7 @@ class DebugStartBase(object):
         self.session = session
         self.method = method
         self.captured_output = helpers.CapturedOutput(self.session)
-        self.debugee_process = None
+        self.debuggee_process = None
 
     def configure(self, run_as, target, **kwargs):
         pass
@@ -47,8 +47,24 @@ class DebugStartBase(object):
     def start_debugging(self, **kwargs):
         pass
 
-    def stop_debugging(self, **kwargs):
-        pass
+    def wait_for_debuggee(self, exit_code):
+        if exit_code is not None:
+            exited = self.session.wait_for_next_event("exited", freeze=False)
+            assert exited == some.dict.containing({"exitCode": exit_code})
+
+        self.session.wait_for_next_event("terminated")
+
+        if self.debuggee_process is None:
+            return
+
+        try:
+            self.debuggee_process.wait()
+        except Exception:
+            pass
+        finally:
+            watchdog.unregister_spawn(
+                self.debuggee_process.pid, self.session.debuggee_id
+            )
 
     def run_in_terminal(self, request, **kwargs):
         raise request.isnt_valid("not supported")
@@ -141,9 +157,9 @@ class Launch(DebugStartBase):
         run_as,
         target,
         pythonPath=sys.executable,
-        args=[],
+        args=(),
         cwd=None,
-        env=os.environ.copy(),
+        env=None,
         stopOnEntry=None,
         gevent=None,
         sudo=None,
@@ -155,6 +171,7 @@ class Launch(DebugStartBase):
         **kwargs
     ):
         assert console in ("internalConsole", "integratedTerminal", "externalTerminal")
+        env = {} if env is None else dict(env)
         debug_options = []
         launch_args.update(
             {
@@ -176,7 +193,7 @@ class Launch(DebugStartBase):
 
         if gevent:
             launch_args["gevent"] = gevent
-            launch_args["env"]["GEVENT_SUPPORT"] = "True"
+            env["GEVENT_SUPPORT"] = "True"
 
         if sudo:
             launch_args["sudo"] = sudo
@@ -227,7 +244,7 @@ class Launch(DebugStartBase):
         return launch_args
 
     def _wait_for_process_event(self):
-        process_body = self.session.wait_for_next_event("process")
+        process_body = self.session.wait_for_next_event("process", freeze=False)
         assert process_body == {
             "name": some.str,
             "isLocalProcess": True,
@@ -238,36 +255,34 @@ class Launch(DebugStartBase):
 
     def configure(self, run_as, target, **kwargs):
         self._launch_args = self._build_launch_args({}, run_as, target, **kwargs)
-        self._launch_request = self.session.send_request("launch", self._launch_args)
+        self.no_debug = self._launch_args.get("noDebug", False)
 
-        self.session.wait_for_next_event("initialized")
-
-        if self._launch_args.get("noDebug", False):
-            self._wait_for_process_event()
-            self._launch_request.wait_for_response()
+        if not self.no_debug:
+            self._launch_request = self.session.send_request(
+                "launch", self._launch_args
+            )
+            self.session.wait_for_next_event("initialized")
 
     def start_debugging(self):
-        if not self._launch_args.get("noDebug", False):
-            self.session.request("configurationDone")
-            self._launch_request.wait_for_response()
-            self._wait_for_process_event()
-
-    def stop_debugging(self, exit_code=0, **kwargs):
-        exited_body = self.session.wait_for_next_event("exited")
-        assert exited_body == some.dict.containing({"exitCode": exit_code})
-
-        self.session.wait_for_next_event("terminated")
-        try:
-            self.debugee_process.wait()
-        finally:
-            watchdog.unregister_spawn(
-                self.debugee_process.pid, self.session.debuggee_id
+        if self.no_debug:
+            self._launch_request = self.session.send_request(
+                "launch", self._launch_args
             )
+        else:
+            self.session.request("configurationDone")
+
+        self._launch_request.wait_for_response(freeze=False)
+        self._wait_for_process_event()
+
+    def wait_for_debuggee(self, exit_code=0):
+        super(Launch, self).wait_for_debuggee(exit_code)
 
     def run_in_terminal(self, request):
         args = request("args", json.array(unicode))
         cwd = request("cwd", unicode)
-        env = request("env", json.object(unicode))
+
+        env = os.environ.copy()
+        env.update(request("env", json.object(unicode)))
 
         if sys.version_info < (3,):
             args = [compat.filename_str(s) for s in args]
@@ -280,7 +295,7 @@ class Launch(DebugStartBase):
             self.session,
             self.session.debuggee_id,
         )
-        self.debugee_process = psutil.Popen(
+        self.debuggee_process = psutil.Popen(
             args,
             cwd=cwd,
             env=env,
@@ -289,14 +304,13 @@ class Launch(DebugStartBase):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        watchdog.register_spawn(self.debugee_process.pid, self.session.debuggee_id)
-        self.captured_output.capture(self.debugee_process)
+        watchdog.register_spawn(self.debuggee_process.pid, self.session.debuggee_id)
+        self.captured_output.capture(self.debuggee_process)
         return {}
 
 
 class AttachBase(DebugStartBase):
-    ignore_unobserved = DebugStartBase.ignore_unobserved + [
-    ]
+    ignore_unobserved = DebugStartBase.ignore_unobserved + []
 
     def __init__(self, session, name):
         super(AttachBase, self).__init__(session, name)
@@ -338,7 +352,8 @@ class AttachBase(DebugStartBase):
         if isinstance(target, py.path.local):
             target_str = target.strpath
 
-        env = kwargs["env"]
+        env = os.environ.copy()
+        env.update(kwargs["env"])
 
         cli_args = kwargs.get("cli_args")
         if run_as == "program":
@@ -381,7 +396,7 @@ class AttachBase(DebugStartBase):
             cwd,
             env_str,
         )
-        self.debugee_process = subprocess.Popen(
+        self.debuggee_process = subprocess.Popen(
             cli_args,
             cwd=cwd,
             env=env,
@@ -390,11 +405,11 @@ class AttachBase(DebugStartBase):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        watchdog.register_spawn(self.debugee_process.pid, self.session.debuggee_id)
-        self.captured_output.capture(self.debugee_process)
+        watchdog.register_spawn(self.debuggee_process.pid, self.session.debuggee_id)
+        self.captured_output.capture(self.debuggee_process)
 
         connected = False
-        pid = self.debugee_process.pid
+        pid = self.debuggee_process.pid
         while connected is False:
             time.sleep(0.1)
             connections = psutil.net_connections()
@@ -407,28 +422,22 @@ class AttachBase(DebugStartBase):
 
     def start_debugging(self):
         self.session.request("configurationDone")
-        if self._attach_args.get("noDebug"):
-            self._attach_request.wait_for_response()
-        else:
-            process_body = self.session.wait_for_next_event("process")
-            assert process_body == some.dict.containing(
-                {
-                    "name": some.str,
-                    "isLocalProcess": True,
-                    "startMethod": "attach",
-                    "systemProcessId": some.int,
-                }
-            )
 
-            self._attach_request.wait_for_response()
+        self.no_debug = self._attach_args.get("noDebug", False)
+        if self.no_debug:
+            log.info('{0} ignoring "noDebug" in "attach"', self.session)
 
-    def stop_debugging(self, **kwargs):
-        try:
-            self.debugee_process.wait()
-        finally:
-            watchdog.unregister_spawn(
-                self.debugee_process.pid, self.session.debuggee_id
-            )
+        process_body = self.session.wait_for_next_event("process")
+        assert process_body == some.dict.containing(
+            {
+                "name": some.str,
+                "isLocalProcess": True,
+                "startMethod": "attach",
+                "systemProcessId": some.int,
+            }
+        )
+
+        self._attach_request.wait_for_response()
 
 
 class AttachSocketImport(AttachBase):
@@ -458,11 +467,12 @@ class AttachSocketImport(AttachBase):
         run_as,
         target,
         pythonPath=sys.executable,
-        args=[],
+        args=(),
         cwd=None,
-        env=os.environ.copy(),
+        env=None,
         **kwargs
     ):
+        env = {} if env is None else dict(env)
         self._attach_args = self._build_attach_args({}, run_as, target, **kwargs)
 
         ptvsd_port = self._attach_args["port"]

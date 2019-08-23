@@ -207,11 +207,8 @@ class JsonIOStream(object):
                 # there's no message data to log in any case, and the caller might
                 # be anticipating the error - e.g. NoMoreMessages on disconnect.
                 if headers:
-                    raise log_message_and_exception(
-                        "Error while reading message headers:"
-                    )
-                else:
-                    raise
+                    log_message_and_exception("Error while reading message headers:")
+                raise
 
             raw_chunks += [line, b"\n"]
             if line == b"":
@@ -238,12 +235,10 @@ class JsonIOStream(object):
                 if not chunk:
                     raise EOFError
             except Exception as exc:
-                if self._is_closing:
-                    raise NoMoreMessages(str(exc), stream=self)
-                else:
-                    raise log_message_and_exception(
-                        "Couldn't read the expected {0} bytes of body:", length
-                    )
+                log_message_and_exception(
+                    "Couldn't read the expected {0} bytes of body:", length
+                )
+                raise NoMoreMessages(str(exc), stream=self)
 
             raw_chunks.append(chunk)
             body_remaining -= len(chunk)

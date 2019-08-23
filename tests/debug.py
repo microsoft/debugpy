@@ -83,6 +83,7 @@ class Session(object):
         self.ignore_unobserved.extend(self._ignore_unobserved)
         self.ignore_unobserved.extend(self.start_method.ignore_unobserved)
 
+        self.adapter_process = None
         self.backchannel = helpers.BackChannel(self) if backchannel else None
 
         # Expose some common members of timeline directly - these should be the ones
@@ -118,7 +119,12 @@ class Session(object):
         if exc_type is not None:
             # Log the error, in case another one happens during shutdown.
             log.exception(exc_info=(exc_type, exc_val, exc_tb))
+
         self._stop_adapter()
+
+        if self.backchannel:
+            self.backchannel.close()
+            self.backchannel = None
 
     @property
     def process(self):
@@ -202,6 +208,9 @@ class Session(object):
         self.channel.start()
 
     def _stop_adapter(self):
+        if self.adapter_process is None:
+            return
+
         self.channel.close()
         self.timeline.finalize()
         self.timeline.close()
@@ -213,6 +222,7 @@ class Session(object):
         )
         self.adapter_process.wait()
         watchdog.unregister_spawn(self.adapter_process.pid, self.adapter_id)
+        self.adapter_process = None
 
     def _handshake(self):
         telemetry = self.wait_for_next_event("output")
@@ -239,7 +249,8 @@ class Session(object):
             },
         ).wait_for_response()
 
-    def configure(self, run_as, target, env=os.environ.copy(), **kwargs):
+    def configure(self, run_as, target, env=None, **kwargs):
+        env = {} if env is None else dict(env)
         env.update(PTVSD_ENV)
 
         pythonpath = env.get("PYTHONPATH", "")
@@ -266,7 +277,7 @@ class Session(object):
         self.request("continue", freeze=False)
 
     def request_disconnect(self):
-        self.request("disconnect", freeze=False)
+        self.request("disconnect")
 
     def set_breakpoints(self, path, lines):
         """Sets breakpoints in the specified file, and returns the list of all the
@@ -400,8 +411,10 @@ class Session(object):
         fid = frames[0]("id", int)
         return StopInfo(stopped, frames, tid, fid)
 
-    def wait_for_next_event(self, event, body=some.object):
-        return self.timeline.wait_for_next(timeline.Event(event, body)).body
+    def wait_for_next_event(self, event, body=some.object, freeze=True):
+        return self.timeline.wait_for_next(
+            timeline.Event(event, body), freeze=freeze
+        ).body
 
     def output(self, category):
         """Returns all output of a given category as a single string, assembled from
@@ -418,11 +431,6 @@ class Session(object):
     def captured_stderr(self, encoding=None):
         return self.start_method.captured_output.stderr(encoding)
 
-    def stop_debugging(self, **kwargs):
-        self.start_method.stop_debugging(**kwargs)
-
-        if self.backchannel:
-            self.backchannel.close()
-            self.backchannel = None
-
+    def stop_debugging(self, exit_code=None):
+        self.start_method.wait_for_debuggee(exit_code)
         self.request_disconnect()

@@ -91,9 +91,12 @@ def parse(argv):
 
 def _send_pid(pid):
     assert _internal_pid_server_port is not None
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
         sock.connect(("127.0.0.1", _internal_pid_server_port))
         sock.sendall(b"%d" % pid)
+    finally:
+        sock.close()
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ import pytest
 import re
 
 import ptvsd
+from ptvsd.common import messaging
 from tests import debug, test_data, start_methods
 from tests.patterns import some
 from tests.timeline import Event
@@ -31,8 +32,8 @@ def test_run(pyfile, start_method, run_as):
         backchannel = session.backchannel
         session.configure(run_as, code_to_debug)
         session.start_debugging()
-        assert session.timeline.is_frozen
 
+        session.timeline.freeze()
         process_event, = session.all_occurrences_of(Event("process"))
         expected_name = (
             "-c"
@@ -46,9 +47,9 @@ def test_run(pyfile, start_method, run_as):
         backchannel.send("continue")
 
         expected_ptvsd_path = path.abspath(ptvsd.__file__)
-        backchannel.expect(some.str.matching(
-            re.escape(expected_ptvsd_path) + r"(c|o)?"
-        ))
+        backchannel.expect(
+            some.str.matching(re.escape(expected_ptvsd_path) + r"(c|o)?")
+        )
 
         session.stop_debugging()
 
@@ -77,10 +78,12 @@ def test_nodebug(pyfile, run_as):
 
     with debug.Session(start_methods.Launch, backchannel=True) as session:
         backchannel = session.backchannel
-        session.configure(run_as, code_to_debug, noDebug=True)
+        session.configure(
+            run_as, code_to_debug, noDebug=True, console="internalConsole"
+        )
 
-        breakpoints = session.set_breakpoints(code_to_debug, all)
-        assert breakpoints == [{"verified": False}, {"verified": False}]
+        with pytest.raises(messaging.InvalidMessageError):
+            session.set_breakpoints(code_to_debug, all)
 
         session.start_debugging()
         backchannel.send(None)
@@ -118,9 +121,7 @@ def test_run_vs(pyfile, run_as):
 
         @session.before_connect
         def before_connect():
-            backchannel.send(
-                [filename, session.ptvsd_port, None, None, run_as]
-            )
+            backchannel.send([filename, session.ptvsd_port, None, None, run_as])
 
         session.configure("program", ptvsd_launcher)
         session.start_debugging()
