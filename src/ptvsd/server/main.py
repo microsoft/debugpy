@@ -16,7 +16,7 @@ import pydevd
 
 import ptvsd
 from ptvsd.common import compat, fmt, log, options as common_opts
-from ptvsd.server import multiproc, options
+from ptvsd.server import options
 
 
 TARGET = "<filename> | -m <module> | -c <code> | --pid <pid>"
@@ -172,63 +172,22 @@ def parse(args):
     return it
 
 
-def setup_connection():
-    pydevd.apply_debugger_options(
-        {
-            "server": not options.client,
-            "client": options.host,
-            "port": options.port,
-            "multiprocess": options.multiprocess,
-        }
-    )
-
-    if options.multiprocess:
-        multiproc.listen_for_subprocesses()
-
+def setup_debug_server(argv_0):
     # We need to set up sys.argv[0] before invoking attach() or enable_attach(),
     # because they use it to report the 'process' event. Thus, we can't rely on
     # run_path() and run_module() doing that, even though they will eventually.
-
-    if options.target_kind == "code":
-        sys.argv[0] = "-c"
-    elif options.target_kind == "file":
-        sys.argv[0] = options.target
-    elif options.target_kind == "module":
-        # Add current directory to path, like Python itself does for -m. This must
-        # be in place before trying to use find_spec below to resolve submodules.
-        sys.path.insert(0, "")
-
-        # We want to do the same thing that run_module() would do here, without
-        # actually invoking it. On Python 3, it's exposed as a public API, but
-        # on Python 2, we have to invoke a private function in runpy for this.
-        # Either way, if it fails to resolve for any reason, just leave argv as is.
-        try:
-            if sys.version_info >= (3,):
-                from importlib.util import find_spec
-
-                spec = find_spec(options.target)
-                if spec is not None:
-                    sys.argv[0] = spec.origin
-            else:
-                _, _, _, sys.argv[0] = runpy._get_module_details(options.target)
-        except Exception:
-            log.exception("Error determining module path for sys.argv")
-    else:
-        assert False
+    sys.argv[0] = compat.filename(argv_0)
     log.debug("sys.argv after patching: {0!r}", sys.argv)
 
-    addr = (options.host, options.port)
-    if options.client:
-        ptvsd.attach(addr)
-    else:
-        ptvsd.enable_attach(addr)
+    debug = ptvsd.attach if options.client else ptvsd.enable_attach
+    debug(address=options, multiprocess=options)
 
     if options.wait:
         ptvsd.wait_for_attach()
 
 
 def run_file():
-    setup_connection()
+    setup_debug_server(options.target)
 
     # run_path has one difference with invoking Python from command-line:
     # if the target is a file (rather than a directory), it does not add its
@@ -246,7 +205,27 @@ def run_file():
 
 
 def run_module():
-    setup_connection()
+    # Add current directory to path, like Python itself does for -m. This must
+    # be in place before trying to use find_spec below to resolve submodules.
+    sys.path.insert(0, "")
+
+    # We want to do the same thing that run_module() would do here, without
+    # actually invoking it. On Python 3, it's exposed as a public API, but
+    # on Python 2, we have to invoke a private function in runpy for this.
+    # Either way, if it fails to resolve for any reason, just leave argv as is.
+    try:
+        if sys.version_info >= (3,):
+            from importlib.util import find_spec
+
+            spec = find_spec(options.target)
+            if spec is not None:
+                argv_0 = spec.origin
+        else:
+            _, _, _, argv_0 = runpy._get_module_details(options.target)
+    except Exception:
+        log.exception("Error determining module path for sys.argv")
+
+    setup_debug_server(argv_0)
 
     # On Python 2, module name must be a non-Unicode string, because it ends up
     # a part of module's __package__, and Python will refuse to run the module
@@ -281,7 +260,8 @@ def run_code():
     # Add current directory to path, like Python itself does for -c.
     sys.path.insert(0, "")
     code = compile(options.target, "<string>", "exec")
-    setup_connection()
+
+    setup_debug_server("-c")
     eval(code, {})
 
 
@@ -303,6 +283,7 @@ def attach_to_pid():
     host = quoted_str(options.host)
     port = options.port
     client = options.client
+    multiprocess = options.multiprocess
     log_dir = quoted_str(ptvsd.common.options.log_dir)
 
     ptvsd_path = os.path.abspath(os.path.join(ptvsd.server.__file__, "../.."))
@@ -325,10 +306,8 @@ options.log_dir = {log_dir}
 log.to_file()
 log.info("Bootstrapping injected debugger.")
 
-if {client}:
-    ptvsd.attach(({host}, {port}))
-else:
-    ptvsd.enable_attach(({host}, {port}))
+debug = ptvsd.attach if {client} else ptvsd.enable_attach
+debug(({host}, {port}), multiprocess={multiprocess})
 """.format(
         **locals()
     )

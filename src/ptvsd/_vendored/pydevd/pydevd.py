@@ -2113,6 +2113,7 @@ def _enable_attach(
     address,
     dont_trace_start_patterns=(),
     dont_trace_end_paterns=(),
+    patch_multiprocessing=False,
     ):
     '''
     Starts accepting connections at the given host/port. The debugger will not be initialized nor
@@ -2138,6 +2139,7 @@ def _enable_attach(
         block_until_connected=False,
         dont_trace_start_patterns=dont_trace_start_patterns,
         dont_trace_end_paterns=dont_trace_end_paterns,
+        patch_multiprocessing=patch_multiprocessing,
     )
     py_db = get_global_debugger()
     py_db.wait_for_server_socket_ready()

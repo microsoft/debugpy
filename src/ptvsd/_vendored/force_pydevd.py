@@ -61,10 +61,3 @@ pydevd.install_breakpointhook(ptvsd_breakpointhook)
 from _pydevd_bundle import pydevd_constants
 from _pydevd_bundle import pydevd_defaults
 pydevd_defaults.PydevdCustomization.DEFAULT_PROTOCOL = pydevd_constants.HTTP_JSON_PROTOCOL
-
-# Ensure our patch args is used. This is invoked when a child process is spawned 
-# with multiproc debugging enabled.
-from _pydev_bundle import pydev_monkey
-from ptvsd.server import multiproc
-pydev_monkey.patch_args = multiproc.patch_and_quote_args
-pydev_monkey.patch_new_process_functions()

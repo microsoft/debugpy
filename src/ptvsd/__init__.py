@@ -45,7 +45,7 @@ def wait_for_attach():
     return api.wait_for_attach()
 
 
-def enable_attach(address, log_dir=None):
+def enable_attach(address, log_dir=None, multiprocess=True):
     """Starts a DAP (Debug Adapter Protocol) server in this process,
     listening for incoming socket connection from the IDE on the
     specified address.
@@ -58,6 +58,11 @@ def enable_attach(address, log_dir=None):
     A separate log file is created for every process, to accommodate
     scenarios involving multiple processes. The log file for a process
     with process ID <pid> will be named "ptvsd_<pid>.log".
+
+    If multiprocess is true, ptvsd will also intercept child processes
+    spawned by this process, inject a debug server into them, and
+    configure it to attach to the same IDE before the child process
+    starts running any user code.
 
     Returns the interface and the port on which the debug server is
     actually listening, in the same format as address. This may be
@@ -73,7 +78,7 @@ def enable_attach(address, log_dir=None):
     return api.enable_attach(address, log_dir)
 
 
-def attach(address, log_dir=None):
+def attach(address, log_dir=None, multiprocess=True):
     """Starts a DAP (Debug Adapter Protocol) server in this process,
     and connects it to the IDE that is listening for an incoming
     connection on a socket with the specified address.
@@ -86,6 +91,11 @@ def attach(address, log_dir=None):
     A separate log file is created for every process, to accommodate
     scenarios involving multiple processes. The log file for a process
     with process ID <pid> will be named "ptvsd_<pid>.log".
+
+    If multiprocess is true, ptvsd will also intercept child processes
+    spawned by this process, inject a debug server into them, and
+    configure it to attach to the same IDE before the child process
+    starts running any user code.
 
     This function doesn't return until connection to the IDE has been
     established.
