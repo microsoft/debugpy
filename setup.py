@@ -114,8 +114,9 @@ if __name__ == '__main__':
         package_dir={'': 'src'},
         packages=[
             'ptvsd',
-            'ptvsd.common',
             'ptvsd.adapter',
+            'ptvsd.common',
+            'ptvsd.launcher',
             'ptvsd.server',
             'ptvsd._vendored',
         ],

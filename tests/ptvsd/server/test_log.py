@@ -8,7 +8,8 @@ import contextlib
 import pytest
 
 from ptvsd.common import compat
-from tests import debug, start_methods
+from tests import debug
+from tests.debug import start_methods
 
 
 @contextlib.contextmanager

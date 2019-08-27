@@ -6,7 +6,8 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import pytest
 
-from tests import debug, start_methods
+from tests import debug
+from tests.debug import start_methods
 from tests.patterns import some
 
 

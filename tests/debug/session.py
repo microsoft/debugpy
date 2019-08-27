@@ -2,57 +2,26 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-from __future__ import absolute_import, print_function, unicode_literals
-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import collections
 import itertools
 import os
 import psutil
-import py.path
 import subprocess
 import sys
-import tests
 
-import ptvsd
 from ptvsd.common import compat, fmt, json, log, messaging
 from ptvsd.common.compat import unicode
-from tests import code, watchdog, helpers, timeline
+import tests
+from tests import code, debug, timeline, watchdog
+from tests.debug import comms, output
 from tests.patterns import some
+
 
 StopInfo = collections.namedtuple(
     "StopInfo", ["body", "frames", "thread_id", "frame_id"]
 )
-
-PTVSD_DIR = py.path.local(ptvsd.__file__) / ".."
-PTVSD_ADAPTER_DIR = PTVSD_DIR / "adapter"
-
-# Added to the environment variables of every new debug.Session
-PTVSD_ENV = {"PYTHONUNBUFFERED": "1"}
-
-
-def kill_process_tree(process):
-    log.info("Killing {0} process tree...", process.pid)
-
-    procs = [process]
-    try:
-        procs += process.children(recursive=True)
-    except Exception:
-        pass
-
-    for p in procs:
-        log.warning(
-            "Killing {0}process (pid={1})",
-            "" if p.pid == process.pid else "child ",
-            p.pid,
-        )
-        try:
-            p.kill()
-        except psutil.NoSuchProcess:
-            pass
-        except Exception:
-            log.exception()
-    log.info("Killed {0} process tree", process.pid)
 
 
 class Session(object):
@@ -83,7 +52,9 @@ class Session(object):
         self.ignore_unobserved.extend(self.start_method.ignore_unobserved)
 
         self.adapter_process = None
-        self.backchannel = helpers.BackChannel(self) if backchannel else None
+        self.channel = None
+        self.backchannel = comms.BackChannel(self) if backchannel else None
+        self.scratchpad = comms.ScratchPad(self)
 
         # Expose some common members of timeline directly - these should be the ones
         # that are the most straightforward to use, and are difficult to use incorrectly.
@@ -115,16 +86,31 @@ class Session(object):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is not None:
+        if exc_type is None:
+            # Only wait for debuggee if there was no exception in the test - if there
+            # was one, the debuggee might still be waiting for further requests.
+            self.start_method.wait_for_debuggee()
+        else:
             # Log the error, in case another one happens during shutdown.
             log.exception(exc_info=(exc_type, exc_val, exc_tb))
 
-        try:
-            self.wait_for_exit()
-        except Exception:
-            raise log.exception()
+        self.disconnect()
 
-        self._stop_adapter()
+        # If there was an exception, don't complain about unobserved occurrences -
+        # they are expected if the test didn't complete.
+        if exc_type is not None:
+            self.timeline.observe_all()
+        self.timeline.close()
+
+        if self.adapter_process is not None:
+            log.info(
+                "Waiting for {0} with PID={1} to exit.",
+                self.adapter_id,
+                self.adapter_process.pid,
+            )
+            self.adapter_process.wait()
+            watchdog.unregister_spawn(self.adapter_process.pid, self.adapter_id)
+            self.adapter_process = None
 
         if self.backchannel:
             self.backchannel.close()
@@ -200,16 +186,24 @@ class Session(object):
             except Exception:
                 pass
 
-    def _start_adapter(self):
-        args = [sys.executable, PTVSD_ADAPTER_DIR]
+    def _process_disconnect(self):
+        self.timeline.mark("disconnect", block=False)
 
+    def _start_adapter(self):
+        args = [sys.executable, debug.PTVSD_ADAPTER_DIR]
         if self.log_dir is not None:
             args += ["--log-dir", self.log_dir]
+        args = [compat.filename_str(s) for s in args]
+
+        env = os.environ.copy()
+        env.update(debug.PTVSD_ENV)
+        env = {
+            compat.filename_str(k): compat.filename_str(v) for k, v in env.items()
+        }
 
         log.info("Spawning {0}: {1!j}", self.adapter_id, args)
-        args = [compat.filename_str(s) for s in args]
         self.adapter_process = psutil.Popen(
-            args, bufsize=0, stdin=subprocess.PIPE, stdout=subprocess.PIPE
+            args, bufsize=0, stdin=subprocess.PIPE, stdout=subprocess.PIPE, env=env
         )
         log.info("Spawned {0} with PID={1}", self.adapter_id, self.adapter_process.pid)
         watchdog.register_spawn(self.adapter_process.pid, self.adapter_id)
@@ -218,27 +212,12 @@ class Session(object):
             self.adapter_process, name=str(self)
         )
         handlers = messaging.MessageHandlers(
-            request=self._process_request, event=self._process_event
+            request=self._process_request,
+            event=self._process_event,
+            disconnect=self._process_disconnect,
         )
         self.channel = messaging.JsonMessageChannel(stream, handlers)
         self.channel.start()
-
-    def _stop_adapter(self):
-        if self.adapter_process is None:
-            return
-
-        self.channel.close()
-        self.timeline.finalize()
-        self.timeline.close()
-
-        log.info(
-            "Waiting for {0} with PID={1} to exit.",
-            self.adapter_id,
-            self.adapter_process.pid,
-        )
-        self.adapter_process.wait()
-        watchdog.unregister_spawn(self.adapter_process.pid, self.adapter_id)
-        self.adapter_process = None
 
     def _handshake(self):
         telemetry = self.wait_for_next_event("output")
@@ -267,13 +246,13 @@ class Session(object):
 
     def configure(self, run_as, target, env=None, **kwargs):
         env = {} if env is None else dict(env)
-        env.update(PTVSD_ENV)
+        env.update(debug.PTVSD_ENV)
 
         pythonpath = env.get("PYTHONPATH", "")
         if pythonpath:
             pythonpath += os.pathsep
         pythonpath += (tests.root / "DEBUGGEE_PYTHONPATH").strpath
-        pythonpath += os.pathsep + (PTVSD_DIR / "..").strpath
+        pythonpath += os.pathsep + (debug.PTVSD_DIR / "..").strpath
         env["PYTHONPATH"] = pythonpath
 
         env["PTVSD_SESSION_ID"] = str(self.id)
@@ -285,16 +264,23 @@ class Session(object):
         if self.log_dir is not None:
             kwargs["logToFile"] = True
 
+        self.captured_output = output.CaptureOutput(self)
         self.start_method.configure(run_as, target, env=env, **kwargs)
 
     def start_debugging(self):
-        self.start_method.start_debugging()
+        start_request = self.start_method.start_debugging()
+        process = self.wait_for_next_event("process", freeze=False)
+        assert process == some.dict.containing(
+            {
+                "startMethod": start_request.command,
+                "name": some.str,
+                "isLocalProcess": True,
+                "systemProcessId": some.int,
+            }
+        )
 
     def request_continue(self):
         self.request("continue", freeze=False)
-
-    def request_disconnect(self):
-        self.request("disconnect")
 
     def set_breakpoints(self, path, lines):
         """Sets breakpoints in the specified file, and returns the list of all the
@@ -412,7 +398,7 @@ class Session(object):
             "exception",
             "breakpoint",
             "entry",
-            "goto"
+            "goto",
         ]:
             expected_stopped["preserveFocusHint"] = True
         assert stopped == some.dict.containing(expected_stopped)
@@ -444,11 +430,24 @@ class Session(object):
         return "".join(event("output", unicode) for event in events)
 
     def captured_stdout(self, encoding=None):
-        return self.start_method.captured_output.stdout(encoding)
+        return self.captured_output.stdout(encoding)
 
     def captured_stderr(self, encoding=None):
-        return self.start_method.captured_output.stderr(encoding)
+        return self.captured_output.stderr(encoding)
 
-    def wait_for_exit(self):
-        self.start_method.wait_for_debuggee()
-        self.request_disconnect()
+    def wait_for_disconnect(self):
+        self.timeline.wait_for_next(timeline.Mark("disconnect"))
+
+    def disconnect(self):
+        if self.channel is None:
+            return
+
+        try:
+            self.request("disconnect")
+        finally:
+            try:
+                self.channel.close()
+            except Exception:
+                pass
+            self.channel.wait()
+            self.channel = None

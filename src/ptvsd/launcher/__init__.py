@@ -4,10 +4,9 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-"""Global adapter options that are set via command line, environment variables,
-or configuartion files.
-"""
+__all__ = []
 
+import os.path
 
-log_stderr = False
-"""Whether detailed logs are written to stderr."""
+# Force absolute path on Python 2.
+__file__ = os.path.abspath(__file__)

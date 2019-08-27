@@ -14,7 +14,8 @@ import threading
 import types
 
 from ptvsd.common import compat, timestamp
-from tests import code, pydevd_log, start_methods
+from tests import code, pydevd_log
+from tests.debug import start_methods
 
 __all__ = ['run_as', 'start_method', 'with_pydevd_log', 'daemon', 'pyfile']
 

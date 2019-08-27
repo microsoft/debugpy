@@ -154,9 +154,14 @@ class Timeline(object):
         for occ in occurrences:
             occ.observed = True
 
-    def observe_all(self, expectation):
+    def observe_all(self, expectation=None):
         self.expect_frozen()
-        self.observe(*[occ for occ in self if occ == expectation])
+        occs = (
+            list(self)
+            if expectation is None
+            else [occ for occ in self if occ == expectation]
+        )
+        self.observe(*occs)
 
     def wait_until(self, condition, freeze=None):
         freeze = freeze or self.is_frozen

@@ -9,7 +9,8 @@ import pytest
 import sys
 
 from ptvsd.common import compat
-from tests import code, debug, log, net, test_data, start_methods
+from tests import code, debug, log, net, test_data
+from tests.debug import start_methods
 from tests.patterns import some
 
 pytestmark = pytest.mark.timeout(60)

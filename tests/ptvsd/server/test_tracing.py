@@ -5,7 +5,6 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 from tests import debug
-from tests.printer import print
 from tests.patterns import some
 
 
@@ -52,7 +51,6 @@ def test_tracing(pyfile, start_method, run_as):
         print(0)  # @outer2
         func(True)
 
-    print(code_to_debug.lines)
     with debug.Session(start_method, client_id='vscode') as session:
         session.configure(run_as, code_to_debug)
         session.set_breakpoints(code_to_debug, all)

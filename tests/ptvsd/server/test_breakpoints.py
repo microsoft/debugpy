@@ -11,7 +11,8 @@ import re
 import sys
 
 from ptvsd.common import fmt
-from tests import debug, test_data, start_methods
+from tests import debug, test_data
+from tests.debug import start_methods
 from tests.patterns import some
 
 

@@ -10,7 +10,8 @@ import re
 
 import ptvsd
 from ptvsd.common import messaging
-from tests import debug, test_data, start_methods
+from tests import debug, test_data
+from tests.debug import start_methods
 from tests.patterns import some
 from tests.timeline import Event
 
@@ -24,8 +25,8 @@ def test_run(pyfile, start_method, run_as):
         import sys
 
         print("begin")
-        backchannel.wait_for("continue")
         backchannel.send(path.abspath(sys.modules["ptvsd"].__file__))
+        backchannel.wait_for("continue")
         print("end")
 
     with debug.Session(start_method, backchannel=True) as session:
@@ -33,23 +34,14 @@ def test_run(pyfile, start_method, run_as):
         session.configure(run_as, code_to_debug)
         session.start_debugging()
 
-        session.timeline.freeze()
-        process_event, = session.all_occurrences_of(Event("process"))
-        expected_name = (
-            "-c"
-            if run_as == "code"
-            else some.str.matching(re.escape(code_to_debug.strpath) + r"(c|o)?")
-        )
-        assert process_event == Event(
-            "process", some.dict.containing({"name": expected_name})
-        )
-
-        backchannel.send("continue")
-
         expected_ptvsd_path = path.abspath(ptvsd.__file__)
         backchannel.expect(
             some.str.matching(re.escape(expected_ptvsd_path) + r"(c|o)?")
         )
+
+        backchannel.send("continue")
+        session.wait_for_next_event("terminated")
+        session.proceed()
 
 
 def test_run_submodule():

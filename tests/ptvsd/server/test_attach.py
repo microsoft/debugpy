@@ -6,7 +6,8 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import pytest
 
-from tests import debug, test_data, start_methods
+from tests import debug, test_data
+from tests.debug import start_methods
 from tests.patterns import some
 from tests.timeline import Event
 
@@ -84,7 +85,7 @@ def test_reattach(pyfile, start_method, run_as):
         session.wait_for_stop(expected_frames=[
             some.dap.frame(code_to_debug, "first"),
         ])
-        session.request_disconnect()
+        session.request("disconnect")
         session.wait_for_disconnect()
 
     with session.reattach(target=(run_as, code_to_debug)) as session2:
@@ -93,7 +94,7 @@ def test_reattach(pyfile, start_method, run_as):
             some.dap.frame(code_to_debug, "second"),
         ])
         session.scratchpad["exit"] = True
-        session.request_disconnect()
+        session.request("disconnect")
         session.wait_for_disconnect()
 
 

@@ -16,6 +16,7 @@ import contextlib
 import functools
 import itertools
 import os
+import socket
 import sys
 import threading
 
@@ -23,23 +24,38 @@ from ptvsd.common import compat, fmt, json, log
 from ptvsd.common.compat import unicode
 
 
-class NoMoreMessages(EOFError):
-    """Indicates that there are no more messages to be read from the stream.
+class JsonIOError(IOError):
+    """Indicates that a read or write operation on JsonIOStream has failed.
     """
 
     def __init__(self, *args, **kwargs):
         stream = kwargs.pop("stream")
-        args = args if len(args) else ["No more messages"]
-        super(NoMoreMessages, self).__init__(*args, **kwargs)
+        cause = kwargs.pop("cause", None)
+        if not len(args) and cause is not None:
+            args = [str(cause)]
+        super(JsonIOError, self).__init__(*args, **kwargs)
 
         self.stream = stream
-        """The stream that doesn't have any more messages.
+        """The stream that couldn't be read or written.
 
-        Set by JsonIOStream.read_json().
+        Set by JsonIOStream.read_json() and JsonIOStream.write_json().
 
         JsonMessageChannel relies on this value to decide whether a NoMoreMessages
         instance that bubbles up to the message loop is related to that loop.
         """
+
+        self.cause = cause
+        """The underlying exception, if any."""
+
+
+class NoMoreMessages(JsonIOError, EOFError):
+    """Indicates that there are no more messages that can be read from or written
+    to a stream.
+    """
+
+    def __init__(self, *args, **kwargs):
+        args = args if len(args) else ["No more messages"]
+        super(NoMoreMessages, self).__init__(*args, **kwargs)
 
 
 class JsonIOStream(object):
@@ -99,22 +115,30 @@ class JsonIOStream(object):
         return cls(reader, writer, name)
 
     @classmethod
-    def from_socket(cls, socket, name=None):
+    def from_socket(cls, sock, name=None):
         """Creates a new instance that sends and receives messages over a socket.
         """
-        socket.settimeout(None)  # make socket blocking
+        sock.settimeout(None)  # make socket blocking
         if name is None:
-            name = repr(socket)
+            name = repr(sock)
 
         # TODO: investigate switching to buffered sockets; readline() on unbuffered
         # sockets is very slow! Although the implementation of readline() itself is
         # native code, it calls read(1) in a loop - and that then ultimately calls
         # SocketIO.readinto(), which is implemented in Python.
-        socket_io = socket.makefile("rwb", 0)
+        socket_io = sock.makefile("rwb", 0)
 
-        return cls(socket_io, socket_io, name)
+        # SocketIO.close() doesn't close the underlying socket.
+        def cleanup():
+            try:
+                sock.shutdown(socket.SHUT_RDWR)
+            except Exception:
+                pass
+            sock.close()
 
-    def __init__(self, reader, writer, name=None):
+        return cls(socket_io, socket_io, name, cleanup)
+
+    def __init__(self, reader, writer, name=None, cleanup=lambda: None):
         """Creates a new JsonIOStream.
 
         reader must be a BytesIO-like object, from which incoming messages will be
@@ -122,6 +146,9 @@ class JsonIOStream(object):
 
         writer must be a BytesIO-like object, into which outgoing messages will be
         written by write_json().
+
+        cleanup must be a callable; it will be invoked without arguments when the
+        stream is closed.
 
         reader.readline() must treat "\n" as the line terminator, and must leave "\r"
         as is - it must not replace "\r\n" with "\n" automatically, as TextIO does.
@@ -133,22 +160,38 @@ class JsonIOStream(object):
         self.name = name
         self._reader = reader
         self._writer = writer
-        self._is_closing = False
+        self._cleanup = cleanup
+        self._closed = False
 
     def close(self):
         """Closes the stream, the reader, and the writer.
         """
-        self._is_closing = True
 
-        # Close the writer first, so that the other end of the connection has its
-        # message loop waiting on read() unblocked. If there is an exception while
-        # closing the writer, we still want to try to close the reader - only one
-        # exception can bubble up, so if both fail, it'll be the one from reader.
+        if self._closed:
+            return
+        self._closed = True
+
+        log.debug("Closing {0} message stream", self.name)
         try:
-            self._writer.close()
-        finally:
-            if self._reader is not self._writer:
-                self._reader.close()
+            try:
+                # Close the writer first, so that the other end of the connection has
+                # its message loop waiting on read() unblocked. If there is an exception
+                # while closing the writer, we still want to try to close the reader -
+                # only one exception can bubble up, so if both fail, it'll be the one
+                # from reader.
+                try:
+                    self._writer.close()
+                finally:
+                    if self._reader is not self._writer:
+                        self._reader.close()
+            finally:
+                self._cleanup()
+        except Exception:
+            # On Python 2, close() will raise an exception if there is a concurrent
+            # read() or write(), which is a common and expected occurrence with
+            # JsonMessageChannel, so don't even bother logging it.
+            if sys.version_info >= (3,):
+                raise log.exception("Error while closing {0} message stream", self.name)
 
     def _log_message(self, dir, data, logger=log.debug):
         format_string = "{0} {1} " + (
@@ -265,6 +308,11 @@ class JsonIOStream(object):
         Value is written as encoded by encoder.encode().
         """
 
+        if self._closed:
+            # Don't log this - it's a common pattern to write to a stream while
+            # anticipating EOFError from it in case it got closed concurrently.
+            raise NoMoreMessages(stream=self)
+
         encoder = encoder if encoder is not None else self.json_encoder_factory()
         writer = self._writer
 
@@ -294,8 +342,9 @@ class JsonIOStream(object):
                     break
                 data_written += written
             writer.flush()
-        except Exception:
-            raise self._log_message("<--", value, logger=log.exception)
+        except Exception as exc:
+            self._log_message("<--", value, logger=log.exception)
+            raise JsonIOError(stream=self, cause=exc)
 
         self._log_message("<--", value)
 
@@ -368,7 +417,7 @@ class MessageDict(collections.OrderedDict):
         if not validate:
             validate = lambda x: x
         elif isinstance(validate, type) or isinstance(validate, tuple):
-            validate = json.of_type(validate)
+            validate = json.of_type(validate, optional=optional)
         elif not callable(validate):
             validate = json.default(validate)
 
@@ -444,10 +493,11 @@ class Message(object):
         return fmt("{0!j}", self.json) if self.json is not None else repr(self)
 
     def describe(self):
-        """A brief description of the message that is enough to identify its handler,
-        but does not include its payload or metadata that uniquely identifies it.
+        """A brief description of the message that is enough to identify it.
 
-        Examples: 'request "launch"', 'response to request "launch"'.
+        Examples:
+        '#1 request "launch" from IDE'
+        '#2 response to #1 request "launch" from IDE'.
         """
         raise NotImplementedError
 
@@ -508,10 +558,11 @@ class Message(object):
             cause = None
             exc_type, format_string = args[0:2]
             args = args[2:]
-
         assert issubclass(exc_type, MessageHandlingError)
+
+        silent = kwargs.pop("silent", False)
         reason = fmt(format_string, *args, **kwargs)
-        exc = exc_type(reason, cause)  # will log it
+        exc = exc_type(reason, cause, silent)  # will log it
 
         if isinstance(cause, Request):
             cause.respond(exc)
@@ -573,7 +624,7 @@ class Event(Message):
         self.body = body
 
     def describe(self):
-        return fmt("event {0!j}", self.event)
+        return fmt("#{0} event {1!j} from {2}", self.seq, self.event, self.channel)
 
     @property
     def payload(self):
@@ -591,30 +642,27 @@ class Event(Message):
         channel = self.channel
         handler = channel._get_handler_for("event", self.event)
         try:
-            result = handler(self)
-            assert result is None, fmt(
-                "Handler {0} tried to respond to {1}.",
-                compat.srcnameof(handler),
-                self.describe(),
-            )
-        except MessageHandlingError as exc:
-            if not exc.applies_to(self):
-                raise
-            log.error(
-                "Handler {0} couldn't handle {1} in channel {2}:\n\n{3}\n\n{4}",
-                compat.srcnameof(handler),
-                self.describe(),
-                self.channel,
-                str(exc),
-                self,
-            )
+            try:
+                result = handler(self)
+                assert result is None, fmt(
+                    "Handler {0} tried to respond to {1}.",
+                    compat.srcnameof(handler),
+                    self.describe(),
+                )
+            except MessageHandlingError as exc:
+                if not exc.applies_to(self):
+                    raise
+                log.error(
+                    "Handler {0}\ncouldn't handle {1}:\n{2}",
+                    compat.srcnameof(handler),
+                    self.describe(),
+                    str(exc),
+                )
         except Exception:
             raise log.exception(
-                "Handler {0} couldn't handle {1} in channel {2}:\n\n{3}\n\n",
+                "Handler {0}\ncouldn't handle {1}:",
                 compat.srcnameof(handler),
                 self.describe(),
-                self.channel,
-                self,
             )
 
 
@@ -681,7 +729,7 @@ class Request(Message):
         """
 
     def describe(self):
-        return fmt("request {0!j}", self.command)
+        return fmt("#{0} request {1!j} from {2}", self.seq, self.command, self.channel)
 
     @property
     def payload(self):
@@ -731,12 +779,10 @@ class Request(Message):
                     raise
                 result = exc
                 log.error(
-                    "Handler {0} couldn't handle {1} in channel {2}:\n\n{3}\n\n{4}",
+                    "Handler {0}\ncouldn't handle {1}:\n{2}",
                     compat.srcnameof(handler),
                     self.describe(),
-                    self.channel,
                     str(exc),
-                    self,
                 )
 
             if result is NO_RESPONSE:
@@ -760,15 +806,20 @@ class Request(Message):
                     compat.srcnameof(handler),
                     self.describe(),
                 )
-                self.respond(result)
+                try:
+                    self.respond(result)
+                except NoMoreMessages:
+                    log.warning(
+                        "Channel was closed before the response from handler {0} to {1} could be sent",
+                        compat.srcnameof(handler),
+                        self.describe(),
+                    )
 
         except Exception:
             raise log.exception(
-                "Handler {0} couldn't handle {1} in channel {2}:\n\n{3}\n\n",
+                "Handler {0}\ncouldn't handle {1}:",
                 compat.srcnameof(handler),
                 self.describe(),
-                self.channel,
-                self,
             )
 
 
@@ -782,6 +833,9 @@ class OutgoingRequest(Request):
     def __init__(self, channel, seq, command, arguments):
         super(OutgoingRequest, self).__init__(channel, seq, command, arguments)
         self._response_handlers = []
+
+    def describe(self):
+        return fmt("#{0} request {1!j} to {2}", self.seq, self.command, self.channel)
 
     def wait_for_response(self, raise_if_failed=True):
         """Waits until a response is received for this request, records the Response
@@ -833,16 +887,22 @@ class OutgoingRequest(Request):
         def run_handlers():
             for handler in handlers:
                 try:
-                    handler(response)
-                except MessageHandlingError as exc:
-                    if not exc.applies_to(self):
-                        raise
-                    # Detailed exception info was already logged by its constructor.
-                    log.error(
-                        "Handler {0} couldn't handle {1}:\n\n{2}",
+                    try:
+                        handler(response)
+                    except MessageHandlingError as exc:
+                        if not exc.applies_to(response):
+                            raise
+                        log.error(
+                            "Handler {0}\ncouldn't handle {1}:\n{2}",
+                            compat.srcnameof(handler),
+                            response.describe(),
+                            str(exc),
+                        )
+                except Exception:
+                    raise log.exception(
+                        "Handler {0}\ncouldn't handle {1}:",
                         compat.srcnameof(handler),
-                        self.describe(),
-                        str(exc),
+                        response.describe(),
                     )
 
         handlers = self._response_handlers[:]
@@ -901,7 +961,7 @@ class Response(Message):
         """
 
     def describe(self):
-        return fmt("response to request {0!j}", self.request.command)
+        return fmt("#{0} response to {1}", self.seq, self.request.describe())
 
     @property
     def payload(self):
@@ -964,6 +1024,18 @@ class Response(Message):
             raise response.isnt_valid(
                 "request_seq={0} does not match any known request", request_seq
             )
+
+
+class Disconnect(Message):
+    """A dummy message used to represent disconnect. It's always the last message
+    received from any channel.
+    """
+
+    def __init__(self, channel):
+        super(Disconnect, self).__init__(channel, None)
+
+    def describe(self):
+        return fmt("disconnect from {0}", self.channel)
 
 
 class MessageHandlingError(Exception):
@@ -1067,7 +1139,7 @@ class MessageHandlingError(Exception):
         """Propagates this error, raising a new instance of the same class with the
         same reason, but a different cause.
         """
-        raise type(self)(self.reason, new_cause)
+        raise type(self)(self.reason, new_cause, silent=True)
 
 
 class InvalidMessageError(MessageHandlingError):
@@ -1324,7 +1396,7 @@ class JsonMessageChannel(object):
 
                 assert not len(self._sent_requests)
 
-                self._enqueue_handlers("disconnect", self._handle_disconnect)
+                self._enqueue_handlers(Disconnect(self), self._handle_disconnect)
                 self.close()
 
     _message_parsers = {
@@ -1391,8 +1463,7 @@ class JsonMessageChannel(object):
     def _enqueue_handlers(self, what, *handlers):
         """Enqueues handlers for _run_handlers() to run.
 
-        `what` describes what is being handled, and is used for logging purposes.
-        Normally it's a Message instance, but it can be anything printable.
+        `what` is the Message being handled, and is used for logging purposes.
 
         If the background thread with _run_handlers() isn't running yet, starts it.
         """
@@ -1458,14 +1529,13 @@ class JsonMessageChannel(object):
                 if closed and handler in (Event._handle, Request._handle):
                     continue
 
-                try:
-                    handler()
-                except Exception:
-                    log.exception(
-                        "Fatal error in channel {0} while handling {1}:", self, what
-                    )
-                    self.close()
-                    os._exit(1)
+                with log.prefixed("[handling {0}]\n", what.describe()):
+                    try:
+                        handler()
+                    except Exception:
+                        # It's already logged by the handler, so just fail fast.
+                        self.close()
+                        os._exit(1)
 
     def _get_handler_for(self, type, name):
         """Returns the handler for a message of a given type.
@@ -1479,7 +1549,7 @@ class JsonMessageChannel(object):
 
         raise AttributeError(
             fmt(
-                "channel {0} has no handler for {1} {2!r}",
+                "Channel {0} has no handler for {1} {2!r}",
                 compat.srcnameof(self.handlers),
                 type,
                 name,
@@ -1491,12 +1561,11 @@ class JsonMessageChannel(object):
         try:
             handler()
         except Exception:
-            log.exception(
-                "Handler {0} couldn't handle disconnect in channel {1}:",
+            raise log.exception(
+                "Handler {0}\ncouldn't handle disconnect from {1}:",
                 compat.srcnameof(handler),
-                self.channel,
+                self,
             )
-            os._exit(1)
 
 
 class MessageHandlers(object):

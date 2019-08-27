@@ -93,7 +93,7 @@ def test_vsc_exception_options_raise_without_except(
     filters += ["raised"] if raised == "raisedOn" else []
     filters += ["uncaught"] if uncaught == "uncaughtOn" else []
     with debug.Session(start_method) as session:
-        session.ignore_unobserved += [Event("stopped")]
+        session.ignore_unobserved.append(Event("stopped"))
         session.expected_exit_code = some.int
         session.configure(run_as, code_to_debug)
         session.send_request(
@@ -274,7 +274,7 @@ def test_raise_exception_options(pyfile, start_method, run_as, exceptions, break
                 pass
 
     with debug.Session(start_method) as session:
-        session.ignore_unobserved += [Event("stopped")]
+        session.ignore_unobserved.append(Event("stopped"))
         session.expected_exit_code = some.int
         session.configure(run_as, code_to_debug)
         path = [{"names": ["Python Exceptions"]}]

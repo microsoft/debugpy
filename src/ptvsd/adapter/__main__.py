@@ -6,59 +6,44 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import argparse
 import locale
+import os
 import sys
 
 # WARNING: ptvsd and submodules must not be imported on top level in this module,
 # and should be imported locally inside main() instead.
 
+# Force absolute path on Python 2.
+__file__ = os.path.abspath(__file__)
+
 
 def main(args):
-    import ptvsd
-    from ptvsd.common import log, options
-    from ptvsd.adapter import channels
+    from ptvsd.common import log, options as common_options
+    from ptvsd.adapter import session, options as adapter_options
 
-    if args.cls and args.debug_server is not None:
-        print("\033c")
+    if args.cls:
+        sys.stderr.write("\033c")
+    if args.log_stderr:
+        adapter_options.log_stderr = True
+    if args.log_dir is not None:
+        common_options.log_dir = args.log_dir
 
-    options.log_dir = args.log_dir
-    log.stderr_levels |= {"info"}
     log.filename_prefix = "ptvsd.adapter"
+    log.stderr_levels |= {"info"}
     log.to_file()
     log.describe_environment("ptvsd.adapter startup environment:")
 
+    session = session.Session()
     if args.debug_server is None:
-        address = None
+        session.connect_to_ide()
     else:
-        address = ("localhost", args.debug_server)
-        # If in debugServer mode, log "debug" to stderr as well.
-        log.stderr_levels |= {"debug"}
-
-    chan = channels.Channels()
-    ide = chan.connect_to_ide(address)
-
-    ide.start()
-    ide.send_event(
-        "output",
-        {
-            "category": "telemetry",
-            "output": "ptvsd.adapter",
-            "data": {"version": ptvsd.__version__},
-        },
-    )
-
-    # Wait until the IDE debug session is over - everything interesting is going to
-    # be happening on the background threads running the IDE and the server message
-    # loops from here on.
-    ide.wait()
-
-    # Make sure the server message loop is also done, but only if the server connection
-    # has been established.
-    server = chan.server()
-    if server is not None:
-        server.wait()
+        # If in debugServer mode, log everything to stderr.
+        log.stderr_levels |= set(log.LEVELS)
+        with session.accept_connection_from_ide(("localhost", args.debug_server)):
+            pass
+    session.wait_for_completion()
 
 
-def _parse_argv():
+def _parse_argv(argv):
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -83,7 +68,14 @@ def _parse_argv():
         help="enable logging and use DIR to save adapter logs",
     )
 
-    return parser.parse_args()
+    parser.add_argument(
+        "--log-stderr", action="store_true", help="enable logging to stderr"
+    )
+
+    args = parser.parse_args(argv[1:])
+    if args.debug_server is None and args.log_stderr:
+        parser.error("--log-stderr can only be used with --debug-server")
+    return args
 
 
 if __name__ == "__main__":
@@ -117,4 +109,4 @@ if __name__ == "__main__":
     # Load locale settings.
     locale.setlocale(locale.LC_ALL, "")
 
-    main(_parse_argv())
+    main(_parse_argv(sys.argv))

@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+import contextlib
 import functools
 import inspect
 import io
@@ -23,7 +24,7 @@ LEVELS = ("debug", "info", "warning", "error")
 
 stderr = sys.__stderr__
 
-stderr_levels = {"warning", "error"}
+stderr_levels = set(os.getenv("PTVSD_LOG_STDERR", "warning error").split())
 """What should be logged to stderr.
 """
 
@@ -68,6 +69,7 @@ def write(level, text):
     format_string = "{0}+{1:" + timestamp_format + "}: "
     prefix = fmt(format_string, level[0].upper(), t)
 
+    text = getattr(_tls, "prefix", "") + text
     indent = "\n" + (" " * len(prefix))
     output = indent.join(text.split("\n"))
     output = prefix + output + "\n\n"
@@ -205,6 +207,20 @@ def to_file(filename=None):
 
 def filename():
     return _filename
+
+
+@contextlib.contextmanager
+def prefixed(format_string, *args, **kwargs):
+    """Adds a prefix to all messages logged from the current thread for the duration
+    of the context manager.
+    """
+    prefix = fmt(format_string, *args, **kwargs)
+    old_prefix = getattr(_tls, "prefix", "")
+    _tls.prefix = prefix + old_prefix
+    try:
+        yield
+    finally:
+        _tls.prefix = old_prefix
 
 
 def describe_environment(header):

@@ -77,14 +77,21 @@ def test_module_events(pyfile, start_method, run_as):
         session.start_debugging()
 
         session.wait_for_stop()
-        modules = session.all_occurrences_of(Event("module"))
-        modules = [
-            (m.body["module"]["name"], m.body["module"]["path"]) for m in modules
-        ]
-        assert modules[:3] == [
-            ("module2", some.path(module2)),
-            ("module1", some.path(module1)),
-            ("__main__", some.path(test_code)),
-        ]
+
+        # Stack trace after the stop will trigger module events, but they are only
+        # sent after the trace response, so we need to wait for them separately.
+        # The order isn't guaranteed, either, so just wait for any 3 modules.
+        session.timeline.wait_until_realized(
+            Event("module") >> Event("module") >> Event("module")
+        )
+        modules = {
+            event.body["module"]["name"]: event.body["module"]["path"]
+            for event in session.all_occurrences_of(Event("module"))
+        }
+        assert modules == {
+            "__main__": some.path(test_code),
+            "module1": some.path(module1),
+            "module2": some.path(module2),
+        }
 
         session.request_continue()

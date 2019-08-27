@@ -9,9 +9,13 @@ import pytest
 import sys
 
 from ptvsd.common import messaging
-from tests import debug, start_methods
+from tests import debug
+from tests.debug import start_methods
 from tests.patterns import some
 from tests.timeline import Event, Request
+
+
+pytestmark = pytest.mark.skip("https://github.com/microsoft/ptvsd/issues/1706")
 
 
 @pytest.mark.timeout(30)
@@ -245,7 +249,7 @@ def test_autokill(pyfile, start_method, run_as):
         )
         parent_session.start_debugging()
 
-        
+
         with parent_session.attach_to_next_subprocess() as child_session:
             child_session.start_debugging()
 
