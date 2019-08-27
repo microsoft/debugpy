@@ -411,6 +411,9 @@ class JsonFacade(object):
         )
         response = self.wait_for_response(self.write_request(InitializeRequest(arguments)))
         assert response.success == success
+        if success:
+            process_id = response.body.kwargs['pydevd']['processId']
+            assert isinstance(process_id, int)
         return response
 
 

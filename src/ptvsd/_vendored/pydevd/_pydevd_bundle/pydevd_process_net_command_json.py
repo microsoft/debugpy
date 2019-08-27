@@ -204,8 +204,10 @@ class _PyDevJsonCommandProcessor(object):
         }
 
         ide_access_token = py_db.authentication.ide_access_token
+        body['pydevd'] = pydevd_info = {}
+        pydevd_info['processId'] = os.getpid()
         if ide_access_token:
-            body['pydevd'] = {'ideAccessToken': ide_access_token}
+            pydevd_info['ideAccessToken'] = ide_access_token
         self.api.notify_initialize(py_db)
         response = pydevd_base_schema.build_response(request, kwargs={'body': body})
         return NetCommand(CMD_RETURN, 0, response, is_json=True)
