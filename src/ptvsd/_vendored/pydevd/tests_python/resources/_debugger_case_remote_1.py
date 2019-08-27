@@ -3,7 +3,21 @@ if __name__ == '__main__':
     import sys
     import os
     import _debugger_case_remote_2
-    port = int(sys.argv[1])
+    args = sys.argv[1:]
+    port = int(args.pop(0))
+
+    access_token = None
+    ide_access_token = None
+    while args:
+        if args[0] == '--access-token':
+            access_token = args[1]
+            args = args[2:]
+        elif args[0] == '--ide-access-token':
+            ide_access_token = args[1]
+            args = args[2:]
+        else:
+            raise AssertionError('Unable to handle args: %s' % (sys.argv[1:]))
+
     root_dirname = os.path.dirname(os.path.dirname(__file__))
 
     if root_dirname not in sys.path:
@@ -13,7 +27,12 @@ if __name__ == '__main__':
 
     print('before pydevd.settrace')
     sys.stdout.flush()
-    pydevd.settrace(port=port, patch_multiprocessing=True)
+    pydevd.settrace(
+        port=port,
+        patch_multiprocessing=True,
+        access_token=access_token,
+        ide_access_token=ide_access_token,
+    )
     print('after pydevd.settrace')
     sys.stdout.flush()
     f = _debugger_case_remote_2.__file__

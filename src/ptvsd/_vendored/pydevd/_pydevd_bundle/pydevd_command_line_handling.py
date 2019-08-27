@@ -26,6 +26,7 @@ class ArgHandlerWithParam:
         setup[self.arg_name] = val
         del argv[i]
 
+
 class ArgHandlerBool:
     '''
     If a given flag is received, mark it as 'True' in setup.
@@ -51,23 +52,27 @@ ACCEPTED_ARG_HANDLERS = [
     ArgHandlerWithParam('port', int, 0),
     ArgHandlerWithParam('vm_type'),
     ArgHandlerWithParam('client'),
+    ArgHandlerWithParam('access-token'),
+    ArgHandlerWithParam('ide-access-token'),
 
     ArgHandlerBool('server'),
     ArgHandlerBool('DEBUG_RECORD_SOCKET_READS'),
-    ArgHandlerBool('multiproc'), # Used by PyCharm (reuses connection: ssh tunneling)
-    ArgHandlerBool('multiprocess'), # Used by PyDev (creates new connection to ide)
+    ArgHandlerBool('multiproc'),  # Used by PyCharm (reuses connection: ssh tunneling)
+    ArgHandlerBool('multiprocess'),  # Used by PyDev (creates new connection to ide)
     ArgHandlerBool('save-signatures'),
     ArgHandlerBool('save-threading'),
     ArgHandlerBool('save-asyncio'),
     ArgHandlerBool('print-in-debugger-startup'),
     ArgHandlerBool('cmd-line'),
     ArgHandlerBool('module'),
-    ArgHandlerBool('json-dap'), # Protocol used by ptvsd to communicate with pydevd
+    ArgHandlerBool('json-dap'),  # Protocol used by ptvsd to communicate with pydevd (a single json message in each read)
+    ArgHandlerBool('json-dap-http'),  # Actual DAP (json messages over http protocol).
 ]
 
 ARGV_REP_TO_HANDLER = {}
 for handler in ACCEPTED_ARG_HANDLERS:
     ARGV_REP_TO_HANDLER[handler.arg_v_rep] = handler
+
 
 def get_pydevd_file():
     import pydevd
@@ -77,6 +82,7 @@ def get_pydevd_file():
     elif f.endswith('$py.class'):
         f = f[:-len('$py.class')] + '.py'
     return f
+
 
 def setup_to_argv(setup):
     '''
@@ -91,6 +97,7 @@ def setup_to_argv(setup):
         if handler.arg_name in setup:
             handler.to_argv(ret, setup)
     return ret
+
 
 def process_command_line(argv):
     """ parses the arguments.
@@ -135,7 +142,7 @@ def process_command_line(argv):
             # --file is special because it's the last one (so, no handler for it).
             del argv[i]
             setup['file'] = argv[i]
-            i = len(argv) # pop out, file is our last argument
+            i = len(argv)  # pop out, file is our last argument
 
         elif argv[i] == '--DEBUG':
             from pydevd import set_debug

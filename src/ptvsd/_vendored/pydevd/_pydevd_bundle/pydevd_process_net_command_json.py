@@ -14,7 +14,7 @@ from _pydevd_bundle._debug_adapter.pydevd_schema import (
     GotoTargetsResponseBody, ModulesResponseBody, ProcessEventBody,
 	ProcessEvent, Scope, ScopesResponseBody, SetExpressionResponseBody,
 	SetVariableResponseBody, SourceBreakpoint, SourceResponseBody,
-	VariablesResponseBody, SetBreakpointsResponseBody)
+	VariablesResponseBody, SetBreakpointsResponseBody, Response, InitializeRequest)
 from _pydevd_bundle.pydevd_api import PyDevdAPI
 from _pydevd_bundle.pydevd_breakpoints import get_exception_class
 from _pydevd_bundle.pydevd_comm_constants import (
@@ -161,6 +161,20 @@ class _PyDevJsonCommandProcessor(object):
                 print('Handled in pydevd: %s (in _PyDevJsonCommandProcessor).\n' % (method_name,))
 
         with py_db._main_lock:
+            if request.__class__ == InitializeRequest:
+                initialize_request = request  # : :type initialize_request: InitializeRequest
+                pydevd_specific_info = initialize_request.arguments.kwargs.get('pydevd', {})
+                if pydevd_specific_info.__class__ == dict:
+                    access_token = pydevd_specific_info.get('debugServerAccessToken')
+                    py_db.authentication.login(access_token)
+
+            if not py_db.authentication.is_authenticated():
+                response = Response(
+                    request.seq, success=False, command=request.command, message='Client not authenticated.', body={})
+                cmd = NetCommand(CMD_RETURN, 0, response, is_json=True)
+                py_db.writer.add_command(cmd)
+                return
+
             cmd = on_request(py_db, request)
             if cmd is not None and send_response:
                 py_db.writer.add_command(cmd)
@@ -170,7 +184,7 @@ class _PyDevJsonCommandProcessor(object):
             'supportsCompletionsRequest': True,
             'supportsConditionalBreakpoints': True,
             'supportsConfigurationDoneRequest': True,
-            'supportsDebuggerProperties': True, 
+            'supportsDebuggerProperties': True,
             'supportsDelayedStackTraceLoading': True,
             'supportsEvaluateForHovers': True,
             'supportsExceptionInfoRequest': True,
@@ -188,6 +202,10 @@ class _PyDevJsonCommandProcessor(object):
                 {'filter': 'uncaught', 'label': 'Uncaught Exceptions', 'default': True},
             ],
         }
+
+        ide_access_token = py_db.authentication.ide_access_token
+        if ide_access_token:
+            body['pydevd'] = {'ideAccessToken': ide_access_token}
         self.api.notify_initialize(py_db)
         response = pydevd_base_schema.build_response(request, kwargs={'body': body})
         return NetCommand(CMD_RETURN, 0, response, is_json=True)

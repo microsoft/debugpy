@@ -2624,7 +2624,14 @@ def test_py_37_breakpoint_remote_no_import(case_setup_remote):
 
 
 @pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
-def test_remote_debugger_multi_proc(case_setup_remote):
+@pytest.mark.parametrize('authenticate', [True, False])
+def test_remote_debugger_multi_proc(case_setup_remote, authenticate):
+
+    access_token = None
+    ide_access_token = None
+    if authenticate:
+        access_token = 'tok123'
+        ide_access_token = 'tok456'
 
     class _SecondaryMultiProcProcessWriterThread(debugger_unittest.AbstractWriterThread):
 
@@ -2641,11 +2648,18 @@ def test_remote_debugger_multi_proc(case_setup_remote):
 
             from tests_python.debugger_unittest import ReaderThread
             self.reader_thread = ReaderThread(self.sock)
+            self.reader_thread.name = 'Secondary Reader Thread'
             self.reader_thread.start()
 
             self._sequence = -1
             # initial command is always the version
             self.write_version()
+
+            if authenticate:
+                self.wait_for_message(lambda msg:'Client not authenticated.' in msg, expect_xml=False)
+                self.write_authenticate(access_token=access_token, ide_access_token=ide_access_token)
+                self.write_version()
+
             self.log.append('start_socket')
             self.write_make_initial_run()
             time.sleep(.5)
@@ -2659,7 +2673,9 @@ def test_remote_debugger_multi_proc(case_setup_remote):
     with case_setup_remote.test_file(
             '_debugger_case_remote_1.py',
             do_kill=do_kill,
-            EXPECTED_RETURNCODE='any'
+            EXPECTED_RETURNCODE='any',
+            access_token=access_token,
+            ide_access_token=ide_access_token,
         ) as writer:
 
         # It seems sometimes it becomes flaky on the ci because the process outlives the writer thread...
@@ -2670,6 +2686,11 @@ def test_remote_debugger_multi_proc(case_setup_remote):
 
         writer.log.append('making initial run')
         writer.write_make_initial_run()
+
+        if authenticate:
+            writer.wait_for_message(lambda msg:'Client not authenticated.' in msg, expect_xml=False)
+            writer.write_authenticate(access_token=access_token, ide_access_token=ide_access_token)
+            writer.write_make_initial_run()
 
         writer.log.append('waiting for breakpoint hit')
         hit = writer.wait_for_breakpoint_hit()
@@ -2691,7 +2712,7 @@ def test_remote_debugger_multi_proc(case_setup_remote):
 
         writer.log.append('Secondary process finished!')
         try:
-            assert 5 == writer._sequence, 'Expected 5. Had: %s' % writer._sequence
+            assert writer._sequence == 5 if not authenticate else 9, 'Found: %s' % writer._sequence
         except:
             writer.log.append('assert failed!')
             raise
@@ -3359,6 +3380,29 @@ def test_step_over_my_code_global_setting_and_explicit_include(case_setup):
         assert hit.name == 'call_me_back1'
 
         writer.write_run_thread(hit.thread_id)
+        writer.finished_ok = True
+
+
+def test_access_token(case_setup):
+
+    def update_command_line_args(self, args):
+        args.insert(2, '--access-token')
+        args.insert(3, 'bar123')
+        args.insert(2, '--ide-access-token')
+        args.insert(3, 'foo234')
+        return args
+
+    with case_setup.test_file('_debugger_case_print.py', update_command_line_args=update_command_line_args) as writer:
+        writer.write_add_breakpoint(1, 'None')  # I.e.: should not work (not authenticated).
+
+        writer.wait_for_message(lambda msg:'Client not authenticated.' in msg, expect_xml=False)
+
+        writer.write_authenticate(access_token='bar123', ide_access_token='foo234')
+
+        writer.write_version()
+
+        writer.write_make_initial_run()
+
         writer.finished_ok = True
 
 

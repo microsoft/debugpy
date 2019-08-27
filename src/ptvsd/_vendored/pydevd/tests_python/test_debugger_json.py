@@ -1,23 +1,26 @@
 # coding: utf-8
+from collections import namedtuple
+import json
+from os.path import normcase
+import os.path
+import sys
+import time
+
 import pytest
 
+from _pydev_bundle.pydev_localhost import get_socket_name
 from _pydevd_bundle._debug_adapter import pydevd_schema, pydevd_base_schema
 from _pydevd_bundle._debug_adapter.pydevd_base_schema import from_json
-from tests_python.debugger_unittest import IS_JYTHON, IS_APPVEYOR, overrides, wait_for_condition, \
-    get_free_port
 from _pydevd_bundle._debug_adapter.pydevd_schema import (ThreadEvent, ModuleEvent, OutputEvent,
-    ExceptionOptions, Response, StoppedEvent, ContinuedEvent, ProcessEvent)
-from tests_python import debugger_unittest
-import json
-from collections import namedtuple
+    ExceptionOptions, Response, StoppedEvent, ContinuedEvent, ProcessEvent, InitializeRequest,
+    InitializeRequestArguments)
+from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
 from _pydevd_bundle.pydevd_constants import (int_types, IS_64BIT_PROCESS,
     PY_VERSION_STR, PY_IMPL_VERSION_STR, PY_IMPL_NAME)
-from tests_python.debug_constants import *  # noqa
-import time
-from os.path import normcase
-from _pydev_bundle.pydev_localhost import get_socket_name
-from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
-from tests_python.debug_constants import TEST_CHERRYPY
+from tests_python import debugger_unittest
+from tests_python.debug_constants import TEST_CHERRYPY, IS_PY2, TEST_DJANGO, TEST_FLASK
+from tests_python.debugger_unittest import (IS_JYTHON, IS_APPVEYOR, overrides,
+    get_free_port)
 
 pytest_plugins = [
     str('tests_python.debugger_fixtures'),
@@ -41,11 +44,12 @@ class _MessageWithMark(object):
 
 class JsonFacade(object):
 
-    def __init__(self, writer):
+    def __init__(self, writer, send_json_startup_messages=True):
         self.writer = writer
         writer.reader_thread.accept_xml_messages = False
-        writer.write_set_protocol('http_json')
-        writer.write_multi_threads_single_notification(True)
+        if send_json_startup_messages:
+            writer.write_set_protocol('http_json')
+            writer.write_multi_threads_single_notification(True)
         self._all_json_messages_found = []
         self._sent_launch_or_attach = False
 
@@ -371,13 +375,21 @@ class JsonFacade(object):
             variables_response = self.get_variables_response(variables_reference)
             return pydevd_schema.Variable(**variables_response.body.variables[index])
 
-    def write_set_debugger_property(self, dont_trace_start_patterns, dont_trace_end_patterns):
+    def write_set_debugger_property(
+            self,
+            dont_trace_start_patterns=None,
+            dont_trace_end_patterns=None,
+            multi_threads_single_notification=None,
+            success=True
+        ):
         dbg_request = self.write_request(
             pydevd_schema.SetDebuggerPropertyRequest(pydevd_schema.SetDebuggerPropertyArguments(
                 dontTraceStartPatterns=dont_trace_start_patterns,
-                dontTraceEndPatterns=dont_trace_end_patterns)))
+                dontTraceEndPatterns=dont_trace_end_patterns,
+                multiThreadsSingleNotification=multi_threads_single_notification,
+            )))
         response = self.wait_for_response(dbg_request)
-        assert response.success
+        assert response.success == success
         return response
 
     def write_set_pydevd_source_map(self, source, pydevd_source_maps, success=True):
@@ -387,6 +399,17 @@ class JsonFacade(object):
                 pydevdSourceMaps=pydevd_source_maps,
             )))
         response = self.wait_for_response(dbg_request)
+        assert response.success == success
+        return response
+
+    def write_initialize(self, access_token, success=True):
+        arguments = InitializeRequestArguments(
+            adapterID='pydevd_test_case',
+            pydevd=dict(
+                debugServerAccessToken=access_token,
+            )
+        )
+        response = self.wait_for_response(self.write_request(InitializeRequest(arguments)))
         assert response.success == success
         return response
 
@@ -2526,6 +2549,7 @@ def test_source_reference_no_file(case_setup, tmpdir):
 @pytest.mark.skipif(not TEST_DJANGO, reason='No django available')
 @pytest.mark.parametrize("jmc", [False, True])
 def test_case_django_no_attribute_exception_breakpoint(case_setup_django, jmc):
+    import django  # noqa (may not be there if TEST_DJANGO == False)
     django_version = [int(x) for x in django.get_version().split('.')][:2]
 
     if django_version < [2, 1]:
@@ -2668,9 +2692,9 @@ def test_redirect_output(case_setup):
                 output = output_event.body.output
                 category = output_event.body.category
                 if IS_PY2:
-                    if isinstance(output, unicode):
+                    if isinstance(output, unicode):  # noqa -- unicode not available in py3
                         output = output.encode('utf-8')
-                    if isinstance(category, unicode):
+                    if isinstance(category, unicode):  # noqa -- unicode not available in py3
                         category = category.encode('utf-8')
                 msg = (output, category)
             except Exception:
@@ -2723,6 +2747,65 @@ def test_pydevd_systeminfo(case_setup):
         assert body['process']['executable'] == sys.executable
         assert body['process']['bitness'] == 64 if IS_64BIT_PROCESS else 32
 
+        json_facade.write_continue(wait_for_response=False)
+
+        writer.finished_ok = True
+
+
+def test_access_token(case_setup):
+
+    def update_command_line_args(self, args):
+        args.insert(1, '--json-dap-http')
+        args.insert(2, '--access-token')
+        args.insert(3, 'bar123')
+        args.insert(4, '--ide-access-token')
+        args.insert(5, 'foo321')
+        return args
+
+    with case_setup.test_file('_debugger_case_pause_continue.py', update_command_line_args=update_command_line_args) as writer:
+        json_facade = JsonFacade(writer, send_json_startup_messages=False)
+
+        response = json_facade.write_set_debugger_property(multi_threads_single_notification=True, success=False)
+        assert response.message == "Client not authenticated."
+
+        response = json_facade.write_initialize(access_token='wrong', success=False)
+        assert response.message == "Client not authenticated."
+
+        response = json_facade.write_set_debugger_property(multi_threads_single_notification=True, success=False)
+        assert response.message == "Client not authenticated."
+
+        response = json_facade.write_initialize(access_token='bar123', success=True)
+        # : :type response:InitializeResponse
+        initialize_response_body = response.body
+        # : :type initialize_response_body:Capabilities
+        assert initialize_response_body.kwargs['pydevd']['ideAccessToken'] == 'foo321'
+
+        json_facade.write_set_debugger_property(multi_threads_single_notification=True)
+        json_facade.write_launch()
+
+        break_line = writer.get_line_index_with_content('Pause here and change loop to False')
+        json_facade.write_set_breakpoints(break_line)
+        json_facade.write_make_initial_run()
+
+        json_facade.wait_for_json_message(ThreadEvent, lambda event: event.body.reason == 'started')
+        json_facade.wait_for_thread_stopped(line=break_line)
+
+        # : :type response: ThreadsResponse
+        response = json_facade.write_list_threads()
+        assert len(response.body.threads) == 1
+        assert next(iter(response.body.threads))['name'] == 'MainThread'
+
+        json_facade.write_disconnect()
+
+        response = json_facade.write_initialize(access_token='wrong', success=False)
+        assert response.message == "Client not authenticated."
+
+        response = json_facade.write_initialize(access_token='bar123')
+        assert initialize_response_body.kwargs['pydevd']['ideAccessToken'] == 'foo321'
+
+        json_facade.write_set_breakpoints(break_line)
+        json_hit = json_facade.wait_for_thread_stopped(line=break_line)
+        json_facade.write_set_variable(json_hit.frame_id, 'loop', 'False')
         json_facade.write_continue(wait_for_response=False)
 
         writer.finished_ok = True

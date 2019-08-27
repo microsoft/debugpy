@@ -36,7 +36,7 @@ from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, CMD_STEP_I
 from _pydevd_bundle.pydevd_constants import (IS_JYTH_LESS25, get_thread_id, get_current_thread_id,
     dict_keys, dict_iter_items, DebugInfoHolder, PYTHON_SUSPEND, STATE_SUSPEND, STATE_RUN, get_frame,
     clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, IS_PY34_OR_GREATER, IS_PY2, NULL,
-    NO_FTRACE, IS_IRONPYTHON, JSON_PROTOCOL, IS_CPYTHON)
+    NO_FTRACE, IS_IRONPYTHON, JSON_PROTOCOL, IS_CPYTHON, HTTP_JSON_PROTOCOL)
 from _pydevd_bundle.pydevd_defaults import PydevdCustomization
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
 from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE, LIB_FILE
@@ -369,6 +369,45 @@ class ThreadsSuspendedSingleNotification(AbstractSingleNotificationBehavior):
             yield
 
 
+class _Authentication(object):
+
+    __slots__ = ['access_token', 'ide_access_token', '_authenticated', '_wrong_attempts']
+
+    def __init__(self):
+        # A token to be send in the command line or through the settrace api -- when such token
+        # is given, the first message sent to the IDE must pass the same token to authenticate.
+        # Note that if a disconnect is sent, the same message must be resent to authenticate.
+        self.access_token = None
+
+        # This token is the one that the ide requires to accept a connection from pydevd
+        # (it's stored here and just passed back when required, it's not used internally
+        # for anything else).
+        self.ide_access_token = None
+
+        self._authenticated = None
+
+        self._wrong_attempts = 0
+
+    def is_authenticated(self):
+        if self._authenticated is None:
+            return self.access_token is None
+        return self._authenticated
+
+    def login(self, access_token):
+        if self._wrong_attempts >= 10:  # A user can fail to authenticate at most 10 times.
+            return
+
+        self._authenticated = access_token == self.access_token
+        if not self._authenticated:
+            self._wrong_attempts += 1
+        else:
+            self._wrong_attempts = 0
+
+    def logout(self):
+        self._authenticated = None
+        self._wrong_attempts = 0
+
+
 class PyDB(object):
     """ Main debugging class
     Lots of stuff going on here:
@@ -386,6 +425,8 @@ class PyDB(object):
     def __init__(self, set_as_global=True):
         if set_as_global:
             pydevd_tracing.replace_sys_set_trace_func()
+
+        self.authentication = _Authentication()
 
         self.reader = None
         self.writer = None
@@ -559,6 +600,7 @@ class PyDB(object):
         '''
         Note: only called when using the DAP (Debug Adapter Protocol).
         '''
+        self.authentication.logout()
         self._on_configuration_done_event.clear()
 
     def set_ignore_system_exit_codes(self, ignore_system_exit_codes):
@@ -2114,6 +2156,8 @@ def _enable_attach(
     dont_trace_start_patterns=(),
     dont_trace_end_paterns=(),
     patch_multiprocessing=False,
+    access_token=None,
+    ide_access_token=None,
     ):
     '''
     Starts accepting connections at the given host/port. The debugger will not be initialized nor
@@ -2140,6 +2184,8 @@ def _enable_attach(
         dont_trace_start_patterns=dont_trace_start_patterns,
         dont_trace_end_paterns=dont_trace_end_paterns,
         patch_multiprocessing=patch_multiprocessing,
+        access_token=access_token,
+        ide_access_token=ide_access_token,
     )
     py_db = get_global_debugger()
     py_db.wait_for_server_socket_ready()
@@ -2161,7 +2207,7 @@ def _wait_for_attach(cancel=None):
     else:
         while not cancel.is_set():
             if py_db.block_until_configuration_done(0.1):
-                cancel.set() # Set cancel to prevent reuse
+                cancel.set()  # Set cancel to prevent reuse
                 return
 
 
@@ -2172,6 +2218,7 @@ def _is_attached():
     '''
     py_db = get_global_debugger()
     return (py_db is not None) and py_db.is_attached()
+
 
 #=======================================================================================================================
 # settrace
@@ -2190,45 +2237,53 @@ def settrace(
     wait_for_ready_to_run=True,
     dont_trace_start_patterns=(),
     dont_trace_end_paterns=(),
+    access_token=None,
+    ide_access_token=None,
     ):
     '''Sets the tracing function with the pydev debug function and initializes needed facilities.
 
-    @param host: the user may specify another host, if the debug server is not in the same machine (default is the local
+    :param host: the user may specify another host, if the debug server is not in the same machine (default is the local
         host)
 
-    @param stdoutToServer: when this is true, the stdout is passed to the debug server
+    :param stdoutToServer: when this is true, the stdout is passed to the debug server
 
-    @param stderrToServer: when this is true, the stderr is passed to the debug server
+    :param stderrToServer: when this is true, the stderr is passed to the debug server
         so that they are printed in its console and not in this process console.
 
-    @param port: specifies which port to use for communicating with the server (note that the server must be started
+    :param port: specifies which port to use for communicating with the server (note that the server must be started
         in the same port). @note: currently it's hard-coded at 5678 in the client
 
-    @param suspend: whether a breakpoint should be emulated as soon as this function is called.
+    :param suspend: whether a breakpoint should be emulated as soon as this function is called.
 
-    @param trace_only_current_thread: determines if only the current thread will be traced or all current and future
+    :param trace_only_current_thread: determines if only the current thread will be traced or all current and future
         threads will also have the tracing enabled.
 
-    @param overwrite_prev_trace: deprecated
+    :param overwrite_prev_trace: deprecated
 
-    @param patch_multiprocessing: if True we'll patch the functions which create new processes so that launched
+    :param patch_multiprocessing: if True we'll patch the functions which create new processes so that launched
         processes are debugged.
 
-    @param stop_at_frame: if passed it'll stop at the given frame, otherwise it'll stop in the function which
+    :param stop_at_frame: if passed it'll stop at the given frame, otherwise it'll stop in the function which
         called this method.
 
-    @param wait_for_ready_to_run: if True settrace will block until the ready_to_run flag is set to True,
+    :param wait_for_ready_to_run: if True settrace will block until the ready_to_run flag is set to True,
         otherwise, it'll set ready_to_run to True and this function won't block.
 
         Note that if wait_for_ready_to_run == False, there are no guarantees that the debugger is synchronized
         with what's configured in the client (IDE), the only guarantee is that when leaving this function
         the debugger will be already connected.
 
-    @param dont_trace_start_patterns: if set, then any path that starts with one fo the patterns in the collection
+    :param dont_trace_start_patterns: if set, then any path that starts with one fo the patterns in the collection
         will not be traced
 
-    @param dont_trace_end_paterns:  if set, then any path that ends with one fo the patterns in the collection
+    :param dont_trace_end_paterns: if set, then any path that ends with one fo the patterns in the collection
         will not be traced
+
+    :param access_token: token to be sent from the client (i.e.: IDE) to the debugger when a connection
+        is established (verified by the debugger).
+
+    :param ide_access_token: token to be sent from the debugger to the client (i.e.: IDE) when
+        a connection is established (verified by the client).
     '''
     with _set_trace_lock:
         _locked_settrace(
@@ -2243,7 +2298,9 @@ def settrace(
             block_until_connected,
             wait_for_ready_to_run,
             dont_trace_start_patterns,
-            dont_trace_end_paterns
+            dont_trace_end_paterns,
+            access_token,
+            ide_access_token,
         )
 
 
@@ -2263,6 +2320,8 @@ def _locked_settrace(
     wait_for_ready_to_run,
     dont_trace_start_patterns,
     dont_trace_end_paterns,
+    access_token,
+    ide_access_token,
     ):
     if patch_multiprocessing:
         try:
@@ -2295,6 +2354,13 @@ def _locked_settrace(
         debugger = get_global_debugger()
         if debugger is None:
             debugger = PyDB()
+        if access_token is not None:
+            debugger.authentication.access_token = access_token
+            SetupHolder.setup['access-token'] = access_token
+        if ide_access_token is not None:
+            debugger.authentication.ide_access_token = ide_access_token
+            SetupHolder.setup['ide-access-token'] = ide_access_token
+
         if block_until_connected:
             debugger.connect(host, port)  # Note: connect can raise error.
         else:
@@ -2352,6 +2418,10 @@ def _locked_settrace(
     else:
         # ok, we're already in debug mode, with all set, so, let's just set the break
         debugger = get_global_debugger()
+        if access_token is not None:
+            debugger.authentication.access_token = access_token
+        if ide_access_token is not None:
+            debugger.authentication.ide_access_token = ide_access_token
 
         debugger.set_trace_for_frame_and_parents(get_frame().f_back)
 
@@ -2475,6 +2545,13 @@ def settrace_forked():
     threading.current_thread().additional_info = None
     PyDBDaemonThread.created_pydb_daemon_threads = {}
 
+    # Make sure that we keep the same access tokens for subprocesses started through fork.
+    setup = SetupHolder.setup
+    if setup is None:
+        setup = {}
+    access_token = setup.get('access-token')
+    ide_access_token = setup.get('ide-access-token')
+
     from _pydevd_frame_eval.pydevd_frame_eval_main import clear_thread_local_info
     host, port = dispatch()
 
@@ -2497,6 +2574,8 @@ def settrace_forked():
                 trace_only_current_thread=False,
                 overwrite_prev_trace=True,
                 patch_multiprocessing=True,
+                access_token=access_token,
+                ide_access_token=ide_access_token,
         )
 
 
@@ -2676,6 +2755,17 @@ def main():
 
     if setup['json-dap']:
         PyDevdAPI().set_protocol(debugger, 0, JSON_PROTOCOL)
+
+    elif setup['json-dap-http']:
+        PyDevdAPI().set_protocol(debugger, 0, HTTP_JSON_PROTOCOL)
+
+    access_token = setup['access-token']
+    if access_token:
+        debugger.authentication.access_token = access_token
+
+    ide_access_token = setup['ide-access-token']
+    if ide_access_token:
+        debugger.authentication.ide_access_token = ide_access_token
 
     if fix_app_engine_debug:
         sys.stderr.write("pydev debugger: google app engine integration enabled\n")
