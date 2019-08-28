@@ -416,6 +416,14 @@ class JsonFacade(object):
             assert isinstance(process_id, int)
         return response
 
+    def evaluate(self, expression, frameId=None, context=None, fmt=None, success=True):
+        eval_request = self.write_request(
+            pydevd_schema.EvaluateRequest(pydevd_schema.EvaluateArguments(
+                expression, frameId=frameId, context=context, format=fmt)))
+        eval_response = self.wait_for_response(eval_request)
+        assert eval_response.success == success
+        return eval_response
+
 
 def test_case_json_logpoints(case_setup):
     with case_setup.test_file('_debugger_case_change_breaks.py') as writer:
@@ -1803,25 +1811,36 @@ def test_evaluate(case_setup):
         stack_frame_id = stack_frame['id']
 
         # Test evaluate request that results in 'eval'
-        eval_request = json_facade.write_request(
-            pydevd_schema.EvaluateRequest(pydevd_schema.EvaluateArguments('var_1', frameId=stack_frame_id, context='repl')))
-        eval_response = json_facade.wait_for_response(eval_request)
+        eval_response = json_facade.evaluate('var_1', frameId=stack_frame_id, context='repl')
         assert eval_response.body.result == '5'
         assert eval_response.body.type == 'int'
 
         # Test evaluate request that results in 'exec'
-        exec_request = json_facade.write_request(
-            pydevd_schema.EvaluateRequest(pydevd_schema.EvaluateArguments('var_1 = 6', frameId=stack_frame_id, context='repl')))
-        exec_response = json_facade.wait_for_response(exec_request)
+        exec_response = json_facade.evaluate('var_1 = 6', frameId=stack_frame_id, context='repl')
         assert exec_response.body.result == ''
 
         # Test evaluate request that results in 'exec' but fails
-        exec_request = json_facade.write_request(
-            pydevd_schema.EvaluateRequest(pydevd_schema.EvaluateArguments('var_1 = "abc"/6', frameId=stack_frame_id, context='repl')))
-        exec_response = json_facade.wait_for_response(exec_request)
-        assert exec_response.success == False
-        assert exec_response.body.result.find('TypeError') > -1
-        assert exec_response.message.find('TypeError') > -1
+        exec_response = json_facade.evaluate(
+            'var_1 = "abc"/6', frameId=stack_frame_id, context='repl', success=False)
+        assert 'TypeError' in exec_response.body.result
+        assert 'TypeError' in exec_response.message
+
+        # Evaluate without a frameId.
+
+        # Error because 'foo_value' is not set in 'sys'.
+        exec_response = json_facade.evaluate('import email;email.foo_value', success=False)
+        assert 'AttributeError' in exec_response.body.result
+        assert 'AttributeError' in exec_response.message
+
+        # Reading foo_value didn't work, but 'email' should be in the namespace now.
+        json_facade.evaluate('email.foo_value=True')
+
+        # Ok, 'foo_value' is now set in 'email' module.
+        exec_response = json_facade.evaluate('email.foo_value')
+
+        # We don't actually get variables without a frameId, we can just evaluate and observe side effects
+        # (so, the result is always empty -- or an error).
+        assert exec_response.body.result == ''
 
         json_facade.write_continue(wait_for_response=False)
 

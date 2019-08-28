@@ -701,22 +701,25 @@ class _PyDevJsonCommandProcessor(object):
         # : :type arguments: EvaluateArguments
         arguments = request.arguments
 
-        thread_id = py_db.suspended_frames_manager.get_thread_id_for_variable_reference(
-            arguments.frameId)
-
-        if thread_id is not None:
-            self.api.request_exec_or_evaluate_json(
-                py_db, request, thread_id)
+        if arguments.frameId is None:
+            self.api.request_exec_or_evaluate_json(py_db, request, thread_id='*')
         else:
-            body = EvaluateResponseBody('', 0)
-            response = pydevd_base_schema.build_response(
-                request,
-                kwargs={
-                    'body': body,
-                    'success': False,
-                    'message': 'Unable to find thread for evaluation.'
-                })
-            return NetCommand(CMD_RETURN, 0, response, is_json=True)
+            thread_id = py_db.suspended_frames_manager.get_thread_id_for_variable_reference(
+                arguments.frameId)
+
+            if thread_id is not None:
+                self.api.request_exec_or_evaluate_json(
+                    py_db, request, thread_id)
+            else:
+                body = EvaluateResponseBody('', 0)
+                response = pydevd_base_schema.build_response(
+                    request,
+                    kwargs={
+                        'body': body,
+                        'success': False,
+                        'message': 'Unable to find thread for evaluation.'
+                    })
+                return NetCommand(CMD_RETURN, 0, response, is_json=True)
 
     def on_setexpression_request(self, py_db, request):
         # : :type arguments: SetExpressionArguments

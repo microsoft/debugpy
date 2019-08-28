@@ -897,10 +897,14 @@ def _evaluate_response(py_db, request, result, error_message=''):
         py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response, is_json=True))
 
 
+_global_frame = None
+
+
 def internal_evaluate_expression_json(py_db, request, thread_id):
     '''
     :param EvaluateRequest request:
     '''
+    global _global_frame
     # : :type arguments: EvaluateArguments
 
     arguments = request.arguments
@@ -918,28 +922,43 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
             _evaluate_response(py_db, request, '', error_message='Expression is not valid utf-8.')
             raise
 
-    frame = py_db.find_frame(thread_id, frame_id)
-    result = pydevd_vars.evaluate_expression(py_db, frame, expression, is_exec=False)
-    is_error = isinstance(result, ExceptionOnEvaluate)
+    try_exec = False
+    if frame_id is None:
+        if _global_frame is None:
+            # Lazily create a frame to be used for evaluation with no frame id.
 
-    if is_error:
-        if context == 'hover':
-            _evaluate_response(py_db, request, result='')
-            return
+            def __create_frame():
+                yield sys._getframe()
 
-        elif context == 'repl':
-            try:
-                pydevd_vars.evaluate_expression(py_db, frame, expression, is_exec=True)
-            except Exception as ex:
-                err = ''.join(traceback.format_exception_only(type(ex), ex))
-                # Currently there is an issue in VSC where returning success=false for an
-                # eval request, in repl context, VSC does not show the error response in
-                # the debug console. So return the error message in result as well.
-                _evaluate_response(py_db, request, result=err, error_message=err)
+            _global_frame = next(__create_frame())
+
+        frame = _global_frame
+        try_exec = True  # Always exec in this case
+        eval_result = None
+    else:
+        frame = py_db.find_frame(thread_id, frame_id)
+        eval_result = pydevd_vars.evaluate_expression(py_db, frame, expression, is_exec=False)
+        is_error = isinstance(eval_result, ExceptionOnEvaluate)
+        if is_error:
+            if context == 'hover':  # In a hover it doesn't make sense to do an exec.
+                _evaluate_response(py_db, request, result='')
                 return
-            # No result on exec.
-            _evaluate_response(py_db, request, result='')
+            else:
+                try_exec = context == 'repl'
+
+    if try_exec:
+        try:
+            pydevd_vars.evaluate_expression(py_db, frame, expression, is_exec=True)
+        except Exception as ex:
+            err = ''.join(traceback.format_exception_only(type(ex), ex))
+            # Currently there is an issue in VSC where returning success=false for an
+            # eval request, in repl context, VSC does not show the error response in
+            # the debug console. So return the error message in result as well.
+            _evaluate_response(py_db, request, result=err, error_message=err)
             return
+        # No result on exec.
+        _evaluate_response(py_db, request, result='')
+        return
 
     # Ok, we have the result (could be an error), let's put it into the saved variables.
     frame_tracker = py_db.suspended_frames_manager.get_frame_tracker(thread_id)
@@ -948,7 +967,7 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
         _evaluate_response(py_db, request, result='', error_message='Thread id: %s is not current thread id.' % (thread_id,))
         return
 
-    variable = frame_tracker.obtain_as_variable(expression, result, frame=frame)
+    variable = frame_tracker.obtain_as_variable(expression, eval_result, frame=frame)
     var_data = variable.get_var_data(fmt=fmt)
 
     body = pydevd_schema.EvaluateResponseBody(
