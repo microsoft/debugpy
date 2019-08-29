@@ -6,8 +6,11 @@ from  _pydev_bundle._pydev_calltip_util import get_description
 from _pydev_imps._pydev_saved_modules import thread
 from _pydevd_bundle import pydevd_vars
 from _pydevd_bundle import pydevd_xml
-from _pydevd_bundle.pydevd_constants import IS_JYTHON, dict_iter_items, NEXT_VALUE_SEPARATOR, Null
+from _pydevd_bundle.pydevd_constants import (IS_JYTHON, dict_iter_items, NEXT_VALUE_SEPARATOR, Null,
+    get_global_debugger)
 import signal
+from contextlib import contextmanager
+from _pydev_bundle import pydev_log
 
 try:
     import cStringIO as StringIO  # may not always be available @UnusedImport
@@ -109,31 +112,44 @@ class DebugConsoleStdIn(BaseStdIn):
         Object to be added to stdin (to emulate it as non-blocking while the next line arrives)
     '''
 
-    def __init__(self, dbg, original_stdin):
+    def __init__(self, py_db, original_stdin):
+        '''
+        :param py_db:
+            If None, get_global_debugger() is used.
+        '''
         BaseStdIn.__init__(self, original_stdin)
-        self.debugger = dbg
+        self._py_db = py_db
+        self._in_notification = 0
 
-    def __pydev_run_command(self, is_started):
+    def __send_input_requested_message(self, is_started):
         try:
-            cmd = self.debugger.cmd_factory.make_input_requested_message(is_started)
-            self.debugger.writer.add_command(cmd)
+            py_db = self._py_db
+            if py_db is None:
+                py_db = get_global_debugger()
+            cmd = py_db.cmd_factory.make_input_requested_message(is_started)
+            py_db.writer.add_command(cmd)
         except Exception:
-            traceback.print_exc()
-            return '\n'
+            pydev_log.exception()
+
+    @contextmanager
+    def notify_input_requested(self):
+        self._in_notification += 1
+        if self._in_notification == 1:
+            self.__send_input_requested_message(True)
+        try:
+            yield
+        finally:
+            self._in_notification -= 1
+            if self._in_notification == 0:
+                self.__send_input_requested_message(False)
 
     def readline(self, *args, **kwargs):
-        # Notify Java side about input and call original function
-        self.__pydev_run_command(True)
-        result = self.original_stdin.readline(*args, **kwargs)
-        self.__pydev_run_command(False)
-        return result
+        with self.notify_input_requested():
+            return self.original_stdin.readline(*args, **kwargs)
 
     def read(self, *args, **kwargs):
-        # Notify Java side about input and call original function
-        self.__pydev_run_command(True)
-        result = self.original_stdin.read(*args, **kwargs)
-        self.__pydev_run_command(False)
-        return result
+        with self.notify_input_requested():
+            return self.original_stdin.read(*args, **kwargs)
 
 
 class CodeFragment:
@@ -220,7 +236,7 @@ class BaseInterpreterInterface:
         if debugger is None:
             return StdIn(self, self.host, self.client_port, original_stdin=original_std_in)
         else:
-            return DebugConsoleStdIn(dbg=debugger, original_stdin=original_std_in)
+            return DebugConsoleStdIn(py_db=debugger, original_stdin=original_std_in)
 
     def add_exec(self, code_fragment, debugger=None):
         # In case sys.excepthook called, use original excepthook #PyDev-877: Debug console freezes with Python 3.5+

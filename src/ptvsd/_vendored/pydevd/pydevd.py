@@ -15,6 +15,8 @@ import itertools
 import os
 import traceback
 import weakref
+import getpass as getpass_mod
+import functools
 
 from _pydev_bundle import pydev_imports, pydev_log
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
@@ -27,6 +29,7 @@ from _pydevd_bundle import pydevd_extension_utils
 from _pydevd_bundle.pydevd_filtering import FilesFiltering
 from _pydevd_bundle import pydevd_io, pydevd_vm_type
 from _pydevd_bundle import pydevd_utils
+from _pydev_bundle.pydev_console_utils import DebugConsoleStdIn
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
 from _pydevd_bundle.pydevd_breakpoints import ExceptionBreakpoint, get_exception_breakpoint
 from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, CMD_STEP_INTO, CMD_SET_BREAK,
@@ -36,7 +39,7 @@ from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, CMD_STEP_I
 from _pydevd_bundle.pydevd_constants import (IS_JYTH_LESS25, get_thread_id, get_current_thread_id,
     dict_keys, dict_iter_items, DebugInfoHolder, PYTHON_SUSPEND, STATE_SUSPEND, STATE_RUN, get_frame,
     clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, IS_PY34_OR_GREATER, IS_PY2, NULL,
-    NO_FTRACE, IS_IRONPYTHON, JSON_PROTOCOL, IS_CPYTHON)
+    NO_FTRACE, IS_IRONPYTHON, JSON_PROTOCOL, IS_CPYTHON, call_only_once)
 from _pydevd_bundle.pydevd_defaults import PydevdCustomization
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
 from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE, LIB_FILE
@@ -2250,7 +2253,7 @@ def _locked_settrace(
         if bufferStdErrToServer:
             init_stderr_redirect()
 
-        patch_stdin(debugger)
+        patch_stdin()
 
         t = threadingCurrentThread()
         additional_info = set_additional_thread_info(t)
@@ -2464,12 +2467,37 @@ def apply_debugger_options(setup_options):
         enable_qt_support(setup_options['qt-support'])
 
 
-def patch_stdin(debugger):
-    from _pydev_bundle.pydev_console_utils import DebugConsoleStdIn
-    orig_stdin = sys.stdin
-    sys.stdin = DebugConsoleStdIn(debugger, orig_stdin)
+@call_only_once
+def patch_stdin():
+    _internal_patch_stdin(None, sys, getpass_mod)
 
-# Dispatch on_debugger_modules_loaded here, after all primary debugger modules are loaded
+
+def _internal_patch_stdin(py_db=None, sys=None, getpass_mod=None):
+    '''
+    Note: don't use this function directly, use `patch_stdin()` instead.
+    (this function is only meant to be used on test-cases to avoid patching the actual globals).
+    '''
+    # Patch stdin so that we notify when readline() is called.
+    original_sys_stdin = sys.stdin
+    debug_console_stdin = DebugConsoleStdIn(py_db, original_sys_stdin)
+    sys.stdin = debug_console_stdin
+
+    _original_getpass = getpass_mod.getpass
+
+    @functools.wraps(_original_getpass)
+    def getpass(*args, **kwargs):
+        with DebugConsoleStdIn.notify_input_requested(debug_console_stdin):
+            try:
+                curr_stdin = sys.stdin
+                if curr_stdin is debug_console_stdin:
+                    sys.stdin = original_sys_stdin
+                return _original_getpass(*args, **kwargs)
+            finally:
+                sys.stdin = curr_stdin
+
+    getpass_mod.getpass = getpass
+
+# Dispatch on_debugger_modules_loaded here, after all primary py_db modules are loaded
 
 
 for handler in pydevd_extension_utils.extensions_of_type(DebuggerEventHandler):
@@ -2606,7 +2634,7 @@ def main():
             pass
 
     is_module = setup['module']
-    patch_stdin(debugger)
+    patch_stdin()
 
     if setup['json-dap']:
         PyDevdAPI().set_protocol(debugger, 0, JSON_PROTOCOL)

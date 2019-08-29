@@ -23,6 +23,7 @@ CONSOLE_ERROR = "error"
 class ConsoleMessage:
     """Console Messages
     """
+
     def __init__(self):
         self.more = False
         # List of tuple [('error', 'error_message'), ('message_list', 'output_message')]
@@ -62,14 +63,15 @@ class ConsoleMessage:
 
 
 #=======================================================================================================================
-# DebugConsoleStdIn
+# _DebugConsoleStdIn
 #=======================================================================================================================
-class DebugConsoleStdIn(BaseStdIn):
+class _DebugConsoleStdIn(BaseStdIn):
 
     @overrides(BaseStdIn.readline)
     def readline(self, *args, **kwargs):
         sys.stderr.write('Warning: Reading from stdin is still not supported in this console.\n')
         return '\n'
+
 
 #=======================================================================================================================
 # DebugConsole
@@ -87,8 +89,7 @@ class DebugConsole(InteractiveConsole, BaseInterpreterInterface):
         except:
             pass
 
-        return DebugConsoleStdIn() #If buffered, raw_input is not supported in this console.
-
+        return _DebugConsoleStdIn()  # If buffered, raw_input is not supported in this console.
 
     @overrides(InteractiveConsole.push)
     def push(self, line, frame, buffer_output=True):
@@ -121,7 +122,7 @@ class DebugConsole(InteractiveConsole, BaseInterpreterInterface):
                 else:
                     sys.stderr.write("Internal Error: %s\n" % (exc,))
         finally:
-            #Remove frame references.
+            # Remove frame references.
             self.frame = None
             frame = None
             if buffer_output:
@@ -133,11 +134,9 @@ class DebugConsole(InteractiveConsole, BaseInterpreterInterface):
         else:
             return more, [], []
 
-
     @overrides(BaseInterpreterInterface.do_add_exec)
     def do_add_exec(self, line):
         return InteractiveConsole.push(self, line)
-
 
     @overrides(InteractiveConsole.runcode)
     def runcode(self, code):
@@ -183,7 +182,7 @@ class InteractiveConsoleCache:
     interactive_console_instance = None
 
 
-#Note: On Jython 2.1 we can't use classmethod or staticmethod, so, just make the functions below free-functions.
+# Note: On Jython 2.1 we can't use classmethod or staticmethod, so, just make the functions below free-functions.
 def get_interactive_console(thread_id, frame_id, frame, console_message):
     """returns the global interactive console.
     interactive console should have been initialized by this time
@@ -198,7 +197,7 @@ def get_interactive_console(thread_id, frame_id, frame, console_message):
 
     console_stacktrace = traceback.extract_stack(frame, limit=1)
     if console_stacktrace:
-        current_context = console_stacktrace[0] # top entry from stacktrace
+        current_context = console_stacktrace[0]  # top entry from stacktrace
         context_message = 'File "%s", line %s, in %s' % (current_context[0], current_context[1], current_context[2])
         console_message.add_console_message(CONSOLE_OUTPUT, "[Current context]: %s" % (context_message,))
     return InteractiveConsoleCache.interactive_console_instance
@@ -246,8 +245,4 @@ def get_completions(frame, act_tok):
     return the completions xml
     """
     return _pydev_completer.generate_completions_as_xml(frame, act_tok)
-
-
-
-
 
