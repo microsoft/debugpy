@@ -27,7 +27,6 @@ def test_with_wait_for_attach(pyfile, start_method, run_as):
         assert hit.frames[0]["line"] == code_to_debug.lines["break"]
 
         session.request_continue()
-        session.stop_debugging()
 
 
 @pytest.mark.parametrize("run_as", ["program", "module", "code"])
@@ -52,4 +51,3 @@ def test_breakpoint_function(pyfile, start_method, run_as):
         assert hit.frames[0]["line"] == code_to_debug.lines["break"]
 
         session.request_continue()
-        session.stop_debugging()

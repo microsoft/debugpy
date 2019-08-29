@@ -78,4 +78,3 @@ def test_set_next_statement(pyfile, start_method, run_as):
         assert line == line_numbers["inner2"]
 
         session.send_request("continue").wait_for_response()
-        session.stop_debugging()

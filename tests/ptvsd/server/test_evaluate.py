@@ -100,7 +100,6 @@ def test_variables_and_evaluate(pyfile, start_method, run_as):
         )
 
         session.request_continue()
-        session.stop_debugging()
 
 
 def test_set_variable(pyfile, start_method, run_as):
@@ -155,8 +154,6 @@ def test_set_variable(pyfile, start_method, run_as):
         session.request_continue()
 
         assert backchannel.receive() == 1000
-
-        session.stop_debugging()
 
 
 def test_variable_sort(pyfile, start_method, run_as):
@@ -245,7 +242,6 @@ def test_variable_sort(pyfile, start_method, run_as):
         # assert variable_names[:3] == ['1', '2', '10']
 
         session.request_continue()
-        session.stop_debugging()
 
 
 def test_return_values(pyfile, start_method, run_as):
@@ -333,7 +329,6 @@ def test_return_values(pyfile, start_method, run_as):
         assert variables == [expected1, expected2]
 
         session.send_request("continue").wait_for_response()
-        session.stop_debugging()
 
 
 def test_unicode(pyfile, start_method, run_as):
@@ -367,7 +362,6 @@ def test_unicode(pyfile, start_method, run_as):
             assert resp_eval.body == some.dict.containing({"type": "SyntaxError"})
 
         session.request_continue()
-        session.stop_debugging()
 
 
 def test_hex_numbers(pyfile, start_method, run_as):
@@ -592,4 +586,3 @@ def test_hex_numbers(pyfile, start_method, run_as):
         ]
 
         session.request_continue()
-        session.stop_debugging()

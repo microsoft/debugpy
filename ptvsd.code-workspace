@@ -7,6 +7,7 @@
     "settings": {
         "python.linting.enabled": true,
         "python.linting.pylintEnabled": false,
+        "python.linting.flake8Enabled": true,
         "python.envFile": "${workspaceFolder}/.env",
         "python.formatting.provider": "black",
 
@@ -15,6 +16,7 @@
             "**/__pycache__": true,
             ".tox": true,
             "src/ptvsd.egg-info": true,
-        }
+        },
+        "python.testing.pytestEnabled": true,
     },
 }

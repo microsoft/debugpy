@@ -50,7 +50,6 @@ def test_thread_count(pyfile, start_method, run_as, count):
         assert len(resp_threads.body["threads"]) == count
 
         session.request_continue()
-        session.stop_debugging()
 
 
 @pytest.mark.skipif(
@@ -110,4 +109,3 @@ def test_debug_this_thread(pyfile, start_method, run_as):
 
         session.wait_for_stop()
         session.request_continue()
-        session.stop_debugging()

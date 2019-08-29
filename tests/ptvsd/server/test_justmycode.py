@@ -19,9 +19,7 @@ def test_justmycode_frames(pyfile, start_method, run_as, jmc):
         print("break here")  # @bp
 
     with debug.Session(start_method) as session:
-        if not jmc:
-            session.debug_options |= {"DebugStdLib"}
-        session.configure(run_as, code_to_debug)
+        session.configure(run_as, code_to_debug, justMyCode=bool(jmc))
 
         bp_line = code_to_debug.lines["bp"]
         actual_bps = session.set_breakpoints(code_to_debug, [bp_line])
@@ -54,5 +52,3 @@ def test_justmycode_frames(pyfile, start_method, run_as, jmc):
 
             # 'continue' should terminate the debuggee
             session.request_continue()
-
-        session.stop_debugging()

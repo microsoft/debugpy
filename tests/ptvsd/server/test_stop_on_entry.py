@@ -43,8 +43,4 @@ def test_stop_on_entry(pyfile, run_as, breakpoint):
             assert hit.frames[0]["source"]["path"] == some.path(code_to_debug)
 
         session.request_continue()
-        session.wait_for_termination()
-
         assert backchannel.receive() == "done"
-
-        session.stop_debugging()

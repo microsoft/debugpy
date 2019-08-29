@@ -14,7 +14,7 @@ import threading
 import traceback
 
 import ptvsd
-from ptvsd.common import compat, fmt, options, timestamp
+from ptvsd.common import compat, fmt, options, timestamp, util
 
 
 LEVELS = ("debug", "info", "warning", "error")
@@ -223,7 +223,7 @@ def describe_environment(header):
         expr = None
         if not callable(get_paths):
             expr = get_paths
-            get_paths = lambda: eval(expr, {}, sys.modules)
+            get_paths = lambda: util.evaluate(expr)
         try:
             paths = get_paths()
         except AttributeError:

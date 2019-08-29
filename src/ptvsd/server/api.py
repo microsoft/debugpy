@@ -13,10 +13,7 @@ import ptvsd
 from ptvsd.common import log, options as common_opts
 from ptvsd.server import options as server_opts
 from _pydevd_bundle.pydevd_constants import get_global_debugger
-from pydevd_file_utils import (
-    get_abs_path_real_path_and_base_from_file,
-    get_abs_path_real_path_and_base_from_frame,
-)
+from pydevd_file_utils import get_abs_path_real_path_and_base_from_file
 
 
 def wait_for_attach():
@@ -107,9 +104,7 @@ def break_into_debugger():
     stop_at_frame = sys._getframe().f_back
     while (
         stop_at_frame is not None
-        and global_debugger.get_file_type(
-            stop_at_frame, get_abs_path_real_path_and_base_from_frame(stop_at_frame)
-        )
+        and global_debugger.get_file_type(stop_at_frame)
         == global_debugger.PYDEV_FILE
     ):
         stop_at_frame = stop_at_frame.f_back

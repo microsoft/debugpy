@@ -57,5 +57,3 @@ def test_set_expression(pyfile, start_method, run_as):
         session.request_continue()
 
         assert backchannel.receive() == 1000
-
-        session.stop_debugging()

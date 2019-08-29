@@ -62,7 +62,6 @@ def test_client_ide_from_path_mapping_linux_backend(
         )
 
         session.request_continue()
-        session.stop_debugging()
 
 
 def test_with_dot_remote_root(pyfile, long_tmpdir, start_method, run_as):
@@ -107,7 +106,6 @@ def test_with_dot_remote_root(pyfile, long_tmpdir, start_method, run_as):
         )
 
         session.request_continue()
-        session.stop_debugging()
 
 
 def test_with_path_mappings(pyfile, long_tmpdir, start_method, run_as):
@@ -192,4 +190,3 @@ def test_with_path_mappings(pyfile, long_tmpdir, start_method, run_as):
         assert "def call_me_back(callback):" in source["content"]
 
         session.request_continue()
-        session.stop_debugging()

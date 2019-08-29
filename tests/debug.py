@@ -27,8 +27,7 @@ StopInfo = collections.namedtuple(
 PTVSD_DIR = py.path.local(ptvsd.__file__) / ".."
 PTVSD_ADAPTER_DIR = PTVSD_DIR / "adapter"
 
-# Added to the environment variables of every new debug.Session - after copying
-# os.environ(), but before setting any session-specific variables.
+# Added to the environment variables of every new debug.Session
 PTVSD_ENV = {"PYTHONUNBUFFERED": "1"}
 
 
@@ -120,6 +119,11 @@ class Session(object):
             # Log the error, in case another one happens during shutdown.
             log.exception(exc_info=(exc_type, exc_val, exc_tb))
 
+        try:
+            self.wait_for_exit()
+        except Exception:
+            raise log.exception()
+
         self._stop_adapter()
 
         if self.backchannel:
@@ -128,11 +132,23 @@ class Session(object):
 
     @property
     def process(self):
-        return self.start_method.debugee_process
+        return self.start_method.debuggee_process
+
+    @property
+    def pid(self):
+        return self.process.pid
 
     @property
     def ignore_unobserved(self):
         return self.timeline.ignore_unobserved
+
+    @property
+    def expected_exit_code(self):
+        return self.start_method.expected_exit_code
+
+    @expected_exit_code.setter
+    def expected_exit_code(self, value):
+        self.start_method.expected_exit_code = value
 
     def request(self, *args, **kwargs):
         freeze = kwargs.pop("freeze", True)
@@ -257,6 +273,7 @@ class Session(object):
         if pythonpath:
             pythonpath += os.pathsep
         pythonpath += (tests.root / "DEBUGGEE_PYTHONPATH").strpath
+        pythonpath += os.pathsep + (PTVSD_DIR / "..").strpath
         env["PYTHONPATH"] = pythonpath
 
         env["PTVSD_SESSION_ID"] = str(self.id)
@@ -395,6 +412,7 @@ class Session(object):
             "exception",
             "breakpoint",
             "entry",
+            "goto"
         ]:
             expected_stopped["preserveFocusHint"] = True
         assert stopped == some.dict.containing(expected_stopped)
@@ -431,6 +449,6 @@ class Session(object):
     def captured_stderr(self, encoding=None):
         return self.start_method.captured_output.stderr(encoding)
 
-    def stop_debugging(self, exit_code=None):
-        self.start_method.wait_for_debuggee(exit_code)
+    def wait_for_exit(self):
+        self.start_method.wait_for_debuggee()
         self.request_disconnect()

@@ -51,7 +51,6 @@ def test_exceptions_and_exclude_rules(
         session.start_debugging()
 
         # No exceptions should be seen.
-        session.stop_debugging()
 
 
 @pytest.mark.parametrize("scenario", ["exclude_code_to_debug", "exclude_callback_dir"])
@@ -188,5 +187,3 @@ def test_exceptions_and_partial_exclude_rules(pyfile, start_method, run_as, scen
 
         else:
             pytest.fail(scenario)
-
-        session.stop_debugging()

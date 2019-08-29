@@ -29,12 +29,10 @@ def test_continue_on_disconnect_for_attach(pyfile, start_method, run_as):
         hit = session.wait_for_stop("breakpoint")
         assert hit.frames[0]["line"] == code_to_debug.lines["bp"]
         session.send_request("disconnect").wait_for_response()
-        session.wait_for_disconnect()
         assert "continued" == backchannel.receive()
 
 
 @pytest.mark.parametrize("start_method", [start_methods.Launch])
-@pytest.mark.skip(reason="Bug #1052")
 def test_exit_on_disconnect_for_launch(pyfile, start_method, run_as):
     @pyfile
     def code_to_debug():
@@ -47,12 +45,13 @@ def test_exit_on_disconnect_for_launch(pyfile, start_method, run_as):
             print("Should not continue after disconnect on launch", file=f)
 
     with debug.Session(start_method) as session:
+        session.expected_exit_code = some.int
         session.configure(run_as, code_to_debug)
         session.set_breakpoints(code_to_debug, code_to_debug.lines["bp"])
         session.start_debugging()
         hit = session.wait_for_stop("breakpoint")
         assert hit.frames[0]["line"] == code_to_debug.lines["bp"]
         session.send_request("disconnect").wait_for_response()
-        session.stop_debugging(exitCode=some.int)
-        fp = os.join(os.path.dirname(os.path.abspath(code_to_debug)), "here.txt")
-        assert not os.path.exists(fp)
+
+    fp = os.join(os.path.dirname(os.path.abspath(code_to_debug)), "here.txt")
+    assert not os.path.exists(fp)

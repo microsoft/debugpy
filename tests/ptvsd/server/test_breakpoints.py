@@ -34,7 +34,6 @@ def test_path_with_ampersand(start_method, run_as):
         )
 
         session.request_continue()
-        session.stop_debugging()
 
 
 @pytest.mark.skipif(
@@ -58,7 +57,6 @@ def test_path_with_unicode(start_method, run_as):
         )
 
         session.request_continue()
-        session.stop_debugging()
 
 
 @pytest.mark.parametrize(
@@ -122,7 +120,6 @@ def test_conditional_breakpoint(pyfile, start_method, run_as, condition_kind):
         for i in range(1, hits):
             session.wait_for_stop()
             session.request_continue()
-        session.stop_debugging()
 
 
 def test_crossfile_breakpoint(pyfile, start_method, run_as):
@@ -154,7 +151,6 @@ def test_crossfile_breakpoint(pyfile, start_method, run_as):
         session.wait_for_stop(expected_frames=[some.dap.frame(script1, line="bp")])
 
         session.request_continue()
-        session.stop_debugging()
 
 
 @pytest.mark.parametrize("error_name", ["NameError", ""])
@@ -188,15 +184,14 @@ def test_error_in_condition(pyfile, start_method, run_as, error_name):
             },
         )
         session.start_debugging()
-        session.stop_debugging()
 
-        assert not session.captured_stdout()
+    assert not session.captured_stdout()
 
-        error_name = error_name.encode("ascii")
-        if expect_traceback:
-            assert error_name in session.captured_stderr()
-        else:
-            assert error_name not in session.captured_stderr()
+    error_name = error_name.encode("ascii")
+    if expect_traceback:
+        assert error_name in session.captured_stderr()
+    else:
+        assert error_name not in session.captured_stderr()
 
 
 @pytest.mark.parametrize("condition", ["condition", ""])
@@ -248,17 +243,16 @@ def test_log_point(pyfile, start_method, run_as, condition):
             ],
         )
         session.request_continue()
-        session.stop_debugging()
 
-        assert not session.captured_stderr()
+    assert not session.captured_stderr()
 
-        expected_stdout = "".join(
-            (
-                fmt(r"{0}\r?\n{1}\r?\n", re.escape(str(i)), re.escape(str(i * 10)))
-                for i in range(0, 10)
-            )
+    expected_stdout = "".join(
+        (
+            fmt(r"{0}\r?\n{1}\r?\n", re.escape(str(i)), re.escape(str(i * 10)))
+            for i in range(0, 10)
         )
-        assert session.output("stdout") == some.str.matching(expected_stdout)
+    )
+    assert session.output("stdout") == some.str.matching(expected_stdout)
 
 
 def test_package_launch():
@@ -266,6 +260,7 @@ def test_package_launch():
     test_py = cwd / "pkg1" / "__main__.py"
 
     with debug.Session(start_methods.Launch) as session:
+        session.expected_exit_code = 42
         session.configure("module", "pkg1", cwd=cwd)
         session.set_breakpoints(test_py, ["two"])
         session.start_debugging()
@@ -278,7 +273,6 @@ def test_package_launch():
         )
 
         session.request_continue()
-        session.stop_debugging(exitCode=42)
 
 
 def test_add_and_remove_breakpoint(pyfile, start_method, run_as):
@@ -313,10 +307,9 @@ def test_add_and_remove_breakpoint(pyfile, start_method, run_as):
             ],
         )
         session.request_continue()
-        session.stop_debugging()
 
-        expected_stdout = "".join((fmt("{0}\n", i) for i in range(0, 10)))
-        assert session.output("stdout") == expected_stdout
+    expected_stdout = "".join((fmt("{0}\n", i) for i in range(0, 10)))
+    assert session.output("stdout") == expected_stdout
 
 
 def test_invalid_breakpoints(pyfile, start_method, run_as):
@@ -375,8 +368,6 @@ def test_invalid_breakpoints(pyfile, start_method, run_as):
             )
             session.request_continue()
 
-        session.stop_debugging()
-
 
 def test_deep_stacks(pyfile, start_method, run_as):
     @pyfile
@@ -417,4 +408,3 @@ def test_deep_stacks(pyfile, start_method, run_as):
         assert stop.frames == frames
 
         session.request_continue()
-        session.stop_debugging()

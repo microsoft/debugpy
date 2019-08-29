@@ -25,18 +25,19 @@ class lines:
     app_py = code.get_marked_line_numbers(paths.app_py)
 
 
-def _initialize_session(session, multiprocess=False):
-    session.program_args = ["runserver", "--", str(django.port)]
+def _initialize_session(session, multiprocess=False, exit_code=0):
+    args = ["runserver"]
     if not multiprocess:
-        session.program_args[1:1] = ["--noreload"]
+        args += ["--noreload"]
+    args += ["--", str(django.port)]
 
-    session.debug_options |= {"Django"}
-    if multiprocess:
-        session.debug_options |= {"Multiprocess"}
-
+    session.expected_exit_code = exit_code
     session.configure(
         "program", paths.app_py,
         cwd=paths.django1,
+        multiprocess=multiprocess,
+        args=args,
+        django=True
     )
 
 
@@ -50,7 +51,7 @@ def test_django_breakpoint_no_multiproc(start_method, bp_target):
     bp_var_content = compat.force_str("Django-Django-Test")
 
     with debug.Session(start_method) as session:
-        _initialize_session(session)
+        _initialize_session(session, exit_code=some.int)
         session.set_breakpoints(bp_file, [bp_line])
         session.start_debugging()
 
@@ -82,15 +83,11 @@ def test_django_breakpoint_no_multiproc(start_method, bp_target):
             session.request_continue()
             assert bp_var_content in home_request.response_text()
 
-        session.stop_debugging(
-            exitCode=some.int,  # No clean way to kill Django server
-        )
-
 
 @pytest.mark.parametrize("start_method", [start_methods.Launch, start_methods.AttachSocketCmdLine])
 def test_django_template_exception_no_multiproc(start_method):
     with debug.Session(start_method) as session:
-        _initialize_session(session)
+        _initialize_session(session, exit_code=some.int)
         session.request("setExceptionBreakpoints", {"filters": ["raised", "uncaught"]})
         session.start_debugging()
 
@@ -131,10 +128,6 @@ def test_django_template_exception_no_multiproc(start_method):
             session.wait_for_stop("exception")
             session.request_continue()
 
-        session.stop_debugging(
-            exitCode=some.int,  # No clean way to kill Django server
-        )
-
 
 @pytest.mark.parametrize("start_method", [start_methods.Launch, start_methods.AttachSocketCmdLine])
 @pytest.mark.parametrize("exc_type", ["handled", "unhandled"])
@@ -142,7 +135,7 @@ def test_django_exception_no_multiproc(start_method, exc_type):
     exc_line = lines.app_py["exc_" + exc_type]
 
     with debug.Session(start_method) as session:
-        _initialize_session(session)
+        _initialize_session(session, exit_code=some.int)
         session.request("setExceptionBreakpoints", {"filters": ["raised", "uncaught"]})
         session.start_debugging()
 
@@ -185,10 +178,6 @@ def test_django_exception_no_multiproc(start_method, exc_type):
 
             session.request_continue()
 
-        session.stop_debugging(
-            exitCode=some.int,  # No clean way to kill Django server
-        )
-
 
 @pytest.mark.parametrize("start_method", [start_methods.Launch])
 def test_django_breakpoint_multiproc(start_method):
@@ -196,7 +185,7 @@ def test_django_breakpoint_multiproc(start_method):
     bp_var_content = compat.force_str("Django-Django-Test")
 
     with debug.Session(start_method) as parent_session:
-        _initialize_session(parent_session, multiprocess=True)
+        _initialize_session(parent_session, multiprocess=True, exit_code=some.int)
         parent_session.set_breakpoints(paths.app_py, [bp_line])
         parent_session.start_debugging()
 
@@ -228,6 +217,3 @@ def test_django_breakpoint_multiproc(start_method):
 
                 child_session.request_continue()
                 assert bp_var_content in home_request.response_text()
-
-            child_session.stop_debugging()
-        parent_session.stop_debugging(exitCode=some.int)

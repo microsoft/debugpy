@@ -8,7 +8,7 @@ import contextlib
 import pytest
 
 from ptvsd.common import compat
-from tests import debug
+from tests import debug, start_methods
 
 
 @contextlib.contextmanager
@@ -37,10 +37,10 @@ def test_log_cli(pyfile, tmpdir, start_method, run_as, cli):
                 session.env["PTVSD_LOG_DIR"] = str(tmpdir)
             session.configure(run_as, code_to_debug)
             session.start_debugging()
-            session.stop_debugging()
 
 
-def test_log_api(pyfile, tmpdir, run_as):
+@pytest.mark.parametrize("start_method", [start_methods.CustomServer])
+def test_log_api(pyfile, tmpdir, start_method, run_as):
     @pyfile
     def code_to_debug():
         from debug_me import backchannel, ptvsd
@@ -49,7 +49,7 @@ def test_log_api(pyfile, tmpdir, run_as):
         ptvsd.wait_for_attach()
 
     log_dir = compat.filename(tmpdir)
-    with debug.Session("custom_server", backchannel=True) as session:
+    with debug.Session(start_method, backchannel=True) as session:
         backchannel = session.backchannel
 
         @session.before_connect
@@ -59,4 +59,3 @@ def test_log_api(pyfile, tmpdir, run_as):
         with check_logs(tmpdir, session):
             session.configure(run_as, code_to_debug)
             session.start_debugging()
-            session.stop_debugging()

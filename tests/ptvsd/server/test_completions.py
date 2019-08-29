@@ -66,11 +66,9 @@ def test_completions_scope(pyfile, bp_label, start_method, run_as):
 
         session.request_continue()
 
-        targets.sort(key=lambda t: t["label"])
-        expected.sort(key=lambda t: t["label"])
-        assert targets == expected
-
-        session.stop_debugging()
+    targets.sort(key=lambda t: t["label"])
+    expected.sort(key=lambda t: t["label"])
+    assert targets == expected
 
 
 def test_completions_cases(pyfile, start_method, run_as):
@@ -132,4 +130,3 @@ def test_completions_cases(pyfile, start_method, run_as):
         assert "Wrong ID sent from the client:" in str(error)
 
         session.request_continue()
-        session.stop_debugging()

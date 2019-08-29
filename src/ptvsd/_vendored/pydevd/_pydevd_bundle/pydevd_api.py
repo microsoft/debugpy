@@ -759,10 +759,7 @@ class PyDevdAPI(object):
                 reset_caches = True
 
         def custom_dont_trace_external_files(abs_path):
-            for p in start_patterns:
-                if p in abs_path:
-                    return True
-            return abs_path.endswith(end_patterns)
+            return abs_path.startswith(start_patterns) or abs_path.endswith(end_patterns)
 
         custom_dont_trace_external_files.start_patterns = start_patterns
         custom_dont_trace_external_files.end_patterns = end_patterns

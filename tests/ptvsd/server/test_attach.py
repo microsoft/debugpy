@@ -53,7 +53,6 @@ def test_attach(run_as, wait_for_attach, is_attached, stop_method):
             pytest.fail(stop_method)
 
         session.request_continue()
-        session.stop_debugging()
 
 
 @pytest.mark.parametrize(
@@ -129,5 +128,3 @@ def test_attaching_by_pid(pyfile, run_as, start_method):
         session.wait_for_next(
             Event("output", some.dict.containing({"category": "stdout"}))
         )
-
-        session.stop_debugging()

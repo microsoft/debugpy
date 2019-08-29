@@ -28,5 +28,3 @@ def test_args(pyfile, start_method, run_as):
 
         argv = session.backchannel.receive()
         assert argv == [some.str] + expected
-
-        session.stop_debugging()

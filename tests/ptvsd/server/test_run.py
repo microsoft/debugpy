@@ -51,8 +51,6 @@ def test_run(pyfile, start_method, run_as):
             some.str.matching(re.escape(expected_ptvsd_path) + r"(c|o)?")
         )
 
-        session.stop_debugging()
-
 
 def test_run_submodule():
     with debug.Session("launch") as session:
@@ -64,7 +62,6 @@ def test_run_submodule():
                 some.dict.containing({"category": "stdout", "output": "three"}),
             )
         )
-        session.stop_debugging()
 
 
 @pytest.mark.parametrize("run_as", ["program", "module", "code"])
@@ -89,13 +86,12 @@ def test_nodebug(pyfile, run_as):
         backchannel.send(None)
 
         # Breakpoint shouldn't be hit.
-        session.stop_debugging()
 
-        session.expect_realized(
-            Event(
-                "output", some.dict.containing({"category": "stdout", "output": "ok"})
-            )
+    session.expect_realized(
+        Event(
+            "output", some.dict.containing({"category": "stdout", "output": "ok"})
         )
+    )
 
 
 @pytest.mark.parametrize("run_as", ["script", "module"])
@@ -127,4 +123,3 @@ def test_run_vs(pyfile, run_as):
         session.start_debugging()
 
         assert backchannel.receive() == "ok"
-        session.stop_debugging()

@@ -28,12 +28,11 @@ def test_with_no_output(pyfile, start_method, run_as):
         session.start_debugging()
         session.wait_for_stop("breakpoint")
         session.request_continue()
-        session.stop_debugging()
 
-        assert not session.output("stdout")
-        assert not session.output("stderr")
-        assert not session.captured_stdout()
-        assert not session.captured_stderr()
+    assert not session.output("stdout")
+    assert not session.output("stderr")
+    assert not session.captured_stdout()
+    assert not session.captured_stderr()
 
 
 def test_with_tab_in_output(pyfile, start_method, run_as):
@@ -52,9 +51,8 @@ def test_with_tab_in_output(pyfile, start_method, run_as):
         session.start_debugging()
         session.wait_for_stop()
         session.request_continue()
-        session.stop_debugging()
 
-        assert session.output("stdout").startswith("Hello\tWorld")
+    assert session.output("stdout").startswith("Hello\tWorld")
 
 
 @pytest.mark.parametrize("redirect", ["enabled", "disabled"])
@@ -77,9 +75,8 @@ def test_redirect_output(pyfile, start_method, run_as, redirect):
 
         session.wait_for_stop()
         session.request_continue()
-        session.stop_debugging()
 
-        if redirect == "enabled":
-            assert session.output("stdout") == "111\n222\n333\n444\n"
-        else:
-            assert not session.output("stdout")
+    if redirect == "enabled":
+        assert session.output("stdout") == "111\n222\n333\n444\n"
+    else:
+        assert not session.output("stdout")

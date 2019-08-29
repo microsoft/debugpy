@@ -40,17 +40,16 @@ class DebugStartBase(object):
         self.method = method
         self.captured_output = helpers.CapturedOutput(self.session)
         self.debuggee_process = None
-
-    def configure(self, run_as, target, **kwargs):
-        pass
+        self.expected_exit_code = None
 
     def start_debugging(self, **kwargs):
         pass
 
-    def wait_for_debuggee(self, exit_code):
-        if exit_code is not None:
+    def wait_for_debuggee(self):
+        # TODO: Exit should not be restricted to launch tests only
+        if self.expected_exit_code is not None and 'launch' in self.method:
             exited = self.session.wait_for_next_event("exited", freeze=False)
-            assert exited == some.dict.containing({"exitCode": exit_code})
+            assert exited == some.dict.containing({"exitCode": self.expected_exit_code})
 
         self.session.wait_for_next_event("terminated")
 
@@ -273,9 +272,6 @@ class Launch(DebugStartBase):
 
         self._launch_request.wait_for_response(freeze=False)
         self._wait_for_process_event()
-
-    def wait_for_debuggee(self, exit_code=0):
-        super(Launch, self).wait_for_debuggee(exit_code)
 
     def run_in_terminal(self, request):
         args = request("args", json.array(unicode))
@@ -503,9 +499,10 @@ class AttachSocketCmdLine(AttachBase):
         pythonPath=sys.executable,
         args=[],
         cwd=None,
-        env=os.environ.copy(),
+        env=None,
         **kwargs
     ):
+        env = {} if env is None else dict(env)
         self._attach_args = self._build_attach_args({}, run_as, target, **kwargs)
 
         cli_args = [pythonPath]
