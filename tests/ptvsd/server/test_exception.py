@@ -302,7 +302,10 @@ def test_raise_exception_options(pyfile, start_method, run_as, exceptions, break
 
 
 @pytest.mark.parametrize("exit_code", [0, 3])
-def test_success_exitcodes(pyfile, start_method, run_as, exit_code):
+@pytest.mark.parametrize('break_on_system_exit_zero', [True, False])
+@pytest.mark.parametrize('expect_django', [True, False])
+def test_success_exitcodes(
+    pyfile, start_method, run_as, exit_code, break_on_system_exit_zero, expect_django):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -314,13 +317,25 @@ def test_success_exitcodes(pyfile, start_method, run_as, exit_code):
 
     with debug.Session(start_method) as session:
         session.expected_exit_code = some.int
-        session.configure(run_as, code_to_debug, args=[repr(exit_code)], successExitCodes=[3])
+        session.configure(
+            run_as,
+            code_to_debug,
+            args=[repr(exit_code)],
+            successExitCodes=[3],
+            breakOnSystemExitZero=break_on_system_exit_zero,
+            django=expect_django
+        )
         session.send_request(
             "setExceptionBreakpoints", {"filters": ["uncaught"]}
         ).wait_for_response()
         session.start_debugging()
 
-        if exit_code == 0:
+        if break_on_system_exit_zero or (not expect_django and exit_code == 3):
+            # If break_on_system_exit_zero, we should always break.
+            # Otherwise, we should not break on system exit considered successful
+            # (which means that we should break only in the case where
+            # exit_code == 3 and django is not expected).
+
             session.wait_for_stop("exception")
             session.request_continue()
 

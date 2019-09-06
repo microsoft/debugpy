@@ -318,3 +318,43 @@ def test_argv_quoting(pyfile, start_method, run_as):
         expected_args = backchannel.receive()
         actual_args = backchannel.receive()
         assert expected_args == actual_args
+
+
+def test_echo_and_shell(pyfile, run_as, start_method):
+    '''
+    Checks https://github.com/microsoft/ptvsd/issues/1548
+    '''
+
+    @pyfile
+    def code_to_run():
+        import debug_me # noqa
+
+        import sys
+        import subprocess
+        import os
+
+        if sys.platform == 'win32':
+            args = ['dir', '-c', '.']
+        else:
+            args = ['ls', '-c', '-la']
+
+        p = subprocess.Popen(
+            args,
+            shell=True,
+            stderr=subprocess.STDOUT,
+            stdout=subprocess.PIPE,
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+        )
+        stdout, _stderr = p.communicate()
+        if sys.version_info[0] >= 3:
+            stdout = stdout.decode('utf-8')
+
+        if "code_to_run.py" not in stdout:
+            raise AssertionError(
+                'Did not find "code_to_run.py" when listing this dir with subprocess. Contents: %s' % (
+                    stdout,)
+            )
+
+    with debug.Session(start_method) as session:
+        session.configure(run_as, code_to_run, subProcess=True)
+        session.start_debugging()

@@ -312,6 +312,27 @@ def test_add_and_remove_breakpoint(pyfile, start_method, run_as):
     assert session.output("stdout") == expected_stdout
 
 
+def test_breakpoints_in_filtered_files(pyfile, run_as, start_method):
+
+    @pyfile
+    def code_to_debug():
+        import debug_me # noqa
+
+    with debug.Session(start_method) as session:
+        session.configure(run_as, code_to_debug)
+
+        breakpoints = session.set_breakpoints('invalid_file.py', [1])
+        assert breakpoints == [{
+            'verified': False,
+            'message': 'Breakpoint in file that does not exist.',
+            'source': some.dict_with({
+                'path': some.path('invalid_file.py')
+            }),
+            'line': 1
+        }]
+        session.start_debugging()
+
+
 def test_invalid_breakpoints(pyfile, start_method, run_as):
     @pyfile
     def code_to_debug():
