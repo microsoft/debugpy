@@ -4,17 +4,16 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-from tests.helpers import get_marked_line_numbers, print
 from tests import debug
+from tests.printer import print
 from tests.patterns import some
-from tests.timeline import Event
 
 
 def test_tracing(pyfile, start_method, run_as):
 
     @pyfile
     def code_to_debug():
-        from debug_me # noqa
+        import debug_me # noqa
 
         import ptvsd
 

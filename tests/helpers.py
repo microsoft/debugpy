@@ -5,10 +5,23 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import threading
+import time
 import socket
+import sys
 from ptvsd.common import fmt, log, messaging
 from tests.timeline import Request, Response
 
+
+if sys.version_info >= (3, 5):
+    clock = time.monotonic
+else:
+    clock = time.clock
+
+timestamp_zero = clock()
+
+
+def timestamp():
+    return clock() - timestamp_zero
 
 class CapturedOutput(object):
     """Captured stdout and stderr of the debugged process.
