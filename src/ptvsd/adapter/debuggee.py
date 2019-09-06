@@ -82,39 +82,39 @@ def attach_by_pid(request):
     """Start server to receive connection from the debug server injected into the
     debuggee process.
     """
-
     def _parse_request_and_inject(request, address):
-        cmdline = [sys.executable]
-
         host, port = address
         ptvsd_args = request("ptvsdArgs", json.array(unicode))
-        cmdline += [
+        cmdline = [
+            sys.executable,
             compat.filename(ptvsd.__main__.__file__),
             "--client",
             "--host",
             host,
             "--port",
             str(port),
+        ] + ptvsd_args + [
             "--pid",
-            str(request("processId", int)),
-        ] + ptvsd_args
+            str(request("processId", int))
+        ]
 
         log.debug("Launching debugger injector: {0!r}", cmdline)
 
         try:
             # This process will immediately exit after injecting debug server
-            proc = subprocess.Popen(cmdline, bufsize=0)
+            subprocess.Popen(
+                cmdline,
+                bufsize=0,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
         except Exception as exc:
             raise request.cant_handle("Error launching debug process: {0}", exc)
-        proc.wait()
-        if proc.returncode != 0:
-            raise request.cant_handle(
-                "Failed to inject debugger with error code: {0}", proc.returncode
-            )
 
     channels.Channels().accept_connection_from_server(
         ("127.0.0.1", 0),
-        before_accept=lambda address: _parse_request_and_inject(address),
+        before_accept=lambda address: _parse_request_and_inject(request, address),
     )
 
 

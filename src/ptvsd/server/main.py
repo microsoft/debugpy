@@ -266,62 +266,69 @@ def run_code():
 
 
 def attach_to_pid():
-    def quoted_str(s):
-        if s is None:
-            return s
-        assert not isinstance(s, bytes)
-        unescaped = set(chr(ch) for ch in range(32, 127)) - {'"', "'", "\\"}
-
-        def escape(ch):
-            return ch if ch in unescaped else "\\u%04X" % ord(ch)
-
-        return 'u"' + "".join(map(escape, s)) + '"'
-
-    log.info("Attaching to process with ID {0}", options.target)
+    log.info('Attaching to process with ID {0}', options.target)
 
     pid = options.target
-    host = quoted_str(options.host)
+    host = options.host
     port = options.port
     client = options.client
-    multiprocess = options.multiprocess
-    log_dir = quoted_str(ptvsd.common.options.log_dir)
+    log_dir = common_opts.log_dir
+    if log_dir is None:
+        log_dir = ""
 
-    ptvsd_path = os.path.abspath(os.path.join(ptvsd.server.__file__, "../.."))
-    if isinstance(ptvsd_path, bytes):
-        ptvsd_path = ptvsd_path.decode(sys.getfilesystemencoding())
-    ptvsd_path = quoted_str(ptvsd_path)
+    try:
+        attach_pid_injected_dirname = os.path.join(os.path.dirname(ptvsd.__file__), 'server')
+        assert os.path.exists(attach_pid_injected_dirname)
 
-    # pydevd requires injected code to not contain any single quotes.
-    code = """
-import os
-assert os.getpid() == {pid}
+        log_dir = log_dir.replace('\\', '/')
 
-import sys
-sys.path.insert(0, {ptvsd_path})
-import ptvsd
-from ptvsd.common import log, options
-del sys.path[0]
+        encode = lambda s: list(bytearray(s.encode("utf-8")))
+        setup = {
+            'script': encode(attach_pid_injected_dirname),
+            'host': encode(host),
+            'port': port,
+            'client': client,
+            'log_dir': encode(log_dir),
+        }
 
-options.log_dir = {log_dir}
-log.to_file()
-log.info("Bootstrapping injected debugger.")
+        python_code = '''import sys;
+import codecs;
+decode = lambda s: codecs.utf_8_decode(bytearray(s))[0];
+script_path = decode({script});
+sys.path.insert(0, script_path);
+import attach_pid_injected;
+sys.path.remove(script_path);
+host = decode({host});
+log_dir = decode({log_dir}) or None;
+attach_pid_injected.attach(port={port}, host=host, client={client}, log_dir=log_dir)
+'''.replace('\r', '').replace('\n', '')
 
-debug = ptvsd.attach if {client} else ptvsd.enable_attach
-debug(({host}, {port}), multiprocess={multiprocess})
-""".format(
-        **locals()
-    )
+        python_code = python_code.format(**setup)
+        log.info("Code to be injected: \n{0}", python_code.replace(';', '\r\n'))
 
-    log.debug('Injecting debugger into target process: \n"""{0}\n"""'.format(code))
-    assert "'" not in code, "Injected code should not contain any single quotes"
+        # pydevd requires injected code to not contain any single quotes, double quotes or
+        # new lines.
+        assert "'" not in python_code, "Injected code should not contain any single quotes"
+        assert "\"" not in python_code, "Injected code should not contain any double quotes"
+        assert "\n" not in python_code, "Injected code should not contain any new lines"
+        assert "\r" not in python_code, "Injected code should not contain any "
 
-    pydevd_attach_to_process_path = os.path.join(
-        os.path.dirname(pydevd.__file__), "pydevd_attach_to_process"
-    )
-    sys.path.insert(0, pydevd_attach_to_process_path)
-    from add_code_to_python_process import run_python_code
+        pydevd_attach_to_process_path = os.path.join(
+            os.path.dirname(pydevd.__file__),
+            'pydevd_attach_to_process')
 
-    run_python_code(pid, code, connect_debugger_tracing=True)
+        assert os.path.exists(pydevd_attach_to_process_path)
+        sys.path.append(pydevd_attach_to_process_path)
+
+    
+        import add_code_to_python_process  # noqa
+        show_debug_info_on_target_process = 0  # hard-coded (1 to debug)
+        log.info('Code injector begin')
+        add_code_to_python_process.run_python_code(
+            pid, python_code, connect_debugger_tracing=True, show_debug_info=show_debug_info_on_target_process)
+    except:
+        raise log.exception()
+    log.info('Code injector exiting')
 
 
 def main():

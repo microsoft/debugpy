@@ -308,8 +308,8 @@ class Launch(DebugStartBase):
 class AttachBase(DebugStartBase):
     ignore_unobserved = DebugStartBase.ignore_unobserved + []
 
-    def __init__(self, session, name):
-        super(AttachBase, self).__init__(session, name)
+    def __init__(self, session, method):
+        super(AttachBase, self).__init__(session, method)
         self._attach_args = {}
 
     def _build_attach_args(
@@ -403,15 +403,18 @@ class AttachBase(DebugStartBase):
         )
         watchdog.register_spawn(self.debuggee_process.pid, self.session.debuggee_id)
         self.captured_output.capture(self.debuggee_process)
-
-        connected = False
         pid = self.debuggee_process.pid
-        while connected is False:
-            time.sleep(0.1)
-            connections = psutil.net_connections()
-            connected = (
-                len(list(p for (_, _, _, _, _, _, p) in connections if p == pid)) > 0
-            )
+
+        if self.method == "attach_pid":
+            self._attach_args["processId"] = pid
+        else: 
+            connected = False
+            while connected is False:
+                time.sleep(0.1)
+                connections = psutil.net_connections()
+                connected = (
+                    any(p for (_, _, _, _, _, _, p) in connections if p == pid)
+                )
 
         self._attach_request = self.session.send_request("attach", self._attach_args)
         self.session.wait_for_next_event("initialized")
@@ -497,7 +500,7 @@ class AttachSocketCmdLine(AttachBase):
         run_as,
         target,
         pythonPath=sys.executable,
-        args=[],
+        args=(),
         cwd=None,
         env=None,
         **kwargs
@@ -529,10 +532,34 @@ class AttachSocketCmdLine(AttachBase):
         )
 
 
-class AttachProcessId(DebugStartBase):
+class AttachProcessId(AttachBase):
     def __init__(self, session):
-        super().__init__(session, "attach_pid")
+        super(AttachProcessId, self).__init__(session, "attach_pid")
 
+
+    def configure(
+        self,
+        run_as,
+        target,
+        pythonPath=sys.executable,
+        args=(),
+        cwd=None,
+        env=None,
+        **kwargs
+    ):
+        env = {} if env is None else dict(env)
+        self._attach_args = self._build_attach_args({}, run_as, target, **kwargs)
+
+        log_dir = (
+            self.session.log_dir if self._attach_args.get("logToFile", False) else None
+        )
+        if log_dir:
+            self._attach_args["ptvsdArgs"] = ["--log-dir", log_dir]
+
+        cli_args = [pythonPath]
+        super(AttachProcessId, self).configure(
+            run_as, target, cwd=cwd, env=env, args=args, cli_args=cli_args, **kwargs
+        )
 
 class CustomServer(DebugStartBase):
     def __init__(self, session):

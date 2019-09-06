@@ -99,11 +99,9 @@ def test_reattach(pyfile, start_method, run_as):
 
 @pytest.mark.parametrize("start_method", [start_methods.AttachProcessId])
 @pytest.mark.parametrize("run_as", ["program", "module", "code"])
-@pytest.mark.skip(reason="Enable after #846, #863 and #1144 are fixed")
 def test_attaching_by_pid(pyfile, run_as, start_method):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
         import time
 
         def do_something(i):
