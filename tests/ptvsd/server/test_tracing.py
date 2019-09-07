@@ -58,33 +58,33 @@ def test_tracing(pyfile, start_method, run_as):
         session.set_breakpoints(code_to_debug, all)
         session.start_debugging()
 
-        stop = session.wait_for_thread_stopped()
-        frame = stop.stacktrace.body['stackFrames'][0]
-        assert frame == some.dict_with({
+        stop = session.wait_for_stop()
+        frame = stop.frames[0]
+        assert frame == some.dict.containing({
             "line": code_to_debug.lines["inner2"],
         })
 
         session.request_continue()
 
-        stop = session.wait_for_thread_stopped()
-        frame = stop.stacktrace.body['stackFrames'][0]
-        assert frame == some.dict_with({
+        stop = session.wait_for_stop()
+        frame = stop.frames[0]
+        assert frame == some.dict.containing({
             "line": code_to_debug.lines["outer2"],
         })
 
         session.request_continue()
 
-        stop = session.wait_for_thread_stopped()
-        frame = stop.stacktrace.body['stackFrames'][0]
-        assert frame == some.dict_with({
+        stop = session.wait_for_stop()
+        frame = stop.frames[0]
+        assert frame == some.dict.containing({
             "line": code_to_debug.lines["inner1"],
         })
 
         session.request_continue()
 
-        stop = session.wait_for_thread_stopped()
-        frame = stop.stacktrace.body['stackFrames'][0]
-        assert frame == some.dict_with({
+        stop = session.wait_for_stop()
+        frame = stop.frames[0]
+        assert frame == some.dict.containing({
             "line": code_to_debug.lines["inner3"],
         })
 

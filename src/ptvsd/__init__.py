@@ -134,6 +134,27 @@ def debug_this_thread():
     return api.debug_this_thread()
 
 
+def tracing(should_trace=None):
+    """Enables or disables tracing on this thread. When called without an
+    argument, returns the current tracing state.
+    When tracing is disabled, breakpoints will not be hit, but code executes
+    significantly faster.
+    If debugger is not attached, this function has no effect.
+    This function can also be used in a with-statement to automatically save
+    and then restore the previous tracing setting::
+        with ptvsd.tracing(False):
+            # Tracing disabled
+            ...
+            # Tracing restored
+    Parameters
+    ----------
+    should_trace : bool, optional
+        Whether to enable or disable tracing.
+    """
+    from ptvsd.server import api
+    return api.tracing(should_trace)
+
+
 __version__ = _version.get_versions()["version"]
 
 # Force absolute path on Python 2.

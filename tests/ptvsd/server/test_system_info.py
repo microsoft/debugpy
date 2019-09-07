@@ -29,7 +29,7 @@ def _generate_system_info():
     except AttributeError:
         impl_version = ''
 
-    return some.dict_with({
+    return some.dict.containing({
         'ptvsd': {
             'version': ptvsd.__version__,
         },

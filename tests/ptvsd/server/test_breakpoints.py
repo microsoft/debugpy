@@ -325,7 +325,7 @@ def test_breakpoints_in_filtered_files(pyfile, run_as, start_method):
         assert breakpoints == [{
             'verified': False,
             'message': 'Breakpoint in file that does not exist.',
-            'source': some.dict_with({
+            'source': some.dict.containing({
                 'path': some.path('invalid_file.py')
             }),
             'line': 1

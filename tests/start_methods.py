@@ -132,7 +132,7 @@ class DebugStartBase(object):
         if maxExceptionStackFrames:
             args["maxExceptionStackFrames"] = maxExceptionStackFrames
 
-        if steppingResumesAllThreads:
+        if steppingResumesAllThreads is not None:
             args["steppingResumesAllThreads"] = steppingResumesAllThreads
 
         if rules is not None:
