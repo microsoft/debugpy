@@ -17,7 +17,7 @@ from tests_python.debugger_unittest import (CMD_SET_PROPERTY_TRACE, REASON_CAUGH
     IS_APPVEYOR, wait_for_condition, CMD_GET_FRAME, CMD_GET_BREAKPOINT_EXCEPTION,
     CMD_THREAD_SUSPEND, CMD_STEP_OVER, REASON_STEP_OVER, CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION,
     CMD_THREAD_RESUME_SINGLE_NOTIFICATION, REASON_STEP_RETURN, REASON_STEP_RETURN_MY_CODE,
-    REASON_STEP_OVER_MY_CODE, REASON_STEP_INTO, CMD_THREAD_KILL)
+    REASON_STEP_OVER_MY_CODE, REASON_STEP_INTO, CMD_THREAD_KILL, IS_PYPY)
 from _pydevd_bundle.pydevd_constants import IS_WINDOWS
 from _pydevd_bundle.pydevd_comm_constants import CMD_RELOAD_CODE
 import json
@@ -46,7 +46,7 @@ else:
     builtin_qualifier = "builtins"
 
 
-@pytest.mark.skipif(IS_IRONPYTHON or IS_JYTHON, reason='Test needs gc.get_referrers to really check anything.')
+@pytest.mark.skipif(not IS_CPYTHON, reason='Test needs gc.get_referrers/reference counting to really check anything.')
 def test_case_referrers(case_setup):
     with case_setup.test_file('_debugger_case1.py') as writer:
         writer.log.append('writing add breakpoint')
@@ -123,21 +123,26 @@ def test_case_2(case_setup):
         [['ValueError'], ['Exception']],
         [['Exception'], ['ValueError']],  # ValueError will also suspend/print since we're dealing with a NameError
     )
- )
+)
 def test_case_breakpoint_condition_exc(case_setup, skip_suspend_on_breakpoint_exception, skip_print_breakpoint_exception):
 
     msgs_in_stderr = (
         'Error while evaluating expression: i > 5',
-        "NameError: name 'i' is not defined",
         'Traceback (most recent call last):',
         'File "<string>", line 1, in <module>',
+    )
+
+    # It could be one or the other in PyPy depending on the version.
+    msgs_one_in_stderr = (
+        "NameError: name 'i' is not defined",
+        "global name 'i' is not defined",
     )
 
     def _ignore_stderr_line(line):
         if original_ignore_stderr_line(line):
             return True
 
-        for msg in msgs_in_stderr:
+        for msg in msgs_in_stderr + msgs_one_in_stderr:
             if msg in line:
                 return True
 
@@ -148,8 +153,15 @@ def test_case_breakpoint_condition_exc(case_setup, skip_suspend_on_breakpoint_ex
         if skip_print_breakpoint_exception in ([], ['ValueError']):
             for msg in msgs_in_stderr:
                 assert msg in stderr
+
+            for msg in msgs_one_in_stderr:
+                if msg in stderr:
+                    break
+            else:
+                raise AssertionError('Did not find any of: %s in stderr: %s' % (
+                    msgs_one_in_stderr, stderr))
         else:
-            for msg in msgs_in_stderr:
+            for msg in msgs_in_stderr + msgs_one_in_stderr:
                 assert msg not in stderr
 
     with case_setup.test_file('_debugger_case_breakpoint_condition_exc.py') as writer:
@@ -2862,7 +2874,7 @@ def test_custom_frames(case_setup):
         writer.finished_ok = True
 
 
-@pytest.mark.skipif((not (IS_PY36 or IS_PY27)) or IS_JYTHON, reason='Gevent only installed on Py36/Py27 for tests.')
+@pytest.mark.skipif((not (IS_PY36 or IS_PY27)) or IS_JYTHON or IS_PYPY, reason='Gevent only installed on Py36/Py27 for tests.')
 def test_gevent(case_setup):
 
     def get_environ(writer):

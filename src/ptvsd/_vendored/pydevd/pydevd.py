@@ -39,7 +39,7 @@ from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, CMD_STEP_I
 from _pydevd_bundle.pydevd_constants import (IS_JYTH_LESS25, get_thread_id, get_current_thread_id,
     dict_keys, dict_iter_items, DebugInfoHolder, PYTHON_SUSPEND, STATE_SUSPEND, STATE_RUN, get_frame,
     clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, IS_PY34_OR_GREATER, IS_PY2, NULL,
-    NO_FTRACE, IS_IRONPYTHON, JSON_PROTOCOL, IS_CPYTHON, call_only_once)
+    NO_FTRACE, IS_IRONPYTHON, JSON_PROTOCOL, IS_CPYTHON, USE_CUSTOM_SYS_CURRENT_FRAMES_MAP, call_only_once)
 from _pydevd_bundle.pydevd_defaults import PydevdCustomization
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
 from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE, LIB_FILE
@@ -72,6 +72,9 @@ from _pydevd_bundle.pydevd_collect_try_except_info import collect_try_except_inf
 from _pydevd_bundle.pydevd_suspended_frames import SuspendedFramesManager
 from socket import SHUT_RDWR
 from _pydevd_bundle.pydevd_api import PyDevdAPI
+
+if USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
+    from _pydevd_bundle.pydevd_additional_thread_info_regular import _tid_to_last_frame
 
 __version_info__ = (1, 3, 3)
 __version_info_str__ = []
@@ -623,8 +626,11 @@ class PyDB(object):
     def _internal_get_file_type(self, abs_real_path_and_basename):
         basename = abs_real_path_and_basename[-1]
         if basename.startswith('<frozen '):
-            # In Python 3.7 "<frozen ..." appear multiple times during import and should be
+            # In Python 3.7 "<frozen ..." appears multiple times during import and should be
             # ignored for the user.
+            return self.PYDEV_FILE
+        if abs_real_path_and_basename[0].startswith('<builtin'):
+            # In PyPy "<builtin> ..." can appear and should be ignored for the user.
             return self.PYDEV_FILE
         return self._dont_trace_get_file_type(basename)
 
@@ -1583,6 +1589,8 @@ class PyDB(object):
             as the paused location on the top-level frame (exception info must be passed on 'arg').
         """
         # print('do_wait_suspend %s %s %s %s' % (frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename, event))
+        if USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
+            _tid_to_last_frame[thread.ident] = sys._getframe()
         self.process_internal_commands()
 
         thread_id = get_current_thread_id(thread)

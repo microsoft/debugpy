@@ -478,19 +478,23 @@ def test_case_handled_exception_breaks(case_setup):
         writer.finished_ok = True
 
 
-def test_case_unhandled_exception(case_setup):
+@pytest.mark.parametrize('target_file', [
+    '_debugger_case_unhandled_exceptions.py',
+    '_debugger_case_unhandled_exceptions_custom.py'
+    ])
+def test_case_unhandled_exception(case_setup, target_file):
 
     def check_test_suceeded_msg(writer, stdout, stderr):
         # Don't call super (we have an unhandled exception in the stack trace).
         return 'TEST SUCEEDED' in ''.join(stdout) and 'TEST SUCEEDED' in ''.join(stderr)
 
     def additional_output_checks(writer, stdout, stderr):
-        if 'raise Exception' not in stderr:
+        if 'raise MyError' not in stderr and 'raise Exception' not in stderr:
             raise AssertionError('Expected test to have an unhandled exception.\nstdout:\n%s\n\nstderr:\n%s' % (
                 stdout, stderr))
 
     with case_setup.test_file(
-            '_debugger_case_unhandled_exceptions.py',
+            target_file,
             check_test_suceeded_msg=check_test_suceeded_msg,
             additional_output_checks=additional_output_checks,
             EXPECTED_RETURNCODE=1,
@@ -505,15 +509,15 @@ def test_case_unhandled_exception(case_setup):
         line_in_thread2 = writer.get_line_index_with_content('in thread 2')
         line_in_main = writer.get_line_index_with_content('in main')
         json_facade.wait_for_thread_stopped(
-            reason='exception', line=(line_in_thread1, line_in_thread2), file='_debugger_case_unhandled_exceptions.py')
+            reason='exception', line=(line_in_thread1, line_in_thread2), file=target_file)
         json_facade.write_continue()
 
         json_facade.wait_for_thread_stopped(
-            reason='exception', line=(line_in_thread1, line_in_thread2), file='_debugger_case_unhandled_exceptions.py')
+            reason='exception', line=(line_in_thread1, line_in_thread2), file=target_file)
         json_facade.write_continue()
 
         json_facade.wait_for_thread_stopped(
-            reason='exception', line=line_in_main, file='_debugger_case_unhandled_exceptions.py')
+            reason='exception', line=line_in_main, file=target_file)
         json_facade.write_continue(wait_for_response=False)
 
         writer.finished_ok = True

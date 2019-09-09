@@ -8,11 +8,10 @@ import sys
 import unittest
 
 try:
-    import __builtin__ #@UnusedImport
+    import __builtin__  # @UnusedImport
     BUILTIN_MOD = '__builtin__'
 except ImportError:
     BUILTIN_MOD = 'builtins'
-
 
 IS_JYTHON = sys.platform.find('java') != -1
 
@@ -56,6 +55,8 @@ class TestCPython(unittest.TestCase):
             '(self, cmp: object, key: object, reverse: bool)',
             '(key=None, reverse=False)',
             '(self, key=None, reverse=False)',
+            '(self, cmp, key, reverse)',
+            '(self, key, reverse)',
         )
 
     def test_imports2a(self):
@@ -74,7 +75,7 @@ class TestCPython(unittest.TestCase):
 
     def test_imports2c(self):
         try:
-            file # file is not available on py 3
+            file  # file is not available on py 3
         except:
             pass
         else:
@@ -120,17 +121,38 @@ class TestCPython(unittest.TestCase):
         self.assert_in('RuntimeWarning' , tip)
 
         # Remove cmp as it's not available on py 3
-        #t = self.assert_in('cmp' , tip)
-        #self.check_args(t, '(x, y)', '(object x, object y)', '(x: object, y: object)') #args
+        # t = self.assert_in('cmp' , tip)
+        # self.check_args(t, '(x, y)', '(object x, object y)', '(x: object, y: object)') #args
 
         t = self.assert_in('isinstance' , tip)
-        self.check_args(t, '(object, class_or_type_or_tuple)', '(object o, type typeinfo)', '(o: object, typeinfo: type)', '(obj, class_or_tuple)') #args
+        self.check_args(
+            t,
+            '(object, class_or_type_or_tuple)',
+            '(object o, type typeinfo)',
+            '(o: object, typeinfo: type)',
+            '(obj, class_or_tuple)',
+            '(obj, klass_or_tuple)',
+        )  # args
 
         t = self.assert_in('compile' , tip)
-        self.check_args(t, '(source, filename, mode)', '()', '(o: object, name: str, val: object)', '(source, filename, mode, flags, dont_inherit, optimize)') #args
+        self.check_args(
+            t,
+            '(source, filename, mode)',
+            '()',
+            '(o: object, name: str, val: object)',
+            '(source, filename, mode, flags, dont_inherit, optimize)',
+            '(source, filename, mode, flags, dont_inherit)',
+        )  # args
 
         t = self.assert_in('setattr' , tip)
-        self.check_args(t, '(object, name, value)', '(object o, str name, object val)', '(o: object, name: str, val: object)', '(obj, name, value)') #args
+        self.check_args(
+            t,
+            '(object, name, value)',
+            '(object o, str name, object val)',
+            '(o: object, name: str, val: object)',
+            '(obj, name, value)',
+            '(object, name, val)',
+        )  # args
 
         try:
             import compiler
@@ -142,7 +164,7 @@ class TestCPython(unittest.TestCase):
             except ImportError:
                 compiler_module = None
 
-        if compiler_module is not None: #Not available in iron python
+        if compiler_module is not None:  # Not available in iron python
             tip = _pydev_imports_tipper.generate_tip(compiler_module)
             if compiler_module == 'compiler':
                 self.assert_args('parse', '(buf, mode)', tip)
@@ -153,13 +175,11 @@ class TestCPython(unittest.TestCase):
                 self.assert_args('walk', '(node)', tip)
             self.assert_in('parse'          , tip)
 
-
     def check_args(self, t, *expected):
         for x in expected:
             if x == t[2]:
                 return
         self.fail('Found: %s. Expected: %s' % (t[2], expected))
-
 
     def assert_args(self, tok, args, tips):
         for a in tips[1]:
@@ -174,12 +194,10 @@ class TestCPython(unittest.TestCase):
                 return a
         raise AssertionError('%s not in %s' % (tok, tips))
 
-
     def test_search(self):
         s = _pydev_imports_tipper.search_definition('inspect.ismodule')
         (f, line, col), foundAs = s
         self.assertTrue(line > 0)
-
 
     def test_dot_net_libraries(self):
         if sys.platform == 'cli':
@@ -189,10 +207,10 @@ class TestCPython(unittest.TestCase):
             tip = _pydev_imports_tipper.generate_tip('System.Drawing.Brushes')
             self.assert_in('Aqua' , tip)
 
-
     def test_inspect(self):
 
         class C(object):
+
             def metA(self, a, b):
                 pass
 

@@ -21,7 +21,7 @@ from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
 from _pydevd_bundle.pydevd_utils import get_non_pydevd_threads
 import pydevd_file_utils
 from _pydevd_bundle.pydevd_comm import build_exception_info_response, pydevd_find_thread_by_id
-from _pydevd_bundle.pydevd_additional_thread_info_regular import set_additional_thread_info
+from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
 
 
 class ModulesManager(object):

@@ -1,9 +1,11 @@
 from _pydev_bundle.pydev_is_thread_alive import is_thread_alive
+from _pydev_bundle.pydev_log import exception as pydev_log_exception
 from _pydev_imps._pydev_saved_modules import threading
-from _pydevd_bundle.pydevd_constants import get_current_thread_id, IS_IRONPYTHON, NO_FTRACE
+from _pydevd_bundle.pydevd_constants import (get_current_thread_id, NO_FTRACE,
+    USE_CUSTOM_SYS_CURRENT_FRAMES_MAP)
 from _pydevd_bundle.pydevd_kill_all_pydevd_threads import kill_all_pydev_threads
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame, NORM_PATHS_AND_BASE_CONTAINER
-from _pydev_bundle.pydev_log import exception as pydev_log_exception
+
 # IFDEF CYTHON
 # from cpython.object cimport PyObject
 # from cpython.ref cimport Py_INCREF, Py_XDECREF
@@ -513,7 +515,7 @@ class ThreadTracer(object):
             return None if event == 'call' else NO_FTRACE
 
 
-if IS_IRONPYTHON:
+if USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
     # This is far from ideal, as we'll leak frames (we'll always have the last created frame, not really
     # the last topmost frame saved -- this should be Ok for our usage, but it may leak frames and things
     # may live longer... as IronPython is garbage-collected, things should live longer anyways, so, it

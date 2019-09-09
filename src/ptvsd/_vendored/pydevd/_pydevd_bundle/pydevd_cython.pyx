@@ -5,7 +5,8 @@ from __future__ import print_function
 # DO NOT edit manually!
 # DO NOT edit manually!
 import sys
-from _pydevd_bundle.pydevd_constants import STATE_RUN, PYTHON_SUSPEND, IS_JYTHON, IS_IRONPYTHON
+from _pydevd_bundle.pydevd_constants import (STATE_RUN, PYTHON_SUSPEND, IS_JYTHON,
+    USE_CUSTOM_SYS_CURRENT_FRAMES, USE_CUSTOM_SYS_CURRENT_FRAMES_MAP)
 from _pydev_bundle import pydev_log
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
 pydev_log.debug("Using Cython speedups")
@@ -15,7 +16,7 @@ pydev_log.debug("Using Cython speedups")
 
 version = 11
 
-if not hasattr(sys, '_current_frames'):
+if USE_CUSTOM_SYS_CURRENT_FRAMES:
 
     # Some versions of Jython don't have it (but we can provide a replacement)
     if IS_JYTHON:
@@ -46,7 +47,7 @@ if not hasattr(sys, '_current_frames'):
                 ret[thread.getId()] = frame
             return ret
 
-    elif IS_IRONPYTHON:
+    elif USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
         _tid_to_last_frame = {}
 
         # IronPython doesn't have it. Let's use our workaround...
@@ -913,11 +914,13 @@ cdef class PyDBFrame:
 
         # end trace_dispatch
 from _pydev_bundle.pydev_is_thread_alive import is_thread_alive
+from _pydev_bundle.pydev_log import exception as pydev_log_exception
 from _pydev_imps._pydev_saved_modules import threading
-from _pydevd_bundle.pydevd_constants import get_current_thread_id, IS_IRONPYTHON, NO_FTRACE
+from _pydevd_bundle.pydevd_constants import (get_current_thread_id, NO_FTRACE,
+    USE_CUSTOM_SYS_CURRENT_FRAMES_MAP)
 from _pydevd_bundle.pydevd_kill_all_pydevd_threads import kill_all_pydev_threads
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame, NORM_PATHS_AND_BASE_CONTAINER
-from _pydev_bundle.pydev_log import exception as pydev_log_exception
+
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
 from cpython.object cimport PyObject
 from cpython.ref cimport Py_INCREF, Py_XDECREF
@@ -1421,7 +1424,7 @@ cdef class ThreadTracer:
             return None if event == 'call' else NO_FTRACE
 
 
-if IS_IRONPYTHON:
+if USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
     # This is far from ideal, as we'll leak frames (we'll always have the last created frame, not really
     # the last topmost frame saved -- this should be Ok for our usage, but it may leak frames and things
     # may live longer... as IronPython is garbage-collected, things should live longer anyways, so, it

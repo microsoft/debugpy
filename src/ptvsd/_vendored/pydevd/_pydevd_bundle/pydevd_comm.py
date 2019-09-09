@@ -1130,8 +1130,11 @@ def build_exception_info_response(dbg, thread_id, request_seq, set_additional_th
                         break
                 frame = frame.f_back
 
-            while trace_obj.tb_next is not None:
-                trace_obj = trace_obj.tb_next
+            while True:
+                tb_next = getattr(trace_obj, 'tb_next', None)
+                if tb_next is None:
+                    break
+                trace_obj = tb_next
 
             info = dbg.suspended_frames_manager.get_topmost_frame_and_frame_id_to_line(thread_id)
             if info is not None:

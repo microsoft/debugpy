@@ -72,11 +72,16 @@ IS_64BIT_PROCESS = sys.maxsize > (2 ** 32)
 IS_JYTHON = pydevd_vm_type.get_vm_type() == pydevd_vm_type.PydevdVmType.JYTHON
 IS_JYTH_LESS25 = False
 
+IS_PYPY = platform.python_implementation() == 'PyPy'
+
 if IS_JYTHON:
     import java.lang.System  # @UnresolvedImport
     IS_WINDOWS = java.lang.System.getProperty("os.name").lower().startswith("windows")
     if sys.version_info[0] == 2 and sys.version_info[1] < 5:
         IS_JYTH_LESS25 = True
+
+USE_CUSTOM_SYS_CURRENT_FRAMES = not hasattr(sys, '_current_frames') or IS_PYPY
+USE_CUSTOM_SYS_CURRENT_FRAMES_MAP = USE_CUSTOM_SYS_CURRENT_FRAMES and (IS_PYPY or IS_IRONPYTHON)
 
 IS_PYTHON_STACKLESS = "stackless" in sys.version.lower()
 CYTHON_SUPPORTED = False

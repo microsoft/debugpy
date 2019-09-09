@@ -8,7 +8,7 @@ import pytest
 from tests_python import debugger_unittest
 from tests_python.debugger_unittest import (get_free_port, overrides, IS_CPYTHON, IS_JYTHON, IS_IRONPYTHON,
     IS_PY3K, CMD_ADD_DJANGO_EXCEPTION_BREAK, CMD_REMOVE_DJANGO_EXCEPTION_BREAK,
-    CMD_ADD_EXCEPTION_BREAK, wait_for_condition)
+    CMD_ADD_EXCEPTION_BREAK, wait_for_condition, IS_PYPY)
 from tests_python.debug_constants import IS_PY2
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
 
@@ -202,7 +202,7 @@ class DebuggerRunnerSimple(debugger_unittest.DebuggerRunner):
                     'org.python.util.jython'
                 ]
 
-        if IS_CPYTHON:
+        if IS_CPYTHON or IS_PYPY:
             return [sys.executable, '-u']
 
         if IS_IRONPYTHON:

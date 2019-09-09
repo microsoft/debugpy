@@ -111,6 +111,7 @@ import platform
 IS_CPYTHON = platform.python_implementation() == 'CPython'
 IS_IRONPYTHON = platform.python_implementation() == 'IronPython'
 IS_JYTHON = platform.python_implementation() == 'Jython'
+IS_PYPY = platform.python_implementation() == 'PyPy'
 IS_APPVEYOR = os.environ.get('APPVEYOR', '') in ('True', 'true', '1')
 
 try:
@@ -589,6 +590,7 @@ class AbstractWriterThread(threading.Thread):
                 'java.lang.UnsupportedOperationException',
                 "RuntimeWarning: Parent module '_pydevd_bundle' not found while handling absolute import",
                 'from _pydevd_bundle.pydevd_additional_thread_info_regular import _current_frames',
+                'from _pydevd_bundle.pydevd_additional_thread_info import _current_frames',
                 'import org.python.core as PyCore #@UnresolvedImport',
                 'from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info',
                 "RuntimeWarning: Parent module '_pydevd_bundle._debug_adapter' not found while handling absolute import",
@@ -780,7 +782,12 @@ class AbstractWriterThread(threading.Thread):
         # 10 seconds default timeout
         timeout = int(os.environ.get('PYDEVD_CONNECT_TIMEOUT', 10))
         s.settimeout(timeout)
-        s.connect((host, port))
+        for _i in range(6):
+            try:
+                s.connect((host, port))
+                break
+            except:
+                time.sleep(.5)  # We may have to wait a bit more and retry (especially on PyPy).
         s.settimeout(None)  # no timeout after connected
         if SHOW_WRITES_AND_READS:
             print("Connected.")

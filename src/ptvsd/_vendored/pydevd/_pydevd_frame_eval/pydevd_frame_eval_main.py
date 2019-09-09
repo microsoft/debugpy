@@ -10,10 +10,12 @@ stop_frame_eval = None
 dummy_trace_dispatch = None
 clear_thread_local_info = None
 
+use_cython = os.getenv('PYDEVD_USE_CYTHON', None)
+
 # "NO" means we should not use frame evaluation, 'YES' we should use it (and fail if not there) and unspecified uses if possible.
 use_frame_eval = os.environ.get('PYDEVD_USE_FRAME_EVAL', None)
 
-if use_frame_eval == 'NO':
+if use_frame_eval == 'NO' or use_cython == 'NO':
     pass
 
 elif use_frame_eval == 'YES':
