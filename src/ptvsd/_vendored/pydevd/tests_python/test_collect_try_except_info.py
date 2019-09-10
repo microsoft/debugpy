@@ -4,7 +4,7 @@ import sys
 import traceback
 
 from _pydevd_bundle.pydevd_collect_try_except_info import collect_try_except_info
-from tests_python.debugger_unittest import IS_CPYTHON
+from tests_python.debugger_unittest import IS_CPYTHON, IS_PYPY
 
 
 def _method_call_with_error():
@@ -189,7 +189,7 @@ def test_collect_try_except_info2():
 
     code = method.__code__
     lst = collect_try_except_info(code, use_func_first_line=True)
-    if IS_CPYTHON:
+    if IS_CPYTHON or IS_PYPY:
         assert str(lst) == '[{try:1 except 3 end block 5 raises: 5}]'
     else:
         assert lst == []

@@ -15,6 +15,8 @@ import itertools
 import os
 import traceback
 import weakref
+import getpass as getpass_mod
+import functools
 
 from _pydev_bundle import pydev_imports, pydev_log
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
@@ -27,6 +29,7 @@ from _pydevd_bundle import pydevd_extension_utils
 from _pydevd_bundle.pydevd_filtering import FilesFiltering
 from _pydevd_bundle import pydevd_io, pydevd_vm_type
 from _pydevd_bundle import pydevd_utils
+from _pydev_bundle.pydev_console_utils import DebugConsoleStdIn
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
 from _pydevd_bundle.pydevd_breakpoints import ExceptionBreakpoint, get_exception_breakpoint
 from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, CMD_STEP_INTO, CMD_SET_BREAK,
@@ -36,7 +39,7 @@ from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, CMD_STEP_I
 from _pydevd_bundle.pydevd_constants import (IS_JYTH_LESS25, get_thread_id, get_current_thread_id,
     dict_keys, dict_iter_items, DebugInfoHolder, PYTHON_SUSPEND, STATE_SUSPEND, STATE_RUN, get_frame,
     clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, IS_PY34_OR_GREATER, IS_PY2, NULL,
-    NO_FTRACE, IS_IRONPYTHON, JSON_PROTOCOL, IS_CPYTHON, HTTP_JSON_PROTOCOL)
+    NO_FTRACE, IS_IRONPYTHON, JSON_PROTOCOL, IS_CPYTHON, HTTP_JSON_PROTOCOL, USE_CUSTOM_SYS_CURRENT_FRAMES_MAP, call_only_once)
 from _pydevd_bundle.pydevd_defaults import PydevdCustomization
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
 from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE, LIB_FILE
@@ -69,6 +72,9 @@ from _pydevd_bundle.pydevd_collect_try_except_info import collect_try_except_inf
 from _pydevd_bundle.pydevd_suspended_frames import SuspendedFramesManager
 from socket import SHUT_RDWR
 from _pydevd_bundle.pydevd_api import PyDevdAPI
+
+if USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
+    from _pydevd_bundle.pydevd_additional_thread_info_regular import _tid_to_last_frame
 
 __version_info__ = (1, 3, 3)
 __version_info_str__ = []
@@ -674,8 +680,11 @@ class PyDB(object):
     def _internal_get_file_type(self, abs_real_path_and_basename):
         basename = abs_real_path_and_basename[-1]
         if basename.startswith('<frozen '):
-            # In Python 3.7 "<frozen ..." appear multiple times during import and should be
+            # In Python 3.7 "<frozen ..." appears multiple times during import and should be
             # ignored for the user.
+            return self.PYDEV_FILE
+        if abs_real_path_and_basename[0].startswith('<builtin'):
+            # In PyPy "<builtin> ..." can appear and should be ignored for the user.
             return self.PYDEV_FILE
         return self._dont_trace_get_file_type(basename)
 
@@ -1643,6 +1652,8 @@ class PyDB(object):
             as the paused location on the top-level frame (exception info must be passed on 'arg').
         """
         # print('do_wait_suspend %s %s %s %s' % (frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename, event))
+        if USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
+            _tid_to_last_frame[thread.ident] = sys._getframe()
         self.process_internal_commands()
 
         thread_id = get_current_thread_id(thread)
@@ -2382,7 +2393,7 @@ def _locked_settrace(
         if bufferStdErrToServer:
             init_stderr_redirect()
 
-        patch_stdin(debugger)
+        patch_stdin()
 
         t = threadingCurrentThread()
         additional_info = set_additional_thread_info(t)
@@ -2609,12 +2620,37 @@ def apply_debugger_options(setup_options):
         enable_qt_support(setup_options['qt-support'])
 
 
-def patch_stdin(debugger):
-    from _pydev_bundle.pydev_console_utils import DebugConsoleStdIn
-    orig_stdin = sys.stdin
-    sys.stdin = DebugConsoleStdIn(debugger, orig_stdin)
+@call_only_once
+def patch_stdin():
+    _internal_patch_stdin(None, sys, getpass_mod)
 
-# Dispatch on_debugger_modules_loaded here, after all primary debugger modules are loaded
+
+def _internal_patch_stdin(py_db=None, sys=None, getpass_mod=None):
+    '''
+    Note: don't use this function directly, use `patch_stdin()` instead.
+    (this function is only meant to be used on test-cases to avoid patching the actual globals).
+    '''
+    # Patch stdin so that we notify when readline() is called.
+    original_sys_stdin = sys.stdin
+    debug_console_stdin = DebugConsoleStdIn(py_db, original_sys_stdin)
+    sys.stdin = debug_console_stdin
+
+    _original_getpass = getpass_mod.getpass
+
+    @functools.wraps(_original_getpass)
+    def getpass(*args, **kwargs):
+        with DebugConsoleStdIn.notify_input_requested(debug_console_stdin):
+            try:
+                curr_stdin = sys.stdin
+                if curr_stdin is debug_console_stdin:
+                    sys.stdin = original_sys_stdin
+                return _original_getpass(*args, **kwargs)
+            finally:
+                sys.stdin = curr_stdin
+
+    getpass_mod.getpass = getpass
+
+# Dispatch on_debugger_modules_loaded here, after all primary py_db modules are loaded
 
 
 for handler in pydevd_extension_utils.extensions_of_type(DebuggerEventHandler):
@@ -2751,7 +2787,7 @@ def main():
             pass
 
     is_module = setup['module']
-    patch_stdin(debugger)
+    patch_stdin()
 
     if setup['json-dap']:
         PyDevdAPI().set_protocol(debugger, 0, JSON_PROTOCOL)

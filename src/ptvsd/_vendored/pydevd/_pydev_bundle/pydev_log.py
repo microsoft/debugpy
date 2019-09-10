@@ -43,7 +43,14 @@ def _pydevd_log(level, msg, *args):
                     msg = msg % args
             except:
                 msg = '%s - %s' % (msg, args)
-            DebugInfoHolder.DEBUG_STREAM.write('%s\n' % (msg,))
+            msg = '%s\n' % (msg,)
+            try:
+                DebugInfoHolder.DEBUG_STREAM.write(msg)
+            except TypeError:
+                if isinstance(msg, bytes):
+                    # Depending on the StringIO flavor, it may only accept unicode.
+                    msg = msg.decode('utf-8', 'replace')
+                    DebugInfoHolder.DEBUG_STREAM.write(msg)
             DebugInfoHolder.DEBUG_STREAM.flush()
         except:
             pass

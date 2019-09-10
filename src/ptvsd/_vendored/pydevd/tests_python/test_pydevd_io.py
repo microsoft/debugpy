@@ -52,6 +52,50 @@ class _DummyPyDb(object):
         self.writer = _DummyWriter()
 
 
+def test_patch_stdin():
+    from pydevd import _internal_patch_stdin
+
+    py_db = _DummyPyDb()
+
+    class _Stub(object):
+        pass
+
+    actions = []
+
+    class OriginalStdin(object):
+
+        def readline(self):
+            # On a readline we keep the patched version.
+            assert sys_mod.stdin is not original_stdin
+            actions.append('readline')
+            return 'read'
+
+    def getpass_stub(*args, **kwargs):
+        # On getpass we need to revert to the original version.
+        actions.append('getpass')
+        assert sys_mod.stdin is original_stdin
+        return 'pass'
+
+    sys_mod = _Stub()
+    original_stdin = sys_mod.stdin = OriginalStdin()
+
+    getpass_mod = _Stub()
+    getpass_mod.getpass = getpass_stub
+
+    _internal_patch_stdin(py_db, sys_mod, getpass_mod)
+
+    assert sys_mod.stdin.readline() == 'read'
+
+    assert py_db.writer.command_meanings == ['CMD_INPUT_REQUESTED', 'CMD_INPUT_REQUESTED']
+    del py_db.writer.command_meanings[:]
+    assert actions == ['readline']
+    del actions[:]
+
+    assert getpass_mod.getpass() == 'pass'
+    assert py_db.writer.command_meanings == ['CMD_INPUT_REQUESTED', 'CMD_INPUT_REQUESTED']
+    del py_db.writer.command_meanings[:]
+
+
 def test_debug_console():
     from _pydev_bundle.pydev_console_utils import DebugConsoleStdIn
 
@@ -66,5 +110,11 @@ def test_debug_console():
     debug_console_std_in = DebugConsoleStdIn(py_db, original_stdin)
     assert debug_console_std_in.readline() == 'read'
 
+    assert py_db.writer.command_meanings == ['CMD_INPUT_REQUESTED', 'CMD_INPUT_REQUESTED']
+    del py_db.writer.command_meanings[:]
+
+    with debug_console_std_in.notify_input_requested():
+        with debug_console_std_in.notify_input_requested():
+            pass
     assert py_db.writer.command_meanings == ['CMD_INPUT_REQUESTED', 'CMD_INPUT_REQUESTED']
 
