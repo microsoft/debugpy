@@ -32,11 +32,12 @@ def test_log_cli(pyfile, tmpdir, start_method, run_as, cli):
 
     with debug.Session(start_method) as session:
         with check_logs(tmpdir, session):
+            env = {}
             if cli == "arg":
                 session.log_dir = str(tmpdir)
             else:
-                session.env["PTVSD_LOG_DIR"] = str(tmpdir)
-            session.configure(run_as, code_to_debug)
+                env["PTVSD_LOG_DIR"] = str(tmpdir)
+            session.configure(run_as, code_to_debug, env=env)
             session.start_debugging()
 
 

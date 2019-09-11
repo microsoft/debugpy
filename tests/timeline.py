@@ -1003,6 +1003,9 @@ class MessageOccurrence(Occurrence):
         """
         return [("seq", self.message.seq), ("type", self.TYPE)]
 
+    def __call__(self, *args, **kwargs):
+        return self.message(*args, **kwargs)
+
     def describe_circumstances(self):
         id = collections.OrderedDict(self._id)
 

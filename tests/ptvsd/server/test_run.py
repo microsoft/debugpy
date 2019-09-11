@@ -45,15 +45,10 @@ def test_run(pyfile, start_method, run_as):
 
 
 def test_run_submodule():
-    with debug.Session("launch") as session:
+    with debug.Session(start_methods.Launch, backchannel=True) as session:
         session.configure("module", "pkg1.sub", cwd=test_data / "testpkgs")
         session.start_debugging()
-        session.wait_for_next(
-            Event(
-                "output",
-                some.dict.containing({"category": "stdout", "output": "three"}),
-            )
-        )
+        session.backchannel.expect("ok")
 
 
 @pytest.mark.parametrize("run_as", ["program", "module", "code"])
@@ -71,7 +66,7 @@ def test_nodebug(pyfile, run_as):
             run_as, code_to_debug, noDebug=True, console="internalConsole"
         )
 
-        with pytest.raises(messaging.InvalidMessageError):
+        with pytest.raises(messaging.MessageHandlingError):
             session.set_breakpoints(code_to_debug, all)
 
         session.start_debugging()
@@ -80,38 +75,5 @@ def test_nodebug(pyfile, run_as):
         # Breakpoint shouldn't be hit.
 
     session.expect_realized(
-        Event(
-            "output", some.dict.containing({"category": "stdout", "output": "ok"})
-        )
+        Event("output", some.dict.containing({"category": "stdout", "output": "ok"}))
     )
-
-
-@pytest.mark.parametrize("run_as", ["script", "module"])
-def test_run_vs(pyfile, run_as):
-    @pyfile
-    def code_to_debug():
-        from debug_me import backchannel
-
-        print("ok")
-        backchannel.send("ok")
-
-    @pyfile
-    def ptvsd_launcher():
-        from debug_me import backchannel
-        import ptvsd.debugger
-
-        args = tuple(backchannel.receive())
-        ptvsd.debugger.debug(*args)
-
-    filename = "code_to_debug" if run_as == "module" else code_to_debug
-    with debug.Session("custom_client", backchannel=True) as session:
-        backchannel = session.backchannel
-
-        @session.before_connect
-        def before_connect():
-            backchannel.send([filename, session.ptvsd_port, None, None, run_as])
-
-        session.configure("program", ptvsd_launcher)
-        session.start_debugging()
-
-        assert backchannel.receive() == "ok"

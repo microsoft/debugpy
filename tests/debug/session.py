@@ -36,6 +36,7 @@ class Session(object):
         timeline.Event("thread", some.dict.containing({"reason": "exited"})),
         timeline.Event("output", some.dict.containing({"category": "stdout"})),
         timeline.Event("output", some.dict.containing({"category": "stderr"})),
+        timeline.Event("output", some.dict.containing({"category": "console"})),
     ]
 
     def __init__(
@@ -444,6 +445,8 @@ class Session(object):
 
         try:
             self.request("disconnect")
+        except messaging.JsonIOError:
+            pass
         finally:
             try:
                 self.channel.close()

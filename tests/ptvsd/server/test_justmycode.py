@@ -20,35 +20,28 @@ def test_justmycode_frames(pyfile, start_method, run_as, jmc):
 
     with debug.Session(start_method) as session:
         session.configure(run_as, code_to_debug, justMyCode=bool(jmc))
+        session.set_breakpoints(code_to_debug, all)
 
-        bp_line = code_to_debug.lines["bp"]
-        actual_bps = session.set_breakpoints(code_to_debug, [bp_line])
-        actual_bps = [bp["line"] for bp in actual_bps]
         session.start_debugging()
-
-        hit = session.wait_for_stop()
-        assert hit.frames[0] == some.dict.containing(
-            {
-                "line": bp_line,
-                "source": some.dict.containing({"path": some.path(code_to_debug)}),
-            }
+        stop = session.wait_for_stop(
+                "breakpoint",
+                expected_frames=[
+                    some.dap.frame(code_to_debug, "bp")
+                ],
         )
-
         if jmc:
-            assert len(hit.frames) == 1
-            session.send_request(
-                "stepIn", {"threadId": hit.thread_id}
-            ).wait_for_response()
-            # 'step' should terminate the debuggee
+            assert len(stop.frames) == 1
         else:
-            assert len(hit.frames) >= 1
-            session.send_request(
-                "stepIn", {"threadId": hit.thread_id}
-            ).wait_for_response()
+            assert len(stop.frames) >= 1
 
-            # 'step' should enter stdlib
-            hit2 = session.wait_for_stop()
-            assert hit2.frames[0]["source"]["path"] != some.path(code_to_debug)
+        session.request("stepIn", {"threadId": stop.thread_id})
 
-            # 'continue' should terminate the debuggee
+        if not jmc:
+            # "stepIn" should stop somewhere inside stdlib
+            session.wait_for_stop(
+                "step",
+                expected_frames=[
+                    some.dap.frame(~some.str.equal_to(code_to_debug), some.int)
+                ],
+            )
             session.request_continue()

@@ -984,20 +984,21 @@ class Response(Message):
             raise self.body
 
     @staticmethod
-    def _parse(channel, message_dict):
-        seq = message_dict("seq", int)
+    def _parse(channel, message_dict, body=None):
+        seq = message_dict("seq", int) if (body is None) else None
         request_seq = message_dict("request_seq", int)
         command = message_dict("command", unicode)
         success = message_dict("success", bool)
-        if success:
-            body = message_dict("body", _payload)
-        else:
-            error_message = message_dict("message", unicode)
-            exc_type = MessageHandlingError
-            if error_message.startswith(InvalidMessageError.PREFIX):
-                error_message = error_message[len(InvalidMessageError.PREFIX) :]
-                exc_type = InvalidMessageError
-            body = exc_type(error_message, silent=True)
+        if body is None:
+            if success:
+                body = message_dict("body", _payload)
+            else:
+                error_message = message_dict("message", unicode)
+                exc_type = MessageHandlingError
+                if error_message.startswith(InvalidMessageError.PREFIX):
+                    error_message = error_message[len(InvalidMessageError.PREFIX) :]
+                    exc_type = InvalidMessageError
+                body = exc_type(error_message, silent=True)
 
         try:
             with channel:
@@ -1386,14 +1387,7 @@ class JsonMessageChannel(object):
                             "message": err_message,
                         },
                     )
-
-                    response = Response._parse(self, response_json)
-                    response.seq = None
-                    response.body = exc
-
-                    response_json.message = request.response = response
-                    request._enqueue_response_handlers()
-
+                    Response._parse(self, response_json, body=exc)
                 assert not len(self._sent_requests)
 
                 self._enqueue_handlers(Disconnect(self), self._handle_disconnect)

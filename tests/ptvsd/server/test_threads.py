@@ -39,10 +39,7 @@ def test_thread_count(pyfile, start_method, run_as, count):
         stop = True
 
     with debug.Session(start_method) as session:
-        session.configure(
-            run_as, code_to_debug,
-            args=[str(count)],
-        )
+        session.configure(run_as, code_to_debug, args=[str(count)])
         session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])
         session.start_debugging()
         session.wait_for_stop()
@@ -53,16 +50,15 @@ def test_thread_count(pyfile, start_method, run_as, count):
         session.request_continue()
 
 
-@pytest.mark.parametrize('stepping_resumes_all_threads', [None, True, False])
-def test_step_multi_threads(pyfile, run_as, start_method, stepping_resumes_all_threads):
-
+@pytest.mark.parametrize("resume", ["default", "resume_all", "resume_one"])
+def test_step_multi_threads(pyfile, run_as, start_method, resume):
     @pyfile
     def code_to_debug():
-        '''
+        """
         After breaking on the thread 1, thread 2 should pause waiting for the event1 to be set,
         so, when we step return on thread 1, the program should finish if all threads are resumed
         or should keep waiting for the thread 2 to run if only thread 1 is resumed.
-        '''
+        """
         import threading
         import debug_me  # noqa
 
@@ -73,12 +69,12 @@ def test_step_multi_threads(pyfile, run_as, start_method, stepping_resumes_all_t
 
         def _thread1():
             while not event0.is_set():
-                event0.wait(timeout=.001)
+                event0.wait(timeout=0.001)
 
             event1.set()  # @break_thread_1
 
             while not event2.is_set():
-                event2.wait(timeout=.001)
+                event2.wait(timeout=0.001)
             # Note: we can only get here if thread 2 is also released.
 
             event3.set()
@@ -87,16 +83,16 @@ def test_step_multi_threads(pyfile, run_as, start_method, stepping_resumes_all_t
             event0.set()
 
             while not event1.is_set():
-                event1.wait(timeout=.001)
+                event1.wait(timeout=0.001)
 
             event2.set()
 
             while not event3.is_set():
-                event3.wait(timeout=.001)
+                event3.wait(timeout=0.001)
 
         threads = [
-            threading.Thread(target=_thread1, name='thread1'),
-            threading.Thread(target=_thread2, name='thread2'),
+            threading.Thread(target=_thread1, name="thread1"),
+            threading.Thread(target=_thread2, name="thread2"),
         ]
         for t in threads:
             t.start()
@@ -105,36 +101,42 @@ def test_step_multi_threads(pyfile, run_as, start_method, stepping_resumes_all_t
             t.join()
 
     with debug.Session(start_method) as session:
-        session.configure(run_as, code_to_debug, steppingResumesAllThreads=stepping_resumes_all_threads)
-        session.set_breakpoints(code_to_debug, [code_to_debug.lines['break_thread_1']])
+        debug_config = {}
+        if resume == "resume_all":
+            debug_config["steppingResumesAllThreads"] = True
+        elif resume == "resume_one":
+            debug_config["steppingResumesAllThreads"] = False
+        session.configure(run_as, code_to_debug, **debug_config)
+
+        session.set_breakpoints(code_to_debug, all)
         session.start_debugging()
+
         stop_info = session.wait_for_stop()
-        resp_threads = session.send_request('threads').wait_for_response()
-        assert len(resp_threads.body['threads']) == 3
-        thread_name_to_id = dict((t['name'], t['id']) for t in resp_threads.body['threads'])
-        assert stop_info.thread_id == thread_name_to_id['thread1']
+        threads = session.request("threads")
+        assert len(threads["threads"]) == 3
 
-        if stepping_resumes_all_threads or stepping_resumes_all_threads is None:
-            # stepping_resumes_all_threads == None means we should use default (which is to
-            # resume all threads) -- in which case stepping out will exit the program.
-            session.send_request('stepOut', {'threadId': stop_info.thread_id}).wait_for_response(freeze=False)
+        thread_name_to_id = {t["name"]: t["id"] for t in threads["threads"]}
+        assert stop_info.thread_id == thread_name_to_id["thread1"]
 
-        else:
-            session.send_request('stepOut', {'threadId': stop_info.thread_id}).wait_for_response()
+        if resume == "resume_one":
+            session.request("stepOut", {"threadId": stop_info.thread_id})
             # Wait a second and check that threads are still there.
             time.sleep(1)
 
-            resp_stacktrace = session.send_request('stackTrace', arguments={
-                'threadId': thread_name_to_id['thread1'],
-            }).wait_for_response()
-            assert '_thread1' in [x['name'] for x in resp_stacktrace.body['stackFrames']]
+            stack_trace = session.request(
+                "stackTrace", {"threadId": thread_name_to_id["thread1"]}
+            )
+            assert "_thread1" in [frame["name"] for frame in stack_trace["stackFrames"]]
 
-            resp_stacktrace = session.send_request('stackTrace', arguments={
-                'threadId': thread_name_to_id['thread2'],
-            }).wait_for_response()
-            assert '_thread2' in [x['name'] for x in resp_stacktrace.body['stackFrames']]
+            stack_trace = session.request(
+                "stackTrace", {"threadId": thread_name_to_id["thread2"]}
+            )
+            assert "_thread2" in [frame["name"] for frame in stack_trace["stackFrames"]]
 
             session.request_continue()
+
+        else:
+            session.request("stepOut", {"threadId": stop_info.thread_id}, freeze=False)
 
 
 @pytest.mark.skipif(

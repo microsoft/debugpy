@@ -67,9 +67,7 @@ def test_redirect_output(pyfile, start_method, run_as, redirect):
         ()  # @wait_for_output
 
     with debug.Session(start_method) as session:
-        if redirect == "disabled":
-            session.debug_options -= {"RedirectOutput"}  # enabled by default
-        session.configure(run_as, code_to_debug)
+        session.configure(run_as, code_to_debug, redirectOutput=(redirect == "enabled"))
         session.set_breakpoints(code_to_debug, all)
         session.start_debugging()
 

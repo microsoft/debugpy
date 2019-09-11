@@ -30,6 +30,9 @@ class lines:
 
 
 def _initialize_session(session, multiprocess=False, exit_code=0):
+    if multiprocess:
+        pytest.skip("https://github.com/microsoft/ptvsd/issues/1706")
+
     env = {
         "FLASK_APP": paths.app_py,
         "FLASK_ENV": "development",

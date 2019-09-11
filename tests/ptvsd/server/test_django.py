@@ -27,6 +27,9 @@ class lines:
 
 
 def _initialize_session(session, multiprocess=False, exit_code=0):
+    if multiprocess:
+        pytest.skip("https://github.com/microsoft/ptvsd/issues/1706")
+
     args = ["runserver"]
     if not multiprocess:
         args += ["--noreload"]
@@ -36,7 +39,7 @@ def _initialize_session(session, multiprocess=False, exit_code=0):
     session.configure(
         "program", paths.app_py,
         cwd=paths.django1,
-        multiprocess=multiprocess,
+        subProcess=multiprocess,
         args=args,
         django=True
     )

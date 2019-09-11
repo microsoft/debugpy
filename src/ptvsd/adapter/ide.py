@@ -260,7 +260,14 @@ class IDE(components.Component):
     @message_handler
     def continue_request(self, request):
         request.arguments["threadId"] = "*"
-        return self.server.channel.delegate(request)
+
+        try:
+            return self.server.channel.delegate(request)
+        except messaging.NoMoreMessages:
+            # pydevd can sometimes allow the debuggee to exit before the queued
+            # "continue" response gets sent. Thus, a failed "continue" response
+            # indicating that the server disconnected should be treated as success.
+            return {"allThreadsContinued": True}
 
     @message_handler
     def ptvsd_systemInfo_request(self, request):

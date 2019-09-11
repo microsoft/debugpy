@@ -1,3 +1,2 @@
-print('one')
-print('two')
-print('three')
+from debug_me import backchannel
+backchannel.send("ok")

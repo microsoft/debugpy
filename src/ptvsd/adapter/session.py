@@ -59,7 +59,7 @@ class Session(util.Observable):
         """Debug options as specified by "launch" or "attach" request."""
 
         self.is_finalizing = False
-        """Whether the session is inside finalize()."""
+        """Whether finalize() has been invoked."""
 
         self.observers += [lambda *_: self.notify_changed()]
 
@@ -275,30 +275,17 @@ class Session(util.Observable):
             )
 
             try:
-                proc = subprocess.Popen(
+                subprocess.Popen(
                     cmdline,
                     bufsize=0,
                     stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                 )
-                # This process will immediately exit after injecting debug server
-                proc.wait()
             except Exception as exc:
                 log.exception("{0} failed to inject debugger", self)
                 raise messaging.MessageHandlingError(
                     fmt("Failed to inject debugger: {0}", exc)
-                )
-            if proc.returncode != 0:
-                log.exception(
-                    "{0} failed to inject debugger with error code {1}",
-                    self,
-                    proc.returncode,
-                )
-                raise messaging.MessageHandlingError(
-                    fmt(
-                        "Failed to inject debugger with error code {0}", proc.returncode
-                    )
                 )
 
     def finalize(self, why, terminate_debuggee=False):
