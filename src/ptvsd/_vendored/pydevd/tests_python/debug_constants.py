@@ -3,7 +3,7 @@ import sys
 import platform
 
 TEST_CYTHON = os.getenv('PYDEVD_USE_CYTHON', None) == 'YES'
-TEST_JYTHON = os.getenv('PYDEVD_TEST_JYTHON', None) == 'YES'
+PYDEVD_TEST_VM = os.getenv('PYDEVD_TEST_VM', None)
 
 IS_PY3K = sys.version_info[0] >= 3
 IS_PY36_OR_GREATER = sys.version_info[0:2] >= (3, 6)

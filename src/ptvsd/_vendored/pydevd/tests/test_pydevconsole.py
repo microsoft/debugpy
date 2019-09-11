@@ -11,6 +11,7 @@ try:
 except NameError:
     raw_input_name = 'input'
 
+
 #=======================================================================================================================
 # Test
 #=======================================================================================================================
@@ -27,9 +28,9 @@ class Test(unittest.TestCase):
 
         try:
             client_port, _server_port = self.get_free_addresses()
-            client_thread = self.start_client_thread(client_port)  #@UnusedVariable
+            client_thread = self.start_client_thread(client_port)  # @UnusedVariable
             import time
-            time.sleep(.3)  #let's give it some time to start the threads
+            time.sleep(.3)  # let's give it some time to start the threads
 
             from _pydev_bundle import pydev_localhost
             interpreter = pydevconsole.InterpreterInterface(pydev_localhost.get_localhost(), client_port, threading.currentThread())
@@ -39,16 +40,15 @@ class Test(unittest.TestCase):
         finally:
             sys.stdout = self.original_stdout
 
-
     def test_console_requests(self):
         self.original_stdout = sys.stdout
         sys.stdout = pydevd_io.IOBuf()
 
         try:
             client_port, _server_port = self.get_free_addresses()
-            client_thread = self.start_client_thread(client_port)  #@UnusedVariable
+            client_thread = self.start_client_thread(client_port)  # @UnusedVariable
             import time
-            time.sleep(.3)  #let's give it some time to start the threads
+            time.sleep(.3)  # let's give it some time to start the threads
 
             from _pydev_bundle import pydev_localhost
             from _pydev_bundle.pydev_console_utils import CodeFragment
@@ -66,9 +66,9 @@ class Test(unittest.TestCase):
                 self.assertEqual(['50', 'input_request'], found)
             except:
                 try:
-                    self.assertEqual(['input_request'], found)  #IPython
+                    self.assertEqual(['input_request'], found)  # IPython
                 except:
-                    self.assertEqual([u'50', u'input_request'], found[1:]) # IPython 5.1
+                    self.assertEqual([u'50', u'input_request'], found[1:])  # IPython 5.1
                     self.assertTrue(found[0].startswith(u'Out'))
 
             comps = interpreter.getCompletions('foo.', 'foo.')
@@ -85,7 +85,6 @@ class Test(unittest.TestCase):
                 ('__add__', 'x.\n__add__(y) <==> x+yx.\n__add__(y) <==> x+y', '()', '2'),
                 'Did not find __add__ in : %s' % (comps,)
             )
-
 
             completions = interpreter.getCompletions('', '')
             for c in completions:
@@ -114,7 +113,7 @@ class Test(unittest.TestCase):
                          desc.find('str(object=\'\') -> string') >= 0 or
                          desc.find('str(value: Char*)') >= 0 or
                          desc.find('str(object=\'\') -> str') >= 0 or
-                         desc.find('The most base type') >= 0 # Jython 2.7 is providing this :P
+                         desc.find('The most base type') >= 0  # Jython 2.7 is providing this :P
                          ,
                          'Could not find what was needed in %s' % desc)
 
@@ -127,20 +126,24 @@ class Test(unittest.TestCase):
                          desc.find('str join(str self, list sequence)') >= 0 or
                          desc.find('S.join(iterable) -> str') >= 0 or
                          desc.find('join(self: str, sequence: list) -> str') >= 0 or
-                         desc.find('Concatenate any number of strings.') >= 0,
+                         desc.find('Concatenate any number of strings.') >= 0 or
+                         desc.find('bound method str.join') >= 0,  # PyPy
                          "Could not recognize: %s" % (desc,))
         finally:
             sys.stdout = self.original_stdout
 
-
     def start_client_thread(self, client_port):
+
         class ClientThread(threading.Thread):
+
             def __init__(self, client_port):
                 threading.Thread.__init__(self)
                 self.client_port = client_port
 
             def run(self):
+
                 class HandleRequestInput:
+
                     def RequestInput(self):
                         client_thread.requested_input = True
                         return 'input_request'
@@ -164,13 +167,15 @@ class Test(unittest.TestCase):
         client_thread.start()
         return client_thread
 
-
     def start_debugger_server_thread(self, debugger_port, socket_code):
+
         class DebuggerServerThread(threading.Thread):
+
             def __init__(self, debugger_port, socket_code):
                 threading.Thread.__init__(self)
                 self.debugger_port = debugger_port
                 self.socket_code = socket_code
+
             def run(self):
                 import socket
                 s = socket.socket()
@@ -184,26 +189,26 @@ class Test(unittest.TestCase):
         debugger_thread.start()
         return debugger_thread
 
-
     def get_free_addresses(self):
         from _pydev_bundle.pydev_localhost import get_socket_names
         socket_names = get_socket_names(2, True)
         port0 = socket_names[0][1]
         port1 = socket_names[1][1]
-        
+
         assert port0 != port1
         assert port0 > 0
         assert port1 > 0
 
         return port0, port1
 
-
     def test_server(self):
         self.original_stdout = sys.stdout
         sys.stdout = pydevd_io.IOBuf()
         try:
             client_port, server_port = self.get_free_addresses()
+
             class ServerThread(threading.Thread):
+
                 def __init__(self, client_port, server_port):
                     threading.Thread.__init__(self)
                     self.client_port = client_port
@@ -212,14 +217,15 @@ class Test(unittest.TestCase):
                 def run(self):
                     from _pydev_bundle import pydev_localhost
                     pydevconsole.start_server(pydev_localhost.get_localhost(), self.server_port, self.client_port)
+
             server_thread = ServerThread(client_port, server_port)
             server_thread.setDaemon(True)
             server_thread.start()
 
-            client_thread = self.start_client_thread(client_port)  #@UnusedVariable
+            client_thread = self.start_client_thread(client_port)  # @UnusedVariable
 
             import time
-            time.sleep(.3)  #let's give it some time to start the threads
+            time.sleep(.3)  # let's give it some time to start the threads
             sys.stdout = pydevd_io.IOBuf()
 
             from _pydev_bundle import pydev_localhost

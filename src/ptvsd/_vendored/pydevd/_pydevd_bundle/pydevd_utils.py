@@ -9,7 +9,7 @@ except:
 
 import inspect
 import sys
-from _pydevd_bundle.pydevd_constants import IS_PY3K
+from _pydevd_bundle.pydevd_constants import IS_PY3K, USE_CUSTOM_SYS_CURRENT_FRAMES, IS_PYPY
 from _pydev_imps._pydev_saved_modules import threading
 
 
@@ -166,7 +166,12 @@ def dump_threads(stream=None):
     except:
         pass
 
-    from _pydevd_bundle.pydevd_additional_thread_info_regular import _current_frames
+    if USE_CUSTOM_SYS_CURRENT_FRAMES and IS_PYPY:
+        # On PyPy we can use its fake_frames to get the traceback
+        # (instead of the actual real frames that need the tracing to be correct).
+        _current_frames = sys._current_frames
+    else:
+        from _pydevd_bundle.pydevd_additional_thread_info_regular import _current_frames
 
     stream.write('===============================================================================\n')
     stream.write('Threads running\n')

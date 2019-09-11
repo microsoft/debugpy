@@ -26,7 +26,7 @@ class Test(unittest.TestCase):
     def _do_analyze(self, files):
         invalid_files = []
 
-        p = subprocess.Popen(["python", self._coverage_file, "--pydev-analyze"],
+        p = subprocess.Popen([sys.executable, self._coverage_file, "--pydev-analyze"],
                              stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
         __, stderrdata = p.communicate("|".join(files).encode())
 

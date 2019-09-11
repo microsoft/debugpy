@@ -5,6 +5,7 @@ import unittest
 import pytest
 from _pydevd_bundle import pydevd_referrers
 from _pydev_bundle.pydev_imports import StringIO
+from tests_python.debugger_unittest import IS_PYPY
 
 try:
     import gc
@@ -13,10 +14,10 @@ try:
 except NotImplementedError:
     has_referrers = False
 
-# Only do get referrers tests if it's actually available.
-@pytest.mark.skipif(not has_referrers, reason='gc.get_referrers not implemented')
-class Test(unittest.TestCase):
 
+# Only do get referrers tests if it's actually available.
+@pytest.mark.skipif(not has_referrers or IS_PYPY, reason='gc.get_referrers not implemented')
+class Test(unittest.TestCase):
 
     def test_get_referrers1(self):
 
@@ -34,6 +35,7 @@ class Test(unittest.TestCase):
     def test_get_referrers2(self):
 
         class MyClass(object):
+
             def __init__(self):
                 pass
 
@@ -47,11 +49,11 @@ class Test(unittest.TestCase):
         result = pydevd_referrers.get_referrer_info(obj.contained)
         assert 'found_as="contained"' in result
         assert 'MyClass' in result
-
 
     def test_get_referrers3(self):
 
         class MyClass(object):
+
             def __init__(self):
                 pass
 
@@ -66,10 +68,10 @@ class Test(unittest.TestCase):
         assert 'found_as="contained"' in result
         assert 'MyClass' in result
 
-
     def test_get_referrers4(self):
 
         class MyClass(object):
+
             def __init__(self):
                 pass
 
@@ -78,19 +80,17 @@ class Test(unittest.TestCase):
 
         # Let's see if we detect the cycle...
         result = pydevd_referrers.get_referrer_info(obj)
-        assert 'found_as="me"' in result  #Cyclic ref
-
+        assert 'found_as="me"' in result  # Cyclic ref
 
     def test_get_referrers5(self):
         container = dict(a=[1])
 
         # Let's see if we detect the cycle...
         result = pydevd_referrers.get_referrer_info(container['a'])
-        assert 'test_get_referrers5' not in result  #I.e.: NOT in the current method
+        assert 'test_get_referrers5' not in result  # I.e.: NOT in the current method
         assert 'found_as="a"' in result
         assert 'dict' in result
         assert str(id(container)) in result
-
 
     def test_get_referrers6(self):
         import sys
@@ -107,12 +107,12 @@ class Test(unittest.TestCase):
         else:
             assert 'should_appear' in result
 
-
     def test_get_referrers7(self):
 
         class MyThread(threading.Thread):
+
             def run(self):
-                #Note: we do that because if we do
+                # Note: we do that because if we do
                 self.frame = sys._getframe()
 
         t = MyThread()

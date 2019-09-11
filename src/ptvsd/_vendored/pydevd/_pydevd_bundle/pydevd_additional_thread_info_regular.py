@@ -1,5 +1,6 @@
 import sys
-from _pydevd_bundle.pydevd_constants import STATE_RUN, PYTHON_SUSPEND, IS_JYTHON, IS_IRONPYTHON
+from _pydevd_bundle.pydevd_constants import (STATE_RUN, PYTHON_SUSPEND, IS_JYTHON,
+    USE_CUSTOM_SYS_CURRENT_FRAMES, USE_CUSTOM_SYS_CURRENT_FRAMES_MAP)
 from _pydev_bundle import pydev_log
 # IFDEF CYTHON
 # pydev_log.debug("Using Cython speedups")
@@ -9,7 +10,7 @@ from _pydevd_bundle.pydevd_frame import PyDBFrame
 
 version = 11
 
-if not hasattr(sys, '_current_frames'):
+if USE_CUSTOM_SYS_CURRENT_FRAMES:
 
     # Some versions of Jython don't have it (but we can provide a replacement)
     if IS_JYTHON:
@@ -40,7 +41,7 @@ if not hasattr(sys, '_current_frames'):
                 ret[thread.getId()] = frame
             return ret
 
-    elif IS_IRONPYTHON:
+    elif USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
         _tid_to_last_frame = {}
 
         # IronPython doesn't have it. Let's use our workaround...
