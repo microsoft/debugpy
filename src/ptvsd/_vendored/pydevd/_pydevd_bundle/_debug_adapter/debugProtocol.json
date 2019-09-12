@@ -308,8 +308,8 @@
 								"description": "The output to report."
 							},
 							"variablesReference": {
-								"type": "number",
-								"description": "If an attribute 'variablesReference' exists and its value is > 0, the output contains objects which can be retrieved by passing 'variablesReference' to the 'variables' request."
+								"type": "integer",
+								"description": "If an attribute 'variablesReference' exists and its value is > 0, the output contains objects which can be retrieved by passing 'variablesReference' to the 'variables' request. The value should be less than or equal to 2147483647 (2^31 - 1)."
 							},
 							"source": {
 								"$ref": "#/definitions/Source",
@@ -556,12 +556,12 @@
 						"type": "object",
 						"properties": {
 							"processId": {
-								"type": "number",
-								"description": "The process ID."
+								"type": "integer",
+								"description": "The process ID. The value should be less than or equal to 2147483647 (2^31 - 1)."
 							},
 							"shellProcessId": {
-								"type": "number",
-								"description": "The process ID of the terminal shell."
+								"type": "integer",
+								"description": "The process ID of the terminal shell. The value should be less than or equal to 2147483647 (2^31 - 1)."
 							}
 						}
 					}
@@ -1425,7 +1425,7 @@
 		"PauseRequest": {
 			"allOf": [ { "$ref": "#/definitions/Request" }, {
 				"type": "object",
-				"description": "The request suspenses the debuggee.\nThe debug adapter first sends the response and then a 'stopped' event (with reason 'pause') after the thread has been paused successfully.",
+				"description": "The request suspends the debuggee.\nThe debug adapter first sends the response and then a 'stopped' event (with reason 'pause') after the thread has been paused successfully.",
 				"properties": {
 					"command": {
 						"type": "string",
@@ -1599,7 +1599,7 @@
 				"filter": {
 					"type": "string",
 					"enum": [ "indexed", "named" ],
-					"description": "Optional filter to limit the child variables to either named or indexed. If ommited, both types are fetched."
+					"description": "Optional filter to limit the child variables to either named or indexed. If omitted, both types are fetched."
 				},
 				"start": {
 					"type": "integer",
@@ -1695,16 +1695,16 @@
 								"description": "The type of the new value. Typically shown in the UI when hovering over the value."
 							},
 							"variablesReference": {
-								"type": "number",
-								"description": "If variablesReference is > 0, the new value is structured and its children can be retrieved by passing variablesReference to the VariablesRequest."
+								"type": "integer",
+								"description": "If variablesReference is > 0, the new value is structured and its children can be retrieved by passing variablesReference to the VariablesRequest. The value should be less than or equal to 2147483647 (2^31 - 1)."
 							},
 							"namedVariables": {
-								"type": "number",
-								"description": "The number of named child variables.\nThe client can use this optional information to present the variables in a paged UI and fetch them in chunks."
+								"type": "integer",
+								"description": "The number of named child variables.\nThe client can use this optional information to present the variables in a paged UI and fetch them in chunks. The value should be less than or equal to 2147483647 (2^31 - 1)."
 							},
 							"indexedVariables": {
-								"type": "number",
-								"description": "The number of indexed child variables.\nThe client can use this optional information to present the variables in a paged UI and fetch them in chunks."
+								"type": "integer",
+								"description": "The number of indexed child variables.\nThe client can use this optional information to present the variables in a paged UI and fetch them in chunks. The value should be less than or equal to 2147483647 (2^31 - 1)."
 							}
 						},
 						"required": [ "value" ]
@@ -2007,16 +2007,16 @@
 								"description": "Properties of a evaluate result that can be used to determine how to render the result in the UI."
 							},
 							"variablesReference": {
-								"type": "number",
-								"description": "If variablesReference is > 0, the evaluate result is structured and its children can be retrieved by passing variablesReference to the VariablesRequest."
+								"type": "integer",
+								"description": "If variablesReference is > 0, the evaluate result is structured and its children can be retrieved by passing variablesReference to the VariablesRequest. The value should be less than or equal to 2147483647 (2^31 - 1)."
 							},
 							"namedVariables": {
-								"type": "number",
-								"description": "The number of named child variables.\nThe client can use this optional information to present the variables in a paged UI and fetch them in chunks."
+								"type": "integer",
+								"description": "The number of named child variables.\nThe client can use this optional information to present the variables in a paged UI and fetch them in chunks. The value should be less than or equal to 2147483647 (2^31 - 1)."
 							},
 							"indexedVariables": {
-								"type": "number",
-								"description": "The number of indexed child variables.\nThe client can use this optional information to present the variables in a paged UI and fetch them in chunks."
+								"type": "integer",
+								"description": "The number of indexed child variables.\nThe client can use this optional information to present the variables in a paged UI and fetch them in chunks. The value should be less than or equal to 2147483647 (2^31 - 1)."
 							},
 							"memoryReference": {
 								"type": "string",
@@ -2090,16 +2090,16 @@
 								"description": "Properties of a value that can be used to determine how to render the result in the UI."
 							},
 							"variablesReference": {
-								"type": "number",
-								"description": "If variablesReference is > 0, the value is structured and its children can be retrieved by passing variablesReference to the VariablesRequest."
+								"type": "integer",
+								"description": "If variablesReference is > 0, the value is structured and its children can be retrieved by passing variablesReference to the VariablesRequest. The value should be less than or equal to 2147483647 (2^31 - 1)."
 							},
 							"namedVariables": {
-								"type": "number",
-								"description": "The number of named child variables.\nThe client can use this optional information to present the variables in a paged UI and fetch them in chunks."
+								"type": "integer",
+								"description": "The number of named child variables.\nThe client can use this optional information to present the variables in a paged UI and fetch them in chunks. The value should be less than or equal to 2147483647 (2^31 - 1)."
 							},
 							"indexedVariables": {
-								"type": "number",
-								"description": "The number of indexed child variables.\nThe client can use this optional information to present the variables in a paged UI and fetch them in chunks."
+								"type": "integer",
+								"description": "The number of indexed child variables.\nThe client can use this optional information to present the variables in a paged UI and fetch them in chunks. The value should be less than or equal to 2147483647 (2^31 - 1)."
 							}
 						},
 						"required": [ "value" ]
@@ -2521,6 +2521,13 @@
 					"type": "boolean",
 					"description": "The debug adapter supports the 'completions' request."
 				},
+				"completionTriggerCharacters": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"description": "The set of characters that should trigger completion in a REPL. If not specified, the UI should assume the '.' character."
+				},
 				"supportsModulesRequest": {
 					"type": "boolean",
 					"description": "The debug adapter supports the 'modules' request."
@@ -2778,8 +2785,8 @@
 					"description": "The path of the source to be shown in the UI. It is only used to locate and load the content of the source if no sourceReference is specified (or its value is 0)."
 				},
 				"sourceReference": {
-					"type": "number",
-					"description": "If sourceReference > 0 the contents of the source must be retrieved through the SourceRequest (even if a path is specified). A sourceReference is only valid for a session, so it must not be used to persist a source."
+					"type": "integer",
+					"description": "If sourceReference > 0 the contents of the source must be retrieved through the SourceRequest (even if a path is specified). A sourceReference is only valid for a session, so it must not be used to persist a source. The value should be less than or equal to 2147483647 (2^31 - 1)."
 				},
 				"presentationHint": {
 					"type": "string",
@@ -3191,6 +3198,10 @@
 					"type": "string",
 					"description": "If text is not falsy then it is inserted instead of the label."
 				},
+				"sortText": {
+					"type": "string",
+					"description": "A string that should be used when comparing this item with other items. When `falsy` the label is used."
+				},
 				"type": {
 					"$ref": "#/definitions/CompletionItemType",
 					"description": "The item's type. Typically the client uses this information to render the item in the UI with an icon."
@@ -3304,7 +3315,7 @@
 
 		"ExceptionBreakMode": {
 			"type": "string",
-			"description": "This enumeration defines all possible conditions when a thrown exception should result in a break.\nnever: never breaks,\nalways: always breaks,\nunhandled: breaks when excpetion unhandled,\nuserUnhandled: breaks if the exception is not handled by user code.",
+			"description": "This enumeration defines all possible conditions when a thrown exception should result in a break.\nnever: never breaks,\nalways: always breaks,\nunhandled: breaks when exception unhandled,\nuserUnhandled: breaks if the exception is not handled by user code.",
 			"enum": [ "never", "always", "unhandled", "userUnhandled" ]
 		},
 
@@ -3379,7 +3390,7 @@
 				},
 				"symbol": {
 					"type": "string",
-					"description": "Name of the symbol that correponds with the location of this instruction, if any."
+					"description": "Name of the symbol that corresponds with the location of this instruction, if any."
 				},
 				"location": {
 					"$ref": "#/definitions/Source",

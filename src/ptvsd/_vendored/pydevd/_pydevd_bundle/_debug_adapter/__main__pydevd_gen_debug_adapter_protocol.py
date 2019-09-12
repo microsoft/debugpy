@@ -81,7 +81,7 @@ def load_schema_data():
     json_file = os.path.join(os.path.dirname(__file__), 'debugProtocol.json')
     if not os.path.exists(json_file):
         import requests
-        req = requests.get('https://raw.githubusercontent.com/Microsoft/vscode-debugadapter-node/master/debugProtocol.json')
+        req = requests.get('https://raw.githubusercontent.com/microsoft/debug-adapter-protocol/gh-pages/debugAdapterProtocol.json')
         assert req.status_code == 200
         with open(json_file, 'wb') as stream:
             stream.write(req.content)

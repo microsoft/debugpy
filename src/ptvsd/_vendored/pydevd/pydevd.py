@@ -447,6 +447,9 @@ class PyDB(object):
         self._files_filtering = FilesFiltering()
         self.source_mapping = SourceMapping()
 
+        # Determines whether we should terminate child processes when asked to terminate.
+        self.terminate_child_processes = True
+
         # These are the breakpoints received by the PyDevdAPI. They are meant to store
         # the breakpoints in the api -- its actual contents are managed by the api.
         self.api_received_breakpoints = {}

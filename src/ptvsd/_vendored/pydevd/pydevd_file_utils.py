@@ -318,13 +318,28 @@ def _AbsFile(filename):
 
 
 # Returns tuple of absolute path and real path for given filename
-def _NormPaths(filename):
+def _NormPaths(filename, NORM_PATHS_CONTAINER=NORM_PATHS_CONTAINER):
     try:
         return NORM_PATHS_CONTAINER[filename]
-    except KeyError:
+    except:
         if filename.__class__ != str:
             raise AssertionError('Paths passed to _NormPaths must be str. Found: %s (%s)' % (filename, type(filename)))
-        abs_path = _NormPath(filename, os.path.abspath)
+        if os is None:  # Interpreter shutdown
+            return filename, filename
+
+        os_path = os.path
+        if os_path is None:  # Interpreter shutdown
+            return filename, filename
+
+        os_path_abspath = os.path.abspath
+
+        if os_path_abspath is None:  # Interpreter shutdown
+            return filename, filename
+
+        if rPath is None:  # Interpreter shutdown
+            return filename, filename
+
+        abs_path = _NormPath(filename, os_path_abspath)
         real_path = _NormPath(filename, rPath)
 
         # cache it for fast access later
@@ -682,12 +697,14 @@ setup_client_server_paths(PATHS_FROM_ECLIPSE_TO_PYTHON)
 
 
 # For given file f returns tuple of its absolute path, real path and base name
-def get_abs_path_real_path_and_base_from_file(f):
+def get_abs_path_real_path_and_base_from_file(
+        f, NORM_PATHS_AND_BASE_CONTAINER=NORM_PATHS_AND_BASE_CONTAINER):
     try:
         return NORM_PATHS_AND_BASE_CONTAINER[f]
     except:
         if _NormPaths is None:  # Interpreter shutdown
-            return f
+            i = max(f.rfind('/'), f.rfind('\\'))
+            return (f, f, f[i + 1:])
 
         if f is not None:
             if f.endswith('.pyc'):
@@ -696,7 +713,13 @@ def get_abs_path_real_path_and_base_from_file(f):
                 f = f[:-len('$py.class')] + '.py'
 
         abs_path, real_path = _NormPaths(f)
-        base = basename(real_path)
+
+        try:
+            base = basename(real_path)
+        except AttributeError:
+            # Error during shutdown.
+            i = max(f.rfind('/'), f.rfind('\\'))
+            base = f[i + 1:]
         ret = abs_path, real_path, base
         NORM_PATHS_AND_BASE_CONTAINER[f] = ret
         return ret

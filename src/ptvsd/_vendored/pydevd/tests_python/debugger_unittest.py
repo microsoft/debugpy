@@ -150,9 +150,12 @@ def overrides(method):
 
 TIMEOUT = 20
 
+try:
+    TimeoutError = TimeoutError  # @ReservedAssignment
+except NameError:
 
-class TimeoutError(RuntimeError):
-    pass
+    class TimeoutError(RuntimeError):  # @ReservedAssignment
+        pass
 
 
 def wait_for_condition(condition, msg=None, timeout=TIMEOUT, sleep=.05):

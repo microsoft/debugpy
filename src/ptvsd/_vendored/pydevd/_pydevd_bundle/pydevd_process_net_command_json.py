@@ -14,7 +14,8 @@ from _pydevd_bundle._debug_adapter.pydevd_schema import (
     GotoTargetsResponseBody, ModulesResponseBody, ProcessEventBody,
 	ProcessEvent, Scope, ScopesResponseBody, SetExpressionResponseBody,
 	SetVariableResponseBody, SourceBreakpoint, SourceResponseBody,
-	VariablesResponseBody, SetBreakpointsResponseBody, Response, InitializeRequest)
+	VariablesResponseBody, SetBreakpointsResponseBody, Response, InitializeRequest, InitializeResponse,
+    Capabilities)
 from _pydevd_bundle.pydevd_api import PyDevdAPI
 from _pydevd_bundle.pydevd_breakpoints import get_exception_class
 from _pydevd_bundle.pydevd_comm_constants import (
@@ -180,28 +181,48 @@ class _PyDevJsonCommandProcessor(object):
                 py_db.writer.add_command(cmd)
 
     def on_initialize_request(self, py_db, request):
-        body = {
-            'supportsCompletionsRequest': True,
-            'supportsConditionalBreakpoints': True,
-            'supportsConfigurationDoneRequest': True,
-            'supportsDebuggerProperties': True,
-            'supportsDelayedStackTraceLoading': True,
-            'supportsEvaluateForHovers': True,
-            'supportsExceptionInfoRequest': True,
-            'supportsExceptionOptions': True,
-            'supportsHitConditionalBreakpoints': True,
-            'supportsLogPoints': True,
-            'supportsModulesRequest': True,
-            'supportsSetExpression': True,
-            'supportsSetVariable': True,
-            'supportsValueFormattingOptions': True,
-            'supportTerminateDebuggee': True,
-            'supportsGotoTargetsRequest': True,
-            'exceptionBreakpointFilters': [
+        body = Capabilities(
+            # Supported.
+            supportsConfigurationDoneRequest=True,
+            supportsConditionalBreakpoints=True,
+            supportsHitConditionalBreakpoints=True,
+            supportsEvaluateForHovers=True,
+            supportsSetVariable=True,
+            supportsGotoTargetsRequest=True,
+            supportsCompletionsRequest=True,
+            supportsModulesRequest=True,
+            supportsExceptionOptions=True,
+            supportsValueFormattingOptions=True,
+            supportsExceptionInfoRequest=True,
+            supportTerminateDebuggee=True,
+            supportsDelayedStackTraceLoading=True,
+            supportsLogPoints=True,
+            supportsSetExpression=True,
+            supportsTerminateRequest=True,
+
+            exceptionBreakpointFilters=[
                 {'filter': 'raised', 'label': 'Raised Exceptions', 'default': False},
                 {'filter': 'uncaught', 'label': 'Uncaught Exceptions', 'default': True},
             ],
-        }
+
+            # Not supported.
+            supportsFunctionBreakpoints=False,
+            supportsStepBack=False,
+            supportsRestartFrame=False,
+            supportsStepInTargetsRequest=False,
+            completionTriggerCharacters=False,
+            additionalModuleColumns=False,
+            supportedChecksumAlgorithms=False,
+            supportsRestartRequest=False,
+            supportsLoadedSourcesRequest=False,
+            supportsTerminateThreadsRequest=False,
+            supportsDataBreakpoints=False,
+            supportsReadMemoryRequest=False,
+            supportsDisassembleRequest=False,
+        ).to_dict()
+
+        # Non-standard capabilities/info below.
+        body['supportsDebuggerProperties'] = True
 
         ide_access_token = py_db.authentication.ide_access_token
         body['pydevd'] = pydevd_info = {}
@@ -230,6 +251,16 @@ class _PyDevJsonCommandProcessor(object):
         :param ThreadsRequest request:
         '''
         return self.api.list_threads(py_db, request.seq)
+
+    def on_terminate_request(self, py_db, request):
+        '''
+        :param TerminateRequest request:
+        '''
+        # Force-terminate this process.
+        self._terminate_process(py_db)
+
+    def _terminate_process(self, py_db):
+        self.api.terminate_process(py_db)
 
     def on_completions_request(self, py_db, request):
         '''
@@ -275,6 +306,9 @@ class _PyDevJsonCommandProcessor(object):
         rules = args.get('rules')
         stepping_resumes_all_threads = args.get('steppingResumesAllThreads', True)
         self.api.set_stepping_resumes_all_threads(py_db, stepping_resumes_all_threads)
+
+        terminate_child_processes = args.get('terminateChildProcesses', True)
+        self.api.set_terminate_child_processes(py_db, terminate_child_processes)
 
         exclude_filters = []
 
@@ -476,6 +510,10 @@ class _PyDevJsonCommandProcessor(object):
         '''
         :param DisconnectRequest request:
         '''
+        if request.arguments.terminateDebuggee:
+            self._terminate_process(py_db)
+            return
+
         self._launch_or_attach_request_done = False
         py_db.enable_output_redirection(False, False)
         self.api.request_disconnect(py_db, resume_threads=True)

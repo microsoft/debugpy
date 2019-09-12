@@ -13,14 +13,14 @@ from _pydevd_bundle._debug_adapter import pydevd_schema, pydevd_base_schema
 from _pydevd_bundle._debug_adapter.pydevd_base_schema import from_json
 from _pydevd_bundle._debug_adapter.pydevd_schema import (ThreadEvent, ModuleEvent, OutputEvent,
     ExceptionOptions, Response, StoppedEvent, ContinuedEvent, ProcessEvent, InitializeRequest,
-    InitializeRequestArguments)
+    InitializeRequestArguments, TerminateArguments, TerminateRequest)
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
 from _pydevd_bundle.pydevd_constants import (int_types, IS_64BIT_PROCESS,
     PY_VERSION_STR, PY_IMPL_VERSION_STR, PY_IMPL_NAME)
 from tests_python import debugger_unittest
 from tests_python.debug_constants import TEST_CHERRYPY, IS_PY2, TEST_DJANGO, TEST_FLASK
 from tests_python.debugger_unittest import (IS_JYTHON, IS_APPVEYOR, overrides,
-    get_free_port)
+    get_free_port, wait_for_condition)
 
 pytest_plugins = [
     str('tests_python.debugger_fixtures'),
@@ -239,11 +239,11 @@ class JsonFacade(object):
     def write_attach(self, **arguments):
         return self._write_launch_or_attach('attach', **arguments)
 
-    def write_disconnect(self, wait_for_response=True):
+    def write_disconnect(self, wait_for_response=True, terminate_debugee=False):
         assert self._sent_launch_or_attach
         self._sent_launch_or_attach = False
-        arguments = pydevd_schema.DisconnectArguments(terminateDebuggee=False)
-        request = pydevd_schema.DisconnectRequest(arguments)
+        arguments = pydevd_schema.DisconnectArguments(terminateDebuggee=terminate_debugee)
+        request = pydevd_schema.DisconnectRequest(arguments=arguments)
         self.write_request(request)
         if wait_for_response:
             self.wait_for_response(request)
@@ -423,6 +423,10 @@ class JsonFacade(object):
         eval_response = self.wait_for_response(eval_request)
         assert eval_response.success == success
         return eval_response
+
+    def write_terminate(self):
+        # Note: this currently terminates promptly, so, no answer is given.
+        self.write_request(TerminateRequest(arguments=TerminateArguments()))
 
 
 def test_case_json_logpoints(case_setup):
@@ -2774,6 +2778,106 @@ def test_pydevd_systeminfo(case_setup):
         assert body['process']['bitness'] == 64 if IS_64BIT_PROCESS else 32
 
         json_facade.write_continue(wait_for_response=False)
+
+        writer.finished_ok = True
+
+
+@pytest.mark.parametrize('scenario', ['terminate_request', 'terminate_debugee'])
+@pytest.mark.parametrize('check_subprocesses', [
+    'no_subprocesses',
+    'kill_subprocesses',
+    'dont_kill_subprocesses'
+])
+def test_terminate(case_setup, scenario, check_subprocesses):
+    import psutil
+
+    def check_test_suceeded_msg(writer, stdout, stderr):
+        return 'TEST SUCEEDED' not in ''.join(stdout)
+
+    def update_command_line_args(writer, args):
+        ret = debugger_unittest.AbstractWriterThread.update_command_line_args(writer, args)
+        if check_subprocesses in ('kill_subprocesses', 'dont_kill_subprocesses'):
+            ret.append('check-subprocesses')
+        return ret
+
+    with case_setup.test_file(
+        '_debugger_case_terminate.py',
+        check_test_suceeded_msg=check_test_suceeded_msg,
+        update_command_line_args=update_command_line_args,
+        ) as writer:
+        json_facade = JsonFacade(writer)
+        if check_subprocesses == 'dont_kill_subprocesses':
+            json_facade.write_launch(terminateChildProcesses=False)
+
+        json_facade.write_make_initial_run()
+        response = json_facade.write_initialize(None)
+        pid = response.to_dict()['body']['pydevd']['processId']
+
+        if check_subprocesses in ('kill_subprocesses', 'dont_kill_subprocesses'):
+            process_ids_to_check = [pid]
+            p = psutil.Process(pid)
+
+            def wait_for_child_processes():
+                children = p.children(recursive=True)
+                found = len(children)
+                if found == 8:
+                    process_ids_to_check.extend([x.pid for x in children])
+                    return True
+                return False
+
+            wait_for_condition(wait_for_child_processes)
+
+        if scenario == 'terminate_request':
+            json_facade.write_terminate()
+        elif scenario == 'terminate_debugee':
+            json_facade.write_disconnect(wait_for_response=False, terminate_debugee=True)
+        else:
+            raise AssertionError('Unexpected: %s' % (scenario,))
+
+        if check_subprocesses in ('kill_subprocesses', 'dont_kill_subprocesses'):
+
+            def is_pid_alive(pid):
+                # Note: the process may be a zombie process in Linux
+                # (althought it's killed it remains in that state
+                # because we're monitoring it).
+                try:
+                    proc = psutil.Process(pid)
+                    if proc.status() == psutil.STATUS_ZOMBIE:
+                        return False
+                except psutil.NoSuchProcess:
+                    return False
+                return True
+
+            def get_live_pids():
+                return [pid for pid in process_ids_to_check if is_pid_alive(pid)]
+
+            if check_subprocesses == 'kill_subprocesses':
+
+                def all_pids_exited():
+                    live_pids = get_live_pids()
+                    if live_pids:
+                        return False
+
+                    return True
+
+                wait_for_condition(all_pids_exited)
+
+            else:  # 'dont_kill_subprocesses'
+                time.sleep(1)
+
+                def only_main_pid_exited():
+                    live_pids = get_live_pids()
+                    if len(live_pids) == len(process_ids_to_check) - 1:
+                        return True
+
+                    return False
+
+                wait_for_condition(only_main_pid_exited)
+
+                # Now, let's kill the remaining processes ourselves.
+                for pid in get_live_pids():
+                    proc = psutil.Process(pid)
+                    proc.kill()
 
         writer.finished_ok = True
 
