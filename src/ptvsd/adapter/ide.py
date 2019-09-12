@@ -232,7 +232,11 @@ class IDE(components.Component):
         if pid == ():
             host = request("host", "127.0.0.1")
             port = request("port", int)
-            self.session.connect_to_server((host, port))
+            if request("listen", False):
+                with self.accept_connection_from_server((host, port)):
+                    pass
+            else:
+                self.session.connect_to_server((host, port))
         else:
             ptvsd_args = request("ptvsdArgs", json.array(unicode))
             self.session.inject_server(pid, ptvsd_args)
