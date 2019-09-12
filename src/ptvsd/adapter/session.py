@@ -25,8 +25,6 @@ class Session(util.Observable):
     server is present, depending on the scenario.
     """
 
-    INCOMING_CONNECTION_TIMEOUT = 10
-
     _counter = itertools.count(1)
 
     def __init__(self):
@@ -152,7 +150,7 @@ class Session(util.Observable):
         server.Server(self, stream)
 
     @contextlib.contextmanager
-    def _accept_connection_from(self, what, address):
+    def _accept_connection_from(self, what, address, timeout=None):
         """Sets up a listening socket, accepts an incoming connection on it, sets
         up a message stream over that connection, and passes it on to what().
 
@@ -166,7 +164,7 @@ class Session(util.Observable):
         """
 
         host, port = address
-        listener = sockets.create_server(host, port, self.INCOMING_CONNECTION_TIMEOUT)
+        listener = sockets.create_server(host, port, timeout)
         host, port = listener.getsockname()
         log.info(
             "{0} waiting for incoming connection from {1} on {2}:{3}...",
@@ -195,10 +193,10 @@ class Session(util.Observable):
         return self._accept_connection_from(ide.IDE, address)
 
     def accept_connection_from_server(self, address=("127.0.0.1", 0)):
-        return self._accept_connection_from(server.Server, address)
+        return self._accept_connection_from(server.Server, address, timeout=10)
 
     def _accept_connection_from_launcher(self, address=("127.0.0.1", 0)):
-        return self._accept_connection_from(launcher.Launcher, address)
+        return self._accept_connection_from(launcher.Launcher, address, timeout=10)
 
     def spawn_debuggee(self, request, sudo, args, console, console_title):
         cmdline = ["sudo"] if sudo else []
