@@ -26,7 +26,7 @@ class lines:
     app_py = code.get_marked_line_numbers(paths.app_py)
 
 
-def _initialize_session(session, multiprocess=False, exit_code=0):
+def _initialize_session(session, multiprocess=None, exit_code=0):
     if multiprocess:
         pytest.skip("https://github.com/microsoft/ptvsd/issues/1706")
 
@@ -37,15 +37,18 @@ def _initialize_session(session, multiprocess=False, exit_code=0):
 
     session.expected_exit_code = exit_code
     session.configure(
-        "program", paths.app_py,
+        "program",
+        paths.app_py,
         cwd=paths.django1,
         subProcess=multiprocess,
         args=args,
-        django=True
+        django=True,
     )
 
 
-@pytest.mark.parametrize("start_method", [start_methods.Launch, start_methods.AttachSocketCmdLine])
+@pytest.mark.parametrize(
+    "start_method", [start_methods.Launch, start_methods.AttachSocketCmdLine]
+)
 @pytest.mark.parametrize("bp_target", ["code", "template"])
 def test_django_breakpoint_no_multiproc(start_method, bp_target):
     bp_file, bp_line, bp_name = {
@@ -64,11 +67,7 @@ def test_django_breakpoint_no_multiproc(start_method, bp_target):
             session.wait_for_stop(
                 "breakpoint",
                 expected_frames=[
-                    some.dap.frame(
-                        some.dap.source(bp_file),
-                        line=bp_line,
-                        name=bp_name,
-                    ),
+                    some.dap.frame(some.dap.source(bp_file), line=bp_line, name=bp_name)
                 ],
             )
 
@@ -88,7 +87,9 @@ def test_django_breakpoint_no_multiproc(start_method, bp_target):
             assert bp_var_content in home_request.response_text()
 
 
-@pytest.mark.parametrize("start_method", [start_methods.Launch, start_methods.AttachSocketCmdLine])
+@pytest.mark.parametrize(
+    "start_method", [start_methods.Launch, start_methods.AttachSocketCmdLine]
+)
 def test_django_template_exception_no_multiproc(start_method):
     with debug.Session(start_method) as session:
         _initialize_session(session, exit_code=some.int)
@@ -133,7 +134,9 @@ def test_django_template_exception_no_multiproc(start_method):
             session.request_continue()
 
 
-@pytest.mark.parametrize("start_method", [start_methods.Launch, start_methods.AttachSocketCmdLine])
+@pytest.mark.parametrize(
+    "start_method", [start_methods.Launch, start_methods.AttachSocketCmdLine]
+)
 @pytest.mark.parametrize("exc_type", ["handled", "unhandled"])
 def test_django_exception_no_multiproc(start_method, exc_type):
     exc_line = lines.app_py["exc_" + exc_type]

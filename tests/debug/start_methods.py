@@ -518,7 +518,7 @@ class AttachSocketCmdLine(AttachBase):
         if log_dir:
             cli_args += ["--log-dir", log_dir]
 
-        if self._attach_args.get("multiprocess", False):
+        if self._attach_args.get("subProcess", False):
             cli_args += ["--multiprocess"]
 
         super(AttachSocketCmdLine, self).configure(
