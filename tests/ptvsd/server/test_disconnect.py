@@ -25,11 +25,16 @@ def test_continue_on_disconnect_for_attach(pyfile, start_method, run_as):
     with debug.Session(start_method, backchannel=True) as session:
         backchannel = session.backchannel
         session.configure(run_as, code_to_debug)
-        session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])
+        session.set_breakpoints(code_to_debug, all)
         session.start_debugging()
-        hit = session.wait_for_stop("breakpoint")
-        assert hit.frames[0]["line"] == code_to_debug.lines["bp"]
-        session.send_request("disconnect").wait_for_response()
+
+        session.wait_for_stop(
+            "breakpoint",
+            expected_frames=[
+                some.dap.frame(code_to_debug, line="bp"),
+            ],
+        )
+        session.request("disconnect")
         assert "continued" == backchannel.receive()
 
 
@@ -40,19 +45,24 @@ def test_exit_on_disconnect_for_launch(pyfile, start_method, run_as):
         import debug_me  # noqa
         import os.path
 
-        fp = os.join(os.path.dirname(os.path.abspath(__file__)), "here.txt")  # @bp
-        # should not execute this
+        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "here.txt")  # @bp
+        print("should not execute this")
         with open(fp, "w") as f:
             print("Should not continue after disconnect on launch", file=f)
 
     with debug.Session(start_method) as session:
         session.expected_exit_code = some.int
         session.configure(run_as, code_to_debug)
-        session.set_breakpoints(code_to_debug, code_to_debug.lines["bp"])
+        session.set_breakpoints(code_to_debug, all)
         session.start_debugging()
-        hit = session.wait_for_stop("breakpoint")
-        assert hit.frames[0]["line"] == code_to_debug.lines["bp"]
-        session.send_request("disconnect").wait_for_response()
 
-    fp = os.join(os.path.dirname(os.path.abspath(code_to_debug)), "here.txt")
+        session.wait_for_stop(
+            "breakpoint",
+            expected_frames=[
+                some.dap.frame(code_to_debug, line="bp"),
+            ],
+        )
+        session.request("disconnect")
+
+    fp = os.path.join(os.path.dirname(os.path.abspath(code_to_debug)), "here.txt")
     assert not os.path.exists(fp)
