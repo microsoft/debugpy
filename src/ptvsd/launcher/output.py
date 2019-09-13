@@ -57,6 +57,7 @@ class CaptureOutput(object):
         s = self._decoder.decode(s, final=final)
         if len(s) == 0:
             return
+        s = s.replace("\r\n", "\n")
 
         try:
             adapter.channel.send_event(
