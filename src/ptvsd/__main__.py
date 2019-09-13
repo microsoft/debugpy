@@ -7,8 +7,6 @@ from __future__ import absolute_import, print_function, unicode_literals
 import os.path
 import sys
 
-__all__ = ["main"]
-
 # Force absolute path on Python 2.
 __file__ = os.path.abspath(__file__)
 
@@ -41,5 +39,5 @@ if __name__ == "__main__":
         import ptvsd  # noqa
         del sys.path[0]
 
-    from ptvsd.server import main
-    main.main()
+    from ptvsd.server import cli
+    cli.main()

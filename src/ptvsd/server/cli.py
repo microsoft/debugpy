@@ -26,7 +26,7 @@ See https://aka.ms/ptvsd for documentation.
 
 Usage: ptvsd [--client] --host <address> [--port <port>]
              [--wait]
-             [--multiprocess]
+             [--no-subprocesses]
              [--log-dir <path>] [--log-stderr]
              {1}
 """.format(
@@ -69,9 +69,9 @@ def set_arg(varname, parser=(lambda x: x), options=options):
     return action
 
 
-def set_true(varname, options=options):
+def set_const(varname, value, options=options):
     def do(arg, it):
-        setattr(options, varname, True)
+        setattr(options, varname, value)
 
     return do
 
@@ -97,26 +97,26 @@ switches = [
     # ======                    ===========         ======                                      ========
 
     # Switches that are documented for use by end users.
-    (('-?', '-h', '--help'),    None,               print_help_and_exit,                        False),
-    (('-V', '--version'),       None,               print_version_and_exit,                     False),
-    ('--client',                None,               set_true('client'),                         False),
-    ('--host',                  '<address>',        set_arg('host'),                            True),
-    ('--port',                  '<port>',           set_arg('port', port),                      False),
-    ('--wait',                  None,               set_true('wait'),                           False),
-    ('--multiprocess',          None,               set_true('multiprocess'),                   False),
-    ('--log-dir',               '<path>',           set_arg('log_dir', options=common_opts),    False),
-    ('--log-stderr',            None,               set_log_stderr(),                           False),
+    (("-?", "-h", "--help"),    None,               print_help_and_exit,                        False),
+    (("-V", "--version"),       None,               print_version_and_exit,                     False),
+    ("--client",                None,               set_const("client", True),                  False),
+    ("--host",                  "<address>",        set_arg("host"),                            True),
+    ("--port",                  "<port>",           set_arg("port", port),                      False),
+    ("--wait",                  None,               set_const("wait", True),                    False),
+    ("--no-subprocesses",       None,               set_const("multiprocess", False),           False),
+    ("--log-dir",               "<path>",           set_arg("log_dir", options=common_opts),    False),
+    ("--log-stderr",            None,               set_log_stderr(),                           False),
 
     # Switches that are used internally by the IDE or ptvsd itself.
-    ('--subprocess-of',         '<pid>',            set_arg('subprocess_of', pid),              False),
-    ('--subprocess-notify',     '<port>',           set_arg('subprocess_notify', port),         False),
+    ("--subprocess-of",         "<pid>",            set_arg("subprocess_of", pid),              False),
+    ("--subprocess-notify",     "<port>",           set_arg("subprocess_notify", port),         False),
 
-    # Targets. The '' entry corresponds to positional command line arguments,
+    # Targets. The "" entry corresponds to positional command line arguments,
     # i.e. the ones not preceded by any switch name.
-    ('',                        '<filename>',       set_target('file', positional=True),        False),
-    ('-m',                      '<module>',         set_target('module'),                       False),
-    ('-c',                      '<code>',           set_target('code'),                         False),
-    ('--pid',                   '<pid>',            set_target('pid', pid),                     False),
+    ("",                        "<filename>",       set_target("file", positional=True),        False),
+    ("-m",                      "<module>",         set_target("module"),                       False),
+    ("-c",                      "<code>",           set_target("code"),                         False),
+    ("--pid",                   "<pid>",            set_target("pid", pid),                     False),
 ]
 # fmt: on
 
@@ -174,7 +174,7 @@ def parse(args):
 
 def setup_debug_server(argv_0):
     # We need to set up sys.argv[0] before invoking attach() or enable_attach(),
-    # because they use it to report the 'process' event. Thus, we can't rely on
+    # because they use it to report the "process" event. Thus, we can't rely on
     # run_path() and run_module() doing that, even though they will eventually.
     sys.argv[0] = compat.filename(argv_0)
     log.debug("sys.argv after patching: {0!r}", sys.argv)
@@ -240,9 +240,9 @@ def run_module():
     log.info("Running module {0!r}", target)
 
     # Docs say that runpy.run_module is equivalent to -m, but it's not actually
-    # the case for packages - -m sets __name__ to '__main__', but run_module sets
-    # it to `pkg.__main__`. This breaks everything that uses the standard pattern
-    # __name__ == '__main__' to detect being run as a CLI app. On the other hand,
+    # the case for packages - -m sets __name__ to "__main__", but run_module sets
+    # it to "pkg.__main__". This breaks everything that uses the standard pattern
+    # __name__ == "__main__" to detect being run as a CLI app. On the other hand,
     # runpy._run_module_as_main is a private function that actually implements -m.
     try:
         run_module_as_main = runpy._run_module_as_main
@@ -266,7 +266,7 @@ def run_code():
 
 
 def attach_to_pid():
-    log.info('Attaching to process with ID {0}', options.target)
+    log.info("Attaching to process with ID {0}", options.target)
 
     pid = options.target
     host = options.host
@@ -277,21 +277,24 @@ def attach_to_pid():
         log_dir = ""
 
     try:
-        attach_pid_injected_dirname = os.path.join(os.path.dirname(ptvsd.__file__), 'server')
+        attach_pid_injected_dirname = os.path.join(
+            os.path.dirname(ptvsd.__file__), "server"
+        )
         assert os.path.exists(attach_pid_injected_dirname)
 
-        log_dir = log_dir.replace('\\', '/')
+        log_dir = log_dir.replace("\\", "/")
 
         encode = lambda s: list(bytearray(s.encode("utf-8")))
         setup = {
-            'script': encode(attach_pid_injected_dirname),
-            'host': encode(host),
-            'port': port,
-            'client': client,
-            'log_dir': encode(log_dir),
+            "script": encode(attach_pid_injected_dirname),
+            "host": encode(host),
+            "port": port,
+            "client": client,
+            "log_dir": encode(log_dir),
         }
 
-        python_code = '''import sys;
+        python_code = """
+import sys;
 import codecs;
 decode = lambda s: codecs.utf_8_decode(bytearray(s))[0];
 script_path = decode({script});
@@ -301,34 +304,35 @@ sys.path.remove(script_path);
 host = decode({host});
 log_dir = decode({log_dir}) or None;
 attach_pid_injected.attach(port={port}, host=host, client={client}, log_dir=log_dir)
-'''.replace('\r', '').replace('\n', '')
+"""
+        python_code = python_code.replace("\r", "").replace("\n", "").format(**setup)
+        log.info("Code to be injected: \n{0}", python_code.replace(";", ";\n"))
 
-        python_code = python_code.format(**setup)
-        log.info("Code to be injected: \n{0}", python_code.replace(';', '\r\n'))
-
-        # pydevd requires injected code to not contain any single quotes, double quotes or
-        # new lines.
-        assert "'" not in python_code, "Injected code should not contain any single quotes"
-        assert "\"" not in python_code, "Injected code should not contain any double quotes"
-        assert "\n" not in python_code, "Injected code should not contain any new lines"
-        assert "\r" not in python_code, "Injected code should not contain any "
+        # pydevd restriction on characters in injected code.
+        assert not (
+            {'"', "'", "\r", "\n"} & set(python_code)
+        ), "Injected code should not contain any single quotes, double quots, or newlines."
 
         pydevd_attach_to_process_path = os.path.join(
-            os.path.dirname(pydevd.__file__),
-            'pydevd_attach_to_process')
+            os.path.dirname(pydevd.__file__), "pydevd_attach_to_process"
+        )
 
         assert os.path.exists(pydevd_attach_to_process_path)
         sys.path.append(pydevd_attach_to_process_path)
 
-    
         import add_code_to_python_process  # noqa
+
         show_debug_info_on_target_process = 0  # hard-coded (1 to debug)
-        log.info('Code injector begin')
+        log.info("Code injector begin")
         add_code_to_python_process.run_python_code(
-            pid, python_code, connect_debugger_tracing=True, show_debug_info=show_debug_info_on_target_process)
-    except:
+            pid,
+            python_code,
+            connect_debugger_tracing=True,
+            show_debug_info=show_debug_info_on_target_process,
+        )
+    except Exception:
         raise log.exception()
-    log.info('Code injector exiting')
+    log.info("Code injector exiting")
 
 
 def main():

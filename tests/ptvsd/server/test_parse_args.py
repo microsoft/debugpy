@@ -9,15 +9,15 @@ import pytest
 from ptvsd.common import log
 from ptvsd.common.compat import reload
 
-from ptvsd.server import main, options
+from ptvsd.server import cli, options
 
 
 @pytest.mark.parametrize("target_kind", ["file", "module", "code"])
 @pytest.mark.parametrize("client", ["", "client"])
 @pytest.mark.parametrize("wait", ["", "wait"])
-@pytest.mark.parametrize("multiproc", ["", "multiproc"])
+@pytest.mark.parametrize("subprocesses", ["", "subprocesses"])
 @pytest.mark.parametrize("extra", ["", "extra"])
-def test_targets(target_kind, client, wait, multiproc, extra):
+def test_targets(target_kind, client, wait, subprocesses, extra):
     args = ["--host", "localhost", "--port", "8888"]
 
     if client:
@@ -26,8 +26,8 @@ def test_targets(target_kind, client, wait, multiproc, extra):
     if wait:
         args += ["--wait"]
 
-    if multiproc:
-        args += ["--multiprocess"]
+    if not subprocesses:
+        args += ["--no-subprocesses"]
 
     if target_kind == "file":
         target = "spam.py"
@@ -61,7 +61,7 @@ def test_targets(target_kind, client, wait, multiproc, extra):
 
     log.debug("args = {0!r}", args)
     reload(options)
-    rest = list(main.parse(args))
+    rest = list(cli.parse(args))
     assert rest == extra
 
     expected_options = {
@@ -70,7 +70,7 @@ def test_targets(target_kind, client, wait, multiproc, extra):
         "host": "localhost",
         "port": 8888,
         "wait": bool(wait),
-        "multiprocess": bool(multiproc),
+        "multiprocess": bool(subprocesses),
     }
     actual_options = {name: vars(options)[name] for name in expected_options}
     assert expected_options == actual_options
@@ -79,22 +79,22 @@ def test_targets(target_kind, client, wait, multiproc, extra):
 def test_unsupported_arg():
     reload(options)
     with pytest.raises(Exception):
-        main.parse(["--port", "8888", "--xyz", "123", "spam.py"])
+        cli.parse(["--port", "8888", "--xyz", "123", "spam.py"])
 
 
 def test_host_required():
     reload(options)
     with pytest.raises(Exception):
-        main.parse(["--port", "8888", "-m", "spam"])
+        cli.parse(["--port", "8888", "-m", "spam"])
 
 
 def test_host_empty():
     reload(options)
-    main.parse(["--host", "", "--port", "8888", "spam.py"])
+    cli.parse(["--host", "", "--port", "8888", "spam.py"])
     assert options.host == ""
 
 
 def test_port_default():
     reload(options)
-    main.parse(["--host", "localhost", "spam.py"])
+    cli.parse(["--host", "localhost", "spam.py"])
     assert options.port == 5678
