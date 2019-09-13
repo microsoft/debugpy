@@ -11,8 +11,8 @@ from tests.patterns import some
 from tests.timeline import Event
 
 
-@pytest.mark.parametrize("module", [True, False])
-@pytest.mark.parametrize("line", [True, False])
+@pytest.mark.parametrize("module", ["module", ""])
+@pytest.mark.parametrize("line", ["line", ""])
 def test_stack_format(pyfile, start_method, run_as, module, line):
     @pyfile
     def code_to_debug():
@@ -28,26 +28,25 @@ def test_stack_format(pyfile, start_method, run_as, module, line):
 
     with debug.Session(start_method) as session:
         session.configure(run_as, code_to_debug)
-        session.set_breakpoints(test_module, [test_module.lines["bp"]])
+        session.set_breakpoints(test_module, all)
         session.start_debugging()
 
-        hit = session.wait_for_stop()
-        resp_stacktrace = session.send_request(
-            "stackTrace",
-            arguments={
-                "threadId": hit.thread_id,
-                "format": {"module": module, "line": line},
-            },
-        ).wait_for_response()
-        assert resp_stacktrace.body["totalFrames"] > 0
-        frames = resp_stacktrace.body["stackFrames"]
-
-        assert line == (
-            frames[0]["name"].find(": " + str(test_module.lines["bp"])) > -1
+        stop = session.wait_for_stop(
+            "breakpoint", expected_frames=[some.dap.frame(test_module, line="bp")]
         )
-
-        assert module == (frames[0]["name"].find("test_module") > -1)
-
+        stack_trace = session.request(
+            "stackTrace",
+            {
+                "threadId": stop.thread_id,
+                "format": {"module": bool(module), "line": bool(line)},
+            },
+        )
+        assert stack_trace["totalFrames"] > 0
+        name = stack_trace["stackFrames"][0]["name"]
+        if line:
+            assert (": " + str(test_module.lines["bp"])) in name
+        if module:
+            assert "test_module" in name
         session.request_continue()
 
 
@@ -73,10 +72,12 @@ def test_module_events(pyfile, start_method, run_as):
 
     with debug.Session(start_method) as session:
         session.configure(run_as, test_code)
-        session.set_breakpoints(module2, [module2.lines["bp"]])
+        session.set_breakpoints(module2, all)
         session.start_debugging()
 
-        session.wait_for_stop()
+        session.wait_for_stop(
+            "breakpoint", expected_frames=[some.dap.frame(module2, line="bp")]
+        )
 
         # Stack trace after the stop will trigger module events, but they are only
         # sent after the trace response, so we need to wait for them separately.
@@ -88,10 +89,12 @@ def test_module_events(pyfile, start_method, run_as):
             event.body["module"]["name"]: event.body["module"]["path"]
             for event in session.all_occurrences_of(Event("module"))
         }
-        assert modules == {
-            "__main__": some.path(test_code),
-            "module1": some.path(module1),
-            "module2": some.path(module2),
-        }
+        assert modules == some.dict.containing(
+            {
+                "__main__": some.path(test_code),
+                "module1": some.path(module1),
+                "module2": some.path(module2),
+            }
+        )
 
         session.request_continue()
