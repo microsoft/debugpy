@@ -13,8 +13,8 @@ from tests.timeline import Event
 str_matching_ArithmeticError = some.str.matching(r"(.+\.)?ArithmeticError")
 
 
-@pytest.mark.parametrize("raised", ["raisedOn", "raisedOff"])
-@pytest.mark.parametrize("uncaught", ["uncaughtOn", "uncaughtOff"])
+@pytest.mark.parametrize("raised", ["raised", ""])
+@pytest.mark.parametrize("uncaught", ["uncaught", ""])
 def test_vsc_exception_options_raise_with_except(
     pyfile, start_method, run_as, raised, uncaught
 ):
@@ -24,28 +24,25 @@ def test_vsc_exception_options_raise_with_except(
 
         def raise_with_except():
             try:
-                raise ArithmeticError("bad code")  # @exception_line
+                raise ArithmeticError("bad code")  # @exc
             except Exception:
                 pass
 
         raise_with_except()
 
-    ex_line = code_to_debug.lines["exception_line"]
-    filters = []
-    filters += ["raised"] if raised == "raisedOn" else []
-    filters += ["uncaught"] if uncaught == "uncaughtOn" else []
-
     with debug.Session(start_method) as session:
         session.expected_exit_code = some.int
         session.configure(run_as, code_to_debug)
-        session.request("setExceptionBreakpoints", {"filters": filters})
+        session.request(
+            "setExceptionBreakpoints", {"filters": list({raised, uncaught} - {""})}
+        )
         session.start_debugging()
 
         expected = some.dict.containing(
             {
                 "exceptionId": str_matching_ArithmeticError,
                 "description": "bad code",
-                "breakMode": "always" if raised == "raisedOn" else "unhandled",
+                "breakMode": "always" if raised else "unhandled",
                 "details": some.dict.containing(
                     {
                         "typeName": str_matching_ArithmeticError,
@@ -56,26 +53,24 @@ def test_vsc_exception_options_raise_with_except(
             }
         )
 
-        if raised == "raisedOn":
-            hit = session.wait_for_stop(
+        if raised:
+            stop = session.wait_for_stop(
                 "exception",
                 expected_text=str_matching_ArithmeticError,
                 expected_description="bad code",
+                expected_frames=[some.dap.frame(code_to_debug, line="exc")],
             )
-            assert ex_line == hit.frames[0]["line"]
-
-            resp_exc_info = session.send_request(
-                "exceptionInfo", {"threadId": hit.thread_id}
-            ).wait_for_response()
-
-            assert resp_exc_info.body == expected
+            exc_info = session.request("exceptionInfo", {"threadId": stop.thread_id})
+            assert exc_info == expected
             session.request_continue()
 
-        # uncaught should not 'stop' matter since the exception is caught
+        if uncaught:
+            # Exception is caught by try..except, so there should be no stop.
+            pass
 
 
-@pytest.mark.parametrize("raised", ["raisedOn", "raisedOff"])
-@pytest.mark.parametrize("uncaught", ["uncaughtOn", "uncaughtOff"])
+@pytest.mark.parametrize("raised", ["raised", ""])
+@pytest.mark.parametrize("uncaught", ["uncaught", ""])
 def test_vsc_exception_options_raise_without_except(
     pyfile, start_method, run_as, raised, uncaught
 ):
@@ -84,28 +79,24 @@ def test_vsc_exception_options_raise_without_except(
         import debug_me  # noqa
 
         def raise_without_except():
-            raise ArithmeticError("bad code")  # @exception_line
+            raise ArithmeticError("bad code")  # @exc
 
         raise_without_except()
 
-    ex_line = code_to_debug.lines["exception_line"]
-    filters = []
-    filters += ["raised"] if raised == "raisedOn" else []
-    filters += ["uncaught"] if uncaught == "uncaughtOn" else []
     with debug.Session(start_method) as session:
         session.ignore_unobserved.append(Event("stopped"))
         session.expected_exit_code = some.int
         session.configure(run_as, code_to_debug)
-        session.send_request(
-            "setExceptionBreakpoints", {"filters": filters}
-        ).wait_for_response()
+        session.request(
+            "setExceptionBreakpoints", {"filters": list({raised, uncaught} - {""})}
+        )
         session.start_debugging()
 
-        expected = some.dict.containing(
+        expected_exc_info = some.dict.containing(
             {
                 "exceptionId": str_matching_ArithmeticError,
                 "description": "bad code",
-                "breakMode": "always" if raised == "raisedOn" else "unhandled",
+                "breakMode": "always" if raised else "unhandled",
                 "details": some.dict.containing(
                     {
                         "typeName": str_matching_ArithmeticError,
@@ -116,15 +107,12 @@ def test_vsc_exception_options_raise_without_except(
             }
         )
 
-        if raised == "raisedOn":
-            hit = session.wait_for_stop("exception")
-            assert ex_line == hit.frames[0]["line"]
-
-            resp_exc_info = session.send_request(
-                "exceptionInfo", {"threadId": hit.thread_id}
-            ).wait_for_response()
-
-            assert resp_exc_info.body == expected
+        if raised:
+            stop = session.wait_for_stop(
+                "exception", expected_frames=[some.dap.frame(code_to_debug, line="exc")]
+            )
+            exc_info = session.request("exceptionInfo", {"threadId": stop.thread_id})
+            assert expected_exc_info == exc_info
             session.request_continue()
 
             # NOTE: debugger stops at each frame if raised and is uncaught
@@ -134,15 +122,11 @@ def test_vsc_exception_options_raise_without_except(
             session.wait_for_stop("exception")
             session.request_continue()
 
-        if uncaught == "uncaughtOn":
-            hit = session.wait_for_stop("exception")
-            assert ex_line == hit.frames[0]["line"]
-
-            resp_exc_info = session.send_request(
-                "exceptionInfo", {"threadId": hit.thread_id}
-            ).wait_for_response()
-
-            expected = some.dict.containing(
+        if uncaught:
+            stop = session.wait_for_stop(
+                "exception", expected_frames=[some.dap.frame(code_to_debug, line="exc")]
+            )
+            expected_exc_info = some.dict.containing(
                 {
                     "exceptionId": str_matching_ArithmeticError,
                     "description": "bad code",
@@ -156,8 +140,8 @@ def test_vsc_exception_options_raise_without_except(
                     ),
                 }
             )
-
-            assert resp_exc_info.body == expected
+            exc_info = session.request("exceptionInfo", {"threadId": stop.thread_id})
+            assert expected_exc_info == exc_info
             session.request_continue()
 
 
@@ -179,8 +163,6 @@ def test_systemexit(pyfile, start_method, run_as, raised, uncaught, zero, exit_c
             pass
         sys.exit(exit_code)  # @unhandled
 
-    line_numbers = code_to_debug.lines
-
     filters = []
     if raised:
         filters += ["raised"]
@@ -189,21 +171,28 @@ def test_systemexit(pyfile, start_method, run_as, raised, uncaught, zero, exit_c
 
     with debug.Session(start_method) as session:
         session.expected_exit_code = some.int
-        session.configure(run_as, code_to_debug, args=[repr(exit_code)], breakOnSystemExitZero=bool(zero))
-        session.send_request(
-            "setExceptionBreakpoints", {"filters": filters}
-        ).wait_for_response()
+        session.configure(
+            run_as,
+            code_to_debug,
+            args=[repr(exit_code)],
+            breakOnSystemExitZero=bool(zero),
+        )
+        session.request("setExceptionBreakpoints", {"filters": filters})
         session.start_debugging()
 
         # When breaking on raised exceptions, we'll stop on both lines,
         # unless it's SystemExit(0) and we asked to ignore that.
         if raised and (zero or exit_code != 0):
-            hit = session.wait_for_stop("exception")
-            assert hit.frames[0]["line"] == line_numbers["handled"]
+            session.wait_for_stop(
+                "exception",
+                expected_frames=[some.dap.frame(code_to_debug, line="handled")],
+            )
             session.request_continue()
 
-            hit = session.wait_for_stop("exception")
-            assert hit.frames[0]["line"] == line_numbers["unhandled"]
+            session.wait_for_stop(
+                "exception",
+                expected_frames=[some.dap.frame(code_to_debug, line="unhandled")],
+            )
             session.request_continue()
 
         # When breaking on uncaught exceptions, we'll stop on the second line,
@@ -213,8 +202,10 @@ def test_systemexit(pyfile, start_method, run_as, raised, uncaught, zero, exit_c
         # for it unwinding the stack without finding a handler. The block above
         # takes care of the first stop, so here we just take care of the second.
         if uncaught and (zero or exit_code != 0):
-            hit = session.wait_for_stop("exception")
-            assert hit.frames[0]["line"] == line_numbers["unhandled"]
+            session.wait_for_stop(
+                "exception",
+                expected_frames=[some.dap.frame(code_to_debug, line="unhandled")],
+            )
             session.request_continue()
 
 
@@ -231,24 +222,17 @@ def test_systemexit(pyfile, start_method, run_as, raised, uncaught, zero, exit_c
     ],
 )
 def test_raise_exception_options(pyfile, start_method, run_as, exceptions, break_mode):
-
     if break_mode in ("never", "unhandled", "userUnhandled"):
+        expect_exceptions = []
+        if break_mode != "never" and (not exceptions or "AssertionError" in exceptions):
+            # Only AssertionError is raised in this use-case.
+            expect_exceptions = ["AssertionError"]
 
         @pyfile
         def code_to_debug():
             import debug_me  # noqa
 
             raise AssertionError()  # @AssertionError
-
-        if break_mode == "never":
-            expect_exceptions = []
-
-        elif "AssertionError" in exceptions or not exceptions:
-            # Only AssertionError is raised in this use-case.
-            expect_exceptions = ["AssertionError"]
-
-        else:
-            expect_exceptions = []
 
     else:
         expect_exceptions = exceptions[:]
@@ -280,7 +264,7 @@ def test_raise_exception_options(pyfile, start_method, run_as, exceptions, break
         path = [{"names": ["Python Exceptions"]}]
         if exceptions:
             path.append({"names": exceptions})
-        session.send_request(
+        session.request(
             "setExceptionBreakpoints",
             {
                 "filters": [],  # Unused when exceptionOptions is passed.
@@ -291,21 +275,25 @@ def test_raise_exception_options(pyfile, start_method, run_as, exceptions, break
                     }
                 ],
             },
-        ).wait_for_response()
+        )
         session.start_debugging()
 
         for expected_exception in expect_exceptions:
-            hit = session.wait_for_stop("exception")
-            assert hit.frames[0]["source"]["path"].endswith("code_to_debug.py")
-            assert hit.frames[0]["line"] == code_to_debug.lines[expected_exception]
+            session.wait_for_stop(
+                "exception",
+                expected_frames=[
+                    some.dap.frame(code_to_debug, line=expected_exception)
+                ],
+            )
             session.request_continue()
 
 
 @pytest.mark.parametrize("exit_code", [0, 3])
-@pytest.mark.parametrize('break_on_system_exit_zero', [True, False])
-@pytest.mark.parametrize('expect_django', [True, False])
+@pytest.mark.parametrize("break_on_system_exit_zero", ["break_on_system_exit_zero", ""])
+@pytest.mark.parametrize("django", ["django", ""])
 def test_success_exitcodes(
-    pyfile, start_method, run_as, exit_code, break_on_system_exit_zero, expect_django):
+    pyfile, start_method, run_as, exit_code, break_on_system_exit_zero, django
+):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -321,21 +309,17 @@ def test_success_exitcodes(
             run_as,
             code_to_debug,
             args=[repr(exit_code)],
-            successExitCodes=[3],
-            breakOnSystemExitZero=break_on_system_exit_zero,
-            django=expect_django
+            breakOnSystemExitZero=bool(break_on_system_exit_zero),
+            django=bool(django),
         )
-        session.send_request(
-            "setExceptionBreakpoints", {"filters": ["uncaught"]}
-        ).wait_for_response()
+        session.request("setExceptionBreakpoints", {"filters": ["uncaught"]})
         session.start_debugging()
 
-        if break_on_system_exit_zero or (not expect_django and exit_code == 3):
-            # If break_on_system_exit_zero, we should always break.
-            # Otherwise, we should not break on system exit considered successful
-            # (which means that we should break only in the case where
-            # exit_code == 3 and django is not expected).
-
+        if break_on_system_exit_zero or (not django and exit_code == 3):
+            # If "breakOnSystemExitZero" was specified, we should always break.
+            # Otherwise, we should not break if the exit code indicates successful
+            # exit. 0 always indicates success, and 3 indicates failure only if
+            # Django debugging wasn't enabled.
             session.wait_for_stop("exception")
             session.request_continue()
 
@@ -374,23 +358,16 @@ def test_exception_stack(pyfile, start_method, run_as, max_frames):
 
     with debug.Session(start_method) as session:
         session.expected_exit_code = some.int
-        session.configure(
-            run_as, code_to_debug,
-            maxExceptionStackFrames=maxFrames,
-        )
-        session.send_request(
-            "setExceptionBreakpoints", {"filters": ["uncaught"]}
-        ).wait_for_response()
+        session.configure(run_as, code_to_debug, maxExceptionStackFrames=maxFrames)
+        session.request("setExceptionBreakpoints", {"filters": ["uncaught"]})
         session.start_debugging()
 
-        hit = session.wait_for_stop("exception")
-        assert hit.frames[0]["line"] == code_to_debug.lines["unhandled"]
-
-        resp_exc_info = session.send_request(
-            "exceptionInfo", {"threadId": hit.thread_id}
-        ).wait_for_response()
-
-        expected = some.dict.containing(
+        stop = session.wait_for_stop(
+            "exception",
+            expected_frames=[some.dap.frame(code_to_debug, line="unhandled")],
+        )
+        exc_info = session.request("exceptionInfo", {"threadId": stop.thread_id})
+        expected_exc_info = some.dict.containing(
             {
                 "exceptionId": str_matching_ArithmeticError,
                 "description": "bad code",
@@ -404,8 +381,8 @@ def test_exception_stack(pyfile, start_method, run_as, max_frames):
                 ),
             }
         )
-        assert resp_exc_info.body == expected
-        stack_str = resp_exc_info.body["details"]["stackTrace"]
+        assert expected_exc_info == exc_info
+        stack_str = exc_info["details"]["stackTrace"]
         stack_line_count = len(stack_str.split("\n"))
         assert min_expected_lines <= stack_line_count <= max_expected_lines
 

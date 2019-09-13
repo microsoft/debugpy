@@ -92,6 +92,7 @@ class DebugStartBase(object):
         steppingResumesAllThreads=None,
         rules=None,
         successExitCodes=None,
+        breakOnSystemExitZero=None,
         pathMappings=None,
     ):
         if logToFile:
@@ -149,6 +150,9 @@ class DebugStartBase(object):
         if successExitCodes:
             args["successExitCodes"] = successExitCodes
 
+        if breakOnSystemExitZero:
+            args["debugOptions"] += ["BreakOnSystemExitZero"]
+
         if pathMappings is not None:
             args["pathMappings"] = pathMappings
 
@@ -175,7 +179,6 @@ class Launch(DebugStartBase):
         sudo=None,
         waitOnNormalExit=None,
         waitOnAbnormalExit=None,
-        breakOnSystemExitZero=None,
         console="externalTerminal",
         internalConsoleOptions="neverOpen",
         **kwargs
@@ -213,9 +216,6 @@ class Launch(DebugStartBase):
 
         if waitOnAbnormalExit:
             debug_options += ["WaitOnAbnormalExit"]
-
-        if breakOnSystemExitZero:
-            debug_options += ["BreakOnSystemExitZero"]
 
         target_str = target
         if isinstance(target, py.path.local):
