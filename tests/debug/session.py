@@ -95,13 +95,20 @@ class Session(object):
             # Log the error, in case another one happens during shutdown.
             log.exception(exc_info=(exc_type, exc_val, exc_tb))
 
-        self.disconnect()
-
-        # If there was an exception, don't complain about unobserved occurrences -
-        # they are expected if the test didn't complete.
-        if exc_type is not None:
-            self.timeline.observe_all()
-        self.timeline.close()
+        if exc_type is None:
+            self.disconnect()
+            self.timeline.close()
+        else:
+            # If there was an exception, don't try to send any more messages to avoid
+            # spamming log with irrelevant entries - just close the channel and kill
+            # the adapter process immediately. Don't close or finalize the timeline,
+            # either, since it'll have unobserved events in it.
+            self.disconnect(force=True)
+            if self.adapter_process is not None:
+                try:
+                    self.adapter_process.kill()
+                except Exception:
+                    pass
 
         if self.adapter_process is not None:
             log.info(
@@ -439,12 +446,13 @@ class Session(object):
     def wait_for_disconnect(self):
         self.timeline.wait_for_next(timeline.Mark("disconnect"))
 
-    def disconnect(self):
+    def disconnect(self, force=False):
         if self.channel is None:
             return
 
         try:
-            self.request("disconnect")
+            if not force:
+                self.request("disconnect")
         except messaging.JsonIOError:
             pass
         finally:
