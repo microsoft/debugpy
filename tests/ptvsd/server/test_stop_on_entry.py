@@ -7,7 +7,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 import pytest
 
 from tests import debug
-from tests.debug import start_methods
+from tests.debug import runners
 from tests.patterns import some
 
 
@@ -19,7 +19,7 @@ def test_stop_on_entry(pyfile, run_as, breakpoint):
 
         backchannel.send("done")
 
-    with debug.Session(start_methods.Launch, backchannel=True) as session:
+    with debug.Session(runners.launch, backchannel=True) as session:
         backchannel = session.backchannel
         session.configure(
             run_as, code_to_debug,

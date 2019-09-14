@@ -1,3 +1,5 @@
+import debug_me  # noqa
+
 import os
 import signal
 import sys

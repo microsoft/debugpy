@@ -26,15 +26,6 @@ def receive():
     return _stream.read_json()
 
 
-def wait_for(expected):
-    actual = receive()
-    assert expected == actual, fmt(
-        "Debuggee expected {0!r} on backchannel, but got {1!r} from the test",
-        expected,
-        actual,
-    )
-
-
 def close():
     global _socket, _stream
     if _socket is None:
@@ -64,13 +55,10 @@ class _stream:
 
 
 name = fmt("backchannel-{0}", debug_me.session_id)
-port = os.getenv("PTVSD_BACKCHANNEL_PORT")
+port = os.environ.pop("PTVSD_TEST_BACKCHANNEL_PORT", None)
 if port is not None:
     port = int(port)
     log.info("Connecting {0} to port {1}...", name, port)
-
-    # Remove it, so that subprocesses don't try to use the same backchannel.
-    del os.environ["PTVSD_BACKCHANNEL_PORT"]
 
     _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -80,5 +68,7 @@ if port is not None:
         _socket.close()
         raise
     else:
-        _stream = messaging.JsonIOStream.from_socket(_socket, name="backchannel")  # noqa
+        _stream = messaging.JsonIOStream.from_socket(  # noqa
+            _socket, name="backchannel"
+        )
         atexit.register(close)

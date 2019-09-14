@@ -57,21 +57,20 @@ def attach(host, port, client, log_dir=None):
 
         from ptvsd.common import options as common_opts
         from ptvsd.server import options
-        common_opts.log_dir = log_dir
+        if log_dir is not None:
+            common_opts.log_dir = log_dir
         options.client = client
         options.host = host
         options.port = port
-
-        from ptvsd.common import log
-        log.to_file()
-        log.info("Debugger injection begin")
 
         if options.client:
             ptvsd.attach((options.host, options.port))
         else:
             ptvsd.enable_attach((options.host, options.port))
 
+        from ptvsd.common import log
         log.info("Debugger successfully injected")
+
     except:
         import traceback
         traceback.print_exc()

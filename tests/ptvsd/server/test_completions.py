@@ -29,8 +29,8 @@ expected_at_line = {
 }
 
 
-@pytest.mark.parametrize("bp_label", sorted(expected_at_line.keys()))
-def test_completions_scope(pyfile, bp_label, start_method, run_as):
+@pytest.mark.parametrize("line", sorted(expected_at_line.keys()))
+def test_completions_scope(pyfile, line, target, run):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -50,28 +50,23 @@ def test_completions_scope(pyfile, bp_label, start_method, run_as):
         someFunction("value")
         print("done")  # @done
 
-    expected = expected_at_line[bp_label]
+    expected = sorted(expected_at_line[line], key=lambda t: t["label"])
 
-    with debug.Session(start_method) as session:
-        session.configure(run_as, code_to_debug)
+    with debug.Session() as session:
+        with run(session, target(code_to_debug)):
+            session.set_breakpoints(code_to_debug, [code_to_debug.lines[line]])
 
-        session.set_breakpoints(code_to_debug, [code_to_debug.lines[bp_label]])
-        session.start_debugging()
-
-        hit = session.wait_for_stop(reason="breakpoint")
-        resp_completions = session.send_request(
-            "completions", arguments={"text": "some", "frameId": hit.frame_id, "column": 5}
-        ).wait_for_response()
-        targets = resp_completions.body["targets"]
+        stop = session.wait_for_stop("breakpoint")
+        completions = session.request(
+            "completions", {"text": "some", "frameId": stop.frame_id, "column": 5}
+        )
+        targets = sorted(completions["targets"], key=lambda t: t["label"])
+        assert targets == expected
 
         session.request_continue()
 
-    targets.sort(key=lambda t: t["label"])
-    expected.sort(key=lambda t: t["label"])
-    assert targets == expected
 
-
-def test_completions_cases(pyfile, start_method, run_as):
+def test_completions_cases(pyfile, target, run):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -81,52 +76,39 @@ def test_completions_cases(pyfile, start_method, run_as):
         c = 3
         print([a, b, c])  # @break
 
-    with debug.Session(start_method) as session:
-        session.configure(run_as, code_to_debug)
-        session.set_breakpoints(code_to_debug, [code_to_debug.lines["break"]])
-        session.start_debugging()
-        hit = session.wait_for_stop()
+    with debug.Session() as session:
+        with run(session, target(code_to_debug)):
+            session.set_breakpoints(code_to_debug, [code_to_debug.lines["break"]])
 
-        response = session.send_request(
-            "completions",
-            arguments={"frameId": hit.frame_id, "text": "b.", "column": 3},
-        ).wait_for_response()
+        stop = session.wait_for_stop()
 
-        labels = set(target["label"] for target in response.body["targets"])
-        assert labels.issuperset(
-            ["get", "items", "keys", "setdefault", "update", "values"]
+        completions = session.request(
+            "completions", {"frameId": stop.frame_id, "text": "b.", "column": 3}
         )
+        labels = set(target["label"] for target in completions["targets"])
+        assert labels >= {"get", "items", "keys", "setdefault", "update", "values"}
 
-        response = session.send_request(
+        completions = session.request(
             "completions",
-            arguments={
-                "frameId": hit.frame_id,
-                "text": "x = b.setdefault",
-                "column": 13,
-            },
-        ).wait_for_response()
-
-        assert response.body["targets"] == [
+            {"frameId": stop.frame_id, "text": "x = b.setdefault", "column": 13},
+        )
+        assert completions["targets"] == [
             {"label": "setdefault", "length": 6, "start": 6, "type": "function"}
         ]
 
-        response = session.send_request(
-            "completions",
-            arguments={"frameId": hit.frame_id, "text": "not_there", "column": 10},
-        ).wait_for_response()
+        completions = session.request(
+            "completions", {"frameId": stop.frame_id, "text": "not_there", "column": 10}
+        )
+        assert not completions["targets"]
 
-        assert not response.body["targets"]
-
-        # Check errors
-        with pytest.raises(messaging.MessageHandlingError) as error:
-            response = session.send_request(
+        with pytest.raises(messaging.MessageHandlingError):
+            completions = session.request(
                 "completions",
-                arguments={
-                    "frameId": 9999999,  # frameId not available.
+                {
+                    "frameId": 9999999,  # nonexistent frameId
                     "text": "not_there",
                     "column": 10,
                 },
-            ).wait_for_response()
-        assert "Wrong ID sent from the client:" in str(error)
+            )
 
         session.request_continue()

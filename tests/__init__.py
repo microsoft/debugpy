@@ -10,7 +10,6 @@ from __future__ import absolute_import, print_function, unicode_literals
 import pkgutil
 import pytest
 import py.path
-import sys
 
 # Do not import anything from ptvsd until assert rewriting is enabled below!
 
@@ -55,11 +54,9 @@ import ptvsd.server  # noqa
 
 # Enable full logging to stderr, and make timestamps shorter to match maximum test
 # run time better.
-log.stderr = sys.stderr  # use pytest-captured stderr rather than __stderr__
 log.stderr_levels = set(log.LEVELS)
 log.timestamp_format = "06.3f"
-log.filename_prefix = "tests"
-log.to_file()
+log.to_file(prefix="tests")
 
 
 # Enable JSON serialization for py.path.local.

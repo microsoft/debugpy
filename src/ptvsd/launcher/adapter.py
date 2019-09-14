@@ -113,7 +113,7 @@ class Handlers(object):
         if cwd == ():
             # If it's not specified, but we're launching a file rather than a module,
             # and the specified path has a directory in it, use that.
-            cwd = None if program == () else (os.path.dirname(program) or None)
+            cwd = None if program == () else (os.path.dirname(program[0]) or None)
 
         env = os.environ.copy()
         if "PTVSD_TEST" in env:
@@ -121,6 +121,9 @@ class Handlers(object):
             # applied to the debuggee, since it will conflict with pydevd.
             env.pop("COV_CORE_SOURCE", None)
         env.update(request("env", json.object(unicode)))
+
+        if request("gevent", False):
+            env["GEVENT_SUPPORT"] = "True"
 
         redirect_output = "RedirectOutput" in debug_options
         if redirect_output:

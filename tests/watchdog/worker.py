@@ -33,13 +33,12 @@ def main(tests_pid):
 
     # log.stderr_levels |= {"info"}
     log.timestamp_format = "06.3f"
-    log.filename_prefix = "watchdog"
-    log.to_file()
+    log_file = log.to_file(prefix="tests.watchdog")
 
     stream = messaging.JsonIOStream.from_stdio(fmt("tests-{0}", tests_pid))
-    log.info("Spawned watchdog-{0} for tests-{0}", tests_pid)
+    log.info("Spawned WatchDog-{0} for tests-{0}", tests_pid)
     tests_process = psutil.Process(tests_pid)
-    stream.write_json(["watchdog", log.filename()])
+    stream.write_json(["watchdog", log_file.filename])
 
     spawned_processes = {}  # pid -> ProcessInfo
     try:
@@ -62,7 +61,7 @@ def main(tests_pid):
                 pid = int(pid)
 
                 log.info(
-                    "watchdog-{0} registering spawned process {1} (pid={2})",
+                    "WatchDog-{0} registering spawned process {1} (pid={2})",
                     tests_pid,
                     name,
                     pid,
@@ -73,7 +72,7 @@ def main(tests_pid):
                     pass
                 else:
                     log.warning(
-                        "watchdog-{0} already tracks a process with pid={1}: {2}",
+                        "WatchDog-{0} already tracks a process with pid={1}: {2}",
                         tests_pid,
                         pid,
                         old_name,
@@ -85,7 +84,7 @@ def main(tests_pid):
                 pid = int(pid)
 
                 log.info(
-                    "watchdog-{0} unregistering spawned process {1} (pid={2})",
+                    "WatchDog-{0} unregistering spawned process {1} (pid={2})",
                     tests_pid,
                     name,
                     pid,
@@ -150,7 +149,7 @@ def main(tests_pid):
 
         for proc in leftover_processes:
             log.warning(
-                "watchdog-{0} killing orphaned test child process (pid={1})",
+                "WatchDog-{0} killing orphaned test child process (pid={1})",
                 tests_pid,
                 proc.pid,
             )
@@ -160,7 +159,7 @@ def main(tests_pid):
                     # gcore will automatically add pid to the filename
                     core_file = os.path.join(tempfile.gettempdir(), "ptvsd_core")
                     gcore_cmd = fmt("gcore -o {0} {1}", core_file, proc.pid)
-                    log.warning("watchdog-{0}: {1}", tests_pid, gcore_cmd)
+                    log.warning("WatchDog-{0}: {1}", tests_pid, gcore_cmd)
                     os.system(gcore_cmd)
                 except Exception:
                     log.exception()
@@ -172,7 +171,7 @@ def main(tests_pid):
             except Exception:
                 log.exception()
 
-        log.info("watchdog-{0} exiting", tests_pid)
+        log.info("WatchDog-{0} exiting", tests_pid)
 
 
 if __name__ == "__main__":

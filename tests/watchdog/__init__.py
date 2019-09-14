@@ -62,8 +62,6 @@ def start():
 
 
 def _dump_worker_log(command, problem, exc_info=None):
-    assert _worker_log_filename
-
     reason = fmt("{0}.{1}() {2}", _name, command, problem)
     if _worker_log_filename is None:
         reason += ", but there is no log."

@@ -11,7 +11,7 @@ import time
 
 from ptvsd.common import log
 from tests import debug
-from tests.debug import start_methods
+from tests.debug import runners
 from tests.patterns import some
 
 
@@ -44,7 +44,7 @@ def test_wait_on_normal_exit_enabled(pyfile, run_as):
         ptvsd.break_into_debugger()
         print()  # line on which it'll actually break
 
-    with debug.Session(start_methods.Launch) as session:
+    with debug.Session(runners.launch) as session:
         session.configure(run_as, code_to_debug, waitOnNormalExit=True)
         session.start_debugging()
 
@@ -68,7 +68,7 @@ def test_wait_on_abnormal_exit_enabled(pyfile, run_as):
         print()  # line on which it'll actually break
         sys.exit(42)
 
-    with debug.Session(start_methods.Launch) as session:
+    with debug.Session(runners.launch) as session:
         session.expected_exit_code = 42
         session.configure(run_as, code_to_debug, waitOnAbnormalExit=True)
         session.start_debugging()
@@ -79,8 +79,7 @@ def test_wait_on_abnormal_exit_enabled(pyfile, run_as):
         wait_and_press_key(session)
 
 
-@pytest.mark.parametrize("start_method", [start_methods.Launch])
-def test_exit_normally_with_wait_on_abnormal_exit_enabled(pyfile, start_method, run_as):
+def test_exit_normally_with_wait_on_abnormal_exit_enabled(pyfile, run_as):
     @pyfile
     def code_to_debug():
         from debug_me import ptvsd
@@ -88,7 +87,7 @@ def test_exit_normally_with_wait_on_abnormal_exit_enabled(pyfile, start_method, 
         ptvsd.break_into_debugger()
         print()
 
-    with debug.Session(start_method) as session:
+    with debug.Session(runners.launch) as session:
         session.configure(run_as, code_to_debug, waitOnAbnormalExit=True)
         session.start_debugging()
 

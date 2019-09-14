@@ -20,32 +20,24 @@ def main(args):
     from ptvsd.common import log, options as common_options
     from ptvsd.adapter import session, options as adapter_options
 
-    if args.cls:
-        sys.stderr.write("\033c")
     if args.log_stderr:
+        log.stderr_levels |= set(log.LEVELS)
         adapter_options.log_stderr = True
     if args.log_dir is not None:
         common_options.log_dir = args.log_dir
 
-    log.filename_prefix = "ptvsd.adapter"
-    log.stderr_levels |= {"info"}
-    log.to_file()
+    log.to_file(prefix="ptvsd.adapter")
     log.describe_environment("ptvsd.adapter startup environment:")
 
     session = session.Session()
     if args.port is None:
         session.connect_to_ide()
     else:
-        # If in debugServer mode, log everything to stderr.
-        log.stderr_levels |= set(log.LEVELS)
-
         if args.for_server_on_port is not None:
             session.connect_to_server(("127.0.0.1", args.for_server_on_port))
         with session.accept_connection_from_ide((args.host, args.port)) as (_, port):
-            try:
+            if session.server:
                 session.server.set_debugger_property({"adapterPort": port})
-            except AttributeError:
-                pass
     session.wait_for_completion()
 
 
@@ -74,10 +66,6 @@ def _parse_argv(argv):
         default=None,
         metavar="PORT",
         help=argparse.SUPPRESS
-    )
-
-    parser.add_argument(
-        "--cls", action="store_true", help="clear screen before starting the debuggee"
     )
 
     parser.add_argument(

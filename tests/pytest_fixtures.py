@@ -13,38 +13,65 @@ import tempfile
 import threading
 import types
 
-from ptvsd.common import compat, timestamp
+from ptvsd.common import compat, fmt, log, options, timestamp
 from tests import code, pydevd_log
-from tests.debug import start_methods
-
-__all__ = ['run_as', 'start_method', 'with_pydevd_log', 'daemon', 'pyfile']
+from tests.debug import runners, session, targets
 
 
 # Set up the test matrix for various code types and attach methods. Most tests will
 # use both run_as and start_method, so the matrix is a cross product of them.
 
-RUN_AS = ['program']
-START_METHODS = [start_methods.Launch, start_methods.AttachSocketImport, start_methods.AttachSocketCmdLine]
+if int(os.environ.get("PTVSD_SIMPLE_TESTS", "0")):
+    TARGETS = [targets.Program]
+    RUNNERS = [runners.launch, runners.attach_by_socket["cli"]]
+else:
+    TARGETS = targets.all_named
+    RUNNERS = [
+        runners.launch,
+        runners.attach_by_socket["api"],
+        runners.attach_by_socket["cli"],
+    ]
 
-if os.environ.get('PTVSD_SIMPLE_TESTS', '').lower() not in ('1', 'true'):
-    RUN_AS += ['module']
 
-
-@pytest.fixture(params=RUN_AS)
-def run_as(request):
+@pytest.fixture(params=TARGETS)
+def target(request):
     return request.param
 
 
-@pytest.fixture(params=START_METHODS)
-def start_method(request):
+@pytest.fixture(params=RUNNERS)
+def run(request):
     return request.param
 
 
 @pytest.fixture(autouse=True)
-def reset_timestamp(request):
+def test_wrapper(request, long_tmpdir):
     timestamp.reset()
-    print("\n")  # make sure logs start on a new line
-    yield
+
+    session.Session.tmpdir = long_tmpdir
+
+    original_log_dir = None
+    try:
+        if options.log_dir is not None:
+            original_log_dir = options.log_dir
+            log_subdir = request.node.name
+            for ch in r"\/:?*|<>":
+                log_subdir = log_subdir.replace(ch, fmt("&#{0};", ord(ch)))
+            options.log_dir += "/" + log_subdir
+            try:
+                py.path.local(options.log_dir).remove()
+            except Exception:
+                pass
+
+        print("\n")  # make sure on-screen logs start on a new line
+        with log.to_file(prefix="tests"):
+            log.info("Test {0} started.", request.node.name)
+            try:
+                yield
+            finally:
+                log.info("Test {0} completed.", request.node.name)
+    finally:
+        if original_log_dir is not None:
+            options.log_dir = original_log_dir
 
 
 @pytest.fixture(autouse=True)
@@ -52,8 +79,8 @@ def with_pydevd_log(request, tmpdir):
     """Enables pydevd logging during the test run, and dumps the log if the test fails.
     """
 
-    prefix = 'pydevd_debug_file-{0}'.format(os.getpid())
-    filename = tempfile.mktemp(suffix='.log', prefix=prefix, dir=str(tmpdir))
+    prefix = "pydevd_debug_file-{0}".format(os.getpid())
+    filename = tempfile.mktemp(suffix=".log", prefix=prefix, dir=str(tmpdir))
 
     with pydevd_log.enabled(filename):
         yield
@@ -75,7 +102,7 @@ def daemon(request):
 
     daemons = []
 
-    def factory(func, name_suffix=''):
+    def factory(func, name_suffix=""):
         name = func.__name__ + name_suffix
         thread = threading.Thread(target=func, name=name)
         thread.daemon = True
@@ -95,10 +122,13 @@ def daemon(request):
                 assert not thread.is_alive()
 
 
-if platform.system() != 'Windows':
+if platform.system() != "Windows":
+
     @pytest.fixture
     def long_tmpdir(request, tmpdir):
         return tmpdir
+
+
 else:
     import ctypes
 
@@ -160,14 +190,14 @@ def pyfile(request, long_tmpdir):
         def_lineno = 0
         for line in source:
             line = line.strip()
-            if line.startswith('def') and line.endswith(':'):
+            if line.startswith("def") and line.endswith(":"):
                 break
             def_lineno += 1
         else:
-            raise ValueError('Failed to locate function header.')
+            raise ValueError("Failed to locate function header.")
 
         # Remove everything up to and including "def".
-        source = source[def_lineno + 1:]
+        source = source[def_lineno + 1 :]
         assert source
 
         # Now we need to adjust indentation. Compute how much the first line of
@@ -176,11 +206,11 @@ def pyfile(request, long_tmpdir):
         # with, so just replace them with a simple newline.
         line = source[0]
         indent = len(line) - len(line.lstrip())
-        source = [l[indent:] if l.strip() else '\n' for l in source]
-        source = ''.join(source)
+        source = [l[indent:] if l.strip() else "\n" for l in source]
+        source = "".join(source)
 
         # Write it to file.
-        tmpfile = long_tmpdir / (name + '.py')
+        tmpfile = long_tmpdir / (name + ".py")
         tmpfile.strpath = compat.filename(tmpfile.strpath)
         assert not tmpfile.check()
         tmpfile.write(source)

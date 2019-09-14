@@ -24,7 +24,7 @@ class BackChannel(object):
         self._server_socket = None
 
     def __str__(self):
-        return fmt("backchannel-{0}", self.session.id)
+        return fmt("{0}.backchannel", self.session.debuggee_id)
 
     def listen(self):
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -69,14 +69,6 @@ class BackChannel(object):
         t = self.session.timeline.mark(("sending", value))
         self._stream.write_json(value)
         return t
-
-    def expect(self, expected):
-        actual = self.receive()
-        assert expected == actual, fmt(
-            "Test expected {0!r} on backchannel, but got {1!r} from the debuggee",
-            expected,
-            actual,
-        )
 
     def close(self):
         if self._socket:

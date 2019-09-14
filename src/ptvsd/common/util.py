@@ -4,7 +4,10 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+import os
 import sys
+
+from ptvsd.common import compat
 
 
 def evaluate(code, path=__file__, mode="eval"):
@@ -14,6 +17,17 @@ def evaluate(code, path=__file__, mode="eval"):
     # We use the path internally to skip exception inside the debugger.
     expr = compile(code, path, "eval")
     return eval(expr, {}, sys.modules)
+
+
+def prepend_path_entry(env, key, entry):
+    """Prepends a new entry to a PATH-style environment variable named by key in
+    env, creating that variable if it doesn't exist already.
+    """
+    try:
+        tail = os.path.pathsep + env[key]
+    except KeyError:
+        tail = ""
+    env[key] = entry + tail
 
 
 class Observable(object):
@@ -28,3 +42,36 @@ class Observable(object):
         finally:
             for ob in self.observers:
                 ob(self, name)
+
+
+class Env(dict):
+    """A dict for environment variables.
+    """
+
+    @staticmethod
+    def snapshot():
+        """Returns a snapshot of the current environment.
+        """
+        return Env(os.environ)
+
+    def copy(self, updated_from=None):
+        result = Env(self)
+        if updated_from is not None:
+            result.update(updated_from)
+        return result
+
+    def prepend_to(self, key, entry):
+        """Prepends a new entry to a PATH-style environment variable, creating
+        it if it doesn't exist already.
+        """
+        try:
+            tail = os.path.pathsep + self[key]
+        except KeyError:
+            tail = ""
+        self[key] = entry + tail
+
+    def for_popen(self):
+        """Returns a copy of this dict, with all strings converted to the type
+        suitable for subprocess.Popen() and other similar APIs.
+        """
+        return {compat.filename_str(k): compat.filename_str(v) for k, v in self.items()}

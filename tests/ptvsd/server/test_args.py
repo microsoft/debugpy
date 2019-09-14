@@ -7,24 +7,24 @@ from __future__ import absolute_import, print_function, unicode_literals
 import pytest
 
 from tests import debug
+from tests.debug import targets
 from tests.patterns import some
 
 
-@pytest.mark.parametrize("run_as", ["program", "module", "code"])
-def test_args(pyfile, start_method, run_as):
+@pytest.mark.parametrize("target", targets.all)
+def test_args(pyfile, target, run):
     @pyfile
     def code_to_debug():
         from debug_me import backchannel
         import sys
+
         backchannel.send(sys.argv)
 
-    with debug.Session(start_method, backchannel=True) as session:
-        expected = ["--arg1", "arg2", "-arg3", "--", "arg4", "-a"]
-        session.configure(
-            run_as, code_to_debug,
-            args=expected
-        )
-        session.start_debugging()
+    args = ["--arg1", "arg2", "-arg3", "--", "arg4", "-a"]
 
-        argv = session.backchannel.receive()
-        assert argv == [some.str] + expected
+    with debug.Session() as session:
+        backchannel = session.open_backchannel()
+        with run(session, target(code_to_debug, args=args)):
+            pass
+        argv = backchannel.receive()
+        assert argv == [some.str] + args

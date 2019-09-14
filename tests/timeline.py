@@ -1055,6 +1055,9 @@ class RequestOccurrence(MessageOccurrence):
     def __init__(self, message):
         assert isinstance(message, messaging.Request)
         super(RequestOccurrence, self).__init__(message)
+        self.response = None
+        if isinstance(message, messaging.OutgoingRequest):
+            self.on_response = message.on_response
 
     @property
     def command(self):
@@ -1094,6 +1097,7 @@ class ResponseOccurrence(MessageOccurrence):
 
         # Assign request first for the benefit of self._key.
         self.request = request_occ
+        request_occ.response = self
         super(ResponseOccurrence, self).__init__(message)
 
     @property

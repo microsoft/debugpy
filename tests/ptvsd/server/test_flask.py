@@ -10,7 +10,7 @@ import sys
 
 from ptvsd.common import compat
 from tests import code, debug, log, net, test_data
-from tests.debug import start_methods
+from tests.debug import runners
 from tests.patterns import some
 
 pytestmark = pytest.mark.timeout(60)
@@ -60,7 +60,7 @@ def _initialize_session(session, multiprocess=None, exit_code=0):
 
 
 @pytest.mark.parametrize(
-    "start_method", [start_methods.Launch, start_methods.AttachSocketCmdLine]
+    "start_method", [runners.launch, runners.attach_by_socket["cli"]]
 )
 @pytest.mark.parametrize("bp_target", ["code", "template"])
 def test_flask_breakpoint_no_multiproc(start_method, bp_target):
@@ -103,7 +103,7 @@ def test_flask_breakpoint_no_multiproc(start_method, bp_target):
 
 
 @pytest.mark.parametrize(
-    "start_method", [start_methods.Launch, start_methods.AttachSocketCmdLine]
+    "start_method", [runners.launch, runners.attach_by_socket["cli"]]
 )
 def test_flask_template_exception_no_multiproc(start_method):
     with debug.Session(start_method) as session:
@@ -160,7 +160,7 @@ def test_flask_template_exception_no_multiproc(start_method):
 
 
 @pytest.mark.parametrize(
-    "start_method", [start_methods.Launch, start_methods.AttachSocketCmdLine]
+    "start_method", [runners.launch, runners.attach_by_socket["cli"]]
 )
 @pytest.mark.parametrize("exc_type", ["handled", "unhandled"])
 def test_flask_exception_no_multiproc(start_method, exc_type):
@@ -213,12 +213,11 @@ def test_flask_exception_no_multiproc(start_method, exc_type):
             session.request_continue()
 
 
-@pytest.mark.parametrize("start_method", [start_methods.Launch])
-def test_flask_breakpoint_multiproc(start_method):
+def test_flask_breakpoint_multiproc():
     bp_line = lines.app_py["bphome"]
     bp_var_content = compat.force_str("Flask-Jinja-Test")
 
-    with debug.Session(start_method) as parent_session:
+    with debug.Session(runners.launch) as parent_session:
         # No clean way to kill Flask server
         _initialize_session(parent_session, multiprocess=True, exit_code=some.int)
         parent_session.set_breakpoints(paths.app_py, [bp_line])

@@ -5,35 +5,28 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import os
+import platform
 import pytest
 import pytest_timeout
 
-from ptvsd.common import fmt, log
-from tests import debug, pydevd_log
+from ptvsd.common import fmt, log, options
+from tests import pydevd_log
 
 
 def pytest_addoption(parser):
     parser.addoption(
         "--ptvsd-logs",
         action="store_true",
-        help="Write ptvsd logs to {rootdir}/tests/_logs/",
-    )
-    parser.addoption(
-        "--pydevd-logs",
-        action="store_true",
-        help="Write pydevd logs to {rootdir}/tests/_logs/",
+        help="Write ptvsd and pydevd logs under {rootdir}/tests/_logs/",
     )
 
 
 def pytest_configure(config):
-    log_dir = config.rootdir / "tests" / "_logs"
-    if True or config.option.ptvsd_logs:
-        log.info("ptvsd logs will be in {0}", log_dir)
-        debug.PTVSD_ENV["PTVSD_LOG_DIR"] = str(log_dir)
-    if config.option.pydevd_logs:
-        log.info("pydevd logs will be in {0}", log_dir)
-        debug.PTVSD_ENV["PYDEVD_DEBUG"] = "True"
-        debug.PTVSD_ENV["PYDEVD_DEBUG_FILE"] = str(log_dir / "pydevd.log")
+    if config.option.ptvsd_logs:
+        options.log_dir = (
+            config.rootdir / "tests" / "_logs" / platform.python_version()
+        ).strpath
+        log.info("ptvsd and pydevd logs will be under {0}", options.log_dir)
 
 
 def pytest_report_header(config):
@@ -51,6 +44,10 @@ def pytest_runtest_makereport(item, call):
     outcome = yield
     result = outcome.get_result()
     setattr(item, result.when + "_result", result)
+
+
+def pytest_make_parametrize_id(config, val):
+    return getattr(val, "pytest_id", None)
 
 
 # If a test times out and pytest tries to print the stacks of where it was hanging,

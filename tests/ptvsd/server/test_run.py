@@ -11,13 +11,13 @@ import re
 import ptvsd
 from ptvsd.common import messaging
 from tests import debug, test_data
-from tests.debug import start_methods
+from tests.debug import runners, targets
 from tests.patterns import some
-from tests.timeline import Event
 
 
-@pytest.mark.parametrize("run_as", ["program", "module", "code"])
-def test_run(pyfile, start_method, run_as):
+@pytest.mark.parametrize("run", runners.all)
+@pytest.mark.parametrize("target", targets.all)
+def test_run(pyfile, target, run):
     @pyfile
     def code_to_debug():
         from debug_me import backchannel
@@ -26,17 +26,17 @@ def test_run(pyfile, start_method, run_as):
 
         print("begin")
         backchannel.send(path.abspath(sys.modules["ptvsd"].__file__))
-        backchannel.wait_for("continue")
+        assert backchannel.receive() == "continue"
         print("end")
 
-    with debug.Session(start_method, backchannel=True) as session:
-        backchannel = session.backchannel
-        session.configure(run_as, code_to_debug)
-        session.start_debugging()
+    with debug.Session() as session:
+        backchannel = session.open_backchannel()
+        with run(session, target(code_to_debug)):
+            pass
 
         expected_ptvsd_path = path.abspath(ptvsd.__file__)
-        backchannel.expect(
-            some.str.matching(re.escape(expected_ptvsd_path) + r"(c|o)?")
+        assert backchannel.receive() == some.str.matching(
+            re.escape(expected_ptvsd_path) + r"(c|o)?"
         )
 
         backchannel.send("continue")
@@ -44,15 +44,21 @@ def test_run(pyfile, start_method, run_as):
         session.proceed()
 
 
-def test_run_submodule():
-    with debug.Session(start_methods.Launch, backchannel=True) as session:
-        session.configure("module", "pkg1.sub", cwd=test_data / "testpkgs")
-        session.start_debugging()
-        session.backchannel.expect("ok")
+@pytest.mark.parametrize("run", runners.all_launch)
+def test_run_submodule(run):
+    with debug.Session() as session:
+        session.config["cwd"] = test_data / "testpkgs"
+
+        backchannel = session.open_backchannel()
+        with run(session, targets.Module(name="pkg1.sub")):
+            pass
+
+        assert backchannel.receive() == "ok"
 
 
-@pytest.mark.parametrize("run_as", ["program", "module", "code"])
-def test_nodebug(pyfile, run_as):
+@pytest.mark.parametrize("run", runners.all_launch)
+@pytest.mark.parametrize("target", targets.all)
+def test_nodebug(pyfile, run, target):
     @pyfile
     def code_to_debug():
         from debug_me import backchannel
@@ -60,20 +66,18 @@ def test_nodebug(pyfile, run_as):
         backchannel.receive()  # @ bp1
         print("ok")  # @ bp2
 
-    with debug.Session(start_methods.Launch, backchannel=True) as session:
-        backchannel = session.backchannel
-        session.configure(
-            run_as, code_to_debug, noDebug=True, console="internalConsole"
-        )
+    with debug.Session() as session:
+        session.config["noDebug"] = True
+
+        backchannel = session.open_backchannel()
+        run(session, target(code_to_debug))
 
         with pytest.raises(messaging.MessageHandlingError):
             session.set_breakpoints(code_to_debug, all)
 
-        session.start_debugging()
         backchannel.send(None)
 
         # Breakpoint shouldn't be hit.
+        pass
 
-    session.expect_realized(
-        Event("output", some.dict.containing({"category": "stdout", "output": "ok"}))
-    )
+    assert "ok" in session.output("stdout")

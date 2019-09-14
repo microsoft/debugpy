@@ -7,57 +7,64 @@ from __future__ import absolute_import, print_function, unicode_literals
 import contextlib
 import pytest
 
-from ptvsd.common import compat
 from tests import debug
-from tests.debug import start_methods
+from tests.debug import runners, targets
 
 
 @contextlib.contextmanager
-def check_logs(tmpdir, session):
-    assert not tmpdir.listdir("ptvsd-*.log")
+def check_logs(tmpdir, run):
+    expected_logs = {
+        "ptvsd.adapter-*.log": 1,
+        "ptvsd.launcher-*.log": 1 if run.request == "launch" else 0,
+        # For attach_by_pid, there's ptvsd.server process that performs the injection,
+        # and then there's the debug server that is injected into the debuggee.
+        "ptvsd.server-*.log": 2 if type(run).__name__ == "attach_by_pid" else 1,
+    }
+
+    actual_logs = lambda: {
+        filename: len(tmpdir.listdir(filename)) for filename in expected_logs
+    }
+
+    assert actual_logs() == {filename: 0 for filename in expected_logs}
     yield
-    assert len(tmpdir.listdir("ptvsd-*.log")) == 1
-    log_name = "ptvsd-{}.log".format(session.pid)
-    assert tmpdir.join(log_name).size() > 0
+    assert actual_logs() == expected_logs
 
 
-@pytest.mark.parametrize("cli", ["arg", "env"])
-def test_log_cli(pyfile, tmpdir, start_method, run_as, cli):
-    if cli == "arg" and start_method == "attach_socket_import":
-        pytest.skip()
-
+@pytest.mark.parametrize("target", targets.all)
+@pytest.mark.parametrize("method", ["api", "cli"])
+def test_log_dir(pyfile, tmpdir, target, method):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
 
-    with debug.Session(start_method) as session:
-        with check_logs(tmpdir, session):
-            env = {}
-            if cli == "arg":
-                session.log_dir = str(tmpdir)
-            else:
-                env["PTVSD_LOG_DIR"] = str(tmpdir)
-            session.configure(run_as, code_to_debug, env=env)
-            session.start_debugging()
+    # Depending on the method, attach_by_socket will use either `ptvsd --log-dir ...`
+    # or `enable_attach(log_dir=) ...`.
+    run = runners.attach_by_socket[method].with_options(log_dir=tmpdir.strpath)
+    with check_logs(tmpdir, run):
+        with debug.Session() as session:
+            session.log_dir = None
+            with run(session, target(code_to_debug)):
+                pass
 
 
-@pytest.mark.parametrize("start_method", [start_methods.CustomServer])
-def test_log_api(pyfile, tmpdir, start_method, run_as):
+@pytest.mark.parametrize("run", runners.all)
+@pytest.mark.parametrize("target", targets.all)
+def test_log_dir_env(pyfile, tmpdir, run, target):
     @pyfile
     def code_to_debug():
-        from debug_me import backchannel, ptvsd
-        port, log_dir = backchannel.receive()
-        ptvsd.enable_attach(("localhost", port), log_dir=log_dir)
-        ptvsd.wait_for_attach()
+        from debug_me import backchannel  # noqa
 
-    log_dir = compat.filename(tmpdir)
-    with debug.Session(start_method, backchannel=True) as session:
-        backchannel = session.backchannel
+        assert backchannel.receive() == "proceed"
 
-        @session.before_connect
-        def before_connect():
-            backchannel.send([session.ptvsd_port, log_dir])
+    with check_logs(tmpdir, run):
+        with debug.Session() as session:
+            session.log_dir = None
+            session.spawn_adapter.env["PTVSD_LOG_DIR"] = tmpdir
+            if run.request != "launch":
+                session.spawn_debuggee.env["PTVSD_LOG_DIR"] = tmpdir
 
-        with check_logs(tmpdir, session):
-            session.configure(run_as, code_to_debug)
-            session.start_debugging()
+            backchannel = session.open_backchannel()
+            with run(session, target(code_to_debug)):
+                pass
+
+            backchannel.send("proceed")

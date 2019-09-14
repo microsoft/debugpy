@@ -9,7 +9,7 @@ import threading
 from ptvsd.common import fmt, log
 
 
-class CaptureOutput(object):
+class CapturedOutput(object):
     """Captures stdout and stderr of the debugged process.
     """
 
@@ -19,8 +19,14 @@ class CaptureOutput(object):
         self._chunks = {}
         self._worker_threads = []
 
+        assert not len(session.captured_output - {"stdout", "stderr"})
+        for stream_name in session.captured_output:
+            log.info("Capturing {0} {1}", session.debuggee_id, stream_name)
+            stream = getattr(session.debuggee, stream_name)
+            self._capture(stream, stream_name)
+
     def __str__(self):
-        return fmt("CaptureOutput({0})", self.session)
+        return fmt("CapturedOutput({0})", self.session)
 
     def _worker(self, pipe, name):
         chunks = self._chunks[name]
@@ -32,7 +38,7 @@ class CaptureOutput(object):
             if not len(chunk):
                 break
 
-            log.info("{0} {1}> {2!r}", self.session, name, chunk)
+            log.info("{0} {1}:\n{2!r}", self.session.debuggee_id, name, chunk)
             with self._lock:
                 chunks.append(chunk)
 
@@ -47,20 +53,12 @@ class CaptureOutput(object):
         thread.start()
         self._worker_threads.append(thread)
 
-    def capture(self, process):
-        """Start capturing stdout and stderr of the process.
-        """
-        assert not self._worker_threads
-        log.info("Capturing {0} stdout and stderr", self.session)
-        self._capture(process.stdout, "stdout")
-        self._capture(process.stderr, "stderr")
-
     def wait(self, timeout=None):
         """Wait for all remaining output to be captured.
         """
         if not self._worker_threads:
             return
-        log.debug("Waiting for remaining {0} stdout and stderr...", self.session)
+        log.debug("Waiting for remaining {0} output...", self.session.debuggee_id)
         for t in self._worker_threads:
             t.join(timeout)
         self._worker_threads[:] = []
@@ -70,7 +68,7 @@ class CaptureOutput(object):
             result = self._chunks[which]
         except KeyError:
             raise AssertionError(
-                fmt("{0} was not captured for {1}", which, self.session)
+                fmt("{0} was not captured for {1}", which, self.session.debuggee_id)
             )
 
         with self._lock:

@@ -208,6 +208,8 @@ class IDE(components.Component):
             args = ["-c"] + request(
                 "code", json.array(unicode, vectorize=True, size=(1,))
             )
+        else:
+            args = []
         args += request("args", json.array(unicode))
 
         console = request(
@@ -232,12 +234,13 @@ class IDE(components.Component):
         if self.session.no_debug:
             raise request.isnt_valid('"noDebug" is not supported for "attach"')
 
-        
-
         pid = request("processId", int, optional=True)
         if pid == ():
-            if self.server is not None:
-                # we are already connected to the debug server
+            # When the adapter is spawned by the debug server, it is connected to the
+            # latter from the get go, and "host" and "port" in the "attach" request
+            # are actually the host and port on which the adapter itself was listening,
+            # so we can ignore those.
+            if self.server:
                 return
 
             host = request("host", "127.0.0.1")
@@ -248,8 +251,11 @@ class IDE(components.Component):
             else:
                 self.session.connect_to_server((host, port))
         else:
-            if self.server is not None:
-                raise request.isnt_valid("Session is already started")
+            if self.server:
+                raise request.isnt_valid(
+                    '"attach" with "processId" cannot be serviced by adapter '
+                    "that is already associated with a debug server"
+                )
 
             ptvsd_args = request("ptvsdArgs", json.array(unicode))
             self.session.inject_server(pid, ptvsd_args)

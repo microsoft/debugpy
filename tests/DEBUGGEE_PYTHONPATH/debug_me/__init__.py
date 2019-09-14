@@ -20,48 +20,31 @@ both as global variables, specifically so that it is possible to write::
 
 __all__ = ["ptvsd", "pydevd", "session_id"]
 
-import imp
 import os
-import sys
-
-# For `from debug_me import ...`.
-import ptvsd
-import ptvsd.server
-import pydevd
 
 
 # Used by backchannel.
-session_id = int(os.getenv("PTVSD_SESSION_ID"))
-name = "ptvsd-" + str(session_id)
+session_id = int(os.getenv("PTVSD_TEST_SESSION_ID"))
+name = "Debuggee-" + str(session_id)
 
-
-# For all start methods except for "attach_socket_import", DebugSession itself
-# will take care of starting the debuggee process correctly.
-#
-# For "attach_socket_import", DebugSession will supply the code that needs to
-# be executed in the debuggee to enable debugging and establish connection back
-# to DebugSession - the debuggee simply needs to execute it as is.
-_code = os.getenv("PTVSD_DEBUG_ME")
-if _code:
-    # Remove it, so that subprocesses don't try to manually configure ptvsd on the
-    # same port. In multiprocess scenarios, subprocesses are supposed to load ptvsd
-    # via code that is automatically injected into the subprocess by its parent.
-    del os.environ["PTVSD_DEBUG_ME"]
-
-    _code = compile(_code, "<PTVSD_DEBUG_ME>", "exec")
-
-    # On Python 2, imports use a global import lock, which deadlocks enable_attach()
-    # when it tries to import from a background thread. This works around that.
-    if sys.version_info < (3,):
-        imp.release_lock()
-    try:
-        eval(_code, {})
-    finally:
-        if sys.version_info < (3,):
-            imp.acquire_lock()
 
 # For non-blocking communication between the test and the debuggee. The debuggee
 # can access this as a normal dict - scratchpad["foo"] etc. The test should assign
 # to session.scratchpad[...], which will automatically perform "evaluate" requests
 # as needed to assign the value.
 scratchpad = {}
+
+
+# Some runners require code to be executed in the debuggee process, either to set up
+# the debug server, or to ensure that it doesn't run any other code until the debugger
+# is attached. This provides a facility to inject such code.
+_code = os.environ.pop("PTVSD_TEST_DEBUG_ME", None)
+if _code:
+    _code = compile(_code, "<PTVSD_TEST_DEBUG_ME>", "exec")
+    eval(_code, {})
+
+
+# For `from debug_me import ...`.
+import ptvsd
+import ptvsd.server
+import pydevd

@@ -19,10 +19,9 @@ __file__ = os.path.abspath(__file__)
 
 def main():
     from ptvsd.common import log
-    from ptvsd.launcher import adapter
+    from ptvsd.launcher import adapter, debuggee
 
-    log.filename_prefix = "ptvsd.launcher"
-    log.to_file()
+    log.to_file(prefix="ptvsd.launcher")
     log.describe_environment("ptvsd.launcher startup environment:")
 
     def option(name, type, *args):
@@ -36,6 +35,9 @@ def main():
 
     adapter.connect(session_id, launcher_port)
     adapter.channel.wait()
+
+    if debuggee.process is not None:
+        sys.exit(debuggee.process.returncode)
 
 
 if __name__ == "__main__":

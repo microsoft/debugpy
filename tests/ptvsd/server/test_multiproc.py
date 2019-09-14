@@ -10,7 +10,7 @@ import sys
 
 from ptvsd.common import messaging
 from tests import debug
-from tests.debug import start_methods
+from tests.debug import runners
 from tests.patterns import some
 from tests.timeline import Event, Request
 
@@ -23,7 +23,7 @@ pytestmark = pytest.mark.skip("https://github.com/microsoft/ptvsd/issues/1706")
     platform.system() != "Windows",
     reason="Debugging multiprocessing module only works on Windows",
 )
-@pytest.mark.parametrize("start_method", [start_methods.Launch, start_methods.AttachSocketCmdLine])
+@pytest.mark.parametrize("start_method", [runners.launch, runners.attach_by_socket["cli"]])
 def test_multiprocessing(pyfile, start_method, run_as):
     @pyfile
     def code_to_debug():
@@ -143,7 +143,7 @@ def test_multiprocessing(pyfile, start_method, run_as):
 @pytest.mark.skipif(
     sys.version_info < (3, 0) and (platform.system() != "Windows"), reason="Bug #935"
 )
-@pytest.mark.parametrize("start_method", [start_methods.Launch, start_methods.AttachSocketCmdLine])
+@pytest.mark.parametrize("start_method", [runners.launch, runners.attach_by_socket["cli"]])
 def test_subprocess(pyfile, start_method, run_as):
     @pyfile
     def child():
@@ -210,7 +210,7 @@ def test_subprocess(pyfile, start_method, run_as):
 @pytest.mark.skipif(
     sys.version_info < (3, 0) and (platform.system() != "Windows"), reason="Bug #935"
 )
-@pytest.mark.parametrize("start_method", [start_methods.Launch, start_methods.AttachSocketCmdLine])
+@pytest.mark.parametrize("start_method", [runners.launch, runners.attach_by_socket["cli"]])
 def test_autokill(pyfile, start_method, run_as):
     @pyfile
     def child():

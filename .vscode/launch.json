@@ -11,7 +11,7 @@
             "console": "integratedTerminal",
             "consoleTitle": "ptvsd.adapter",
             "program": "${workspaceFolder}/src/ptvsd/adapter",
-            "args": ["--port", "8765", "--cls"],
+            "args": ["--port", "8765", "--log-stderr"],
             "customDebugger": true,
         },
 

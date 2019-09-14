@@ -5,6 +5,7 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import contextlib
+import json
 import os
 import pydevd
 import sys
@@ -39,7 +40,8 @@ def _starts_debugging(func):
         if log_dir:
             common_opts.log_dir = log_dir
 
-        log.to_file()
+        log.to_file(prefix="ptvsd.server")
+        log.describe_environment("ptvsd.server debug start environment:")
         log.info("{0}{1!r}", func.__name__, (address, log_dir, multiprocess))
 
         if is_attached():
@@ -76,7 +78,7 @@ def _starts_debugging(func):
 @_starts_debugging
 def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
     if hasattr(enable_attach, "called"):
-        raise RuntimeError("'enable_attach' can only be called once per process.")
+        raise RuntimeError("enable_attach() can only be called once per process.")
 
     host, port = pydevd._enable_attach(
         ("127.0.0.1", 0),
@@ -87,7 +89,6 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
 
     log.info("pydevd debug server running at: {0}:{1}", host, port)
 
-    port_queue = queue.Queue()
     class _DAPMessagesListener(pydevd.IDAPMessagesListener):
         def before_send(self, msg):
             pass
@@ -99,10 +100,12 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
             except KeyError:
                 pass
 
+    port_queue = queue.Queue()
     pydevd.add_dap_messages_listener(_DAPMessagesListener())
 
     with pydevd.skip_subprocess_arg_patch():
         import subprocess
+
         adapter_args = [
             sys.executable,
             os.path.join(os.path.dirname(ptvsd.__file__), "adapter"),
@@ -111,15 +114,13 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
             "--port",
             str(server_opts.port),
             "--for-server-on-port",
-            str(port)
+            str(port),
         ]
 
         if common_opts.log_dir is not None:
             adapter_args += ["--log-dir", common_opts.log_dir]
 
-        log.info(
-            "enable_attach() spawning attach-to-PID debugger injector: {0!r}", adapter_args
-        )
+        log.info("enable_attach() spawning adapter: {0!r}", adapter_args)
 
         # Adapter life time is expected to be longer than this process,
         # so never wait on the adapter process
@@ -130,8 +131,15 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
 
     server_opts.port = port_queue.get(True, _QUEUE_TIMEOUT)
 
+    listener_file = os.getenv("PTVSD_LISTENER_FILE")
+    if listener_file is not None:
+        with open(listener_file, "w") as f:
+            json.dump({"host": server_opts.host, "port": server_opts.port}, f)
+
     enable_attach.called = True
-    log.info("ptvsd debug server running at: {0}:{1}", server_opts.host, server_opts.port)
+    log.info(
+        "ptvsd debug server running at: {0}:{1}", server_opts.host, server_opts.port
+    )
     return server_opts.host, server_opts.port
 
 
@@ -163,8 +171,7 @@ def break_into_debugger():
     stop_at_frame = sys._getframe().f_back
     while (
         stop_at_frame is not None
-        and global_debugger.get_file_type(stop_at_frame)
-        == global_debugger.PYDEV_FILE
+        and global_debugger.get_file_type(stop_at_frame) == global_debugger.PYDEV_FILE
     ):
         stop_at_frame = stop_at_frame.f_back
 
@@ -206,10 +213,13 @@ def tracing(should_trace):
     tid = threading.current_thread().ident
     if pydb is None:
         log.info("ptvsd.tracing() ignored on thread {0} - debugger not attached", tid)
+
         def enable_or_disable(_):
             # Always fetch the fresh value, in case it changes before we restore.
             _tls.is_tracing = get_global_debugger() is not None
+
     else:
+
         def enable_or_disable(enable):
             if enable:
                 log.info("Enabling tracing on thread {0}", tid)

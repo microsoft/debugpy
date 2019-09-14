@@ -213,6 +213,7 @@ def run_module():
     # actually invoking it. On Python 3, it's exposed as a public API, but
     # on Python 2, we have to invoke a private function in runpy for this.
     # Either way, if it fails to resolve for any reason, just leave argv as is.
+    argv_0 = sys.argv[0]
     try:
         if sys.version_info >= (3,):
             from importlib.util import find_spec
@@ -343,7 +344,7 @@ def main():
         print(HELP + "\nError: " + str(ex), file=sys.stderr)
         sys.exit(2)
 
-    log.to_file()
+    log.to_file(prefix="ptvsd.server")
     log.describe_environment("ptvsd.server startup environment:")
     log.info(
         "sys.argv before parsing: {0!r}\n" "         after parsing:  {1!r}",

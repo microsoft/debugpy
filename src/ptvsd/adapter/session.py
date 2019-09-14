@@ -14,7 +14,15 @@ import time
 
 import ptvsd
 import ptvsd.launcher
-from ptvsd.common import compat, fmt, log, messaging, options as common_options, sockets, util
+from ptvsd.common import (
+    compat,
+    fmt,
+    log,
+    messaging,
+    options as common_options,
+    sockets,
+    util,
+)
 from ptvsd.adapter import components, ide, launcher, options as adapter_options, server
 
 
@@ -126,6 +134,7 @@ class Session(util.Observable):
         """Sets up a DAP message channel to the IDE over stdio.
         """
 
+        log.info("{0} connecting to IDE over stdio...", self)
         stream = messaging.JsonIOStream.from_stdio()
 
         # Make sure that nothing else tries to interfere with the stdio streams
@@ -143,6 +152,7 @@ class Session(util.Observable):
         """
 
         host, port = address
+        log.info("{0} connecting to Server on {1}:{2}...", self, host, port)
         sock = sockets.create_client()
         sock.connect(address)
 
@@ -208,7 +218,9 @@ class Session(util.Observable):
             with self._accept_connection_from_launcher() as (_, launcher_port):
                 env[str("PTVSD_LAUNCHER_PORT")] = str(launcher_port)
                 if common_options.log_dir is not None:
-                    env[str("PTVSD_LOG_DIR")] = compat.filename_str(common_options.log_dir)
+                    env[str("PTVSD_LOG_DIR")] = compat.filename_str(
+                        common_options.log_dir
+                    )
                 if adapter_options.log_stderr:
                     env[str("PTVSD_LOG_STDERR")] = str("debug info warning error")
                 if console == "internalConsole":
@@ -369,7 +381,7 @@ class Session(util.Observable):
 
         # Tell the IDE that debugging is over, but don't close the channel until it
         # tells us to, via the "disconnect" request.
-        if self.ide.is_connected:
+        if self.ide and self.ide.is_connected:
             try:
                 self.ide.channel.send_event("terminated")
             except Exception:
