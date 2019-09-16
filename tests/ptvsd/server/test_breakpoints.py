@@ -28,10 +28,7 @@ def test_path_with_ampersand(start_method, run_as):
         session.start_debugging()
 
         session.wait_for_stop(
-            "breakpoint",
-            expected_frames=[
-                some.dap.frame(test_py, line="two"),
-            ],
+            "breakpoint", expected_frames=[some.dap.frame(test_py, line="two")]
         )
 
         session.request_continue()
@@ -200,9 +197,11 @@ def test_log_point(pyfile, start_method, run_as, condition):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
+        import sys
 
         for i in range(0, 10):
-            print(i * 10)  # @bp
+            sys.stderr.write(str(i * 10) + "\n")  # @bp
+            sys.stderr.flush()
         ()  # @wait_for_output
 
     lines = code_to_debug.lines
@@ -215,7 +214,7 @@ def test_log_point(pyfile, start_method, run_as, condition):
 
         session.request(
             "setBreakpoints",
-            arguments={
+            {
                 "source": {"path": code_to_debug},
                 "breakpoints": [bp, {"line": lines["wait_for_output"]}],
             },
@@ -224,36 +223,34 @@ def test_log_point(pyfile, start_method, run_as, condition):
 
         if condition:
             session.wait_for_stop(
-                "breakpoint",
-                expected_frames=[
-                    some.dap.frame(code_to_debug, line="bp")
-                ],
+                "breakpoint", expected_frames=[some.dap.frame(code_to_debug, line="bp")]
             )
 
             var_i = session.get_variable("i")
             assert var_i == some.dict.containing(
-                {"name": "i",  "evaluateName": "i", "type": "int", "value": "5"},
+                {"name": "i", "evaluateName": "i", "type": "int", "value": "5"}
             )
 
             session.request_continue()
 
         session.wait_for_stop(
             "breakpoint",
-            expected_frames=[
-                some.dap.frame(code_to_debug, line="wait_for_output")
-            ],
+            expected_frames=[some.dap.frame(code_to_debug, line="wait_for_output")],
         )
         session.request_continue()
 
-    assert not session.captured_stderr()
+    # print() should produce both actual output, and "output" events on stderr,
+    # but logpoints should only produce "output" events on stdout.
+    assert not session.captured_stdout()
 
     expected_stdout = "".join(
-        (
-            fmt(r"{0}\r?\n{1}\r?\n", re.escape(str(i)), re.escape(str(i * 10)))
-            for i in range(0, 10)
-        )
+        (fmt(r"{0}\r?\n", re.escape(str(i))) for i in range(0, 10))
+    )
+    expected_stderr = "".join(
+        (fmt(r"{0}\r?\n", re.escape(str(i * 10))) for i in range(0, 10))
     )
     assert session.output("stdout") == some.str.matching(expected_stdout)
+    assert session.output("stderr") == some.str.matching(expected_stderr)
 
 
 def test_package_launch():
@@ -267,10 +264,7 @@ def test_package_launch():
         session.start_debugging()
 
         session.wait_for_stop(
-            "breakpoint",
-            expected_frames=[
-                some.dap.frame(test_py, line="two"),
-            ],
+            "breakpoint", expected_frames=[some.dap.frame(test_py, line="two")]
         )
 
         session.request_continue()
@@ -291,10 +285,7 @@ def test_add_and_remove_breakpoint(pyfile, start_method, run_as):
         session.start_debugging()
 
         session.wait_for_stop(
-            "breakpoint",
-            expected_frames=[
-                some.dap.frame(code_to_debug, line="bp"),
-            ],
+            "breakpoint", expected_frames=[some.dap.frame(code_to_debug, line="bp")]
         )
 
         # Remove breakpoint inside the loop.
@@ -303,9 +294,7 @@ def test_add_and_remove_breakpoint(pyfile, start_method, run_as):
 
         session.wait_for_stop(
             "breakpoint",
-            expected_frames=[
-                some.dap.frame(code_to_debug, line="wait_for_output")
-            ],
+            expected_frames=[some.dap.frame(code_to_debug, line="wait_for_output")],
         )
         session.request_continue()
 
@@ -314,23 +303,22 @@ def test_add_and_remove_breakpoint(pyfile, start_method, run_as):
 
 
 def test_breakpoints_in_filtered_files(pyfile, run_as, start_method):
-
     @pyfile
     def code_to_debug():
-        import debug_me # noqa
+        import debug_me  # noqa
 
     with debug.Session(start_method) as session:
         session.configure(run_as, code_to_debug)
 
-        breakpoints = session.set_breakpoints('invalid_file.py', [1])
-        assert breakpoints == [{
-            'verified': False,
-            'message': 'Breakpoint in file that does not exist.',
-            'source': some.dict.containing({
-                'path': some.path('invalid_file.py')
-            }),
-            'line': 1
-        }]
+        breakpoints = session.set_breakpoints("invalid_file.py", [1])
+        assert breakpoints == [
+            {
+                "verified": False,
+                "message": "Breakpoint in file that does not exist.",
+                "source": some.dict.containing({"path": some.path("invalid_file.py")}),
+                "line": 1,
+            }
+        ]
         session.start_debugging()
 
 

@@ -129,13 +129,6 @@ class Server(components.Component):
             self.ide.propagate_after_start(event)
 
     @message_handler
-    def output_event(self, event):
-        category = event("category", "console")
-        # If there is a launcher, it's handling stdout and stderr.
-        if not self.launcher or category not in ("stdout", "stderr"):
-            self.ide.propagate_after_start(event)
-
-    @message_handler
     def exited_event(self, event):
         # If there is a launcher, it's handling the exit code.
         if not self.launcher:

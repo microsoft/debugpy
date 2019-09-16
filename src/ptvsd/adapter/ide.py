@@ -223,6 +223,10 @@ class IDE(components.Component):
 
         self.session.spawn_debuggee(request, sudo, args, console, console_title)
 
+        if "RedirectOutput" in self.session.debug_options:
+            # The launcher is doing output redirection, so we don't need the server.
+            request.arguments["debugOptions"].remove("RedirectOutput")
+
     @_start_message_handler
     def attach_request(self, request):
         if self.session.no_debug:
