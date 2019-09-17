@@ -110,7 +110,7 @@ class IDMap(object):
         return key
 
 
-class _PyDevJsonCommandProcessor(object):
+class PyDevJsonCommandProcessor(object):
 
     def __init__(self, from_json):
         self.from_json = from_json
@@ -155,11 +155,11 @@ class _PyDevJsonCommandProcessor(object):
             method_name = 'on_%s_request' % (request.command.lower(),)
             on_request = getattr(self, method_name, None)
             if on_request is None:
-                print('Unhandled: %s not available in _PyDevJsonCommandProcessor.\n' % (method_name,))
+                print('Unhandled: %s not available in PyDevJsonCommandProcessor.\n' % (method_name,))
                 return
 
             if DEBUG:
-                print('Handled in pydevd: %s (in _PyDevJsonCommandProcessor).\n' % (method_name,))
+                print('Handled in pydevd: %s (in PyDevJsonCommandProcessor).\n' % (method_name,))
 
         with py_db._main_lock:
             if request.__class__ == InitializeRequest:
@@ -1019,5 +1019,3 @@ class _PyDevJsonCommandProcessor(object):
         response = pydevd_base_schema.build_response(request)
         return NetCommand(CMD_RETURN, 0, response, is_json=True)
 
-
-process_net_command_json = _PyDevJsonCommandProcessor(pydevd_base_schema.from_json).process_net_command_json

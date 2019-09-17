@@ -2070,6 +2070,50 @@ class PyDB(object):
             time.sleep(0.01)
 
 
+class IDAPMessagesListener(object):
+
+    def before_send(self, message_as_dict):
+        '''
+        Called just before a message is sent to the IDE.
+
+        :type message_as_dict: dict
+        '''
+
+    def after_receive(self, message_as_dict):
+        '''
+        Called just after a message is received from the IDE.
+
+        :type message_as_dict: dict
+        '''
+
+
+def add_dap_messages_listener(dap_messages_listener):
+    '''
+    Adds a listener for the DAP (debug adapter protocol) messages.
+
+    :type dap_messages_listener: IDAPMessagesListener
+
+    :note: messages from the xml backend are not notified through this API.
+
+    :note: the notifications are sent from threads and they are not synchronized (so,
+    it's possible that a message is sent and received from different threads at the same time).
+    '''
+    py_db = get_global_debugger()
+    if py_db is None:
+        raise AssertionError('PyDB is still not setup.')
+
+    writer = py_db.writer
+    if writer is None:
+        raise AssertionError('PyDB.writer is still not setup.')
+
+    reader = py_db.reader
+    if reader is None:
+        raise AssertionError('PyDB.reader is still not setup.')
+
+    writer.add_dap_messages_listener(dap_messages_listener)
+    reader.add_dap_messages_listener(dap_messages_listener)
+
+
 def set_debug(setup):
     setup['DEBUG_RECORD_SOCKET_READS'] = True
     setup['DEBUG_TRACE_BREAKPOINTS'] = 1

@@ -189,7 +189,7 @@ class ReaderThread(PyDBDaemonThread):
 
     def __init__(self, sock, terminate_on_socket_close=True):
         assert sock is not None
-        from _pydevd_bundle.pydevd_process_net_command_json import process_net_command_json
+        from _pydevd_bundle.pydevd_process_net_command_json import PyDevJsonCommandProcessor
         from _pydevd_bundle.pydevd_process_net_command import process_net_command
         PyDBDaemonThread.__init__(self)
         self._terminate_on_socket_close = terminate_on_socket_close
@@ -198,8 +198,20 @@ class ReaderThread(PyDBDaemonThread):
         self._buffer = b''
         self.setName("pydevd.Reader")
         self.process_net_command = process_net_command
-        self.process_net_command_json = process_net_command_json
+        self.process_net_command_json = PyDevJsonCommandProcessor(self._from_json).process_net_command_json
         self.global_debugger_holder = GlobalDebuggerHolder
+
+        self._dap_messages_listeners = []
+
+    def _from_json(self, json_msg, update_ids_from_dap=False):
+        return pydevd_base_schema.from_json(json_msg, update_ids_from_dap, on_dict_loaded=self._on_dict_loaded)
+
+    def add_dap_messages_listener(self, dap_commands_listener):
+        self._dap_messages_listeners.append(dap_commands_listener)
+
+    def _on_dict_loaded(self, dct):
+        for listener in self._dap_messages_listeners:
+            listener.after_receive(dct)
 
     @overrides(PyDBDaemonThread.do_kill_pydev_thread)
     def do_kill_pydev_thread(self):
@@ -346,6 +358,11 @@ class WriterThread(PyDBDaemonThread):
         else:
             self.timeout = 0.1
 
+        self._dap_messages_listeners = []
+
+    def add_dap_messages_listener(self, dap_commands_listener):
+        self._dap_messages_listeners.append(dap_commands_listener)
+
     def add_command(self, cmd):
         ''' cmd is NetCommand '''
         if not self.killReceived:  # we don't take new data after everybody die
@@ -382,6 +399,11 @@ class WriterThread(PyDBDaemonThread):
                     # when liberating the thread here, we could have errors because we were shutting down
                     # but the thread was still not liberated
                     return
+
+                if cmd.as_dict is not None:
+                    for listener in self._dap_messages_listeners:
+                        listener.before_send(cmd.as_dict)
+
                 cmd.send(self.sock)
 
                 if cmd.id == CMD_EXIT:

@@ -43,7 +43,7 @@ matrix:
 #         - PYDEVD_TEST_VM=CPYTHON
       
     # Python 2.7 (with and without cython)
-    - python: 2.7
+#    - python: 2.7
 #       env:
 #         - PYDEVD_PYTHON_VERSION=2.7
 #         - PYDEVD_USE_CYTHON=NO

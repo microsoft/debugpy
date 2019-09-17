@@ -9,12 +9,20 @@ import json
 from _pydev_bundle import pydev_log
 
 
-class _NullNetCommand(object):
+class _BaseNetCommand(object):
 
+    # Command id. Should be set in instance.
     id = -1
+
+    # Dict representation of the command to be set in instance. Only set for json commands.
+    as_dict = None
 
     def send(self, *args, **kwargs):
         pass
+
+
+class _NullNetCommand(_BaseNetCommand):
+    pass
 
 
 class _NullExitCommand(_NullNetCommand):
@@ -29,7 +37,7 @@ NULL_NET_COMMAND = _NullNetCommand()
 NULL_EXIT_COMMAND = _NullExitCommand()
 
 
-class NetCommand:
+class NetCommand(_BaseNetCommand):
     """
     Commands received/sent over the network.
 
@@ -62,6 +70,7 @@ class NetCommand:
                 as_dict = text
             as_dict['pydevd_cmd_id'] = cmd_id
             as_dict['seq'] = seq
+            self.as_dict = as_dict
             text = json.dumps(as_dict)
 
         if IS_PY2:

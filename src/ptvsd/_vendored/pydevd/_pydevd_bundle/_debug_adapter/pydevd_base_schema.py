@@ -113,11 +113,12 @@ def from_dict(dct, update_ids_from_dap=False):
         raise
 
 
-def from_json(json_msg, update_ids_from_dap=False):
+def from_json(json_msg, update_ids_from_dap=False, on_dict_loaded=lambda dct:None):
     if isinstance(json_msg, bytes):
         json_msg = json_msg.decode('utf-8')
 
     as_dict = json.loads(json_msg)
+    on_dict_loaded(as_dict)
     try:
         return from_dict(as_dict, update_ids_from_dap=update_ids_from_dap)
     except:

@@ -2747,6 +2747,21 @@ def test_redirect_output(case_setup):
         writer.finished_ok = True
 
 
+def test_listen_dap_messages(case_setup):
+
+    with case_setup.test_file('_debugger_case_listen_dap_messages.py') as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(debugOptions=['RedirectOutput'],)
+
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'))
+        json_facade.write_make_initial_run()
+
+        json_facade.wait_for_thread_stopped()
+        json_facade.write_continue(wait_for_response=False)
+
+        writer.finished_ok = True
+
+
 def test_pydevd_systeminfo(case_setup):
     with case_setup.test_file('_debugger_case_print.py') as writer:
         json_facade = JsonFacade(writer)
