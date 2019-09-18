@@ -2762,6 +2762,85 @@ def test_listen_dap_messages(case_setup):
         writer.finished_ok = True
 
 
+@pytest.mark.parametrize('apply_multiprocessing_patch', [True, False])
+def test_no_subprocess_patching(case_setup_multiprocessing, apply_multiprocessing_patch):
+    import threading
+    from tests_python.debugger_unittest import AbstractWriterThread
+
+    def update_command_line_args(writer, args):
+        ret = debugger_unittest.AbstractWriterThread.update_command_line_args(writer, args)
+        ret.insert(ret.index('--qt-support'), '--multiprocess')
+        if apply_multiprocessing_patch:
+            ret.append('apply-multiprocessing-patch')
+        return ret
+
+    with case_setup_multiprocessing.test_file(
+            '_debugger_case_no_subprocess_patching.py',
+            update_command_line_args=update_command_line_args
+        ) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch()
+
+        break1_line = writer.get_line_index_with_content('break 1 here')
+        break2_line = writer.get_line_index_with_content('break 2 here')
+        json_facade.write_set_breakpoints([break1_line, break2_line])
+
+        server_socket = writer.server_socket
+
+        class SecondaryProcessWriterThread(AbstractWriterThread):
+
+            TEST_FILE = writer.get_main_filename()
+            _sequence = -1
+
+        class SecondaryProcessThreadCommunication(threading.Thread):
+
+            def run(self):
+                from tests_python.debugger_unittest import ReaderThread
+                expected_connections = 1
+                if sys.platform != 'win32' and IS_PY2:
+                    # Note: on linux on Python 2 CPython subprocess.call will actually
+                    # create a fork first (at which point it'll connect) and then, later on it'll
+                    # call the main (as if it was a clean process as if PyDB wasn't created
+                    # the first time -- the debugger will still work, but it'll do an additional
+                    # connection).
+                    expected_connections = 2
+
+                for _ in range(expected_connections):
+                    server_socket.listen(1)
+                    self.server_socket = server_socket
+                    new_sock, addr = server_socket.accept()
+
+                    reader_thread = ReaderThread(new_sock)
+                    reader_thread.name = '  *** Multiprocess Reader Thread'
+                    reader_thread.start()
+
+                    writer2 = SecondaryProcessWriterThread()
+                    writer2.reader_thread = reader_thread
+                    writer2.sock = new_sock
+                    json_facade2 = JsonFacade(writer2)
+
+                    json_facade2.write_set_breakpoints([break1_line, break2_line])
+                    json_facade2.write_make_initial_run()
+
+                json_facade2.wait_for_thread_stopped()
+                json_facade2.write_continue()
+
+        if apply_multiprocessing_patch:
+            secondary_process_thread_communication = SecondaryProcessThreadCommunication()
+            secondary_process_thread_communication.start()
+            time.sleep(.1)
+
+        json_facade.write_make_initial_run()
+        json_facade.wait_for_thread_stopped()
+        json_facade.write_continue()
+
+        if apply_multiprocessing_patch:
+            secondary_process_thread_communication.join(10)
+            if secondary_process_thread_communication.is_alive():
+                raise AssertionError('The SecondaryProcessThreadCommunication did not finish')
+        writer.finished_ok = True
+
+
 def test_pydevd_systeminfo(case_setup):
     with case_setup.test_file('_debugger_case_print.py') as writer:
         json_facade = JsonFacade(writer)

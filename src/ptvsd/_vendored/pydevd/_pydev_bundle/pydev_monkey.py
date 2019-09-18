@@ -6,6 +6,7 @@ import traceback
 from _pydev_imps._pydev_saved_modules import threading
 from _pydevd_bundle.pydevd_constants import get_global_debugger, IS_WINDOWS, IS_JYTHON, get_current_thread_id
 from _pydev_bundle import pydev_log
+from contextlib import contextmanager
 
 try:
     xrange
@@ -17,6 +18,21 @@ except:
 #===============================================================================
 
 pydev_src_dir = os.path.dirname(os.path.dirname(__file__))
+
+_arg_patch = threading.local()
+
+
+@contextmanager
+def skip_subprocess_arg_patch():
+    _arg_patch.apply_arg_patching = False
+    try:
+        yield
+    finally:
+        _arg_patch.apply_arg_patching = True
+
+
+def _get_apply_arg_patching():
+    return getattr(_arg_patch, 'apply_arg_patching', True)
 
 
 def _get_python_c_args(host, port, indC, args, setup):
@@ -44,10 +60,10 @@ def _is_managed_arg(arg):
     return False
 
 
-def _on_forked_process():
+def _on_forked_process(setup_tracing=True):
     import pydevd
     pydevd.threadingCurrentThread().__pydevd_main_thread = True
-    pydevd.settrace_forked()
+    pydevd.settrace_forked(setup_tracing=setup_tracing)
 
 
 def _on_set_trace_for_new_thread(global_debugger):
@@ -357,9 +373,10 @@ def create_execl(original_name):
         os.execlp(file, arg0, arg1, ...)
         os.execlpe(file, arg0, arg1, ..., env)
         """
-        import os
-        args = patch_args(args)
-        send_process_created_message()
+        if _get_apply_arg_patching():
+            args = patch_args(args)
+            send_process_created_message()
+
         return getattr(os, original_name)(path, *args)
 
     return new_execl
@@ -372,9 +389,11 @@ def create_execv(original_name):
         os.execv(path, args)
         os.execvp(file, args)
         """
-        import os
-        send_process_created_message()
-        return getattr(os, original_name)(path, patch_args(args))
+        if _get_apply_arg_patching():
+            args = patch_args(args)
+            send_process_created_message()
+
+        return getattr(os, original_name)(path, args)
 
     return new_execv
 
@@ -386,9 +405,11 @@ def create_execve(original_name):
     """
 
     def new_execve(path, args, env):
-        import os
-        send_process_created_message()
-        return getattr(os, original_name)(path, patch_args(args), env)
+        if _get_apply_arg_patching():
+            args = patch_args(args)
+            send_process_created_message()
+
+        return getattr(os, original_name)(path, args, env)
 
     return new_execve
 
@@ -400,9 +421,10 @@ def create_spawnl(original_name):
         os.spawnl(mode, path, arg0, arg1, ...)
         os.spawnlp(mode, file, arg0, arg1, ...)
         """
-        import os
-        args = patch_args(args)
-        send_process_created_message()
+        if _get_apply_arg_patching():
+            args = patch_args(args)
+            send_process_created_message()
+
         return getattr(os, original_name)(mode, path, *args)
 
     return new_spawnl
@@ -415,9 +437,11 @@ def create_spawnv(original_name):
         os.spawnv(mode, path, args)
         os.spawnvp(mode, file, args)
         """
-        import os
-        send_process_created_message()
-        return getattr(os, original_name)(mode, path, patch_args(args))
+        if _get_apply_arg_patching():
+            args = patch_args(args)
+            send_process_created_message()
+
+        return getattr(os, original_name)(mode, path, args)
 
     return new_spawnv
 
@@ -429,9 +453,11 @@ def create_spawnve(original_name):
     """
 
     def new_spawnve(mode, path, args, env):
-        import os
-        send_process_created_message()
-        return getattr(os, original_name)(mode, path, patch_args(args), env)
+        if _get_apply_arg_patching():
+            args = patch_args(args)
+            send_process_created_message()
+
+        return getattr(os, original_name)(mode, path, args, env)
 
     return new_spawnve
 
@@ -443,8 +469,10 @@ def create_fork_exec(original_name):
 
     def new_fork_exec(args, *other_args):
         import _posixsubprocess  # @UnresolvedImport
-        args = patch_args(args)
-        send_process_created_message()
+        if _get_apply_arg_patching():
+            args = patch_args(args)
+            send_process_created_message()
+
         return getattr(_posixsubprocess, original_name)(args, *other_args)
 
     return new_fork_exec
@@ -476,8 +504,12 @@ def create_CreateProcess(original_name):
             import _subprocess
         except ImportError:
             import _winapi as _subprocess
-        send_process_created_message()
-        return getattr(_subprocess, original_name)(app_name, patch_arg_str_win(cmd_line), *args)
+
+        if _get_apply_arg_patching():
+            cmd_line = patch_arg_str_win(cmd_line)
+            send_process_created_message()
+
+        return getattr(_subprocess, original_name)(app_name, cmd_line, *args)
 
     return new_CreateProcess
 
@@ -501,11 +533,11 @@ def create_CreateProcessWarnMultiproc(original_name):
 def create_fork(original_name):
 
     def new_fork():
-        import os
-
         # A simple fork will result in a new python process
         is_new_python_process = True
         frame = sys._getframe()
+
+        apply_arg_patch = _get_apply_arg_patching()
 
         while frame is not None:
             if frame.f_code.co_name == '_execute_child' and 'subprocess' in frame.f_code.co_filename:
@@ -525,7 +557,7 @@ def create_fork(original_name):
         child_process = getattr(os, original_name)()  # fork
         if not child_process:
             if is_new_python_process:
-                _on_forked_process()
+                _on_forked_process(setup_tracing=apply_arg_patch)
         else:
             if is_new_python_process:
                 send_process_created_message()

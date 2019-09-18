@@ -2594,7 +2594,7 @@ def dispatch():
     return host, port
 
 
-def settrace_forked():
+def settrace_forked(setup_tracing=True):
     '''
     When creating a fork from a process in the debugger, we need to reset the whole debugger environment!
     '''
@@ -2610,31 +2610,40 @@ def settrace_forked():
     access_token = setup.get('access-token')
     ide_access_token = setup.get('ide-access-token')
 
-    from _pydevd_frame_eval.pydevd_frame_eval_main import clear_thread_local_info
-    host, port = dispatch()
+    if setup_tracing:
+        from _pydevd_frame_eval.pydevd_frame_eval_main import clear_thread_local_info
+        host, port = dispatch()
 
     import pydevd_tracing
     pydevd_tracing.restore_sys_set_trace_func()
 
-    if port is not None:
-        global _debugger_setup
-        _debugger_setup = False
+    if setup_tracing:
+        if port is not None:
+            global _debugger_setup
+            _debugger_setup = False
 
-        custom_frames_container_init()
+            custom_frames_container_init()
 
-        if clear_thread_local_info is not None:
-            clear_thread_local_info()
+            if clear_thread_local_info is not None:
+                clear_thread_local_info()
 
-        settrace(
-                host,
-                port=port,
-                suspend=False,
-                trace_only_current_thread=False,
-                overwrite_prev_trace=True,
-                patch_multiprocessing=True,
-                access_token=access_token,
-                ide_access_token=ide_access_token,
-        )
+            settrace(
+                    host,
+                    port=port,
+                    suspend=False,
+                    trace_only_current_thread=False,
+                    overwrite_prev_trace=True,
+                    patch_multiprocessing=True,
+                    access_token=access_token,
+                    ide_access_token=ide_access_token,
+            )
+
+
+@contextmanager
+def skip_subprocess_arg_patch():
+    from _pydev_bundle import pydev_monkey
+    with pydev_monkey.skip_subprocess_arg_patch():
+        yield
 
 
 #=======================================================================================================================
