@@ -3,6 +3,7 @@
 # pytest>=5 does not support Python 2.7
 pytest<5
 
+pytest-cov
 pytest-timeout
 pytest-xdist
 tox

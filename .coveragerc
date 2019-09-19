@@ -1,0 +1,35 @@
+[run]
+branch = True
+include =
+    src/ptvsd/*
+omit =
+    src/ptvsd/__init__.py
+    src/ptvsd/_version.py
+    src/ptvsd/_vendored/*
+    src/ptvsd/server/*
+data_file = coverage/.coverage
+
+[report]
+exclude_lines =
+    # Have to re-enable the standard pragma.
+    pragma: no cover
+
+    # __repr__ is mostly used for error messages.
+    def __repr__
+
+    # Asserts and error conditions.
+    raise AssertionError
+    raise NotImplementedError
+    \.isnt_valid\(
+    \.cant_handle\(
+
+    # Code that's deliberately excluded.
+    if 0:
+    if __name__ == .__main__.:
+ 
+[html]
+directory = coverage/html
+title = ptvsd coverage report
+
+[xml]
+output = coverage/coverage.xml

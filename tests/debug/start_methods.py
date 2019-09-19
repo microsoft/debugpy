@@ -279,6 +279,7 @@ class Launch(DebugStartBase):
         cwd = request("cwd", ".")
 
         env = os.environ.copy()
+        env.pop("COV_CORE_SOURCE", None)  # disable codecov subprocess hook
         env.update(request("env", json.object(unicode)))
 
         if sys.version_info < (3,):
@@ -346,6 +347,7 @@ class AttachBase(DebugStartBase):
             target_str = target.strpath
 
         env = os.environ.copy()
+        env.pop("COV_CORE_SOURCE", None)  # disable codecov subprocess hook
         env.update(kwargs["env"])
 
         cli_args = kwargs.get("cli_args")

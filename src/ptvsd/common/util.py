@@ -8,22 +8,6 @@ import threading
 import sys
 
 
-def new_hidden_thread(name, target, prefix='ptvsd.common.', daemon=True, **kwargs):
-    """Return a thread that will be ignored by pydevd."""
-    if prefix is not None and not name.startswith(prefix):
-        name = prefix + name
-    t = threading.Thread(
-        name=name,
-        target=target,
-        **kwargs
-    )
-    t.pydev_do_not_trace = True
-    t.is_pydev_daemon_thread = True
-    if daemon:
-        t.daemon = False
-    return t
-
-
 def evaluate(code, path=__file__, mode="eval"):
     # Setting file path here to avoid breaking here if users have set
     # "break on exception raised" setting. This code can potentially run

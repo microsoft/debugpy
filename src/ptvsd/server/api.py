@@ -61,7 +61,10 @@ def _starts_debugging(func):
             end_patterns,
         )
 
-        return func(start_patterns, end_patterns)
+        try:
+            return func(start_patterns, end_patterns)
+        except Exception:
+            raise log.exception("{0}() failed:", func.__name__)
 
     return debug
 

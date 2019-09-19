@@ -162,4 +162,4 @@ __file__ = os.path.abspath(__file__)
 
 # Preload encodings that we're going to use to avoid import deadlocks on Python 2,
 # before importing anything from ptvsd.
-map(codecs.lookup, ["ascii", "utf8", "utf-8", "latin1", "latin-1"])
+map(codecs.lookup, ["ascii", "utf8", "utf-8", "latin1", "latin-1", "idna"])

@@ -202,15 +202,15 @@ class Session(util.Observable):
         cmdline = ["sudo"] if sudo else []
         cmdline += [sys.executable, os.path.dirname(ptvsd.launcher.__file__)]
         cmdline += args
-        env = {"PTVSD_SESSION_ID": str(self.id)}
+        env = {str("PTVSD_SESSION_ID"): str(self.id)}
 
         def spawn_launcher():
             with self._accept_connection_from_launcher() as (_, launcher_port):
-                env["PTVSD_LAUNCHER_PORT"] = str(launcher_port)
+                env[str("PTVSD_LAUNCHER_PORT")] = str(launcher_port)
                 if common_options.log_dir is not None:
-                    env["PTVSD_LOG_DIR"] = compat.filename(common_options.log_dir)
+                    env[str("PTVSD_LOG_DIR")] = compat.filename_str(common_options.log_dir)
                 if adapter_options.log_stderr:
-                    env["PTVSD_LOG_STDERR"] = "debug info warning error"
+                    env[str("PTVSD_LOG_STDERR")] = str("debug info warning error")
                 if console == "internalConsole":
                     # If we are talking to the IDE over stdio, sys.stdin and sys.stdout are
                     # redirected to avoid mangling the DAP message stream. Make sure the

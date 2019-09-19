@@ -116,6 +116,10 @@ class Handlers(object):
             cwd = None if program == () else (os.path.dirname(program) or None)
 
         env = os.environ.copy()
+        if "PTVSD_TEST" in env:
+            # If we're running as part of a ptvsd test, make sure that codecov is not
+            # applied to the debuggee, since it will conflict with pydevd.
+            env.pop("COV_CORE_SOURCE", None)
         env.update(request("env", json.object(unicode)))
 
         redirect_output = "RedirectOutput" in debug_options
