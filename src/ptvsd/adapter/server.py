@@ -60,6 +60,10 @@ class Server(components.Component):
         request.wait_for_response()
         self.capabilities = self.Capabilities(self, request.response)
 
+    def set_debugger_property(self, arguments):
+        assert isinstance(arguments, dict)
+        self.channel.request("setDebuggerProperty", arguments=arguments)
+
     # Generic request handler, used if there's no specific handler below.
     @message_handler
     def request(self, request):

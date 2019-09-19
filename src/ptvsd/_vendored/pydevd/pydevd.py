@@ -586,6 +586,9 @@ class PyDB(object):
         self._apply_filter_cache = {}
         self._ignore_system_exit_codes = set()
 
+        # DAP related
+        self._dap_messages_listeners = []
+
         if set_as_global:
             # Set as the global instance only after it's initialized.
             set_global_debugger(self)
@@ -1120,8 +1123,8 @@ class PyDB(object):
         if curr_writer:
             curr_writer.do_kill_pydev_thread()
 
-        self.writer = WriterThread(sock, terminate_on_socket_close=terminate_on_socket_close)
-        self.reader = ReaderThread(sock, terminate_on_socket_close=terminate_on_socket_close)
+        self.writer = WriterThread(sock, self, terminate_on_socket_close=terminate_on_socket_close)
+        self.reader = ReaderThread(sock, self, terminate_on_socket_close=terminate_on_socket_close)
         self.writer.start()
         self.reader.start()
 
@@ -1148,6 +1151,13 @@ class PyDB(object):
 
     def wait_for_server_socket_ready(self):
         self._server_socket_ready_event.wait()
+
+    @property
+    def dap_messages_listeners(self):
+        return self._dap_messages_listeners
+
+    def add_dap_messages_listener(self, listener):
+        self._dap_messages_listeners.append(listener)
 
     class _WaitForConnectionThread(PyDBDaemonThread):
 
@@ -2102,16 +2112,7 @@ def add_dap_messages_listener(dap_messages_listener):
     if py_db is None:
         raise AssertionError('PyDB is still not setup.')
 
-    writer = py_db.writer
-    if writer is None:
-        raise AssertionError('PyDB.writer is still not setup.')
-
-    reader = py_db.reader
-    if reader is None:
-        raise AssertionError('PyDB.reader is still not setup.')
-
-    writer.add_dap_messages_listener(dap_messages_listener)
-    reader.add_dap_messages_listener(dap_messages_listener)
+    py_db.add_dap_messages_listener(dap_messages_listener)
 
 
 def set_debug(setup):
@@ -2423,7 +2424,7 @@ def _locked_settrace(
             debugger.connect(host, port)  # Note: connect can raise error.
         else:
             # Create a dummy writer and wait for the real connection.
-            debugger.writer = WriterThread(NULL, terminate_on_socket_close=False)
+            debugger.writer = WriterThread(NULL, debugger, terminate_on_socket_close=False)
             debugger.create_wait_for_connection_thread()
 
         if dont_trace_start_patterns or dont_trace_end_paterns:

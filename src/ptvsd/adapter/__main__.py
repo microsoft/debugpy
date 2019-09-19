@@ -33,13 +33,19 @@ def main(args):
     log.describe_environment("ptvsd.adapter startup environment:")
 
     session = session.Session()
-    if args.debug_server is None:
+    if args.port is None:
         session.connect_to_ide()
     else:
         # If in debugServer mode, log everything to stderr.
         log.stderr_levels |= set(log.LEVELS)
-        with session.accept_connection_from_ide(("localhost", args.debug_server)):
-            pass
+
+        if args.for_server_on_port is not None:
+            session.connect_to_server(("127.0.0.1", args.for_server_on_port))
+        with session.accept_connection_from_ide((args.host, args.port)) as (_, port):
+            try:
+                session.server.set_debugger_property({"adapterPort": port})
+            except AttributeError:
+                pass
     session.wait_for_completion()
 
 
@@ -47,14 +53,27 @@ def _parse_argv(argv):
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "-d",
-        "--debug-server",
+        "--port",
         type=int,
-        nargs="?",
         default=None,
-        const=8765,
         metavar="PORT",
         help="start the adapter in debugServer mode on the specified port",
+    )
+
+    parser.add_argument(
+        "--host",
+        type=str,
+        default="127.0.0.1",
+        metavar="HOST",
+        help="start the adapter in debugServer mode on the specified host",
+    )
+
+    parser.add_argument(
+        "--for-server-on-port",
+        type=int,
+        default=None,
+        metavar="PORT",
+        help=argparse.SUPPRESS
     )
 
     parser.add_argument(
@@ -73,8 +92,8 @@ def _parse_argv(argv):
     )
 
     args = parser.parse_args(argv[1:])
-    if args.debug_server is None and args.log_stderr:
-        parser.error("--log-stderr can only be used with --debug-server")
+    if args.port is None and args.log_stderr:
+        parser.error("--log-stderr can only be used with --port")
     return args
 
 

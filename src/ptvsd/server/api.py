@@ -13,8 +13,12 @@ import threading
 import ptvsd
 from ptvsd.common import log, options as common_opts
 from ptvsd.server import options as server_opts
+from ptvsd.common.compat import queue
 from _pydevd_bundle.pydevd_constants import get_global_debugger
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_file
+
+
+_QUEUE_TIMEOUT = 10
 
 
 def wait_for_attach():
@@ -71,12 +75,61 @@ def _starts_debugging(func):
 
 @_starts_debugging
 def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
-    server_opts.host, server_opts.port = pydevd._enable_attach(
-        (server_opts.host, server_opts.port),
+    if hasattr(enable_attach, "called"):
+        raise RuntimeError("'enable_attach' can only be called once per process.")
+
+    host, port = pydevd._enable_attach(
+        ("127.0.0.1", 0),
         dont_trace_start_patterns=dont_trace_start_patterns,
         dont_trace_end_paterns=dont_trace_end_patterns,
         patch_multiprocessing=server_opts.multiprocess,
     )
+
+    log.info("pydevd debug server running at: {0}:{1}", host, port)
+
+    port_queue = queue.Queue()
+    class _DAPMessagesListener(pydevd.IDAPMessagesListener):
+        def before_send(self, msg):
+            pass
+
+        def after_receive(self, msg):
+            try:
+                if msg["command"] == "setDebuggerProperty":
+                    port_queue.put(msg["arguments"]["adapterPort"])
+            except KeyError:
+                pass
+
+    pydevd.add_dap_messages_listener(_DAPMessagesListener())
+
+    with pydevd.skip_subprocess_arg_patch():
+        import subprocess
+        adapter_args = [
+            sys.executable,
+            os.path.join(os.path.dirname(ptvsd.__file__), "adapter"),
+            "--host",
+            server_opts.host,
+            "--port",
+            str(server_opts.port),
+            "--for-server-on-port",
+            str(port)
+        ]
+
+        if common_opts.log_dir is not None:
+            adapter_args += ["--log-dir", common_opts.log_dir]
+
+        log.info(
+            "enable_attach() spawning attach-to-PID debugger injector: {0!r}", adapter_args
+        )
+
+        # Adapter life time is expected to be longer than this process,
+        # so never wait on the adapter process
+        # TODO: Add adapter PID to ignore list https://github.com/microsoft/ptvsd/issues/1786
+        subprocess.Popen(adapter_args, bufsize=0)
+
+    server_opts.port = port_queue.get(True, _QUEUE_TIMEOUT)
+
+    enable_attach.called = True
+    log.info("ptvsd debug server running at: {0}:{1}", server_opts.host, server_opts.port)
     return server_opts.host, server_opts.port
 
 

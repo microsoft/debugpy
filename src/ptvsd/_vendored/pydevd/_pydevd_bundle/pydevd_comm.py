@@ -73,7 +73,7 @@ from _pydev_imps._pydev_saved_modules import thread
 from _pydev_imps._pydev_saved_modules import threading
 from socket import AF_INET, SOCK_STREAM, SHUT_RD, SHUT_WR, SOL_SOCKET, SO_REUSEADDR, SHUT_RDWR, IPPROTO_TCP
 from _pydevd_bundle.pydevd_constants import (DebugInfoHolder, get_thread_id, IS_WINDOWS, IS_JYTHON,
-    IS_PY2, IS_PY36_OR_GREATER, STATE_RUN, dict_keys, ASYNC_EVAL_TIMEOUT_SEC, GlobalDebuggerHolder,
+    IS_PY2, IS_PY36_OR_GREATER, STATE_RUN, dict_keys, ASYNC_EVAL_TIMEOUT_SEC,
     get_global_debugger, GetGlobalDebugger, set_global_debugger)  # Keep for backward compatibility @UnusedImport
 from _pydev_bundle.pydev_override import overrides
 import weakref
@@ -187,7 +187,7 @@ def run_as_pydevd_daemon_thread(func, *args, **kwargs):
 class ReaderThread(PyDBDaemonThread):
     ''' reader thread reads and dispatches commands in an infinite loop '''
 
-    def __init__(self, sock, terminate_on_socket_close=True):
+    def __init__(self, sock, py_db, terminate_on_socket_close=True):
         assert sock is not None
         from _pydevd_bundle.pydevd_process_net_command_json import PyDevJsonCommandProcessor
         from _pydevd_bundle.pydevd_process_net_command import process_net_command
@@ -195,22 +195,17 @@ class ReaderThread(PyDBDaemonThread):
         self._terminate_on_socket_close = terminate_on_socket_close
 
         self.sock = sock
+        self.py_db = py_db
         self._buffer = b''
         self.setName("pydevd.Reader")
         self.process_net_command = process_net_command
         self.process_net_command_json = PyDevJsonCommandProcessor(self._from_json).process_net_command_json
-        self.global_debugger_holder = GlobalDebuggerHolder
-
-        self._dap_messages_listeners = []
 
     def _from_json(self, json_msg, update_ids_from_dap=False):
         return pydevd_base_schema.from_json(json_msg, update_ids_from_dap, on_dict_loaded=self._on_dict_loaded)
 
-    def add_dap_messages_listener(self, dap_commands_listener):
-        self._dap_messages_listeners.append(dap_commands_listener)
-
     def _on_dict_loaded(self, dct):
-        for listener in self._dap_messages_listeners:
+        for listener in self.py_db.dap_messages_listeners:
             listener.after_receive(dct)
 
     @overrides(PyDBDaemonThread.do_kill_pydev_thread)
@@ -292,7 +287,7 @@ class ReaderThread(PyDBDaemonThread):
                                 return  # Finished communication.
 
                             # We just received a json message, let's process it.
-                            self.process_net_command_json(self.global_debugger_holder.global_dbg, json_contents)
+                            self.process_net_command_json(self.py_db, json_contents)
 
                         continue
                     else:
@@ -347,9 +342,10 @@ class ReaderThread(PyDBDaemonThread):
 class WriterThread(PyDBDaemonThread):
     ''' writer thread writes out the commands in an infinite loop '''
 
-    def __init__(self, sock, terminate_on_socket_close=True):
+    def __init__(self, sock, py_db, terminate_on_socket_close=True):
         PyDBDaemonThread.__init__(self)
         self.sock = sock
+        self.py_db = py_db
         self._terminate_on_socket_close = terminate_on_socket_close
         self.setName("pydevd.Writer")
         self.cmdQueue = _queue.Queue()
@@ -357,11 +353,6 @@ class WriterThread(PyDBDaemonThread):
             self.timeout = 0
         else:
             self.timeout = 0.1
-
-        self._dap_messages_listeners = []
-
-    def add_dap_messages_listener(self, dap_commands_listener):
-        self._dap_messages_listeners.append(dap_commands_listener)
 
     def add_command(self, cmd):
         ''' cmd is NetCommand '''
@@ -401,7 +392,7 @@ class WriterThread(PyDBDaemonThread):
                     return
 
                 if cmd.as_dict is not None:
-                    for listener in self._dap_messages_listeners:
+                    for listener in self.py_db.dap_messages_listeners:
                         listener.before_send(cmd.as_dict)
 
                 cmd.send(self.sock)
@@ -413,7 +404,7 @@ class WriterThread(PyDBDaemonThread):
                 time.sleep(self.timeout)
         except Exception:
             if self._terminate_on_socket_close:
-                GlobalDebuggerHolder.global_dbg.finish_debugging_session()
+                self.py_db.finish_debugging_session()
                 if DebugInfoHolder.DEBUG_TRACE_LEVEL > 0:
                     pydev_log_exception()
 

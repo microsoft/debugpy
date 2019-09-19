@@ -5,13 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "ptvsd.adapter --debug-server",
+            "name": "ptvsd.adapter --port",
             "type": "python",
             "request": "launch",
             "console": "integratedTerminal",
             "consoleTitle": "ptvsd.adapter",
             "program": "${workspaceFolder}/src/ptvsd/adapter",
-            "args": ["--debug-server", "8765", "--cls"],
+            "args": ["--port", "8765", "--cls"],
             "customDebugger": true,
         },
 
