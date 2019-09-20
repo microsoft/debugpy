@@ -13921,6 +13921,10 @@ class PydevdProcessInfo(BaseSchema):
             "type": "integer",
             "description": "Process ID for the current process."
         },
+        "ppid": {
+            "type": "integer",
+            "description": "Parent Process ID for the current process."
+        },
         "executable": {
             "type": "string",
             "description": "Path to the executable as returned by 'sys.executable'."
@@ -13934,13 +13938,15 @@ class PydevdProcessInfo(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, pid=None, executable=None, bitness=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, pid=None, ppid=None, executable=None, bitness=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer pid: Process ID for the current process.
+        :param integer ppid: Parent Process ID for the current process.
         :param string executable: Path to the executable as returned by 'sys.executable'.
         :param integer bitness: Integer value indicating the bitness of the current process.
         """
         self.pid = pid
+        self.ppid = ppid
         self.executable = executable
         self.bitness = bitness
         self.kwargs = kwargs
@@ -13948,12 +13954,15 @@ class PydevdProcessInfo(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         pid = self.pid
+        ppid = self.ppid
         executable = self.executable
         bitness = self.bitness
         dct = {
         }
         if pid is not None:
             dct['pid'] = pid
+        if ppid is not None:
+            dct['ppid'] = ppid
         if executable is not None:
             dct['executable'] = executable
         if bitness is not None:

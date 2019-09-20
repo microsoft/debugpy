@@ -243,6 +243,10 @@
 					"type": "integer",
 					"description": "Process ID for the current process."
 				},
+				"ppid": {
+					"type": "integer",
+					"description": "Parent Process ID for the current process."
+				},
 				"executable": {
 					"type": "string",
 					"description": "Path to the executable as returned by 'sys.executable'."

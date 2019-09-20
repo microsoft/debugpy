@@ -963,6 +963,11 @@ class PyDevJsonCommandProcessor(object):
             pid = None
 
         try:
+            ppid = os.getppid()
+        except AttributeError:
+            ppid = None
+
+        try:
             impl_desc = platform.python_implementation()
         except AttributeError:
             impl_desc = PY_IMPL_NAME
@@ -978,6 +983,7 @@ class PyDevJsonCommandProcessor(object):
         platform_info = pydevd_schema.PydevdPlatformInfo(name=sys.platform)
         process_info = pydevd_schema.PydevdProcessInfo(
             pid=pid,
+            ppid=ppid,
             executable=sys.executable,
             bitness=64 if IS_64BIT_PROCESS else 32,
         )

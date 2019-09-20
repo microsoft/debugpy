@@ -2868,6 +2868,7 @@ def test_pydevd_systeminfo(case_setup):
         assert body['platform'] == {'name': sys.platform}
 
         assert 'pid' in body['process']
+        assert 'ppid' in body['process']
         assert body['process']['executable'] == sys.executable
         assert body['process']['bitness'] == 64 if IS_64BIT_PROCESS else 32
 
