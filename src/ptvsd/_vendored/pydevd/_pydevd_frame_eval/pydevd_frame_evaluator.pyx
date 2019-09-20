@@ -1,7 +1,7 @@
 from __future__ import print_function
 import dis
 from _pydev_imps._pydev_saved_modules import threading, thread
-from _pydevd_bundle.pydevd_comm import GlobalDebuggerHolder
+from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder
 from _pydevd_frame_eval.pydevd_frame_tracing import create_pydev_trace_code_wrapper, update_globals_dict, dummy_tracing_holder
 from _pydevd_frame_eval.pydevd_modify_bytecode import insert_code
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_file, NORM_PATHS_AND_BASE_CONTAINER

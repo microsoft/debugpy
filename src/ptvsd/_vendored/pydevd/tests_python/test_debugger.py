@@ -24,6 +24,7 @@ import json
 import pydevd_file_utils
 import subprocess
 import threading
+from tests_python.debug_constants import IS_PY26
 try:
     from urllib import unquote
 except ImportError:
@@ -1296,6 +1297,82 @@ def test_check_tracer_with_exceptions(case_setup):
     with case_setup.test_file('_debugger_case_check_tracer.py', get_environ=get_environ) as writer:
         writer.write_add_exception_breakpoint_with_policy('IndexError', "1", "1", "1")
         writer.write_make_initial_run()
+        writer.finished_ok = True
+
+
+@pytest.mark.parametrize('target_file', [
+    '_debugger_case_unhandled_exceptions_generator.py',
+    '_debugger_case_unhandled_exceptions_listcomp.py',
+    ])
+@pytest.mark.parametrize('unhandled', [False, True])
+@pytest.mark.skipif(IS_JYTHON, reason='Not ok for Jython.')
+def test_case_handled_and_unhandled_exception_generator(case_setup, target_file, unhandled):
+
+    def check_test_suceeded_msg(writer, stdout, stderr):
+        # Don't call super (we have an unhandled exception in the stack trace).
+        return 'TEST SUCEEDED' in ''.join(stdout) and 'TEST SUCEEDED' in ''.join(stderr)
+
+    def additional_output_checks(writer, stdout, stderr):
+        if 'ZeroDivisionError' not in stderr:
+            raise AssertionError('Expected test to have an unhandled exception.\nstdout:\n%s\n\nstderr:\n%s' % (
+                stdout, stderr))
+
+    with case_setup.test_file(
+            target_file,
+            check_test_suceeded_msg=check_test_suceeded_msg,
+            additional_output_checks=additional_output_checks,
+            EXPECTED_RETURNCODE=1,
+        ) as writer:
+
+        if unhandled:
+            writer.write_add_exception_breakpoint_with_policy('Exception', "0", "1", "0")
+        else:
+            writer.write_add_exception_breakpoint_with_policy('Exception', "1", "0", "0")
+
+        writer.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION if unhandled else REASON_CAUGHT_EXCEPTION)
+        assert hit.line == writer.get_line_index_with_content('# exc line')
+
+        if 'generator' in target_file:
+            expected_frame_names = ['<genexpr>', 'f', '<module>']
+        else:
+            if IS_PY27 or IS_PY26:
+                expected_frame_names = ['f', '<module>']
+            else:
+                expected_frame_names = ['<listcomp>', 'f', '<module>']
+
+        writer.write_get_current_exception(hit.thread_id)
+        msg = writer.wait_for_message(accept_message=lambda msg:'exc_type="' in msg and 'exc_desc="' in msg, unquote_msg=False)
+
+        frame_names = [unquote(f['name']).replace('&lt;', '<').replace('&gt;', '>') for f in msg.thread.frame]
+        assert frame_names == expected_frame_names
+
+        writer.write_run_thread(hit.thread_id)
+
+        if not unhandled:
+            if (IS_PY26 or IS_PY27) and 'listcomp' in target_file:
+                expected_lines = [
+                    writer.get_line_index_with_content('# call exc'),
+                ]
+            else:
+                expected_lines = [
+                    writer.get_line_index_with_content('# exc line'),
+                    writer.get_line_index_with_content('# call exc'),
+                ]
+
+            for expected_line in expected_lines:
+                hit = writer.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION)
+                assert hit.line == expected_line
+
+                writer.write_get_current_exception(hit.thread_id)
+                msg = writer.wait_for_message(accept_message=lambda msg:'exc_type="' in msg and 'exc_desc="' in msg, unquote_msg=False)
+
+                frame_names = [unquote(f['name']).replace('&lt;', '<').replace('&gt;', '>') for f in msg.thread.frame]
+                assert frame_names == expected_frame_names
+
+                writer.write_run_thread(hit.thread_id)
+
         writer.finished_ok = True
 
 

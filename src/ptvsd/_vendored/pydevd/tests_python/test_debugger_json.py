@@ -18,7 +18,8 @@ from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
 from _pydevd_bundle.pydevd_constants import (int_types, IS_64BIT_PROCESS,
     PY_VERSION_STR, PY_IMPL_VERSION_STR, PY_IMPL_NAME)
 from tests_python import debugger_unittest
-from tests_python.debug_constants import TEST_CHERRYPY, IS_PY2, TEST_DJANGO, TEST_FLASK
+from tests_python.debug_constants import TEST_CHERRYPY, IS_PY2, TEST_DJANGO, TEST_FLASK, IS_PY26, \
+    IS_PY27
 from tests_python.debugger_unittest import (IS_JYTHON, IS_APPVEYOR, overrides,
     get_free_port, wait_for_condition)
 
@@ -518,7 +519,7 @@ def test_case_handled_exception_breaks(case_setup):
 
 @pytest.mark.parametrize('target_file', [
     '_debugger_case_unhandled_exceptions.py',
-    '_debugger_case_unhandled_exceptions_custom.py'
+    '_debugger_case_unhandled_exceptions_custom.py',
     ])
 def test_case_unhandled_exception(case_setup, target_file):
 
@@ -557,6 +558,54 @@ def test_case_unhandled_exception(case_setup, target_file):
         json_facade.wait_for_thread_stopped(
             reason='exception', line=line_in_main, file=target_file)
         json_facade.write_continue(wait_for_response=False)
+
+        writer.finished_ok = True
+
+
+@pytest.mark.parametrize('target_file', [
+    '_debugger_case_unhandled_exceptions_generator.py',
+    '_debugger_case_unhandled_exceptions_listcomp.py',
+    ])
+def test_case_unhandled_exception_generator(case_setup, target_file):
+
+    def check_test_suceeded_msg(writer, stdout, stderr):
+        # Don't call super (we have an unhandled exception in the stack trace).
+        return 'TEST SUCEEDED' in ''.join(stdout) and 'TEST SUCEEDED' in ''.join(stderr)
+
+    def additional_output_checks(writer, stdout, stderr):
+        if 'ZeroDivisionError' not in stderr:
+            raise AssertionError('Expected test to have an unhandled exception.\nstdout:\n%s\n\nstderr:\n%s' % (
+                stdout, stderr))
+
+    with case_setup.test_file(
+            target_file,
+            check_test_suceeded_msg=check_test_suceeded_msg,
+            additional_output_checks=additional_output_checks,
+            EXPECTED_RETURNCODE=1,
+        ) as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch()
+        json_facade.write_set_exception_breakpoints(['uncaught'])
+        json_facade.write_make_initial_run()
+
+        line_in_main = writer.get_line_index_with_content('exc line')
+
+        json_hit = json_facade.wait_for_thread_stopped(
+            reason='exception', line=line_in_main, file=target_file)
+        frames = json_hit.stack_trace_response.body.stackFrames
+        json_facade.write_continue(wait_for_response=False)
+
+        if 'generator' in target_file:
+            expected_frame_names = ['<genexpr>', 'f', '<module>']
+        else:
+            if IS_PY27 or IS_PY26:
+                expected_frame_names = ['f', '<module>']
+            else:
+                expected_frame_names = ['<listcomp>', 'f', '<module>']
+
+        frame_names = [f['name'] for f in frames]
+        assert frame_names == expected_frame_names
 
         writer.finished_ok = True
 
@@ -1921,6 +1970,12 @@ def test_exception_details(case_setup, max_frames):
         exc_info_request = json_facade.write_request(
             pydevd_schema.ExceptionInfoRequest(pydevd_schema.ExceptionInfoArguments(json_hit.thread_id)))
         exc_info_response = json_facade.wait_for_response(exc_info_request)
+
+        stack_frames = json_hit.stack_trace_response.body.stackFrames
+        assert 100 <= len(stack_frames) <= 104
+        assert stack_frames[-1]['name'] == '<module>'
+        assert stack_frames[0]['name'] == 'method1'
+
         body = exc_info_response.body
         assert body.exceptionId.endswith('IndexError')
         assert body.description == 'foo'
@@ -2832,7 +2887,7 @@ def test_no_subprocess_patching(case_setup_multiprocessing, apply_multiprocessin
 
         json_facade.write_make_initial_run()
         json_facade.wait_for_thread_stopped()
-        json_facade.write_continue()
+        json_facade.write_continue(wait_for_response=False)
 
         if apply_multiprocessing_patch:
             secondary_process_thread_communication.join(10)

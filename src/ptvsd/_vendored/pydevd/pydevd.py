@@ -25,7 +25,7 @@ from _pydev_bundle.pydev_override import overrides
 from _pydev_imps._pydev_saved_modules import thread
 from _pydev_imps._pydev_saved_modules import threading
 from _pydev_imps._pydev_saved_modules import time
-from _pydevd_bundle import pydevd_extension_utils
+from _pydevd_bundle import pydevd_extension_utils, pydevd_frame_utils
 from _pydevd_bundle.pydevd_filtering import FilesFiltering
 from _pydevd_bundle import pydevd_io, pydevd_vm_type
 from _pydevd_bundle import pydevd_utils
@@ -1675,17 +1675,21 @@ class PyDB(object):
         message = thread.additional_info.pydev_message
         suspend_type = thread.additional_info.trace_suspend_type
         thread.additional_info.trace_suspend_type = 'trace'  # Reset to trace mode for next call.
-        frame_id_to_lineno = {}
         stop_reason = thread.stop_reason
-        if is_unhandled_exception:
+
+        frames_list = None
+
+        if arg is not None and event == 'exception':
             # arg must be the exception info (tuple(exc_type, exc, traceback))
-            tb = arg[2]
-            while tb is not None:
-                frame_id_to_lineno[id(tb.tb_frame)] = tb.tb_lineno
-                tb = tb.tb_next
+            exc_type, exc_desc, trace_obj = arg
+            if trace_obj is not None:
+                frames_list = pydevd_frame_utils.create_frames_list_from_traceback(trace_obj, frame, exc_type, exc_desc)
+
+        if frames_list is None:
+            frames_list = pydevd_frame_utils.create_frames_list_from_frame(frame)
 
         with self.suspended_frames_manager.track_frames(self) as frames_tracker:
-            frames_tracker.track(thread_id, frame, frame_id_to_lineno)
+            frames_tracker.track(thread_id, frames_list)
             cmd = frames_tracker.create_thread_suspend_command(thread_id, stop_reason, message, suspend_type)
             self.writer.add_command(cmd)
 
@@ -1694,7 +1698,7 @@ class PyDB(object):
 
                 for frame_custom_thread_id, custom_frame in dict_iter_items(CustomFramesContainer.custom_frames):
                     if custom_frame.thread_id == thread.ident:
-                        frames_tracker.track(thread_id, custom_frame.frame, frame_id_to_lineno, frame_custom_thread_id=frame_custom_thread_id)
+                        frames_tracker.track(thread_id, pydevd_frame_utils.create_frames_list_from_frame(custom_frame.frame), frame_custom_thread_id=frame_custom_thread_id)
                         # print('Frame created as thread: %s' % (frame_custom_thread_id,))
 
                         self.writer.add_command(self.cmd_factory.make_custom_frame_created_message(
@@ -1707,6 +1711,8 @@ class PyDB(object):
 
             with self._threads_suspended_single_notification.notify_thread_suspended(thread_id, stop_reason):
                 keep_suspended = self._do_wait_suspend(thread, frame, event, arg, suspend_type, from_this_thread, frames_tracker)
+
+        frames_list = None
 
         if keep_suspended:
             # This means that we should pause again after a set next statement.

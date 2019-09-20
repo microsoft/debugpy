@@ -1487,11 +1487,11 @@ static const char __pyx_k_initialize_if_possible[] = "initialize_if_possible";
 static const char __pyx_k_is_pydev_daemon_thread[] = "is_pydev_daemon_thread";
 static const char __pyx_k_clear_thread_local_info[] = "clear_thread_local_info";
 static const char __pyx_k_pyx_unpickle_ThreadInfo[] = "__pyx_unpickle_ThreadInfo";
-static const char __pyx_k_pydevd_bundle_pydevd_comm[] = "_pydevd_bundle.pydevd_comm";
 static const char __pyx_k_pyx_unpickle_FuncCodeInfo[] = "__pyx_unpickle_FuncCodeInfo";
 static const char __pyx_k_break_on_caught_exceptions[] = "break_on_caught_exceptions";
 static const char __pyx_k_has_plugin_exception_breaks[] = "has_plugin_exception_breaks";
 static const char __pyx_k_NORM_PATHS_AND_BASE_CONTAINER[] = "NORM_PATHS_AND_BASE_CONTAINER";
+static const char __pyx_k_pydevd_bundle_pydevd_constants[] = "_pydevd_bundle.pydevd_constants";
 static const char __pyx_k_pydevd_frame_eval_pydevd_frame[] = "_pydevd_frame_eval.pydevd_frame_tracing";
 static const char __pyx_k_create_pydev_trace_code_wrapper[] = "create_pydev_trace_code_wrapper";
 static const char __pyx_k_get_abs_path_real_path_and_base[] = "get_abs_path_real_path_and_base_from_file";
@@ -1565,7 +1565,7 @@ static PyObject *__pyx_n_s_pickle;
 static PyObject *__pyx_n_s_plugin;
 static PyObject *__pyx_n_s_pydev_imps__pydev_saved_modules;
 static PyObject *__pyx_n_s_pydevd_bundle_pydevd_additional;
-static PyObject *__pyx_n_s_pydevd_bundle_pydevd_comm;
+static PyObject *__pyx_n_s_pydevd_bundle_pydevd_constants;
 static PyObject *__pyx_n_s_pydevd_bundle_pydevd_trace_disp;
 static PyObject *__pyx_n_s_pydevd_file_utils;
 static PyObject *__pyx_n_s_pydevd_frame_eval_pydevd_frame;
@@ -8989,7 +8989,7 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_n_s_plugin, __pyx_k_plugin, sizeof(__pyx_k_plugin), 0, 0, 1, 1},
   {&__pyx_n_s_pydev_imps__pydev_saved_modules, __pyx_k_pydev_imps__pydev_saved_modules, sizeof(__pyx_k_pydev_imps__pydev_saved_modules), 0, 0, 1, 1},
   {&__pyx_n_s_pydevd_bundle_pydevd_additional, __pyx_k_pydevd_bundle_pydevd_additional, sizeof(__pyx_k_pydevd_bundle_pydevd_additional), 0, 0, 1, 1},
-  {&__pyx_n_s_pydevd_bundle_pydevd_comm, __pyx_k_pydevd_bundle_pydevd_comm, sizeof(__pyx_k_pydevd_bundle_pydevd_comm), 0, 0, 1, 1},
+  {&__pyx_n_s_pydevd_bundle_pydevd_constants, __pyx_k_pydevd_bundle_pydevd_constants, sizeof(__pyx_k_pydevd_bundle_pydevd_constants), 0, 0, 1, 1},
   {&__pyx_n_s_pydevd_bundle_pydevd_trace_disp, __pyx_k_pydevd_bundle_pydevd_trace_disp, sizeof(__pyx_k_pydevd_bundle_pydevd_trace_disp), 0, 0, 1, 1},
   {&__pyx_n_s_pydevd_file_utils, __pyx_k_pydevd_file_utils, sizeof(__pyx_k_pydevd_file_utils), 0, 0, 1, 1},
   {&__pyx_n_s_pydevd_frame_eval_pydevd_frame, __pyx_k_pydevd_frame_eval_pydevd_frame, sizeof(__pyx_k_pydevd_frame_eval_pydevd_frame), 0, 0, 1, 1},
@@ -9450,7 +9450,7 @@ if (!__Pyx_RefNanny) {
  * from __future__ import print_function
  * import dis             # <<<<<<<<<<<<<<
  * from _pydev_imps._pydev_saved_modules import threading, thread
- * from _pydevd_bundle.pydevd_comm import GlobalDebuggerHolder
+ * from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder
  */
   __pyx_t_1 = __Pyx_Import(__pyx_n_s_dis, 0, -1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 2, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
@@ -9461,7 +9461,7 @@ if (!__Pyx_RefNanny) {
  * from __future__ import print_function
  * import dis
  * from _pydev_imps._pydev_saved_modules import threading, thread             # <<<<<<<<<<<<<<
- * from _pydevd_bundle.pydevd_comm import GlobalDebuggerHolder
+ * from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder
  * from _pydevd_frame_eval.pydevd_frame_tracing import create_pydev_trace_code_wrapper, update_globals_dict, dummy_tracing_holder
  */
   __pyx_t_1 = PyList_New(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 3, __pyx_L1_error)
@@ -9488,7 +9488,7 @@ if (!__Pyx_RefNanny) {
   /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":4
  * import dis
  * from _pydev_imps._pydev_saved_modules import threading, thread
- * from _pydevd_bundle.pydevd_comm import GlobalDebuggerHolder             # <<<<<<<<<<<<<<
+ * from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder             # <<<<<<<<<<<<<<
  * from _pydevd_frame_eval.pydevd_frame_tracing import create_pydev_trace_code_wrapper, update_globals_dict, dummy_tracing_holder
  * from _pydevd_frame_eval.pydevd_modify_bytecode import insert_code
  */
@@ -9497,7 +9497,7 @@ if (!__Pyx_RefNanny) {
   __Pyx_INCREF(__pyx_n_s_GlobalDebuggerHolder);
   __Pyx_GIVEREF(__pyx_n_s_GlobalDebuggerHolder);
   PyList_SET_ITEM(__pyx_t_2, 0, __pyx_n_s_GlobalDebuggerHolder);
-  __pyx_t_1 = __Pyx_Import(__pyx_n_s_pydevd_bundle_pydevd_comm, __pyx_t_2, -1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 4, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_Import(__pyx_n_s_pydevd_bundle_pydevd_constants, __pyx_t_2, -1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 4, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __pyx_t_2 = __Pyx_ImportFrom(__pyx_t_1, __pyx_n_s_GlobalDebuggerHolder); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 4, __pyx_L1_error)
@@ -9508,7 +9508,7 @@ if (!__Pyx_RefNanny) {
 
   /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":5
  * from _pydev_imps._pydev_saved_modules import threading, thread
- * from _pydevd_bundle.pydevd_comm import GlobalDebuggerHolder
+ * from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder
  * from _pydevd_frame_eval.pydevd_frame_tracing import create_pydev_trace_code_wrapper, update_globals_dict, dummy_tracing_holder             # <<<<<<<<<<<<<<
  * from _pydevd_frame_eval.pydevd_modify_bytecode import insert_code
  * from pydevd_file_utils import get_abs_path_real_path_and_base_from_file, NORM_PATHS_AND_BASE_CONTAINER
@@ -9542,7 +9542,7 @@ if (!__Pyx_RefNanny) {
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
   /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":6
- * from _pydevd_bundle.pydevd_comm import GlobalDebuggerHolder
+ * from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder
  * from _pydevd_frame_eval.pydevd_frame_tracing import create_pydev_trace_code_wrapper, update_globals_dict, dummy_tracing_holder
  * from _pydevd_frame_eval.pydevd_modify_bytecode import insert_code             # <<<<<<<<<<<<<<
  * from pydevd_file_utils import get_abs_path_real_path_and_base_from_file, NORM_PATHS_AND_BASE_CONTAINER

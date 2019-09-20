@@ -333,10 +333,10 @@ class ReaderThread(PyDBDaemonThread):
 
     def handle_except(self):
         if self._terminate_on_socket_close:
-            self.global_debugger_holder.global_dbg.finish_debugging_session()
+            self.py_db.finish_debugging_session()
 
     def process_command(self, cmd_id, seq, text):
-        self.process_net_command(self.global_debugger_holder.global_dbg, cmd_id, seq, text)
+        self.process_net_command(self.py_db, cmd_id, seq, text)
 
 
 class WriterThread(PyDBDaemonThread):
@@ -1156,31 +1156,14 @@ def build_exception_info_response(dbg, thread_id, request_seq, set_additional_th
     exc_type = None
     exc_desc = None
     if topmost_frame is not None:
-        frame_id_to_lineno = {}
         try:
-            trace_obj = None
-            frame = topmost_frame
-            while frame is not None:
-                if frame.f_code.co_name == 'do_wait_suspend' and frame.f_code.co_filename.endswith('pydevd.py'):
-                    arg = frame.f_locals.get('arg', None)
-                    if arg is not None:
-                        exc_type, exc_desc, trace_obj = arg
-                        break
-                frame = frame.f_back
-
-            while True:
-                tb_next = getattr(trace_obj, 'tb_next', None)
-                if tb_next is None:
-                    break
-                trace_obj = tb_next
-
-            info = dbg.suspended_frames_manager.get_topmost_frame_and_frame_id_to_line(thread_id)
-            if info is not None:
-                topmost_frame, frame_id_to_lineno = info
-
-            if trace_obj is not None:
+            frames_list = dbg.suspended_frames_manager.get_frames_list(thread_id)
+            if frames_list is not None:
+                exc_type = frames_list.exc_type
+                exc_desc = frames_list.exc_desc
+                trace_obj = frames_list.trace_obj
                 for frame_id, frame, method_name, original_filename, filename_in_utf8, lineno in iter_visible_frames_info(
-                        dbg, trace_obj.tb_frame, frame_id_to_lineno):
+                        dbg, frames_list):
 
                     line_text = linecache.getline(original_filename, lineno)
 

@@ -1,6 +1,7 @@
 import sys
 from _pydevd_bundle.pydevd_constants import int_types
 from _pydevd_bundle.pydevd_resolver import MAX_ITEMS_TO_HANDLE, TOO_LARGE_ATTR
+from _pydevd_bundle import pydevd_frame_utils
 
 
 def get_frame():
@@ -22,7 +23,7 @@ def test_suspended_frames_manager():
         # : :type tracker: _FramesTracker
         thread_id = 'thread1'
         frame = get_frame()
-        tracker.track(thread_id, frame, frame_id_to_lineno={})
+        tracker.track(thread_id, pydevd_frame_utils.create_frames_list_from_frame(frame))
 
         assert suspended_frames_manager.get_thread_id_for_variable_reference(id(frame)) == thread_id
 
@@ -107,7 +108,7 @@ def test_get_child_variables():
         with suspended_frames_manager.track_frames(py_db) as tracker:
             # : :type tracker: _FramesTracker
             thread_id = 'thread1'
-            tracker.track(thread_id, frame, frame_id_to_lineno={})
+            tracker.track(thread_id, pydevd_frame_utils.create_frames_list_from_frame(frame))
 
             assert suspended_frames_manager.get_thread_id_for_variable_reference(id(frame)) == thread_id
 

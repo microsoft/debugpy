@@ -11,6 +11,7 @@ from _pydevd_bundle.pydevd_safe_repr import SafeRepr
 from _pydev_bundle import pydev_log
 from _pydevd_bundle import pydevd_vars
 from _pydev_bundle.pydev_imports import Exec
+from _pydevd_bundle.pydevd_frame_utils import FramesList
 
 
 class _AbstractVariable(object):
@@ -241,9 +242,7 @@ class _FramesTracker(object):
         # frame ids are kept in order (the first one is the suspended frame).
         self._thread_id_to_frame_ids = {}
 
-        # A map of the lines where it's suspended (needed for exceptions where the frame
-        # lineno is not correct).
-        self._frame_id_to_lineno = {}
+        self._thread_id_to_frames_list = {}
 
         # The main suspended thread (if this is a coroutine this isn't the id of the
         # coroutine thread, it's the id of the actual suspended thread).
@@ -280,22 +279,18 @@ class _FramesTracker(object):
     def get_variable(self, variable_reference):
         return self._variable_reference_to_variable[variable_reference]
 
-    def track(self, thread_id, frame, frame_id_to_lineno, frame_custom_thread_id=None):
+    def track(self, thread_id, frames_list, frame_custom_thread_id=None):
         '''
         :param thread_id:
             The thread id to be used for this frame.
 
-        :param frame:
-            The topmost frame which is suspended at the given thread.
-
-        :param frame_id_to_lineno:
-            If available, the line number for the frame will be gotten from this dict,
-            otherwise frame.f_lineno will be used (needed for unhandled exceptions as
-            the place where we report may be different from the place where it's raised).
+        :param FramesList frames_list:
+            A list of frames to be tracked (the first is the topmost frame which is suspended at the given thread).
 
         :param frame_custom_thread_id:
             If None this this is the id of the thread id for the custom frame (i.e.: coroutine).
         '''
+        assert frames_list.__class__ == FramesList
         with self._lock:
             coroutine_or_main_thread_id = frame_custom_thread_id or thread_id
 
@@ -304,12 +299,12 @@ class _FramesTracker(object):
 
             self._suspended_frames_manager._thread_id_to_tracker[coroutine_or_main_thread_id] = self
             self._main_thread_id = thread_id
-            self._frame_id_to_lineno = frame_id_to_lineno
 
             frame_ids_from_thread = self._thread_id_to_frame_ids.setdefault(
                 coroutine_or_main_thread_id, [])
 
-            while frame is not None:
+            self._thread_id_to_frames_list[coroutine_or_main_thread_id] = frames_list
+            for frame in frames_list:
                 frame_id = id(frame)
                 self._frame_id_to_frame[frame_id] = frame
                 _FrameVariable(frame, self._register_variable)  # Instancing is enough to register.
@@ -318,7 +313,7 @@ class _FramesTracker(object):
 
                 self._frame_id_to_main_thread_id[frame_id] = thread_id
 
-                frame = frame.f_back
+            frame = None
 
     def untrack_all(self):
         with self._lock:
@@ -335,17 +330,14 @@ class _FramesTracker(object):
             self._frame_id_to_frame.clear()
             self._frame_id_to_main_thread_id.clear()
             self._thread_id_to_frame_ids.clear()
-            self._frame_id_to_lineno.clear()
+            self._thread_id_to_frames_list.clear()
             self._main_thread_id = None
             self._suspended_frames_manager = None
             self._variable_reference_to_variable.clear()
 
-    def get_topmost_frame_and_frame_id_to_line(self, thread_id):
+    def get_frames_list(self, thread_id):
         with self._lock:
-            frame_ids = self._thread_id_to_frame_ids.get(thread_id)
-            if frame_ids is not None:
-                frame_id = frame_ids[0]
-                return self._frame_id_to_frame[frame_id], self._frame_id_to_lineno
+            return self._thread_id_to_frames_list.get(thread_id)
 
     def find_frame(self, thread_id, frame_id):
         with self._lock:
@@ -353,15 +345,13 @@ class _FramesTracker(object):
 
     def create_thread_suspend_command(self, thread_id, stop_reason, message, suspend_type):
         with self._lock:
-            frame_ids = self._thread_id_to_frame_ids[thread_id]
-
             # First one is topmost frame suspended.
-            frame = self._frame_id_to_frame[frame_ids[0]]
+            frames_list = self._thread_id_to_frames_list[thread_id]
 
             cmd = self.py_db.cmd_factory.make_thread_suspend_message(
-                self.py_db, thread_id, frame, stop_reason, message, suspend_type, frame_id_to_lineno=self._frame_id_to_lineno)
+                self.py_db, thread_id, frames_list, stop_reason, message, suspend_type)
 
-            frame = None
+            frames_list = None
             return cmd
 
 
@@ -420,11 +410,11 @@ class SuspendedFramesManager(object):
             raise KeyError()
         return frames_tracker.get_variable(variable_reference)
 
-    def get_topmost_frame_and_frame_id_to_line(self, thread_id):
+    def get_frames_list(self, thread_id):
         tracker = self._thread_id_to_tracker.get(thread_id)
         if tracker is None:
             return None
-        return tracker.get_topmost_frame_and_frame_id_to_line(thread_id)
+        return tracker.get_frames_list(thread_id)
 
     @contextmanager
     def track_frames(self, py_db):

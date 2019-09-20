@@ -22,6 +22,8 @@ from _pydevd_bundle.pydevd_utils import get_non_pydevd_threads
 import pydevd_file_utils
 from _pydevd_bundle.pydevd_comm import build_exception_info_response, pydevd_find_thread_by_id
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
+from _pydevd_bundle import pydevd_frame_utils
+import sys
 
 
 class ModulesManager(object):
@@ -188,22 +190,19 @@ class NetCommandFactoryJson(NetCommandFactory):
         frames = []
         module_events = []
         if topmost_frame is not None:
-            frame_id_to_lineno = {}
             try:
                 # : :type suspended_frames_manager: SuspendedFramesManager
                 suspended_frames_manager = py_db.suspended_frames_manager
-                info = suspended_frames_manager.get_topmost_frame_and_frame_id_to_line(thread_id)
-                if info is None:
+                frames_list = suspended_frames_manager.get_frames_list(thread_id)
+                if frames_list is None:
                     # Could not find stack of suspended frame...
                     if must_be_suspended:
                         return None
-                else:
-                    # Note: we have to use the topmost frame where it was suspended (it may
-                    # be different if it was an exception).
-                    topmost_frame, frame_id_to_lineno = info
+                    else:
+                        frames_list = pydevd_frame_utils.create_frames_list_from_frame(topmost_frame)
 
                 for frame_id, frame, method_name, original_filename, filename_in_utf8, lineno in self._iter_visible_frames_info(
-                        py_db, topmost_frame, frame_id_to_lineno
+                        py_db, frames_list
                     ):
 
                     module_name = frame.f_globals.get('__name__', '')
