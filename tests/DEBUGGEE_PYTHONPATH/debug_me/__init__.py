@@ -20,7 +20,9 @@ both as global variables, specifically so that it is possible to write::
 
 __all__ = ["ptvsd", "pydevd", "session_id"]
 
+import imp
 import os
+import sys
 
 # For `from debug_me import ...`.
 import ptvsd
@@ -47,8 +49,16 @@ if _code:
     del os.environ["PTVSD_DEBUG_ME"]
 
     _code = compile(_code, "<PTVSD_DEBUG_ME>", "exec")
-    eval(_code, {})
 
+    # On Python 2, imports use a global import lock, which deadlocks enable_attach()
+    # when it tries to import from a background thread. This works around that.
+    if sys.version_info < (3,):
+        imp.release_lock()
+    try:
+        eval(_code, {})
+    finally:
+        if sys.version_info < (3,):
+            imp.acquire_lock()
 
 # For non-blocking communication between the test and the debuggee. The debuggee
 # can access this as a normal dict - scratchpad["foo"] etc. The test should assign
