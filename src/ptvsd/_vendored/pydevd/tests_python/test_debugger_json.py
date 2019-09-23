@@ -2426,6 +2426,7 @@ def test_wait_for_attach(case_setup_remote_attach_to):
         assert next(iter(process_events)).body.startMethod == start_method
 
     with case_setup_remote_attach_to.test_file('_debugger_case_wait_for_attach.py', host_port[1]) as writer:
+        writer.TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_wait_for_attach_impl.py')
         time.sleep(.5)  # Give some time for it to pass the first breakpoint and wait in 'wait_for_attach'.
         writer.start_socket_client(*host_port)
 

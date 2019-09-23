@@ -115,6 +115,9 @@ except:
 # CMD_XXX constants imported for backward compatibility
 from _pydevd_bundle.pydevd_comm_constants import *  # @UnusedWildImport
 
+if IS_WINDOWS:
+    from socket import SO_EXCLUSIVEADDRUSE
+
 if IS_JYTHON:
     import org.python.core as JyCore  # @UnresolvedImport
 
@@ -187,10 +190,8 @@ def run_as_pydevd_daemon_thread(func, *args, **kwargs):
 class ReaderThread(PyDBDaemonThread):
     ''' reader thread reads and dispatches commands in an infinite loop '''
 
-    def __init__(self, sock, py_db, terminate_on_socket_close=True):
+    def __init__(self, sock, py_db, PyDevJsonCommandProcessor, process_net_command, terminate_on_socket_close=True):
         assert sock is not None
-        from _pydevd_bundle.pydevd_process_net_command_json import PyDevJsonCommandProcessor
-        from _pydevd_bundle.pydevd_process_net_command import process_net_command
         PyDBDaemonThread.__init__(self)
         self._terminate_on_socket_close = terminate_on_socket_close
 
@@ -429,7 +430,6 @@ def create_server_socket(host, port):
     try:
         server = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
         if IS_WINDOWS:
-            from socket import SO_EXCLUSIVEADDRUSE
             server.setsockopt(SOL_SOCKET, SO_EXCLUSIVEADDRUSE, 1)
         else:
             server.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)

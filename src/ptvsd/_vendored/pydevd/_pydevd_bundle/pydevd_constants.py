@@ -18,6 +18,11 @@ except NameError:
 
 import sys  # Note: the sys import must be here anyways (others depend on it)
 
+# Preload codecs to avoid imports to them later on which can potentially halt the debugger.
+import codecs as _codecs
+for _codec in ["ascii", "utf8", "utf-8", "latin1", "latin-1", "idna"]:
+    _codecs.lookup(_codec)
+
 
 class DebugInfoHolder:
     # we have to put it here because it can be set through the command line (so, the

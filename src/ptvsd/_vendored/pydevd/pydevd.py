@@ -67,6 +67,9 @@ from _pydevd_bundle.pydevd_comm import(InternalConsoleExec,
     start_client, start_server, InternalGetBreakpointException, InternalSendCurrExceptionTrace,
     InternalSendCurrExceptionTraceProceeded, run_as_pydevd_daemon_thread)
 
+from _pydevd_bundle.pydevd_process_net_command_json import PyDevJsonCommandProcessor
+from _pydevd_bundle.pydevd_process_net_command import process_net_command
+
 from _pydevd_bundle.pydevd_breakpoints import stop_on_unhandled_exception
 from _pydevd_bundle.pydevd_collect_try_except_info import collect_try_except_info
 from _pydevd_bundle.pydevd_suspended_frames import SuspendedFramesManager
@@ -1127,7 +1130,13 @@ class PyDB(object):
             curr_writer.do_kill_pydev_thread()
 
         self.writer = WriterThread(sock, self, terminate_on_socket_close=terminate_on_socket_close)
-        self.reader = ReaderThread(sock, self, terminate_on_socket_close=terminate_on_socket_close)
+        self.reader = ReaderThread(
+            sock,
+            self,
+            PyDevJsonCommandProcessor=PyDevJsonCommandProcessor,
+            process_net_command=process_net_command,
+            terminate_on_socket_close=terminate_on_socket_close
+        )
         self.writer.start()
         self.reader.start()
 
@@ -2568,7 +2577,13 @@ class DispatchReader(ReaderThread):
 
     def __init__(self, dispatcher):
         self.dispatcher = dispatcher
-        ReaderThread.__init__(self, self.dispatcher.client)
+
+        ReaderThread.__init__(
+            self,
+            self.dispatcher.client,
+            PyDevJsonCommandProcessor=PyDevJsonCommandProcessor,
+            process_net_command=process_net_command,
+        )
 
     @overrides(ReaderThread._on_run)
     def _on_run(self):
