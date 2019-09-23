@@ -806,7 +806,7 @@ class PyDevdAPI(object):
         self.reapply_breakpoints(py_db)
         return ''
 
-    def _terminate_child_processes_windows(self):
+    def _terminate_child_processes_windows(self, dont_terminate_child_pids):
         this_pid = os.getpid()
         for _ in range(50):  # Try this at most 50 times before giving up.
 
@@ -830,7 +830,7 @@ class PyDevdAPI(object):
                     except ValueError:
                         pass
                     else:
-                        if pid != list_popen.pid:
+                        if pid != list_popen.pid and pid not in dont_terminate_child_pids:
                             children_pids.append(pid)
 
             if not children_pids:
@@ -845,7 +845,7 @@ class PyDevdAPI(object):
 
                 del children_pids[:]
 
-    def _terminate_child_processes_linux_and_mac(self):
+    def _terminate_child_processes_linux_and_mac(self, dont_terminate_child_pids):
         this_pid = os.getpid()
 
         def list_children_and_stop_forking(initial_pid, stop=True):
@@ -870,6 +870,8 @@ class PyDevdAPI(object):
                     line = line.decode('ascii').strip()
                     if line:
                         pid = str(line)
+                        if pid in dont_terminate_child_pids:
+                            continue
                         children_pids.append(pid)
                         # Recursively get children.
                         children_pids.extend(list_children_and_stop_forking(pid))
@@ -921,9 +923,9 @@ class PyDevdAPI(object):
         try:
             if py_db.terminate_child_processes:
                 if IS_WINDOWS:
-                    self._terminate_child_processes_windows()
+                    self._terminate_child_processes_windows(py_db.dont_terminate_child_pids)
                 else:
-                    self._terminate_child_processes_linux_and_mac()
+                    self._terminate_child_processes_linux_and_mac(py_db.dont_terminate_child_pids)
         finally:
             os._exit(0)
 

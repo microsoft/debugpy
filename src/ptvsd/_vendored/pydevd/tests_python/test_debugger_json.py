@@ -2936,7 +2936,8 @@ def test_pydevd_systeminfo(case_setup):
 @pytest.mark.parametrize('check_subprocesses', [
     'no_subprocesses',
     'kill_subprocesses',
-    'dont_kill_subprocesses'
+    'kill_subprocesses_ignore_pid',
+    'dont_kill_subprocesses',
 ])
 def test_terminate(case_setup, scenario, check_subprocesses):
     import psutil
@@ -2948,12 +2949,15 @@ def test_terminate(case_setup, scenario, check_subprocesses):
         ret = debugger_unittest.AbstractWriterThread.update_command_line_args(writer, args)
         if check_subprocesses in ('kill_subprocesses', 'dont_kill_subprocesses'):
             ret.append('check-subprocesses')
+        if check_subprocesses in ('kill_subprocesses_ignore_pid',):
+            ret.append('check-subprocesses-ignore-pid')
         return ret
 
     with case_setup.test_file(
         '_debugger_case_terminate.py',
         check_test_suceeded_msg=check_test_suceeded_msg,
         update_command_line_args=update_command_line_args,
+        EXPECTED_RETURNCODE='any' if check_subprocesses == 'kill_subprocesses_ignore_pid' else 0,
         ) as writer:
         json_facade = JsonFacade(writer)
         if check_subprocesses == 'dont_kill_subprocesses':
@@ -2963,7 +2967,7 @@ def test_terminate(case_setup, scenario, check_subprocesses):
         response = json_facade.write_initialize(None)
         pid = response.to_dict()['body']['pydevd']['processId']
 
-        if check_subprocesses in ('kill_subprocesses', 'dont_kill_subprocesses'):
+        if check_subprocesses in ('kill_subprocesses', 'dont_kill_subprocesses', 'kill_subprocesses_ignore_pid'):
             process_ids_to_check = [pid]
             p = psutil.Process(pid)
 
@@ -2984,7 +2988,7 @@ def test_terminate(case_setup, scenario, check_subprocesses):
         else:
             raise AssertionError('Unexpected: %s' % (scenario,))
 
-        if check_subprocesses in ('kill_subprocesses', 'dont_kill_subprocesses'):
+        if check_subprocesses in ('kill_subprocesses', 'dont_kill_subprocesses', 'kill_subprocesses_ignore_pid'):
 
             def is_pid_alive(pid):
                 # Note: the process may be a zombie process in Linux
@@ -3011,6 +3015,22 @@ def test_terminate(case_setup, scenario, check_subprocesses):
                     return True
 
                 wait_for_condition(all_pids_exited)
+
+            elif check_subprocesses == 'kill_subprocesses_ignore_pid':
+
+                def all_pids_exited():
+                    live_pids = get_live_pids()
+                    if len(live_pids) == 1:
+                        return False
+
+                    return True
+
+                wait_for_condition(all_pids_exited)
+
+                # Now, let's kill the remaining process ourselves.
+                for pid in get_live_pids():
+                    proc = psutil.Process(pid)
+                    proc.kill()
 
             else:  # 'dont_kill_subprocesses'
                 time.sleep(1)

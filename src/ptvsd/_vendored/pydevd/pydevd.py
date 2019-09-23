@@ -450,6 +450,9 @@ class PyDB(object):
         # Determines whether we should terminate child processes when asked to terminate.
         self.terminate_child_processes = True
 
+        # List of direct child pids which should not be terminated when terminating processes.
+        self.dont_terminate_child_pids = set()
+
         # These are the breakpoints received by the PyDevdAPI. They are meant to store
         # the breakpoints in the api -- its actual contents are managed by the api.
         self.api_received_breakpoints = {}
@@ -2648,14 +2651,38 @@ def settrace_forked(setup_tracing=True):
 
 @contextmanager
 def skip_subprocess_arg_patch():
+    '''
+    May be used to skip the monkey-patching that pydevd does to
+    skip changing arguments to embed the debugger into child processes.
+
+    i.e.:
+
+    with pydevd.skip_subprocess_arg_patch():
+        subprocess.call(...)
+    '''
     from _pydev_bundle import pydev_monkey
     with pydev_monkey.skip_subprocess_arg_patch():
         yield
 
 
-#=======================================================================================================================
-# SetupHolder
-#=======================================================================================================================
+def add_dont_terminate_child_pid(pid):
+    '''
+    May be used to ask pydevd to skip the termination of some process
+    when it's asked to terminate (debug adapter protocol only).
+
+    :param int pid:
+        The pid to be ignored.
+
+    i.e.:
+
+    process = subprocess.Popen(...)
+    pydevd.add_dont_terminate_child_pid(process.pid)
+    '''
+    py_db = GetGlobalDebugger()
+    if py_db is not None:
+        py_db.dont_terminate_child_pids.add(pid)
+
+
 class SetupHolder:
 
     setup = None
