@@ -8,10 +8,9 @@ import pytest
 
 from tests import debug
 from tests.patterns import some
-from tests.timeline import Event
 
 
-def test_set_next_statement(pyfile, start_method, run_as):
+def test_set_next_statement(pyfile, run, target):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -25,56 +24,41 @@ def test_set_next_statement(pyfile, start_method, run_as):
 
     line_numbers = code_to_debug.lines
 
-    with debug.Session(start_method) as session:
-        session.configure(run_as, code_to_debug)
-        session.set_breakpoints(code_to_debug, [line_numbers["inner1"]])
-        session.start_debugging()
+    with debug.Session() as session:
+        with run(session, target(code_to_debug)):
+            session.set_breakpoints(code_to_debug, ["inner1"])
 
-        hit = session.wait_for_stop()
-        line = hit.frames[0]["line"]
-        assert line == line_numbers["inner1"]
-
-        targets = (
-            session.send_request(
-                "gotoTargets",
-                {"source": {"path": code_to_debug}, "line": line_numbers["outer3"]},
-            )
-            .wait_for_response()
-            .body["targets"]
+        stop = session.wait_for_stop(
+            expected_frames=[some.dap.frame(code_to_debug, "inner1")]
         )
 
+        targets = session.request(
+            "gotoTargets",
+            {"source": {"path": code_to_debug}, "line": line_numbers["outer3"]},
+        )["targets"]
         assert targets == [
             {"id": some.number, "label": some.str, "line": line_numbers["outer3"]}
         ]
         outer3_target = targets[0]["id"]
 
         with pytest.raises(Exception):
-            session.send_request(
-                "goto", {"threadId": hit.thread_id, "targetId": outer3_target}
-            ).wait_for_response()
-
-        targets = (
-            session.send_request(
-                "gotoTargets",
-                {"source": {"path": code_to_debug}, "line": line_numbers["inner2"]},
+            session.request(
+                "goto", {"threadId": stop.thread_id, "targetId": outer3_target}
             )
-            .wait_for_response()
-            .body["targets"]
-        )
 
+        targets = session.request(
+            "gotoTargets",
+            {"source": {"path": code_to_debug}, "line": line_numbers["inner2"]},
+        )["targets"]
         assert targets == [
             {"id": some.number, "label": some.str, "line": line_numbers["inner2"]}
         ]
         inner2_target = targets[0]["id"]
 
-        session.send_request(
-            "goto", {"threadId": hit.thread_id, "targetId": inner2_target}
-        ).wait_for_response()
+        session.request("goto", {"threadId": stop.thread_id, "targetId": inner2_target})
+        session.wait_for_next_event("continued")
 
-        session.wait_for_next(Event("continued"))
-
-        hit = session.wait_for_stop(reason="goto")
-        line = hit.frames[0]["line"]
-        assert line == line_numbers["inner2"]
-
-        session.send_request("continue").wait_for_response()
+        stop = session.wait_for_stop(
+            "goto", expected_frames=[some.dap.frame(code_to_debug, "inner2")]
+        )
+        session.request_continue()
