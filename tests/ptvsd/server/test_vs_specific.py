@@ -13,7 +13,7 @@ from tests.timeline import Event
 
 @pytest.mark.parametrize("module", ["module", ""])
 @pytest.mark.parametrize("line", ["line", ""])
-def test_stack_format(pyfile, start_method, run_as, module, line):
+def test_stack_format(pyfile, target, run, module, line):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -26,10 +26,9 @@ def test_stack_format(pyfile, start_method, run_as, module, line):
         def do_something():
             print("break here")  # @bp
 
-    with debug.Session(start_method) as session:
-        session.configure(run_as, code_to_debug)
-        session.set_breakpoints(test_module, all)
-        session.start_debugging()
+    with debug.Session() as session:
+        with run(session, target(code_to_debug)):
+            session.set_breakpoints(test_module, all)
 
         stop = session.wait_for_stop(
             "breakpoint", expected_frames=[some.dap.frame(test_module, line="bp")]
@@ -50,7 +49,7 @@ def test_stack_format(pyfile, start_method, run_as, module, line):
         session.request_continue()
 
 
-def test_module_events(pyfile, start_method, run_as):
+def test_module_events(pyfile, target, run):
     @pyfile
     def module2():
         def do_more_things():
@@ -70,10 +69,9 @@ def test_module_events(pyfile, start_method, run_as):
 
         do_something()
 
-    with debug.Session(start_method) as session:
-        session.configure(run_as, test_code)
-        session.set_breakpoints(module2, all)
-        session.start_debugging()
+    with debug.Session() as session:
+        with run(session, target(test_code)):
+            session.set_breakpoints(module2, all)
 
         session.wait_for_stop(
             "breakpoint", expected_frames=[some.dap.frame(module2, line="bp")]
