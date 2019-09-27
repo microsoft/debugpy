@@ -4,71 +4,66 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+import pytest
 import sys
+
 import ptvsd
 from tests import debug
 from tests.patterns import some
 
 
-def _generate_system_info():
+@pytest.fixture
+def expected_system_info():
     def version_str(v):
-        return '%d.%d.%d%s%d' % (
-            v.major,
-            v.minor,
-            v.micro,
-            v.releaselevel,
-            v.serial)
+        return "%d.%d.%d%s%d" % (v.major, v.minor, v.micro, v.releaselevel, v.serial)
 
     try:
         impl_name = sys.implementation.name
     except AttributeError:
-        impl_name = ''
+        impl_name = ""
 
     try:
         impl_version = version_str(sys.implementation.version)
     except AttributeError:
-        impl_version = ''
+        impl_version = ""
 
-    return some.dict.containing({
-        'ptvsd': {
-            'version': ptvsd.__version__,
-        },
-        'python': {
-            'version': version_str(sys.version_info),
-            'implementation': {
-                'name': impl_name,
-                'version': impl_version,
-                'description': some.str,
+    return some.dict.containing(
+        {
+            "ptvsd": {"version": ptvsd.__version__},
+            "python": {
+                "version": version_str(sys.version_info),
+                "implementation": {
+                    "name": impl_name,
+                    "version": impl_version,
+                    "description": some.str,
+                },
             },
-        },
-        'platform': {
-            'name': sys.platform,
-        },
-        'process': {
-            'pid': some.int,
-            'executable': sys.executable,
-            'bitness': 64 if sys.maxsize > 2 ** 32 else 32,
-        },
-    })
+            "platform": {"name": sys.platform},
+            "process": {
+                "pid": some.int,
+                "ppid": some.int,
+                "executable": sys.executable,
+                "bitness": 64 if sys.maxsize > 2 ** 32 else 32,
+            },
+        }
+    )
 
 
-def test_ptvsd_systeminfo(pyfile, run_as, start_method):
+def test_ptvsd_systemInfo(pyfile, target, run, expected_system_info):
     @pyfile
     def code_to_debug():
-        import debug_me # noqa
-        a = 'hello' # @bp1
-        print(a)
+        from debug_me import ptvsd
 
-    with debug.Session(start_method) as session:
-        session.configure(run_as, code_to_debug)
+        ptvsd.break_into_debugger()
+        print()
 
-        session.set_breakpoints(code_to_debug, [code_to_debug.lines['bp1']])
-        session.start_debugging()
+    with debug.Session() as session:
+        with run(session, target(code_to_debug)):
+            pass
 
         session.wait_for_stop()
 
-        resp = session.send_request('ptvsd_systemInfo').wait_for_response()
-        expected = _generate_system_info()
-        assert resp.body == expected
+        system_info = session.request("ptvsd_systemInfo")
+        assert system_info == expected_system_info
 
         session.request_continue()
