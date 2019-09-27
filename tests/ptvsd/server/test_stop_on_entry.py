@@ -12,36 +12,37 @@ from tests.patterns import some
 
 
 @pytest.mark.parametrize("breakpoint", ["breakpoint", ""])
-def test_stop_on_entry(pyfile, run_as, breakpoint):
+@pytest.mark.parametrize("run", runners.all_launch)
+def test_stop_on_entry(pyfile, run, target, breakpoint):
     @pyfile
     def code_to_debug():
         from debug_me import backchannel  # @bp
 
         backchannel.send("done")
 
-    with debug.Session(runners.launch, backchannel=True) as session:
-        backchannel = session.backchannel
-        session.configure(
-            run_as, code_to_debug,
-            stopOnEntry=True,
-        )
-        if breakpoint:
-            session.set_breakpoints(code_to_debug, all)
-        session.start_debugging()
+    with debug.Session() as session:
+        session.config["stopOnEntry"] = True
+
+        backchannel = session.open_backchannel()
+        with run(session, target(code_to_debug)):
+            if breakpoint:
+                session.set_breakpoints(code_to_debug, all)
 
         if breakpoint:
-            hit = session.wait_for_stop(reason="breakpoint")
-            assert hit.frames[0]["line"] == 1
-            assert hit.frames[0]["source"]["path"] == some.path(code_to_debug)
-
-            session.send_request("next", {"threadId": hit.thread_id}).wait_for_response()
-            hit = session.wait_for_stop(reason="step")
-            assert hit.frames[0]["line"] == 3
-            assert hit.frames[0]["source"]["path"] == some.path(code_to_debug)
+            stop = session.wait_for_stop(
+                "breakpoint",
+                expected_frames=[some.dap.frame(code_to_debug, 1)]
+            )
+            session.request("next", {"threadId": stop.thread_id})
+            stop = session.wait_for_stop(
+                "step",
+                expected_frames=[some.dap.frame(code_to_debug, 3)]
+            )
         else:
-            hit = session.wait_for_stop(reason="entry")
-            assert hit.frames[0]["line"] == 1
-            assert hit.frames[0]["source"]["path"] == some.path(code_to_debug)
+            session.wait_for_stop(
+                "entry",
+                expected_frames=[some.dap.frame(code_to_debug, 1)]
+            )
 
         session.request_continue()
         assert backchannel.receive() == "done"
