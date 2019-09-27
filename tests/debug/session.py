@@ -5,7 +5,6 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import collections
-import contextlib
 import itertools
 import os
 import psutil
@@ -510,17 +509,6 @@ class Session(object):
         self.config.normalize()
         start_request = self.send_request(method, self.config)
 
-        def wait_for_process_event():
-            process = self.wait_for_next_event("process", freeze=False)
-            assert process == some.dict.containing(
-                {
-                    "startMethod": self.start_request.command,
-                    "name": some.str,
-                    "isLocalProcess": True,
-                    "systemProcessId": some.int,
-                }
-            )
-
         # Depending on whether it's "noDebug" or not, we either get the "initialized"
         # event, or an immediate response to our request.
         self.timeline.wait_until_realized(
@@ -531,21 +519,35 @@ class Session(object):
         if start_request.response is not None:
             # It was an immediate response - configuration is not possible. Just get
             # the "process" event, and return to caller.
-            return wait_for_process_event()
+            return self.wait_for_process()
 
         # We got "initialized" - now we need to yield to the caller, so that it can
-        # configure the session before it starts running, and then give control back
-        # to us to finalize the configuration sequence. A nested context manager is
-        # used to ensure that all code up to this point executes eagerly.
+        # configure the session before it starts running.
+        return self._ConfigurationContextManager(self)
 
-        @contextlib.contextmanager
-        def configure():
-            yield
-            self.request("configurationDone")
-            start_request.wait_for_response()
-            wait_for_process_event()
+    class _ConfigurationContextManager(object):
+        """Handles the start configuration sequence from "initialized" event until
+        start_request receives a response.
+        """
 
-        return configure()
+        def __init__(self, session):
+            self.session = session
+            self._entered = False
+
+        def __enter__(self):
+            self._entered = True
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            self.session.request("configurationDone")
+            self.session.start_request.wait_for_response()
+            self.session.wait_for_process()
+
+        def __del__(self):
+            assert self._entered, (
+                "The return value of request_launch() or request_attach() must be "
+                "used in a with-statement."
+            )
 
     def request_launch(self):
         if "PYTHONPATH" in self.config.env:
@@ -657,6 +659,17 @@ class Session(object):
         return self.timeline.wait_for_next(
             timeline.Event(event, body), freeze=freeze
         ).body
+
+    def wait_for_process(self):
+        process = self.wait_for_next_event("process", freeze=False)
+        assert process == some.dict.containing(
+            {
+                "startMethod": self.start_request.command,
+                "name": some.str,
+                "isLocalProcess": True,
+                "systemProcessId": some.int,
+            }
+        )
 
     def wait_for_stop(
         self,

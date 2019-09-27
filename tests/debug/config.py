@@ -20,6 +20,8 @@ class DebugConfig(collections.MutableMapping):
     In addition, it exposes high-level wrappers over "env" and "debugOptions".
     """
 
+    __slots__ = ["_dict", "_env", "_debug_options"]
+
     # Valid configuration properties. Keys are names, and values are defaults that
     # are assumed by the adapter and/or the server if the property is not specified.
     # If the property is required, or if the default is computed in such a way that
@@ -69,8 +71,8 @@ class DebugConfig(collections.MutableMapping):
 
     def __init__(self, *args, **kwargs):
         self._dict = dict(*args, **kwargs)
-        self.env = self.Env(self)
-        self.debug_options = self.DebugOptions(self)
+        self._env = self.Env(self)
+        self._debug_options = self.DebugOptions(self)
 
     def __iter__(self):
         return iter(self._dict)
@@ -156,6 +158,14 @@ class DebugConfig(collections.MutableMapping):
 
         if self["waitOnAbnormalExit"]:
             self.debug_options.add("WaitOnAbnormalExit")
+
+    @property
+    def env(self):
+        return self._env
+
+    @property
+    def debug_options(self):
+        return self._debug_options
 
     class Env(collections.MutableMapping):
         """Wraps config["env"], automatically creating and destroying it as needed.
