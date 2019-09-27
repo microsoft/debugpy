@@ -5,9 +5,9 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import os
-import platform
 import pytest
 import pytest_timeout
+import sys
 
 from ptvsd.common import fmt, log, options
 from tests import pydevd_log
@@ -23,9 +23,9 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     if config.option.ptvsd_logs:
-        options.log_dir = (
-            config.rootdir / "tests" / "_logs" / platform.python_version()
-        ).strpath
+        bits = 64 if sys.maxsize > 2 ** 32 else 32
+        ver = fmt("{0}.{1}-{bits}", *sys.version_info, bits=bits)
+        options.log_dir = (config.rootdir / "tests" / "_logs" / ver).strpath
         log.info("ptvsd and pydevd logs will be under {0}", options.log_dir)
 
 
