@@ -8,19 +8,19 @@ from tests import debug
 from tests.patterns import some
 
 
-def test_set_expression(pyfile, start_method, run_as):
+def test_set_expression(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        from debug_me import backchannel, ptvsd
+        from debug_me import backchannel
 
         a = 1
-        ptvsd.break_into_debugger()
-        backchannel.send(a)
+        backchannel.send(a) # @bp
 
-    with debug.Session(start_method, backchannel=True) as session:
-        backchannel = session.backchannel
-        session.configure(run_as, code_to_debug)
-        session.start_debugging()
+    with debug.Session() as session:
+        backchannel = session.open_backchannel()
+        with run(session, target(code_to_debug)):
+            session.set_breakpoints(code_to_debug, all)
+
         hit = session.wait_for_stop()
 
         resp_scopes = session.send_request(

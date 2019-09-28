@@ -16,7 +16,7 @@ str_matching_ArithmeticError = some.str.matching(r"(.+\.)?ArithmeticError")
 @pytest.mark.parametrize("raised", ["raised", ""])
 @pytest.mark.parametrize("uncaught", ["uncaught", ""])
 def test_vsc_exception_options_raise_with_except(
-    pyfile, start_method, run_as, raised, uncaught
+    pyfile, target, run, raised, uncaught
 ):
     @pyfile
     def code_to_debug():
@@ -30,13 +30,12 @@ def test_vsc_exception_options_raise_with_except(
 
         raise_with_except()
 
-    with debug.Session(start_method) as session:
+    with debug.Session() as session:
         session.expected_exit_code = some.int
-        session.configure(run_as, code_to_debug)
-        session.request(
-            "setExceptionBreakpoints", {"filters": list({raised, uncaught} - {""})}
-        )
-        session.start_debugging()
+        with run(session, target(code_to_debug)):
+            session.request(
+                "setExceptionBreakpoints", {"filters": list({raised, uncaught} - {""})}
+            )
 
         expected = some.dict.containing(
             {
@@ -72,7 +71,7 @@ def test_vsc_exception_options_raise_with_except(
 @pytest.mark.parametrize("raised", ["raised", ""])
 @pytest.mark.parametrize("uncaught", ["uncaught", ""])
 def test_vsc_exception_options_raise_without_except(
-    pyfile, start_method, run_as, raised, uncaught
+    pyfile, target, run, raised, uncaught
 ):
     @pyfile
     def code_to_debug():
@@ -83,15 +82,13 @@ def test_vsc_exception_options_raise_without_except(
 
         raise_without_except()
 
-    with debug.Session(start_method) as session:
+    with debug.Session() as session:
         session.ignore_unobserved.append(Event("stopped"))
         session.expected_exit_code = some.int
-        session.configure(run_as, code_to_debug)
-        session.request(
-            "setExceptionBreakpoints", {"filters": list({raised, uncaught} - {""})}
-        )
-        session.start_debugging()
-
+        with run(session, target(code_to_debug)):
+            session.request(
+                "setExceptionBreakpoints", {"filters": list({raised, uncaught} - {""})}
+            )
         expected_exc_info = some.dict.containing(
             {
                 "exceptionId": str_matching_ArithmeticError,
@@ -149,7 +146,7 @@ def test_vsc_exception_options_raise_without_except(
 @pytest.mark.parametrize("uncaught", ["uncaught", ""])
 @pytest.mark.parametrize("zero", ["zero", ""])
 @pytest.mark.parametrize("exit_code", [0, 1, "nan"])
-def test_systemexit(pyfile, start_method, run_as, raised, uncaught, zero, exit_code):
+def test_systemexit(pyfile, target, run, raised, uncaught, zero, exit_code):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -169,16 +166,12 @@ def test_systemexit(pyfile, start_method, run_as, raised, uncaught, zero, exit_c
     if uncaught:
         filters += ["uncaught"]
 
-    with debug.Session(start_method) as session:
+    with debug.Session() as session:
         session.expected_exit_code = some.int
-        session.configure(
-            run_as,
-            code_to_debug,
-            args=[repr(exit_code)],
-            breakOnSystemExitZero=bool(zero),
-        )
-        session.request("setExceptionBreakpoints", {"filters": filters})
-        session.start_debugging()
+        session.config["args"] = [repr(exit_code)]
+        session.config["breakOnSystemExitZero"] = bool(zero)
+        with run(session, target(code_to_debug)):
+            session.request("setExceptionBreakpoints", {"filters": filters})
 
         # When breaking on raised exceptions, we'll stop on both lines,
         # unless it's SystemExit(0) and we asked to ignore that.
@@ -221,7 +214,7 @@ def test_systemexit(pyfile, start_method, run_as, raised, uncaught, zero, exit_c
         [],  # Add the whole Python Exceptions category.
     ],
 )
-def test_raise_exception_options(pyfile, start_method, run_as, exceptions, break_mode):
+def test_raise_exception_options(pyfile, target, run, exceptions, break_mode):
     if break_mode in ("never", "unhandled", "userUnhandled"):
         expect_exceptions = []
         if break_mode != "never" and (not exceptions or "AssertionError" in exceptions):
@@ -257,26 +250,26 @@ def test_raise_exception_options(pyfile, start_method, run_as, exceptions, break
             except IndexError:
                 pass
 
-    with debug.Session(start_method) as session:
+    with debug.Session() as session:
         session.ignore_unobserved.append(Event("stopped"))
         session.expected_exit_code = some.int
-        session.configure(run_as, code_to_debug)
         path = [{"names": ["Python Exceptions"]}]
         if exceptions:
             path.append({"names": exceptions})
-        session.request(
-            "setExceptionBreakpoints",
-            {
-                "filters": [],  # Unused when exceptionOptions is passed.
-                "exceptionOptions": [
-                    {
-                        "path": path,
-                        "breakMode": break_mode,  # Can be "never", "always", "unhandled", "userUnhandled"
-                    }
-                ],
-            },
-        )
-        session.start_debugging()
+
+        with run(session, target(code_to_debug)):
+            session.request(
+                "setExceptionBreakpoints",
+                {
+                    "filters": [],  # Unused when exceptionOptions is passed.
+                    "exceptionOptions": [
+                        {
+                            "path": path,
+                            "breakMode": break_mode,  # Can be "never", "always", "unhandled", "userUnhandled"
+                        }
+                    ],
+                },
+            )
 
         for expected_exception in expect_exceptions:
             session.wait_for_stop(
@@ -292,7 +285,7 @@ def test_raise_exception_options(pyfile, start_method, run_as, exceptions, break
 @pytest.mark.parametrize("break_on_system_exit_zero", ["break_on_system_exit_zero", ""])
 @pytest.mark.parametrize("django", ["django", ""])
 def test_success_exitcodes(
-    pyfile, start_method, run_as, exit_code, break_on_system_exit_zero, django
+    pyfile, target, run, exit_code, break_on_system_exit_zero, django
 ):
     @pyfile
     def code_to_debug():
@@ -303,17 +296,13 @@ def test_success_exitcodes(
         print("sys.exit(%r)" % (exit_code,))
         sys.exit(exit_code)
 
-    with debug.Session(start_method) as session:
+    with debug.Session() as session:
         session.expected_exit_code = some.int
-        session.configure(
-            run_as,
-            code_to_debug,
-            args=[repr(exit_code)],
-            breakOnSystemExitZero=bool(break_on_system_exit_zero),
-            django=bool(django),
-        )
-        session.request("setExceptionBreakpoints", {"filters": ["uncaught"]})
-        session.start_debugging()
+        session.config["args"] = [repr(exit_code)]
+        session.config["breakOnSystemExitZero"] = bool(break_on_system_exit_zero)
+        session.config["django"] = bool(django)
+        with run(session, target(code_to_debug)):
+            session.request("setExceptionBreakpoints", {"filters": ["uncaught"]})
 
         if break_on_system_exit_zero or (not django and exit_code == 3):
             # If "breakOnSystemExitZero" was specified, we should always break.
@@ -325,7 +314,7 @@ def test_success_exitcodes(
 
 
 @pytest.mark.parametrize("max_frames", ["default", "all", 10])
-def test_exception_stack(pyfile, start_method, run_as, max_frames):
+def test_exception_stack(pyfile, target, run, max_frames):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -356,11 +345,11 @@ def test_exception_stack(pyfile, start_method, run_as, max_frames):
         max_expected_lines = 21
         maxFrames = 10
 
-    with debug.Session(start_method) as session:
+    with debug.Session() as session:
         session.expected_exit_code = some.int
-        session.configure(run_as, code_to_debug, maxExceptionStackFrames=maxFrames)
-        session.request("setExceptionBreakpoints", {"filters": ["uncaught"]})
-        session.start_debugging()
+        session.config["maxExceptionStackFrames"] = maxFrames
+        with run(session, target(code_to_debug)):
+            session.request("setExceptionBreakpoints", {"filters": ["uncaught"]})
 
         stop = session.wait_for_stop(
             "exception",

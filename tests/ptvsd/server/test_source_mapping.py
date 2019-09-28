@@ -10,7 +10,7 @@ from tests import debug
 from tests.patterns import some
 
 
-def test_with_path_mappings(pyfile, tmpdir, start_method, run_as):
+def test_with_path_mappings(pyfile, tmpdir, target, run):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -59,9 +59,7 @@ def test_with_path_mappings(pyfile, tmpdir, start_method, run_as):
         exec(code["cell2"], {})
         print("ok")
 
-    with debug.Session(start_method) as session:
-        session.configure(run_as, code_to_debug)
-
+    with debug.Session() as session:
         map_to_cell_1_line2 = code_to_debug.lines["map_to_cell1_line_2"]
         map_to_cell_2_line2 = code_to_debug.lines["map_to_cell2_line_2"]
 
@@ -71,31 +69,31 @@ def test_with_path_mappings(pyfile, tmpdir, start_method, run_as):
             source_entry = source_entry[0].lower() + source_entry[1:].upper()
             source_entry = source_entry.replace("\\", "/")
 
-        # Set breakpoints first and the map afterwards to make sure that it's reapplied.
-        session.set_breakpoints(code_to_debug, [map_to_cell_1_line2])
+        with run(session, target(code_to_debug)):
+            # Set breakpoints first and the map afterwards to make sure that it's reapplied.
+            session.set_breakpoints(code_to_debug, [map_to_cell_1_line2])
 
-        session.request(
-            "setPydevdSourceMap",
-            {
-                "source": {"path": source_entry},
-                "pydevdSourceMaps": [
-                    {
-                        "line": map_to_cell_1_line2,
-                        "endLine": map_to_cell_1_line2 + 1,
-                        "runtimeSource": {"path": "<cell1>"},
-                        "runtimeLine": 2,
-                    },
-                    {
-                        "line": map_to_cell_2_line2,
-                        "endLine": map_to_cell_2_line2 + 1,
-                        "runtimeSource": {"path": "<cell2>"},
-                        "runtimeLine": 2,
-                    },
-                ],
-            },
-        )
+            session.request(
+                "setPydevdSourceMap",
+                {
+                    "source": {"path": source_entry},
+                    "pydevdSourceMaps": [
+                        {
+                            "line": map_to_cell_1_line2,
+                            "endLine": map_to_cell_1_line2 + 1,
+                            "runtimeSource": {"path": "<cell1>"},
+                            "runtimeLine": 2,
+                        },
+                        {
+                            "line": map_to_cell_2_line2,
+                            "endLine": map_to_cell_2_line2 + 1,
+                            "runtimeSource": {"path": "<cell2>"},
+                            "runtimeLine": 2,
+                        },
+                    ],
+                },
+            )
 
-        session.start_debugging()
         session.wait_for_stop(
             "breakpoint",
             expected_frames=[some.dap.frame(code_to_debug, line=map_to_cell_1_line2)],
@@ -118,7 +116,7 @@ def test_with_path_mappings(pyfile, tmpdir, start_method, run_as):
             },
         )
 
-        session.request("continue")
+        session.request_continue()
         session.wait_for_stop(
             "breakpoint",
             expected_frames=[some.dap.frame(code_to_debug, line=map_to_cell_2_line2)],

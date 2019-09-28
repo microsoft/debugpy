@@ -11,18 +11,18 @@ from tests.patterns import some
 
 
 @pytest.mark.parametrize("jmc", ["jmc", ""])
-def test_justmycode_frames(pyfile, start_method, run_as, jmc):
+def test_justmycode_frames(pyfile, target, run, jmc):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
 
         print("break here")  # @bp
 
-    with debug.Session(start_method) as session:
-        session.configure(run_as, code_to_debug, justMyCode=bool(jmc))
-        session.set_breakpoints(code_to_debug, all)
+    with debug.Session() as session:
+        session.config["justMyCode"] = bool(jmc)
+        with run(session, target(code_to_debug)):
+            session.set_breakpoints(code_to_debug, all)
 
-        session.start_debugging()
         stop = session.wait_for_stop(
                 "breakpoint",
                 expected_frames=[

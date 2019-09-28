@@ -10,12 +10,12 @@ import sys
 
 from ptvsd.common import compat
 from tests import code, debug, log, net, test_data
-from tests.debug import runners
+from tests.debug import runners, targets
 from tests.patterns import some
 
 pytestmark = pytest.mark.timeout(60)
 
-flask = net.WebServer(net.get_test_server_port(7000, 7100))
+flask_server = net.WebServer(net.get_test_server_port(7000, 7100))
 
 
 class paths:
@@ -29,56 +29,56 @@ class lines:
     app_py = code.get_marked_line_numbers(paths.app_py)
 
 
-def _initialize_session(session, multiprocess=None, exit_code=0):
-    if multiprocess:
-        pytest.skip("https://github.com/microsoft/ptvsd/issues/1706")
+@pytest.fixture
+@pytest.mark.parametrize("run", [runners.launch, runners.attach_by_socket["cli"]])
+def start_flask(run):
+    def start(session, multiprocess=False):
+        if multiprocess:
+            pytest.skip("https://github.com/microsoft/ptvsd/issues/1706")
 
-    env = {
-        "FLASK_APP": paths.app_py,
-        "FLASK_ENV": "development",
-        "FLASK_DEBUG": "1" if multiprocess else "0",
-    }
-    if platform.system() != "Windows":
-        locale = "en_US.utf8" if platform.system() == "Linux" else "en_US.UTF-8"
-        env.update({"LC_ALL": locale, "LANG": locale})
+        # No clean way to kill Flask server, expect non-zero exit code
+        session.expected_exit_code = some.int
 
-    args = ["run"]
-    if not multiprocess:
-        args += ["--no-debugger", "--no-reload", "--with-threads"]
-    args += ["--port", str(flask.port)]
+        session.config.env.update({
+            "FLASK_APP": paths.app_py,
+            "FLASK_ENV": "development",
+            "FLASK_DEBUG": "1" if multiprocess else "0",
+        })
+        if platform.system() != "Windows":
+            locale = "en_US.utf8" if platform.system() == "Linux" else "en_US.UTF-8"
+            session.config.env.update({"LC_ALL": locale, "LANG": locale})
 
-    session.expected_exit_code = exit_code
-    session.configure(
-        "module",
-        "flask",
-        cwd=paths.flask1,
-        jinja=True,
-        subProcess=multiprocess,
-        args=args,
-        env=env,
-    )
+        session.config.update({
+            "jinja": True,
+            "subProcess": bool(multiprocess),
+        })
+
+        args = ["run"]
+        if not multiprocess:
+            args += ["--no-debugger", "--no-reload", "--with-threads"]
+        args += ["--port", str(flask_server.port)]
 
 
-@pytest.mark.parametrize(
-    "start_method", [runners.launch, runners.attach_by_socket["cli"]]
-)
+
+        return run(session, targets.Module("flask", args), cwd=paths.flask1)
+
+    return start
+
+
 @pytest.mark.parametrize("bp_target", ["code", "template"])
-def test_flask_breakpoint_no_multiproc(start_method, bp_target):
+def test_flask_breakpoint_no_multiproc(start_flask, bp_target):
     bp_file, bp_line, bp_name = {
         "code": (paths.app_py, lines.app_py["bphome"], "home"),
         "template": (paths.hello_html, 8, "template"),
     }[bp_target]
     bp_var_content = compat.force_str("Flask-Jinja-Test")
 
-    with debug.Session(start_method) as session:
-        _initialize_session(
-            session, exit_code=some.int
-        )  # No clean way to kill Flask server
-        session.set_breakpoints(bp_file, [bp_line])
-        session.start_debugging()
+    with debug.Session() as session:
+        with start_flask(session):
+            session.set_breakpoints(bp_file, [bp_line])
 
-        with flask:
-            home_request = flask.get("/")
+        with flask_server:
+            home_request = flask_server.get("/")
             session.wait_for_stop(
                 "breakpoint",
                 expected_frames=[
@@ -102,19 +102,13 @@ def test_flask_breakpoint_no_multiproc(start_method, bp_target):
             assert bp_var_content in home_request.response_text()
 
 
-@pytest.mark.parametrize(
-    "start_method", [runners.launch, runners.attach_by_socket["cli"]]
-)
-def test_flask_template_exception_no_multiproc(start_method):
-    with debug.Session(start_method) as session:
-        _initialize_session(
-            session, exit_code=some.int
-        )  # No clean way to kill Flask server
-        session.request("setExceptionBreakpoints", {"filters": ["raised", "uncaught"]})
-        session.start_debugging()
+def test_flask_template_exception_no_multiproc(start_flask):
+    with debug.Session() as session:
+        with start_flask(session):
+            session.request("setExceptionBreakpoints", {"filters": ["raised", "uncaught"]})
 
-        with flask:
-            flask.get("/badtemplate")
+        with flask_server:
+            flask_server.get("/badtemplate")
             stop = session.wait_for_stop(
                 "exception",
                 expected_frames=[
@@ -159,22 +153,16 @@ def test_flask_template_exception_no_multiproc(start_method):
                 session.request_continue()
 
 
-@pytest.mark.parametrize(
-    "start_method", [runners.launch, runners.attach_by_socket["cli"]]
-)
 @pytest.mark.parametrize("exc_type", ["handled", "unhandled"])
-def test_flask_exception_no_multiproc(start_method, exc_type):
+def test_flask_exception_no_multiproc(start_flask, exc_type):
     exc_line = lines.app_py["exc_" + exc_type]
 
-    with debug.Session(start_method) as session:
-        _initialize_session(
-            session, exit_code=some.int
-        )  # No clean way to kill Flask server
-        session.request("setExceptionBreakpoints", {"filters": ["raised", "uncaught"]})
-        session.start_debugging()
+    with debug.Session() as session:
+        with start_flask(session):
+            session.request("setExceptionBreakpoints", {"filters": ["raised", "uncaught"]})
 
-        with flask:
-            flask.get("/" + exc_type)
+        with flask_server:
+            flask_server.get("/" + exc_type)
             stopped = session.wait_for_stop(
                 "exception",
                 expected_frames=[
@@ -213,22 +201,24 @@ def test_flask_exception_no_multiproc(start_method, exc_type):
             session.request_continue()
 
 
-def test_flask_breakpoint_multiproc():
+def test_flask_breakpoint_multiproc(start_flask):
     bp_line = lines.app_py["bphome"]
     bp_var_content = compat.force_str("Flask-Jinja-Test")
 
-    with debug.Session(runners.launch) as parent_session:
-        # No clean way to kill Flask server
-        _initialize_session(parent_session, multiprocess=True, exit_code=some.int)
-        parent_session.set_breakpoints(paths.app_py, [bp_line])
-        parent_session.start_debugging()
+    with debug.Session() as parent_session:
+        with start_flask(parent_session, multiprocess=True):
+            parent_session.set_breakpoints(paths.app_py, [bp_line])
 
-        with parent_session.attach_to_next_subprocess() as child_session:
-            child_session.set_breakpoints(paths.app_py, [bp_line])
-            child_session.start_debugging()
+        child_pid = parent_session.wait_for_next_subprocess()
+        with debug.Session() as child_session:
+            # TODO: this is wrong, but we don't have multiproc attach
+            # yet, so update this when that is done
+            # https://github.com/microsoft/ptvsd/issues/1776
+            with child_session.attach_by_pid(child_pid):
+                child_session.set_breakpoints(paths.app_py, [bp_line])
 
-            with flask:
-                home_request = flask.get("/")
+            with flask_server:
+                home_request = flask_server.get("/")
                 child_session.wait_for_stop(
                     "breakpoint",
                     expected_frames=[

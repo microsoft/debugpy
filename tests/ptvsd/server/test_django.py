@@ -33,7 +33,9 @@ def start_django(run):
         if multiprocess:
             pytest.skip("https://github.com/microsoft/ptvsd/issues/1706")
 
+        # No clean way to kill Django server, expect non-zero exit code
         session.expected_exit_code = some.int
+
         session.config.update({"django": True, "subProcess": bool(multiprocess)})
 
         args = ["runserver"]
@@ -184,6 +186,9 @@ def test_django_breakpoint_multiproc(start_django):
 
         child_pid = parent_session.wait_for_next_subprocess()
         with debug.Session() as child_session:
+            # TODO: this is wrong, but we don't have multiproc attach
+            # yet, so update this when that is done
+            # https://github.com/microsoft/ptvsd/issues/1776
             with child_session.attach_by_pid(child_pid):
                 child_session.set_breakpoints(paths.app_py, [bp_line])
 

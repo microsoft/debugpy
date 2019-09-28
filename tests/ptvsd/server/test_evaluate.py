@@ -4,13 +4,14 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+import pytest
 import sys
 
 from tests import debug
 from tests.patterns import some
 
 
-def test_variables_and_evaluate(pyfile, start_method, run_as):
+def test_variables_and_evaluate(pyfile, target, run):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -20,10 +21,10 @@ def test_variables_and_evaluate(pyfile, start_method, run_as):
         c = 3
         print([a, b, c])  # @bp
 
-    with debug.Session(start_method) as session:
-        session.configure(run_as, code_to_debug)
-        session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])
-        session.start_debugging()
+    with debug.Session() as session:
+        with run(session, target(code_to_debug)):
+            session.set_breakpoints(code_to_debug, all)
+
         hit = session.wait_for_stop()
 
         resp_scopes = session.send_request(
@@ -102,7 +103,7 @@ def test_variables_and_evaluate(pyfile, start_method, run_as):
         session.request_continue()
 
 
-def test_set_variable(pyfile, start_method, run_as):
+def test_set_variable(pyfile, target, run):
     @pyfile
     def code_to_debug():
         from debug_me import backchannel, ptvsd
@@ -111,10 +112,11 @@ def test_set_variable(pyfile, start_method, run_as):
         ptvsd.break_into_debugger()
         backchannel.send(a)
 
-    with debug.Session(start_method, backchannel=True) as session:
-        backchannel = session.backchannel
-        session.configure(run_as, code_to_debug)
-        session.start_debugging()
+    with debug.Session() as session:
+        backchannel = session.open_backchannel()
+        with run(session, target(code_to_debug)):
+            pass
+
         hit = session.wait_for_stop()
 
         resp_scopes = session.send_request(
@@ -156,7 +158,7 @@ def test_set_variable(pyfile, start_method, run_as):
         assert backchannel.receive() == 1000
 
 
-def test_variable_sort(pyfile, start_method, run_as):
+def test_variable_sort(pyfile, target, run):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -176,10 +178,9 @@ def test_variable_sort(pyfile, start_method, run_as):
         d = 3  # noqa
         print("done")  # @bp
 
-    with debug.Session(start_method) as session:
-        session.configure(run_as, code_to_debug)
-        session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])
-        session.start_debugging()
+    with debug.Session() as session:
+        with run(session, target(code_to_debug)):
+            session.set_breakpoints(code_to_debug, all)
         hit = session.wait_for_stop()
 
         resp_scopes = session.send_request(
@@ -244,7 +245,8 @@ def test_variable_sort(pyfile, start_method, run_as):
         session.request_continue()
 
 
-def test_return_values(pyfile, start_method, run_as):
+@pytest.mark.parametrize("retval", ("show", ""))
+def test_return_values(pyfile, target, run, retval):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -282,13 +284,11 @@ def test_return_values(pyfile, start_method, run_as):
         }
     )
 
-    with debug.Session(start_method) as session:
-        session.configure(
-            run_as, code_to_debug,
-            showReturnValue=True
-        )
-        session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])
-        session.start_debugging()
+    with debug.Session() as session:
+        session.config["showReturnValue"] = bool(retval)
+        with run(session, target(code_to_debug)):
+            session.set_breakpoints(code_to_debug, all)
+
         hit = session.wait_for_stop()
 
         session.send_request("next", {"threadId": hit.thread_id}).wait_for_response()
@@ -310,7 +310,10 @@ def test_return_values(pyfile, start_method, run_as):
             if v["name"].startswith("(return)")
         )
 
-        assert variables == [expected1]
+        if retval:
+            assert variables == [expected1]
+        else:
+            assert variables == []
 
         session.send_request("next", {"threadId": hit.thread_id}).wait_for_response()
         hit = session.wait_for_stop(reason="step")
@@ -326,12 +329,15 @@ def test_return_values(pyfile, start_method, run_as):
             if v["name"].startswith("(return)")
         )
 
-        assert variables == [expected1, expected2]
+        if retval:
+            assert variables == [expected1, expected2]
+        else:
+            assert variables == []
 
         session.send_request("continue").wait_for_response()
 
 
-def test_unicode(pyfile, start_method, run_as):
+def test_unicode(pyfile, target, run):
     # On Python 3, variable names can contain Unicode characters.
     # On Python 2, they must be ASCII, but using a Unicode character in an expression should not crash debugger.
 
@@ -345,9 +351,10 @@ def test_unicode(pyfile, start_method, run_as):
         ptvsd.break_into_debugger()
         print("break")
 
-    with debug.Session(start_method) as session:
-        session.configure(run_as, code_to_debug)
-        session.start_debugging()
+    with debug.Session() as session:
+        with run(session, target(code_to_debug)):
+            pass
+
         hit = session.wait_for_stop()
 
         resp_eval = session.send_request(
@@ -364,7 +371,7 @@ def test_unicode(pyfile, start_method, run_as):
         session.request_continue()
 
 
-def test_hex_numbers(pyfile, start_method, run_as):
+def test_hex_numbers(pyfile, target, run):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -375,10 +382,9 @@ def test_hex_numbers(pyfile, start_method, run_as):
         d = {(1, 10, 100): (10000, 100000, 100000)}
         print((a, b, c, d))  # @bp
 
-    with debug.Session(start_method) as session:
-        session.configure(run_as, code_to_debug)
-        session.set_breakpoints(code_to_debug, [code_to_debug.lines["bp"]])
-        session.start_debugging()
+    with debug.Session() as session:
+        with run(session, target(code_to_debug)):
+            session.set_breakpoints(code_to_debug, all)
         hit = session.wait_for_stop()
 
         resp_scopes = session.send_request(

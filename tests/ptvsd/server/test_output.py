@@ -15,17 +15,16 @@ from tests import debug
 # sequentially, by the time we get to "stopped", we also have all the output events.
 
 
-def test_with_no_output(pyfile, start_method, run_as):
+def test_with_no_output(pyfile, target, run):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
         ()  # @wait_for_output
 
-    with debug.Session(start_method) as session:
-        session.configure(run_as, code_to_debug)
-        session.set_breakpoints(code_to_debug, all)
+    with debug.Session() as session:
+        with run(session, target(code_to_debug)):
+            session.set_breakpoints(code_to_debug, all)
 
-        session.start_debugging()
         session.wait_for_stop("breakpoint")
         session.request_continue()
 
@@ -35,7 +34,7 @@ def test_with_no_output(pyfile, start_method, run_as):
     assert not session.captured_stderr()
 
 
-def test_with_tab_in_output(pyfile, start_method, run_as):
+def test_with_tab_in_output(pyfile, target, run):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -44,11 +43,9 @@ def test_with_tab_in_output(pyfile, start_method, run_as):
         print(a)
         ()  # @wait_for_output
 
-    with debug.Session(start_method) as session:
-        session.configure(run_as, code_to_debug)
-
-        session.set_breakpoints(code_to_debug, all)
-        session.start_debugging()
+    with debug.Session() as session:
+        with run(session, target(code_to_debug)):
+            session.set_breakpoints(code_to_debug, all)
         session.wait_for_stop()
         session.request_continue()
 
@@ -56,7 +53,7 @@ def test_with_tab_in_output(pyfile, start_method, run_as):
 
 
 @pytest.mark.parametrize("redirect", ["enabled", "disabled"])
-def test_redirect_output(pyfile, start_method, run_as, redirect):
+def test_redirect_output(pyfile, target, run, redirect):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -66,11 +63,10 @@ def test_redirect_output(pyfile, start_method, run_as, redirect):
 
         ()  # @wait_for_output
 
-    with debug.Session(start_method) as session:
-        session.configure(run_as, code_to_debug, redirectOutput=(redirect == "enabled"))
-        session.set_breakpoints(code_to_debug, all)
-        session.start_debugging()
-
+    with debug.Session() as session:
+        session.config["redirectOutput"] = (redirect == "enabled")
+        with run(session, target(code_to_debug)):
+            session.set_breakpoints(code_to_debug, all)
         session.wait_for_stop()
         session.request_continue()
 

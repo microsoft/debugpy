@@ -13,7 +13,7 @@ from tests.patterns import some
 @pytest.mark.parametrize("scenario", ["exclude_by_name", "exclude_by_dir"])
 @pytest.mark.parametrize("exc_type", ["RuntimeError", "SystemExit"])
 def test_exceptions_and_exclude_rules(
-    pyfile, start_method, run_as, scenario, exc_type
+    pyfile, target, run, scenario, exc_type
 ):
     if exc_type == "RuntimeError":
 
@@ -43,18 +43,18 @@ def test_exceptions_and_exclude_rules(
         pytest.fail(scenario)
     log.info("Rules: {0!j}", rules)
 
-    with debug.Session(start_method) as session:
-        session.configure(run_as, code_to_debug, rules=rules)
-        session.request(
-            "setExceptionBreakpoints", {"filters": ["raised", "uncaught"]}
-        )
-        session.start_debugging()
+    with debug.Session() as session:
+        session.config["rules"] = rules
+        with run(session, target(code_to_debug)):
+            session.request(
+                "setExceptionBreakpoints", {"filters": ["raised", "uncaught"]}
+            )
 
         # No exceptions should be seen.
 
 
 @pytest.mark.parametrize("scenario", ["exclude_code_to_debug", "exclude_callback_dir"])
-def test_exceptions_and_partial_exclude_rules(pyfile, start_method, run_as, scenario):
+def test_exceptions_and_partial_exclude_rules(pyfile, target, run, scenario):
     @pyfile
     def code_to_debug():
         from debug_me import backchannel
@@ -83,13 +83,13 @@ def test_exceptions_and_partial_exclude_rules(pyfile, start_method, run_as, scen
         pytest.fail(scenario)
     log.info("Rules: {0!j}", rules)
 
-    with debug.Session(start_method, backchannel=True) as session:
-        backchannel = session.backchannel
-        session.configure(run_as, code_to_debug, rules=rules)
-        session.request(
-            "setExceptionBreakpoints", {"filters": ["raised", "uncaught"]}
-        )
-        session.start_debugging()
+    with debug.Session() as session:
+        backchannel = session.open_backchannel()
+        session.config["rules"] = rules
+        with run(session, target(code_to_debug)):
+            session.request(
+                "setExceptionBreakpoints", {"filters": ["raised", "uncaught"]}
+            )
         backchannel.send(call_me_back_dir)
 
         if scenario == "exclude_code_to_debug":
