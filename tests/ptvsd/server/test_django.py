@@ -43,7 +43,7 @@ def start_django(run):
             args += ["--noreload"]
         args += ["--", str(django_server.port)]
 
-        return run(session, targets.Program(paths.app_py, args), cwd=paths.django1)
+        return run(session, targets.Program(paths.app_py, args=args), cwd=paths.django1)
 
     return start
 

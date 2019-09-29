@@ -44,7 +44,9 @@ def test_exceptions_and_exclude_rules(
     log.info("Rules: {0!j}", rules)
 
     with debug.Session() as session:
+        session.expected_exit_code = some.int
         session.config["rules"] = rules
+
         with run(session, target(code_to_debug)):
             session.request(
                 "setExceptionBreakpoints", {"filters": ["raised", "uncaught"]}
@@ -84,12 +86,15 @@ def test_exceptions_and_partial_exclude_rules(pyfile, target, run, scenario):
     log.info("Rules: {0!j}", rules)
 
     with debug.Session() as session:
-        backchannel = session.open_backchannel()
+        session.expected_exit_code = some.int
         session.config["rules"] = rules
+
+        backchannel = session.open_backchannel()
         with run(session, target(code_to_debug)):
             session.request(
                 "setExceptionBreakpoints", {"filters": ["raised", "uncaught"]}
             )
+
         backchannel.send(call_me_back_dir)
 
         if scenario == "exclude_code_to_debug":

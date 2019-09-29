@@ -58,9 +58,7 @@ def start_flask(run):
             args += ["--no-debugger", "--no-reload", "--with-threads"]
         args += ["--port", str(flask_server.port)]
 
-
-
-        return run(session, targets.Module("flask", args), cwd=paths.flask1)
+        return run(session, targets.Module(name="flask", args=args), cwd=paths.flask1)
 
     return start
 

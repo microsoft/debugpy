@@ -168,9 +168,9 @@ def test_systemexit(pyfile, target, run, raised, uncaught, zero, exit_code):
 
     with debug.Session() as session:
         session.expected_exit_code = some.int
-        session.config["args"] = [repr(exit_code)]
         session.config["breakOnSystemExitZero"] = bool(zero)
-        with run(session, target(code_to_debug)):
+
+        with run(session, target(code_to_debug, args=[repr(exit_code)])):
             session.request("setExceptionBreakpoints", {"filters": filters})
 
         # When breaking on raised exceptions, we'll stop on both lines,
@@ -298,10 +298,10 @@ def test_success_exitcodes(
 
     with debug.Session() as session:
         session.expected_exit_code = some.int
-        session.config["args"] = [repr(exit_code)]
         session.config["breakOnSystemExitZero"] = bool(break_on_system_exit_zero)
         session.config["django"] = bool(django)
-        with run(session, target(code_to_debug)):
+
+        with run(session, target(code_to_debug, args=[repr(exit_code)])):
             session.request("setExceptionBreakpoints", {"filters": ["uncaught"]})
 
         if break_on_system_exit_zero or (not django and exit_code == 3):
@@ -329,25 +329,17 @@ def test_exception_stack(pyfile, target, run, max_frames):
 
         do_something(100)
 
-    maxFrames = None
-    if max_frames == "all":
-        # trace back compresses repeated text
-        min_expected_lines = 100
-        max_expected_lines = 221
-        maxFrames = 0
-    elif max_frames == "default":
-        # default is all frames
-        min_expected_lines = 100
-        max_expected_lines = 221
-        maxFrames = None
-    else:
-        min_expected_lines = 10
-        max_expected_lines = 21
-        maxFrames = 10
 
     with debug.Session() as session:
         session.expected_exit_code = some.int
-        session.config["maxExceptionStackFrames"] = maxFrames
+        max_frames, (min_expected_lines, max_expected_lines) = {
+            "all": (0, (100, 221)),
+            "default": (None, (100, 221)),
+            10: (10, (10, 21)),
+        }[max_frames]
+        if max_frames is not None:
+            session.config["maxExceptionStackFrames"] = max_frames
+
         with run(session, target(code_to_debug)):
             session.request("setExceptionBreakpoints", {"filters": ["uncaught"]})
 

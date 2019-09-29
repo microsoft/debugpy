@@ -70,7 +70,7 @@ class LogFile(object):
     @levels.setter
     def levels(self, value):
         with _lock:
-            self._levels = value
+            self._levels = frozenset(value)
             _update_levels()
 
     def write(self, level, output):
@@ -127,7 +127,7 @@ class NoLog(object):
 # when it's intermixed with regular prints from other sources.
 def newline(level="info"):
     with _lock:
-        _stderr.write("\n")
+        _stderr.write(level, "\n")
 
 
 def write(level, text, _to_files=all):
