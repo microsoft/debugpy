@@ -68,7 +68,33 @@ def test_wrapper(request, long_tmpdir):
             try:
                 yield
             finally:
-                log.info("Test {0} completed.", request.node.name)
+                failed = False
+                for report_attr in ("setup_report", "call_report", "teardown_report"):
+                    try:
+                        report = getattr(request.node, report_attr)
+                    except AttributeError:
+                        continue
+
+                    failed |= report.failed
+                    log.write_format(
+                        "error" if report.failed else "info",
+                        "{0} for test {1} {2}.",
+                        report.when,
+                        request.node.name,
+                        report.outcome,
+                    )
+
+                    if options.log_dir is not None:
+                        with open(os.path.join(options.log_dir, report_attr + ".log"), "w") as f:
+                            f.write(report.longreprtext)
+                        with open(os.path.join(options.log_dir, report_attr + ".stdout.log"), "w") as f:
+                            f.write(report.capstdout)
+                        with open(os.path.join(options.log_dir, report_attr + ".stderr.log"), "w") as f:
+                            f.write(report.capstderr)
+
+                if failed and options.log_dir is not None:
+                    with open(os.path.join(options.log_dir, "FAILED.log"), "w"):
+                        pass
     finally:
         if original_log_dir is not None:
             options.log_dir = original_log_dir
@@ -85,10 +111,10 @@ def with_pydevd_log(request, tmpdir):
     with pydevd_log.enabled(filename):
         yield
 
-    if request.node.setup_result.passed:
-        if not request.node.call_result.failed:
+    if request.node.setup_report.passed:
+        if not request.node.call_report.failed:
             return
-    elif not request.node.setup_result.failed:
+    elif not request.node.setup_report.failed:
         return
 
     pydevd_log.dump("failed")
@@ -113,7 +139,7 @@ def daemon(request):
     yield factory
 
     try:
-        failed = request.node.call_result.failed
+        failed = request.node.call_report.failed
     except AttributeError:
         pass
     else:

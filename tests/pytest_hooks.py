@@ -35,15 +35,16 @@ def pytest_report_header(config):
 
 @pytest.hookimpl(hookwrapper=True, tryfirst=True)
 def pytest_runtest_makereport(item, call):
-    # Adds attributes such as setup_result, call_result etc to the item after the
-    # corresponding scope finished running its tests. This can be used in function-level
-    # fixtures to detect failures, e.g.:
+    # Adds attributes setup_report, call_report, and teardown_report to the item,
+    # referencing TestReport instances for the corresponding phases, after the scope
+    # finished running its tests. This can be used in function-level fixtures to
+    # detect test failures, e.g.:
     #
-    #   if request.node.call_result.failed: ...
+    #   if request.node.call_report.failed: ...
 
     outcome = yield
-    result = outcome.get_result()
-    setattr(item, result.when + "_result", result)
+    report = outcome.get_result()
+    setattr(item, report.when + "_report", report)
 
 
 def pytest_make_parametrize_id(config, val):

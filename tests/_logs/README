@@ -3,11 +3,9 @@ For example:
 
     tox -e py37 -- --ptvsd-logs "tests/ptvsd/server/test_run.py::test_run[launch-file]"
 
-A separate ptvsd-{pid}.log file will be created for every ptvsd process spawned by
-the tests. However, because process IDs are reused by OS, logs may end up overwriting
-earlier logs.
+A separate directory will be created for every test. In that directory, a separate
+subdirectory will be created for every debug.Session instance, containing ptvsd logs
+for the processes that it spawns, and pydevd log.
 
-All pydevd logs go into the same file named pydevd.log - and subsequent tests will
-overwrite earlier logs.
-
-Thus, it is best to use this when running a single test, or a small number of tests.
+If the test has failed, an empty file called FAILED.log is additionally created in
+the test log directory, to easily find all failed tests after a large run.
