@@ -15,13 +15,14 @@ from tests.patterns import some
 @pytest.mark.skipif(sys.platform == "win32", reason="Linux/Mac only test.")
 @pytest.mark.parametrize("os_type", ["INVALID", ""])
 def test_client_ide_from_path_mapping_linux_backend(pyfile, target, run, os_type):
-    pytest.skip()
-    # This test needs to be redone after debug_options is removed
-    # TODO: https://github.com/microsoft/ptvsd/issues/1770
     """
-    Test simulating that the backend is on Linux and the client is on Windows
+    Test simulating that the debug server is on Linux and the IDE is on Windows
     (automatically detect it from the path mapping).
     """
+
+    if os_type == "INVALID":
+        # TODO: this test needs to be rewritten after "debugOptions" is removed.
+        pytest.skip("https://github.com/microsoft/ptvsd/issues/1770")
 
     @pyfile
     def code_to_debug():
@@ -32,24 +33,19 @@ def test_client_ide_from_path_mapping_linux_backend(pyfile, target, run, os_type
         print("done")  # @bp
 
     with debug.Session() as session:
-        backchannel = session.open_backchannel()
-        if os_type:
+        if os_type == "INVALID":
             session.debug_options |= {fmt("CLIENT_OS_TYPE={0}", os_type)}
+        session.config["pathMappings"] = [
+            {"localRoot": "C:\\TEMP\\src", "remoteRoot": code_to_debug.dirname}
+        ],
 
-        session.configure(
-            run_as,
-            code_to_debug,
-            pathMappings=[
-                {"localRoot": "C:\\TEMP\\src", "remoteRoot": code_to_debug.dirname}
-            ],
-        )
-        session.set_breakpoints(
-            "c:\\temp\\src\\" + code_to_debug.basename, [code_to_debug.lines["bp"]]
-        )
-        session.start_debugging()
+        backchannel = session.open_backchannel()
+        with run(session, target(code_to_debug)):
+            session.set_breakpoints(
+                "c:\\temp\\src" + code_to_debug.basename, [code_to_debug.lines["bp"]]
+            )
 
         assert backchannel.receive() == "WINDOWS"
-
         session.wait_for_stop(
             "breakpoint",
             expected_frames=[
@@ -59,7 +55,6 @@ def test_client_ide_from_path_mapping_linux_backend(pyfile, target, run, os_type
                 )
             ],
         )
-
         session.request_continue()
 
 
