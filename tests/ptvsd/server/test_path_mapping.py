@@ -37,7 +37,7 @@ def test_client_ide_from_path_mapping_linux_backend(pyfile, target, run, os_type
             session.debug_options |= {fmt("CLIENT_OS_TYPE={0}", os_type)}
         session.config["pathMappings"] = [
             {"localRoot": "C:\\TEMP\\src", "remoteRoot": code_to_debug.dirname}
-        ],
+        ]
 
         backchannel = session.open_backchannel()
         with run(session, target(code_to_debug)):
