@@ -14,9 +14,7 @@ from tests.patterns import some
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Linux/Mac only test.")
 @pytest.mark.parametrize("os_type", ["INVALID", ""])
-def test_client_ide_from_path_mapping_linux_backend(
-    pyfile, start_method, run_as, os_type
-):
+def test_client_ide_from_path_mapping_linux_backend(pyfile, target, run, os_type):
     pytest.skip()
     # This test needs to be redone after debug_options is removed
     # TODO: https://github.com/microsoft/ptvsd/issues/1770
@@ -33,22 +31,20 @@ def test_client_ide_from_path_mapping_linux_backend(
         backchannel.send(pydevd_file_utils._ide_os)
         print("done")  # @bp
 
-    with debug.Session(start_method, backchannel=True) as session:
-        backchannel = session.backchannel
+    with debug.Session() as session:
+        backchannel = session.open_backchannel()
         if os_type:
             session.debug_options |= {fmt("CLIENT_OS_TYPE={0}", os_type)}
+
         session.configure(
-            run_as, code_to_debug,
+            run_as,
+            code_to_debug,
             pathMappings=[
-                {
-                    "localRoot": "C:\\TEMP\\src",
-                    "remoteRoot": code_to_debug.dirname,
-                }
+                {"localRoot": "C:\\TEMP\\src", "remoteRoot": code_to_debug.dirname}
             ],
         )
         session.set_breakpoints(
-            "c:\\temp\\src\\" + code_to_debug.basename,
-            [code_to_debug.lines["bp"]],
+            "c:\\temp\\src\\" + code_to_debug.basename, [code_to_debug.lines["bp"]]
         )
         session.start_debugging()
 
@@ -60,7 +56,7 @@ def test_client_ide_from_path_mapping_linux_backend(
                 some.dap.frame(
                     some.dap.source("C:\\TEMP\\src\\" + code_to_debug.basename),
                     line=code_to_debug.lines["bp"],
-                ),
+                )
             ],
         )
 
@@ -100,12 +96,7 @@ def test_with_dot_remote_root(pyfile, long_tmpdir, target, run):
 
         session.wait_for_stop(
             "breakpoint",
-            expected_frames=[
-                some.dap.frame(
-                    some.dap.source(path_local),
-                    line="bp",
-                ),
-            ],
+            expected_frames=[some.dap.frame(some.dap.source(path_local), line="bp")],
         )
 
         session.request_continue()
@@ -144,7 +135,9 @@ def test_with_path_mappings(pyfile, long_tmpdir, target, run):
 
     with debug.Session() as session:
         backchannel = session.open_backchannel()
-        session.config["pathMappings"] = [{"localRoot": dir_local, "remoteRoot": dir_remote}]
+        session.config["pathMappings"] = [
+            {"localRoot": dir_local, "remoteRoot": dir_remote}
+        ]
 
         # Run using remote path
         with run(session, target(path_remote)):
@@ -168,9 +161,10 @@ def test_with_path_mappings(pyfile, long_tmpdir, target, run):
                 some.dap.frame(
                     # Unmapped files should have a sourceReference, since there's no
                     # local file for the IDE to open.
-                    some.dap.source(call_me_back_py, sourceReference=some.int.not_equal_to(0)),
+                    some.dap.source(
+                        call_me_back_py, sourceReference=some.int.not_equal_to(0)
+                    ),
                     line="callback",
-
                 ),
                 some.dap.frame(
                     # Mapped files should not have a sourceReference, so that the IDE
