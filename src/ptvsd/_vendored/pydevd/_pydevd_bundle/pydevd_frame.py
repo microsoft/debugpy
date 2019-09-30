@@ -388,7 +388,7 @@ class PyDBFrame:
             line = frame.f_lineno
             line_cache_key = (frame_cache_key, line)
 
-            if main_debugger._finish_debugging_session:
+            if main_debugger.pydb_disposed:
                 return None if event == 'call' else NO_FTRACE
 
             plugin_manager = main_debugger.plugin

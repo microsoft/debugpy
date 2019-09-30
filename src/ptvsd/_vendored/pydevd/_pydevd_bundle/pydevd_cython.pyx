@@ -539,7 +539,7 @@ cdef class PyDBFrame:
             line = frame.f_lineno
             line_cache_key = (frame_cache_key, line)
 
-            if main_debugger._finish_debugging_session:
+            if main_debugger.pydb_disposed:
                 return None if event == 'call' else NO_FTRACE
 
             plugin_manager = main_debugger.plugin
@@ -918,7 +918,6 @@ from _pydev_bundle.pydev_log import exception as pydev_log_exception
 from _pydev_imps._pydev_saved_modules import threading
 from _pydevd_bundle.pydevd_constants import (get_current_thread_id, NO_FTRACE,
     USE_CUSTOM_SYS_CURRENT_FRAMES_MAP)
-from _pydevd_bundle.pydevd_kill_all_pydevd_threads import kill_all_pydev_threads
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame, NORM_PATHS_AND_BASE_CONTAINER
 
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
@@ -1295,15 +1294,7 @@ cdef class ThreadTracer:
         is_stepping = pydev_step_cmd != -1
 
         try:
-            if py_db._finish_debugging_session:
-                if not py_db._termination_event_set:
-                    # that was not working very well because jython gave some socket errors
-                    try:
-                        if py_db.output_checker_thread is None:
-                            kill_all_pydev_threads()
-                    except:
-                        pydev_log_exception()
-                    py_db._termination_event_set = True
+            if py_db.pydb_disposed:
                 return None if event == 'call' else NO_FTRACE
 
             # if thread is not alive, cancel trace_dispatch processing
@@ -1410,7 +1401,7 @@ cdef class ThreadTracer:
             return None if event == 'call' else NO_FTRACE
 
         except Exception:
-            if py_db._finish_debugging_session:
+            if py_db.pydb_disposed:
                 return None if event == 'call' else NO_FTRACE  # Don't log errors when we're shutting down.
             # Log it
             try:

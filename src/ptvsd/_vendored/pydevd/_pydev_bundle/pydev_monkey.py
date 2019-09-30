@@ -567,9 +567,9 @@ def create_fork(original_name):
 
 
 def send_process_created_message():
-    debugger = get_global_debugger()
-    if debugger is not None:
-        debugger.send_process_created_message()
+    py_db = get_global_debugger()
+    if py_db is not None:
+        py_db.send_process_created_message()
 
 
 def patch_new_process_functions():
@@ -670,10 +670,10 @@ class _NewThreadStartupWithTrace:
     def __call__(self):
         # We monkey-patch the thread creation so that this function is called in the new thread. At this point
         # we notify of its creation and start tracing it.
-        global_debugger = get_global_debugger()
+        py_db = get_global_debugger()
 
         thread_id = None
-        if global_debugger is not None:
+        if py_db is not None:
             # Note: if this is a thread from threading.py, we're too early in the boostrap process (because we mocked
             # the start_new_thread internal machinery and thread._bootstrap has not finished), so, the code below needs
             # to make sure that we use the current thread bound to the original function and not use
@@ -686,20 +686,20 @@ class _NewThreadStartupWithTrace:
 
             if not getattr(t, 'is_pydev_daemon_thread', False):
                 thread_id = get_current_thread_id(t)
-                global_debugger.notify_thread_created(thread_id, t)
-                _on_set_trace_for_new_thread(global_debugger)
+                py_db.notify_thread_created(thread_id, t)
+                _on_set_trace_for_new_thread(py_db)
 
-            if getattr(global_debugger, 'thread_analyser', None) is not None:
+            if getattr(py_db, 'thread_analyser', None) is not None:
                 try:
                     from pydevd_concurrency_analyser.pydevd_concurrency_logger import log_new_thread
-                    log_new_thread(global_debugger, t)
+                    log_new_thread(py_db, t)
                 except:
                     sys.stderr.write("Failed to detect new thread for visualization")
         try:
             ret = self.original_func(*self.args, **self.kwargs)
         finally:
             if thread_id is not None:
-                global_debugger.notify_thread_not_alive(thread_id)
+                py_db.notify_thread_not_alive(thread_id)
 
         return ret
 

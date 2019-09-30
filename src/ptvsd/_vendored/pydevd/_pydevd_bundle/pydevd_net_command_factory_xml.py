@@ -435,9 +435,6 @@ class NetCommandFactory(object):
         except Exception:
             return self.make_error_message(seq, get_exception_traceback_str())
 
-    def make_exit_message(self):
-        return NULL_EXIT_COMMAND
-
     def make_get_next_statement_targets_message(self, seq, payload):
         try:
             return NetCommand(CMD_GET_NEXT_STATEMENT_TARGETS, seq, payload)

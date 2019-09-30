@@ -28,12 +28,12 @@ class _CustomSingleNotificationBehavior(AbstractSingleNotificationBehavior):
 
     __slots__ = AbstractSingleNotificationBehavior.__slots__ + ['notification_queue']
 
-    def __init__(self):
+    def __init__(self, py_db):
         try:
             from queue import Queue
         except ImportError:
             from Queue import Queue
-        super(_CustomSingleNotificationBehavior, self).__init__()
+        super(_CustomSingleNotificationBehavior, self).__init__(py_db)
         self.notification_queue = Queue()
 
     @overrides(AbstractSingleNotificationBehavior.send_resume_notification)
@@ -52,12 +52,17 @@ class _CustomSingleNotificationBehavior(AbstractSingleNotificationBehavior):
                 time.sleep(.1)
 
 
+@pytest.fixture
+def _dummy_pydb():
+    return _DummyPyDB()
+
+
 @pytest.fixture(
     name='single_notification_behavior',
 #     params=range(50)  #  uncomment to run the tests many times.
 )
-def _single_notification_behavior():
-    single_notification_behavior = _CustomSingleNotificationBehavior()
+def _single_notification_behavior(_dummy_pydb):
+    single_notification_behavior = _CustomSingleNotificationBehavior(_dummy_pydb)
     return single_notification_behavior
 
 
@@ -85,6 +90,12 @@ def join_thread(t):
     assert not t.is_alive(), 'Thread still alive after timeout.s'
 
 
+class _DummyPyDB(object):
+
+    def __init__(self):
+        self.created_pydb_daemon_threads = {}
+
+
 def test_single_notification_1(single_notification_behavior, notification_queue):
     '''
     1. Resume before pausing 2nd thread
@@ -104,7 +115,9 @@ def test_single_notification_1(single_notification_behavior, notification_queue)
     thread_info1.state = STATE_SUSPEND
     thread_info2.state = STATE_SUSPEND
 
-    t = run_as_pydevd_daemon_thread(single_notification_behavior.do_wait_suspend, thread_info1, CMD_THREAD_SUSPEND)
+    dummy_py_db = _DummyPyDB()
+
+    t = run_as_pydevd_daemon_thread(dummy_py_db, single_notification_behavior.do_wait_suspend, thread_info1, CMD_THREAD_SUSPEND)
     thread_info1.state = STATE_RUN
     # Set 2 to run before it starts (should not send additional message).
     thread_info2.state = STATE_RUN
@@ -116,7 +129,7 @@ def test_single_notification_1(single_notification_behavior, notification_queue)
     assert notification_queue.qsize() == 0
 
     # Run thread 2 only now (no additional notification).
-    t = run_as_pydevd_daemon_thread(single_notification_behavior.do_wait_suspend, thread_info1, CMD_THREAD_SUSPEND)
+    t = run_as_pydevd_daemon_thread(dummy_py_db, single_notification_behavior.do_wait_suspend, thread_info1, CMD_THREAD_SUSPEND)
     t.join()
 
     assert notification_queue.qsize() == 0
@@ -135,6 +148,8 @@ def test_single_notification_2(single_notification_behavior, notification_queue)
     thread_info1 = _ThreadInfo()
     thread_info2 = _ThreadInfo()
 
+    dummy_py_db = _DummyPyDB()
+
     # pause all = set_suspend both
     single_notification_behavior.increment_suspend_time()
     single_notification_behavior.on_pause()
@@ -142,10 +157,10 @@ def test_single_notification_2(single_notification_behavior, notification_queue)
     thread_info2.state = STATE_SUSPEND
 
     # Leave both in break mode
-    t1 = run_as_pydevd_daemon_thread(single_notification_behavior.do_wait_suspend, thread_info1, CMD_THREAD_SUSPEND)
+    t1 = run_as_pydevd_daemon_thread(dummy_py_db, single_notification_behavior.do_wait_suspend, thread_info1, CMD_THREAD_SUSPEND)
     wait_for_notification(notification_queue, 'suspend')
 
-    t2 = run_as_pydevd_daemon_thread(single_notification_behavior.do_wait_suspend, thread_info2, CMD_THREAD_SUSPEND)
+    t2 = run_as_pydevd_daemon_thread(dummy_py_db, single_notification_behavior.do_wait_suspend, thread_info2, CMD_THREAD_SUSPEND)
 
     # Step would actually be set state to STEP, which would result in resuming
     # and then stopping again as if it was a SUSPEND (which calls a set_supend again with
@@ -156,7 +171,7 @@ def test_single_notification_2(single_notification_behavior, notification_queue)
 
     single_notification_behavior.increment_suspend_time()
     thread_info2.state = STATE_SUSPEND
-    t2 = run_as_pydevd_daemon_thread(single_notification_behavior.do_wait_suspend, thread_info2, CMD_STEP_OVER)
+    t2 = run_as_pydevd_daemon_thread(dummy_py_db, single_notification_behavior.do_wait_suspend, thread_info2, CMD_STEP_OVER)
     wait_for_notification(notification_queue, 'suspend')
 
     thread_info1.state = STATE_RUN
@@ -169,7 +184,7 @@ def test_single_notification_2(single_notification_behavior, notification_queue)
     assert notification_queue.qsize() == 0
 
 
-def test_single_notification_3(single_notification_behavior, notification_queue):
+def test_single_notification_3(single_notification_behavior, notification_queue, _dummy_pydb):
     '''
     3. Deadlocked thread
 
@@ -188,12 +203,12 @@ def test_single_notification_3(single_notification_behavior, notification_queue)
     thread_info1 = _ThreadInfo()
     single_notification_behavior.increment_suspend_time()
     thread_info1.state = STATE_SUSPEND
-    t1 = run_as_pydevd_daemon_thread(single_notification_behavior.do_wait_suspend, thread_info1, CMD_SET_BREAK)
+    t1 = run_as_pydevd_daemon_thread(_dummy_pydb, single_notification_behavior.do_wait_suspend, thread_info1, CMD_SET_BREAK)
 
     # i.e.: stop because of breakpoint
     thread_info2 = _ThreadInfo()
     thread_info2.state = STATE_SUSPEND
-    t2 = run_as_pydevd_daemon_thread(single_notification_behavior.do_wait_suspend, thread_info2, CMD_SET_BREAK)
+    t2 = run_as_pydevd_daemon_thread(_dummy_pydb, single_notification_behavior.do_wait_suspend, thread_info2, CMD_SET_BREAK)
 
     wait_for_notification(notification_queue, 'suspend')
 
@@ -229,7 +244,7 @@ def test_single_notification_3(single_notification_behavior, notification_queue)
     time.sleep(single_notification_behavior.NOTIFY_OF_PAUSE_TIMEOUT * 2)
     assert notification_queue.qsize() == 0
 
-    t1 = run_as_pydevd_daemon_thread(single_notification_behavior.do_wait_suspend, thread_info1, CMD_THREAD_SUSPEND)
+    t1 = run_as_pydevd_daemon_thread(_dummy_pydb, single_notification_behavior.do_wait_suspend, thread_info1, CMD_THREAD_SUSPEND)
     wait_for_notification(notification_queue, 'suspend')
     thread_info1.state = STATE_RUN
     wait_for_notification(notification_queue, 'resume')
@@ -237,7 +252,7 @@ def test_single_notification_3(single_notification_behavior, notification_queue)
     assert notification_queue.qsize() == 0
 
 
-def test_single_notification_4(single_notification_behavior, notification_queue):
+def test_single_notification_4(single_notification_behavior, notification_queue, _dummy_pydb):
     '''
     4. Delayed stop
 
@@ -255,19 +270,19 @@ def test_single_notification_4(single_notification_behavior, notification_queue)
     thread_info1.state = STATE_SUSPEND
     thread_info2.state = STATE_SUSPEND
 
-    t1 = run_as_pydevd_daemon_thread(single_notification_behavior.do_wait_suspend, thread_info1, CMD_THREAD_SUSPEND)
+    t1 = run_as_pydevd_daemon_thread(_dummy_pydb, single_notification_behavior.do_wait_suspend, thread_info1, CMD_THREAD_SUSPEND)
     wait_for_notification(notification_queue, 'suspend')
     thread_info1.state = STATE_RUN
     wait_for_notification(notification_queue, 'resume')
     join_thread(t1)
 
-    t2 = run_as_pydevd_daemon_thread(single_notification_behavior.do_wait_suspend, thread_info1, CMD_THREAD_SUSPEND)
+    t2 = run_as_pydevd_daemon_thread(_dummy_pydb, single_notification_behavior.do_wait_suspend, thread_info1, CMD_THREAD_SUSPEND)
     time.sleep(.1)
     assert notification_queue.qsize() == 0
 
     single_notification_behavior.increment_suspend_time()
     thread_info1.state = STATE_SUSPEND
-    t1 = run_as_pydevd_daemon_thread(single_notification_behavior.do_wait_suspend, thread_info1, CMD_STEP_OVER)
+    t1 = run_as_pydevd_daemon_thread(_dummy_pydb, single_notification_behavior.do_wait_suspend, thread_info1, CMD_STEP_OVER)
     wait_for_notification(notification_queue, 'suspend')
     thread_info2.state = STATE_RUN
     thread_info1.state = STATE_RUN

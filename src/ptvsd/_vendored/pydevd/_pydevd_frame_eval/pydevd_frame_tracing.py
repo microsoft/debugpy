@@ -38,7 +38,9 @@ def _pydev_stop_at_break(line):
 
     t.additional_info.is_tracing = True
     try:
-        debugger = get_global_debugger()
+        py_db = get_global_debugger()
+        if py_db is None:
+            return
 
         try:
             abs_path_real_path_and_base = NORM_PATHS_AND_BASE_CONTAINER[frame.f_code.co_filename]
@@ -47,7 +49,7 @@ def _pydev_stop_at_break(line):
         filename = abs_path_real_path_and_base[1]
 
         try:
-            python_breakpoint = debugger.breakpoints[filename][line]
+            python_breakpoint = py_db.breakpoints[filename][line]
         except:
             # print("Couldn't find breakpoint in the file %s on line %s" % (frame.f_code.co_filename, line))
             # Could be KeyError if line is not there or TypeError if breakpoints_for_file is None.
@@ -66,8 +68,7 @@ def _pydev_stop_at_break(line):
             if thread_info.thread_trace_func is not None:
                 frame.f_trace = thread_info.thread_trace_func
             else:
-                debugger = get_global_debugger()
-                frame.f_trace = debugger.get_thread_local_trace_func()
+                frame.f_trace = py_db.get_thread_local_trace_func()
 
     finally:
         t.additional_info.is_tracing = False

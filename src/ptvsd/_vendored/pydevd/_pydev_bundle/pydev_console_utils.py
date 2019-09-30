@@ -126,6 +126,10 @@ class DebugConsoleStdIn(BaseStdIn):
             py_db = self._py_db
             if py_db is None:
                 py_db = get_global_debugger()
+
+            if py_db is None:
+                return
+
             cmd = py_db.cmd_factory.make_input_requested_message(is_started)
             py_db.writer.add_command(cmd)
         except Exception:
@@ -535,7 +539,16 @@ class BaseInterpreterInterface:
                 var_objects.append((var_object, name))
 
         from _pydevd_bundle.pydevd_comm import GetValueAsyncThreadConsole
-        t = GetValueAsyncThreadConsole(self.get_server(), seq, var_objects)
+        py_db = getattr(self, 'debugger', None)
+
+        if py_db is None:
+            py_db = get_global_debugger()
+
+        if py_db is None:
+            from pydevd import PyDB
+            py_db = PyDB()
+
+        t = GetValueAsyncThreadConsole(py_db, self.get_server(), seq, var_objects)
         t.start()
 
     def changeVariable(self, attr, value):

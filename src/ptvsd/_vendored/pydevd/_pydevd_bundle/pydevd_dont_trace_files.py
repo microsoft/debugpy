@@ -92,7 +92,6 @@ DONT_TRACE = {
     'pydevd_import_class.py': PYDEV_FILE,
     'pydevd_io.py': PYDEV_FILE,
     'pydevd_json_debug_options.py': PYDEV_FILE,
-    'pydevd_kill_all_pydevd_threads.py': PYDEV_FILE,
     'pydevd_modify_bytecode.py': PYDEV_FILE,
     'pydevd_net_command.py': PYDEV_FILE,
     'pydevd_net_command_factory_json.py': PYDEV_FILE,

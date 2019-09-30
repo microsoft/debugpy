@@ -330,7 +330,16 @@ class ReaderThread(threading.Thread):
     def do_kill(self):
         self._kill = True
         if hasattr(self, 'sock'):
-            self.sock.close()
+            from socket import SHUT_RDWR
+            try:
+                self.sock.shutdown(SHUT_RDWR)
+            except:
+                pass
+            try:
+                self.sock.close()
+            except:
+                pass
+            delattr(self, 'sock')
 
 
 def read_process(stream, buffer, debug_stream, stream_name, finish):
@@ -671,12 +680,19 @@ class AbstractWriterThread(threading.Thread):
     def do_kill(self):
         if hasattr(self, 'server_socket'):
             self.server_socket.close()
+            delattr(self, 'server_socket')
 
         if hasattr(self, 'reader_thread'):
             # if it's not created, it's not there...
             self.reader_thread.do_kill()
+            delattr(self, 'reader_thread')
+
         if hasattr(self, 'sock'):
             self.sock.close()
+            delattr(self, 'sock')
+
+        if hasattr(self, 'port'):
+            delattr(self, 'port')
 
     def write_with_content_len(self, msg):
         self.log.append('write: %s' % (msg,))

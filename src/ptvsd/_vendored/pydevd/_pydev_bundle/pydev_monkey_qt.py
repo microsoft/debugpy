@@ -3,15 +3,18 @@ from __future__ import nested_scopes
 from _pydev_imps._pydev_saved_modules import threading
 import os
 
+
 def set_trace_in_qt():
     from _pydevd_bundle.pydevd_comm import get_global_debugger
-    debugger = get_global_debugger()
-    if debugger is not None:
+    py_db = get_global_debugger()
+    if py_db is not None:
         threading.current_thread()  # Create the dummy thread for qt.
-        debugger.enable_tracing()
+        py_db.enable_tracing()
 
 
 _patched_qt = False
+
+
 def patch_qt(qt_support_mode):
     '''
     This method patches qt (PySide, PyQt4, PyQt5) so that we have hooks to set the tracing for QThread.
@@ -83,9 +86,11 @@ def patch_qt(qt_support_mode):
         # that has to be done before importing PyQt4 modules (PySide/PyQt5 don't have this issue
         # as they only implements v2).
         patch_qt_on_import = 'PyQt4'
+
         def get_qt_core_module():
             import PyQt4.QtCore  # @UnresolvedImport
             return PyQt4.QtCore
+
         _patch_import_to_patch_pyqt_on_import(patch_qt_on_import, get_qt_core_module)
 
     else:
@@ -110,12 +115,12 @@ def _patch_import_to_patch_pyqt_on_import(patch_qt_on_import, get_qt_core_module
         if patch_qt_on_import == name or name.startswith(dotted):
             builtins.__import__ = original_import
             cancel_patches_in_sys_module()
-            _internal_patch_qt(get_qt_core_module()) # Patch it only when the user would import the qt module
+            _internal_patch_qt(get_qt_core_module())  # Patch it only when the user would import the qt module
         return original_import(name, *args, **kwargs)
 
     import sys
     if sys.version_info[0] >= 3:
-        import builtins # Py3
+        import builtins  # Py3
     else:
         import __builtin__ as builtins
 
@@ -128,6 +133,7 @@ def _internal_patch_qt(QtCore, qt_support_mode='auto'):
     _original_QThread = QtCore.QThread
 
     class FuncWrapper:
+
         def __init__(self, original):
             self._original = original
 
@@ -198,7 +204,6 @@ def _internal_patch_qt(QtCore, qt_support_mode='auto'):
 
             self._original_run = self.run
             self.run = self._new_run
-
 
         def _new_run(self):
             set_trace_in_qt()

@@ -19,7 +19,7 @@ from _pydevd_bundle.pydevd_constants import (int_types, IS_64BIT_PROCESS,
     PY_VERSION_STR, PY_IMPL_VERSION_STR, PY_IMPL_NAME)
 from tests_python import debugger_unittest
 from tests_python.debug_constants import TEST_CHERRYPY, IS_PY2, TEST_DJANGO, TEST_FLASK, IS_PY26, \
-    IS_PY27
+    IS_PY27, IS_CPYTHON
 from tests_python.debugger_unittest import (IS_JYTHON, IS_APPVEYOR, overrides,
     get_free_port, wait_for_condition)
 
@@ -336,7 +336,10 @@ class JsonFacade(object):
                 frame_variables_reference, name, value,
         )))
         set_variable_response = self.wait_for_response(set_variable_request)
-        assert set_variable_response.success == success
+        if set_variable_response.success != success:
+            raise AssertionError(
+                'Expected %s. Found: %s\nResponse: %s\n' % (
+                    success, set_variable_response.success, set_variable_response.to_json()))
         return set_variable_response
 
     def get_name_to_scope(self, frame_id):
@@ -2402,6 +2405,7 @@ cherrypy.quickstart(HelloWorld())
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(IS_PY26, reason='Flaky on Python 2.6.')
 def test_wait_for_attach(case_setup_remote_attach_to):
     host_port = get_socket_name(close=True)
 
@@ -2813,6 +2817,69 @@ def test_listen_dap_messages(case_setup):
         json_facade.write_make_initial_run()
 
         json_facade.wait_for_thread_stopped()
+        json_facade.write_continue(wait_for_response=False)
+
+        writer.finished_ok = True
+
+
+def _attach_to_writer_pid(writer):
+    import pydevd
+    import threading
+    import subprocess
+
+    assert writer.process is not None
+
+    def attach():
+        attach_pydevd_file = os.path.join(os.path.dirname(pydevd.__file__), 'pydevd_attach_to_process', 'attach_pydevd.py')
+        subprocess.call([sys.executable, attach_pydevd_file, '--pid', str(writer.process.pid), '--port', str(writer.port), '--protocol', 'http_json'])
+
+    threading.Thread(target=attach).start()
+
+    wait_for_condition(lambda: writer.finished_initialization)
+
+
+@pytest.mark.parametrize('reattach', [True, False])
+@pytest.mark.skipif(not IS_CPYTHON, reason='Attach to pid only available in CPython.')
+def test_attach_to_pid(case_setup_remote, reattach):
+    import threading
+
+    with case_setup_remote.test_file('_debugger_case_attach_to_pid_simple.py', wait_for_port=False) as writer:
+        time.sleep(1)  # Give it some time to initialize to get to the while loop.
+        _attach_to_writer_pid(writer)
+        json_facade = JsonFacade(writer)
+
+        bp_line = writer.get_line_index_with_content('break here')
+        json_facade.write_set_breakpoints(bp_line)
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped(line=bp_line)
+
+        if reattach:
+            # This would be the same as a second attach to pid, so, the idea is closing the current
+            # connection and then doing a new attach to pid.
+            json_facade.write_set_breakpoints([])
+            json_facade.write_continue()
+
+            writer.do_kill()  # This will simply close the open sockets without doing anything else.
+            time.sleep(1)
+
+            t = threading.Thread(target=writer.start_socket)
+            t.start()
+            wait_for_condition(lambda: hasattr(writer, 'port'))
+            time.sleep(1)
+            writer.process = writer.process
+            _attach_to_writer_pid(writer)
+            wait_for_condition(lambda: hasattr(writer, 'reader_thread'))
+            time.sleep(1)
+
+            json_facade = JsonFacade(writer)
+            json_facade.write_set_breakpoints(bp_line)
+            json_facade.write_make_initial_run()
+
+            json_hit = json_facade.wait_for_thread_stopped(line=bp_line)
+
+        json_facade.write_set_variable(json_hit.frame_id, 'wait', '0')
+
         json_facade.write_continue(wait_for_response=False)
 
         writer.finished_ok = True

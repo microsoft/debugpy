@@ -825,13 +825,15 @@ def test_case_17a(case_setup):
     # Check dont trace return
     with case_setup.test_file('_debugger_case17a.py') as writer:
         writer.write_enable_dont_trace(True)
-        writer.write_add_breakpoint(2, 'm1')
+        break1_line = writer.get_line_index_with_content('break 1 here')
+        writer.write_add_breakpoint(break1_line, 'm1')
         writer.write_make_initial_run()
 
-        hit = writer.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, line=2)
+        hit = writer.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, line=break1_line)
 
         writer.write_step_in(hit.thread_id)
-        hit = writer.wait_for_breakpoint_hit('107', line=10)
+        break2_line = writer.get_line_index_with_content('break 2 here')
+        hit = writer.wait_for_breakpoint_hit('107', line=break2_line)
 
         # Should Skip step into properties setter
         assert hit.name == 'm3'
@@ -2564,16 +2566,40 @@ def _attach_to_writer_pid(writer):
 
 
 @pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
-def test_attach_to_pid_no_threads(case_setup_remote):
+@pytest.mark.parametrize('reattach', [True, False])
+def test_attach_to_pid_no_threads(case_setup_remote, reattach):
     with case_setup_remote.test_file('_debugger_case_attach_to_pid_simple.py', wait_for_port=False) as writer:
         time.sleep(1)  # Give it some time to initialize to get to the while loop.
         _attach_to_writer_pid(writer)
 
         bp_line = writer.get_line_index_with_content('break here')
-        writer.write_add_breakpoint(bp_line)
+        bp_id = writer.write_add_breakpoint(bp_line)
         writer.write_make_initial_run()
 
         hit = writer.wait_for_breakpoint_hit(line=bp_line)
+
+        if reattach:
+            # This would be the same as a second attach to pid, so, the idea is closing the current
+            # connection and then doing a new attach to pid.
+            writer.write_remove_breakpoint(bp_id)
+            writer.write_run_thread(hit.thread_id)
+
+            writer.do_kill()  # This will simply close the open sockets without doing anything else.
+            time.sleep(1)
+
+            t = threading.Thread(target=writer.start_socket)
+            t.start()
+            wait_for_condition(lambda: hasattr(writer, 'port'))
+            time.sleep(1)
+            writer.process = writer.process
+            _attach_to_writer_pid(writer)
+            wait_for_condition(lambda: hasattr(writer, 'reader_thread'))
+            time.sleep(1)
+
+            bp_id = writer.write_add_breakpoint(bp_line)
+            writer.write_make_initial_run()
+
+            hit = writer.wait_for_breakpoint_hit(line=bp_line)
 
         writer.write_change_variable(hit.thread_id, hit.frame_id, 'wait', 'False')
         writer.wait_for_var('<xml><var name="" type="bool"')
@@ -2967,7 +2993,12 @@ def test_custom_frames(case_setup):
 
         # Check that the frame-related threads have been killed.
         for _ in range(i):
-            writer.wait_for_message(CMD_THREAD_KILL, expect_xml=False)
+            try:
+                writer.wait_for_message(CMD_THREAD_KILL, expect_xml=False, timeout=1)
+            except debugger_unittest.TimeoutError:
+                # Flaky: sometimes the thread kill is not received because
+                # the process exists before the message is sent.
+                break
 
         writer.finished_ok = True
 

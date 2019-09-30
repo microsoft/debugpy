@@ -81,7 +81,7 @@ from _pydev_bundle._pydev_completer import extract_token_and_qualifier
 from _pydevd_bundle._debug_adapter.pydevd_schema import VariablesResponseBody, \
     SetVariableResponseBody
 from _pydevd_bundle._debug_adapter import pydevd_base_schema, pydevd_schema
-from _pydevd_bundle.pydevd_net_command import NetCommand
+from _pydevd_bundle.pydevd_net_command import NetCommand, NULL_EXIT_COMMAND
 from _pydevd_bundle.pydevd_xml import ExceptionOnEvaluate
 try:
     from urllib import quote_plus, unquote_plus
@@ -123,21 +123,25 @@ if IS_JYTHON:
 
 
 class PyDBDaemonThread(threading.Thread):
-    created_pydb_daemon_threads = {}
 
-    def __init__(self, target_and_args=None):
+    def __init__(self, py_db, target_and_args=None):
         '''
         :param target_and_args:
             tuple(func, args, kwargs) if this should be a function and args to run.
             -- Note: use through run_as_pydevd_daemon_thread().
         '''
         threading.Thread.__init__(self)
-        self.killReceived = False
+        self._py_db = weakref.ref(py_db)
+        self._kill_received = False
         mark_as_pydevd_daemon_thread(self)
         self._target_and_args = target_and_args
 
+    @property
+    def py_db(self):
+        return self._py_db()
+
     def run(self):
-        created_pydb_daemon = self.created_pydb_daemon_threads
+        created_pydb_daemon = self.py_db.created_pydb_daemon_threads
         created_pydb_daemon[self] = 1
         try:
             try:
@@ -164,7 +168,7 @@ class PyDBDaemonThread(threading.Thread):
             raise NotImplementedError('Should be reimplemented by: %s' % self.__class__)
 
     def do_kill_pydev_thread(self):
-        self.killReceived = True
+        self._kill_received = True
 
     def _stop_trace(self):
         if self.pydev_do_not_trace:
@@ -177,11 +181,11 @@ def mark_as_pydevd_daemon_thread(thread):
     thread.daemon = True
 
 
-def run_as_pydevd_daemon_thread(func, *args, **kwargs):
+def run_as_pydevd_daemon_thread(py_db, func, *args, **kwargs):
     '''
     Runs a function as a pydevd daemon thread (without any tracing in place).
     '''
-    t = PyDBDaemonThread(target_and_args=(func, args, kwargs))
+    t = PyDBDaemonThread(py_db, target_and_args=(func, args, kwargs))
     t.name = '%s (pydevd daemon thread)' % (func.__name__,)
     t.start()
     return t
@@ -192,11 +196,10 @@ class ReaderThread(PyDBDaemonThread):
 
     def __init__(self, sock, py_db, PyDevJsonCommandProcessor, process_net_command, terminate_on_socket_close=True):
         assert sock is not None
-        PyDBDaemonThread.__init__(self)
+        PyDBDaemonThread.__init__(self, py_db)
         self._terminate_on_socket_close = terminate_on_socket_close
 
         self.sock = sock
-        self.py_db = py_db
         self._buffer = b''
         self.setName("pydevd.Reader")
         self.process_net_command = process_net_command
@@ -212,15 +215,24 @@ class ReaderThread(PyDBDaemonThread):
     @overrides(PyDBDaemonThread.do_kill_pydev_thread)
     def do_kill_pydev_thread(self):
         PyDBDaemonThread.do_kill_pydev_thread(self)
-        # We must close the socket so that it doesn't stay halted there.
-        try:
-            self.sock.shutdown(SHUT_RD)  # shutdown the socket for read
-        except:
-            pass
-        try:
-            self.sock.close()
-        except:
-            pass
+        # Note that we no longer shutdown the reader, just the writer. The idea is that we shutdown
+        # the writer to send that the communication has finished, then, the client will shutdown its
+        # own writer when it receives an empty read, at which point this reader will also shutdown.
+
+        # That way, we can *almost* guarantee that all messages have been properly sent -- it's not
+        # completely guaranteed because it's possible that the process exits before the whole
+        # message was sent as having this thread alive won't stop the process from exiting -- we
+        # have a timeout when exiting the process waiting for this thread to finish -- see:
+        # PyDB.dispose_and_kill_all_pydevd_threads(wait=True)).
+
+        # try:
+        #    self.sock.shutdown(SHUT_RD)
+        # except:
+        #    pass
+        # try:
+        #    self.sock.close()
+        # except:
+        #    pass
 
     def _read(self, size):
         while True:
@@ -265,11 +277,17 @@ class ReaderThread(PyDBDaemonThread):
         try:
             content_len = -1
 
-            while not self.killReceived:
+            while not self._kill_received:
                 try:
                     line = self._read_line()
 
                     if len(line) == 0:
+                        try:
+                            # We read nothing from the server, this means the communication
+                            # should be properly finished now.
+                            self.sock.close()
+                        except:
+                            pass
                         self.handle_except()
                         return  # Finished communication.
 
@@ -302,7 +320,7 @@ class ReaderThread(PyDBDaemonThread):
                         elif line.endswith(b'\r'):
                             line = line[:-1]
                 except:
-                    if not self.killReceived:
+                    if not self._kill_received:
                         pydev_log_exception()
                         self.handle_except()
                     return  # Finished communication.
@@ -326,7 +344,7 @@ class ReaderThread(PyDBDaemonThread):
                         pydev_log_exception("Can't process net command: %s.", line)
 
         except:
-            if not self.killReceived:
+            if not self._kill_received:
                 if sys is not None and pydev_log_exception is not None:  # Could happen at interpreter shutdown
                     pydev_log_exception()
 
@@ -334,7 +352,7 @@ class ReaderThread(PyDBDaemonThread):
 
     def handle_except(self):
         if self._terminate_on_socket_close:
-            self.py_db.finish_debugging_session()
+            self.py_db.dispose_and_kill_all_pydevd_threads()
 
     def process_command(self, cmd_id, seq, text):
         self.process_net_command(self.py_db, cmd_id, seq, text)
@@ -344,12 +362,11 @@ class WriterThread(PyDBDaemonThread):
     ''' writer thread writes out the commands in an infinite loop '''
 
     def __init__(self, sock, py_db, terminate_on_socket_close=True):
-        PyDBDaemonThread.__init__(self)
+        PyDBDaemonThread.__init__(self, py_db)
         self.sock = sock
-        self.py_db = py_db
         self._terminate_on_socket_close = terminate_on_socket_close
         self.setName("pydevd.Writer")
-        self.cmdQueue = _queue.Queue()
+        self._cmd_queue = _queue.Queue()
         if pydevd_vm_type.get_vm_type() == 'python':
             self.timeout = 0
         else:
@@ -357,8 +374,8 @@ class WriterThread(PyDBDaemonThread):
 
     def add_command(self, cmd):
         ''' cmd is NetCommand '''
-        if not self.killReceived:  # we don't take new data after everybody die
-            self.cmdQueue.put(cmd, False)
+        if not self._kill_received:  # we don't take new data after everybody die
+            self._cmd_queue.put(cmd, False)
 
     @overrides(PyDBDaemonThread._on_run)
     def _on_run(self):
@@ -368,23 +385,25 @@ class WriterThread(PyDBDaemonThread):
             while True:
                 try:
                     try:
-                        cmd = self.cmdQueue.get(True, 0.1)
+                        cmd = self._cmd_queue.get(True, 0.1)
                     except _queue.Empty:
-                        if self.killReceived:
+                        if self._kill_received:
                             try:
                                 self.sock.shutdown(SHUT_WR)
                             except:
                                 pass
-                            try:
-                                self.sock.close()
-                            except:
-                                pass
+                            # Note: don't close the socket, just send the shutdown,
+                            # then, when no data is received on the reader, it can close
+                            # the socket.
+                            # See: https://blog.netherlabs.nl/articles/2009/01/18/the-ultimate-so_linger-page-or-why-is-my-tcp-not-reliable
 
-                            return  # break if queue is empty and killReceived
+                            # try:
+                            #     self.sock.close()
+                            # except:
+                            #     pass
+
+                            return  # break if queue is empty and _kill_received
                         else:
-                            # if time is None: -- TODO: Check why this was done (commented out for now).
-                            #     break  # interpreter shutdown
-                            # time.sleep(self.timeout)
                             continue
                 except:
                     # pydev_log.info('Finishing debug communication...(1)')
@@ -405,25 +424,19 @@ class WriterThread(PyDBDaemonThread):
                 time.sleep(self.timeout)
         except Exception:
             if self._terminate_on_socket_close:
-                self.py_db.finish_debugging_session()
+                self.py_db.dispose_and_kill_all_pydevd_threads()
                 if DebugInfoHolder.DEBUG_TRACE_LEVEL > 0:
                     pydev_log_exception()
 
     def empty(self):
-        return self.cmdQueue.empty()
+        return self._cmd_queue.empty()
 
     @overrides(PyDBDaemonThread.do_kill_pydev_thread)
     def do_kill_pydev_thread(self):
+        # Add command before setting the kill flag (otherwise the command may not be added).
+        self.add_command(NULL_EXIT_COMMAND)
+
         PyDBDaemonThread.do_kill_pydev_thread(self)
-        # We must close the socket so that it doesn't stay halted there.
-        try:
-            self.sock.shutdown(SHUT_WR)  # shutdown the socket for write
-        except:
-            pass
-        try:
-            self.sock.close()
-        except:
-            pass
 
 
 def create_server_socket(host, port):
@@ -452,7 +465,6 @@ def start_server(port):
         new_socket, _addr = s.accept()
         pydev_log.info("Connection accepted")
         # closing server socket is not necessary but we don't need it
-        s.shutdown(SHUT_RDWR)
         s.close()
         return new_socket
     except:
@@ -501,7 +513,7 @@ class InternalThreadCommand(object):
 
     The reason for their existence is that some commands have to be executed
     on specific threads. These are the InternalThreadCommands that get
-    get posted to PyDB.cmdQueue.
+    get posted to PyDB.
     '''
 
     def __init__(self, thread_id, method=None, *args, **kwargs):
@@ -1468,7 +1480,7 @@ class InternalLoadFullValue(InternalThreadCommand):
                     var_obj = pydevd_vars.getVariable(dbg, self.thread_id, self.frame_id, scope, attrs)
                     var_objects.append((var_obj, name))
 
-            t = GetValueAsyncThreadDebug(dbg, self.sequence, var_objects)
+            t = GetValueAsyncThreadDebug(dbg, dbg, self.sequence, var_objects)
             t.start()
         except:
             exc = get_exception_traceback_str()
@@ -1482,8 +1494,8 @@ class AbstractGetValueAsyncThread(PyDBDaemonThread):
     Abstract class for a thread, which evaluates values for async variables
     '''
 
-    def __init__(self, frame_accessor, seq, var_objects):
-        PyDBDaemonThread.__init__(self)
+    def __init__(self, py_db, frame_accessor, seq, var_objects):
+        PyDBDaemonThread.__init__(self, py_db)
         self.frame_accessor = frame_accessor
         self.seq = seq
         self.var_objs = var_objects

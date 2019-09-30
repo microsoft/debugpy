@@ -45,7 +45,6 @@ from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_fr
 from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE, LIB_FILE
 from _pydevd_bundle.pydevd_extension_api import DebuggerEventHandler
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, remove_exception_from_frame
-from _pydevd_bundle.pydevd_kill_all_pydevd_threads import kill_all_pydev_threads
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
 from _pydevd_bundle.pydevd_trace_dispatch import (
     trace_dispatch as _trace_dispatch, global_cache_skips, global_cache_frame_skips, fix_top_level_trace_and_get_trace_func)
@@ -142,7 +141,6 @@ try:
 except:
     pass
 
-_debugger_setup = False
 bufferStdOutToServer = False
 bufferStdErrToServer = False
 
@@ -157,9 +155,8 @@ _CACHE_FILE_TYPE = {}
 class PyDBCommandThread(PyDBDaemonThread):
 
     def __init__(self, py_db):
-        PyDBDaemonThread.__init__(self)
+        PyDBDaemonThread.__init__(self, py_db)
         self._py_db_command_thread_event = py_db._py_db_command_thread_event
-        self.py_db = py_db
         self.setName('pydevd.CommandThread')
 
     @overrides(PyDBDaemonThread._on_run)
@@ -167,11 +164,11 @@ class PyDBCommandThread(PyDBDaemonThread):
         # Delay a bit this initialization to wait for the main program to start.
         time.sleep(0.3)
 
-        if self.killReceived:
+        if self._kill_received:
             return
 
         try:
-            while not self.killReceived:
+            while not self._kill_received:
                 try:
                     self.py_db.process_internal_commands()
                 except:
@@ -189,6 +186,12 @@ class PyDBCommandThread(PyDBDaemonThread):
             # only got this error in interpreter shutdown
             # pydev_log.info('Finishing debug communication...(3)')
 
+    @overrides(PyDBDaemonThread.do_kill_pydev_thread)
+    def do_kill_pydev_thread(self):
+        PyDBDaemonThread.do_kill_pydev_thread(self)
+        # Set flag so that it can exit before the usual timeout.
+        self._py_db_command_thread_event.set()
+
 
 #=======================================================================================================================
 # CheckAliveThread
@@ -197,45 +200,38 @@ class PyDBCommandThread(PyDBDaemonThread):
 class CheckAliveThread(PyDBDaemonThread):
 
     def __init__(self, py_db):
-        PyDBDaemonThread.__init__(self)
-        self.py_db = py_db
+        PyDBDaemonThread.__init__(self, py_db)
         self.setName('pydevd.CheckAliveThread')
         self.daemon = False
+        self._wait_event = threading.Event()
 
     @overrides(PyDBDaemonThread._on_run)
     def _on_run(self):
-        while not self.killReceived:
-            time.sleep(0.3)
+        while not self._kill_received:
+            self._wait_event.wait(0.3)
             if not self.py_db.has_threads_alive() and self.py_db.writer.empty():
                 try:
                     pydev_log.debug("No threads alive, finishing debug session")
-                    self.py_db.finish_debugging_session()
-                    kill_all_pydev_threads()
-                    self.wait_pydb_threads_to_finish()
+                    self.py_db.dispose_and_kill_all_pydevd_threads(wait=True)
                 except:
                     pydev_log.exception()
 
-                self.killReceived = True
+                self._kill_received = True
                 return
 
             self.py_db.check_output_redirect()
-
-    def wait_pydb_threads_to_finish(self, timeout=0.5):
-        pydev_log.debug("Waiting for pydb daemon threads to finish")
-        pydb_daemon_threads = self.created_pydb_daemon_threads
-        started_at = time.time()
-        while time.time() < started_at + timeout:
-            if len(pydb_daemon_threads) == 1 and pydb_daemon_threads.get(self, None):
-                return
-            time.sleep(1 / 30.)
-        pydev_log.debug("The following pydb threads may not have finished correctly: %s",
-                        ', '.join([t.getName() for t in pydb_daemon_threads if t is not self]))
 
     def join(self, timeout=None):
         # If someone tries to join this thread, mark it to be killed.
         # This is the case for CherryPy when auto-reload is turned on.
         self.do_kill_pydev_thread()
         PyDBDaemonThread.join(self, timeout=timeout)
+
+    @overrides(PyDBDaemonThread.do_kill_pydev_thread)
+    def do_kill_pydev_thread(self):
+        PyDBDaemonThread.do_kill_pydev_thread(self)
+        # Set flag so that it can exit before the usual timeout.
+        self._wait_event.set()
 
 
 class AbstractSingleNotificationBehavior(object):
@@ -265,11 +261,13 @@ class AbstractSingleNotificationBehavior(object):
         '_suspend_time_request',
         '_suspended_thread_ids',
         '_pause_requested',
+        '_py_db',
     ]
 
     NOTIFY_OF_PAUSE_TIMEOUT = .5
 
-    def __init__(self):
+    def __init__(self, py_db):
+        self._py_db = weakref.ref(py_db)
         self._next_request_time = partial(next, itertools.count())
         self._last_suspend_notification_time = -1
         self._last_resume_notification_time = -1
@@ -294,7 +292,8 @@ class AbstractSingleNotificationBehavior(object):
         with self._lock:
             self._pause_requested = True
             global_suspend_time = self._suspend_time_request
-        run_as_pydevd_daemon_thread(self._notify_after_timeout, global_suspend_time)
+        py_db = self._py_db()
+        run_as_pydevd_daemon_thread(py_db, self._notify_after_timeout, global_suspend_time)
 
     def _notify_after_timeout(self, global_suspend_time):
         time.sleep(self.NOTIFY_OF_PAUSE_TIMEOUT)
@@ -335,13 +334,12 @@ class AbstractSingleNotificationBehavior(object):
 class ThreadsSuspendedSingleNotification(AbstractSingleNotificationBehavior):
 
     __slots__ = AbstractSingleNotificationBehavior.__slots__ + [
-        'multi_threads_single_notification', '_py_db', '_callbacks', '_callbacks_lock']
+        'multi_threads_single_notification', '_callbacks', '_callbacks_lock']
 
     def __init__(self, py_db):
-        AbstractSingleNotificationBehavior.__init__(self)
+        AbstractSingleNotificationBehavior.__init__(self, py_db)
         # If True, pydevd will send a single notification when all threads are suspended/resumed.
         self.multi_threads_single_notification = False
-        self._py_db = weakref.ref(py_db)
         self._callbacks_lock = threading.Lock()
         self._callbacks = []
 
@@ -431,6 +429,10 @@ class PyDB(object):
        These are placed on the internal command queue.
     """
 
+    # Direct child pids which should not be terminated when terminating processes.
+    # Note: class instance because it should outlive PyDB instances.
+    dont_terminate_child_pids = set()
+
     def __init__(self, set_as_global=True):
         if set_as_global:
             pydevd_tracing.replace_sys_set_trace_func()
@@ -439,9 +441,10 @@ class PyDB(object):
 
         self.reader = None
         self.writer = None
+        self.created_pydb_daemon_threads = {}
         self._waiting_for_connection_thread = None
         self._on_configuration_done_event = threading.Event()
-        self.output_checker_thread = None
+        self.check_alive_thread = None
         self.py_db_command_thread = None
         self.quitting = None
         self.cmd_factory = NetCommandFactory()
@@ -452,9 +455,6 @@ class PyDB(object):
 
         # Determines whether we should terminate child processes when asked to terminate.
         self.terminate_child_processes = True
-
-        # List of direct child pids which should not be terminated when terminating processes.
-        self.dont_terminate_child_pids = set()
 
         # These are the breakpoints received by the PyDevdAPI. They are meant to store
         # the breakpoints in the api -- its actual contents are managed by the api.
@@ -484,8 +484,8 @@ class PyDB(object):
         if set_as_global:
             CustomFramesContainer._py_db_command_thread_event = self._py_db_command_thread_event
 
-        self._finish_debugging_session = False
-        self._termination_event_set = False
+        self.pydb_disposed = False
+        self._disposed_lock = thread.allocate_lock()
         self.signature_factory = None
         self.SetTrace = pydevd_tracing.SetTrace
         self.skip_on_exceptions_thrown_in_same_context = False
@@ -598,6 +598,9 @@ class PyDB(object):
         if set_as_global:
             # Set as the global instance only after it's initialized.
             set_global_debugger(self)
+
+        # Stop the tracing as the last thing before the actual shutdown for a clean exit.
+        atexit.register(stoptrace)
 
     def on_initialize(self):
         '''
@@ -1113,9 +1116,6 @@ class PyDB(object):
 
         return False
 
-    def finish_debugging_session(self):
-        self._finish_debugging_session = True
-
     def initialize_network(self, sock, terminate_on_socket_close=True):
         assert sock is not None
         try:
@@ -1174,8 +1174,7 @@ class PyDB(object):
     class _WaitForConnectionThread(PyDBDaemonThread):
 
         def __init__(self, py_db):
-            PyDBDaemonThread.__init__(self)
-            self.py_db = py_db
+            PyDBDaemonThread.__init__(self, py_db)
             self._server_socket = None
 
         def run(self):
@@ -1186,7 +1185,7 @@ class PyDB(object):
             self.py_db._server_socket_name = self._server_socket.getsockname()
             self.py_db.set_server_socket_ready()
 
-            while not self.killReceived:
+            while not self._kill_received:
                 try:
                     s = self._server_socket
                     if s is None:
@@ -1194,7 +1193,7 @@ class PyDB(object):
 
                     s.listen(1)
                     new_socket, _addr = s.accept()
-                    if self.killReceived:
+                    if self._kill_received:
                         pydev_log.info("Connection (from wait_for_attach) accepted but ignored as kill was already received.")
                         return
 
@@ -1216,15 +1215,12 @@ class PyDB(object):
         def do_kill_pydev_thread(self):
             PyDBDaemonThread.do_kill_pydev_thread(self)
             s = self._server_socket
-            try:
-                s.shutdown(SHUT_RDWR)
-            except:
-                pass
-            try:
-                s.close()
-            except:
-                pass
-            self._server_socket = None
+            if s is not None:
+                try:
+                    s.close()
+                except:
+                    pass
+                self._server_socket = None
 
     def get_internal_queue(self, thread_id):
         """ returns internal command queue for a given thread.
@@ -1418,10 +1414,7 @@ class PyDB(object):
 
             # Without self._lock_running_thread_ids
             if len(program_threads_alive) == 0:
-                self.finish_debugging_session()
-                for t in all_threads:
-                    if hasattr(t, 'do_kill_pydev_thread'):
-                        t.do_kill_pydev_thread()
+                self.dispose_and_kill_all_pydevd_threads()
             else:
                 # Actually process the commands now (make sure we don't have a lock for _lock_running_thread_ids
                 # acquired at this point as it could lead to a deadlock if some command evaluated tried to
@@ -1736,7 +1729,7 @@ class PyDB(object):
         keep_suspended = False
 
         with self._main_lock:  # Use lock to check if suspended state changed
-            activate_matplotlib = info.pydev_state == STATE_SUSPEND and not self._finish_debugging_session
+            activate_matplotlib = info.pydev_state == STATE_SUSPEND and not self.pydb_disposed
 
         in_main_thread = is_current_thread_main_thread()
         if activate_matplotlib and in_main_thread:
@@ -1745,7 +1738,7 @@ class PyDB(object):
 
         while True:
             with self._main_lock:  # Use lock to check if suspended state changed
-                if info.pydev_state != STATE_SUSPEND or self._finish_debugging_session:
+                if info.pydev_state != STATE_SUSPEND or self.pydb_disposed:
                     break
 
             if in_main_thread and self.mpl_in_use:
@@ -1888,16 +1881,55 @@ class PyDB(object):
         new_pydb_command_thread.start()
 
     def _create_check_output_thread(self):
-        curr_output_checker_thread = self.output_checker_thread
+        curr_output_checker_thread = self.check_alive_thread
         if curr_output_checker_thread is not None:
             curr_output_checker_thread.do_kill_pydev_thread()
 
-        output_checker_thread = self.output_checker_thread = CheckAliveThread(self)
-        output_checker_thread.start()
+        check_alive_thread = self.check_alive_thread = CheckAliveThread(self)
+        check_alive_thread.start()
 
     def start_auxiliary_daemon_threads(self):
         self._create_pydb_command_thread()
         self._create_check_output_thread()
+
+    def dispose_and_kill_all_pydevd_threads(self, wait=False, timeout=0.5):
+        '''
+        When this method is called we finish the debug session, terminate threads
+        and if this was registered as the global instance, unregister it -- afterwards
+        it should be possible to create a new instance and set as global to start
+        a new debug session.
+
+        :param bool wait:
+            If True we'll wait for the threads to be actually finished before proceeding
+            (based on the available timeout).
+        '''
+        with self._disposed_lock:
+            if self.pydb_disposed:
+                return
+
+            self.pydb_disposed = True
+
+        pydb_daemon_threads = dict_keys(self.created_pydb_daemon_threads)
+        for t in pydb_daemon_threads:
+            if hasattr(t, 'do_kill_pydev_thread'):
+                t.do_kill_pydev_thread()
+
+        if wait:
+            pydev_log.debug("Waiting for pydb daemon threads to finish")
+            started_at = time.time()
+            check_alive_thread = self.check_alive_thread
+            # Note: we wait for all except the check_alive_thread (which is not really a daemon
+            # thread and it can call this method itself).
+            while time.time() < started_at + timeout:
+                if len(pydb_daemon_threads) == 1 and pydb_daemon_threads.get(check_alive_thread, None):
+                    return
+                time.sleep(1 / 30.)
+            pydev_log.debug("The following pydb threads may not have finished correctly: %s",
+                            ', '.join([t.getName() for t in pydb_daemon_threads if t is not check_alive_thread]))
+
+        py_db = get_global_debugger()
+        if py_db is self:
+            set_global_debugger(None)
 
     def prepare_to_run(self):
         ''' Shared code to prepare debugging by installing traces and registering threads '''
@@ -2061,22 +2093,6 @@ class PyDB(object):
                     runpy.run_module(module_name)
         return globals
 
-    def exiting(self):
-        # Either or both standard streams can be closed at this point,
-        # in which case flush() will fail.
-        try:
-            sys.stdout.flush()
-        except:
-            pass
-        try:
-            sys.stderr.flush()
-        except:
-            pass
-
-        self.check_output_redirect()
-        cmd = self.cmd_factory.make_exit_message()
-        self.writer.add_command(cmd)
-
     def wait_for_commands(self, globals):
         self._activate_mpl_if_needed()
 
@@ -2088,7 +2104,8 @@ class PyDB(object):
         self.add_fake_frame(thread_id, id(frame), frame)
 
         cmd = self.cmd_factory.make_show_console_message(self, thread_id, frame)
-        self.writer.add_command(cmd)
+        if self.writer is not None:
+            self.writer.add_command(cmd)
 
         while True:
             if self.mpl_in_use:
@@ -2207,7 +2224,8 @@ class _CustomWriter(object):
                 # Note that the actual message contents will be a xml with utf-8, although
                 # the entry is str on py3 and bytes on py2.
                 cmd = py_db.cmd_factory.make_io_message(s, self._out_ctx)
-                py_db.writer.add_command(cmd)
+                if py_db.writer is not None:
+                    py_db.writer.add_command(cmd)
 
 
 def init_stdout_redirect(on_write=None):
@@ -2249,7 +2267,7 @@ def _enable_attach(
     host = address[0]
     port = int(address[1])
 
-    if _debugger_setup:
+    if SetupHolder.setup is not None:
         if port != SetupHolder.setup['port']:
             raise AssertionError('Unable to listen in port: %s (already listening in port: %s)' % (port, SetupHolder.setup['port']))
     settrace(
@@ -2412,11 +2430,12 @@ def _locked_settrace(
         from _pydev_bundle import pydev_localhost
         host = pydev_localhost.get_localhost()
 
-    global _debugger_setup
     global bufferStdOutToServer
     global bufferStdErrToServer
 
-    if not _debugger_setup:
+    py_db = get_global_debugger()
+    if py_db is None:
+        py_db = PyDB()
         pydevd_vm_type.setup_type()
 
         if SetupHolder.setup is None:
@@ -2428,28 +2447,23 @@ def _locked_settrace(
             }
             SetupHolder.setup = setup
 
-        debugger = get_global_debugger()
-        if debugger is None:
-            debugger = PyDB()
         if access_token is not None:
-            debugger.authentication.access_token = access_token
+            py_db.authentication.access_token = access_token
             SetupHolder.setup['access-token'] = access_token
         if ide_access_token is not None:
-            debugger.authentication.ide_access_token = ide_access_token
+            py_db.authentication.ide_access_token = ide_access_token
             SetupHolder.setup['ide-access-token'] = ide_access_token
 
         if block_until_connected:
-            debugger.connect(host, port)  # Note: connect can raise error.
+            py_db.connect(host, port)  # Note: connect can raise error.
         else:
             # Create a dummy writer and wait for the real connection.
-            debugger.writer = WriterThread(NULL, debugger, terminate_on_socket_close=False)
-            debugger.create_wait_for_connection_thread()
+            py_db.writer = WriterThread(NULL, py_db, terminate_on_socket_close=False)
+            py_db.create_wait_for_connection_thread()
 
         if dont_trace_start_patterns or dont_trace_end_paterns:
-            PyDevdAPI().set_dont_trace_start_end_patterns(debugger, dont_trace_start_patterns, dont_trace_end_paterns)
+            PyDevdAPI().set_dont_trace_start_end_patterns(py_db, dont_trace_start_patterns, dont_trace_end_paterns)
 
-        # Mark connected only if it actually succeeded.
-        _debugger_setup = True
         bufferStdOutToServer = stdoutToServer
         bufferStdErrToServer = stderrToServer
 
@@ -2465,52 +2479,48 @@ def _locked_settrace(
         additional_info = set_additional_thread_info(t)
 
         if not wait_for_ready_to_run:
-            debugger.ready_to_run = True
+            py_db.ready_to_run = True
 
-        while not debugger.ready_to_run:
+        while not py_db.ready_to_run:
             time.sleep(0.1)  # busy wait until we receive run command
 
-        debugger.start_auxiliary_daemon_threads()
+        py_db.start_auxiliary_daemon_threads()
 
         if trace_only_current_thread:
-            debugger.enable_tracing()
+            py_db.enable_tracing()
         else:
             # Trace future threads.
-            debugger.patch_threads()
+            py_db.patch_threads()
 
-            debugger.enable_tracing(debugger.trace_dispatch, apply_to_all_threads=True)
+            py_db.enable_tracing(py_db.trace_dispatch, apply_to_all_threads=True)
 
             # As this is the first connection, also set tracing for any untraced threads
-            debugger.set_tracing_for_untraced_contexts()
+            py_db.set_tracing_for_untraced_contexts()
 
-        debugger.set_trace_for_frame_and_parents(get_frame().f_back)
+        py_db.set_trace_for_frame_and_parents(get_frame().f_back)
 
         with CustomFramesContainer.custom_frames_lock:  # @UndefinedVariable
             for _frameId, custom_frame in dict_iter_items(CustomFramesContainer.custom_frames):
-                debugger.set_trace_for_frame_and_parents(custom_frame.frame)
-
-        # Stop the tracing as the last thing before the actual shutdown for a clean exit.
-        atexit.register(stoptrace)
+                py_db.set_trace_for_frame_and_parents(custom_frame.frame)
 
     else:
         # ok, we're already in debug mode, with all set, so, let's just set the break
-        debugger = get_global_debugger()
         if access_token is not None:
-            debugger.authentication.access_token = access_token
+            py_db.authentication.access_token = access_token
         if ide_access_token is not None:
-            debugger.authentication.ide_access_token = ide_access_token
+            py_db.authentication.ide_access_token = ide_access_token
 
-        debugger.set_trace_for_frame_and_parents(get_frame().f_back)
+        py_db.set_trace_for_frame_and_parents(get_frame().f_back)
 
         t = threadingCurrentThread()
         additional_info = set_additional_thread_info(t)
 
         if trace_only_current_thread:
-            debugger.enable_tracing()
+            py_db.enable_tracing()
         else:
             # Trace future threads.
-            debugger.patch_threads()
-            debugger.enable_tracing(debugger.trace_dispatch, apply_to_all_threads=True)
+            py_db.patch_threads()
+            py_db.enable_tracing(py_db.trace_dispatch, apply_to_all_threads=True)
 
     # Suspend as the last thing after all tracing is in place.
     if suspend:
@@ -2524,33 +2534,36 @@ def _locked_settrace(
             additional_info.suspend_type = PYTHON_SUSPEND
         else:
             # Ask to break as soon as possible.
-            debugger.set_suspend(t, CMD_SET_BREAK)
+            py_db.set_suspend(t, CMD_SET_BREAK)
 
 
 def stoptrace():
-    global _debugger_setup
-    if _debugger_setup:
-        pydevd_tracing.restore_sys_set_trace_func()
-        sys.settrace(None)
-        try:
-            # not available in jython!
-            threading.settrace(None)  # for all future threads
-        except:
-            pass
+    pydevd_tracing.restore_sys_set_trace_func()
+    sys.settrace(None)
+    try:
+        # not available in jython!
+        threading.settrace(None)  # for all future threads
+    except:
+        pass
 
-        from _pydev_bundle.pydev_monkey import undo_patch_thread_modules
-        undo_patch_thread_modules()
+    from _pydev_bundle.pydev_monkey import undo_patch_thread_modules
+    undo_patch_thread_modules()
 
-        debugger = get_global_debugger()
+    # Either or both standard streams can be closed at this point,
+    # in which case flush() will fail.
+    try:
+        sys.stdout.flush()
+    except:
+        pass
+    try:
+        sys.stderr.flush()
+    except:
+        pass
 
-        if debugger:
+    py_db = get_global_debugger()
 
-            debugger.set_trace_for_frame_and_parents(get_frame(), disable=True)
-            debugger.exiting()
-
-            kill_all_pydev_threads()
-
-        _debugger_setup = False
+    if py_db is not None:
+        py_db.dispose_and_kill_all_pydevd_threads(wait=True)
 
 
 class Dispatcher(object):
@@ -2597,7 +2610,7 @@ class DispatchReader(ReaderThread):
     def process_command(self, cmd_id, seq, text):
         if cmd_id == 99:
             self.dispatcher.port = int(text)
-            self.killReceived = True
+            self._kill_received = True
 
 
 DISPATCH_APPROACH_NEW_CONNECTION = 1  # Used by PyDev
@@ -2624,9 +2637,13 @@ def settrace_forked(setup_tracing=True):
     When creating a fork from a process in the debugger, we need to reset the whole debugger environment!
     '''
     from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder
+    py_db = GlobalDebuggerHolder.global_dbg
+    if py_db is not None:
+        py_db.created_pydb_daemon_threads = {}  # Just making sure we won't touch those (paused) threads.
+        py_db = None
+
     GlobalDebuggerHolder.global_dbg = None
     threading.current_thread().additional_info = None
-    PyDBDaemonThread.created_pydb_daemon_threads = {}
 
     # Make sure that we keep the same access tokens for subprocesses started through fork.
     setup = SetupHolder.setup
@@ -2644,9 +2661,6 @@ def settrace_forked(setup_tracing=True):
 
     if setup_tracing:
         if port is not None:
-            global _debugger_setup
-            _debugger_setup = False
-
             custom_frames_container_init()
 
             if clear_thread_local_info is not None:
@@ -2693,7 +2707,7 @@ def add_dont_terminate_child_pid(pid):
     process = subprocess.Popen(...)
     pydevd.add_dont_terminate_child_pid(process.pid)
     '''
-    py_db = GetGlobalDebugger()
+    py_db = get_global_debugger()
     if py_db is not None:
         py_db.dont_terminate_child_pids.add(pid)
 
@@ -2712,7 +2726,7 @@ def apply_debugger_options(setup_options):
     default_options.update(setup_options)
     setup_options = default_options
 
-    debugger = GetGlobalDebugger()
+    debugger = get_global_debugger()
     if setup_options['save-signatures']:
         if pydevd_vm_type.get_vm_type() == pydevd_vm_type.PydevdVmType.JYTHON:
             sys.stderr.write("Collecting run-time type information is not supported for Jython\n")
@@ -2937,9 +2951,6 @@ def main():
             sys.stderr.write("Could not connect to %s: %s\n" % (host, port))
             pydev_log.exception()
             sys.exit(1)
-
-        global _debugger_setup
-        _debugger_setup = True  # Mark that the debugger is setup when started from the ide.
 
         globals = debugger.run(setup['file'], None, None, is_module)
 
