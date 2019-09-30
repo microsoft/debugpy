@@ -56,8 +56,9 @@ def test_wrapper(request, long_tmpdir):
             write_log = lambda filename, data: None
         else:
             original_log_dir = options.log_dir
-            log_subdir = request.node.name
-            for ch in r"\/:?*|<>":
+            log_subdir = request.node.nodeid
+            log_subdir = log_subdir.replace("::", "/")
+            for ch in r":?*|<>":
                 log_subdir = log_subdir.replace(ch, fmt("&#{0};", ord(ch)))
             options.log_dir += "/" + log_subdir
             try:
@@ -72,7 +73,7 @@ def test_wrapper(request, long_tmpdir):
 
         print("\n")  # make sure on-screen logs start on a new line
         with log.to_file(prefix="tests"):
-            log.info("Test {0} started.", request.node.name)
+            log.info("{0} started.", request.node.nodeid)
             try:
                 yield
             finally:
@@ -86,9 +87,9 @@ def test_wrapper(request, long_tmpdir):
                     failed |= report.failed
                     log.write_format(
                         "error" if report.failed else "info",
-                        "{0} for test {1} {2}.",
+                        "pytest {0} phase for {1} {2}.",
                         report.when,
-                        request.node.name,
+                        request.node.nodeid,
                         report.outcome,
                     )
 
