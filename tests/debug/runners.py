@@ -53,6 +53,8 @@ If there is no configuration phase, the runner returns directly::
 """
 
 import os
+import platform
+import pytest
 import sys
 
 import ptvsd
@@ -150,6 +152,11 @@ def _attach_common_config(session, target, cwd):
 
 @_runner
 def attach_by_pid(session, target, cwd=None, wait=True):
+    if platform.system() != "Windows":
+        pytest.skip("https://github.com/microsoft/ptvsd/issues/1810")
+    if sys.version_info < (3,):
+        pytest.skip("https://github.com/microsoft/ptvsd/issues/1811")
+
     log.info("Attaching {0} to {1} by PID.", session, target)
 
     config = session.config
@@ -237,9 +244,6 @@ all_launch = [
     launch["externalTerminal"],
 ]
 
-all_attach = [attach_by_socket["api"], attach_by_socket["cli"]]
-if sys.version_info >= (3,):
-    # Attach-by-PID is flaky on Python 2.7.
-    all_attach += [attach_by_pid]
+all_attach = [attach_by_socket["api"], attach_by_socket["cli"], attach_by_pid]
 
 all = all_launch + all_attach
