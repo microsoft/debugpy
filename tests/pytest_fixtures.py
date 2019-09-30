@@ -5,6 +5,7 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import inspect
+import io
 import os
 import platform
 import py.path
@@ -51,7 +52,9 @@ def test_wrapper(request, long_tmpdir):
 
     original_log_dir = None
     try:
-        if options.log_dir is not None:
+        if options.log_dir is None:
+            write_log = lambda filename, data: None
+        else:
             original_log_dir = options.log_dir
             log_subdir = request.node.name
             for ch in r"\/:?*|<>":
@@ -61,6 +64,11 @@ def test_wrapper(request, long_tmpdir):
                 py.path.local(options.log_dir).remove()
             except Exception:
                 pass
+
+            def write_log(filename, data):
+                filename = os.path.join(options.log_dir, filename)
+                with io.open(filename, "w", encoding="utf-8") as f:
+                    f.write(data)
 
         print("\n")  # make sure on-screen logs start on a new line
         with log.to_file(prefix="tests"):
@@ -84,17 +92,12 @@ def test_wrapper(request, long_tmpdir):
                         report.outcome,
                     )
 
-                    if options.log_dir is not None:
-                        with open(os.path.join(options.log_dir, report_attr + ".log"), "w") as f:
-                            f.write(report.longreprtext)
-                        with open(os.path.join(options.log_dir, report_attr + ".stdout.log"), "w") as f:
-                            f.write(report.capstdout)
-                        with open(os.path.join(options.log_dir, report_attr + ".stderr.log"), "w") as f:
-                            f.write(report.capstderr)
+                    write_log(report_attr + ".log", report.longreprtext)
+                    write_log(report_attr + ".stdout.log", report.capstdout)
+                    write_log(report_attr + ".stderr.log", report.capstderr)
 
-                if failed and options.log_dir is not None:
-                    with open(os.path.join(options.log_dir, "FAILED.log"), "w"):
-                        pass
+                if failed:
+                    write_log("FAILED.log", "")
     finally:
         if original_log_dir is not None:
             options.log_dir = original_log_dir
