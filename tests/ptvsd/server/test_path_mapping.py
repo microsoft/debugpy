@@ -12,6 +12,7 @@ from tests import debug, test_data
 from tests.patterns import some
 
 
+@pytest.mark.skip("https://github.com/microsoft/ptvsd/issues/1812")
 @pytest.mark.skipif(sys.platform == "win32", reason="Linux/Mac only test.")
 @pytest.mark.parametrize("os_type", ["INVALID", ""])
 def test_client_ide_from_path_mapping_linux_backend(pyfile, target, run, os_type):
