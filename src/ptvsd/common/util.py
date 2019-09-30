@@ -19,17 +19,6 @@ def evaluate(code, path=__file__, mode="eval"):
     return eval(expr, {}, sys.modules)
 
 
-def prepend_path_entry(env, key, entry):
-    """Prepends a new entry to a PATH-style environment variable named by key in
-    env, creating that variable if it doesn't exist already.
-    """
-    try:
-        tail = os.path.pathsep + env[key]
-    except KeyError:
-        tail = ""
-    env[key] = entry + tail
-
-
 class Observable(object):
     """An object with change notifications."""
 

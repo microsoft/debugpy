@@ -359,17 +359,17 @@ _stderr = LogStdErr()
 # in production code.
 
 
-def _repr(value):
+def _repr(value):  # pragma: no cover
     warning("$REPR {0!r}", value)
 
 
-def _vars(*names):
+def _vars(*names):  # pragma: no cover
     locals = inspect.currentframe().f_back.f_locals
     if names:
         locals = {name: locals[name] for name in names if name in locals}
     warning("$VARS {0!r}", locals)
 
 
-def _stack():
+def _stack():  # pragma: no cover
     stack = "\n".join(traceback.format_stack())
     warning("$STACK:\n\n{0}", stack)
