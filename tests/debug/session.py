@@ -303,6 +303,10 @@ class Session(object):
         if self.backchannel is not None:
             env["PTVSD_TEST_BACKCHANNEL_PORT"] = str(self.backchannel.port)
 
+        if not codecov:
+            # Disable codecov subprocess hook for that process.
+            env.pop("COV_CORE_SOURCE", None)
+
         return env
 
     def spawn_debuggee(self, args, cwd=None, exe=sys.executable, debug_me=None):
