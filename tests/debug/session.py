@@ -288,6 +288,7 @@ class Session(object):
                 env.prepend_to("PYTHONPATH", python_path)
             env.update(base_env)
 
+        env["PYTHONUNBUFFERED"] = "1"
         env["PTVSD_TEST_SESSION_ID"] = str(self.id)
         env.prepend_to("PYTHONPATH", DEBUGGEE_PYTHONPATH.strpath)
 
