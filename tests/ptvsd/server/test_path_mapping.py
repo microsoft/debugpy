@@ -5,58 +5,9 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import pytest
-import sys
 
-from ptvsd.common import fmt
 from tests import debug, test_data
 from tests.patterns import some
-
-
-@pytest.mark.skip("https://github.com/microsoft/ptvsd/issues/1812")
-@pytest.mark.skipif(sys.platform == "win32", reason="Linux/Mac only test.")
-@pytest.mark.parametrize("os_type", ["INVALID", ""])
-def test_client_ide_from_path_mapping_linux_backend(pyfile, target, run, os_type):
-    """
-    Test simulating that the debug server is on Linux and the IDE is on Windows
-    (automatically detect it from the path mapping).
-    """
-
-    if os_type == "INVALID":
-        # TODO: this test needs to be rewritten after "debugOptions" is removed.
-        pytest.skip("https://github.com/microsoft/ptvsd/issues/1770")
-
-    @pyfile
-    def code_to_debug():
-        from debug_me import backchannel
-        import pydevd_file_utils
-
-        backchannel.send(pydevd_file_utils._ide_os)
-        print("done")  # @bp
-
-    with debug.Session() as session:
-        if os_type == "INVALID":
-            session.debug_options |= {fmt("CLIENT_OS_TYPE={0}", os_type)}
-        session.config["pathMappings"] = [
-            {"localRoot": "C:\\TEMP\\src", "remoteRoot": code_to_debug.dirname}
-        ]
-
-        backchannel = session.open_backchannel()
-        with run(session, target(code_to_debug)):
-            session.set_breakpoints(
-                "c:\\temp\\src" + code_to_debug.basename, [code_to_debug.lines["bp"]]
-            )
-
-        assert backchannel.receive() == "WINDOWS"
-        session.wait_for_stop(
-            "breakpoint",
-            expected_frames=[
-                some.dap.frame(
-                    some.dap.source("C:\\TEMP\\src\\" + code_to_debug.basename),
-                    line=code_to_debug.lines["bp"],
-                )
-            ],
-        )
-        session.request_continue()
 
 
 def test_with_dot_remote_root(pyfile, long_tmpdir, target, run):
