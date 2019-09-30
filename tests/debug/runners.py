@@ -237,6 +237,9 @@ all_launch = [
     launch["externalTerminal"],
 ]
 
-all_attach = [attach_by_socket["api"], attach_by_socket["cli"], attach_by_pid]
+all_attach = [attach_by_socket["api"], attach_by_socket["cli"]]
+if sys.version_info >= (3,):
+    # Attach-by-PID is flaky on Python 2.7.
+    all_attach += [attach_by_pid]
 
 all = all_launch + all_attach

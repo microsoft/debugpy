@@ -6,7 +6,6 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import platform
 import pytest
-import sys
 
 from ptvsd.common import compat
 from tests import code, debug, log, net, test_data
@@ -135,20 +134,19 @@ def test_flask_template_exception_no_multiproc(start_flask):
                 }
             )
 
-            session.request_continue()
-
-            log.info("Exception will be reported again in {0}", paths.app_py)
-            session.wait_for_stop("exception")
-            session.request_continue()
-
-            # In Python 2, Flask reports this exception one more time, and it is
-            # reported for both frames again.
-            if sys.version_info < (3,):
-                log.info("Exception gets double-reported in Python 2.")
-                session.wait_for_stop("exception")
+            # Exception gets reported again as it is re-raised in every frame between
+            # the template and app.py. The number of frames is a Flask implementation
+            # detail, and varies between versions, so we keep iterating until we see
+            # it reported in app.py.
+            while True:
+                log.info("Exception propagating to next frame...")
                 session.request_continue()
-                session.wait_for_stop("exception")
-                session.request_continue()
+                stop = session.wait_for_stop("exception")
+                if stop.frames[0] == some.dap.frame(paths.app_py, line=some.int):
+                    break
+
+            # Let the request finish processing and respond with HTTP 500.
+            session.request_continue()
 
 
 @pytest.mark.parametrize("exc_type", ["handled", "unhandled"])

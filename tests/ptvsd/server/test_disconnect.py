@@ -39,16 +39,18 @@ def test_exit_on_disconnect_for_launch(pyfile, target, run):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
-        import os.path
+        import sys
 
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "here.txt")  # @bp
-        print("should not execute this")
-        with open(fp, "w") as f:
-            print("Should not continue after disconnect on launch", file=f)
+        filename = sys.argv[1]  # @bp
+        # Disconnect happens here; subsequent lines should not run.
+        with open(filename, "w") as f:
+            f.write("failed")
+
+    filename = (code_to_debug.dirpath() / "failed.txt").strpath
 
     with debug.Session() as session:
         session.expected_exit_code = some.int
-        with run(session, target(code_to_debug)):
+        with run(session, target(code_to_debug, args=[filename])):
             session.set_breakpoints(code_to_debug, all)
 
         session.wait_for_stop(
@@ -56,5 +58,4 @@ def test_exit_on_disconnect_for_launch(pyfile, target, run):
         )
         session.disconnect()
 
-    fp = os.path.join(os.path.dirname(os.path.abspath(code_to_debug)), "here.txt")
-    assert not os.path.exists(fp)
+    assert not os.path.exists(filename)

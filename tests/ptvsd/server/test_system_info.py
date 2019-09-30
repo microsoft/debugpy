@@ -8,6 +8,7 @@ import pytest
 import sys
 
 import ptvsd
+from ptvsd.common import log
 from tests import debug
 from tests.patterns import some
 
@@ -29,22 +30,27 @@ def expected_system_info():
 
     return some.dict.containing(
         {
-            "ptvsd": {"version": ptvsd.__version__},
-            "python": {
-                "version": version_str(sys.version_info),
-                "implementation": {
-                    "name": impl_name,
-                    "version": impl_version,
-                    "description": some.str,
-                },
-            },
-            "platform": {"name": sys.platform},
-            "process": {
-                "pid": some.int,
-                "ppid": some.int,
-                "executable": sys.executable,
-                "bitness": 64 if sys.maxsize > 2 ** 32 else 32,
-            },
+            "ptvsd": some.dict.containing({"version": ptvsd.__version__}),
+            "python": some.dict.containing(
+                {
+                    "version": version_str(sys.version_info),
+                    "implementation": some.dict.containing(
+                        {
+                            "name": impl_name,
+                            "version": impl_version,
+                            "description": some.str,
+                        }
+                    ),
+                }
+            ),
+            "platform": some.dict.containing({"name": sys.platform}),
+            "process": some.dict.containing(
+                {
+                    "pid": some.int,
+                    "executable": sys.executable,
+                    "bitness": 64 if sys.maxsize > 2 ** 32 else 32,
+                }
+            ),
         }
     )
 
@@ -64,6 +70,7 @@ def test_ptvsd_systemInfo(pyfile, target, run, expected_system_info):
         session.wait_for_stop()
 
         system_info = session.request("ptvsd_systemInfo")
+        log.info("Expected system info: {0}", expected_system_info)
         assert system_info == expected_system_info
 
         session.request_continue()

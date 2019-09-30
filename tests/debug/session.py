@@ -313,6 +313,8 @@ class Session(object):
             for s in args
         ]
 
+        cwd = compat.filename_str(cwd) if isinstance(cwd, py.path.local) else cwd
+
         env = self._make_env(self.spawn_debuggee.env, codecov=False)
         env["PTVSD_LISTENER_FILE"] = self.listener_file = self.tmpdir / "listener"
         if debug_me is not None:
