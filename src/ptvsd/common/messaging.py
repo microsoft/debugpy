@@ -278,9 +278,10 @@ class JsonIOStream(object):
                 if not chunk:
                     raise EOFError
             except Exception as exc:
-                log_message_and_exception(
-                    "Couldn't read the expected {0} bytes of body:", length
-                )
+                # Not logged due to https://github.com/microsoft/ptvsd/issues/1699
+                # log_message_and_exception(
+                #     "Couldn't read the expected {0} bytes of body:", length
+                # )
                 raise NoMoreMessages(str(exc), stream=self)
 
             raw_chunks.append(chunk)
