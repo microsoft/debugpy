@@ -367,12 +367,11 @@ class Session(util.Observable):
             except Exception:
                 pass
 
-            # Wait until the launcher message queue fully drains.
+            # Wait until the launcher message queue fully drains. There is no timeout
+            # here, because the final "terminated" event will only come after reading
+            # user input in wait-on-exit scenarios.
             log.info("{0} waiting for {1} to disconnect...", self, self.launcher)
-            if not self.wait_for(lambda: not self.launcher.is_connected, timeout=5):
-                log.warning(
-                    "{0} timed out waiting for {1} to disconnect.", self, self.launcher
-                )
+            self.wait_for(lambda: not self.launcher.is_connected)
 
             try:
                 self.launcher.channel.close()
