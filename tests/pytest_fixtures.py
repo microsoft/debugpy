@@ -5,7 +5,6 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import inspect
-import io
 import os
 import platform
 import py.path
@@ -68,7 +67,9 @@ def test_wrapper(request, long_tmpdir):
 
             def write_log(filename, data):
                 filename = os.path.join(options.log_dir, filename)
-                with io.open(filename, "w", encoding="utf-8") as f:
+                if not isinstance(data, bytes):
+                    data = data.encode("utf-8")
+                with open(filename, "wb") as f:
                     f.write(data)
 
         print("\n")  # make sure on-screen logs start on a new line
