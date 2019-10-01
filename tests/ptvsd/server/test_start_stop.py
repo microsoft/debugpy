@@ -26,13 +26,17 @@ def wait_and_press_key(session):
     log.info("Waiting for keypress prompt...")
     while not has_waited(session):
         time.sleep(0.1)
+
+    # Wait a bit to simulate the user reaction time, and test that debuggee does
+    # not exit all by itself.
+    time.sleep(1)
+
     log.info("Simulating keypress.")
-    session.debuggee.stdin.write(b" \r\n")
+    session.debuggee.stdin.write(b"\n")
 
 
 @pytest.mark.skipif(
-    sys.version_info < (3, 0) and platform.system() == "Windows",
-    reason="On Windows + Python 2, unable to send key strokes to test.",
+    sys.version_info < (3, 0), reason="https://github.com/microsoft/ptvsd/issues/1819"
 )
 @pytest.mark.parametrize(
     "run", [runners.launch["integratedTerminal"], runners.launch["externalTerminal"]]
