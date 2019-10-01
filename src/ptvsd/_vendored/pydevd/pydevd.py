@@ -765,7 +765,7 @@ class PyDB(object):
                 f = frame.f_back
                 while f is not None:
                     if (self.get_file_type(f) != self.PYDEV_FILE and
-                            get_abs_path_real_path_and_base_from_file(f.f_code.co_filename)[2] != 'runpy.py'):
+                            get_abs_path_real_path_and_base_from_file(f.f_code.co_filename)[2] not in ('runpy.py', '<string>')):
                         # We found some back frame that's not internal, which means we must consider
                         # this a library file.
                         # This is done because we only want to trace files as <string> if they don't
