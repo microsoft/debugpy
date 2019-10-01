@@ -4,7 +4,6 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-import platform
 import pytest
 import sys
 import time
@@ -62,8 +61,7 @@ def test_wait_on_normal_exit_enabled(pyfile, target, run):
 
 
 @pytest.mark.skipif(
-    sys.version_info < (3, 0) and platform.system() == "Windows",
-    reason="On Windows + Python 2, unable to send key strokes to test.",
+    sys.version_info < (3, 0), reason="https://github.com/microsoft/ptvsd/issues/1819"
 )
 @pytest.mark.parametrize(
     "run", [runners.launch["integratedTerminal"], runners.launch["externalTerminal"]]
