@@ -391,8 +391,6 @@ def test_deep_stacks(pyfile, target, run):
 @pytest.mark.parametrize("target", targets.all)
 @pytest.mark.parametrize("func", ["breakpoint", "ptvsd.break_into_debugger"])
 def test_break_api(pyfile, target, run, func):
-    if type(run).__name__ == "code" and sys.version_info < (3,):
-        pytest.skip("https://github.com/microsoft/ptvsd/issues/1808")
     if func == "breakpoint" and sys.version_info < (3, 7):
         pytest.skip("breakpoint() was introduced in Python 3.7")
 
