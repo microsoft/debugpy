@@ -30,18 +30,15 @@ def test_stop_on_entry(pyfile, run, target, breakpoint):
 
         if breakpoint:
             stop = session.wait_for_stop(
-                "breakpoint",
-                expected_frames=[some.dap.frame(code_to_debug, 1)]
+                "breakpoint", expected_frames=[some.dap.frame(code_to_debug, 1)]
             )
             session.request("next", {"threadId": stop.thread_id})
             stop = session.wait_for_stop(
-                "step",
-                expected_frames=[some.dap.frame(code_to_debug, 3)]
+                "step", expected_frames=[some.dap.frame(code_to_debug, 3)]
             )
         else:
             session.wait_for_stop(
-                "entry",
-                expected_frames=[some.dap.frame(code_to_debug, 1)]
+                "entry", expected_frames=[some.dap.frame(code_to_debug, 1)]
             )
 
         session.request_continue()

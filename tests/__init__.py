@@ -36,10 +36,12 @@ import pytest_timeout  # noqa
 # code used by the tests, and in all the test helpers. This does not affect ptvsd
 # inside debugged processes.
 
+
 def _register_assert_rewrite(modname):
     modname = str(modname)
     # print("pytest.register_assert_rewrite({0!r})".format(modname))
     pytest.register_assert_rewrite(modname)
+
 
 _register_assert_rewrite("ptvsd.common")
 tests_submodules = pkgutil.iter_modules([str(root)])
@@ -61,10 +63,12 @@ log.to_file(prefix="tests")
 
 # Enable JSON serialization for py.path.local.
 
+
 def json_default(self, obj):
     if isinstance(obj, py.path.local):
         return obj.strpath
     return self.original_default(obj)
+
 
 json.JsonEncoder.original_default = json.JsonEncoder.default
 json.JsonEncoder.default = json_default

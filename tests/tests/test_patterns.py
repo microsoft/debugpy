@@ -22,16 +22,26 @@ def log_repr(x):
 
 VALUES = [
     object(),
-    True, False,
-    0, -1, -1.0, 1.23,
-    b'abc', b'abcd',
-    u'abc', u'abcd',
-    (), (1, 2, 3),
-    [], [1, 2, 3],
-    {}, {'a': 1, 'b': 2},
+    True,
+    False,
+    0,
+    -1,
+    -1.0,
+    1.23,
+    b"abc",
+    b"abcd",
+    "abc",
+    "abcd",
+    (),
+    (1, 2, 3),
+    [],
+    [1, 2, 3],
+    {},
+    {"a": 1, "b": 2},
 ]
 
-@pytest.mark.parametrize('x', VALUES)
+
+@pytest.mark.parametrize("x", VALUES)
 def test_value(x):
     log_repr(some.object)
     assert x == some.object
@@ -113,7 +123,7 @@ def test_in_range():
 
 def test_str():
     log_repr(some.str)
-    assert some.str == u"abc"
+    assert some.str == "abc"
 
     if sys.version_info < (3,):
         assert b"abc" == some.str
@@ -213,13 +223,13 @@ def test_list():
 
 
 def test_dict():
-    pattern = {'a': some.thing, 'b': 2}
+    pattern = {"a": some.thing, "b": 2}
     log_repr(pattern)
-    assert pattern == {'a': 1, 'b': 2}
+    assert pattern == {"a": 1, "b": 2}
 
-    pattern = some.dict.containing({'a': 1})
+    pattern = some.dict.containing({"a": 1})
     log_repr(pattern)
-    assert pattern == {'a': 1, 'b': 2}
+    assert pattern == {"a": 1, "b": 2}
 
 
 def test_such_that():
@@ -233,25 +243,22 @@ def test_such_that():
 
 def test_error():
     log_repr(some.error)
-    assert some.error == Exception('error!')
+    assert some.error == Exception("error!")
     assert some.error != {}
 
 
 def test_recursive():
-    pattern = some.dict.containing({
-        "dict": some.dict.containing({
-            "int": some.int.in_range(100, 200),
-        }),
-        "list": [None, ~some.error, some.number | some.str],
-    })
+    pattern = some.dict.containing(
+        {
+            "dict": some.dict.containing({"int": some.int.in_range(100, 200)}),
+            "list": [None, ~some.error, some.number | some.str],
+        }
+    )
 
     log_repr(pattern)
 
     assert pattern == {
         "list": [None, False, 123],
         "bool": True,
-        "dict": {
-            "int": 123,
-            "str": "abc",
-        },
+        "dict": {"int": 123, "str": "abc"},
     }

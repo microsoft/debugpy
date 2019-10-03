@@ -11,7 +11,7 @@ ptvsd processes. If the test runner process goes down, any ptvsd test processes
 are automatically killed.
 """
 
-__all__  = ["start", "register_spawn", "unregister_spawn"]
+__all__ = ["start", "register_spawn", "unregister_spawn"]
 
 import atexit
 import os
@@ -47,10 +47,7 @@ def start():
     )
 
     _process = psutil.Popen(
-        args,
-        bufsize=0,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
+        args, bufsize=0, stdin=subprocess.PIPE, stdout=subprocess.PIPE
     )
 
     _stream = messaging.JsonIOStream(_process.stdout, _process.stdin, _name)

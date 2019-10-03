@@ -88,7 +88,9 @@ def test_django_breakpoint_no_multiproc(start_django, bp_target):
 def test_django_template_exception_no_multiproc(start_django):
     with debug.Session() as session:
         with start_django(session):
-            session.request("setExceptionBreakpoints", {"filters": ["raised", "uncaught"]})
+            session.request(
+                "setExceptionBreakpoints", {"filters": ["raised", "uncaught"]}
+            )
 
         with django_server:
             django_server.get("/badtemplate", log_errors=False)
@@ -134,7 +136,9 @@ def test_django_exception_no_multiproc(start_django, exc_type):
 
     with debug.Session() as session:
         with start_django(session):
-            session.request("setExceptionBreakpoints", {"filters": ["raised", "uncaught"]})
+            session.request(
+                "setExceptionBreakpoints", {"filters": ["raised", "uncaught"]}
+            )
 
         with django_server:
             django_server.get("/" + exc_type)

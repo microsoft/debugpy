@@ -65,7 +65,7 @@ def make_timeline(request):
                 history = timeline.history()
                 history.sort(key=lambda occ: occ.timestamp)
                 assert history == timeline.history()
-                assert history[-1] == Mark('FINISH')
+                assert history[-1] == Mark("FINISH")
                 timeline.close()
 
 
@@ -73,47 +73,64 @@ def make_timeline(request):
 def test_occurrences(make_timeline):
     timeline, initial_history = make_timeline()
 
-    mark1 = timeline.mark('dum')
-    mark2 = timeline.mark('dee')
-    mark3 = timeline.mark('dum')
+    mark1 = timeline.mark("dum")
+    mark2 = timeline.mark("dee")
+    mark3 = timeline.mark("dum")
 
-    assert mark1 == Mark('dum')
-    assert mark1.id == 'dum'
-    assert mark2 == Mark('dee')
-    assert mark2.id == 'dee'
-    assert mark3 == Mark('dum')
-    assert mark3.id == 'dum'
+    assert mark1 == Mark("dum")
+    assert mark1.id == "dum"
+    assert mark2 == Mark("dee")
+    assert mark2.id == "dee"
+    assert mark3 == Mark("dum")
+    assert mark3.id == "dum"
 
     with timeline.frozen():
-        assert timeline.history() == initial_history + [some.object.same_as(mark1), some.object.same_as(mark2), some.object.same_as(mark3)]
+        assert timeline.history() == initial_history + [
+            some.object.same_as(mark1),
+            some.object.same_as(mark2),
+            some.object.same_as(mark3),
+        ]
         timeline.finalize()
 
-    assert timeline.all_occurrences_of(Mark('dum')) == (some.object.same_as(mark1), some.object.same_as(mark3))
-    assert timeline.all_occurrences_of(Mark('dee')) == (some.object.same_as(mark2),)
+    assert timeline.all_occurrences_of(Mark("dum")) == (
+        some.object.same_as(mark1),
+        some.object.same_as(mark3),
+    )
+    assert timeline.all_occurrences_of(Mark("dee")) == (some.object.same_as(mark2),)
 
-    assert timeline[:].all_occurrences_of(Mark('dum')) == (some.object.same_as(mark1), some.object.same_as(mark3))
+    assert timeline[:].all_occurrences_of(Mark("dum")) == (
+        some.object.same_as(mark1),
+        some.object.same_as(mark3),
+    )
 
     # Lower boundary is inclusive.
-    assert timeline[mark1:].all_occurrences_of(Mark('dum')) == (some.object.same_as(mark1), some.object.same_as(mark3))
-    assert timeline[mark2:].all_occurrences_of(Mark('dum')) == (some.object.same_as(mark3),)
-    assert timeline[mark3:].all_occurrences_of(Mark('dum')) == (some.object.same_as(mark3),)
+    assert timeline[mark1:].all_occurrences_of(Mark("dum")) == (
+        some.object.same_as(mark1),
+        some.object.same_as(mark3),
+    )
+    assert timeline[mark2:].all_occurrences_of(Mark("dum")) == (
+        some.object.same_as(mark3),
+    )
+    assert timeline[mark3:].all_occurrences_of(Mark("dum")) == (
+        some.object.same_as(mark3),
+    )
 
     # Upper boundary is exclusive.
-    assert timeline[:mark1].all_occurrences_of(Mark('dum')) == ()
-    assert timeline[:mark2].all_occurrences_of(Mark('dum')) == (some.object.same_as(mark1),)
-    assert timeline[:mark3].all_occurrences_of(Mark('dum')) == (some.object.same_as(mark1),)
+    assert timeline[:mark1].all_occurrences_of(Mark("dum")) == ()
+    assert timeline[:mark2].all_occurrences_of(Mark("dum")) == (
+        some.object.same_as(mark1),
+    )
+    assert timeline[:mark3].all_occurrences_of(Mark("dum")) == (
+        some.object.same_as(mark1),
+    )
 
 
 def expectation_of(message):
     if isinstance(message, messaging.Event):
-        return Event(
-            some.str.equal_to(message.event),
-            some.dict.equal_to(message.body),
-        )
+        return Event(some.str.equal_to(message.event), some.dict.equal_to(message.body))
     elif isinstance(message, messaging.Request):
         return Request(
-            some.str.equal_to(message.command),
-            some.dict.equal_to(message.arguments),
+            some.str.equal_to(message.command), some.dict.equal_to(message.arguments)
         )
     else:
         raise AssertionError("Unsupported message type")
@@ -123,17 +140,13 @@ def test_event(make_timeline):
     timeline, initial_history = make_timeline()
     messages = MessageFactory()
 
-    event_msg = messages.event("stopped", {'reason': 'pause'})
+    event_msg = messages.event("stopped", {"reason": "pause"})
     event_exp = expectation_of(event_msg)
     event = timeline.record_event(event_msg)
 
     assert event == event_exp
     assert event.message is event_msg
-    assert event.circumstances == (
-        "event",
-        event_msg.event,
-        event_msg.body,
-    )
+    assert event.circumstances == ("event", event_msg.event, event_msg.body)
 
     with timeline.frozen():
         assert timeline.last is event
@@ -141,12 +154,12 @@ def test_event(make_timeline):
         timeline.expect_realized(event_exp)
 
 
-@pytest.mark.parametrize('outcome', ['success', 'failure'])
+@pytest.mark.parametrize("outcome", ["success", "failure"])
 def test_request_response(make_timeline, outcome):
     timeline, initial_history = make_timeline()
     messages = MessageFactory()
 
-    request_msg = messages.request('next', {'threadId': 3})
+    request_msg = messages.request("next", {"threadId": 3})
     request_exp = expectation_of(request_msg)
     request = timeline.record_request(request_msg)
 
@@ -154,7 +167,7 @@ def test_request_response(make_timeline, outcome):
     assert request.command == request_msg.command
     assert request.arguments == request_msg.arguments
     assert request.circumstances == (
-        'request',
+        "request",
         request_msg.command,
         request_msg.arguments,
     )
@@ -163,26 +176,25 @@ def test_request_response(make_timeline, outcome):
         assert timeline.last is request
         assert timeline.history() == initial_history + [some.object.same_as(request)]
         timeline.expect_realized(request_exp)
-        timeline.expect_realized(Request('next'))
+        timeline.expect_realized(Request("next"))
 
     response_msg = messages.response(
-        request_msg,
-        {} if outcome == 'success' else Exception('error!'),
+        request_msg, {} if outcome == "success" else Exception("error!")
     )
     response = timeline.record_response(request, response_msg)
     assert response.request is request
     assert response.body == response_msg.body
-    if outcome == 'success':
+    if outcome == "success":
         assert response.success
     else:
         assert not response.success
-    assert response.circumstances == ('response', request, response_msg.body)
+    assert response.circumstances == ("response", request, response_msg.body)
 
     assert response == Response(request, response_msg.body)
     assert response == Response(request, some.object)
     assert response == Response(request)
 
-    if outcome == 'success':
+    if outcome == "success":
         assert response == Response(request, some.dict)
         assert response != Response(request, some.error)
     else:
@@ -193,7 +205,7 @@ def test_request_response(make_timeline, outcome):
     assert response == Response(request_exp, some.object)
     assert response == Response(request_exp)
 
-    if outcome == 'success':
+    if outcome == "success":
         assert response == Response(request_exp, some.dict)
         assert response != Response(request_exp, some.error)
     else:
@@ -202,13 +214,16 @@ def test_request_response(make_timeline, outcome):
 
     with timeline.frozen():
         assert timeline.last is response
-        assert timeline.history() == initial_history + [some.object.same_as(request), some.object.same_as(response)]
+        assert timeline.history() == initial_history + [
+            some.object.same_as(request),
+            some.object.same_as(response),
+        ]
 
         timeline.expect_realized(Response(request))
         timeline.expect_realized(Response(request, response_msg.body))
         timeline.expect_realized(Response(request, some.object))
 
-        if outcome == 'success':
+        if outcome == "success":
             timeline.expect_realized(Response(request, some.dict))
             timeline.expect_not_realized(Response(request, some.error))
         else:
@@ -219,7 +234,7 @@ def test_request_response(make_timeline, outcome):
         timeline.expect_realized(Response(request_exp, response_msg.body))
         timeline.expect_realized(Response(request_exp, some.object))
 
-        if outcome == 'success':
+        if outcome == "success":
             timeline.expect_realized(Response(request_exp, some.dict))
             timeline.expect_not_realized(Response(request_exp, some.error))
         else:
@@ -229,45 +244,45 @@ def test_request_response(make_timeline, outcome):
 
 def test_after(make_timeline):
     timeline, _ = make_timeline()
-    first = timeline.mark('first')
+    first = timeline.mark("first")
 
-    second_exp = first >> Mark('second')
+    second_exp = first >> Mark("second")
     with timeline.frozen():
         assert second_exp not in timeline
 
-    timeline.mark('second')
+    timeline.mark("second")
     with timeline.frozen():
         assert second_exp in timeline
 
-    timeline.mark('first')
+    timeline.mark("first")
     with timeline.frozen():
-        assert Mark('second') >> Mark('first') in timeline
+        assert Mark("second") >> Mark("first") in timeline
 
 
 def test_before(make_timeline):
     timeline, _ = make_timeline()
     t = timeline.beginning
 
-    first = timeline.mark('first')
-    timeline.mark('second')
+    first = timeline.mark("first")
+    timeline.mark("second")
 
     with timeline.frozen():
-        assert t >> Mark('second') >> Mark('first') not in timeline
-        assert Mark('second') >> first not in timeline
+        assert t >> Mark("second") >> Mark("first") not in timeline
+        assert Mark("second") >> first not in timeline
 
-    third = timeline.mark('third')
+    third = timeline.mark("third")
 
     with timeline.frozen():
-        assert t >> Mark('second') >> Mark('first') not in timeline
-        assert Mark('second') >> first not in timeline
-        assert t >> Mark('second') >> Mark('third') in timeline
-        assert Mark('second') >> third in timeline
+        assert t >> Mark("second") >> Mark("first") not in timeline
+        assert Mark("second") >> first not in timeline
+        assert t >> Mark("second") >> Mark("third") in timeline
+        assert Mark("second") >> third in timeline
 
 
 def test_and(make_timeline):
-    eggs_exp = Mark('eggs')
-    ham_exp = Mark('ham')
-    cheese_exp = Mark('cheese')
+    eggs_exp = Mark("eggs")
+    ham_exp = Mark("ham")
+    cheese_exp = Mark("cheese")
 
     timeline, _ = make_timeline()
     t = timeline.beginning
@@ -277,19 +292,19 @@ def test_and(make_timeline):
         assert t >> (ham_exp & eggs_exp) not in timeline
         assert t >> (cheese_exp & ham_exp & eggs_exp) not in timeline
 
-    timeline.mark('eggs')
+    timeline.mark("eggs")
     with timeline.frozen():
         assert t >> (eggs_exp & ham_exp) not in timeline
         assert t >> (ham_exp & eggs_exp) not in timeline
         assert t >> (cheese_exp & ham_exp & eggs_exp) not in timeline
 
-    timeline.mark('ham')
+    timeline.mark("ham")
     with timeline.frozen():
         assert t >> (eggs_exp & ham_exp) in timeline
         assert t >> (ham_exp & eggs_exp) in timeline
         assert t >> (cheese_exp & ham_exp & eggs_exp) not in timeline
 
-    timeline.mark('cheese')
+    timeline.mark("cheese")
     with timeline.frozen():
         assert t >> (eggs_exp & ham_exp) in timeline
         assert t >> (ham_exp & eggs_exp) in timeline
@@ -297,9 +312,9 @@ def test_and(make_timeline):
 
 
 def test_or(make_timeline):
-    eggs_exp = Mark('eggs')
-    ham_exp = Mark('ham')
-    cheese_exp = Mark('cheese')
+    eggs_exp = Mark("eggs")
+    ham_exp = Mark("ham")
+    cheese_exp = Mark("cheese")
 
     timeline, _ = make_timeline()
     t = timeline.beginning
@@ -309,26 +324,26 @@ def test_or(make_timeline):
         assert t >> (ham_exp | eggs_exp) not in timeline
         assert t >> (cheese_exp | ham_exp | eggs_exp) not in timeline
 
-    timeline.mark('eggs')
+    timeline.mark("eggs")
     with timeline.frozen():
         assert t >> (eggs_exp | ham_exp) in timeline
         assert t >> (ham_exp | eggs_exp) in timeline
         assert t >> (cheese_exp | ham_exp | eggs_exp) in timeline
 
-    timeline.mark('cheese')
+    timeline.mark("cheese")
     with timeline.frozen():
         assert t >> (eggs_exp | ham_exp) in timeline
         assert t >> (ham_exp | eggs_exp) in timeline
         assert t >> (cheese_exp | ham_exp | eggs_exp) in timeline
 
-    timeline.mark('ham')
+    timeline.mark("ham")
     with timeline.frozen():
         assert t >> (eggs_exp | ham_exp) in timeline
         assert t >> (ham_exp | eggs_exp) in timeline
         assert t >> (cheese_exp | ham_exp | eggs_exp) in timeline
         t = timeline.last
 
-    timeline.mark('cheese')
+    timeline.mark("cheese")
     with timeline.frozen():
         assert t >> (eggs_exp | ham_exp) not in timeline
         assert t >> (ham_exp | eggs_exp) not in timeline
@@ -336,9 +351,9 @@ def test_or(make_timeline):
 
 
 def test_xor(make_timeline):
-    eggs_exp = Mark('eggs')
-    ham_exp = Mark('ham')
-    cheese_exp = Mark('cheese')
+    eggs_exp = Mark("eggs")
+    ham_exp = Mark("ham")
+    cheese_exp = Mark("cheese")
 
     timeline, _ = make_timeline()
     t1 = timeline.beginning
@@ -348,14 +363,14 @@ def test_xor(make_timeline):
         assert t1 >> (ham_exp ^ eggs_exp) not in timeline
         assert t1 >> (cheese_exp ^ ham_exp ^ eggs_exp) not in timeline
 
-    timeline.mark('eggs')
+    timeline.mark("eggs")
     with timeline.frozen():
         assert t1 >> (eggs_exp ^ ham_exp) in timeline
         assert t1 >> (ham_exp ^ eggs_exp) in timeline
         assert t1 >> (cheese_exp ^ ham_exp ^ eggs_exp) in timeline
         t2 = timeline.last
 
-    timeline.mark('ham')
+    timeline.mark("ham")
     with timeline.frozen():
         assert t1 >> (eggs_exp ^ ham_exp) not in timeline
         assert t2 >> (eggs_exp ^ ham_exp) in timeline
@@ -367,35 +382,35 @@ def test_xor(make_timeline):
 
 def test_conditional(make_timeline):
     def is_exciting(occ):
-        return occ == Event(some.str, 'exciting')
+        return occ == Event(some.str, "exciting")
 
     messages = MessageFactory()
 
-    something = Event('something', some.object)
+    something = Event("something", some.object)
     something_exciting = something.when(is_exciting)
     timeline, _ = make_timeline()
     t = timeline.beginning
 
-    timeline.record_event(messages.event('something', 'boring'))
+    timeline.record_event(messages.event("something", "boring"))
     with timeline.frozen():
         timeline.expect_realized(t >> something)
         timeline.expect_not_realized(t >> something_exciting)
 
-    timeline.record_event(messages.event('something', 'exciting'))
+    timeline.record_event(messages.event("something", "exciting"))
     with timeline.frozen():
         timeline.expect_realized(t >> something_exciting)
 
 
 def test_lower_bound(make_timeline):
     timeline, _ = make_timeline()
-    timeline.mark('1')
-    timeline.mark('2')
-    timeline.mark('3')
+    timeline.mark("1")
+    timeline.mark("2")
+    timeline.mark("3")
     timeline.freeze()
 
-    assert (Mark('2') >> (Mark('1') >> Mark('3'))) not in timeline
-    assert (Mark('2')  >> (Mark('1') & Mark('3'))) not in timeline
-    assert (Mark('2')  >> (Mark('1') ^ Mark('3'))) in timeline
+    assert (Mark("2") >> (Mark("1") >> Mark("3"))) not in timeline
+    assert (Mark("2") >> (Mark("1") & Mark("3"))) not in timeline
+    assert (Mark("2") >> (Mark("1") ^ Mark("3"))) in timeline
 
 
 @pytest.mark.timeout(3)
@@ -413,7 +428,7 @@ def test_frozen(make_timeline, daemon):
         assert timeline.is_frozen
     assert not timeline.is_frozen
 
-    timeline.mark('dum')
+    timeline.mark("dum")
 
     timeline.freeze()
     assert timeline.is_frozen
@@ -425,18 +440,18 @@ def test_frozen(make_timeline, daemon):
     def worker():
         worker_started.set()
         worker_can_proceed.wait()
-        timeline.mark('dee')
+        timeline.mark("dee")
 
     worker_started.wait()
 
-    assert Mark('dum') in timeline
-    assert Mark('dee') not in timeline
+    assert Mark("dum") in timeline
+    assert Mark("dee") not in timeline
 
     with timeline.unfrozen():
         worker_can_proceed.set()
         worker.join()
 
-    assert Mark('dee') in timeline
+    assert Mark("dee") in timeline
 
 
 @pytest.mark.timeout(3)
@@ -451,15 +466,15 @@ def test_unobserved(make_timeline, daemon):
 
         worker_can_proceed.wait()
         worker_can_proceed.clear()
-        timeline.record_event(messages.event('dum', {}))
-        log.debug('dum')
+        timeline.record_event(messages.event("dum", {}))
+        log.debug("dum")
 
         worker_can_proceed.wait()
-        timeline.record_event(messages.event('dee', {}))
-        log.debug('dee')
+        timeline.record_event(messages.event("dee", {}))
+        log.debug("dee")
 
-        timeline.record_event(messages.event('dum', {}))
-        log.debug('dum')
+        timeline.record_event(messages.event("dum", {}))
+        log.debug("dum")
 
     timeline.freeze()
     assert timeline.is_frozen
@@ -468,7 +483,7 @@ def test_unobserved(make_timeline, daemon):
     assert not timeline.is_frozen
     worker_can_proceed.set()
 
-    dum = timeline.wait_for_next(Event('dum'))
+    dum = timeline.wait_for_next(Event("dum"))
     assert timeline.is_frozen
     assert dum.observed
 
@@ -479,11 +494,11 @@ def test_unobserved(make_timeline, daemon):
     worker_can_proceed.set()
     worker.join()
 
-    dum2 = timeline.wait_for_next(Event('dum'), freeze=False)
+    dum2 = timeline.wait_for_next(Event("dum"), freeze=False)
     assert not timeline.is_frozen
     assert dum2.observed
 
-    timeline.wait_until_realized(Event('dum') >> Event('dum'), freeze=True)
+    timeline.wait_until_realized(Event("dum") >> Event("dum"), freeze=True)
     assert timeline.is_frozen
 
     dee = dum.next
@@ -494,7 +509,7 @@ def test_unobserved(make_timeline, daemon):
         timeline.proceed()
 
     # Observe it!
-    timeline.expect_realized(Event('dee'))
+    timeline.expect_realized(Event("dee"))
     assert dee.observed
 
     # Should be good now.
@@ -504,48 +519,48 @@ def test_unobserved(make_timeline, daemon):
 def test_new(make_timeline):
     timeline, _ = make_timeline()
 
-    m1 = timeline.mark('1')
+    m1 = timeline.mark("1")
     timeline.freeze()
 
-    assert timeline.expect_new(Mark('1')) is m1
+    assert timeline.expect_new(Mark("1")) is m1
     with pytest.raises(Exception):
-        timeline.expect_new(Mark('2'))
+        timeline.expect_new(Mark("2"))
 
     timeline.proceed()
-    m2 = timeline.mark('2')
+    m2 = timeline.mark("2")
     timeline.freeze()
 
     with pytest.raises(Exception):
-        timeline.expect_new(Mark('1'))
-    assert timeline.expect_new(Mark('2')) is m2
+        timeline.expect_new(Mark("1"))
+    assert timeline.expect_new(Mark("2")) is m2
     with pytest.raises(Exception):
-        timeline.expect_new(Mark('3'))
+        timeline.expect_new(Mark("3"))
 
     timeline.unfreeze()
-    m3 = timeline.mark('3')
+    m3 = timeline.mark("3")
     timeline.freeze()
 
     with pytest.raises(Exception):
-        timeline.expect_new(Mark('1'))
-    assert timeline.expect_new(Mark('2')) is m2
-    assert timeline.expect_new(Mark('3')) is m3
+        timeline.expect_new(Mark("1"))
+    assert timeline.expect_new(Mark("2")) is m2
+    assert timeline.expect_new(Mark("3")) is m3
 
     timeline.proceed()
-    m4 = timeline.mark('4')
-    timeline.mark('4')
+    m4 = timeline.mark("4")
+    timeline.mark("4")
     timeline.freeze()
 
     with pytest.raises(Exception):
-        timeline.expect_new(Mark('1'))
+        timeline.expect_new(Mark("1"))
     with pytest.raises(Exception):
-        timeline.expect_new(Mark('2'))
+        timeline.expect_new(Mark("2"))
     with pytest.raises(Exception):
-        timeline.expect_new(Mark('3'))
-    assert timeline.expect_new(Mark('4')) is m4
+        timeline.expect_new(Mark("3"))
+    assert timeline.expect_new(Mark("4")) is m4
 
 
 @pytest.mark.timeout(3)
-@pytest.mark.parametrize('order', ['mark_then_wait', 'wait_then_mark'])
+@pytest.mark.parametrize("order", ["mark_then_wait", "wait_then_mark"])
 def test_concurrency(make_timeline, daemon, order):
     timeline, initial_history = make_timeline()
 
@@ -555,19 +570,20 @@ def test_concurrency(make_timeline, daemon, order):
     @daemon
     def worker():
         worker_can_proceed.wait()
-        mark = timeline.mark('tada')
+        mark = timeline.mark("tada")
         occurrences.append(mark)
 
-    if order == 'mark_then_wait':
+    if order == "mark_then_wait":
         worker_can_proceed.set()
         unblock_worker_later = None
     else:
+
         @daemon
         def unblock_worker_later():
             time.sleep(0.1)
             worker_can_proceed.set()
 
-    mark = timeline.wait_for_next(Mark('tada'), freeze=True)
+    mark = timeline.wait_for_next(Mark("tada"), freeze=True)
 
     worker.join()
     assert mark is occurrences[0]

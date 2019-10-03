@@ -23,7 +23,9 @@ pytestmark = pytest.mark.skip("https://github.com/microsoft/ptvsd/issues/1706")
     platform.system() != "Windows",
     reason="Debugging multiprocessing module only works on Windows",
 )
-@pytest.mark.parametrize("start_method", [runners.launch, runners.attach_by_socket["cli"]])
+@pytest.mark.parametrize(
+    "start_method", [runners.launch, runners.attach_by_socket["cli"]]
+)
 def test_multiprocessing(pyfile, start_method, run_as):
     @pyfile
     def code_to_debug():
@@ -143,7 +145,9 @@ def test_multiprocessing(pyfile, start_method, run_as):
 @pytest.mark.skipif(
     sys.version_info < (3, 0) and (platform.system() != "Windows"), reason="Bug #935"
 )
-@pytest.mark.parametrize("start_method", [runners.launch, runners.attach_by_socket["cli"]])
+@pytest.mark.parametrize(
+    "start_method", [runners.launch, runners.attach_by_socket["cli"]]
+)
 def test_subprocess(pyfile, start_method, run_as):
     @pyfile
     def child():
@@ -210,7 +214,9 @@ def test_subprocess(pyfile, start_method, run_as):
 @pytest.mark.skipif(
     sys.version_info < (3, 0) and (platform.system() != "Windows"), reason="Bug #935"
 )
-@pytest.mark.parametrize("start_method", [runners.launch, runners.attach_by_socket["cli"]])
+@pytest.mark.parametrize(
+    "start_method", [runners.launch, runners.attach_by_socket["cli"]]
+)
 def test_autokill(pyfile, start_method, run_as):
     @pyfile
     def child():
@@ -239,16 +245,12 @@ def test_autokill(pyfile, start_method, run_as):
 
     with debug.Session(start_method, backchannel=True) as parent_session:
         parent_backchannel = parent_session.backchannel
-        expected_exit_code = some.int if parent_session.start_method.method == "launch" else 0
-        parent_session.expected_exit_code = expected_exit_code
-        parent_session.configure(
-            run_as,
-            parent,
-            subProcess=True,
-            args=[child],
+        expected_exit_code = (
+            some.int if parent_session.start_method.method == "launch" else 0
         )
+        parent_session.expected_exit_code = expected_exit_code
+        parent_session.configure(run_as, parent, subProcess=True, args=[child])
         parent_session.start_debugging()
-
 
         with parent_session.attach_to_next_subprocess() as child_session:
             child_session.start_debugging()
@@ -312,10 +314,7 @@ def test_argv_quoting(pyfile, start_method, run_as):
 
     with debug.Session(start_method, backchannel=True) as session:
         backchannel = session.backchannel
-        session.configure(
-            run_as, parent,
-            args=[child],
-        )
+        session.configure(run_as, parent, args=[child])
 
         session.start_debugging()
 
@@ -325,22 +324,22 @@ def test_argv_quoting(pyfile, start_method, run_as):
 
 
 def test_echo_and_shell(pyfile, run_as, start_method):
-    '''
+    """
     Checks https://github.com/microsoft/ptvsd/issues/1548
-    '''
+    """
 
     @pyfile
     def code_to_run():
-        import debug_me # noqa
+        import debug_me  # noqa
 
         import sys
         import subprocess
         import os
 
-        if sys.platform == 'win32':
-            args = ['dir', '-c', '.']
+        if sys.platform == "win32":
+            args = ["dir", "-c", "."]
         else:
-            args = ['ls', '-c', '-la']
+            args = ["ls", "-c", "-la"]
 
         p = subprocess.Popen(
             args,
@@ -351,12 +350,12 @@ def test_echo_and_shell(pyfile, run_as, start_method):
         )
         stdout, _stderr = p.communicate()
         if sys.version_info[0] >= 3:
-            stdout = stdout.decode('utf-8')
+            stdout = stdout.decode("utf-8")
 
         if "code_to_run.py" not in stdout:
             raise AssertionError(
-                'Did not find "code_to_run.py" when listing this dir with subprocess. Contents: %s' % (
-                    stdout,)
+                'Did not find "code_to_run.py" when listing this dir with subprocess. Contents: %s'
+                % (stdout,)
             )
 
     with debug.Session(start_method) as session:

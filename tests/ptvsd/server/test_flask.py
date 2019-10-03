@@ -38,19 +38,18 @@ def start_flask(run):
         # No clean way to kill Flask server, expect non-zero exit code
         session.expected_exit_code = some.int
 
-        session.config.env.update({
-            "FLASK_APP": paths.app_py,
-            "FLASK_ENV": "development",
-            "FLASK_DEBUG": "1" if multiprocess else "0",
-        })
+        session.config.env.update(
+            {
+                "FLASK_APP": paths.app_py,
+                "FLASK_ENV": "development",
+                "FLASK_DEBUG": "1" if multiprocess else "0",
+            }
+        )
         if platform.system() != "Windows":
             locale = "en_US.utf8" if platform.system() == "Linux" else "en_US.UTF-8"
             session.config.env.update({"LC_ALL": locale, "LANG": locale})
 
-        session.config.update({
-            "jinja": True,
-            "subProcess": bool(multiprocess),
-        })
+        session.config.update({"jinja": True, "subProcess": bool(multiprocess)})
 
         args = ["run"]
         if not multiprocess:
@@ -102,7 +101,9 @@ def test_flask_breakpoint_no_multiproc(start_flask, bp_target):
 def test_flask_template_exception_no_multiproc(start_flask):
     with debug.Session() as session:
         with start_flask(session):
-            session.request("setExceptionBreakpoints", {"filters": ["raised", "uncaught"]})
+            session.request(
+                "setExceptionBreakpoints", {"filters": ["raised", "uncaught"]}
+            )
 
         with flask_server:
             flask_server.get("/badtemplate")
@@ -155,7 +156,9 @@ def test_flask_exception_no_multiproc(start_flask, exc_type):
 
     with debug.Session() as session:
         with start_flask(session):
-            session.request("setExceptionBreakpoints", {"filters": ["raised", "uncaught"]})
+            session.request(
+                "setExceptionBreakpoints", {"filters": ["raised", "uncaught"]}
+            )
 
         with flask_server:
             flask_server.get("/" + exc_type)

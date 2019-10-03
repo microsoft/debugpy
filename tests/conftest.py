@@ -7,4 +7,4 @@ from __future__ import absolute_import, print_function, unicode_literals
 """pytest configuration.
 """
 
-pytest_plugins = ["tests.pytest_fixtures", "tests.pytest_hooks"] 
+pytest_plugins = ["tests.pytest_fixtures", "tests.pytest_hooks"]

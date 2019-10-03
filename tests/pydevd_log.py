@@ -12,20 +12,20 @@ from ptvsd.common import log
 
 @contextlib.contextmanager
 def enabled(filename):
-    os.environ['PYDEVD_DEBUG'] = 'True'
-    os.environ['PYDEVD_DEBUG_FILE'] = filename
+    os.environ["PYDEVD_DEBUG"] = "True"
+    os.environ["PYDEVD_DEBUG_FILE"] = filename
     log.debug("pydevd log will be at {0}", filename)
     try:
         yield
     finally:
-        del os.environ['PYDEVD_DEBUG']
-        del os.environ['PYDEVD_DEBUG_FILE']
+        del os.environ["PYDEVD_DEBUG"]
+        del os.environ["PYDEVD_DEBUG_FILE"]
 
 
 def dump(why):
     assert why
 
-    pydevd_debug_file = os.environ.get('PYDEVD_DEBUG_FILE')
+    pydevd_debug_file = os.environ.get("PYDEVD_DEBUG_FILE")
     if not pydevd_debug_file:
         return
 
@@ -34,7 +34,11 @@ def dump(why):
         with f:
             pydevd_log = f.read()
     except Exception:
-        log.exception("Test {0}, but pydevd log {1} could not be retrieved.", why, pydevd_debug_file)
+        log.exception(
+            "Test {0}, but pydevd log {1} could not be retrieved.",
+            why,
+            pydevd_debug_file,
+        )
         return
 
     log.info("Test {0}; pydevd log:\n\n{1}", why, pydevd_log)

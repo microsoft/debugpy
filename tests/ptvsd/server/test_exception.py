@@ -15,9 +15,7 @@ str_matching_ArithmeticError = some.str.matching(r"(.+\.)?ArithmeticError")
 
 @pytest.mark.parametrize("raised", ["raised", ""])
 @pytest.mark.parametrize("uncaught", ["uncaught", ""])
-def test_vsc_exception_options_raise_with_except(
-    pyfile, target, run, raised, uncaught
-):
+def test_vsc_exception_options_raise_with_except(pyfile, target, run, raised, uncaught):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -85,10 +83,12 @@ def test_vsc_exception_options_raise_without_except(
     with debug.Session() as session:
         session.ignore_unobserved.append(Event("stopped"))
         session.expected_exit_code = some.int
+
         with run(session, target(code_to_debug)):
             session.request(
                 "setExceptionBreakpoints", {"filters": list({raised, uncaught} - {""})}
             )
+
         expected_exc_info = some.dict.containing(
             {
                 "exceptionId": str_matching_ArithmeticError,
@@ -253,11 +253,11 @@ def test_raise_exception_options(pyfile, target, run, exceptions, break_mode):
     with debug.Session() as session:
         session.ignore_unobserved.append(Event("stopped"))
         session.expected_exit_code = some.int
-        path = [{"names": ["Python Exceptions"]}]
-        if exceptions:
-            path.append({"names": exceptions})
 
         with run(session, target(code_to_debug)):
+            path = [{"names": ["Python Exceptions"]}]
+            if exceptions:
+                path.append({"names": exceptions})
             session.request(
                 "setExceptionBreakpoints",
                 {
@@ -329,9 +329,9 @@ def test_exception_stack(pyfile, target, run, max_frames):
 
         do_something(100)
 
-
     with debug.Session() as session:
         session.expected_exit_code = some.int
+
         max_frames, (min_expected_lines, max_expected_lines) = {
             "all": (0, (100, 221)),
             "default": (None, (100, 221)),

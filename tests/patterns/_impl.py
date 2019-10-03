@@ -146,9 +146,8 @@ class InstanceOf(Some):
     def __init__(self, classinfo, name=None):
         if isinstance(classinfo, type):
             classinfo = (classinfo,)
-        assert (
-            len(classinfo) > 0 and
-            all((isinstance(cls, type) for cls in classinfo))
+        assert len(classinfo) > 0 and all(
+            (isinstance(cls, type) for cls in classinfo)
         ), "classinfo must be a type or a tuple of types"
 
         self.name = name
@@ -230,7 +229,6 @@ class ListContaining(Some):
         items *= 2
         items[1:1] = self.items
         return items
-
 
     def matches(self, other):
         if not isinstance(other, list):

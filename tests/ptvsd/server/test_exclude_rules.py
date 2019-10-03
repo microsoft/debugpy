@@ -12,9 +12,7 @@ from tests.patterns import some
 
 @pytest.mark.parametrize("scenario", ["exclude_by_name", "exclude_by_dir"])
 @pytest.mark.parametrize("exc_type", ["RuntimeError", "SystemExit"])
-def test_exceptions_and_exclude_rules(
-    pyfile, target, run, scenario, exc_type
-):
+def test_exceptions_and_exclude_rules(pyfile, target, run, scenario, exc_type):
     if exc_type == "RuntimeError":
 
         @pyfile
@@ -109,12 +107,12 @@ def test_exceptions_and_partial_exclude_rules(pyfile, target, run, scenario):
                     some.dap.frame(
                         some.dap.source(call_me_back_py),
                         line=call_me_back_py.lines["callback"],
-                    ),
+                    )
                 ],
             )
-            assert stop.frames != some.list.containing([
-                some.dap.frame(some.dap.source(code_to_debug), line=some.int),
-            ])
+            assert stop.frames != some.list.containing(
+                [some.dap.frame(some.dap.source(code_to_debug), line=some.int)]
+            )
 
             # As exception unwinds the stack, we shouldn't stop at @call_me_back,
             # since that line is in the excluded file. Furthermore, although the
@@ -143,9 +141,9 @@ def test_exceptions_and_partial_exclude_rules(pyfile, target, run, scenario):
                     ),
                 ],
             )
-            assert stop.frames != some.list.containing([
-                some.dap.frame(some.dap.source(call_me_back_py), line=some.int),
-            ])
+            assert stop.frames != some.list.containing(
+                [some.dap.frame(some.dap.source(call_me_back_py), line=some.int)]
+            )
 
             session.request_continue()
 
@@ -158,12 +156,12 @@ def test_exceptions_and_partial_exclude_rules(pyfile, target, run, scenario):
                         some.dap.source(code_to_debug),
                         name="<module>",
                         line=code_to_debug.lines["call_me_back"],
-                    ),
+                    )
                 ],
             )
-            assert stop.frames != some.list.containing([
-                some.dap.frame(some.dap.source(call_me_back_py), line=some.int),
-            ])
+            assert stop.frames != some.list.containing(
+                [some.dap.frame(some.dap.source(call_me_back_py), line=some.int)]
+            )
 
             session.request_continue()
 
@@ -183,9 +181,9 @@ def test_exceptions_and_partial_exclude_rules(pyfile, target, run, scenario):
                     ),
                 ],
             )
-            assert stop.frames != some.list.containing([
-                some.dap.frame(some.dap.source(call_me_back_py), line=some.int),
-            ])
+            assert stop.frames != some.list.containing(
+                [some.dap.frame(some.dap.source(call_me_back_py), line=some.int)]
+            )
 
             # Let the process crash due to unhandled exception.
             session.request_continue()

@@ -29,13 +29,12 @@ def test_with_dot_remote_root(pyfile, long_tmpdir, target, run):
     code_to_debug.copy(path_remote)
 
     with debug.Session() as session:
-        backchannel = session.open_backchannel()
         session.config["pathMappings"] = [{"localRoot": dir_local, "remoteRoot": "."}]
 
-        # Run using remote path
+        backchannel = session.open_backchannel()
         with run(session, target(path_remote), cwd=dir_remote):
-            # Set breakpoints using local path. This ensures that
-            # local paths are mapped to remote paths.
+            # Set breakpoints using local path. This tests that local paths are
+            # mapped to remote paths.
             session.set_breakpoints(path_local, all)
 
         actual_path_remote = backchannel.receive()
@@ -81,15 +80,14 @@ def test_with_path_mappings(pyfile, long_tmpdir, target, run):
     call_me_back_py = call_me_back_dir / "call_me_back.py"
 
     with debug.Session() as session:
-        backchannel = session.open_backchannel()
         session.config["pathMappings"] = [
             {"localRoot": dir_local, "remoteRoot": dir_remote}
         ]
 
-        # Run using remote path
+        backchannel = session.open_backchannel()
         with run(session, target(path_remote)):
-            # Set breakpoints using local path. This ensures that
-            # local paths are mapped to remote paths.
+            # Set breakpoints using local path. This tests that local paths are
+            # mapped to remote paths.
             session.set_breakpoints(path_local, ["bp"])
 
         actual_path_remote = backchannel.receive()

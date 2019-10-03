@@ -20,14 +20,12 @@ def test_justmycode_frames(pyfile, target, run, jmc):
 
     with debug.Session() as session:
         session.config["justMyCode"] = bool(jmc)
+
         with run(session, target(code_to_debug)):
             session.set_breakpoints(code_to_debug, all)
 
         stop = session.wait_for_stop(
-                "breakpoint",
-                expected_frames=[
-                    some.dap.frame(code_to_debug, "bp")
-                ],
+            "breakpoint", expected_frames=[some.dap.frame(code_to_debug, "bp")]
         )
         if jmc:
             assert len(stop.frames) == 1

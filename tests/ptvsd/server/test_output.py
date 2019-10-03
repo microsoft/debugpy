@@ -19,6 +19,7 @@ def test_with_no_output(pyfile, target, run):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
+
         ()  # @wait_for_output
 
     with debug.Session() as session:
@@ -46,6 +47,7 @@ def test_with_tab_in_output(pyfile, target, run):
     with debug.Session() as session:
         with run(session, target(code_to_debug)):
             session.set_breakpoints(code_to_debug, all)
+
         session.wait_for_stop()
         session.request_continue()
 
@@ -64,9 +66,11 @@ def test_redirect_output(pyfile, target, run, redirect):
         ()  # @wait_for_output
 
     with debug.Session() as session:
-        session.config["redirectOutput"] = (redirect == "enabled")
+        session.config["redirectOutput"] = redirect == "enabled"
+
         with run(session, target(code_to_debug)):
             session.set_breakpoints(code_to_debug, all)
+
         session.wait_for_stop()
         session.request_continue()
 

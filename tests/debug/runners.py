@@ -197,7 +197,7 @@ def attach_by_socket(
     assert method in ("api", "cli")
     assert listener in ("server")  # TODO: ("adapter", "server")
 
-    config  = _attach_common_config(session, target, cwd)
+    config = _attach_common_config(session, target, cwd)
 
     host = config["host"] = attach_by_socket.host
     port = config["port"] = attach_by_socket.port

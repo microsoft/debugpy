@@ -68,7 +68,7 @@ Usage::
     })
 """
 
-__all__  = [
+__all__ = [
     "bool",
     "bytes",
     "dap",
@@ -106,7 +106,9 @@ error = instanceof(Exception)
 
 
 bytes = instanceof(builtins.bytes)
-bytes.starting_with = lambda prefix: bytes.matching(re.escape(prefix) + b".*", re.DOTALL)
+bytes.starting_with = lambda prefix: bytes.matching(
+    re.escape(prefix) + b".*", re.DOTALL
+)
 bytes.ending_with = lambda suffix: bytes.matching(b".*" + re.escape(suffix), re.DOTALL)
 bytes.containing = lambda sub: bytes.matching(b".*" + re.escape(sub) + b".*", re.DOTALL)
 

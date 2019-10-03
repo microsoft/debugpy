@@ -11,12 +11,12 @@ from tests.patterns import some
 def test_tracing(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        import debug_me # noqa
+        import debug_me  # noqa
         import ptvsd
 
         def func(expected_tracing):
-            assert ptvsd.tracing() == expected_tracing, (
-                "inside func({0!r})".format(expected_tracing)
+            assert ptvsd.tracing() == expected_tracing, "inside func({0!r})".format(
+                expected_tracing
             )
             print(1)  # @inner1
 
@@ -53,22 +53,14 @@ def test_tracing(pyfile, target, run):
         with run(session, target(code_to_debug)):
             session.set_breakpoints(code_to_debug, all)
 
-        session.wait_for_stop(
-            expected_frames=[some.dap.frame(code_to_debug, "inner2")]
-        )
+        session.wait_for_stop(expected_frames=[some.dap.frame(code_to_debug, "inner2")])
         session.request_continue()
 
-        session.wait_for_stop(
-            expected_frames=[some.dap.frame(code_to_debug, "outer2")]
-        )
+        session.wait_for_stop(expected_frames=[some.dap.frame(code_to_debug, "outer2")])
         session.request_continue()
 
-        session.wait_for_stop(
-            expected_frames=[some.dap.frame(code_to_debug, "inner1")]
-        )
+        session.wait_for_stop(expected_frames=[some.dap.frame(code_to_debug, "inner1")])
         session.request_continue()
 
-        session.wait_for_stop(
-            expected_frames=[some.dap.frame(code_to_debug, "inner3")]
-        )
+        session.wait_for_stop(expected_frames=[some.dap.frame(code_to_debug, "inner3")])
         session.request_continue()

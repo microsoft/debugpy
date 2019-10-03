@@ -134,10 +134,7 @@ class WebRequest(object):
             self.exception = exc
         else:
             log.info(
-                "{0} --> {1} {2}",
-                self,
-                self.request.status_code,
-                self.request.reason
+                "{0} --> {1} {2}", self, self.request.status_code, self.request.reason
             )
 
     def wait_for_response(self, timeout=None):

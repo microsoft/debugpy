@@ -43,6 +43,7 @@ def test_log_dir(pyfile, tmpdir, target, method):
     with check_logs(tmpdir, run):
         with debug.Session() as session:
             session.log_dir = None
+
             with run(session, target(code_to_debug)):
                 pass
 

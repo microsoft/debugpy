@@ -49,9 +49,9 @@ def frame(source, line, **kwargs):
             path = source.items["path"]
         else:
             path = None
-        assert isinstance(path, _impl.Path), (
-            "source must be some.dap.source() to use line markers in some.dap.frame()"
-        )
+        assert isinstance(
+            path, _impl.Path
+        ), "source must be some.dap.source() to use line markers in some.dap.frame()"
         line = code.get_marked_line_numbers(path.path)[line]
 
     d = {"id": some.dap.id, "source": source, "line": line, "column": 1}
