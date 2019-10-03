@@ -64,7 +64,9 @@ def test_variables(pyfile, target, run):
         stop = session.wait_for_stop()
         scopes = session.request("scopes", {"frameId": stop.frame_id})["scopes"]
         globals_ref = scopes[0]["variablesReference"]
-        vars = session.request("variables", {"variablesReference": globals_ref})["variables"]
+        vars = session.request("variables", {"variablesReference": globals_ref})[
+            "variables"
+        ]
 
         # Variables must be sorted by name.
         a, b, c = (v for v in vars if v["name"] in ("a", "b", "c"))
@@ -108,46 +110,6 @@ def test_variables(pyfile, target, run):
         session.request_continue()
 
 
-def test_set_variable(pyfile, target, run):
-    @pyfile
-    def code_to_debug():
-        from debug_me import backchannel, ptvsd
-
-        a = 1
-        ptvsd.break_into_debugger()
-        backchannel.send(a)
-
-    with debug.Session() as session:
-        backchannel = session.open_backchannel()
-        with run(session, target(code_to_debug)):
-            pass
-
-        stop = session.wait_for_stop()
-        scopes = session.request("scopes", {"frameId": stop.frame_id})["scopes"]
-        globals_ref = scopes[0]["variablesReference"]
-        vars = session.request("variables", {"variablesReference": globals_ref})["variables"]
-
-        a, = (v for v in vars if v["name"] == "a")
-        assert a == some.dict.containing(
-            {
-                "type": "int",
-                "value": "1",
-                "name": "a",
-                "evaluateName": "a",
-                "variablesReference": 0,
-            }
-        )
-
-        set_a = session.request(
-            "setVariable",
-            {"variablesReference": globals_ref, "name": "a", "value": "1000"},
-        )
-        assert set_a == some.dict.containing({"type": "int", "value": "1000"})
-
-        session.request_continue()
-        assert backchannel.receive() == 1000
-
-
 def test_variable_sort(pyfile, target, run):
     @pyfile
     def code_to_debug():
@@ -175,7 +137,9 @@ def test_variable_sort(pyfile, target, run):
         stop = session.wait_for_stop()
         scopes = session.request("scopes", {"frameId": stop.frame_id})["scopes"]
         globals_ref = scopes[0]["variablesReference"]
-        vars = session.request("variables", {"variablesReference": globals_ref})["variables"]
+        vars = session.request("variables", {"variablesReference": globals_ref})[
+            "variables"
+        ]
 
         var_names = [v["name"] for v in vars if "_test" in v["name"]]
         assert var_names == [
@@ -537,3 +501,86 @@ def test_hex_numbers(pyfile, target, run):
         ]
 
         session.request_continue()
+
+
+def test_set_variable(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        from debug_me import backchannel, ptvsd
+
+        a = 1
+        ptvsd.break_into_debugger()
+        backchannel.send(a)
+
+    with debug.Session() as session:
+        backchannel = session.open_backchannel()
+        with run(session, target(code_to_debug)):
+            pass
+
+        stop = session.wait_for_stop()
+        scopes = session.request("scopes", {"frameId": stop.frame_id})["scopes"]
+        globals_ref = scopes[0]["variablesReference"]
+        vars = session.request("variables", {"variablesReference": globals_ref})[
+            "variables"
+        ]
+
+        a, = (v for v in vars if v["name"] == "a")
+        assert a == some.dict.containing(
+            {
+                "type": "int",
+                "value": "1",
+                "name": "a",
+                "evaluateName": "a",
+                "variablesReference": 0,
+            }
+        )
+
+        set_a = session.request(
+            "setVariable",
+            {"variablesReference": globals_ref, "name": "a", "value": "1000"},
+        )
+        assert set_a == some.dict.containing({"type": "int", "value": "1000"})
+
+        session.request_continue()
+        assert backchannel.receive() == 1000
+
+
+def test_set_expression(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        from debug_me import backchannel
+
+        a = 1
+        backchannel.send(a)  # @bp
+
+    with debug.Session() as session:
+        backchannel = session.open_backchannel()
+        with run(session, target(code_to_debug)):
+            session.set_breakpoints(code_to_debug, all)
+
+        stop = session.wait_for_stop()
+        scopes = session.request("scopes", {"frameId": stop.frame_id})["scopes"]
+        globals_ref = scopes[0]["variablesReference"]
+
+        vars = session.request("variables", {"variablesReference": globals_ref})[
+            "variables"
+        ]
+        a, = (v for v in vars if v["name"] == "a")
+        assert a == some.dict.containing(
+            {
+                "type": "int",
+                "value": "1",
+                "name": "a",
+                "evaluateName": "a",
+                "variablesReference": 0,
+            }
+        )
+
+        set_a = session.request(
+            "setExpression",
+            {"frameId": stop.frame_id, "expression": "a", "value": "1000"},
+        )
+        assert set_a == some.dict.containing({"type": "int", "value": "1000"})
+
+        session.request_continue()
+        assert backchannel.receive() == 1000
