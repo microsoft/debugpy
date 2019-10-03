@@ -227,7 +227,6 @@ class Session(object):
             # spamming log with irrelevant entries - just close the channel and kill
             # all the processes immediately. Don't close or finalize the timeline,
             # either, since it'll likely have unobserved events in it.
-            self.disconnect(force=True)
             if self.adapter is not None:
                 try:
                     self.adapter.kill()
@@ -238,6 +237,7 @@ class Session(object):
                     self.debuggee.kill()
                 except Exception:
                     pass
+            self.disconnect(force=True)
 
         if self.adapter is not None:
             log.info(
