@@ -6,4 +6,4 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 # "force_pydevd" must be imported first to ensure (via side effects)
 # that the ptvsd-vendored copy of pydevd gets used.
-import ptvsd._vendored.force_pydevd # noqa
+import ptvsd._vendored.force_pydevd  # noqa

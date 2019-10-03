@@ -82,7 +82,9 @@ class Component(util.Observable):
             except messaging.MessageHandlingError as exc:
                 exc.propagate(message)
             except messaging.JsonIOError as exc:
-                raise message.cant_handle("{0} disconnected unexpectedly", exc.stream.name, silent=True)
+                raise message.cant_handle(
+                    "{0} disconnected unexpectedly", exc.stream.name, silent=True
+                )
 
         return lock_and_handle
 

@@ -37,7 +37,9 @@ if __name__ == "__main__":
         # Do not use dirname() to walk up - this can be a relative path, e.g. ".".
         sys.path[0] = sys.path[0] + "/../"
         import ptvsd  # noqa
+
         del sys.path[0]
 
     from ptvsd.server import cli
+
     cli.main()

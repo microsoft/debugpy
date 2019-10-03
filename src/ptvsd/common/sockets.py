@@ -11,7 +11,7 @@ import socket
 def create_server(host, port, timeout=None):
     """Return a local server socket listening on the given port."""
     if host is None:
-        host = 'localhost'
+        host = "127.0.0.1"
     try:
         server = _new_sock()
         server.bind((host, port))
@@ -31,7 +31,7 @@ def create_client():
 
 def _new_sock():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP)
-    if platform.system() == 'Windows':
+    if platform.system() == "Windows":
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
     else:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

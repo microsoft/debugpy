@@ -126,7 +126,7 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
         # so never wait on the adapter process
         process = subprocess.Popen(adapter_args, bufsize=0)
         # Ensure that we ignore the adapter process when terminating the
-        # debugger. 
+        # debugger.
         pydevd.add_dont_terminate_child_pid(process.pid)
 
     server_opts.port = port_queue.get(True, _QUEUE_TIMEOUT)

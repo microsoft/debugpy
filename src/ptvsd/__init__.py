@@ -42,6 +42,7 @@ def wait_for_attach():
     """
 
     from ptvsd.server import api
+
     return api.wait_for_attach()
 
 
@@ -75,6 +76,7 @@ def enable_attach(address, log_dir=None, multiprocess=True):
     """
 
     from ptvsd.server import api
+
     return api.enable_attach(address, log_dir)
 
 
@@ -102,6 +104,7 @@ def attach(address, log_dir=None, multiprocess=True):
     """
 
     from ptvsd.server import api
+
     return api.attach(address, log_dir)
 
 
@@ -110,6 +113,7 @@ def is_attached():
     """
 
     from ptvsd.server import api
+
     return api.is_attached()
 
 
@@ -119,6 +123,7 @@ def break_into_debugger():
     """
 
     from ptvsd.server import api
+
     return api.break_into_debugger()
 
 
@@ -131,6 +136,7 @@ def debug_this_thread():
     """
 
     from ptvsd.server import api
+
     return api.debug_this_thread()
 
 
@@ -152,6 +158,7 @@ def tracing(should_trace=None):
         Whether to enable or disable tracing.
     """
     from ptvsd.server import api
+
     return api.tracing(should_trace)
 
 

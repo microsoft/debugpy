@@ -65,7 +65,7 @@ def _parse_argv(argv):
         type=int,
         default=None,
         metavar="PORT",
-        help=argparse.SUPPRESS
+        help=argparse.SUPPRESS,
     )
 
     parser.add_argument(

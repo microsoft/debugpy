@@ -28,7 +28,7 @@ If target_kind is 'code', then target is the code to run.
 If target_kind is 'pid', then target is the process ID to attach to.
 """
 
-host = '127.0.0.1'
+host = "127.0.0.1"
 """Name or IP address of the network interface used by ptvsd.server. If runing in server
 mode, this is the interface on which it listens for incoming connections. If running
 in client mode, this is the interface to which it connects.
