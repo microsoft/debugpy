@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import re
 import threading
 
 from ptvsd.common import fmt, log
@@ -38,7 +39,11 @@ class CapturedOutput(object):
             if not len(chunk):
                 break
 
-            log.info("{0} {1}:\n{2!r}", self.session.debuggee_id, name, chunk)
+            lines = "\n".join(
+                repr(line) for line, _ in re.findall(b"(.+?(\n|$))", chunk)
+            )
+            log.info("{0} {1}:\n{2}", self.session.debuggee_id, name, lines)
+
             with self._lock:
                 chunks.append(chunk)
 
