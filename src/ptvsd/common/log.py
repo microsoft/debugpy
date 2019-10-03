@@ -22,10 +22,6 @@ LEVELS = ("debug", "info", "warning", "error")
 """Logging levels, lowest to highest importance.
 """
 
-stderr_levels = set(os.getenv("PTVSD_LOG_STDERR", "warning error").split())
-"""What should be logged to stderr.
-"""
-
 timestamp_format = "09.3f"
 """Format spec used for timestamps. Can be changed to dial precision up or down.
 """
@@ -70,7 +66,7 @@ class LogFile(object):
     @levels.setter
     def levels(self, value):
         with _lock:
-            self._levels = frozenset(value)
+            self._levels = frozenset(LEVELS if value is all else value)
             _update_levels()
 
     def write(self, level, output):
@@ -99,15 +95,6 @@ class LogFile(object):
         self.close()
 
 
-class LogStdErr(LogFile):
-    def __init__(self):
-        super(LogStdErr, self).__init__("<stderr>", sys.stderr)
-
-    @property
-    def levels(self):
-        return stderr_levels
-
-
 class NoLog(object):
     file = filename = None
 
@@ -127,7 +114,7 @@ class NoLog(object):
 # when it's intermixed with regular prints from other sources.
 def newline(level="info"):
     with _lock:
-        _stderr.write(level, "\n")
+        stderr.write(level, "\n")
 
 
 def write(level, text, _to_files=all):
@@ -352,7 +339,11 @@ def describe_environment(header):
     info("{0}", result)
 
 
-_stderr = LogStdErr()
+stderr = LogFile(
+    "<stderr>",
+    sys.stderr,
+    levels=os.getenv("PTVSD_LOG_STDERR", "warning error").split(),
+)
 
 
 # The following are helper shortcuts for printf debugging. They must never be used

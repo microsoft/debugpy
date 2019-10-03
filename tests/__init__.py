@@ -54,7 +54,7 @@ import ptvsd.server  # noqa
 
 # Enable full logging to stderr, and make timestamps shorter to match maximum test
 # run time better.
-log.stderr_levels = set(log.LEVELS)
+log.stderr.levels = all
 log.timestamp_format = "06.3f"
 log.to_file(prefix="tests")
 
