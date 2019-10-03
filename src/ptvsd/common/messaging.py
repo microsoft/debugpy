@@ -97,22 +97,8 @@ class JsonIOStream(object):
     def from_process(cls, process, name="stdio"):
         """Creates a new instance that receives messages from process.stdin, and sends
         them to process.stdout.
-
-        On Win32, this also sets stdin and stdout to binary mode, since the protocol
-        requires that to work properly.
         """
-        if sys.version_info >= (3,):
-            reader = process.stdout
-            writer = process.stdin
-        else:
-            reader = process.stdout
-            writer = process.stdin
-            if sys.platform == "win32":
-                import os, msvcrt
-
-                msvcrt.setmode(reader.fileno(), os.O_BINARY)
-                msvcrt.setmode(writer.fileno(), os.O_BINARY)
-        return cls(reader, writer, name)
+        return cls(process.stdout, process.stdin, name)
 
     @classmethod
     def from_socket(cls, sock, name=None):
