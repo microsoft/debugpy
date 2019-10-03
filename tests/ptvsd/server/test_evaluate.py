@@ -11,13 +11,49 @@ from tests import debug
 from tests.patterns import some
 
 
-def test_variables_and_evaluate(pyfile, target, run):
+def test_evaluate(pyfile, target, run):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
 
         a = 1
-        b = {"one": 1, "two": 2}
+        b = {"one": 1, 2: "two"}
+        print(a, b)  # @bp
+
+    with debug.Session() as session:
+        with run(session, target(code_to_debug)):
+            session.set_breakpoints(code_to_debug, all)
+
+        stop = session.wait_for_stop()
+
+        # Evaluate a variable name.
+        evaluate1 = session.request(
+            "evaluate", {"expression": "a", "frameId": stop.frame_id}
+        )
+        assert evaluate1 == some.dict.containing({"type": "int", "result": "1"})
+
+        # Evaluate dict indexing.
+        evaluate2 = session.request(
+            "evaluate", {"expression": "b[2]", "frameId": stop.frame_id}
+        )
+        assert evaluate2 == some.dict.containing({"type": "str", "result": "'two'"})
+
+        # Evaluate an expression with a binary operator.
+        evaluate3 = session.request(
+            "evaluate", {"expression": 'a + b["one"]', "frameId": stop.frame_id}
+        )
+        assert evaluate3 == some.dict.containing({"type": "int", "result": "2"})
+
+        session.request_continue()
+
+
+def test_variables(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        import debug_me  # noqa
+
+        a = 1
+        b = {"one": 1, 2: "two"}
         c = 3
         print([a, b, c])  # @bp
 
@@ -25,80 +61,49 @@ def test_variables_and_evaluate(pyfile, target, run):
         with run(session, target(code_to_debug)):
             session.set_breakpoints(code_to_debug, all)
 
-        hit = session.wait_for_stop()
+        stop = session.wait_for_stop()
+        scopes = session.request("scopes", {"frameId": stop.frame_id})["scopes"]
+        globals_ref = scopes[0]["variablesReference"]
+        vars = session.request("variables", {"variablesReference": globals_ref})["variables"]
 
-        resp_scopes = session.send_request(
-            "scopes", arguments={"frameId": hit.frame_id}
-        ).wait_for_response()
-        scopes = resp_scopes.body["scopes"]
-        assert len(scopes) > 0
+        # Variables must be sorted by name.
+        a, b, c = (v for v in vars if v["name"] in ("a", "b", "c"))
+        assert (a["name"], b["name"], c["name"]) == ("a", "b", "c")
 
-        resp_variables = session.send_request(
-            "variables",
-            arguments={"variablesReference": scopes[0]["variablesReference"]},
-        ).wait_for_response()
-        variables = list(
-            v for v in resp_variables.body["variables"] if v["name"] in ["a", "b", "c"]
-        )
-        assert len(variables) == 3
-
-        # variables should be sorted alphabetically
-        assert ["a", "b", "c"] == list(v["name"] for v in variables)
-
-        # get contents of 'b'
-        resp_b_variables = session.send_request(
-            "variables",
-            arguments={"variablesReference": variables[1]["variablesReference"]},
-        ).wait_for_response()
-        b_variables = resp_b_variables.body["variables"]
-        assert len(b_variables) == 3
-        assert b_variables[0] == {
-            "type": "int",
-            "value": "1",
-            "name": some.str.containing("one"),
-            "evaluateName": "b['one']",
-            "variablesReference": 0,
-        }
-        assert b_variables[1] == {
-            "type": "int",
-            "value": "2",
-            "name": some.str.containing("two"),
-            "evaluateName": "b['two']",
-            "variablesReference": 0,
-        }
-        assert b_variables[2] == {
-            "type": "int",
-            "value": "2",
-            "name": "__len__",
-            "evaluateName": "len(b)",
-            "variablesReference": 0,
-            "presentationHint": {"attributes": ["readOnly"]},
-        }
-
-        # simple variable
-        resp_evaluate1 = session.send_request(
-            "evaluate", arguments={"expression": "a", "frameId": hit.frame_id}
-        ).wait_for_response()
-        assert resp_evaluate1.body == some.dict.containing(
-            {"type": "int", "result": "1"}
-        )
-
-        # dict variable
-        resp_evaluate2 = session.send_request(
-            "evaluate", arguments={"expression": 'b["one"]', "frameId": hit.frame_id}
-        ).wait_for_response()
-        assert resp_evaluate2.body == some.dict.containing(
-            {"type": "int", "result": "1"}
-        )
-
-        # expression evaluate
-        resp_evaluate3 = session.send_request(
-            "evaluate",
-            arguments={"expression": 'a + b["one"]', "frameId": hit.frame_id},
-        ).wait_for_response()
-        assert resp_evaluate3.body == some.dict.containing(
-            {"type": "int", "result": "2"}
-        )
+        # Fetch children variables of the dict.
+        b_vars = session.request(
+            "variables", {"variablesReference": b["variablesReference"]}
+        )["variables"]
+        assert b_vars == [
+            some.dict.containing(
+                {
+                    "type": "int",
+                    "value": "1",
+                    "name": "'one'",
+                    "evaluateName": "b['one']",
+                    "variablesReference": 0,
+                }
+            ),
+            some.dict.containing(
+                {
+                    "type": "str",
+                    "value": "'two'",
+                    "name": "2",
+                    "evaluateName": "b[2]",
+                    "variablesReference": 0,
+                }
+            ),
+            some.dict.containing(
+                {
+                    "type": "int",
+                    "value": "2",
+                    "name": "__len__",
+                    "evaluateName": "len(b)",
+                    "variablesReference": 0,
+                    "presentationHint": {"attributes": ["readOnly"]},
+                }
+            ),
+        ]
 
         session.request_continue()
 
@@ -117,44 +122,29 @@ def test_set_variable(pyfile, target, run):
         with run(session, target(code_to_debug)):
             pass
 
-        hit = session.wait_for_stop()
+        stop = session.wait_for_stop()
+        scopes = session.request("scopes", {"frameId": stop.frame_id})["scopes"]
+        globals_ref = scopes[0]["variablesReference"]
+        vars = session.request("variables", {"variablesReference": globals_ref})["variables"]
 
-        resp_scopes = session.send_request(
-            "scopes", arguments={"frameId": hit.frame_id}
-        ).wait_for_response()
-        scopes = resp_scopes.body["scopes"]
-        assert len(scopes) > 0
-
-        resp_variables = session.send_request(
-            "variables",
-            arguments={"variablesReference": scopes[0]["variablesReference"]},
-        ).wait_for_response()
-        variables = list(
-            v for v in resp_variables.body["variables"] if v["name"] == "a"
-        )
-        assert len(variables) == 1
-        assert variables[0] == {
-            "type": "int",
-            "value": "1",
-            "name": "a",
-            "evaluateName": "a",
-            "variablesReference": 0,
-        }
-
-        resp_set_variable = session.send_request(
-            "setVariable",
-            arguments={
-                "variablesReference": scopes[0]["variablesReference"],
+        a, = (v for v in vars if v["name"] == "a")
+        assert a == some.dict.containing(
+            {
+                "type": "int",
+                "value": "1",
                 "name": "a",
-                "value": "1000",
-            },
-        ).wait_for_response()
-        assert resp_set_variable.body == some.dict.containing(
-            {"type": "int", "value": "1000"}
+                "evaluateName": "a",
+                "variablesReference": 0,
+            }
         )
+
+        set_a = session.request(
+            "setVariable",
+            {"variablesReference": globals_ref, "name": "a", "value": "1000"},
+        )
+        assert set_a == some.dict.containing({"type": "int", "value": "1000"})
 
         session.request_continue()
-
         assert backchannel.receive() == 1000
 
 
@@ -181,24 +171,14 @@ def test_variable_sort(pyfile, target, run):
     with debug.Session() as session:
         with run(session, target(code_to_debug)):
             session.set_breakpoints(code_to_debug, all)
-        hit = session.wait_for_stop()
 
-        resp_scopes = session.send_request(
-            "scopes", arguments={"frameId": hit.frame_id}
-        ).wait_for_response()
-        scopes = resp_scopes.body["scopes"]
-        assert len(scopes) > 0
+        stop = session.wait_for_stop()
+        scopes = session.request("scopes", {"frameId": stop.frame_id})["scopes"]
+        globals_ref = scopes[0]["variablesReference"]
+        vars = session.request("variables", {"variablesReference": globals_ref})["variables"]
 
-        resp_variables = session.send_request(
-            "variables",
-            arguments={"variablesReference": scopes[0]["variablesReference"]},
-        ).wait_for_response()
-        variable_names = list(
-            v["name"]
-            for v in resp_variables.body["variables"]
-            if v["name"].find("_test") > 0
-        )
-        assert variable_names == [
+        var_names = [v["name"] for v in vars if "_test" in v["name"]]
+        assert var_names == [
             "a_test",
             "b_test",
             "c_test",
@@ -213,40 +193,28 @@ def test_variable_sort(pyfile, target, run):
             "__c_test__",
         ]
 
-        # ensure string dict keys are sorted
-        b_test_variable = list(
-            v for v in resp_variables.body["variables"] if v["name"] == "b_test"
-        )
-        assert len(b_test_variable) == 1
-        resp_dict_variables = session.send_request(
-            "variables",
-            arguments={"variablesReference": b_test_variable[0]["variablesReference"]},
-        ).wait_for_response()
-        variable_names = list(
-            v["name"][1:5] for v in resp_dict_variables.body["variables"]
-        )
-        assert len(variable_names) == 4
-        assert variable_names[:3] == ["abcd", "eggs", "spam"]
+        # String dict keys must be sorted as strings.
+        b_test, = (v for v in vars if v["name"] == "b_test")
+        b_test_vars = session.request(
+            "variables", {"variablesReference": b_test["variablesReference"]}
+        )["variables"]
+        var_names = [v["name"] for v in b_test_vars]
+        assert var_names == ["'abcd'", "'eggs'", "'spam'", "__len__"]
 
-        # ensure numeric dict keys are sorted
-        c_test_variable = list(
-            v for v in resp_variables.body["variables"] if v["name"] == "c_test"
-        )
-        assert len(c_test_variable) == 1
-        resp_dict_variables2 = session.send_request(
-            "variables",
-            arguments={"variablesReference": c_test_variable[0]["variablesReference"]},
-        ).wait_for_response()
-        variable_names = list(v["name"] for v in resp_dict_variables2.body["variables"])
-        assert len(variable_names) == 4
-        # NOTE: this is commented out due to sorting bug #213
-        # assert variable_names[:3] == ['1', '2', '10']
+        # Numeric dict keys must be sorted as numbers.
+        if not "https://github.com/microsoft/ptvsd/issues/213":
+            c_test, = (v for v in vars if v["name"] == "c_test")
+            c_test_vars = session.request(
+                "variables", {"variablesReference": c_test["variablesReference"]}
+            )["variables"]
+            var_names = [v["name"] for v in c_test_vars]
+            assert var_names == ["1", "2", "10", "__len__"]
 
         session.request_continue()
 
 
-@pytest.mark.parametrize("retval", ("show", ""))
-def test_return_values(pyfile, target, run, retval):
+@pytest.mark.parametrize("ret_vis", ("show", "hide", "default"))
+def test_return_values(pyfile, target, run, ret_vis):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -285,62 +253,40 @@ def test_return_values(pyfile, target, run, retval):
     )
 
     with debug.Session() as session:
-        session.config["showReturnValue"] = bool(retval)
+        if ret_vis != "default":
+            session.config["showReturnValue"] = ret_vis != "hide"
+
         with run(session, target(code_to_debug)):
             session.set_breakpoints(code_to_debug, all)
 
-        hit = session.wait_for_stop()
+        stop = session.wait_for_stop()
+        session.request("next", {"threadId": stop.thread_id})
+        stop = session.wait_for_stop("step")
+        scopes = session.request("scopes", {"frameId": stop.frame_id})["scopes"]
+        globals_ref = scopes[0]["variablesReference"]
 
-        session.send_request("next", {"threadId": hit.thread_id}).wait_for_response()
-        hit = session.wait_for_stop(reason="step")
+        vars = session.request("variables", {"variablesReference": globals_ref})[
+            "variables"
+        ]
+        ret_vars = [v for v in vars if v["name"].startswith("(return)")]
+        assert ret_vars == ([expected1] if ret_vis != "hide" else [])
 
-        resp_scopes = session.send_request(
-            "scopes", arguments={"frameId": hit.frame_id}
-        ).wait_for_response()
-        scopes = resp_scopes.body["scopes"]
-        assert len(scopes) > 0
+        session.request("next", {"threadId": stop.thread_id})
+        stop = session.wait_for_stop("step")
 
-        resp_variables = session.send_request(
-            "variables",
-            arguments={"variablesReference": scopes[0]["variablesReference"]},
-        ).wait_for_response()
-        variables = list(
-            v
-            for v in resp_variables.body["variables"]
-            if v["name"].startswith("(return)")
-        )
+        # Variable reference for the scope is not invalidated after the step.
+        vars = session.request("variables", {"variablesReference": globals_ref})[
+            "variables"
+        ]
+        ret_vars = [v for v in vars if v["name"].startswith("(return)")]
+        assert ret_vars == ([expected1, expected2] if ret_vis != "hide" else [])
 
-        if retval:
-            assert variables == [expected1]
-        else:
-            assert variables == []
-
-        session.send_request("next", {"threadId": hit.thread_id}).wait_for_response()
-        hit = session.wait_for_stop(reason="step")
-
-        # Scope should not have changed so use the same scope
-        resp_variables = session.send_request(
-            "variables",
-            arguments={"variablesReference": scopes[0]["variablesReference"]},
-        ).wait_for_response()
-        variables = list(
-            v
-            for v in resp_variables.body["variables"]
-            if v["name"].startswith("(return)")
-        )
-
-        if retval:
-            assert variables == [expected1, expected2]
-        else:
-            assert variables == []
-
-        session.send_request("continue").wait_for_response()
+        session.request_continue()
 
 
+# On Python 3, variable names can contain Unicode characters.
+# On Python 2, they must be ASCII, but using a Unicode character in an expression should not crash debugger.
 def test_unicode(pyfile, target, run):
-    # On Python 3, variable names can contain Unicode characters.
-    # On Python 2, they must be ASCII, but using a Unicode character in an expression should not crash debugger.
-
     @pyfile
     def code_to_debug():
         from debug_me import ptvsd
@@ -355,22 +301,19 @@ def test_unicode(pyfile, target, run):
         with run(session, target(code_to_debug)):
             pass
 
-        hit = session.wait_for_stop()
-
-        resp_eval = session.send_request(
-            "evaluate", arguments={"expression": "\u16A0", "frameId": hit.frame_id}
-        ).wait_for_response()
-
+        stop = session.wait_for_stop()
+        eval = session.request(
+            "evaluate", {"expression": "\u16A0", "frameId": stop.frame_id}
+        )
         if sys.version_info >= (3,):
-            assert resp_eval.body == some.dict.containing(
-                {"type": "int", "result": "123"}
-            )
+            assert eval == some.dict.containing({"type": "int", "result": "123"})
         else:
-            assert resp_eval.body == some.dict.containing({"type": "SyntaxError"})
-
+            assert eval == some.dict.containing({"type": "SyntaxError"})
         session.request_continue()
 
 
+# Numbers should be properly hex-formatted in all positions: variable values, list
+# indices, dict keys etc.
 def test_hex_numbers(pyfile, target, run):
     @pyfile
     def code_to_debug():
@@ -385,27 +328,15 @@ def test_hex_numbers(pyfile, target, run):
     with debug.Session() as session:
         with run(session, target(code_to_debug)):
             session.set_breakpoints(code_to_debug, all)
-        hit = session.wait_for_stop()
 
-        resp_scopes = session.send_request(
-            "scopes", arguments={"frameId": hit.frame_id}
-        ).wait_for_response()
-        scopes = resp_scopes.body["scopes"]
-        assert len(scopes) > 0
+        stop = session.wait_for_stop()
+        scopes = session.request("scopes", {"frameId": stop.frame_id})["scopes"]
+        globals_ref = scopes[0]["variablesReference"]
 
-        resp_variables = session.send_request(
-            "variables",
-            arguments={
-                "variablesReference": scopes[0]["variablesReference"],
-                "format": {"hex": True},
-            },
-        ).wait_for_response()
-        variables = list(
-            v
-            for v in resp_variables.body["variables"]
-            if v["name"] in ("a", "b", "c", "d")
-        )
-        a, b, c, d = sorted(variables, key=lambda v: v["name"])
+        vars = session.request(
+            "variables", {"variablesReference": globals_ref, "format": {"hex": True}}
+        )["variables"]
+        a, b, c, d = (v for v in vars if v["name"] in ("a", "b", "c", "d"))
         assert a == some.dict.containing(
             {
                 "name": "a",
@@ -415,7 +346,6 @@ def test_hex_numbers(pyfile, target, run):
                 "variablesReference": 0,
             }
         )
-
         assert b == some.dict.containing(
             {
                 "name": "b",
@@ -425,47 +355,6 @@ def test_hex_numbers(pyfile, target, run):
                 "variablesReference": some.dap.id,
             }
         )
-
-        resp_variables = session.send_request(
-            "variables",
-            arguments={
-                "variablesReference": b["variablesReference"],
-                "format": {"hex": True},
-            },
-        ).wait_for_response()
-        b_children = resp_variables.body["variables"]
-        assert b_children == [
-            {
-                "name": "0x0",
-                "value": "0x1",
-                "type": "int",
-                "evaluateName": "b[0]",
-                "variablesReference": 0,
-            },
-            {
-                "name": "0x1",
-                "value": "0xa",
-                "type": "int",
-                "evaluateName": "b[1]",
-                "variablesReference": 0,
-            },
-            {
-                "name": "0x2",
-                "value": "0x64",
-                "type": "int",
-                "evaluateName": "b[2]",
-                "variablesReference": 0,
-            },
-            {
-                "name": "__len__",
-                "value": "0x3",
-                "type": "int",
-                "evaluateName": "len(b)",
-                "variablesReference": 0,
-                "presentationHint": {"attributes": ["readOnly"]},
-            },
-        ]
-
         assert c == some.dict.containing(
             {
                 "name": "c",
@@ -475,47 +364,6 @@ def test_hex_numbers(pyfile, target, run):
                 "variablesReference": some.dap.id,
             }
         )
-
-        resp_variables = session.send_request(
-            "variables",
-            arguments={
-                "variablesReference": c["variablesReference"],
-                "format": {"hex": True},
-            },
-        ).wait_for_response()
-        c_children = resp_variables.body["variables"]
-        assert c_children == [
-            {
-                "name": "0x3e8",
-                "value": "0x3e8",
-                "type": "int",
-                "evaluateName": "c[1000]",
-                "variablesReference": 0,
-            },
-            {
-                "name": "0x64",
-                "value": "0x64",
-                "type": "int",
-                "evaluateName": "c[100]",
-                "variablesReference": 0,
-            },
-            {
-                "name": "0xa",
-                "value": "0xa",
-                "type": "int",
-                "evaluateName": "c[10]",
-                "variablesReference": 0,
-            },
-            {
-                "name": "__len__",
-                "value": "0x3",
-                "type": "int",
-                "evaluateName": "len(c)",
-                "variablesReference": 0,
-                "presentationHint": {"attributes": ["readOnly"]},
-            },
-        ]
-
         assert d == some.dict.containing(
             {
                 "name": "d",
@@ -525,70 +373,167 @@ def test_hex_numbers(pyfile, target, run):
                 "variablesReference": some.dap.id,
             }
         )
-        resp_variables = session.send_request(
+
+        b_vars = session.request(
             "variables",
-            arguments={
-                "variablesReference": d["variablesReference"],
-                "format": {"hex": True},
-            },
-        ).wait_for_response()
-        d_children = resp_variables.body["variables"]
-        assert d_children == [
-            {
-                "name": "(0x1, 0xa, 0x64)",
-                "value": "(0x2710, 0x186a0, 0x186a0)",
-                "type": "tuple",
-                "evaluateName": "d[(1, 10, 100)]",
-                "variablesReference": some.dap.id,
-            },
-            {
-                "name": "__len__",
-                "value": "0x1",
-                "type": "int",
-                "evaluateName": "len(d)",
-                "variablesReference": 0,
-                "presentationHint": {"attributes": ["readOnly"]},
-            },
+            {"variablesReference": b["variablesReference"], "format": {"hex": True}},
+        )["variables"]
+        assert b_vars == [
+            some.dict.containing(
+                {
+                    "name": "0x0",
+                    "value": "0x1",
+                    "type": "int",
+                    "evaluateName": "b[0]",
+                    "variablesReference": 0,
+                }
+            ),
+            some.dict.containing(
+                {
+                    "name": "0x1",
+                    "value": "0xa",
+                    "type": "int",
+                    "evaluateName": "b[1]",
+                    "variablesReference": 0,
+                }
+            ),
+            some.dict.containing(
+                {
+                    "name": "0x2",
+                    "value": "0x64",
+                    "type": "int",
+                    "evaluateName": "b[2]",
+                    "variablesReference": 0,
+                }
+            ),
+            some.dict.containing(
+                {
+                    "name": "__len__",
+                    "value": "0x3",
+                    "type": "int",
+                    "evaluateName": "len(b)",
+                    "variablesReference": 0,
+                    "presentationHint": {"attributes": ["readOnly"]},
+                }
+            ),
         ]
 
-        resp_variables = session.send_request(
+        c_vars = session.request(
             "variables",
-            arguments={
-                "variablesReference": d_children[0]["variablesReference"],
+            {"variablesReference": c["variablesReference"], "format": {"hex": True}},
+        )["variables"]
+        assert c_vars == [
+            some.dict.containing(
+                {
+                    "name": "0x3e8",
+                    "value": "0x3e8",
+                    "type": "int",
+                    "evaluateName": "c[1000]",
+                    "variablesReference": 0,
+                }
+            ),
+            some.dict.containing(
+                {
+                    "name": "0x64",
+                    "value": "0x64",
+                    "type": "int",
+                    "evaluateName": "c[100]",
+                    "variablesReference": 0,
+                }
+            ),
+            some.dict.containing(
+                {
+                    "name": "0xa",
+                    "value": "0xa",
+                    "type": "int",
+                    "evaluateName": "c[10]",
+                    "variablesReference": 0,
+                }
+            ),
+            some.dict.containing(
+                {
+                    "name": "__len__",
+                    "value": "0x3",
+                    "type": "int",
+                    "evaluateName": "len(c)",
+                    "variablesReference": 0,
+                    "presentationHint": {"attributes": ["readOnly"]},
+                }
+            ),
+        ]
+
+        d_vars = session.request(
+            "variables",
+            {"variablesReference": d["variablesReference"], "format": {"hex": True}},
+        )["variables"]
+        assert d_vars == [
+            some.dict.containing(
+                {
+                    "name": "(0x1, 0xa, 0x64)",
+                    "value": "(0x2710, 0x186a0, 0x186a0)",
+                    "type": "tuple",
+                    "evaluateName": "d[(1, 10, 100)]",
+                    "variablesReference": some.dap.id,
+                }
+            ),
+            some.dict.containing(
+                {
+                    "name": "__len__",
+                    "value": "0x1",
+                    "type": "int",
+                    "evaluateName": "len(d)",
+                    "variablesReference": 0,
+                    "presentationHint": {"attributes": ["readOnly"]},
+                }
+            ),
+        ]
+
+        d_item0 = d_vars[0]
+        d_item0_vars = session.request(
+            "variables",
+            {
+                "variablesReference": d_item0["variablesReference"],
                 "format": {"hex": True},
             },
-        ).wait_for_response()
-        d_child_of_child = resp_variables.body["variables"]
-        assert d_child_of_child == [
-            {
-                "name": "0x0",
-                "value": "0x2710",
-                "type": "int",
-                "evaluateName": "d[(1, 10, 100)][0]",
-                "variablesReference": 0,
-            },
-            {
-                "name": "0x1",
-                "value": "0x186a0",
-                "type": "int",
-                "evaluateName": "d[(1, 10, 100)][1]",
-                "variablesReference": 0,
-            },
-            {
-                "name": "0x2",
-                "value": "0x186a0",
-                "type": "int",
-                "evaluateName": "d[(1, 10, 100)][2]",
-                "variablesReference": 0,
-            },
-            {
-                "name": "__len__",
-                "value": "0x3",
-                "type": "int",
-                "evaluateName": "len(d[(1, 10, 100)])",
-                "variablesReference": 0,
-                "presentationHint": {"attributes": ["readOnly"]},
-            },
+        )["variables"]
+        assert d_item0_vars == [
+            some.dict.containing(
+                {
+                    "name": "0x0",
+                    "value": "0x2710",
+                    "type": "int",
+                    "evaluateName": "d[(1, 10, 100)][0]",
+                    "variablesReference": 0,
+                }
+            ),
+            some.dict.containing(
+                {
+                    "name": "0x1",
+                    "value": "0x186a0",
+                    "type": "int",
+                    "evaluateName": "d[(1, 10, 100)][1]",
+                    "variablesReference": 0,
+                }
+            ),
+            some.dict.containing(
+                {
+                    "name": "0x2",
+                    "value": "0x186a0",
+                    "type": "int",
+                    "evaluateName": "d[(1, 10, 100)][2]",
+                    "variablesReference": 0,
+                }
+            ),
+            some.dict.containing(
+                {
+                    "name": "__len__",
+                    "value": "0x3",
+                    "type": "int",
+                    "evaluateName": "len(d[(1, 10, 100)])",
+                    "variablesReference": 0,
+                    "presentationHint": {"attributes": ["readOnly"]},
+                }
+            ),
         ]
 
         session.request_continue()
