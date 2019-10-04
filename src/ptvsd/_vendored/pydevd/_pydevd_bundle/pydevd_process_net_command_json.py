@@ -582,7 +582,8 @@ class PyDevJsonCommandProcessor(object):
                 elif error_code == self.api.ADD_BREAKPOINT_FILE_EXCLUDED_BY_FILTERS:
                     error_msg = 'Breakpoint in file excluded by filters.'
                     if py_db.get_use_libraries_filter():
-                        error_msg += '\nNote: may be excluded because of "justMyCode" option (default == true).'
+                        error_msg += ('\nNote: may be excluded because of "justMyCode" option (default == true).'
+                                      'Try setting \"justMyCode\": false in the debug configuration (e.g., launch.json).')
 
                 else:
                     # Shouldn't get here.

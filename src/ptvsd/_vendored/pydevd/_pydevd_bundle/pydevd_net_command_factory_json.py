@@ -356,7 +356,8 @@ class NetCommandFactoryJson(NetCommandFactory):
     def make_skipped_step_in_because_of_filters(self, py_db, frame):
         msg = 'Frame skipped from debugging during step-in.'
         if py_db.get_use_libraries_filter():
-            msg += '\nNote: may have been skipped because of "justMyCode" option (default == true).'
+            msg += ('\nNote: may have been skipped because of "justMyCode" option (default == true). '
+                    'Try setting \"justMyCode\": false in the debug configuration (e.g., launch.json).')
 
         body = OutputEventBody(msg, category='console')
         event = OutputEvent(body)

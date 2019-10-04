@@ -56,7 +56,7 @@ class IDE(components.Component):
             {
                 "category": "telemetry",
                 "output": "ptvsd.adapter",
-                "data": {"version": ptvsd.__version__},
+                "data": {"packageVersion": ptvsd.__version__},
             },
         )
 

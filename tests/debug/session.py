@@ -483,7 +483,7 @@ class Session(object):
         assert telemetry == {
             "category": "telemetry",
             "output": "ptvsd.adapter",
-            "data": {"version": some.str},
+            "data": {"packageVersion": some.str},
         }
 
         self.request(
