@@ -1,5 +1,5 @@
 from _pydevd_bundle import pydevd_constants
-from _pydev_imps._pydev_saved_modules import threading
+from _pydevd_bundle.pydevd_constants import ForkSafeLock
 
 IS_PY3K = pydevd_constants.IS_PY3K
 
@@ -21,7 +21,7 @@ class IORedirector:
             Whether to create a buffer attribute (needed to mimick python 3 s
             tdout/stderr which has a buffer to write binary data).
         '''
-        self._lock = threading.RLock()
+        self._lock = ForkSafeLock(rlock=True)
         self._writing = False
         self._redirect_to = (original, new_redirect)
         if wrap_buffer and hasattr(original, 'buffer'):

@@ -3,7 +3,7 @@ from contextlib import contextmanager
 import pytest
 
 from _pydev_bundle.pydev_override import overrides
-from tests_python.debugger_fixtures import DebuggerRunnerSimple
+from tests_python.debugger_fixtures import DebuggerRunnerSimple, debugger_runner_simple
 from tests_python.debugger_unittest import AbstractWriterThread, SHOW_OTHER_DEBUG_INFO, \
     start_in_daemon_thread, wait_for_condition, IS_JYTHON
 from _pydev_bundle.pydev_localhost import get_socket_names, get_socket_name
@@ -21,7 +21,7 @@ else:
 
 
 @pytest.fixture
-def console_setup():
+def console_setup(tmpdir):
 
     server_queue = queue.Queue()
 
@@ -95,7 +95,7 @@ def console_setup():
         def connect_to_debugger(self, debugger_port):
             runner.proxy.connectToDebugger(debugger_port)
 
-    runner = ConsoleRunner()
+    runner = ConsoleRunner(tmpdir)
     writer = WriterThread()
 
     class CaseSetup(object):

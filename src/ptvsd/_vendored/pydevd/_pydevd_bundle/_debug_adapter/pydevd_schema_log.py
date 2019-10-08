@@ -1,11 +1,11 @@
 import os
-import threading
 import traceback
+from _pydevd_bundle.pydevd_constants import ForkSafeLock
 
 _pid = os.getpid()
 _pid_msg = '%s: ' % (_pid,)
 
-_debug_lock = threading.Lock()
+_debug_lock = ForkSafeLock()
 
 DEBUG = False
 DEBUG_FILE = os.path.join(os.path.dirname(__file__), '__debug_output__.txt')

@@ -1,10 +1,9 @@
-from _pydev_imps._pydev_saved_modules import threading
 from _pydevd_bundle.pydevd_constants import DebugInfoHolder, IS_PY2, \
     get_global_debugger, GetGlobalDebugger, set_global_debugger  # Keep for backward compatibility @UnusedImport
 from _pydevd_bundle.pydevd_utils import quote_smart as quote, to_string
 from _pydevd_bundle.pydevd_comm_constants import ID_TO_MEANING, CMD_EXIT
 from _pydevd_bundle.pydevd_constants import HTTP_PROTOCOL, HTTP_JSON_PROTOCOL, \
-    get_protocol, IS_JYTHON
+    get_protocol, IS_JYTHON, ForkSafeLock
 import json
 from _pydev_bundle import pydev_log
 
@@ -47,7 +46,7 @@ class NetCommand(_BaseNetCommand):
     next_seq = 0  # sequence numbers
 
     _showing_debug_info = 0
-    _show_debug_info_lock = threading.RLock()
+    _show_debug_info_lock = ForkSafeLock(rlock=True)
 
     def __init__(self, cmd_id, seq, text, is_json=False):
         """

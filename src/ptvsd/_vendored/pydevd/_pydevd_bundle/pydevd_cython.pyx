@@ -6,7 +6,7 @@ from __future__ import print_function
 # DO NOT edit manually!
 import sys
 from _pydevd_bundle.pydevd_constants import (STATE_RUN, PYTHON_SUSPEND, IS_JYTHON,
-    USE_CUSTOM_SYS_CURRENT_FRAMES, USE_CUSTOM_SYS_CURRENT_FRAMES_MAP)
+    USE_CUSTOM_SYS_CURRENT_FRAMES, USE_CUSTOM_SYS_CURRENT_FRAMES_MAP, ForkSafeLock)
 from _pydev_bundle import pydev_log
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
 pydev_log.debug("Using Cython speedups")
@@ -141,8 +141,7 @@ cdef class PyDBAdditionalThreadInfo:
             self.pydev_state, self.pydev_step_stop, self.pydev_step_cmd, self.pydev_notify_kill)
 
 
-from _pydev_imps._pydev_saved_modules import threading
-_set_additional_thread_info_lock = threading.Lock()
+_set_additional_thread_info_lock = ForkSafeLock()
 
 
 def set_additional_thread_info(thread):
@@ -917,7 +916,7 @@ from _pydev_bundle.pydev_is_thread_alive import is_thread_alive
 from _pydev_bundle.pydev_log import exception as pydev_log_exception
 from _pydev_imps._pydev_saved_modules import threading
 from _pydevd_bundle.pydevd_constants import (get_current_thread_id, NO_FTRACE,
-    USE_CUSTOM_SYS_CURRENT_FRAMES_MAP)
+    USE_CUSTOM_SYS_CURRENT_FRAMES_MAP, ForkSafeLock)
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame, NORM_PATHS_AND_BASE_CONTAINER
 
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
@@ -945,7 +944,7 @@ global_cache_skips = {}
 global_cache_frame_skips = {}
 
 _global_notify_skipped_step_in = False
-_global_notify_skipped_step_in_lock = threading.Lock()
+_global_notify_skipped_step_in_lock = ForkSafeLock()
 
 
 def notify_skipped_step_in_because_of_filters(py_db, frame):

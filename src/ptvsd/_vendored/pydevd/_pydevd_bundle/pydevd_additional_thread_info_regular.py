@@ -1,6 +1,6 @@
 import sys
 from _pydevd_bundle.pydevd_constants import (STATE_RUN, PYTHON_SUSPEND, IS_JYTHON,
-    USE_CUSTOM_SYS_CURRENT_FRAMES, USE_CUSTOM_SYS_CURRENT_FRAMES_MAP)
+    USE_CUSTOM_SYS_CURRENT_FRAMES, USE_CUSTOM_SYS_CURRENT_FRAMES_MAP, ForkSafeLock)
 from _pydev_bundle import pydev_log
 # IFDEF CYTHON
 # pydev_log.debug("Using Cython speedups")
@@ -135,8 +135,7 @@ class PyDBAdditionalThreadInfo(object):
             self.pydev_state, self.pydev_step_stop, self.pydev_step_cmd, self.pydev_notify_kill)
 
 
-from _pydev_imps._pydev_saved_modules import threading
-_set_additional_thread_info_lock = threading.Lock()
+_set_additional_thread_info_lock = ForkSafeLock()
 
 
 def set_additional_thread_info(thread):

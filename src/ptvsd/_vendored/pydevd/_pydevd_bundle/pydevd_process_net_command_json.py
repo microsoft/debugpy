@@ -256,11 +256,12 @@ class PyDevJsonCommandProcessor(object):
         '''
         :param TerminateRequest request:
         '''
-        # Force-terminate this process.
-        self._terminate_process(py_db)
+        self._request_terminate_process(py_db)
+        response = pydevd_base_schema.build_response(request)
+        return NetCommand(CMD_RETURN, 0, response, is_json=True)
 
-    def _terminate_process(self, py_db):
-        self.api.terminate_process(py_db)
+    def _request_terminate_process(self, py_db):
+        self.api.request_terminate_process(py_db)
 
     def on_completions_request(self, py_db, request):
         '''
@@ -511,8 +512,9 @@ class PyDevJsonCommandProcessor(object):
         :param DisconnectRequest request:
         '''
         if request.arguments.terminateDebuggee:
-            self._terminate_process(py_db)
-            return
+            self._request_terminate_process(py_db)
+            response = pydevd_base_schema.build_response(request)
+            return NetCommand(CMD_RETURN, 0, response, is_json=True)
 
         self._launch_or_attach_request_done = False
         py_db.enable_output_redirection(False, False)

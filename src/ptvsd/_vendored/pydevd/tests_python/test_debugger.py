@@ -2422,7 +2422,8 @@ def test_multiprocessing_simple(case_setup_multiprocessing, file_to_check):
 
 
 @pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
-def test_multiprocessing_with_stopped_breakpoints(case_setup_multiprocessing):
+@pytest.mark.parametrize('count', range(10))  # Call multiple times to exercise timing issues.
+def test_multiprocessing_with_stopped_breakpoints(case_setup_multiprocessing, count):
     import threading
     from tests_python.debugger_unittest import AbstractWriterThread
     with case_setup_multiprocessing.test_file('_debugger_case_multiprocessing_stopped_threads.py') as writer:
@@ -2435,6 +2436,7 @@ def test_multiprocessing_with_stopped_breakpoints(case_setup_multiprocessing):
         writer.write_add_breakpoint(break_process_line)
 
         server_socket = writer.server_socket
+        listening_event = threading.Event()
 
         class SecondaryProcessWriterThread(AbstractWriterThread):
 
@@ -2447,13 +2449,18 @@ def test_multiprocessing_with_stopped_breakpoints(case_setup_multiprocessing):
                 from tests_python.debugger_unittest import ReaderThread
                 server_socket.listen(1)
                 self.server_socket = server_socket
+                listening_event.set()
+                writer.log.append('  *** Multiprocess waiting on server_socket.accept()')
                 new_sock, addr = server_socket.accept()
 
                 reader_thread = ReaderThread(new_sock)
                 reader_thread.name = '  *** Multiprocess Reader Thread'
                 reader_thread.start()
+                writer.log.append('  *** Multiprocess started ReaderThread')
 
                 writer2 = SecondaryProcessWriterThread()
+                writer2._WRITE_LOG_PREFIX = '  *** Multiprocess write: '
+                writer2.log = writer.log
 
                 writer2.reader_thread = reader_thread
                 writer2.sock = new_sock
@@ -2468,6 +2475,10 @@ def test_multiprocessing_with_stopped_breakpoints(case_setup_multiprocessing):
 
         secondary_process_thread_communication = SecondaryProcessThreadCommunication()
         secondary_process_thread_communication.start()
+
+        ok = listening_event.wait(timeout=10)
+        if not IS_PY26:
+            assert ok
         writer.write_make_initial_run()
         hit2 = writer.wait_for_breakpoint_hit()  # Breaks in thread.
         writer.write_step_over(hit2.thread_id)

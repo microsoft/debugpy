@@ -11,7 +11,7 @@ from _pydevd_bundle.pydevd_comm import (InternalGetThreadStack, internal_get_com
     internal_get_description, internal_get_frame, internal_evaluate_expression, InternalConsoleExec,
     internal_get_variable_json, internal_change_variable, internal_change_variable_json,
     internal_evaluate_expression_json, internal_set_expression_json, internal_get_exception_details_json,
-    internal_step_in_thread, internal_run_thread)
+    internal_step_in_thread, internal_run_thread, run_as_pydevd_daemon_thread)
 from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, file_system_encoding,
     CMD_STEP_INTO_MY_CODE, CMD_STOP_ON_START)
 from _pydevd_bundle.pydevd_constants import (get_current_thread_id, set_protocol, get_protocol,
@@ -24,6 +24,8 @@ from _pydevd_bundle.pydevd_breakpoints import LineBreakpoint
 from pydevd_tracing import get_exception_traceback_str
 import os
 import subprocess
+import time
+from _pydev_bundle.pydev_is_thread_alive import is_thread_alive
 
 try:
     import dis
@@ -922,10 +924,22 @@ class PyDevdAPI(object):
         '''
         try:
             if py_db.terminate_child_processes:
+                pydev_log.debug('Terminating child processes.')
                 if IS_WINDOWS:
                     self._terminate_child_processes_windows(py_db.dont_terminate_child_pids)
                 else:
                     self._terminate_child_processes_linux_and_mac(py_db.dont_terminate_child_pids)
         finally:
+            pydev_log.debug('Exiting process (os._exit(0)).')
             os._exit(0)
+
+    def _terminate_if_commands_processed(self, py_db):
+        py_db.dispose_and_kill_all_pydevd_threads()
+        self.terminate_process(py_db)
+
+    def request_terminate_process(self, py_db):
+        # We mark with a terminate_requested to avoid that paused threads start running
+        # (we should terminate as is without letting any paused thread run).
+        py_db.terminate_requested = True
+        run_as_pydevd_daemon_thread(py_db, self._terminate_if_commands_processed, py_db)
 

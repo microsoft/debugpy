@@ -50,7 +50,7 @@ class NetCommandFactory(object):
     def make_error_message(self, seq, text):
         cmd = NetCommand(CMD_ERROR, seq, text)
         if DebugInfoHolder.DEBUG_TRACE_LEVEL > 2:
-            sys.stderr.write("Error: %s" % (text,))
+            pydev_log.error("Error: %s" % (text,))
         return cmd
 
     def make_protocol_set_message(self, seq):
@@ -443,3 +443,6 @@ class NetCommandFactory(object):
 
     def make_skipped_step_in_because_of_filters(self, py_db, frame):
         return NULL_NET_COMMAND  # Not a part of the xml protocol
+
+    def make_exit_command(self, py_db):
+        return NULL_EXIT_COMMAND

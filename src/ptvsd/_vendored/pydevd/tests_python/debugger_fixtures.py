@@ -228,9 +228,18 @@ class DebuggerRunnerRemote(debugger_unittest.DebuggerRunner):
 
 
 @pytest.fixture
-def case_setup(tmpdir):
+def debugger_runner_simple(tmpdir):
+    return DebuggerRunnerSimple(tmpdir)
 
-    runner = DebuggerRunnerSimple()
+
+@pytest.fixture
+def debugger_runner_remote(tmpdir):
+    return DebuggerRunnerRemote(tmpdir)
+
+
+@pytest.fixture
+def case_setup(tmpdir, debugger_runner_simple):
+    runner = debugger_runner_simple
 
     class WriterThread(debugger_unittest.AbstractWriterThread):
         pass
@@ -301,9 +310,7 @@ def case_setup_unhandled_exceptions(case_setup):
 
 
 @pytest.fixture
-def case_setup_remote():
-
-    runner = DebuggerRunnerRemote()
+def case_setup_remote(debugger_runner_remote):
 
     class WriterThread(debugger_unittest.AbstractWriterThread):
         pass
@@ -339,21 +346,19 @@ def case_setup_remote():
                 assert hasattr(WriterThread, key)
                 setattr(WriterThread, key, value)
 
-            with runner.check_case(WriterThread, wait_for_port=wait_for_port) as writer:
+            with debugger_runner_remote.check_case(WriterThread, wait_for_port=wait_for_port) as writer:
                 yield writer
 
     return CaseSetup()
 
 
 @pytest.fixture
-def case_setup_remote_attach_to():
+def case_setup_remote_attach_to(debugger_runner_remote):
     '''
     The difference from this to case_setup_remote is that this one will connect to a server
     socket started by the debugger and case_setup_remote will create the server socket and wait
     for a connection from the debugger.
     '''
-
-    runner = DebuggerRunnerRemote()
 
     class WriterThread(debugger_unittest.AbstractWriterThread):
 
@@ -384,16 +389,14 @@ def case_setup_remote_attach_to():
                 assert hasattr(WriterThread, key)
                 setattr(WriterThread, key, value)
 
-            with runner.check_case(WriterThread, wait_for_port=False) as writer:
+            with debugger_runner_remote.check_case(WriterThread, wait_for_port=False) as writer:
                 yield writer
 
     return CaseSetup()
 
 
 @pytest.fixture
-def case_setup_multiprocessing():
-
-    runner = DebuggerRunnerSimple()
+def case_setup_multiprocessing(debugger_runner_simple):
 
     class WriterThread(debugger_unittest.AbstractWriterThread):
         pass
@@ -418,16 +421,14 @@ def case_setup_multiprocessing():
                 assert hasattr(WriterThread, key)
                 setattr(WriterThread, key, value)
 
-            with runner.check_case(WriterThread) as writer:
+            with debugger_runner_simple.check_case(WriterThread) as writer:
                 yield writer
 
     return CaseSetup()
 
 
 @pytest.fixture
-def case_setup_m_switch():
-
-    runner = DebuggerRunnerSimple()
+def case_setup_m_switch(debugger_runner_simple):
 
     class WriterThread(_WriterThreadCaseMSwitch):
         pass
@@ -439,16 +440,16 @@ def case_setup_m_switch():
             for key, value in kwargs.items():
                 assert hasattr(WriterThread, key)
                 setattr(WriterThread, key, value)
-            with runner.check_case(WriterThread) as writer:
+            with debugger_runner_simple.check_case(WriterThread) as writer:
                 yield writer
 
     return CaseSetup()
 
 
 @pytest.fixture
-def case_setup_m_switch_entry_point():
+def case_setup_m_switch_entry_point(debugger_runner_simple):
 
-    runner = DebuggerRunnerSimple()
+    runner = debugger_runner_simple
 
     class WriterThread(_WriterThreadCaseModuleWithEntryPoint):
         pass
@@ -467,9 +468,7 @@ def case_setup_m_switch_entry_point():
 
 
 @pytest.fixture
-def case_setup_django():
-
-    runner = DebuggerRunnerSimple()
+def case_setup_django(debugger_runner_simple):
 
     class WriterThread(AbstractWriterThreadCaseDjango):
         pass
@@ -492,16 +491,14 @@ def case_setup_django():
                 assert hasattr(WriterThread, key)
                 setattr(WriterThread, key, value)
 
-            with runner.check_case(WriterThread) as writer:
+            with debugger_runner_simple.check_case(WriterThread) as writer:
                 yield writer
 
     return CaseSetup()
 
 
 @pytest.fixture
-def case_setup_flask():
-
-    runner = DebuggerRunnerSimple()
+def case_setup_flask(debugger_runner_simple):
 
     class WriterThread(AbstractWriterThreadCaseFlask):
         pass
@@ -515,7 +512,7 @@ def case_setup_flask():
                 assert hasattr(WriterThread, key)
                 setattr(WriterThread, key, value)
 
-            with runner.check_case(WriterThread) as writer:
+            with debugger_runner_simple.check_case(WriterThread) as writer:
                 yield writer
 
     return CaseSetup()

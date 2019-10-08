@@ -26,5 +26,7 @@ if __name__ == '__main__':
     event.wait()
     if sys.version_info[0] >= 3 and sys.platform != 'win32':
         multiprocessing.set_start_method('fork')
-    multiprocessing.Process(target=run_in_multiprocess, args=()).start()
+    p = multiprocessing.Process(target=run_in_multiprocess, args=())
+    p.start()
     print('TEST SUCEEDED!')  # break in main here
+    p.join()

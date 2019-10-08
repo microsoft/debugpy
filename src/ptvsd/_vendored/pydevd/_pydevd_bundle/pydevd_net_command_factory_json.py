@@ -6,7 +6,6 @@ from _pydev_bundle._pydev_imports_tipper import TYPE_IMPORT, TYPE_CLASS, TYPE_FU
     TYPE_BUILTIN, TYPE_PARAM
 from _pydev_bundle.pydev_is_thread_alive import is_thread_alive
 from _pydev_bundle.pydev_override import overrides
-from _pydev_imps._pydev_saved_modules import threading
 from _pydevd_bundle._debug_adapter import pydevd_schema
 from _pydevd_bundle._debug_adapter.pydevd_schema import ModuleEvent, ModuleEventBody, Module, \
     OutputEventBody, OutputEvent, ContinuedEventBody
@@ -14,8 +13,9 @@ from _pydevd_bundle.pydevd_comm_constants import CMD_THREAD_CREATE, CMD_RETURN, 
     CMD_WRITE_TO_CONSOLE, CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE, \
     CMD_STEP_RETURN, CMD_STEP_CAUGHT_EXCEPTION, CMD_ADD_EXCEPTION_BREAK, CMD_SET_BREAK, \
     CMD_SET_NEXT_STATEMENT, CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION, \
-    CMD_THREAD_RESUME_SINGLE_NOTIFICATION, CMD_THREAD_KILL, CMD_STOP_ON_START, CMD_INPUT_REQUESTED
-from _pydevd_bundle.pydevd_constants import get_thread_id, dict_values
+    CMD_THREAD_RESUME_SINGLE_NOTIFICATION, CMD_THREAD_KILL, CMD_STOP_ON_START, CMD_INPUT_REQUESTED, \
+    CMD_EXIT
+from _pydevd_bundle.pydevd_constants import get_thread_id, dict_values, ForkSafeLock
 from _pydevd_bundle.pydevd_net_command import NetCommand, NULL_NET_COMMAND
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
 from _pydevd_bundle.pydevd_utils import get_non_pydevd_threads
@@ -23,13 +23,12 @@ import pydevd_file_utils
 from _pydevd_bundle.pydevd_comm import build_exception_info_response, pydevd_find_thread_by_id
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
 from _pydevd_bundle import pydevd_frame_utils
-import sys
 
 
 class ModulesManager(object):
 
     def __init__(self):
-        self._lock = threading.Lock()
+        self._lock = ForkSafeLock()
         self._modules = {}
         self._next_id = partial(next, itertools.count(0))
 
@@ -363,3 +362,7 @@ class NetCommandFactoryJson(NetCommandFactory):
         event = OutputEvent(body)
         return NetCommand(CMD_WRITE_TO_CONSOLE, 0, event, is_json=True)
 
+    @overrides(NetCommandFactory.make_exit_command)
+    def make_exit_command(self, py_db):
+        event = pydevd_schema.TerminatedEvent(pydevd_schema.TerminatedEventBody())
+        return NetCommand(CMD_EXIT, 0, event, is_json=True)

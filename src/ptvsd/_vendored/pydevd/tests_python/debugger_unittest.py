@@ -326,6 +326,17 @@ class ReaderThread(threading.Thread):
 
         except:
             pass  # ok, finished it
+        finally:
+            # When the socket from pydevd is closed the client should shutdown to notify
+            # it acknowledged it.
+            try:
+                self.sock.shutdown(socket.SHUT_RDWR)
+            except:
+                pass
+            try:
+                self.sock.close()
+            except:
+                pass
 
     def do_kill(self):
         self._kill = True
@@ -366,6 +377,9 @@ def start_in_daemon_thread(target, args):
 
 
 class DebuggerRunner(object):
+
+    def __init__(self, tmpdir):
+        self.tmpfile = os.path.join(str(tmpdir), 'pydevd_debug_file_%s.txt' % (os.getpid(),))
 
     def get_command_line(self):
         '''
@@ -439,12 +453,18 @@ class DebuggerRunner(object):
         writer.additional_output_checks(''.join(stdout), ''.join(stderr))
 
     def create_process(self, args, writer):
+        env = writer.get_environ() if writer is not None else None
+        if env is None:
+            env = os.environ.copy()
+
+        env['PYDEVD_DEBUG'] = 'True'
+        env['PYDEVD_DEBUG_FILE'] = self.tmpfile
         process = subprocess.Popen(
             args,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             cwd=writer.get_cwd() if writer is not None else '.',
-            env=writer.get_environ() if writer is not None else None,
+            env=env,
         )
         return process
 
@@ -456,6 +476,7 @@ class DebuggerRunner(object):
         stderr = []
         finish = [False]
         dct_with_stdout_stder = {}
+        fail_with_message = False
 
         try:
             start_in_daemon_thread(read_process, (process.stdout, stdout, sys.stdout, 'stdout', finish))
@@ -472,7 +493,11 @@ class DebuggerRunner(object):
 
             dct_with_stdout_stder['stdout'] = stdout
             dct_with_stdout_stder['stderr'] = stderr
-            yield dct_with_stdout_stder
+            try:
+                yield dct_with_stdout_stder
+            except:
+                fail_with_message = True
+                raise
 
             if not writer.finished_ok:
                 self.fail_with_message(
@@ -532,17 +557,32 @@ class DebuggerRunner(object):
                         time.sleep(.1)
 
         except TimeoutError:
-            writer.write_dump_threads()
+            msg = 'TimeoutError'
+            try:
+                writer.write_dump_threads()
+            except:
+                msg += ' (note: error trying to dump threads on timeout).'
             time.sleep(.2)
-            raise
+            self.fail_with_message(msg, stdout, stderr, writer)
+        except Exception as e:
+            if fail_with_message:
+                self.fail_with_message(str(e), stdout, stderr, writer)
+            else:
+                raise
         finally:
             finish[0] = True
 
     def fail_with_message(self, msg, stdout, stderr, writerThread):
+        log_contents = ''
+        if os.path.exists(self.tmpfile):
+            with open(self.tmpfile, 'r') as stream:
+                log_contents = stream.read()
         raise AssertionError(msg +
             "\n\n===========================\nStdout: \n" + ''.join(stdout) +
             "\n\n===========================\nStderr:" + ''.join(stderr) +
-            "\n\n===========================\nLog:\n" + '\n'.join(getattr(writerThread, 'log', [])))
+            "\n\n===========================\nWriter Log:\n" + '\n'.join(getattr(writerThread, 'log', [])) +
+            "\n\n===========================\nLog:" + log_contents
+        )
 
 
 #=======================================================================================================================
@@ -581,6 +621,7 @@ class AbstractWriterThread(threading.Thread):
             'warning: Debugger speedups',
             'pydev debugger: New process is launching',
             'pydev debugger: To debug that process',
+            '*** Multiprocess',
             )):
             return True
 
@@ -710,13 +751,15 @@ class AbstractWriterThread(threading.Thread):
         self.sock.sendall((u'Content-Length: %s\r\n\r\n' % len(msg)).encode('ascii'))
         self.sock.sendall(msg)
 
+    _WRITE_LOG_PREFIX = 'write: '
+
     def write(self, s):
         from _pydevd_bundle.pydevd_comm import ID_TO_MEANING
         meaning = ID_TO_MEANING.get(re.search(r'\d+', s).group(), '')
         if meaning:
             meaning += ': '
 
-        self.log.append('write: %s%s' % (meaning, s,))
+        self.log.append(self._WRITE_LOG_PREFIX + '%s%s' % (meaning, s,))
 
         if SHOW_WRITES_AND_READS:
             print('Test Writer Thread Written %s%s' % (meaning, s,))
