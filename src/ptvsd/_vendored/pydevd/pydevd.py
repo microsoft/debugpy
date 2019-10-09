@@ -2253,6 +2253,7 @@ def _enable_attach(
     patch_multiprocessing=False,
     access_token=None,
     ide_access_token=None,
+    as_client=False
     ):
     '''
     Starts accepting connections at the given host/port. The debugger will not be initialized nor
@@ -2275,16 +2276,19 @@ def _enable_attach(
         port=port,
         suspend=False,
         wait_for_ready_to_run=False,
-        block_until_connected=False,
+        block_until_connected=as_client,
         dont_trace_start_patterns=dont_trace_start_patterns,
         dont_trace_end_paterns=dont_trace_end_paterns,
         patch_multiprocessing=patch_multiprocessing,
         access_token=access_token,
         ide_access_token=ide_access_token,
     )
-    py_db = get_global_debugger()
-    py_db.wait_for_server_socket_ready()
-    return py_db._server_socket_name
+
+    if not as_client:
+        py_db = get_global_debugger()
+        py_db.wait_for_server_socket_ready()
+        return py_db._server_socket_name
+    return (host, port)
 
 
 def _wait_for_attach(cancel=None):

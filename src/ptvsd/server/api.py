@@ -14,12 +14,12 @@ import threading
 import ptvsd
 from ptvsd.common import log, options as common_opts
 from ptvsd.server import options as server_opts
-from ptvsd.common.compat import queue
 from _pydevd_bundle.pydevd_constants import get_global_debugger
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_file
 
 
 _QUEUE_TIMEOUT = 10
+_ADAPTER_PATH = os.path.join(os.path.dirname(ptvsd.__file__), "adapter")
 
 
 def wait_for_attach():
@@ -80,56 +80,53 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
     if hasattr(enable_attach, "called"):
         raise RuntimeError("enable_attach() can only be called once per process.")
 
-    host, port = pydevd._enable_attach(
-        ("127.0.0.1", 0),
+    import subprocess
+    adapter_args = [
+        sys.executable,
+        _ADAPTER_PATH,
+        "--host",
+        server_opts.host,
+        "--port",
+        str(server_opts.port),
+        "--for-enable-attach",
+    ]
+
+    if common_opts.log_dir is not None:
+        adapter_args += ["--log-dir", common_opts.log_dir]
+
+    log.info("enable_attach() spawning adapter: {0!r}", adapter_args)
+
+    # Adapter life time is expected to be longer than this process,
+    # so never wait on the adapter process
+    process = subprocess.Popen(
+        adapter_args,
+        bufsize=0,
+        stdout=subprocess.PIPE,
+    )
+
+    line = process.stdout.readline()
+    if isinstance(line, bytes):
+        line = line.decode("utf-8")
+    connection_details = json.JSONDecoder().decode(line)
+    log.info("Connection details received from adapter: {0!r}", connection_details)
+
+    host = "127.0.0.1" # This should always be loopback address.
+    port = connection_details["server"]["port"]
+    address = ("127.0.0.1", port)
+
+    pydevd._enable_attach(
+        address,
         dont_trace_start_patterns=dont_trace_start_patterns,
         dont_trace_end_paterns=dont_trace_end_patterns,
         patch_multiprocessing=server_opts.multiprocess,
+        as_client=True,
     )
 
-    log.info("pydevd debug server running at: {0}:{1}", host, port)
+    log.info("pydevd debug client connected to: {0}:{1}", host, port)
 
-    class _DAPMessagesListener(pydevd.IDAPMessagesListener):
-        def before_send(self, msg):
-            pass
-
-        def after_receive(self, msg):
-            try:
-                if msg["command"] == "setDebuggerProperty":
-                    port_queue.put(msg["arguments"]["adapterPort"])
-            except KeyError:
-                pass
-
-    port_queue = queue.Queue()
-    pydevd.add_dap_messages_listener(_DAPMessagesListener())
-
-    with pydevd.skip_subprocess_arg_patch():
-        import subprocess
-
-        adapter_args = [
-            sys.executable,
-            os.path.join(os.path.dirname(ptvsd.__file__), "adapter"),
-            "--host",
-            server_opts.host,
-            "--port",
-            str(server_opts.port),
-            "--for-server-on-port",
-            str(port),
-        ]
-
-        if common_opts.log_dir is not None:
-            adapter_args += ["--log-dir", common_opts.log_dir]
-
-        log.info("enable_attach() spawning adapter: {0!r}", adapter_args)
-
-        # Adapter life time is expected to be longer than this process,
-        # so never wait on the adapter process
-        process = subprocess.Popen(adapter_args, bufsize=0)
-        # Ensure that we ignore the adapter process when terminating the
-        # debugger.
-        pydevd.add_dont_terminate_child_pid(process.pid)
-
-    server_opts.port = port_queue.get(True, _QUEUE_TIMEOUT)
+    # Ensure that we ignore the adapter process when terminating the debugger.
+    pydevd.add_dont_terminate_child_pid(process.pid)
+    server_opts.port =  connection_details["adapter"]["port"]
 
     listener_file = os.getenv("PTVSD_LISTENER_FILE")
     if listener_file is not None:

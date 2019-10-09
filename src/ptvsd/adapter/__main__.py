@@ -5,6 +5,7 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import argparse
+import json
 import locale
 import os
 import sys
@@ -33,11 +34,25 @@ def main(args):
     if args.port is None:
         session.connect_to_ide()
     else:
-        if args.for_server_on_port is not None:
-            session.connect_to_server(("127.0.0.1", args.for_server_on_port))
-        with session.accept_connection_from_ide((args.host, args.port)) as (_, port):
-            if session.server:
-                session.server.set_debugger_property({"adapterPort": port})
+        if args.for_enable_attach:
+            # Users may want the adapter to choose the port for them, by setting port==0.
+            # For example, the Python Data Science extension uses this mode in enable_attach.
+            # Let enable_attach know the port that users should use to connect to the adapter.
+            with session.accept_connection_from_ide((args.host, args.port)) as (adapter_host, adapter_port):
+                # This mode is used only for enable_attach. Here, we always connect to
+                # adapter from the debug server as client. Adapter needs to start a listener
+                # and provide that port to debug server.
+                with session.accept_connection_from_server() as (server_host, server_port):
+                    connection_details = {
+                        "adapter": {"host": adapter_host, "port": adapter_port},
+                        "server": {"host": server_host, "port": server_port}
+                    }
+                    log.info("Writing to stdout for enable_attach: {0!r}", connection_details)
+                    print(json.dumps(connection_details))
+                    sys.stdout.flush()
+        else:
+            with session.accept_connection_from_ide((args.host, args.port)) as (_, adapter_port):
+                pass
     session.wait_for_completion()
 
 
@@ -61,10 +76,8 @@ def _parse_argv(argv):
     )
 
     parser.add_argument(
-        "--for-server-on-port",
-        type=int,
-        default=None,
-        metavar="PORT",
+        "--for-enable-attach",
+        action="store_true",
         help=argparse.SUPPRESS,
     )
 

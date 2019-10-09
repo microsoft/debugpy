@@ -9,7 +9,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import threading
 import socket
 
-from ptvsd.common import fmt, log, messaging
+from ptvsd.common import fmt, log, messaging, sockets
 from tests.timeline import Request, Response
 
 
@@ -27,9 +27,7 @@ class BackChannel(object):
         return fmt("{0}.backchannel", self.session.debuggee_id)
 
     def listen(self):
-        self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._server_socket.settimeout(self.TIMEOUT)
-        self._server_socket.bind(("127.0.0.1", 0))
+        self._server_socket = sockets.create_server("127.0.0.1", 0, self.TIMEOUT)
         _, self.port = self._server_socket.getsockname()
         self._server_socket.listen(0)
 

@@ -17,6 +17,7 @@ __all__ = [
     "enable_attach",
     "is_attached",
     "wait_for_attach",
+    "tracing",
 ]
 
 import codecs
