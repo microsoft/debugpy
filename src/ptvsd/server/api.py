@@ -112,14 +112,15 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
 
     host = "127.0.0.1" # This should always be loopback address.
     port = connection_details["server"]["port"]
-    address = ("127.0.0.1", port)
 
-    pydevd._enable_attach(
-        address,
+    pydevd.settrace(
+        host=host,
+        port=port,
+        suspend=False,
+        wait_for_ready_to_run=False,
+        block_until_connected=True,
         dont_trace_start_patterns=dont_trace_start_patterns,
-        dont_trace_end_paterns=dont_trace_end_patterns,
-        patch_multiprocessing=server_opts.multiprocess,
-        as_client=True,
+        dont_trace_end_patterns=dont_trace_end_patterns,
     )
 
     log.info("pydevd debug client connected to: {0}:{1}", host, port)
@@ -148,7 +149,7 @@ def attach(dont_trace_start_patterns, dont_trace_end_patterns):
         suspend=False,
         patch_multiprocessing=server_opts.multiprocess,
         dont_trace_start_patterns=dont_trace_start_patterns,
-        dont_trace_end_paterns=dont_trace_end_patterns,
+        dont_trace_end_patterns=dont_trace_end_patterns,
     )
 
 
