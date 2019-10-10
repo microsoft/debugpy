@@ -409,18 +409,25 @@ class JsonFacade(object):
         assert response.success == success
         return response
 
-    def write_initialize(self, access_token, success=True):
+    def write_initialize(self, success=True):
         arguments = InitializeRequestArguments(
             adapterID='pydevd_test_case',
-            pydevd=dict(
-                debugServerAccessToken=access_token,
-            )
         )
         response = self.wait_for_response(self.write_request(InitializeRequest(arguments)))
         assert response.success == success
         if success:
             process_id = response.body.kwargs['pydevd']['processId']
             assert isinstance(process_id, int)
+        return response
+
+    def write_authorize(self, access_token, success=True):
+        from _pydevd_bundle._debug_adapter.pydevd_schema import PydevdAuthorizeArguments
+        from _pydevd_bundle._debug_adapter.pydevd_schema import PydevdAuthorizeRequest
+        arguments = PydevdAuthorizeArguments(
+            debugServerAccessToken=access_token,
+        )
+        response = self.wait_for_response(self.write_request(PydevdAuthorizeRequest(arguments)))
+        assert response.success == success
         return response
 
     def evaluate(self, expression, frameId=None, context=None, fmt=None, success=True):
@@ -3036,7 +3043,7 @@ def test_terminate(case_setup, scenario, check_subprocesses):
             json_facade.write_launch(terminateChildProcesses=False)
 
         json_facade.write_make_initial_run()
-        response = json_facade.write_initialize(None)
+        response = json_facade.write_initialize()
         pid = response.to_dict()['body']['pydevd']['processId']
 
         if check_subprocesses in ('kill_subprocesses', 'dont_kill_subprocesses', 'kill_subprocesses_ignore_pid'):
@@ -3141,17 +3148,15 @@ def test_access_token(case_setup):
         response = json_facade.write_set_debugger_property(multi_threads_single_notification=True, success=False)
         assert response.message == "Client not authenticated."
 
-        response = json_facade.write_initialize(access_token='wrong', success=False)
+        response = json_facade.write_authorize(access_token='wrong', success=False)
         assert response.message == "Client not authenticated."
 
         response = json_facade.write_set_debugger_property(multi_threads_single_notification=True, success=False)
         assert response.message == "Client not authenticated."
 
-        response = json_facade.write_initialize(access_token='bar123', success=True)
-        # : :type response:InitializeResponse
-        initialize_response_body = response.body
-        # : :type initialize_response_body:Capabilities
-        assert initialize_response_body.kwargs['pydevd']['ideAccessToken'] == 'foo321'
+        authorize_response = json_facade.write_authorize(access_token='bar123', success=True)
+        # : :type authorize_response:PydevdAuthorizeResponse
+        assert authorize_response.body.clientAccessToken == 'foo321'
 
         json_facade.write_set_debugger_property(multi_threads_single_notification=True)
         json_facade.write_launch()
@@ -3170,11 +3175,11 @@ def test_access_token(case_setup):
 
         json_facade.write_disconnect()
 
-        response = json_facade.write_initialize(access_token='wrong', success=False)
+        response = json_facade.write_authorize(access_token='wrong', success=False)
         assert response.message == "Client not authenticated."
 
-        response = json_facade.write_initialize(access_token='bar123')
-        assert initialize_response_body.kwargs['pydevd']['ideAccessToken'] == 'foo321'
+        authorize_response = json_facade.write_authorize(access_token='bar123')
+        assert authorize_response.body.clientAccessToken == 'foo321'
 
         json_facade.write_set_breakpoints(break_line)
         json_hit = json_facade.wait_for_thread_stopped(line=break_line)

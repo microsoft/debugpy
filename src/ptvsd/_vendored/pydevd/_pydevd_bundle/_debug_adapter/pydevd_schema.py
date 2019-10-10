@@ -13971,6 +13971,206 @@ class PydevdProcessInfo(BaseSchema):
         return dct
 
 
+@register_request('pydevdAuthorize')
+@register
+class PydevdAuthorizeRequest(BaseSchema):
+    """
+    A request to authorize the ide to start accepting commands.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "seq": {
+            "type": "integer",
+            "description": "Sequence number."
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "request"
+            ]
+        },
+        "command": {
+            "type": "string",
+            "enum": [
+                "pydevdAuthorize"
+            ]
+        },
+        "arguments": {
+            "type": "PydevdAuthorizeArguments"
+        }
+    }
+    __refs__ = set(['arguments'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string type: 
+        :param string command: 
+        :param PydevdAuthorizeArguments arguments: 
+        :param integer seq: Sequence number.
+        """
+        self.type = 'request'
+        self.command = 'pydevdAuthorize'
+        if arguments is None:
+            self.arguments = PydevdAuthorizeArguments()
+        else:
+            self.arguments = PydevdAuthorizeArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  PydevdAuthorizeArguments else arguments
+        self.seq = seq
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
+        dct = {
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
+        }
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class PydevdAuthorizeArguments(BaseSchema):
+    """
+    Arguments for 'pydevdAuthorize' request.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "debugServerAccessToken": {
+            "type": "string",
+            "description": "The access token to access the debug server."
+        }
+    }
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, debugServerAccessToken=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string debugServerAccessToken: The access token to access the debug server.
+        """
+        self.debugServerAccessToken = debugServerAccessToken
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        debugServerAccessToken = self.debugServerAccessToken
+        dct = {
+        }
+        if debugServerAccessToken is not None:
+            dct['debugServerAccessToken'] = debugServerAccessToken
+        dct.update(self.kwargs)
+        return dct
+
+
+@register_response('pydevdAuthorize')
+@register
+class PydevdAuthorizeResponse(BaseSchema):
+    """
+    Response to 'pydevdAuthorize' request.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "seq": {
+            "type": "integer",
+            "description": "Sequence number."
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "response"
+            ]
+        },
+        "request_seq": {
+            "type": "integer",
+            "description": "Sequence number of the corresponding request."
+        },
+        "success": {
+            "type": "boolean",
+            "description": "Outcome of the request."
+        },
+        "command": {
+            "type": "string",
+            "description": "The command requested."
+        },
+        "message": {
+            "type": "string",
+            "description": "Contains error message if success == false."
+        },
+        "body": {
+            "type": "object",
+            "properties": {
+                "clientAccessToken": {
+                    "type": "string",
+                    "description": "The access token to access the client (i.e.: usually the IDE)."
+                }
+            },
+            "required": [
+                "clientAccessToken"
+            ]
+        }
+    }
+    __refs__ = set(['body'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, request_seq, success, command, body, seq=-1, message=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string type: 
+        :param integer request_seq: Sequence number of the corresponding request.
+        :param boolean success: Outcome of the request.
+        :param string command: The command requested.
+        :param PydevdAuthorizeResponseBody body: 
+        :param integer seq: Sequence number.
+        :param string message: Contains error message if success == false.
+        """
+        self.type = 'response'
+        self.request_seq = request_seq
+        self.success = success
+        self.command = command
+        if body is None:
+            self.body = PydevdAuthorizeResponseBody()
+        else:
+            self.body = PydevdAuthorizeResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  PydevdAuthorizeResponseBody else body
+        self.seq = seq
+        self.message = message
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        body = self.body
+        seq = self.seq
+        message = self.message
+        dct = {
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
+        }
+        if message is not None:
+            dct['message'] = message
+        dct.update(self.kwargs)
+        return dct
+
+
 @register
 class ErrorResponseBody(BaseSchema):
     """
@@ -16026,6 +16226,41 @@ class PydevdSystemInfoResponseBody(BaseSchema):
             'python': python.to_dict(update_ids_to_dap=update_ids_to_dap),
             'platform': platform.to_dict(update_ids_to_dap=update_ids_to_dap),
             'process': process.to_dict(update_ids_to_dap=update_ids_to_dap),
+        }
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class PydevdAuthorizeResponseBody(BaseSchema):
+    """
+    "body" of PydevdAuthorizeResponse
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "clientAccessToken": {
+            "type": "string",
+            "description": "The access token to access the client (i.e.: usually the IDE)."
+        }
+    }
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, clientAccessToken, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string clientAccessToken: The access token to access the client (i.e.: usually the IDE).
+        """
+        self.clientAccessToken = clientAccessToken
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        clientAccessToken = self.clientAccessToken
+        dct = {
+            'clientAccessToken': clientAccessToken,
         }
         dct.update(self.kwargs)
         return dct
