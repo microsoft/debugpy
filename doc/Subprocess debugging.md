@@ -142,11 +142,14 @@ participant Debuggee_2
 
 Note left of Debuggee_1: user spawns<br/>debuggee
 
-Debuggee_1 ->>+ Adapter: spawn and pass adapter listener port (cmdline)
+Debuggee_1 ->>+ Adapter: spawn
 
-Adapter -->>- Debuggee_1: connect to adapter listener port
+Adapter ->> Debuggee_1: pass server listener port (stdout)
+deactivate Adapter
+activate Debuggee_1
 
-Adapter ->> Debuggee_1: request "setDebuggerProperty" for server listener port
+Debuggee_1 ->> Adapter: connect to server listener port
+deactivate Debuggee_1
 
 
 Note left of IDE: user starts<br/>debugging
