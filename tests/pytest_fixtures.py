@@ -9,14 +9,12 @@ import os
 import platform
 import py.path
 import pytest
-import tempfile
 import threading
 import types
 
 from ptvsd.common import compat, fmt, log, options, timestamp
 from tests import code, pydevd_log
 from tests.debug import runners, session, targets
-
 
 # Set up the test matrix for various code types and attach methods. Most tests will
 # use both run_as and start_method, so the matrix is a cross product of them.
@@ -53,6 +51,8 @@ def test_wrapper(request, long_tmpdir):
     try:
         if options.log_dir is None:
             write_log = lambda filename, data: None
+            pydevd_filename = os.path.join(str(long_tmpdir), 'pydevd.log')
+
         else:
             original_log_dir = options.log_dir
             log_subdir = request.node.nodeid
@@ -64,6 +64,7 @@ def test_wrapper(request, long_tmpdir):
                 py.path.local(options.log_dir).remove()
             except Exception:
                 pass
+            pydevd_filename = os.path.join(str(options.log_dir), 'pydevd.log')
 
             def write_log(filename, data):
                 filename = os.path.join(options.log_dir, filename)
@@ -71,6 +72,8 @@ def test_wrapper(request, long_tmpdir):
                     data = data.encode("utf-8")
                 with open(filename, "wb") as f:
                     f.write(data)
+
+        pydevd_log.enable(pydevd_filename)
 
         print("\n")  # make sure on-screen logs start on a new line
         with log.to_file(prefix="tests"):
@@ -100,29 +103,11 @@ def test_wrapper(request, long_tmpdir):
 
                 if failed:
                     write_log("FAILED.log", "")
+                    if options.log_dir is None:
+                        pydevd_log.dump("failed")
     finally:
         if original_log_dir is not None:
             options.log_dir = original_log_dir
-
-
-@pytest.fixture(autouse=True)
-def with_pydevd_log(request, tmpdir):
-    """Enables pydevd logging during the test run, and dumps the log if the test fails.
-    """
-
-    prefix = "pydevd_debug_file-{0}".format(os.getpid())
-    filename = tempfile.mktemp(suffix=".log", prefix=prefix, dir=str(tmpdir))
-
-    with pydevd_log.enabled(filename):
-        yield
-
-    if request.node.setup_report.passed:
-        if not request.node.call_report.failed:
-            return
-    elif not request.node.setup_report.failed:
-        return
-
-    pydevd_log.dump("failed")
 
 
 @pytest.fixture
@@ -158,7 +143,6 @@ if platform.system() != "Windows":
     @pytest.fixture
     def long_tmpdir(request, tmpdir):
         return tmpdir
-
 
 else:
     import ctypes

@@ -63,17 +63,8 @@ def _is_managed_arg(arg):
 
 def _on_forked_process(setup_tracing=True):
     pydevd_constants.after_fork()
-    pydevd_constants.DebugInfoHolder.DEBUG_STREAM = NULL
-
-    # TODO: We should use the pid for logging in pydevd to deal with multiple processes.
-    # if pydevd_constants.PYDEVD_DEBUG_FILE:
-    #     debug_file = pydevd_constants.PYDEVD_DEBUG_FILE
-    #     path, ext = os.path.splitext(debug_file)
-    #     debug_file = path + '.' + str(os.getpid()) + ext
-    #     pydevd_constants.PYDEVD_DEBUG_FILE = debug_file
-    #     pydevd_constants.DebugInfoHolder.DEBUG_STREAM = open(debug_file, 'w')
-    #
-    # pydev_log.debug('pydevd on forked process: %s', os.getpid())
+    pydev_log.initialize_debug_stream(force=True)
+    pydev_log.debug('pydevd on forked process: %s', os.getpid())
 
     import pydevd
     pydevd.threadingCurrentThread().__pydevd_main_thread = True

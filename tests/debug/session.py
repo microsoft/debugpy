@@ -21,9 +21,7 @@ from tests import code, timeline, watchdog
 from tests.debug import comms, config, output
 from tests.patterns import some
 
-
 DEBUGGEE_PYTHONPATH = tests.root / "DEBUGGEE_PYTHONPATH"
-
 
 StopInfo = collections.namedtuple(
     "StopInfo", ["body", "frames", "thread_id", "frame_id"]
@@ -296,8 +294,6 @@ class Session(object):
             env.update(
                 {
                     "PTVSD_LOG_DIR": self.log_dir.strpath,
-                    "PYDEVD_DEBUG": "True",
-                    "PYDEVD_DEBUG_FILE": (self.log_dir / "pydevd.log").strpath,
                 }
             )
 

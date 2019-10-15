@@ -14,7 +14,7 @@ import time
 import traceback
 from tests_python.debug_constants import *
 
-from _pydev_bundle import pydev_localhost
+from _pydev_bundle import pydev_localhost, pydev_log
 
 # Note: copied (don't import because we want it to be independent on the actual code because of backward compatibility).
 CMD_RUN = 101
@@ -379,7 +379,7 @@ def start_in_daemon_thread(target, args):
 class DebuggerRunner(object):
 
     def __init__(self, tmpdir):
-        self.tmpfile = os.path.join(str(tmpdir), 'pydevd_debug_file_%s.txt' % (os.getpid(),))
+        self.pydevd_debug_file = os.path.join(str(tmpdir), 'pydevd_debug_file_%s.txt' % (os.getpid(),))
 
     def get_command_line(self):
         '''
@@ -458,7 +458,7 @@ class DebuggerRunner(object):
             env = os.environ.copy()
 
         env['PYDEVD_DEBUG'] = 'True'
-        env['PYDEVD_DEBUG_FILE'] = self.tmpfile
+        env['PYDEVD_DEBUG_FILE'] = self.pydevd_debug_file
         process = subprocess.Popen(
             args,
             stdout=subprocess.PIPE,
@@ -574,9 +574,11 @@ class DebuggerRunner(object):
 
     def fail_with_message(self, msg, stdout, stderr, writerThread):
         log_contents = ''
-        if os.path.exists(self.tmpfile):
-            with open(self.tmpfile, 'r') as stream:
-                log_contents = stream.read()
+        for f in pydev_log.list_log_files(self.pydevd_debug_file):
+            if os.path.exists(f):
+                with open(f, 'r') as stream:
+                    log_contents += '\n-------------------- %s ------------------\n\n' % (f,)
+                    log_contents += stream.read()
         raise AssertionError(msg +
             "\n\n===========================\nStdout: \n" + ''.join(stdout) +
             "\n\n===========================\nStderr:" + ''.join(stderr) +

@@ -1,12 +1,62 @@
-from _pydevd_bundle.pydevd_constants import DebugInfoHolder, SHOW_COMPILE_CYTHON_COMMAND_LINE
+from _pydevd_bundle.pydevd_constants import DebugInfoHolder, SHOW_COMPILE_CYTHON_COMMAND_LINE, NULL
 from _pydev_imps._pydev_saved_modules import threading
 from contextlib import contextmanager
 import traceback
 import os
 import sys
+
 currentThread = threading.currentThread
 
-WARN_ONCE_MAP = {}
+
+class _LoggingGlobals(object):
+
+    _warn_once_map = {}
+    _debug_stream_filename = None
+    _debug_stream = sys.stderr
+    _debug_stream_initialized = False
+
+
+def initialize_debug_stream(force=False):
+    if _LoggingGlobals._debug_stream_initialized and not force:
+        return
+    _LoggingGlobals._debug_stream_initialized = True
+
+    # Note: we cannot initialize with sys.stderr because when forking we may end up logging things in 'os' calls.
+    _LoggingGlobals._debug_stream = NULL  
+    _LoggingGlobals._debug_stream_filename = None
+
+    if not DebugInfoHolder.PYDEVD_DEBUG_FILE:
+        _LoggingGlobals._debug_stream = sys.stderr
+    else:
+        # Add pid to the filename.
+        try:
+            dirname = os.path.dirname(DebugInfoHolder.PYDEVD_DEBUG_FILE)
+            basename = os.path.basename(DebugInfoHolder.PYDEVD_DEBUG_FILE)
+            try:
+                os.makedirs(dirname)
+            except:
+                pass  # Ignore error if it already exists.
+
+            name, ext = os.path.splitext(basename)
+            debug_file = os.path.join(dirname, name + '.' + str(os.getpid()) + ext)
+            _LoggingGlobals._debug_stream = open(debug_file, 'w')
+            _LoggingGlobals._debug_stream_filename = debug_file
+        except:
+            _LoggingGlobals._debug_stream = sys.stderr
+            # Don't fail when trying to setup logging, just show the exception.
+            traceback.print_exc()
+
+
+def list_log_files(pydevd_debug_file):
+    log_files = []
+    dirname = os.path.dirname(pydevd_debug_file)
+    basename = os.path.basename(pydevd_debug_file)
+    if os.path.isdir(dirname):
+        name, ext = os.path.splitext(basename)
+        for f in os.listdir(dirname):
+            if f.startswith(name) and f.endswith(ext):
+                log_files.append(os.path.join(dirname, f))
+    return log_files
 
 
 @contextmanager
@@ -15,15 +65,22 @@ def log_context(trace_level, stream):
     To be used to temporarily change the logging settings.
     '''
     original_trace_level = DebugInfoHolder.DEBUG_TRACE_LEVEL
-    original_stream = DebugInfoHolder.DEBUG_STREAM
+    original_debug_stream = _LoggingGlobals._debug_stream
+    original_pydevd_debug_file = DebugInfoHolder.PYDEVD_DEBUG_FILE
+    original_debug_stream_filename = _LoggingGlobals._debug_stream_filename
+    original_initialized = _LoggingGlobals._debug_stream_initialized
 
     DebugInfoHolder.DEBUG_TRACE_LEVEL = trace_level
-    DebugInfoHolder.DEBUG_STREAM = stream
+    _LoggingGlobals._debug_stream = stream
+    _LoggingGlobals._debug_stream_initialized = True
     try:
         yield
     finally:
         DebugInfoHolder.DEBUG_TRACE_LEVEL = original_trace_level
-        DebugInfoHolder.DEBUG_STREAM = original_stream
+        _LoggingGlobals._debug_stream = original_debug_stream
+        DebugInfoHolder.PYDEVD_DEBUG_FILE = original_pydevd_debug_file
+        _LoggingGlobals._debug_stream_filename = original_debug_stream_filename
+        _LoggingGlobals._debug_stream_initialized = original_initialized
 
 
 def _pydevd_log(level, msg, *args):
@@ -45,13 +102,14 @@ def _pydevd_log(level, msg, *args):
                 msg = '%s - %s' % (msg, args)
             msg = '%s\n' % (msg,)
             try:
-                DebugInfoHolder.DEBUG_STREAM.write(msg)
+                initialize_debug_stream()  # Do it as late as possible
+                _LoggingGlobals._debug_stream.write(msg)
             except TypeError:
                 if isinstance(msg, bytes):
                     # Depending on the StringIO flavor, it may only accept unicode.
                     msg = msg.decode('utf-8', 'replace')
-                    DebugInfoHolder.DEBUG_STREAM.write(msg)
-            DebugInfoHolder.DEBUG_STREAM.flush()
+                    _LoggingGlobals._debug_stream.write(msg)
+            _LoggingGlobals._debug_stream.flush()
         except:
             pass
         return True
@@ -61,8 +119,9 @@ def _pydevd_log_exception(msg='', *args):
     if msg or args:
         _pydevd_log(0, msg, *args)
     try:
-        traceback.print_exc(file=DebugInfoHolder.DEBUG_STREAM)
-        DebugInfoHolder.DEBUG_STREAM.flush()
+        initialize_debug_stream()  # Do it as late as possible
+        traceback.print_exc(file=_LoggingGlobals._debug_stream)
+        _LoggingGlobals._debug_stream.flush()
     except:
         raise
 
@@ -108,8 +167,8 @@ def error_once(msg, *args):
     except:
         message = '%s - %s' % (msg, args)
 
-    if message not in WARN_ONCE_MAP:
-        WARN_ONCE_MAP[message] = True
+    if message not in _LoggingGlobals._warn_once_map:
+        _LoggingGlobals._warn_once_map[message] = True
         critical(message)
 
 

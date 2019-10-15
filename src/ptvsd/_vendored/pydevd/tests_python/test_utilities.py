@@ -162,6 +162,36 @@ def test_pydevd_log():
     assert stream.getvalue() == 'always %s %s - (1,)\n'
 
 
+def test_pydevd_logging_files(tmpdir):
+    from _pydev_bundle import pydev_log
+    from _pydevd_bundle.pydevd_constants import DebugInfoHolder
+    import os.path
+    from _pydev_bundle.pydev_log import _LoggingGlobals
+
+    try:
+        import StringIO as io
+    except:
+        import io
+    from _pydev_bundle.pydev_log import log_context
+
+    stream = io.StringIO()
+    with log_context(0, stream=stream):
+        d1 = str(tmpdir.join('d1'))
+        d2 = str(tmpdir.join('d2'))
+
+        for d in (d1, d2):
+            DebugInfoHolder.PYDEVD_DEBUG_FILE = os.path.join(d, 'file.txt')
+            pydev_log.initialize_debug_stream(force=True)
+
+            assert os.path.normpath(_LoggingGlobals._debug_stream_filename) == \
+                os.path.normpath(os.path.join(d, 'file.%s.txt' % os.getpid()))
+
+            assert os.path.exists(_LoggingGlobals._debug_stream_filename)
+
+            assert pydev_log.list_log_files(DebugInfoHolder.PYDEVD_DEBUG_FILE) == [
+                _LoggingGlobals._debug_stream_filename]
+
+
 def _check_tracing_other_threads():
     import pydevd_tracing
     import time

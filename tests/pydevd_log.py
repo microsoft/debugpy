@@ -4,22 +4,16 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-import contextlib
 import os
 
-from ptvsd.common import log
+from ptvsd.common import log, compat
+from _pydev_bundle import pydev_log
 
 
-@contextlib.contextmanager
-def enabled(filename):
-    os.environ["PYDEVD_DEBUG"] = "True"
-    os.environ["PYDEVD_DEBUG_FILE"] = filename
+def enable(filename):
+    os.environ[str("PYDEVD_DEBUG")] = str("True")
+    os.environ[str("PYDEVD_DEBUG_FILE")] = compat.filename_str(filename)
     log.debug("pydevd log will be at {0}", filename)
-    try:
-        yield
-    finally:
-        del os.environ["PYDEVD_DEBUG"]
-        del os.environ["PYDEVD_DEBUG_FILE"]
 
 
 def dump(why):
@@ -29,10 +23,12 @@ def dump(why):
     if not pydevd_debug_file:
         return
 
+    log_contents = []
     try:
-        f = open(pydevd_debug_file)
-        with f:
-            pydevd_log = f.read()
+        for filename in pydev_log.list_log_files(pydevd_debug_file):
+            with open(filename) as stream:
+                log_contents.append("---------- %s ------------\n\n" % (filename,))
+                log_contents.append(stream.read())
     except Exception:
         log.exception(
             "Test {0}, but pydevd log {1} could not be retrieved.",
@@ -41,4 +37,4 @@ def dump(why):
         )
         return
 
-    log.info("Test {0}; pydevd log:\n\n{1}", why, pydevd_log)
+    log.info("Test {0}; pydevd log:\n\n{1}", why, "".join(log_contents))

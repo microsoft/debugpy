@@ -25,6 +25,7 @@ import pydevd_file_utils
 import subprocess
 import threading
 from tests_python.debug_constants import IS_PY26
+from _pydev_bundle import pydev_log
 try:
     from urllib import unquote
 except ImportError:
@@ -2422,8 +2423,8 @@ def test_multiprocessing_simple(case_setup_multiprocessing, file_to_check):
 
 
 @pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
-@pytest.mark.parametrize('count', range(10))  # Call multiple times to exercise timing issues.
-def test_multiprocessing_with_stopped_breakpoints(case_setup_multiprocessing, count):
+@pytest.mark.parametrize('count', range(5))  # Call multiple times to exercise timing issues.
+def test_multiprocessing_with_stopped_breakpoints(case_setup_multiprocessing, count, debugger_runner_simple):
     import threading
     from tests_python.debugger_unittest import AbstractWriterThread
     with case_setup_multiprocessing.test_file('_debugger_case_multiprocessing_stopped_threads.py') as writer:
@@ -2499,6 +2500,9 @@ def test_multiprocessing_with_stopped_breakpoints(case_setup_multiprocessing, co
         writer.write_run_thread(hit2.thread_id)
         writer.write_run_thread(main_hit.thread_id)
 
+        # We must have found at least 2 debug files when doing multiprocessing (one for
+        # each pid).
+        assert len(pydev_log.list_log_files(debugger_runner_simple.pydevd_debug_file)) == 2
         writer.finished_ok = True
 
 

@@ -31,11 +31,12 @@ class DebugInfoHolder:
 
     # General information
     DEBUG_TRACE_LEVEL = 0  # 0 = critical, 1 = info, 2 = debug, 3 = verbose
-    DEBUG_STREAM = sys.stderr
 
     # Flags to debug specific points of the code.
     DEBUG_RECORD_SOCKET_READS = False
     DEBUG_TRACE_BREAKPOINTS = -1
+
+    PYDEVD_DEBUG_FILE = None
 
 
 IS_CPYTHON = platform.python_implementation() == 'CPython'
@@ -169,7 +170,6 @@ ASYNC_EVAL_TIMEOUT_SEC = 60
 NEXT_VALUE_SEPARATOR = "__pydev_val__"
 BUILTINS_MODULE_NAME = '__builtin__' if IS_PY2 else 'builtins'
 SHOW_DEBUG_INFO_ENV = os.getenv('PYCHARM_DEBUG') == 'True' or os.getenv('PYDEV_DEBUG') == 'True' or os.getenv('PYDEVD_DEBUG') == 'True'
-PYDEVD_DEBUG_FILE = os.getenv('PYDEVD_DEBUG_FILE')
 
 if SHOW_DEBUG_INFO_ENV:
     # show debug info before the debugger start
@@ -177,8 +177,7 @@ if SHOW_DEBUG_INFO_ENV:
     DebugInfoHolder.DEBUG_TRACE_LEVEL = 3
     DebugInfoHolder.DEBUG_TRACE_BREAKPOINTS = 1
 
-    if PYDEVD_DEBUG_FILE:
-        DebugInfoHolder.DEBUG_STREAM = open(PYDEVD_DEBUG_FILE, 'w')
+DebugInfoHolder.PYDEVD_DEBUG_FILE = os.getenv('PYDEVD_DEBUG_FILE')
 
 
 def protect_libraries_from_patching():
