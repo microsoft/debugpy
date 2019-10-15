@@ -49,10 +49,10 @@ Adapter ->>+ Debuggee_1: spawn and pass server listener port (cmdline)
 Debuggee_1 -->>- Adapter: connect to server listener port
 
 Adapter ->>+ Debuggee_1: request "initialize", "launch"
+activate Debuggee_1
+note right of Debuggee_1: debug session begins
 
 Debuggee_1 -->>- Adapter: respond to "initialize", "launch"
-
-Debuggee_1 ->>+ Debuggee_1: start debug session
 
 Adapter -->>- IDE: respond to "launch"
 
@@ -78,10 +78,10 @@ IDE ->>- Adapter: connect to IDE listener port
 IDE ->>+ Adapter: request "attach" to Debuggee_2
 
 Adapter ->>+ Debuggee_2: request "initialize", "attach"
+activate Debuggee_2
+note right of Debuggee_2: debug session begins
 
 Debuggee_2 -->>- Adapter: respond to "initialize", "attach"
-
-Debuggee_2 ->>+ Debuggee_2: start debug session
 
 Adapter -->>- IDE: respond to "attach"
 
@@ -92,32 +92,25 @@ end
 
 Note left of IDE: user stops debugging
 
-IDE ->>+ Adapter: request "disconnect" from Debuggee_2
-
-Adapter ->> Debuggee_2: request "disconnect"
-
-Debuggee_2 ->> Adapter: confirm "disconnect"
-
-Note over Adapter,Debuggee_2: TCP connection is maintained
-
-Adapter -->>- IDE: confirm "disconnect" from Debuggee_2
-
 IDE -X+ Adapter: request "disconnect" from Debuggee_1
 
 Note over Adapter: implies "terminate"
 
-Adapter -X+ Debuggee_1: request "terminate"
+Adapter -X+ Debuggee_2: request "terminate"
 
-Debuggee_1 -X Debuggee_2: kill process
+Debuggee_2 -->>- Adapter: confirm "terminate"
 deactivate Debuggee_2
 
-Debuggee_1 -->>- Adapter: confirm "terminate"
+Adapter ->> IDE: "exited" event for Debuggee_2
 
-Debuggee_1 -X- Debuggee_1: exits
+Adapter -X+ Debuggee_1: request "terminate"
+
+Debuggee_1 -->>- Adapter: confirm "terminate"
+deactivate Debuggee_1
+
+Adapter ->> IDE: "exited" event for Debuggee_1
 
 Adapter -->>- IDE: confirm "disconnect" from Debuggee_1
-
-Adapter -X Adapter: exits
 ```
 
 
@@ -159,10 +152,10 @@ IDE ->> Adapter: connect to IDE listener port
 IDE ->>+ Adapter: request "attach"
 
 Adapter ->>+ Debuggee_1: request "initialize", "attach"
+activate Debuggee_1
+note right of Debuggee_1: debug session begins
 
 Debuggee_1 -->>- Adapter: respond to "initialize", "attach"
-
-Debuggee_1 ->>+ Debuggee_1: start debug session
 
 Adapter -->>- IDE: respond to "attach"
 
@@ -188,10 +181,10 @@ IDE ->>- Adapter: connect to IDE listener port
 IDE ->>+ Adapter: request "attach" to Debuggee_2
 
 Adapter ->>+ Debuggee_2: request "initialize", "attach"
+activate Debuggee_2
+note right of Debuggee_2: debug session begins
 
 Debuggee_2 -->>- Adapter: respond to "initialize", "attach"
-
-Debuggee_2 ->>+ Debuggee_2: start debug session
 
 Adapter -->>- IDE: respond to "attach"
 
@@ -202,25 +195,27 @@ end
 
 Note left of IDE: user detaches IDE
 
-IDE ->>+ Adapter: request "disconnect" from Debuggee_2
+IDE ->>+ Adapter: request "disconnect" from Debuggee_1
 
 Adapter ->>+ Debuggee_2: request "disconnect"
 
-Debuggee_2 ->>- Adapter: confirm "disconnect"
+Debuggee_2 -->>- Adapter: confirm "disconnect"
+deactivate Debuggee_2
+note right of Debuggee_2: debug session ends
 
-Debuggee_2 ->>- Debuggee_2: end debug session
+Adapter ->> IDE: "terminated" event for Debuggee_2
 
 Note over Adapter,Debuggee_2: TCP connection is maintained
 
-Adapter -->>- IDE: confirm "disconnect" from Debuggee_2
-
-IDE ->>+ Adapter: request "disconnect" from Debuggee_1
-
 Adapter ->>+ Debuggee_1: request "disconnect"
 
-Debuggee_1 ->>- Adapter: confirm "disconnect"
+Debuggee_1 ->> Adapter: "terminated" event
 
-Debuggee_1 ->>- Debuggee_1: end debug session
+Adapter ->> IDE: "terminated" event for Debuggee_1
+
+Debuggee_1 -->>- Adapter: confirm "disconnect"
+deactivate Debuggee_1
+note right of Debuggee_1: debug session ends
 
 Note over Adapter,Debuggee_1: TCP connection is maintained
 
@@ -237,10 +232,10 @@ IDE ->> Adapter: connect to IDE listener port
 IDE ->>+ Adapter: request "attach"
 
 Adapter ->>+ Debuggee_1: request "initialize", "attach"
+activate Debuggee_1
+note right of Debuggee_1: debug session begins
 
 Debuggee_1 -->>- Adapter: respond to "initialize", "attach"
-
-Debuggee_1 ->>+ Debuggee_1: start debug session
 
 Adapter ->>+ IDE: "ptvsd_subprocess" event
 
@@ -255,10 +250,10 @@ IDE ->>- Adapter: connect to IDE listener port
 IDE ->>+ Adapter: request "attach" to Debuggee_2
 
 Adapter ->>+ Debuggee_2: request "initialize", "attach"
+activate Debuggee_2
+note right of Debuggee_2: debug session begins
 
 Debuggee_2 -->>- Adapter: respond to "initialize", "attach"
-
-Debuggee_2 ->>+ Debuggee_2: start debug session
 
 Adapter -->>- IDE: respond to "attach"
 
