@@ -15,7 +15,7 @@ $env:SKIP_CYTHON_BUILD = "1"
 
 Get-ChildItem $dist\*.whl, $dist\*.zip | Remove-Item -Force
 
-(Get-ChildItem $packages\python* -Directory -Filter '*python.3.7*') | ForEach-Object{ Get-Item $_\tools\python.exe } | Where-Object{ Test-Path $_ } | Select-Object -last 1 | ForEach-Object{
+(Get-ChildItem $packages\python* -Directory -Filter '*python.3.8*') | ForEach-Object{ Get-Item $_\tools\python.exe } | Where-Object{ Test-Path $_ } | Select-Object -last 1 | ForEach-Object{
     Write-Host "Building with $_"
     & $_ -m pip install -U pip
     & $_ -m pip install -U pyfindvs setuptools wheel cython
