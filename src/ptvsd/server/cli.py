@@ -78,7 +78,7 @@ def set_const(varname, value, options=options):
 
 def set_log_stderr():
     def do(arg, it):
-        log.stderr_levels |= set(log.LEVELS)
+        log.stderr.levels |= set(log.LEVELS)
 
     return do
 

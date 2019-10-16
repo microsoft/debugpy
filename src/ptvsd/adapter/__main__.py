@@ -22,7 +22,7 @@ def main(args):
     from ptvsd.adapter import session, options as adapter_options
 
     if args.log_stderr:
-        log.stderr_levels |= set(log.LEVELS)
+        log.stderr.levels |= set(log.LEVELS)
         adapter_options.log_stderr = True
     if args.log_dir is not None:
         common_options.log_dir = args.log_dir
