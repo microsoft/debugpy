@@ -34,9 +34,6 @@ def wait_and_press_key(session):
     session.debuggee.stdin.write(b"\n")
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 0), reason="https://github.com/microsoft/ptvsd/issues/1819"
-)
 @pytest.mark.parametrize(
     "run", [runners.launch["integratedTerminal"], runners.launch["externalTerminal"]]
 )

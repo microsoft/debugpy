@@ -310,6 +310,7 @@ class Session(object):
 
     def spawn_debuggee(self, args, cwd=None, exe=sys.executable, debug_me=None):
         assert self.debuggee is None
+        assert not len(self.captured_output - {"stdout", "stderr"})
 
         args = [exe] + [
             compat.filename_str(s.strpath if isinstance(s, py.path.local) else s)
@@ -333,20 +334,28 @@ class Session(object):
             args,
             env,
         )
+
+        popen_fds = {}
+        capture_fds = {}
+        for stream_name in self.captured_output:
+            rfd, wfd = os.pipe()
+            popen_fds[stream_name] = wfd
+            capture_fds[stream_name] = rfd
         self.debuggee = psutil.Popen(
             args,
             cwd=cwd,
             env=env.for_popen(),
             bufsize=0,
             stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            **popen_fds
         )
         log.info("Spawned {0} with PID={1}", self.debuggee_id, self.debuggee.pid)
         watchdog.register_spawn(self.debuggee.pid, self.debuggee_id)
 
-        if self.captured_output:
-            self.captured_output = output.CapturedOutput(self)
+        if len(capture_fds):
+            self.captured_output = output.CapturedOutput(self, **capture_fds)
+        for fd in popen_fds.values():
+            os.close(fd)
 
     def wait_for_enable_attach(self):
         log.info(
@@ -730,6 +739,8 @@ class Session(object):
                 pass
             finally:
                 watchdog.unregister_spawn(self.debuggee.pid, self.debuggee_id)
+            # if self.captured_output:
+            #     self.captured_output.wait()
 
         self.timeline.wait_until_realized(timeline.Event("terminated"))
 

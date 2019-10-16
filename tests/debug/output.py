@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import os
 import re
 import threading
 
@@ -14,45 +15,46 @@ class CapturedOutput(object):
     """Captures stdout and stderr of the debugged process.
     """
 
-    def __init__(self, session):
+    def __init__(self, session, **fds):
         self.session = session
         self._lock = threading.Lock()
         self._chunks = {}
         self._worker_threads = []
 
-        assert not len(session.captured_output - {"stdout", "stderr"})
-        for stream_name in session.captured_output:
+        for stream_name, fd in fds.items():
             log.info("Capturing {0} {1}", session.debuggee_id, stream_name)
-            stream = getattr(session.debuggee, stream_name)
-            self._capture(stream, stream_name)
+            self._capture(fd, stream_name)
 
     def __str__(self):
         return fmt("CapturedOutput({0})", self.session)
 
-    def _worker(self, pipe, name):
+    def _worker(self, fd, name):
         chunks = self._chunks[name]
-        while True:
-            try:
-                chunk = pipe.read(0x1000)
-            except Exception:
-                break
-            if not len(chunk):
-                break
+        try:
+            while True:
+                try:
+                    chunk = os.read(fd, 0x1000)
+                except Exception:
+                    break
+                if not len(chunk):
+                    break
 
-            lines = "\n".join(
-                repr(line) for line, _ in re.findall(b"(.+?(\n|$))", chunk)
-            )
-            log.info("{0} {1}:\n{2}", self.session.debuggee_id, name, lines)
+                lines = "\n".join(
+                    repr(line) for line, _ in re.findall(b"(.+?(\n|$))", chunk)
+                )
+                log.info("{0} {1}:\n{2}", self.session.debuggee_id, name, lines)
 
-            with self._lock:
-                chunks.append(chunk)
+                with self._lock:
+                    chunks.append(chunk)
+        finally:
+            os.close(fd)
 
-    def _capture(self, pipe, name):
+    def _capture(self, fd, name):
         assert name not in self._chunks
         self._chunks[name] = []
 
         thread = threading.Thread(
-            target=lambda: self._worker(pipe, name), name=fmt("{0} {1}", self, name)
+            target=lambda: self._worker(fd, name), name=fmt("{0} {1}", self, name)
         )
         thread.daemon = True
         thread.start()
