@@ -8,8 +8,8 @@ from __future__ import absolute_import, print_function, unicode_literals
 """
 
 import pkgutil
+import py
 import pytest
-import py.path
 
 # Do not import anything from ptvsd until assert rewriting is enabled below!
 

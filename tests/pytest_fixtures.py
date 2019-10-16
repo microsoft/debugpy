@@ -7,13 +7,13 @@ from __future__ import absolute_import, print_function, unicode_literals
 import inspect
 import os
 import platform
-import py.path
+import py
 import pytest
 import threading
 import types
 
 from ptvsd.common import compat, fmt, log, options, timestamp
-from tests import code, pydevd_log
+from tests import code, logs
 from tests.debug import runners, session, targets
 
 # Set up the test matrix for various code types and attach methods. Most tests will
@@ -43,40 +43,34 @@ def run(request):
 
 @pytest.fixture(autouse=True)
 def test_wrapper(request, long_tmpdir):
-    timestamp.reset()
+    def write_log(filename, data):
+        filename = os.path.join(options.log_dir, filename)
+        if not isinstance(data, bytes):
+            data = data.encode("utf-8")
+        with open(filename, "wb") as f:
+            f.write(data)
 
     session.Session.tmpdir = long_tmpdir
+    original_log_dir = options.log_dir
 
-    original_log_dir = None
     try:
         if options.log_dir is None:
-            write_log = lambda filename, data: None
-            pydevd_filename = os.path.join(str(long_tmpdir), 'pydevd.log')
-
+            options.log_dir = (long_tmpdir / "ptvsd_logs").strpath
         else:
-            original_log_dir = options.log_dir
             log_subdir = request.node.nodeid
             log_subdir = log_subdir.replace("::", "/")
             for ch in r":?*|<>":
                 log_subdir = log_subdir.replace(ch, fmt("&#{0};", ord(ch)))
             options.log_dir += "/" + log_subdir
-            try:
-                py.path.local(options.log_dir).remove()
-            except Exception:
-                pass
-            pydevd_filename = os.path.join(str(options.log_dir), 'pydevd.log')
 
-            def write_log(filename, data):
-                filename = os.path.join(options.log_dir, filename)
-                if not isinstance(data, bytes):
-                    data = data.encode("utf-8")
-                with open(filename, "wb") as f:
-                    f.write(data)
-
-        pydevd_log.enable(pydevd_filename)
+        try:
+            py.path.local(options.log_dir).remove()
+        except Exception:
+            pass
 
         print("\n")  # make sure on-screen logs start on a new line
         with log.to_file(prefix="tests"):
+            timestamp.reset()
             log.info("{0} started.", request.node.nodeid)
             try:
                 yield
@@ -103,11 +97,9 @@ def test_wrapper(request, long_tmpdir):
 
                 if failed:
                     write_log("FAILED.log", "")
-                    if options.log_dir is None:
-                        pydevd_log.dump("failed")
+                    logs.dump()
     finally:
-        if original_log_dir is not None:
-            options.log_dir = original_log_dir
+        options.log_dir = original_log_dir
 
 
 @pytest.fixture
@@ -143,6 +135,7 @@ if platform.system() != "Windows":
     @pytest.fixture
     def long_tmpdir(request, tmpdir):
         return tmpdir
+
 
 else:
     import ctypes

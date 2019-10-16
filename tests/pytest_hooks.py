@@ -10,7 +10,7 @@ import pytest_timeout
 import sys
 
 from ptvsd.common import fmt, log, options
-from tests import pydevd_log
+from tests import logs
 
 
 def pytest_addoption(parser):
@@ -55,4 +55,4 @@ def pytest_make_parametrize_id(config, val):
 # we want to print the pydevd log as well. This is not a normal pytest hook - we
 # just detour pytest_timeout.dump_stacks directly.
 _dump_stacks = pytest_timeout.dump_stacks
-pytest_timeout.dump_stacks = lambda: (_dump_stacks(), pydevd_log.dump("timed out"))
+pytest_timeout.dump_stacks = lambda: (_dump_stacks(), logs.dump())

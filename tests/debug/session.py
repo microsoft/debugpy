@@ -294,6 +294,8 @@ class Session(object):
             env.update(
                 {
                     "PTVSD_LOG_DIR": self.log_dir.strpath,
+                    "PYDEVD_DEBUG": "True",
+                    "PYDEVD_DEBUG_FILE": (self.log_dir / "pydevd.log").strpath,
                 }
             )
 
