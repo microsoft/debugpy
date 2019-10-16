@@ -130,8 +130,7 @@ class IDE(components.Component):
     # See https://github.com/microsoft/vscode/issues/4902#issuecomment-368583522
     # for the sequence of request and events necessary to orchestrate the start.
     def _start_message_handler(f):
-        f = components.Component.message_handler(f)
-
+        @components.Component.message_handler
         def handle(self, request):
             assert request.is_request("launch", "attach")
             if self._initialize_request is None:
