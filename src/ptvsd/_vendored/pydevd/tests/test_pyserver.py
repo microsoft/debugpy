@@ -7,30 +7,32 @@ from _pydev_imps._pydev_saved_modules import thread
 
 start_new_thread = thread.start_new_thread
 
-
 IS_PYTHON_3_ONWARDS = sys.version_info[0] >= 3
 IS_JYTHON = sys.platform.find('java') != -1
 
 try:
-    import __builtin__ #@UnusedImport
+    import __builtin__  # @UnusedImport
     BUILTIN_MOD = '__builtin__'
 except ImportError:
     BUILTIN_MOD = 'builtins'
-
 
 if not IS_JYTHON:
     import pycompletionserver
     import socket
     if not IS_PYTHON_3_ONWARDS:
         from urllib import quote_plus, unquote_plus
+
         def send(s, msg):
             s.send(msg)
+
     else:
-        from urllib.parse import quote_plus, unquote_plus  #Python 3.0
+        from urllib.parse import quote_plus, unquote_plus  # Python 3.0
+
         def send(s, msg):
             s.send(bytearray(msg, 'utf-8'))
 
 import unittest
+
 
 @pytest.mark.skipif(IS_JYTHON, reason='Not applicable to Jython')
 class TestCPython(unittest.TestCase):
@@ -60,7 +62,7 @@ class TestCPython(unittest.TestCase):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind((pycompletionserver.HOST, 0))
-        server.listen(1)  #socket to receive messages.
+        server.listen(1)  # socket to receive messages.
 
         t = pycompletionserver.CompletionServer(server.getsockname()[1])
         t.exit_process_on_kill = False
@@ -69,7 +71,6 @@ class TestCPython(unittest.TestCase):
         s, _addr = server.accept()
 
         return t, s
-
 
     def read_msg(self):
         finish = False
@@ -93,21 +94,22 @@ class TestCPython(unittest.TestCase):
         self.socket = socket
 
         try:
-            #now that we have the connections all set up, check the code completion messages.
+            # now that we have the connections all set up, check the code completion messages.
             msg = quote_plus('math')
-            send(socket, '@@IMPORTS:%sEND@@' % msg)  #math completions
+            send(socket, '@@IMPORTS:%sEND@@' % msg)  # math completions
             completions = self.read_msg()
-            #print_ unquote_plus(completions)
+            # print_ unquote_plus(completions)
 
-            #math is a builtin and because of that, it starts with None as a file
+            # math is a builtin and because of that, it starts with None as a file
             start = '@@COMPLETIONS(None,(__doc__,'
             start_2 = '@@COMPLETIONS(None,(__name__,'
             if ('/math.so,' in completions or
-                '/math.cpython-33m.so,' in completions or 
-                '/math.cpython-34m.so,' in completions or 
-                'math.cpython-35m' in completions or 
+                '/math.cpython-33m.so,' in completions or
+                '/math.cpython-34m.so,' in completions or
+                'math.cpython-35m' in completions or
                 'math.cpython-36m' in completions or
-                'math.cpython-37m' in completions
+                'math.cpython-37m' in completions or
+                'math.cpython-38' in completions
                 ):
                 return
             self.assertTrue(completions.startswith(start) or completions.startswith(start_2), '%s DOESNT START WITH %s' % (completions, (start, start_2)))
@@ -115,16 +117,15 @@ class TestCPython(unittest.TestCase):
             self.assertTrue('@@COMPLETIONS' in completions)
             self.assertTrue('END@@' in completions)
 
-
-            #now, test i
+            # now, test i
             msg = quote_plus('%s.list' % BUILTIN_MOD)
             send(socket, "@@IMPORTS:%s\nEND@@" % msg)
             found = self.read_msg()
             self.assertTrue('sort' in found, 'Could not find sort in: %s' % (found,))
 
-            #now, test search
+            # now, test search
             msg = quote_plus('inspect.ismodule')
-            send(socket, '@@SEARCH%sEND@@' % msg)  #math completions
+            send(socket, '@@SEARCH%sEND@@' % msg)  # math completions
             found = self.read_msg()
             self.assertTrue('inspect.py' in found)
             for i in range(33, 100):
@@ -133,21 +134,21 @@ class TestCPython(unittest.TestCase):
             else:
                 self.fail('Could not find the ismodule line in %s' % (found,))
 
-            #now, test search
+            # now, test search
             msg = quote_plus('inspect.CO_NEWLOCALS')
-            send(socket, '@@SEARCH%sEND@@' % msg)  #math completions
+            send(socket, '@@SEARCH%sEND@@' % msg)  # math completions
             found = self.read_msg()
             self.assertTrue('inspect.py' in found)
             self.assertTrue('CO_NEWLOCALS' in found)
 
-            #now, test search
+            # now, test search
             msg = quote_plus('inspect.BlockFinder.tokeneater')
             send(socket, '@@SEARCH%sEND@@' % msg)
             found = self.read_msg()
             self.assertTrue('inspect.py' in found)
 #            self.assertTrue('CO_NEWLOCALS' in found)
 
-        #reload modules test
+        # reload modules test
 #        send(socket, '@@RELOAD_MODULES_END@@')
 #        ok = self.read_msg()
 #        self.assertEqual('@@MSG_OK_END@@' , ok)
@@ -158,10 +159,8 @@ class TestCPython(unittest.TestCase):
                 sys.stdout.write('succedded...sending kill msg\n')
                 self.send_kill_msg(socket)
 
-
 #                while not hasattr(t, 'ended'):
 #                    pass #wait until it receives the message and quits.
-
 
                 socket.close()
                 self.socket.close()
@@ -170,5 +169,4 @@ class TestCPython(unittest.TestCase):
 
     def send_kill_msg(self, socket):
         socket.send(pycompletionserver.MSG_KILL_SERVER)
-
 

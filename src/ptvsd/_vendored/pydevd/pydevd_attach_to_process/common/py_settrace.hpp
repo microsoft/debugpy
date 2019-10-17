@@ -27,8 +27,8 @@ DWORD GetPythonThreadId(PythonVersion version, PyThreadState* curThread) {
         threadId = (DWORD)((PyThreadState_30_33*)curThread)->thread_id;
     } else if (PyThreadState_34_36::IsFor(version)) {
         threadId = (DWORD)((PyThreadState_34_36*)curThread)->thread_id;
-    } else if (PyThreadState_37::IsFor(version)) {
-        threadId = (DWORD)((PyThreadState_37*)curThread)->thread_id;
+    } else if (PyThreadState_37_38::IsFor(version)) {
+        threadId = (DWORD)((PyThreadState_37_38*)curThread)->thread_id;
     }
     return threadId;
 }

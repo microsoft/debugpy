@@ -15,7 +15,6 @@ from tests import debug, test_data
 from tests.debug import runners, targets
 from tests.patterns import some
 
-
 bp_root = test_data / "bp"
 
 
@@ -102,6 +101,7 @@ def test_conditional_breakpoint(pyfile, target, run, condition_kind, condition):
 
 
 def test_crossfile_breakpoint(pyfile, target, run):
+
     @pyfile
     def script1():
         import debug_me  # noqa
@@ -171,6 +171,7 @@ def test_error_in_condition(pyfile, target, run, error_name):
 
 @pytest.mark.parametrize("condition", ["condition", ""])
 def test_log_point(pyfile, target, run, condition):
+
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -246,6 +247,7 @@ def test_package_launch(run):
 
 
 def test_add_and_remove_breakpoint(pyfile, target, run):
+
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -277,6 +279,7 @@ def test_add_and_remove_breakpoint(pyfile, target, run):
 
 
 def test_breakpoint_in_nonexistent_file(pyfile, target, run):
+
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -297,6 +300,7 @@ def test_breakpoint_in_nonexistent_file(pyfile, target, run):
 
 
 def test_invalid_breakpoints(pyfile, target, run):
+
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -328,7 +332,11 @@ def test_invalid_breakpoints(pyfile, target, run):
             bps = session.set_breakpoints(code_to_debug, bp_markers)
             actual_lines = [bp["line"] for bp in bps]
 
-            expected_markers = ["bp1-expected", "bp2-expected", "bp3-expected"]
+            if sys.version_info >= (3, 8):
+                # See: https://bugs.python.org/issue38508
+                expected_markers = ["bp1-expected", "bp2-requested", "bp3-expected"]
+            else:
+                expected_markers = ["bp1-expected", "bp2-expected", "bp3-expected"]
             if sys.version_info < (3,):
                 expected_markers += ["bp4-expected", "bp4-expected"]
             expected_lines = [
@@ -343,6 +351,12 @@ def test_invalid_breakpoints(pyfile, target, run):
         # If there's multiple breakpoints on the same line, we only stop once,
         # so remove duplicates first.
         expected_lines = sorted(set(expected_lines))
+        if sys.version_info >= (3, 8):
+            # We'll actually hit @bp3-expected and later @bp2-requested
+            # (there's a line event when the list creation is finished
+            # at the start of the list creation on 3.8).
+            # See: https://bugs.python.org/issue38508
+            expected_lines[1], expected_lines[2] = expected_lines[2], expected_lines[1]
 
         while expected_lines:
             expected_line = expected_lines.pop(0)
@@ -354,6 +368,7 @@ def test_invalid_breakpoints(pyfile, target, run):
 
 
 def test_deep_stacks(pyfile, target, run):
+
     @pyfile
     def code_to_debug():
         import debug_me  # noqa

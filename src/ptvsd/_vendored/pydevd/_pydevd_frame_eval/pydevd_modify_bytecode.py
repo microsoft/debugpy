@@ -2,6 +2,7 @@ import dis
 from opcode import opmap, EXTENDED_ARG, HAVE_ARGUMENT
 from types import CodeType
 from _pydev_bundle import pydev_log
+from _pydevd_bundle.pydevd_constants import IS_PY38_OR_GREATER
 
 MAX_BYTE = 255
 RETURN_VALUE_SIZE = 2
@@ -270,8 +271,17 @@ def _insert_code(code_to_modify, code_to_insert, before_line):
         pydev_log.exception()
         return False, code_to_modify
 
-    new_code = CodeType(
+    args = [
         code_to_modify.co_argcount,  # integer
+    ]
+
+    if IS_PY38_OR_GREATER:
+        # New argument on Python 3.8
+        args.append(
+            code_to_modify.co_posonlyargcount,  # integer
+        )
+
+    args.extend((
         code_to_modify.co_kwonlyargcount,  # integer
         len(new_vars),  # integer
         code_to_modify.co_stacksize,  # integer
@@ -286,5 +296,7 @@ def _insert_code(code_to_modify, code_to_insert, before_line):
         new_lnotab,  # bytes
         code_to_modify.co_freevars,  # tuple
         code_to_modify.co_cellvars  # tuple
-    )
+    ))
+
+    new_code = CodeType(*args)
     return True, new_code

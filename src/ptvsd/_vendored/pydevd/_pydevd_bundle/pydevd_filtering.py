@@ -8,6 +8,7 @@ import pydevd_file_utils
 import json
 from collections import namedtuple
 from _pydev_imps._pydev_saved_modules import threading
+from pydevd_file_utils import normcase
 
 try:
     xrange  # noqa
@@ -41,8 +42,8 @@ def _check_matches(patterns, paths):
     if (not patterns and paths) or (patterns and not paths):
         return False
 
-    pattern = patterns[0]
-    path = paths[0]
+    pattern = normcase(patterns[0])
+    path = normcase(paths[0])
 
     if not glob.has_magic(pattern):
 

@@ -3,6 +3,7 @@ from opcode import HAVE_ARGUMENT, EXTENDED_ARG, hasconst, opname, hasname, hasjr
 import dis
 import sys
 from collections import namedtuple
+from _pydevd_bundle.pydevd_constants import IS_PY38_OR_GREATER
 
 try:
     xrange
@@ -143,9 +144,14 @@ def collect_try_except_info(co, use_func_first_line=False):
         for instruction in iter_in:
             curr_op_name = instruction.opname
 
-            if curr_op_name == 'SETUP_EXCEPT':
+            if curr_op_name in ('SETUP_EXCEPT', 'SETUP_FINALLY'):
+                # We need to collect try..finally blocks too to make sure that
+                # the stack_in_setup we're using to collect info is correct.
+                # Note: On Py3.8 both except and finally statements use 'SETUP_FINALLY'.
                 try_except_info = TryExceptInfo(
-                    _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True))
+                    _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True),
+                    is_finally=curr_op_name == 'SETUP_FINALLY'
+                )
                 try_except_info.except_bytecode_offset = instruction.argval
                 try_except_info.except_line = _get_line(
                     op_offset_to_line,
@@ -155,12 +161,11 @@ def collect_try_except_info(co, use_func_first_line=False):
 
                 stack_in_setup.append(try_except_info)
 
-            elif curr_op_name == 'SETUP_FINALLY':
-                # We need to collect try..finally blocks too to make sure that
-                # the stack_in_setup we're using to collect info is correct.
-                try_except_info = TryExceptInfo(
-                    _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True), is_finally=True)
-                stack_in_setup.append(try_except_info)
+            elif curr_op_name == 'POP_EXCEPT':
+                # On Python 3.8 there's no SETUP_EXCEPT (both except and finally start with SETUP_FINALLY),
+                # so, we differentiate by a POP_EXCEPT.
+                if IS_PY38_OR_GREATER:
+                    stack_in_setup[-1].is_finally = False
 
             elif curr_op_name == 'RAISE_VARARGS':
                 # We want to know about reraises and returns inside of except blocks (unfortunately

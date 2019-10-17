@@ -1,8 +1,10 @@
 #!/bin/bash
 set -ev
 
-source activate build_env
-conda install --yes numpy ipython pytest cython psutil
+if [ "$PYDEVD_PYTHON_VERSION" != "3.8" ]; then
+    source activate build_env
+    conda install --yes numpy ipython pytest cython psutil
+fi
 
 if [ "$PYDEVD_PYTHON_VERSION" = "2.6" ]; then
     conda install --yes pyqt=4
@@ -34,6 +36,17 @@ fi
 
 if [ "$PYDEVD_PYTHON_VERSION" = "3.7" ]; then
     conda install --yes pyqt=5 matplotlib
+    # Note: track the latest web framework versions.
+    pip install "django"
+    pip install "cherrypy"
+fi
+
+if [ "$PYDEVD_PYTHON_VERSION" = "3.8" ]; then
+    pip install "pytest"
+    pip install "cython"
+    pip install "psutil"
+    pip install "numpy"
+    
     # Note: track the latest web framework versions.
     pip install "django"
     pip install "cherrypy"

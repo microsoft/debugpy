@@ -149,7 +149,7 @@ InternalTraceTrampoline_37(PyObject *self, PyFrameObject *frame,
 
 void InternalPySetTrace_37(PyThreadState* curThread, PyObjectHolder* traceFunc, bool isDebug)
 {
-    PyThreadState_37* tstate = reinterpret_cast<PyThreadState_37*>(curThread);
+    PyThreadState_37_38* tstate = reinterpret_cast<PyThreadState_37_38*>(curThread);
     PyObject *temp = tstate->c_traceobj;
     
     // We can't increase _Py_TracingPossible. Everything else should be equal to CPython.

@@ -1,3 +1,4 @@
+from _pydevd_bundle.pydevd_constants import IS_WINDOWS
 
 
 def test_in_project_roots(tmpdir):
@@ -128,6 +129,10 @@ def test_glob_matching():
         assert glob_matches_path(build('/a/b/c/d'), '/**/d', sep, altsep)
         assert glob_matches_path(build('/a/b/c/d.py'), '/**/*.py', sep, altsep)
         assert glob_matches_path(build('/a/b/c/d.py'), '**/c/*.py', sep, altsep)
+
+        if IS_WINDOWS:
+            assert glob_matches_path(build('/a/b/c/d.py'), '**/C/*.py', sep, altsep)
+            assert glob_matches_path(build('/a/b/C/d.py'), '**/c/*.py', sep, altsep)
 
         # Expected not to match.
         assert not glob_matches_path(build('/a/b/c/d'), '/**/d.py', sep, altsep)

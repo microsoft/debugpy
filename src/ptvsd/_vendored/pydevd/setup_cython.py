@@ -66,19 +66,42 @@ def build_extension(dir_name, extension_name, target_pydevd_name, force_cython, 
     try:
         if force_cython:
             from Cython.Build import cythonize  # @UnusedImport
-            ext_modules = cythonize([
+            # Generate the .c files in cythonize (will not compile at this point).
+            cythonize([
                 "%s/%s.pyx" % (dir_name, target_pydevd_name,),
             ])
-        else:
-            # Always compile the .c (and not the .pyx) file (which we should keep up-to-date by running build_tools/build.py).
-            from distutils.extension import Extension
-            ext_modules = [Extension("%s%s.%s" % (dir_name, "_ext" if extended else "", target_pydevd_name,),
-                                     [os.path.join(dir_name, "%s.c" % target_pydevd_name), ],
-                                     # uncomment to generate pdbs for visual studio.
-                                     # extra_compile_args=["-Zi", "/Od"],
-                                     # extra_link_args=["-debug"],
-                                     )]
 
+            # This is needed in CPython 3.8 to access PyInterpreterState.eval_frame.
+            # i.e.: we change #include "pystate.h" to also #include "internal/pycore_pystate.h"
+            # if compiling on Python 3.8.
+            c_files = [os.path.join(dir_name, "%s.c" % target_pydevd_name), ]
+            for c_file in c_files:
+                with open(c_file, 'r') as stream:
+                    c_file_contents = stream.read()
+
+                c_file_contents = c_file_contents.replace('#include "pystate.h"', '''#include "pystate.h"
+#if PY_VERSION_HEX >= 0x03080000
+#include "internal/pycore_pystate.h"
+#endif
+''')
+                c_file_contents = c_file_contents.replace('\r\n', '\n').replace('\r', '\n')
+
+                with open(c_file, 'w') as stream:
+                    stream.write(c_file_contents)
+
+        # Always compile the .c (and not the .pyx) file (which we should keep up-to-date by running build_tools/build.py).
+        from distutils.extension import Extension
+        ext_modules = [Extension("%s%s.%s" % (dir_name, "_ext" if extended else "", target_pydevd_name,),
+                                 c_files,
+                                 # uncomment to generate pdbs for visual studio.
+                                 # extra_compile_args=["-Zi", "/Od"],
+                                 # extra_link_args=["-debug"],
+                                 )]
+
+        # This is needed in CPython 3.8 to be able to include internal/pycore_pystate.h
+        # (needed to set PyInterpreterState.eval_frame).
+        for module in ext_modules:
+            module.define_macros = [('Py_BUILD_CORE_MODULE', '1')]
         setup(
             name='Cythonize',
             ext_modules=ext_modules

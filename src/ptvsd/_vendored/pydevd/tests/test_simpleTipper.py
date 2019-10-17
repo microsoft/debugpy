@@ -142,6 +142,7 @@ class TestCPython(unittest.TestCase):
             '(o: object, name: str, val: object)',
             '(source, filename, mode, flags, dont_inherit, optimize)',
             '(source, filename, mode, flags, dont_inherit)',
+            '(source, filename, mode, flags, dont_inherit, optimize, _feature_version=-1)'
         )  # args
 
         t = self.assert_in('setattr' , tip)
@@ -171,7 +172,11 @@ class TestCPython(unittest.TestCase):
                 self.assert_args('walk', '(tree, visitor, walker, verbose)', tip)
                 self.assert_in('parseFile'      , tip)
             else:
-                self.assert_args('parse', '(source, filename, mode)', tip)
+                self.assert_args('parse', [
+                        '(source, filename, mode)',
+                        '(source, filename, mode, type_comments=False, feature_version=None)'
+                    ], tip
+                )
                 self.assert_args('walk', '(node)', tip)
             self.assert_in('parse'          , tip)
 
@@ -182,10 +187,16 @@ class TestCPython(unittest.TestCase):
         self.fail('Found: %s. Expected: %s' % (t[2], expected))
 
     def assert_args(self, tok, args, tips):
+        if not isinstance(args, (list, tuple)):
+            args = (args,)
+
         for a in tips[1]:
             if tok == a[0]:
-                self.assertEqual(args, a[2])
-                return
+                for arg in args:
+                    if arg == a[2]:
+                        return
+                raise AssertionError('%s not in %s', a[2], args)
+
         raise AssertionError('%s not in %s', tok, tips)
 
     def assert_in(self, tok, tips):

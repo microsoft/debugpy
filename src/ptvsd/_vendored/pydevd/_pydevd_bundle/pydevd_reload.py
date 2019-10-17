@@ -154,7 +154,7 @@ def notify_error(*args):
 #=======================================================================================================================
 def code_objects_equal(code0, code1):
     for d in dir(code0):
-        if d.startswith('_') or 'lineno' in d:
+        if d.startswith('_') or 'lineno' in d or d == 'replace':
             continue
         if getattr(code0, d) != getattr(code1, d):
             return False

@@ -201,6 +201,18 @@ def _check_tracing_other_threads():
     except ImportError:
         import thread as _thread
 
+    # This method is called in a subprocess, so, make sure we exit properly even if we somehow
+    # deadlock somewhere else.
+    def dump_threads_and_kill_on_timeout():
+        time.sleep(10)
+        from _pydevd_bundle import pydevd_utils
+        pydevd_utils.dump_threads()
+        time.sleep(1)
+        import os
+        os._exit(77)
+
+    _thread.start_new_thread(dump_threads_and_kill_on_timeout, ())
+
     def method():
         while True:
             trace_func = sys.gettrace()
@@ -215,6 +227,7 @@ def _check_tracing_other_threads():
 
     threads = []
     threads.append(threading.Thread(target=method))
+    threads[-1].daemon = True
     threads[-1].start()
     _thread.start_new_thread(dummy_thread_method, ())
 
