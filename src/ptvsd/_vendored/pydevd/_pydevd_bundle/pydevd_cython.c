@@ -816,8 +816,8 @@ static const char *__pyx_filename;
 
 
 static const char *__pyx_f[] = {
-  "_pydevd_bundle\\pydevd_cython.pyx",
-  "_pydevd_bundle\\pydevd_cython.pxd",
+  "_pydevd_bundle/pydevd_cython.pyx",
+  "_pydevd_bundle/pydevd_cython.pxd",
   "stringsource",
   "type.pxd",
 };
@@ -1865,7 +1865,7 @@ static const char __pyx_k_global_notify_skipped_step_in_l[] = "_global_notify_sk
 static const char __pyx_k_pydev_bundle_pydev_is_thread_al[] = "_pydev_bundle.pydev_is_thread_alive";
 static const char __pyx_k_pydev_imps__pydev_saved_modules[] = "_pydev_imps._pydev_saved_modules";
 static const char __pyx_k_pydevd_bundle_pydevd_additional[] = "_pydevd_bundle.pydevd_additional_thread_info_regular";
-static const char __pyx_k_pydevd_bundle_pydevd_cython_pyx[] = "_pydevd_bundle\\pydevd_cython.pyx";
+static const char __pyx_k_pydevd_bundle_pydevd_cython_pyx[] = "_pydevd_bundle/pydevd_cython.pyx";
 static const char __pyx_k_pydevd_bundle_pydevd_frame_util[] = "_pydevd_bundle.pydevd_frame_utils";
 static const char __pyx_k_set_additional_thread_info_lock[] = "_set_additional_thread_info_lock";
 static const char __pyx_k_set_trace_for_frame_and_parents[] = "set_trace_for_frame_and_parents";

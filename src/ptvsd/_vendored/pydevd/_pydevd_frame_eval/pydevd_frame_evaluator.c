@@ -4,7 +4,7 @@
 {
     "distutils": {
         "depends": [
-            "_pydevd_frame_eval\\release_mem.h"
+            "_pydevd_frame_eval/release_mem.h"
         ],
         "include_dirs": [
             "_pydevd_frame_eval"
@@ -619,18 +619,6 @@ static CYTHON_INLINE float __PYX_NAN() {
 #include "internal/pycore_pystate.h"
 #endif
 
-#if PY_VERSION_HEX >= 0x03080000
-#include "internal/pycore_pystate.h"
-#endif
-
-#if PY_VERSION_HEX >= 0x03080000
-#include "internal/pycore_pystate.h"
-#endif
-
-#if PY_VERSION_HEX >= 0x03080000
-#include "internal/pycore_pystate.h"
-#endif
-
 #include "ceval.h"
 #ifdef _OPENMP
 #include <omp.h>
@@ -840,9 +828,9 @@ static const char *__pyx_filename;
 
 
 static const char *__pyx_f[] = {
-  "_pydevd_frame_eval\\pydevd_frame_evaluator.pyx",
+  "_pydevd_frame_eval/pydevd_frame_evaluator.pyx",
   "stringsource",
-  "_pydevd_bundle\\pydevd_cython.pxd",
+  "_pydevd_bundle/pydevd_cython.pxd",
 };
 
 /*--- Type declarations ---*/
@@ -1519,7 +1507,7 @@ static const char __pyx_k_set_additional_thread_info_lock[] = "_set_additional_t
 static const char __pyx_k_Incompatible_checksums_s_vs_0x2c[] = "Incompatible checksums (%s vs 0x2ccfa67 = (additional_info, fully_initialized, inside_frame_eval, is_pydevd_thread, thread_trace_func))";
 static const char __pyx_k_Incompatible_checksums_s_vs_0xe2[] = "Incompatible checksums (%s vs 0xe2c2285 = (always_skip_code, breakpoint_found, breakpoints_mtime, co_filename, new_code, real_path))";
 static const char __pyx_k_fix_top_level_trace_and_get_trac[] = "fix_top_level_trace_and_get_trace_func";
-static const char __pyx_k_pydevd_frame_eval_pydevd_frame_2[] = "_pydevd_frame_eval\\pydevd_frame_evaluator.pyx";
+static const char __pyx_k_pydevd_frame_eval_pydevd_frame_2[] = "_pydevd_frame_eval/pydevd_frame_evaluator.pyx";
 static const char __pyx_k_pydevd_frame_eval_pydevd_frame_3[] = "_pydevd_frame_eval.pydevd_frame_evaluator";
 static PyObject *__pyx_n_s_AttributeError;
 static PyObject *__pyx_n_s_FuncCodeInfo;

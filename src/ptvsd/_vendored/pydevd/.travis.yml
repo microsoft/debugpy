@@ -70,6 +70,7 @@ matrix:
         - PYDEVD_PYTHON_VERSION=3.8
         - PYDEVD_USE_CYTHON=YES
         - PYDEVD_TEST_VM=CPYTHON
+        - CHECK_CYTHON_GENERATED=YES
 
 before_install:
   # CPython / Pypy setup
@@ -93,8 +94,9 @@ install:
   - if [[ ("$PYDEVD_TEST_VM" == "CPYTHON" && "$PYDEVD_PYTHON_VERSION" != "3.8") ]]; then source activate build_env; fi
   - if [[ ("$PYDEVD_TEST_VM" == "CPYTHON") ]]; then chmod +x ./.travis_install_python_deps.sh; fi
   - if [[ ("$PYDEVD_TEST_VM" == "CPYTHON") ]]; then ./.travis_install_python_deps.sh; fi
-  - if [[ ("$PYDEVD_TEST_VM" == "CPYTHON") ]]; then python build_tools/build.py; fi
-  - if [[ ("$PYDEVD_TEST_VM" == "CPYTHON" && "$PYDEVD_PYTHON_VERSION" != "3.8") ]]; then source activate build_env; python build_tools/build.py; fi
+  - if [[ ("$CHECK_CYTHON_GENERATED" == "YES") ]]; then python build_tools/build.py; fi
+  # Check that we can compile just based on the .c files.
+  - if [[ ("$PYDEVD_TEST_VM" == "CPYTHON" && "$PYDEVD_USE_CYTHON" == "YES") ]]; then python setup_cython.py build_ext --inplace; fi
   # Pypy setup
   - if [[ "$PYDEVD_TEST_VM" == "PYPY" ]]; then conda create --yes -n build_env -c conda-forge pypy3.6; fi
   - if [[ "$PYDEVD_TEST_VM" == "PYPY" ]]; then source activate build_env; fi
@@ -103,6 +105,8 @@ install:
   # Jython setup
   - if [[ "$PYDEVD_TEST_VM" == "JYTHON" ]]; then chmod +x ./.travis_install_jython_deps.sh; fi
   - if [[ "$PYDEVD_TEST_VM" == "JYTHON" ]]; then ./.travis_install_jython_deps.sh; fi
+  # i.e.: Check that the cython-generated files are the same and haven't been changed.
+  - if [[ ("$CHECK_CYTHON_GENERATED" == "YES") ]]; then python build_tools/check_no_git_modifications.py; fi
 
 # Run test
 # On local machine with jython: c:\bin\jython2.7.0\bin\jython.exe -Dpython.path=.;jython_test_deps/ant.jar;jython_test_deps/junit.jar -m pytest

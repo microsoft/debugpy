@@ -64,7 +64,13 @@ def build_extension(dir_name, extension_name, target_pydevd_name, force_cython, 
         assert os.path.exists(pyx_file)
 
     try:
+        c_files = [os.path.join(dir_name, "%s.c" % target_pydevd_name), ]
         if force_cython:
+            for c_file in c_files:
+                try:
+                    os.remove(c_file)
+                except:
+                    pass
             from Cython.Build import cythonize  # @UnusedImport
             # Generate the .c files in cythonize (will not compile at this point).
             cythonize([
@@ -74,17 +80,23 @@ def build_extension(dir_name, extension_name, target_pydevd_name, force_cython, 
             # This is needed in CPython 3.8 to access PyInterpreterState.eval_frame.
             # i.e.: we change #include "pystate.h" to also #include "internal/pycore_pystate.h"
             # if compiling on Python 3.8.
-            c_files = [os.path.join(dir_name, "%s.c" % target_pydevd_name), ]
             for c_file in c_files:
                 with open(c_file, 'r') as stream:
                     c_file_contents = stream.read()
 
-                c_file_contents = c_file_contents.replace('#include "pystate.h"', '''#include "pystate.h"
+                if '#include "internal/pycore_pystate.h"' not in c_file_contents:
+                    c_file_contents = c_file_contents.replace('#include "pystate.h"', '''#include "pystate.h"
 #if PY_VERSION_HEX >= 0x03080000
 #include "internal/pycore_pystate.h"
 #endif
 ''')
+
+                # We want the same output on Windows and Linux.
                 c_file_contents = c_file_contents.replace('\r\n', '\n').replace('\r', '\n')
+                c_file_contents = c_file_contents.replace(r'_pydevd_frame_eval\\release_mem.h', '_pydevd_frame_eval/release_mem.h')
+                c_file_contents = c_file_contents.replace(r'_pydevd_frame_eval\\pydevd_frame_evaluator.pyx', '_pydevd_frame_eval/pydevd_frame_evaluator.pyx')
+                c_file_contents = c_file_contents.replace(r'_pydevd_bundle\\pydevd_cython.pxd', '_pydevd_bundle/pydevd_cython.pxd')
+                c_file_contents = c_file_contents.replace(r'_pydevd_bundle\\pydevd_cython.pyx', '_pydevd_bundle/pydevd_cython.pyx')
 
                 with open(c_file, 'w') as stream:
                     stream.write(c_file_contents)
