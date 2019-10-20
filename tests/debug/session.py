@@ -76,7 +76,7 @@ class Session(object):
 
     _counter = itertools.count(1)
 
-    def __init__(self):
+    def __init__(self, debug_config=None):
         assert Session.tmpdir is not None
         watchdog.start()
 
@@ -127,7 +127,9 @@ class Session(object):
         """
 
         self.config = config.DebugConfig(
-            {
+            debug_config
+            if debug_config is not None
+            else {
                 "justMyCode": True,
                 "name": "Test",
                 "redirectOutput": True,
@@ -404,6 +406,19 @@ class Session(object):
         stream = messaging.JsonIOStream.from_socket(sock, name=self.adapter_id)
         self._start_channel(stream)
 
+    def start(self):
+        config = self.config
+        request = config.get("request", None)
+        if request == "attach":
+            host = config["host"]
+            port = config["port"]
+            self.connect_to_adapter((host, port))
+            return self.request_attach()
+        else:
+            raise ValueError(
+                fmt('Unsupported "request":{0!j} in session.config', request)
+            )
+
     def request(self, *args, **kwargs):
         freeze = kwargs.pop("freeze", True)
         raise_if_failed = kwargs.pop("raise_if_failed", True)
@@ -434,9 +449,9 @@ class Session(object):
             self.observe(occ)
             self.exit_code = event("exitCode", int)
             assert self.exit_code == self.expected_exit_code
-        elif event.event == "ptvsd_subprocess":
+        elif event.event == "ptvsd_attach":
             self.observe(occ)
-            pid = event("processId", int)
+            pid = event("subProcessId", int)
             watchdog.register_spawn(
                 pid, fmt("{0}-subprocess-{1}", self.debuggee_id, pid)
             )
@@ -726,7 +741,7 @@ class Session(object):
         return StopInfo(stopped, frames, tid, fid)
 
     def wait_for_next_subprocess(self):
-        raise NotImplementedError
+        return Session(self.wait_for_next_event("ptvsd_attach"))
 
     def wait_for_disconnect(self):
         self.timeline.wait_until_realized(timeline.Mark("disconnect"), freeze=True)

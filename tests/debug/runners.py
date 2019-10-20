@@ -207,8 +207,6 @@ def attach_by_socket(
         if wait:
             args += ["--wait"]
         args += ["--host", compat.filename_str(host), "--port", str(port)]
-        if not config["subProcess"]:
-            args += ["--no-subprocesses"]
         if log_dir is not None:
             args += ["--log-dir", log_dir]
         debug_me = None

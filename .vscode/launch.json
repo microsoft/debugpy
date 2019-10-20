@@ -17,10 +17,10 @@
 
         // For these, ptvsd.adapter must be started first via the above configuration.
         {
+            //"debugServer": 8765,
             "name": "Launch Python file [debugServer]",
             "type": "python",
             "request": "launch",
-            "debugServer": 8765,
             //"console": "internalConsole",
             "console": "integratedTerminal",
             //"console": "externalTerminal",
@@ -30,12 +30,21 @@
             //"ptvsdArgs": ["--log-stderr"],
         },
         {
+            //"debugServer": 8765,
             "name": "Attach [debugServer]",
             "type": "python",
             "request": "attach",
-            "debugServer": 8765,
             "host": "localhost",
             "port": 5678,
+        },
+        {
+            //"debugServer": 8765,
+            "name": "Attach Child Process [debugServer]",
+            "type": "python",
+            "request": "attach",
+            "host": "localhost",
+            "port": 5678,
+            "subProcessId": 00000,
         },
     ]
 }

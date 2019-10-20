@@ -1166,6 +1166,7 @@ class JsonMessageChannel(object):
         self.stream = stream
         self.handlers = handlers
         self.name = name if name is not None else stream.name
+        self.started = False
         self._lock = threading.RLock()
         self._closed = False
         self._seq_iter = itertools.count(1)
@@ -1209,6 +1210,10 @@ class JsonMessageChannel(object):
         Incoming messages, including responses to requests, will not be processed at
         all until this is invoked.
         """
+
+        assert not self.started
+        self.started = True
+
         self._parser_thread = threading.Thread(
             target=self._parse_incoming_messages, name=fmt("{0} message parser", self)
         )
@@ -1510,7 +1515,7 @@ class JsonMessageChannel(object):
                 if closed and handler in (Event._handle, Request._handle):
                     continue
 
-                with log.prefixed("[handling {0}]\n", what.describe()):
+                with log.prefixed("/handling {0}/\n", what.describe()):
                     try:
                         handler()
                     except Exception:
@@ -1522,16 +1527,20 @@ class JsonMessageChannel(object):
         """Returns the handler for a message of a given type.
         """
 
+        with self:
+            handlers = self.handlers
+
         for handler_name in (name + "_" + type, type):
             try:
-                return getattr(self.handlers, handler_name)
+                return getattr(handlers, handler_name)
             except AttributeError:
                 continue
 
         raise AttributeError(
             fmt(
-                "Channel {0} has no handler for {1} {2!r}",
-                compat.srcnameof(self.handlers),
+                "handler object {0} for channel {1} has no handler for {2} {3!r}",
+                compat.srcnameof(handlers),
+                self,
                 type,
                 name,
             )

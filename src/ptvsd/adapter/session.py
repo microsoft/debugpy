@@ -7,23 +7,16 @@ from __future__ import absolute_import, print_function, unicode_literals
 import contextlib
 import itertools
 import os
-import subprocess
-import sys
 import threading
 import time
 
-import ptvsd
-import ptvsd.launcher
-from ptvsd.common import (
-    compat,
-    fmt,
-    log,
-    messaging,
-    options as common_options,
-    sockets,
-    util,
-)
-from ptvsd.adapter import components, ide, launcher, options as adapter_options, server
+from ptvsd.common import fmt, log, messaging, sockets, util
+from ptvsd.adapter import components, launcher, server
+
+
+_lock = threading.RLock()
+_sessions = set()
+_sessions_changed = threading.Event()
 
 
 class Session(util.Observable):
@@ -36,6 +29,8 @@ class Session(util.Observable):
     _counter = itertools.count(1)
 
     def __init__(self):
+        from ptvsd.adapter import ide
+
         super(Session, self).__init__()
 
         self.lock = threading.RLock()
@@ -81,16 +76,24 @@ class Session(util.Observable):
         """Unlock the session."""
         self.lock.release()
 
-    def wait_for_completion(self):
-        self.ide.channel.wait()
-        if self.launcher:
-            self.launcher.channel.wait()
-        if self.server:
-            self.server.channel.wait()
+    def register(self):
+        with _lock:
+            _sessions.add(self)
+            _sessions_changed.set()
 
     def notify_changed(self):
         with self:
             self._changed_condition.notify_all()
+
+        # A session is considered ended once all components disconnect, and there
+        # are no further incoming messages from anything to handle.
+        components = self.ide, self.launcher, self.server
+        if all(not com or not com.is_connected for com in components):
+            with _lock:
+                if self in _sessions:
+                    log.info("{0} has ended.", self)
+                    _sessions.remove(self)
+                    _sessions_changed.set()
 
     def wait_for(self, predicate, timeout=None):
         """Waits until predicate() becomes true.
@@ -129,35 +132,6 @@ class Session(util.Observable):
                     return False
                 self._changed_condition.wait()
             return True
-
-    def connect_to_ide(self):
-        """Sets up a DAP message channel to the IDE over stdio.
-        """
-
-        log.info("{0} connecting to IDE over stdio...", self)
-        stream = messaging.JsonIOStream.from_stdio()
-
-        # Make sure that nothing else tries to interfere with the stdio streams
-        # that are going to be used for DAP communication from now on.
-        sys.stdout = sys.stderr
-        sys.stdin = open(os.devnull, "r")
-
-        ide.IDE(self, stream)
-
-    def connect_to_server(self, address):
-        """Sets up a DAP message channel to the server.
-
-        The channel is established by connecting to the TCP socket listening on the
-        specified address
-        """
-
-        host, port = address
-        log.info("{0} connecting to Server on {1}:{2}...", self, host, port)
-        sock = sockets.create_client()
-        sock.connect(address)
-
-        stream = messaging.JsonIOStream.from_socket(sock)
-        server.Server(self, stream)
 
     @contextlib.contextmanager
     def _accept_connection_from(self, what, address, timeout=None):
@@ -199,110 +173,14 @@ class Session(util.Observable):
         stream = messaging.JsonIOStream.from_socket(sock, what)
         what(self, stream)
 
-    def accept_connection_from_ide(self, address):
-        return self._accept_connection_from(ide.IDE, address)
-
-    def accept_connection_from_server(self, address=("127.0.0.1", 0)):
-        return self._accept_connection_from(server.Server, address, timeout=10)
-
-    def _accept_connection_from_launcher(self, address=("127.0.0.1", 0)):
+    def accept_connection_from_launcher(self, address=("127.0.0.1", 0)):
         return self._accept_connection_from(launcher.Launcher, address, timeout=10)
 
-    def spawn_debuggee(self, request, sudo, args, console, console_title):
-        cmdline = ["sudo"] if sudo else []
-        cmdline += [sys.executable, os.path.dirname(ptvsd.launcher.__file__)]
-        cmdline += args
-        env = {str("PTVSD_SESSION_ID"): str(self.id)}
-
-        def spawn_launcher():
-            with self._accept_connection_from_launcher() as (_, launcher_port):
-                env[str("PTVSD_LAUNCHER_PORT")] = str(launcher_port)
-                if common_options.log_dir is not None:
-                    env[str("PTVSD_LOG_DIR")] = compat.filename_str(
-                        common_options.log_dir
-                    )
-                if adapter_options.log_stderr:
-                    env[str("PTVSD_LOG_STDERR")] = str("debug info warning error")
-                if console == "internalConsole":
-                    # If we are talking to the IDE over stdio, sys.stdin and sys.stdout are
-                    # redirected to avoid mangling the DAP message stream. Make sure the
-                    # launcher also respects that.
-                    subprocess.Popen(
-                        cmdline,
-                        env=dict(list(os.environ.items()) + list(env.items())),
-                        stdin=sys.stdin,
-                        stdout=sys.stdout,
-                        stderr=sys.stderr,
-                    )
-                else:
-                    self.ide.capabilities.require("supportsRunInTerminalRequest")
-                    kinds = {
-                        "integratedTerminal": "integrated",
-                        "externalTerminal": "external",
-                    }
-                    self.ide.channel.request(
-                        "runInTerminal",
-                        {
-                            "kind": kinds[console],
-                            "title": console_title,
-                            "args": cmdline,
-                            "env": env,
-                        },
-                    )
-            self.launcher.channel.delegate(request)
-
-        if self.no_debug:
-            spawn_launcher()
-        else:
-            with self.accept_connection_from_server() as (_, server_port):
-                request.arguments["port"] = server_port
-                spawn_launcher()
-                # Don't accept connection from server until launcher sends us the
-                # "process" event, to avoid a race condition between the launcher
-                # and the server.
-                if not self.wait_for(lambda: self.pid is not None, timeout=5):
-                    raise request.cant_handle(
-                        'Session timed out waiting for "process" event from {0}',
-                        self.launcher,
-                    )
-
-    def inject_server(self, pid, ptvsd_args):
-        with self.accept_connection_from_server() as (host, port):
-            cmdline = [
-                sys.executable,
-                compat.filename(os.path.dirname(ptvsd.__file__)),
-                "--client",
-                "--host",
-                host,
-                "--port",
-                str(port),
-            ]
-            cmdline += ptvsd_args
-            cmdline += ["--pid", str(pid)]
-
-            log.info(
-                "{0} spawning attach-to-PID debugger injector: {1!r}", self, cmdline
-            )
-
-            try:
-                subprocess.Popen(
-                    cmdline,
-                    bufsize=0,
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                )
-            except Exception as exc:
-                log.exception("{0} failed to inject debugger", self)
-                raise messaging.MessageHandlingError(
-                    fmt("Failed to inject debugger: {0}", exc)
-                )
-
-    def finalize(self, why, terminate_debuggee=False):
+    def finalize(self, why, terminate_debuggee=None):
         """Finalizes the debug session.
 
         If the server is present, sends "disconnect" request with "terminateDebuggee"
-        set as specified) request to it; waits for it to disconnect, allowing any
+        set as specified request to it; waits for it to disconnect, allowing any
         remaining messages from it to be handled; and closes the server channel.
 
         If the launcher is present, sends "terminate" request to it, regardless of the
@@ -310,12 +188,18 @@ class Session(util.Observable):
         from it to be handled; and closes the launcher channel.
 
         If the IDE is present, sends "terminated" event to it.
+
+        If terminate_debuggee=None, it is treated as True if the session has a Launcher
+        component, and False otherwise.
         """
 
         if self.is_finalizing:
             return
         self.is_finalizing = True
         log.info("{0}; finalizing {1}.", why, self)
+
+        if terminate_debuggee is None:
+            terminate_debuggee = bool(self.launcher)
 
         try:
             self._finalize(why, terminate_debuggee)
@@ -328,26 +212,15 @@ class Session(util.Observable):
         log.info("{0} finalized.", self)
 
     def _finalize(self, why, terminate_debuggee):
-        if self.server and self.server.is_connected:
-            try:
-                self.server.channel.request(
-                    "disconnect", {"terminateDebuggee": terminate_debuggee}
-                )
-            except Exception:
-                pass
-
-            try:
-                self.server.channel.close()
-            except Exception:
-                log.exception()
-
-            # Wait until the server message queue fully drains - there won't be any
-            # more events after close(), but there may still be pending responses.
-            log.info("{0} waiting for {1} to disconnect...", self, self.server)
-            if not self.wait_for(lambda: not self.server.is_connected, timeout=5):
-                log.warning(
-                    "{0} timed out waiting for {1} to disconnect.", self, self.server
-                )
+        if self.server:
+            if self.server.is_connected:
+                try:
+                    self.server.channel.request(
+                        "disconnect", {"terminateDebuggee": terminate_debuggee}
+                    )
+                except Exception:
+                    pass
+            self.server.detach_from_session()
 
         if self.launcher and self.launcher.is_connected:
             # If there was a server, we just disconnected from it above, which should
@@ -385,3 +258,21 @@ class Session(util.Observable):
                 self.ide.channel.send_event("terminated")
             except Exception:
                 pass
+
+
+def get(pid):
+    with _lock:
+        return next((session for session in _sessions if session.pid == pid), None)
+
+
+def wait_until_ended():
+    """Blocks until all sessions have ended.
+
+    A session ends when all components that it manages disconnect from it.
+    """
+    while True:
+        _sessions_changed.wait()
+        with _lock:
+            _sessions_changed.clear()
+            if not len(_sessions):
+                return

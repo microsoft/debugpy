@@ -4,15 +4,17 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+import os
 import platform
+import sys
 
 import ptvsd
-from ptvsd.common import json, log, messaging
+from ptvsd.common import json, log, messaging, sockets
 from ptvsd.common.compat import unicode
-from ptvsd.adapter import components
+from ptvsd.adapter import components, server, session
 
 
-class IDE(components.Component):
+class IDE(components.Component, sockets.ClientConnection):
     """Handles the IDE side of a debug session."""
 
     message_handler = components.Component.message_handler
@@ -33,23 +35,43 @@ class IDE(components.Component):
             "pathFormat": json.enum("path"),  # we don't support "uri"
         }
 
-    def __init__(self, session, stream):
-        super(IDE, self).__init__(session, stream)
+    def __init__(self, sock):
+        if sock == "stdio":
+            log.info("Connecting to IDE over stdio...", self)
+            stream = messaging.JsonIOStream.from_stdio()
+            # Make sure that nothing else tries to interfere with the stdio streams
+            # that are going to be used for DAP communication from now on.
+            sys.stdout = sys.stderr
+            sys.stdin = open(os.devnull, "r")
+        else:
+            stream = messaging.JsonIOStream.from_socket(sock)
 
-        self.client_id = None
-        """ID of the connecting client. This can be 'test' while running tests."""
+        with session.Session() as new_session:
+            super(IDE, self).__init__(new_session, stream)
 
-        self._initialize_request = None
-        """The "initialize" request as received from the IDE, to propagate to the
-        server later."""
+            self.client_id = None
+            """ID of the connecting client. This can be 'test' while running tests."""
 
-        self._deferred_events = []
-        """Deferred events from the launcher and the server that must be propagated
-        only if and when the "launch" or "attach" response is sent.
-        """
+            self.has_started = False
+            """Whether the "launch" or "attach" request was received from the IDE, and
+            fully handled.
+            """
 
-        assert not session.ide
-        session.ide = self
+            self.start_request = None
+            """The "launch" or "attach" request as received from the IDE.
+            """
+
+            self._initialize_request = None
+            """The "initialize" request as received from the IDE, to propagate to the
+            server later."""
+
+            self._deferred_events = []
+            """Deferred events from the launcher and the server that must be propagated
+            only if and when the "launch" or "attach" response is sent.
+            """
+
+            new_session.ide = self
+            new_session.register()
 
         self.channel.send_event(
             "output",
@@ -135,11 +157,14 @@ class IDE(components.Component):
             assert request.is_request("launch", "attach")
             if self._initialize_request is None:
                 raise request.isnt_valid("Session is not initialized yet")
-            if self.launcher:
+            if self.launcher or self.server:
                 raise request.isnt_valid("Session is already started")
 
             self.session.no_debug = request("noDebug", json.default(False))
-            self.session.debug_options = set(
+            if self.session.no_debug:
+                server.dont_expect_connections()
+
+            self.session.debug_options = debug_options = set(
                 request("debugOptions", json.array(unicode))
             )
 
@@ -149,19 +174,31 @@ class IDE(components.Component):
                 self.server.initialize(self._initialize_request)
                 self._initialize_request = None
 
+                arguments = request.arguments
+                if self.launcher and "RedirectOutput" in debug_options:
+                    # The launcher is doing output redirection, so we don't need the
+                    # server to do it, as well.
+                    arguments = dict(arguments)
+                    arguments["debugOptions"] = list(debug_options - {"RedirectOutput"})
+
                 # pydevd doesn't send "initialized", and responds to the start request
                 # immediately, without waiting for "configurationDone". If it changes
                 # to conform to the DAP spec, we'll need to defer waiting for response.
-                self.server.channel.delegate(request)
+                try:
+                    self.server.channel.request(request.command, arguments)
+                except messaging.MessageHandlingError as exc:
+                    exc.propagate(request)
 
             if self.session.no_debug:
+                self.start_request = request
+                self.has_started = True
                 request.respond({})
                 self._propagate_deferred_events()
                 return
 
-            if {"WindowsClient", "Windows"} & self.session.debug_options:
+            if {"WindowsClient", "Windows"} & debug_options:
                 client_os_type = "WINDOWS"
-            elif {"UnixClient", "UNIX"} & self.session.debug_options:
+            elif {"UnixClient", "UNIX"} & debug_options:
                 client_os_type = "UNIX"
             else:
                 client_os_type = "WINDOWS" if platform.system() == "Windows" else "UNIX"
@@ -178,13 +215,15 @@ class IDE(components.Component):
             # Let the IDE know that it can begin configuring the adapter.
             self.channel.send_event("initialized")
 
-            self._start_request = request
+            self.start_request = request
             return messaging.NO_RESPONSE  # will respond on "configurationDone"
 
         return handle
 
     @_start_message_handler
     def launch_request(self, request):
+        from ptvsd.adapter import launcher
+
         sudo = request("sudo", json.default("Sudo" in self.session.debug_options))
         if sudo:
             if platform.system() == "Windows":
@@ -222,57 +261,100 @@ class IDE(components.Component):
         )
         console_title = request("consoleTitle", json.default("Python Debug Console"))
 
-        self.session.spawn_debuggee(request, sudo, args, console, console_title)
-
-        if "RedirectOutput" in self.session.debug_options:
-            # The launcher is doing output redirection, so we don't need the server.
-            request.arguments["debugOptions"].remove("RedirectOutput")
+        launcher.spawn_debuggee(
+            self.session, request, sudo, args, console, console_title
+        )
 
     @_start_message_handler
     def attach_request(self, request):
         if self.session.no_debug:
             raise request.isnt_valid('"noDebug" is not supported for "attach"')
 
+        # There are four distinct possibilities here.
+        #
+        # If "processId" is specified, this is attach-by-PID. We need to inject the
+        # debug server into the designated process, and then wait until it connects
+        # back to us. Since the injected server can crash, there must be a timeout.
+        #
+        # If "subProcessId" is specified, this is attach to a known subprocess, likely
+        # in response to a "ptvsd_attach" event. If so, the debug server should be
+        # connected already, and thus the wait timeout is zero.
+        #
+        # If neither are specified, but "listen" is true, this is attach-by-socket
+        # with the server expected to connect to the adapter via ptvsd.attach(). There
+        # is no PID known in advance, so just wait until the first server connection
+        # indefinitely, with no timeout.
+        #
+        # If neither are specified, but "listen" is false, this is attach-by-socket
+        # in which the server has spawned the adapter via ptvsd.enable_attach(). There
+        # is no PID known to the IDE in advance, but the server connection should be
+        # there already, so the wait timeout is zero.
+        #
+        # In the last two cases, if there's more than one server connection already,
+        # this is a multiprocess re-attach. The IDE doesn't know the PID, so we just
+        # connect it to the oldest server connection that we have - in most cases, it
+        # will be the one for the root debuggee process, but if it has exited already,
+        # it will be some subprocess.
+
         pid = request("processId", int, optional=True)
-        if pid == ():
-            # When the adapter is spawned by the debug server, it is connected to the
-            # latter from the get go, and "host" and "port" in the "attach" request
-            # are actually the host and port on which the adapter itself was listening,
-            # so we can ignore those.
-            if self.server:
-                return
-
-            host = request("host", "127.0.0.1")
-            port = request("port", int)
-            if request("listen", False):
-                with self.accept_connection_from_server((host, port)):
-                    pass
-            else:
-                self.session.connect_to_server((host, port))
-        else:
-            if self.server:
+        sub_pid = request("subProcessId", int, optional=True)
+        if pid != ():
+            if sub_pid != ():
                 raise request.isnt_valid(
-                    '"attach" with "processId" cannot be serviced by adapter '
-                    "that is already associated with a debug server"
+                    '"processId" and "subProcessId" are mutually exclusive'
                 )
-
             ptvsd_args = request("ptvsdArgs", json.array(unicode))
-            self.session.inject_server(pid, ptvsd_args)
+            server.inject(pid, ptvsd_args)
+            timeout = 10
+        else:
+            if sub_pid == ():
+                pid = any
+                timeout = None if request("waitForAttach", False) else 0
+            else:
+                pid = sub_pid
+                timeout = 0
+
+        conn = server.wait_for_connection(pid, timeout)
+        if conn is None:
+            raise request.cant_handle(
+                (
+                    "Timed out waiting for injected debug server to connect"
+                    if timeout
+                    else "There is no debug server connected to this adapter."
+                    if pid is any
+                    else 'No known subprocess with "subProcessId":{0}'
+                ),
+                pid,
+            )
+
+        try:
+            conn.attach_to_session(self.session)
+        except ValueError:
+            request.cant_handle("Debuggee with PID={0} is already being debugged.", pid)
 
     @message_handler
     def configurationDone_request(self, request):
-        if self._start_request is None:
+        if self.start_request is None or self.has_started:
             request.cant_handle(
                 '"configurationDone" is only allowed during handling of a "launch" '
                 'or an "attach" request'
             )
 
         try:
+            self.has_started = True
             request.respond(self.server.channel.delegate(request))
+        except messaging.MessageHandlingError as exc:
+            self.start_request.cant_handle(str(exc))
         finally:
-            self._start_request.respond({})
-            self._start_request = None
+            self.start_request.respond({})
             self._propagate_deferred_events()
+
+        # Notify the IDE of any child processes of the debuggee that aren't already
+        # being debugged.
+        for conn in server.connections():
+            if conn.server is None and conn.ppid == self.session.pid:
+                # FIXME: race condition with server.Connection()
+                self.notify_of_subprocess(conn)
 
     @message_handler
     def pause_request(self, request):
@@ -312,8 +394,37 @@ class IDE(components.Component):
 
     @message_handler
     def disconnect_request(self, request):
-        self.session.finalize(
-            'IDE requested "disconnect"',
-            request("terminateDebuggee", json.default(bool(self.launcher))),
-        )
+        terminate_debuggee = request("terminateDebuggee", bool, optional=True)
+        if terminate_debuggee == ():
+            terminate_debuggee = None
+        self.session.finalize('IDE requested "disconnect"', terminate_debuggee)
         return {}
+
+    def notify_of_subprocess(self, conn):
+        with self.session:
+            if self.start_request is None:
+                return
+            if "processId" in self.start_request.arguments:
+                log.warning(
+                    "Not reporting subprocess for {0}, because the parent process "
+                    'was attached to using "processId" rather than "port".',
+                    self.session,
+                )
+                return
+
+            log.info("Notifying {0} about {1}.", self, conn)
+            body = dict(self.start_request.arguments)
+
+        body["request"] = "attach"
+        if "host" not in body:
+            body["host"] = "127.0.0.1"
+        if "port" not in body:
+            _, body["port"] = self.listener.getsockname()
+        if "processId" in body:
+            del body["processId"]
+        body["subProcessId"] = conn.pid
+
+        self.channel.send_event("ptvsd_attach", body)
+
+
+listen = IDE.listen

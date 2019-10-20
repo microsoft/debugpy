@@ -19,7 +19,7 @@ __file__ = os.path.abspath(__file__)
 
 def main(args):
     from ptvsd.common import log, options as common_options
-    from ptvsd.adapter import session, options as adapter_options
+    from ptvsd.adapter import ide, server, session, options as adapter_options
 
     if args.log_stderr:
         log.stderr.levels |= set(log.LEVELS)
@@ -30,30 +30,30 @@ def main(args):
     log.to_file(prefix="ptvsd.adapter")
     log.describe_environment("ptvsd.adapter startup environment:")
 
-    session = session.Session()
+    if args.for_enable_attach and args.port is None:
+        log.error("--for-enable-attach requires --port")
+        sys.exit(64)
+
+    server_host, server_port = server.listen()
+    ide_host, ide_port = ide.listen(port=args.port)
+
+    if args.for_enable_attach:
+        endpoints = {
+            "ide": {"host": ide_host, "port": ide_port},
+            "server": {"host": server_host, "port": server_port}
+        }
+        log.info("Sending endpoints to stdout: {0!r}", endpoints)
+        print(json.dumps(endpoints))
+        sys.stdout.flush()
+
     if args.port is None:
-        session.connect_to_ide()
-    else:
-        if args.for_enable_attach:
-            # Users may want the adapter to choose the port for them, by setting port==0.
-            # For example, the Python Data Science extension uses this mode in enable_attach.
-            # Let enable_attach know the port that users should use to connect to the adapter.
-            with session.accept_connection_from_ide((args.host, args.port)) as (adapter_host, adapter_port):
-                # This mode is used only for enable_attach. Here, we always connect to
-                # adapter from the debug server as client. Adapter needs to start a listener
-                # and provide that port to debug server.
-                with session.accept_connection_from_server() as (server_host, server_port):
-                    connection_details = {
-                        "adapter": {"host": adapter_host, "port": adapter_port},
-                        "server": {"host": server_host, "port": server_port}
-                    }
-                    log.info("Writing to stdout for enable_attach: {0!r}", connection_details)
-                    print(json.dumps(connection_details))
-                    sys.stdout.flush()
-        else:
-            with session.accept_connection_from_ide((args.host, args.port)) as (_, adapter_port):
-                pass
-    session.wait_for_completion()
+        ide.IDE("stdio")
+
+    server.wait_until_disconnected()
+    log.info("All debug servers disconnected; waiting for remaining sessions...")
+
+    session.wait_until_ended()
+    log.info("All debug sessions have ended; exiting.")
 
 
 def _parse_argv(argv):

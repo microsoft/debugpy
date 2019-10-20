@@ -6,12 +6,18 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import platform
 import socket
+import threading
+
+from ptvsd.common import log
 
 
 def create_server(host, port, timeout=None):
     """Return a local server socket listening on the given port."""
     if host is None:
         host = "127.0.0.1"
+    if port is None:
+        port = 0
+
     try:
         server = _new_sock()
         server.bind((host, port))
@@ -50,3 +56,44 @@ def close_socket(sock):
     except Exception:
         pass
     sock.close()
+
+
+class ClientConnection(object):
+    listener = None
+    """After listen() is invoked, this is the socket listening for connections.
+    """
+
+    @classmethod
+    def listen(cls, host=None, port=0, timeout=None):
+        """Accepts TCP connections on the specified host and port, and creates a new
+        instance of this class wrapping every accepted socket.
+        """
+
+        assert cls.listener is None
+        cls.listener = create_server(host, port, timeout)
+        host, port = cls.listener.getsockname()
+        log.info(
+            "Waiting for incoming {0} connections on {1}:{2}...",
+            cls.__name__,
+            host,
+            port,
+        )
+
+        def accept_worker():
+            while True:
+                sock, (other_host, other_port) = cls.listener.accept()
+                log.info(
+                    "Accepted incoming {0} connection from {1}:{2}.",
+                    cls.__name__,
+                    other_host,
+                    other_port,
+                )
+                cls(sock)
+
+        thread = threading.Thread(target=accept_worker)
+        thread.daemon = True
+        thread.pydev_do_not_trace = True
+        thread.is_pydev_daemon_thread = True
+        thread.start()
+
+        return host, port

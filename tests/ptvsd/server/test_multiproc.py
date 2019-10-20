@@ -15,130 +15,123 @@ from tests.patterns import some
 from tests.timeline import Event, Request
 
 
-pytestmark = pytest.mark.skip("https://github.com/microsoft/ptvsd/issues/1706")
+# pytestmark = pytest.mark.skip("https://github.com/microsoft/ptvsd/issues/1706")
 
 
 @pytest.mark.timeout(30)
-@pytest.mark.skipif(
-    platform.system() != "Windows",
-    reason="Debugging multiprocessing module only works on Windows",
-)
 @pytest.mark.parametrize(
-    "start_method", [runners.launch, runners.attach_by_socket["cli"]]
+    "start_method",
+    [""]
+    if sys.version_info < (3,)
+    else ["spawn"]
+    if platform.system() == "Windows"
+    else ["spawn", "fork"],
 )
-def test_multiprocessing(pyfile, start_method, run_as):
+def test_multiprocessing(pyfile, target, run, start_method):
     @pyfile
     def code_to_debug():
-        import multiprocessing
-        import platform
-        import sys
         import debug_me  # noqa
+        import multiprocessing
+        import os
+        import sys
 
-        def child_of_child(q):
-            print("entering child of child")
-            assert q.get() == 2
-            q.put(3)
-            print("leaving child of child")
-
-        def child(q):
-            print("entering child")
-            assert q.get() == 1
-
-            print("spawning child of child")
-            p = multiprocessing.Process(target=child_of_child, args=(q,))
-            p.start()
-            p.join()
-
-            assert q.get() == 3
-            q.put(4)
-            print("leaving child")
-
-        if __name__ == "__main__":
+        def parent(q, a):
             from debug_me import backchannel
 
-            if sys.version_info >= (3, 4):
-                multiprocessing.set_start_method("spawn")
-            else:
-                assert platform.system() == "Windows"
-
             print("spawning child")
-            q = multiprocessing.Queue()
-            p = multiprocessing.Process(target=child, args=(q,))
+            p = multiprocessing.Process(target=child, args=(q, a))
             p.start()
             print("child spawned")
-            backchannel.send(p.pid)
 
-            q.put(1)
+            q.put("child_pid?")
+            what, child_pid = a.get()
+            assert what == "child_pid"
+            backchannel.send(child_pid)
+
+            q.put("grandchild_pid?")
+            what, grandchild_pid = a.get()
+            assert what == "grandchild_pid"
+            backchannel.send(grandchild_pid)
+
             assert backchannel.receive() == "continue"
-            q.put(2)
+            q.put("exit!")
             p.join()
-            assert q.get() == 4
-            q.close()
-            backchannel.send("done")
 
-    with debug.Session(start_method) as parent_session:
-        parent_backchannel = parent_session.setup_backchannel()
-        parent_session.debug_options |= {"Multiprocess"}
-        parent_session.configure(run_as, code_to_debug)
-        parent_session.start_debugging()
+        def child(q, a):
+            print("entering child")
+            assert q.get() == "child_pid?"
+            a.put(("child_pid", os.getpid()))
 
-        root_start_request, = parent_session.all_occurrences_of(
-            Request("launch") | Request("attach")
-        )
-        root_process, = parent_session.all_occurrences_of(Event("process"))
-        root_pid = int(root_process.body["systemProcessId"])
+            print("spawning child of child")
+            p = multiprocessing.Process(target=grandchild, args=(q, a))
+            p.start()
+            p.join()
 
-        child_pid = parent_backchannel.receive()
+            print("leaving child")
 
-        child_subprocess = parent_session.wait_for_next(Event("ptvsd_subprocess"))
-        assert child_subprocess == Event(
-            "ptvsd_subprocess",
+        def grandchild(q, a):
+            print("entering grandchild")
+            assert q.get() == "grandchild_pid?"
+            a.put(("grandchild_pid", os.getpid()))
+
+            assert q.get() == "exit!"
+            print("leaving grandchild")
+
+        if __name__ == "__main__":
+            start_method = sys.argv[1]
+            if start_method != "":
+                multiprocessing.set_start_method(start_method)
+
+            q = multiprocessing.Queue()
+            a = multiprocessing.Queue()
+            try:
+                parent(q, a)
+            finally:
+                q.close()
+                a.close()
+
+    with debug.Session() as parent_session:
+        parent_backchannel = parent_session.open_backchannel()
+
+        with run(parent_session, target(code_to_debug, args=[start_method])):
+            pass
+
+        expected_child_config = dict(parent_session.config)
+        expected_child_config.update(
             {
-                "rootProcessId": root_pid,
-                "parentProcessId": root_pid,
-                "processId": child_pid,
+                "request": "attach",
+                "subProcessId": some.int,
+                "host": some.str,
                 "port": some.int,
-                "rootStartRequest": {
-                    "seq": some.int,
-                    "type": "request",
-                    "command": root_start_request.command,
-                    "arguments": root_start_request.arguments,
-                },
-            },
+            }
         )
+
+        child_config = parent_session.wait_for_next_event("ptvsd_attach")
+        assert child_config == expected_child_config
         parent_session.proceed()
 
-        with parent_session.attach_to_subprocess(child_subprocess) as child_session:
-            child_session.start_debugging()
+        with debug.Session(child_config) as child_session:
+            with child_session.start():
+                pass
 
-            grandchild_subprocess = parent_session.wait_for_next(
-                Event("ptvsd_subprocess")
-            )
-            assert grandchild_subprocess == Event(
-                "ptvsd_subprocess",
+            expected_grandchild_config = dict(child_session.config)
+            expected_grandchild_config.update(
                 {
-                    "rootProcessId": root_pid,
-                    "parentProcessId": child_pid,
-                    "processId": some.int,
+                    "request": "attach",
+                    "subProcessId": some.int,
+                    "host": some.str,
                     "port": some.int,
-                    "rootStartRequest": {
-                        "seq": some.int,
-                        "type": "request",
-                        "command": root_start_request.command,
-                        "arguments": root_start_request.arguments,
-                    },
-                },
+                }
             )
-            parent_session.proceed()
 
-            with parent_session.attach_to_subprocess(
-                grandchild_subprocess
-            ) as grandchild_session:
-                grandchild_session.start_debugging()
+            grandchild_config = child_session.wait_for_next_event("ptvsd_attach")
+            assert grandchild_config == expected_grandchild_config
+
+            with debug.Session(grandchild_config) as grandchild_session:
+                with grandchild_session.start():
+                    pass
 
                 parent_backchannel.send("continue")
-
-        assert parent_backchannel.receive() == "done"
 
 
 @pytest.mark.timeout(30)

@@ -12,11 +12,8 @@ from __future__ import absolute_import, print_function, unicode_literals
 # this is done in main().
 
 import collections
-import os
-import platform
 import psutil
 import sys
-import tempfile
 import time
 
 
@@ -154,15 +151,15 @@ def main(tests_pid):
                 proc.pid,
             )
 
-            if platform.system() == "Linux":
-                try:
-                    # gcore will automatically add pid to the filename
-                    core_file = os.path.join(tempfile.gettempdir(), "ptvsd_core")
-                    gcore_cmd = fmt("gcore -o {0} {1}", core_file, proc.pid)
-                    log.warning("WatchDog-{0}: {1}", tests_pid, gcore_cmd)
-                    os.system(gcore_cmd)
-                except Exception:
-                    log.exception()
+            # if platform.system() == "Linux":
+            #     try:
+            #         # gcore will automatically add pid to the filename
+            #         core_file = os.path.join(tempfile.gettempdir(), "ptvsd_core")
+            #         gcore_cmd = fmt("gcore -o {0} {1}", core_file, proc.pid)
+            #         log.warning("WatchDog-{0}: {1}", tests_pid, gcore_cmd)
+            #         os.system(gcore_cmd)
+            #     except Exception:
+            #         log.exception()
 
             try:
                 proc.kill()

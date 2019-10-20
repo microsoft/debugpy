@@ -34,19 +34,34 @@ class Component(util.Observable):
     to wait_for() a change caused by another component.
     """
 
-    def __init__(self, session, stream):
+    def __init__(self, session, stream=None, channel=None):
+        assert (stream is None) ^ (channel is None)
+
+        try:
+            lock_held = session.lock.acquire(blocking=False)
+            assert lock_held, "__init__ of a Component subclass must lock its Session"
+        finally:
+            session.lock.release()
+
         super(Component, self).__init__()
 
         self.session = session
-        stream.name = str(self)
-        self.channel = messaging.JsonMessageChannel(stream, self)
+
+        if channel is None:
+            stream.name = str(self)
+            channel = messaging.JsonMessageChannel(stream, self)
+            channel.start()
+        else:
+            channel.name = channel.stream.name = str(self)
+            channel.handlers = self
+        self.channel = channel
         self.is_connected = True
 
-        self.observers += [lambda *_: session.notify_changed()]
-        self.channel.start()
+        # Do this last to avoid triggering useless notifications for assignments above.
+        self.observers += [lambda *_: self.session.notify_changed()]
 
     def __str__(self):
-        return fmt("{0}-{1}", type(self).__name__, self.session.id)
+        return fmt("{0}[{1}]", type(self).__name__, self.session.id)
 
     @property
     def ide(self):

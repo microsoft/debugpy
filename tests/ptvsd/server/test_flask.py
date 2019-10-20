@@ -9,7 +9,7 @@ import pytest
 
 from ptvsd.common import compat
 from tests import code, debug, log, net, test_data
-from tests.debug import runners, targets
+from tests.debug import targets
 from tests.patterns import some
 
 pytestmark = pytest.mark.timeout(60)
@@ -29,12 +29,8 @@ class lines:
 
 
 @pytest.fixture
-@pytest.mark.parametrize("run", [runners.launch, runners.attach_by_socket["cli"]])
 def start_flask(run):
     def start(session, multiprocess=False):
-        if multiprocess:
-            pytest.skip("https://github.com/microsoft/ptvsd/issues/1706")
-
         # No clean way to kill Flask server, expect non-zero exit code
         session.expected_exit_code = some.int
 
@@ -49,14 +45,30 @@ def start_flask(run):
             locale = "en_US.utf8" if platform.system() == "Linux" else "en_US.UTF-8"
             session.config.env.update({"LC_ALL": locale, "LANG": locale})
 
-        session.config.update({"jinja": True, "subProcess": bool(multiprocess)})
+        session.config.update({"jinja": True, "subProcess": multiprocess})
 
-        args = ["run"]
-        if not multiprocess:
-            args += ["--no-debugger", "--no-reload", "--with-threads"]
+        args = ["run", "--no-debugger", "--with-threads"]
+        if multiprocess:
+            args += ["--reload"]
+        else:
+            args += ["--no-reload"]
         args += ["--port", str(flask_server.port)]
 
-        return run(session, targets.Module(name="flask", args=args), cwd=paths.flask1)
+        if multiprocess and run.request == "attach":
+            # For multiproc attach, we need to use a helper stub to import debug_me
+            # before running Flask; otherwise, we will get the connection only from
+            # the subprocess, not from the Flask server process.
+            target = targets.Code(
+                code=(
+                    "import debug_me, runpy;"
+                    "runpy.run_module('flask', run_name='__main__')"
+                ),
+                args=args,
+            )
+        else:
+            target = targets.Module(name="flask", args=args)
+
+        return run(session, target, cwd=paths.flask1)
 
     return start
 
@@ -208,12 +220,8 @@ def test_flask_breakpoint_multiproc(start_flask):
         with start_flask(parent_session, multiprocess=True):
             parent_session.set_breakpoints(paths.app_py, [bp_line])
 
-        child_pid = parent_session.wait_for_next_subprocess()
-        with debug.Session() as child_session:
-            # TODO: this is wrong, but we don't have multiproc attach
-            # yet, so update this when that is done
-            # https://github.com/microsoft/ptvsd/issues/1776
-            with child_session.attach_by_pid(child_pid):
+        with parent_session.wait_for_next_subprocess() as child_session:
+            with child_session.start():
                 child_session.set_breakpoints(paths.app_py, [bp_line])
 
             with flask_server:

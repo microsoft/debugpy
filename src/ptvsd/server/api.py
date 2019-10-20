@@ -117,6 +117,7 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
         host=host,
         port=port,
         suspend=False,
+        patch_multiprocessing=server_opts.multiprocess,
         wait_for_ready_to_run=False,
         block_until_connected=True,
         dont_trace_start_patterns=dont_trace_start_patterns,
@@ -127,7 +128,7 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
 
     # Ensure that we ignore the adapter process when terminating the debugger.
     pydevd.add_dont_terminate_child_pid(process.pid)
-    server_opts.port =  connection_details["adapter"]["port"]
+    server_opts.port =  connection_details["ide"]["port"]
 
     listener_file = os.getenv("PTVSD_LISTENER_FILE")
     if listener_file is not None:
