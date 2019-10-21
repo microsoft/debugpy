@@ -3202,6 +3202,24 @@ def test_access_token(case_setup):
         writer.finished_ok = True
 
 
+def test_send_json_message(case_setup):
+
+    with case_setup.test_file('_debugger_case_custom_message.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch()
+
+        json_facade.write_make_initial_run()
+
+        json_facade.wait_for_json_message(
+            OutputEvent, lambda msg: msg.body.category == 'my_category' and msg.body.output == 'some output')
+
+        json_facade.wait_for_json_message(
+            OutputEvent, lambda msg: msg.body.category == 'my_category2' and msg.body.output == 'some output 2')
+
+        writer.finished_ok = True
+
+
 if __name__ == '__main__':
     pytest.main(['-k', 'test_case_skipping_filters', '-s'])
 

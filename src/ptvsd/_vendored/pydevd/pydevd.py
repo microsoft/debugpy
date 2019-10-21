@@ -54,7 +54,7 @@ from _pydevd_frame_eval.pydevd_frame_eval_main import (
     frame_eval_func, dummy_trace_dispatch)
 import pydev_ipython  # @UnusedImport
 from _pydevd_bundle.pydevd_source_mapping import SourceMapping
-from pydevd_concurrency_analyser.pydevd_concurrency_logger import ThreadingLogger, AsyncioLogger, send_message, cur_time
+from pydevd_concurrency_analyser.pydevd_concurrency_logger import ThreadingLogger, AsyncioLogger, send_concurrency_message, cur_time
 from pydevd_concurrency_analyser.pydevd_thread_wrappers import wrap_threads
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame, NORM_PATHS_AND_BASE_CONTAINER, get_abs_path_real_path_and_base_from_file
 from pydevd_file_utils import get_fullname, rPath, get_package_dir
@@ -69,6 +69,7 @@ from _pydevd_bundle.pydevd_comm import(InternalConsoleExec,
 
 from _pydevd_bundle.pydevd_process_net_command_json import PyDevJsonCommandProcessor
 from _pydevd_bundle.pydevd_process_net_command import process_net_command
+from _pydevd_bundle.pydevd_net_command import NetCommand
 
 from _pydevd_bundle.pydevd_breakpoints import stop_on_unhandled_exception
 from _pydevd_bundle.pydevd_collect_try_except_info import collect_try_except_info
@@ -2126,11 +2127,11 @@ class PyDB(object):
         if self.thread_analyser is not None:
             wrap_threads()
             self.thread_analyser.set_start_time(cur_time())
-            send_message("threading_event", 0, t.getName(), thread_id, "thread", "start", file, 1, None, parent=thread_id)
+            send_concurrency_message("threading_event", 0, t.getName(), thread_id, "thread", "start", file, 1, None, parent=thread_id)
 
         if self.asyncio_analyser is not None:
             # we don't have main thread in asyncio graph, so we should add a fake event
-            send_message("asyncio_event", 0, "Task", "Task", "thread", "stop", file, 1, frame=None, parent=None)
+            send_concurrency_message("asyncio_event", 0, "Task", "Task", "thread", "stop", file, 1, frame=None, parent=None)
 
         try:
             if INTERACTIVE_MODE_AVAILABLE:
@@ -2234,6 +2235,29 @@ def add_dap_messages_listener(dap_messages_listener):
         raise AssertionError('PyDB is still not setup.')
 
     py_db.add_dap_messages_listener(dap_messages_listener)
+
+
+def send_json_message(msg):
+    '''
+    API to send some custom json message.
+
+    :param dict|pydevd_schema.BaseSchema msg:
+        The custom message to be sent.
+
+    :return bool:
+        True if the message was added to the queue to be sent and False otherwise.
+    '''
+    py_db = get_global_debugger()
+    if py_db is None:
+        return False
+
+    writer = py_db.writer
+    if writer is None:
+        return False
+
+    cmd = NetCommand(-1, 0, msg, is_json=True)
+    writer.add_command(cmd)
+    return True
 
 
 def set_debug(setup):

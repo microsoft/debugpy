@@ -79,7 +79,7 @@ def get_text_list_for_frame(frame):
     return cmdTextList
 
 
-def send_message(event_class, time, name, thread_id, type, event, file, line, frame, lock_id=0, parent=None):
+def send_concurrency_message(event_class, time, name, thread_id, type, event, file, line, frame, lock_id=0, parent=None):
     dbg = GlobalDebuggerHolder.global_dbg
     if dbg is None:
         return
@@ -109,7 +109,7 @@ def send_message(event_class, time, name, thread_id, type, event, file, line, fr
 
 def log_new_thread(global_debugger, t):
     event_time = cur_time() - global_debugger.thread_analyser.start_time
-    send_message("threading_event", event_time, t.getName(), get_thread_id(t), "thread",
+    send_concurrency_message("threading_event", event_time, t.getName(), get_thread_id(t), "thread",
              "start", "code_name", 0, None, parent=get_thread_id(t))
 
 
@@ -171,7 +171,7 @@ class ThreadingLogger:
 
                         if real_method == "start":
                             parent = get_thread_id(t)
-                        send_message("threading_event", event_time, name, thread_id, "thread",
+                        send_concurrency_message("threading_event", event_time, name, thread_id, "thread",
                         real_method, back.f_code.co_filename, back.f_lineno, back, parent=parent)
                         # print(event_time, self_obj.getName(), thread_id, "thread",
                         #       real_method, back.f_code.co_filename, back.f_lineno)
@@ -191,7 +191,7 @@ class ThreadingLogger:
                                     send_massage = False
                                     # we can't detect stop after join in Python 2 yet
                                 if send_massage:
-                                    send_message("threading_event", event_time, "Thread", my_thread_id, "thread",
+                                    send_concurrency_message("threading_event", event_time, "Thread", my_thread_id, "thread",
                                                  "stop", my_back.f_code.co_filename, my_back.f_lineno, my_back, parent=None)
 
                 if self_obj.__class__ == ObjectWrapper:
@@ -204,7 +204,7 @@ class ThreadingLogger:
                         # back_back_base is the file, where the method was called froms
                         return
                     if method_name == "__init__":
-                        send_message("threading_event", event_time, t.getName(), get_thread_id(t), "lock",
+                        send_concurrency_message("threading_event", event_time, t.getName(), get_thread_id(t), "lock",
                                      method_name, back.f_code.co_filename, back.f_lineno, back, lock_id=str(id(frame.f_locals["self"])))
                     if "attr" in frame.f_locals and \
                             (frame.f_locals["attr"] in LOCK_METHODS or
@@ -219,12 +219,12 @@ class ThreadingLogger:
                         if real_method == "release_end":
                             # do not log release end. Maybe use it later
                             return
-                        send_message("threading_event", event_time, t.getName(), get_thread_id(t), "lock",
+                        send_concurrency_message("threading_event", event_time, t.getName(), get_thread_id(t), "lock",
                         real_method, back.f_code.co_filename, back.f_lineno, back, lock_id=str(id(self_obj)))
 
                         if real_method in ("put_end", "get_end"):
                             # fake release for queue, cause we don't call it directly
-                            send_message("threading_event", event_time, t.getName(), get_thread_id(t), "lock",
+                            send_concurrency_message("threading_event", event_time, t.getName(), get_thread_id(t), "lock",
                                          "release", back.f_code.co_filename, back.f_lineno, back, lock_id=str(id(self_obj)))
                         # print(event_time, t.getName(), get_thread_id(t), "lock",
                         #       real_method, back.f_code.co_filename, back.f_lineno)
@@ -284,14 +284,14 @@ class AsyncioLogger:
                 if method_name == "set_result":
                     task_id = id(self_obj)
                     task_name = self.task_mgr.get(str(task_id))
-                    send_message("asyncio_event", event_time, task_name, task_name, "thread", "stop", frame.f_code.co_filename,
+                    send_concurrency_message("asyncio_event", event_time, task_name, task_name, "thread", "stop", frame.f_code.co_filename,
                                  frame.f_lineno, frame)
 
                 method_name = back.f_code.co_name
                 if method_name == "__init__":
                     task_id = id(self_obj)
                     task_name = self.task_mgr.get(str(task_id))
-                    send_message("asyncio_event", event_time, task_name, task_name, "thread", "start", frame.f_code.co_filename,
+                    send_concurrency_message("asyncio_event", event_time, task_name, task_name, "thread", "start", frame.f_code.co_filename,
                                  frame.f_lineno, frame)
 
             method_name = frame.f_code.co_name
@@ -302,7 +302,7 @@ class AsyncioLogger:
 
                     if method_name == "acquire":
                         if not self_obj._waiters and not self_obj.locked():
-                            send_message("asyncio_event", event_time, task_name, task_name, "lock",
+                            send_concurrency_message("asyncio_event", event_time, task_name, task_name, "lock",
                                          method_name + "_begin", frame.f_code.co_filename, frame.f_lineno, frame, lock_id=str(id(self_obj)))
                         if self_obj.locked():
                             method_name += "_begin"
@@ -311,7 +311,7 @@ class AsyncioLogger:
                     elif method_name == "release":
                         method_name += "_end"
 
-                    send_message("asyncio_event", event_time, task_name, task_name, "lock",
+                    send_concurrency_message("asyncio_event", event_time, task_name, task_name, "lock",
                                  method_name, frame.f_code.co_filename, frame.f_lineno, frame, lock_id=str(id(self_obj)))
 
             if isinstance(self_obj, asyncio.Queue):
@@ -320,20 +320,20 @@ class AsyncioLogger:
                     task_name = self.task_mgr.get(str(task_id))
 
                     if method_name == "put":
-                        send_message("asyncio_event", event_time, task_name, task_name, "lock",
+                        send_concurrency_message("asyncio_event", event_time, task_name, task_name, "lock",
                                      "acquire_begin", frame.f_code.co_filename, frame.f_lineno, frame, lock_id=str(id(self_obj)))
                     elif method_name == "_put":
-                        send_message("asyncio_event", event_time, task_name, task_name, "lock",
+                        send_concurrency_message("asyncio_event", event_time, task_name, task_name, "lock",
                                      "acquire_end", frame.f_code.co_filename, frame.f_lineno, frame, lock_id=str(id(self_obj)))
-                        send_message("asyncio_event", event_time, task_name, task_name, "lock",
+                        send_concurrency_message("asyncio_event", event_time, task_name, task_name, "lock",
                                      "release", frame.f_code.co_filename, frame.f_lineno, frame, lock_id=str(id(self_obj)))
                     elif method_name == "get":
                         back = frame.f_back
                         if back.f_code.co_name != "send":
-                            send_message("asyncio_event", event_time, task_name, task_name, "lock",
+                            send_concurrency_message("asyncio_event", event_time, task_name, task_name, "lock",
                                          "acquire_begin", frame.f_code.co_filename, frame.f_lineno, frame, lock_id=str(id(self_obj)))
                         else:
-                            send_message("asyncio_event", event_time, task_name, task_name, "lock",
+                            send_concurrency_message("asyncio_event", event_time, task_name, task_name, "lock",
                                          "acquire_end", frame.f_code.co_filename, frame.f_lineno, frame, lock_id=str(id(self_obj)))
-                            send_message("asyncio_event", event_time, task_name, task_name, "lock",
+                            send_concurrency_message("asyncio_event", event_time, task_name, task_name, "lock",
                                          "release", frame.f_code.co_filename, frame.f_lineno, frame, lock_id=str(id(self_obj)))
