@@ -65,7 +65,7 @@ matrix:
         - PYDEVD_USE_CYTHON=YES
         - PYDEVD_TEST_VM=CPYTHON
        
-    - python: 3.8-dev
+    - python: 3.8
       env:
         - PYDEVD_PYTHON_VERSION=3.8
         - PYDEVD_USE_CYTHON=YES
