@@ -501,7 +501,11 @@ class DebuggerRunner(object):
 
             if not writer.finished_ok:
                 self.fail_with_message(
-                    "The thread that was doing the tests didn't finish successfully.", stdout, stderr, writer)
+                    "The thread that was doing the tests didn't finish successfully (writer.finished_ok = True not set).",
+                    stdout,
+                    stderr,
+                    writer
+                )
 
             while True:
                 if process.poll() is not None:

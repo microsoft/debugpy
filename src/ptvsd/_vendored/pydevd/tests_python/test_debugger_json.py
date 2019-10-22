@@ -2984,6 +2984,30 @@ def test_no_subprocess_patching(case_setup_multiprocessing, apply_multiprocessin
         writer.finished_ok = True
 
 
+def test_module_crash(case_setup):
+    with case_setup.test_file('_debugger_case_module.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'))
+
+        json_facade.write_make_initial_run()
+
+        stopped_event = json_facade.wait_for_json_message(StoppedEvent)
+        thread_id = stopped_event.body.threadId
+
+        json_facade.write_request(
+            pydevd_schema.StackTraceRequest(pydevd_schema.StackTraceArguments(threadId=thread_id)))
+
+        module_event = json_facade.wait_for_json_message(ModuleEvent)  # : :type module_event: ModuleEvent
+        assert 'MyName' in module_event.body.module.name
+        assert 'MyVersion' in module_event.body.module.version
+        assert 'MyPackage' in module_event.body.module.kwargs['package']
+
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
 def test_pydevd_systeminfo(case_setup):
     with case_setup.test_file('_debugger_case_print.py') as writer:
         json_facade = JsonFacade(writer)
