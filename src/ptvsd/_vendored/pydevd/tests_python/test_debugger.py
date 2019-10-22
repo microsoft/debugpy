@@ -1925,10 +1925,16 @@ def test_redirect_output(case_setup):
         def _ignore_stderr_line(line):
             if original_ignore_stderr_line(line):
                 return True
+
+            binary_junk = b'\xe8\xF0\x80\x80\x80'
+            if sys.version_info[0] >= 3:
+                binary_junk = binary_junk.decode('utf-8', 'replace')
+
             return line.startswith((
                 'text',
                 'binary',
-                'a'
+                'a',
+                binary_junk,
             ))
 
         writer._ignore_stderr_line = _ignore_stderr_line
@@ -1947,6 +1953,11 @@ def test_redirect_output(case_setup):
                 'ação2\n'.encode(encoding='latin1').decode('utf-8', 'replace'),
                 'ação3\n',
             ))
+
+        binary_junk = '\xef\xbf\xbd\xef\xbf\xbd\xef\xbf\xbd\n\n'
+        if sys.version_info[0] >= 3:
+            binary_junk = "\ufffd\ufffd\ufffd\ufffd\ufffd\n\n"
+        expected.append(binary_junk)
 
         new_expected = [(x, 'stdout') for x in expected]
         new_expected.extend([(x, 'stderr') for x in expected])

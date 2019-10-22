@@ -2280,7 +2280,10 @@ class _CustomWriter(object):
             If not passed the default implementation will create an io message
             and send it through the debugger.
         '''
-        self.encoding = getattr(wrap_stream, 'encoding', os.environ.get('PYTHONIOENCODING', 'utf-8'))
+        encoding = getattr(wrap_stream, 'encoding', None)
+        if not encoding:
+            encoding = os.environ.get('PYTHONIOENCODING', 'utf-8')
+        self.encoding = encoding
         self._out_ctx = out_ctx
         if wrap_buffer:
             self.buffer = _CustomWriter(out_ctx, wrap_stream, wrap_buffer=False, on_write=on_write)
@@ -2296,10 +2299,13 @@ class _CustomWriter(object):
 
         if s:
             if IS_PY2:
-                # Need s in bytes
+                # Need s in utf-8 bytes
                 if isinstance(s, unicode):  # noqa
                     # Note: python 2.6 does not accept the "errors" keyword.
                     s = s.encode('utf-8', 'replace')
+                else:
+                    s = s.decode(self.encoding, 'replace').encode('utf-8', 'replace')
+
             else:
                 # Need s in str
                 if isinstance(s, bytes):
