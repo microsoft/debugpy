@@ -1215,6 +1215,62 @@ def test_evaluate_unicode(case_setup):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(IS_PY26, reason='Not ok on Python 2.6.')
+def test_evaluate_exec_unicode(case_setup):
+
+    def get_environ(writer):
+        env = os.environ.copy()
+
+        env["PYTHONIOENCODING"] = 'utf-8'
+        return env
+
+    with case_setup.test_file('_debugger_case_local_variables2.py', get_environ=get_environ) as writer:
+        json_facade = JsonFacade(writer)
+        writer.write_start_redirect()
+
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'))
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        json_hit = json_facade.get_stack_as_json_hit(json_hit.thread_id)
+
+        # Check eval
+        json_facade.evaluate(
+            "print(u'中')",
+            frameId=json_hit.frame_id,
+            context="repl",
+        )
+
+        messages = json_facade.mark_messages(
+            OutputEvent, lambda output_event: u'中' in output_event.body.output)
+        assert len(messages) == 1
+
+        # Check exec
+        json_facade.evaluate(
+            "a=10;print(u'中')",
+            frameId=json_hit.frame_id,
+            context="repl",
+        )
+
+        messages = json_facade.mark_messages(
+            OutputEvent, lambda output_event: u'中' in output_event.body.output)
+        assert len(messages) == 1
+
+        response = json_facade.evaluate(
+            "u'中'",
+            frameId=json_hit.frame_id,
+            context="repl",
+        )
+        assert response.body.result in ("u'\\u4e2d'", "'\u4e2d'")  # py2 or py3
+
+        messages = json_facade.mark_messages(
+            OutputEvent, lambda output_event: u'中' in output_event.body.output)
+        assert len(messages) == 0  # i.e.: we don't print in this case.
+
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
 def test_evaluate_variable_references(case_setup):
     from _pydevd_bundle._debug_adapter.pydevd_schema import EvaluateRequest
     from _pydevd_bundle._debug_adapter.pydevd_schema import EvaluateArguments

@@ -954,7 +954,7 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
 
     if IS_PY2 and isinstance(expression, unicode):
         try:
-            expression = expression.encode('utf-8')
+            expression.encode('utf-8')
         except:
             _evaluate_response(py_db, request, '', error_message='Expression is not valid utf-8.')
             raise

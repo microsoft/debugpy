@@ -2,10 +2,12 @@
     resolution/conversion to XML.
 """
 import pickle
-from _pydevd_bundle.pydevd_constants import get_frame, get_current_thread_id, xrange
+from _pydevd_bundle.pydevd_constants import get_frame, get_current_thread_id, xrange, IS_PY2
 
 from _pydevd_bundle.pydevd_xml import ExceptionOnEvaluate, get_type, var_to_xml
 from _pydev_bundle import pydev_log
+import codecs
+import os
 
 try:
     from StringIO import StringIO
@@ -203,10 +205,21 @@ def custom_operation(dbg, thread_id, frame_id, scope, attrs, style, code_or_file
         pydev_log.exception()
 
 
+def _expression_to_evaluate(expression):
+    if IS_PY2 and isinstance(expression, unicode):
+        # In Python 2 we need to compile with bytes and not unicode (otherwise it'd use
+        # the default encoding which could be ascii).
+        # See https://github.com/microsoft/ptvsd/issues/1864 and https://bugs.python.org/issue18870
+        # for why we're using the utf-8 bom.
+        # i.e.: ... if an utf-8 bom is present, it is considered utf-8 in eval/exec.
+        expression = codecs.BOM_UTF8 + expression.encode('utf-8')
+    return expression
+
+
 def eval_in_context(expression, globals, locals):
     result = None
     try:
-        result = eval(expression, globals, locals)
+        result = eval(_expression_to_evaluate(expression), globals, locals)
     except Exception:
         s = StringIO()
         traceback.print_exc(file=s)
@@ -225,6 +238,9 @@ def eval_in_context(expression, globals, locals):
 
         # Ok, we have the initial error message, but let's see if we're dealing with a name mangling error...
         try:
+            if IS_PY2 and isinstance(expression, unicode):
+                expression = expression.encode('utf-8')
+
             if '__' in expression:
                 # Try to handle '__' name mangling...
                 split = expression.split('.')
@@ -255,19 +271,28 @@ def evaluate_expression(dbg, frame, expression, is_exec):
     updated_globals.update(frame.f_locals)  # locals later because it has precedence over the actual globals
 
     try:
-        expression = str(expression.replace('@LINE@', '\n'))
+
+        if IS_PY2 and isinstance(expression, unicode):
+            expression = expression.replace(u'@LINE@', u'\n')
+        else:
+            expression = expression.replace('@LINE@', '\n')
 
         if is_exec:
             try:
                 # try to make it an eval (if it is an eval we can print it, otherwise we'll exec it and
                 # it will have whatever the user actually did)
-                compiled = compile(expression, '<string>', 'eval')
+                compiled = compile(_expression_to_evaluate(expression), '<string>', 'eval')
             except:
-                Exec(expression, updated_globals, frame.f_locals)
+                Exec(_expression_to_evaluate(expression), updated_globals, frame.f_locals)
                 pydevd_save_locals.save_locals(frame)
             else:
                 result = eval(compiled, updated_globals, frame.f_locals)
                 if result is not None:  # Only print if it's not None (as python does)
+                    if IS_PY2 and isinstance(result, unicode):
+                        encoding = sys.stdout.encoding
+                        if not encoding:
+                            encoding = os.environ.get('PYTHONIOENCODING', 'utf-8')
+                        result = result.encode(encoding, 'replace')
                     sys.stdout.write('%s\n' % (result,))
             return
 
