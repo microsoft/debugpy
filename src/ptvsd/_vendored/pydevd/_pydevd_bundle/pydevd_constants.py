@@ -586,19 +586,23 @@ def call_only_once(func):
 # Protocol where each line is a new message (text is quoted to prevent new lines).
 # payload is xml
 QUOTED_LINE_PROTOCOL = 'quoted-line'
+ARGUMENT_QUOTED_LINE_PROTOCOL = 'protocol-quoted-line'
 
 # Uses http protocol to provide a new message.
 # i.e.: Content-Length:xxx\r\n\r\npayload
 # payload is xml
 HTTP_PROTOCOL = 'http'
+ARGUMENT_HTTP_PROTOCOL = 'protocol-http'
 
 # Message is sent without any header.
 # payload is json
 JSON_PROTOCOL = 'json'
+ARGUMENT_JSON_PROTOCOL = 'json-dap'
 
 # Same header as the HTTP_PROTOCOL
 # payload is json
 HTTP_JSON_PROTOCOL = 'http_json'
+ARGUMENT_HTTP_JSON_PROTOCOL = 'json-dap-http'
 
 
 class _GlobalSettings:

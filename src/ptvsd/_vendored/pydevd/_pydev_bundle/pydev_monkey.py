@@ -36,14 +36,44 @@ def _get_apply_arg_patching():
     return getattr(_arg_patch, 'apply_arg_patching', True)
 
 
+def _get_setup_updated_with_protocol(setup):
+    if setup is None:
+        setup = {}
+    setup = setup.copy()
+    # Discard anything related to the protocol (we'll set the the protocol based on the one
+    # currently set).
+    setup.pop(pydevd_constants.ARGUMENT_HTTP_JSON_PROTOCOL, None)
+    setup.pop(pydevd_constants.ARGUMENT_JSON_PROTOCOL, None)
+    setup.pop(pydevd_constants.ARGUMENT_QUOTED_LINE_PROTOCOL, None)
+    setup.pop(pydevd_constants.ARGUMENT_HTTP_PROTOCOL, None)
+
+    protocol = pydevd_constants.get_protocol()
+    if protocol == pydevd_constants.HTTP_JSON_PROTOCOL:
+        setup[pydevd_constants.ARGUMENT_HTTP_JSON_PROTOCOL] = True
+
+    elif protocol == pydevd_constants.JSON_PROTOCOL:
+        setup[pydevd_constants.ARGUMENT_JSON_PROTOCOL] = True
+
+    elif protocol == pydevd_constants.QUOTED_LINE_PROTOCOL:
+        setup[pydevd_constants.ARGUMENT_QUOTED_LINE_PROTOCOL] = True
+
+    elif protocol == pydevd_constants.HTTP_PROTOCOL:
+        setup[pydevd_constants.ARGUMENT_HTTP_PROTOCOL] = True
+
+    else:
+        pydev_log.debug('Unexpected protocol: %s', protocol)
+    return setup
+
+
 def _get_python_c_args(host, port, indC, args, setup):
-    host_literal = "'" + host + "'" if host is not None else 'None'
-    return ("import sys; sys.path.append(r'%s'); import pydevd; "
-            "pydevd.settrace(host=%s, port=%s, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True); "
+    setup = _get_setup_updated_with_protocol(setup)
+    return ("import sys; sys.path.append(r'%s'); import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL=%r;"
+            "pydevd.settrace(host=%r, port=%s, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True); "
             "from pydevd import SetupHolder; SetupHolder.setup = %s; %s"
             ) % (
                pydev_src_dir,
-               host_literal,
+               pydevd_constants.get_protocol(),
+               host,
                port,
                setup,
                args[indC + 1])
@@ -210,7 +240,7 @@ def patch_args(args):
         # ['X:\\pysrc\\pydevd.py', '--multiprocess', '--print-in-debugger-startup',
         #  '--vm_type', 'python', '--client', '127.0.0.1', '--port', '56352', '--file', 'x:\\snippet1.py']
         from _pydevd_bundle.pydevd_command_line_handling import setup_to_argv
-        original = setup_to_argv(SetupHolder.setup) + ['--file']
+        original = setup_to_argv(_get_setup_updated_with_protocol(SetupHolder.setup)) + ['--file']
         while i < len(args):
             if args[i] == '-m':
                 # Always insert at pos == 1 (i.e.: pydevd "--module" --multiprocess ...)

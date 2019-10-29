@@ -25,7 +25,7 @@ from _pydev_bundle.pydev_override import overrides
 from _pydev_imps._pydev_saved_modules import thread
 from _pydev_imps._pydev_saved_modules import threading
 from _pydev_imps._pydev_saved_modules import time
-from _pydevd_bundle import pydevd_extension_utils, pydevd_frame_utils
+from _pydevd_bundle import pydevd_extension_utils, pydevd_frame_utils, pydevd_constants
 from _pydevd_bundle.pydevd_filtering import FilesFiltering
 from _pydevd_bundle import pydevd_io, pydevd_vm_type
 from _pydevd_bundle import pydevd_utils
@@ -41,7 +41,7 @@ from _pydevd_bundle.pydevd_constants import (IS_JYTH_LESS25, get_thread_id, get_
     clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, IS_PY34_OR_GREATER, IS_PY2, NULL,
     NO_FTRACE, IS_IRONPYTHON, JSON_PROTOCOL, IS_CPYTHON, HTTP_JSON_PROTOCOL, USE_CUSTOM_SYS_CURRENT_FRAMES_MAP, call_only_once,
     ForkSafeLock)
-from _pydevd_bundle.pydevd_defaults import PydevdCustomization
+from _pydevd_bundle.pydevd_defaults import PydevdCustomization  # Note: import alias used on pydev_monkey.
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
 from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE, LIB_FILE
 from _pydevd_bundle.pydevd_extension_api import DebuggerEventHandler
@@ -2910,6 +2910,7 @@ for handler in pydevd_extension_utils.extensions_of_type(DebuggerEventHandler):
 def main():
 
     # parse the command line. --file is our last argument that is required
+    pydev_log.debug("Initial arguments: %s", (sys.argv,))
     try:
         from _pydevd_bundle.pydevd_command_line_handling import process_command_line
         setup = process_command_line(sys.argv)
@@ -2925,8 +2926,8 @@ def main():
             pid = ''
         sys.stderr.write("pydev debugger: starting%s\n" % pid)
 
-    pydev_log.debug("Executing file %s" % setup['file'])
-    pydev_log.debug("arguments: %s" % str(sys.argv))
+    pydev_log.debug("Executing file %s", setup['file'])
+    pydev_log.debug("arguments: %s", (sys.argv,))
 
     pydevd_vm_type.setup_type(setup.get('vm_type', None))
 
@@ -2964,7 +2965,7 @@ def main():
                 dispatcher.connect(host, port)
                 if dispatcher.port is not None:
                     port = dispatcher.port
-                    pydev_log.debug("Received port %d\n" % port)
+                    pydev_log.debug("Received port %d\n", port)
                     pydev_log.info("pydev debugger: process %d is connecting\n" % os.getpid())
 
                     try:
@@ -3036,11 +3037,17 @@ def main():
     is_module = setup['module']
     patch_stdin()
 
-    if setup['json-dap']:
+    if setup[pydevd_constants.ARGUMENT_JSON_PROTOCOL]:
         PyDevdAPI().set_protocol(debugger, 0, JSON_PROTOCOL)
 
-    elif setup['json-dap-http']:
+    elif setup[pydevd_constants.ARGUMENT_HTTP_JSON_PROTOCOL]:
         PyDevdAPI().set_protocol(debugger, 0, HTTP_JSON_PROTOCOL)
+
+    elif setup[pydevd_constants.ARGUMENT_HTTP_PROTOCOL]:
+        PyDevdAPI().set_protocol(debugger, 0, pydevd_constants.HTTP_PROTOCOL)
+
+    elif setup[pydevd_constants.ARGUMENT_QUOTED_LINE_PROTOCOL]:
+        PyDevdAPI().set_protocol(debugger, 0, pydevd_constants.QUOTED_LINE_PROTOCOL)
 
     access_token = setup['access-token']
     if access_token:

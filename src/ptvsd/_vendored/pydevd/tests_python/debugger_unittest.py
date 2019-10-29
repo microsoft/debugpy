@@ -459,6 +459,7 @@ class DebuggerRunner(object):
 
         env['PYDEVD_DEBUG'] = 'True'
         env['PYDEVD_DEBUG_FILE'] = self.pydevd_debug_file
+        print('Logging to: %s' % (self.pydevd_debug_file,))
         process = subprocess.Popen(
             args,
             stdout=subprocess.PIPE,

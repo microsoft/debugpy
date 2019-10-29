@@ -65,8 +65,13 @@ ACCEPTED_ARG_HANDLERS = [
     ArgHandlerBool('print-in-debugger-startup'),
     ArgHandlerBool('cmd-line'),
     ArgHandlerBool('module'),
+
+    # The ones below should've been just one setting to specify the protocol, but for compatibility
+    # reasons they're passed as a flag but are mutually exclusive.
     ArgHandlerBool('json-dap'),  # Protocol used by ptvsd to communicate with pydevd (a single json message in each read)
     ArgHandlerBool('json-dap-http'),  # Actual DAP (json messages over http protocol).
+    ArgHandlerBool('protocol-quoted-line'),  # Custom protocol with quoted lines.
+    ArgHandlerBool('protocol-http'),  # Custom protocol with http.
 ]
 
 ARGV_REP_TO_HANDLER = {}

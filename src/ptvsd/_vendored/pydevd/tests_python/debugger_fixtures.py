@@ -324,6 +324,7 @@ def case_setup_remote(debugger_runner_remote):
                 wait_for_port=True,
                 access_token=None,
                 ide_access_token=None,
+                append_command_line_args=(),
                 **kwargs
             ):
 
@@ -338,6 +339,8 @@ def case_setup_remote(debugger_runner_remote):
                 if ide_access_token is not None:
                     ret.append('--ide-access-token')
                     ret.append(ide_access_token)
+
+                ret.extend(append_command_line_args)
                 return ret
 
             WriterThread.TEST_FILE = debugger_unittest._get_debugger_test_file(filename)
