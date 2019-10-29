@@ -24,8 +24,7 @@ from _pydevd_bundle.pydevd_breakpoints import LineBreakpoint
 from pydevd_tracing import get_exception_traceback_str
 import os
 import subprocess
-import time
-from _pydev_bundle.pydev_is_thread_alive import is_thread_alive
+import ctypes
 
 try:
     import dis
@@ -808,32 +807,42 @@ class PyDevdAPI(object):
         self.reapply_breakpoints(py_db)
         return ''
 
+    def get_ppid(self):
+        '''
+        Provides the parent pid (even for older versions of Python on Windows).
+        '''
+        ppid = None
+
+        try:
+            ppid = os.getppid()
+        except AttributeError:
+            pass
+
+        if ppid is None and IS_WINDOWS:
+            ppid = self._get_windows_ppid()
+
+        return ppid
+
+    def _get_windows_ppid(self):
+        this_pid = os.getpid()
+        for ppid, pid in _list_ppid_and_pid():
+            if pid == this_pid:
+                return ppid
+
+        return None
+
     def _terminate_child_processes_windows(self, dont_terminate_child_pids):
         this_pid = os.getpid()
         for _ in range(50):  # Try this at most 50 times before giving up.
 
             # Note: we can't kill the process itself with taskkill, so, we
             # list immediate children, kill that tree and then exit this process.
-            list_popen = self._popen(
-                ['wmic', 'process', 'where', '(ParentProcessId=%s)' % (this_pid,), 'get', 'ProcessId'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT
-            )
-            if list_popen is None:
-                break  # We couldn't create the process.
 
-            stdout, _ = list_popen.communicate()
             children_pids = []
-            for line in stdout.splitlines():
-                line = line.strip()
-                if line and line != b'ProcessId':
-                    try:
-                        pid = int(line)
-                    except ValueError:
-                        pass
-                    else:
-                        if pid != list_popen.pid and pid not in dont_terminate_child_pids:
-                            children_pids.append(pid)
+            for ppid, pid in _list_ppid_and_pid():
+                if ppid == this_pid:
+                    if pid not in dont_terminate_child_pids:
+                        children_pids.append(pid)
 
             if not children_pids:
                 break
@@ -943,3 +952,36 @@ class PyDevdAPI(object):
         py_db.terminate_requested = True
         run_as_pydevd_daemon_thread(py_db, self._terminate_if_commands_processed, py_db)
 
+
+def _list_ppid_and_pid():
+    _TH32CS_SNAPPROCESS = 0x00000002
+
+    class PROCESSENTRY32(ctypes.Structure):
+        _fields_ = [("dwSize", ctypes.c_ulong),
+                    ("cntUsage", ctypes.c_ulong),
+                    ("th32ProcessID", ctypes.c_ulong),
+                    ("th32DefaultHeapID", ctypes.c_ulong),
+                    ("th32ModuleID", ctypes.c_ulong),
+                    ("cntThreads", ctypes.c_ulong),
+                    ("th32ParentProcessID", ctypes.c_ulong),
+                    ("pcPriClassBase", ctypes.c_ulong),
+                    ("dwFlags", ctypes.c_ulong),
+                    ("szExeFile", ctypes.c_char * 260)]
+
+    kernel32 = ctypes.windll.kernel32
+    snapshot = kernel32.CreateToolhelp32Snapshot(_TH32CS_SNAPPROCESS, 0)
+    ppid_and_pids = []
+    try:
+        process_entry = PROCESSENTRY32()
+        process_entry.dwSize = ctypes.sizeof(PROCESSENTRY32)
+        if not kernel32.Process32First(snapshot, ctypes.byref(process_entry)):
+            pydev_log.critical('Process32First failed (getting process from CreateToolhelp32Snapshot).')
+        else:
+            while True:
+                ppid_and_pids.append((process_entry.th32ParentProcessID, process_entry.th32ProcessID))
+                if not kernel32.Process32Next(snapshot, ctypes.byref(process_entry)):
+                    break
+    finally:
+        kernel32.CloseHandle(snapshot)
+        
+    return ppid_and_pids

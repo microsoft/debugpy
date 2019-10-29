@@ -969,10 +969,7 @@ class PyDevJsonCommandProcessor(object):
         except AttributeError:
             pid = None
 
-        try:
-            ppid = os.getppid()
-        except AttributeError:
-            ppid = None
+        ppid = self.api.get_ppid()
 
         try:
             impl_desc = platform.python_implementation()

@@ -4,8 +4,9 @@ from _pydevd_bundle.pydevd_comm import pydevd_find_thread_by_id
 from _pydevd_bundle.pydevd_utils import convert_dap_log_message_to_expression
 from tests_python.debug_constants import IS_PY26, IS_PY3K
 import sys
-from _pydevd_bundle.pydevd_constants import IS_CPYTHON
+from _pydevd_bundle.pydevd_constants import IS_CPYTHON, IS_WINDOWS
 import pytest
+import os
 
 
 def test_is_main_thread():
@@ -305,7 +306,6 @@ def test_find_main_thread_id():
     _check_in_separate_process('check_fix_main_thread_id_multiple_threads', '_pydevd_test_find_main_thread_id')
 
     import subprocess
-    import os
     import pydevd
     cwd, environ = _build_launch_env()
 
@@ -322,3 +322,17 @@ def test_find_main_thread_id():
         env=environ,
         cwd=cwd
     )
+
+
+@pytest.mark.skipif(not IS_WINDOWS, reason='Windows-only test.')
+def test_get_ppid():
+    from _pydevd_bundle.pydevd_api import PyDevdAPI
+    api = PyDevdAPI()
+    if IS_PY3K:
+        # On python 3 we can check that our internal api which is used for Python 2 gives the
+        # same result as os.getppid.
+        ppid = os.getppid()
+        assert api._get_windows_ppid() == ppid
+    else:
+        assert api._get_windows_ppid() is not None
+
