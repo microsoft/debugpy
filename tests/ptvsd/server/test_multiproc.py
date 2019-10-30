@@ -135,9 +135,7 @@ def test_multiprocessing(pyfile, target, run, start_method):
 
 
 @pytest.mark.timeout(30)
-@pytest.mark.skipif(
-    sys.version_info < (3, 0) and (platform.system() != "Windows"), reason="Bug #935"
-)
+@pytest.mark.skip("Needs refactoring to use the new debug.Session API")
 @pytest.mark.parametrize(
     "start_method", [runners.launch, runners.attach_by_socket["cli"]]
 )
@@ -204,9 +202,7 @@ def test_subprocess(pyfile, start_method, run_as):
 
 
 @pytest.mark.timeout(30)
-@pytest.mark.skipif(
-    sys.version_info < (3, 0) and (platform.system() != "Windows"), reason="Bug #935"
-)
+@pytest.mark.skip("Needs refactoring to use the new debug.Session API")
 @pytest.mark.parametrize(
     "start_method", [runners.launch, runners.attach_by_socket["cli"]]
 )
@@ -261,9 +257,7 @@ def test_autokill(pyfile, start_method, run_as):
                 parent_backchannel.send(None)
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 0) and (platform.system() != "Windows"), reason="Bug #935"
-)
+@pytest.mark.skip("Needs refactoring to use the new debug.Session API")
 def test_argv_quoting(pyfile, start_method, run_as):
     @pyfile
     def args():
@@ -316,6 +310,7 @@ def test_argv_quoting(pyfile, start_method, run_as):
         assert expected_args == actual_args
 
 
+@pytest.mark.skip("Needs refactoring to use the new debug.Session API")
 def test_echo_and_shell(pyfile, run_as, start_method):
     """
     Checks https://github.com/microsoft/ptvsd/issues/1548
