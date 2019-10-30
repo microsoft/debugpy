@@ -2,7 +2,7 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-from __future__ import absolute_import, print_function, unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 # The actual patterns are defined here, so that tests.patterns.some can redefine
 # builtin names like str, int etc without affecting the implementations in this

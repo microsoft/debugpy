@@ -2,12 +2,11 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-from __future__ import absolute_import, print_function, unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import contextlib
 from importlib import import_module
 import os
-import os.path
 import sys
 
 from . import _util

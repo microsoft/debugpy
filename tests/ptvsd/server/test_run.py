@@ -2,9 +2,9 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-from __future__ import absolute_import, print_function, unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
-from os import path
+import os
 import pytest
 import re
 
@@ -21,11 +21,11 @@ def test_run(pyfile, target, run):
     @pyfile
     def code_to_debug():
         from debug_me import backchannel
-        from os import path
+        import os
         import sys
 
         print("begin")
-        backchannel.send(path.abspath(sys.modules["ptvsd"].__file__))
+        backchannel.send(os.path.abspath(sys.modules["ptvsd"].__file__))
         assert backchannel.receive() == "continue"
         print("end")
 
@@ -34,7 +34,7 @@ def test_run(pyfile, target, run):
         with run(session, target(code_to_debug)):
             pass
 
-        expected_ptvsd_path = path.abspath(ptvsd.__file__)
+        expected_ptvsd_path = os.path.abspath(ptvsd.__file__)
         assert backchannel.receive() == some.str.matching(
             re.escape(expected_ptvsd_path) + r"(c|o)?"
         )
