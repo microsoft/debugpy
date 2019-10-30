@@ -2,7 +2,7 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-from __future__ import absolute_import, print_function, unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
 import platform
@@ -11,7 +11,7 @@ import sys
 import ptvsd
 from ptvsd.common import json, log, messaging, sockets
 from ptvsd.common.compat import unicode
-from ptvsd.adapter import components, server, session
+from ptvsd.adapter import components, servers, sessions
 
 
 class IDE(components.Component, sockets.ClientConnection):
@@ -46,8 +46,8 @@ class IDE(components.Component, sockets.ClientConnection):
         else:
             stream = messaging.JsonIOStream.from_socket(sock)
 
-        with session.Session() as new_session:
-            super(IDE, self).__init__(new_session, stream)
+        with sessions.Session() as session:
+            super(IDE, self).__init__(session, stream)
 
             self.client_id = None
             """ID of the connecting client. This can be 'test' while running tests."""
@@ -70,8 +70,8 @@ class IDE(components.Component, sockets.ClientConnection):
             only if and when the "launch" or "attach" response is sent.
             """
 
-            new_session.ide = self
-            new_session.register()
+            session.ide = self
+            session.register()
 
         self.channel.send_event(
             "output",
@@ -162,7 +162,7 @@ class IDE(components.Component, sockets.ClientConnection):
 
             self.session.no_debug = request("noDebug", json.default(False))
             if self.session.no_debug:
-                server.dont_expect_connections()
+                servers.dont_expect_connections()
 
             self.session.debug_options = debug_options = set(
                 request("debugOptions", json.array(unicode))
@@ -222,7 +222,7 @@ class IDE(components.Component, sockets.ClientConnection):
 
     @_start_message_handler
     def launch_request(self, request):
-        from ptvsd.adapter import launcher
+        from ptvsd.adapter import launchers
 
         sudo = request("sudo", json.default("Sudo" in self.session.debug_options))
         if sudo:
@@ -261,7 +261,7 @@ class IDE(components.Component, sockets.ClientConnection):
         )
         console_title = request("consoleTitle", json.default("Python Debug Console"))
 
-        launcher.spawn_debuggee(
+        launchers.spawn_debuggee(
             self.session, request, sudo, args, console, console_title
         )
 
@@ -304,7 +304,7 @@ class IDE(components.Component, sockets.ClientConnection):
                     '"processId" and "subProcessId" are mutually exclusive'
                 )
             ptvsd_args = request("ptvsdArgs", json.array(unicode))
-            server.inject(pid, ptvsd_args)
+            servers.inject(pid, ptvsd_args)
             timeout = 10
         else:
             if sub_pid == ():
@@ -314,7 +314,7 @@ class IDE(components.Component, sockets.ClientConnection):
                 pid = sub_pid
                 timeout = 0
 
-        conn = server.wait_for_connection(pid, timeout)
+        conn = servers.wait_for_connection(pid, timeout)
         if conn is None:
             raise request.cant_handle(
                 (
@@ -351,7 +351,7 @@ class IDE(components.Component, sockets.ClientConnection):
 
         # Notify the IDE of any child processes of the debuggee that aren't already
         # being debugged.
-        for conn in server.connections():
+        for conn in servers.connections():
             if conn.server is None and conn.ppid == self.session.pid:
                 # FIXME: race condition with server.Connection()
                 self.notify_of_subprocess(conn)

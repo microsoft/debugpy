@@ -2,7 +2,7 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-from __future__ import absolute_import, print_function, unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
 import subprocess
@@ -10,7 +10,7 @@ import sys
 
 import ptvsd.launcher
 from ptvsd.common import compat, log, messaging, options as common_options
-from ptvsd.adapter import components, options as adapter_options, server
+from ptvsd.adapter import components, servers, options as adapter_options
 
 
 class Launcher(components.Component):
@@ -110,7 +110,7 @@ def spawn_debuggee(session, start_request, sudo, args, console, console_title):
         arguments = start_request.arguments
         spawn_launcher()
     else:
-        _, port = server.Connection.listener.getsockname()
+        _, port = servers.Connection.listener.getsockname()
         arguments = dict(start_request.arguments)
         arguments["port"] = port
         spawn_launcher()
@@ -122,7 +122,7 @@ def spawn_debuggee(session, start_request, sudo, args, console, console_title):
                 session.launcher,
             )
 
-        conn = server.wait_for_connection(session.pid, timeout=10)
+        conn = servers.wait_for_connection(session.pid, timeout=10)
         if conn is None:
             raise start_request.cant_handle(
                 "{0} timed out waiting for debuggee to spawn", session

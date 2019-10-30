@@ -2,7 +2,7 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-from __future__ import absolute_import, print_function, unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import contextlib
 import itertools
@@ -11,7 +11,7 @@ import threading
 import time
 
 from ptvsd.common import fmt, log, messaging, sockets, util
-from ptvsd.adapter import components, launcher, server
+from ptvsd.adapter import components, launchers, servers
 
 
 _lock = threading.RLock()
@@ -40,12 +40,12 @@ class Session(util.Observable):
         self.ide = components.missing(self, ide.IDE)
         """The IDE component. Always present."""
 
-        self.launcher = components.missing(self, launcher.Launcher)
+        self.launcher = components.missing(self, launchers.Launcher)
         """The launcher componet. Always present in "launch" sessions, and never
         present in "attach" sessions.
         """
 
-        self.server = components.missing(self, server.Server)
+        self.server = components.missing(self, servers.Server)
         """The debug server component. Always present, unless this is a "launch"
         session with "noDebug".
         """
@@ -174,7 +174,7 @@ class Session(util.Observable):
         what(self, stream)
 
     def accept_connection_from_launcher(self, address=("127.0.0.1", 0)):
-        return self._accept_connection_from(launcher.Launcher, address, timeout=10)
+        return self._accept_connection_from(launchers.Launcher, address, timeout=10)
 
     def finalize(self, why, terminate_debuggee=None):
         """Finalizes the debug session.

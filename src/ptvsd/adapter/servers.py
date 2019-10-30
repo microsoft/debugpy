@@ -36,7 +36,7 @@ class Connection(sockets.ClientConnection):
     """
 
     def __init__(self, sock):
-        from ptvsd.adapter import session
+        from ptvsd.adapter import sessions
 
         self.server = None
         """The Server component, if this debug server belongs to Session.
@@ -73,7 +73,7 @@ class Connection(sockets.ClientConnection):
             self.channel.close()
             return
 
-        parent_session = session.get(self.ppid)
+        parent_session = sessions.get(self.ppid)
         if parent_session is None:
             log.info("No active debug session for parent process of {0}.", self)
         else:

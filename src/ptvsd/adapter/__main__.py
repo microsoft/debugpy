@@ -2,7 +2,7 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-from __future__ import absolute_import, print_function, unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import argparse
 import json
@@ -19,7 +19,7 @@ __file__ = os.path.abspath(__file__)
 
 def main(args):
     from ptvsd.common import log, options as common_options
-    from ptvsd.adapter import ide, server, session, options as adapter_options
+    from ptvsd.adapter import ide, servers, sessions, options as adapter_options
 
     if args.log_stderr:
         log.stderr.levels |= set(log.LEVELS)
@@ -34,7 +34,7 @@ def main(args):
         log.error("--for-enable-attach requires --port")
         sys.exit(64)
 
-    server_host, server_port = server.listen()
+    server_host, server_port = servers.listen()
     ide_host, ide_port = ide.listen(port=args.port)
 
     if args.for_enable_attach:
@@ -49,10 +49,10 @@ def main(args):
     if args.port is None:
         ide.IDE("stdio")
 
-    server.wait_until_disconnected()
+    servers.wait_until_disconnected()
     log.info("All debug servers disconnected; waiting for remaining sessions...")
 
-    session.wait_until_ended()
+    sessions.wait_until_ended()
     log.info("All debug sessions have ended; exiting.")
 
 
