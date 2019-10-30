@@ -8,6 +8,7 @@ build-backend = "setuptools.build_meta"
 # The only exclusions that should remain in the end are _vendored and versioneer.
 exclude = '''
 ( __pycache__
+| ^/.tox
 | ^/versioneer.py
 | ^/src/ptvsd/_vendored
 | ^/src/ptvsd/_version.py

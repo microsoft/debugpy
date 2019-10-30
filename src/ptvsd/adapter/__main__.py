@@ -40,7 +40,7 @@ def main(args):
     if args.for_enable_attach:
         endpoints = {
             "ide": {"host": ide_host, "port": ide_port},
-            "server": {"host": server_host, "port": server_port}
+            "server": {"host": server_host, "port": server_port},
         }
         log.info("Sending endpoints to stdout: {0!r}", endpoints)
         print(json.dumps(endpoints))
@@ -76,9 +76,7 @@ def _parse_argv(argv):
     )
 
     parser.add_argument(
-        "--for-enable-attach",
-        action="store_true",
-        help=argparse.SUPPRESS,
+        "--for-enable-attach", action="store_true", help=argparse.SUPPRESS
     )
 
     parser.add_argument(

@@ -81,6 +81,7 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
         raise RuntimeError("enable_attach() can only be called once per process.")
 
     import subprocess
+
     adapter_args = [
         sys.executable,
         _ADAPTER_PATH,
@@ -98,11 +99,7 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
 
     # Adapter life time is expected to be longer than this process,
     # so never wait on the adapter process
-    process = subprocess.Popen(
-        adapter_args,
-        bufsize=0,
-        stdout=subprocess.PIPE,
-    )
+    process = subprocess.Popen(adapter_args, bufsize=0, stdout=subprocess.PIPE)
 
     line = process.stdout.readline()
     if isinstance(line, bytes):
@@ -110,7 +107,7 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
     connection_details = json.JSONDecoder().decode(line)
     log.info("Connection details received from adapter: {0!r}", connection_details)
 
-    host = "127.0.0.1" # This should always be loopback address.
+    host = "127.0.0.1"  # This should always be loopback address.
     port = connection_details["server"]["port"]
 
     pydevd.settrace(
@@ -128,7 +125,7 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
 
     # Ensure that we ignore the adapter process when terminating the debugger.
     pydevd.add_dont_terminate_child_pid(process.pid)
-    server_opts.port =  connection_details["ide"]["port"]
+    server_opts.port = connection_details["ide"]["port"]
 
     listener_file = os.getenv("PTVSD_LISTENER_FILE")
     if listener_file is not None:

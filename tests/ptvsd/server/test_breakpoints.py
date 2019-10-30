@@ -101,7 +101,6 @@ def test_conditional_breakpoint(pyfile, target, run, condition_kind, condition):
 
 
 def test_crossfile_breakpoint(pyfile, target, run):
-
     @pyfile
     def script1():
         import debug_me  # noqa
@@ -171,7 +170,6 @@ def test_error_in_condition(pyfile, target, run, error_name):
 
 @pytest.mark.parametrize("condition", ["condition", ""])
 def test_log_point(pyfile, target, run, condition):
-
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -247,7 +245,6 @@ def test_package_launch(run):
 
 
 def test_add_and_remove_breakpoint(pyfile, target, run):
-
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -279,7 +276,6 @@ def test_add_and_remove_breakpoint(pyfile, target, run):
 
 
 def test_breakpoint_in_nonexistent_file(pyfile, target, run):
-
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -300,7 +296,6 @@ def test_breakpoint_in_nonexistent_file(pyfile, target, run):
 
 
 def test_invalid_breakpoints(pyfile, target, run):
-
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -368,7 +363,6 @@ def test_invalid_breakpoints(pyfile, target, run):
 
 
 def test_deep_stacks(pyfile, target, run):
-
     @pyfile
     def code_to_debug():
         import debug_me  # noqa

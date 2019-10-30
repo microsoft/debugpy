@@ -15,7 +15,6 @@ from tests import debug
 
 
 def test_with_no_output(pyfile, target, run):
-
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -36,7 +35,6 @@ def test_with_no_output(pyfile, target, run):
 
 
 def test_with_tab_in_output(pyfile, target, run):
-
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -57,7 +55,6 @@ def test_with_tab_in_output(pyfile, target, run):
 
 @pytest.mark.parametrize("redirect", ["enabled", "disabled"])
 def test_redirect_output(pyfile, target, run, redirect):
-
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -83,12 +80,12 @@ def test_redirect_output(pyfile, target, run, redirect):
 
 
 def test_non_ascii_output(pyfile, target, run):
-
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
         import sys
-        a = b'\xc3\xa9 \xc3\xa0 \xc3\xb6 \xc3\xb9\n'
+
+        a = b"\xc3\xa9 \xc3\xa0 \xc3\xb6 \xc3\xb9\n"
         if sys.version_info[0] >= 3:
             sys.stdout.buffer.write(a)
         else:
@@ -104,10 +101,9 @@ def test_non_ascii_output(pyfile, target, run):
         session.wait_for_stop()
         session.request_continue()
 
-    output = session.output("stdout").encode('utf-8', 'replace')
+    output = session.output("stdout").encode("utf-8", "replace")
 
     assert output in (
-        b'\xc3\xa9 \xc3\xa0 \xc3\xb6 \xc3\xb9\n',
-        b'\xc3\x83\xc2\xa9 \xc3\x83\xc2\xa0 \xc3\x83\xc2\xb6 \xc3\x83\xc2\xb9\n'
+        b"\xc3\xa9 \xc3\xa0 \xc3\xb6 \xc3\xb9\n",
+        b"\xc3\x83\xc2\xa9 \xc3\x83\xc2\xa0 \xc3\x83\xc2\xb6 \xc3\x83\xc2\xb9\n",
     )
-
