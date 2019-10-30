@@ -9,7 +9,7 @@ import pytest
 
 from ptvsd.common import compat
 from tests import code, debug, log, net, test_data
-from tests.debug import targets
+from tests.debug import runners, targets
 from tests.patterns import some
 
 pytestmark = pytest.mark.timeout(60)
@@ -20,12 +20,24 @@ flask_server = net.WebServer(net.get_test_server_port(7000, 7100))
 class paths:
     flask1 = test_data / "flask1"
     app_py = flask1 / "app.py"
+    main_py = flask1 / "main.py"
     hello_html = flask1 / "templates" / "hello.html"
     bad_html = flask1 / "templates" / "bad.html"
 
 
 class lines:
     app_py = code.get_marked_line_numbers(paths.app_py)
+
+
+@pytest.fixture(
+    params=[
+        runners.launch["internalConsole"],
+        runners.launch["integratedTerminal"],
+        runners.attach_by_socket["cli"],
+    ]
+)
+def run(request):
+    return request.param
 
 
 @pytest.fixture
@@ -58,13 +70,7 @@ def start_flask(run):
             # For multiproc attach, we need to use a helper stub to import debug_me
             # before running Flask; otherwise, we will get the connection only from
             # the subprocess, not from the Flask server process.
-            target = targets.Code(
-                code=(
-                    "import debug_me, runpy;"
-                    "runpy.run_module('flask', run_name='__main__')"
-                ),
-                args=args,
-            )
+            target = targets.Program(paths.main_py, args=args)
         else:
             target = targets.Module(name="flask", args=args)
 
