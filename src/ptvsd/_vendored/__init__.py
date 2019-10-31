@@ -98,7 +98,7 @@ def check_modules(project, match, root=None):
         root = project_root(project)
     extensions = []
     unvendored = {}
-    for modname, mod in sys.modules.items():
+    for modname, mod in list(sys.modules.items()):
         if not match(modname, mod):
             continue
         if not hasattr(mod, '__file__'):  # extension module
