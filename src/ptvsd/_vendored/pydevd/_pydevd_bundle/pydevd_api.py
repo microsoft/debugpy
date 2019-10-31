@@ -957,15 +957,15 @@ def _list_ppid_and_pid():
     _TH32CS_SNAPPROCESS = 0x00000002
 
     class PROCESSENTRY32(ctypes.Structure):
-        _fields_ = [("dwSize", ctypes.c_ulong),
-                    ("cntUsage", ctypes.c_ulong),
-                    ("th32ProcessID", ctypes.c_ulong),
-                    ("th32DefaultHeapID", ctypes.c_ulong),
-                    ("th32ModuleID", ctypes.c_ulong),
-                    ("cntThreads", ctypes.c_ulong),
-                    ("th32ParentProcessID", ctypes.c_ulong),
-                    ("pcPriClassBase", ctypes.c_ulong),
-                    ("dwFlags", ctypes.c_ulong),
+        _fields_ = [("dwSize", ctypes.c_uint32),
+                    ("cntUsage", ctypes.c_uint32),
+                    ("th32ProcessID", ctypes.c_uint32),
+                    ("th32DefaultHeapID", ctypes.c_size_t),
+                    ("th32ModuleID", ctypes.c_uint32),
+                    ("cntThreads", ctypes.c_uint32),
+                    ("th32ParentProcessID", ctypes.c_uint32),
+                    ("pcPriClassBase", ctypes.c_long),
+                    ("dwFlags", ctypes.c_uint32),
                     ("szExeFile", ctypes.c_char * 260)]
 
     kernel32 = ctypes.windll.kernel32
