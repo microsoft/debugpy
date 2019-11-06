@@ -7,6 +7,7 @@ from _pydev_bundle import pydev_log
 
 use_cython = os.getenv('PYDEVD_USE_CYTHON', None)
 dirname = os.path.dirname(os.path.dirname(__file__))
+USING_CYTHON = False
 # Do not show incorrect warning for .egg files for Remote debugger
 if not CYTHON_SUPPORTED or dirname.endswith('.egg'):
     # Do not try to import cython extensions if cython isn't supported
@@ -37,6 +38,7 @@ def delete_old_compiled_extensions():
 if use_cython == 'YES':
     # We must import the cython version if forcing cython
     from _pydevd_bundle.pydevd_cython_wrapper import trace_dispatch, global_cache_skips, global_cache_frame_skips, fix_top_level_trace_and_get_trace_func
+    USING_CYTHON = True
 
 elif use_cython == 'NO':
     # Use the regular version if not forcing cython
@@ -55,6 +57,8 @@ elif use_cython is None:
             # delete_old_compiled_extensions() -- would be ok in dev mode but we don't want to erase
             # files from other python versions on release, so, just raise import error here.
             raise ImportError('Cython version of speedups does not match.')
+        else:
+            USING_CYTHON = True
 
     except ImportError:
         from _pydevd_bundle.pydevd_trace_dispatch_regular import trace_dispatch, global_cache_skips, global_cache_frame_skips, fix_top_level_trace_and_get_trace_func  # @UnusedImport

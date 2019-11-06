@@ -16,7 +16,7 @@ from _pydevd_bundle._debug_adapter.pydevd_schema import (ThreadEvent, ModuleEven
     InitializeRequestArguments, TerminateArguments, TerminateRequest, TerminatedEvent)
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
 from _pydevd_bundle.pydevd_constants import (int_types, IS_64BIT_PROCESS,
-    PY_VERSION_STR, PY_IMPL_VERSION_STR, PY_IMPL_NAME)
+    PY_VERSION_STR, PY_IMPL_VERSION_STR, PY_IMPL_NAME, IS_PY36_OR_GREATER)
 from tests_python import debugger_unittest
 from tests_python.debug_constants import TEST_CHERRYPY, IS_PY2, TEST_DJANGO, TEST_FLASK, IS_PY26, \
     IS_PY27, IS_CPYTHON
@@ -3184,6 +3184,15 @@ def test_pydevd_systeminfo(case_setup):
         assert 'ppid' in body['process']
         assert body['process']['executable'] == sys.executable
         assert body['process']['bitness'] == 64 if IS_64BIT_PROCESS else 32
+
+        assert 'usingCython' in body['pydevd']
+        assert 'usingFrameEval' in body['pydevd']
+
+        use_cython = os.getenv('PYDEVD_USE_CYTHON')
+        if use_cython is not None:
+            using_cython = use_cython == 'YES'
+            assert body['pydevd']['usingCython'] == using_cython
+            assert body['pydevd']['usingFrameEval'] == (using_cython and IS_PY36_OR_GREATER)
 
         json_facade.write_continue()
 

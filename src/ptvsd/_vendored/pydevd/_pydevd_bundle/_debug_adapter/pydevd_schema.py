@@ -13712,12 +13712,17 @@ class PydevdSystemInfoResponse(BaseSchema):
                 "process": {
                     "$ref": "#/definitions/PydevdProcessInfo",
                     "description": "Information about the current process."
+                },
+                "pydevd": {
+                    "$ref": "#/definitions/PydevdInfo",
+                    "description": "Information about pydevd."
                 }
             },
             "required": [
                 "python",
                 "platform",
-                "process"
+                "process",
+                "pydevd"
             ]
         }
     }
@@ -13967,6 +13972,51 @@ class PydevdProcessInfo(BaseSchema):
             dct['executable'] = executable
         if bitness is not None:
             dct['bitness'] = bitness
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class PydevdInfo(BaseSchema):
+    """
+    This object contains details on pydevd.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "usingCython": {
+            "type": "boolean",
+            "description": "Specifies whether the cython native module is being used."
+        },
+        "usingFrameEval": {
+            "type": "boolean",
+            "description": "Specifies whether the frame eval native module is being used."
+        }
+    }
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, usingCython=None, usingFrameEval=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param boolean usingCython: Specifies whether the cython native module is being used.
+        :param boolean usingFrameEval: Specifies whether the frame eval native module is being used.
+        """
+        self.usingCython = usingCython
+        self.usingFrameEval = usingFrameEval
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        usingCython = self.usingCython
+        usingFrameEval = self.usingFrameEval
+        dct = {
+        }
+        if usingCython is not None:
+            dct['usingCython'] = usingCython
+        if usingFrameEval is not None:
+            dct['usingFrameEval'] = usingFrameEval
         dct.update(self.kwargs)
         return dct
 
@@ -16191,17 +16241,22 @@ class PydevdSystemInfoResponseBody(BaseSchema):
         "process": {
             "description": "Information about the current process.",
             "type": "PydevdProcessInfo"
+        },
+        "pydevd": {
+            "description": "Information about pydevd.",
+            "type": "PydevdInfo"
         }
     }
-    __refs__ = set(['python', 'platform', 'process'])
+    __refs__ = set(['python', 'platform', 'process', 'pydevd'])
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, python, platform, process, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, python, platform, process, pydevd, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param PydevdPythonInfo python: Information about the python version running in the current process.
         :param PydevdPlatformInfo platform: Information about the plarforn on which the current process is running.
         :param PydevdProcessInfo process: Information about the current process.
+        :param PydevdInfo pydevd: Information about pydevd.
         """
         if python is None:
             self.python = PydevdPythonInfo()
@@ -16215,6 +16270,10 @@ class PydevdSystemInfoResponseBody(BaseSchema):
             self.process = PydevdProcessInfo()
         else:
             self.process = PydevdProcessInfo(update_ids_from_dap=update_ids_from_dap, **process) if process.__class__ !=  PydevdProcessInfo else process
+        if pydevd is None:
+            self.pydevd = PydevdInfo()
+        else:
+            self.pydevd = PydevdInfo(update_ids_from_dap=update_ids_from_dap, **pydevd) if pydevd.__class__ !=  PydevdInfo else pydevd
         self.kwargs = kwargs
 
 
@@ -16222,10 +16281,12 @@ class PydevdSystemInfoResponseBody(BaseSchema):
         python = self.python
         platform = self.platform
         process = self.process
+        pydevd = self.pydevd
         dct = {
             'python': python.to_dict(update_ids_to_dap=update_ids_to_dap),
             'platform': platform.to_dict(update_ids_to_dap=update_ids_to_dap),
             'process': process.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'pydevd': pydevd.to_dict(update_ids_to_dap=update_ids_to_dap),
         }
         dct.update(self.kwargs)
         return dct

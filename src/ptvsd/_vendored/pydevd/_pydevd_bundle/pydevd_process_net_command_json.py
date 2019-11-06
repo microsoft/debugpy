@@ -14,7 +14,7 @@ from _pydevd_bundle._debug_adapter.pydevd_schema import (
     GotoTargetsResponseBody, ModulesResponseBody, ProcessEventBody,
     ProcessEvent, Scope, ScopesResponseBody, SetExpressionResponseBody,
     SetVariableResponseBody, SourceBreakpoint, SourceResponseBody,
-    VariablesResponseBody, SetBreakpointsResponseBody, Response, InitializeRequest, InitializeResponse,
+    VariablesResponseBody, SetBreakpointsResponseBody, Response,
     Capabilities, PydevdAuthorizeRequest)
 from _pydevd_bundle.pydevd_api import PyDevdAPI
 from _pydevd_bundle.pydevd_breakpoints import get_exception_class
@@ -28,6 +28,8 @@ from _pydevd_bundle.pydevd_net_command import NetCommand
 from _pydevd_bundle.pydevd_utils import convert_dap_log_message_to_expression
 from _pydevd_bundle.pydevd_constants import (PY_IMPL_NAME, DebugInfoHolder, PY_VERSION_STR,
     PY_IMPL_VERSION_STR, IS_64BIT_PROCESS)
+from _pydevd_bundle.pydevd_trace_dispatch import USING_CYTHON
+from _pydevd_frame_eval.pydevd_frame_eval_main import USING_FRAME_EVAL
 
 
 def _convert_rules_to_exclude_filters(rules, filename_to_server, on_error):
@@ -991,10 +993,15 @@ class PyDevJsonCommandProcessor(object):
             executable=sys.executable,
             bitness=64 if IS_64BIT_PROCESS else 32,
         )
+        pydevd_info = pydevd_schema.PydevdInfo(
+            usingCython=USING_CYTHON,
+            usingFrameEval=USING_FRAME_EVAL,
+        )
         body = {
             'python': py_info,
             'platform': platform_info,
             'process': process_info,
+            'pydevd': pydevd_info,
         }
         response = pydevd_base_schema.build_response(request, kwargs={'body': body})
         return NetCommand(CMD_RETURN, 0, response, is_json=True)
