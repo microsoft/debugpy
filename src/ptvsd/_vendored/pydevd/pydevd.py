@@ -164,7 +164,7 @@ class PyDBCommandThread(PyDBDaemonThread):
     @overrides(PyDBDaemonThread._on_run)
     def _on_run(self):
         # Delay a bit this initialization to wait for the main program to start.
-        time.sleep(0.3)
+        self._py_db_command_thread_event.wait(0.3)
 
         if self._kill_received:
             return
@@ -1253,6 +1253,9 @@ class PyDB(object):
         else:
             internal_cmd = InternalThreadCommand(thread_id, method, *args, **kwargs)
         self.post_internal_command(internal_cmd, thread_id)
+        if thread_id == '*':
+            # Notify so that the command is handled as soon as possible in the PyDBCommandThread.
+            self._py_db_command_thread_event.set()
 
     def post_internal_command(self, int_cmd, thread_id):
         """ if thread_id is *, post to the '*' queue"""
@@ -2598,10 +2601,10 @@ def _locked_settrace(
         if not wait_for_ready_to_run:
             py_db.ready_to_run = True
 
+        py_db.start_auxiliary_daemon_threads()
+
         while not py_db.ready_to_run:
             time.sleep(0.1)  # busy wait until we receive run command
-
-        py_db.start_auxiliary_daemon_threads()
 
         if trace_only_current_thread:
             py_db.enable_tracing()
