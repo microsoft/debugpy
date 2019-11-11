@@ -280,15 +280,16 @@ class IDE(components.Component, sockets.ClientConnection):
         # in response to a "ptvsd_attach" event. If so, the debug server should be
         # connected already, and thus the wait timeout is zero.
         #
-        # If neither are specified, but "listen" is true, this is attach-by-socket
+        # If neither is specified, and "waitForAttach" is true, this is attach-by-socket
         # with the server expected to connect to the adapter via ptvsd.attach(). There
         # is no PID known in advance, so just wait until the first server connection
         # indefinitely, with no timeout.
         #
-        # If neither are specified, but "listen" is false, this is attach-by-socket
+        # If neither is specified, and "waitForAttach" is false, this is attach-by-socket
         # in which the server has spawned the adapter via ptvsd.enable_attach(). There
         # is no PID known to the IDE in advance, but the server connection should be
-        # there already, so the wait timeout is zero.
+        # either be there already, or the server should be connecting shortly, so there
+        # must be a timeout.
         #
         # In the last two cases, if there's more than one server connection already,
         # this is a multiprocess re-attach. The IDE doesn't know the PID, so we just
@@ -309,7 +310,7 @@ class IDE(components.Component, sockets.ClientConnection):
         else:
             if sub_pid == ():
                 pid = any
-                timeout = None if request("waitForAttach", False) else 0
+                timeout = None if request("waitForAttach", False) else 10
             else:
                 pid = sub_pid
                 timeout = 0

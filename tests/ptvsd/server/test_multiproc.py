@@ -8,17 +8,13 @@ import platform
 import pytest
 import sys
 
+import ptvsd
 from ptvsd.common import messaging
 from tests import debug
 from tests.debug import runners
 from tests.patterns import some
-from tests.timeline import Event, Request
 
 
-# pytestmark = pytest.mark.skip("https://github.com/microsoft/ptvsd/issues/1706")
-
-
-@pytest.mark.timeout(30)
 @pytest.mark.parametrize(
     "start_method",
     [""]
@@ -28,6 +24,9 @@ from tests.timeline import Event, Request
     else ["spawn", "fork"],
 )
 def test_multiprocessing(pyfile, target, run, start_method):
+    if start_method == "spawn" and platform.system() != "Windows":
+        pytest.skip("https://github.com/microsoft/ptvsd/issues/1887")
+
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -134,25 +133,26 @@ def test_multiprocessing(pyfile, target, run, start_method):
                 parent_backchannel.send("continue")
 
 
-@pytest.mark.timeout(30)
-@pytest.mark.skip("Needs refactoring to use the new debug.Session API")
-@pytest.mark.parametrize(
-    "start_method", [runners.launch, runners.attach_by_socket["cli"]]
-)
-def test_subprocess(pyfile, start_method, run_as):
+def test_subprocess(pyfile, target, run):
     @pyfile
     def child():
+        import os
         import sys
-        from debug_me import backchannel
 
+        assert "ptvsd" in sys.modules
+
+        from debug_me import backchannel, ptvsd
+
+        backchannel.send(os.getpid())
+        backchannel.send(ptvsd.__file__)
         backchannel.send(sys.argv)
 
     @pyfile
     def parent():
+        import debug_me  # noqa
         import os
         import subprocess
         import sys
-        import debug_me  # noqa
 
         argv = [sys.executable, sys.argv[1], "--arg1", "--arg2", "--arg3"]
         env = os.environ.copy()
@@ -165,39 +165,37 @@ def test_subprocess(pyfile, start_method, run_as):
         )
         process.wait()
 
-    with debug.Session(start_method, backchannel=True) as parent_session:
-        parent_backchannel = parent_session.backchannel
-        parent_session.configure(run_as, parent, subProcess=True, args=[child])
-        parent_session.start_debugging()
+    with debug.Session() as parent_session:
+        backchannel = parent_session.open_backchannel()
 
-        root_start_request, = parent_session.all_occurrences_of(
-            Request("launch") | Request("attach")
-        )
-        root_process, = parent_session.all_occurrences_of(Event("process"))
-        root_pid = int(root_process.body["systemProcessId"])
+        with run(parent_session, target(parent, args=[child])):
+            pass
 
-        child_subprocess = parent_session.wait_for_next(Event("ptvsd_subprocess"))
-        assert child_subprocess == Event(
-            "ptvsd_subprocess",
+        expected_child_config = dict(parent_session.config)
+        expected_child_config.update(
             {
-                "rootProcessId": root_pid,
-                "parentProcessId": root_pid,
-                "processId": some.int,
+                "request": "attach",
+                "subProcessId": some.int,
+                "host": some.str,
                 "port": some.int,
-                "rootStartRequest": {
-                    "seq": some.int,
-                    "type": "request",
-                    "command": root_start_request.command,
-                    "arguments": root_start_request.arguments,
-                },
-            },
+            }
         )
+
+        child_config = parent_session.wait_for_next_event("ptvsd_attach")
+        assert child_config == expected_child_config
         parent_session.proceed()
 
-        with parent_session.attach_to_subprocess(child_subprocess) as child_session:
-            child_session.start_debugging()
+        with debug.Session(child_config) as child_session:
+            with child_session.start():
+                pass
 
-            child_argv = parent_backchannel.receive()
+            child_pid = backchannel.receive()
+            assert child_pid == child_config["subProcessId"]
+
+            ptvsd_file = backchannel.receive()
+            assert ptvsd_file == ptvsd.__file__
+
+            child_argv = backchannel.receive()
             assert child_argv == [child, "--arg1", "--arg2", "--arg3"]
 
 

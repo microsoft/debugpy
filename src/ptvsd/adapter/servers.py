@@ -55,8 +55,31 @@ class Connection(sockets.ClientConnection):
             self.ppid = process_info("ppid", int, optional=True)
             if self.ppid == ():
                 self.ppid = None
-
             self.channel.name = stream.name = str(self)
+
+            ptvsd_dir = os.path.dirname(os.path.dirname(ptvsd.__file__))
+            inject_ptvsd = """
+import sys
+sys.path.insert(0, {ptvsd_dir!r})
+try:
+    import ptvsd
+finally:
+    del sys.path[0]
+"""
+            inject_ptvsd = fmt(inject_ptvsd, ptvsd_dir=ptvsd_dir)
+
+            try:
+                self.channel.request(
+                    "evaluate", {"expression": inject_ptvsd}
+                )
+            except messaging.MessageHandlingError:
+                # Failure to inject is not a fatal error - such a subprocess can
+                # still be debugged, it just won't support "import ptvsd" in user
+                # code - so don't terminate the session.
+                log.exception(
+                    "Failed to inject ptvsd into {0}:", self, level="warning"
+                )
+
             with _lock:
                 if any(conn.pid == self.pid for conn in _connections):
                     raise KeyError(
