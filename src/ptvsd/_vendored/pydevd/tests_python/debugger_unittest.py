@@ -575,6 +575,11 @@ class DebuggerRunner(object):
             else:
                 raise
         finally:
+            try:
+                if process.poll() is None:
+                    process.kill()
+            except:
+                traceback.print_exc()
             finish[0] = True
 
     def fail_with_message(self, msg, stdout, stderr, writerThread):

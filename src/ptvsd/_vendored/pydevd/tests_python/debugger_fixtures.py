@@ -1,19 +1,18 @@
 # coding: utf-8
 from contextlib import contextmanager
 import os
-import threading
 
 import pytest
 
 from tests_python import debugger_unittest
 from tests_python.debugger_unittest import (get_free_port, overrides, IS_CPYTHON, IS_JYTHON, IS_IRONPYTHON,
-    IS_PY3K, CMD_ADD_DJANGO_EXCEPTION_BREAK, CMD_REMOVE_DJANGO_EXCEPTION_BREAK,
+    CMD_ADD_DJANGO_EXCEPTION_BREAK, CMD_REMOVE_DJANGO_EXCEPTION_BREAK,
     CMD_ADD_EXCEPTION_BREAK, wait_for_condition, IS_PYPY)
 from tests_python.debug_constants import IS_PY2
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
 
 import sys
-import time
+from _pydevd_bundle.pydevd_constants import IS_WINDOWS
 
 
 def get_java_location():
@@ -247,7 +246,11 @@ def case_setup(tmpdir, debugger_runner_simple):
     class CaseSetup(object):
 
         check_non_ascii = False
-        NON_ASCII_CHARS = u'áéíóú汉字'
+        if IS_PY2 and IS_WINDOWS:
+            # Py2 has some issues converting the non latin1 chars to bytes in windows.
+            NON_ASCII_CHARS = u'áéíóú'
+        else:
+            NON_ASCII_CHARS = u'áéíóú汉字'
 
         @contextmanager
         def test_file(

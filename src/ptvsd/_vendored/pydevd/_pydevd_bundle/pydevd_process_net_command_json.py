@@ -836,6 +836,7 @@ class PyDevJsonCommandProcessor(object):
 
         thread_id = py_db.suspended_frames_manager.get_thread_id_for_variable_reference(
             variables_reference)
+
         if thread_id is not None:
             self.api.request_change_variable_json(py_db, request, thread_id)
         else:

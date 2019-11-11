@@ -224,10 +224,15 @@ Memory before: %s
     for proc in psutil.process_iter():
         if proc.pid not in current_pids:
             try:
+                try:
+                    cmdline = proc.cmdline()
+                except:
+                    cmdline = '<unable to get>'
                 processes_info.append(
-                    'New Process: %s(%s) - %s' % (
+                    'New Process: %s(%s - %s) - %s' % (
                         proc.name(),
                         proc.pid,
+                        cmdline,
                         format_process_memory_info(proc.memory_info())
                     )
                 )

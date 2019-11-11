@@ -4,11 +4,9 @@ Copyright: Brainwy Software Ltda.
 License: EPL.
 =============
 
-Works for Windows relying on a fork of winappdbg which works in py2/3 (at least for the part we're interested in).
+Works for Windows by using an executable that'll inject a dll to a process and call a function.
 
-See: https://github.com/fabioz/winappdbg (py3 branch).
-Note that the official branch for winappdbg is: https://github.com/MarioVilas/winappdbg, which should be used when it works in Py3.
-A private copy is added here to make deployment easier, but changes should always be done upstream first.
+Note: https://github.com/fabioz/winappdbg is used just to determine if the target process is 32 or 64 bits.
 
 Works for Linux relying on gdb.
 
@@ -77,192 +75,51 @@ import struct
 import subprocess
 import sys
 import time
+from contextlib import contextmanager
 
+try:
+    TimeoutError = TimeoutError  # @ReservedAssignment
+except NameError:
 
-class AutoExit(object):
-
-    def __init__(self, on_exit):
-        self.on_exit = on_exit
-
-    def __enter__(self):
+    class TimeoutError(RuntimeError):  # @ReservedAssignment
         pass
 
-    def __exit__(self, *args):
-        self.on_exit()
 
+@contextmanager
+def _create_win_event(name):
+    from winappdbg.win32.kernel32 import CreateEventA, WaitForSingleObject, CloseHandle
 
-class GenShellCodeHelper(object):
+    manual_reset = False  # i.e.: after someone waits it, automatically set to False.
+    initial_state = False
+    if not isinstance(name, bytes):
+        name = name.encode('utf-8')
+    event = CreateEventA(None, manual_reset, initial_state, name)
+    if not event:
+        raise ctypes.WinError()
 
-    def __init__(self, is_64):
-        from winappdbg import compat
-        self.is_64 = is_64
-        self._code = []
-        if not is_64:
-            self._translations = {
-                'push esi': b'\x56',
-                'push eax': b'\x50',
-                'push ebp': b'\x55',
-                'push ebx': b'\x53',
+    class _WinEvent(object):
 
-                'pop esi': b'\x5E',
-                'pop eax': b'\x58',
-                'pop ebp': b'\x5D',
-                'pop ebx': b'\x5B',
+        def wait_for_event_set(self, timeout=None):
+            '''
+            :param timeout: in seconds
+            '''
+            if timeout is None:
+                timeout = 0xFFFFFFFF
+            else:
+                timeout = int(timeout * 1000)
+            ret = WaitForSingleObject(event, timeout)
+            if ret in (0, 0x80):
+                return True
+            elif ret == 0x102:
+                # Timed out
+                return False
+            else:
+                raise ctypes.WinError()
 
-                'mov esi': b'\xBE',
-                'mov eax': b'\xB8',
-                'mov ebp': b'\xBD',
-                'mov ebx': b'\xBB',
-
-                'call ebp': b'\xFF\xD5',
-                'call eax': b'\xFF\xD0',
-                'call ebx': b'\xFF\xD3',
-
-                'mov ebx,eax': b'\x89\xC3',
-                'mov eax,ebx': b'\x89\xD8',
-                'mov ebp,esp': b'\x89\xE5',
-                'mov esp,ebp': b'\x89\xEC',
-                'push dword': b'\x68',
-
-                'mov ebp,eax': b'\x89\xC5',
-                'mov eax,ebp': b'\x89\xE8',
-
-                'ret': b'\xc3',
-            }
-        else:
-            # Translate 64 bits
-            self._translations = {
-                'push rsi': b'\x56',
-                'push rax': b'\x50',
-                'push rbp': b'\x55',
-                'push rbx': b'\x53',
-                'push rsp': b'\x54',
-                'push rdi': b'\x57',
-
-                'pop rsi': b'\x5E',
-                'pop rax': b'\x58',
-                'pop rbp': b'\x5D',
-                'pop rbx': b'\x5B',
-                'pop rsp': b'\x5C',
-                'pop rdi': b'\x5F',
-
-                'mov rsi': b'\x48\xBE',
-                'mov rax': b'\x48\xB8',
-                'mov rbp': b'\x48\xBD',
-                'mov rbx': b'\x48\xBB',
-                'mov rdi': b'\x48\xBF',
-                'mov rcx': b'\x48\xB9',
-                'mov rdx': b'\x48\xBA',
-
-                'call rbp': b'\xFF\xD5',
-                'call rax': b'\xFF\xD0',
-                'call rbx': b'\xFF\xD3',
-
-                'mov rbx,rax': b'\x48\x89\xC3',
-                'mov rax,rbx': b'\x48\x89\xD8',
-                'mov rbp,rsp': b'\x48\x89\xE5',
-                'mov rsp,rbp': b'\x48\x89\xEC',
-                'mov rcx,rbp': b'\x48\x89\xE9',
-
-                'mov rbp,rax': b'\x48\x89\xC5',
-                'mov rax,rbp': b'\x48\x89\xE8',
-
-                'mov rdi,rbp': b'\x48\x89\xEF',
-
-                'ret': b'\xc3',
-            }
-
-    def push_addr(self, addr):
-        self._code.append(self.translate('push dword'))
-        self._code.append(addr)
-
-    def push(self, register):
-        self._code.append(self.translate('push %s' % register))
-        return AutoExit(lambda: self.pop(register))
-
-    def pop(self, register):
-        self._code.append(self.translate('pop %s' % register))
-
-    def mov_to_register_addr(self, register, addr):
-        self._code.append(self.translate('mov %s' % register))
-        self._code.append(addr)
-
-    def mov_register_to_from(self, register_to, register_from):
-        self._code.append(self.translate('mov %s,%s' % (register_to, register_from)))
-
-    def call(self, register):
-        self._code.append(self.translate('call %s' % register))
-
-    def preserve_stack(self):
-        self.mov_register_to_from('ebp', 'esp')
-        return AutoExit(lambda: self.restore_stack())
-
-    def restore_stack(self):
-        self.mov_register_to_from('esp', 'ebp')
-
-    def ret(self):
-        self._code.append(self.translate('ret'))
-
-    def get_code(self):
-        return b''.join(self._code)
-
-    def translate(self, code):
-        return self._translations[code]
-
-    def pack_address(self, address):
-        if self.is_64:
-            return struct.pack('<q', address)
-        else:
-            return struct.pack('<L', address)
-
-    def convert(self, code):
-        '''
-        Note:
-
-        If the shellcode starts with '66' controls, it needs to be changed to add [BITS 32] or
-        [BITS 64] to the start.
-
-        To use:
-
-        convert("""
-            55
-            53
-            50
-            BDE97F071E
-            FFD5
-            BDD67B071E
-            FFD5
-            5D
-            5B
-            58
-            C3
-            """)
-        '''
-        code = code.replace(' ', '')
-        lines = []
-        for l in code.splitlines(False):
-            lines.append(l)
-        code = ''.join(lines)  # Remove new lines
-        return code.decode('hex')
-
-
-def resolve_label(process, label):
-    max_attempts = 10
-    for i in range(max_attempts):
-        try:
-            address = process.resolve_label(label)
-            if not address:
-                raise AssertionError('%s not resolved.' % (label,))
-            return address
-        except:
-            try:
-                process.scan_modules()
-            except:
-                pass
-            if i == max_attempts - 1:
-                raise
-            # At most 4 seconds to resolve it.
-            time.sleep(4. / max_attempts)
+    try:
+        yield _WinEvent()
+    finally:
+        CloseHandle(event)
 
 
 def is_python_64bit():
@@ -284,148 +141,130 @@ def run_python_code_windows(pid, python_code, connect_debugger_tracing=False, sh
     bits = process.get_bits()
     is_64 = bits == 64
 
-    if is_64 != is_python_64bit():
-        raise RuntimeError("The architecture of the Python used to connect doesn't match the architecture of the target.\n"
-        "Target 64 bits: %s\n"
-        "Current Python 64 bits: %s" % (is_64, is_python_64bit()))
+    # Note: this restriction no longer applies (we create a process with the proper bitness from
+    # this process so that the attach works).
+    # if is_64 != is_python_64bit():
+    #     raise RuntimeError("The architecture of the Python used to connect doesn't match the architecture of the target.\n"
+    #     "Target 64 bits: %s\n"
+    #     "Current Python 64 bits: %s" % (is_64, is_python_64bit()))
 
-    print('Connecting to %s bits target' % (bits,))
-    assert resolve_label(process, b'PyGILState_Ensure')
+    with _acquire_mutex('_pydevd_pid_attach_mutex_%s' % (pid,), 10):
+        print('--- Connecting to %s bits target (current process is: %s) ---' % (bits, 64 if is_python_64bit() else 32))
 
-    filedir = os.path.dirname(__file__)
-    if is_64:
-        suffix = 'amd64'
-    else:
-        suffix = 'x86'
-    target_dll = os.path.join(filedir, 'attach_%s.dll' % suffix)
-    if not os.path.exists(target_dll):
-        raise RuntimeError('Could not find dll file to inject: %s' % target_dll)
-    print('Injecting dll')
-    process.inject_dll(target_dll.encode('mbcs'))
-    print('Dll injected')
+        with _win_write_to_shared_named_memory(python_code, pid):
 
-    process.scan_modules()
-    attach_func = resolve_label(process, b'AttachAndRunPythonCode')
-    assert attach_func
+            filedir = os.path.dirname(__file__)
+            if is_64:
+                suffix = 'amd64'
+            else:
+                suffix = 'x86'
 
-    print('Allocating code in target process')
-    assert isinstance(python_code, bytes)
-    code_address = process.malloc(len(python_code))
-    assert code_address
-    print('Writing code in target process')
-    process.write(code_address, python_code)
+            target_executable = os.path.join(filedir, 'inject_dll_%s.exe' % suffix)
+            if not os.path.exists(target_executable):
+                raise RuntimeError('Could not find exe file to inject: %s' % target_executable)
 
-    print('Allocating return value memory in target process')
-    attach_info_address = process.malloc(ctypes.sizeof(ctypes.c_int))
-    assert attach_info_address
+            name = 'attach_%s.dll' % suffix
+            target_dll = os.path.join(filedir, name)
+            if not os.path.exists(target_dll):
+                raise RuntimeError('Could not find dll file to inject: %s' % target_dll)
 
-    CONNECT_DEBUGGER = 2
+            print('\n--- Injecting attach dll: %s into pid: %s ---' % (name, pid))
+            args = [target_executable, str(pid), target_dll]
+            subprocess.check_call(args)
 
-    attach_info = 0
-    if show_debug_info:
-        SHOW_DEBUG_INFO = 1
-        attach_info |= SHOW_DEBUG_INFO  # Uncomment to show debug info
+            # Now, if the first injection worked, go on to the second which will actually
+            # run the code.
+            name = 'run_code_on_dllmain_%s.dll' % suffix
+            target_dll = os.path.join(filedir, name)
+            if not os.path.exists(target_dll):
+                raise RuntimeError('Could not find dll file to inject: %s' % target_dll)
 
-    if connect_debugger_tracing:
-        attach_info |= CONNECT_DEBUGGER
+            with _create_win_event('_pydevd_pid_event_%s' % (pid,)) as event:
+                print('\n--- Injecting run code dll: %s into pid: %s ---' % (name, pid))
+                args = [target_executable, str(pid), target_dll]
+                subprocess.check_call(args)
 
-    # Note: previously the attach_info address was treated as read/write to have the return
-    # value, but it seems that sometimes when the program wrote back the memory became
-    # unreadable with the stack trace below when trying to read, so, we just write and
-    # no longer inspect the return value.
-    # i.e.:
-    # Traceback (most recent call last):
-    #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\attach_pydevd.py", line 72, in <module>
-    #     main(process_command_line(sys.argv[1:]))
-    #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\attach_pydevd.py", line 68, in main
-    #     setup['pid'], python_code, connect_debugger_tracing=True, show_debug_info=show_debug_info_on_target_process)
-    #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\add_code_to_python_process.py", line 392, in run_python_code_windows
-    #     return_code = process.read_int(return_code_address)
-    #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\winappdbg\process.py", line 1673, in read_int
-    #     return self.__read_c_type(lpBaseAddress, b'@l', ctypes.c_int)
-    #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\winappdbg\process.py", line 1568, in __read_c_type
-    #     packed = self.read(address, size)
-    #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\winappdbg\process.py", line 1598, in read
-    #     if not self.is_buffer(lpBaseAddress, nSize):
-    #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\winappdbg\process.py", line 2843, in is_buffer
-    #     mbi = self.mquery(address)
-    #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\winappdbg\process.py", line 2533, in mquery
-    #     return win32.VirtualQueryEx(hProcess, lpAddress)
-    #   File "X:\pydev\plugins\org.python.pydev.core\pysrc\pydevd_attach_to_process\winappdbg\win32\kernel32.py", line 3742, in VirtualQueryEx
-    #     raise ctypes.WinError()
-    # PermissionError: [WinError 5] Access is denied.
-    # Process finished with exitValue: 1
+                if not event.wait_for_event_set(10):
+                    print('Timeout error: the attach may not have completed.')
+            print('--- Finished dll injection ---\n')
 
-    process.write_int(attach_info_address, attach_info)
-
-    helper = GenShellCodeHelper(is_64)
-    if is_64:
-        # Interesting read: http://msdn.microsoft.com/en-us/library/ms235286.aspx
-        # Overview of x64 Calling Conventions (for windows: Linux is different!)
-        # Register Usage: http://msdn.microsoft.com/en-us/library/9z1stfyw.aspx
-        # The registers RAX, RCX, RDX, R8, R9, R10, R11 are considered volatile and must be considered destroyed on function calls (unless otherwise safety-provable by analysis such as whole program optimization).
-        #
-        # The registers RBX, RBP, RDI, RSI, RSP, R12, R13, R14, and R15 are considered nonvolatile and must be saved and restored by a function that uses them.
-        #
-        # Important: RCX: first int argument
-
-        with helper.push('rdi'):  # This one REALLY must be pushed/poped
-            with helper.push('rsp'):
-                with helper.push('rbp'):
-                    with helper.push('rbx'):
-
-                        with helper.push('rdi'):  # Note: pop is automatic.
-                            helper.mov_to_register_addr('rcx', helper.pack_address(code_address))
-                            helper.mov_to_register_addr('rdx', helper.pack_address(attach_info_address))
-                            helper.mov_to_register_addr('rbx', helper.pack_address(attach_func))
-                            helper.call('rbx')
-
-    else:
-        with helper.push('eax'):  # Note: pop is automatic.
-            with helper.push('ebp'):
-                with helper.push('ebx'):
-
-                    with helper.preserve_stack():
-                        # Put our code as a parameter in the stack (on x86, we push parameters to
-                        # the stack)
-                        helper.push_addr(helper.pack_address(attach_info_address))
-                        helper.push_addr(helper.pack_address(code_address))
-                        helper.mov_to_register_addr('ebx', helper.pack_address(attach_func))
-                        helper.call('ebx')
-
-    helper.ret()
-
-    code = helper.get_code()
-
-    # Uncomment to see the disassembled version of what we just did...
-#     with open('f.asm', 'wb') as stream:
-#         stream.write(code)
-#
-#     exe = r'x:\nasm\nasm-2.07-win32\nasm-2.07\ndisasm.exe'
-#     if is_64:
-#         arch = '64'
-#     else:
-#         arch = '32'
-#
-#     subprocess.call((exe + ' -b %s f.asm' % arch).split())
-
-    print('Injecting code to target process')
-    thread, _thread_address = process.inject_code(code, 0)
-
-    timeout = None  # Could receive timeout in millis.
-    print('Waiting for code to complete')
-    thread.wait(timeout)
-
-    # return_code = process.read_int(attach_info_address)
-    # if return_code == 0:
-    #     print('Attach finished successfully.')
-    # else:
-    #     print('Error when injecting code in target process. Error code: %s (on windows)' % (return_code,))
-
-    process.free(thread.pInjectedMemory)
-    process.free(code_address)
-    process.free(attach_info_address)
     return 0
+
+
+@contextmanager
+def _acquire_mutex(mutex_name, timeout):
+    '''
+    Only one process may be attaching to a pid, so, create a system mutex
+    to make sure this holds in practice.
+    '''
+    from winappdbg.win32.kernel32 import CreateMutex, GetLastError, CloseHandle
+    from winappdbg.win32.defines import ERROR_ALREADY_EXISTS
+
+    initial_time = time.time()
+    while True:
+        mutex = CreateMutex(None, True, mutex_name)
+        acquired = GetLastError() != ERROR_ALREADY_EXISTS
+        if acquired:
+            break
+        if time.time() - initial_time > timeout:
+            raise TimeoutError('Unable to acquire mutex to make attach before timeout.')
+        time.sleep(.2)
+
+    try:
+        yield
+    finally:
+        CloseHandle(mutex)
+
+
+@contextmanager
+def _win_write_to_shared_named_memory(python_code, pid):
+    # Use the definitions from winappdbg when possible.
+    from winappdbg.win32 import defines
+    from winappdbg.win32.kernel32 import (
+        CreateFileMapping,
+        MapViewOfFile,
+        CloseHandle,
+        UnmapViewOfFile,
+    )
+
+    memmove = ctypes.cdll.msvcrt.memmove
+    memmove.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+        defines.SIZE_T,
+    ]
+    memmove.restype = ctypes.c_void_p
+
+    # Note: BUFSIZE must be the same from run_code_in_memory.hpp
+    BUFSIZE = 2048
+    assert isinstance(python_code, bytes)
+    assert len(python_code) > 0, 'Python code must not be empty.'
+    # Note: -1 so that we're sure we'll add a \0 to the end.
+    assert len(python_code) < BUFSIZE - 1, 'Python code must have at most %s bytes (found: %s)' % (BUFSIZE - 1, len(python_code))
+
+    python_code += b'\0' * (BUFSIZE - len(python_code))
+    assert python_code.endswith(b'\0')
+
+    INVALID_HANDLE_VALUE = -1
+    PAGE_READWRITE = 0x4
+    FILE_MAP_WRITE = 0x2
+    filemap = CreateFileMapping(
+        INVALID_HANDLE_VALUE, 0, PAGE_READWRITE, 0, BUFSIZE, u"__pydevd_pid_code_to_run__%s" % (pid,))
+
+    if filemap == INVALID_HANDLE_VALUE or filemap is None:
+        raise Exception("Failed to create named file mapping (ctypes: CreateFileMapping): %s" % (filemap,))
+    try:
+        view = MapViewOfFile(filemap, FILE_MAP_WRITE, 0, 0, 0)
+        if not view:
+            raise Exception("Failed to create view of named file mapping (ctypes: MapViewOfFile).")
+
+        try:
+            memmove(view, python_code, BUFSIZE)
+            yield
+        finally:
+            UnmapViewOfFile(view)
+    finally:
+        CloseHandle(filemap)
 
 
 def run_python_code_linux(pid, python_code, connect_debugger_tracing=False, show_debug_info=0):
@@ -607,6 +446,8 @@ if __name__ == '__main__':
 
         # Real code will be something as:
         # code = '''import sys;sys.path.append(r'X:\winappdbg-code\examples'); import imported;'''
+        run_python_code(p.pid, python_code=code)
+        print('\nRun a 2nd time...\n')
         run_python_code(p.pid, python_code=code)
 
         time.sleep(3)
