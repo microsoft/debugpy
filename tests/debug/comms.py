@@ -38,13 +38,19 @@ class BackChannel(object):
                 self.port,
             )
 
+            server_socket = self._server_socket
+            if server_socket is None:
+                return  # concurrent close()
+
             try:
-                self._socket, _ = self._server_socket.accept()
+                sock, _ = server_socket.accept()
             except socket.timeout:
                 raise log.exception("Timed out waiting for {0} to connect", self)
 
-            self._socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             log.info("Incoming connection from {0} accepted.", self)
+
+            self._socket = sock
             self._setup_stream()
 
         accept_thread = threading.Thread(
@@ -69,21 +75,23 @@ class BackChannel(object):
         return t
 
     def close(self):
-        if self._socket:
+        sock = self._socket
+        if sock:
+            self._socket = None
             log.debug("Closing {0} socket of {1}...", self, self.session)
             try:
-                self._socket.shutdown(socket.SHUT_RDWR)
+                sock.shutdown(socket.SHUT_RDWR)
             except Exception:
                 pass
-            self._socket = None
 
-        if self._server_socket:
+        server_socket = self._server_socket
+        if server_socket:
+            self._server_socket = None
             log.debug("Closing {0} server socket of {1}...", self, self.session)
             try:
-                self._server_socket.shutdown(socket.SHUT_RDWR)
+                server_socket.shutdown(socket.SHUT_RDWR)
             except Exception:
                 pass
-            self._server_socket = None
 
 
 class ScratchPad(object):
