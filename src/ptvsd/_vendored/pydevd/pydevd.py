@@ -620,6 +620,13 @@ class PyDB(object):
         # Stop the tracing as the last thing before the actual shutdown for a clean exit.
         atexit.register(stoptrace)
 
+    def wait_for_ready_to_run(self):
+        while not self.ready_to_run:
+            # busy wait until we receive run command
+            self.process_internal_commands()
+            self._py_db_command_thread_event.clear()
+            self._py_db_command_thread_event.wait(0.1)
+
     def on_initialize(self):
         '''
         Note: only called when using the DAP (Debug Adapter Protocol).
@@ -631,6 +638,7 @@ class PyDB(object):
         Note: only called when using the DAP (Debug Adapter Protocol).
         '''
         self._on_configuration_done_event.set()
+        self._py_db_command_thread_event.set()
 
     def is_attached(self):
         return self._on_configuration_done_event.is_set()
@@ -652,8 +660,18 @@ class PyDB(object):
         else:
             return system_exit_exc in self._ignore_system_exit_codes
 
-    def block_until_configuration_done(self, timeout=None):
-        return self._on_configuration_done_event.wait(timeout)
+    def block_until_configuration_done(self, cancel=None):
+        if cancel is None:
+            cancel = NULL
+
+        while not cancel.is_set():
+            if self._on_configuration_done_event.is_set():
+                cancel.set()  # Set cancel to prevent reuse
+                return
+
+            self.process_internal_commands()
+            self._py_db_command_thread_event.clear()
+            self._py_db_command_thread_event.wait(1 / 15.)
 
     def add_fake_frame(self, thread_id, frame_id, frame):
         self.suspended_frames_manager.add_fake_frame(thread_id, frame_id, frame)
@@ -1254,7 +1272,7 @@ class PyDB(object):
             internal_cmd = InternalThreadCommand(thread_id, method, *args, **kwargs)
         self.post_internal_command(internal_cmd, thread_id)
         if thread_id == '*':
-            # Notify so that the command is handled as soon as possible in the PyDBCommandThread.
+            # Notify so that the command is handled as soon as possible.
             self._py_db_command_thread_event.set()
 
     def post_internal_command(self, int_cmd, thread_id):
@@ -2118,8 +2136,7 @@ class PyDB(object):
             sys.path.insert(0, os.path.split(rPath(file))[0])
 
         if set_trace:
-            while not self.ready_to_run:
-                time.sleep(0.1)  # busy wait until we receive run command
+            self.wait_for_ready_to_run()
 
             # call prepare_to_run when we already have all information about breakpoints
             self.prepare_to_run()
@@ -2417,13 +2434,7 @@ def _wait_for_attach(cancel=None):
     if py_db is None:
         raise AssertionError('Debugger still not created. Please use _enable_attach() before using _wait_for_attach().')
 
-    if cancel is None:
-        py_db.block_until_configuration_done()
-    else:
-        while not cancel.is_set():
-            if py_db.block_until_configuration_done(0.1):
-                cancel.set()  # Set cancel to prevent reuse
-                return
+    py_db.block_until_configuration_done(cancel=cancel)
 
 
 def _is_attached():
@@ -2601,11 +2612,8 @@ def _locked_settrace(
         if not wait_for_ready_to_run:
             py_db.ready_to_run = True
 
+        py_db.wait_for_ready_to_run()
         py_db.start_auxiliary_daemon_threads()
-
-        while not py_db.ready_to_run:
-            time.sleep(0.1)  # busy wait until we receive run command
-
         if trace_only_current_thread:
             py_db.enable_tracing()
         else:

@@ -14,7 +14,6 @@ import ptvsd
 from ptvsd.common import compat, fmt, json, log, messaging, sockets
 from ptvsd.adapter import components
 
-
 _lock = threading.RLock()
 
 _connections = []
@@ -58,13 +57,31 @@ class Connection(sockets.ClientConnection):
             self.channel.name = stream.name = str(self)
 
             ptvsd_dir = os.path.dirname(os.path.dirname(ptvsd.__file__))
+            # Note: we must check if 'ptvsd' is not already in sys.modules because the
+            # evaluation of an import at the wrong time could deadlock Python due to
+            # its import lock.
+            #
+            # So, in general this evaluation shouldn't do anything. It's only
+            # important when pydevd attaches automatically to a subprocess. In this
+            # case, we have to make sure that ptvsd is properly put back in the game
+            # for users to be able to use it.v
+            #
+            # In this case (when the import is needed), this evaluation *must* be done
+            # before the configurationDone request is sent -- if this is not respected
+            # it's possible that pydevd already started secondary threads to handle
+            # commands, in which case it's very likely that this command would be
+            # evaluated at the wrong thread and the import could potentially deadlock
+            # the program.
+            #
+            # Note 2: the sys module is guaranteed to be in the frame globals and
+            # doesn't need to be imported.
             inject_ptvsd = """
-import sys
-sys.path.insert(0, {ptvsd_dir!r})
-try:
-    import ptvsd
-finally:
-    del sys.path[0]
+if 'ptvsd' not in sys.modules:
+    sys.path.insert(0, {ptvsd_dir!r})
+    try:
+        import ptvsd
+    finally:
+        del sys.path[0]
 """
             inject_ptvsd = fmt(inject_ptvsd, ptvsd_dir=ptvsd_dir)
 
