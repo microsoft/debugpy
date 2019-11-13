@@ -86,16 +86,12 @@ if 'ptvsd' not in sys.modules:
             inject_ptvsd = fmt(inject_ptvsd, ptvsd_dir=ptvsd_dir)
 
             try:
-                self.channel.request(
-                    "evaluate", {"expression": inject_ptvsd}
-                )
+                self.channel.request("evaluate", {"expression": inject_ptvsd})
             except messaging.MessageHandlingError:
                 # Failure to inject is not a fatal error - such a subprocess can
                 # still be debugged, it just won't support "import ptvsd" in user
                 # code - so don't terminate the session.
-                log.exception(
-                    "Failed to inject ptvsd into {0}:", self, level="warning"
-                )
+                log.exception("Failed to inject ptvsd into {0}:", self, level="warning")
 
             with _lock:
                 if any(conn.pid == self.pid for conn in _connections):
@@ -343,7 +339,7 @@ def wait_for_connection(pid=any, timeout=None):
     wait_for_timeout.timed_out = timeout == 0
     if timeout:
         thread = threading.Thread(
-            target=wait_for_timeout, name="server.wait_for_connection() timeout"
+            target=wait_for_timeout, name="servers.wait_for_connection() timeout"
         )
         thread.daemon = True
         thread.start()
@@ -404,15 +400,32 @@ def inject(pid, ptvsd_args):
 
     log.info("Spawning attach-to-PID debugger injector: {0!r}", cmdline)
     try:
-        subprocess.Popen(
+        injector = subprocess.Popen(
             cmdline,
             bufsize=0,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
         )
     except Exception as exc:
         log.exception("Failed to inject debug server into process with PID={0}", pid)
         raise messaging.MessageHandlingError(
             "Failed to inject debug server into process with PID={0}: {1}", pid, exc
         )
+
+    # We need to capture the output of the injector - otherwise it can get blocked
+    # on a write() syscall when it tries to print something.
+
+    def capture_output():
+        while True:
+            line = injector.stdout.readline()
+            if not line:
+                break
+            log.info("Injector[PID={0}] output:\n{1}", pid, line.rstrip())
+        log.info("Injector[PID={0}] exited.", pid)
+
+    thread = threading.Thread(
+        target=capture_output, name=fmt("Injector[PID={0}] output", pid)
+    )
+    thread.daemon = True
+    thread.start()

@@ -46,6 +46,11 @@ class BackChannel(object):
                 sock, _ = server_socket.accept()
             except socket.timeout:
                 raise log.exception("Timed out waiting for {0} to connect", self)
+            except Exception:
+                if self._server_socket is None:
+                    return
+                else:
+                    raise
 
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             log.info("Incoming connection from {0} accepted.", self)

@@ -152,9 +152,7 @@ def _attach_common_config(session, target, cwd):
 
 @_runner
 def attach_by_pid(session, target, cwd=None, wait=True):
-    if platform.system() != "Windows":
-        pytest.skip("https://github.com/microsoft/ptvsd/issues/1810")
-    if sys.version_info < (3,):
+    if sys.version_info < (3,) and platform.system() == "Windows":
         pytest.skip("https://github.com/microsoft/ptvsd/issues/1811")
 
     log.info("Attaching {0} to {1} by PID.", session, target)
@@ -172,9 +170,16 @@ def attach_by_pid(session, target, cwd=None, wait=True):
         if wait:
             debug_me = """
 import sys
-while not "ptvsd" in sys.modules: pass
+import threading
+import time
+
+while not "ptvsd" in sys.modules:
+    time.sleep(0.1)
+
 import ptvsd
-while not ptvsd.is_attached(): pass
+
+while not ptvsd.is_attached():
+    time.sleep(0.1)
     """
         else:
             debug_me = None

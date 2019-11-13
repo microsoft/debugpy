@@ -267,7 +267,7 @@ def run_code():
 
 
 def attach_to_pid():
-    log.info("Attaching to process with ID {0}", options.target)
+    log.info("Attaching to process with PID={0}", options.target)
 
     pid = options.target
     host = options.host
@@ -324,7 +324,7 @@ attach_pid_injected.attach(port={port}, host=host, client={client}, log_dir=log_
         import add_code_to_python_process  # noqa
 
         show_debug_info_on_target_process = 0  # hard-coded (1 to debug)
-        log.info("Code injector begin")
+        log.info("Injecting code into process with PID={0} ...", pid)
         add_code_to_python_process.run_python_code(
             pid,
             python_code,
@@ -332,8 +332,8 @@ attach_pid_injected.attach(port={port}, host=host, client={client}, log_dir=log_
             show_debug_info=show_debug_info_on_target_process,
         )
     except Exception:
-        raise log.exception()
-    log.info("Code injector exiting")
+        raise log.exception("Code injection into PID={0} failed:", pid)
+    log.info("Code injection into PID={0} completed.", pid)
 
 
 def main():
