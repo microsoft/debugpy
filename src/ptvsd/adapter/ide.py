@@ -70,6 +70,11 @@ class IDE(components.Component, sockets.ClientConnection):
             only if and when the "launch" or "attach" response is sent.
             """
 
+            self._known_subprocesses = set()
+            """servers.Connection instances for subprocesses that this IDE has been
+            made aware of.
+            """
+
             session.ide = self
             session.register()
 
@@ -354,7 +359,6 @@ class IDE(components.Component, sockets.ClientConnection):
         # being debugged.
         for conn in servers.connections():
             if conn.server is None and conn.ppid == self.session.pid:
-                # FIXME: race condition with server.Connection()
                 self.notify_of_subprocess(conn)
 
     @message_handler
@@ -403,7 +407,7 @@ class IDE(components.Component, sockets.ClientConnection):
 
     def notify_of_subprocess(self, conn):
         with self.session:
-            if self.start_request is None:
+            if self.start_request is None or conn in self._known_subprocesses:
                 return
             if "processId" in self.start_request.arguments:
                 log.warning(
@@ -415,6 +419,7 @@ class IDE(components.Component, sockets.ClientConnection):
 
             log.info("Notifying {0} about {1}.", self, conn)
             body = dict(self.start_request.arguments)
+            self._known_subprocesses.add(conn)
 
         body["request"] = "attach"
         if "host" not in body:
