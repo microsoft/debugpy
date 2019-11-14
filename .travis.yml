@@ -9,6 +9,11 @@ python:
   - "3.7"
   - "3.8"
 
+addons:
+  apt:
+    packages:
+      - gdb
+
 stages:
   - lint
   - test
@@ -23,7 +28,7 @@ jobs:
         - flake8
 
 before_install:
-  - sudo apt-get -y install gdb
+  - sudo sysctl kernel.yama.ptrace_scope=0
 
 install:
   - pip install -U pip setuptools tox tox-travis
