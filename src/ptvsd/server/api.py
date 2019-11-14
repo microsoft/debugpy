@@ -97,9 +97,12 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
 
     log.info("enable_attach() spawning adapter: {0!r}", adapter_args)
 
-    # Adapter life time is expected to be longer than this process,
-    # so never wait on the adapter process
-    process = subprocess.Popen(adapter_args, bufsize=0, stdout=subprocess.PIPE)
+    # Adapter will outlive this process, so we shouldn't wait for it. However, we do
+    # need to ensure that the Popen instance for it doesn't get garbage-collected, to
+    # avoid triggering https://bugs.python.org/issue37380.
+    enable_attach.process = process = subprocess.Popen(
+        adapter_args, bufsize=0, stdout=subprocess.PIPE
+    )
 
     line = process.stdout.readline()
     if isinstance(line, bytes):
