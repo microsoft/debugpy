@@ -81,7 +81,12 @@ class ClientConnection(object):
 
         def accept_worker():
             while True:
-                sock, (other_host, other_port) = cls.listener.accept()
+                try:
+                    sock, (other_host, other_port) = cls.listener.accept()
+                except OSError:
+                    # Listener socket has been closed.
+                    break
+
                 log.info(
                     "Accepted incoming {0} connection from {1}:{2}.",
                     cls.__name__,

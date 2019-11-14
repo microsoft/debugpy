@@ -5,6 +5,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import argparse
+import atexit
 import json
 import locale
 import os
@@ -36,18 +37,41 @@ def main(args):
 
     server_host, server_port = servers.listen()
     ide_host, ide_port = ide.listen(port=args.port)
+    endpoints_info = {
+        "ide": {"host": ide_host, "port": ide_port},
+        "server": {"host": server_host, "port": server_port},
+    }
 
     if args.for_enable_attach:
-        endpoints = {
-            "ide": {"host": ide_host, "port": ide_port},
-            "server": {"host": server_host, "port": server_port},
-        }
-        log.info("Sending endpoints to stdout: {0!r}", endpoints)
-        print(json.dumps(endpoints))
+        log.info("Writing endpoints info to stdout:\n{0!r}", endpoints_info)
+        print(json.dumps(endpoints_info))
         sys.stdout.flush()
 
     if args.port is None:
         ide.IDE("stdio")
+
+    listener_file = os.getenv("PTVSD_ADAPTER_ENDPOINTS")
+    if listener_file is not None:
+        log.info(
+            "Writing endpoints info to {0!r}:\n{1!r}", listener_file, endpoints_info
+        )
+
+        def delete_listener_file():
+            log.info("Listener ports closed; deleting {0!r}", listener_file)
+            try:
+                os.remove(listener_file)
+            except Exception:
+                log.exception("Failed to delete {0!r}", listener_file, level="warning")
+
+        with open(listener_file, "w") as f:
+            atexit.register(delete_listener_file)
+            print(json.dumps(endpoints_info), file=f)
+
+    # These must be registered after the one above, to ensure that the listener sockets
+    # are closed before the endpoint info file is deleted - this way, another process
+    # can wait for the file to go away as a signal that the ports are no longer in use.
+    atexit.register(servers.stop_listening)
+    atexit.register(ide.stop_listening)
 
     servers.wait_until_disconnected()
     log.info("All debug servers disconnected; waiting for remaining sessions...")

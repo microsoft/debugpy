@@ -130,11 +130,6 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
     pydevd.add_dont_terminate_child_pid(process.pid)
     server_opts.port = connection_details["ide"]["port"]
 
-    listener_file = os.getenv("PTVSD_LISTENER_FILE")
-    if listener_file is not None:
-        with open(listener_file, "w") as f:
-            json.dump({"host": server_opts.host, "port": server_opts.port}, f)
-
     enable_attach.called = True
     log.info(
         "ptvsd debug server running at: {0}:{1}", server_opts.host, server_opts.port

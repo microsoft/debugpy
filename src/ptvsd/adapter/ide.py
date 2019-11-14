@@ -434,3 +434,10 @@ class IDE(components.Component, sockets.ClientConnection):
 
 
 listen = IDE.listen
+
+
+def stop_listening():
+    try:
+        IDE.listener.close()
+    except Exception:
+        log.exception(level="warning")

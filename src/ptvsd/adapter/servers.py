@@ -317,6 +317,13 @@ class Server(components.Component):
 listen = Connection.listen
 
 
+def stop_listening():
+    try:
+        Connection.listener.close()
+    except Exception:
+        log.exception(level="warning")
+
+
 def connections():
     with _lock:
         return list(_connections)
