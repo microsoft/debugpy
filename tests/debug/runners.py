@@ -152,6 +152,8 @@ def _attach_common_config(session, target, cwd):
 
 @_runner
 def attach_by_pid(session, target, cwd=None, wait=True):
+    if os.getenv("TRAVIS"):
+        pytest.skip("https://github.com/microsoft/ptvsd/issues/1915")
     if sys.version_info < (3,) and platform.system() == "Windows":
         pytest.skip("https://github.com/microsoft/ptvsd/issues/1811")
 
