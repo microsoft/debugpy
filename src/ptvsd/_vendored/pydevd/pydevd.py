@@ -1411,57 +1411,67 @@ class PyDB(object):
                     self._running_thread_ids = {}
 
     def process_internal_commands(self):
-        '''This function processes internal commands
         '''
+        This function processes internal commands.
+        '''
+        # If this method is being called before the debugger is ready to run we should not notify
+        # about threads and should only process commands sent to all threads.
+        ready_to_run = self.ready_to_run
+
         dispose = False
         with self._main_lock:
-            self.check_output_redirect()
-
             program_threads_alive = {}
-            all_threads = threadingEnumerate()
-            program_threads_dead = []
-            with self._lock_running_thread_ids:
-                reset_cache = not self._running_thread_ids
+            if ready_to_run:
+                self.check_output_redirect()
 
-                for t in all_threads:
-                    if getattr(t, 'is_pydev_daemon_thread', False):
-                        pass  # I.e.: skip the DummyThreads created from pydev daemon threads
-                    elif isinstance(t, PyDBDaemonThread):
-                        pydev_log.error_once('Error in debugger: Found PyDBDaemonThread not marked with is_pydev_daemon_thread=True.')
+                all_threads = threadingEnumerate()
+                program_threads_dead = []
+                with self._lock_running_thread_ids:
+                    reset_cache = not self._running_thread_ids
 
-                    elif is_thread_alive(t):
-                        if reset_cache:
-                            # Fix multiprocessing debug with breakpoints in both main and child processes
-                            # (https://youtrack.jetbrains.com/issue/PY-17092) When the new process is created, the main
-                            # thread in the new process already has the attribute 'pydevd_id', so the new thread doesn't
-                            # get new id with its process number and the debugger loses access to both threads.
-                            # Therefore we should update thread_id for every main thread in the new process.
-                            clear_cached_thread_id(t)
+                    for t in all_threads:
+                        if getattr(t, 'is_pydev_daemon_thread', False):
+                            pass  # I.e.: skip the DummyThreads created from pydev daemon threads
+                        elif isinstance(t, PyDBDaemonThread):
+                            pydev_log.error_once('Error in debugger: Found PyDBDaemonThread not marked with is_pydev_daemon_thread=True.')
 
-                        thread_id = get_thread_id(t)
-                        program_threads_alive[thread_id] = t
+                        elif is_thread_alive(t):
+                            if reset_cache:
+                                # Fix multiprocessing debug with breakpoints in both main and child processes
+                                # (https://youtrack.jetbrains.com/issue/PY-17092) When the new process is created, the main
+                                # thread in the new process already has the attribute 'pydevd_id', so the new thread doesn't
+                                # get new id with its process number and the debugger loses access to both threads.
+                                # Therefore we should update thread_id for every main thread in the new process.
+                                clear_cached_thread_id(t)
 
-                        self.notify_thread_created(thread_id, t, use_lock=False)
+                            thread_id = get_thread_id(t)
+                            program_threads_alive[thread_id] = t
 
-                # Compute and notify about threads which are no longer alive.
-                thread_ids = list(self._running_thread_ids.keys())
-                for thread_id in thread_ids:
-                    if thread_id not in program_threads_alive:
-                        program_threads_dead.append(thread_id)
+                            self.notify_thread_created(thread_id, t, use_lock=False)
 
-                for thread_id in program_threads_dead:
-                    self.notify_thread_not_alive(thread_id, use_lock=False)
+                    # Compute and notify about threads which are no longer alive.
+                    thread_ids = list(self._running_thread_ids.keys())
+                    for thread_id in thread_ids:
+                        if thread_id not in program_threads_alive:
+                            program_threads_dead.append(thread_id)
+
+                    for thread_id in program_threads_dead:
+                        self.notify_thread_not_alive(thread_id, use_lock=False)
 
             # Without self._lock_running_thread_ids
-            if len(program_threads_alive) == 0:
+            if len(program_threads_alive) == 0 and ready_to_run:
                 dispose = True
             else:
                 # Actually process the commands now (make sure we don't have a lock for _lock_running_thread_ids
                 # acquired at this point as it could lead to a deadlock if some command evaluated tried to
                 # create a thread and wait for it -- which would try to notify about it getting that lock).
                 curr_thread_id = get_current_thread_id(threadingCurrentThread())
+                if ready_to_run:
+                    process_thread_ids = (curr_thread_id, '*')
+                else:
+                    process_thread_ids = ('*',)
 
-                for thread_id in (curr_thread_id, '*'):
+                for thread_id in process_thread_ids:
                     queue = self.get_internal_queue(thread_id)
 
                     # some commands must be processed by the thread itself... if that's the case,
