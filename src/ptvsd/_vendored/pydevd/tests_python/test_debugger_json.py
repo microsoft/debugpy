@@ -3001,13 +3001,6 @@ def test_subprocess_pydevd_customization(case_setup_remote, use_c_switch):
             def run(self):
                 from tests_python.debugger_unittest import ReaderThread
                 expected_connections = 1
-                if sys.platform != 'win32' and IS_PY2:
-                    # Note: on linux on Python 2 CPython subprocess.call will actually
-                    # create a fork first (at which point it'll connect) and then, later on it'll
-                    # call the main (as if it was a clean process as if PyDB wasn't created
-                    # the first time -- the debugger will still work, but it'll do an additional
-                    # connection).
-                    expected_connections = 2
 
                 for _ in range(expected_connections):
                     server_socket.listen(1)
@@ -3086,13 +3079,6 @@ def test_no_subprocess_patching(case_setup_multiprocessing, apply_multiprocessin
             def run(self):
                 from tests_python.debugger_unittest import ReaderThread
                 expected_connections = 1
-                if sys.platform != 'win32' and IS_PY2:
-                    # Note: on linux on Python 2 CPython subprocess.call will actually
-                    # create a fork first (at which point it'll connect) and then, later on it'll
-                    # call the main (as if it was a clean process as if PyDB wasn't created
-                    # the first time -- the debugger will still work, but it'll do an additional
-                    # connection).
-                    expected_connections = 2
 
                 for _ in range(expected_connections):
                     server_socket.listen(1)

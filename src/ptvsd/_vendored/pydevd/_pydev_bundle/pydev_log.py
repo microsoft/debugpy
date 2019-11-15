@@ -16,13 +16,23 @@ class _LoggingGlobals(object):
     _debug_stream_initialized = False
 
 
-def initialize_debug_stream(force=False):
-    if _LoggingGlobals._debug_stream_initialized and not force:
-        return
+def initialize_debug_stream(reinitialize=False):
+    '''
+    :param bool reinitialize:
+        Reinitialize is used to update the debug stream after a fork (thus, if it wasn't
+        initialized, we don't need to do anything).
+    '''
+    if reinitialize:
+        if not _LoggingGlobals._debug_stream_initialized:
+            return
+    else:
+        if _LoggingGlobals._debug_stream_initialized:
+            return
+
     _LoggingGlobals._debug_stream_initialized = True
 
     # Note: we cannot initialize with sys.stderr because when forking we may end up logging things in 'os' calls.
-    _LoggingGlobals._debug_stream = NULL  
+    _LoggingGlobals._debug_stream = NULL
     _LoggingGlobals._debug_stream_filename = None
 
     if not DebugInfoHolder.PYDEVD_DEBUG_FILE:

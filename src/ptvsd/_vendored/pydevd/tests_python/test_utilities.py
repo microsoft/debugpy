@@ -182,7 +182,7 @@ def test_pydevd_logging_files(tmpdir):
 
         for d in (d1, d2):
             DebugInfoHolder.PYDEVD_DEBUG_FILE = os.path.join(d, 'file.txt')
-            pydev_log.initialize_debug_stream(force=True)
+            pydev_log.initialize_debug_stream(reinitialize=True)
 
             assert os.path.normpath(_LoggingGlobals._debug_stream_filename) == \
                 os.path.normpath(os.path.join(d, 'file.%s.txt' % os.getpid()))
