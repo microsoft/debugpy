@@ -1105,6 +1105,10 @@ class ResponseOccurrence(MessageOccurrence):
         return self.message.body
 
     @property
+    def result(self):
+        return self.message.result
+
+    @property
     def success(self):
         return self.message.success
 
