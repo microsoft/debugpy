@@ -561,8 +561,9 @@ class Session(object):
         )
 
         if start_request.response is not None:
-            # It was an immediate response - configuration is not possible. Just get
-            # the "process" event, and return to caller.
+            # It was an immediate response - either the request failed, or there is
+            # no configuration stage for this debug session.
+            start_request.response.result  # raise exception if failed
             return self.wait_for_process()
 
         # We got "initialized" - now we need to yield to the caller, so that it can

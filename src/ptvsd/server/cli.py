@@ -337,7 +337,7 @@ attach_pid_injected.attach(port={port}, host=host, client={client}, log_dir=log_
 
 
 def main():
-    original_argv = sys.argv
+    original_argv = list(sys.argv)
     try:
         sys.argv[1:] = parse(sys.argv[1:])
     except Exception as ex:

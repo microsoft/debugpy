@@ -63,11 +63,11 @@ def wait_until_port_is_listening(port, interval=1, max_attempts=1000):
         try:
             log.info("Probing localhost:{0} (attempt {1})...", port, i)
             sock.connect(("localhost", port))
-        except socket.error:
+        except socket.error as exc:
             # The first attempt will almost always fail, because the port isn't
             # open yet. But if it keeps failing after that, we want to know why.
             if i > 1:
-                log.exception()
+                log.warning("Failed to connect to localhost:{0}:\n{1}", port, exc)
             time.sleep(interval)
         else:
             log.info("localhost:{0} is listening - server is up!", port)
