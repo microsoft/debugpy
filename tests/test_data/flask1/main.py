@@ -5,4 +5,4 @@
 import debug_me  # noqa
 import runpy
 
-runpy.run_module("flask", run_name="__main__")
+runpy.run_module("flask", run_name="__main__", alter_sys=True)
