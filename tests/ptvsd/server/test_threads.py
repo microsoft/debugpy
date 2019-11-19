@@ -4,8 +4,8 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import platform
 import pytest
+import sys
 import time
 
 from tests import debug
@@ -129,14 +129,14 @@ def test_step_multi_threads(pyfile, target, run, resume):
 
 
 @pytest.mark.skipif(
-    platform.system() not in ["Windows", "Linux", "Darwin"],
-    reason="Test not implemented on " + platform.system(),
+    sys.platform not in ["win32", "darwin"] and not sys.platform.startswith("linux"),
+    reason="Test not implemented for sys.platform=" + repr(sys.platform),
 )
 def test_debug_this_thread(pyfile, target, run):
     @pyfile
     def code_to_debug():
         from debug_me import ptvsd
-        import platform
+        import sys
         import threading
 
         def foo(x):
@@ -146,7 +146,7 @@ def test_debug_this_thread(pyfile, target, run):
 
         event = threading.Event()
 
-        if platform.system() == "Windows":
+        if sys.platform == "win32":
             from ctypes import CFUNCTYPE, c_void_p, c_size_t, c_uint32, windll
 
             thread_func_p = CFUNCTYPE(c_uint32, c_void_p)
@@ -161,7 +161,7 @@ def test_debug_this_thread(pyfile, target, run):
                 c_uint32(0),
                 c_void_p(0),
             )
-        elif platform.system() == "Linux" or platform.system() == "Darwin":
+        elif sys.platform == "darwin" or sys.platform.startswith("linux"):
             from ctypes import CDLL, CFUNCTYPE, byref, c_void_p, c_ulong
             from ctypes.util import find_library
 
@@ -174,7 +174,7 @@ def test_debug_this_thread(pyfile, target, run):
                 byref(c_ulong(0)), c_void_p(0), thread_func, c_void_p(0)
             )
         else:
-            assert False
+            pytest.fail(sys.platform)
 
         event.wait()
 

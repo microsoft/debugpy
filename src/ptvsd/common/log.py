@@ -8,8 +8,8 @@ import contextlib
 import functools
 import inspect
 import io
-import platform
 import os
+import platform
 import sys
 import threading
 import traceback

@@ -6,7 +6,6 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import functools
 import os
-import platform
 import sys
 
 import ptvsd
@@ -51,7 +50,7 @@ class Handlers(object):
 
         cmdline = []
         if property_or_debug_option("sudo", "Sudo"):
-            if platform.system() == "Windows":
+            if sys.platform == "win32":
                 raise request.cant_handle('"sudo":true is not supported on Windows.')
             else:
                 cmdline += ["sudo"]

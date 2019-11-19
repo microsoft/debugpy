@@ -4,8 +4,8 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import platform
 import pytest
+import sys
 
 from ptvsd.common import sockets
 
@@ -15,7 +15,7 @@ class TestSocketServerReuse(object):
     # NOTE: Windows allows loopback range 127/8. Some flavors of Linux support
     # 127/8 range. Mac by default supports only 127/0. Configuring /etc/network/interface
     # for this one test is overkill so use '0.0.0.0' on Mac instead.
-    HOST2 = "127.0.0.2" if platform.system() in ["Windows", "Linux"] else "0.0.0.0"
+    HOST2 = "127.0.0.2" if sys.platform != "darwin" else "0.0.0.0"
 
     def test_reuse_same_address_port(self):
         # NOTE: This test should ensure that same address port can be used by two

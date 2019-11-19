@@ -4,8 +4,8 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import platform
 import socket
+import sys
 import threading
 
 from ptvsd.common import log
@@ -37,7 +37,7 @@ def create_client():
 
 def _new_sock():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP)
-    if platform.system() == "Windows":
+    if sys.platform == "win32":
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
     else:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

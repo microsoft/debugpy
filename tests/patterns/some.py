@@ -48,7 +48,7 @@ Usage::
     assert "abbc" != some.str.matching(r"ab")
     assert "abbc" != some.str.matching(r"bc")
 
-    if platform.system() == "Windows":
+    if sys.platform == "win32":
         assert "\\Foo\\Bar" == some.path("/foo/bar")
     else:
         assert "/Foo/Bar" != some.path("/foo/bar")

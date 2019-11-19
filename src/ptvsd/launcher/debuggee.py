@@ -7,7 +7,6 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import atexit
 import locale
 import os
-import platform
 import struct
 import subprocess
 import sys
@@ -114,7 +113,7 @@ def wait_for_exit():
 
     try:
         code = process.wait()
-        if platform.system() != "Windows" and code < 0:
+        if sys.platform != "win32" and code < 0:
             # On POSIX, if the process was terminated by a signal, Popen will use
             # a negative returncode to indicate that - but the actual exit code of
             # the process is always an unsigned number, and can be determined by

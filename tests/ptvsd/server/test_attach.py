@@ -134,18 +134,27 @@ def test_attach_by_pid(pyfile, target):
 
         def do_something(i):
             time.sleep(0.1)
+            proceed = True
             print(i)  # @bp
+            return proceed
 
         for i in range(100):
-            do_something(i)
+            if not do_something(i):
+                break
 
     with debug.Session() as session:
         with session.attach_by_pid(target(code_to_debug), wait=False):
             session.set_breakpoints(code_to_debug, all)
 
-        session.wait_for_stop(expected_frames=[some.dap.frame(code_to_debug, "bp")])
+        stop = session.wait_for_stop(
+            expected_frames=[some.dap.frame(code_to_debug, "bp")]
+        )
 
         # Remove breakpoint and continue.
+        session.request(
+            "setExpression",
+            {"frameId": stop.frame_id, "expression": "proceed", "value": "False"},
+        )
         session.set_breakpoints(code_to_debug, [])
         session.request_continue()
         session.wait_for_next(

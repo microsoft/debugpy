@@ -53,7 +53,6 @@ If there is no configuration phase, the runner returns directly::
 """
 
 import os
-import platform
 import pytest
 import sys
 
@@ -159,7 +158,7 @@ def _attach_common_config(session, target, cwd):
 
 @_runner
 def attach_by_pid(session, target, cwd=None, wait=True):
-    if sys.version_info < (3,) and platform.system() == "Windows":
+    if sys.version_info < (3,) and sys.platform == "win32":
         pytest.skip("https://github.com/microsoft/ptvsd/issues/1811")
 
     log.info("Attaching {0} to {1} by PID.", session, target)

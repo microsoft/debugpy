@@ -4,7 +4,6 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import platform
 import pytest
 import sys
 
@@ -13,6 +12,8 @@ from ptvsd.common import messaging
 from tests import debug
 from tests.debug import runners
 from tests.patterns import some
+
+pytestmark = pytest.mark.timeout(30)
 
 
 @pytest.fixture(params=[runners.launch, runners.attach_by_socket["api"]])
@@ -25,11 +26,11 @@ def run(request):
     [""]
     if sys.version_info < (3,)
     else ["spawn"]
-    if platform.system() == "Windows"
+    if sys.platform == "win32"
     else ["spawn", "fork"],
 )
 def test_multiprocessing(pyfile, target, run, start_method):
-    if start_method == "spawn" and platform.system() != "Windows":
+    if start_method == "spawn" and sys.platform != "win32":
         pytest.skip("https://github.com/microsoft/ptvsd/issues/1887")
 
     @pyfile
@@ -204,7 +205,6 @@ def test_subprocess(pyfile, target, run):
             assert child_argv == [child, "--arg1", "--arg2", "--arg3"]
 
 
-@pytest.mark.timeout(30)
 @pytest.mark.skip("Needs refactoring to use the new debug.Session API")
 @pytest.mark.parametrize(
     "start_method", [runners.launch, runners.attach_by_socket["cli"]]

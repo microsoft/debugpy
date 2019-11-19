@@ -4,8 +4,8 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import platform
 import pytest
+import sys
 
 from ptvsd.common import compat
 from tests import code, debug, log, net, test_data
@@ -43,8 +43,8 @@ def start_flask(run):
                 "FLASK_DEBUG": "1" if multiprocess else "0",
             }
         )
-        if platform.system() != "Windows":
-            locale = "en_US.utf8" if platform.system() == "Linux" else "en_US.UTF-8"
+        if sys.platform != "win32":
+            locale = "en_US.utf8" if sys.platform.startswith("linux") else "en_US.UTF-8"
             session.config.env.update({"LC_ALL": locale, "LANG": locale})
 
         session.config.update({"jinja": True, "subProcess": multiprocess})

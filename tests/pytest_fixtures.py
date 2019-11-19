@@ -6,9 +6,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import inspect
 import os
-import platform
 import py
 import pytest
+import sys
 import threading
 import types
 
@@ -125,7 +125,7 @@ def daemon(request):
                 assert not thread.is_alive()
 
 
-if platform.system() != "Windows":
+if sys.platform != "win32":
 
     @pytest.fixture
     def long_tmpdir(request, tmpdir):

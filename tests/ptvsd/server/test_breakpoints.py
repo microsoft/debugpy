@@ -5,7 +5,6 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import platform
 import pytest
 import re
 import sys
@@ -41,7 +40,7 @@ def test_path_with_ampersand(target, run):
     sys.version_info < (3, 0), reason="Paths are not Unicode in Python 2.7"
 )
 @pytest.mark.skipif(
-    platform.system() == "Windows" and sys.version_info < (3, 6),
+    sys.platform == "win32" and sys.version_info < (3, 6),
     reason="https://github.com/Microsoft/ptvsd/issues/1124#issuecomment-459506802",
 )
 @pytest.mark.parametrize("target", targets.all_named)

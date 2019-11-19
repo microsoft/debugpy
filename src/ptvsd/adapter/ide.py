@@ -5,7 +5,6 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
-import platform
 import sys
 
 import ptvsd
@@ -206,7 +205,7 @@ class IDE(components.Component, sockets.ClientConnection):
             elif {"UnixClient", "UNIX"} & debug_options:
                 client_os_type = "UNIX"
             else:
-                client_os_type = "WINDOWS" if platform.system() == "Windows" else "UNIX"
+                client_os_type = "WINDOWS" if sys.platform == "win32" else "UNIX"
             self.server.channel.request(
                 "setDebuggerProperty",
                 {
@@ -231,7 +230,7 @@ class IDE(components.Component, sockets.ClientConnection):
 
         sudo = request("sudo", json.default("Sudo" in self.session.debug_options))
         if sudo:
-            if platform.system() == "Windows":
+            if sys.platform == "win32":
                 raise request.cant_handle('"sudo":true is not supported on Windows.')
         else:
             if "Sudo" in self.session.debug_options:
