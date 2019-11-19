@@ -14,6 +14,12 @@ from tests.debug import runners
 from tests.patterns import some
 
 
+# Can't test "internalConsole", because we don't have debuggee stdin.
+@pytest.fixture(params=[runners.launch["integratedTerminal"], runners.launch["externalTerminal"]])
+def run(request):
+    return request.param
+
+
 def has_waited(session):
     lines = session.captured_output.stdout_lines()
     return any(
@@ -34,9 +40,6 @@ def wait_and_press_key(session):
     session.debuggee.stdin.write(b"\n")
 
 
-@pytest.mark.parametrize(
-    "run", [runners.launch["integratedTerminal"], runners.launch["externalTerminal"]]
-)
 def test_wait_on_normal_exit_enabled(pyfile, target, run):
     @pyfile
     def code_to_debug():
@@ -59,9 +62,6 @@ def test_wait_on_normal_exit_enabled(pyfile, target, run):
 
 @pytest.mark.skipif(
     sys.version_info < (3, 0), reason="https://github.com/microsoft/ptvsd/issues/1819"
-)
-@pytest.mark.parametrize(
-    "run", [runners.launch["integratedTerminal"], runners.launch["externalTerminal"]]
 )
 def test_wait_on_abnormal_exit_enabled(pyfile, target, run):
     @pyfile
@@ -86,9 +86,6 @@ def test_wait_on_abnormal_exit_enabled(pyfile, target, run):
         wait_and_press_key(session)
 
 
-@pytest.mark.parametrize(
-    "run", [runners.launch["integratedTerminal"], runners.launch["externalTerminal"]]
-)
 def test_exit_normally_with_wait_on_abnormal_exit_enabled(pyfile, target, run):
     @pyfile
     def code_to_debug():

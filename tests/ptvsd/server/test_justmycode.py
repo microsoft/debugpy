@@ -7,10 +7,12 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import pytest
 
 from tests import debug
+from tests.debug import targets
 from tests.patterns import some
 
 
 @pytest.mark.parametrize("jmc", ["jmc", ""])
+@pytest.mark.parametrize("target", targets.all_named)
 def test_justmycode_frames(pyfile, target, run, jmc):
     @pyfile
     def code_to_debug():

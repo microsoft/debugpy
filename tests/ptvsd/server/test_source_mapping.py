@@ -4,9 +4,17 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import pytest
 import sys
+
 from tests import debug
+from tests.debug import runners
 from tests.patterns import some
+
+
+@pytest.fixture(params=[runners.launch, runners.attach_by_socket["api"]])
+def run(request):
+    return request.param
 
 
 def test_with_path_mappings(pyfile, tmpdir, target, run):

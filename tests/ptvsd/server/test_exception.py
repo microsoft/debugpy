@@ -7,6 +7,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import pytest
 
 from tests import debug
+from tests.debug import runners, targets
 from tests.patterns import some
 from tests.timeline import Event
 
@@ -142,6 +143,8 @@ def test_vsc_exception_options_raise_without_except(
             session.request_continue()
 
 
+@pytest.mark.parametrize("target", targets.all_named)
+@pytest.mark.parametrize("run", runners.all)
 @pytest.mark.parametrize("raised", ["raised", ""])
 @pytest.mark.parametrize("uncaught", ["uncaught", ""])
 @pytest.mark.parametrize("zero", ["zero", ""])
@@ -281,6 +284,8 @@ def test_raise_exception_options(pyfile, target, run, exceptions, break_mode):
             session.request_continue()
 
 
+@pytest.mark.parametrize("target", targets.all_named)
+@pytest.mark.parametrize("run", runners.all)
 @pytest.mark.parametrize("exit_code", [0, 3])
 @pytest.mark.parametrize("break_on_system_exit_zero", ["break_on_system_exit_zero", ""])
 @pytest.mark.parametrize("django", ["django", ""])

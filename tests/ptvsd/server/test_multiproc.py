@@ -15,6 +15,11 @@ from tests.debug import runners
 from tests.patterns import some
 
 
+@pytest.fixture(params=[runners.launch, runners.attach_by_socket["api"]])
+def run(request):
+    return request.param
+
+
 @pytest.mark.parametrize(
     "start_method",
     [""]

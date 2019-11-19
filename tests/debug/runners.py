@@ -82,6 +82,13 @@ def _runner(f):
                 return self.with_options(*args, **kwargs)(session, target)
             return f(session, target, *self._args, **self._kwargs)
 
+        def __iter__(self):
+            # Since we implement __getitem__, iter() will assume that runners are
+            # iterable, and will iterate over them by calling __getitem__ until it
+            # raises IndexError - i.e. indefinitely. To prevent that, explicitly
+            # implement __iter__ as unsupported.
+            raise NotImplementedError
+
         def __getitem__(self, arg):
             return self.with_options(arg)
 
@@ -240,13 +247,14 @@ if {wait!r}:
 attach_by_socket.host = "127.0.0.1"
 attach_by_socket.port = net.get_test_server_port(5678, 5800)
 
-
 all_launch = [
     launch["internalConsole"],
     launch["integratedTerminal"],
     launch["externalTerminal"],
 ]
 
-all_attach = [attach_by_socket["api"], attach_by_socket["cli"], attach_by_pid]
+all_attach_by_socket = [attach_by_socket["api"], attach_by_socket["cli"]]
+
+all_attach = all_attach_by_socket + [attach_by_pid]
 
 all = all_launch + all_attach

@@ -7,6 +7,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import pytest
 
 from tests import debug
+from tests.debug import runners
 
 # When debuggee exits, there's no guarantee currently that all "output" events have
 # already been sent. To ensure that they are, all tests below must set a breakpoint
@@ -14,6 +15,7 @@ from tests import debug
 # sequentially, by the time we get to "stopped", we also have all the output events.
 
 
+@pytest.mark.parametrize("run", runners.all)
 def test_with_no_output(pyfile, target, run):
     @pyfile
     def code_to_debug():
@@ -30,8 +32,9 @@ def test_with_no_output(pyfile, target, run):
 
     assert not session.output("stdout")
     assert not session.output("stderr")
-    assert not session.captured_stdout()
-    assert not session.captured_stderr()
+    if session.debuggee is not None:
+        assert not session.captured_stdout()
+        assert not session.captured_stderr()
 
 
 def test_with_tab_in_output(pyfile, target, run):
@@ -53,6 +56,7 @@ def test_with_tab_in_output(pyfile, target, run):
     assert session.output("stdout").startswith("Hello\tWorld")
 
 
+@pytest.mark.parametrize("run", runners.all)
 @pytest.mark.parametrize("redirect", ["enabled", "disabled"])
 def test_redirect_output(pyfile, target, run, redirect):
     @pyfile

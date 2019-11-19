@@ -16,19 +16,14 @@ from ptvsd.common import compat, fmt, log, options, timestamp
 from tests import code, logs
 from tests.debug import runners, session, targets
 
-# Set up the test matrix for various code types and attach methods. Most tests will
-# use both run_as and start_method, so the matrix is a cross product of them.
+# Set up the test matrix for various code types and attach methods
 
-if int(os.environ.get("PTVSD_SIMPLE_TESTS", "0")):
-    TARGETS = [targets.Program]
-    RUNNERS = [runners.launch, runners.attach_by_socket["cli"]]
-else:
+if int(os.environ.get("PTVSD_TESTS_FULL", "0")):
     TARGETS = targets.all_named
-    RUNNERS = [
-        runners.launch,
-        runners.attach_by_socket["api"],
-        runners.attach_by_socket["cli"],
-    ]
+    RUNNERS = runners.all_launch + runners.all_attach_by_socket,
+else:
+    TARGETS = [targets.Program]
+    RUNNERS = [runners.launch]
 
 
 @pytest.fixture(params=TARGETS)

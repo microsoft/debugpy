@@ -29,18 +29,8 @@ class lines:
     app_py = code.get_marked_line_numbers(paths.app_py)
 
 
-@pytest.fixture(
-    params=[
-        runners.launch["internalConsole"],
-        runners.launch["integratedTerminal"],
-        runners.attach_by_socket["cli"],
-    ]
-)
-def run(request):
-    return request.param
-
-
 @pytest.fixture
+@pytest.mark.parametrize("run", [runners.launch, runners.attach_by_socket["cli"]])
 def start_flask(run):
     def start(session, multiprocess=False):
         # No clean way to kill Flask server, expect non-zero exit code

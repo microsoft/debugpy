@@ -7,7 +7,13 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import pytest
 
 from tests import code, debug, log, test_data
+from tests.debug import targets
 from tests.patterns import some
+
+
+@pytest.fixture(params=targets.all_named)
+def target(request):
+    return request.param
 
 
 @pytest.mark.parametrize("scenario", ["exclude_by_name", "exclude_by_dir"])

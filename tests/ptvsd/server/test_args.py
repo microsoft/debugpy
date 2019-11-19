@@ -7,11 +7,12 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import pytest
 
 from tests import debug
-from tests.debug import targets
+from tests.debug import runners, targets
 from tests.patterns import some
 
 
 @pytest.mark.parametrize("target", targets.all)
+@pytest.mark.parametrize("run", runners.all)
 def test_args(pyfile, target, run):
     @pyfile
     def code_to_debug():

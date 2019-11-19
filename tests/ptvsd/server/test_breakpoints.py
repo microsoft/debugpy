@@ -18,6 +18,12 @@ from tests.patterns import some
 bp_root = test_data / "bp"
 
 
+@pytest.fixture(params=[runners.launch, runners.attach_by_socket["api"]])
+def run(request):
+    return request.param
+
+
+@pytest.mark.parametrize("target", targets.all_named)
 def test_path_with_ampersand(target, run):
     test_py = bp_root / "a&b" / "test.py"
 
@@ -38,6 +44,7 @@ def test_path_with_ampersand(target, run):
     platform.system() == "Windows" and sys.version_info < (3, 6),
     reason="https://github.com/Microsoft/ptvsd/issues/1124#issuecomment-459506802",
 )
+@pytest.mark.parametrize("target", targets.all_named)
 def test_path_with_unicode(target, run):
     test_py = bp_root / "ನನ್ನ_ಸ್ಕ್ರಿಪ್ಟ್.py"
 
@@ -65,6 +72,7 @@ conditions = {
 
 
 @pytest.mark.parametrize("condition_kind, condition", list(conditions.keys()))
+@pytest.mark.parametrize("target", targets.all_named)
 def test_conditional_breakpoint(pyfile, target, run, condition_kind, condition):
     hit = conditions[condition_kind, condition]
 
@@ -169,6 +177,7 @@ def test_error_in_condition(pyfile, target, run, error_name):
 
 
 @pytest.mark.parametrize("condition", ["condition", ""])
+@pytest.mark.parametrize("target", targets.all_named)
 def test_log_point(pyfile, target, run, condition):
     @pyfile
     def code_to_debug():
@@ -226,8 +235,8 @@ def test_log_point(pyfile, target, run, condition):
     assert session.output("stderr") == some.str.matching(expected_stderr)
 
 
-@pytest.mark.parametrize("run", runners.all_launch)
-def test_package_launch(run):
+@pytest.mark.parametrize("run", [runners.launch])
+def test_breakpoint_in_package_main(run):
     testpkgs = test_data / "testpkgs"
     main_py = testpkgs / "pkg1" / "__main__.py"
 
