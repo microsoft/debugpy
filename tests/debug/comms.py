@@ -10,7 +10,6 @@ import threading
 import socket
 
 from ptvsd.common import fmt, log, messaging, sockets
-from tests.timeline import Request, Response
 
 
 class BackChannel(object):
@@ -24,7 +23,7 @@ class BackChannel(object):
         self._server_socket = None
 
     def __str__(self):
-        return fmt("{0}.backchannel", self.session.debuggee_id)
+        return fmt("BackChannel-{0}", self.session.id)
 
     def listen(self):
         self._server_socket = sockets.create_server("127.0.0.1", 0, self.TIMEOUT)
@@ -45,12 +44,15 @@ class BackChannel(object):
             try:
                 sock, _ = server_socket.accept()
             except socket.timeout:
-                raise log.exception("Timed out waiting for {0} to connect", self)
+                if self._server_socket is None:
+                    return
+                else:
+                    raise log.exception("Timed out waiting for {0} to connect", self)
             except Exception:
                 if self._server_socket is None:
                     return
                 else:
-                    raise
+                    raise log.exception("Error accepting connection for {0}:", self)
 
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             log.info("Incoming connection from {0} accepted.", self)
@@ -83,18 +85,26 @@ class BackChannel(object):
         sock = self._socket
         if sock:
             self._socket = None
-            log.debug("Closing {0} socket of {1}...", self, self.session)
+            log.debug("Closing {0} client socket...", self)
             try:
                 sock.shutdown(socket.SHUT_RDWR)
+            except Exception:
+                pass
+            try:
+                sock.close()
             except Exception:
                 pass
 
         server_socket = self._server_socket
         if server_socket:
             self._server_socket = None
-            log.debug("Closing {0} server socket of {1}...", self, self.session)
+            log.debug("Closing {0} server socket...", self)
             try:
                 server_socket.shutdown(socket.SHUT_RDWR)
+            except Exception:
+                pass
+            try:
+                server_socket.close()
             except Exception:
                 pass
 
@@ -109,18 +119,6 @@ class ScratchPad(object):
     def __setitem__(self, key, value):
         """Sets debug_me.scratchpad[key] = value inside the debugged process.
         """
-
-        stackTrace_responses = self.session.all_occurrences_of(
-            Response(Request("stackTrace"))
-        )
-        assert (
-            stackTrace_responses
-        ), 'scratchpad requires at least one "stackTrace" request in the timeline.'
-        stack_trace = stackTrace_responses[-1].body
-        frame_id = stack_trace["stackFrames"][0]["id"]
-
         log.info("{0} debug_me.scratchpad[{1!r}] = {2!r}", self.session, key, value)
-        expr = fmt("__import__('debug_me').scratchpad[{0!r}] = {1!r}", key, value)
-        self.session.request(
-            "evaluate", {"frameId": frame_id, "context": "repl", "expression": expr}
-        )
+        expr = fmt("sys.modules['debug_me'].scratchpad[{0!r}] = {1!r}", key, value)
+        self.session.request("evaluate", {"context": "repl", "expression": expr})

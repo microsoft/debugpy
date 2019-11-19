@@ -52,6 +52,7 @@ If there is no configuration phase, the runner returns directly::
     # target is running now!
 """
 
+import contextlib
 import os
 import pytest
 import sys
@@ -157,6 +158,7 @@ def _attach_common_config(session, target, cwd):
 
 
 @_runner
+@contextlib.contextmanager
 def attach_by_pid(session, target, cwd=None, wait=True):
     if sys.version_info < (3,) and sys.platform == "win32":
         pytest.skip("https://github.com/microsoft/ptvsd/issues/1811")
@@ -179,12 +181,12 @@ import sys
 import threading
 import time
 
-while not "ptvsd" in sys.modules:
+while "ptvsd" not in sys.modules:
     time.sleep(0.1)
 
-import ptvsd
+from debug_me import scratchpad
 
-while not ptvsd.is_attached():
+while "_attach_by_pid" not in scratchpad:
     time.sleep(0.1)
     """
         else:
@@ -194,7 +196,11 @@ while not ptvsd.is_attached():
         config["processId"] = session.debuggee.pid
 
     session.spawn_adapter()
-    return session.request_attach()
+    with session.request_attach():
+        yield
+
+    if wait:
+        session.scratchpad["_attach_by_pid"] = True
 
 
 @_runner
