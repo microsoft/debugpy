@@ -162,6 +162,8 @@ def _attach_common_config(session, target, cwd):
 def attach_by_pid(session, target, cwd=None, wait=True):
     if sys.version_info < (3,) and sys.platform == "win32":
         pytest.skip("https://github.com/microsoft/ptvsd/issues/1811")
+    if sys.version_info < (3,) and sys.platform == "darwin":
+        pytest.skip("https://github.com/microsoft/ptvsd/issues/1916")
     if wait and not sys.platform.startswith("linux"):
         pytest.skip("https://github.com/microsoft/ptvsd/issues/1926")
 
