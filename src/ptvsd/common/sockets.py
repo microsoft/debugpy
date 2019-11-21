@@ -64,17 +64,20 @@ class ClientConnection(object):
     """
 
     @classmethod
-    def listen(cls, host=None, port=0, timeout=None):
+    def listen(cls, host=None, port=0, timeout=None, name=None):
         """Accepts TCP connections on the specified host and port, and creates a new
         instance of this class wrapping every accepted socket.
         """
+
+        if name is None:
+            name = cls.__name__
 
         assert cls.listener is None
         cls.listener = create_server(host, port, timeout)
         host, port = cls.listener.getsockname()
         log.info(
             "Waiting for incoming {0} connections on {1}:{2}...",
-            cls.__name__,
+            name,
             host,
             port,
         )
@@ -89,7 +92,7 @@ class ClientConnection(object):
 
                 log.info(
                     "Accepted incoming {0} connection from {1}:{2}.",
-                    cls.__name__,
+                    name,
                     other_host,
                     other_port,
                 )

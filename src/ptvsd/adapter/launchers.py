@@ -34,8 +34,6 @@ class Launcher(components.Component):
     @message_handler
     def process_event(self, event):
         self.pid = event("systemProcessId", int)
-        assert self.session.pid is None
-        self.session.pid = self.pid
         self.ide.propagate_after_start(event)
 
     @message_handler
@@ -115,14 +113,24 @@ def spawn_debuggee(session, start_request, sudo, args, console, console_title):
         arguments["port"] = port
         spawn_launcher()
 
-        if not session.wait_for(lambda: session.pid is not None, timeout=5):
+        if not session.wait_for(
+            lambda: session.launcher is not None and session.launcher.pid is not None,
+            timeout=5,
+        ):
             raise start_request.cant_handle(
                 '{0} timed out waiting for "process" event from {1}',
                 session,
                 session.launcher,
             )
 
-        conn = servers.wait_for_connection(session.pid, timeout=10)
+        # Python can be started via a stub - e.g. py.exe on Windows, which doubles
+        # as python.exe in virtual environments. In this case, the PID of the process
+        # that connects to us won't match the PID of the process that we spawned, but
+        # will have the latter as its parent.
+        pid = session.launcher.pid
+        conn = servers.wait_for_connection(
+            session, (lambda conn: pid in (conn.pid, conn.ppid)), timeout=10
+        )
         if conn is None:
             raise start_request.cant_handle(
                 "{0} timed out waiting for debuggee to spawn", session

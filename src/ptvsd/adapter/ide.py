@@ -311,31 +311,32 @@ class IDE(components.Component, sockets.ClientConnection):
             ptvsd_args = request("ptvsdArgs", json.array(unicode))
             servers.inject(pid, ptvsd_args)
             timeout = 10
+            pred = lambda conn: conn.pid == pid
         else:
             if sub_pid == ():
-                pid = any
+                pred = lambda conn: True
                 timeout = None if request("waitForAttach", False) else 10
             else:
-                pid = sub_pid
+                pred = lambda conn: conn.pid == sub_pid
                 timeout = 0
 
-        conn = servers.wait_for_connection(pid, timeout)
+        conn = servers.wait_for_connection(self.session, pred, timeout)
         if conn is None:
             raise request.cant_handle(
                 (
-                    "Timed out waiting for injected debug server to connect"
+                    "Timed out waiting for debug server to connect."
                     if timeout
                     else "There is no debug server connected to this adapter."
-                    if pid is any
+                    if sub_pid == ()
                     else 'No known subprocess with "subProcessId":{0}'
                 ),
-                pid,
+                sub_pid,
             )
 
         try:
             conn.attach_to_session(self.session)
         except ValueError:
-            request.cant_handle("Debuggee with PID={0} is already being debugged.", pid)
+            request.cant_handle("{0} is already being debugged.", conn)
 
     @message_handler
     def configurationDone_request(self, request):

@@ -12,7 +12,7 @@
             "consoleTitle": "ptvsd.adapter",
             "program": "${workspaceFolder}/src/ptvsd/adapter",
             "args": ["--port", "8765", "--log-stderr"],
-            "customDebugger": true,
+            "noDebug": true,
         },
 
         // For these, ptvsd.adapter must be started first via the above configuration.
@@ -27,24 +27,13 @@
             "consoleTitle": "ptvsd.server",
             //"program": "${file}",
             "program": "${workspaceFolder}/tests/test_data/testpkgs/pkg1/__main__.py",
-            //"ptvsdArgs": ["--log-stderr"],
         },
         {
-            //"debugServer": 8765,
             "name": "Attach [debugServer]",
             "type": "python",
             "request": "attach",
             "host": "localhost",
             "port": 5678,
-        },
-        {
-            //"debugServer": 8765,
-            "name": "Attach Child Process [debugServer]",
-            "type": "python",
-            "request": "attach",
-            "host": "localhost",
-            "port": 5678,
-            "subProcessId": 00000,
         },
     ]
 }

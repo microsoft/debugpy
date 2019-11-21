@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import functools
 import os
 import subprocess
 import sys
@@ -206,18 +207,14 @@ class Server(components.Component):
 
             self.connection = connection
 
-            if self.launcher:
-                assert self.session.pid is not None
-            else:
-                assert self.session.pid is None
-            if self.session.pid is not None and self.session.pid != self.pid:
+            assert self.session.pid is None
+            if self.session.launcher and self.session.launcher.pid != self.pid:
                 log.warning(
                     "Launcher reported PID={0}, but server reported PID={1}",
                     self.session.pid,
                     self.pid,
                 )
-            else:
-                self.session.pid = self.pid
+            self.session.pid = self.pid
 
             session.server = self
 
@@ -314,7 +311,7 @@ class Server(components.Component):
         super(Server, self).disconnect()
 
 
-listen = Connection.listen
+listen = functools.partial(Connection.listen, name="Server")
 
 
 def stop_listening():
@@ -329,7 +326,7 @@ def connections():
         return list(_connections)
 
 
-def wait_for_connection(pid=any, timeout=None):
+def wait_for_connection(session, predicate, timeout=None):
     """Waits until there is a server with the specified PID connected to this adapter,
     and returns the corresponding Connection.
 
@@ -352,16 +349,11 @@ def wait_for_connection(pid=any, timeout=None):
         thread.start()
 
     if timeout != 0:
-        log.info(
-            "Waiting for connection from debug server..."
-            if pid is any
-            else "Waiting for connection from debug server with PID={0}...",
-            pid,
-        )
+        log.info("{0} waiting for connection from debug server...", session)
     while True:
         with _lock:
             _connections_changed.clear()
-            conns = (conn for conn in _connections if pid is any or conn.pid == pid)
+            conns = (conn for conn in _connections if predicate(conn))
             conn = next(conns, None)
             if conn is not None or wait_for_timeout.timed_out:
                 return conn
