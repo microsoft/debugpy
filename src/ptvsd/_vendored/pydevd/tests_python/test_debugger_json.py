@@ -2972,14 +2972,19 @@ def test_remote_debugger_basic(case_setup_remote):
         writer.finished_ok = True
 
 
-@pytest.mark.parametrize('use_c_switch', [True, False])
-def test_subprocess_pydevd_customization(case_setup_remote, use_c_switch):
+PYDEVD_CUSTOMIZATION_COMMAND_LINE_ARGS = ['', '--use-c-switch']
+if hasattr(os, 'posix_spawn'):
+    PYDEVD_CUSTOMIZATION_COMMAND_LINE_ARGS.append('--posix-spawn')
+
+
+@pytest.mark.parametrize('command_line_args', PYDEVD_CUSTOMIZATION_COMMAND_LINE_ARGS)
+def test_subprocess_pydevd_customization(case_setup_remote, command_line_args):
     import threading
     from tests_python.debugger_unittest import AbstractWriterThread
 
     with case_setup_remote.test_file(
             '_debugger_case_pydevd_customization.py',
-            append_command_line_args=['--use-c-switch'] if use_c_switch else []
+            append_command_line_args=command_line_args if command_line_args else [],
         ) as writer:
         json_facade = JsonFacade(writer, send_json_startup_messages=False)
         json_facade.writer.write_multi_threads_single_notification(True)
