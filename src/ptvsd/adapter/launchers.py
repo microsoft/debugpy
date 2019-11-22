@@ -123,14 +123,9 @@ def spawn_debuggee(session, start_request, sudo, args, console, console_title):
                 session.launcher,
             )
 
-        # Python can be started via a stub - e.g. py.exe on Windows, which doubles
-        # as python.exe in virtual environments. In this case, the PID of the process
-        # that connects to us won't match the PID of the process that we spawned, but
-        # will have the latter as its parent.
-        pid = session.launcher.pid
-        conn = servers.wait_for_connection(
-            session, (lambda conn: pid in (conn.pid, conn.ppid)), timeout=10
-        )
+        # Wait for the first incoming connection regardless of the PID - it won't
+        # necessarily match due to the use of stubs like py.exe or "conda run".
+        conn = servers.wait_for_connection(session, lambda conn: True, timeout=10)
         if conn is None:
             raise start_request.cant_handle(
                 "{0} timed out waiting for debuggee to spawn", session

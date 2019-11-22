@@ -228,6 +228,9 @@ class IDE(components.Component, sockets.ClientConnection):
     def launch_request(self, request):
         from ptvsd.adapter import launchers
 
+        if self.session.id != 1 or len(servers.connections()):
+            raise request.cant_handle('"attach" expected')
+
         sudo = request("sudo", json.default("Sudo" in self.session.debug_options))
         if sudo:
             if sys.platform == "win32":
