@@ -12,7 +12,7 @@ import subprocess
 import sys
 import threading
 
-from ptvsd.common import fmt, log, messaging
+from ptvsd.common import fmt, log, messaging, compat
 
 
 process = None
@@ -72,7 +72,7 @@ def spawn(process_name, cmdline, cwd, env, redirect_output):
                 "isLocalProcess": True,
                 "systemProcessId": process.pid,
                 "name": process_name,
-                "pointerSize": struct.calcsize("P") * 8,
+                "pointerSize": struct.calcsize(compat.force_str("P")) * 8,
             },
         )
 
