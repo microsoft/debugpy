@@ -225,7 +225,7 @@ def array(validate_item=False, vectorize=False, size=None):
             try:
                 value[i] = validate_item(item)
             except (TypeError, ValueError) as exc:
-                raise type(exc)("[{0!j}] {1}".format(i, exc))
+                raise type(exc)(fmt("[{0!j}] {1}", i, exc))
         return value
 
     return validate
@@ -259,7 +259,15 @@ def object(validate_value=False):
                 try:
                     value[k] = validate_value(v)
                 except (TypeError, ValueError) as exc:
-                    raise type(exc)("[{0!j}] {1}".format(k, exc))
+                    raise type(exc)(fmt("[{0!j}] {1}", k, exc))
         return value
 
     return validate
+
+
+# A helper to resolve the circular dependency between common.fmt and common.json
+# on Python 2.
+def fmt(*args, **kwargs):
+    from ptvsd.common import fmt
+
+    return fmt(*args, **kwargs)

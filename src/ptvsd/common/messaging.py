@@ -413,7 +413,10 @@ class MessageDict(collections.OrderedDict):
             value = validate(value)
         except (TypeError, ValueError) as exc:
             message = Message if self.message is None else self.message
-            raise message.isnt_valid("{0!r} {1}", key, exc)
+            err = fmt("{0}", exc)
+            if not err.startswith("["):
+                err = " " + err
+            raise message.isnt_valid("{0!j}{1}", key, err)
         return value
 
     def _invalid_if_no_key(func):
