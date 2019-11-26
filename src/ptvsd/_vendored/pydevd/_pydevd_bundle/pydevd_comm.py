@@ -285,13 +285,14 @@ class ReaderThread(PyDBDaemonThread):
                 # processing anything read).
                 try:
                     line = self._read_line()
-                    if self._kill_received:
-                        continue
 
                     if len(line) == 0:
                         pydev_log.debug('ReaderThread: empty contents received (len(line) == 0).')
                         self._terminate_on_socket_close()
                         return  # Finished communication.
+
+                    if self._kill_received:
+                        continue
 
                     if line.startswith(b'Content-Length:'):
                         content_len = int(line.strip().split(b':', 1)[1])
@@ -301,8 +302,6 @@ class ReaderThread(PyDBDaemonThread):
                         # If we previously received a content length, read until a '\r\n'.
                         if line == b'\r\n':
                             json_contents = self._read(content_len)
-                            if self._kill_received:
-                                continue
 
                             content_len = -1
 
@@ -310,6 +309,9 @@ class ReaderThread(PyDBDaemonThread):
                                 pydev_log.debug('ReaderThread: empty contents received (len(json_contents) == 0).')
                                 self._terminate_on_socket_close()
                                 return  # Finished communication.
+
+                            if self._kill_received:
+                                continue
 
                             # We just received a json message, let's process it.
                             self.process_net_command_json(self.py_db, json_contents)
