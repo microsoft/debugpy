@@ -6,10 +6,11 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import codecs
 import os
+import sys
 import threading
 
+from ptvsd import launcher
 from ptvsd.common import log
-from ptvsd.launcher import adapter, debuggee
 
 
 class CaptureOutput(object):
@@ -20,24 +21,19 @@ class CaptureOutput(object):
     instances = {}
     """Keys are output categories, values are CaptureOutput instances."""
 
-    def __init__(self, category, fd, tee_fd, encoding):
+    def __init__(self, whose, category, fd, stream):
         assert category not in self.instances
         self.instances[category] = self
-        log.info("Capturing {0} of {1}.", category, debuggee.describe())
+        log.info("Capturing {0} of {1}.", category, whose)
 
         self.category = category
+        self._whose = whose
         self._fd = fd
-        self._tee_fd = tee_fd
-
-        try:
-            self._decoder = codecs.getincrementaldecoder(encoding)(errors="replace")
-        except LookupError:
-            self._decoder = None
-            log.warning(
-                'Unable to generate "output" events for {0} - unknown encoding {1!r}',
-                category,
-                encoding,
-            )
+        self._stream = stream if sys.version_info < (3,) else stream.buffer
+        self._decoder = codecs.getincrementaldecoder("utf-8")(errors="surrogateescape")
+        self._encode = codecs.getencoder(
+            "utf-8" if stream.encoding is None else stream.encoding
+        )
 
         self._worker_thread = threading.Thread(target=self._worker, name=category)
         self._worker_thread.start()
@@ -50,54 +46,52 @@ class CaptureOutput(object):
             except Exception:
                 pass
 
-    def _send_output_event(self, s, final=False):
-        if self._decoder is None:
-            return
-
-        s = self._decoder.decode(s, final=final)
-        if len(s) == 0:
-            return
-        s = s.replace("\r\n", "\n")
-
-        try:
-            adapter.channel.send_event(
-                "output", {"category": self.category, "output": s}
-            )
-        except Exception:
-            pass  # channel to adapter is already closed
-
     def _worker(self):
         while self._fd is not None:
             try:
                 s = os.read(self._fd, 0x1000)
             except Exception:
                 break
-
-            size = len(s)
-            if size == 0:
+            if not len(s):
                 break
-
-            # Tee the output first, before sending the "output" event.
-            i = 0
-            while i < size:
-                written = os.write(self._tee_fd, s[i:])
-                i += written
-                if not written:
-                    # This means that the output stream was closed from the other end.
-                    # Do the same to the debuggee, so that it knows as well.
-                    os.close(self._fd)
-                    self._fd = None
-                    break
-
-            self._send_output_event(s)
+            self._process_chunk(s)
 
         # Flush any remaining data in the incremental decoder.
-        self._send_output_event(b"", final=True)
+        self._process_chunk(b"", final=True)
+
+    def _process_chunk(self, s, final=False):
+        s = self._decoder.decode(s, final=final)
+        if len(s) == 0:
+            return
+
+        try:
+            launcher.channel.send_event(
+                "output", {"category": self.category, "output": s.replace("\r\n", "\n")}
+            )
+        except Exception:
+            pass  # channel to adapter is already closed
+
+        s, _ = self._encode(s, "surrogateescape")
+        size = len(s)
+        i = 0
+        while i < size:
+            # On Python 2, all writes are full writes, and write() returns None.
+            # On Python 3, writes can be partial, and write() returns the count.
+            written = self._stream.write(s[i:])
+            if written is None:  # full write
+                break
+            elif written == 0:
+                # This means that the output stream was closed from the other end.
+                # Do the same to the debuggee, so that it knows as well.
+                os.close(self._fd)
+                self._fd = None
+                break
+            i += written
 
 
 def wait_for_remaining_output():
     """Waits for all remaining output to be captured and propagated.
     """
     for category, instance in CaptureOutput.instances.items():
-        log.info("Waiting for remaining {0} of {1}.", category, debuggee.describe())
+        log.info("Waiting for remaining {0} of {1}.", category, instance._whose)
         instance._worker_thread.join()

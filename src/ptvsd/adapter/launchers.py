@@ -58,7 +58,7 @@ def spawn_debuggee(session, start_request, sudo, args, console, console_title):
     cmdline = ["sudo"] if sudo else []
     cmdline += [sys.executable, os.path.dirname(ptvsd.launcher.__file__)]
     cmdline += args
-    env = {str("PTVSD_SESSION_ID"): str(session.id)}
+    env = {}
 
     def spawn_launcher():
         with session.accept_connection_from_launcher() as (_, launcher_port):

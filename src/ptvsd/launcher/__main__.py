@@ -19,7 +19,8 @@ __file__ = os.path.abspath(__file__)
 
 def main():
     from ptvsd.common import log
-    from ptvsd.launcher import adapter, debuggee
+    from ptvsd import launcher
+    from ptvsd.launcher import debuggee
 
     log.to_file(prefix="ptvsd.launcher")
     log.describe_environment("ptvsd.launcher startup environment:")
@@ -30,11 +31,10 @@ def main():
         except Exception:
             raise log.exception("Error parsing {0!r}:", name)
 
-    session_id = option("PTVSD_SESSION_ID", int)
     launcher_port = option("PTVSD_LAUNCHER_PORT", int)
 
-    adapter.connect(session_id, launcher_port)
-    adapter.channel.wait()
+    launcher.connect(launcher_port)
+    launcher.channel.wait()
 
     if debuggee.process is not None:
         sys.exit(debuggee.process.returncode)

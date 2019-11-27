@@ -5,14 +5,15 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import atexit
-import locale
 import os
 import struct
 import subprocess
 import sys
 import threading
 
+from ptvsd import launcher
 from ptvsd.common import fmt, log, messaging, compat
+from ptvsd.launcher import output
 
 
 process = None
@@ -27,12 +28,10 @@ returns True, the launcher pauses and waits for user input before exiting.
 
 
 def describe():
-    return fmt("debuggee process with PID={0}", process.pid)
+    return fmt("Debuggee[PID={0}]", process.pid)
 
 
 def spawn(process_name, cmdline, cwd, env, redirect_output):
-    from ptvsd.launcher import adapter, output
-
     log.info(
         "Spawning debuggee process:\n\n"
         "Current directory: {0!j}\n\n"
@@ -65,7 +64,7 @@ def spawn(process_name, cmdline, cwd, env, redirect_output):
 
         log.info("Spawned {0}.", describe())
         atexit.register(kill)
-        adapter.channel.send_event(
+        launcher.channel.send_event(
             "process",
             {
                 "startMethod": "launch",
@@ -77,12 +76,11 @@ def spawn(process_name, cmdline, cwd, env, redirect_output):
         )
 
         if redirect_output:
-            encoding = env.get("PYTHONIOENCODING", locale.getpreferredencoding())
             for category, fd, tee in [
                 ("stdout", stdout_r, sys.stdout),
                 ("stderr", stderr_r, sys.stderr),
             ]:
-                output.CaptureOutput(category, fd, tee.fileno(), encoding)
+                output.CaptureOutput(describe(), category, fd, tee)
                 close_fds.remove(fd)
 
         wait_thread = threading.Thread(target=wait_for_exit, name="wait_for_exit()")
@@ -109,8 +107,6 @@ def kill():
 
 
 def wait_for_exit():
-    from ptvsd.launcher import adapter, output
-
     try:
         code = process.wait()
         if sys.platform != "win32" and code < 0:
@@ -126,7 +122,7 @@ def wait_for_exit():
     log.info("{0} exited with code {1}", describe(), code)
     output.wait_for_remaining_output()
     try:
-        adapter.channel.send_event("exited", {"exitCode": code})
+        launcher.channel.send_event("exited", {"exitCode": code})
     except Exception:
         pass
 
@@ -134,7 +130,7 @@ def wait_for_exit():
         _wait_for_user_input()
 
     try:
-        adapter.channel.send_event("terminated")
+        launcher.channel.send_event("terminated")
     except Exception:
         pass
 
