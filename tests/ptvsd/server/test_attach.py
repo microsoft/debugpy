@@ -88,8 +88,7 @@ def test_attach_api(pyfile, target, wait_for_attach, is_attached, stop_method):
         session.request_continue()
 
 
-@pytest.mark.parametrize("run", runners.all_attach)
-@pytest.mark.skip(reason="https://github.com/microsoft/ptvsd/issues/1802")
+@pytest.mark.parametrize("run", runners.all_attach_by_socket)
 def test_reattach(pyfile, target, run):
     @pyfile
     def code_to_debug():
@@ -106,24 +105,28 @@ def test_reattach(pyfile, target, run):
             object()  # @second
 
     with debug.Session() as session1:
-        session1.captured_output = None
+        session1.captured_output = set()
         session1.expected_exit_code = None  # not expected to exit on disconnect
 
         with run(session1, target(code_to_debug)):
-            host, port = session1.config["host"], session1.config["port"]
+            pass
 
         session1.wait_for_stop(expected_frames=[some.dap.frame(code_to_debug, "first")])
         session1.disconnect()
 
     with debug.Session() as session2:
         session2.config.update(session1.config)
-        with session2.connect_to_adapter((host, port)):
+        if "host" in session2.config:
+            session2.connect_to_adapter((session2.config["host"], session2.config["port"]))
+
+        with session2.request_attach():
             pass
 
         session2.wait_for_stop(
             expected_frames=[some.dap.frame(code_to_debug, "second")]
         )
         session2.scratchpad["exit"] = True
+        session2.request_continue()
 
 
 def test_attach_by_pid(pyfile, target):

@@ -246,11 +246,8 @@ class Session(object):
                     pass
             self.disconnect(force=True)
 
-        if self.adapter_endpoints is not None:
-            log.info(
-                "Waiting for {0} to close listener ports ...",
-                self.adapter_id,
-            )
+        if self.adapter_endpoints is not None and self.expected_exit_code is not None:
+            log.info("Waiting for {0} to close listener ports ...", self.adapter_id)
             while self.adapter_endpoints.check():
                 time.sleep(0.1)
 
@@ -337,7 +334,9 @@ class Session(object):
         cwd = compat.filename_str(cwd) if isinstance(cwd, py.path.local) else cwd
 
         env = self._make_env(self.spawn_debuggee.env, codecov=False)
-        env["PTVSD_ADAPTER_ENDPOINTS"] = self.adapter_endpoints = self.tmpdir / "adapter_endpoints"
+        env["PTVSD_ADAPTER_ENDPOINTS"] = self.adapter_endpoints = (
+            self.tmpdir / "adapter_endpoints"
+        )
         if debug_me is not None:
             env["PTVSD_TEST_DEBUG_ME"] = debug_me
 
@@ -375,10 +374,7 @@ class Session(object):
             os.close(fd)
 
     def wait_for_enable_attach(self):
-        log.info(
-            "Waiting for {0} to open the IDE listener socket...",
-            self.adapter_id,
-        )
+        log.info("Waiting for {0} to open the IDE listener socket...", self.adapter_id)
         while not self.adapter_endpoints.check():
             time.sleep(0.1)
 
