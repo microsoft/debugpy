@@ -8,7 +8,7 @@ cdef class PyDBAdditionalThreadInfo:
     cdef public bint pydev_django_resolve_frame;
     cdef public object pydev_call_from_jinja2;
     cdef public object pydev_call_inside_jinja2;
-    cdef public bint is_tracing;
+    cdef public int is_tracing;
     cdef public tuple conditional_breakpoint_exception;
     cdef public str pydev_message;
     cdef public int suspend_type;

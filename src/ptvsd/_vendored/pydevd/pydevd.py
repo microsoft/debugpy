@@ -35,7 +35,7 @@ from _pydevd_bundle.pydevd_breakpoints import ExceptionBreakpoint, get_exception
 from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, CMD_STEP_INTO, CMD_SET_BREAK,
     CMD_STEP_INTO_MY_CODE, CMD_STEP_OVER, CMD_SMART_STEP_INTO, CMD_RUN_TO_LINE,
     CMD_SET_NEXT_STATEMENT, CMD_STEP_RETURN, CMD_ADD_EXCEPTION_BREAK, CMD_STEP_RETURN_MY_CODE,
-    CMD_STEP_OVER_MY_CODE)
+    CMD_STEP_OVER_MY_CODE, constant_to_str)
 from _pydevd_bundle.pydevd_constants import (IS_JYTH_LESS25, get_thread_id, get_current_thread_id,
     dict_keys, dict_iter_items, DebugInfoHolder, PYTHON_SUSPEND, STATE_SUSPEND, STATE_RUN, get_frame,
     clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, IS_PY34_OR_GREATER, IS_PY2, NULL,
@@ -72,7 +72,7 @@ from _pydevd_bundle.pydevd_process_net_command import process_net_command
 from _pydevd_bundle.pydevd_net_command import NetCommand
 
 from _pydevd_bundle.pydevd_breakpoints import stop_on_unhandled_exception
-from _pydevd_bundle.pydevd_collect_try_except_info import collect_try_except_info
+from _pydevd_bundle.pydevd_collect_bytecode_info import collect_try_except_info, collect_return_info
 from _pydevd_bundle.pydevd_suspended_frames import SuspendedFramesManager
 from socket import SHUT_RDWR
 from _pydevd_bundle.pydevd_api import PyDevdAPI
@@ -600,6 +600,7 @@ class PyDB(object):
         self.set_additional_thread_info = set_additional_thread_info
         self.stop_on_unhandled_exception = stop_on_unhandled_exception
         self.collect_try_except_info = collect_try_except_info
+        self.collect_return_info = collect_return_info
         self.get_exception_breakpoint = get_exception_breakpoint
         self._dont_trace_get_file_type = DONT_TRACE.get
         self.PYDEV_FILE = PYDEV_FILE
@@ -734,7 +735,7 @@ class PyDB(object):
             # In Python 3.7 "<frozen ..." appears multiple times during import and should be
             # ignored for the user.
             return self.PYDEV_FILE
-        if abs_real_path_and_basename[0].startswith('<builtin'):
+        if abs_real_path_and_basename[0].startswith(('<builtin', '<attrs')):
             # In PyPy "<builtin> ..." can appear and should be ignored for the user.
             return self.PYDEV_FILE
         return self._dont_trace_get_file_type(basename)
@@ -1558,9 +1559,11 @@ class PyDB(object):
 
         return eb
 
-    def _mark_suspend(self, thread, stop_reason):
+    def _mark_suspend(self, thread, stop_reason, original_step_cmd=-1):
         info = set_additional_thread_info(thread)
         info.suspend_type = PYTHON_SUSPEND
+        if original_step_cmd != -1:
+            stop_reason = original_step_cmd
         thread.stop_reason = stop_reason
 
         # Note: don't set the 'pydev_original_step_cmd' here if unset.
@@ -1575,7 +1578,7 @@ class PyDB(object):
 
         return info
 
-    def set_suspend(self, thread, stop_reason, suspend_other_threads=False, is_pause=False):
+    def set_suspend(self, thread, stop_reason, suspend_other_threads=False, is_pause=False, original_step_cmd=-1):
         '''
         :param thread:
             The thread which should be suspended.
@@ -1590,12 +1593,15 @@ class PyDB(object):
         :param is_pause:
             If this is a pause to suspend all threads, any thread can be considered as the 'main'
             thread paused.
+
+        :param original_step_cmd:
+            If given we may change the stop reason to this.
         '''
         self._threads_suspended_single_notification.increment_suspend_time()
         if is_pause:
             self._threads_suspended_single_notification.on_pause()
 
-        info = self._mark_suspend(thread, stop_reason)
+        info = self._mark_suspend(thread, stop_reason, original_step_cmd=original_step_cmd)
 
         if is_pause:
             # Must set tracing after setting the state to suspend.
@@ -1720,12 +1726,13 @@ class PyDB(object):
             If True we should use the line of the exception instead of the current line in the frame
             as the paused location on the top-level frame (exception info must be passed on 'arg').
         """
-        # print('do_wait_suspend %s %s %s %s' % (frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename, event))
         if USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
             _tid_to_last_frame[thread.ident] = sys._getframe()
         self.process_internal_commands()
 
         thread_id = get_current_thread_id(thread)
+
+        # print('do_wait_suspend %s %s %s %s %s %s (%s)' % (frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename, event, arg, constant_to_str(thread.additional_info.pydev_step_cmd), constant_to_str(thread.additional_info.pydev_original_step_cmd)))
 
         # Send the suspend message
         message = thread.additional_info.pydev_message

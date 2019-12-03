@@ -108,7 +108,7 @@ class PyDBAdditionalThreadInfo(object):
         self.pydev_django_resolve_frame = False
         self.pydev_call_from_jinja2 = None
         self.pydev_call_inside_jinja2 = None
-        self.is_tracing = False
+        self.is_tracing = 0
         self.conditional_breakpoint_exception = None
         self.pydev_message = ''
         self.suspend_type = PYTHON_SUSPEND

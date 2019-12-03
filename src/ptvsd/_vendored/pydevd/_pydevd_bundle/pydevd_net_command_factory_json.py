@@ -268,6 +268,7 @@ class NetCommandFactoryJson(NetCommandFactory):
         CMD_STEP_OVER_MY_CODE,
         CMD_STEP_RETURN,
         CMD_STEP_INTO_MY_CODE,
+        CMD_STOP_ON_START,
     ])
     _EXCEPTION_REASONS = set([
         CMD_STEP_CAUGHT_EXCEPTION,

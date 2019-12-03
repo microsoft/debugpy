@@ -191,27 +191,27 @@ class CheckDebuggerPerformance(debugger_unittest.DebuggerRunner):
 
 if __name__ == '__main__':
     # Local times gotten (python 3.6)
-    # Checking: regular
-    # method_calls_with_breakpoint: 1.244s
-    # method_calls_without_breakpoint: 0.286s
-    # method_calls_with_step_over: 2.795s
-    # method_calls_with_exception_breakpoint: 0.272s
-    # global_scope_1_with_breakpoint: 4.212s
-    # global_scope_2_with_breakpoint: 3.256s
+    # method_calls_with_breakpoint: 1.150s
+    # method_calls_without_breakpoint: 0.240s
+    # method_calls_with_step_over: 2.680s
+    # method_calls_with_exception_breakpoint: 0.235s
+    # global_scope_1_with_breakpoint: 4.249s
+    # global_scope_2_with_breakpoint: 2.807s
     # Checking: cython
-    # method_calls_with_breakpoint: 0.639s
-    # method_calls_without_breakpoint: 0.188s
-    # method_calls_with_step_over: 1.387s
-    # method_calls_with_exception_breakpoint: 0.189s
-    # global_scope_1_with_breakpoint: 2.107s
-    # global_scope_2_with_breakpoint: 1.591s
+    # method_calls_with_breakpoint: 0.526s
+    # method_calls_without_breakpoint: 0.130s
+    # method_calls_with_step_over: 1.133s
+    # method_calls_with_exception_breakpoint: 0.136s
+    # global_scope_1_with_breakpoint: 1.827s
+    # global_scope_2_with_breakpoint: 1.405s
     # Checking: frame_eval
-    # method_calls_with_breakpoint: 0.182s
-    # method_calls_without_breakpoint: 0.175s
-    # method_calls_with_step_over: 0.211s
-    # method_calls_with_exception_breakpoint: 0.179s
-    # global_scope_1_with_breakpoint: 0.379s
-    # global_scope_2_with_breakpoint: 0.204s
+    # method_calls_with_breakpoint: 0.133s
+    # method_calls_without_breakpoint: 0.128s
+    # method_calls_with_step_over: 0.130s
+    # method_calls_with_exception_breakpoint: 0.125s
+    # global_scope_1_with_breakpoint: 0.281s
+    # global_scope_2_with_breakpoint: 0.169s
+    # TotalTime for profile: 209.01s
 
     debugger_unittest.SHOW_WRITES_AND_READS = False
     debugger_unittest.SHOW_OTHER_DEBUG_INFO = False
@@ -219,6 +219,8 @@ if __name__ == '__main__':
 
     import time
     start_time = time.time()
+
+    tmpdir = None
 
     msgs = []
     for check in (
@@ -229,7 +231,7 @@ if __name__ == '__main__':
         ):
         PerformanceWriterThread.CHECK = check
         msgs.append('Checking: %s' % (check,))
-        check_debugger_performance = CheckDebuggerPerformance()
+        check_debugger_performance = CheckDebuggerPerformance(tmpdir)
         msgs.append(check_debugger_performance.method_calls_with_breakpoint())
         msgs.append(check_debugger_performance.method_calls_without_breakpoint())
         msgs.append(check_debugger_performance.method_calls_with_step_over())

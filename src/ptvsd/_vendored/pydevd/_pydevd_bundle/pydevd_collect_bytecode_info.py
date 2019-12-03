@@ -46,6 +46,17 @@ class TryExceptInfo(object):
     __repr__ = __str__
 
 
+class ReturnInfo(object):
+
+    def __init__(self, return_line):
+        self.return_line = return_line
+
+    def __str__(self):
+        return '{return: %s}' % (self.return_line,)
+
+    __repr__ = __str__
+
+
 def _get_line(op_offset_to_line, op_offset, firstlineno, search=False):
     op_offset_original = op_offset
     while op_offset >= 0:
@@ -117,6 +128,41 @@ def _iter_as_bytecode_as_instructions_py2(co):
                 yield _Instruction(curr_op_name, op, _get_line(op_offset_to_line, initial_bytecode_offset, 0), oparg, is_jump_target, initial_bytecode_offset)
 
 
+def _iter_instructions(co):
+    if sys.version_info[0] < 3:
+        iter_in = _iter_as_bytecode_as_instructions_py2(co)
+    else:
+        iter_in = dis.Bytecode(co)
+    iter_in = list(iter_in)
+
+    bytecode_to_instruction = {}
+    for instruction in iter_in:
+        bytecode_to_instruction[instruction.offset] = instruction
+
+    if iter_in:
+        for instruction in iter_in:
+            yield instruction
+
+
+def collect_return_info(co, use_func_first_line=False):
+    if not hasattr(co, 'co_lnotab'):
+        return []
+
+    if use_func_first_line:
+        firstlineno = co.co_firstlineno
+    else:
+        firstlineno = 0
+
+    lst = []
+    op_offset_to_line = dict(dis.findlinestarts(co))
+    for instruction in _iter_instructions(co):
+        curr_op_name = instruction.opname
+        if curr_op_name == 'RETURN_VALUE':
+            lst.append(ReturnInfo(_get_line(op_offset_to_line, instruction.offset, firstlineno, search=True)))
+
+    return lst
+
+
 def collect_try_except_info(co, use_func_first_line=False):
     if not hasattr(co, 'co_lnotab'):
         return []
@@ -129,68 +175,58 @@ def collect_try_except_info(co, use_func_first_line=False):
     try_except_info_lst = []
     stack_in_setup = []
 
-    if sys.version_info[0] < 3:
-        iter_in = _iter_as_bytecode_as_instructions_py2(co)
-    else:
-        iter_in = dis.Bytecode(co)
-    iter_in = list(iter_in)
-
     op_offset_to_line = dict(dis.findlinestarts(co))
-    bytecode_to_instruction = {}
-    for instruction in iter_in:
-        bytecode_to_instruction[instruction.offset] = instruction
 
-    if iter_in:
-        for instruction in iter_in:
-            curr_op_name = instruction.opname
+    for instruction in _iter_instructions(co):
+        curr_op_name = instruction.opname
 
-            if curr_op_name in ('SETUP_EXCEPT', 'SETUP_FINALLY'):
-                # We need to collect try..finally blocks too to make sure that
-                # the stack_in_setup we're using to collect info is correct.
-                # Note: On Py3.8 both except and finally statements use 'SETUP_FINALLY'.
-                try_except_info = TryExceptInfo(
-                    _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True),
-                    is_finally=curr_op_name == 'SETUP_FINALLY'
-                )
-                try_except_info.except_bytecode_offset = instruction.argval
-                try_except_info.except_line = _get_line(
-                    op_offset_to_line,
-                    try_except_info.except_bytecode_offset,
-                    firstlineno,
-                )
+        if curr_op_name in ('SETUP_EXCEPT', 'SETUP_FINALLY'):
+            # We need to collect try..finally blocks too to make sure that
+            # the stack_in_setup we're using to collect info is correct.
+            # Note: On Py3.8 both except and finally statements use 'SETUP_FINALLY'.
+            try_except_info = TryExceptInfo(
+                _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True),
+                is_finally=curr_op_name == 'SETUP_FINALLY'
+            )
+            try_except_info.except_bytecode_offset = instruction.argval
+            try_except_info.except_line = _get_line(
+                op_offset_to_line,
+                try_except_info.except_bytecode_offset,
+                firstlineno,
+            )
 
-                stack_in_setup.append(try_except_info)
+            stack_in_setup.append(try_except_info)
 
-            elif curr_op_name == 'POP_EXCEPT':
-                # On Python 3.8 there's no SETUP_EXCEPT (both except and finally start with SETUP_FINALLY),
-                # so, we differentiate by a POP_EXCEPT.
-                if IS_PY38_OR_GREATER:
-                    stack_in_setup[-1].is_finally = False
+        elif curr_op_name == 'POP_EXCEPT':
+            # On Python 3.8 there's no SETUP_EXCEPT (both except and finally start with SETUP_FINALLY),
+            # so, we differentiate by a POP_EXCEPT.
+            if IS_PY38_OR_GREATER:
+                stack_in_setup[-1].is_finally = False
 
-            elif curr_op_name == 'RAISE_VARARGS':
-                # We want to know about reraises and returns inside of except blocks (unfortunately
-                # a raise appears to the debugger as a return, so, we may need to differentiate).
-                if instruction.argval == 0:
-                    for info in stack_in_setup:
-                        info.raise_lines_in_except.append(
-                            _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True))
+        elif curr_op_name == 'RAISE_VARARGS':
+            # We want to know about reraises and returns inside of except blocks (unfortunately
+            # a raise appears to the debugger as a return, so, we may need to differentiate).
+            if instruction.argval == 0:
+                for info in stack_in_setup:
+                    info.raise_lines_in_except.append(
+                        _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True))
 
-            elif curr_op_name == 'END_FINALLY':  # The except block also ends with 'END_FINALLY'.
-                stack_in_setup[-1].except_end_bytecode_offset = instruction.offset
-                stack_in_setup[-1].except_end_line = _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True)
-                if not stack_in_setup[-1].is_finally:
-                    # Don't add try..finally blocks.
-                    try_except_info_lst.append(stack_in_setup[-1])
-                del stack_in_setup[-1]
-
-        while stack_in_setup:
-            # On Py3 the END_FINALLY may not be there (so, the end of the function is also the end
-            # of the stack).
+        elif curr_op_name == 'END_FINALLY':  # The except block also ends with 'END_FINALLY'.
             stack_in_setup[-1].except_end_bytecode_offset = instruction.offset
             stack_in_setup[-1].except_end_line = _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True)
             if not stack_in_setup[-1].is_finally:
                 # Don't add try..finally blocks.
                 try_except_info_lst.append(stack_in_setup[-1])
             del stack_in_setup[-1]
+
+    while stack_in_setup:
+        # On Py3 the END_FINALLY may not be there (so, the end of the function is also the end
+        # of the stack).
+        stack_in_setup[-1].except_end_bytecode_offset = instruction.offset
+        stack_in_setup[-1].except_end_line = _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True)
+        if not stack_in_setup[-1].is_finally:
+            # Don't add try..finally blocks.
+            try_except_info_lst.append(stack_in_setup[-1])
+        del stack_in_setup[-1]
 
     return try_except_info_lst

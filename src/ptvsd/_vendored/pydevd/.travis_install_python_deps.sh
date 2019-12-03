@@ -33,6 +33,7 @@ fi
 if [ "$PYDEVD_PYTHON_VERSION" = "3.6" ]; then
     conda install --yes pyqt=5 gevent
     pip install "django>=2.2,<2.3"
+    pip install trio
 fi
 
 if [ "$PYDEVD_PYTHON_VERSION" = "3.7" ]; then
@@ -40,6 +41,7 @@ if [ "$PYDEVD_PYTHON_VERSION" = "3.7" ]; then
     # Note: track the latest web framework versions.
     pip install "django"
     pip install "cherrypy"
+    pip install trio
 fi
 
 if [ "$PYDEVD_PYTHON_VERSION" = "3.8" ]; then
@@ -47,6 +49,7 @@ if [ "$PYDEVD_PYTHON_VERSION" = "3.8" ]; then
     pip install "cython"
     pip install "psutil"
     pip install "numpy"
+    pip install trio
     
     # Note: track the latest web framework versions.
     pip install "django"

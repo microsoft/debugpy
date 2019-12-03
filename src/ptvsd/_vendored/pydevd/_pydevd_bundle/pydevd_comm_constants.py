@@ -180,3 +180,10 @@ ID_TO_MEANING = {
     '503': 'CMD_SET_PROTOCOL',
     '901': 'CMD_ERROR',
 }
+
+
+def constant_to_str(constant):
+    s = ID_TO_MEANING.get(str(constant))
+    if not s:
+        s = '<Unknown: %s>' % (constant,)
+    return s

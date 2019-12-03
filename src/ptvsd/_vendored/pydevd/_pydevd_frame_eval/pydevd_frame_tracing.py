@@ -36,7 +36,7 @@ def _pydev_stop_at_break(line):
     if t.additional_info.is_tracing:
         return False
 
-    t.additional_info.is_tracing = True
+    t.additional_info.is_tracing += 1
     try:
         py_db = get_global_debugger()
         if py_db is None:
@@ -71,7 +71,7 @@ def _pydev_stop_at_break(line):
                 frame.f_trace = py_db.get_thread_local_trace_func()
 
     finally:
-        t.additional_info.is_tracing = False
+        t.additional_info.is_tracing -= 1
 
 
 def create_pydev_trace_code_wrapper(line):

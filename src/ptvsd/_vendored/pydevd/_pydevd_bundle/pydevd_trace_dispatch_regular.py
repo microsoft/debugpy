@@ -381,10 +381,13 @@ class ThreadTracer(object):
         # DEBUG = 'code_to_debug' in frame.f_code.co_filename
         # if DEBUG: print('ENTER: trace_dispatch: %s %s %s %s' % (frame.f_code.co_filename, frame.f_lineno, event, frame.f_code.co_name))
         py_db, t, additional_info, cache_skips, frame_skips_cache = self._args
-        pydev_step_cmd = additional_info.pydev_step_cmd
-        is_stepping = pydev_step_cmd != -1
+        if additional_info.is_tracing:
+            return None if event == 'call' else NO_FTRACE  # we don't wan't to trace code invoked from pydevd_frame.trace_dispatch
 
+        additional_info.is_tracing += 1
         try:
+            pydev_step_cmd = additional_info.pydev_step_cmd
+            is_stepping = pydev_step_cmd != -1
             if py_db.pydb_disposed:
                 return None if event == 'call' else NO_FTRACE
 
@@ -392,12 +395,6 @@ class ThreadTracer(object):
             if not is_thread_alive(t):
                 py_db.notify_thread_not_alive(get_current_thread_id(t))
                 return None if event == 'call' else NO_FTRACE
-
-            if py_db.thread_analyser is not None:
-                py_db.thread_analyser.log_event(frame)
-
-            if py_db.asyncio_analyser is not None:
-                py_db.asyncio_analyser.log_event(frame)
 
             # Note: it's important that the context name is also given because we may hit something once
             # in the global context and another in the local context.
@@ -465,8 +462,6 @@ class ThreadTracer(object):
                         return None if event == 'call' else NO_FTRACE
 
             # if DEBUG: print('trace_dispatch', filename, frame.f_lineno, event, frame.f_code.co_name, file_type)
-            if additional_info.is_tracing:
-                return None if event == 'call' else NO_FTRACE  # we don't wan't to trace code invoked from pydevd_frame.trace_dispatch
 
             # Just create PyDBFrame directly (removed support for Python versions < 2.5, which required keeping a weak
             # reference to the frame).
@@ -504,6 +499,8 @@ class ThreadTracer(object):
                 # (https://github.com/fabioz/PyDev.Debugger/issues/8)
                 pass
             return None if event == 'call' else NO_FTRACE
+        finally:
+            additional_info.is_tracing -= 1
 
 
 if USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
