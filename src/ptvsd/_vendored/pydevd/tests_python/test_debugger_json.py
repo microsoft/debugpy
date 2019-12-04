@@ -508,6 +508,17 @@ def test_case_json_change_breaks(case_setup):
         writer.finished_ok = True
 
 
+def test_case_handled_exception_no_break_on_generator(case_setup):
+    with case_setup.test_file('_debugger_case_ignore_exceptions.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch()
+        json_facade.write_set_exception_breakpoints(['raised'])
+        json_facade.write_make_initial_run()
+
+        writer.finished_ok = True
+
+
 def test_case_handled_exception_breaks(case_setup):
     with case_setup.test_file('_debugger_case_exceptions.py') as writer:
         json_facade = JsonFacade(writer)

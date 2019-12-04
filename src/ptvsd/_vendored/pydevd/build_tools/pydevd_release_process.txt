@@ -111,12 +111,12 @@ conda deactivate
 
 cd /D x:\pydev\plugins\org.python.pydev.core\pysrc
 set PYTHONPATH=x:\pydev\plugins\org.python.pydev.core\pysrc
-C:\bin\Miniconda3\envs\py37_64\python build_tools\build.py
+C:\bin\Python38-32\python build_tools\build.py
 
-
+${ptvsd_folder}
 cd /D X:\ptvsd_workspace\ptvsd\src\ptvsd\_vendored\pydevd
 set PYTHONPATH=X:\ptvsd_workspace\ptvsd\src\ptvsd\_vendored\pydevd
-C:\bin\Miniconda3\envs\py36_64\python build_tools\build.py
+C:\bin\Python38-32\python build_tools\build.py
 
 
 cd ~/Desktop/Pydev/plugins/org.python.pydev.core/pysrc
@@ -131,8 +131,8 @@ cd /D x:\PyDev.Debugger
 set PYTHONPATH=x:\PyDev.Debugger
 set MINICONDA_ENVS=C:\bin\Miniconda3\envs
 conda deactivate
-C:\bin\Miniconda3\envs\py36_64\python build_tools\build.py
-C:\bin\Miniconda3\envs\py36_64\python build_tools\build_binaries_windows.py
+C:\bin\Python38-32\python build_tools\build.py
+C:\bin\Python38-32\python build_tools\build_binaries_windows.py
 
 rm dist/pydevd*
 
@@ -179,6 +179,6 @@ dir dist
 # Note: uploading with twine gives an error in the end, but apparently it works (check final result in pypi).
 twine upload dist/pydevd*
 
-git tag pydev_debugger_1_4_0 -a -m "PyDev.Debugger 1.4.0"
+git tag pydev_debugger_1_8_0 -a -m "PyDev.Debugger 1.8.0"
 git push --tags
 

@@ -290,6 +290,11 @@ cdef class PyDBFrame:
                         if exception is SystemExit and main_debugger.ignore_system_exit_code(value):
                             return False, frame
 
+                        if exception in (GeneratorExit, StopIteration):
+                            # These exceptions are control-flow related (they work as a generator
+                            # pause), so, we shouldn't stop on them.
+                            return False, frame
+
                         if exception_breakpoint.condition is not None:
                             eval_result = main_debugger.handle_breakpoint_condition(info, exception_breakpoint, frame)
                             if not eval_result:
@@ -726,7 +731,6 @@ cdef class PyDBFrame:
                     breakpoint = breakpoints_for_file[line]
                     new_frame = frame
                     stop = True
-                    # print('step cmd', constant_to_str(step_cmd))
                     if step_cmd in (108, 159) and (stop_frame is frame and is_line):
                         stop = False  # we don't stop on breakpoint if we have to stop by step-over (it will be processed later)
                 elif plugin_manager is not None and main_debugger.has_plugin_line_breaks:
@@ -777,7 +781,6 @@ cdef class PyDBFrame:
                         main_debugger.remove_return_values_flag = False
 
                 if stop:
-                    # print('set suspend 1')
                     self.set_suspend(
                         thread,
                         111,
@@ -791,7 +794,6 @@ cdef class PyDBFrame:
 
                 # if thread has a suspend flag, we suspend with a busy wait
                 if info.pydev_state == 2:
-                    # print(' -------- do wait suspend 1 -----------')
                     self.do_wait_suspend(thread, frame, event, arg)
                     return self.trace_dispatch
                 else:
@@ -891,7 +893,6 @@ cdef class PyDBFrame:
                 elif stop:
                     if is_line:
                         self.set_suspend(thread, step_cmd, original_step_cmd=info.pydev_original_step_cmd)
-                        # print(' -------- do wait suspend 2 -----------')
                         self.do_wait_suspend(thread, frame, event, arg)
                     elif is_return:  # return event
                         back = frame.f_back
@@ -921,7 +922,6 @@ cdef class PyDBFrame:
                         if back is not None:
                             # if we're in a return, we want it to appear to the user in the previous frame!
                             self.set_suspend(thread, step_cmd, original_step_cmd=info.pydev_original_step_cmd)
-                            # print(' -------- do wait suspend 3 -----------')
                             self.do_wait_suspend(thread, back, event, arg)
                         else:
                             # in jython we may not have a back frame

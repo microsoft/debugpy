@@ -33,6 +33,7 @@ def consume(it):
     except StopIteration:
         pass
 
+
 def get_environment_from_batch_command(env_cmd, initial=None):
     """
     Take a command (either a single command or list of arguments)
@@ -95,22 +96,21 @@ def build():
 
     os.chdir(root_dir)
 
-    env=None
+    env = None
     if sys.platform == 'win32':
         # "C:\Program Files (x86)\Microsoft Visual Studio 9.0\VC\bin\vcvars64.bat"
         # set MSSdk=1
         # set DISTUTILS_USE_SDK=1
         # set VS100COMNTOOLS=C:\Program Files (x86)\Microsoft Visual Studio 9.0\Common7\Tools
 
-
         env = os.environ.copy()
-        if sys.version_info[:2] in ((2, 6), (2, 7), (3, 5), (3, 6), (3, 7)):
-            import setuptools # We have to import it first for the compiler to be found
+        if sys.version_info[:2] in ((2, 6), (2, 7), (3, 5), (3, 6), (3, 7), (3, 8)):
+            import setuptools  # We have to import it first for the compiler to be found
             from distutils import msvc9compiler
 
             if sys.version_info[:2] in ((2, 6), (2, 7)):
                 vcvarsall = msvc9compiler.find_vcvarsall(9.0)
-            elif sys.version_info[:2] in ((3, 5), (3, 6), (3, 7)):
+            elif sys.version_info[:2] in ((3, 5), (3, 6), (3, 7), (3, 8)):
                 vcvarsall = msvc9compiler.find_vcvarsall(14.0)
             if vcvarsall is None or not os.path.exists(vcvarsall):
                 raise RuntimeError('Error finding vcvarsall.')
@@ -124,7 +124,7 @@ def build():
                     [vcvarsall, 'x86'],
                     initial=os.environ.copy()))
 
-        elif sys.version_info[:2] in ((3,3), (3,4)):
+        elif sys.version_info[:2] in ((3, 3), (3, 4)):
             if is_python_64bit():
                 env.update(get_environment_from_batch_command(
                     [r"C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd", '/x64'],
@@ -152,7 +152,7 @@ def build():
 
     args = [
         sys.executable, os.path.join(os.path.dirname(__file__), '..', 'setup_cython.py'), 'build_ext', '--inplace',
-    ]+additional_args
+    ] + additional_args
     print('Calling args: %s' % (args,))
     subprocess.check_call(args, env=env,)
 

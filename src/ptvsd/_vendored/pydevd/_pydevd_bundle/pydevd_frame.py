@@ -140,6 +140,11 @@ class PyDBFrame:
                         if exception is SystemExit and main_debugger.ignore_system_exit_code(value):
                             return False, frame
 
+                        if exception in (GeneratorExit, StopIteration):
+                            # These exceptions are control-flow related (they work as a generator
+                            # pause), so, we shouldn't stop on them.
+                            return False, frame
+
                         if exception_breakpoint.condition is not None:
                             eval_result = main_debugger.handle_breakpoint_condition(info, exception_breakpoint, frame)
                             if not eval_result:
