@@ -136,12 +136,7 @@ class Session(object):
         self.config = config.DebugConfig(
             debug_config
             if debug_config is not None
-            else {
-                "justMyCode": True,
-                "name": "Test",
-                "redirectOutput": True,
-                "type": "python",
-            }
+            else {"justMyCode": True, "name": "Test", "type": "python"}
         )
         """The debug configuration for this session."""
 

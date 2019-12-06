@@ -24,6 +24,8 @@ def test_with_no_output(pyfile, target, run):
         ()  # @wait_for_output
 
     with debug.Session() as session:
+        session.config["redirectOutput"] = True
+
         with run(session, target(code_to_debug)):
             session.set_breakpoints(code_to_debug, all)
 
@@ -47,6 +49,8 @@ def test_with_tab_in_output(pyfile, target, run):
         ()  # @wait_for_output
 
     with debug.Session() as session:
+        session.config["redirectOutput"] = True
+
         with run(session, target(code_to_debug)):
             session.set_breakpoints(code_to_debug, all)
 

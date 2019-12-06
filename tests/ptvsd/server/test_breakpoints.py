@@ -190,6 +190,8 @@ def test_log_point(pyfile, target, run, condition):
 
     lines = code_to_debug.lines
     with debug.Session() as session:
+        session.config["redirectOutput"] = True
+
         with run(session, target(code_to_debug)):
             bp = {"line": lines["bp"], "logMessage": "{i}"}
             if condition:
@@ -262,6 +264,8 @@ def test_add_and_remove_breakpoint(pyfile, target, run):
         ()  # @wait_for_output
 
     with debug.Session() as session:
+        session.config["redirectOutput"] = True
+
         with run(session, target(code_to_debug)):
             session.set_breakpoints(code_to_debug, all)
 

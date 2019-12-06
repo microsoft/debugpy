@@ -9,7 +9,6 @@ import pytest
 from tests import debug
 from tests.debug import runners, targets
 from tests.patterns import some
-from tests.timeline import Event
 
 
 @pytest.mark.parametrize("stop_method", ["break_into_debugger", "pause"])
@@ -117,7 +116,9 @@ def test_reattach(pyfile, target, run):
     with debug.Session() as session2:
         session2.config.update(session1.config)
         if "host" in session2.config:
-            session2.connect_to_adapter((session2.config["host"], session2.config["port"]))
+            session2.connect_to_adapter(
+                (session2.config["host"], session2.config["port"])
+            )
 
         with session2.request_attach():
             pass
@@ -146,6 +147,8 @@ def test_attach_by_pid(pyfile, target):
                 break
 
     with debug.Session() as session:
+        session.config["redirectOutput"] = True
+
         with session.attach_by_pid(target(code_to_debug), wait=False):
             session.set_breakpoints(code_to_debug, all)
 
@@ -160,6 +163,6 @@ def test_attach_by_pid(pyfile, target):
         )
         session.set_breakpoints(code_to_debug, [])
         session.request_continue()
-        session.wait_for_next(
-            Event("output", some.dict.containing({"category": "stdout"}))
+        session.wait_for_next_event(
+            "output", some.dict.containing({"category": "stdout"})
         )

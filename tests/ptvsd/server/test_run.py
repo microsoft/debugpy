@@ -68,6 +68,7 @@ def test_nodebug(pyfile, run, target):
 
     with debug.Session() as session:
         session.config["noDebug"] = True
+        session.config["redirectOutput"] = True
 
         backchannel = session.open_backchannel()
         run(session, target(code_to_debug))
