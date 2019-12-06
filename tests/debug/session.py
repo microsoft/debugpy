@@ -74,7 +74,9 @@ class Session(object):
     Automatically set to tmpdir for the current test by pytest_fixtures.test_wrapper().
     """
 
-    _counter = itertools.count(1)
+    @classmethod
+    def reset_counter(cls):
+        cls._counter = itertools.count(1)
 
     def __init__(self, debug_config=None):
         assert Session.tmpdir is not None
@@ -192,15 +194,15 @@ class Session(object):
         self.spawn_debuggee.env = util.Env()
 
     def __str__(self):
-        return fmt("Session-{0}", self.id)
+        return fmt("Session[{0}]", self.id)
 
     @property
     def adapter_id(self):
-        return fmt("Adapter-{0}", self.id)
+        return fmt("Adapter[{0}]", self.id)
 
     @property
     def debuggee_id(self):
-        return fmt("Debuggee-{0}", self.id)
+        return fmt("Debuggee[{0}]", self.id)
 
     def __enter__(self):
         return self
@@ -799,3 +801,6 @@ class Session(object):
                 pass
             self.channel.wait()
             self.channel = None
+
+
+Session.reset_counter()

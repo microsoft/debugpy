@@ -23,7 +23,7 @@ class BackChannel(object):
         self._server_socket = None
 
     def __str__(self):
-        return fmt("BackChannel-{0}", self.session.id)
+        return fmt("BackChannel[{0}]", self.session.id)
 
     def listen(self):
         self._server_socket = sockets.create_server("127.0.0.1", 0, self.TIMEOUT)

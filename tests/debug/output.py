@@ -26,7 +26,7 @@ class CapturedOutput(object):
             self._capture(fd, stream_name)
 
     def __str__(self):
-        return fmt("CapturedOutput({0})", self.session)
+        return fmt("CapturedOutput[{0}]", self.session.id)
 
     def _worker(self, fd, name):
         chunks = self._chunks[name]

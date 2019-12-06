@@ -45,6 +45,8 @@ def test_wrapper(request, long_tmpdir):
         with open(filename, "wb") as f:
             f.write(data)
 
+    session.Session.reset_counter()
+
     session.Session.tmpdir = long_tmpdir
     original_log_dir = options.log_dir
 
