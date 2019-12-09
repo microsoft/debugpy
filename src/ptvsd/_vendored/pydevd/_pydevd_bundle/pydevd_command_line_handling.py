@@ -53,7 +53,7 @@ ACCEPTED_ARG_HANDLERS = [
     ArgHandlerWithParam('vm_type'),
     ArgHandlerWithParam('client'),
     ArgHandlerWithParam('access-token'),
-    ArgHandlerWithParam('ide-access-token'),
+    ArgHandlerWithParam('client-access-token'),
 
     ArgHandlerBool('server'),
     ArgHandlerBool('DEBUG_RECORD_SOCKET_READS'),

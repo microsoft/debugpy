@@ -2759,10 +2759,10 @@ def test_py_37_breakpoint_remote_no_import(case_setup_remote):
 def test_remote_debugger_multi_proc(case_setup_remote, authenticate):
 
     access_token = None
-    ide_access_token = None
+    client_access_token = None
     if authenticate:
         access_token = 'tok123'
-        ide_access_token = 'tok456'
+        client_access_token = 'tok456'
 
     class _SecondaryMultiProcProcessWriterThread(debugger_unittest.AbstractWriterThread):
 
@@ -2788,7 +2788,7 @@ def test_remote_debugger_multi_proc(case_setup_remote, authenticate):
 
             if authenticate:
                 self.wait_for_message(lambda msg:'Client not authenticated.' in msg, expect_xml=False)
-                self.write_authenticate(access_token=access_token, ide_access_token=ide_access_token)
+                self.write_authenticate(access_token=access_token, client_access_token=client_access_token)
                 self.write_version()
 
             self.log.append('start_socket')
@@ -2806,7 +2806,7 @@ def test_remote_debugger_multi_proc(case_setup_remote, authenticate):
             do_kill=do_kill,
             EXPECTED_RETURNCODE='any',
             access_token=access_token,
-            ide_access_token=ide_access_token,
+            client_access_token=client_access_token,
         ) as writer:
 
         # It seems sometimes it becomes flaky on the ci because the process outlives the writer thread...
@@ -2820,7 +2820,7 @@ def test_remote_debugger_multi_proc(case_setup_remote, authenticate):
 
         if authenticate:
             writer.wait_for_message(lambda msg:'Client not authenticated.' in msg, expect_xml=False)
-            writer.write_authenticate(access_token=access_token, ide_access_token=ide_access_token)
+            writer.write_authenticate(access_token=access_token, client_access_token=client_access_token)
             writer.write_make_initial_run()
 
         writer.log.append('waiting for breakpoint hit')
@@ -3525,7 +3525,7 @@ def test_access_token(case_setup):
     def update_command_line_args(self, args):
         args.insert(2, '--access-token')
         args.insert(3, 'bar123')
-        args.insert(2, '--ide-access-token')
+        args.insert(2, '--client-access-token')
         args.insert(3, 'foo234')
         return args
 
@@ -3534,7 +3534,7 @@ def test_access_token(case_setup):
 
         writer.wait_for_message(lambda msg:'Client not authenticated.' in msg, expect_xml=False)
 
-        writer.write_authenticate(access_token='bar123', ide_access_token='foo234')
+        writer.write_authenticate(access_token='bar123', client_access_token='foo234')
 
         writer.write_version()
 

@@ -75,7 +75,7 @@ class _PyDevCommandProcessor(object):
         access_token = text
         py_db.authentication.login(access_token)
         if py_db.authentication.is_authenticated():
-            return NetCommand(cmd_id, seq, py_db.authentication.ide_access_token)
+            return NetCommand(cmd_id, seq, py_db.authentication.client_access_token)
 
         return py_db.cmd_factory.make_error_message(seq, 'Client not authenticated.')
 

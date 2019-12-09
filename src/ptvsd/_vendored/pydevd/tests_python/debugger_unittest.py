@@ -1105,11 +1105,11 @@ class AbstractWriterThread(threading.Thread):
     def write_set_protocol(self, protocol):
         self.write("%s\t%s\t%s" % (CMD_SET_PROTOCOL, self.next_seq(), protocol))
 
-    def write_authenticate(self, access_token, ide_access_token):
+    def write_authenticate(self, access_token, client_access_token):
         msg = "%s\t%s\t%s" % (CMD_AUTHENTICATE, self.next_seq(), access_token)
         self.write(msg)
 
-        self.wait_for_message(lambda msg:ide_access_token in msg, expect_xml=False)
+        self.wait_for_message(lambda msg:client_access_token in msg, expect_xml=False)
 
     def write_version(self):
         from _pydevd_bundle.pydevd_constants import IS_WINDOWS

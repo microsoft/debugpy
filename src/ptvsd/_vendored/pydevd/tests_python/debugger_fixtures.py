@@ -326,7 +326,7 @@ def case_setup_remote(debugger_runner_remote):
                 filename,
                 wait_for_port=True,
                 access_token=None,
-                ide_access_token=None,
+                client_access_token=None,
                 append_command_line_args=(),
                 **kwargs
             ):
@@ -339,9 +339,9 @@ def case_setup_remote(debugger_runner_remote):
                 if access_token is not None:
                     ret.append('--access-token')
                     ret.append(access_token)
-                if ide_access_token is not None:
-                    ret.append('--ide-access-token')
-                    ret.append(ide_access_token)
+                if client_access_token is not None:
+                    ret.append('--client-access-token')
+                    ret.append(client_access_token)
 
                 ret.extend(append_command_line_args)
                 return ret

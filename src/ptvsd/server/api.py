@@ -126,7 +126,7 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
         dont_trace_start_patterns=dont_trace_start_patterns,
         dont_trace_end_patterns=dont_trace_end_patterns,
         access_token=server_access_token,
-        ide_access_token=options.client_access_token,
+        client_access_token=options.client_access_token,
     )
 
     log.info("pydevd debug client connected to: {0}:{1}", host, port)
@@ -151,7 +151,7 @@ def attach(dont_trace_start_patterns, dont_trace_end_patterns):
         patch_multiprocessing=options.multiprocess,
         dont_trace_start_patterns=dont_trace_start_patterns,
         dont_trace_end_patterns=dont_trace_end_patterns,
-        ide_access_token=options.client_access_token,
+        client_access_token=options.client_access_token,
     )
 
 

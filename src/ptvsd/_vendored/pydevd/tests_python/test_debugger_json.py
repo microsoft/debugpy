@@ -3331,7 +3331,7 @@ def test_access_token(case_setup):
         args.insert(1, '--json-dap-http')
         args.insert(2, '--access-token')
         args.insert(3, 'bar123')
-        args.insert(4, '--ide-access-token')
+        args.insert(4, '--client-access-token')
         args.insert(5, 'foo321')
         return args
 

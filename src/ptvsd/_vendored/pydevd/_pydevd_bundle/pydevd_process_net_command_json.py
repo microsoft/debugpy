@@ -181,10 +181,10 @@ class PyDevJsonCommandProcessor(object):
                 py_db.writer.add_command(cmd)
 
     def on_pydevdauthorize_request(self, py_db, request):
-        ide_access_token = py_db.authentication.ide_access_token
+        client_access_token = py_db.authentication.client_access_token
         body = {'clientAccessToken': None}
-        if ide_access_token:
-            body['clientAccessToken'] = ide_access_token
+        if client_access_token:
+            body['clientAccessToken'] = client_access_token
 
         response = pydevd_base_schema.build_response(request, kwargs={'body': body})
         return NetCommand(CMD_RETURN, 0, response, is_json=True)

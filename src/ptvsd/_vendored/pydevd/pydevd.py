@@ -391,7 +391,7 @@ class ThreadsSuspendedSingleNotification(AbstractSingleNotificationBehavior):
 
 class _Authentication(object):
 
-    __slots__ = ['access_token', 'ide_access_token', '_authenticated', '_wrong_attempts']
+    __slots__ = ['access_token', 'client_access_token', '_authenticated', '_wrong_attempts']
 
     def __init__(self):
         # A token to be send in the command line or through the settrace api -- when such token
@@ -399,10 +399,10 @@ class _Authentication(object):
         # Note that if a disconnect is sent, the same message must be resent to authenticate.
         self.access_token = None
 
-        # This token is the one that the ide requires to accept a connection from pydevd
+        # This token is the one that the client requires to accept a connection from pydevd
         # (it's stored here and just passed back when required, it's not used internally
         # for anything else).
-        self.ide_access_token = None
+        self.client_access_token = None
 
         self._authenticated = None
 
@@ -2405,7 +2405,7 @@ def _enable_attach(
     dont_trace_end_patterns=(),
     patch_multiprocessing=False,
     access_token=None,
-    ide_access_token=None,
+    client_access_token=None,
     ):
     '''
     Starts accepting connections at the given host/port. The debugger will not be initialized nor
@@ -2433,7 +2433,7 @@ def _enable_attach(
         dont_trace_end_patterns=dont_trace_end_patterns,
         patch_multiprocessing=patch_multiprocessing,
         access_token=access_token,
-        ide_access_token=ide_access_token,
+        client_access_token=client_access_token,
     )
 
     py_db = get_global_debugger()
@@ -2481,7 +2481,7 @@ def settrace(
     dont_trace_start_patterns=(),
     dont_trace_end_patterns=(),
     access_token=None,
-    ide_access_token=None,
+    client_access_token=None,
     ):
     '''Sets the tracing function with the pydev debug function and initializes needed facilities.
 
@@ -2525,7 +2525,7 @@ def settrace(
     :param access_token: token to be sent from the client (i.e.: IDE) to the debugger when a connection
         is established (verified by the debugger).
 
-    :param ide_access_token: token to be sent from the debugger to the client (i.e.: IDE) when
+    :param client_access_token: token to be sent from the debugger to the client (i.e.: IDE) when
         a connection is established (verified by the client).
     '''
     with _set_trace_lock:
@@ -2543,7 +2543,7 @@ def settrace(
             dont_trace_start_patterns,
             dont_trace_end_patterns,
             access_token,
-            ide_access_token,
+            client_access_token,
         )
 
 
@@ -2564,7 +2564,7 @@ def _locked_settrace(
     dont_trace_start_patterns,
     dont_trace_end_patterns,
     access_token,
-    ide_access_token,
+    client_access_token,
     ):
     if patch_multiprocessing:
         try:
@@ -2598,9 +2598,9 @@ def _locked_settrace(
         if access_token is not None:
             py_db.authentication.access_token = access_token
             SetupHolder.setup['access-token'] = access_token
-        if ide_access_token is not None:
-            py_db.authentication.ide_access_token = ide_access_token
-            SetupHolder.setup['ide-access-token'] = ide_access_token
+        if client_access_token is not None:
+            py_db.authentication.client_access_token = client_access_token
+            SetupHolder.setup['client-access-token'] = client_access_token
 
         if block_until_connected:
             py_db.connect(host, port)  # Note: connect can raise error.
@@ -2652,8 +2652,8 @@ def _locked_settrace(
         # ok, we're already in debug mode, with all set, so, let's just set the break
         if access_token is not None:
             py_db.authentication.access_token = access_token
-        if ide_access_token is not None:
-            py_db.authentication.ide_access_token = ide_access_token
+        if client_access_token is not None:
+            py_db.authentication.client_access_token = client_access_token
 
         py_db.set_trace_for_frame_and_parents(get_frame().f_back)
 
@@ -2806,7 +2806,7 @@ def settrace_forked(setup_tracing=True):
     if setup is None:
         setup = {}
     access_token = setup.get('access-token')
-    ide_access_token = setup.get('ide-access-token')
+    client_access_token = setup.get('client-access-token')
 
     if setup_tracing:
         from _pydevd_frame_eval.pydevd_frame_eval_main import clear_thread_local_info
@@ -2830,7 +2830,7 @@ def settrace_forked(setup_tracing=True):
                     overwrite_prev_trace=True,
                     patch_multiprocessing=True,
                     access_token=access_token,
-                    ide_access_token=ide_access_token,
+                    client_access_token=client_access_token,
             )
 
 
@@ -3081,9 +3081,9 @@ def main():
     if access_token:
         debugger.authentication.access_token = access_token
 
-    ide_access_token = setup['ide-access-token']
-    if ide_access_token:
-        debugger.authentication.ide_access_token = ide_access_token
+    client_access_token = setup['client-access-token']
+    if client_access_token:
+        debugger.authentication.client_access_token = client_access_token
 
     if fix_app_engine_debug:
         sys.stderr.write("pydev debugger: google app engine integration enabled\n")
