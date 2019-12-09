@@ -111,6 +111,7 @@ def spawn_debuggee(session, start_request, sudo, args, console, console_title):
         _, port = servers.Connection.listener.getsockname()
         arguments = dict(start_request.arguments)
         arguments["port"] = port
+        arguments["clientAccessToken"] = adapter_options.adapter_access_token
         spawn_launcher()
 
         if not session.wait_for(

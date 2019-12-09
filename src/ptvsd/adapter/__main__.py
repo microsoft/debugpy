@@ -6,6 +6,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import argparse
 import atexit
+import codecs
 import json
 import locale
 import os
@@ -19,7 +20,7 @@ __file__ = os.path.abspath(__file__)
 
 
 def main(args):
-    from ptvsd.common import log, options as common_options
+    from ptvsd.common import compat, log, options as common_options
     from ptvsd.adapter import ide, servers, sessions, options as adapter_options
 
     if args.log_stderr:
@@ -31,9 +32,16 @@ def main(args):
     log.to_file(prefix="ptvsd.adapter")
     log.describe_environment("ptvsd.adapter startup environment:")
 
-    if args.for_enable_attach and args.port is None:
-        log.error("--for-enable-attach requires --port")
+    if args.for_server and args.port is None:
+        log.error("--for-server requires --port")
         sys.exit(64)
+
+    # adapter_options.ide_access_token = args.ide_access_token
+    adapter_options.server_access_token = args.server_access_token
+    if not args.for_server:
+        adapter_options.adapter_access_token = compat.force_str(
+            codecs.encode(os.urandom(32), "hex")
+        )
 
     server_host, server_port = servers.listen()
     ide_host, ide_port = ide.listen(port=args.port)
@@ -42,7 +50,7 @@ def main(args):
         "server": {"host": server_host, "port": server_port},
     }
 
-    if args.for_enable_attach:
+    if args.for_server:
         log.info("Writing endpoints info to stdout:\n{0!r}", endpoints_info)
         print(json.dumps(endpoints_info))
         sys.stdout.flush()
@@ -99,9 +107,15 @@ def _parse_argv(argv):
         help="start the adapter in debugServer mode on the specified host",
     )
 
+    # parser.add_argument(
+    #     "--ide-access-token", type=str, help="access token expected by the IDE"
+    # )
+
     parser.add_argument(
-        "--for-enable-attach", action="store_true", help=argparse.SUPPRESS
+        "--server-access-token", type=str, help="access token expected by the server"
     )
+
+    parser.add_argument("--for-server", action="store_true", help=argparse.SUPPRESS)
 
     parser.add_argument(
         "--log-dir",

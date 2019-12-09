@@ -11,3 +11,12 @@ or configuartion files.
 
 log_stderr = False
 """Whether detailed logs are written to stderr."""
+
+# ide_access_token = None
+# """Access token used to authenticate with the IDE."""
+
+server_access_token = None
+"""Access token used to authenticate with the server."""
+
+adapter_access_token = None
+"""Access token used by the server to authenticate with this adapter."""

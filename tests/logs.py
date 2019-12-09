@@ -18,7 +18,7 @@ def dump():
     log.info("Dumping logs from {0!j}", options.log_dir)
 
     for dirpath, dirnames, filenames in os.walk(options.log_dir):
-        for name in filenames:
+        for name in sorted(filenames):
             if not name.startswith("ptvsd") and not name.startswith("pydevd"):
                 continue
             try:

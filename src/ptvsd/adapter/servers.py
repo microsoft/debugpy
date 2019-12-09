@@ -13,7 +13,7 @@ import time
 
 import ptvsd
 from ptvsd.common import compat, fmt, json, log, messaging, sockets
-from ptvsd.adapter import components
+from ptvsd.adapter import components, options
 
 _lock = threading.RLock()
 
@@ -49,6 +49,7 @@ class Connection(sockets.ClientConnection):
         self.channel.start()
 
         try:
+            self.authenticate()
             info = self.channel.request("pydevdSystemInfo")
             process_info = info("process", json.object())
             self.pid = process_info("pid", int)
@@ -125,6 +126,16 @@ if 'ptvsd' not in sys.modules:
 
     def __str__(self):
         return "Server" + fmt("[?]" if self.pid is None else "[pid={0}]", self.pid)
+
+    def authenticate(self):
+        if options.server_access_token is None and options.adapter_access_token is None:
+            return
+        auth = self.channel.request(
+            "pydevdAuthorize", {"debugServerAccessToken": options.server_access_token}
+        )
+        if auth["clientAccessToken"] != options.adapter_access_token:
+            self.channel.close()
+            raise RuntimeError('Mismatched "clientAccessToken"; server not authorized.')
 
     def request(self, request):
         raise request.isnt_valid(
@@ -230,6 +241,7 @@ class Server(components.Component):
 
     def initialize(self, request):
         assert request.is_request("initialize")
+        self.connection.authenticate()
         request = self.channel.propagate(request)
         request.wait_for_response()
         self.capabilities = self.Capabilities(self, request.response)
@@ -394,6 +406,8 @@ def inject(pid, ptvsd_args):
         "--port",
         str(port),
     ]
+    if options.adapter_access_token is not None:
+        cmdline += ["--client-access-token", options.adapter_access_token]
     cmdline += ptvsd_args
     cmdline += ["--pid", str(pid)]
 

@@ -11,7 +11,7 @@ __file__ = os.path.abspath(__file__)
 _ptvsd_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
 
-def attach(host, port, client, log_dir=None):
+def attach(host, port, client, log_dir=None, client_access_token=None):
     try:
         import sys
 
@@ -68,6 +68,7 @@ def attach(host, port, client, log_dir=None):
         options.client = client
         options.host = host
         options.port = port
+        options.client_access_token = client_access_token
 
         if options.client:
             ptvsd.attach((options.host, options.port))

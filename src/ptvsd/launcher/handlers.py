@@ -62,7 +62,6 @@ def launch_request(request):
 
     if not request("noDebug", json.default(False)):
         port = request("port", int)
-        ptvsd_args = request("ptvsdArgs", json.array(unicode))
         cmdline += [
             compat.filename(os.path.dirname(ptvsd.__file__)),
             "--client",
@@ -70,7 +69,12 @@ def launch_request(request):
             "127.0.0.1",
             "--port",
             str(port),
-        ] + ptvsd_args
+        ]
+        client_access_token = request("clientAccessToken", unicode, optional=True)
+        if client_access_token != ():
+            cmdline += ["--client-access-token", compat.filename(client_access_token)]
+        ptvsd_args = request("ptvsdArgs", json.array(unicode))
+        cmdline += ptvsd_args
 
     program = module = code = ()
     if "program" in request:
@@ -119,7 +123,7 @@ def launch_request(request):
         # If neither the property nor the option were specified explicitly, choose
         # the default depending on console type - "internalConsole" needs it to
         # provide any output at all, but it's unnecessary for the terminals.
-        redirect_output = (request("console", unicode) == "internalConsole")
+        redirect_output = request("console", unicode) == "internalConsole"
     if redirect_output:
         # sys.stdout buffering must be disabled - otherwise we won't see the output
         # at all until the buffer fills up.

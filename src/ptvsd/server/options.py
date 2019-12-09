@@ -53,3 +53,6 @@ multiprocess = True
 """Whether this ptvsd instance is running in multiprocess mode, detouring creation
 of new processes and enabling debugging for them.
 """
+
+client_access_token = None
+"""Access token to authenticate with the adapter."""

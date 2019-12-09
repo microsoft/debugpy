@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import codecs
 import contextlib
 import json
 import os
@@ -12,7 +13,7 @@ import sys
 import threading
 
 import ptvsd
-from ptvsd.common import log, options as common_opts
+from ptvsd.common import compat, log, options as common_opts
 from ptvsd.server import options as server_opts
 from _pydevd_bundle.pydevd_constants import get_global_debugger
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_file
@@ -25,10 +26,8 @@ _ADAPTER_PATH = os.path.join(os.path.dirname(ptvsd.__file__), "adapter")
 def wait_for_attach():
     log.info("wait_for_attach()")
     dbg = get_global_debugger()
-    if not bool(dbg):
-        msg = "wait_for_attach() called before enable_attach()."
-        log.info(msg)
-        raise AssertionError(msg)
+    if dbg is None:
+        raise RuntimeError("wait_for_attach() called before enable_attach().")
 
     cancel_event = threading.Event()
     ptvsd.wait_for_attach.cancel = wait_for_attach.cancel = cancel_event.set
@@ -80,16 +79,20 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
     if hasattr(enable_attach, "called"):
         raise RuntimeError("enable_attach() can only be called once per process.")
 
+    server_access_token = compat.force_str(codecs.encode(os.urandom(32), "hex"))
+
     import subprocess
 
     adapter_args = [
         sys.executable,
         _ADAPTER_PATH,
+        "--for-server",
         "--host",
         server_opts.host,
         "--port",
         str(server_opts.port),
-        "--for-enable-attach",
+        "--server-access-token",
+        server_access_token,
     ]
 
     if common_opts.log_dir is not None:
@@ -122,6 +125,8 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
         block_until_connected=True,
         dont_trace_start_patterns=dont_trace_start_patterns,
         dont_trace_end_patterns=dont_trace_end_patterns,
+        access_token=server_access_token,
+        ide_access_token=server_opts.client_access_token,
     )
 
     log.info("pydevd debug client connected to: {0}:{1}", host, port)
@@ -146,6 +151,7 @@ def attach(dont_trace_start_patterns, dont_trace_end_patterns):
         patch_multiprocessing=server_opts.multiprocess,
         dont_trace_start_patterns=dont_trace_start_patterns,
         dont_trace_end_patterns=dont_trace_end_patterns,
+        ide_access_token=server_opts.client_access_token,
     )
 
 

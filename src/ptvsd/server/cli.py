@@ -108,8 +108,7 @@ switches = [
     ("--log-stderr",            None,               set_log_stderr(),                           False),
 
     # Switches that are used internally by the IDE or ptvsd itself.
-    ("--subprocess-of",         "<pid>",            set_arg("subprocess_of", pid),              False),
-    ("--subprocess-notify",     "<port>",           set_arg("subprocess_notify", port),         False),
+    ("--client-access-token",   "<token>",          set_arg("client_access_token"),             False),
 
     # Targets. The "" entry corresponds to positional command line arguments,
     # i.e. the ones not preceded by any switch name.
@@ -270,31 +269,24 @@ def attach_to_pid():
     log.info("Attaching to process with PID={0}", options.target)
 
     pid = options.target
-    host = options.host
-    port = options.port
-    client = options.client
-    log_dir = common_opts.log_dir
-    if log_dir is None:
-        log_dir = ""
 
-    try:
-        attach_pid_injected_dirname = os.path.join(
-            os.path.dirname(ptvsd.__file__), "server"
-        )
-        assert os.path.exists(attach_pid_injected_dirname)
+    attach_pid_injected_dirname = os.path.join(
+        os.path.dirname(ptvsd.__file__), "server"
+    )
+    assert os.path.exists(attach_pid_injected_dirname)
 
-        log_dir = log_dir.replace("\\", "/")
+    log_dir = (common_opts.log_dir or "").replace("\\", "/")
+    encode = lambda s: list(bytearray(s.encode("utf-8")))
+    setup = {
+        "script": encode(attach_pid_injected_dirname),
+        "host": encode(options.host),
+        "port": options.port,
+        "client": options.client,
+        "log_dir": encode(log_dir),
+        "client_access_token": encode(options.client_access_token),
+    }
 
-        encode = lambda s: list(bytearray(s.encode("utf-8")))
-        setup = {
-            "script": encode(attach_pid_injected_dirname),
-            "host": encode(host),
-            "port": port,
-            "client": client,
-            "log_dir": encode(log_dir),
-        }
-
-        python_code = """
+    python_code = """
 import sys;
 import codecs;
 decode = lambda s: codecs.utf_8_decode(bytearray(s))[0];
@@ -304,32 +296,39 @@ import attach_pid_injected;
 sys.path.remove(script_path);
 host = decode({host});
 log_dir = decode({log_dir}) or None;
-attach_pid_injected.attach(port={port}, host=host, client={client}, log_dir=log_dir)
+client_access_token = decode({client_access_token}) or None;
+attach_pid_injected.attach(
+    port={port},
+    host=host,
+    client={client},
+    log_dir=log_dir,
+    client_access_token=client_access_token,
+)
 """
-        python_code = python_code.replace("\r", "").replace("\n", "").format(**setup)
-        log.info("Code to be injected: \n{0}", python_code.replace(";", ";\n"))
+    python_code = python_code.replace("\r", "").replace("\n", "").format(**setup)
+    log.info("Code to be injected: \n{0}", python_code.replace(";", ";\n"))
 
-        # pydevd restriction on characters in injected code.
-        assert not (
-            {'"', "'", "\r", "\n"} & set(python_code)
-        ), "Injected code should not contain any single quotes, double quots, or newlines."
+    # pydevd restriction on characters in injected code.
+    assert not (
+        {'"', "'", "\r", "\n"} & set(python_code)
+    ), "Injected code should not contain any single quotes, double quotes, or newlines."
 
-        pydevd_attach_to_process_path = os.path.join(
-            os.path.dirname(pydevd.__file__), "pydevd_attach_to_process"
-        )
+    pydevd_attach_to_process_path = os.path.join(
+        os.path.dirname(pydevd.__file__), "pydevd_attach_to_process"
+    )
 
-        assert os.path.exists(pydevd_attach_to_process_path)
-        sys.path.append(pydevd_attach_to_process_path)
+    assert os.path.exists(pydevd_attach_to_process_path)
+    sys.path.append(pydevd_attach_to_process_path)
 
+    try:
         import add_code_to_python_process  # noqa
 
-        show_debug_info_on_target_process = 0  # hard-coded (1 to debug)
         log.info("Injecting code into process with PID={0} ...", pid)
         add_code_to_python_process.run_python_code(
             pid,
             python_code,
             connect_debugger_tracing=True,
-            show_debug_info=show_debug_info_on_target_process,
+            show_debug_info=int(os.getenv("PTVSD_ATTACH_BY_PID_DEBUG_INFO", "0")),
         )
     except Exception:
         raise log.exception("Code injection into PID={0} failed:", pid)
