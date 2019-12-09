@@ -8,9 +8,9 @@ import os
 import subprocess
 import sys
 
-import ptvsd.launcher
-from ptvsd.common import compat, log, messaging, options as common_options
-from ptvsd.adapter import components, servers, options as adapter_options
+from ptvsd import adapter, launcher
+from ptvsd.common import compat, log, messaging
+from ptvsd.adapter import components, servers
 
 
 class Launcher(components.Component):
@@ -56,17 +56,17 @@ class Launcher(components.Component):
 
 def spawn_debuggee(session, start_request, sudo, args, console, console_title):
     cmdline = ["sudo"] if sudo else []
-    cmdline += [sys.executable, os.path.dirname(ptvsd.launcher.__file__)]
+    cmdline += [sys.executable, os.path.dirname(launcher.__file__)]
     cmdline += args
     env = {}
 
     def spawn_launcher():
         with session.accept_connection_from_launcher() as (_, launcher_port):
             env[str("PTVSD_LAUNCHER_PORT")] = str(launcher_port)
-            if common_options.log_dir is not None:
-                env[str("PTVSD_LOG_DIR")] = compat.filename_str(common_options.log_dir)
-            if adapter_options.log_stderr:
-                env[str("PTVSD_LOG_STDERR")] = str("debug info warning error")
+            if log.log_dir is not None:
+                env[str("PTVSD_LOG_DIR")] = compat.filename_str(log.log_dir)
+            if log.stderr.levels != {"warning", "error"}:
+                env[str("PTVSD_LOG_STDERR")] = " ".join(log.log_stderr)
 
             if console == "internalConsole":
                 log.info("{0} spawning launcher: {1!r}", session, cmdline)
@@ -111,7 +111,7 @@ def spawn_debuggee(session, start_request, sudo, args, console, console_title):
         _, port = servers.Connection.listener.getsockname()
         arguments = dict(start_request.arguments)
         arguments["port"] = port
-        arguments["clientAccessToken"] = adapter_options.adapter_access_token
+        arguments["clientAccessToken"] = adapter.access_token
         spawn_launcher()
 
         if not session.wait_for(

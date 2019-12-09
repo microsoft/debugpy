@@ -14,7 +14,7 @@ import sys
 import time
 
 import ptvsd.adapter
-from ptvsd.common import compat, fmt, json, log, messaging, options, sockets, util
+from ptvsd.common import compat, fmt, json, log, messaging, sockets, util
 from ptvsd.common.compat import unicode
 import tests
 from tests import code, timeline, watchdog
@@ -144,8 +144,8 @@ class Session(object):
 
         self.log_dir = (
             None
-            if options.log_dir is None
-            else py.path.local(options.log_dir) / str(self)
+            if log.log_dir is None
+            else py.path.local(log.log_dir) / str(self)
         )
         """The log directory for this session. Passed via PTVSD_LOG_DIR to all spawned
         child processes.

@@ -13,8 +13,8 @@ import sys
 import threading
 
 import ptvsd
-from ptvsd.common import compat, log, options as common_opts
-from ptvsd.server import options as server_opts
+from ptvsd.common import compat, log
+from ptvsd.server import options
 from _pydevd_bundle.pydevd_constants import get_global_debugger
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_file
 
@@ -37,7 +37,7 @@ def wait_for_attach():
 def _starts_debugging(func):
     def debug(address, log_dir=None, multiprocess=True):
         if log_dir:
-            common_opts.log_dir = log_dir
+            log.log_dir = log_dir
 
         log.to_file(prefix="ptvsd.server")
         log.describe_environment("ptvsd.server debug start environment:")
@@ -45,15 +45,15 @@ def _starts_debugging(func):
 
         if is_attached():
             log.info("{0}() ignored - already attached.", func.__name__)
-            return server_opts.host, server_opts.port
+            return options.host, options.port
 
         # Ensure port is int
-        if address is not server_opts:
+        if address is not options:
             host, port = address
-            server_opts.host, server_opts.port = (host, int(port))
+            options.host, options.port = (host, int(port))
 
-        if multiprocess is not server_opts:
-            server_opts.multiprocess = multiprocess
+        if multiprocess is not options:
+            options.multiprocess = multiprocess
 
         ptvsd_path, _, _ = get_abs_path_real_path_and_base_from_file(ptvsd.__file__)
         ptvsd_path = os.path.dirname(ptvsd_path)
@@ -88,15 +88,15 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
         _ADAPTER_PATH,
         "--for-server",
         "--host",
-        server_opts.host,
+        options.host,
         "--port",
-        str(server_opts.port),
+        str(options.port),
         "--server-access-token",
         server_access_token,
     ]
 
-    if common_opts.log_dir is not None:
-        adapter_args += ["--log-dir", common_opts.log_dir]
+    if log.log_dir is not None:
+        adapter_args += ["--log-dir", log.log_dir]
 
     log.info("enable_attach() spawning adapter: {0!r}", adapter_args)
 
@@ -120,38 +120,38 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
         host=host,
         port=port,
         suspend=False,
-        patch_multiprocessing=server_opts.multiprocess,
+        patch_multiprocessing=options.multiprocess,
         wait_for_ready_to_run=False,
         block_until_connected=True,
         dont_trace_start_patterns=dont_trace_start_patterns,
         dont_trace_end_patterns=dont_trace_end_patterns,
         access_token=server_access_token,
-        ide_access_token=server_opts.client_access_token,
+        ide_access_token=options.client_access_token,
     )
 
     log.info("pydevd debug client connected to: {0}:{1}", host, port)
 
     # Ensure that we ignore the adapter process when terminating the debugger.
     pydevd.add_dont_terminate_child_pid(process.pid)
-    server_opts.port = connection_details["ide"]["port"]
+    options.port = connection_details["ide"]["port"]
 
     enable_attach.called = True
     log.info(
-        "ptvsd debug server running at: {0}:{1}", server_opts.host, server_opts.port
+        "ptvsd debug server running at: {0}:{1}", options.host, options.port
     )
-    return server_opts.host, server_opts.port
+    return options.host, options.port
 
 
 @_starts_debugging
 def attach(dont_trace_start_patterns, dont_trace_end_patterns):
     pydevd.settrace(
-        host=server_opts.host,
-        port=server_opts.port,
+        host=options.host,
+        port=options.port,
         suspend=False,
-        patch_multiprocessing=server_opts.multiprocess,
+        patch_multiprocessing=options.multiprocess,
         dont_trace_start_patterns=dont_trace_start_patterns,
         dont_trace_end_patterns=dont_trace_end_patterns,
-        ide_access_token=server_opts.client_access_token,
+        ide_access_token=options.client_access_token,
     )
 
 

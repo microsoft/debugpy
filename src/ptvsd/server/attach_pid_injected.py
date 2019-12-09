@@ -60,11 +60,11 @@ def attach(host, port, client, log_dir=None, client_access_token=None):
         assert sys.path[0] == _ptvsd_dir
         del sys.path[0]
 
-        from ptvsd.common import options as common_opts
+        from ptvsd.common import log
         from ptvsd.server import options
 
         if log_dir is not None:
-            common_opts.log_dir = log_dir
+            log.log_dir = log_dir
         options.client = client
         options.host = host
         options.port = port

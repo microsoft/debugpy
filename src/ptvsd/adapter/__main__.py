@@ -20,14 +20,14 @@ __file__ = os.path.abspath(__file__)
 
 
 def main(args):
-    from ptvsd.common import compat, log, options as common_options
-    from ptvsd.adapter import ide, servers, sessions, options as adapter_options
+    from ptvsd import adapter
+    from ptvsd.common import compat, log
+    from ptvsd.adapter import ide, servers, sessions
 
     if args.log_stderr:
         log.stderr.levels |= set(log.LEVELS)
-        adapter_options.log_stderr = True
     if args.log_dir is not None:
-        common_options.log_dir = args.log_dir
+        log.log_dir = args.log_dir
 
     log.to_file(prefix="ptvsd.adapter")
     log.describe_environment("ptvsd.adapter startup environment:")
@@ -36,10 +36,9 @@ def main(args):
         log.error("--for-server requires --port")
         sys.exit(64)
 
-    # adapter_options.ide_access_token = args.ide_access_token
-    adapter_options.server_access_token = args.server_access_token
+    servers.access_token = args.server_access_token
     if not args.for_server:
-        adapter_options.adapter_access_token = compat.force_str(
+        adapter.access_token = compat.force_str(
             codecs.encode(os.urandom(32), "hex")
         )
 
@@ -106,10 +105,6 @@ def _parse_argv(argv):
         metavar="HOST",
         help="start the adapter in debugServer mode on the specified host",
     )
-
-    # parser.add_argument(
-    #     "--ide-access-token", type=str, help="access token expected by the IDE"
-    # )
 
     parser.add_argument(
         "--server-access-token", type=str, help="access token expected by the server"

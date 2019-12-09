@@ -9,15 +9,15 @@ import os
 import pytest_timeout
 import sys
 
-from ptvsd.common import log, options
+from ptvsd.common import log
 
 
 def dump():
-    if options.log_dir is None:
+    if log.log_dir is None:
         return
-    log.info("Dumping logs from {0!j}", options.log_dir)
+    log.info("Dumping logs from {0!j}", log.log_dir)
 
-    for dirpath, dirnames, filenames in os.walk(options.log_dir):
+    for dirpath, dirnames, filenames in os.walk(log.log_dir):
         for name in sorted(filenames):
             if not name.startswith("ptvsd") and not name.startswith("pydevd"):
                 continue
@@ -28,6 +28,6 @@ def dump():
             except Exception:
                 pass
             else:
-                path = os.path.relpath(path, options.log_dir)
+                path = os.path.relpath(path, log.log_dir)
                 pytest_timeout.write_title(path)
                 print(s, file=sys.stderr)

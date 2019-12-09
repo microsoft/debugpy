@@ -4,10 +4,9 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-
-"""ptvsd command-line options that need to be globally available.
+"""Global server options that are set via command line, environment variables,
+or configuration files.
 """
-
 
 target_kind = None
 """One of: None, 'file', 'module', 'code', or 'pid'.

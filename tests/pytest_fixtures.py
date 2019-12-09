@@ -12,7 +12,7 @@ import sys
 import threading
 import types
 
-from ptvsd.common import compat, fmt, log, options, timestamp
+from ptvsd.common import compat, fmt, log, timestamp
 from tests import code, logs
 from tests.debug import runners, session, targets
 
@@ -39,7 +39,7 @@ def run(request):
 @pytest.fixture(autouse=True)
 def test_wrapper(request, long_tmpdir):
     def write_log(filename, data):
-        filename = os.path.join(options.log_dir, filename)
+        filename = os.path.join(log.log_dir, filename)
         if not isinstance(data, bytes):
             data = data.encode("utf-8")
         with open(filename, "wb") as f:
@@ -48,20 +48,20 @@ def test_wrapper(request, long_tmpdir):
     session.Session.reset_counter()
 
     session.Session.tmpdir = long_tmpdir
-    original_log_dir = options.log_dir
+    original_log_dir = log.log_dir
 
     try:
-        if options.log_dir is None:
-            options.log_dir = (long_tmpdir / "ptvsd_logs").strpath
+        if log.log_dir is None:
+            log.log_dir = (long_tmpdir / "ptvsd_logs").strpath
         else:
             log_subdir = request.node.nodeid
             log_subdir = log_subdir.replace("::", "/")
             for ch in r":?*|<>":
                 log_subdir = log_subdir.replace(ch, fmt("&#{0};", ord(ch)))
-            options.log_dir += "/" + log_subdir
+            log.log_dir += "/" + log_subdir
 
         try:
-            py.path.local(options.log_dir).remove()
+            py.path.local(log.log_dir).remove()
         except Exception:
             pass
 
@@ -96,7 +96,7 @@ def test_wrapper(request, long_tmpdir):
                     write_log("FAILED.log", "")
                     logs.dump()
     finally:
-        options.log_dir = original_log_dir
+        log.log_dir = original_log_dir
 
 
 @pytest.fixture

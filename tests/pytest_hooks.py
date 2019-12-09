@@ -9,7 +9,7 @@ import pytest
 import pytest_timeout
 import sys
 
-from ptvsd.common import fmt, log, options
+from ptvsd.common import fmt, log
 from tests import logs
 
 
@@ -25,8 +25,8 @@ def pytest_configure(config):
     if config.option.ptvsd_logs:
         bits = 64 if sys.maxsize > 2 ** 32 else 32
         ver = fmt("{0}.{1}-{bits}", *sys.version_info, bits=bits)
-        options.log_dir = (config.rootdir / "tests" / "_logs" / ver).strpath
-        log.info("ptvsd and pydevd logs will be under {0}", options.log_dir)
+        log.log_dir = (config.rootdir / "tests" / "_logs" / ver).strpath
+        log.info("ptvsd and pydevd logs will be under {0}", log.log_dir)
 
 
 def pytest_report_header(config):

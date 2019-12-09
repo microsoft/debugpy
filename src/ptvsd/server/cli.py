@@ -15,7 +15,7 @@ assert "pydevd" in sys.modules
 import pydevd
 
 import ptvsd
-from ptvsd.common import compat, fmt, log, options as common_opts
+from ptvsd.common import compat, fmt, log
 from ptvsd.server import options
 
 
@@ -61,17 +61,17 @@ def print_version_and_exit(switch, it):
     sys.exit(0)
 
 
-def set_arg(varname, parser=(lambda x: x), options=options):
-    def action(arg, it):
-        value = parser(next(it))
-        setattr(options, varname, value)
-
-    return action
-
-
-def set_const(varname, value, options=options):
+def set_arg(varname, parser=(lambda x: x), target=options):
     def do(arg, it):
-        setattr(options, varname, value)
+        value = parser(next(it))
+        setattr(target, varname, value)
+
+    return do
+
+
+def set_const(varname, value, target=options):
+    def do(arg, it):
+        setattr(target, varname, value)
 
     return do
 
@@ -93,34 +93,34 @@ def set_target(kind, parser=(lambda x: x), positional=False):
 
 # fmt: off
 switches = [
-    # Switch                    Placeholder         Action                                      Required
-    # ======                    ===========         ======                                      ========
+    # Switch                    Placeholder         Action                                  Required
+    # ======                    ===========         ======                                  ========
 
     # Switches that are documented for use by end users.
-    (("-?", "-h", "--help"),    None,               print_help_and_exit,                        False),
-    (("-V", "--version"),       None,               print_version_and_exit,                     False),
-    ("--client",                None,               set_const("client", True),                  False),
-    ("--host",                  "<address>",        set_arg("host"),                            True),
-    ("--port",                  "<port>",           set_arg("port", port),                      False),
-    ("--wait",                  None,               set_const("wait", True),                    False),
-    ("--no-subprocesses",       None,               set_const("multiprocess", False),           False),
-    ("--log-dir",               "<path>",           set_arg("log_dir", options=common_opts),    False),
-    ("--log-stderr",            None,               set_log_stderr(),                           False),
+    (("-?", "-h", "--help"),    None,               print_help_and_exit,                    False),
+    (("-V", "--version"),       None,               print_version_and_exit,                 False),
+    ("--client",                None,               set_const("client", True),              False),
+    ("--host",                  "<address>",        set_arg("host"),                        True),
+    ("--port",                  "<port>",           set_arg("port", port),                  False),
+    ("--wait",                  None,               set_const("wait", True),                False),
+    ("--no-subprocesses",       None,               set_const("multiprocess", False),       False),
+    ("--log-dir",               "<path>",           set_arg("log_dir", target=log),         False),
+    ("--log-stderr",            None,               set_log_stderr(),                       False),
 
     # Switches that are used internally by the IDE or ptvsd itself.
-    ("--client-access-token",   "<token>",          set_arg("client_access_token"),             False),
+    ("--client-access-token",   "<token>",          set_arg("client_access_token"),         False),
 
     # Targets. The "" entry corresponds to positional command line arguments,
     # i.e. the ones not preceded by any switch name.
-    ("",                        "<filename>",       set_target("file", positional=True),        False),
-    ("-m",                      "<module>",         set_target("module"),                       False),
-    ("-c",                      "<code>",           set_target("code"),                         False),
-    ("--pid",                   "<pid>",            set_target("pid", pid),                     False),
+    ("",                        "<filename>",       set_target("file", positional=True),    False),
+    ("-m",                      "<module>",         set_target("module"),                   False),
+    ("-c",                      "<code>",           set_target("code"),                     False),
+    ("--pid",                   "<pid>",            set_target("pid", pid),                 False),
 ]
 # fmt: on
 
 
-def parse(args):
+def parse(args, options=options):
     seen = set()
     it = (compat.filename(arg) for arg in args)
 
@@ -275,7 +275,7 @@ def attach_to_pid():
     )
     assert os.path.exists(attach_pid_injected_dirname)
 
-    log_dir = (common_opts.log_dir or "").replace("\\", "/")
+    log_dir = (log.log_dir or "").replace("\\", "/")
     encode = lambda s: list(bytearray(s.encode("utf-8")))
     setup = {
         "script": encode(attach_pid_injected_dirname),

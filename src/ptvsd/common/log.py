@@ -15,11 +15,16 @@ import threading
 import traceback
 
 import ptvsd
-from ptvsd.common import compat, fmt, options, timestamp, util
+from ptvsd.common import compat, fmt, timestamp, util
 
 
 LEVELS = ("debug", "info", "warning", "error")
 """Logging levels, lowest to highest importance.
+"""
+
+log_dir = os.getenv("PTVSD_LOG_DIR")
+"""If not None, debugger logs its activity to a file named ptvsd.*-<pid>.log
+in the specified directory, where <pid> is the return value of os.getpid().
 """
 
 timestamp_format = "09.3f"
@@ -242,13 +247,13 @@ def to_file(filename=None, prefix=None, levels=LEVELS):
     assert (filename is not None) ^ (prefix is not None)
 
     if filename is None:
-        if options.log_dir is None:
+        if log_dir is None:
             return NoLog()
         try:
-            os.makedirs(options.log_dir)
+            os.makedirs(log_dir)
         except OSError:
             pass
-        filename = fmt("{0}/{1}-{2}.log", options.log_dir, prefix, os.getpid())
+        filename = fmt("{0}/{1}-{2}.log", log_dir, prefix, os.getpid())
 
     file = _files.get(filename)
     if file is None:
