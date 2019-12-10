@@ -78,6 +78,7 @@ class CaptureOutput(object):
             # On Python 2, all writes are full writes, and write() returns None.
             # On Python 3, writes can be partial, and write() returns the count.
             written = self._stream.write(s[i:])
+            self._stream.flush()
             if written is None:  # full write
                 break
             elif written == 0:
