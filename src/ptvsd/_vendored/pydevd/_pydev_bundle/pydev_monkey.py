@@ -67,7 +67,7 @@ def _get_setup_updated_with_protocol(setup):
 
 def _get_python_c_args(host, port, indC, args, setup):
     setup = _get_setup_updated_with_protocol(setup)
-    return ("import sys; sys.path.append(r'%s'); import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL=%r; "
+    return ("import sys; sys.path.insert(0, r'%s'); import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL=%r; "
             "pydevd.settrace(host=%r, port=%s, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=%r, client_access_token=%r); "
             "from pydevd import SetupHolder; SetupHolder.setup = %s; %s"
             ) % (
