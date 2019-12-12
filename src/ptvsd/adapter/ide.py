@@ -81,7 +81,7 @@ class IDE(components.Component, sockets.ClientConnection):
             "output",
             {
                 "category": "telemetry",
-                "output": "ptvsd.adapter",
+                "output": "ptvsd",
                 "data": {"packageVersion": ptvsd.__version__},
             },
         )
