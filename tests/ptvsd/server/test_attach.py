@@ -130,7 +130,8 @@ def test_reattach(pyfile, target, run):
         session2.request_continue()
 
 
-def test_attach_by_pid(pyfile, target):
+@pytest.mark.parametrize("pid_type", ["int", "str"])
+def test_attach_by_pid(pyfile, target, pid_type):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
@@ -147,6 +148,13 @@ def test_attach_by_pid(pyfile, target):
                 break
 
     with debug.Session() as session:
+        def before_request(command, arguments):
+            if command == "attach":
+                assert isinstance(arguments["processId"], int)
+                if pid_type == "str":
+                    arguments["processId"] = str(arguments["processId"])
+
+        session.before_request = before_request
         session.config["redirectOutput"] = True
 
         with session.attach_by_pid(target(code_to_debug), wait=False):

@@ -142,6 +142,11 @@ class Session(object):
         )
         """The debug configuration for this session."""
 
+        self.before_request = lambda command, arguments: None
+        """Invoked for every outgoing request in this session, allowing any final
+        tweaks to the request before it is sent.
+        """
+
         self.log_dir = (
             None
             if log.log_dir is None
@@ -437,6 +442,8 @@ class Session(object):
         )
 
     def send_request(self, command, arguments=None, proceed=True):
+        self.before_request(command, arguments)
+
         if self.timeline.is_frozen and proceed:
             self.proceed()
 

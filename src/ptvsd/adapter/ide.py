@@ -304,13 +304,18 @@ class IDE(components.Component, sockets.ClientConnection):
         # will be the one for the root debuggee process, but if it has exited already,
         # it will be some subprocess.
 
-        pid = request("processId", int, optional=True)
+        pid = request("processId", (int, unicode), optional=True)
         sub_pid = request("subProcessId", int, optional=True)
         if pid != ():
             if sub_pid != ():
                 raise request.isnt_valid(
                     '"processId" and "subProcessId" are mutually exclusive'
                 )
+            if not isinstance(pid, int):
+                try:
+                    pid = int(pid)
+                except Exception:
+                    raise request.isnt_valid('"processId" must be parseable as int')
             ptvsd_args = request("ptvsdArgs", json.array(unicode))
             servers.inject(pid, ptvsd_args)
             timeout = 10
