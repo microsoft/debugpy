@@ -9,6 +9,7 @@ import itertools
 import os
 import psutil
 import py
+import pytest
 import subprocess
 import sys
 import time
@@ -442,6 +443,10 @@ class Session(object):
         )
 
     def send_request(self, command, arguments=None, proceed=True):
+        if command == "attach":
+            if sys.version_info[:2] == (3, 6) and sys.platform == "darwin":
+                pytest.skip("https://github.com/microsoft/ptvsd/issues/1967")
+
         self.before_request(command, arguments)
 
         if self.timeline.is_frozen and proceed:

@@ -57,6 +57,8 @@ def test_exceptions_and_exclude_rules(pyfile, target, run, scenario, exc_type):
             )
 
         # No exceptions should be seen.
+        session.wait_for_next_event("terminated")
+        session.proceed()
 
 
 @pytest.mark.parametrize("scenario", ["exclude_code_to_debug", "exclude_callback_dir"])

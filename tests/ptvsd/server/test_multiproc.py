@@ -13,8 +13,6 @@ from tests import debug
 from tests.debug import runners
 from tests.patterns import some
 
-pytestmark = pytest.mark.timeout(30)
-
 
 @pytest.fixture(params=[runners.launch, runners.attach_by_socket["api"]])
 def run(request):

@@ -43,6 +43,8 @@ class Connection(sockets.ClientConnection):
     def __init__(self, sock):
         from ptvsd.adapter import sessions
 
+        self.disconnected = False
+
         self.server = None
         """The Server component, if this debug server belongs to Session.
         """
@@ -101,6 +103,13 @@ if 'ptvsd' not in sys.modules:
                 log.exception("Failed to inject ptvsd into {0}:", self, level="warning")
 
             with _lock:
+                # The server can disconnect concurrently before we get here, e.g. if
+                # it was force-killed. If the disconnect() handler has already run,
+                # don't register this server or report it, since there's nothing to
+                # deregister it.
+                if self.disconnected:
+                    return
+
                 if any(conn.pid == self.pid for conn in _connections):
                     raise KeyError(
                         fmt("{0} is already connected to this adapter", self)
@@ -110,10 +119,16 @@ if 'ptvsd' not in sys.modules:
 
         except Exception:
             log.exception("Failed to accept incoming server connection:")
+            self.channel.close()
+
+            # If this was the first server to connect, and the main thread is inside
+            # wait_until_disconnected(), we want to unblock it and allow it to exit.
+            with _lock:
+                _connections_changed.set()
+
             # If we couldn't retrieve all the necessary info from the debug server,
             # or there's a PID clash, we don't want to track this debuggee anymore,
             # but we want to continue accepting connections.
-            self.channel.close()
             return
 
         parent_session = sessions.get(self.ppid)
@@ -155,10 +170,11 @@ if 'ptvsd' not in sys.modules:
 
     def disconnect(self):
         with _lock:
-            # If the disconnect happened while Server was being instantiated, we need
-            # to tell it, so that it can clean up properly via Session.finalize(). It
-            # will also take care of deregistering the connection in that case.
+            self.disconnected = True
             if self.server is not None:
+                # If the disconnect happened while Server was being instantiated,
+                # we need to tell it, so that it can clean up via Session.finalize().
+                # It will also take care of deregistering the connection in that case.
                 self.server.disconnect()
             elif self in _connections:
                 _connections.remove(self)

@@ -148,6 +148,7 @@ def test_attach_by_pid(pyfile, target, pid_type):
                 break
 
     with debug.Session() as session:
+
         def before_request(command, arguments):
             if command == "attach":
                 assert isinstance(arguments["processId"], int)
