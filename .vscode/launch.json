@@ -18,18 +18,16 @@
         // For these, ptvsd.adapter must be started first via the above configuration.
         {
             //"debugServer": 8765,
-            "name": "Launch Python file [debugServer]",
+            "name": "Launch Python file",
             "type": "python",
             "request": "launch",
-            //"console": "internalConsole",
             "console": "integratedTerminal",
-            //"console": "externalTerminal",
             "consoleTitle": "ptvsd.server",
             "program": "${file}",
             "logToFile": true,
         },
         {
-            "name": "Attach [debugServer]",
+            "name": "Attach",
             "type": "python",
             "request": "attach",
             "host": "localhost",
