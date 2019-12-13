@@ -15,9 +15,9 @@ from ptvsd.common import fmt
 
 
 try:
-    import builtins
+    import __builtin__ as builtins
 except ImportError:
-    import __builtin__ as builtins  # noqa
+    import builtins
 
 try:
     unicode = builtins.unicode
