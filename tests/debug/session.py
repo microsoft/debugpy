@@ -512,7 +512,7 @@ class Session(object):
         telemetry = self.wait_for_next_event("output")
         assert telemetry == {
             "category": "telemetry",
-            "output": "ptvsd.adapter",
+            "output": "ptvsd",
             "data": {"packageVersion": some.str},
         }
 
