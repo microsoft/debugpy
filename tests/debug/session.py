@@ -214,6 +214,8 @@ class Session(object):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        log.info("Ending {0}.", self)
+
         if self.timeline.is_frozen:
             self.timeline.unfreeze()
 
@@ -238,11 +240,13 @@ class Session(object):
             # all the processes immediately. Don't close or finalize the timeline,
             # either, since it'll likely have unobserved events in it.
             if self.adapter is not None:
+                log.info("Killing {0}.", self.adapter_id)
                 try:
                     self.adapter.kill()
                 except Exception:
                     pass
             if self.debuggee is not None:
+                log.info("Killing {0}.", self.debuggee_id)
                 try:
                     self.debuggee.kill()
                 except Exception:
@@ -769,14 +773,13 @@ class Session(object):
 
     def wait_for_exit(self):
         if self.debuggee is not None:
+            log.info("Waiting for {0} to exit ...", self.debuggee_id)
             try:
                 self.debuggee.wait()
             except Exception:
                 pass
             finally:
                 watchdog.unregister_spawn(self.debuggee.pid, self.debuggee_id)
-            # if self.captured_output:
-            #     self.captured_output.wait()
 
         self.timeline.wait_until_realized(timeline.Event("terminated"))
 
