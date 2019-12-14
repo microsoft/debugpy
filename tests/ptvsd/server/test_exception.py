@@ -5,6 +5,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import pytest
+import sys
 
 from tests import debug
 from tests.debug import runners, targets
@@ -143,6 +144,10 @@ def test_vsc_exception_options_raise_without_except(
             session.request_continue()
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin" and sys.version_info >= (3,),
+    reason="https://github.com/microsoft/ptvsd/issues/1988",
+)
 @pytest.mark.parametrize("target", targets.all_named)
 @pytest.mark.parametrize("run", runners.all)
 @pytest.mark.parametrize("raised", ["raised", ""])
