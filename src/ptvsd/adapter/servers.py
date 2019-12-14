@@ -123,8 +123,7 @@ if 'ptvsd' not in sys.modules:
 
             # If this was the first server to connect, and the main thread is inside
             # wait_until_disconnected(), we want to unblock it and allow it to exit.
-            with _lock:
-                _connections_changed.set()
+            dont_wait_for_first_connection()
 
             # If we couldn't retrieve all the necessary info from the debug server,
             # or there's a PID clash, we don't want to track this debuggee anymore,
@@ -407,7 +406,7 @@ def wait_until_disconnected():
                 return
 
 
-def dont_expect_connections():
+def dont_wait_for_first_connection():
     """Unblocks any pending wait_until_disconnected() call that is waiting on the
     first server to connect.
     """

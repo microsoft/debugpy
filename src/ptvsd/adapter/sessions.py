@@ -212,6 +212,11 @@ class Session(util.Observable):
         log.info("{0} finalized.", self)
 
     def _finalize(self, why, terminate_debuggee):
+        # If the IDE started a session, and then disconnected before issuing "launch"
+        # or "attach", the main thread will be blocked waiting for the first server
+        # connection to come in - unblock it, so that we can exit.
+        servers.dont_wait_for_first_connection()
+
         if self.server:
             if self.server.is_connected:
                 try:

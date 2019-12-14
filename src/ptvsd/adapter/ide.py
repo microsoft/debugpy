@@ -166,7 +166,7 @@ class IDE(components.Component, sockets.ClientConnection):
 
             self.session.no_debug = request("noDebug", json.default(False))
             if self.session.no_debug:
-                servers.dont_expect_connections()
+                servers.dont_wait_for_first_connection()
 
             self.session.debug_options = debug_options = set(
                 request("debugOptions", json.array(unicode))
