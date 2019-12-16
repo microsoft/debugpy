@@ -32,3 +32,6 @@ install:
 
 script:
   - tox -- -n4 -v
+
+env:
+  - TOX_SKIP_ENV=.*-cov
