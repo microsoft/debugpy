@@ -8,6 +8,7 @@ __all__ = ["main"]
 
 import locale
 import os
+import signal
 import sys
 
 # WARNING: ptvsd and submodules must not be imported on top level in this module,
@@ -24,6 +25,11 @@ def main():
 
     log.to_file(prefix="ptvsd.launcher")
     log.describe_environment("ptvsd.launcher startup environment:")
+
+    # Disable exceptions on Ctrl+C - we want to allow the debuggee process to handle
+    # these, or not, as it sees fit. If the debuggee exits on Ctrl+C, the launcher
+    # will also exit, so it doesn't need to observe the signal directly.
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
 
     def option(name, type, *args):
         try:
