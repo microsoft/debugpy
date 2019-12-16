@@ -21,10 +21,10 @@ class TestCase(unittest.TestCase):
             check = '''C:\\bin\\python.exe -u -c connect(\\"127.0.0.1\\")'''
             debug_command = (
                 'import sys; '
-                'sys.path.append(r\'%s\'); '
-                "import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL='quoted-line';"
+                'sys.path.insert(0, r\'%s\'); '
+                "import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL='quoted-line'; "
                 "pydevd.settrace(host='127.0.0.1', port=0, suspend=False, "
-                'trace_only_current_thread=False, patch_multiprocessing=True); '
+                'trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None); '
                 ''
                 "from pydevd import SetupHolder; "
                 "SetupHolder.setup = %s; "
@@ -50,8 +50,8 @@ class TestCase(unittest.TestCase):
             SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'protocol-quoted-line': True}
             check = ['C:\\bin\\python.exe', '-u', '-c', 'connect("127.0.0.1")']
             debug_command = (
-                "import sys; sys.path.append(r\'%s\'); import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL='quoted-line';"
-                'pydevd.settrace(host=\'127.0.0.1\', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True); '
+                "import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL='quoted-line'; "
+                'pydevd.settrace(host=\'127.0.0.1\', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None); '
                 ''
                 "from pydevd import SetupHolder; "
                 "SetupHolder.setup = %s; "

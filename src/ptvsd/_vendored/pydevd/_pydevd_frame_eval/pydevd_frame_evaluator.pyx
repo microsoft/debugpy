@@ -268,6 +268,7 @@ cdef PyObject * get_bytecode_while_frame_eval(PyFrameObject * frame_obj, int exc
     cdef int CMD_STEP_OVER = 108
     cdef int CMD_STEP_OVER_MY_CODE = 159
     cdef int CMD_STEP_INTO_MY_CODE = 144
+    cdef int CMD_STEP_INTO_COROUTINE = 206
     cdef bint can_skip = True
     try:
         thread_info = _thread_local_info.thread_info
@@ -308,7 +309,7 @@ cdef PyObject * get_bytecode_while_frame_eval(PyFrameObject * frame_obj, int exc
             if apply_to_global:
                 thread_info.thread_trace_func = trace_func
                 
-        if additional_info.pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE) or \
+        if additional_info.pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_INTO_COROUTINE) or \
                 main_debugger.break_on_caught_exceptions or \
                 main_debugger.has_plugin_exception_breaks or \
                 main_debugger.signature_factory or \

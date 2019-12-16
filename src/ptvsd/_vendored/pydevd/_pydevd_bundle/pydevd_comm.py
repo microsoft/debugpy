@@ -666,6 +666,7 @@ def internal_step_in_thread(py_db, thread_id, cmd_id, set_additional_thread_info
         info = set_additional_thread_info(thread_to_step)
         info.pydev_original_step_cmd = cmd_id
         info.pydev_step_cmd = cmd_id
+        info.pydev_step_stop = None
         info.pydev_state = STATE_RUN
 
     if py_db.stepping_resumes_all_threads:
@@ -695,6 +696,7 @@ class InternalSetNextStatementThread(InternalThreadCommand):
         if t:
             t.additional_info.pydev_original_step_cmd = self.cmd_id
             t.additional_info.pydev_step_cmd = self.cmd_id
+            t.additional_info.pydev_step_stop = None
             t.additional_info.pydev_next_line = int(self.line)
             t.additional_info.pydev_func_name = self.func_name
             t.additional_info.pydev_state = STATE_RUN

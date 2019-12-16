@@ -14,7 +14,7 @@ from _pydevd_bundle.pydevd_comm_constants import CMD_THREAD_CREATE, CMD_RETURN, 
     CMD_STEP_RETURN, CMD_STEP_CAUGHT_EXCEPTION, CMD_ADD_EXCEPTION_BREAK, CMD_SET_BREAK, \
     CMD_SET_NEXT_STATEMENT, CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION, \
     CMD_THREAD_RESUME_SINGLE_NOTIFICATION, CMD_THREAD_KILL, CMD_STOP_ON_START, CMD_INPUT_REQUESTED, \
-    CMD_EXIT
+    CMD_EXIT, CMD_STEP_INTO_COROUTINE
 from _pydevd_bundle.pydevd_constants import get_thread_id, dict_values, ForkSafeLock
 from _pydevd_bundle.pydevd_net_command import NetCommand, NULL_NET_COMMAND
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
@@ -269,6 +269,7 @@ class NetCommandFactoryJson(NetCommandFactory):
         CMD_STEP_RETURN,
         CMD_STEP_INTO_MY_CODE,
         CMD_STOP_ON_START,
+        CMD_STEP_INTO_COROUTINE,
     ])
     _EXCEPTION_REASONS = set([
         CMD_STEP_CAUGHT_EXCEPTION,

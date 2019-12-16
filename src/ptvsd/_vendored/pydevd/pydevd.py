@@ -35,7 +35,7 @@ from _pydevd_bundle.pydevd_breakpoints import ExceptionBreakpoint, get_exception
 from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, CMD_STEP_INTO, CMD_SET_BREAK,
     CMD_STEP_INTO_MY_CODE, CMD_STEP_OVER, CMD_SMART_STEP_INTO, CMD_RUN_TO_LINE,
     CMD_SET_NEXT_STATEMENT, CMD_STEP_RETURN, CMD_ADD_EXCEPTION_BREAK, CMD_STEP_RETURN_MY_CODE,
-    CMD_STEP_OVER_MY_CODE, constant_to_str)
+    CMD_STEP_OVER_MY_CODE, constant_to_str, CMD_STEP_INTO_COROUTINE)
 from _pydevd_bundle.pydevd_constants import (IS_JYTH_LESS25, get_thread_id, get_current_thread_id,
     dict_keys, dict_iter_items, DebugInfoHolder, PYTHON_SUSPEND, STATE_SUSPEND, STATE_RUN, get_frame,
     clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, IS_PY34_OR_GREATER, IS_PY2, NULL,
@@ -1572,6 +1572,7 @@ class PyDB(object):
             # If the step command is not specified, set it to step into
             # to make sure it'll break as soon as possible.
             info.pydev_step_cmd = CMD_STEP_INTO
+            info.pydev_step_stop = None
 
         # Mark as suspend as the last thing.
         info.pydev_state = STATE_SUSPEND
@@ -1811,9 +1812,16 @@ class PyDB(object):
 
         # process any stepping instructions
         if info.pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE):
-            info.pydev_step_stop = None
-            info.pydev_smart_step_stop = None
-            self.set_trace_for_frame_and_parents(frame)
+            if frame.f_code.co_flags & 0x80:  # CO_COROUTINE = 0x80
+                # When in a coroutine we switch to CMD_STEP_INTO_COROUTINE.
+                info.pydev_step_cmd = CMD_STEP_INTO_COROUTINE
+                info.pydev_step_stop = frame
+                info.pydev_smart_step_stop = None
+                self.set_trace_for_frame_and_parents(frame)
+            else:
+                info.pydev_step_stop = None
+                info.pydev_smart_step_stop = None
+                self.set_trace_for_frame_and_parents(frame)
 
         elif info.pydev_step_cmd in (CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE):
             info.pydev_step_stop = frame
@@ -1826,6 +1834,7 @@ class PyDB(object):
             self.set_trace_for_frame_and_parents(frame)
 
         elif info.pydev_step_cmd == CMD_RUN_TO_LINE or info.pydev_step_cmd == CMD_SET_NEXT_STATEMENT:
+            info.pydev_step_stop = None
             self.set_trace_for_frame_and_parents(frame)
             stop = False
             response_msg = ""

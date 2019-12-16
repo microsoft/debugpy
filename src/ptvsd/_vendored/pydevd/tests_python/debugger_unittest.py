@@ -1003,7 +1003,10 @@ class AbstractWriterThread(threading.Thread):
             assert line == frame_line, 'Expected hit to be in line %s, was: %s' % (line, frame_line)
 
         if name is not None:
-            assert name == hit_name
+            if not isinstance(name, (list, tuple, set)):
+                assert name == hit_name
+            else:
+                assert hit_name in name
 
         self.log.append('End(1): wait_for_breakpoint_hit: %s' % (msg.original_xml,))
 
