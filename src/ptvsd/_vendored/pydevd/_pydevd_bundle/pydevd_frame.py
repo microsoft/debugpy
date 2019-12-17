@@ -682,7 +682,11 @@ class PyDBFrame:
                         return self.trace_dispatch
 
                 if main_debugger.show_return_values:
-                    if is_return and info.pydev_step_cmd in (CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE) and frame.f_back == stop_frame:
+                    if is_return and (
+                            (info.pydev_step_cmd in (CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE) and (frame.f_back is stop_frame)) or
+                            (info.pydev_step_cmd in (CMD_STEP_RETURN, CMD_STEP_RETURN_MY_CODE) and (frame is stop_frame)) or
+                            (info.pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_INTO_COROUTINE))
+                        ):
                         self.show_return_values(frame, arg)
 
                 elif main_debugger.remove_return_values_flag:

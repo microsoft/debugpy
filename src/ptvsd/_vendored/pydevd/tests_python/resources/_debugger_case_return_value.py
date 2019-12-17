@@ -6,7 +6,11 @@ def method2():
     return 2
 
 
-if __name__ == '__main__':
+def main():
     method1()  # break here
     method2()
     print('TEST SUCEEDED!')
+
+
+if __name__ == '__main__':
+    main()

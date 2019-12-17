@@ -3039,13 +3039,13 @@ def test_gevent(case_setup):
 def test_return_value(case_setup):
     with case_setup.test_file('_debugger_case_return_value.py') as writer:
         break_line = writer.get_line_index_with_content('break here')
-        writer.write_add_breakpoint(break_line, '')
+        writer.write_add_breakpoint(break_line)
         writer.write_show_return_vars()
         writer.write_make_initial_run()
-        hit = writer.wait_for_breakpoint_hit(name='<module>', line=break_line)
+        hit = writer.wait_for_breakpoint_hit(name='main', line=break_line)
 
         writer.write_step_over(hit.thread_id)
-        hit = writer.wait_for_breakpoint_hit(REASON_STEP_OVER, name='<module>', line=break_line + 1)
+        hit = writer.wait_for_breakpoint_hit(REASON_STEP_OVER, name='main', line=break_line + 1)
         writer.write_get_frame(hit.thread_id, hit.frame_id)
         writer.wait_for_vars([
             [
@@ -3055,7 +3055,7 @@ def test_return_value(case_setup):
         ])
 
         writer.write_step_over(hit.thread_id)
-        hit = writer.wait_for_breakpoint_hit(REASON_STEP_OVER, name='<module>', line=break_line + 2)
+        hit = writer.wait_for_breakpoint_hit(REASON_STEP_OVER, name='main', line=break_line + 2)
         writer.write_get_frame(hit.thread_id, hit.frame_id)
         writer.wait_for_vars([
             [
@@ -3695,6 +3695,7 @@ def test_stepin_not_my_code_coroutine(case_setup):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(IS_JYTHON, reason='Flaky on Jython')
 def test_generator_step_in(case_setup):
     with case_setup.test_file('_debugger_case_generator_step_in.py') as writer:
         line = writer.get_line_index_with_content('stop 1')

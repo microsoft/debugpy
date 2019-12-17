@@ -1093,8 +1093,17 @@ def test_stack_and_variables_dict(case_setup):
         writer.finished_ok = True
 
 
-def test_return_value(case_setup):
-    with case_setup.test_file('_debugger_case_return_value.py') as writer:
+@pytest.mark.parametrize('scenario', [
+    'step_in',
+    'step_next',
+    'step_out',
+])
+@pytest.mark.parametrize('asyncio', [True, False])
+def test_return_value_regular(case_setup, scenario, asyncio):
+    if IS_PY2 and asyncio:
+        raise pytest.skip('asyncio not available for python 2.')
+
+    with case_setup.test_file('_debugger_case_return_value.py' if not asyncio else '_debugger_case_return_value_asyncio.py') as writer:
         json_facade = JsonFacade(writer)
 
         break_line = writer.get_line_index_with_content('break here')
@@ -1103,8 +1112,26 @@ def test_return_value(case_setup):
         json_facade.write_make_initial_run()
 
         json_hit = json_facade.wait_for_thread_stopped()
-        json_facade.write_step_next(json_hit.thread_id)
-        json_hit = json_facade.wait_for_thread_stopped('step', name='<module>', line=break_line + 1)
+        if scenario == 'step_next':
+            json_facade.write_step_next(json_hit.thread_id)
+            json_hit = json_facade.wait_for_thread_stopped('step', name='main', line=break_line + 1)
+
+        elif scenario == 'step_in':
+            json_facade.write_step_in(json_hit.thread_id)
+            json_hit = json_facade.wait_for_thread_stopped('step', name='method1')
+
+            json_facade.write_step_in(json_hit.thread_id)
+            json_hit = json_facade.wait_for_thread_stopped('step', name='main')
+
+        elif scenario == 'step_out':
+            json_facade.write_step_in(json_hit.thread_id)
+            json_hit = json_facade.wait_for_thread_stopped('step', name='method1')
+
+            json_facade.write_step_out(json_hit.thread_id)
+            json_hit = json_facade.wait_for_thread_stopped('step', name='main')
+
+        else:
+            raise AssertionError('unhandled scenario: %s' % (scenario,))
 
         variables_response = json_facade.get_variables_response(json_hit.frame_id)
         return_variables = json_facade.filter_return_variables(variables_response.body.variables)

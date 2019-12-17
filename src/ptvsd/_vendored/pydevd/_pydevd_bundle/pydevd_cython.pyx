@@ -831,7 +831,11 @@ cdef class PyDBFrame:
                         return self.trace_dispatch
 
                 if main_debugger.show_return_values:
-                    if is_return and info.pydev_step_cmd in (108, 159) and frame.f_back == stop_frame:
+                    if is_return and (
+                            (info.pydev_step_cmd in (108, 159) and (frame.f_back is stop_frame)) or
+                            (info.pydev_step_cmd in (109, 160) and (frame is stop_frame)) or
+                            (info.pydev_step_cmd in (107, 144, 206))
+                        ):
                         self.show_return_values(frame, arg)
 
                 elif main_debugger.remove_return_values_flag:
