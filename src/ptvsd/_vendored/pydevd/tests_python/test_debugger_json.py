@@ -1093,6 +1093,28 @@ def test_stack_and_variables_dict(case_setup):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(IS_PY26, reason='__dir__ not customizable on Python 2.6')
+def test_exception_on_dir(case_setup):
+    with case_setup.test_file('_debugger_case_dir_exception.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'))
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        json_hit = json_facade.get_stack_as_json_hit(json_hit.thread_id)
+
+        variables_response = json_facade.get_variables_response(json_hit.frame_id)
+
+        variables_references = json_facade.pop_variables_reference(variables_response.body.variables)
+        variables_response = json_facade.get_variables_response(variables_references[0])
+        assert variables_response.body.variables == [
+            {'variablesReference': 0, 'type': 'int', 'evaluateName': 'self.__dict__[var1]', 'name': 'var1', 'value': '10'}]
+
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
 @pytest.mark.parametrize('scenario', [
     'step_in',
     'step_next',

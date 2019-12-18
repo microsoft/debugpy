@@ -168,7 +168,7 @@ class DefaultResolver:
         used___dict__ = False
         try:
             names = dir(var)
-        except TypeError:
+        except Exception:
             names = []
         if not names:
             if hasattr(var, '__dict__'):
