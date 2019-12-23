@@ -9,25 +9,28 @@ import contextlib
 import json
 import os
 import pydevd
+import socket
 import sys
 import threading
 
 import ptvsd
-from ptvsd.common import compat, log
+from ptvsd import adapter
+from ptvsd.common import compat, log, sockets
 from ptvsd.server import options
 from _pydevd_bundle.pydevd_constants import get_global_debugger
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_file
 
 
-_QUEUE_TIMEOUT = 10
-_ADAPTER_PATH = os.path.join(os.path.dirname(ptvsd.__file__), "adapter")
+def _settrace(*args, **kwargs):
+    log.debug("pydevd.settrace(*{0!r}, **{1!r})", args, kwargs)
+    return pydevd.settrace(*args, **kwargs)
 
 
 def wait_for_attach():
-    log.info("wait_for_attach()")
+    log.debug("wait_for_attach()")
     dbg = get_global_debugger()
     if dbg is None:
-        raise RuntimeError("wait_for_attach() called before enable_attach().")
+        raise RuntimeError("wait_for_attach() called before enable_attach()")
 
     cancel_event = threading.Event()
     ptvsd.wait_for_attach.cancel = wait_for_attach.cancel = cancel_event.set
@@ -41,7 +44,7 @@ def _starts_debugging(func):
 
         log.to_file(prefix="ptvsd.server")
         log.describe_environment("ptvsd.server debug start environment:")
-        log.info("{0}{1!r}", func.__name__, (address, log_dir, multiprocess))
+        log.debug("{0}{1!r}", func.__name__, (address, log_dir, multiprocess))
 
         if is_attached():
             log.info("{0}() ignored - already attached.", func.__name__)
@@ -69,24 +72,38 @@ def _starts_debugging(func):
         try:
             return func(start_patterns, end_patterns)
         except Exception:
-            raise log.exception("{0}() failed:", func.__name__)
+            raise log.exception("{0}() failed:", func.__name__, level="info")
 
     return debug
 
 
 @_starts_debugging
 def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
-    if hasattr(enable_attach, "called"):
-        raise RuntimeError("enable_attach() can only be called once per process.")
-
-    server_access_token = compat.force_str(codecs.encode(os.urandom(32), "hex"))
+    # Errors below are logged with level="info", because the caller might be catching
+    # and handling exceptions, and we don't want to spam their stderr unnecessarily.
 
     import subprocess
 
+    if hasattr(enable_attach, "adapter"):
+        raise AssertionError("enable_attach() can only be called once per process")
+
+    server_access_token = compat.force_str(codecs.encode(os.urandom(32), "hex"))
+
+    try:
+        endpoints_listener = sockets.create_server("127.0.0.1", 0, timeout=5)
+    except Exception as exc:
+        log.exception("Can't listen for adapter endpoints:")
+        raise RuntimeError("can't listen for adapter endpoints: " + str(exc))
+    endpoints_host, endpoints_port = endpoints_listener.getsockname()
+    log.info(
+        "Waiting for adapter endpoints on {0}:{1}...", endpoints_host, endpoints_port
+    )
+
     adapter_args = [
         sys.executable,
-        _ADAPTER_PATH,
+        os.path.dirname(adapter.__file__),
         "--for-server",
+        str(endpoints_port),
         "--host",
         options.host,
         "--port",
@@ -94,29 +111,77 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
         "--server-access-token",
         server_access_token,
     ]
-
     if log.log_dir is not None:
         adapter_args += ["--log-dir", log.log_dir]
+    log.info("enable_attach() spawning adapter: {0!j}", adapter_args)
 
-    log.info("enable_attach() spawning adapter: {0!r}", adapter_args)
+    # On Windows, detach the adapter from our console, if any, so that it doesn't
+    # receive Ctrl+C from it, and doesn't keep it open once we exit.
+    creationflags = 0
+    if sys.platform == "win32":
+        creationflags |= 0x08000000  # CREATE_NO_WINDOW
+        creationflags |= 0x00000200  # CREATE_NEW_PROCESS_GROUP
 
-    # Adapter will outlive this process, so we shouldn't wait for it. However, we do
-    # need to ensure that the Popen instance for it doesn't get garbage-collected, to
-    # avoid triggering https://bugs.python.org/issue37380.
-    enable_attach.process = process = subprocess.Popen(
-        adapter_args, bufsize=0, stdout=subprocess.PIPE
+    # Adapter will outlive this process, so we shouldn't wait for it. However, we
+    # need to ensure that the Popen instance for it doesn't get garbage-collected
+    # by holding a reference to it in a non-local variable, to avoid triggering
+    # https://bugs.python.org/issue37380.
+    try:
+        enable_attach.adapter = subprocess.Popen(
+            adapter_args, close_fds=True, creationflags=creationflags
+        )
+        if os.name == "posix":
+            # It's going to fork again to daemonize, so we need to wait on it to
+            # clean it up properly.
+            enable_attach.adapter.wait()
+        else:
+            # Suppress misleading warning about child process still being alive when
+            # this process exits (https://bugs.python.org/issue38890).
+            enable_attach.adapter.returncode = 0
+            pydevd.add_dont_terminate_child_pid(enable_attach.adapter.pid)
+    except Exception as exc:
+        log.exception("Error spawning debug adapter:", level="info")
+        raise RuntimeError("error spawning debug adapter: " + str(exc))
+
+    try:
+        sock, _ = endpoints_listener.accept()
+        try:
+            sock.settimeout(None)
+            sock_io = sock.makefile("rb", 0)
+            try:
+                endpoints = json.loads(sock_io.read().decode("utf-8"))
+            finally:
+                sock_io.close()
+        finally:
+            sockets.close_socket(sock)
+    except socket.timeout:
+        log.exception("Timed out waiting for adapter to connect:", level="info")
+        raise RuntimeError("timed out waiting for adapter to connect")
+    except Exception as exc:
+        log.exception("Error retrieving adapter endpoints:", level="info")
+        raise RuntimeError("error retrieving adapter endpoints: " + str(exc))
+
+    log.info("Endpoints received from adapter: {0!j}", endpoints)
+
+    if "error" in endpoints:
+        raise RuntimeError(str(endpoints["error"]))
+
+    try:
+        host = str(endpoints["server"]["host"])
+        port = int(endpoints["server"]["port"])
+        options.port = int(endpoints["ide"]["port"])
+    except Exception as exc:
+        log.exception(
+            "Error parsing adapter endpoints:\n{0!j}\n", endpoints, level="info"
+        )
+        raise RuntimeError("error parsing adapter endpoints: " + str(exc))
+    log.info(
+        "Adapter is accepting incoming IDE connections on {0}:{1}",
+        options.host,
+        options.port,
     )
 
-    line = process.stdout.readline()
-    if isinstance(line, bytes):
-        line = line.decode("utf-8")
-    connection_details = json.JSONDecoder().decode(line)
-    log.info("Connection details received from adapter: {0!r}", connection_details)
-
-    host = "127.0.0.1"  # This should always be loopback address.
-    port = connection_details["server"]["port"]
-
-    pydevd.settrace(
+    _settrace(
         host=host,
         port=port,
         suspend=False,
@@ -128,23 +193,13 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
         access_token=server_access_token,
         client_access_token=options.client_access_token,
     )
-
-    log.info("pydevd debug client connected to: {0}:{1}", host, port)
-
-    # Ensure that we ignore the adapter process when terminating the debugger.
-    pydevd.add_dont_terminate_child_pid(process.pid)
-    options.port = connection_details["ide"]["port"]
-
-    enable_attach.called = True
-    log.info(
-        "ptvsd debug server running at: {0}:{1}", options.host, options.port
-    )
+    log.info("pydevd is connected to adapter at {0}:{1}", host, port)
     return options.host, options.port
 
 
 @_starts_debugging
 def attach(dont_trace_start_patterns, dont_trace_end_patterns):
-    pydevd.settrace(
+    _settrace(
         host=options.host,
         port=options.port,
         suspend=False,
@@ -160,7 +215,7 @@ def is_attached():
 
 
 def break_into_debugger():
-    log.info("break_into_debugger()")
+    log.debug("break_into_debugger()")
 
     if not is_attached():
         log.info("break_into_debugger() ignored - debugger not attached")
@@ -175,7 +230,7 @@ def break_into_debugger():
     ):
         stop_at_frame = stop_at_frame.f_back
 
-    pydevd.settrace(
+    _settrace(
         suspend=True,
         trace_only_current_thread=True,
         patch_multiprocessing=False,
@@ -185,8 +240,8 @@ def break_into_debugger():
 
 
 def debug_this_thread():
-    log.info("debug_this_thread()")
-    pydevd.settrace(suspend=False)
+    log.debug("debug_this_thread()")
+    _settrace(suspend=False)
 
 
 _tls = threading.local()

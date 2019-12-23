@@ -73,14 +73,17 @@ class ClientConnection(object):
             name = cls.__name__
 
         assert cls.listener is None
-        cls.listener = create_server(host, port, timeout)
+        try:
+            cls.listener = create_server(host, port, timeout)
+        except Exception:
+            raise log.exception(
+                "Error listening for incoming {0} connections on {1}:{2}:",
+                name,
+                host,
+                port,
+            )
         host, port = cls.listener.getsockname()
-        log.info(
-            "Waiting for incoming {0} connections on {1}:{2}...",
-            name,
-            host,
-            port,
-        )
+        log.info("Listening for incoming {0} connections on {1}:{2}...", name, host, port)
 
         def accept_worker():
             while True:

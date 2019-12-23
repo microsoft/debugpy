@@ -34,5 +34,12 @@
             "port": 5678,
             "logToFile": true,
         },
+        {
+            "name": "Debug Tests",
+            "type": "python",
+            "request": "test",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
     ]
 }

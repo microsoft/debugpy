@@ -21,8 +21,21 @@ __file__ = os.path.abspath(__file__)
 
 def main(args):
     from ptvsd import adapter
-    from ptvsd.common import compat, log
+    from ptvsd.common import compat, log, sockets
     from ptvsd.adapter import ide, servers, sessions
+
+    if args.for_server is not None:
+        if os.name == "posix":
+            # On POSIX, we need to leave the process group and its session, and then
+            # daemonize properly by double-forking (first fork already happened when
+            # this process was spawned).
+            os.setsid()
+            if os.fork() != 0:
+                sys.exit(0)
+
+        for stdio in sys.stdin, sys.stdout, sys.stderr:
+            if stdio is not None:
+                stdio.close()
 
     if args.log_stderr:
         log.stderr.levels |= set(log.LEVELS)
@@ -32,35 +45,59 @@ def main(args):
     log.to_file(prefix="ptvsd.adapter")
     log.describe_environment("ptvsd.adapter startup environment:")
 
-    if args.for_server and args.port is None:
-        log.error("--for-server requires --port")
-        sys.exit(64)
-
     servers.access_token = args.server_access_token
-    if not args.for_server:
-        adapter.access_token = compat.force_str(
-            codecs.encode(os.urandom(32), "hex")
+    if args.for_server is None:
+        adapter.access_token = compat.force_str(codecs.encode(os.urandom(32), "hex"))
+
+    try:
+        server_host, server_port = servers.listen()
+    except Exception as exc:
+        if args.for_server is None:
+            raise
+        endpoints = {"error": "Can't listen for server connections: " + str(exc)}
+    else:
+        endpoints = {"server": {"host": server_host, "port": server_port}}
+        try:
+            ide_host, ide_port = ide.listen(port=args.port)
+        except Exception as exc:
+            if args.for_server is None:
+                raise
+            endpoints = {
+                "error": "Can't listen for IDE connections: " + str(exc)
+            }
+        else:
+            endpoints["ide"] = {"host": ide_host, "port": ide_port}
+
+    if args.for_server is not None:
+        log.info(
+            "Sending endpoints info to debug server at localhost:{0}:\n{1!j}",
+            args.for_server,
+            endpoints,
         )
 
-    server_host, server_port = servers.listen()
-    ide_host, ide_port = ide.listen(port=args.port)
-    endpoints_info = {
-        "ide": {"host": ide_host, "port": ide_port},
-        "server": {"host": server_host, "port": server_port},
-    }
+        try:
+            sock = sockets.create_client()
+            try:
+                sock.settimeout(None)
+                sock.connect(("127.0.0.1", args.for_server))
+                sock_io = sock.makefile("wb", 0)
+                try:
+                    sock_io.write(json.dumps(endpoints).encode("utf-8"))
+                finally:
+                    sock_io.close()
+            finally:
+                sockets.close_socket(sock)
+        except Exception:
+            raise log.exception("Error sending endpoints info to debug server:")
 
-    if args.for_server:
-        log.info("Writing endpoints info to stdout:\n{0!r}", endpoints_info)
-        print(json.dumps(endpoints_info))
-        sys.stdout.flush()
-
-    if args.port is None:
-        ide.IDE("stdio")
+        if "error" in endpoints:
+            log.error("Couldn't set up endpoints; exiting.")
+            sys.exit(1)
 
     listener_file = os.getenv("PTVSD_ADAPTER_ENDPOINTS")
     if listener_file is not None:
         log.info(
-            "Writing endpoints info to {0!r}:\n{1!r}", listener_file, endpoints_info
+            "Writing endpoints info to {0!r}:\n{1!j}", listener_file, endpoints
         )
 
         def delete_listener_file():
@@ -70,9 +107,15 @@ def main(args):
             except Exception:
                 log.exception("Failed to delete {0!r}", listener_file, level="warning")
 
-        with open(listener_file, "w") as f:
-            atexit.register(delete_listener_file)
-            print(json.dumps(endpoints_info), file=f)
+        try:
+            with open(listener_file, "w") as f:
+                atexit.register(delete_listener_file)
+                print(json.dumps(endpoints), file=f)
+        except Exception:
+            raise log.exception("Error writing endpoints info to file:")
+
+    if args.port is None:
+        ide.IDE("stdio")
 
     # These must be registered after the one above, to ensure that the listener sockets
     # are closed before the endpoint info file is deleted - this way, another process
@@ -89,6 +132,10 @@ def main(args):
 
 def _parse_argv(argv):
     parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--for-server", type=int, metavar="PORT", help=argparse.SUPPRESS
+    )
 
     parser.add_argument(
         "--port",
@@ -110,8 +157,6 @@ def _parse_argv(argv):
         "--server-access-token", type=str, help="access token expected by the server"
     )
 
-    parser.add_argument("--for-server", action="store_true", help=argparse.SUPPRESS)
-
     parser.add_argument(
         "--log-dir",
         type=str,
@@ -124,8 +169,13 @@ def _parse_argv(argv):
     )
 
     args = parser.parse_args(argv[1:])
-    if args.port is None and args.log_stderr:
-        parser.error("--log-stderr can only be used with --port")
+
+    if args.port is None:
+        if args.log_stderr:
+            parser.error("--log-stderr requires --port")
+        if args.for_server is not None:
+            parser.error("--for-server requires --port")
+
     return args
 
 
