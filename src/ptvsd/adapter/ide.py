@@ -156,6 +156,7 @@ class IDE(components.Component, sockets.ClientConnection):
     # See https://github.com/microsoft/vscode/issues/4902#issuecomment-368583522
     # for the sequence of request and events necessary to orchestrate the start.
     def _start_message_handler(f):
+
         @components.Component.message_handler
         def handle(self, request):
             assert request.is_request("launch", "attach")
@@ -179,11 +180,16 @@ class IDE(components.Component, sockets.ClientConnection):
                 self._initialize_request = None
 
                 arguments = request.arguments
-                if self.launcher and "RedirectOutput" in debug_options:
-                    # The launcher is doing output redirection, so we don't need the
-                    # server to do it, as well.
-                    arguments = dict(arguments)
-                    arguments["debugOptions"] = list(debug_options - {"RedirectOutput"})
+                if self.launcher:
+                    if "RedirectOutput" in debug_options:
+                        # The launcher is doing output redirection, so we don't need the
+                        # server to do it, as well.
+                        arguments = dict(arguments)
+                        arguments["debugOptions"] = list(debug_options - {"RedirectOutput"})
+
+                    if arguments.get("redirectOutput"):
+                        arguments = dict(arguments)
+                        del arguments["redirectOutput"]
 
                 # pydevd doesn't send "initialized", and responds to the start request
                 # immediately, without waiting for "configurationDone". If it changes

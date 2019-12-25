@@ -3432,6 +3432,48 @@ def test_access_token(case_setup):
         writer.finished_ok = True
 
 
+@pytest.mark.parametrize('val', [True, False])
+def test_debug_options(case_setup, val):
+    with case_setup.test_file('_debugger_case_debug_options.py') as writer:
+        json_facade = JsonFacade(writer)
+        args = dict(
+            debugStdLib=val,
+            redirectOutput=True,  # Always redirect the output regardless of other values.
+            showReturnValue=val,
+            breakOnSystemExitZero=val,
+            django=val,
+            flask=val,
+            stopOnEntry=val,
+            maxExceptionStackFrames=4 if val else 5,
+        )
+        json_facade.write_launch(**args)
+
+        json_facade.write_make_initial_run()
+        if args['stopOnEntry']:
+            json_facade.wait_for_thread_stopped('entry')
+            json_facade.write_continue()
+
+        output = json_facade.wait_for_json_message(
+            OutputEvent, lambda msg: msg.body.category == 'stdout' and msg.body.output.startswith('{')and msg.body.output.endswith('}'))
+
+        # The values printed are internal values from _pydevd_bundle.pydevd_json_debug_options.DebugOptions,
+        # not the parameters we passed.
+        translation = {
+            'django': 'django_debug',
+            'flask': 'flask_debug',
+            'debugStdLib': 'debug_stdlib',
+            'redirectOutput': 'redirect_output',
+            'showReturnValue': 'show_return_value',
+            'breakOnSystemExitZero': 'break_system_exit_zero',
+            'stopOnEntry': 'stop_on_entry',
+            'maxExceptionStackFrames': 'max_exception_stack_frames',
+        }
+
+        assert json.loads(output.body.output) == dict((translation[key], val) for key, val in args.items())
+        json_facade.wait_for_terminated()
+        writer.finished_ok = True
+
+
 def test_send_json_message(case_setup):
 
     with case_setup.test_file('_debugger_case_custom_message.py') as writer:

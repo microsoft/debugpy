@@ -1,5 +1,5 @@
 import sys
-import platform
+import json
 try:
     import urllib
     urllib.unquote  # noqa
@@ -7,8 +7,96 @@ except Exception:
     import urllib.parse as urllib
 
 
+class DebugOptions(object):
+
+    __slots__ = [
+        'debug_stdlib',
+        'redirect_output',
+        'show_return_value',
+        'break_system_exit_zero',
+        'django_debug',
+        'flask_debug',
+        'stop_on_entry',
+        'max_exception_stack_frames',
+    ]
+
+    def __init__(self):
+        self.debug_stdlib = False
+        self.redirect_output = False
+        self.show_return_value = False
+        self.break_system_exit_zero = False
+        self.django_debug = False
+        self.flask_debug = False
+        self.stop_on_entry = False
+        self.max_exception_stack_frames = 0
+
+    def to_json(self):
+        dct = {}
+        for s in self.__slots__:
+            dct[s] = getattr(self, s)
+        return json.dumps(dct)
+
+    def update_fom_debug_options(self, debug_options):
+        if 'DEBUG_STDLIB' in debug_options:
+            self.debug_stdlib = debug_options.get('DEBUG_STDLIB')
+
+        if 'REDIRECT_OUTPUT' in debug_options:
+            self.redirect_output = debug_options.get('REDIRECT_OUTPUT')
+
+        if 'SHOW_RETURN_VALUE' in debug_options:
+            self.show_return_value = debug_options.get('SHOW_RETURN_VALUE')
+
+        if 'BREAK_SYSTEMEXIT_ZERO' in debug_options:
+            self.break_system_exit_zero = debug_options.get('BREAK_SYSTEMEXIT_ZERO')
+
+        if 'DJANGO_DEBUG' in debug_options:
+            self.django_debug = debug_options.get('DJANGO_DEBUG')
+
+        if 'FLASK_DEBUG' in debug_options:
+            self.flask_debug = debug_options.get('FLASK_DEBUG')
+
+        if 'STOP_ON_ENTRY' in debug_options:
+            self.stop_on_entry = debug_options.get('STOP_ON_ENTRY')
+
+        # Note: _max_exception_stack_frames cannot be set by debug options.
+
+    def update_from_args(self, args):
+        if 'debugStdLib' in args:
+            self.debug_stdlib = bool_parser(args['debugStdLib'])
+
+        if 'redirectOutput' in args:
+            self.redirect_output = bool_parser(args['redirectOutput'])
+
+        if 'showReturnValue' in args:
+            self.show_return_value = bool_parser(args['showReturnValue'])
+
+        if 'breakOnSystemExitZero' in args:
+            self.break_system_exit_zero = bool_parser(args['breakOnSystemExitZero'])
+
+        if 'django' in args:
+            self.django_debug = bool_parser(args['django'])
+
+        if 'flask' in args:
+            self.flask_debug = bool_parser(args['flask'])
+
+        if 'jinja' in args:
+            self.flask_debug = bool_parser(args['jinja'])
+
+        if 'stopOnEntry' in args:
+            self.stop_on_entry = bool_parser(args['stopOnEntry'])
+
+        self.max_exception_stack_frames = int_parser(args.get('maxExceptionStackFrames', 0))
+
+
+def int_parser(s, default_value=0):
+    try:
+        return int(s)
+    except Exception:
+        return default_value
+
+
 def bool_parser(s):
-    return s in ("True", "true", "1")
+    return s in ("True", "true", "1", True, 1)
 
 
 if sys.version_info >= (3,):
@@ -35,9 +123,6 @@ DEBUG_OPTIONS_PARSER = {
     'WAIT_ON_NORMAL_EXIT': bool_parser,
     'BREAK_SYSTEMEXIT_ZERO': bool_parser,
     'REDIRECT_OUTPUT': bool_parser,
-    'VERSION': unquote,
-    'INTERPRETER_OPTIONS': unquote,
-    'WEB_BROWSER_URL': unquote,
     'DJANGO_DEBUG': bool_parser,
     'FLASK_DEBUG': bool_parser,
     'FIX_FILE_PATH_CASE': bool_parser,

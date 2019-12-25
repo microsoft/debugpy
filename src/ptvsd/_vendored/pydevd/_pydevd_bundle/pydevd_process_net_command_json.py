@@ -23,7 +23,7 @@ from _pydevd_bundle.pydevd_comm_constants import (
     CMD_STEP_INTO_MY_CODE, CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE, file_system_encoding,
     CMD_STEP_RETURN_MY_CODE, CMD_STEP_RETURN)
 from _pydevd_bundle.pydevd_filtering import ExcludeFilter
-from _pydevd_bundle.pydevd_json_debug_options import _extract_debug_options
+from _pydevd_bundle.pydevd_json_debug_options import _extract_debug_options, DebugOptions
 from _pydevd_bundle.pydevd_net_command import NetCommand
 from _pydevd_bundle.pydevd_utils import convert_dap_log_message_to_expression
 from _pydevd_bundle.pydevd_constants import (PY_IMPL_NAME, DebugInfoHolder, PY_VERSION_STR,
@@ -117,7 +117,7 @@ class PyDevJsonCommandProcessor(object):
     def __init__(self, from_json):
         self.from_json = from_json
         self.api = PyDevdAPI()
-        self._debug_options = {}
+        self._options = DebugOptions()
         self._next_breakpoint_id = partial(next, itertools.count(0))
         self._goto_targets_map = IDMap()
         self._launch_or_attach_request_done = False
@@ -325,14 +325,14 @@ class PyDevJsonCommandProcessor(object):
 
         self.api.set_exclude_filters(py_db, exclude_filters)
 
-        self._debug_options = _extract_debug_options(
+        debug_options = _extract_debug_options(
             args.get('options'),
             args.get('debugOptions'),
         )
-        self._debug_options['args'] = args
+        self._options.update_fom_debug_options(debug_options)
+        self._options.update_from_args(args)
 
-        debug_stdlib = self._debug_options.get('DEBUG_STDLIB', False)
-        self.api.set_use_libraries_filter(py_db, not debug_stdlib)
+        self.api.set_use_libraries_filter(py_db, not self._options.debug_stdlib)
 
         path_mappings = []
         for pathMapping in args.get('pathMappings', []):
@@ -345,21 +345,21 @@ class PyDevJsonCommandProcessor(object):
         if bool(path_mappings):
             pydevd_file_utils.setup_client_server_paths(path_mappings)
 
-        if self._debug_options.get('REDIRECT_OUTPUT', False):
+        if self._options.redirect_output:
             py_db.enable_output_redirection(True, True)
         else:
             py_db.enable_output_redirection(False, False)
 
-        self.api.set_show_return_values(py_db, self._debug_options.get('SHOW_RETURN_VALUE', False))
+        self.api.set_show_return_values(py_db, self._options.show_return_value)
 
-        if not self._debug_options.get('BREAK_SYSTEMEXIT_ZERO', False):
+        if not self._options.break_system_exit_zero:
             ignore_system_exit_codes = [0]
-            if self._debug_options.get('DJANGO_DEBUG', False):
+            if self._options.django_debug:
                 ignore_system_exit_codes += [3]
 
             self.api.set_ignore_system_exit_codes(py_db, ignore_system_exit_codes)
 
-        if self._debug_options.get('STOP_ON_ENTRY', False) and start_reason == 'launch':
+        if self._options.stop_on_entry and start_reason == 'launch':
             self.api.stop_on_entry()
 
     def _send_process_event(self, py_db, start_method):
@@ -557,9 +557,9 @@ class PyDevJsonCommandProcessor(object):
         suspend_policy = 'ALL'
 
         if not filename.lower().endswith('.py'):  # Note: check based on original file, not mapping.
-            if self._debug_options.get('DJANGO_DEBUG', False):
+            if self._options.django_debug:
                 btype = 'django-line'
-            elif self._debug_options.get('FLASK_DEBUG', False):
+            elif self._options.flask_debug:
                 btype = 'jinja2-line'
 
         breakpoints_set = []
@@ -688,9 +688,9 @@ class PyDevJsonCommandProcessor(object):
 
         if break_raised or break_uncaught:
             btype = None
-            if self._debug_options.get('DJANGO_DEBUG', False):
+            if self._options.django_debug:
                 btype = 'django'
-            elif self._debug_options.get('FLASK_DEBUG', False):
+            elif self._options.flask_debug:
                 btype = 'jinja2'
 
             if btype:
@@ -723,7 +723,7 @@ class PyDevJsonCommandProcessor(object):
         # : :type exception_into_arguments: ExceptionInfoArguments
         exception_into_arguments = request.arguments
         thread_id = exception_into_arguments.threadId
-        max_frames = int(self._debug_options['args'].get('maxExceptionStackFrames', 0))
+        max_frames = self._options.max_exception_stack_frames
         self.api.request_exception_info_json(py_db, request, thread_id, max_frames)
 
     def on_scopes_request(self, py_db, request):
