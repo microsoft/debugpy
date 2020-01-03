@@ -2110,7 +2110,10 @@ def test_evaluate_failures(case_setup):
             json_hit = json_facade.get_stack_as_json_hit(json_hit.thread_id)
             if i == 0:
                 first_hit = json_hit
-
+                # Check that watch exceptions are shown as string/failure.
+                response = json_facade.evaluate(
+                    'invalid_var', frameId=first_hit.frame_id, context='watch', success=False)
+                assert response.body.result == "NameError: name 'invalid_var' is not defined"
             if i == 1:
                 # Now, check with a previously existing frameId.
                 exec_request = json_facade.write_request(
