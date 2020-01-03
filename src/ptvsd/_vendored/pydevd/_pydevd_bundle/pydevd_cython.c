@@ -15644,7 +15644,7 @@ static PyObject *__pyx_f_14_pydevd_bundle_13pydevd_cython_9PyDBFrame_trace_dispa
  * 
  *                         if breakpoint.has_condition:             # <<<<<<<<<<<<<<
  *                             if not eval_result:
- *                                 return self.trace_dispatch
+ *                                 stop = False
  */
             __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_v_breakpoint, __pyx_n_s_has_condition); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 816, __pyx_L69_error)
             __Pyx_GOTREF(__pyx_t_4);
@@ -15656,7 +15656,7 @@ static PyObject *__pyx_f_14_pydevd_bundle_13pydevd_cython_9PyDBFrame_trace_dispa
  * 
  *                         if breakpoint.has_condition:
  *                             if not eval_result:             # <<<<<<<<<<<<<<
- *                                 return self.trace_dispatch
+ *                                 stop = False
  *                         elif breakpoint.is_logpoint:
  */
               __pyx_t_9 = __Pyx_PyObject_IsTrue(__pyx_v_eval_result); if (unlikely(__pyx_t_9 < 0)) __PYX_ERR(0, 817, __pyx_L69_error)
@@ -15666,22 +15666,18 @@ static PyObject *__pyx_f_14_pydevd_bundle_13pydevd_cython_9PyDBFrame_trace_dispa
                 /* "_pydevd_bundle/pydevd_cython.pyx":818
  *                         if breakpoint.has_condition:
  *                             if not eval_result:
- *                                 return self.trace_dispatch             # <<<<<<<<<<<<<<
+ *                                 stop = False             # <<<<<<<<<<<<<<
  *                         elif breakpoint.is_logpoint:
- *                             return self.trace_dispatch
+ *                             stop = False
  */
-                __Pyx_XDECREF(__pyx_r);
-                __pyx_t_4 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_trace_dispatch); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 818, __pyx_L69_error)
-                __Pyx_GOTREF(__pyx_t_4);
-                __pyx_r = __pyx_t_4;
-                __pyx_t_4 = 0;
-                goto __pyx_L73_try_return;
+                __Pyx_INCREF(Py_False);
+                __Pyx_DECREF_SET(__pyx_v_stop, Py_False);
 
                 /* "_pydevd_bundle/pydevd_cython.pyx":817
  * 
  *                         if breakpoint.has_condition:
  *                             if not eval_result:             # <<<<<<<<<<<<<<
- *                                 return self.trace_dispatch
+ *                                 stop = False
  *                         elif breakpoint.is_logpoint:
  */
               }
@@ -15691,16 +15687,16 @@ static PyObject *__pyx_f_14_pydevd_bundle_13pydevd_cython_9PyDBFrame_trace_dispa
  * 
  *                         if breakpoint.has_condition:             # <<<<<<<<<<<<<<
  *                             if not eval_result:
- *                                 return self.trace_dispatch
+ *                                 stop = False
  */
               goto __pyx_L99;
             }
 
             /* "_pydevd_bundle/pydevd_cython.pyx":819
  *                             if not eval_result:
- *                                 return self.trace_dispatch
+ *                                 stop = False
  *                         elif breakpoint.is_logpoint:             # <<<<<<<<<<<<<<
- *                             return self.trace_dispatch
+ *                             stop = False
  * 
  */
             __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_v_breakpoint, __pyx_n_s_is_logpoint); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 819, __pyx_L69_error)
@@ -15710,24 +15706,20 @@ static PyObject *__pyx_f_14_pydevd_bundle_13pydevd_cython_9PyDBFrame_trace_dispa
             if (__pyx_t_10) {
 
               /* "_pydevd_bundle/pydevd_cython.pyx":820
- *                                 return self.trace_dispatch
+ *                                 stop = False
  *                         elif breakpoint.is_logpoint:
- *                             return self.trace_dispatch             # <<<<<<<<<<<<<<
+ *                             stop = False             # <<<<<<<<<<<<<<
  * 
  *                     if is_call and frame.f_code.co_name in ('<module>', '<lambda>'):
  */
-              __Pyx_XDECREF(__pyx_r);
-              __pyx_t_4 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_trace_dispatch); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 820, __pyx_L69_error)
-              __Pyx_GOTREF(__pyx_t_4);
-              __pyx_r = __pyx_t_4;
-              __pyx_t_4 = 0;
-              goto __pyx_L73_try_return;
+              __Pyx_INCREF(Py_False);
+              __Pyx_DECREF_SET(__pyx_v_stop, Py_False);
 
               /* "_pydevd_bundle/pydevd_cython.pyx":819
  *                             if not eval_result:
- *                                 return self.trace_dispatch
+ *                                 stop = False
  *                         elif breakpoint.is_logpoint:             # <<<<<<<<<<<<<<
- *                             return self.trace_dispatch
+ *                             stop = False
  * 
  */
             }
@@ -15743,7 +15735,7 @@ static PyObject *__pyx_f_14_pydevd_bundle_13pydevd_cython_9PyDBFrame_trace_dispa
           }
 
           /* "_pydevd_bundle/pydevd_cython.pyx":822
- *                             return self.trace_dispatch
+ *                             stop = False
  * 
  *                     if is_call and frame.f_code.co_name in ('<module>', '<lambda>'):             # <<<<<<<<<<<<<<
  *                         # If we find a call for a module, it means that the module is being imported/executed for the
@@ -15790,7 +15782,7 @@ static PyObject *__pyx_f_14_pydevd_bundle_13pydevd_cython_9PyDBFrame_trace_dispa
             goto __pyx_L73_try_return;
 
             /* "_pydevd_bundle/pydevd_cython.pyx":822
- *                             return self.trace_dispatch
+ *                             stop = False
  * 
  *                     if is_call and frame.f_code.co_name in ('<module>', '<lambda>'):             # <<<<<<<<<<<<<<
  *                         # If we find a call for a module, it means that the module is being imported/executed for the

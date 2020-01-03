@@ -479,6 +479,64 @@ def test_case_json_logpoints(case_setup):
         writer.finished_ok = True
 
 
+def test_case_json_logpoint_and_step(case_setup):
+    with case_setup.test_file('_debugger_case_hit_count.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch()
+        before_loop_line = writer.get_line_index_with_content('before loop line')
+        for_line = writer.get_line_index_with_content('for line')
+        print_line = writer.get_line_index_with_content('print line')
+        json_facade.write_set_breakpoints(
+            [before_loop_line, print_line],
+            line_to_info={
+                print_line: {'log_message': 'var {repr("_a")} is {_a}'}
+        })
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped(line=before_loop_line)
+
+        json_facade.write_step_in(json_hit.thread_id)
+        json_hit = json_facade.wait_for_thread_stopped('step', line=for_line)
+
+        json_facade.write_step_in(json_hit.thread_id)
+        json_hit = json_facade.wait_for_thread_stopped('step', line=print_line)
+
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(IS_PY26, reason='Failing on Python 2.6')
+def test_case_json_hit_count_and_step(case_setup):
+    with case_setup.test_file('_debugger_case_hit_count.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch()
+        for_line = writer.get_line_index_with_content('for line')
+        print_line = writer.get_line_index_with_content('print line')
+        json_facade.write_set_breakpoints(
+            [print_line],
+            line_to_info={
+                print_line: {'hit_condition': '5'}
+        })
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped(line=print_line)
+        i_local_var = json_facade.get_local_var(json_hit.frame_id, 'i')  # : :type i_local_var: pydevd_schema.Variable
+        assert i_local_var.value == '4'
+
+        json_facade.write_step_in(json_hit.thread_id)
+        json_hit = json_facade.wait_for_thread_stopped('step', line=for_line)
+
+        json_facade.write_step_in(json_hit.thread_id)
+        json_hit = json_facade.wait_for_thread_stopped('step', line=print_line)
+
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
 def test_case_process_event(case_setup):
     with case_setup.test_file('_debugger_case_change_breaks.py') as writer:
         json_facade = JsonFacade(writer)
