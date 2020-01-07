@@ -443,7 +443,9 @@ def inject(pid, ptvsd_args):
     except Exception as exc:
         log.exception("Failed to inject debug server into process with PID={0}", pid)
         raise messaging.MessageHandlingError(
-            "Failed to inject debug server into process with PID={0}: {1}", pid, exc
+            fmt(
+                "Failed to inject debug server into process with PID={0}: {1}", pid, exc
+            )
         )
 
     # We need to capture the output of the injector - otherwise it can get blocked

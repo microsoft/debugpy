@@ -528,55 +528,34 @@ class Message(object):
             return False
         return command == () or self.request.command in command
 
-    @staticmethod
-    def error(*args, **kwargs):
-        """error([self], exc_type, format_string, *args, **kwargs)
-
-        Returns a new exception of the specified type from the point at which it is
+    def error(self, exc_type, format_string, *args, **kwargs):
+        """Returns a new exception of the specified type from the point at which it is
         invoked, with the specified formatted message as the reason.
 
-        This method can be used either as a static method, or as an instance method.
-        If invoked as an instance method, the resulting exception will have its cause
-        set to the Message object on which error() was called. Additionally, if the
-        message is a Request, a failure response is immediately sent.
+        The resulting exception will have its cause set to the Message object on which
+        error() was called. Additionally, if that message is a Request, a failure
+        response is immediately sent.
         """
 
-        if isinstance(args[0], Message):
-            cause, exc_type, format_string = args[0:3]
-            args = args[3:]
-        else:
-            cause = None
-            exc_type, format_string = args[0:2]
-            args = args[2:]
         assert issubclass(exc_type, MessageHandlingError)
 
         silent = kwargs.pop("silent", False)
         reason = fmt(format_string, *args, **kwargs)
-        exc = exc_type(reason, cause, silent)  # will log it
+        exc = exc_type(reason, self, silent)  # will log it
 
-        if isinstance(cause, Request):
-            cause.respond(exc)
+        if isinstance(self, Request):
+            self.respond(exc)
         return exc
 
-    def isnt_valid(*args, **kwargs):
-        """isnt_valid([self], format_string, *args, **kwargs)
-
-        Same as error(InvalidMessageError, ...).
+    def isnt_valid(self, *args, **kwargs):
+        """Same as self.error(InvalidMessageError, ...).
         """
-        if isinstance(args[0], Message):
-            return args[0].error(InvalidMessageError, *args[1:], **kwargs)
-        else:
-            return Message.error(InvalidMessageError, *args, **kwargs)
+        return self.error(InvalidMessageError, *args, **kwargs)
 
-    def cant_handle(*args, **kwargs):
-        """cant_handle([self], format_string, *args, **kwargs)
-
-        Same as error(MessageHandlingError, ...).
+    def cant_handle(self, *args, **kwargs):
+        """Same as self.error(MessageHandlingError, ...).
         """
-        if isinstance(args[0], Message):
-            return args[0].error(MessageHandlingError, *args[1:], **kwargs)
-        else:
-            return Message.error(MessageHandlingError, *args, **kwargs)
+        return self.error(MessageHandlingError, *args, **kwargs)
 
 
 class Event(Message):

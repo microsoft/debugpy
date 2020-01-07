@@ -58,8 +58,8 @@ def spawn(process_name, cmdline, cwd, env, redirect_output):
             global process
             process = subprocess.Popen(cmdline, cwd=cwd, env=env, bufsize=0, **kwargs)
         except Exception as exc:
-            raise messaging.Message.cant_handle(
-                "Couldn't spawn debuggee: {0}\n\nCommand line:{1!r}", exc, cmdline
+            raise messaging.MessageHandlingError(
+                fmt("Couldn't spawn debuggee: {0}\n\nCommand line:{1!r}", exc, cmdline)
             )
 
         log.info("Spawned {0}.", describe())
