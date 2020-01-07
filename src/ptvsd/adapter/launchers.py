@@ -66,7 +66,7 @@ def spawn_debuggee(session, start_request, sudo, args, console, console_title):
             if log.log_dir is not None:
                 env[str("PTVSD_LOG_DIR")] = compat.filename_str(log.log_dir)
             if log.stderr.levels != {"warning", "error"}:
-                env[str("PTVSD_LOG_STDERR")] = " ".join(log.log_stderr)
+                env[str("PTVSD_LOG_STDERR")] = " ".join(log.stderr.levels)
 
             if console == "internalConsole":
                 log.info("{0} spawning launcher: {1!r}", session, cmdline)
