@@ -982,7 +982,7 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
         is_error = isinstance(eval_result, ExceptionOnEvaluate)
         if is_error:
             if context == 'hover':  # In a hover it doesn't make sense to do an exec.
-                _evaluate_response(py_db, request, result='')
+                _evaluate_response(py_db, request, result='', error_message='Exception occurred during evaluation.')
                 return
             elif context == 'watch':
                 # If it's a watch, don't show it as an exception object, rather, format

@@ -2052,6 +2052,10 @@ def test_evaluate(case_setup):
         stack_frame = next(iter(stack_trace_response.body.stackFrames))
         stack_frame_id = stack_frame['id']
 
+        # Check that evaluating variable that does not exist in hover returns success == False.
+        json_facade.evaluate(
+            'var_does_not_exist', frameId=stack_frame_id, context='hover', success=False)
+
         # Test evaluate request that results in 'eval'
         eval_response = json_facade.evaluate('var_1', frameId=stack_frame_id, context='repl')
         assert eval_response.body.result == '5'
