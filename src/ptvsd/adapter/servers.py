@@ -240,9 +240,9 @@ class Server(components.Component):
 
             assert self.session.pid is None
             if self.session.launcher and self.session.launcher.pid != self.pid:
-                log.warning(
+                log.info(
                     "Launcher reported PID={0}, but server reported PID={1}",
-                    self.session.pid,
+                    self.session.launcher.pid,
                     self.pid,
                 )
             self.session.pid = self.pid
