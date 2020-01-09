@@ -31,6 +31,9 @@
     <SourceFiles Include="$(RootPath)_vendored\pydevd\pydevd_attach_to_process\*.dll">
       <TargetPath>%(FullPath)</TargetPath>
     </SourceFiles>
+    <SourceFiles Include="$(RootPath)_vendored\pydevd\pydevd_attach_to_process\*.exe">
+      <TargetPath>%(FullPath)</TargetPath>
+    </SourceFiles>
   </ItemGroup>
 
   <Target Name="Build">
