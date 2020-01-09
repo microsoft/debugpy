@@ -599,6 +599,77 @@ def test_case_handled_exception_breaks(case_setup):
         writer.finished_ok = True
 
 
+@pytest.mark.parametrize('target', [
+    'absolute',
+    'relative',
+    ])
+@pytest.mark.parametrize('just_my_code', [
+    True,
+    False,
+    ])
+def test_case_unhandled_exception_just_my_code(case_setup, target, just_my_code):
+
+    def check_test_suceeded_msg(writer, stdout, stderr):
+        # Don't call super (we have an unhandled exception in the stack trace).
+        return 'TEST SUCEEDED' in ''.join(stderr)
+
+    def additional_output_checks(writer, stdout, stderr):
+        if 'call_exception_in_exec()' not in stderr:
+            raise AssertionError('Expected test to have an unhandled exception.\nstdout:\n%s\n\nstderr:\n%s' % (
+                stdout, stderr))
+
+    def get_environ(self):
+        env = os.environ.copy()
+
+        # Note that we put the working directory in the project roots to check that when expanded
+        # the relative file that doesn't exist is still considered a library file.
+        env["IDE_PROJECT_ROOTS"] = os.path.dirname(self.TEST_FILE) + os.pathsep + os.path.abspath('.')
+        return env
+
+    def update_command_line_args(writer, args):
+        ret = debugger_unittest.AbstractWriterThread.update_command_line_args(writer, args)
+        if target == 'absolute':
+            if sys.platform == 'win32':
+                ret.append('c:/temp/folder/my_filename.pyx')
+            else:
+                ret.append('/temp/folder/my_filename.pyx')
+
+        elif target == 'relative':
+            ret.append('folder/my_filename.pyx')
+
+        else:
+            raise AssertionError('Unhandled case: %s' % (target,))
+        return args
+
+    target_filename = '_debugger_case_unhandled_just_my_code.py'
+    with case_setup.test_file(
+            target_filename,
+            check_test_suceeded_msg=check_test_suceeded_msg,
+            additional_output_checks=additional_output_checks,
+            update_command_line_args=update_command_line_args,
+            get_environ=get_environ,
+            EXPECTED_RETURNCODE=1,
+        ) as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch(debugStdLib=False if just_my_code else True)
+        json_facade.write_set_exception_breakpoints(['uncaught'])
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped(reason='exception')
+        frames = json_hit.stack_trace_response.body.stackFrames
+        if just_my_code:
+            assert len(frames) == 1
+            assert frames[0]['source']['path'].endswith(target_filename)
+        else:
+            assert len(frames) > 1
+            assert frames[0]['source']['path'].endswith('my_filename.pyx')
+
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
 @pytest.mark.parametrize('target_file', [
     '_debugger_case_unhandled_exceptions.py',
     '_debugger_case_unhandled_exceptions_custom.py',

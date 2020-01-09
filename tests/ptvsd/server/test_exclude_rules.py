@@ -63,6 +63,7 @@ def test_exceptions_and_exclude_rules(pyfile, target, run, scenario, exc_type):
 
 @pytest.mark.parametrize("scenario", ["exclude_code_to_debug", "exclude_callback_dir"])
 def test_exceptions_and_partial_exclude_rules(pyfile, target, run, scenario):
+
     @pyfile
     def code_to_debug():
         from debug_me import backchannel
@@ -123,9 +124,22 @@ def test_exceptions_and_partial_exclude_rules(pyfile, target, run, scenario):
             )
 
             # As exception unwinds the stack, we shouldn't stop at @call_me_back,
-            # since that line is in the excluded file. Furthermore, although the
-            # exception is unhandled, we shouldn't get a stop for that, either,
-            # because the exception is last seen in an excluded file.
+            # since that line is in the excluded file.
+            #
+            # Afterwards, because the exception unhandled, we'll have an additional stop
+            # (although the unhandled exception is last seen in an excluded file, we'll
+            # show it if it has a non-excluded file in the stack).
+            session.request_continue()
+
+            stop = session.wait_for_stop(
+                "exception",
+                expected_frames=[
+                    some.dap.frame(
+                        some.dap.source(call_me_back_py),
+                        line=call_me_back_py.lines["callback"],
+                    )
+                ],
+            )
             session.request_continue()
 
         elif scenario == "exclude_callback_dir":

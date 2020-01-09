@@ -152,7 +152,7 @@ class PyDBFrame:
                             if not eval_result:
                                 return False, frame
 
-                        if main_debugger.exclude_exception_by_filter(exception_breakpoint, trace, False):
+                        if main_debugger.exclude_exception_by_filter(exception_breakpoint, trace):
                             pydev_log.debug("Ignore exception %s in library %s -- (%s)" % (exception, frame.f_code.co_filename, frame.f_code.co_name))
                             return False, frame
 

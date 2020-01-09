@@ -1099,17 +1099,12 @@ class PyDB(object):
             self._apply_filter_cache[cache_key] = False
             return False
 
-    def exclude_exception_by_filter(self, exception_breakpoint, trace, is_uncaught):
+    def exclude_exception_by_filter(self, exception_breakpoint, trace):
         if not exception_breakpoint.ignore_libraries and not self._exclude_filters_enabled:
             return False
 
         if trace is None:
             return True
-
-        # We need to get the place where it was raised if it's an uncaught exception...
-        if is_uncaught:
-            while trace.tb_next is not None:
-                trace = trace.tb_next
 
         ignore_libraries = exception_breakpoint.ignore_libraries
         exclude_filters_enabled = self._exclude_filters_enabled

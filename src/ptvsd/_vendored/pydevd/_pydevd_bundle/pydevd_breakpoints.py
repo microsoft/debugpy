@@ -113,32 +113,27 @@ def stop_on_unhandled_exception(py_db, thread, additional_info, arg):
     if exctype is SystemExit and py_db.ignore_system_exit_code(value):
         return
 
-    if py_db.exclude_exception_by_filter(exception_breakpoint, tb, True):
-        return
-
     frames = []
     user_frame = None
 
-    while tb:
-        frame = tb.tb_frame
-        if exception_breakpoint.ignore_libraries and py_db.in_project_scope(frame):
+    while tb is not None:
+        if not py_db.exclude_exception_by_filter(exception_breakpoint, tb):
             user_frame = tb.tb_frame
         frames.append(tb.tb_frame)
         tb = tb.tb_next
 
+    if user_frame is None:
+        return
+
     frames_byid = dict([(id(frame), frame) for frame in frames])
-    if exception_breakpoint.ignore_libraries and user_frame is not None:
-        frame = user_frame
-    else:
-        frame = frames[-1]
-    add_exception_to_frame(frame, arg)
+    add_exception_to_frame(user_frame, arg)
     if exception_breakpoint.condition is not None:
-        eval_result = py_db.handle_breakpoint_condition(additional_info, exception_breakpoint, frame)
+        eval_result = py_db.handle_breakpoint_condition(additional_info, exception_breakpoint, user_frame)
         if not eval_result:
             return
 
     if exception_breakpoint.expression is not None:
-        py_db.handle_breakpoint_expression(exception_breakpoint, additional_info, frame)
+        py_db.handle_breakpoint_expression(exception_breakpoint, additional_info, user_frame)
 
     try:
         additional_info.pydev_message = exception_breakpoint.qname
@@ -147,7 +142,7 @@ def stop_on_unhandled_exception(py_db, thread, additional_info, arg):
 
     pydev_log.debug('Handling post-mortem stop on exception breakpoint %s' % (exception_breakpoint.qname,))
 
-    py_db.do_stop_on_unhandled_exception(thread, frame, frames_byid, arg)
+    py_db.do_stop_on_unhandled_exception(thread, user_frame, frames_byid, arg)
 
 
 def get_exception_class(kls):

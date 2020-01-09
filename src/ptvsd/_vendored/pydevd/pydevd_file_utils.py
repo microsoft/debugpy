@@ -56,7 +56,7 @@ from functools import partial
 
 _nt_os_normcase = ntpath.normcase
 basename = os.path.basename
-exists = os.path.exists
+os_path_exists = os.path.exists
 join = os.path.join
 
 try:
@@ -70,6 +70,31 @@ except:
     # jython does not support os.path.realpath
     # realpath is a no-op on systems without islink support
     rPath = os.path.abspath
+
+
+def _get_library_dir():
+    library_dir = None
+    try:
+        import sysconfig
+        library_dir = sysconfig.get_path('purelib')
+    except ImportError:
+        pass  # i.e.: Only 2.7 onwards
+
+    if library_dir is None or not os_path_exists(library_dir):
+        for path in sys.path:
+            if os_path_exists(path) and os.path.basename(path) == 'site-packages':
+                library_dir = path
+                break
+
+    if library_dir is None or not os_path_exists(library_dir):
+        library_dir = os.path.dirname(os.__file__)
+
+    return library_dir
+
+
+# Note: we can't call sysconfig.get_path from _NormPath (it deadlocks on Python 2.7) so, we
+# need to get the library dir during module loading.
+_library_dir = _get_library_dir()
 
 # defined as a list of tuples where the 1st element of the tuple is the path in the client machine
 # and the 2nd element is the path in the server machine.
@@ -182,7 +207,7 @@ if sys.platform == 'win32':
             if '~' in filename:
                 filename = convert_to_long_pathname(filename)
 
-            if filename.startswith('<') or not os.path.exists(filename):
+            if filename.startswith('<') or not os_path_exists(filename):
                 return filename  # Not much we can do.
 
             drive, parts = os.path.splitdrive(os.path.normpath(filename))
@@ -200,7 +225,7 @@ if sys.platform == 'win32':
                 try:
                     return _resolve_listing(drive, iter(parts))
                 except FileNotFoundError:
-                    if os.path.exists(filename):
+                    if os_path_exists(filename):
                         # This is really strange, ask the user to report as error.
                         sys.stderr.write('\npydev debugger: critical: unable to get real case for file. Details:\n'
                                          'filename: %s\ndrive: %s\nparts: %s\n'
@@ -331,29 +356,48 @@ def _NormPaths(filename, NORM_PATHS_CONTAINER=NORM_PATHS_CONTAINER):
         if os_path is None:  # Interpreter shutdown
             return filename, filename
 
-        os_path_abspath = os.path.abspath
+        os_path_abspath = os_path.abspath
+        os_path_isabs = os_path.isabs
 
-        if os_path_abspath is None:  # Interpreter shutdown
+        if os_path_abspath is None or os_path_isabs is None or rPath is None:  # Interpreter shutdown
             return filename, filename
 
-        if rPath is None:  # Interpreter shutdown
-            return filename, filename
+        isabs = os_path_isabs(filename)
 
-        abs_path = _NormPath(filename, os_path_abspath)
-        real_path = _NormPath(filename, rPath)
+        abs_path = _NormPath(filename, os_path_abspath, isabs)
+        real_path = _NormPath(filename, rPath, isabs)
 
         # cache it for fast access later
         NORM_PATHS_CONTAINER[filename] = abs_path, real_path
         return abs_path, real_path
 
 
-def _NormPath(filename, normpath):
+def _get_relative_filename_abs_path(filename, normpath, os_path_exists=os_path_exists):
+    # If we have a relative path and the file does not exist when made absolute, try to
+    # resolve it based on the sys.path entries.
+    for p in sys.path:
+        r = normpath(os.path.join(p, filename))
+        if os_path_exists(r):
+            return r
+
+    # We couldn't find the real file for the relative path. Resolve it as if it was in
+    # a library (so that it's considered a library file and not a project file).
+    r = normpath(os.path.join(_library_dir, filename))
+    return r
+
+
+def _NormPath(filename, normpath, isabs, os_path_exists=os_path_exists, join=join):
     if filename.startswith('<'):
         # Not really a file, rather a synthetic name like <string> or <ipython-...>;
         # shouldn't be normalized.
         return filename
 
     r = normpath(filename)
+
+    if not isabs:
+        if not os_path_exists(r):
+            r = _get_relative_filename_abs_path(filename, normpath)
+
     ind = r.find('.zip')
     if ind == -1:
         ind = r.find('.egg')
@@ -385,8 +429,13 @@ _NOT_FOUND_SENTINEL = object()
 
 
 def exists(file):
-    if os.path.exists(file):
-        return file
+    if os_path_exists(file):
+        return True
+
+    if not os.path.isabs(file):
+        file = _get_relative_filename_abs_path(file, os.path.abspath)
+        if os_path_exists(file):
+            return True
 
     ind = file.find('.zip')
     if ind == -1:
@@ -425,8 +474,8 @@ def exists(file):
 
             return join(zip_path, inner_path)
         except KeyError:
-            return None
-    return None
+            return False
+    return False
 
 
 # Now, let's do a quick test to see if we're working with a version of python that has no problems
@@ -436,7 +485,7 @@ try:
         code = rPath.func_code
     except AttributeError:
         code = rPath.__code__
-    if not exists(_NormFile(code.co_filename)):
+    if not os_path_exists(_NormFile(code.co_filename)):
         sys.stderr.write('-------------------------------------------------------------------------------\n')
         sys.stderr.write('pydev debugger: CRITICAL WARNING: This version of python seems to be incorrectly compiled (internal generated filenames are not absolute)\n')
         sys.stderr.write('pydev debugger: The debugger may still function, but it will work slower and may miss breakpoints.\n')
@@ -453,11 +502,11 @@ try:
                 return NORM_SEARCH_CACHE[filename]
             except KeyError:
                 abs_path, real_path = initial_norm_paths(filename)
-                if not exists(real_path):
+                if not os_path_exists(real_path):
                     # We must actually go on and check if we can find it as if it was a relative path for some of the paths in the pythonpath
                     for path in sys.path:
                         abs_path, real_path = initial_norm_paths(join(path, filename))
-                        if exists(real_path):
+                        if os_path_exists(real_path):
                             break
                     else:
                         sys.stderr.write('pydev debugger: Unable to find real location for: %s\n' % (filename,))
@@ -613,7 +662,7 @@ def setup_client_server_paths(paths):
             if found_translation:
                 translated = _NormFile(translated)
             else:
-                if not os.path.exists(translated):
+                if not os_path_exists(translated):
                     if not translated.startswith('<'):
                         # This is a configuration error, so, write it always so
                         # that the user can fix it.

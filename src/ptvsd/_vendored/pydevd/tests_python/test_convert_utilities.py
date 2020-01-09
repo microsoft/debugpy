@@ -4,6 +4,7 @@ from _pydevd_bundle.pydevd_constants import IS_WINDOWS, IS_PY2
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
 import io
 from _pydev_bundle.pydev_log import log_context
+from _pydevd_bundle import pydevd_filtering
 
 
 def test_convert_utilities(tmpdir):
@@ -257,6 +258,48 @@ def test_to_server_and_to_client(tmpdir):
             assert pydevd_file_utils.norm_file_to_client('/báéíóúr/my') == '/foo/my'
     finally:
         pydevd_file_utils.setup_client_server_paths([])
+
+
+def test_relative_paths(tmpdir):
+    '''
+    We need to check that we can deal with relative paths.
+
+    Use cases:
+        - Relative path of file that does not exist:
+            Use case is a cython-generated module which is generated from a .pyx which
+            is not distributed. In this case we need to resolve the file to a library path file.
+
+        - Relative path of a file that exists but not when resolved from the working directory:
+            Use case is a cython-generated module which is generated from a .pyx which is
+            distributed. In this case we need to resolve to the real file based on the sys.path
+            entries.
+    '''
+    import pydevd_file_utils
+    import sys
+    sys.path.append(str(tmpdir))
+    try:
+        pydevd_file_utils.NORM_PATHS_AND_BASE_CONTAINER.clear()
+        pydevd_file_utils.NORM_PATHS_CONTAINER.clear()
+        abs_path = pydevd_file_utils.get_abs_path_real_path_and_base_from_file('my_dir/my_file.pyx')[0]
+        assert 'site-packages' in abs_path
+        assert os.path.normcase(str(tmpdir)) not in abs_path
+        assert not pydevd_file_utils.exists('my_dir/my_file.pyx')
+
+        # If the relative file exists when joined with some entry in the PYTHONPATH we'll consider
+        # that the relative path points to that absolute path.
+        target_dir = os.path.join(str(tmpdir), 'my_dir')
+        os.makedirs(target_dir)
+        with open(os.path.join(target_dir, 'my_file.pyx'), 'w') as stream:
+            stream.write('empty')
+
+        pydevd_file_utils.NORM_PATHS_AND_BASE_CONTAINER.clear()
+        pydevd_file_utils.NORM_PATHS_CONTAINER.clear()
+        abs_path = pydevd_file_utils.get_abs_path_real_path_and_base_from_file('my_dir/my_file.pyx')[0]
+        assert 'site-packages' not in abs_path
+        assert os.path.normcase(str(tmpdir)) in abs_path
+        assert pydevd_file_utils.exists('my_dir/my_file.pyx')
+    finally:
+        sys.path.remove(str(tmpdir))
 
 
 def test_zip_paths(tmpdir):

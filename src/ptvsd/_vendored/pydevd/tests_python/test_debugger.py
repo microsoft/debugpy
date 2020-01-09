@@ -3423,6 +3423,16 @@ def test_exception_on_filtered_file(case_setup):
         )
 
         writer.write_make_initial_run()
+
+        # Note: the unhandled exception was initially raised in a file which is filtered out, but we
+        # should be able to see the frames which are part of the project.
+        hit = writer.wait_for_breakpoint_hit(
+            REASON_UNCAUGHT_EXCEPTION,
+            file='my_code_exception_on_other.py',
+            line=writer.get_line_index_with_content('other.raise_exception()')
+        )
+        writer.write_run_thread(hit.thread_id)
+
         writer.finished_ok = True
 
 
