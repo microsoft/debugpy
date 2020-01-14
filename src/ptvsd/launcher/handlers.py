@@ -149,9 +149,11 @@ def launch_request(request):
 
 
 def terminate_request(request):
+    del debuggee.wait_on_exit_predicates[:]
     request.respond({})
     debuggee.kill()
 
 
 def disconnect():
+    del debuggee.wait_on_exit_predicates[:]
     debuggee.kill()

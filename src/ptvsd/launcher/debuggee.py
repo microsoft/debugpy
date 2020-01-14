@@ -121,12 +121,17 @@ def wait_for_exit():
 
     log.info("{0} exited with code {1}", describe(), code)
     output.wait_for_remaining_output()
+
+    # Determine whether we should wait or not before sending "exited", so that any
+    # follow-up "terminate" requests don't affect the predicates.
+    should_wait = any(pred(code) for pred in wait_on_exit_predicates)
+
     try:
         launcher.channel.send_event("exited", {"exitCode": code})
     except Exception:
         pass
 
-    if any(pred(code) for pred in wait_on_exit_predicates):
+    if should_wait:
         _wait_for_user_input()
 
     try:

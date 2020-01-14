@@ -50,8 +50,19 @@ class Launcher(components.Component):
 
     @message_handler
     def terminated_event(self, event):
-        self.ide.channel.send_event("exited", {"exitCode": self.exit_code})
+        try:
+            self.ide.channel.send_event("exited", {"exitCode": self.exit_code})
+        except Exception:
+            pass
         self.channel.close()
+
+    def terminate_debuggee(self):
+        with self.session:
+            if self.exit_code is None:
+                try:
+                    self.channel.request("terminate")
+                except Exception:
+                    pass
 
 
 def spawn_debuggee(session, start_request, sudo, args, console, console_title):

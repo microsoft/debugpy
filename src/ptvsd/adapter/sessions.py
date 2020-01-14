@@ -219,12 +219,19 @@ class Session(util.Observable):
 
         if self.server:
             if self.server.is_connected:
-                try:
-                    self.server.channel.request(
-                        "disconnect", {"terminateDebuggee": terminate_debuggee}
-                    )
-                except Exception:
-                    pass
+                if terminate_debuggee and self.launcher and self.launcher.is_connected:
+                    # If we were specifically asked to terminate the debuggee, and we
+                    # can ask the launcher to kill it, do so instead of disconnecting
+                    # from the server to prevent debuggee from running any more code.
+                    self.launcher.terminate_debuggee()
+                else:
+                    # Otherwise, let the server handle it the best it can.
+                    try:
+                        self.server.channel.request(
+                            "disconnect", {"terminateDebuggee": terminate_debuggee}
+                        )
+                    except Exception:
+                        pass
             self.server.detach_from_session()
 
         if self.launcher and self.launcher.is_connected:
@@ -240,10 +247,7 @@ class Session(util.Observable):
             # Terminate the debuggee process if it's still alive for any reason -
             # whether it's because there was no server to handle graceful shutdown,
             # or because the server couldn't handle it for some reason.
-            try:
-                self.launcher.channel.request("terminate")
-            except Exception:
-                pass
+            self.launcher.terminate_debuggee()
 
             # Wait until the launcher message queue fully drains. There is no timeout
             # here, because the final "terminated" event will only come after reading
