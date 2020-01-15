@@ -281,10 +281,17 @@ def patch_args(args):
         #  '--vm_type', 'python', '--client', '127.0.0.1', '--port', '56352', '--file', 'x:\\snippet1.py']
         from _pydevd_bundle.pydevd_command_line_handling import setup_to_argv
         original = setup_to_argv(_get_setup_updated_with_protocol(SetupHolder.setup)) + ['--file']
+
+        module_name = None
+        m_flag = _get_str_type_compatible(args[i], '-m')
         while i < len(args):
-            if args[i] == _get_str_type_compatible(args[i], '-m'):
+            if args[i] == m_flag:
                 # Always insert at pos == 1 (i.e.: pydevd "--module" --multiprocess ...)
                 original.insert(1, '--module')
+            elif args[i].startswith(m_flag):
+                # Case where the user does: python -mmodule_name (using a single parameter).
+                original.insert(1, '--module')
+                module_name = args[i][2:]
             else:
                 if args[i].startswith(_get_str_type_compatible(args[i], '-')):
                     new_args.append(args[i])
@@ -303,6 +310,9 @@ def patch_args(args):
             new_args.append(x)
             if x == _get_str_type_compatible(x, '--file'):
                 break
+
+        if module_name is not None:
+            new_args.append(module_name)
 
         while i < len(args):
             new_args.append(args[i])

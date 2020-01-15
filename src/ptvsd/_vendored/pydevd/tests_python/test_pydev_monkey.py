@@ -199,3 +199,27 @@ def test_monkey_patch_c_program_arg(use_bytes):
     finally:
         SetupHolder.setup = original
 
+
+def test_monkey_patch_args_module_single_arg():
+    original = SetupHolder.setup
+
+    try:
+        SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'multiprocess': True}
+        check = ['C:\\bin\\python.exe', '-mtest', 'bar']
+        from _pydevd_bundle.pydevd_command_line_handling import get_pydevd_file
+        assert pydev_monkey.patch_args(check) == [
+            'C:\\bin\\python.exe',
+            get_pydevd_file(),
+            '--module',
+            '--port',
+            '0',
+            '--client',
+            '127.0.0.1',
+            '--multiprocess',
+            '--protocol-quoted-line',
+            '--file',
+            'test',
+            'bar',
+        ]
+    finally:
+        SetupHolder.setup = original
