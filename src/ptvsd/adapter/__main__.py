@@ -58,7 +58,7 @@ def main(args):
     else:
         endpoints = {"server": {"host": server_host, "port": server_port}}
         try:
-            ide_host, ide_port = ide.listen(port=args.port)
+            ide_host, ide_port = ide.listen(host=args.host, port=args.port)
         except Exception as exc:
             if args.for_server is None:
                 raise
