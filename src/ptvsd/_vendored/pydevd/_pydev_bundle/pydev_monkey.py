@@ -3,8 +3,7 @@ import os
 import re
 import sys
 from _pydev_imps._pydev_saved_modules import threading
-from _pydevd_bundle.pydevd_constants import get_global_debugger, IS_WINDOWS, IS_JYTHON, get_current_thread_id, \
-    NULL
+from _pydevd_bundle.pydevd_constants import get_global_debugger, IS_WINDOWS, IS_JYTHON, get_current_thread_id
 from _pydev_bundle import pydev_log
 from contextlib import contextmanager
 from _pydevd_bundle import pydevd_constants
@@ -88,7 +87,8 @@ def _get_host_port():
 
 
 def _is_managed_arg(arg):
-    if arg.endswith('pydevd.py'):
+    pydevd_py = _get_str_type_compatible(arg, 'pydevd.py')
+    if arg.endswith(pydevd_py):
         return True
     return False
 
@@ -110,14 +110,41 @@ def _on_set_trace_for_new_thread(global_debugger):
         global_debugger.enable_tracing()
 
 
+def _get_str_type_compatible(s, args):
+    '''
+    This method converts `args` to byte/unicode based on the `s' type.
+    '''
+    if isinstance(args, (list, tuple)):
+        ret = []
+        for arg in args:
+            if type(s) == type(arg):
+                ret.append(arg)
+            else:
+                if isinstance(s, bytes):
+                    ret.append(arg.encode('utf-8'))
+                else:
+                    ret.append(arg.decode('utf-8'))
+        return ret
+    else:
+        if type(s) == type(args):
+            return args
+        else:
+            if isinstance(s, bytes):
+                return args.encode('utf-8')
+            else:
+                return args.decode('utf-8')
+
+
 #===============================================================================
 # Things related to monkey-patching
 #===============================================================================
 def is_python(path):
-    if path.endswith("'") or path.endswith('"'):
+    single_quote, double_quote = _get_str_type_compatible(path, ["'", '"'])
+
+    if path.endswith(single_quote) or path.endswith(double_quote):
         path = path[1:len(path) - 1]
     filename = os.path.basename(path).lower()
-    for name in ['python', 'jython', 'pypy']:
+    for name in _get_str_type_compatible(filename, ['python', 'jython', 'pypy']):
         if filename.find(name) != -1:
             return True
 
@@ -127,10 +154,14 @@ def is_python(path):
 def remove_quotes_from_args(args):
     if sys.platform == "win32":
         new_args = []
+
         for x in args:
-            if x != '""':
-                if len(x) > 1 and x.startswith('"') and x.endswith('"'):
+            double_quote, two_double_quotes = _get_str_type_compatible(x, ['"', '""'])
+
+            if x != two_double_quotes:
+                if len(x) > 1 and x.startswith(double_quote) and x.endswith(double_quote):
                     x = x[1:-1]
+
             new_args.append(x)
         return new_args
     else:
@@ -138,9 +169,11 @@ def remove_quotes_from_args(args):
 
 
 def quote_arg_win32(arg):
+    fix_type = lambda x: _get_str_type_compatible(arg, x)
+
     # See if we need to quote at all - empty strings need quoting, as do strings
     # with whitespace or quotes in them. Backslashes do not need quoting.
-    if arg and not set(arg).intersection(' "\t\n\v'):
+    if arg and not set(arg).intersection(fix_type(' "\t\n\v')):
         return arg
 
     # Per https://docs.microsoft.com/en-us/windows/desktop/api/shellapi/nf-shellapi-commandlinetoargvw,
@@ -163,9 +196,9 @@ def quote_arg_win32(arg):
     #
     #       N backslashes in any other position remain as is.
 
-    arg = re.sub(r'(\\*)\"', r'\1\1\\"', arg)
-    arg = re.sub(r'(\\*)$', r'\1\1', arg)
-    return '"' + arg + '"'
+    arg = re.sub(fix_type(r'(\\*)\"'), fix_type(r'\1\1\\"'), arg)
+    arg = re.sub(fix_type(r'(\\*)$'), fix_type(r'\1\1'), arg)
+    return fix_type('"') + arg + fix_type('"')
 
 
 def quote_args(args):
@@ -181,16 +214,17 @@ def get_c_option_index(args):
     :param args: list of arguments
     :return: index of "-c" if it's an interpreter's option and -1 if it doesn't exist or program's option
     """
-    try:
-        ind_c = args.index('-c')
-    except ValueError:
-        return -1
+    for ind_c, arg in enumerate(args):
+        if arg == _get_str_type_compatible(arg, '-c'):
+            break
     else:
-        for i in range(1, ind_c):
-            if not args[i].startswith('-'):
-                # there is an arg without "-" before "-c", so it's not an interpreter's option
-                return -1
-        return ind_c
+        return -1
+
+    for i in range(1, ind_c):
+        if not args[i].startswith(_get_str_type_compatible(args[i], '-')):
+            # there is an arg without "-" before "-c", so it's not an interpreter's option
+            return -1
+    return ind_c
 
 
 def patch_args(args):
@@ -224,12 +258,14 @@ def patch_args(args):
                         continue
 
                     arg = args[i]
-                    if arg.startswith('-'):
+                    if arg.startswith(_get_str_type_compatible(arg, '-')):
                         # Skip the next arg too if this flag expects a value.
-                        continue_next = arg in ['-m', '-W', '-X']
+                        continue_next = arg in _get_str_type_compatible(arg, ['-m', '-W', '-X'])
                         continue
 
-                    if arg.rsplit('.')[-1] in ['zip', 'pyz', 'pyzw']:
+                    dot = _get_str_type_compatible(arg, '.')
+                    extensions = _get_str_type_compatible(arg, ['zip', 'pyz', 'pyzw'])
+                    if arg.rsplit(dot)[-1] in extensions:
                         pydev_log.debug('Executing a PyZip, returning')
                         return args
                     break
@@ -246,11 +282,11 @@ def patch_args(args):
         from _pydevd_bundle.pydevd_command_line_handling import setup_to_argv
         original = setup_to_argv(_get_setup_updated_with_protocol(SetupHolder.setup)) + ['--file']
         while i < len(args):
-            if args[i] == '-m':
+            if args[i] == _get_str_type_compatible(args[i], '-m'):
                 # Always insert at pos == 1 (i.e.: pydevd "--module" --multiprocess ...)
                 original.insert(1, '--module')
             else:
-                if args[i].startswith('-'):
+                if args[i].startswith(_get_str_type_compatible(args[i], '-')):
                     new_args.append(args[i])
                 else:
                     break
@@ -265,7 +301,7 @@ def patch_args(args):
 
         for x in original:
             new_args.append(x)
-            if x == '--file':
+            if x == _get_str_type_compatible(x, '--file'):
                 break
 
         while i < len(args):
