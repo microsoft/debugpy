@@ -8,7 +8,7 @@ import os
 import re
 import threading
 
-from ptvsd.common import fmt, log
+from debugpy.common import fmt, log
 
 
 class CapturedOutput(object):

@@ -1,6 +1,0 @@
-[MESSAGES CONTROL]
-# Disable 
-disable=C,R,
-    attribute-defined-outside-init,
-    redefined-builtin,
-    unused-argument

@@ -29,14 +29,14 @@ import versioneer  # noqa
 del sys.path[0]
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
-import ptvsd
-import ptvsd._vendored
+import debugpy
+import debugpy._vendored
 
 del sys.path[0]
 
 
-PYDEVD_ROOT = ptvsd._vendored.project_root("pydevd")
-PTVSD_ROOT = os.path.dirname(os.path.abspath(ptvsd.__file__))
+PYDEVD_ROOT = debugpy._vendored.project_root("pydevd")
+DEBUGBY_ROOT = os.path.dirname(os.path.abspath(debugpy.__file__))
 
 
 def get_buildplatform():
@@ -61,8 +61,8 @@ def iter_vendored_files():
     # Add pydevd files as data files for this package. They are not
     # treated as a package of their own, because we don't actually
     # want to provide pydevd - just use our own copy internally.
-    for project in ptvsd._vendored.list_all():
-        for filename in ptvsd._vendored.iter_packaging_files(project):
+    for project in debugpy._vendored.list_all():
+        for filename in debugpy._vendored.iter_packaging_files(project):
             yield filename
 
 
@@ -95,20 +95,19 @@ if __name__ == "__main__":
         extras["platforms"] = platforms
 
     setup(
-        name="ptvsd",
+        name="debugpy",
         version=versioneer.get_version(),
-        description="Remote debugging server for Python support in Visual Studio and Visual Studio Code",  # noqa
+        description="An implementation of the Debug Adapter Protocol for Python",  # noqa
         long_description=long_description,
         long_description_content_type="text/markdown",
         license="MIT",
         author="Microsoft Corporation",
         author_email="ptvshelp@microsoft.com",
         url="https://aka.ms/ptvs",
-        python_requires=">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*",
+        python_requires=">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*",
         classifiers=[
             "Development Status :: 5 - Production/Stable",
             "Programming Language :: Python :: 2.7",
-            "Programming Language :: Python :: 3.4",
             "Programming Language :: Python :: 3.5",
             "Programming Language :: Python :: 3.6",
             "Programming Language :: Python :: 3.7",
@@ -119,16 +118,16 @@ if __name__ == "__main__":
         ],
         package_dir={"": "src"},
         packages=[
-            "ptvsd",
-            "ptvsd.adapter",
-            "ptvsd.common",
-            "ptvsd.launcher",
-            "ptvsd.server",
-            "ptvsd._vendored",
+            "debugpy",
+            "debugpy.adapter",
+            "debugpy.common",
+            "debugpy.launcher",
+            "debugpy.server",
+            "debugpy._vendored",
         ],
         package_data={
-            "ptvsd": ["ThirdPartyNotices.txt"],
-            "ptvsd._vendored": list(iter_vendored_files()),
+            "debugpy": ["ThirdPartyNotices.txt"],
+            "debugpy._vendored": list(iter_vendored_files()),
         },
         cmdclass=cmds,
         **extras

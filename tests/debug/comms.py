@@ -9,7 +9,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import threading
 import socket
 
-from ptvsd.common import fmt, log, messaging, sockets
+from debugpy.common import fmt, log, messaging, sockets
 
 
 class BackChannel(object):

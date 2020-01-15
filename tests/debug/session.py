@@ -14,9 +14,9 @@ import subprocess
 import sys
 import time
 
-import ptvsd.adapter
-from ptvsd.common import compat, fmt, json, log, messaging, sockets, util
-from ptvsd.common.compat import unicode
+import debugpy.adapter
+from debugpy.common import compat, fmt, json, log, messaging, sockets, util
+from debugpy.common.compat import unicode
 import tests
 from tests import code, timeline, watchdog
 from tests.debug import comms, config, output
@@ -153,10 +153,10 @@ class Session(object):
             if log.log_dir is None
             else py.path.local(log.log_dir) / str(self)
         )
-        """The log directory for this session. Passed via PTVSD_LOG_DIR to all spawned
+        """The log directory for this session. Passed via DEBUGPY_LOG_DIR to all spawned
         child processes.
 
-        If set to None, PTVSD_LOG_DIR is not automatically added, but tests can still
+        If set to None, DEBUGPY_LOG_DIR is not automatically added, but tests can still
         provide it manually.
         """
 
@@ -308,20 +308,20 @@ class Session(object):
             env.update(base_env)
 
         env["PYTHONUNBUFFERED"] = "1"
-        env["PTVSD_TEST_SESSION_ID"] = str(self.id)
+        env["DEBUGPY_TEST_SESSION_ID"] = str(self.id)
         env.prepend_to("PYTHONPATH", DEBUGGEE_PYTHONPATH.strpath)
 
         if self._init_log_dir():
             env.update(
                 {
-                    "PTVSD_LOG_DIR": self.log_dir.strpath,
+                    "DEBUGPY_LOG_DIR": self.log_dir.strpath,
                     "PYDEVD_DEBUG": "True",
                     "PYDEVD_DEBUG_FILE": (self.log_dir / "pydevd.log").strpath,
                 }
             )
 
         if self.backchannel is not None:
-            env["PTVSD_TEST_BACKCHANNEL_PORT"] = str(self.backchannel.port)
+            env["DEBUGPY_TEST_BACKCHANNEL_PORT"] = str(self.backchannel.port)
 
         if not codecov:
             # Disable codecov subprocess hook for that process.
@@ -341,11 +341,11 @@ class Session(object):
         cwd = compat.filename_str(cwd) if isinstance(cwd, py.path.local) else cwd
 
         env = self._make_env(self.spawn_debuggee.env, codecov=False)
-        env["PTVSD_ADAPTER_ENDPOINTS"] = self.adapter_endpoints = (
+        env["DEBUGPY_ADAPTER_ENDPOINTS"] = self.adapter_endpoints = (
             self.tmpdir / "adapter_endpoints"
         )
         if debug_me is not None:
-            env["PTVSD_TEST_DEBUG_ME"] = debug_me
+            env["DEBUGPY_TEST_DEBUG_ME"] = debug_me
 
         log.info(
             "Spawning {0}:\n\n"
@@ -389,7 +389,7 @@ class Session(object):
         assert self.adapter is None
         assert self.channel is None
 
-        args = [sys.executable, os.path.dirname(ptvsd.adapter.__file__)]
+        args = [sys.executable, os.path.dirname(debugpy.adapter.__file__)]
         env = self._make_env(self.spawn_adapter.env)
 
         log.info(
@@ -473,7 +473,7 @@ class Session(object):
             self.observe(occ)
             self.exit_code = event("exitCode", int)
             assert self.exit_code == self.expected_exit_code
-        elif event.event == "ptvsd_attach":
+        elif event.event == "debugpyAttach":
             self.observe(occ)
             pid = event("subProcessId", int)
             watchdog.register_spawn(
@@ -501,7 +501,7 @@ class Session(object):
     def _process_response(self, request, response):
         self.timeline.record_response(request, response, block=False)
         if request.command == "disconnect":
-            # Stop the message loop, since the ptvsd is going to close the connection
+            # Stop the message loop, since debugpy is going to close the connection
             # from its end shortly after sending this event, and no further messages
             # are expected.
             log.info(
@@ -528,7 +528,7 @@ class Session(object):
         telemetry = self.wait_for_next_event("output")
         assert telemetry == {
             "category": "telemetry",
-            "output": "ptvsd",
+            "output": "debugpy",
             "data": {"packageVersion": some.str},
         }
 
@@ -766,7 +766,7 @@ class Session(object):
         return StopInfo(stopped, frames, tid, fid)
 
     def wait_for_next_subprocess(self):
-        return Session(self.wait_for_next_event("ptvsd_attach"))
+        return Session(self.wait_for_next_event("debugpyAttach"))
 
     def wait_for_disconnect(self):
         self.timeline.wait_until_realized(timeline.Mark("disconnect"), freeze=True)

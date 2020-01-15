@@ -135,12 +135,12 @@ def test_step_multi_threads(pyfile, target, run, resume):
 def test_debug_this_thread(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        from debug_me import ptvsd
+        from debug_me import debugpy
         import sys
         import threading
 
         def foo(x):
-            ptvsd.debug_this_thread()
+            debugpy.debug_this_thread()
             event.set()  # @bp
             return 0
 

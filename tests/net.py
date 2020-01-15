@@ -14,7 +14,7 @@ import socket
 import threading
 import time
 
-from ptvsd.common import compat, fmt, log
+from debugpy.common import compat, fmt, log
 from tests.patterns import some
 
 

@@ -4,14 +4,14 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-"""ptvsd tests
+"""debugpy tests
 """
 
 import pkgutil
 import py
 import pytest
 
-# Do not import anything from ptvsd until assert rewriting is enabled below!
+# Do not import anything from debugpy until assert rewriting is enabled below!
 
 
 root = py.path.local(__file__) / ".."
@@ -33,7 +33,7 @@ import pytest_timeout  # noqa
 
 
 # We want pytest to rewrite asserts (for better error messages) in the common code
-# code used by the tests, and in all the test helpers. This does not affect ptvsd
+# code used by the tests, and in all the test helpers. This does not affect debugpy
 # inside debugged processes.
 
 
@@ -43,7 +43,7 @@ def _register_assert_rewrite(modname):
     pytest.register_assert_rewrite(modname)
 
 
-_register_assert_rewrite("ptvsd.common")
+_register_assert_rewrite("debugpy.common")
 tests_submodules = pkgutil.iter_modules([str(root)])
 for _, submodule, _ in tests_submodules:
     submodule = str("{0}.{1}".format(__name__, submodule))
@@ -51,8 +51,8 @@ for _, submodule, _ in tests_submodules:
 
 
 # Now we can import these, and pytest will rewrite asserts in them.
-from ptvsd.common import json, log
-import ptvsd.server  # noqa
+from debugpy.common import json, log
+import debugpy.server  # noqa
 
 # Enable full logging to stderr, and make timestamps shorter to match maximum test
 # run time better.

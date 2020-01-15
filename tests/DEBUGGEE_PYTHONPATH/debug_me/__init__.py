@@ -10,21 +10,21 @@ DebugSession.start_method used by the test.
 
 This module MUST be imported by all code that is executed via DebugSession, unless
 it is launched with start_method="custom_client", for tests that need to set up
-ptvsd and establish the connection themselves in some special manner.
+debugpy and establish the connection themselves in some special manner.
 
-If the code needs to access ptvsd and/or pydevd, this module additionally exports
+If the code needs to access debugpy and/or pydevd, this module additionally exports
 both as global variables, specifically so that it is possible to write::
 
-    from debug_me import ptvsd, pydevd, backchannel
+    from debug_me import debugpy, pydevd, backchannel
 """
 
-__all__ = ["ptvsd", "pydevd", "session_id"]
+__all__ = ["debugpy", "pydevd", "session_id"]
 
 import os
 
 
 # Used by backchannel.
-session_id = int(os.getenv("PTVSD_TEST_SESSION_ID"))
+session_id = int(os.getenv("DEBUGPY_TEST_SESSION_ID"))
 name = "Debuggee-" + str(session_id)
 
 
@@ -38,13 +38,13 @@ scratchpad = {}
 # Some runners require code to be executed in the debuggee process, either to set up
 # the debug server, or to ensure that it doesn't run any other code until the debugger
 # is attached. This provides a facility to inject such code.
-_code = os.environ.pop("PTVSD_TEST_DEBUG_ME", None)
+_code = os.environ.pop("DEBUGPY_TEST_DEBUG_ME", None)
 if _code:
-    _code = compile(_code, "<PTVSD_TEST_DEBUG_ME>", "exec")
+    _code = compile(_code, "<DEBUGPY_TEST_DEBUG_ME>", "exec")
     eval(_code, {})
 
 
 # For `from debug_me import ...`.
-import ptvsd
-import ptvsd.server
+import debugpy
+import debugpy.server
 import pydevd

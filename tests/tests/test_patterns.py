@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import pytest
 import sys
 
-from ptvsd.common import log
+from debugpy.common import log
 from tests.patterns import some
 
 

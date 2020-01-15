@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 """A watchdog process for debuggee processes spawned by tests.
 
 Interacts with the main test runner process over stdio, and keeps track of running
-ptvsd processes. If the test runner process goes down, any ptvsd test processes
+debugpy processes. If the test runner process goes down, any debugpy test processes
 are automatically killed.
 """
 
@@ -21,7 +21,7 @@ import sys
 import threading
 import time
 
-from ptvsd.common import fmt, log, messaging
+from debugpy.common import fmt, log, messaging
 from tests.watchdog import worker
 
 WATCHDOG_TIMEOUT = 3

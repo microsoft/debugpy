@@ -9,24 +9,24 @@ import pytest
 import pytest_timeout
 import sys
 
-from ptvsd.common import fmt, log
+from debugpy.common import fmt, log
 from tests import logs
 
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--ptvsd-logs",
+        "--debugpy-logs",
         action="store_true",
-        help="Write ptvsd and pydevd logs under {rootdir}/tests/_logs/",
+        help="Write debugpy and pydevd logs under {rootdir}/tests/_logs/",
     )
 
 
 def pytest_configure(config):
-    if config.option.ptvsd_logs:
+    if config.option.debugpy_logs:
         bits = 64 if sys.maxsize > 2 ** 32 else 32
         ver = fmt("{0}.{1}-{bits}", *sys.version_info, bits=bits)
         log.log_dir = (config.rootdir / "tests" / "_logs" / ver).strpath
-        log.info("ptvsd and pydevd logs will be under {0}", log.log_dir)
+        log.info("debugpy and pydevd logs will be under {0}", log.log_dir)
 
 
 def pytest_report_header(config):

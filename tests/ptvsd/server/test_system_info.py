@@ -7,8 +7,8 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import pytest
 import sys
 
-import ptvsd
-from ptvsd.common import log
+import debugpy
+from debugpy.common import log
 from tests import debug
 from tests.patterns import some
 
@@ -30,7 +30,7 @@ def expected_system_info():
 
     return some.dict.containing(
         {
-            "ptvsd": some.dict.containing({"version": ptvsd.__version__}),
+            "debugpy": some.dict.containing({"version": debugpy.__version__}),
             "python": some.dict.containing(
                 {
                     "version": version_str(sys.version_info),
@@ -55,12 +55,12 @@ def expected_system_info():
     )
 
 
-def test_ptvsd_systemInfo(pyfile, target, run, expected_system_info):
+def test_debugpySystemInfo(pyfile, target, run, expected_system_info):
     @pyfile
     def code_to_debug():
-        from debug_me import ptvsd
+        from debug_me import debugpy
 
-        ptvsd.break_into_debugger()
+        debugpy.break_into_debugger()
         print()
 
     with debug.Session() as session:
@@ -69,7 +69,7 @@ def test_ptvsd_systemInfo(pyfile, target, run, expected_system_info):
 
         session.wait_for_stop()
 
-        system_info = session.request("ptvsd_systemInfo")
+        system_info = session.request("debugpySystemInfo")
         log.info("Expected system info: {0}", expected_system_info)
         assert system_info == expected_system_info
 

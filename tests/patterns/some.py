@@ -88,7 +88,7 @@ import numbers
 import re
 import sys
 
-from ptvsd.common.compat import builtins
+from debugpy.common.compat import builtins
 from tests.patterns import _impl
 
 

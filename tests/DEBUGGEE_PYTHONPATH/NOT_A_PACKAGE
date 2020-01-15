@@ -7,4 +7,4 @@ Thus, it should be used for modules that are meant to be importable by such debu
 code, and that are not test-specific - in particular, debug_me.
 
 Because this code runs in the debuggee process, it cannot import anything from the
-top-level tests package. It can, however, import ptvsd and pydevd.
+top-level tests package. It can, however, import debugpy and pydevd.

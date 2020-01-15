@@ -253,12 +253,12 @@ def test_return_values(pyfile, target, run, ret_vis):
 def test_unicode(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        from debug_me import ptvsd
+        from debug_me import debugpy
 
         # Since Unicode variable name is a SyntaxError at parse time in Python 2,
         # this needs to do a roundabout way of setting it to avoid parse issues.
         globals()["\u16A0"] = 123
-        ptvsd.break_into_debugger()
+        debugpy.break_into_debugger()
         print("break")
 
     with debug.Session() as session:
@@ -506,10 +506,10 @@ def test_hex_numbers(pyfile, target, run):
 def test_set_variable(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        from debug_me import backchannel, ptvsd
+        from debug_me import backchannel, debugpy
 
         a = 1
-        ptvsd.break_into_debugger()
+        debugpy.break_into_debugger()
         backchannel.send(a)
 
     with debug.Session() as session:

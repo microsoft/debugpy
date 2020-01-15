@@ -7,8 +7,8 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import pytest
 import sys
 
-import ptvsd
-from ptvsd.common import messaging
+import debugpy
+from debugpy.common import messaging
 from tests import debug
 from tests.debug import runners
 from tests.patterns import some
@@ -110,7 +110,7 @@ def test_multiprocessing(pyfile, target, run, start_method):
             }
         )
 
-        child_config = parent_session.wait_for_next_event("ptvsd_attach")
+        child_config = parent_session.wait_for_next_event("debugpyAttach")
         assert child_config == expected_child_config
         parent_session.proceed()
 
@@ -129,7 +129,7 @@ def test_multiprocessing(pyfile, target, run, start_method):
                 }
             )
 
-            grandchild_config = child_session.wait_for_next_event("ptvsd_attach")
+            grandchild_config = child_session.wait_for_next_event("debugpyAttach")
             assert grandchild_config == expected_grandchild_config
 
             with debug.Session(grandchild_config) as grandchild_session:
@@ -145,12 +145,12 @@ def test_subprocess(pyfile, target, run):
         import os
         import sys
 
-        assert "ptvsd" in sys.modules
+        assert "debugpy" in sys.modules
 
-        from debug_me import backchannel, ptvsd
+        from debug_me import backchannel, debugpy
 
         backchannel.send(os.getpid())
-        backchannel.send(ptvsd.__file__)
+        backchannel.send(debugpy.__file__)
         backchannel.send(sys.argv)
 
     @pyfile
@@ -188,7 +188,7 @@ def test_subprocess(pyfile, target, run):
             }
         )
 
-        child_config = parent_session.wait_for_next_event("ptvsd_attach")
+        child_config = parent_session.wait_for_next_event("debugpyAttach")
         assert child_config == expected_child_config
         parent_session.proceed()
 
@@ -200,8 +200,8 @@ def test_subprocess(pyfile, target, run):
             assert child_pid == child_config["subProcessId"]
             assert str(child_pid) in child_config["name"]
 
-            ptvsd_file = backchannel.receive()
-            assert ptvsd_file == ptvsd.__file__
+            debugpy_file = backchannel.receive()
+            assert debugpy_file == debugpy.__file__
 
             child_argv = backchannel.receive()
             assert child_argv == [child, "--arg1", "--arg2", "--arg3"]
@@ -254,7 +254,7 @@ def test_autokill(pyfile, start_method, run_as):
                 try:
                     parent_session.request("disconnect")
                 except messaging.NoMoreMessages:
-                    # Can happen if ptvsd drops connection before sending the response.
+                    # Can happen if debugpy drops connection before sending the response.
                     pass
                 parent_session.wait_for_disconnect()
             else:

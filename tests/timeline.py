@@ -9,8 +9,8 @@ import contextlib
 import itertools
 import threading
 
-from ptvsd.common import compat, fmt, log, messaging, timestamp
-from ptvsd.common.compat import queue
+from debugpy.common import compat, fmt, log, messaging, timestamp
+from debugpy.common.compat import queue
 
 from tests.patterns import some
 

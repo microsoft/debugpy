@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import pytest
 import sys
 
-from ptvsd.common import compat
+from debugpy.common import compat
 from tests import code, debug, log, net, test_data
 from tests.debug import runners, targets
 from tests.patterns import some

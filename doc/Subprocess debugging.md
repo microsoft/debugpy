@@ -6,10 +6,10 @@ _Debuggee process_ - the process that is being debugged.
 
 _IDE_ - VSCode or other DAP client.
 
-_Debug server_ - pydevd with ptvsd wrapper; hosted inside the debuggee process,
+_Debug server_ - pydevd with debugpy wrapper; hosted inside the debuggee process,
 one for each.
 
-_Debug adapter_ - ptvsd adapter that mediates between IDE and server.
+_Debug adapter_ - debugpy adapter that mediates between IDE and server.
 
 _IDE listener port_ - port opened by the adapter, on which it listens for incoming
 connections from the IDE.
@@ -117,7 +117,7 @@ Adapter -->>- IDE: confirm "disconnect" from Debuggee_1
 
 ## "attach" scenario
 
-1. User starts debuggee process with debug server in it (ptvsd command line or `ptvsd.enable_attach()`).
+1. User starts debuggee process with debug server in it (debugpy command line or `debugpy.enable_attach()`).
 1. User starts debugging (F5) with "attach" debug config.
 1. User code spawns child process.
 1. User disconnects from debuggee.

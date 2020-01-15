@@ -14,8 +14,8 @@ import py.path
 import re
 import sys
 
-from ptvsd.common import compat, fmt
-from ptvsd.common.compat import unicode, xrange
+from debugpy.common import compat, fmt
+from debugpy.common.compat import unicode, xrange
 import pydevd_file_utils
 
 

@@ -9,7 +9,7 @@ import pytest
 import subprocess
 import sys
 
-from ptvsd.common import log
+from debugpy.common import log
 
 
 @pytest.fixture
@@ -19,7 +19,7 @@ def cli(pyfile):
         import os
         import pickle
         import sys
-        from ptvsd.server import cli, options
+        from debugpy.server import cli, options
 
         try:
             sys.argv[1:] = cli.parse(sys.argv[1:])

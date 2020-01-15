@@ -1,12 +1,12 @@
 [run]
 branch = True
 include =
-    src/ptvsd/*
+    src/debugpy/*
 omit =
-    src/ptvsd/__init__.py
-    src/ptvsd/_version.py
-    src/ptvsd/_vendored/*
-    src/ptvsd/server/*
+    src/debugpy/__init__.py
+    src/debugpy/_version.py
+    src/debugpy/_vendored/*
+    src/debugpy/server/*
 data_file = coverage/.coverage
 
 [report]
@@ -29,7 +29,7 @@ exclude_lines =
  
 [html]
 directory = coverage/html
-title = ptvsd coverage report
+title = debugpy coverage report
 
 [xml]
 output = coverage/coverage.xml

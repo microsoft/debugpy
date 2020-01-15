@@ -10,7 +10,7 @@ exclude = '''
 ( __pycache__
 | ^/.tox
 | ^/versioneer.py
-| ^/src/ptvsd/_vendored
-| ^/src/ptvsd/_version.py
+| ^/src/debugpy/_vendored
+| ^/src/debugpy/_version.py
 )
 '''

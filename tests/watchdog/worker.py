@@ -8,7 +8,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 """
 
 # This code runs in a separate process, and should not import pytest or tests!
-# Do not import ptvsd on top level, either - sys.path needs to be fixed first -
+# Do not import debugpy on top level, either - sys.path needs to be fixed first -
 # this is done in main().
 
 import collections
@@ -21,12 +21,12 @@ ProcessInfo = collections.namedtuple("ProcessInfo", ["process", "name"])
 
 
 def main(tests_pid):
-    # To import ptvsd, the "" entry in sys.path - which is added automatically on
-    # Python 2 - must be removed first; otherwise, we end up importing tests/ptvsd.
+    # To import debugpy, the "" entry in sys.path - which is added automatically on
+    # Python 2 - must be removed first; otherwise, we end up importing tests/debugpy.
     if "" in sys.path:
         sys.path.remove("")
 
-    from ptvsd.common import fmt, log, messaging
+    from debugpy.common import fmt, log, messaging
 
     # log.stderr_levels |= {"info"}
     log.timestamp_format = "06.3f"

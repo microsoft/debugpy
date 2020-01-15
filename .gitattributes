@@ -1,1 +1,1 @@
-ptvsd/_version.py export-subst
+debugpy/_version.py export-subst

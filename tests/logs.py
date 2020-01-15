@@ -9,7 +9,7 @@ import os
 import pytest_timeout
 import sys
 
-from ptvsd.common import log
+from debugpy.common import log
 
 
 def dump():
@@ -19,7 +19,7 @@ def dump():
 
     for dirpath, dirnames, filenames in os.walk(log.log_dir):
         for name in sorted(filenames):
-            if not name.startswith("ptvsd") and not name.startswith("pydevd"):
+            if not name.startswith("debugpy") and not name.startswith("pydevd"):
                 continue
             try:
                 path = os.path.join(dirpath, name)

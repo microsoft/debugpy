@@ -14,11 +14,11 @@ from tests.debug import runners, targets
 @contextlib.contextmanager
 def check_logs(tmpdir, run):
     expected_logs = {
-        "ptvsd.adapter-*.log": 1,
-        "ptvsd.launcher-*.log": 1 if run.request == "launch" else 0,
+        "debugpy.adapter-*.log": 1,
+        "debugpy.launcher-*.log": 1 if run.request == "launch" else 0,
         # For attach_by_pid, there's ptvsd.server process that performs the injection,
         # and then there's the debug server that is injected into the debuggee.
-        "ptvsd.server-*.log": 2 if type(run).__name__ == "attach_by_pid" else 1,
+        "debugpy.server-*.log": 2 if type(run).__name__ == "attach_by_pid" else 1,
     }
 
     actual_logs = lambda: {
@@ -37,7 +37,7 @@ def test_log_dir(pyfile, tmpdir, target, method):
     def code_to_debug():
         import debug_me  # noqa
 
-    # Depending on the method, attach_by_socket will use either `ptvsd --log-dir ...`
+    # Depending on the method, attach_by_socket will use either `debugpy --log-dir ...`
     # or `enable_attach(log_dir=) ...`.
     run = runners.attach_by_socket[method].with_options(log_dir=tmpdir.strpath)
     with check_logs(tmpdir, run):
@@ -60,9 +60,9 @@ def test_log_dir_env(pyfile, tmpdir, run, target):
     with check_logs(tmpdir, run):
         with debug.Session() as session:
             session.log_dir = None
-            session.spawn_adapter.env["PTVSD_LOG_DIR"] = tmpdir
+            session.spawn_adapter.env["DEBUGPY_LOG_DIR"] = tmpdir
             if run.request != "launch":
-                session.spawn_debuggee.env["PTVSD_LOG_DIR"] = tmpdir
+                session.spawn_debuggee.env["DEBUGPY_LOG_DIR"] = tmpdir
 
             backchannel = session.open_backchannel()
             with run(session, target(code_to_debug)):

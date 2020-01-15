@@ -6,7 +6,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import pytest
 
-from ptvsd.common import messaging
+from debugpy.common import messaging
 from tests import debug
 
 

@@ -1,4 +1,4 @@
-# Contributing to `ptvsd` 
+# Contributing to `debugpy`
 
 [![Build Status](https://ptvsd.visualstudio.com/_apis/public/build/definitions/557bd35a-f98d-4c49-9bc9-c7d548f78e4d/1/badge)](https://ptvsd.visualstudio.com/ptvsd/ptvsd%20Team/_build/index?definitionId=1)
 [![Build Status](https://travis-ci.org/Microsoft/ptvsd.svg?branch=master)](https://travis-ci.org/Microsoft/ptvsd)
@@ -15,55 +15,77 @@ When you submit a pull request, a CLA-bot will automatically determine whether y
 a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow the instructions
 provided by the bot. You will only need to do this once across all repos using our CLA.
 
-### Prerequisites
-Use [tests/requirements.txt](tests/requirements.txt) file to install the packages needed to run tests:
-```console
-pip install -r tests/requirements.txt
+## Development tools
+
+The following tools are required to work on debugpy:
+
+- At least one version of [Python 3](https://www.python.org/downloads/)
+- [Python 2.7](https://www.python.org/downloads/release/python-2717/) (to run tests)
+- [Flake8](http://flake8.pycqa.org/en/stable/)
+- [Black](https://black.readthedocs.io/en/stable/)
+- [tox](https://tox.readthedocs.io/en/latest/)
+
+We recommend using [Visual Studio Code](https://code.visualstudio.com/) with the (Python extension)[https://marketplace.visualstudio.com/items?itemName=ms-python.python] to work on debugpy, but it's not a requirement. A workspace file, [debugpy.code-workspace], is provided for the convenience of VSCode users, and sets it up to use the other tools listed above properly.
+
+Tools that are Python packages should be installed via pip corresponding to the Python 3 installation. On Windows:
+```
+...> py -m pip install black flake8 tox
+```
+On Linux or macOS:
+```
+...$ python3 -m pip install black flake8 tox
 ```
 
-### Linting
-We use `flake8` for linting, and the settings can be found here [flake8](.flake8)
-
-### Formatting
-This is optional. Use the following settings for `autopep8` or equivalent settings with the formatter of your choice:
-VSC Python settings for formating:
-```json
-"python.formatting.provider": "autopep8",
-"python.formatting.autopep8Args": [
-    "--ignore", "E24,E121,E123,E125,E126,E221,E226,E266,E704,E265,E722,E501,E731,E306,E401,E302,E222"
-],
+## Linting
+We use Flake8 for linting. It should be run from the root of the repository, where [.flake8](.flake8) with project-specific linting settings is located. On Windows:
+```
+...\debugpy> py -m flake8
+```
+On Linux or macOS:
+```
+.../debugpy$ python3 -m flake8
 ```
 
-### Running tests
-We are currently migrating the tests to use `pytest`. Please run both set of tests. Newer tests must go into the [tests](tests) directory. Use [test_requirements.txt](test_requirements.txt) to install packages needed to run the tests.
-#### Windows
+## Formatting
+We use Black for formatting. All new code files, and all code files that were edited, should be reformatted before submitting a PR. On Windows:
 ```
-C:\> git clone https://github.com/Microsoft/ptvsd
-C:\> cd ptvsd
-C:\ptvsd> py -3.7 -m pip install -r test_requirements.txt
-C:\ptvsd> py -3.7 -m pytest -v
+...\debugpy> py -m black
 ```
-#### Linux\Mac
+On Linux or macOS:
 ```
-~: git clone https://github.com/Microsoft/ptvsd
-~: cd ptvsd
-~/ptvsd: python3 -m pip install -r ./test_requirements.txt
-~/ptvsd: python3 -m pytest -v
+.../debugpy$ python3 -m black
 ```
 
+## Running tests
 
-### Debug in VSC using development version
-Set `PYTHONPATH` to point to cloned version of ptvsd, in `launch.json`, to debug any python project to test the debugger you are working on:
-```json
+We use tox to run tests in an isolated environment. This ensures that debugpy is first built as a package, and tox also takes care of installing all the test prerequisites into the environment. On Windows:
+```
+...\debugpy> py -m tox
+```
+On Linux or macOS:
+```
+.../debugpy$ python3 -m tox
+```
+This will perform a full run with the default settings. A full run will run tests on Python 2.7 and 3.5-3.8, and requires all of those to be installed. If some versions are missing, or it is desired to skip them for a particular run, tox can be directed to only run tests on specific versions with `-e`. In addition, the `--developer` option can be used to skip the packaging step, running tests directly against the source code in `src/debugpy`. This should only be used when iterating on the code, and a proper run should be performed before submitting a PR. On Windows:
+```
+...\debugpy> py -m tox -e py27,py37 --develop
+```
+On Linux or macOS:
+```
+.../debugpy$ python3 -m tox -e py27,py37 --develop
+```
+
+### Running tests without tox
+
+While tox is the recommended way to run the test suite, pytest can also be invoked directly from the root of the repository. This requires packages in tests/test_requirements.txt to be installed first.
+
+## Using modified debugpy in Visual Studio Code
+To test integration between debugpy and Visual Studio Code, the latter can be directed to use a custom version of debugpy in lieu of the one bundled with the Python extension. This is done by specifying `"debugAdapterPath"` in `launch.json` - it must point at the root directory of the *package*, which is `src/debugpy` inside the repository:
+
+```json5
 {
-    "name": "Terminal (integrated)",
     "type": "python",
-    "request": "launch",
-    "pythonPath": "${config:python.pythonPath}",
-    "program": "${file}",
-    "cwd": "${workspaceFolder}",
-    "console": "integratedTerminal",
-    "env": {"PYTHONPATH":"C:\\GIT\\ptvsd"},
-    "internalConsoleOptions": "neverOpen",
-},
+    "debugAdapterPath": ".../debugpy/src/debugpy",
+    ...
+}
 ```

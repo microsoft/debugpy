@@ -57,8 +57,8 @@ import os
 import pytest
 import sys
 
-import ptvsd
-from ptvsd.common import compat, fmt, log
+import debugpy
+from debugpy.common import compat, fmt, log
 from tests import net
 from tests.debug import session
 
@@ -185,7 +185,7 @@ import sys
 import threading
 import time
 
-while "ptvsd" not in sys.modules:
+while "debugpy" not in sys.modules:
     time.sleep(0.1)
 
 from debug_me import scratchpad
@@ -224,7 +224,7 @@ def attach_by_socket(
     port = config["port"] = attach_by_socket.port
 
     if method == "cli":
-        args = [os.path.dirname(ptvsd.__file__)]
+        args = [os.path.dirname(debugpy.__file__)]
         if wait:
             args += ["--wait"]
         args += ["--host", compat.filename_str(host), "--port", str(port)]
@@ -234,10 +234,10 @@ def attach_by_socket(
     elif method == "api":
         args = []
         debug_me = """
-import ptvsd
-ptvsd.enable_attach(({host!r}, {port!r}), {args})
+import debugpy
+debugpy.enable_attach(({host!r}, {port!r}), {args})
 if {wait!r}:
-    ptvsd.wait_for_attach()
+    debugpy.wait_for_attach()
 """
         attach_args = "" if log_dir is None else fmt("log_dir={0!r}", log_dir)
         debug_me = fmt(debug_me, host=host, port=port, wait=wait, args=attach_args)

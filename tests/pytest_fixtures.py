@@ -12,13 +12,13 @@ import sys
 import threading
 import types
 
-from ptvsd.common import compat, fmt, log, timestamp
+from debugpy.common import compat, fmt, log, timestamp
 from tests import code, logs
 from tests.debug import runners, session, targets
 
 # Set up the test matrix for various code types and attach methods
 
-if int(os.environ.get("PTVSD_TESTS_FULL", "0")):
+if int(os.environ.get("DEBUGPY_TESTS_FULL", "0")):
     TARGETS = targets.all_named
     RUNNERS = runners.all_launch + runners.all_attach_by_socket,
 else:
@@ -52,7 +52,7 @@ def test_wrapper(request, long_tmpdir):
 
     try:
         if log.log_dir is None:
-            log.log_dir = (long_tmpdir / "ptvsd_logs").strpath
+            log.log_dir = (long_tmpdir / "debugpy_logs").strpath
         else:
             log_subdir = request.node.nodeid
             log_subdir = log_subdir.replace("::", "/")

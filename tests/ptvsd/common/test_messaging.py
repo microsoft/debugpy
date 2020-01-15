@@ -18,7 +18,7 @@ import socket
 import threading
 import time
 
-from ptvsd.common import log, messaging
+from debugpy.common import log, messaging
 from tests.patterns import some
 
 

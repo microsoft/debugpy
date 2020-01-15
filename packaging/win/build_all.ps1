@@ -35,7 +35,7 @@ Get-ChildItem $dist\*.whl, $dist\*.zip | Remove-Item -Force
         & $_ setup.py bdist_wheel -d "$dist" --universal
     }
 
-    Get-ChildItem $dist\ptvsd-*.whl, $dist\*.zip | ForEach-Object{
+    Get-ChildItem $dist\debugpy-*.whl, $dist\*.zip | ForEach-Object{
         Write-Host "Built wheel found at $_"
     }
 }

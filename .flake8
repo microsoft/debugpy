@@ -10,4 +10,4 @@ exclude =
     build,
     dist,
     versioneer.py,
-    src/ptvsd/_vendored/pydevd
+    src/debugpy/_vendored/pydevd

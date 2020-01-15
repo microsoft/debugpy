@@ -9,7 +9,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import py.path
 
-from ptvsd.common.compat import unicode
+from debugpy.common.compat import unicode
 from tests import code
 from tests.patterns import some, _impl
 

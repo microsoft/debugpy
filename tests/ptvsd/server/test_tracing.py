@@ -12,10 +12,10 @@ def test_tracing(pyfile, target, run):
     @pyfile
     def code_to_debug():
         import debug_me  # noqa
-        import ptvsd
+        import debugpy
 
         def func(expected_tracing):
-            assert ptvsd.tracing() == expected_tracing, "inside func({0!r})".format(
+            assert debugpy.tracing() == expected_tracing, "inside func({0!r})".format(
                 expected_tracing
             )
             print(1)  # @inner1
@@ -29,22 +29,22 @@ def test_tracing(pyfile, target, run):
             def inner2():
                 print(2)  # @inner2
 
-            with ptvsd.tracing(not expected_tracing):
-                assert ptvsd.tracing() != expected_tracing, "inside with-statement"
+            with debugpy.tracing(not expected_tracing):
+                assert debugpy.tracing() != expected_tracing, "inside with-statement"
                 inner2()
-            assert ptvsd.tracing() == expected_tracing, "after with-statement"
+            assert debugpy.tracing() == expected_tracing, "after with-statement"
 
             print(3)  # @inner3
 
-        assert ptvsd.tracing(), "before tracing(False)"
-        ptvsd.tracing(False)
-        assert not ptvsd.tracing(), "after tracing(False)"
+        assert debugpy.tracing(), "before tracing(False)"
+        debugpy.tracing(False)
+        assert not debugpy.tracing(), "after tracing(False)"
 
         print(0)  # @outer1
         func(False)
 
-        ptvsd.tracing(True)
-        assert ptvsd.tracing(), "after tracing(True)"
+        debugpy.tracing(True)
+        assert debugpy.tracing(), "after tracing(True)"
 
         print(0)  # @outer2
         func(True)

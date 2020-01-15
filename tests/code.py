@@ -10,7 +10,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import py.path
 import re
 
-from ptvsd.common import compat
+from debugpy.common import compat
 
 _marked_line_numbers_cache = {}
 

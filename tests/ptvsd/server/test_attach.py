@@ -18,28 +18,28 @@ from tests.patterns import some
 def test_attach_api(pyfile, target, wait_for_attach, is_attached, stop_method):
     @pyfile
     def code_to_debug():
-        from debug_me import backchannel, ptvsd, scratchpad
+        from debug_me import backchannel, debugpy, scratchpad
         import sys
         import time
 
         _, host, port, wait_for_attach, is_attached, stop_method = sys.argv
         port = int(port)
-        ptvsd.enable_attach((host, port))
+        debugpy.enable_attach((host, port))
 
         if wait_for_attach:
             backchannel.send("wait_for_attach")
-            ptvsd.wait_for_attach()
+            debugpy.wait_for_attach()
 
         if is_attached:
             backchannel.send("is_attached")
-            while not ptvsd.is_attached():
+            while not debugpy.is_attached():
                 print("looping until is_attached")
                 time.sleep(0.1)
 
         if stop_method == "break_into_debugger":
             backchannel.send("break_into_debugger?")
             assert backchannel.receive() == "proceed"
-            ptvsd.break_into_debugger()
+            debugpy.break_into_debugger()
             print("break")  # @break_into_debugger
         else:
             scratchpad["paused"] = False
@@ -91,16 +91,16 @@ def test_attach_api(pyfile, target, wait_for_attach, is_attached, stop_method):
 def test_reattach(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        from debug_me import ptvsd, scratchpad
+        from debug_me import debugpy, scratchpad
         import time
 
-        ptvsd.break_into_debugger()
+        debugpy.break_into_debugger()
         object()  # @first
 
         scratchpad["exit"] = False
         while not scratchpad["exit"]:
             time.sleep(0.1)
-            ptvsd.break_into_debugger()
+            debugpy.break_into_debugger()
             object()  # @second
 
     with debug.Session() as session1:

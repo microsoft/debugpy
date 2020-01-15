@@ -10,8 +10,8 @@ import re
 import sys
 import time
 
-import ptvsd
-from ptvsd.common import log, messaging
+import debugpy
+from debugpy.common import log, messaging
 from tests import debug, test_data
 from tests.debug import runners, targets
 from tests.patterns import some
@@ -27,7 +27,7 @@ def test_run(pyfile, target, run):
         import sys
 
         print("begin")
-        backchannel.send(os.path.abspath(sys.modules["ptvsd"].__file__))
+        backchannel.send(os.path.abspath(sys.modules["debugpy"].__file__))
         assert backchannel.receive() == "continue"
         print("end")
 
@@ -36,9 +36,9 @@ def test_run(pyfile, target, run):
         with run(session, target(code_to_debug)):
             pass
 
-        expected_ptvsd_path = os.path.abspath(ptvsd.__file__)
+        expected_debugpy_path = os.path.abspath(debugpy.__file__)
         assert backchannel.receive() == some.str.matching(
-            re.escape(expected_ptvsd_path) + r"(c|o)?"
+            re.escape(expected_debugpy_path) + r"(c|o)?"
         )
 
         backchannel.send("continue")
@@ -103,10 +103,10 @@ def test_wait_on_exit(
 ):
     @pyfile
     def code_to_debug():
-        from debug_me import ptvsd
+        from debug_me import debugpy
         import sys
 
-        ptvsd.break_into_debugger()
+        debugpy.break_into_debugger()
         print()  # line on which it'll actually break
         sys.exit(int(sys.argv[1]))
 

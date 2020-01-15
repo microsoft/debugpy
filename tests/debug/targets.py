@@ -6,7 +6,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import py
 
-from ptvsd.common import fmt
+from debugpy.common import fmt
 from tests.patterns import some
 
 
@@ -38,7 +38,7 @@ class Target(object):
 
     def cli(self, env):
         """Provides the command line arguments, suitable for passing to python or
-        python -m ptvsd, to execute this target.
+        python -m debugpy, to execute this target.
 
         Returns command line arguments as a list, e.g. ["-m", "module"].
 

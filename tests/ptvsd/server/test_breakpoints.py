@@ -9,7 +9,7 @@ import pytest
 import re
 import sys
 
-from ptvsd.common import fmt
+from debugpy.common import fmt
 from tests import debug, test_data
 from tests.debug import runners, targets
 from tests.patterns import some
@@ -41,7 +41,7 @@ def test_path_with_ampersand(target, run):
 )
 @pytest.mark.skipif(
     sys.platform == "win32" and sys.version_info < (3, 6),
-    reason="https://github.com/Microsoft/ptvsd/issues/1124#issuecomment-459506802",
+    reason="https://github.com/microsoft/ptvsd/issues/1124#issuecomment-459506802",
 )
 @pytest.mark.parametrize("target", targets.all_named)
 def test_path_with_unicode(target, run):
@@ -410,14 +410,14 @@ def test_deep_stacks(pyfile, target, run):
 
 
 @pytest.mark.parametrize("target", targets.all)
-@pytest.mark.parametrize("func", ["breakpoint", "ptvsd.break_into_debugger"])
+@pytest.mark.parametrize("func", ["breakpoint", "debugpy.break_into_debugger"])
 def test_break_api(pyfile, target, run, func):
     if func == "breakpoint" and sys.version_info < (3, 7):
         pytest.skip("breakpoint() was introduced in Python 3.7")
 
     @pyfile
     def code_to_debug():
-        from debug_me import ptvsd  # noqa
+        from debug_me import debugpy  # noqa
         import sys
 
         func = eval(sys.argv[1])

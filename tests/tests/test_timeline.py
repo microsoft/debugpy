@@ -11,7 +11,7 @@ import pytest
 import threading
 import time
 
-from ptvsd.common import log, messaging
+from debugpy.common import log, messaging
 from tests.patterns import some
 from tests.timeline import Timeline, Mark, Event, Request, Response
 

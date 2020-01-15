@@ -4,7 +4,7 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-"""Imported from test code that runs under ptvsd, and allows that code
+"""Imported from test code that runs under debugpy, and allows that code
 to communcate back to the test. Works in conjunction with debug_session
 fixture and its backchannel method."""
 
@@ -15,7 +15,7 @@ import os
 import socket
 
 import debug_me
-from ptvsd.common import fmt, log, messaging
+from debugpy.common import fmt, log, messaging
 
 
 def send(value):
@@ -55,7 +55,7 @@ class _stream:
 
 
 name = fmt("backchannel-{0}", debug_me.session_id)
-port = os.environ.pop("PTVSD_TEST_BACKCHANNEL_PORT", None)
+port = os.environ.pop("DEBUGPY_TEST_BACKCHANNEL_PORT", None)
 if port is not None:
     port = int(port)
     log.info("Connecting {0} to port {1}...", name, port)

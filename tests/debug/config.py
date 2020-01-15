@@ -13,8 +13,8 @@ class DebugConfig(collections.MutableMapping):
     "attach" requests, or launch.json in VSCode.
 
     It is a dict-like object that only allows keys that are valid debug configuration
-    properties for ptvsd. When a property is queried, but it's not explicitly set in
-    the config, the default value (i.e. what ptvsd will assume the property is set to)
+    properties for debugpy. When a property is queried, but it's not explicitly set in
+    the config, the default value (i.e. what debugpy will assume the property is set to)
     is returned.
 
     In addition, it exposes high-level wrappers over "env" and "debugOptions".

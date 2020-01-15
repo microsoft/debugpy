@@ -25,7 +25,7 @@ if (-not $pack) {
         & $_ -m pip install -U pip
         & $_ -m pip install -U pyfindvs setuptools wheel cython
 
-        Push-Location "$root\..\..\src\ptvsd\_vendored\pydevd"
+        Push-Location "$root\..\..\src\debugpy\_vendored\pydevd"
         & $_ setup_cython.py enable_msbuildcompiler build_ext -b "$bin" -t "$obj"
         Pop-Location
     }
@@ -35,7 +35,7 @@ if (-not $pack) {
     (Get-ChildItem $packages\python* -Directory -Filter $filter) | ForEach-Object{ Get-Item $_\tools\python.exe } | Where-Object{ Test-Path $_ } | Select-Object -last 1 | ForEach-Object{
         Write-Host "Building  wheel with $_ for platform."
         & $_ setup.py build -b "$bin" -t "$obj" bdist_wheel -d "$dist" -p "$platform" --abi
-        Get-ChildItem $dist\ptvsd-*.whl | ForEach-Object{
+        Get-ChildItem $dist\debugpy-*.whl | ForEach-Object{
             Write-Host "Built wheel found at $_"
         }
     }

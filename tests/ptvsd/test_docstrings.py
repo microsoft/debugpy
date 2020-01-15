@@ -6,14 +6,14 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import inspect
 
-import ptvsd
-from ptvsd.common import log
+import debugpy
+from debugpy.common import log
 
 
 def test_docstrings():
-    for attr in ptvsd.__all__:
-        log.info("Checking docstring for ptvsd.{0}", attr)
-        member = getattr(ptvsd, attr)
+    for attr in debugpy.__all__:
+        log.info("Checking docstring for debugpy.{0}", attr)
+        member = getattr(debugpy, attr)
 
         doc = inspect.getdoc(member)
         for lineno, line in enumerate(doc.split("\n")):
