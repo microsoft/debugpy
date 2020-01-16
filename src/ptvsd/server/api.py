@@ -90,7 +90,7 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
     server_access_token = compat.force_str(codecs.encode(os.urandom(32), "hex"))
 
     try:
-        endpoints_listener = sockets.create_server("127.0.0.1", 0, timeout=5)
+        endpoints_listener = sockets.create_server("127.0.0.1", 0, timeout=10)
     except Exception as exc:
         log.exception("Can't listen for adapter endpoints:")
         raise RuntimeError("can't listen for adapter endpoints: " + str(exc))
