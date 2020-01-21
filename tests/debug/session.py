@@ -272,6 +272,10 @@ class Session(object):
             self.backchannel.close()
             self.backchannel = None
 
+        # Work around https://bugs.python.org/issue37380
+        if self.debuggee is not None and self.debuggee.returncode is None:
+            self.debuggee.returncode = -1
+
     @property
     def ignore_unobserved(self):
         return self.timeline.ignore_unobserved
