@@ -113,8 +113,6 @@ def test_wait_on_exit(
     expect_wait = (process_lifetime == "run_to_completion") and (
         (wait_on_normal and exit_code == 0) or (wait_on_abnormal and exit_code != 0)
     )
-    if expect_wait and sys.version_info < (3, 0):
-        pytest.skip("https://github.com/microsoft/ptvsd/issues/1819")
 
     with debug.Session() as session:
         session.expected_exit_code = (
