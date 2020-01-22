@@ -206,7 +206,6 @@ def test_subprocess(pyfile, target, run):
             assert child_argv == [child, "--arg1", "--arg2", "--arg3"]
 
 
-@pytest.mark.skip("https://github.com/microsoft/debugpy/issues/3")
 def test_autokill(pyfile, target):
     @pyfile
     def child():
@@ -244,7 +243,7 @@ def test_autokill(pyfile, target):
             with child_session.start():
                 pass
 
-            parent_session.debuggee.kill()
+            parent_session.request("terminate")
             child_session.wait_for_exit()
 
 

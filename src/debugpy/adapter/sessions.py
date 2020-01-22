@@ -7,6 +7,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import contextlib
 import itertools
 import os
+import signal
 import threading
 import time
 
@@ -260,13 +261,35 @@ class Session(util.Observable):
             except Exception:
                 log.exception()
 
-        # Tell the IDE that debugging is over, but don't close the channel until it
-        # tells us to, via the "disconnect" request.
-        if self.ide and self.ide.is_connected:
-            try:
-                self.ide.channel.send_event("terminated")
-            except Exception:
-                pass
+        if self.ide:
+            if self.ide.is_connected:
+                # Tell the IDE that debugging is over, but don't close the channel until it
+                # tells us to, via the "disconnect" request.
+                try:
+                    self.ide.channel.send_event("terminated")
+                except Exception:
+                    pass
+
+            if self.ide.start_request is not None and self.ide.start_request.command == "launch":
+                servers.stop_listening()
+                log.info('"launch" session ended - killing remaining debuggee processes.')
+
+                pids_killed = set()
+                if self.launcher and self.launcher.pid is not None:
+                    # Already killed above.
+                    pids_killed.add(self.launcher.pid)
+
+                while True:
+                    conns = [conn for conn in servers.connections() if conn.pid not in pids_killed]
+                    if not len(conns):
+                        break
+                    for conn in conns:
+                        log.info("Killing {0}", conn)
+                        try:
+                            os.kill(conn.pid, signal.SIGTERM)
+                        except Exception:
+                            log.exception("Failed to kill {0}", conn)
+                        pids_killed.add(conn.pid)
 
 
 def get(pid):
