@@ -785,8 +785,6 @@ class Session(object):
 
         # FIXME: "exited" event is not properly reported in attach scenarios at the
         # moment, so the exit code is only checked if it's present.
-        if self.start_request.command == "launch":
-            assert self.exit_code is not None
         if self.debuggee is not None and self.exit_code is not None:
             assert self.debuggee.returncode == self.exit_code
         return self.exit_code

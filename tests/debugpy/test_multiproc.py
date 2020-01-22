@@ -8,7 +8,6 @@ import pytest
 import sys
 
 import debugpy
-from debugpy.common import messaging
 from tests import debug
 from tests.debug import runners
 from tests.patterns import some
@@ -207,11 +206,7 @@ def test_subprocess(pyfile, target, run):
             assert child_argv == [child, "--arg1", "--arg2", "--arg3"]
 
 
-@pytest.mark.skip("Needs refactoring to use the new debug.Session API")
-@pytest.mark.parametrize(
-    "start_method", [runners.launch, runners.attach_by_socket["cli"]]
-)
-def test_autokill(pyfile, start_method, run_as):
+def test_autokill(pyfile, target):
     @pyfile
     def child():
         import debug_me  # noqa
@@ -224,7 +219,6 @@ def test_autokill(pyfile, start_method, run_as):
         import os
         import subprocess
         import sys
-        from debug_me import backchannel
 
         argv = [sys.executable, sys.argv[1]]
         env = os.environ.copy()
@@ -234,32 +228,23 @@ def test_autokill(pyfile, start_method, run_as):
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-        )
-        backchannel.receive()
+        ).wait()
 
-    with debug.Session(start_method, backchannel=True) as parent_session:
-        parent_backchannel = parent_session.backchannel
-        expected_exit_code = (
-            some.int if parent_session.start_method.method == "launch" else 0
-        )
-        parent_session.expected_exit_code = expected_exit_code
-        parent_session.configure(run_as, parent, subProcess=True, args=[child])
-        parent_session.start_debugging()
+    with debug.Session() as parent_session:
+        parent_session.expected_exit_code = some.int
 
-        with parent_session.attach_to_next_subprocess() as child_session:
-            child_session.start_debugging()
+        with parent_session.launch(target(parent, args=[child])):
+            pass
 
-            if parent_session.start_method.method == "launch":
-                # In launch scenario, terminate the parent process by disconnecting from it.
-                try:
-                    parent_session.request("disconnect")
-                except messaging.NoMoreMessages:
-                    # Can happen if debugpy drops connection before sending the response.
-                    pass
-                parent_session.wait_for_disconnect()
-            else:
-                # In attach scenario, just let the parent process run to completion.
-                parent_backchannel.send(None)
+        child_config = parent_session.wait_for_next_event("debugpyAttach")
+        parent_session.proceed()
+
+        with debug.Session(child_config) as child_session:
+            with child_session.start():
+                pass
+
+            parent_session.debuggee.kill()
+            child_session.wait_for_exit()
 
 
 @pytest.mark.skip("Needs refactoring to use the new debug.Session API")
