@@ -307,8 +307,7 @@ def test_argv_quoting(pyfile, target, run):
             assert expected_args == actual_args
 
 
-@pytest.mark.skip("Needs refactoring to use the new debug.Session API")
-def test_echo_and_shell(pyfile, run_as, start_method):
+def test_echo_and_shell(pyfile, target, run):
     """
     Checks https://github.com/microsoft/ptvsd/issues/1548
     """
@@ -343,6 +342,6 @@ def test_echo_and_shell(pyfile, run_as, start_method):
                 % (stdout,)
             )
 
-    with debug.Session(start_method) as session:
-        session.configure(run_as, code_to_run, subProcess=True)
-        session.start_debugging()
+    with debug.Session() as parent_session:
+        with run(parent_session, target(code_to_run)):
+            pass
