@@ -8,7 +8,6 @@ import pytest
 import sys
 
 import debugpy
-from debugpy.common import messaging
 from tests import debug
 from tests.debug import runners
 from tests.patterns import some
@@ -207,11 +206,8 @@ def test_subprocess(pyfile, target, run):
             assert child_argv == [child, "--arg1", "--arg2", "--arg3"]
 
 
-@pytest.mark.skip("Needs refactoring to use the new debug.Session API")
-@pytest.mark.parametrize(
-    "start_method", [runners.launch, runners.attach_by_socket["cli"]]
-)
-def test_autokill(pyfile, start_method, run_as):
+@pytest.mark.skip("https://github.com/microsoft/debugpy/issues/3")
+def test_autokill(pyfile, target):
     @pyfile
     def child():
         import debug_me  # noqa
@@ -224,7 +220,6 @@ def test_autokill(pyfile, start_method, run_as):
         import os
         import subprocess
         import sys
-        from debug_me import backchannel
 
         argv = [sys.executable, sys.argv[1]]
         env = os.environ.copy()
@@ -234,36 +229,26 @@ def test_autokill(pyfile, start_method, run_as):
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-        )
-        backchannel.receive()
+        ).wait()
 
-    with debug.Session(start_method, backchannel=True) as parent_session:
-        parent_backchannel = parent_session.backchannel
-        expected_exit_code = (
-            some.int if parent_session.start_method.method == "launch" else 0
-        )
-        parent_session.expected_exit_code = expected_exit_code
-        parent_session.configure(run_as, parent, subProcess=True, args=[child])
-        parent_session.start_debugging()
+    with debug.Session() as parent_session:
+        parent_session.expected_exit_code = some.int
 
-        with parent_session.attach_to_next_subprocess() as child_session:
-            child_session.start_debugging()
+        with parent_session.launch(target(parent, args=[child])):
+            pass
 
-            if parent_session.start_method.method == "launch":
-                # In launch scenario, terminate the parent process by disconnecting from it.
-                try:
-                    parent_session.request("disconnect")
-                except messaging.NoMoreMessages:
-                    # Can happen if debugpy drops connection before sending the response.
-                    pass
-                parent_session.wait_for_disconnect()
-            else:
-                # In attach scenario, just let the parent process run to completion.
-                parent_backchannel.send(None)
+        child_config = parent_session.wait_for_next_event("debugpyAttach")
+        parent_session.proceed()
+
+        with debug.Session(child_config) as child_session:
+            with child_session.start():
+                pass
+
+            parent_session.debuggee.kill()
+            child_session.wait_for_exit()
 
 
-@pytest.mark.skip("Needs refactoring to use the new debug.Session API")
-def test_argv_quoting(pyfile, start_method, run_as):
+def test_argv_quoting(pyfile, target, run):
     @pyfile
     def args():
         import debug_me  # noqa
@@ -304,19 +289,26 @@ def test_argv_quoting(pyfile, start_method, run_as):
         actual_args = sys.argv[1:]
         backchannel.send(actual_args)
 
-    with debug.Session(start_method, backchannel=True) as session:
-        backchannel = session.backchannel
-        session.configure(run_as, parent, args=[child])
+    with debug.Session() as parent_session:
+        backchannel = parent_session.open_backchannel()
 
-        session.start_debugging()
+        with run(parent_session, target(parent, args=[child])):
+            pass
 
-        expected_args = backchannel.receive()
-        actual_args = backchannel.receive()
-        assert expected_args == actual_args
+        child_config = parent_session.wait_for_next_event("debugpyAttach")
+        parent_session.proceed()
+
+        with debug.Session(child_config) as child_session:
+            with child_session.start():
+                pass
+
+            expected_args = backchannel.receive()
+            actual_args = backchannel.receive()
+
+            assert expected_args == actual_args
 
 
-@pytest.mark.skip("Needs refactoring to use the new debug.Session API")
-def test_echo_and_shell(pyfile, run_as, start_method):
+def test_echo_and_shell(pyfile, target, run):
     """
     Checks https://github.com/microsoft/ptvsd/issues/1548
     """
@@ -351,6 +343,6 @@ def test_echo_and_shell(pyfile, run_as, start_method):
                 % (stdout,)
             )
 
-    with debug.Session(start_method) as session:
-        session.configure(run_as, code_to_run, subProcess=True)
-        session.start_debugging()
+    with debug.Session() as parent_session:
+        with run(parent_session, target(code_to_run)):
+            pass
