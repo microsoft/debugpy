@@ -247,8 +247,7 @@ def test_autokill(pyfile, target):
             child_session.wait_for_exit()
 
 
-@pytest.mark.skip("Needs refactoring to use the new debug.Session API")
-def test_argv_quoting(pyfile, start_method, run_as):
+def test_argv_quoting(pyfile, target, run):
     @pyfile
     def args():
         import debug_me  # noqa
@@ -289,15 +288,23 @@ def test_argv_quoting(pyfile, start_method, run_as):
         actual_args = sys.argv[1:]
         backchannel.send(actual_args)
 
-    with debug.Session(start_method, backchannel=True) as session:
-        backchannel = session.backchannel
-        session.configure(run_as, parent, args=[child])
+    with debug.Session() as parent_session:
+        backchannel = parent_session.open_backchannel()
 
-        session.start_debugging()
+        with run(parent_session, target(parent, args=[child])):
+            pass
 
-        expected_args = backchannel.receive()
-        actual_args = backchannel.receive()
-        assert expected_args == actual_args
+        child_config = parent_session.wait_for_next_event("debugpyAttach")
+        parent_session.proceed()
+
+        with debug.Session(child_config) as child_session:
+            with child_session.start():
+                pass
+
+            expected_args = backchannel.receive()
+            actual_args = backchannel.receive()
+
+            assert expected_args == actual_args
 
 
 @pytest.mark.skip("Needs refactoring to use the new debug.Session API")
