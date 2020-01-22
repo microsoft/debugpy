@@ -273,8 +273,9 @@ class Session(object):
             self.backchannel = None
 
         # Work around https://bugs.python.org/issue37380
-        if self.debuggee is not None and self.debuggee.returncode is None:
-            self.debuggee.returncode = -1
+        for popen in self.debuggee, self.adapter:
+            if popen is not None and popen.returncode is None:
+                popen.returncode = -1
 
     @property
     def ignore_unobserved(self):
