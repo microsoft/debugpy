@@ -3,11 +3,15 @@ import pickle
 import zlib
 import base64
 import os
-import py
 from pydevd_file_utils import _NormFile
 import pytest
 import sys
 import time
+
+try:
+    from pathlib import Path
+except:
+    Path = None
 
 #=========================================================================
 # Load filters with tests we should skip
@@ -22,6 +26,16 @@ def _load_filters():
         if py_test_accept_filter:
             py_test_accept_filter = pickle.loads(
                 zlib.decompress(base64.b64decode(py_test_accept_filter)))
+
+            if Path is not None:
+                # Newer versions of pytest resolve symlinks, so, we
+                # may need to filter with a resolved path too.
+                new_dct = {}
+                for filename, value in py_test_accept_filter.items():
+                    new_dct[_NormFile(str(Path(filename).resolve()))] = value
+
+                py_test_accept_filter.update(new_dct)
+
         else:
             py_test_accept_filter = {}
 

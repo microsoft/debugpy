@@ -29,7 +29,7 @@ matrix:
         - PYDEVD_USE_CYTHON=NO
         - PYDEVD_TEST_VM=PYPY
 
-     # Python 2.6
+    # Python 2.6
     - python: 2.7
       env:
         - PYDEVD_PYTHON_VERSION=2.6
@@ -121,5 +121,5 @@ script:
   - if [[ ("$PYDEVD_TEST_VM" == "CPYTHON") && ("$PYDEVD_PYTHON_VERSION" != "2.6" && "$PYDEVD_PYTHON_VERSION" != "2.7" && "$PYDEVD_PYTHON_VERSION" != "3.8") ]]; then source activate build_env; python -m pytest -n auto; fi
   - if [[ ("$PYDEVD_TEST_VM" == "CPYTHON") && ("$PYDEVD_PYTHON_VERSION" == "3.8") ]]; then python -m pytest; fi
   - if [ "$PYDEVD_TEST_VM" == "PYPY" ]; then source activate build_env; pypy3 -m pytest -n auto; fi
-  - if [ "$PYDEVD_TEST_VM" == "JYTHON" ]; then jython -Dpython.path=.:jython_test_deps/ant.jar:jython_test_deps/junit.jar -m pytest; fi
+  - if [ "$PYDEVD_TEST_VM" == "JYTHON" ]; then jython -Dpython.path=.:jython_test_deps/ant.jar:jython_test_deps/junit.jar -m pytest --tb=native; fi
 

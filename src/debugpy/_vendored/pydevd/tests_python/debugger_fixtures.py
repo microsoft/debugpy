@@ -383,10 +383,12 @@ def case_setup_remote_attach_to(debugger_runner_remote):
                 port,
                 **kwargs
             ):
+            additional_args = kwargs.pop('additional_args', [])
 
             def update_command_line_args(writer, args):
                 ret = debugger_unittest.AbstractWriterThread.update_command_line_args(writer, args)
                 ret.append(str(port))
+                ret.extend(additional_args)
                 return ret
 
             WriterThread.TEST_FILE = debugger_unittest._get_debugger_test_file(filename)

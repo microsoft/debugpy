@@ -150,6 +150,8 @@ file_system_encoding = getfilesystemencoding()
 
 _CACHE_FILE_TYPE = {}
 
+pydev_log.debug('Using GEVENT_SUPPORT: %s', pydevd_constants.SUPPORT_GEVENT)
+
 
 #=======================================================================================================================
 # PyDBCommandThread
@@ -1746,6 +1748,23 @@ class PyDB(object):
 
         if frames_list is None:
             frames_list = pydevd_frame_utils.create_frames_list_from_frame(frame)
+
+        if DebugInfoHolder.DEBUG_TRACE_LEVEL > 2:
+            pydev_log.debug(
+                'PyDB.do_wait_suspend\nname: %s (line: %s)\n file: %s\n event: %s\n arg: %s\n step: %s (original step: %s)\n thread: %s, thread id: %s, id(thread): %s',
+                frame.f_code.co_name,
+                frame.f_lineno,
+                frame.f_code.co_filename,
+                event,
+                arg,
+                constant_to_str(thread.additional_info.pydev_step_cmd),
+                constant_to_str(thread.additional_info.pydev_original_step_cmd),
+                thread,
+                thread_id,
+                id(thread),
+            )
+            for f in frames_list:
+                pydev_log.debug('  Stack: %s, %s, %s', f.f_code.co_filename, f.f_code.co_name, f.f_lineno)
 
         with self.suspended_frames_manager.track_frames(self) as frames_tracker:
             frames_tracker.track(thread_id, frames_list)

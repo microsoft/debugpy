@@ -16,6 +16,7 @@ psutil
 
 django
 requests
+gevent
 
 # https://github.com/microsoft/ptvsd/issues/1574
 # Remove specific version once Flask 1.1.2 is released.

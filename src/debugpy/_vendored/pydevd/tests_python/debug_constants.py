@@ -23,6 +23,7 @@ if sys.version_info[0] == 3 and sys.version_info[1] == 6:
 TEST_DJANGO = False
 TEST_FLASK = False
 TEST_CHERRYPY = False
+TEST_GEVENT = False
 
 try:
     import django
@@ -39,5 +40,11 @@ except:
 try:
     import cherrypy
     TEST_CHERRYPY = True
+except:
+    pass
+
+try:
+    import gevent
+    TEST_GEVENT = True
 except:
     pass

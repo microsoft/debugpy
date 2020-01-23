@@ -1,9 +1,25 @@
 #!/usr/bin/env python
 from gevent import monkey, sleep, threading as gevent_threading
+import sys
+
+if 'remote' in sys.argv:
+    import pydevd
+    port = int(sys.argv[1])
+    print('before pydevd.settrace')
+    pydevd.settrace(host=('' if 'as-server' in sys.argv else '127.0.0.1'), port=port, suspend=False)
+    print('after pydevd.settrace')
+
 monkey.patch_all()
 import threading
 
 called = []
+
+
+class MyGreenThread2(threading.Thread):
+
+    def run(self):
+        for _i in range(3):
+            sleep()
 
 
 class MyGreenletThread(threading.Thread):
@@ -11,7 +27,10 @@ class MyGreenletThread(threading.Thread):
     def run(self):
         for _i in range(5):
             called.append(self.name)  # break here
+            t1 = MyGreenThread2()
+            t1.start()
             sleep()
+
 
 if __name__ == '__main__':
     t1 = MyGreenletThread()
@@ -32,5 +51,7 @@ if __name__ == '__main__':
 
     # With gevent it's always the same (gevent coroutine support makes thread
     # switching serial).
-    assert called == ['t1', 't1', 't2', 't1', 't2', 't1', 't2', 't1', 't2', 't2']
+    expected = ['t1', 't2', 't1', 't2', 't1', 't2', 't1', 't2', 't1', 't2']
+    if called != expected:
+        raise AssertionError("Expected:\n%s\nFound:\n%s" % (expected, called))
     print('TEST SUCEEDED')

@@ -23,6 +23,7 @@ import pydevd_file_utils
 from _pydevd_bundle.pydevd_comm import build_exception_info_response, pydevd_find_thread_by_id
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
 from _pydevd_bundle import pydevd_frame_utils
+from _pydev_bundle import pydev_log
 
 
 class ModulesManager(object):
@@ -196,46 +197,46 @@ class NetCommandFactoryJson(NetCommandFactory):
     def make_get_thread_stack_message(self, py_db, seq, thread_id, topmost_frame, fmt, must_be_suspended=False, start_frame=0, levels=0):
         frames = []
         module_events = []
-        if topmost_frame is not None:
-            try:
-                # : :type suspended_frames_manager: SuspendedFramesManager
-                suspended_frames_manager = py_db.suspended_frames_manager
-                frames_list = suspended_frames_manager.get_frames_list(thread_id)
-                if frames_list is None:
-                    # Could not find stack of suspended frame...
-                    if must_be_suspended:
-                        return None
-                    else:
-                        frames_list = pydevd_frame_utils.create_frames_list_from_frame(topmost_frame)
 
-                for frame_id, frame, method_name, original_filename, filename_in_utf8, lineno in self._iter_visible_frames_info(
-                        py_db, frames_list
-                    ):
+        try:
+            # : :type suspended_frames_manager: SuspendedFramesManager
+            suspended_frames_manager = py_db.suspended_frames_manager
+            frames_list = suspended_frames_manager.get_frames_list(thread_id)
+            if frames_list is None:
+                # Could not find stack of suspended frame...
+                if must_be_suspended:
+                    return None
+                else:
+                    frames_list = pydevd_frame_utils.create_frames_list_from_frame(topmost_frame)
 
-                    try:
-                        module_name = str(frame.f_globals.get('__name__', ''))
-                    except:
-                        module_name = '<unknown>'
+            for frame_id, frame, method_name, original_filename, filename_in_utf8, lineno in self._iter_visible_frames_info(
+                    py_db, frames_list
+                ):
 
-                    module_events.extend(self.modules_manager.track_module(filename_in_utf8, module_name, frame))
+                try:
+                    module_name = str(frame.f_globals.get('__name__', ''))
+                except:
+                    module_name = '<unknown>'
 
-                    presentation_hint = None
-                    if not getattr(frame, 'IS_PLUGIN_FRAME', False):  # Never filter out plugin frames!
-                        if py_db.is_files_filter_enabled and py_db.apply_files_filter(frame, original_filename, False):
-                            continue
+                module_events.extend(self.modules_manager.track_module(filename_in_utf8, module_name, frame))
 
-                        if not py_db.in_project_scope(frame):
-                            presentation_hint = 'subtle'
+                presentation_hint = None
+                if not getattr(frame, 'IS_PLUGIN_FRAME', False):  # Never filter out plugin frames!
+                    if py_db.is_files_filter_enabled and py_db.apply_files_filter(frame, original_filename, False):
+                        continue
 
-                    formatted_name = self._format_frame_name(fmt, method_name, module_name, lineno, filename_in_utf8)
-                    frames.append(pydevd_schema.StackFrame(
-                        frame_id, formatted_name, lineno, column=1, source={
-                            'path': filename_in_utf8,
-                            'sourceReference': pydevd_file_utils.get_client_filename_source_reference(filename_in_utf8),
-                        },
-                        presentationHint=presentation_hint).to_dict())
-            finally:
-                topmost_frame = None
+                    if not py_db.in_project_scope(frame):
+                        presentation_hint = 'subtle'
+
+                formatted_name = self._format_frame_name(fmt, method_name, module_name, lineno, filename_in_utf8)
+                frames.append(pydevd_schema.StackFrame(
+                    frame_id, formatted_name, lineno, column=1, source={
+                        'path': filename_in_utf8,
+                        'sourceReference': pydevd_file_utils.get_client_filename_source_reference(filename_in_utf8),
+                    },
+                    presentationHint=presentation_hint).to_dict())
+        finally:
+            topmost_frame = None
 
         for module_event in module_events:
             py_db.writer.add_command(module_event)

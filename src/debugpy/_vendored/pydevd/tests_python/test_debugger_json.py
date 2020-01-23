@@ -19,7 +19,7 @@ from _pydevd_bundle.pydevd_constants import (int_types, IS_64BIT_PROCESS,
     PY_VERSION_STR, PY_IMPL_VERSION_STR, PY_IMPL_NAME, IS_PY36_OR_GREATER)
 from tests_python import debugger_unittest
 from tests_python.debug_constants import TEST_CHERRYPY, IS_PY2, TEST_DJANGO, TEST_FLASK, IS_PY26, \
-    IS_PY27, IS_CPYTHON
+    IS_PY27, IS_CPYTHON, TEST_GEVENT
 from tests_python.debugger_unittest import (IS_JYTHON, IS_APPVEYOR, overrides,
     get_free_port, wait_for_condition)
 
@@ -2744,6 +2744,38 @@ def test_wait_for_attach(case_setup_remote_attach_to):
 
         # Change value of 'a' for test to finish.
         json_facade.write_set_variable(json_hit.frame_id, 'a', '10')
+
+        json_facade.write_disconnect()
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not TEST_GEVENT, reason='Gevent not installed.')
+def test_wait_for_attach_gevent(case_setup_remote_attach_to):
+    host_port = get_socket_name(close=True)
+
+    def get_environ(writer):
+        env = os.environ.copy()
+        env['GEVENT_SUPPORT'] = 'True'
+        return env
+
+    def check_thread_events(json_facade):
+        json_facade.write_list_threads()
+        # Check that we have the started thread event (whenever we reconnect).
+        started_events = json_facade.mark_messages(ThreadEvent, lambda x: x.body.reason == 'started')
+        assert len(started_events) == 1
+
+    with case_setup_remote_attach_to.test_file('_debugger_case_gevent.py', host_port[1], additional_args=['remote', 'as-server'], get_environ=get_environ) as writer:
+        writer.TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_gevent.py')
+        time.sleep(.5)  # Give some time for it to pass the first breakpoint and wait.
+        writer.start_socket_client(*host_port)
+
+        json_facade = JsonFacade(writer)
+        check_thread_events(json_facade)
+
+        break1_line = writer.get_line_index_with_content('break here')
+        json_facade.write_set_breakpoints(break1_line)
+        json_facade.write_make_initial_run()
+        json_facade.wait_for_thread_stopped(line=break1_line)
 
         json_facade.write_disconnect()
         writer.finished_ok = True

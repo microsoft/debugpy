@@ -151,16 +151,9 @@ try:
 except AttributeError:
     PY_IMPL_NAME = ''
 
-try:
-    SUPPORT_GEVENT = os.getenv('GEVENT_SUPPORT', 'False') == 'True'
-except:
-    # Jython 2.1 doesn't accept that construct
-    SUPPORT_GEVENT = False
+SUPPORT_GEVENT = os.getenv('GEVENT_SUPPORT', 'False') == 'True'
 
-# At the moment gevent supports Python >= 2.6 and Python >= 3.3
-USE_LIB_COPY = SUPPORT_GEVENT and \
-               ((not IS_PY3K and sys.version_info[1] >= 6) or
-                (IS_PY3K and sys.version_info[1] >= 3))
+USE_LIB_COPY = SUPPORT_GEVENT
 
 INTERACTIVE_MODE_AVAILABLE = sys.platform in ('darwin', 'win32') or os.getenv('DISPLAY') is not None
 

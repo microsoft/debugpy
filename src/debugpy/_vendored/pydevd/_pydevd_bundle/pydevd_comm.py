@@ -70,7 +70,7 @@ import os
 from _pydev_bundle.pydev_imports import _queue
 from _pydev_imps._pydev_saved_modules import time
 from _pydev_imps._pydev_saved_modules import threading
-from socket import AF_INET, SOCK_STREAM, SHUT_WR, SOL_SOCKET, SO_REUSEADDR, IPPROTO_TCP
+from _pydev_imps._pydev_saved_modules import socket as socket_module
 from _pydevd_bundle.pydevd_constants import (DebugInfoHolder, get_thread_id, IS_WINDOWS, IS_JYTHON,
     IS_PY2, IS_PY36_OR_GREATER, STATE_RUN, dict_keys, ASYNC_EVAL_TIMEOUT_SEC,
     get_global_debugger, GetGlobalDebugger, set_global_debugger)  # Keep for backward compatibility @UnusedImport
@@ -103,7 +103,6 @@ from _pydev_bundle import _pydev_completer
 from pydevd_tracing import get_exception_traceback_str
 from _pydevd_bundle import pydevd_console
 from _pydev_bundle.pydev_monkey import disable_trace_thread_modules, enable_trace_thread_modules
-from socket import socket
 try:
     import cStringIO as StringIO  # may not always be available @UnusedImport
 except:
@@ -115,8 +114,19 @@ except:
 # CMD_XXX constants imported for backward compatibility
 from _pydevd_bundle.pydevd_comm_constants import *  # @UnusedWildImport
 
+# Socket import aliases:
+AF_INET, SOCK_STREAM, SHUT_WR, SOL_SOCKET, SO_REUSEADDR, IPPROTO_TCP, socket = (
+    socket_module.AF_INET,
+    socket_module.SOCK_STREAM,
+    socket_module.SHUT_WR,
+    socket_module.SOL_SOCKET,
+    socket_module.SO_REUSEADDR,
+    socket_module.IPPROTO_TCP,
+    socket_module.socket,
+)
+
 if IS_WINDOWS and not IS_JYTHON:
-    from socket import SO_EXCLUSIVEADDRUSE
+    SO_EXCLUSIVEADDRUSE = socket_module.SO_EXCLUSIVEADDRUSE
 
 if IS_JYTHON:
     import org.python.core as JyCore  # @UnresolvedImport
@@ -499,12 +509,18 @@ def start_client(host, port):
     #  then sends a keepalive ping once every 3 seconds (TCP_KEEPINTVL),
     #  and closes the connection after 5 failed ping (TCP_KEEPCNT), or 15 seconds
     try:
-        from socket import IPPROTO_TCP, SO_KEEPALIVE, TCP_KEEPIDLE, TCP_KEEPINTVL, TCP_KEEPCNT
+        IPPROTO_TCP, SO_KEEPALIVE, TCP_KEEPIDLE, TCP_KEEPINTVL, TCP_KEEPCNT = (
+            socket_module.IPPROTO_TCP,
+            socket_module.SO_KEEPALIVE,
+            socket_module.TCP_KEEPIDLE,
+            socket_module.TCP_KEEPINTVL,
+            socket_module.TCP_KEEPCNT,
+        )
         s.setsockopt(SOL_SOCKET, SO_KEEPALIVE, 1)
         s.setsockopt(IPPROTO_TCP, TCP_KEEPIDLE, 1)
         s.setsockopt(IPPROTO_TCP, TCP_KEEPINTVL, 3)
         s.setsockopt(IPPROTO_TCP, TCP_KEEPCNT, 5)
-    except ImportError:
+    except AttributeError:
         pass  # May not be available everywhere.
 
     try:
