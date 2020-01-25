@@ -57,7 +57,7 @@ def start_flask(run):
         args += ["--port", str(flask_server.port)]
 
         if multiprocess and run.request == "attach":
-            # For multiproc attach, we need to use a helper stub to import debug_me
+            # For multiproc attach, we need to use a helper stub to import debuggee
             # before running Flask; otherwise, we will get the connection only from
             # the subprocess, not from the Flask server process.
             target = targets.Program(paths.main_py, args=args)

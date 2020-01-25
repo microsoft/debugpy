@@ -19,8 +19,9 @@ from tests.debug import runners
 def test_with_no_output(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
 
+        debuggee.setup()
         ()  # @wait_for_output
 
     with debug.Session() as session:
@@ -42,8 +43,9 @@ def test_with_no_output(pyfile, target, run):
 def test_with_tab_in_output(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
 
+        debuggee.setup()
         a = "\t".join(("Hello", "World"))
         print(a)
         ()  # @wait_for_output
@@ -65,8 +67,9 @@ def test_with_tab_in_output(pyfile, target, run):
 def test_redirect_output(pyfile, target, run, redirect):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
 
+        debuggee.setup()
         for i in [111, 222, 333, 444]:
             print(i)
 
@@ -90,9 +93,10 @@ def test_redirect_output(pyfile, target, run, redirect):
 def test_non_ascii_output(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
         import sys
 
+        debuggee.setup()
         a = b"\xc3\xa9 \xc3\xa0 \xc3\xb6 \xc3\xb9\n"
         if sys.version_info[0] >= 3:
             sys.stdout.buffer.write(a)

@@ -58,8 +58,10 @@ def expected_system_info():
 def test_debugpySystemInfo(pyfile, target, run, expected_system_info):
     @pyfile
     def code_to_debug():
-        from debug_me import debugpy
+        import debuggee
+        import debugpy
 
+        debuggee.setup()
         debugpy.break_into_debugger()
         print()
 

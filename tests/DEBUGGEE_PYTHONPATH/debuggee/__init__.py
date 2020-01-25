@@ -8,14 +8,8 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 to establish connection back to DebugSession in the test process, depending on
 DebugSession.start_method used by the test.
 
-This module MUST be imported by all code that is executed via DebugSession, unless
-it is launched with start_method="custom_client", for tests that need to set up
-debugpy and establish the connection themselves in some special manner.
-
-If the code needs to access debugpy and/or pydevd, this module additionally exports
-both as global variables, specifically so that it is possible to write::
-
-    from debug_me import debugpy, pydevd, backchannel
+This module MUST be imported, and setup() must be called, by all test scripts that
+are run via debug.Session and the standard runners.
 """
 
 __all__ = ["debugpy", "pydevd", "session_id"]
@@ -38,13 +32,8 @@ scratchpad = {}
 # Some runners require code to be executed in the debuggee process, either to set up
 # the debug server, or to ensure that it doesn't run any other code until the debugger
 # is attached. This provides a facility to inject such code.
-_code = os.environ.pop("DEBUGPY_TEST_DEBUG_ME", None)
-if _code:
-    _code = compile(_code, "<DEBUGPY_TEST_DEBUG_ME>", "exec")
-    eval(_code, {})
-
-
-# For `from debug_me import ...`.
-import debugpy
-import debugpy.server
-import pydevd
+def setup():
+    _code = os.environ.pop("DEBUGPY_TEST_DEBUGGEE_SETUP", None)
+    if _code:
+        _code = compile(_code, "<DEBUGPY_TEST_DEBUGGEE_SETUP>", "exec")
+        eval(_code, {})

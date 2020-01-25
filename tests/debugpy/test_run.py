@@ -7,7 +7,6 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import os
 import pytest
 import re
-import sys
 import time
 
 import debugpy
@@ -22,10 +21,13 @@ from tests.patterns import some
 def test_run(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        from debug_me import backchannel
         import os
         import sys
 
+        import debuggee
+        from debuggee import backchannel
+
+        debuggee.setup()
         print("begin")
         backchannel.send(os.path.abspath(sys.modules["debugpy"].__file__))
         assert backchannel.receive() == "continue"
@@ -63,8 +65,10 @@ def test_run_submodule(run):
 def test_nodebug(pyfile, run, target):
     @pyfile
     def code_to_debug():
-        from debug_me import backchannel
+        import debuggee
+        from debuggee import backchannel
 
+        debuggee.setup()
         backchannel.receive()  # @ bp1
         print("ok")  # @ bp2
 
@@ -103,9 +107,12 @@ def test_wait_on_exit(
 ):
     @pyfile
     def code_to_debug():
-        from debug_me import debugpy
         import sys
 
+        import debuggee
+        import debugpy
+
+        debuggee.setup()
         debugpy.break_into_debugger()
         print()  # line on which it'll actually break
         sys.exit(int(sys.argv[1]))

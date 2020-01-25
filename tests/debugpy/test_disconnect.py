@@ -16,8 +16,10 @@ from tests.patterns import some
 def test_continue_on_disconnect_for_attach(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        from debug_me import backchannel
+        import debuggee
+        from debuggee import backchannel
 
+        debuggee.setup()
         backchannel.send("continued")  # @bp
 
     with debug.Session() as session:
@@ -36,9 +38,10 @@ def test_continue_on_disconnect_for_attach(pyfile, target, run):
 def test_exit_on_disconnect_for_launch(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
         import sys
 
+        debuggee.setup()
         filename = sys.argv[1]  # @bp
         # Disconnect happens here; subsequent lines should not run.
         with open(filename, "w") as f:

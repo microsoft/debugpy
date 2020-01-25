@@ -334,7 +334,7 @@ class Session(object):
 
         return env
 
-    def spawn_debuggee(self, args, cwd=None, exe=sys.executable, debug_me=None):
+    def spawn_debuggee(self, args, cwd=None, exe=sys.executable, setup=None):
         assert self.debuggee is None
         assert not len(self.captured_output - {"stdout", "stderr"})
 
@@ -349,8 +349,8 @@ class Session(object):
         env["DEBUGPY_ADAPTER_ENDPOINTS"] = self.adapter_endpoints = (
             self.tmpdir / "adapter_endpoints"
         )
-        if debug_me is not None:
-            env["DEBUGPY_TEST_DEBUG_ME"] = debug_me
+        if setup is not None:
+            env["DEBUGPY_TEST_DEBUGGEE_SETUP"] = setup
 
         log.info(
             "Spawning {0}:\n\n"

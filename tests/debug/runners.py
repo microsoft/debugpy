@@ -146,8 +146,8 @@ def launch(session, target, console="integratedTerminal", cwd=None):
 
 
 def _attach_common_config(session, target, cwd):
-    assert target.code is None or "debug_me" in target.code, fmt(
-        "{0} must import debug_me.", target.filename
+    assert target.code is None or "debuggee.setup()" in target.code, fmt(
+        "{0} must invoke debuggee.setup().", target.filename
     )
 
     target.configure(session)
@@ -160,8 +160,6 @@ def _attach_common_config(session, target, cwd):
 @_runner
 @contextlib.contextmanager
 def attach_by_pid(session, target, cwd=None, wait=True):
-    if sys.version_info < (3,) and sys.platform == "win32":
-        pytest.skip("https://github.com/microsoft/ptvsd/issues/1811")
     if sys.version_info < (3,) and sys.platform == "darwin":
         pytest.skip("https://github.com/microsoft/ptvsd/issues/1916")
     if wait and not sys.platform.startswith("linux"):
@@ -180,7 +178,7 @@ def attach_by_pid(session, target, cwd=None, wait=True):
         args = target.cli(session.spawn_debuggee.env)
 
         if wait:
-            debug_me = """
+            debuggee_setup = """
 import sys
 import threading
 import time
@@ -188,15 +186,15 @@ import time
 while "debugpy" not in sys.modules:
     time.sleep(0.1)
 
-from debug_me import scratchpad
+from debuggee import scratchpad
 
 while "_attach_by_pid" not in scratchpad:
     time.sleep(0.1)
     """
         else:
-            debug_me = None
+            debuggee_setup = None
 
-        session.spawn_debuggee(args, cwd=cwd, debug_me=debug_me)
+        session.spawn_debuggee(args, cwd=cwd, setup=debuggee_setup)
         config["processId"] = session.debuggee.pid
 
     session.spawn_adapter()
@@ -230,22 +228,22 @@ def attach_by_socket(
         args += ["--host", compat.filename_str(host), "--port", str(port)]
         if log_dir is not None:
             args += ["--log-dir", log_dir]
-        debug_me = None
+        debuggee_setup = None
     elif method == "api":
         args = []
-        debug_me = """
+        debuggee_setup = """
 import debugpy
 debugpy.enable_attach(({host!r}, {port!r}), {args})
 if {wait!r}:
     debugpy.wait_for_attach()
 """
         attach_args = "" if log_dir is None else fmt("log_dir={0!r}", log_dir)
-        debug_me = fmt(debug_me, host=host, port=port, wait=wait, args=attach_args)
+        debuggee_setup = fmt(debuggee_setup, host=host, port=port, wait=wait, args=attach_args)
     else:
         raise ValueError
     args += target.cli(session.spawn_debuggee.env)
 
-    session.spawn_debuggee(args, cwd=cwd, debug_me=debug_me)
+    session.spawn_debuggee(args, cwd=cwd, setup=debuggee_setup)
     if wait:
         session.wait_for_enable_attach()
 

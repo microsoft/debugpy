@@ -18,10 +18,13 @@ from tests.patterns import some
 def test_attach_api(pyfile, target, wait_for_attach, is_attached, stop_method):
     @pyfile
     def code_to_debug():
-        from debug_me import backchannel, debugpy, scratchpad
+        import debuggee
+        import debugpy
         import sys
         import time
+        from debuggee import backchannel, scratchpad
 
+        debuggee.setup()
         _, host, port, wait_for_attach, is_attached, stop_method = sys.argv
         port = int(port)
         debugpy.enable_attach((host, port))
@@ -91,9 +94,12 @@ def test_attach_api(pyfile, target, wait_for_attach, is_attached, stop_method):
 def test_reattach(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        from debug_me import debugpy, scratchpad
         import time
+        import debuggee
+        import debugpy
+        from debuggee import backchannel, scratchpad
 
+        debuggee.setup()
         debugpy.break_into_debugger()
         object()  # @first
 
@@ -134,8 +140,10 @@ def test_reattach(pyfile, target, run):
 def test_attach_by_pid(pyfile, target, pid_type):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
         import time
+
+        debuggee.setup()
 
         def do_something(i):
             time.sleep(0.1)

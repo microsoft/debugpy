@@ -77,8 +77,9 @@ def test_conditional_breakpoint(pyfile, target, run, condition_kind, condition):
 
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
 
+        debuggee.setup()
         for i in range(1, 10):
             print(i)  # @bp
 
@@ -110,16 +111,18 @@ def test_conditional_breakpoint(pyfile, target, run, condition_kind, condition):
 def test_crossfile_breakpoint(pyfile, target, run):
     @pyfile
     def script1():
-        import debug_me  # noqa
+        import debuggee
 
+        debuggee.setup()
         def do_something():
             print("do something")  # @bp
 
     @pyfile
     def script2():
-        import debug_me  # noqa
+        import debuggee
         import script1
 
+        debuggee.setup()
         script1.do_something()  # @bp
         print("Done")
 
@@ -149,8 +152,9 @@ def test_error_in_condition(pyfile, target, run, error_name):
 
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
 
+        debuggee.setup()
         for i in range(1, 10):  # @bp
             pass
 
@@ -180,9 +184,10 @@ def test_error_in_condition(pyfile, target, run, error_name):
 def test_log_point(pyfile, target, run, condition):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
         import sys
 
+        debuggee.setup()
         for i in range(0, 10):
             sys.stderr.write(str(i * 10) + "\n")  # @bp
             sys.stderr.flush()
@@ -257,8 +262,9 @@ def test_breakpoint_in_package_main(run):
 def test_add_and_remove_breakpoint(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
 
+        debuggee.setup()
         for i in range(0, 10):
             print(i)  # @bp
         ()  # @wait_for_output
@@ -290,7 +296,9 @@ def test_add_and_remove_breakpoint(pyfile, target, run):
 def test_breakpoint_in_nonexistent_file(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
+
+        debuggee.setup()
 
     with debug.Session() as session:
         with run(session, target(code_to_debug)):
@@ -310,7 +318,9 @@ def test_breakpoint_in_nonexistent_file(pyfile, target, run):
 def test_invalid_breakpoints(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
+
+        debuggee.setup()
 
         # fmt: off
         b = True
@@ -377,7 +387,9 @@ def test_invalid_breakpoints(pyfile, target, run):
 def test_deep_stacks(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
+
+        debuggee.setup()
 
         def deep_stack(level):
             if level <= 0:
@@ -417,9 +429,11 @@ def test_break_api(pyfile, target, run, func):
 
     @pyfile
     def code_to_debug():
-        from debug_me import debugpy  # noqa
+        import debuggee
+        import debugpy
         import sys
 
+        debuggee.setup()
         func = eval(sys.argv[1])
         func()
         print("break here")  # @break

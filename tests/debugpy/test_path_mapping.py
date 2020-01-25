@@ -19,9 +19,11 @@ def target(request):
 def test_with_dot_remote_root(pyfile, long_tmpdir, target, run):
     @pyfile
     def code_to_debug():
-        from debug_me import backchannel
         import os
+        import debuggee
+        from debuggee import backchannel
 
+        debuggee.setup()
         backchannel.send(os.path.abspath(__file__))
         print("done")  # @bp
 
@@ -57,10 +59,12 @@ def test_with_dot_remote_root(pyfile, long_tmpdir, target, run):
 def test_with_path_mappings(pyfile, long_tmpdir, target, run):
     @pyfile
     def code_to_debug():
-        from debug_me import backchannel
+        import debuggee
         import os
         import sys
+        from debuggee import backchannel
 
+        debuggee.setup()
         backchannel.send(os.path.abspath(__file__))
         call_me_back_dir = backchannel.receive()
         sys.path.insert(0, call_me_back_dir)

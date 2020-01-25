@@ -20,7 +20,9 @@ def run(request):
 def test_with_path_mappings(pyfile, tmpdir, target, run):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
+
+        debuggee.setup()
 
         def full_function():
             # Note that this function is not called, it's there just to make the mapping explicit.

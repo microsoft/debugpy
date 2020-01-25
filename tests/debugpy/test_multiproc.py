@@ -32,13 +32,15 @@ def test_multiprocessing(pyfile, target, run, start_method):
 
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
         import multiprocessing
         import os
         import sys
 
         def parent(q, a):
-            from debug_me import backchannel
+            from debuggee import backchannel
+
+            debuggee.setup()
 
             print("spawning child")
             p = multiprocessing.Process(target=child, args=(q, a))
@@ -146,7 +148,8 @@ def test_subprocess(pyfile, target, run):
 
         assert "debugpy" in sys.modules
 
-        from debug_me import backchannel, debugpy
+        import debugpy
+        from debuggee import backchannel
 
         backchannel.send(os.getpid())
         backchannel.send(debugpy.__file__)
@@ -154,11 +157,12 @@ def test_subprocess(pyfile, target, run):
 
     @pyfile
     def parent():
-        import debug_me  # noqa
+        import debuggee
         import os
         import subprocess
         import sys
 
+        debuggee.setup()
         argv = [sys.executable, sys.argv[1], "--arg1", "--arg2", "--arg3"]
         env = os.environ.copy()
         process = subprocess.Popen(
@@ -209,8 +213,6 @@ def test_subprocess(pyfile, target, run):
 def test_autokill(pyfile, target):
     @pyfile
     def child():
-        import debug_me  # noqa
-
         while True:
             pass
 
@@ -250,8 +252,6 @@ def test_autokill(pyfile, target):
 def test_argv_quoting(pyfile, target, run):
     @pyfile
     def args():
-        import debug_me  # noqa
-
         args = [  # noqa
             r"regular",
             r"",
@@ -267,20 +267,19 @@ def test_argv_quoting(pyfile, target, run):
 
     @pyfile
     def parent():
-        import debug_me  # noqa
-
+        import debuggee
         import sys
         import subprocess
         from args import args
 
+        debuggee.setup()
         child = sys.argv[1]
         subprocess.check_call([sys.executable] + [child] + args)
 
     @pyfile
     def child():
-        from debug_me import backchannel
         import sys
-
+        from debuggee import backchannel
         from args import args as expected_args
 
         backchannel.send(expected_args)
@@ -314,11 +313,12 @@ def test_echo_and_shell(pyfile, target, run):
 
     @pyfile
     def code_to_run():
-        import debug_me  # noqa
-
+        import debuggee
         import sys
         import subprocess
         import os
+
+        debuggee.setup()
 
         if sys.platform == "win32":
             args = ["dir", "-c", "."]

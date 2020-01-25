@@ -14,8 +14,9 @@ from tests.patterns import some
 def test_evaluate(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
 
+        debuggee.setup()
         a = 1
         b = {"one": 1, 2: "two"}
         print(a, b)  # @bp
@@ -50,8 +51,9 @@ def test_evaluate(pyfile, target, run):
 def test_variables(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
 
+        debuggee.setup()
         a = 1
         b = {"one": 1, 2: "two"}
         c = 3
@@ -113,8 +115,9 @@ def test_variables(pyfile, target, run):
 def test_variable_sort(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
 
+        debuggee.setup()
         b_test = {"spam": "A", "eggs": "B", "abcd": "C"}  # noqa
         _b_test = 12  # noqa
         __b_test = 13  # noqa
@@ -181,7 +184,9 @@ def test_variable_sort(pyfile, target, run):
 def test_return_values(pyfile, target, run, ret_vis):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
+
+        debuggee.setup()
 
         class MyClass(object):
             def do_something(self):
@@ -253,11 +258,13 @@ def test_return_values(pyfile, target, run, ret_vis):
 def test_unicode(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        from debug_me import debugpy
+        import debuggee
+        import debugpy
 
         # Since Unicode variable name is a SyntaxError at parse time in Python 2,
         # this needs to do a roundabout way of setting it to avoid parse issues.
         globals()["\u16A0"] = 123
+        debuggee.setup()
         debugpy.break_into_debugger()
         print("break")
 
@@ -281,8 +288,9 @@ def test_unicode(pyfile, target, run):
 def test_hex_numbers(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
 
+        debuggee.setup()
         a = 100
         b = [1, 10, 100]
         c = {10: 10, 100: 100, 1000: 1000}
@@ -506,8 +514,11 @@ def test_hex_numbers(pyfile, target, run):
 def test_set_variable(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        from debug_me import backchannel, debugpy
+        import debuggee
+        import debugpy
+        from debuggee import backchannel
 
+        debuggee.setup()
         a = 1
         debugpy.break_into_debugger()
         backchannel.send(a)
@@ -548,8 +559,10 @@ def test_set_variable(pyfile, target, run):
 def test_set_expression(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        from debug_me import backchannel
+        import debuggee
+        from debuggee import backchannel
 
+        debuggee.setup()
         a = 1
         backchannel.send(a)  # @bp
 

@@ -16,9 +16,10 @@ from tests.timeline import Event
 def test_stack_format(pyfile, target, run, module, line):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
         from test_module import do_something
 
+        debuggee.setup()
         do_something()
 
     @pyfile
@@ -64,7 +65,10 @@ def test_module_events(pyfile, target, run):
 
     @pyfile
     def test_code():
-        import debug_me  # noqa
+        import debuggee
+    
+        debuggee.setup()
+
         from module1 import do_something
 
         do_something()
