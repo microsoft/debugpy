@@ -1,1 +1,3 @@
-import debug_me  # noqa
+import debuggee
+
+debuggee.setup()

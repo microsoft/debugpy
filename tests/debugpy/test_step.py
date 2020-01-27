@@ -13,7 +13,9 @@ from tests.patterns import some
 def test_set_next_statement(pyfile, run, target):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
+
+        debuggee.setup()
 
         def func():
             print(1)  # @inner1

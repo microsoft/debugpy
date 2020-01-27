@@ -11,8 +11,10 @@ from tests.patterns import some
 def test_tracing(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
         import debugpy
+
+        debuggee.setup()
 
         def func(expected_tracing):
             assert debugpy.tracing() == expected_tracing, "inside func({0!r})".format(

@@ -16,8 +16,9 @@ from tests.patterns import some
 def test_justmycode_frames(pyfile, target, run, jmc):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
 
+        debuggee.setup()
         print("break here")  # @bp
 
     with debug.Session() as session:

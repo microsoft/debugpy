@@ -35,7 +35,9 @@ def check_logs(tmpdir, run):
 def test_log_dir(pyfile, tmpdir, target, method):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
+
+        debuggee.setup()
 
     # Depending on the method, attach_by_socket will use either `debugpy --log-dir ...`
     # or `enable_attach(log_dir=) ...`.
@@ -53,8 +55,10 @@ def test_log_dir(pyfile, tmpdir, target, method):
 def test_log_dir_env(pyfile, tmpdir, run, target):
     @pyfile
     def code_to_debug():
-        from debug_me import backchannel  # noqa
+        import debuggee
+        from debuggee import backchannel
 
+        debuggee.setup()
         assert backchannel.receive() == "proceed"
 
     with check_logs(tmpdir, run):

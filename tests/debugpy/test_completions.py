@@ -33,7 +33,9 @@ expected_at_line = {
 def test_completions_scope(pyfile, line, target, run):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
+
+        debuggee.setup()
 
         class SomeClass:
             def __init__(self, someVar):
@@ -69,8 +71,9 @@ def test_completions_scope(pyfile, line, target, run):
 def test_completions_cases(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
 
+        debuggee.setup()
         a = 1
         b = {"one": 1, "two": 2}
         c = 3

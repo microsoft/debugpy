@@ -16,9 +16,11 @@ from tests.patterns import some
 def test_args(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        from debug_me import backchannel
         import sys
-
+        import debuggee
+        from debuggee import backchannel
+        
+        debuggee.setup()
         backchannel.send(sys.argv)
 
     args = ["--arg1", "arg2", "-arg3", "--", "arg4", "-a"]

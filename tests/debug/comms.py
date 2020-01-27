@@ -117,8 +117,8 @@ class ScratchPad(object):
         raise NotImplementedError
 
     def __setitem__(self, key, value):
-        """Sets debug_me.scratchpad[key] = value inside the debugged process.
+        """Sets debuggee.scratchpad[key] = value inside the debugged process.
         """
-        log.info("{0} debug_me.scratchpad[{1!r}] = {2!r}", self.session, key, value)
-        expr = fmt("sys.modules['debug_me'].scratchpad[{0!r}] = {1!r}", key, value)
+        log.info("{0} debuggee.scratchpad[{1!r}] = {2!r}", self.session, key, value)
+        expr = fmt("sys.modules['debuggee'].scratchpad[{0!r}] = {1!r}", key, value)
         self.session.request("evaluate", {"context": "repl", "expression": expr})

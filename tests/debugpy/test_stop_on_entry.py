@@ -17,7 +17,7 @@ from tests.patterns import some
 def test_stop_on_entry(pyfile, run, target, breakpoint):
     @pyfile
     def code_to_debug():
-        from debug_me import backchannel  # @bp
+        from debuggee import backchannel  # @bp
 
         backchannel.send("done")
 
@@ -31,7 +31,7 @@ def test_stop_on_entry(pyfile, run, target, breakpoint):
 
         if breakpoint:
             stop = session.wait_for_stop(
-                "breakpoint", expected_frames=[some.dap.frame(code_to_debug, 1)]
+                "breakpoint", expected_frames=[some.dap.frame(code_to_debug, "bp")]
             )
             session.request("next", {"threadId": stop.thread_id})
             stop = session.wait_for_stop(

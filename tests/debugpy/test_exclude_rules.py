@@ -23,17 +23,19 @@ def test_exceptions_and_exclude_rules(pyfile, target, run, scenario, exc_type):
 
         @pyfile
         def code_to_debug():
-            import debug_me  # noqa
+            import debuggee
 
+            debuggee.setup()
             raise RuntimeError("unhandled error")  # @raise_line
 
     elif exc_type == "SystemExit":
 
         @pyfile
         def code_to_debug():
-            import debug_me  # noqa
+            import debuggee
             import sys
 
+            debuggee.setup()
             sys.exit(1)  # @raise_line
 
     else:
@@ -66,9 +68,11 @@ def test_exceptions_and_partial_exclude_rules(pyfile, target, run, scenario):
 
     @pyfile
     def code_to_debug():
-        from debug_me import backchannel
+        import debuggee
         import sys
+        from debuggee import backchannel
 
+        debuggee.setup()
         call_me_back_dir = backchannel.receive()
         sys.path.insert(0, call_me_back_dir)
 

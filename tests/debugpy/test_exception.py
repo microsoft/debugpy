@@ -20,7 +20,9 @@ str_matching_ArithmeticError = some.str.matching(r"(.+\.)?ArithmeticError")
 def test_vsc_exception_options_raise_with_except(pyfile, target, run, raised, uncaught):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
+
+        debuggee.setup()
 
         def raise_with_except():
             try:
@@ -75,7 +77,9 @@ def test_vsc_exception_options_raise_without_except(
 ):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
+
+        debuggee.setup()
 
         def raise_without_except():
             raise ArithmeticError("bad code")  # @exc
@@ -157,9 +161,10 @@ def test_vsc_exception_options_raise_without_except(
 def test_systemexit(pyfile, target, run, raised, uncaught, zero, exit_code):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
         import sys
 
+        debuggee.setup()
         exit_code = eval(sys.argv[1])
         print("sys.exit(%r)" % (exit_code,))
         try:
@@ -231,8 +236,9 @@ def test_raise_exception_options(pyfile, target, run, exceptions, break_mode):
 
         @pyfile
         def code_to_debug():
-            import debug_me  # noqa
+            import debuggee
 
+            debuggee.setup()
             raise AssertionError()  # @AssertionError
 
     else:
@@ -243,7 +249,9 @@ def test_raise_exception_options(pyfile, target, run, exceptions, break_mode):
 
         @pyfile
         def code_to_debug():
-            import debug_me  # noqa
+            import debuggee
+
+            debuggee.setup()
 
             try:
                 raise RuntimeError()  # @RuntimeError
@@ -299,9 +307,10 @@ def test_success_exitcodes(
 ):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
         import sys
 
+        debuggee.setup()
         exit_code = eval(sys.argv[1])
         print("sys.exit(%r)" % (exit_code,))
         sys.exit(exit_code)
@@ -327,7 +336,9 @@ def test_success_exitcodes(
 def test_exception_stack(pyfile, target, run, max_frames):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
+
+        debuggee.setup()
 
         def do_something(n):
             if n <= 0:

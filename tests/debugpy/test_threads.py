@@ -15,11 +15,12 @@ from tests import debug
 def test_thread_count(pyfile, target, run, count):
     @pyfile
     def code_to_debug():
-        import debug_me  # noqa
+        import debuggee
         import threading
         import time
         import sys
 
+        debuggee.setup()
         stop = False
 
         def worker(tid, offset):
@@ -56,9 +57,10 @@ def test_step_multi_threads(pyfile, target, run, resume):
         # so, when we step return on thread 1, the program should finish if all threads are resumed
         # or should keep waiting for the thread 2 to run if only thread 1 is resumed.
 
-        import debug_me  # noqa
+        import debuggee
         import threading
 
+        debuggee.setup()
         event0 = threading.Event()
         event1 = threading.Event()
         event2 = threading.Event()
@@ -135,9 +137,12 @@ def test_step_multi_threads(pyfile, target, run, resume):
 def test_debug_this_thread(pyfile, target, run):
     @pyfile
     def code_to_debug():
-        from debug_me import debugpy
+        import debuggee
+        import debugpy
         import sys
         import threading
+
+        debuggee.setup()
 
         def foo(x):
             debugpy.debug_this_thread()

@@ -1,4 +1,3 @@
-import debug_me  # noqa
 from flask import Flask
 from flask import render_template
 

@@ -1,4 +1,6 @@
-import debug_me  # noqa
+import debuggee
+
+debuggee.setup()
 
 import os
 import signal
