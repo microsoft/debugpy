@@ -109,11 +109,22 @@ def launch_request(request):
         cwd = None if program == () else (os.path.dirname(program[0]) or None)
 
     env = os.environ.copy()
+    env_changes = request("env", json.object(unicode))
+    if sys.platform == "win32":
+        # Environment variables are case-insensitive on Win32, so we need to normalize
+        # both dicts to make sure that env vars specified in the debug configuration
+        # overwrite the global env vars correctly. If debug config has entries that 
+        # differ in case only, that's an error.
+        env = {k.upper(): v for k, v in os.environ.items()}
+        n = len(env_changes)
+        env_changes = {k.upper(): v for k, v in env_changes.items()}
+        if len(env_changes) != n:
+            raise request.isnt_valid('Duplicate entries in "env"')
     if "DEBUGPY_TEST" in env:
         # If we're running as part of a debugpy test, make sure that codecov is not
         # applied to the debuggee, since it will conflict with pydevd.
         env.pop("COV_CORE_SOURCE", None)
-    env.update(request("env", json.object(unicode)))
+    env.update(env_changes)
 
     if request("gevent", False):
         env["GEVENT_SUPPORT"] = "True"
