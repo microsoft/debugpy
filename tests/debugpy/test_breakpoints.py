@@ -430,7 +430,7 @@ def test_break_api(pyfile, target, run, func):
     @pyfile
     def code_to_debug():
         import debuggee
-        import debugpy
+        import debugpy  # noqa
         import sys
 
         debuggee.setup()
