@@ -97,7 +97,7 @@ def test_reattach(pyfile, target, run):
         import time
         import debuggee
         import debugpy
-        from debuggee import backchannel, scratchpad
+        from debuggee import scratchpad
 
         debuggee.setup()
         debugpy.break_into_debugger()
