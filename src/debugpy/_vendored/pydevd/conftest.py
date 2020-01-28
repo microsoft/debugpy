@@ -236,7 +236,7 @@ Memory before: %s
                         format_process_memory_info(proc.memory_info())
                     )
                 )
-            except psutil.NoSuchProcess:
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass  # The process could've died in the meanwhile
 
     after_curr_proc_memory_info = psutil.Process().memory_info()

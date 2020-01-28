@@ -37,6 +37,13 @@ pip install -U "setuptools>=0.9"
 pip install -U "pip>=1.4" "wheel>=0.21" twine
 conda deactivate
 
+conda create -y -f -n py38_32 python=3.8 cython pip
+activate py38_32
+pip install "django>=1.9"
+pip install -U "setuptools>=0.9"
+pip install -U "pip>=1.4" "wheel>=0.21" twine
+conda deactivate
+
 set CONDA_FORCE_32BIT=
 
 conda create -y -f -n py27_64 python=2.7 cython numpy nose ipython pip
@@ -68,6 +75,13 @@ pip install -U "setuptools>=0.9"
 pip install -U "pip>=1.4" "wheel>=0.21" twine
 conda deactivate
 
+conda create -y -f -n py38_64 python=3.8 cython numpy nose ipython pip
+activate py38_64
+pip install "django>=1.9"
+pip install -U "setuptools>=0.9"
+pip install -U "pip>=1.4" "wheel>=0.21" twine
+conda deactivate
+
 ### UPDATE CYTHON
 
 set CONDA_FORCE_32BIT=1
@@ -85,6 +99,10 @@ conda update -y cython
 conda deactivate
 
 activate py37_32
+conda update -y cython
+conda deactivate
+
+activate py38_32
 conda update -y cython
 conda deactivate
 
@@ -106,6 +124,10 @@ activate py37_64
 conda update -y cython
 conda deactivate
 
+activate py38_64
+conda update -y cython
+conda deactivate
+
 4. Regenerate the .pyx and .c
 ===============================
 
@@ -114,8 +136,8 @@ set PYTHONPATH=x:\pydev\plugins\org.python.pydev.core\pysrc
 C:\bin\Python38-32\python build_tools\build.py
 
 ${ptvsd_folder}
-cd /D X:\ptvsd_workspace\ptvsd\src\ptvsd\_vendored\pydevd
-set PYTHONPATH=X:\ptvsd_workspace\ptvsd\src\ptvsd\_vendored\pydevd
+cd /D X:\ptvsd_workspace\ptvsd\src\debugpy\_vendored\pydevd
+set PYTHONPATH=X:\ptvsd_workspace\ptvsd\src\debugpy\_vendored\pydevd
 C:\bin\Python38-32\python build_tools\build.py
 
 
@@ -156,6 +178,11 @@ python setup.py sdist bdist_wheel
 conda deactivate
 dir dist
 
+activate py38_32
+python setup.py sdist bdist_wheel
+conda deactivate
+dir dist
+
 activate py27_64
 python setup.py sdist bdist_wheel
 conda deactivate
@@ -176,9 +203,14 @@ python setup.py sdist bdist_wheel
 conda deactivate
 dir dist
 
+activate py38_64
+python setup.py sdist bdist_wheel
+conda deactivate
+dir dist
+
 # Note: uploading with twine gives an error in the end, but apparently it works (check final result in pypi).
 twine upload dist/pydevd*
 
-git tag pydev_debugger_1_8_0 -a -m "PyDev.Debugger 1.8.0"
+git tag pydev_debugger_1_9_0 -a -m "PyDev.Debugger 1.9.0"
 git push --tags
 
