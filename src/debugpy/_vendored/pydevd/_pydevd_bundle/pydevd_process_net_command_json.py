@@ -15,7 +15,7 @@ from _pydevd_bundle._debug_adapter.pydevd_schema import (
     ProcessEvent, Scope, ScopesResponseBody, SetExpressionResponseBody,
     SetVariableResponseBody, SourceBreakpoint, SourceResponseBody,
     VariablesResponseBody, SetBreakpointsResponseBody, Response,
-    Capabilities, PydevdAuthorizeRequest)
+    Capabilities, PydevdAuthorizeRequest, Request)
 from _pydevd_bundle.pydevd_api import PyDevdAPI
 from _pydevd_bundle.pydevd_breakpoints import get_exception_class
 from _pydevd_bundle.pydevd_comm_constants import (
@@ -130,14 +130,25 @@ class PyDevJsonCommandProcessor(object):
         DEBUG = False
 
         try:
+            if isinstance(json_contents, bytes):
+                json_contents = json_contents.decode('utf-8')
+
             request = self.from_json(json_contents, update_ids_from_dap=True)
-        except KeyError as e:
-            request = self.from_json(json_contents, update_ids_from_dap=False)
+        except Exception as e:
+            try:
+                loaded_json = json.loads(json_contents)
+                request = Request(loaded_json.get('command', '<unknown>'), loaded_json['seq'])
+            except:
+                # There's not much we can do in this case...
+                pydev_log.exception('Error loading json: %s', json_contents)
+                return
+
             error_msg = str(e)
             if error_msg.startswith("'") and error_msg.endswith("'"):
                 error_msg = error_msg[1:-1]
 
-            # This means a failure updating ids from the DAP (the client sent a key we didn't send).
+            # This means a failure processing the request (but we were able to load the seq,
+            # so, answer with a failure response).
             def on_request(py_db, request):
                 error_response = {
                     'type': 'response',
