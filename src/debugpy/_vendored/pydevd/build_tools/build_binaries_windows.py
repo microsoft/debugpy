@@ -20,11 +20,13 @@ python_installations = [
     r'%s\py35_32\python.exe' % miniconda_envs,
     r'%s\py36_32\python.exe' % miniconda_envs,
     r'%s\py37_32\python.exe' % miniconda_envs,
+    r'%s\py38_32\python.exe' % miniconda_envs,
 
     r'%s\py27_64\python.exe' % miniconda_envs,
     r'%s\py35_64\python.exe' % miniconda_envs,
     r'%s\py36_64\python.exe' % miniconda_envs,
     r'%s\py37_64\python.exe' % miniconda_envs,
+    r'%s\py38_64\python.exe' % miniconda_envs,
 ]
 
 root_dir = os.path.dirname(os.path.dirname(__file__))
