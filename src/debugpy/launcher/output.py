@@ -29,11 +29,16 @@ class CaptureOutput(object):
         self.category = category
         self._whose = whose
         self._fd = fd
-        self._stream = stream if sys.version_info < (3,) else stream.buffer
         self._decoder = codecs.getincrementaldecoder("utf-8")(errors="surrogateescape")
-        self._encode = codecs.getencoder(
-            "utf-8" if stream.encoding is None else stream.encoding
-        )
+
+        if stream is None:
+            # Can happen if running under pythonw.exe.
+            self._stream = None
+        else:
+            self._stream = stream if sys.version_info < (3,) else stream.buffer
+            self._encode = codecs.getencoder(
+                "utf-8" if stream.encoding is None else stream.encoding
+            )
 
         self._worker_thread = threading.Thread(target=self._worker, name=category)
         self._worker_thread.start()
@@ -70,6 +75,9 @@ class CaptureOutput(object):
             )
         except Exception:
             pass  # channel to adapter is already closed
+
+        if self._stream is None:
+            return
 
         s, _ = self._encode(s, "surrogateescape")
         size = len(s)

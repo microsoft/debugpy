@@ -5,6 +5,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import pytest
+import sys
 
 from tests import debug
 from tests.debug import runners
@@ -119,3 +120,32 @@ def test_non_ascii_output(pyfile, target, run):
         b"\xc3\xa9 \xc3\xa0 \xc3\xb6 \xc3\xb9\n",
         b"\xc3\x83\xc2\xa9 \xc3\x83\xc2\xa0 \xc3\x83\xc2\xb6 \xc3\x83\xc2\xb9\n",
     )
+
+
+if sys.platform == "win32":
+
+    @pytest.mark.parametrize("redirect_output", ["", "redirect_output"])
+    def test_pythonw_output(pyfile, target, run, redirect_output):
+        @pyfile
+        def code_to_debug():
+            import debuggee
+
+            debuggee.setup()
+            print("ok")
+            ()  # @wait_for_output
+
+        with debug.Session() as session:
+            # Don't capture launcher output - we want to see how it handles not
+            # having sys.stdin and sys.stdout available.
+            session.captured_output = set()
+
+            session.config["pythonPath"] = sys.executable + "/../pythonw.exe"
+            session.config["redirectOutput"] = bool(redirect_output)
+
+            with run(session, target(code_to_debug)):
+                session.set_breakpoints(code_to_debug, all)
+
+            session.wait_for_stop()
+            session.request_continue()
+
+        assert session.output("stdout") == ("ok\n" if redirect_output else "")
