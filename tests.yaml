@@ -27,7 +27,8 @@ jobs:
         buildConfiguration: Lint
       condition: always()
 
-  - job: 'Linux Test Run'
+  - job: 'LinuxTestRun'
+    displayName: 'Linux Test Run $(python.version)'
     pool:
       vmImage: 'ubuntu-16.04'
     strategy:
@@ -81,7 +82,8 @@ jobs:
         buildConfiguration: UnitTest
       condition: always()
 
-  - job: 'macOS Test Run'
+  - job: 'MacOSTestRun'
+    displayName: 'macOS Test Run $(python.version)'
     pool:
       vmImage: 'macOS-10.13'
     strategy:
@@ -138,7 +140,8 @@ jobs:
         condition: always()
 
 
-  - job: 'Windows Test Run'
+  - job: 'WindowsTestRun'
+    displayName: 'Windows Test Run $(python.version)'
     pool:
       vmImage: 'vs2017-win2016'
     strategy:
@@ -187,7 +190,8 @@ jobs:
         condition: always()
 
 
-  - job: 'Windows 32bit Test Run'
+  - job: 'WindowsTestRun32bit'
+    displayName: 'Windows Test Run 32bit'
     pool:
       vmImage: 'vs2017-win2016'
 
