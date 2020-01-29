@@ -77,6 +77,16 @@ class IDE(components.Component, sockets.ClientConnection):
             session.ide = self
             session.register()
 
+        # For the transition period, send the telemetry events with both old and new
+        # name. The old one should be removed once the new one lights up.
+        self.channel.send_event(
+            "output",
+            {
+                "category": "telemetry",
+                "output": "ptvsd",
+                "data": {"packageVersion": debugpy.__version__},
+            },
+        )
         self.channel.send_event(
             "output",
             {
