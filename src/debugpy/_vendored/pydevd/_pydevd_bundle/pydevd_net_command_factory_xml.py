@@ -154,10 +154,12 @@ class NetCommandFactory(object):
         assert frames_list.__class__ == FramesList
         for frame in frames_list:
             if frame.f_code is None:
+                pydev_log.info('Frame without f_code: %s', frame)
                 continue  # IronPython sometimes does not have it!
 
             method_name = frame.f_code.co_name  # method name (if in method) or ? if global
             if method_name is None:
+                pydev_log.info('Frame without co_name: %s', frame)
                 continue  # IronPython sometimes does not have it!
 
             abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(frame)

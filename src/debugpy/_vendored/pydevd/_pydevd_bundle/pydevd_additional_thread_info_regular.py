@@ -1,6 +1,6 @@
 import sys
 from _pydevd_bundle.pydevd_constants import (STATE_RUN, PYTHON_SUSPEND, IS_JYTHON,
-    USE_CUSTOM_SYS_CURRENT_FRAMES, USE_CUSTOM_SYS_CURRENT_FRAMES_MAP, ForkSafeLock)
+    USE_CUSTOM_SYS_CURRENT_FRAMES, USE_CUSTOM_SYS_CURRENT_FRAMES_MAP, SUPPORT_GEVENT, ForkSafeLock)
 from _pydev_bundle import pydev_log
 # IFDEF CYTHON
 # pydev_log.debug("Using Cython speedups")
@@ -128,7 +128,19 @@ class PyDBAdditionalThreadInfo(object):
         '''
         # sys._current_frames(): dictionary with thread id -> topmost frame
         current_frames = _current_frames()
-        return current_frames.get(thread.ident)
+        topmost_frame = current_frames.get(thread.ident)
+        if topmost_frame is None:
+            pydev_log.critical(
+                'Unable to get topmost frame for thread: %s, thread.ident: %s, id(thread): %s\nCurrent frames: %s.\n'
+                'GEVENT_SUPPORT: %s',
+                thread,
+                thread.ident,
+                id(thread),
+                current_frames,
+                SUPPORT_GEVENT,
+            )
+
+        return topmost_frame
 
     def __str__(self):
         return 'State:%s Stop:%s Cmd: %s Kill:%s' % (

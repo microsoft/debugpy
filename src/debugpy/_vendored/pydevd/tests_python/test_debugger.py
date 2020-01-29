@@ -3019,7 +3019,7 @@ def test_custom_frames(case_setup):
         writer.finished_ok = True
 
 
-@pytest.mark.skipif((not (IS_PY36 or IS_PY27)) or IS_JYTHON or IS_PYPY, reason='Gevent only installed on Py36/Py27 for tests.')
+@pytest.mark.skipif(not TEST_GEVENT, reason='Gevent not installed.')
 def test_gevent(case_setup):
 
     def get_environ(writer):
@@ -3028,6 +3028,23 @@ def test_gevent(case_setup):
         return env
 
     with case_setup.test_file('_debugger_case_gevent.py', get_environ=get_environ) as writer:
+        writer.write_add_breakpoint(writer.get_line_index_with_content('break here'))
+        writer.write_make_initial_run()
+        for _i in range(10):
+            hit = writer.wait_for_breakpoint_hit(name='run')
+            writer.write_run_thread(hit.thread_id)
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not TEST_GEVENT, reason='Gevent not installed.')
+def test_gevent_remote(case_setup_remote):
+
+    def get_environ(writer):
+        env = os.environ.copy()
+        env['GEVENT_SUPPORT'] = 'True'
+        return env
+
+    with case_setup_remote.test_file('_debugger_case_gevent.py', get_environ=get_environ, append_command_line_args=['remote']) as writer:
         writer.write_add_breakpoint(writer.get_line_index_with_content('break here'))
         writer.write_make_initial_run()
         for _i in range(10):
