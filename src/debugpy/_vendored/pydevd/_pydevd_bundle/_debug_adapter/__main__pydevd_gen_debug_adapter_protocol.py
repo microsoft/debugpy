@@ -40,6 +40,11 @@ class _OrderedSet(object):
             self._contents_as_set.add(x)
             self._contents.append(x)
 
+    def discard(self, x):
+        if x in self._contents_as_set:
+            self._contents_as_set.remove(x)
+            self._contents.remove(x)
+
     def copy(self):
         return _OrderedSet(self._contents)
 
@@ -135,6 +140,8 @@ def create_classes_to_generate_structure(json_schema_data):
         if isinstance(description, (list, tuple)):
             description = '\n'.join(description)
 
+        if name == 'ModulesRequest':  # Hack to accept modules request without arguments (ptvsd: 2050).
+            required.discard('arguments')
         class_to_generatees[name] = dict(
             name=name,
             properties=properties,

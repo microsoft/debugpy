@@ -80,8 +80,9 @@ class JsonFacade(object):
         msg = self.writer.wait_for_message(accept_json_message, unquote_msg=False, expect_xml=False)
         return from_json(msg)
 
-    def wait_for_response(self, request):
-        response_class = pydevd_base_schema.get_response_class(request)
+    def wait_for_response(self, request, response_class=None):
+        if response_class is None:
+            response_class = pydevd_base_schema.get_response_class(request)
 
         def accept_message(response):
             if isinstance(request, dict):
@@ -3607,6 +3608,50 @@ def test_debug_options(case_setup, val):
 
         assert json.loads(output.body.output) == dict((translation[key], val) for key, val in args.items())
         json_facade.wait_for_terminated()
+        writer.finished_ok = True
+
+
+def test_send_invalid_messages(case_setup):
+    with case_setup.test_file('_debugger_case_local_variables.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break 2 here'))
+        json_facade.write_make_initial_run()
+
+        stopped_event = json_facade.wait_for_json_message(StoppedEvent)
+        thread_id = stopped_event.body.threadId
+
+        json_facade.write_request(
+            pydevd_schema.StackTraceRequest(pydevd_schema.StackTraceArguments(threadId=thread_id)))
+
+        # : :type response: ModulesResponse
+        # : :type modules_response_body: ModulesResponseBody
+
+        # *** Check that we accept an invalid modules request (i.e.: without arguments).
+        response = json_facade.wait_for_response(json_facade.write_request(
+            {'type': 'request', 'command': 'modules'}))
+
+        modules_response_body = response.body
+        assert len(modules_response_body.modules) == 1
+        module = next(iter(modules_response_body.modules))
+        assert module['name'] == '__main__'
+        assert module['path'].endswith('_debugger_case_local_variables.py')
+
+        # *** Check that we don't fail on request without command.
+        request = json_facade.write_request({'type': 'request'})
+        response = json_facade.wait_for_response(request, Response)
+        assert not response.success
+        assert response.command == '<unknown>'
+
+        # *** Check that we don't crash if we can't decode message.
+        json_facade.writer.write_with_content_len('invalid json here')
+
+        # *** Check that we get a failure from a completions without arguments.
+        response = json_facade.wait_for_response(json_facade.write_request(
+            {'type': 'request', 'command': 'completions'}))
+        assert not response.success
+
+        json_facade.write_continue()
         writer.finished_ok = True
 
 
