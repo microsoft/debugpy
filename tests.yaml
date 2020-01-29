@@ -4,28 +4,28 @@ jobs:
       vmImage: 'ubuntu-16.04'
     steps:
     - task: UsePythonVersion@0
-        displayName: 'Use Python 3.7'
-        inputs:
-            versionSpec: '>=3.7'
+      displayName: 'Use Python 3.7'
+      inputs:
+        versionSpec: '>=3.7'
 
     - script: 'python -m pip install -U pip setuptools tox flake8'
-        displayName: 'Setup Python packages'
+      displayName: 'Setup Python packages'
 
     - script: 'python -m pip install git+https://github.com/karthiknadig/flake8reports'
-        displayName: 'Acquire Linter Plugin flake8reports'
+      displayName: 'Acquire Linter Plugin flake8reports'
 
     - script: 'python -m flake8 --format=junit --output-file=$(Build.ArtifactStagingDirectory)/linter-test.xml'
-        displayName: 'Run Lint'
+      displayName: 'Run Lint'
 
     - task: PublishTestResults@2
-        displayName: 'Publish Linter Results'
-        inputs:
-            testResultsFiles: '**/linter-test.xml'
-            searchFolder: '$(Build.ArtifactStagingDirectory)'
-            testRunTitle: 'Linux-Linter-$(Build.BuildNumber)'
-            buildPlatform: Linux
-            buildConfiguration: Lint
-        condition: always()
+      displayName: 'Publish Linter Results'
+      inputs:
+        testResultsFiles: '**/linter-test.xml'
+        searchFolder: '$(Build.ArtifactStagingDirectory)'
+        testRunTitle: 'Linux-Linter-$(Build.BuildNumber)'
+        buildPlatform: Linux
+        buildConfiguration: Lint
+      condition: always()
 
   - job: 'Linux Test Run'
     pool:
@@ -49,16 +49,16 @@ jobs:
           sudo apt-get --yes install gdb
           sudo sysctl kernel.yama.ptrace_scope=0
 
-        displayName: 'install gdb'
+      displayName: 'install gdb'
 
     - task: UsePythonVersion@0
-        displayName: 'Use Python $(python.version)'
-        inputs:
-            versionSpec: '$(python.version)'
-            architecture: 'x64'
+      displayName: 'Use Python $(python.version)'
+      inputs:
+        versionSpec: '$(python.version)'
+        architecture: 'x64'
 
     - script: 'python -m pip install -U pip setuptools tox'
-        displayName: 'Setup Python packages'
+      displayName: 'Setup Python packages'
 
     - powershell: |
           $toxEnv = '$(python.version)'
@@ -69,17 +69,17 @@ jobs:
           echo $toxEnv
           python -m tox -e $toxEnv -- -vv --junitxml=$(Build.ArtifactStagingDirectory)/junit-test-report-linux-pytest.xml
 
-        displayName: 'Run Tests'
+      displayName: 'Run Tests'
 
     - task: PublishTestResults@2
-          displayName: 'Publish Test Results'
-          inputs:
-          testResultsFiles: '**/junit-test-report-*.xml'
-          searchFolder: '$(Build.ArtifactStagingDirectory)'
-          testRunTitle: 'Linux-Unit-Py$(python.version)-$(Build.BuildNumber)'
-          buildPlatform: Linux
-          buildConfiguration: UnitTest
-        condition: always()
+      displayName: 'Publish Test Results'
+      inputs:
+        testResultsFiles: '**/junit-test-report-*.xml'
+        searchFolder: '$(Build.ArtifactStagingDirectory)'
+        testRunTitle: 'Linux-Unit-Py$(python.version)-$(Build.BuildNumber)'
+        buildPlatform: Linux
+        buildConfiguration: UnitTest
+      condition: always()
 
   - job: 'macOS Test Run'
     pool:
@@ -96,25 +96,25 @@ jobs:
           python.version: '3.7'
         Python38:
           python.version: '3.8'
-    maxParallel: 5
+      maxParallel: 5
 
     steps:
       - script: |
             ulimit -Sn 8192
-          displayName: 'Increase file descriptor limit'
+        displayName: 'Increase file descriptor limit'
 
       - task: UsePythonVersion@0
-          displayName: 'Use Python $(python.version)'
-          inputs:
-              versionSpec: '$(python.version)'
-              architecture: 'x64'
+        displayName: 'Use Python $(python.version)'
+        inputs:
+          versionSpec: '$(python.version)'
+          architecture: 'x64'
 
       - script: |
             python -m ensurepip --user
             python -m pip install --user --upgrade pip
             python -m pip install --user setuptools tox
 
-          displayName: 'Ensure Pip and Setup Python packages'
+        displayName: 'Ensure Pip and Setup Python packages'
 
       - powershell: |
             $toxEnv = '$(python.version)'
@@ -125,17 +125,17 @@ jobs:
             echo $toxEnv
             python -m tox -e $toxEnv -- -vv --junitxml=$(Build.ArtifactStagingDirectory)/junit-test-report-mac-pytest.xml
 
-          displayName: 'Run Tests'
+        displayName: 'Run Tests'
 
       - task: PublishTestResults@2
-          displayName: 'Publish Test Results'
-          inputs:
-            testResultsFiles: '**/junit-test-report-*.xml'
-            searchFolder: '$(Build.ArtifactStagingDirectory)'
-            testRunTitle: 'macOS-Unit-Py$(python.version)-$(Build.BuildNumber)'
-            buildPlatform: macOS
-            buildConfiguration: UnitTest
-          condition: always()
+        displayName: 'Publish Test Results'
+        inputs:
+          testResultsFiles: '**/junit-test-report-*.xml'
+          searchFolder: '$(Build.ArtifactStagingDirectory)'
+          testRunTitle: 'macOS-Unit-Py$(python.version)-$(Build.BuildNumber)'
+          buildPlatform: macOS
+          buildConfiguration: UnitTest
+        condition: always()
 
 
   - job: 'Windows Test Run'
@@ -153,17 +153,17 @@ jobs:
           python.version: '3.7'
         Python38:
           python.version: '3.8'
-    maxParallel: 5
+      maxParallel: 5
 
     steps:
       - task: UsePythonVersion@0
-          displayName: 'Use Python $(python.version)'
-          inputs:
-            versionSpec: '$(python.version)'
-            architecture: 'x64'
+        displayName: 'Use Python $(python.version)'
+        inputs:
+          versionSpec: '$(python.version)'
+          architecture: 'x64'
 
       - script: 'python -m pip install -U pip setuptools tox'
-          displayName: 'Setup Python packages'
+        displayName: 'Setup Python packages'
 
       - powershell: |
             $toxEnv = '$(python.version)'
@@ -173,18 +173,18 @@ jobs:
             }
             echo $toxEnv
             python -m tox -e $toxEnv -- -vv --junitxml=$(Build.ArtifactStagingDirectory)/junit-test-report-win-pytest.xml
-          displayName: 'Run Tests'
+        displayName: 'Run Tests'
 
       - task: PublishTestResults@2
-          displayName: 'Publish Test Results'
-          inputs:
+        displayName: 'Publish Test Results'
+        inputs:
 
-            testResultsFiles: '**/junit-test-report-*.xml'
-            searchFolder: '$(Build.ArtifactStagingDirectory)'
-            testRunTitle: 'Win-Unit-Py$(python.version)-$(Build.BuildNumber)'
-            buildPlatform: Windows
-            buildConfiguration: UnitTest
-          condition: always()
+          testResultsFiles: '**/junit-test-report-*.xml'
+          searchFolder: '$(Build.ArtifactStagingDirectory)'
+          testRunTitle: 'Win-Unit-Py$(python.version)-$(Build.BuildNumber)'
+          buildPlatform: Windows
+          buildConfiguration: UnitTest
+        condition: always()
 
 
   - job: 'Windows 32bit Test Run'
@@ -193,13 +193,13 @@ jobs:
 
     steps:
       - task: UsePythonVersion@0
-          displayName: 'Use Python 3.7'
-          inputs:
-            versionSpec: 3.7
-            architecture: x86
+        displayName: 'Use Python 3.7'
+        inputs:
+          versionSpec: 3.7
+          architecture: x86
 
       - script: 'python -m pip install -U pip setuptools tox'
-          displayName: 'Setup Python packages'
+        displayName: 'Setup Python packages'
 
       - powershell: |
             $toxEnv = '$(python.version)'
@@ -209,15 +209,15 @@ jobs:
             }
             echo $toxEnv
             python -m tox -e $toxEnv -- -vv --junitxml=$(Build.ArtifactStagingDirectory)/junit-test-report-win-pytest.xml
-          displayName: 'Run Tests'
+        displayName: 'Run Tests'
 
       - task: PublishTestResults@2
-          displayName: 'Publish Test Results'
-          inputs:
+        displayName: 'Publish Test Results'
+        inputs:
 
-            testResultsFiles: '**/junit-test-report-*.xml'
-            searchFolder: '$(Build.ArtifactStagingDirectory)'
-            testRunTitle: 'Win32-Unit-Py$(python.version)-$(Build.BuildNumber)'
-            buildPlatform: Windows
-            buildConfiguration: UnitTest
-          condition: always()
+          testResultsFiles: '**/junit-test-report-*.xml'
+          searchFolder: '$(Build.ArtifactStagingDirectory)'
+          testRunTitle: 'Win32-Unit-Py$(python.version)-$(Build.BuildNumber)'
+          buildPlatform: Windows
+          buildConfiguration: UnitTest
+        condition: always()
