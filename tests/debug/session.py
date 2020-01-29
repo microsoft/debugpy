@@ -149,9 +149,7 @@ class Session(object):
         """
 
         self.log_dir = (
-            None
-            if log.log_dir is None
-            else py.path.local(log.log_dir) / str(self)
+            None if log.log_dir is None else py.path.local(log.log_dir) / str(self)
         )
         """The log directory for this session. Passed via DEBUGPY_LOG_DIR to all spawned
         child processes.
@@ -530,12 +528,24 @@ class Session(object):
         self.channel = messaging.JsonMessageChannel(stream, handlers)
         self.channel.start()
 
-        telemetry = self.wait_for_next_event("output")
-        assert telemetry == {
-            "category": "telemetry",
-            "output": "debugpy",
-            "data": {"packageVersion": some.str},
-        }
+        self.wait_for_next(
+            timeline.Event(
+                "output",
+                {
+                    "category": "telemetry",
+                    "output": "ptvsd",
+                    "data": {"packageVersion": some.str},
+                },
+            )
+            & timeline.Event(
+                "output",
+                {
+                    "category": "telemetry",
+                    "output": "debugpy",
+                    "data": {"packageVersion": some.str},
+                },
+            )
+        )
 
         self.request(
             "initialize",
