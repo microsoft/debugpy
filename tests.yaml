@@ -1,24 +1,25 @@
 jobs:
   - job: 'Lint'
+    displayName: 'Lint'
     pool:
       vmImage: 'ubuntu-16.04'
     steps:
     - task: UsePythonVersion@0
-      displayName: 'Use Python 3.7'
+      displayName: 'Use Python 3.8'
       inputs:
-        versionSpec: '>=3.7'
+        versionSpec: '>=3.8'
 
-    - script: 'python -m pip install -U pip setuptools tox flake8'
+    - script: 'python3 -m pip install -U pip setuptools tox flake8'
       displayName: 'Setup Python packages'
 
-    - script: 'python -m pip install git+https://github.com/karthiknadig/flake8reports'
-      displayName: 'Acquire Linter Plugin flake8reports'
+    - script: 'python3 -m pip install git+https://github.com/karthiknadig/flake8reports'
+      displayName: 'Acquire flake8 plugin flake8reports'
 
-    - script: 'python -m flake8 --format=junit --output-file=$(Build.ArtifactStagingDirectory)/linter-test.xml'
-      displayName: 'Run Lint'
+    - script: 'python3 -m flake8 --format=junit --output-file=$(Build.ArtifactStagingDirectory)/linter-test.xml'
+      displayName: 'Run flake8'
 
     - task: PublishTestResults@2
-      displayName: 'Publish Linter Results'
+      displayName: 'Publish linting results'
       inputs:
         testResultsFiles: '**/linter-test.xml'
         searchFolder: '$(Build.ArtifactStagingDirectory)'
@@ -27,8 +28,8 @@ jobs:
         buildConfiguration: Lint
       condition: always()
 
-  - job: 'LinuxTestRun'
-    displayName: 'Linux Test Run $(python.version)'
+  - job: 'TestsLinux'
+    displayName: 'Linux test run'
     pool:
       vmImage: 'ubuntu-16.04'
     strategy:
@@ -63,17 +64,16 @@ jobs:
 
     - powershell: |
           $toxEnv = '$(python.version)'
-          if ($toxEnv.startsWith('pypy')){
-          }else{
-          $toxEnv = 'py' + $toxEnv.Replace('.', '')
-          }
-          echo $toxEnv
+            if (-not $toxEnv.startsWith('pypy')) {
+                $toxEnv = 'py' + $toxEnv.Replace('.', '')
+            }
+            echo "tox environment: $toxEnv"
           python -m tox -e $toxEnv -- -vv --junitxml=$(Build.ArtifactStagingDirectory)/junit-test-report-linux-pytest.xml
 
-      displayName: 'Run Tests'
+      displayName: 'Run tests'
 
     - task: PublishTestResults@2
-      displayName: 'Publish Test Results'
+      displayName: 'Publish test results'
       inputs:
         testResultsFiles: '**/junit-test-report-*.xml'
         searchFolder: '$(Build.ArtifactStagingDirectory)'
@@ -82,8 +82,8 @@ jobs:
         buildConfiguration: UnitTest
       condition: always()
 
-  - job: 'MacOSTestRun'
-    displayName: 'macOS Test Run $(python.version)'
+  - job: 'TestsMacOS'
+    displayName: 'macOS test run'
     pool:
       vmImage: 'macOS-10.13'
     strategy:
@@ -116,21 +116,20 @@ jobs:
             python -m pip install --user --upgrade pip
             python -m pip install --user setuptools tox
 
-        displayName: 'Ensure Pip and Setup Python packages'
+        displayName: 'Install Python packages'
 
       - powershell: |
             $toxEnv = '$(python.version)'
-            if ($toxEnv.startsWith('pypy')){
-            }else{
-            $toxEnv = 'py' + $toxEnv.Replace('.', '')
+            if (-not $toxEnv.startsWith('pypy')) {
+                $toxEnv = 'py' + $toxEnv.Replace('.', '')
             }
-            echo $toxEnv
+            echo "tox environment: $toxEnv"
             python -m tox -e $toxEnv -- -vv --junitxml=$(Build.ArtifactStagingDirectory)/junit-test-report-mac-pytest.xml
 
-        displayName: 'Run Tests'
+        displayName: 'Run tests'
 
       - task: PublishTestResults@2
-        displayName: 'Publish Test Results'
+        displayName: 'Publish test results'
         inputs:
           testResultsFiles: '**/junit-test-report-*.xml'
           searchFolder: '$(Build.ArtifactStagingDirectory)'
@@ -140,8 +139,8 @@ jobs:
         condition: always()
 
 
-  - job: 'WindowsTestRun'
-    displayName: 'Windows Test Run $(python.version)'
+  - job: 'TestsWin64'
+    displayName: 'Windows (64-bit) test run'
     pool:
       vmImage: 'vs2017-win2016'
     strategy:
@@ -170,16 +169,15 @@ jobs:
 
       - powershell: |
             $toxEnv = '$(python.version)'
-            if ($toxEnv.startsWith('pypy')){
-            }else{
-            $toxEnv = 'py' + $toxEnv.Replace('.', '')
+            if (-not $toxEnv.startsWith('pypy')) {
+                $toxEnv = 'py' + $toxEnv.Replace('.', '')
             }
-            echo $toxEnv
+            echo "tox environment: $toxEnv"
             python -m tox -e $toxEnv -- -vv --junitxml=$(Build.ArtifactStagingDirectory)/junit-test-report-win-pytest.xml
-        displayName: 'Run Tests'
+        displayName: 'Run tests'
 
       - task: PublishTestResults@2
-        displayName: 'Publish Test Results'
+        displayName: 'Publish test results'
         inputs:
 
           testResultsFiles: '**/junit-test-report-*.xml'
@@ -190,16 +188,24 @@ jobs:
         condition: always()
 
 
-  - job: 'WindowsTestRun32bit'
-    displayName: 'Windows Test Run 32bit'
+  - job: 'TestsWin32'
+    displayName: 'Windows (32-bit) test run'
     pool:
       vmImage: 'vs2017-win2016'
 
+    strategy:
+      matrix:
+        Python27:
+          python.version: '2.7'
+        Python38:
+          python.version: '3.8'
+      maxParallel: 2
+
     steps:
       - task: UsePythonVersion@0
-        displayName: 'Use Python 3.7'
+        displayName: 'Use Python $(python.version)'
         inputs:
-          versionSpec: 3.7
+          versionSpec: '$(python.version)'
           architecture: x86
 
       - script: 'python -m pip install -U pip setuptools tox'
@@ -207,16 +213,15 @@ jobs:
 
       - powershell: |
             $toxEnv = '$(python.version)'
-            if ($toxEnv.startsWith('pypy')){
-            }else{
-            $toxEnv = 'py' + $toxEnv.Replace('.', '')
+            if (-not $toxEnv.startsWith('pypy')) {
+                $toxEnv = 'py' + $toxEnv.Replace('.', '')
             }
-            echo $toxEnv
+            echo "tox environment: $toxEnv"
             python -m tox -e $toxEnv -- -vv --junitxml=$(Build.ArtifactStagingDirectory)/junit-test-report-win-pytest.xml
-        displayName: 'Run Tests'
+        displayName: 'Run tests'
 
       - task: PublishTestResults@2
-        displayName: 'Publish Test Results'
+        displayName: 'Publish test results'
         inputs:
 
           testResultsFiles: '**/junit-test-report-*.xml'
