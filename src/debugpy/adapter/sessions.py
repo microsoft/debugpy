@@ -303,8 +303,8 @@ def wait_until_ended():
     A session ends when all components that it manages disconnect from it.
     """
     while True:
-        _sessions_changed.wait()
         with _lock:
-            _sessions_changed.clear()
             if not len(_sessions):
                 return
+            _sessions_changed.clear()
+        _sessions_changed.wait()
