@@ -130,7 +130,9 @@ class PyDBAdditionalThreadInfo(object):
         current_frames = _current_frames()
         topmost_frame = current_frames.get(thread.ident)
         if topmost_frame is None:
-            pydev_log.critical(
+            # Note: this is expected for dummy threads (so, getting the topmost frame should be
+            # treated as optional).
+            pydev_log.info(
                 'Unable to get topmost frame for thread: %s, thread.ident: %s, id(thread): %s\nCurrent frames: %s.\n'
                 'GEVENT_SUPPORT: %s',
                 thread,
