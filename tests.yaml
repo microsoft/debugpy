@@ -1,232 +1,115 @@
+variables:
+    architecture: "x64"
+
 jobs:
-  - job: 'Lint'
-    displayName: 'Lint'
-    pool:
-      vmImage: 'ubuntu-16.04'
-    steps:
-    - task: UsePythonVersion@0
-      displayName: 'Use Python 3.8'
-      inputs:
-        versionSpec: '>=3.8'
+    - job: "Lint"
+      displayName: "Lint"
+      pool: { vmImage: "ubuntu-16.04" }
 
-    - script: 'python3 -m pip install -U pip setuptools tox flake8'
-      displayName: 'Setup Python packages'
+      variables:
+          python.version: "3.8"
 
-    - script: 'python3 -m pip install git+https://github.com/karthiknadig/flake8reports'
-      displayName: 'Acquire flake8 plugin flake8reports'
+      steps:
+          - template: "azure-pipelines/templates/use_python.yml"
 
-    - script: 'python3 -m flake8 --format=junit --output-file=$(Build.ArtifactStagingDirectory)/linter-test.xml'
-      displayName: 'Run flake8'
+          - script: |
+                python3 -m pip install -U flake8
+                python3 -m pip install -U git+https://github.com/karthiknadig/flake8reports
+            displayName: "Setup flake8"
 
-    - task: PublishTestResults@2
-      displayName: 'Publish linting results'
-      inputs:
-        testResultsFiles: '**/linter-test.xml'
-        searchFolder: '$(Build.ArtifactStagingDirectory)'
-        testRunTitle: 'Linux-Linter-$(Build.BuildNumber)'
-        buildPlatform: Linux
-        buildConfiguration: Lint
-      condition: always()
+          - script: |
+                python3 -m flake8 --format=junit --output-file=$(Build.ArtifactStagingDirectory)/lint-flake8.xml
+            displayName: "Run flake8"
 
-  - job: 'TestsLinux'
-    displayName: 'Linux test run'
-    pool:
-      vmImage: 'ubuntu-16.04'
-    strategy:
-      matrix:
-        Python27:
-          python.version: '2.7'
-        Python35:
-          python.version: '3.5'
-        Python36:
-          python.version: '3.6'
-        Python37:
-          python.version: '3.7'
-        Python38:
-          python.version: '3.8'
-      maxParallel: 5
+          - task: "PublishTestResults@2"
+            condition: "always()"
+            inputs:
+                testRunTitle: "$(Agent.JobName)"
+                testResultsFiles: "lint-*.xml"
+                searchFolder: "$(Build.ArtifactStagingDirectory)"
+            displayName: "Publish linting results"
 
-    steps:
-    - script: |
-          sudo apt-get --yes install gdb
-          sudo sysctl kernel.yama.ptrace_scope=0
+    - job: "Test_Linux"
+      displayName: "Tests - Linux"
+      pool: { vmImage: "ubuntu-16.04" }
 
-      displayName: 'install gdb'
+      strategy:
+          matrix:
+              py27:
+                  python.version: "2.7"
+              py35:
+                  python.version: "3.5"
+              py36:
+                  python.version: "3.6"
+              py37:
+                  python.version: "3.7"
+              py38:
+                  python.version: "3.8"
 
-    - task: UsePythonVersion@0
-      displayName: 'Use Python $(python.version)'
-      inputs:
-        versionSpec: '$(python.version)'
-        architecture: 'x64'
+      steps:
+          - script: |
+                sudo apt-get --yes install gdb
+                sudo sysctl kernel.yama.ptrace_scope=0
+            displayName: "Setup gdb"
 
-    - script: 'python -m pip install -U pip setuptools tox'
-      displayName: 'Setup Python packages'
+          - template: "azure-pipelines/templates/use_python.yml"
 
-    - powershell: |
-          $toxEnv = '$(python.version)'
-            if (-not $toxEnv.startsWith('pypy')) {
-                $toxEnv = 'py' + $toxEnv.Replace('.', '')
-            }
-            echo "tox environment: $toxEnv"
-          python -m tox -e $toxEnv -- -vv --junitxml=$(Build.ArtifactStagingDirectory)/junit-test-report-linux-pytest.xml
+          - template: "azure-pipelines/templates/run_tests.yml"
 
-      displayName: 'Run tests'
+    - job: "Test_MacOS"
+      displayName: "Tests - macOS"
+      pool: { vmImage: "macOS-10.13" }
 
-    - task: PublishTestResults@2
-      displayName: 'Publish test results'
-      inputs:
-        testResultsFiles: '**/junit-test-report-*.xml'
-        searchFolder: '$(Build.ArtifactStagingDirectory)'
-        testRunTitle: 'Linux-Unit-Py$(python.version)-$(Build.BuildNumber)'
-        buildPlatform: Linux
-        buildConfiguration: UnitTest
-      condition: always()
+      strategy:
+          matrix:
+              py27:
+                  python.version: "2.7"
+              py35:
+                  python.version: "3.5"
+              py36:
+                  python.version: "3.6"
+              py37:
+                  python.version: "3.7"
+              py38:
+                  python.version: "3.8"
 
-  - job: 'TestsMacOS'
-    displayName: 'macOS test run'
-    pool:
-      vmImage: 'macOS-10.13'
-    strategy:
-      matrix:
-        Python27:
-          python.version: '2.7'
-        Python35:
-          python.version: '3.5'
-        Python36:
-          python.version: '3.6'
-        Python37:
-          python.version: '3.7'
-        Python38:
-          python.version: '3.8'
-      maxParallel: 5
+      steps:
+          - script: |
+                ulimit -Sn 8192
+            displayName: "Increase file descriptor limit"
 
-    steps:
-      - script: |
-            ulimit -Sn 8192
-        displayName: 'Increase file descriptor limit'
+          - template: "azure-pipelines/templates/use_python.yml"
 
-      - task: UsePythonVersion@0
-        displayName: 'Use Python $(python.version)'
-        inputs:
-          versionSpec: '$(python.version)'
-          architecture: 'x64'
+          - script: |
+                python -m ensurepip --user
+            displayName: "Bootstrap pip"
 
-      - script: |
-            python -m ensurepip --user
-            python -m pip install --user --upgrade pip
-            python -m pip install --user setuptools tox
+          - template: "azure-pipelines/templates/run_tests.yml"
 
-        displayName: 'Install Python packages'
+    - job: "Test_Windows"
+      displayName: "Tests - Windows"
+      pool: { vmImage: "vs2017-win2016" }
 
-      - powershell: |
-            $toxEnv = '$(python.version)'
-            if (-not $toxEnv.startsWith('pypy')) {
-                $toxEnv = 'py' + $toxEnv.Replace('.', '')
-            }
-            echo "tox environment: $toxEnv"
-            python -m tox -e $toxEnv -- -vv --junitxml=$(Build.ArtifactStagingDirectory)/junit-test-report-mac-pytest.xml
+      strategy:
+          matrix:
+              py27:
+                  python.version: "2.7"
+              py35:
+                  python.version: "3.5"
+              py36:
+                  python.version: "3.6"
+              py37:
+                  python.version: "3.7"
+              py38:
+                  python.version: "3.8"
+              py27_32:
+                  python.version: "2.7"
+                  architecture: "x86"
+              py38_32:
+                  python.version: "3.8"
+                  architecture: "x86"
 
-        displayName: 'Run tests'
+      steps:
+          - template: "azure-pipelines/templates/use_python.yml"
 
-      - task: PublishTestResults@2
-        displayName: 'Publish test results'
-        inputs:
-          testResultsFiles: '**/junit-test-report-*.xml'
-          searchFolder: '$(Build.ArtifactStagingDirectory)'
-          testRunTitle: 'macOS-Unit-Py$(python.version)-$(Build.BuildNumber)'
-          buildPlatform: macOS
-          buildConfiguration: UnitTest
-        condition: always()
-
-
-  - job: 'TestsWin64'
-    displayName: 'Windows (64-bit) test run'
-    pool:
-      vmImage: 'vs2017-win2016'
-    strategy:
-      matrix:
-        Python27:
-          python.version: '2.7'
-        Python35:
-          python.version: '3.5'
-        Python36:
-          python.version: '3.6'
-        Python37:
-          python.version: '3.7'
-        Python38:
-          python.version: '3.8'
-      maxParallel: 5
-
-    steps:
-      - task: UsePythonVersion@0
-        displayName: 'Use Python $(python.version)'
-        inputs:
-          versionSpec: '$(python.version)'
-          architecture: 'x64'
-
-      - script: 'python -m pip install -U pip setuptools tox'
-        displayName: 'Setup Python packages'
-
-      - powershell: |
-            $toxEnv = '$(python.version)'
-            if (-not $toxEnv.startsWith('pypy')) {
-                $toxEnv = 'py' + $toxEnv.Replace('.', '')
-            }
-            echo "tox environment: $toxEnv"
-            python -m tox -e $toxEnv -- -vv --junitxml=$(Build.ArtifactStagingDirectory)/junit-test-report-win-pytest.xml
-        displayName: 'Run tests'
-
-      - task: PublishTestResults@2
-        displayName: 'Publish test results'
-        inputs:
-
-          testResultsFiles: '**/junit-test-report-*.xml'
-          searchFolder: '$(Build.ArtifactStagingDirectory)'
-          testRunTitle: 'Win-Unit-Py$(python.version)-$(Build.BuildNumber)'
-          buildPlatform: Windows
-          buildConfiguration: UnitTest
-        condition: always()
-
-
-  - job: 'TestsWin32'
-    displayName: 'Windows (32-bit) test run'
-    pool:
-      vmImage: 'vs2017-win2016'
-
-    strategy:
-      matrix:
-        Python27:
-          python.version: '2.7'
-        Python38:
-          python.version: '3.8'
-      maxParallel: 2
-
-    steps:
-      - task: UsePythonVersion@0
-        displayName: 'Use Python $(python.version)'
-        inputs:
-          versionSpec: '$(python.version)'
-          architecture: x86
-
-      - script: 'python -m pip install -U pip setuptools tox'
-        displayName: 'Setup Python packages'
-
-      - powershell: |
-            $toxEnv = '$(python.version)'
-            if (-not $toxEnv.startsWith('pypy')) {
-                $toxEnv = 'py' + $toxEnv.Replace('.', '')
-            }
-            echo "tox environment: $toxEnv"
-            python -m tox -e $toxEnv -- -vv --junitxml=$(Build.ArtifactStagingDirectory)/junit-test-report-win-pytest.xml
-        displayName: 'Run tests'
-
-      - task: PublishTestResults@2
-        displayName: 'Publish test results'
-        inputs:
-
-          testResultsFiles: '**/junit-test-report-*.xml'
-          searchFolder: '$(Build.ArtifactStagingDirectory)'
-          testRunTitle: 'Win32-Unit-Py$(python.version)-$(Build.BuildNumber)'
-          buildPlatform: Windows
-          buildConfiguration: UnitTest
-        condition: always()
+          - template: "azure-pipelines/templates/run_tests.yml"

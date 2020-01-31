@@ -135,6 +135,8 @@ def test_reattach(pyfile, target, run):
         session2.scratchpad["exit"] = True
         session2.request_continue()
 
+    session1.wait_for_exit()
+
 
 @pytest.mark.parametrize("pid_type", ["int", "str"])
 def test_attach_by_pid(pyfile, target, pid_type):

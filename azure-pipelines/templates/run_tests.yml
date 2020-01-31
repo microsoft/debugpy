@@ -1,0 +1,28 @@
+steps:
+    - script: |
+          python -m pip install -U pip setuptools tox
+      displayName: "Setup Python packages"
+
+    - pwsh: |
+          $toxEnv = '$(python.version)'
+          if (-not $toxEnv.startsWith('pypy')) {
+              $toxEnv = 'py' + $toxEnv.Replace('.', '')
+          }
+          echo 'tox environment: $toxEnv'
+          python -m tox -e $toxEnv -- -vv --junitxml=$(Build.ArtifactStagingDirectory)/tests.xml --debugpy-log-dir=$(Build.ArtifactStagingDirectory)/logs tests
+      displayName: "Run tests using tox"
+
+    - task: "PublishBuildArtifacts@1"
+      condition: "failed()"
+      inputs:
+          artifactName: "Test logs"
+          pathToPublish: "$(Build.ArtifactStagingDirectory)/logs"
+      displayName: "Publish test logs"
+
+    - task: "PublishTestResults@2"
+      condition: "always()"
+      inputs:
+          testRunTitle: "$(Agent.JobName)"
+          testResultsFiles: "tests.xml"
+          searchFolder: "$(Build.ArtifactStagingDirectory)"
+      displayName: "Publish test results"

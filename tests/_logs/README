@@ -1,7 +1,4 @@
-Pass --debugpy-logs and/or --pydevd-logs to pytest to create log files here for a run.
-For example:
-
-    tox -e py37 -- --debugpy-logs "tests/ptvsd/server/test_run.py::test_run[launch-file]"
+This directory will contain debugpy and pydevd log files from the test runs.
 
 A separate directory will be created for every test. In that directory, a separate
 subdirectory will be created for every debug.Session instance, containing debugpy logs
