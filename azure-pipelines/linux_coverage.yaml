@@ -9,4 +9,4 @@ jobs:
           demands: java
           vmImage: "ubuntu-16.04"
       steps:
-        - template: "azure-pipelines/templates/coverage.yml"
+        - template: "templates/coverage.yml"
