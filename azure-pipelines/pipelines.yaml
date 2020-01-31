@@ -10,7 +10,7 @@ jobs:
           python.version: "3.8"
 
       steps:
-          - template: "azure-pipelines/templates/use_python.yml"
+          - template: "templates/use_python.yml"
 
           - script: |
                 python3 -m pip install -U flake8
@@ -52,9 +52,9 @@ jobs:
                 sudo sysctl kernel.yama.ptrace_scope=0
             displayName: "Setup gdb"
 
-          - template: "azure-pipelines/templates/use_python.yml"
+          - template: "templates/use_python.yml"
 
-          - template: "azure-pipelines/templates/run_tests.yml"
+          - template: "templates/run_tests.yml"
 
     - job: "Test_MacOS"
       displayName: "Tests - macOS"
@@ -78,13 +78,13 @@ jobs:
                 ulimit -Sn 8192
             displayName: "Increase file descriptor limit"
 
-          - template: "azure-pipelines/templates/use_python.yml"
+          - template: "templates/use_python.yml"
 
           - script: |
                 python -m ensurepip --user
             displayName: "Bootstrap pip"
 
-          - template: "azure-pipelines/templates/run_tests.yml"
+          - template: "templates/run_tests.yml"
 
     - job: "Test_Windows"
       displayName: "Tests - Windows"
@@ -110,6 +110,6 @@ jobs:
                   architecture: "x86"
 
       steps:
-          - template: "azure-pipelines/templates/use_python.yml"
+          - template: "templates/use_python.yml"
 
-          - template: "azure-pipelines/templates/run_tests.yml"
+          - template: "templates/run_tests.yml"
