@@ -50,7 +50,7 @@ def main(args):
         adapter.access_token = compat.force_str(codecs.encode(os.urandom(32), "hex"))
 
     try:
-        server_host, server_port = servers.listen()
+        server_host, server_port = servers.serve()
     except Exception as exc:
         if args.for_server is None:
             raise
@@ -58,7 +58,7 @@ def main(args):
     else:
         endpoints = {"server": {"host": server_host, "port": server_port}}
         try:
-            ide_host, ide_port = ide.listen(host=args.host, port=args.port)
+            ide_host, ide_port = ide.serve(args.host, args.port)
         except Exception as exc:
             if args.for_server is None:
                 raise
@@ -120,8 +120,8 @@ def main(args):
     # These must be registered after the one above, to ensure that the listener sockets
     # are closed before the endpoint info file is deleted - this way, another process
     # can wait for the file to go away as a signal that the ports are no longer in use.
-    atexit.register(servers.stop_listening)
-    atexit.register(ide.stop_listening)
+    atexit.register(servers.stop_serving)
+    atexit.register(ide.stop_serving)
 
     servers.wait_until_disconnected()
     log.info("All debug servers disconnected; waiting for remaining sessions...")

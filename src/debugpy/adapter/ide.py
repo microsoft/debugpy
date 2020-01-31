@@ -13,7 +13,7 @@ from debugpy.common.compat import unicode
 from debugpy.adapter import components, servers, sessions
 
 
-class IDE(components.Component, sockets.ClientConnection):
+class IDE(components.Component):
     """Handles the IDE side of a debug session."""
 
     message_handler = components.Component.message_handler
@@ -450,7 +450,7 @@ class IDE(components.Component, sockets.ClientConnection):
         if "host" not in body:
             body["host"] = "127.0.0.1"
         if "port" not in body:
-            _, body["port"] = self.listener.getsockname()
+            _, body["port"] = listener.getsockname()
         if "processId" in body:
             del body["processId"]
         body["subProcessId"] = conn.pid
@@ -458,11 +458,14 @@ class IDE(components.Component, sockets.ClientConnection):
         self.channel.send_event("debugpyAttach", body)
 
 
-listen = IDE.listen
+def serve(host, port):
+    global listener
+    listener = sockets.serve("IDE", IDE, host, port)
+    return listener.getsockname()
 
 
-def stop_listening():
+def stop_serving():
     try:
-        IDE.listener.close()
+        listener.close()
     except Exception:
         log.exception(level="warning")

@@ -11,7 +11,7 @@ import threading
 from debugpy.common import log
 
 
-def create_server(host, port, timeout=None):
+def create_server(host, port=0, backlog=socket.SOMAXCONN, timeout=None):
     """Return a local server socket listening on the given port."""
     if host is None:
         host = "127.0.0.1"
@@ -23,7 +23,7 @@ def create_server(host, port, timeout=None):
         server.bind((host, port))
         if timeout is not None:
             server.settimeout(timeout)
-        server.listen(1)
+        server.listen(backlog)
     except Exception:
         server.close()
         raise
@@ -58,53 +58,45 @@ def close_socket(sock):
     sock.close()
 
 
-class ClientConnection(object):
-    listener = None
-    """After listen() is invoked, this is the socket listening for connections.
+def serve(name, handler, host, port=0, backlog=socket.SOMAXCONN, timeout=None):
+    """Accepts TCP connections on the specified host and port, and invokes the
+    provided handler function for every new connection.
+
+    Returns the created server socket.
     """
 
-    @classmethod
-    def listen(cls, host=None, port=0, timeout=None, name=None):
-        """Accepts TCP connections on the specified host and port, and creates a new
-        instance of this class wrapping every accepted socket.
-        """
+    try:
+        listener = create_server(host, port, backlog, timeout)
+    except Exception:
+        raise log.exception(
+            "Error listening for incoming {0} connections on {1}:{2}:",
+            name,
+            host,
+            port,
+        )
+    host, port = listener.getsockname()
+    log.info("Listening for incoming {0} connections on {1}:{2}...", name, host, port)
 
-        if name is None:
-            name = cls.__name__
+    def accept_worker():
+        while True:
+            try:
+                sock, (other_host, other_port) = listener.accept()
+            except OSError:
+                # Listener socket has been closed.
+                break
 
-        assert cls.listener is None
-        try:
-            cls.listener = create_server(host, port, timeout)
-        except Exception:
-            raise log.exception(
-                "Error listening for incoming {0} connections on {1}:{2}:",
+            log.info(
+                "Accepted incoming {0} connection from {1}:{2}.",
                 name,
-                host,
-                port,
+                other_host,
+                other_port,
             )
-        host, port = cls.listener.getsockname()
-        log.info("Listening for incoming {0} connections on {1}:{2}...", name, host, port)
+            handler(sock)
 
-        def accept_worker():
-            while True:
-                try:
-                    sock, (other_host, other_port) = cls.listener.accept()
-                except OSError:
-                    # Listener socket has been closed.
-                    break
+    thread = threading.Thread(target=accept_worker)
+    thread.daemon = True
+    thread.pydev_do_not_trace = True
+    thread.is_pydev_daemon_thread = True
+    thread.start()
 
-                log.info(
-                    "Accepted incoming {0} connection from {1}:{2}.",
-                    name,
-                    other_host,
-                    other_port,
-                )
-                cls(sock)
-
-        thread = threading.Thread(target=accept_worker)
-        thread.daemon = True
-        thread.pydev_do_not_trace = True
-        thread.is_pydev_daemon_thread = True
-        thread.start()
-
-        return host, port
+    return listener
