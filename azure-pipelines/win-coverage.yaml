@@ -1,0 +1,12 @@
+variables:
+    architecture: "x64"
+    python.version: "3.8"
+
+jobs:
+    - job: 'Coverage'
+      pool:
+          name: Azure Pipelines
+          demands: java
+          vmImage: "vs2017-win2016"
+      steps:
+        - template: "azure-pipelines/templates/coverage.yml"

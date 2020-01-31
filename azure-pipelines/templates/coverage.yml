@@ -1,0 +1,19 @@
+steps:
+    - template: "azure-pipelines/templates/use_python.yml"
+
+    - script: |
+          python -m pip install -U pip setuptools tox
+      displayName: 'Setup Python packages'
+
+    - script: |
+          python -m tox --develop -e py38-cov -- --cov-report=html --cov-report=xml -vv
+      displayName: 'Coverage Run'
+
+    - task: PublishCodeCoverageResults@1
+      displayName: 'Publish Coverage Report'
+      inputs:
+          codeCoverageTool: Cobertura
+          summaryFileLocation: '$(Build.SourcesDirectory)/**/coverage/coverage.xml'
+          reportDirectory: '$(Build.SourcesDirectory)/**/coverage/html'
+          failIfCoverageEmpty: true
+      condition: always()
