@@ -9,4 +9,4 @@ jobs:
           demands: java
           vmImage: "vs2017-win2016"
       steps:
-        - template: "azure-pipelines/templates/coverage.yml"
+        - template: "templates/coverage.yml"
