@@ -55,7 +55,7 @@ def launch_request(request):
             )
     elif "pythonPath" in request:
         python_key = "pythonPath"
-    python = request(python_key, json.array(unicode, vectorize=True, size=(1,)))
+    python = request(python_key, json.array(unicode, vectorize=True, size=(0,)))
     if not len(python):
         python = [compat.filename(sys.executable)]
     cmdline += python
