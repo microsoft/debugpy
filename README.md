@@ -1,6 +1,6 @@
 # debugpy - a debugger for Python
 
-[![Build Status](https://ptvsd.visualstudio.com/_apis/public/build/definitions/557bd35a-f98d-4c49-9bc9-c7d548f78e4d/1/badge)](https://ptvsd.visualstudio.com/ptvsd/ptvsd%20Team/_build/index?definitionId=1)
+[![Build Status](https://dev.azure.com/debugpy/debugpy/_apis/build/status/debugpy-test-automation?branchName=master)](https://dev.azure.com/debugpy/debugpy/_build/latest?definitionId=1&branchName=master)
 [![Build Status](https://travis-ci.org/microsoft/debugpy.svg?branch=master)](https://travis-ci.org/microsoft/debugpy)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=microsoft_debugpy&metric=coverage)](https://sonarcloud.io/dashboard?id=microsoft_debugpy)
 [![GitHub](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://raw.githubusercontent.com/microsoft/debugpy/master/LICENSE)
