@@ -50,6 +50,7 @@ def test_wrapper(request, long_tmpdir):
     session.Session.tmpdir = long_tmpdir
     original_log_dir = log.log_dir
 
+    failed = True
     try:
         if log.log_dir is None:
             log.log_dir = (long_tmpdir / "debugpy_logs").strpath
@@ -95,7 +96,13 @@ def test_wrapper(request, long_tmpdir):
                 if failed:
                     write_log("FAILED.log", "")
                     logs.dump()
+
     finally:
+        if not failed and not request.config.option.debugpy_log_passed:
+            try:
+                py.path.local(log.log_dir).remove()
+            except Exception:
+                pass
         log.log_dir = original_log_dir
 
 
