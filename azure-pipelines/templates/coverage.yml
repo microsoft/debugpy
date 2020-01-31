@@ -1,5 +1,5 @@
 steps:
-    - template: "azure-pipelines/templates/use_python.yml"
+    - template: "use_python.yml"
 
     - script: |
           python -m pip install -U pip setuptools tox
