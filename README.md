@@ -1,11 +1,16 @@
 # debugpy - a debugger for Python
 
 [![Build Status](https://dev.azure.com/debugpy/debugpy/_apis/build/status/debugpy-test-automation?branchName=master)](https://dev.azure.com/debugpy/debugpy/_build/latest?definitionId=1&branchName=master)
-[![Build Status](https://travis-ci.org/microsoft/debugpy.svg?branch=master)](https://travis-ci.org/microsoft/debugpy)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=microsoft_debugpy&metric=coverage)](https://sonarcloud.io/dashboard?id=microsoft_debugpy)
 [![GitHub](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://raw.githubusercontent.com/microsoft/debugpy/master/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/debugpy.svg)](https://pypi.org/project/debugpy/)
 [![PyPI](https://img.shields.io/pypi/pyversions/debugpy.svg)](https://pypi.org/project/debugpy/)
+
+#### Coverage
+
+| OS | Coverage |
+|---|---|
+| Windows | ![Azure DevOps coverage](https://img.shields.io/azure-devops/coverage/debugpy/debugpy/2) |
+| Linux | ![Azure DevOps coverage](https://img.shields.io/azure-devops/coverage/debugpy/debugpy/3) |
 
 This debugger implements the Debug Adapter Protocol: [debugProtocol.json](https://github.com/Microsoft/vscode-debugadapter-node/blob/master/debugProtocol.json)
 
