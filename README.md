@@ -11,6 +11,7 @@
 |---|---|
 | Windows | ![Azure DevOps coverage](https://img.shields.io/azure-devops/coverage/debugpy/debugpy/2) |
 | Linux | ![Azure DevOps coverage](https://img.shields.io/azure-devops/coverage/debugpy/debugpy/3) |
+| Mac | ![Azure DevOps coverage](https://img.shields.io/azure-devops/coverage/debugpy/debugpy/4) |
 
 This debugger implements the Debug Adapter Protocol: [debugProtocol.json](https://github.com/Microsoft/vscode-debugadapter-node/blob/master/debugProtocol.json)
 
