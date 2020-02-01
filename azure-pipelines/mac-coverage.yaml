@@ -4,6 +4,7 @@ variables:
 
 jobs:
     - job: 'Coverage'
+      timeoutInMinutes: 15
       pool:
           name: Azure Pipelines
           demands: java
