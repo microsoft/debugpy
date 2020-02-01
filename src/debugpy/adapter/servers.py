@@ -4,7 +4,6 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import functools
 import os
 import subprocess
 import sys
@@ -29,7 +28,7 @@ _connections = []
 _connections_changed = threading.Event()
 
 
-class Connection(sockets.ClientConnection):
+class Connection(object):
     """A debug server that is connected to the adapter.
 
     Servers that are not participating in a debug session are managed directly by the
@@ -343,12 +342,15 @@ class Server(components.Component):
         super(Server, self).disconnect()
 
 
-listen = functools.partial(Connection.listen, name="Server")
+def serve():
+    global listener
+    listener = sockets.serve("Server", Connection, "127.0.0.1")
+    return listener.getsockname()
 
 
-def stop_listening():
+def stop_serving():
     try:
-        Connection.listener.close()
+        listener.close()
     except Exception:
         log.exception(level="warning")
 
@@ -415,7 +417,7 @@ def dont_wait_for_first_connection():
 
 
 def inject(pid, debugpy_args):
-    host, port = Connection.listener.getsockname()
+    host, port = listener.getsockname()
 
     cmdline = [
         sys.executable,

@@ -4,14 +4,13 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import contextlib
 import itertools
 import os
 import signal
 import threading
 import time
 
-from debugpy.common import fmt, log, messaging, sockets, util
+from debugpy.common import fmt, log, util
 from debugpy.adapter import components, launchers, servers
 
 
@@ -134,49 +133,6 @@ class Session(util.Observable):
                 self._changed_condition.wait()
             return True
 
-    @contextlib.contextmanager
-    def _accept_connection_from(self, what, address, timeout=None):
-        """Sets up a listening socket, accepts an incoming connection on it, sets
-        up a message stream over that connection, and passes it on to what().
-
-        Can be used in a with-statement to obtain the actual address of the listener
-        socket before blocking on accept()::
-
-            with accept_connection_from_server(...) as (host, port):
-                # listen() returned - listening on (host, port) now
-                ...
-            # accept() returned - connection established
-        """
-
-        host, port = address
-        listener = sockets.create_server(host, port, timeout)
-        host, port = listener.getsockname()
-        log.info(
-            "{0} waiting for incoming connection from {1} on {2}:{3}...",
-            self,
-            what.__name__,
-            host,
-            port,
-        )
-        yield host, port
-
-        try:
-            sock, (other_host, other_port) = listener.accept()
-        finally:
-            listener.close()
-        log.info(
-            "{0} accepted incoming connection {1} from {2}:{3}.",
-            self,
-            what.__name__,
-            other_host,
-            other_port,
-        )
-        stream = messaging.JsonIOStream.from_socket(sock, what)
-        what(self, stream)
-
-    def accept_connection_from_launcher(self, address=("127.0.0.1", 0)):
-        return self._accept_connection_from(launchers.Launcher, address, timeout=10)
-
     def finalize(self, why, terminate_debuggee=None):
         """Finalizes the debug session.
 
@@ -271,7 +227,7 @@ class Session(util.Observable):
                     pass
 
             if self.ide.start_request is not None and self.ide.start_request.command == "launch":
-                servers.stop_listening()
+                servers.stop_serving()
                 log.info('"launch" session ended - killing remaining debuggee processes.')
 
                 pids_killed = set()
