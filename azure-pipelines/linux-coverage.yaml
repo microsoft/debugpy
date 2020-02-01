@@ -10,4 +10,9 @@ jobs:
           demands: java
           vmImage: "ubuntu-16.04"
       steps:
-        - template: "templates/coverage.yml"
+          - script: |
+              sudo apt-get --yes install gdb
+              sudo sysctl kernel.yama.ptrace_scope=0
+            displayName: 'Install gdb'
+
+          - template: "templates/coverage.yml"

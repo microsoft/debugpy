@@ -10,4 +10,8 @@ jobs:
           demands: java
           vmImage: "macOS-10.13"
       steps:
-        - template: "templates/coverage.yml"
+          - script: |
+              ulimit -Sn 8192
+            displayName: 'Increase file descriptor limit'
+
+          - template: "templates/coverage.yml"
