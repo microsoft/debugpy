@@ -12,7 +12,7 @@ steps:
           organization: microsoft
           scannerMode: CLI
           extraProperties: |
-            sonar.python.coverage.reportPaths=$(Build.SourcesDirectory)\**\coverage\coverage.xml
+            sonar.python.coverage.reportPaths=$(Build.SourcesDirectory)/coverage/coverage.xml
             sonar.projectKey=microsoft_debugpy
 
     - script: |
@@ -31,7 +31,7 @@ steps:
       displayName: 'Publish Coverage Report'
       inputs:
           codeCoverageTool: Cobertura
-          summaryFileLocation: '$(Build.SourcesDirectory)/**/coverage/coverage.xml'
-          reportDirectory: '$(Build.SourcesDirectory)/**/coverage/html'
+          summaryFileLocation: '$(Build.SourcesDirectory)/coverage/coverage.xml'
+          reportDirectory: '$(Build.SourcesDirectory)/coverage/html'
           failIfCoverageEmpty: true
       condition: always()
