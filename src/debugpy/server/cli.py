@@ -276,7 +276,7 @@ def attach_to_pid():
     assert os.path.exists(attach_pid_injected_dirname)
 
     log_dir = (log.log_dir or "").replace("\\", "/")
-    encode = lambda s: list(bytearray(s.encode("utf-8")))
+    encode = lambda s: list(bytearray(s.encode("utf-8"))) if s is not None else None
     setup = {
         "script": encode(attach_pid_injected_dirname),
         "host": encode(options.host),
@@ -289,7 +289,7 @@ def attach_to_pid():
     python_code = """
 import sys;
 import codecs;
-decode = lambda s: codecs.utf_8_decode(bytearray(s))[0];
+decode = lambda s: codecs.utf_8_decode(bytearray(s))[0] if s is not None else None;
 script_path = decode({script});
 sys.path.insert(0, script_path);
 import attach_pid_injected;

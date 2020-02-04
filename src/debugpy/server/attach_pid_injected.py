@@ -63,6 +63,12 @@ def attach(host, port, client, log_dir=None, client_access_token=None):
         from debugpy.common import log
         from debugpy.server import options
 
+        import pydevd
+
+        py_db = pydevd.get_global_debugger()
+        if py_db is not None:
+            py_db.dispose_and_kill_all_pydevd_threads(wait=False)
+
         if log_dir is not None:
             log.log_dir = log_dir
         options.client = client

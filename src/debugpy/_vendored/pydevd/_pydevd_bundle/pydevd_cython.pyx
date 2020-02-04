@@ -6,7 +6,7 @@ from __future__ import print_function
 # DO NOT edit manually!
 import sys
 from _pydevd_bundle.pydevd_constants import (STATE_RUN, PYTHON_SUSPEND, IS_JYTHON,
-    USE_CUSTOM_SYS_CURRENT_FRAMES, USE_CUSTOM_SYS_CURRENT_FRAMES_MAP, ForkSafeLock)
+    USE_CUSTOM_SYS_CURRENT_FRAMES, USE_CUSTOM_SYS_CURRENT_FRAMES_MAP, SUPPORT_GEVENT, ForkSafeLock)
 from _pydev_bundle import pydev_log
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
 pydev_log.debug("Using Cython speedups")
@@ -134,7 +134,21 @@ cdef class PyDBAdditionalThreadInfo:
         '''
         # sys._current_frames(): dictionary with thread id -> topmost frame
         current_frames = _current_frames()
-        return current_frames.get(thread.ident)
+        topmost_frame = current_frames.get(thread.ident)
+        if topmost_frame is None:
+            # Note: this is expected for dummy threads (so, getting the topmost frame should be
+            # treated as optional).
+            pydev_log.info(
+                'Unable to get topmost frame for thread: %s, thread.ident: %s, id(thread): %s\nCurrent frames: %s.\n'
+                'GEVENT_SUPPORT: %s',
+                thread,
+                thread.ident,
+                id(thread),
+                current_frames,
+                SUPPORT_GEVENT,
+            )
+
+        return topmost_frame
 
     def __str__(self):
         return 'State:%s Stop:%s Cmd: %s Kill:%s' % (
@@ -1206,7 +1220,7 @@ def fix_top_level_trace_and_get_trace_func(py_db, frame):
             return f_trace, False
 
     thread_tracer = additional_info.thread_tracer
-    if thread_tracer is None:
+    if thread_tracer is None or thread_tracer._args[0] is not py_db:
         thread_tracer = ThreadTracer(args)
         additional_info.thread_tracer = thread_tracer
 
