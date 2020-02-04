@@ -181,7 +181,7 @@ def fix_top_level_trace_and_get_trace_func(py_db, frame):
             return f_trace, False
 
     thread_tracer = additional_info.thread_tracer
-    if thread_tracer is None:
+    if thread_tracer is None or thread_tracer._args[0] is not py_db:
         thread_tracer = ThreadTracer(args)
         additional_info.thread_tracer = thread_tracer
 

@@ -139,7 +139,7 @@ def test_reattach(pyfile, target, run):
 
 
 @pytest.mark.parametrize("pid_type", ["int", "str"])
-def test_attach_by_pid(pyfile, target, pid_type):
+def test_attach_by_pid_client(pyfile, target, pid_type):
     @pyfile
     def code_to_debug():
         import debuggee
@@ -148,40 +148,54 @@ def test_attach_by_pid(pyfile, target, pid_type):
         debuggee.setup()
 
         def do_something(i):
-            time.sleep(0.1)
+            time.sleep(0.2)
             proceed = True
             print(i)  # @bp
             return proceed
 
-        for i in range(100):
+        for i in range(500):
             if not do_something(i):
                 break
 
-    with debug.Session() as session:
+    def before_request(command, arguments):
+        if command == "attach":
+            assert isinstance(arguments["processId"], int)
+            if pid_type == "str":
+                arguments["processId"] = str(arguments["processId"])
 
-        def before_request(command, arguments):
-            if command == "attach":
-                assert isinstance(arguments["processId"], int)
-                if pid_type == "str":
-                    arguments["processId"] = str(arguments["processId"])
+    session1 = debug.Session()
 
-        session.before_request = before_request
-        session.config["redirectOutput"] = True
+    session1.before_request = before_request
+    session1.config["redirectOutput"] = True
 
-        with session.attach_by_pid(target(code_to_debug), wait=False):
-            session.set_breakpoints(code_to_debug, all)
+    session1.captured_output = set()
+    session1.expected_exit_code = None  # not expected to exit on disconnect
 
-        stop = session.wait_for_stop(
+    with session1.attach_by_pid(target(code_to_debug), wait=False):
+        session1.set_breakpoints(code_to_debug, all)
+
+    session1.wait_for_stop(expected_frames=[some.dap.frame(code_to_debug, "bp")])
+
+    pid = session1.config["processId"]
+
+    # Note: don't call session1.disconnect because it'd deadlock in channel.close()
+    # (because the fd is in a read() in a different thread, we can't call close() on it).
+    session1.request("disconnect")
+    session1.wait_for_terminated()
+
+    with debug.Session() as session2:
+        with session2.attach_by_pid(pid, wait=False):
+            session2.set_breakpoints(code_to_debug, all)
+
+        stop = session2.wait_for_stop(
             expected_frames=[some.dap.frame(code_to_debug, "bp")]
         )
 
         # Remove breakpoint and continue.
-        session.request(
+        session2.set_breakpoints(code_to_debug, [])
+        session2.request(
             "setExpression",
             {"frameId": stop.frame_id, "expression": "proceed", "value": "False"},
         )
-        session.set_breakpoints(code_to_debug, [])
-        session.request_continue()
-        session.wait_for_next_event(
-            "output", some.dict.containing({"category": "stdout"})
-        )
+        session2.scratchpad["exit"] = True
+        session2.request_continue()

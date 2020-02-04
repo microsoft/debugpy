@@ -796,13 +796,16 @@ class Session(object):
             finally:
                 watchdog.unregister_spawn(self.debuggee.pid, self.debuggee_id)
 
-        self.timeline.wait_until_realized(timeline.Event("terminated"))
+        self.wait_for_terminated()
 
         # FIXME: "exited" event is not properly reported in attach scenarios at the
         # moment, so the exit code is only checked if it's present.
         if self.debuggee is not None and self.exit_code is not None:
             assert self.debuggee.returncode == self.exit_code
         return self.exit_code
+
+    def wait_for_terminated(self):
+        self.timeline.wait_until_realized(timeline.Event("terminated"))
 
     def captured_stdout(self, encoding=None):
         assert self.debuggee is not None
@@ -819,7 +822,7 @@ class Session(object):
         try:
             if not force:
                 self.request("disconnect")
-                self.timeline.wait_until_realized(timeline.Event("terminated"))
+                self.wait_for_terminated()
         except messaging.JsonIOError:
             pass
         finally:
