@@ -2,7 +2,7 @@ import threading
 
 from _pydevd_bundle.pydevd_comm import pydevd_find_thread_by_id
 from _pydevd_bundle.pydevd_utils import convert_dap_log_message_to_expression
-from tests_python.debug_constants import IS_PY26, IS_PY3K
+from tests_python.debug_constants import IS_PY26, IS_PY3K, TEST_GEVENT
 import sys
 from _pydevd_bundle.pydevd_constants import IS_CPYTHON, IS_WINDOWS
 import pytest
@@ -277,9 +277,10 @@ def _build_launch_env():
     return cwd, environ
 
 
-def _check_in_separate_process(method_name, module_name='test_utilities'):
+def _check_in_separate_process(method_name, module_name='test_utilities', update_env={}):
     import subprocess
     cwd, environ = _build_launch_env()
+    environ.update(update_env)
 
     subprocess.check_call(
         [sys.executable, '-c', 'import %(module_name)s;%(module_name)s.%(method_name)s()' % dict(
@@ -336,3 +337,27 @@ def test_get_ppid():
     else:
         assert api._get_windows_ppid() is not None
 
+
+def _check_gevent(expect_msg):
+    from _pydevd_bundle.pydevd_utils import notify_about_gevent_if_needed
+    assert not notify_about_gevent_if_needed()
+    import gevent
+    assert not notify_about_gevent_if_needed()
+    import gevent.monkey
+    assert not notify_about_gevent_if_needed()
+    gevent.monkey.patch_all()
+    assert notify_about_gevent_if_needed() == expect_msg
+
+
+def check_notify_on_gevent_loaded():
+    _check_gevent(True)
+
+
+def check_dont_notify_on_gevent_loaded():
+    _check_gevent(False)
+
+
+@pytest.mark.skipif(not TEST_GEVENT, reason='Gevent not installed.')
+def test_gevent_notify():
+    _check_in_separate_process('check_notify_on_gevent_loaded', update_env={'GEVENT_SUPPORT': ''})
+    _check_in_separate_process('check_dont_notify_on_gevent_loaded', update_env={'GEVENT_SUPPORT': 'True'})

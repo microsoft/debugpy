@@ -1,11 +1,8 @@
 from _pydevd_bundle.pydevd_constants import DebugInfoHolder, SHOW_COMPILE_CYTHON_COMMAND_LINE, NULL
-from _pydev_imps._pydev_saved_modules import threading
 from contextlib import contextmanager
 import traceback
 import os
 import sys
-
-currentThread = threading.currentThread
 
 
 class _LoggingGlobals(object):
@@ -180,6 +177,20 @@ def error_once(msg, *args):
     if message not in _LoggingGlobals._warn_once_map:
         _LoggingGlobals._warn_once_map[message] = True
         critical(message)
+
+
+def exception_once(msg, *args):
+    try:
+        if args:
+            message = msg % args
+        else:
+            message = str(msg)
+    except:
+        message = '%s - %s' % (msg, args)
+
+    if message not in _LoggingGlobals._warn_once_map:
+        _LoggingGlobals._warn_once_map[message] = True
+        exception(message)
 
 
 def debug_once(msg, *args):

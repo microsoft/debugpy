@@ -37,7 +37,7 @@ if [ "$PYDEVD_PYTHON_VERSION" = "3.6" ]; then
 fi
 
 if [ "$PYDEVD_PYTHON_VERSION" = "3.7" ]; then
-    conda install --yes pyqt=5 matplotlib
+    conda install --yes pyqt=5 matplotlib gevent
     # Note: track the latest web framework versions.
     pip install "django"
     pip install "cherrypy"
@@ -50,7 +50,8 @@ if [ "$PYDEVD_PYTHON_VERSION" = "3.8" ]; then
     pip install "psutil"
     pip install "numpy"
     pip install trio
-    
+    pip install gevent
+
     # Note: track the latest web framework versions.
     pip install "django"
     pip install "cherrypy"

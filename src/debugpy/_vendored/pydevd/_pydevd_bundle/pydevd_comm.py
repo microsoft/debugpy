@@ -95,7 +95,8 @@ from _pydevd_bundle import pydevd_xml
 from _pydevd_bundle import pydevd_vm_type
 import sys
 import traceback
-from _pydevd_bundle.pydevd_utils import quote_smart as quote, compare_object_attrs_key
+from _pydevd_bundle.pydevd_utils import quote_smart as quote, compare_object_attrs_key, \
+    notify_about_gevent_if_needed
 from _pydev_bundle import pydev_log
 from _pydev_bundle.pydev_log import exception as pydev_log_exception
 from _pydev_bundle import _pydev_completer
@@ -141,6 +142,7 @@ class PyDBDaemonThread(threading.Thread):
             -- Note: use through run_as_pydevd_daemon_thread().
         '''
         threading.Thread.__init__(self)
+        notify_about_gevent_if_needed()
         self._py_db = weakref.ref(py_db)
         self._kill_received = False
         mark_as_pydevd_daemon_thread(self)
@@ -294,6 +296,7 @@ class ReaderThread(PyDBDaemonThread):
                 # client itself closes the connection (although on kill received we stop actually
                 # processing anything read).
                 try:
+                    notify_about_gevent_if_needed()
                     line = self._read_line()
 
                     if len(line) == 0:
@@ -436,6 +439,7 @@ class WriterThread(PyDBDaemonThread):
                     for listener in self.py_db.dap_messages_listeners:
                         listener.before_send(cmd.as_dict)
 
+                notify_about_gevent_if_needed()
                 cmd.send(self.sock)
 
                 if cmd.id == CMD_EXIT:

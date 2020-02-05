@@ -2781,6 +2781,41 @@ def test_wait_for_attach_gevent(case_setup_remote_attach_to):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(not TEST_GEVENT, reason='Gevent not installed.')
+def test_notify_gevent(case_setup, pyfile):
+
+    def get_environ(writer):
+        # I.e.: Make sure that gevent support is disabled
+        env = os.environ.copy()
+        env['GEVENT_SUPPORT'] = ''
+        return env
+
+    @pyfile
+    def case_gevent():
+        from gevent import monkey
+        monkey.patch_all()
+        print('TEST SUCEEDED')
+
+    def additional_output_checks(writer, stdout, stderr):
+        assert 'environment variable' in stderr
+        assert 'GEVENT_SUPPORT=True' in stderr
+
+    with case_setup.test_file(
+            case_gevent,
+            get_environ=get_environ,
+            additional_output_checks=additional_output_checks,
+            EXPECTED_RETURNCODE='any',
+            FORCE_KILL_PROCESS_WHEN_FINISHED_OK=True
+        ) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch()
+        json_facade.write_make_initial_run()
+
+        wait_for_condition(lambda: 'GEVENT_SUPPORT=True' in writer.get_stderr())
+
+        writer.finished_ok = True
+
+
 @pytest.mark.skipif(IS_JYTHON, reason='Flaky on Jython.')
 def test_path_translation_and_source_reference(case_setup):
 
