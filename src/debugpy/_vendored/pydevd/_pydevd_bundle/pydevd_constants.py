@@ -151,7 +151,15 @@ try:
 except AttributeError:
     PY_IMPL_NAME = ''
 
-SUPPORT_GEVENT = os.getenv('GEVENT_SUPPORT', 'False') == 'True'
+SUPPORT_GEVENT = os.getenv('GEVENT_SUPPORT', 'False') in ('True', 'true', '1')
+
+GEVENT_SUPPORT_NOT_SET_MSG = os.getenv(
+    'GEVENT_SUPPORT_NOT_SET_MSG',
+    'It seems that the gevent monkey-patching is being used.\n'
+    'Please set an environment variable with:\n'
+    'GEVENT_SUPPORT=True\n'
+    'to enable gevent support in the debugger.'
+)
 
 USE_LIB_COPY = SUPPORT_GEVENT
 
