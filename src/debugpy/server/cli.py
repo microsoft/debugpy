@@ -4,7 +4,9 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import json
 import os
+import re
 import runpy
 import sys
 
@@ -16,7 +18,7 @@ import pydevd
 
 import debugpy
 from debugpy.common import compat, fmt, log
-from debugpy.server import options
+from debugpy.server import api
 
 
 TARGET = "<filename> | -m <module> | -c <code> | --pid <pid>"
@@ -24,14 +26,28 @@ TARGET = "<filename> | -m <module> | -c <code> | --pid <pid>"
 HELP = """debugpy {0}
 See https://aka.ms/debugpy for documentation.
 
-Usage: debugpy [--client] --host <address> [--port <port>]
-               [--wait]
-               [--no-subprocesses]
-               [--log-dir <path>] [--log-stderr]
+Usage: debugpy --listen [<address>:]<port>
+               [--config-<name> <value>]...
+               [--log-to <path>] [--log-to-stderr]
                {1}
 """.format(
     debugpy.__version__, TARGET
 )
+
+
+class Options(object):
+    mode = None
+    address = None
+    log_to = None
+    log_to_stderr = False
+    target = None
+    target_kind = None
+    wait_for_client = False
+    adapter_access_token = None
+
+
+options = Options()
+options.config = {"subProcess": True}
 
 
 def in_range(parser, start, stop):
@@ -46,8 +62,6 @@ def in_range(parser, start, stop):
     return parse
 
 
-port = in_range(int, 0, 2 ** 16)
-
 pid = in_range(int, 0, None)
 
 
@@ -61,26 +75,64 @@ def print_version_and_exit(switch, it):
     sys.exit(0)
 
 
-def set_arg(varname, parser=(lambda x: x), target=options):
+def set_arg(varname, parser=(lambda x: x)):
     def do(arg, it):
         value = parser(next(it))
-        setattr(target, varname, value)
+        setattr(options, varname, value)
 
     return do
 
 
-def set_const(varname, value, target=options):
+def set_const(varname, value):
     def do(arg, it):
-        setattr(target, varname, value)
+        setattr(options, varname, value)
 
     return do
 
 
-def set_log_stderr():
+def set_address(mode):
     def do(arg, it):
-        log.stderr.levels |= set(log.LEVELS)
+        if options.address is not None:
+            raise ValueError("--listen and --connect are mutually exclusive")
+
+        # It's either host:port, or just port.
+        value = next(it)
+        host, sep, port = value.partition(":")
+        if not sep:
+            host = "127.0.0.1"
+            port = value
+        try:
+            port = int(port)
+        except Exception:
+            port = -1
+        if not (0 <= port < 2 ** 16):
+            raise ValueError("invalid port number")
+
+        options.mode = mode
+        options.address = (host, port)
 
     return do
+
+
+def set_config(arg, it):
+    prefix = "--configure-"
+    assert arg.startswith(prefix)
+    name = arg[len(prefix) :]
+    value = next(it)
+
+    if name not in options.config:
+        raise ValueError(fmt("unknown property {0!r}", name))
+
+    expected_type = type(options.config[name])
+    try:
+        if expected_type is bool:
+            value = {"true": True, "false": False}[value.lower()]
+        else:
+            value = expected_type(value)
+    except Exception:
+        raise ValueError(fmt("{0!r} must be a {1}", name, expected_type.__name__))
+
+    options.config[name] = value
 
 
 def set_target(kind, parser=(lambda x: x), positional=False):
@@ -93,34 +145,33 @@ def set_target(kind, parser=(lambda x: x), positional=False):
 
 # fmt: off
 switches = [
-    # Switch                    Placeholder         Action                                  Required
-    # ======                    ===========         ======                                  ========
+    # Switch                    Placeholder         Action
+    # ======                    ===========         ======
 
     # Switches that are documented for use by end users.
-    (("-?", "-h", "--help"),    None,               print_help_and_exit,                    False),
-    (("-V", "--version"),       None,               print_version_and_exit,                 False),
-    ("--client",                None,               set_const("client", True),              False),
-    ("--host",                  "<address>",        set_arg("host"),                        True),
-    ("--port",                  "<port>",           set_arg("port", port),                  False),
-    ("--wait",                  None,               set_const("wait", True),                False),
-    ("--no-subprocesses",       None,               set_const("multiprocess", False),       False),
-    ("--log-dir",               "<path>",           set_arg("log_dir", target=log),         False),
-    ("--log-stderr",            None,               set_log_stderr(),                       False),
+    ("-(\?|h|-help)",           None,               print_help_and_exit),
+    ("-(V|-version)",           None,               print_version_and_exit),
+    ("--log-to" ,               "<path>",           set_arg("log_to")),
+    ("--log-to-stderr",         None,               set_const("log_to_stderr", True)),
+    ("--listen",                "<address>",        set_address("listen")),
+    ("--wait-for-client",       None,               set_const("wait_for_client", True)),
+    ("--configure-.+",          "<value>",          set_config),
 
     # Switches that are used internally by the IDE or debugpy itself.
-    ("--client-access-token",   "<token>",          set_arg("client_access_token"),         False),
+    ("--connect",               "<address>",        set_address("connect")),
+    ("--adapter-access-token",   "<token>",         set_arg("adapter_access_token")),
 
     # Targets. The "" entry corresponds to positional command line arguments,
     # i.e. the ones not preceded by any switch name.
-    ("",                        "<filename>",       set_target("file", positional=True),    False),
-    ("-m",                      "<module>",         set_target("module"),                   False),
-    ("-c",                      "<code>",           set_target("code"),                     False),
-    ("--pid",                   "<pid>",            set_target("pid", pid),                 False),
+    ("",                        "<filename>",       set_target("file", positional=True)),
+    ("-m",                      "<module>",         set_target("module")),
+    ("-c",                      "<code>",           set_target("code")),
+    ("--pid",                   "<pid>",            set_target("pid", pid)),
 ]
 # fmt: on
 
 
-def parse(args, options=options):
+def parse(args):
     seen = set()
     it = (compat.filename(arg) for arg in args)
 
@@ -131,18 +182,16 @@ def parse(args, options=options):
             raise ValueError("missing target: " + TARGET)
 
         switch = arg if arg.startswith("-") else ""
-        for i, (sw, placeholder, action, _) in enumerate(switches):
-            if not isinstance(sw, tuple):
-                sw = (sw,)
-            if switch in sw:
+        for pattern, placeholder, action in switches:
+            if re.match("^(" + pattern + ")$", switch):
                 break
         else:
             raise ValueError("unrecognized switch " + switch)
 
-        if i in seen:
+        if switch in seen:
             raise ValueError("duplicate switch " + switch)
         else:
-            seen.add(i)
+            seen.add(switch)
 
         try:
             action(arg, it)
@@ -155,38 +204,42 @@ def parse(args, options=options):
         if options.target is not None:
             break
 
-    for i, (sw, placeholder, _, required) in enumerate(switches):
-        if not required or i in seen:
-            continue
-        if isinstance(sw, tuple):
-            sw = sw[0]
-        message = fmt("missing required {0}", sw)
-        if placeholder is not None:
-            message += " " + placeholder
-        raise ValueError(message)
+    if options.mode is None:
+        raise ValueError("either --listen or --connect is required")
+    if options.adapter_access_token is not None and options.mode != "connect":
+        raise ValueError("--adapter-access-token requires --connect")
+    if options.target_kind == "pid" and options.wait_for_client:
+        raise ValueError("--pid does not support --wait-for-client")
 
-    if options.target_kind == "pid" and options.wait:
-        raise ValueError("--pid does not support --wait")
+    assert options.target is not None
+    assert options.target_kind is not None
+    assert options.address is not None
 
     return it
 
 
-def setup_debug_server(argv_0):
-    # We need to set up sys.argv[0] before invoking attach() or enable_attach(),
+def start_debugging(argv_0):
+    # We need to set up sys.argv[0] before invoking either listen() or connect(),
     # because they use it to report the "process" event. Thus, we can't rely on
     # run_path() and run_module() doing that, even though they will eventually.
     sys.argv[0] = compat.filename(argv_0)
     log.debug("sys.argv after patching: {0!r}", sys.argv)
 
-    debug = debugpy.attach if options.client else debugpy.enable_attach
-    debug(address=options, multiprocess=options)
+    debugpy.configure(options.config)
 
-    if options.wait:
-        debugpy.wait_for_attach()
+    if options.mode == "listen":
+        debugpy.listen(options.address)
+    elif options.mode == "connect":
+        debugpy.connect(options.address, access_token=options.adapter_access_token)
+    else:
+        raise AssertionError(repr(options.mode))
+
+    if options.wait_for_client:
+        debugpy.wait_for_client()
 
 
 def run_file():
-    setup_debug_server(options.target)
+    start_debugging(options.target)
 
     # run_path has one difference with invoking Python from command-line:
     # if the target is a file (rather than a directory), it does not add its
@@ -200,6 +253,7 @@ def run_file():
 
     log.describe_environment("Pre-launch environment:")
     log.info("Running file {0!j}", options.target)
+
     runpy.run_path(options.target, run_name="__main__")
 
 
@@ -225,7 +279,7 @@ def run_module():
     except Exception:
         log.exception("Error determining module path for sys.argv")
 
-    setup_debug_server(argv_0)
+    start_debugging(argv_0)
 
     # On Python 2, module name must be a non-Unicode string, because it ends up
     # a part of module's __package__, and Python will refuse to run the module
@@ -254,58 +308,58 @@ def run_module():
 
 
 def run_code():
-    log.describe_environment("Pre-launch environment:")
-    log.info("Running code:\n\n{0}", options.target)
-
     # Add current directory to path, like Python itself does for -c.
     sys.path.insert(0, "")
     code = compile(options.target, "<string>", "exec")
 
-    setup_debug_server("-c")
+    start_debugging("-c")
+
+    log.describe_environment("Pre-launch environment:")
+    log.info("Running code:\n\n{0}", options.target)
+
     eval(code, {})
 
 
 def attach_to_pid():
-    log.info("Attaching to process with PID={0}", options.target)
-
     pid = options.target
+    log.info("Attaching to process with PID={0}", pid)
 
-    attach_pid_injected_dirname = os.path.join(
-        os.path.dirname(debugpy.__file__), "server"
-    )
-    assert os.path.exists(attach_pid_injected_dirname)
-
-    log_dir = (log.log_dir or "").replace("\\", "/")
     encode = lambda s: list(bytearray(s.encode("utf-8"))) if s is not None else None
+
+    script_dir = os.path.dirname(debugpy.server.__file__)
+    assert os.path.exists(script_dir)
+    script_dir = encode(script_dir)
+
     setup = {
-        "script": encode(attach_pid_injected_dirname),
-        "host": encode(options.host),
-        "port": options.port,
-        "client": options.client,
-        "log_dir": encode(log_dir),
-        "client_access_token": encode(options.client_access_token),
+        "mode": options.mode,
+        "address": options.address,
+        "wait_for_client": options.wait_for_client,
+        "log_to": options.log_to,
+        "adapter_access_token": options.adapter_access_token,
     }
+    setup = encode(json.dumps(setup))
 
     python_code = """
-import sys;
 import codecs;
+import json;
+import sys;
+
 decode = lambda s: codecs.utf_8_decode(bytearray(s))[0] if s is not None else None;
-script_path = decode({script});
-sys.path.insert(0, script_path);
+
+script_dir = decode({script_dir});
+setup = json.loads(decode({setup}));
+
+sys.path.insert(0, script_dir);
 import attach_pid_injected;
-sys.path.remove(script_path);
-host = decode({host});
-log_dir = decode({log_dir}) or None;
-client_access_token = decode({client_access_token}) or None;
-attach_pid_injected.attach(
-    port={port},
-    host=host,
-    client={client},
-    log_dir=log_dir,
-    client_access_token=client_access_token,
-)
+del sys.path[0];
+
+attach_pid_injected.attach(setup);
 """
-    python_code = python_code.replace("\r", "").replace("\n", "").format(**setup)
+    python_code = (
+        python_code.replace("\r", "")
+        .replace("\n", "")
+        .format(script_dir=script_dir, setup=setup)
+    )
     log.info("Code to be injected: \n{0}", python_code.replace(";", ";\n"))
 
     # pydevd restriction on characters in injected code.
@@ -343,8 +397,13 @@ def main():
         print(HELP + "\nError: " + str(ex), file=sys.stderr)
         sys.exit(2)
 
-    log.to_file(prefix="debugpy.server")
-    log.describe_environment("debugpy.server startup environment:")
+    if options.log_to is not None:
+        debugpy.log_to(options.log_to)
+    if options.log_to_stderr:
+        debugpy.log_to(sys.stderr)
+
+    api.ensure_logging()
+
     log.info(
         "sys.argv before parsing: {0!r}\n" "         after parsing:  {1!r}",
         original_argv,

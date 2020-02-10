@@ -9,21 +9,25 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 https://microsoft.github.io/debug-adapter-protocol/
 """
 
+# debugpy stable public API consists solely of members of this module that are
+# enumerated below.
 __all__ = [
     "__version__",
-    "attach",
-    "break_into_debugger",
+    "breakpoint",
+    "configure",
     "debug_this_thread",
-    "enable_attach",
-    "is_attached",
-    "wait_for_attach",
-    "tracing",
+    "is_client_connected",
+    "listen",
+    "log_to",
+    "trace_this_thread",
+    "wait_for_client",
 ]
 
 import codecs
 import os
 
 from debugpy import _version
+from debugpy.common import compat
 
 
 # Expose debugpy.server API from subpackage, but do not actually import it unless
@@ -34,106 +38,142 @@ from debugpy import _version
 # than 72 characters per line! - and must be readable when retrieved via help().
 
 
-def wait_for_attach():
-    """If an IDE is connected to the debug server in this process,
-    returns immediately. Otherwise, blocks until an IDE connects.
+def log_to(path):
+    """Generate detailed debugpy logs in the specified directory.
 
-    While this function is waiting, it can be canceled by calling
-    wait_for_attach.cancel().
+    The directory must already exist. Several log files are generated,
+    one for every process involved in the debug session.
     """
 
     from debugpy.server import api
 
-    return api.wait_for_attach()
+    return api.log_to(path)
 
 
-def enable_attach(address, log_dir=None, multiprocess=True):
-    """Starts a DAP (Debug Adapter Protocol) server in this process,
-    listening for incoming socket connection from the IDE on the
-    specified address.
+def configure(properties=None, **kwargs):
+    """Sets debug configuration properties that cannot be set in the
+    "attach" request, because they must be applied as early as possible
+    in the process being debugged.
 
-    address must be a (host, port) tuple, as defined by the standard
-    socket module for the AF_INET address family.
+    For example, a "launch" configuration with subprocess debugging
+    disabled can be defined entirely in JSON::
 
-    If specified, log_dir must be a path to some existing directory;
-    the debugger will then create its log files in that directory.
-    Separate log files are created for every process, to accommodate
-    scenarios involving multiple processes. All generated log files
-    have names starting with "debugpy.", and extension ".log".
+        {
+            "request": "launch",
+            "subProcess": false,
+            ...
+        }
 
-    If multiprocess is true, debugpy will also intercept child processes
-    spawned by this process, inject a debug server into them, and
-    configure it to attach to the same IDE before the child process
-    starts running any user code.
+    But the same cannot be done with "attach", because "subProcess"
+    must be known at the point debugpy starts tracing execution. Thus,
+    it is not available in JSON, and must be omitted::
 
-    Returns the interface and the port on which the debug server is
+        {
+            "request": "attach",
+            ...
+        }
+
+    and set from within the debugged process instead::
+
+        debugpy.configure(subProcess=False)
+        debugpy.listen(...)
+
+    Properties to set can be passed either as a single dict argument,
+    or as separate keyword arguments::
+
+        debugpy.configure({"subProcess": False})
+    """
+    pass
+
+
+def listen(address):
+    """Starts a debug adapter debugging this process, that listens for
+    incoming socket connections from clients on the specified address.
+
+    address must be either a (host, port) tuple, as defined by the
+    standard socket module for the AF_INET address family, or a port
+    number. If only the port is specified, host is "127.0.0.1".
+
+    Returns the interface and the port on which the debug adapter is
     actually listening, in the same format as address. This may be
     different from address if port was 0 in the latter, in which case
-    the server will pick some unused ephemeral port to listen on.
+    the adapter will pick some unused ephemeral port to listen on.
 
-    This function does't wait for the IDE to connect to the debug server
-    that it starts. Use wait_for_attach() to block execution until the
-    IDE connects.
+    This function does't wait for a client to connect to the debug
+    adapter that it starts. Use wait_for_client() to block execution
+    until the client connects.
     """
 
     from debugpy.server import api
 
-    return api.enable_attach(address, log_dir)
+    return api.listen(address)
 
 
-def attach(address, log_dir=None, multiprocess=True):
-    """Starts a DAP (Debug Adapter Protocol) server in this process,
-    and connects it to the IDE that is listening for an incoming
-    connection on a socket with the specified address.
+@compat.kwonly
+def connect(address, access_token=None):
+    """Tells an existing debug adapter instance that is listening on the
+    specified address to debug this process.
 
-    address must be a (host, port) tuple, as defined by the standard
-    socket module for the AF_INET address family.
+    address must be either a (host, port) tuple, as defined by the
+    standard socket module for the AF_INET address family, or a port
+    number. If only the port is specified, host is "127.0.0.1".
 
-    If specified, log_dir must be a path to some existing directory;
-    the debugger will then create its log files in that directory.
-    Separate log files are created for every process, to accommodate
-    scenarios involving multiple processes. All generated log files
-    have names starting with "debugpy.", and extension ".log".
+    access_token must be the same value that was passed to the adapter
+    via the --server-access-token command-line switch.
 
-    If multiprocess is true, debugpy will also intercept child processes
-    spawned by this process, inject a debug server into them, and
-    configure it to attach to the same IDE before the child process
-    starts running any user code.
-
-    This function doesn't return until connection to the IDE has been
-    established.
+    This function does't wait for a client to connect to the debug
+    adapter that it connects to. Use wait_for_client() to block
+    execution until the client connects.
     """
 
     from debugpy.server import api
 
-    return api.attach(address, log_dir)
+    return api.connect(address, access_token=access_token)
 
 
-def is_attached():
-    """True if an IDE is connected to the debug server in this process.
+def wait_for_client():
+    """If there is a client connected to the debug adapter that is
+    debugging this process, returns immediately. Otherwise, blocks
+    until a client connects to the adapter.
+
+    While this function is waiting, it can be canceled by calling
+    wait_for_client.cancel() from another thread.
     """
 
     from debugpy.server import api
 
-    return api.is_attached()
+    return api.wait_for_client()
 
 
-def break_into_debugger():
-    """If the IDE is connected, pauses execution of all threads, and
-    breaks into the debugger with current thread as active.
+def is_client_connected():
+    """True if a client is connected to the debug adapter that is
+    debugging this process.
     """
 
     from debugpy.server import api
 
-    return api.break_into_debugger()
+    return api.is_client_connected()
+
+
+def breakpoint():
+    """If a client is connected to the debug adapter that is debugging
+    this process, pauses execution of all threads, and simulates a
+    breakpoint being hit at the line following the call.
+
+    On Python 3.7 and above, this is the same as builtins.breakpoint().
+    """
+
+    from debugpy.server import api
+
+    return api.breakpoint()
 
 
 def debug_this_thread():
-    """Tells debugpy to start tracing the current thread.
+    """Makes the debugger aware of the current thread.
 
     Must be called on any background thread that is started by means
     other than the usual Python APIs (i.e. the "threading" module),
-    for breakpoints to work on that thread.
+    in order for breakpoints to work on that thread.
     """
 
     from debugpy.server import api
@@ -141,26 +181,23 @@ def debug_this_thread():
     return api.debug_this_thread()
 
 
-def tracing(should_trace=None):
-    """Enables or disables tracing on this thread. When called without an
-    argument, returns the current tracing state.
-    When tracing is disabled, breakpoints will not be hit, but code executes
-    significantly faster.
-    If debugger is not attached, this function has no effect.
-    This function can also be used in a with-statement to automatically save
-    and then restore the previous tracing setting::
-        with debugpy.tracing(False):
-            # Tracing disabled
-            ...
-            # Tracing restored
-    Parameters
-    ----------
-    should_trace : bool, optional
-        Whether to enable or disable tracing.
+def trace_this_thread(should_trace):
+    """Tells the debug adapter to enable or disable tracing on the
+    current thread.
+
+    When the thread is traced, the debug adapter can detect breakpoints
+    being hit, but execution is slower, especially in functions that
+    have any breakpoints set in them. Disabling tracing when breakpoints
+    are not anticipated to be hit can improve performance. It can also
+    be used to skip breakpoints on a particular thread.
+
+    Tracing is automatically disabled for all threads when there is no
+    client connected to the debug adapter.
     """
+
     from debugpy.server import api
 
-    return api.tracing(should_trace)
+    return api.trace_this_thread(should_trace)
 
 
 __version__ = _version.get_versions()["version"]

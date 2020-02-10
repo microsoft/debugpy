@@ -422,7 +422,7 @@ def test_deep_stacks(pyfile, target, run):
 
 
 @pytest.mark.parametrize("target", targets.all)
-@pytest.mark.parametrize("func", ["breakpoint", "debugpy.break_into_debugger"])
+@pytest.mark.parametrize("func", ["breakpoint", "debugpy.breakpoint"])
 def test_break_api(pyfile, target, run, func):
     if func == "breakpoint" and sys.version_info < (3, 7):
         pytest.skip("breakpoint() was introduced in Python 3.7")

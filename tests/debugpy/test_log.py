@@ -40,7 +40,7 @@ def test_log_dir(pyfile, tmpdir, target, method):
         debuggee.setup()
 
     # Depending on the method, attach_by_socket will use either `debugpy --log-dir ...`
-    # or `enable_attach(log_dir=) ...`.
+    # or `debugpy.log_to() ...`.
     run = runners.attach_by_socket[method].with_options(log_dir=tmpdir.strpath)
     with check_logs(tmpdir, run):
         with debug.Session() as session:

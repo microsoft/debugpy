@@ -265,7 +265,7 @@ def test_unicode(pyfile, target, run):
         # this needs to do a roundabout way of setting it to avoid parse issues.
         globals()["\u16A0"] = 123
         debuggee.setup()
-        debugpy.break_into_debugger()
+        debugpy.breakpoint()
         print("break")
 
     with debug.Session() as session:
@@ -520,7 +520,7 @@ def test_set_variable(pyfile, target, run):
 
         debuggee.setup()
         a = 1
-        debugpy.break_into_debugger()
+        debugpy.breakpoint()
         backchannel.send(a)
 
     with debug.Session() as session:

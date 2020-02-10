@@ -11,11 +11,11 @@ from tests.debug import runners, targets
 from tests.patterns import some
 
 
-@pytest.mark.parametrize("stop_method", ["break_into_debugger", "pause"])
-@pytest.mark.parametrize("is_attached", ["is_attached", ""])
-@pytest.mark.parametrize("wait_for_attach", ["wait_for_attach", ""])
+@pytest.mark.parametrize("stop_method", ["breakpoint", "pause"])
+@pytest.mark.parametrize("is_client_connected", ["is_client_connected", ""])
+@pytest.mark.parametrize("wait_for_client", ["wait_for_client", ""])
 @pytest.mark.parametrize("target", targets.all)
-def test_attach_api(pyfile, target, wait_for_attach, is_attached, stop_method):
+def test_attach_api(pyfile, target, wait_for_client, is_client_connected, stop_method):
     @pyfile
     def code_to_debug():
         import debuggee
@@ -25,25 +25,25 @@ def test_attach_api(pyfile, target, wait_for_attach, is_attached, stop_method):
         from debuggee import backchannel, scratchpad
 
         debuggee.setup()
-        _, host, port, wait_for_attach, is_attached, stop_method = sys.argv
+        _, host, port, wait_for_client, is_client_connected, stop_method = sys.argv
         port = int(port)
-        debugpy.enable_attach((host, port))
+        debugpy.listen(address=(host, port))
 
-        if wait_for_attach:
-            backchannel.send("wait_for_attach")
-            debugpy.wait_for_attach()
+        if wait_for_client:
+            backchannel.send("wait_for_client")
+            debugpy.wait_for_client()
 
-        if is_attached:
-            backchannel.send("is_attached")
-            while not debugpy.is_attached():
-                print("looping until is_attached")
+        if is_client_connected:
+            backchannel.send("is_client_connected")
+            while not debugpy.is_client_connected():
+                print("looping until is_client_connected()")
                 time.sleep(0.1)
 
-        if stop_method == "break_into_debugger":
-            backchannel.send("break_into_debugger?")
+        if stop_method == "breakpoint":
+            backchannel.send("breakpoint?")
             assert backchannel.receive() == "proceed"
-            debugpy.break_into_debugger()
-            print("break")  # @break_into_debugger
+            debugpy.breakpoint()
+            print("break")  # @breakpoint
         else:
             scratchpad["paused"] = False
             backchannel.send("loop?")
@@ -58,25 +58,25 @@ def test_attach_api(pyfile, target, wait_for_attach, is_attached, stop_method):
 
         backchannel = session.open_backchannel()
         session.spawn_debuggee(
-            [code_to_debug, host, port, wait_for_attach, is_attached, stop_method]
+            [code_to_debug, host, port, wait_for_client, is_client_connected, stop_method]
         )
-        session.wait_for_enable_attach()
+        session.wait_for_adapter_socket()
 
         session.connect_to_adapter((host, port))
         with session.request_attach():
             pass
 
-        if wait_for_attach:
-            assert backchannel.receive() == "wait_for_attach"
+        if wait_for_client:
+            assert backchannel.receive() == "wait_for_client"
 
-        if is_attached:
-            assert backchannel.receive() == "is_attached"
+        if is_client_connected:
+            assert backchannel.receive() == "is_client_connected"
 
-        if stop_method == "break_into_debugger":
-            assert backchannel.receive() == "break_into_debugger?"
+        if stop_method == "breakpoint":
+            assert backchannel.receive() == "breakpoint?"
             backchannel.send("proceed")
             session.wait_for_stop(
-                expected_frames=[some.dap.frame(code_to_debug, "break_into_debugger")]
+                expected_frames=[some.dap.frame(code_to_debug, "breakpoint")]
             )
         elif stop_method == "pause":
             assert backchannel.receive() == "loop?"
@@ -100,13 +100,13 @@ def test_reattach(pyfile, target, run):
         from debuggee import scratchpad
 
         debuggee.setup()
-        debugpy.break_into_debugger()
+        debugpy.breakpoint()
         object()  # @first
 
         scratchpad["exit"] = False
         while not scratchpad["exit"]:
             time.sleep(0.1)
-            debugpy.break_into_debugger()
+            debugpy.breakpoint()
             object()  # @second
 
     with debug.Session() as session1:

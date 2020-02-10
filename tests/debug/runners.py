@@ -222,30 +222,36 @@ def attach_by_socket(
     port = config["port"] = attach_by_socket.port
 
     if method == "cli":
-        args = [os.path.dirname(debugpy.__file__)]
+        args = [
+            os.path.dirname(debugpy.__file__),
+            "--listen",
+            compat.filename_str(host) + ":" + str(port),
+        ]
         if wait:
-            args += ["--wait"]
-        args += ["--host", compat.filename_str(host), "--port", str(port)]
+            args += ["--wait-for-client"]
         if log_dir is not None:
-            args += ["--log-dir", log_dir]
+            args += ["--log-to", log_dir]
         debuggee_setup = None
     elif method == "api":
         args = []
         debuggee_setup = """
 import debugpy
-debugpy.enable_attach(({host!r}, {port!r}), {args})
+if {log_dir!r}:
+    debugpy.log_to({log_dir!r})
+debugpy.listen(({host!r}, {port!r}))
 if {wait!r}:
-    debugpy.wait_for_attach()
+    debugpy.wait_for_client()
 """
-        attach_args = "" if log_dir is None else fmt("log_dir={0!r}", log_dir)
-        debuggee_setup = fmt(debuggee_setup, host=host, port=port, wait=wait, args=attach_args)
+        debuggee_setup = fmt(
+            debuggee_setup, host=host, port=port, wait=wait, log_dir=log_dir
+        )
     else:
         raise ValueError
     args += target.cli(session.spawn_debuggee.env)
 
     session.spawn_debuggee(args, cwd=cwd, setup=debuggee_setup)
     if wait:
-        session.wait_for_enable_attach()
+        session.wait_for_adapter_socket()
 
     session.connect_to_adapter((host, port))
     return session.request_attach()

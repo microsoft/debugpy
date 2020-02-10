@@ -99,7 +99,9 @@ if 'debugpy' not in sys.modules:
                 # Failure to inject is not a fatal error - such a subprocess can
                 # still be debugged, it just won't support "import debugpy" in user
                 # code - so don't terminate the session.
-                log.exception("Failed to inject debugpy into {0}:", self, level="warning")
+                log.exception(
+                    "Failed to inject debugpy into {0}:", self, level="warning"
+                )
 
             with _lock:
                 # The server can disconnect concurrently before we get here, e.g. if
@@ -422,14 +424,11 @@ def inject(pid, debugpy_args):
     cmdline = [
         sys.executable,
         compat.filename(os.path.dirname(debugpy.__file__)),
-        "--client",
-        "--host",
-        host,
-        "--port",
-        str(port),
+        "--connect",
+        host + ":" + str(port),
     ]
     if adapter.access_token is not None:
-        cmdline += ["--client-access-token", adapter.access_token]
+        cmdline += ["--adapter-access-token", adapter.access_token]
     cmdline += debugpy_args
     cmdline += ["--pid", str(pid)]
 

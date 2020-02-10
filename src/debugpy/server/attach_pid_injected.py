@@ -4,6 +4,8 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+"""Script injected into the debuggee process during attach-to-PID."""
+
 import os
 
 
@@ -11,7 +13,8 @@ __file__ = os.path.abspath(__file__)
 _debugpy_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
 
-def attach(host, port, client, log_dir=None, client_access_token=None):
+def attach(setup):
+    log = None
     try:
         import sys
 
@@ -53,40 +56,38 @@ def attach(host, port, client, log_dir=None, client_access_token=None):
                 raise
 
         sys.path.insert(0, _debugpy_dir)
-        import debugpy
-
-        # NOTE: Don't do sys.path.remove here it will remove all instances of that path
-        # and the user may have set that to debugpy path via PYTHONPATH
-        assert sys.path[0] == _debugpy_dir
-        del sys.path[0]
-
-        from debugpy.common import log
-        from debugpy.server import options
-
-        import pydevd
+        try:
+            import debugpy
+            import debugpy.server
+            from debugpy.common import log
+            import pydevd
+        finally:
+            assert sys.path[0] == _debugpy_dir
+            del sys.path[0]
 
         py_db = pydevd.get_global_debugger()
         if py_db is not None:
             py_db.dispose_and_kill_all_pydevd_threads(wait=False)
 
-        if log_dir is not None:
-            log.log_dir = log_dir
-        options.client = client
-        options.host = host
-        options.port = port
-        options.client_access_token = client_access_token
+        if setup["log_to"] is not None:
+            debugpy.log_to(setup["log_to"])
+        log.info("Configuring injected debugpy: {0!j}", setup)
 
-        if options.client:
-            debugpy.attach((options.host, options.port))
+        if setup["mode"] == "listen":
+            debugpy.listen(setup["address"])
+        elif setup["mode"] == "connect":
+            debugpy.connect(
+                setup["address"], access_token=setup["adapter_access_token"]
+            )
         else:
-            debugpy.enable_attach((options.host, options.port))
-
-        from debugpy.common import log
-
-        log.info("Debugger successfully injected")
+            raise AssertionError(repr(setup))
 
     except:
         import traceback
 
         traceback.print_exc()
-        raise log.exception()
+        if log is not None:
+            log.exception()
+        raise
+
+    log.info("debugpy injected successfully")

@@ -5,7 +5,6 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import codecs
-import contextlib
 import json
 import os
 import pydevd
@@ -15,62 +14,112 @@ import threading
 
 import debugpy
 from debugpy import adapter
-from debugpy.common import compat, log, sockets
-from debugpy.server import options
+from debugpy.common import compat, fmt, log, sockets
 from _pydevd_bundle.pydevd_constants import get_global_debugger
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_file
 
 
+_tls = threading.local()
+
+# TODO: "gevent", if possible.
+_config = {"subProcess": True}
+
+# This must be a global to prevent it from being garbage collected and triggering
+# https://bugs.python.org/issue37380.
+_adapter_process = None
+
+
 def _settrace(*args, **kwargs):
     log.debug("pydevd.settrace(*{0!r}, **{1!r})", args, kwargs)
-    return pydevd.settrace(*args, **kwargs)
+    try:
+        return pydevd.settrace(*args, **kwargs)
+    except Exception:
+        raise
+    else:
+        _settrace.called = True
 
 
-def wait_for_attach():
-    log.debug("wait_for_attach()")
-    dbg = get_global_debugger()
-    if dbg is None:
-        raise RuntimeError("wait_for_attach() called before enable_attach()")
+_settrace.called = False
 
-    cancel_event = threading.Event()
-    debugpy.wait_for_attach.cancel = wait_for_attach.cancel = cancel_event.set
-    pydevd._wait_for_attach(cancel=cancel_event)
+
+def ensure_logging():
+    """Starts logging to log.log_dir, if it hasn't already been done.
+    """
+    if ensure_logging.ensured:
+        return
+    ensure_logging.ensured = True
+    log.to_file(prefix="debugpy.server")
+    log.describe_environment("Initial environment:")
+
+
+ensure_logging.ensured = False
+
+
+def log_to(path):
+    if ensure_logging.ensured:
+        raise RuntimeError("logging has already begun")
+
+    log.debug("log_to{0!r}", (path,))
+    if path is sys.stderr:
+        log.stderr.levels |= set(log.LEVELS)
+    else:
+        log.log_dir = path
+
+
+def configure(properties, **kwargs):
+    if _settrace.called:
+        raise RuntimeError("debug adapter is already running")
+
+    ensure_logging()
+    log.debug("configure{0!r}", (properties, kwargs))
+
+    if properties is None:
+        properties = kwargs
+    else:
+        properties = dict(properties)
+        properties.update(kwargs)
+
+    for k, v in properties.items():
+        if k not in _config:
+            raise ValueError(fmt("Unknown property {0!r}", k))
+        expected_type = type(_config[k])
+        if type(v) is not expected_type:
+            raise ValueError(fmt("{0!r} must be a {1}", k, expected_type.__name__))
+        _config[k] = v
 
 
 def _starts_debugging(func):
-    def debug(address, log_dir=None, multiprocess=True):
-        if log_dir:
-            log.log_dir = log_dir
+    def debug(address, **kwargs):
+        if _settrace.called:
+            raise RuntimeError("this process already has a debug adapter")
 
-        log.to_file(prefix="debugpy.server")
-        log.describe_environment("debugpy.server debug start environment:")
-        log.debug("{0}{1!r}", func.__name__, (address, log_dir, multiprocess))
+        try:
+            _, port = address
+        except Exception:
+            port = address
+            address = ("127.0.0.1", port)
+        try:
+            port.__index__()  # ensure it's int-like
+        except Exception:
+            raise ValueError("expected port or (host, port)")
+        if not (0 <= port < 2 ** 16):
+            raise ValueError("invalid port number")
 
-        if is_attached():
-            log.info("{0}() ignored - already attached.", func.__name__)
-            return options.host, options.port
+        ensure_logging()
+        log.debug("{0}({1!r}, **{2!r})", func.__name__, address, kwargs)
 
-        # Ensure port is int
-        if address is not options:
-            host, port = address
-            options.host, options.port = (host, int(port))
-
-        if multiprocess is not options:
-            options.multiprocess = multiprocess
+        settrace_kwargs = {
+            "suspend": False,
+            "patch_multiprocessing": _config.get("subProcess", True),
+        }
 
         debugpy_path, _, _ = get_abs_path_real_path_and_base_from_file(debugpy.__file__)
         debugpy_path = os.path.dirname(debugpy_path)
-        start_patterns = (debugpy_path,)
-        end_patterns = ("debugpy_launcher.py",)
-        log.info(
-            "Won't trace filenames starting with: {0!j}\n"
-            "Won't trace filenames ending with: {1!j}",
-            start_patterns,
-            end_patterns,
-        )
+        settrace_kwargs["dont_trace_start_patterns"] = (debugpy_path,)
+        settrace_kwargs["dont_trace_end_patterns"] = ("debugpy_launcher.py",)
 
         try:
-            return func(start_patterns, end_patterns)
+            return func(address, settrace_kwargs, **kwargs)
         except Exception:
             raise log.exception("{0}() failed:", func.__name__, level="info")
 
@@ -78,14 +127,11 @@ def _starts_debugging(func):
 
 
 @_starts_debugging
-def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
+def listen(address, settrace_kwargs):
     # Errors below are logged with level="info", because the caller might be catching
     # and handling exceptions, and we don't want to spam their stderr unnecessarily.
 
     import subprocess
-
-    if hasattr(enable_attach, "adapter"):
-        raise AssertionError("enable_attach() can only be called once per process")
 
     server_access_token = compat.force_str(codecs.encode(os.urandom(32), "hex"))
 
@@ -99,21 +145,22 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
         "Waiting for adapter endpoints on {0}:{1}...", endpoints_host, endpoints_port
     )
 
+    host, port = address
     adapter_args = [
         sys.executable,
         os.path.dirname(adapter.__file__),
         "--for-server",
         str(endpoints_port),
         "--host",
-        options.host,
+        host,
         "--port",
-        str(options.port),
+        str(port),
         "--server-access-token",
         server_access_token,
     ]
     if log.log_dir is not None:
         adapter_args += ["--log-dir", log.log_dir]
-    log.info("enable_attach() spawning adapter: {0!j}", adapter_args)
+    log.info("debugpy.listen() spawning adapter: {0!j}", adapter_args)
 
     # On Windows, detach the adapter from our console, if any, so that it doesn't
     # receive Ctrl+C from it, and doesn't keep it open once we exit.
@@ -127,18 +174,19 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
     # by holding a reference to it in a non-local variable, to avoid triggering
     # https://bugs.python.org/issue37380.
     try:
-        enable_attach.adapter = subprocess.Popen(
+        global _adapter_process
+        _adapter_process = subprocess.Popen(
             adapter_args, close_fds=True, creationflags=creationflags
         )
         if os.name == "posix":
             # It's going to fork again to daemonize, so we need to wait on it to
             # clean it up properly.
-            enable_attach.adapter.wait()
+            _adapter_process.wait()
         else:
             # Suppress misleading warning about child process still being alive when
             # this process exits (https://bugs.python.org/issue38890).
-            enable_attach.adapter.returncode = 0
-            pydevd.add_dont_terminate_child_pid(enable_attach.adapter.pid)
+            _adapter_process.returncode = 0
+            pydevd.add_dont_terminate_child_pid(_adapter_process.pid)
     except Exception as exc:
         log.exception("Error spawning debug adapter:", level="info")
         raise RuntimeError("error spawning debug adapter: " + str(exc))
@@ -167,66 +215,69 @@ def enable_attach(dont_trace_start_patterns, dont_trace_end_patterns):
         raise RuntimeError(str(endpoints["error"]))
 
     try:
-        host = str(endpoints["server"]["host"])
-        port = int(endpoints["server"]["port"])
-        options.port = int(endpoints["ide"]["port"])
+        server_host = str(endpoints["server"]["host"])
+        server_port = int(endpoints["server"]["port"])
+        client_host = str(endpoints["client"]["host"])
+        client_port = int(endpoints["client"]["port"])
     except Exception as exc:
         log.exception(
             "Error parsing adapter endpoints:\n{0!j}\n", endpoints, level="info"
         )
         raise RuntimeError("error parsing adapter endpoints: " + str(exc))
     log.info(
-        "Adapter is accepting incoming IDE connections on {0}:{1}",
-        options.host,
-        options.port,
+        "Adapter is accepting incoming client connections on {0}:{1}",
+        client_host,
+        client_port,
     )
 
     _settrace(
-        host=host,
-        port=port,
-        suspend=False,
-        patch_multiprocessing=options.multiprocess,
+        host=server_host,
+        port=server_port,
         wait_for_ready_to_run=False,
         block_until_connected=True,
-        dont_trace_start_patterns=dont_trace_start_patterns,
-        dont_trace_end_patterns=dont_trace_end_patterns,
         access_token=server_access_token,
-        client_access_token=options.client_access_token,
+        **settrace_kwargs
     )
-    log.info("pydevd is connected to adapter at {0}:{1}", host, port)
-    return options.host, options.port
+    log.info("pydevd is connected to adapter at {0}:{1}", server_host, server_port)
+    return client_host, client_port
 
 
 @_starts_debugging
-def attach(dont_trace_start_patterns, dont_trace_end_patterns):
-    _settrace(
-        host=options.host,
-        port=options.port,
-        suspend=False,
-        patch_multiprocessing=options.multiprocess,
-        dont_trace_start_patterns=dont_trace_start_patterns,
-        dont_trace_end_patterns=dont_trace_end_patterns,
-        client_access_token=options.client_access_token,
-    )
+def connect(address, settrace_kwargs, access_token):
+    host, port = address
+    _settrace(host=host, port=port, client_access_token=access_token, **settrace_kwargs)
 
 
-def is_attached():
+def wait_for_client():
+    ensure_logging()
+    log.debug("wait_for_client()")
+
+    pydb = get_global_debugger()
+    if pydb is None:
+        raise RuntimeError("listen() or connect() must be called first")
+
+    cancel_event = threading.Event()
+    debugpy.wait_for_client.cancel = wait_for_client.cancel = cancel_event.set
+    pydevd._wait_for_attach(cancel=cancel_event)
+
+
+def is_client_connected():
     return pydevd._is_attached()
 
 
-def break_into_debugger():
-    log.debug("break_into_debugger()")
-
-    if not is_attached():
-        log.info("break_into_debugger() ignored - debugger not attached")
+def breakpoint():
+    ensure_logging()
+    if not is_client_connected():
+        log.info("breakpoint() ignored - debugger not attached")
         return
+    log.debug("breakpoint()")
 
     # Get the first frame in the stack that's not an internal frame.
-    global_debugger = get_global_debugger()
+    pydb = get_global_debugger()
     stop_at_frame = sys._getframe().f_back
     while (
         stop_at_frame is not None
-        and global_debugger.get_file_type(stop_at_frame) == global_debugger.PYDEV_FILE
+        and pydb.get_file_type(stop_at_frame) == pydb.PYDEV_FILE
     ):
         stop_at_frame = stop_at_frame.f_back
 
@@ -240,63 +291,18 @@ def break_into_debugger():
 
 
 def debug_this_thread():
+    ensure_logging()
     log.debug("debug_this_thread()")
+
     _settrace(suspend=False)
 
 
-_tls = threading.local()
+def trace_this_thread(should_trace):
+    ensure_logging()
+    log.debug("trace_this_thread({0!r})", should_trace)
 
-
-def tracing(should_trace):
     pydb = get_global_debugger()
-
-    try:
-        was_tracing = _tls.is_tracing
-    except AttributeError:
-        was_tracing = pydb is not None
-
-    if should_trace is None:
-        return was_tracing
-
-    # It is possible that IDE attaches after tracing is changed, but before it is
-    # restored. In this case, we don't really want to restore the original value,
-    # because it will effectively disable tracing for the just-attached IDE. Doing
-    # the check outside the function below makes it so that if the original change
-    # was a no-op because IDE wasn't attached, restore will be no-op as well, even
-    # if IDE has attached by then.
-
-    tid = threading.current_thread().ident
-    if pydb is None:
-        log.info("debugpy.tracing() ignored on thread {0} - debugger not attached", tid)
-
-        def enable_or_disable(_):
-            # Always fetch the fresh value, in case it changes before we restore.
-            _tls.is_tracing = get_global_debugger() is not None
-
+    if should_trace:
+        pydb.enable_tracing()
     else:
-
-        def enable_or_disable(enable):
-            if enable:
-                log.info("Enabling tracing on thread {0}", tid)
-                pydb.enable_tracing()
-            else:
-                log.info("Disabling tracing on thread {0}", tid)
-                pydb.disable_tracing()
-            _tls.is_tracing = enable
-
-    # Context managers don't do anything unless used in a with-statement - that is,
-    # even the code up to yield won't run. But we want callers to be able to omit
-    # with-statement for this function, if they don't want to restore. So, we apply
-    # the change directly out here in the non-generator context, so that it happens
-    # immediately - and then return a context manager that is solely for the purpose
-    # of restoring the original value, which the caller can use or discard.
-
-    @contextlib.contextmanager
-    def restore_tracing():
-        try:
-            yield
-        finally:
-            enable_or_disable(was_tracing)
-
-    enable_or_disable(should_trace)
-    return restore_tracing()
+        pydb.disable_tracing()

@@ -304,12 +304,12 @@ class IDE(components.Component):
         # connected already, and thus the wait timeout is zero.
         #
         # If neither is specified, and "waitForAttach" is true, this is attach-by-socket
-        # with the server expected to connect to the adapter via debugpy.attach(). There
+        # with the server expected to connect to the adapter via debugpy.connect(). There
         # is no PID known in advance, so just wait until the first server connection
         # indefinitely, with no timeout.
         #
         # If neither is specified, and "waitForAttach" is false, this is attach-by-socket
-        # in which the server has spawned the adapter via debugpy.enable_attach(). There
+        # in which the server has spawned the adapter via debugpy.listen(). There
         # is no PID known to the IDE in advance, but the server connection should be
         # either be there already, or the server should be connecting shortly, so there
         # must be a timeout.
