@@ -143,8 +143,8 @@ try:
 except:
     pass
 
-bufferStdOutToServer = False
-bufferStdErrToServer = False
+_global_redirect_stdout_to_server = False
+_global_redirect_stderr_to_server = False
 
 file_system_encoding = getfilesystemencoding()
 
@@ -1279,26 +1279,26 @@ class PyDB(object):
         queue.put(int_cmd)
 
     def enable_output_redirection(self, redirect_stdout, redirect_stderr):
-        global bufferStdOutToServer
-        global bufferStdErrToServer
+        global _global_redirect_stdout_to_server
+        global _global_redirect_stderr_to_server
 
-        bufferStdOutToServer = redirect_stdout
-        bufferStdErrToServer = redirect_stderr
+        _global_redirect_stdout_to_server = redirect_stdout
+        _global_redirect_stderr_to_server = redirect_stderr
         self.redirect_output = redirect_stdout or redirect_stderr
-        if bufferStdOutToServer:
-            init_stdout_redirect()
-        if bufferStdErrToServer:
-            init_stderr_redirect()
+        if _global_redirect_stdout_to_server:
+            _init_stdout_redirect()
+        if _global_redirect_stderr_to_server:
+            _init_stderr_redirect()
 
     def check_output_redirect(self):
-        global bufferStdOutToServer
-        global bufferStdErrToServer
+        global _global_redirect_stdout_to_server
+        global _global_redirect_stderr_to_server
 
-        if bufferStdOutToServer:
-            init_stdout_redirect()
+        if _global_redirect_stdout_to_server:
+            _init_stdout_redirect()
 
-        if bufferStdErrToServer:
-            init_stderr_redirect()
+        if _global_redirect_stderr_to_server:
+            _init_stderr_redirect()
 
     def init_matplotlib_in_debug_console(self):
         # import hook and patches for matplotlib support in debug console
@@ -2345,81 +2345,12 @@ def usage(doExit=0):
         sys.exit(0)
 
 
-class _CustomWriter(object):
-
-    def __init__(self, out_ctx, wrap_stream, wrap_buffer, on_write=None):
-        '''
-        :param out_ctx:
-            1=stdout and 2=stderr
-
-        :param wrap_stream:
-            Either sys.stdout or sys.stderr.
-
-        :param bool wrap_buffer:
-            If True the buffer attribute (which wraps writing bytes) should be
-            wrapped.
-
-        :param callable(str) on_write:
-            May be a custom callable to be called when to write something.
-            If not passed the default implementation will create an io message
-            and send it through the debugger.
-        '''
-        encoding = getattr(wrap_stream, 'encoding', None)
-        if not encoding:
-            encoding = os.environ.get('PYTHONIOENCODING', 'utf-8')
-        self.encoding = encoding
-        self._out_ctx = out_ctx
-        if wrap_buffer:
-            self.buffer = _CustomWriter(out_ctx, wrap_stream, wrap_buffer=False, on_write=on_write)
-        self._on_write = on_write
-
-    def flush(self):
-        pass  # no-op here
-
-    def write(self, s):
-        if self._on_write is not None:
-            self._on_write(s)
-            return
-
-        if s:
-            if IS_PY2:
-                # Need s in utf-8 bytes
-                if isinstance(s, unicode):  # noqa
-                    # Note: python 2.6 does not accept the "errors" keyword.
-                    s = s.encode('utf-8', 'replace')
-                else:
-                    s = s.decode(self.encoding, 'replace').encode('utf-8', 'replace')
-
-            else:
-                # Need s in str
-                if isinstance(s, bytes):
-                    s = s.decode(self.encoding, errors='replace')
-
-            py_db = get_global_debugger()
-            if py_db is not None:
-                # Note that the actual message contents will be a xml with utf-8, although
-                # the entry is str on py3 and bytes on py2.
-                cmd = py_db.cmd_factory.make_io_message(s, self._out_ctx)
-                if py_db.writer is not None:
-                    py_db.writer.add_command(cmd)
+def _init_stdout_redirect():
+    pydevd_io.redirect_stream_to_pydb_io_messages(std='stdout')
 
 
-def init_stdout_redirect(on_write=None):
-    if not hasattr(sys, '_pydevd_out_buffer_'):
-        wrap_buffer = True if not IS_PY2 else False
-        original = sys.stdout
-        sys._pydevd_out_buffer_ = _CustomWriter(1, original, wrap_buffer, on_write)
-        sys.stdout_original = original
-        sys.stdout = pydevd_io.IORedirector(original, sys._pydevd_out_buffer_, wrap_buffer)  # @UndefinedVariable
-
-
-def init_stderr_redirect(on_write=None):
-    if not hasattr(sys, '_pydevd_err_buffer_'):
-        wrap_buffer = True if not IS_PY2 else False
-        original = sys.stderr
-        sys._pydevd_err_buffer_ = _CustomWriter(2, original, wrap_buffer, on_write)
-        sys.stderr_original = original
-        sys.stderr = pydevd_io.IORedirector(original, sys._pydevd_err_buffer_, wrap_buffer)  # @UndefinedVariable
+def _init_stderr_redirect():
+    pydevd_io.redirect_stream_to_pydb_io_messages(std='stderr')
 
 
 def _enable_attach(
@@ -2491,8 +2422,8 @@ def _is_attached():
 #=======================================================================================================================
 def settrace(
     host=None,
-    stdoutToServer=False,
-    stderrToServer=False,
+    stdout_to_server=False,
+    stderr_to_server=False,
     port=5678,
     suspend=True,
     trace_only_current_thread=False,
@@ -2505,15 +2436,16 @@ def settrace(
     dont_trace_end_patterns=(),
     access_token=None,
     client_access_token=None,
+    **kwargs
     ):
     '''Sets the tracing function with the pydev debug function and initializes needed facilities.
 
     :param host: the user may specify another host, if the debug server is not in the same machine (default is the local
         host)
 
-    :param stdoutToServer: when this is true, the stdout is passed to the debug server
+    :param stdout_to_server: when this is true, the stdout is passed to the debug server
 
-    :param stderrToServer: when this is true, the stderr is passed to the debug server
+    :param stderr_to_server: when this is true, the stderr is passed to the debug server
         so that they are printed in its console and not in this process console.
 
     :param port: specifies which port to use for communicating with the server (note that the server must be started
@@ -2551,11 +2483,15 @@ def settrace(
     :param client_access_token: token to be sent from the debugger to the client (i.e.: IDE) when
         a connection is established (verified by the client).
     '''
+
+    stdout_to_server = stdout_to_server or kwargs.get('stdoutToServer', False)  # Backward compatibility
+    stderr_to_server = stderr_to_server or kwargs.get('stderrToServer', False)  # Backward compatibility
+
     with _set_trace_lock:
         _locked_settrace(
             host,
-            stdoutToServer,
-            stderrToServer,
+            stdout_to_server,
+            stderr_to_server,
             port,
             suspend,
             trace_only_current_thread,
@@ -2575,8 +2511,8 @@ _set_trace_lock = ForkSafeLock()
 
 def _locked_settrace(
     host,
-    stdoutToServer,
-    stderrToServer,
+    stdout_to_server,
+    stderr_to_server,
     port,
     suspend,
     trace_only_current_thread,
@@ -2601,8 +2537,8 @@ def _locked_settrace(
         from _pydev_bundle import pydev_localhost
         host = pydev_localhost.get_localhost()
 
-    global bufferStdOutToServer
-    global bufferStdErrToServer
+    global _global_redirect_stdout_to_server
+    global _global_redirect_stderr_to_server
 
     py_db = get_global_debugger()
     if py_db is None:
@@ -2635,14 +2571,14 @@ def _locked_settrace(
         if dont_trace_start_patterns or dont_trace_end_patterns:
             PyDevdAPI().set_dont_trace_start_end_patterns(py_db, dont_trace_start_patterns, dont_trace_end_patterns)
 
-        bufferStdOutToServer = stdoutToServer
-        bufferStdErrToServer = stderrToServer
+        _global_redirect_stdout_to_server = stdout_to_server
+        _global_redirect_stderr_to_server = stderr_to_server
 
-        if bufferStdOutToServer:
-            init_stdout_redirect()
+        if _global_redirect_stdout_to_server:
+            _init_stdout_redirect()
 
-        if bufferStdErrToServer:
-            init_stderr_redirect()
+        if _global_redirect_stderr_to_server:
+            _init_stderr_redirect()
 
         patch_stdin()
 

@@ -1461,6 +1461,32 @@ def test_evaluate_exec_unicode(case_setup):
         writer.finished_ok = True
 
 
+def test_evaluate_repl_redirect(case_setup):
+
+    with case_setup.test_file('_debugger_case_local_variables2.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'))
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        json_hit = json_facade.get_stack_as_json_hit(json_hit.thread_id)
+
+        # Check eval
+        json_facade.evaluate(
+            "print('var')",
+            frameId=json_hit.frame_id,
+            context="repl",
+        )
+
+        messages = json_facade.mark_messages(
+            OutputEvent, lambda output_event: u'var' in output_event.body.output)
+        assert len(messages) == 1
+
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
 def test_evaluate_variable_references(case_setup):
     from _pydevd_bundle._debug_adapter.pydevd_schema import EvaluateRequest
     from _pydevd_bundle._debug_adapter.pydevd_schema import EvaluateArguments
