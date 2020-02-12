@@ -17,9 +17,6 @@ def test_tracing(pyfile, target, run):
         debuggee.setup()
 
         def func(expected_tracing):
-            assert debugpy.tracing() == expected_tracing, "inside func({0!r})".format(
-                expected_tracing
-            )
             print(1)  # @inner1
 
             # Test nested change/restore. Going from False to True only works entirely
@@ -31,23 +28,17 @@ def test_tracing(pyfile, target, run):
             def inner2():
                 print(2)  # @inner2
 
-            with debugpy.tracing(not expected_tracing):
-                assert debugpy.tracing() != expected_tracing, "inside with-statement"
-                inner2()
-            assert debugpy.tracing() == expected_tracing, "after with-statement"
+            debugpy.trace_this_thread(not expected_tracing)
+            inner2()
+            debugpy.trace_this_thread(expected_tracing)
 
             print(3)  # @inner3
 
-        assert debugpy.tracing(), "before tracing(False)"
-        debugpy.tracing(False)
-        assert not debugpy.tracing(), "after tracing(False)"
-
+        debugpy.trace_this_thread(False)
         print(0)  # @outer1
         func(False)
 
-        debugpy.tracing(True)
-        assert debugpy.tracing(), "after tracing(True)"
-
+        debugpy.trace_this_thread(True)
         print(0)  # @outer2
         func(True)
 

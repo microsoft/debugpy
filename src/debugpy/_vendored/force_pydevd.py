@@ -51,7 +51,7 @@ import debugpy  # noqa
 
 
 def debugpy_breakpointhook():
-    debugpy.break_into_debugger()
+    debugpy.breakpoint()
 
 
 pydevd.install_breakpointhook(debugpy_breakpointhook)

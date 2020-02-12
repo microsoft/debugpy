@@ -1,5 +1,5 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
-# Licensed under the MIT License. See LICENSE in the project root
+# # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
 from __future__ import absolute_import, division, print_function, unicode_literals
@@ -7,6 +7,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 """Python 2/3 compatibility helpers.
 """
 
+import functools
 import inspect
 import itertools
 import sys
@@ -174,3 +175,35 @@ def srcnameof(obj):
         name += ")"
 
     return name
+
+
+def kwonly(f):
+    """Makes all arguments with default values keyword-only.
+
+    If the default value is kwonly.required, then the argument must be specified.
+    """
+
+    arg_names, args_name, kwargs_name, arg_defaults = inspect.getargspec(f)
+    assert args_name is None and kwargs_name is None
+    argc = len(arg_names)
+    pos_argc = argc - len(arg_defaults)
+    required_names = {
+        name
+        for name, val in zip(arg_names[pos_argc:], arg_defaults)
+        if val is kwonly.required
+    }
+
+    @functools.wraps(f)
+    def kwonly_f(*args, **kwargs):
+        if len(args) > pos_argc:
+            raise TypeError("too many positional arguments")
+        if not required_names.issubset(kwargs):
+            missing_names = required_names.difference(kwargs)
+            missing_names = ", ".join(repr(s) for s in missing_names)
+            raise TypeError("missing required keyword-only arguments: " + missing_names)
+        return f(*args, **kwargs)
+
+    return kwonly_f
+
+
+kwonly.required = object()

@@ -62,7 +62,7 @@ def test_debugpySystemInfo(pyfile, target, run, expected_system_info):
         import debugpy
 
         debuggee.setup()
-        debugpy.break_into_debugger()
+        debugpy.breakpoint()
         print()
 
     with debug.Session() as session:

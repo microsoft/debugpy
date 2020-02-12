@@ -64,15 +64,12 @@ def launch_request(request):
         port = request("port", int)
         cmdline += [
             compat.filename(os.path.dirname(debugpy.__file__)),
-            "--client",
-            "--host",
-            "127.0.0.1",
-            "--port",
+            "--connect",
             str(port),
         ]
-        client_access_token = request("clientAccessToken", unicode, optional=True)
-        if client_access_token != ():
-            cmdline += ["--client-access-token", compat.filename(client_access_token)]
+        adapter_access_token = request("adapterAccessToken", unicode, optional=True)
+        if adapter_access_token != ():
+            cmdline += ["--adapter-access-token", compat.filename(adapter_access_token)]
         debugpy_args = request("debugpyArgs", json.array(unicode))
         cmdline += debugpy_args
 
@@ -113,7 +110,7 @@ def launch_request(request):
     if sys.platform == "win32":
         # Environment variables are case-insensitive on Win32, so we need to normalize
         # both dicts to make sure that env vars specified in the debug configuration
-        # overwrite the global env vars correctly. If debug config has entries that 
+        # overwrite the global env vars correctly. If debug config has entries that
         # differ in case only, that's an error.
         env = {k.upper(): v for k, v in os.environ.items()}
         n = len(env_changes)

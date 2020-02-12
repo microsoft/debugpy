@@ -10,6 +10,7 @@ import subprocess
 import sys
 
 from debugpy.common import log
+from tests.patterns import some
 
 
 @pytest.fixture
@@ -19,7 +20,7 @@ def cli(pyfile):
         import os
         import pickle
         import sys
-        from debugpy.server import cli, options
+        from debugpy.server import cli
 
         try:
             sys.argv[1:] = cli.parse(sys.argv[1:])
@@ -29,15 +30,16 @@ def cli(pyfile):
         else:
             # We only care about options that correspond to public switches.
             options = {
-                name: getattr(options, name)
+                name: getattr(cli.options, name)
                 for name in [
-                    "target_kind",
+                    "address",
+                    "config",
+                    "log_to",
+                    "log_to_stderr",
+                    "mode",
                     "target",
-                    "host",
-                    "port",
-                    "client",
-                    "wait",
-                    "multiprocess",
+                    "target_kind",
+                    "wait_for_client",
                 ]
             }
             os.write(1, pickle.dumps([sys.argv[1:], options]))
@@ -60,25 +62,27 @@ def cli(pyfile):
 
 
 @pytest.mark.parametrize("target_kind", ["file", "module", "code"])
-@pytest.mark.parametrize("port", ["", "8888"])
-@pytest.mark.parametrize("client", ["", "client"])
-@pytest.mark.parametrize("wait", ["", "wait"])
-@pytest.mark.parametrize("subprocesses", ["", "subprocesses"])
-@pytest.mark.parametrize("extra", ["", "extra"])
-def test_targets(cli, target_kind, port, client, wait, subprocesses, extra):
-    args = ["--host", "localhost"]
+@pytest.mark.parametrize("mode", ["listen", "connect"])
+@pytest.mark.parametrize("address", ["8888", "localhost:8888"])
+@pytest.mark.parametrize("wait_for_client", ["", "wait_for_client"])
+@pytest.mark.parametrize("script_args", ["", "script_args"])
+def test_targets(cli, target_kind, mode, address, wait_for_client, script_args):
+    expected_options = {
+        "mode": mode,
+        "target_kind": target_kind,
+        "wait_for_client": bool(wait_for_client),
+    }
 
-    if port:
-        args += ["--port", port]
+    args = ["--" + mode, address]
 
-    if client:
-        args += ["--client"]
+    host, sep, port = address.partition(":")
+    if sep:
+        expected_options["address"] = (host, int(port))
+    else:
+        expected_options["address"] = ("127.0.0.1", int(address))
 
-    if wait:
-        args += ["--wait"]
-
-    if not subprocesses:
-        args += ["--no-subprocesses"]
+    if wait_for_client:
+        args += ["--wait-for-client"]
 
     if target_kind == "file":
         target = "spam.py"
@@ -91,49 +95,55 @@ def test_targets(cli, target_kind, port, client, wait, subprocesses, extra):
         args += ["-c", target]
     else:
         pytest.fail(target_kind)
+    expected_options["target"] = target
 
-    if extra:
-        extra = [
+    if script_args:
+        script_args = [
             "ham",
-            "--client",
-            "--wait",
+            "--listen",
+            "--wait-for-client",
             "-y",
             "spam",
             "--",
-            "--host",
-            "--port",
+            "--connect",
             "-c",
             "--something",
             "-m",
         ]
-        args += extra
+        args += script_args
     else:
-        extra = []
+        script_args = []
 
     argv, options = cli(args)
-
-    assert argv == extra
-    assert options == {
-        "target_kind": target_kind,
-        "target": target,
-        "host": "localhost",
-        "port": int(port) if port else 5678,
-        "wait": bool(wait),
-        "multiprocess": bool(subprocesses),
-        "client": bool(client),
-    }
+    assert argv == script_args
+    assert options == some.dict.containing(expected_options)
 
 
-def test_unsupported_arg(cli):
+@pytest.mark.parametrize("value", ["", True, False])
+def test_configure_subProcess(cli, value):
+    args = ["--listen", "8888"]
+
+    if value == "":
+        value = True
+    else:
+        args += ["--configure-subProcess", str(value)]
+
+    args += ["spam.py"]
+    _, options = cli(args)
+
+    assert options["config"]["subProcess"] == value
+
+
+def test_unsupported_switch(cli):
     with pytest.raises(Exception):
-        cli(["--port", "8888", "--xyz", "123", "spam.py"])
+        cli(["--listen", "8888", "--xyz", "123", "spam.py"])
 
 
-def test_host_required(cli):
+def test_unsupported_configure(cli):
     with pytest.raises(Exception):
-        cli(["--port", "8888", "-m", "spam"])
+        cli(["--connect", "127.0.0.1:8888", "--configure-xyz", "123", "spam.py"])
 
 
-def test_host_empty(cli):
-    _, options = cli(["--host", "", "--port", "8888", "spam.py"])
-    assert options["host"] == ""
+def test_address_required(cli):
+    with pytest.raises(Exception):
+        cli(["-m", "spam"])

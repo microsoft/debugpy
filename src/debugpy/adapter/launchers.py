@@ -74,7 +74,7 @@ def spawn_debuggee(session, start_request, sudo, args, console, console_title):
     arguments = dict(start_request.arguments)
     if not session.no_debug:
         _, arguments["port"] = servers.listener.getsockname()
-        arguments["clientAccessToken"] = adapter.access_token
+        arguments["adapterAccessToken"] = adapter.access_token
 
     def on_launcher_connected(sock):
         listener.close()

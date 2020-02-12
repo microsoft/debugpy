@@ -383,7 +383,7 @@ class Session(object):
         for fd in popen_fds.values():
             os.close(fd)
 
-    def wait_for_enable_attach(self):
+    def wait_for_adapter_socket(self):
         log.info("Waiting for {0} to open the IDE listener socket...", self.adapter_id)
         while not self.adapter_endpoints.check():
             time.sleep(0.1)

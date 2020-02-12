@@ -113,7 +113,7 @@ def test_wait_on_exit(
         import debugpy
 
         debuggee.setup()
-        debugpy.break_into_debugger()
+        debugpy.breakpoint()
         print()  # line on which it'll actually break
         sys.exit(int(sys.argv[1]))
 

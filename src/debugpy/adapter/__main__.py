@@ -66,7 +66,7 @@ def main(args):
                 "error": "Can't listen for IDE connections: " + str(exc)
             }
         else:
-            endpoints["ide"] = {"host": ide_host, "port": ide_port}
+            endpoints["client"] = {"host": ide_host, "port": ide_port}
 
     if args.for_server is not None:
         log.info(
