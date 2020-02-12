@@ -136,11 +136,11 @@ if 'debugpy' not in sys.modules:
             log.info("No active debug session for parent process of {0}.", self)
         else:
             try:
-                parent_session.ide.notify_of_subprocess(self)
+                parent_session.client.notify_of_subprocess(self)
             except Exception:
-                # This might fail if the IDE concurrently disconnects from the parent
+                # This might fail if the client concurrently disconnects from the parent
                 # session. We still want to keep the connection around, in case the
-                # IDE reconnects later. If the parent session was "launch", it'll take
+                # client reconnects later. If the parent session was "launch", it'll take
                 # care of closing the remaining server connections.
                 log.exception("Failed to notify parent session about {0}:", self)
 
@@ -159,7 +159,7 @@ if 'debugpy' not in sys.modules:
 
     def request(self, request):
         raise request.isnt_valid(
-            "Requests from the debug server to the IDE are not allowed."
+            "Requests from the debug server to the client are not allowed."
         )
 
     def event(self, event):
@@ -273,16 +273,16 @@ class Server(components.Component):
         # Do not delegate requests from the server by default. There is a security
         # boundary between the server and the adapter, and we cannot trust arbitrary
         # requests sent over that boundary, since they may contain arbitrary code
-        # that the IDE will execute - e.g. "runInTerminal". The adapter must only
+        # that the client will execute - e.g. "runInTerminal". The adapter must only
         # propagate requests that it knows are safe.
         raise request.isnt_valid(
-            "Requests from the debug server to the IDE are not allowed."
+            "Requests from the debug server to the client are not allowed."
         )
 
     # Generic event handler, used if there's no specific handler below.
     @message_handler
     def event(self, event):
-        self.ide.propagate_after_start(event)
+        self.client.propagate_after_start(event)
 
     @message_handler
     def initialized_event(self, event):
@@ -293,7 +293,7 @@ class Server(components.Component):
     def process_event(self, event):
         # If there is a launcher, it's handling the process event.
         if not self.launcher:
-            self.ide.propagate_after_start(event)
+            self.client.propagate_after_start(event)
 
     @message_handler
     def continued_event(self, event):
@@ -306,7 +306,7 @@ class Server(components.Component):
         # in "launch" or "attach" request, which defaults to true. If explicitly set
         # to false, pydevd will only resume the thread that was stepping.
         #
-        # To ensure that the IDE is aware that other threads are getting resumed in
+        # To ensure that the client is aware that other threads are getting resumed in
         # that mode, pydevd sends a "continued" event with "allThreadsResumed": true.
         # when responding to a step request. This ensures correct behavior in VSCode
         # and other DAP-conformant clients.
@@ -316,14 +316,14 @@ class Server(components.Component):
         # does not expect to see "continued" events explicitly reflecting that fact.
         # If such events are sent regardless, VS behaves erratically. Thus, we have
         # to suppress them specifically for VS.
-        if self.ide.client_id not in ("visualstudio", "vsformac"):
-            self.ide.propagate_after_start(event)
+        if self.client.client_id not in ("visualstudio", "vsformac"):
+            self.client.propagate_after_start(event)
 
     @message_handler
     def exited_event(self, event):
         # If there is a launcher, it's handling the exit code.
         if not self.launcher:
-            self.ide.propagate_after_start(event)
+            self.client.propagate_after_start(event)
 
     @message_handler
     def terminated_event(self, event):

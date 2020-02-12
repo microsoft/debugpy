@@ -34,16 +34,16 @@ class Launcher(components.Component):
     @message_handler
     def process_event(self, event):
         self.pid = event("systemProcessId", int)
-        self.ide.propagate_after_start(event)
+        self.client.propagate_after_start(event)
 
     @message_handler
     def output_event(self, event):
-        self.ide.propagate_after_start(event)
+        self.client.propagate_after_start(event)
 
     @message_handler
     def exited_event(self, event):
         self.exit_code = event("exitCode", int)
-        # We don't want to tell the IDE about this just yet, because it will then
+        # We don't want to tell the client about this just yet, because it will then
         # want to disconnect, and the launcher might still be waiting for keypress
         # (if wait-on-exit was enabled). Instead, we'll report the event when we
         # receive "terminated" from the launcher, right before it exits.
@@ -51,7 +51,7 @@ class Launcher(components.Component):
     @message_handler
     def terminated_event(self, event):
         try:
-            self.ide.channel.send_event("exited", {"exitCode": self.exit_code})
+            self.client.channel.send_event("exited", {"exitCode": self.exit_code})
         except Exception:
             pass
         self.channel.close()
@@ -94,7 +94,7 @@ def spawn_debuggee(session, start_request, sudo, args, console, console_title):
         if console == "internalConsole":
             log.info("{0} spawning launcher: {1!r}", session, cmdline)
 
-            # If we are talking to the IDE over stdio, sys.stdin and sys.stdout are
+            # If we are talking to the client over stdio, sys.stdin and sys.stdout are
             # redirected to avoid mangling the DAP message stream. Make sure the
             # launcher also respects that.
             subprocess.Popen(
@@ -107,12 +107,9 @@ def spawn_debuggee(session, start_request, sudo, args, console, console_title):
 
         else:
             log.info('{0} spawning launcher via "runInTerminal" request.', session)
-            session.ide.capabilities.require("supportsRunInTerminalRequest")
-            kinds = {
-                "integratedTerminal": "integrated",
-                "externalTerminal": "external",
-            }
-            session.ide.channel.request(
+            session.client.capabilities.require("supportsRunInTerminalRequest")
+            kinds = {"integratedTerminal": "integrated", "externalTerminal": "external"}
+            session.client.channel.request(
                 "runInTerminal",
                 {
                     "kind": kinds[console],
@@ -124,9 +121,7 @@ def spawn_debuggee(session, start_request, sudo, args, console, console_title):
 
         if not session.wait_for(lambda: session.launcher, timeout=10):
             raise start_request.cant_handle(
-                '{0} timed out waiting for {1} to connect',
-                session,
-                session.launcher,
+                "{0} timed out waiting for {1} to connect", session, session.launcher
             )
 
         try:

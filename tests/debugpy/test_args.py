@@ -19,7 +19,7 @@ def test_args(pyfile, target, run):
         import sys
         import debuggee
         from debuggee import backchannel
-        
+
         debuggee.setup()
         backchannel.send(sys.argv)
 

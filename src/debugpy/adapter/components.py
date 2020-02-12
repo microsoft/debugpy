@@ -20,7 +20,7 @@ class ComponentNotAvailable(Exception):
 
 
 class Component(util.Observable):
-    """A component managed by a debug adapter: IDE, launcher, or debug server.
+    """A component managed by a debug adapter: client, launcher, or debug server.
 
     Every component belongs to a Session, which is used for synchronization and
     shared data.
@@ -65,8 +65,8 @@ class Component(util.Observable):
         return fmt("{0}[{1}]", type(self).__name__, self.session.id)
 
     @property
-    def ide(self):
-        return self.session.ide
+    def client(self):
+        return self.session.client
 
     @property
     def launcher(self):

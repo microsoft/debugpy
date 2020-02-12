@@ -65,7 +65,6 @@ def test_exceptions_and_exclude_rules(pyfile, target, run, scenario, exc_type):
 
 @pytest.mark.parametrize("scenario", ["exclude_code_to_debug", "exclude_callback_dir"])
 def test_exceptions_and_partial_exclude_rules(pyfile, target, run, scenario):
-
     @pyfile
     def code_to_debug():
         import debuggee

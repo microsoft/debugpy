@@ -157,7 +157,7 @@ switches = [
     ("--wait-for-client",       None,               set_const("wait_for_client", True)),
     ("--configure-.+",          "<value>",          set_config),
 
-    # Switches that are used internally by the IDE or debugpy itself.
+    # Switches that are used internally by the client or debugpy itself.
     ("--connect",               "<address>",        set_address("connect")),
     ("--adapter-access-token",   "<token>",         set_arg("adapter_access_token")),
 

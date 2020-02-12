@@ -114,6 +114,7 @@ def test_crossfile_breakpoint(pyfile, target, run):
         import debuggee
 
         debuggee.setup()
+
         def do_something():
             print("do something")  # @bp
 
