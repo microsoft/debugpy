@@ -20,16 +20,16 @@ _sessions_changed = threading.Event()
 
 
 class Session(util.Observable):
-    """A debug session involving an IDE, an adapter, a launcher, and a debug server.
+    """A debug session involving a client, an adapter, a launcher, and a debug server.
 
-    The IDE and the adapter are always present, and at least one of launcher and debug
+    The client and the adapter are always present, and at least one of launcher and debug
     server is present, depending on the scenario.
     """
 
     _counter = itertools.count(1)
 
     def __init__(self):
-        from debugpy.adapter import ide
+        from debugpy.adapter import clients
 
         super(Session, self).__init__()
 
@@ -37,8 +37,8 @@ class Session(util.Observable):
         self.id = next(self._counter)
         self._changed_condition = threading.Condition(self.lock)
 
-        self.ide = components.missing(self, ide.IDE)
-        """The IDE component. Always present."""
+        self.client = components.missing(self, clients.Client)
+        """The client component. Always present."""
 
         self.launcher = components.missing(self, launchers.Launcher)
         """The launcher componet. Always present in "launch" sessions, and never
@@ -87,7 +87,7 @@ class Session(util.Observable):
 
         # A session is considered ended once all components disconnect, and there
         # are no further incoming messages from anything to handle.
-        components = self.ide, self.launcher, self.server
+        components = self.client, self.launcher, self.server
         if all(not com or not com.is_connected for com in components):
             with _lock:
                 if self in _sessions:
@@ -101,7 +101,7 @@ class Session(util.Observable):
         The predicate is invoked with the session locked. If satisfied, the method
         returns immediately. Otherwise, the lock is released (even if it was held
         at entry), and the method blocks waiting for some attribute of either self,
-        self.ide, self.server, or self.launcher to change. On every change, session
+        self.client, self.server, or self.launcher to change. On every change, session
         is re-locked and predicate is re-evaluated, until it is satisfied.
 
         While the session is unlocked, message handlers for components other than
@@ -144,7 +144,7 @@ class Session(util.Observable):
         value of terminate; waits for it to disconnect, allowing any remaining messages
         from it to be handled; and closes the launcher channel.
 
-        If the IDE is present, sends "terminated" event to it.
+        If the client is present, sends "terminated" event to it.
 
         If terminate_debuggee=None, it is treated as True if the session has a Launcher
         component, and False otherwise.
@@ -169,7 +169,7 @@ class Session(util.Observable):
         log.info("{0} finalized.", self)
 
     def _finalize(self, why, terminate_debuggee):
-        # If the IDE started a session, and then disconnected before issuing "launch"
+        # If the client started a session, and then disconnected before issuing "launch"
         # or "attach", the main thread will be blocked waiting for the first server
         # connection to come in - unblock it, so that we can exit.
         servers.dont_wait_for_first_connection()
@@ -217,18 +217,23 @@ class Session(util.Observable):
             except Exception:
                 log.exception()
 
-        if self.ide:
-            if self.ide.is_connected:
-                # Tell the IDE that debugging is over, but don't close the channel until it
+        if self.client:
+            if self.client.is_connected:
+                # Tell the client that debugging is over, but don't close the channel until it
                 # tells us to, via the "disconnect" request.
                 try:
-                    self.ide.channel.send_event("terminated")
+                    self.client.channel.send_event("terminated")
                 except Exception:
                     pass
 
-            if self.ide.start_request is not None and self.ide.start_request.command == "launch":
+            if (
+                self.client.start_request is not None
+                and self.client.start_request.command == "launch"
+            ):
                 servers.stop_serving()
-                log.info('"launch" session ended - killing remaining debuggee processes.')
+                log.info(
+                    '"launch" session ended - killing remaining debuggee processes.'
+                )
 
                 pids_killed = set()
                 if self.launcher and self.launcher.pid is not None:
@@ -236,7 +241,11 @@ class Session(util.Observable):
                     pids_killed.add(self.launcher.pid)
 
                 while True:
-                    conns = [conn for conn in servers.connections() if conn.pid not in pids_killed]
+                    conns = [
+                        conn
+                        for conn in servers.connections()
+                        if conn.pid not in pids_killed
+                    ]
                     if not len(conns):
                         break
                     for conn in conns:

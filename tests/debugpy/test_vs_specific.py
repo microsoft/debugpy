@@ -66,7 +66,7 @@ def test_module_events(pyfile, target, run):
     @pyfile
     def test_code():
         import debuggee
-    
+
         debuggee.setup()
 
         from module1 import do_something

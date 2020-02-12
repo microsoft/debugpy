@@ -58,7 +58,14 @@ def test_attach_api(pyfile, target, wait_for_client, is_client_connected, stop_m
 
         backchannel = session.open_backchannel()
         session.spawn_debuggee(
-            [code_to_debug, host, port, wait_for_client, is_client_connected, stop_method]
+            [
+                code_to_debug,
+                host,
+                port,
+                wait_for_client,
+                is_client_connected,
+                stop_method,
+            ]
         )
         session.wait_for_adapter_socket()
 

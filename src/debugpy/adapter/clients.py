@@ -13,8 +13,8 @@ from debugpy.common.compat import unicode
 from debugpy.adapter import components, servers, sessions
 
 
-class IDE(components.Component):
-    """Handles the IDE side of a debug session."""
+class Client(components.Component):
+    """Handles the client side of a debug session."""
 
     message_handler = components.Component.message_handler
 
@@ -36,7 +36,7 @@ class IDE(components.Component):
 
     def __init__(self, sock):
         if sock == "stdio":
-            log.info("Connecting to IDE over stdio...", self)
+            log.info("Connecting to client over stdio...", self)
             stream = messaging.JsonIOStream.from_stdio()
             # Make sure that nothing else tries to interfere with the stdio streams
             # that are going to be used for DAP communication from now on.
@@ -46,22 +46,22 @@ class IDE(components.Component):
             stream = messaging.JsonIOStream.from_socket(sock)
 
         with sessions.Session() as session:
-            super(IDE, self).__init__(session, stream)
+            super(Client, self).__init__(session, stream)
 
             self.client_id = None
             """ID of the connecting client. This can be 'test' while running tests."""
 
             self.has_started = False
-            """Whether the "launch" or "attach" request was received from the IDE, and
+            """Whether the "launch" or "attach" request was received from the client, and
             fully handled.
             """
 
             self.start_request = None
-            """The "launch" or "attach" request as received from the IDE.
+            """The "launch" or "attach" request as received from the client.
             """
 
             self._initialize_request = None
-            """The "initialize" request as received from the IDE, to propagate to the
+            """The "initialize" request as received from the client, to propagate to the
             server later."""
 
             self._deferred_events = []
@@ -70,11 +70,11 @@ class IDE(components.Component):
             """
 
             self._known_subprocesses = set()
-            """servers.Connection instances for subprocesses that this IDE has been
+            """servers.Connection instances for subprocesses that this client has been
             made aware of.
             """
 
-            session.ide = self
+            session.client = self
             session.register()
 
         # For the transition period, send the telemetry events with both old and new
@@ -97,26 +97,26 @@ class IDE(components.Component):
         )
 
     def propagate_after_start(self, event):
-        # pydevd starts sending events as soon as we connect, but the IDE doesn't
+        # pydevd starts sending events as soon as we connect, but the client doesn't
         # expect to see any until it receives the response to "launch" or "attach"
-        # request. If IDE is not ready yet, save the event instead of propagating
+        # request. If client is not ready yet, save the event instead of propagating
         # it immediately.
         if self._deferred_events is not None:
             self._deferred_events.append(event)
             log.debug("Propagation deferred.")
         else:
-            self.ide.channel.propagate(event)
+            self.client.channel.propagate(event)
 
     def _propagate_deferred_events(self):
-        log.debug("Propagating deferred events to {0}...", self.ide)
+        log.debug("Propagating deferred events to {0}...", self.client)
         for event in self._deferred_events:
             log.debug("Propagating deferred {0}", event.describe())
-            self.ide.channel.propagate(event)
-        log.info("All deferred events propagated to {0}.", self.ide)
+            self.client.channel.propagate(event)
+        log.info("All deferred events propagated to {0}.", self.client)
         self._deferred_events = None
 
-    # Generic event handler. There are no specific handlers for IDE events, because
-    # there are no events from the IDE in DAP - but we propagate them if we can, in
+    # Generic event handler. There are no specific handlers for client events, because
+    # there are no events from the client in DAP - but we propagate them if we can, in
     # case some events appear in future protocol versions.
     @message_handler
     def event(self, event):
@@ -166,7 +166,6 @@ class IDE(components.Component):
     # See https://github.com/microsoft/vscode/issues/4902#issuecomment-368583522
     # for the sequence of request and events necessary to orchestrate the start.
     def _start_message_handler(f):
-
         @components.Component.message_handler
         def handle(self, request):
             assert request.is_request("launch", "attach")
@@ -195,7 +194,9 @@ class IDE(components.Component):
                         # The launcher is doing output redirection, so we don't need the
                         # server to do it, as well.
                         arguments = dict(arguments)
-                        arguments["debugOptions"] = list(debug_options - {"RedirectOutput"})
+                        arguments["debugOptions"] = list(
+                            debug_options - {"RedirectOutput"}
+                        )
 
                     if arguments.get("redirectOutput"):
                         arguments = dict(arguments)
@@ -232,7 +233,7 @@ class IDE(components.Component):
                 },
             )
 
-            # Let the IDE know that it can begin configuring the adapter.
+            # Let the client know that it can begin configuring the adapter.
             self.channel.send_event("initialized")
 
             self.start_request = request
@@ -310,12 +311,12 @@ class IDE(components.Component):
         #
         # If neither is specified, and "waitForAttach" is false, this is attach-by-socket
         # in which the server has spawned the adapter via debugpy.listen(). There
-        # is no PID known to the IDE in advance, but the server connection should be
+        # is no PID known to the client in advance, but the server connection should be
         # either be there already, or the server should be connecting shortly, so there
         # must be a timeout.
         #
         # In the last two cases, if there's more than one server connection already,
-        # this is a multiprocess re-attach. The IDE doesn't know the PID, so we just
+        # this is a multiprocess re-attach. The client doesn't know the PID, so we just
         # connect it to the oldest server connection that we have - in most cases, it
         # will be the one for the root debuggee process, but if it has exited already,
         # it will be some subprocess.
@@ -379,7 +380,7 @@ class IDE(components.Component):
             self.start_request.respond({})
             self._propagate_deferred_events()
 
-        # Notify the IDE of any child processes of the debuggee that aren't already
+        # Notify the client of any child processes of the debuggee that aren't already
         # being debugged.
         for conn in servers.connections():
             if conn.server is None and conn.ppid == self.session.pid:
@@ -418,7 +419,7 @@ class IDE(components.Component):
 
     @message_handler
     def terminate_request(self, request):
-        self.session.finalize('IDE requested "terminate"', terminate_debuggee=True)
+        self.session.finalize('client requested "terminate"', terminate_debuggee=True)
         return {}
 
     @message_handler
@@ -426,7 +427,7 @@ class IDE(components.Component):
         terminate_debuggee = request("terminateDebuggee", bool, optional=True)
         if terminate_debuggee == ():
             terminate_debuggee = None
-        self.session.finalize('IDE requested "disconnect"', terminate_debuggee)
+        self.session.finalize('client requested "disconnect"', terminate_debuggee)
         return {}
 
     def notify_of_subprocess(self, conn):
@@ -460,7 +461,7 @@ class IDE(components.Component):
 
 def serve(host, port):
     global listener
-    listener = sockets.serve("IDE", IDE, host, port)
+    listener = sockets.serve("Client", Client, host, port)
     return listener.getsockname()
 
 
