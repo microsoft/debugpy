@@ -1,4 +1,5 @@
 from _pydev_bundle import pydev_log
+from _pydevd_bundle.pydevd_utils import hasattr_checked
 try:
     import StringIO
 except:
@@ -113,7 +114,7 @@ class DefaultResolver:
         found = java.util.HashMap()
 
         original = obj
-        if hasattr(obj, '__class__') and obj.__class__ == java.lang.Class:
+        if hasattr_checked(obj, '__class__') and obj.__class__ == java.lang.Class:
 
             # get info about superclasses
             classes = []
@@ -171,7 +172,7 @@ class DefaultResolver:
         except Exception:
             names = []
         if not names:
-            if hasattr(var, '__dict__'):
+            if hasattr_checked(var, '__dict__'):
                 names = dict_keys(var.__dict__)
                 used___dict__ = True
         return names, used___dict__

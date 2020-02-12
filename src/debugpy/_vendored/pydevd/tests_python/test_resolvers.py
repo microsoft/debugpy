@@ -82,6 +82,24 @@ def test_object_resolver_error():
     assert b_value[2] == '.b'
 
 
+def test_object_resolver_hasattr_error():
+    from _pydevd_bundle.pydevd_resolver import DefaultResolver
+    from _pydevd_bundle.pydevd_xml import get_type
+    default_resolver = DefaultResolver()
+
+    class MyObject(object):
+
+        def __getattribute__(self, attr_name):
+            raise RuntimeError()
+
+    obj = MyObject()
+    dictionary = default_resolver.get_dictionary(obj)
+    assert dictionary == {}
+
+    _type_object, type_name, _resolver = get_type(obj)
+    assert type_name == 'MyObject'
+
+
 def test_object_resolver__dict__non_strings():
     from _pydevd_bundle.pydevd_resolver import DefaultResolver
     default_resolver = DefaultResolver()
