@@ -218,6 +218,17 @@ class TestCPython(unittest.TestCase):
             tip = _pydev_imports_tipper.generate_tip('System.Drawing.Brushes')
             self.assert_in('Aqua' , tip)
 
+    def test_tips_hasattr_failure(self):
+
+        class MyClass(object):
+
+            def __getattribute__(self, attr):
+                raise RuntimeError()
+
+        obj = MyClass()
+
+        _pydev_imports_tipper.generate_imports_tip_for_module(obj)
+
     def test_inspect(self):
 
         class C(object):

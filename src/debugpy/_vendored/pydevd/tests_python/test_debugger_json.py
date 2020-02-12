@@ -1223,6 +1223,37 @@ def test_stack_and_variables_dict(case_setup):
         writer.finished_ok = True
 
 
+def test_hasattr_failure(case_setup):
+    with case_setup.test_file('_debugger_case_hasattr_crash.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_add_breakpoint(writer.get_line_index_with_content('break here'))
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        json_hit = json_facade.get_stack_as_json_hit(json_hit.thread_id)
+
+        variables_response = json_facade.get_variables_response(json_hit.frame_id)
+
+        for variable in variables_response.body.variables:
+            if variable['evaluateName'] == 'obj':
+                break
+        else:
+            raise AssertionError('Did not find "obj" in %s' % (variables_response.body.variables,))
+
+        evaluate_response = json_facade.evaluate('obj', json_hit.frame_id, context='hover')
+        evaluate_response_body = evaluate_response.body.to_dict()
+        if not IS_PY2:
+            assert evaluate_response_body['result'] == 'An exception was raised: RuntimeError()'
+
+        json_facade.evaluate('not_there', json_hit.frame_id, context='hover', success=False)
+        json_facade.evaluate('not_there', json_hit.frame_id, context='watch', success=False)
+
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
 @pytest.mark.skipif(IS_PY26, reason='__dir__ not customizable on Python 2.6')
 def test_exception_on_dir(case_setup):
     with case_setup.test_file('_debugger_case_dir_exception.py') as writer:
@@ -1353,8 +1384,6 @@ def test_stack_and_variables_set_and_list(case_setup):
 
 @pytest.mark.skipif(IS_JYTHON, reason='Putting unicode on frame vars does not work on Jython.')
 def test_evaluate_unicode(case_setup):
-    from _pydevd_bundle._debug_adapter.pydevd_schema import EvaluateRequest
-    from _pydevd_bundle._debug_adapter.pydevd_schema import EvaluateArguments
     with case_setup.test_file('_debugger_case_local_variables.py') as writer:
         json_facade = JsonFacade(writer)
 
@@ -1364,8 +1393,7 @@ def test_evaluate_unicode(case_setup):
         json_hit = json_facade.wait_for_thread_stopped()
         json_hit = json_facade.get_stack_as_json_hit(json_hit.thread_id)
 
-        evaluate_response = json_facade.wait_for_response(
-            json_facade.write_request(EvaluateRequest(EvaluateArguments(u'\u16A0', json_hit.frame_id))))
+        evaluate_response = json_facade.evaluate(u'\u16A0', json_hit.frame_id)
 
         evaluate_response_body = evaluate_response.body.to_dict()
 

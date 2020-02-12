@@ -96,7 +96,7 @@ from _pydevd_bundle import pydevd_vm_type
 import sys
 import traceback
 from _pydevd_bundle.pydevd_utils import quote_smart as quote, compare_object_attrs_key, \
-    notify_about_gevent_if_needed
+    notify_about_gevent_if_needed, isinstance_checked
 from _pydev_bundle import pydev_log
 from _pydev_bundle.pydev_log import exception as pydev_log_exception
 from _pydev_bundle import _pydev_completer
@@ -1005,7 +1005,7 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
         else:
             frame = py_db.find_frame(thread_id, frame_id)
             eval_result = pydevd_vars.evaluate_expression(py_db, frame, expression, is_exec=False)
-            is_error = isinstance(eval_result, ExceptionOnEvaluate)
+            is_error = isinstance_checked(eval_result, ExceptionOnEvaluate)
             if is_error:
                 if context == 'hover':  # In a hover it doesn't make sense to do an exec.
                     _evaluate_response(py_db, request, result='', error_message='Exception occurred during evaluation.')

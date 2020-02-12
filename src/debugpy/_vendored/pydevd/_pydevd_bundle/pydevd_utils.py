@@ -271,3 +271,28 @@ def notify_about_gevent_if_needed(stream=None):
                 return True
 
     return False
+
+
+def hasattr_checked(obj, name):
+    try:
+        getattr(obj, name)
+    except:
+        # i.e.: Handle any exception, not only AttributeError.
+        return False
+    else:
+        return True
+
+
+def dir_checked(obj):
+    try:
+        return dir(obj)
+    except:
+        return []
+
+
+def isinstance_checked(obj, cls):
+    try:
+        return isinstance(obj, cls)
+    except:
+        return False
+

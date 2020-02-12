@@ -7,6 +7,7 @@ from _pydevd_bundle.pydevd_constants import dict_iter_items, dict_keys, IS_PY3K,
     DEFAULT_VALUE
 from _pydev_bundle.pydev_imports import quote
 from _pydevd_bundle.pydevd_extension_api import TypeResolveProvider, StrPresentationProvider
+from _pydevd_bundle.pydevd_utils import isinstance_checked, hasattr_checked
 
 try:
     import types
@@ -155,7 +156,7 @@ class TypeResolveHandler(object):
                     return type_object, type_name, resolver
 
             for t in self._default_type_map:
-                if isinstance(o, t[0]):
+                if isinstance_checked(o, t[0]):
                     # Cache it
                     resolver = t[1]
                     self._type_to_resolver_cache[type_object] = resolver
@@ -223,7 +224,7 @@ def is_builtin(x):
 
 
 def should_evaluate_full_value(val):
-    return not LOAD_VALUES_ASYNC or (is_builtin(type(val)) and not isinstance(val, (list, tuple, dict)))
+    return not LOAD_VALUES_ASYNC or (is_builtin(type(val)) and not isinstance_checked(val, (list, tuple, dict)))
 
 
 def return_values_from_dict_to_xml(return_dict):
@@ -294,7 +295,7 @@ def get_variable_details(val, evaluate_full_value=True, to_string=None):
             elif to_string is not None:
                 value = to_string(v)
 
-            elif hasattr(v, '__class__'):
+            elif hasattr_checked(v, '__class__'):
                 if v.__class__ == frame_type:
                     value = pydevd_resolver.frameResolver.get_frame_name(v)
 
