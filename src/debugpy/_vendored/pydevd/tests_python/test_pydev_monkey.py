@@ -1,7 +1,12 @@
 # coding: utf-8
 import os
 import sys
+
 import pytest
+
+from _pydev_bundle.pydev_monkey import pydev_src_dir
+from _pydevd_bundle.pydevd_constants import sorted_dict_repr
+from pydevd import SetupHolder
 from tests_python.debug_constants import IS_PY2
 
 try:
@@ -9,27 +14,22 @@ try:
 except:
     sys.path.append(os.path.dirname(os.path.dirname(__file__)))
     from _pydev_bundle import pydev_monkey
-from pydevd import SetupHolder
-from _pydev_bundle.pydev_monkey import pydev_src_dir
 
 
 def test_monkey():
     original = SetupHolder.setup
 
     try:
-        SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'protocol-quoted-line': True}
+        SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'ppid': os.getpid(), 'protocol-quoted-line': True}
         check = '''C:\\bin\\python.exe -u -c connect(\\"127.0.0.1\\")'''
         debug_command = (
             'import sys; '
             'sys.path.insert(0, r\'%s\'); '
             "import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL='quoted-line'; "
             "pydevd.settrace(host='127.0.0.1', port=0, suspend=False, "
-            'trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None); '
+            'trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); '
             ''
-            "from pydevd import SetupHolder; "
-            "SetupHolder.setup = %s; "
-            ''
-            'connect("127.0.0.1")') % (pydev_src_dir, SetupHolder.setup)
+            'connect("127.0.0.1")') % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
         if sys.platform == "win32":
             debug_command = debug_command.replace('"', '\\"')
             debug_command = '"%s"' % debug_command
@@ -55,16 +55,13 @@ def test_monkey_patch_args_indc():
     original = SetupHolder.setup
 
     try:
-        SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'protocol-quoted-line': True}
+        SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'ppid': os.getpid(), 'protocol-quoted-line': True}
         check = ['C:\\bin\\python.exe', '-u', '-c', 'connect("127.0.0.1")']
         debug_command = (
             "import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL='quoted-line'; "
-            'pydevd.settrace(host=\'127.0.0.1\', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None); '
+            'pydevd.settrace(host=\'127.0.0.1\', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); '
             ''
-            "from pydevd import SetupHolder; "
-            "SetupHolder.setup = %s; "
-            ''
-            'connect("127.0.0.1")') % (pydev_src_dir, SetupHolder.setup)
+            'connect("127.0.0.1")') % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
         if sys.platform == "win32":
             debug_command = debug_command.replace('"', '\\"')
             debug_command = '"%s"' % debug_command
@@ -92,6 +89,8 @@ def test_monkey_patch_args_module():
             '--module',
             '--port',
             '0',
+            '--ppid',
+            str(os.getpid()),
             '--client',
             '127.0.0.1',
             '--multiprocess',
@@ -115,6 +114,8 @@ def test_monkey_patch_args_no_indc():
             get_pydevd_file(),
             '--port',
             '0',
+            '--ppid',
+            str(os.getpid()),
             '--client',
             '127.0.0.1',
             '--protocol-quoted-line',
@@ -151,6 +152,8 @@ def test_monkey_patch_args_no_indc_without_pydevd():
             get_pydevd_file(),
             '--port',
             '0',
+            '--ppid',
+            str(os.getpid()),
             '--client',
             '127.0.0.1',
             '--protocol-quoted-line',
@@ -188,6 +191,8 @@ def test_monkey_patch_c_program_arg(use_bytes):
             get_pydevd_file(),
             '--port',
             '0',
+            '--ppid',
+            str(os.getpid()),
             '--client',
             '127.0.0.1',
             '--protocol-quoted-line',
@@ -213,6 +218,8 @@ def test_monkey_patch_args_module_single_arg():
             '--module',
             '--port',
             '0',
+            '--ppid',
+            str(os.getpid()),
             '--client',
             '127.0.0.1',
             '--multiprocess',

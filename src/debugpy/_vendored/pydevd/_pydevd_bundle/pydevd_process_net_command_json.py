@@ -983,7 +983,12 @@ class PyDevJsonCommandProcessor(object):
         except AttributeError:
             pid = None
 
-        ppid = self.api.get_ppid()
+        # It's possible to have the ppid reported from args. In this case, use that instead of the
+        # real ppid (athough we're using `ppid`, what we want in meaning is the `launcher_pid` --
+        # so, if a python process is launched from another python process, consider that process the
+        # parent and not any intermediary stubs).
+
+        ppid = py_db.get_arg_ppid() or self.api.get_ppid()
 
         try:
             impl_desc = platform.python_implementation()

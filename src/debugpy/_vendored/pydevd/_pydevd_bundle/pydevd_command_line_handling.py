@@ -1,3 +1,6 @@
+import os
+
+
 class ArgHandlerWithParam:
     '''
     Handler for some arguments which needs a value
@@ -48,8 +51,18 @@ class ArgHandlerBool:
         setup[self.arg_name] = True
 
 
+def convert_ppid(ppid):
+    ret = int(ppid)
+    if ret != 0:
+        if ret == os.getpid():
+            raise AssertionError(
+                'ppid passed is the same as the current process pid (%s)!' % (ret,))
+    return ret
+
+
 ACCEPTED_ARG_HANDLERS = [
     ArgHandlerWithParam('port', int, 0),
+    ArgHandlerWithParam('ppid', convert_ppid, 0),
     ArgHandlerWithParam('vm_type'),
     ArgHandlerWithParam('client'),
     ArgHandlerWithParam('access-token'),

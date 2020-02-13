@@ -2870,6 +2870,31 @@ def test_notify_gevent(case_setup, pyfile):
         writer.finished_ok = True
 
 
+def test_ppid(case_setup, pyfile):
+
+    @pyfile
+    def case_ppid():
+        from pydevd import get_global_debugger
+        assert get_global_debugger().get_arg_ppid() == 22
+        print('TEST SUCEEDED')
+
+    def update_command_line_args(writer, args):
+        ret = debugger_unittest.AbstractWriterThread.update_command_line_args(writer, args)
+        ret.insert(ret.index('--qt-support'), '--ppid')
+        ret.insert(ret.index('--qt-support'), '22')
+        return ret
+
+    with case_setup.test_file(
+            case_ppid,
+            update_command_line_args=update_command_line_args,
+        ) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch()
+        json_facade.write_make_initial_run()
+
+        writer.finished_ok = True
+
+
 @pytest.mark.skipif(IS_JYTHON, reason='Flaky on Jython.')
 def test_path_translation_and_source_reference(case_setup):
 
