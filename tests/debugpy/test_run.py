@@ -7,11 +7,12 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import os
 import pytest
 import re
+import sys
 import time
 
 import debugpy
 from debugpy.common import log, messaging
-from tests import debug, test_data
+from tests import debug, test_data, timeline
 from tests.debug import runners, targets
 from tests.patterns import some
 
@@ -88,6 +89,50 @@ def test_nodebug(pyfile, run, target):
         pass
 
     assert "ok" in session.output("stdout")
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="sudo not available on Windows")
+@pytest.mark.parametrize("run", runners.all_launch)
+def test_sudo(pyfile, tmpdir, run, target):
+    # Since the test can't rely on sudo being allowed for the user, create a dummy
+    # sudo script that doesn't actually elevate, but sets an environment variable
+    # that can be checked in the debuggee.
+    sudo = tmpdir / "sudo"
+    sudo.write(
+        """#!/bin/sh
+        exec env DEBUGPY_SUDO=1 "$@"
+        """
+    )
+    os.chmod(sudo.strpath, 0o777)
+
+    @pyfile
+    def code_to_debug():
+        import os
+
+        import debuggee
+        from debuggee import backchannel
+
+        debuggee.setup()
+        backchannel.send(os.getenv("DEBUGPY_SUDO", "0"))
+
+    with debug.Session() as session:
+        session.config["sudo"] = True
+        session.config.env["PATH"] = tmpdir.strpath + ":" + os.environ["PATH"]
+
+        backchannel = session.open_backchannel()
+        with run(session, target(code_to_debug)):
+            pass
+
+        # The "runInTerminal" request sent by the adapter to spawn the launcher,
+        # if any, shouldn't be using sudo.
+        assert all(
+            "sudo" not in req.arguments["args"]
+            for req in session.all_occurrences_of(timeline.Request("runInTerminal"))
+        )
+
+        # The launcher, however, should use our dummy sudo to spawn the debuggee,
+        # and the debuggee should report the environment variable accordingly.
+        assert backchannel.receive() == "1"
 
 
 @pytest.mark.parametrize(
