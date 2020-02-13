@@ -248,16 +248,6 @@ class Client(components.Component):
         if self.session.id != 1 or len(servers.connections()):
             raise request.cant_handle('"attach" expected')
 
-        sudo = request("sudo", json.default("Sudo" in self.session.debug_options))
-        if sudo:
-            if sys.platform == "win32":
-                raise request.cant_handle('"sudo":true is not supported on Windows.')
-        else:
-            if "Sudo" in self.session.debug_options:
-                raise request.isnt_valid(
-                    '"sudo":false and "debugOptions":["Sudo"] are mutually exclusive'
-                )
-
         # Launcher doesn't use the command line at all, but we pass the arguments so
         # that they show up in the terminal if we're using "runInTerminal".
         if "program" in request:
@@ -286,7 +276,7 @@ class Client(components.Component):
         console_title = request("consoleTitle", json.default("Python Debug Console"))
 
         launchers.spawn_debuggee(
-            self.session, request, sudo, args, console, console_title
+            self.session, request, args, console, console_title
         )
 
     @_start_message_handler

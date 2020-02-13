@@ -65,10 +65,8 @@ class Launcher(components.Component):
                     pass
 
 
-def spawn_debuggee(session, start_request, sudo, args, console, console_title):
-    cmdline = ["sudo"] if sudo else []
-    cmdline += [sys.executable, os.path.dirname(launcher.__file__)]
-    cmdline += args
+def spawn_debuggee(session, start_request, args, console, console_title):
+    cmdline = [sys.executable, os.path.dirname(launcher.__file__)] + args
     env = {}
 
     arguments = dict(start_request.arguments)
