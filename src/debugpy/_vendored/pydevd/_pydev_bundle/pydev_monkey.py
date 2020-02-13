@@ -3,7 +3,8 @@ import os
 import re
 import sys
 from _pydev_imps._pydev_saved_modules import threading
-from _pydevd_bundle.pydevd_constants import get_global_debugger, IS_WINDOWS, IS_JYTHON, get_current_thread_id
+from _pydevd_bundle.pydevd_constants import get_global_debugger, IS_WINDOWS, IS_JYTHON, get_current_thread_id, \
+    sorted_dict_repr
 from _pydev_bundle import pydev_log
 from contextlib import contextmanager
 from _pydevd_bundle import pydevd_constants
@@ -35,7 +36,7 @@ def _get_apply_arg_patching():
     return getattr(_arg_patch, 'apply_arg_patching', True)
 
 
-def _get_setup_updated_with_protocol(setup):
+def _get_setup_updated_with_protocol_and_ppid(setup, is_exec=False):
     if setup is None:
         setup = {}
     setup = setup.copy()
@@ -44,7 +45,11 @@ def _get_setup_updated_with_protocol(setup):
     setup.pop(pydevd_constants.ARGUMENT_HTTP_JSON_PROTOCOL, None)
     setup.pop(pydevd_constants.ARGUMENT_JSON_PROTOCOL, None)
     setup.pop(pydevd_constants.ARGUMENT_QUOTED_LINE_PROTOCOL, None)
-    setup.pop(pydevd_constants.ARGUMENT_HTTP_PROTOCOL, None)
+
+    if not is_exec:
+        # i.e.: The ppid for the subprocess is the current pid.
+        # If it's an exec, keep it what it was.
+        setup[pydevd_constants.ARGUMENT_PPID] = os.getpid()
 
     protocol = pydevd_constants.get_protocol()
     if protocol == pydevd_constants.HTTP_JSON_PROTOCOL:
@@ -65,10 +70,14 @@ def _get_setup_updated_with_protocol(setup):
 
 
 def _get_python_c_args(host, port, indC, args, setup):
-    setup = _get_setup_updated_with_protocol(setup)
+    setup = _get_setup_updated_with_protocol_and_ppid(setup)
+
+    # i.e.: We want to make the repr sorted so that it works in tests.
+    setup_repr = setup if setup is None else (sorted_dict_repr(setup))
+
     return ("import sys; sys.path.insert(0, r'%s'); import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL=%r; "
-            "pydevd.settrace(host=%r, port=%s, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=%r, client_access_token=%r); "
-            "from pydevd import SetupHolder; SetupHolder.setup = %s; %s"
+            "pydevd.settrace(host=%r, port=%s, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=%r, client_access_token=%r, __setup_holder__=%s); "
+            "%s"
             ) % (
                pydev_src_dir,
                pydevd_constants.get_protocol(),
@@ -76,7 +85,7 @@ def _get_python_c_args(host, port, indC, args, setup):
                port,
                setup.get('access-token'),
                setup.get('client-access-token'),
-               setup,
+               setup_repr,
                args[indC + 1])
 
 
@@ -227,7 +236,15 @@ def get_c_option_index(args):
     return ind_c
 
 
-def patch_args(args):
+def patch_args(args, is_exec=False):
+    '''
+    :param list args:
+        Arguments to patch.
+
+    :param bool is_exec:
+        If it's an exec, the current process will be replaced (this means we have
+        to keep the same ppid).
+    '''
     try:
         pydev_log.debug("Patching args: %s", args)
         args = remove_quotes_from_args(args)
@@ -280,7 +297,9 @@ def patch_args(args):
         # ['X:\\pysrc\\pydevd.py', '--multiprocess', '--print-in-debugger-startup',
         #  '--vm_type', 'python', '--client', '127.0.0.1', '--port', '56352', '--file', 'x:\\snippet1.py']
         from _pydevd_bundle.pydevd_command_line_handling import setup_to_argv
-        original = setup_to_argv(_get_setup_updated_with_protocol(SetupHolder.setup)) + ['--file']
+        original = setup_to_argv(
+            _get_setup_updated_with_protocol_and_ppid(SetupHolder.setup, is_exec=is_exec)
+        ) + ['--file']
 
         module_name = None
         m_flag = _get_str_type_compatible(args[i], '-m')
@@ -459,7 +478,7 @@ def create_execl(original_name):
         os.execlpe(file, arg0, arg1, ..., env)
         """
         if _get_apply_arg_patching():
-            args = patch_args(args)
+            args = patch_args(args, is_exec=True)
             send_process_created_message()
 
         return getattr(os, original_name)(path, *args)
@@ -475,7 +494,7 @@ def create_execv(original_name):
         os.execvp(file, args)
         """
         if _get_apply_arg_patching():
-            args = patch_args(args)
+            args = patch_args(args, is_exec=True)
             send_process_created_message()
 
         return getattr(os, original_name)(path, args)
@@ -491,7 +510,7 @@ def create_execve(original_name):
 
     def new_execve(path, args, env):
         if _get_apply_arg_patching():
-            args = patch_args(args)
+            args = patch_args(args, is_exec=True)
             send_process_created_message()
 
         return getattr(os, original_name)(path, args, env)

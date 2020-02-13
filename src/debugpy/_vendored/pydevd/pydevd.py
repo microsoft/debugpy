@@ -623,6 +623,16 @@ class PyDB(object):
         # Stop the tracing as the last thing before the actual shutdown for a clean exit.
         atexit.register(stoptrace)
 
+    def get_arg_ppid(self):
+        try:
+            setup = SetupHolder.setup
+            if setup:
+                return int(setup.get('ppid', 0))
+        except:
+            pydev_log.exception('Error getting ppid.')
+
+        return 0
+
     def wait_for_ready_to_run(self):
         while not self.ready_to_run:
             # busy wait until we receive run command
@@ -2487,6 +2497,9 @@ def settrace(
     stdout_to_server = stdout_to_server or kwargs.get('stdoutToServer', False)  # Backward compatibility
     stderr_to_server = stderr_to_server or kwargs.get('stderrToServer', False)  # Backward compatibility
 
+    # Internal use (may be used to set the setup info directly for subprocesess).
+    __setup_holder__ = kwargs.get('__setup_holder__')
+
     with _set_trace_lock:
         _locked_settrace(
             host,
@@ -2503,6 +2516,7 @@ def settrace(
             dont_trace_end_patterns,
             access_token,
             client_access_token,
+            __setup_holder__=__setup_holder__,
         )
 
 
@@ -2524,6 +2538,7 @@ def _locked_settrace(
     dont_trace_end_patterns,
     access_token,
     client_access_token,
+    __setup_holder__,
     ):
     if patch_multiprocessing:
         try:
@@ -2541,6 +2556,8 @@ def _locked_settrace(
     global _global_redirect_stderr_to_server
 
     py_db = get_global_debugger()
+    if __setup_holder__:
+        SetupHolder.setup = __setup_holder__
     if py_db is None:
         py_db = PyDB()
         pydevd_vm_type.setup_type()
@@ -2764,6 +2781,10 @@ def settrace_forked(setup_tracing=True):
     setup = SetupHolder.setup
     if setup is None:
         setup = {}
+    else:
+        # i.e.: Get the ppid at this point as it just changed.
+        # If we later do an exec() it should remain the same ppid.
+        setup[pydevd_constants.ARGUMENT_PPID] = PyDevdAPI().get_ppid()
     access_token = setup.get('access-token')
     client_access_token = setup.get('client-access-token')
 
@@ -2898,6 +2919,7 @@ def main():
 
     # parse the command line. --file is our last argument that is required
     pydev_log.debug("Initial arguments: %s", (sys.argv,))
+    pydev_log.debug("Current pid: %s", os.getpid())
     try:
         from _pydevd_bundle.pydevd_command_line_handling import process_command_line
         setup = process_command_line(sys.argv)

@@ -25,6 +25,7 @@ def main():
         child_process = subprocess.Popen(
             [sys.executable, '-u', '-c', 'import _debugger_case_pydevd_customization;_debugger_case_pydevd_customization.call()'],
             stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             env=env,
         )
     elif '--posix-spawn' in sys.argv:
@@ -38,16 +39,20 @@ def main():
             [sys.executable, '-u', '_debugger_case_pydevd_customization.py', '--simple-call'],
             cwd=os.path.dirname(__file__),
             stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             env=env,
         )
 
     if child_process:
         stdout, stderr = child_process.communicate()
-        assert b'called' in stdout, 'Did not find b"called" in: %s' % (stdout,)
+        assert b'called' in stdout, 'Did not find b"called" in stdout:\n>>%s<<\nstderr:\n>>%s<<\n' % (stdout, stderr)
     print('TEST SUCEEDED!')  # break 2 here
 
 
 def call():
+    import pydevd
+    from _pydevd_bundle.pydevd_api import PyDevdAPI
+    assert pydevd.get_global_debugger().get_arg_ppid() == PyDevdAPI().get_ppid()
     print("called")  # break 1 here
 
 

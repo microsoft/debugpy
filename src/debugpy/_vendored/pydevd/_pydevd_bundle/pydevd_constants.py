@@ -347,6 +347,12 @@ else:
     def dict_items(d):
         return d.items()
 
+
+def sorted_dict_repr(d):
+    s = sorted(dict_iter_items(d), key=lambda x:str(x[0]))
+    return '{' + ', '.join(('%r: %r' % x) for x in s) + '}'
+
+
 try:
     xrange = xrange
 except:
@@ -604,6 +610,8 @@ ARGUMENT_JSON_PROTOCOL = 'json-dap'
 # payload is json
 HTTP_JSON_PROTOCOL = 'http_json'
 ARGUMENT_HTTP_JSON_PROTOCOL = 'json-dap-http'
+
+ARGUMENT_PPID = 'ppid'
 
 
 class _GlobalSettings:

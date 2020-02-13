@@ -893,7 +893,7 @@ class AbstractWriterThread(threading.Thread):
         # 10 seconds default timeout
         timeout = int(os.environ.get('PYDEVD_CONNECT_TIMEOUT', 10))
         s.settimeout(timeout)
-        for _i in range(6):
+        for _i in range(20):
             try:
                 s.connect((host, port))
                 break
