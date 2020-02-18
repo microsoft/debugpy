@@ -171,9 +171,16 @@ switches = [
 # fmt: on
 
 
-def parse(args):
+def consume_argv():
+    while len(sys.argv) >= 2:
+        value = sys.argv[1]
+        del sys.argv[1]
+        yield value
+
+
+def parse_argv():
     seen = set()
-    it = (compat.filename(arg) for arg in args)
+    it = consume_argv()
 
     while True:
         try:
@@ -215,14 +222,12 @@ def parse(args):
     assert options.target_kind is not None
     assert options.address is not None
 
-    return it
-
 
 def start_debugging(argv_0):
     # We need to set up sys.argv[0] before invoking either listen() or connect(),
     # because they use it to report the "process" event. Thus, we can't rely on
     # run_path() and run_module() doing that, even though they will eventually.
-    sys.argv[0] = compat.filename(argv_0)
+    sys.argv[0] = compat.filename_str(argv_0)
     log.debug("sys.argv after patching: {0!r}", sys.argv)
 
     debugpy.configure(options.config)
@@ -392,7 +397,7 @@ attach_pid_injected.attach(setup);
 def main():
     original_argv = list(sys.argv)
     try:
-        sys.argv[1:] = parse(sys.argv[1:])
+        parse_argv()
     except Exception as ex:
         print(HELP + "\nError: " + str(ex), file=sys.stderr)
         sys.exit(2)

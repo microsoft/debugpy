@@ -23,26 +23,30 @@ def cli(pyfile):
         from debugpy.server import cli
 
         try:
-            sys.argv[1:] = cli.parse(sys.argv[1:])
+            cli.parse_argv()
         except Exception as exc:
             os.write(1, pickle.dumps(exc))
             sys.exit(1)
-        else:
-            # We only care about options that correspond to public switches.
-            options = {
-                name: getattr(cli.options, name)
-                for name in [
-                    "address",
-                    "config",
-                    "log_to",
-                    "log_to_stderr",
-                    "mode",
-                    "target",
-                    "target_kind",
-                    "wait_for_client",
-                ]
-            }
-            os.write(1, pickle.dumps([sys.argv[1:], options]))
+
+        # Check that sys.argv has the correct type after parsing - there should be
+        # no bytes on Python 3, nor unicode on Python 2.
+        assert all(isinstance(s, str) for s in sys.argv)
+
+        # We only care about options that correspond to public switches.
+        options = {
+            name: getattr(cli.options, name)
+            for name in [
+                "address",
+                "config",
+                "log_to",
+                "log_to_stderr",
+                "mode",
+                "target",
+                "target_kind",
+                "wait_for_client",
+            ]
+        }
+        os.write(1, pickle.dumps([sys.argv[1:], options]))
 
     def parse(args):
         log.debug("Parsing argv: {0!r}", args)
