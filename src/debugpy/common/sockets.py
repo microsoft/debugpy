@@ -78,7 +78,7 @@ def serve(name, handler, host, port=0, backlog=socket.SOMAXCONN, timeout=None):
         while True:
             try:
                 sock, (other_host, other_port) = listener.accept()
-            except OSError:
+            except (OSError, socket.error):
                 # Listener socket has been closed.
                 break
 
