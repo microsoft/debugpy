@@ -27,9 +27,11 @@ HELP = """debugpy {0}
 See https://aka.ms/debugpy for documentation.
 
 Usage: debugpy --listen [<address>:]<port>
-               [--config-<name> <value>]...
+               [--wait-for-client]
+               [--configure-<name> <value>]...
                [--log-to <path>] [--log-to-stderr]
                {1}
+               [<arg>]...
 """.format(
     debugpy.__version__, TARGET
 )
