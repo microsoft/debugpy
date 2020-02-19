@@ -65,7 +65,7 @@ class Session(util.Observable):
         self.observers += [lambda *_: self.notify_changed()]
 
     def __str__(self):
-        return fmt("Session-{0}", self.id)
+        return fmt("Session[{0}]", self.id)
 
     def __enter__(self):
         """Lock the session for exclusive access."""

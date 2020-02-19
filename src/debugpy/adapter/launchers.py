@@ -79,7 +79,18 @@ def spawn_debuggee(session, start_request, args, console, console_title):
         stream = messaging.JsonIOStream.from_socket(sock)
         Launcher(session, stream)
 
-    listener = sockets.serve("Launcher", on_launcher_connected, "127.0.0.1", backlog=0)
+    try:
+        listener = sockets.serve(
+            "Launcher", on_launcher_connected, "127.0.0.1", backlog=0
+        )
+    except Exception as exc:
+        raise start_request.cant_handle(
+            "{0} couldn't create listener socket for {1}: {2}",
+            session,
+            session.launcher,
+            exc,
+        )
+
     try:
         _, launcher_port = listener.getsockname()
 
@@ -91,31 +102,37 @@ def spawn_debuggee(session, start_request, args, console, console_title):
 
         if console == "internalConsole":
             log.info("{0} spawning launcher: {1!r}", session, cmdline)
-
-            # If we are talking to the client over stdio, sys.stdin and sys.stdout are
-            # redirected to avoid mangling the DAP message stream. Make sure the
-            # launcher also respects that.
-            subprocess.Popen(
-                cmdline,
-                env=dict(list(os.environ.items()) + list(env.items())),
-                stdin=sys.stdin,
-                stdout=sys.stdout,
-                stderr=sys.stderr,
-            )
-
+            try:
+                # If we are talking to the client over stdio, sys.stdin and sys.stdout
+                # are redirected to avoid mangling the DAP message stream. Make sure
+                # the launcher also respects that.
+                subprocess.Popen(
+                    cmdline,
+                    env=dict(list(os.environ.items()) + list(env.items())),
+                    stdin=sys.stdin,
+                    stdout=sys.stdout,
+                    stderr=sys.stderr,
+                )
+            except Exception as exc:
+                raise start_request.cant_handle(
+                    "{0} failed to spawn {1}: {2}", session, session.launcher, exc
+                )
         else:
             log.info('{0} spawning launcher via "runInTerminal" request.', session)
             session.client.capabilities.require("supportsRunInTerminalRequest")
             kinds = {"integratedTerminal": "integrated", "externalTerminal": "external"}
-            session.client.channel.request(
-                "runInTerminal",
-                {
-                    "kind": kinds[console],
-                    "title": console_title,
-                    "args": cmdline,
-                    "env": env,
-                },
-            )
+            try:
+                session.client.channel.request(
+                    "runInTerminal",
+                    {
+                        "kind": kinds[console],
+                        "title": console_title,
+                        "args": cmdline,
+                        "env": env,
+                    },
+                )
+            except messaging.MessageHandlingError as exc:
+                exc.propagate(start_request)
 
         if not session.wait_for(lambda: session.launcher, timeout=10):
             raise start_request.cant_handle(
