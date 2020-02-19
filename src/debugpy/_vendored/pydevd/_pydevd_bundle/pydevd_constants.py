@@ -4,6 +4,7 @@ This module holds the constants used for specifying the states of the debugger.
 from __future__ import nested_scopes
 import platform
 import weakref
+import struct
 
 STATE_RUN = 1
 STATE_SUSPEND = 2
@@ -93,21 +94,16 @@ USE_CUSTOM_SYS_CURRENT_FRAMES_MAP = USE_CUSTOM_SYS_CURRENT_FRAMES and (IS_PYPY o
 IS_PYTHON_STACKLESS = "stackless" in sys.version.lower()
 CYTHON_SUPPORTED = False
 
-try:
-    import platform
-    python_implementation = platform.python_implementation()
-except:
-    pass
-else:
-    if python_implementation == 'CPython' and not IS_PYTHON_STACKLESS:
-        # Only available for CPython!
-        if (
-            (sys.version_info[0] == 2 and sys.version_info[1] >= 6)
-            or (sys.version_info[0] == 3 and sys.version_info[1] >= 3)
-            or (sys.version_info[0] > 3)
-            ):
-            # Supported in 2.6,2.7 or 3.3 onwards (32 or 64)
-            CYTHON_SUPPORTED = True
+python_implementation = platform.python_implementation()
+if python_implementation == 'CPython' and not IS_PYTHON_STACKLESS:
+    # Only available for CPython!
+    if (
+        (sys.version_info[0] == 2 and sys.version_info[1] >= 6)
+        or (sys.version_info[0] == 3 and sys.version_info[1] >= 3)
+        or (sys.version_info[0] > 3)
+        ):
+        # Supported in 2.6,2.7 or 3.3 onwards (32 or 64)
+        CYTHON_SUPPORTED = True
 
 #=======================================================================================================================
 # Python 3?
@@ -351,6 +347,16 @@ else:
 def sorted_dict_repr(d):
     s = sorted(dict_iter_items(d), key=lambda x:str(x[0]))
     return '{' + ', '.join(('%r: %r' % x) for x in s) + '}'
+
+
+def iter_chars(b):
+    # In Python 2, we can iterate bytes or unicode with individual characters, but Python 3 onwards
+    # changed that behavior so that when iterating bytes we actually get ints!
+    if not IS_PY2:
+        if isinstance(b, bytes):
+            # i.e.: do something as struct.unpack('3c', b)
+            return iter(struct.unpack(str(len(b)) + 'c', b))
+    return iter(b)
 
 
 try:

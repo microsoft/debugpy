@@ -1254,6 +1254,49 @@ def test_hasattr_failure(case_setup):
         writer.finished_ok = True
 
 
+def test_evaluate_block_repl(case_setup):
+
+    with case_setup.test_file('_debugger_case_local_variables2.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'))
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        json_hit = json_facade.get_stack_as_json_hit(json_hit.thread_id)
+
+        # Check eval with a properly indented block
+        json_facade.evaluate(
+            "for i in range(2):\n  print('var%s' % i)",
+            frameId=json_hit.frame_id,
+            context="repl",
+        )
+
+        messages = json_facade.mark_messages(
+            OutputEvent, lambda output_event: u'var0' in output_event.body.output)
+        assert len(messages) == 1
+        messages = json_facade.mark_messages(
+            OutputEvent, lambda output_event: u'var1' in output_event.body.output)
+        assert len(messages) == 1
+
+        # Check eval with a block that needs to be dedented
+        json_facade.evaluate(
+            "  for i in range(2):\n    print('foo%s' % i)",
+            frameId=json_hit.frame_id,
+            context="repl",
+        )
+
+        messages = json_facade.mark_messages(
+            OutputEvent, lambda output_event: u'foo0' in output_event.body.output)
+        assert len(messages) == 1
+        messages = json_facade.mark_messages(
+            OutputEvent, lambda output_event: u'foo1' in output_event.body.output)
+        assert len(messages) == 1
+
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
 @pytest.mark.skipif(IS_PY26, reason='__dir__ not customizable on Python 2.6')
 def test_exception_on_dir(case_setup):
     with case_setup.test_file('_debugger_case_dir_exception.py') as writer:

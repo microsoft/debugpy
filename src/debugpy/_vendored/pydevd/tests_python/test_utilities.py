@@ -4,9 +4,26 @@ from _pydevd_bundle.pydevd_comm import pydevd_find_thread_by_id
 from _pydevd_bundle.pydevd_utils import convert_dap_log_message_to_expression
 from tests_python.debug_constants import IS_PY26, IS_PY3K, TEST_GEVENT
 import sys
-from _pydevd_bundle.pydevd_constants import IS_CPYTHON, IS_WINDOWS
+from _pydevd_bundle.pydevd_constants import IS_CPYTHON, IS_WINDOWS, IS_PY2
 import pytest
 import os
+import codecs
+
+
+def test_expression_to_evaluate():
+    from _pydevd_bundle.pydevd_vars import _expression_to_evaluate
+    assert _expression_to_evaluate(b'expr') == b'expr'
+    assert _expression_to_evaluate(b'  expr') == b'expr'
+    assert _expression_to_evaluate(b'for a in b:\n  foo') == b'for a in b:\n  foo'
+    assert _expression_to_evaluate(b'  for a in b:\n  foo') == b'for a in b:\nfoo'
+    assert _expression_to_evaluate(b'  for a in b:\nfoo') == b'  for a in b:\nfoo'
+    assert _expression_to_evaluate(b'\tfor a in b:\n\t\tfoo') == b'for a in b:\n\tfoo'
+
+    if IS_PY2:
+        assert _expression_to_evaluate(u'  expr') == (codecs.BOM_UTF8 + b'expr')
+    else:
+        assert _expression_to_evaluate(u'  expr') == u'expr'
+        assert _expression_to_evaluate(u'  for a in expr:\n  pass') == u'for a in expr:\npass'
 
 
 def test_is_main_thread():
