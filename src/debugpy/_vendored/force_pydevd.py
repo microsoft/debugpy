@@ -22,8 +22,6 @@ if _unvendored:
 # # due to heavy use of "from" in them.
 with vendored('pydevd'):
     pydevd_constants = import_module('_pydevd_bundle.pydevd_constants')
-# TODO: figure out what the appropriate setting is to work for both wheels and sdist.
-pydevd_constants.CYTHON_SUPPORTED = False
 # We limit representation size in our representation provider when needed.
 pydevd_constants.MAXIMUM_VARIABLE_REPRESENTATION_SIZE = 2 ** 32
 
