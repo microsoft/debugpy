@@ -5,6 +5,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 from importlib import import_module
+import os
 import warnings
 
 from . import check_modules, prefix_matcher, preimport, vendored
@@ -17,6 +18,13 @@ if _unvendored:
     msg = 'incompatible copy of pydevd already imported'
     # raise ImportError(msg)
     warnings.warn(msg + ':\n {}'.format('\n  '.join(_unvendored)))
+
+
+# If debugpy logging is enabled, enable it for pydevd as well
+if "DEBUGPY_LOG_DIR" in os.environ:
+    os.environ["PYDEVD_DEBUG"] = str("True")
+    os.environ["PYDEVD_DEBUG_FILE"] = os.environ["DEBUGPY_LOG_DIR"] + str("/debugpy.pydevd.log")
+
 
 # Constants must be set before importing any other pydevd module
 # # due to heavy use of "from" in them.
