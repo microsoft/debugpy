@@ -121,7 +121,7 @@ def _starts_debugging(func):
         try:
             return func(address, settrace_kwargs, **kwargs)
         except Exception:
-            raise log.exception("{0}() failed:", func.__name__, level="info")
+            log.reraise_exception("{0}() failed:", func.__name__, level="info")
 
     return debug
 
@@ -138,7 +138,7 @@ def listen(address, settrace_kwargs):
     try:
         endpoints_listener = sockets.create_server("127.0.0.1", 0, timeout=10)
     except Exception as exc:
-        log.exception("Can't listen for adapter endpoints:")
+        log.swallow_exception("Can't listen for adapter endpoints:")
         raise RuntimeError("can't listen for adapter endpoints: " + str(exc))
     endpoints_host, endpoints_port = endpoints_listener.getsockname()
     log.info(
@@ -188,7 +188,7 @@ def listen(address, settrace_kwargs):
             _adapter_process.returncode = 0
             pydevd.add_dont_terminate_child_pid(_adapter_process.pid)
     except Exception as exc:
-        log.exception("Error spawning debug adapter:", level="info")
+        log.swallow_exception("Error spawning debug adapter:", level="info")
         raise RuntimeError("error spawning debug adapter: " + str(exc))
 
     try:
@@ -203,10 +203,10 @@ def listen(address, settrace_kwargs):
         finally:
             sockets.close_socket(sock)
     except socket.timeout:
-        log.exception("Timed out waiting for adapter to connect:", level="info")
+        log.swallow_exception("Timed out waiting for adapter to connect:", level="info")
         raise RuntimeError("timed out waiting for adapter to connect")
     except Exception as exc:
-        log.exception("Error retrieving adapter endpoints:", level="info")
+        log.swallow_exception("Error retrieving adapter endpoints:", level="info")
         raise RuntimeError("error retrieving adapter endpoints: " + str(exc))
 
     log.info("Endpoints received from adapter: {0!j}", endpoints)
@@ -220,7 +220,7 @@ def listen(address, settrace_kwargs):
         client_host = str(endpoints["client"]["host"])
         client_port = int(endpoints["client"]["port"])
     except Exception as exc:
-        log.exception(
+        log.swallow_exception(
             "Error parsing adapter endpoints:\n{0!j}\n", endpoints, level="info"
         )
         raise RuntimeError("error parsing adapter endpoints: " + str(exc))

@@ -99,7 +99,7 @@ if 'debugpy' not in sys.modules:
                 # Failure to inject is not a fatal error - such a subprocess can
                 # still be debugged, it just won't support "import debugpy" in user
                 # code - so don't terminate the session.
-                log.exception(
+                log.swallow_exception(
                     "Failed to inject debugpy into {0}:", self, level="warning"
                 )
 
@@ -119,7 +119,7 @@ if 'debugpy' not in sys.modules:
                 _connections_changed.set()
 
         except Exception:
-            log.exception("Failed to accept incoming server connection:")
+            log.swallow_exception("Failed to accept incoming server connection:")
             self.channel.close()
 
             # If this was the first server to connect, and the main thread is inside
@@ -142,7 +142,7 @@ if 'debugpy' not in sys.modules:
                 # session. We still want to keep the connection around, in case the
                 # client reconnects later. If the parent session was "launch", it'll take
                 # care of closing the remaining server connections.
-                log.exception("Failed to notify parent session about {0}:", self)
+                log.swallow_exception("Failed to notify parent session about {0}:", self)
 
     def __str__(self):
         return "Server" + fmt("[?]" if self.pid is None else "[pid={0}]", self.pid)
@@ -354,7 +354,7 @@ def stop_serving():
     try:
         listener.close()
     except Exception:
-        log.exception(level="warning")
+        log.swallow_exception(level="warning")
 
 
 def connections():
@@ -442,7 +442,7 @@ def inject(pid, debugpy_args):
             stderr=subprocess.STDOUT,
         )
     except Exception as exc:
-        log.exception("Failed to inject debug server into process with PID={0}", pid)
+        log.swallow_exception("Failed to inject debug server into process with PID={0}", pid)
         raise messaging.MessageHandlingError(
             fmt(
                 "Failed to inject debug server into process with PID={0}: {1}", pid, exc

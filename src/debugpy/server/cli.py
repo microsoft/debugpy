@@ -284,7 +284,7 @@ def run_module():
         else:
             _, _, _, argv_0 = runpy._get_module_details(options.target)
     except Exception:
-        log.exception("Error determining module path for sys.argv")
+        log.swallow_exception("Error determining module path for sys.argv")
 
     start_debugging(argv_0)
 
@@ -392,7 +392,7 @@ attach_pid_injected.attach(setup);
             show_debug_info=int(os.getenv("DEBUGPY_ATTACH_BY_PID_DEBUG_INFO", "0")),
         )
     except Exception:
-        raise log.exception("Code injection into PID={0} failed:", pid)
+        log.reraise_exception("Code injection into PID={0} failed:", pid)
     log.info("Code injection into PID={0} completed.", pid)
 
 
@@ -400,8 +400,8 @@ def main():
     original_argv = list(sys.argv)
     try:
         parse_argv()
-    except Exception as ex:
-        print(HELP + "\nError: " + str(ex), file=sys.stderr)
+    except Exception as exc:
+        print(HELP + "\nError: " + str(exc), file=sys.stderr)
         sys.exit(2)
 
     if options.log_to is not None:
@@ -425,6 +425,5 @@ def main():
             "pid": attach_to_pid,
         }[options.target_kind]
         run()
-    except SystemExit as ex:
-        log.exception("Debuggee exited via SystemExit: {0!r}", ex.code, level="debug")
-        raise
+    except SystemExit as exc:
+        log.reraise_exception("Debuggee exited via SystemExit: {0!r}", exc.code, level="debug")

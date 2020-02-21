@@ -68,7 +68,7 @@ def serve(name, handler, host, port=0, backlog=socket.SOMAXCONN, timeout=None):
     try:
         listener = create_server(host, port, backlog, timeout)
     except Exception:
-        raise log.exception(
+        log.reraise_exception(
             "Error listening for incoming {0} connections on {1}:{2}:", name, host, port
         )
     host, port = listener.getsockname()

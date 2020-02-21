@@ -92,7 +92,7 @@ def spawn(process_name, cmdline, cwd, env, redirect_output):
             try:
                 os.close(fd)
             except Exception:
-                log.exception()
+                log.swallow_exception()
 
 
 def kill():
@@ -103,7 +103,7 @@ def kill():
             log.info("Killing {0}", describe())
             process.kill()
     except Exception:
-        log.exception("Failed to kill {0}", describe())
+        log.swallow_exception("Failed to kill {0}", describe())
 
 
 def wait_for_exit():
@@ -116,7 +116,7 @@ def wait_for_exit():
             # taking the lowest 8 bits of that negative returncode.
             code &= 0xFF
     except Exception:
-        log.exception("Couldn't determine process exit code:")
+        log.swallow_exception("Couldn't determine process exit code:")
         code = -1
 
     log.info("{0} exited with code {1}", describe(), code)

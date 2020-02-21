@@ -177,7 +177,7 @@ class JsonIOStream(object):
             # read() or write(), which is a common and expected occurrence with
             # JsonMessageChannel, so don't even bother logging it.
             if sys.version_info >= (3,):
-                raise log.exception("Error while closing {0} message stream", self.name)
+                log.reraise_exception("Error while closing {0} message stream", self.name)
 
     def _log_message(self, dir, data, logger=log.debug):
         format_string = "{0} {1} " + (
@@ -190,8 +190,8 @@ class JsonIOStream(object):
         while True:
             try:
                 line += reader.readline()
-            except Exception as ex:
-                raise NoMoreMessages(str(ex), stream=self)
+            except Exception as exc:
+                raise NoMoreMessages(str(exc), stream=self)
             if not line:
                 raise NoMoreMessages(stream=self)
             if line.endswith(b"\r\n"):
@@ -212,7 +212,7 @@ class JsonIOStream(object):
         # If any error occurs while reading and parsing the message, log the original
         # raw message data as is, so that it's possible to diagnose missing or invalid
         # headers, encoding issues, JSON syntax errors etc.
-        def log_message_and_exception(format_string="", *args, **kwargs):
+        def log_message_and_reraise_exception(format_string="", *args, **kwargs):
             if format_string:
                 format_string += "\n\n"
             format_string += "{name} -->\n{raw_lines}"
@@ -220,7 +220,7 @@ class JsonIOStream(object):
             raw_lines = b"".join(raw_chunks).split(b"\n")
             raw_lines = "\n".join(repr(line) for line in raw_lines)
 
-            return log.exception(
+            log.reraise_exception(
                 format_string, *args, name=self.name, raw_lines=raw_lines, **kwargs
             )
 
@@ -236,8 +236,9 @@ class JsonIOStream(object):
                 # there's no message data to log in any case, and the caller might
                 # be anticipating the error - e.g. NoMoreMessages on disconnect.
                 if headers:
-                    log_message_and_exception("Error while reading message headers:")
-                raise
+                    log_message_and_reraise_exception("Error while reading message headers:")
+                else:
+                    raise
 
             raw_chunks += [line, b"\n"]
             if line == b"":
@@ -254,7 +255,7 @@ class JsonIOStream(object):
             try:
                 raise IOError("Content-Length is missing or invalid:")
             except Exception:
-                raise log_message_and_exception()
+                log_message_and_reraise_exception()
 
         body_start = len(raw_chunks)
         body_remaining = length
@@ -265,9 +266,6 @@ class JsonIOStream(object):
                     raise EOFError
             except Exception as exc:
                 # Not logged due to https://github.com/microsoft/ptvsd/issues/1699
-                # log_message_and_exception(
-                #     "Couldn't read the expected {0} bytes of body:", length
-                # )
                 raise NoMoreMessages(str(exc), stream=self)
 
             raw_chunks.append(chunk)
@@ -278,12 +276,12 @@ class JsonIOStream(object):
         try:
             body = body.decode("utf-8")
         except Exception:
-            raise log_message_and_exception()
+            log_message_and_reraise_exception()
 
         try:
             body = decoder.decode(body)
         except Exception:
-            raise log_message_and_exception()
+            log_message_and_reraise_exception()
 
         # If parsed successfully, log as JSON for readability.
         self._log_message("-->", body)
@@ -628,7 +626,7 @@ class Event(Message):
                     str(exc),
                 )
         except Exception:
-            raise log.exception(
+            log.reraise_exception(
                 "Handler {0}\ncouldn't handle {1}:",
                 compat.srcnameof(handler),
                 self.describe(),
@@ -785,7 +783,7 @@ class Request(Message):
                     )
 
         except Exception:
-            raise log.exception(
+            log.reraise_exception(
                 "Handler {0}\ncouldn't handle {1}:",
                 compat.srcnameof(handler),
                 self.describe(),
@@ -868,7 +866,7 @@ class OutgoingRequest(Request):
                             str(exc),
                         )
                 except Exception:
-                    raise log.exception(
+                    log.reraise_exception(
                         "Handler {0}\ncouldn't handle {1}:",
                         compat.srcnameof(handler),
                         response.describe(),
@@ -1059,7 +1057,7 @@ class MessageHandlingError(Exception):
             try:
                 raise self
             except MessageHandlingError:
-                log.exception()
+                log.swallow_exception()
 
     def __hash__(self):
         return hash((self.reason, id(self.cause)))
@@ -1423,7 +1421,7 @@ class JsonMessageChannel(object):
         except Exception as exc:
             if isinstance(exc, NoMoreMessages) and exc.stream is self.stream:
                 raise
-            log.exception(
+            log.swallow_exception(
                 "Fatal error in channel {0} while parsing:\n{1!j}", self, message_dict
             )
             os._exit(1)
@@ -1533,7 +1531,7 @@ class JsonMessageChannel(object):
         try:
             handler()
         except Exception:
-            raise log.exception(
+            log.reraise_exception(
                 "Handler {0}\ncouldn't handle disconnect from {1}:",
                 compat.srcnameof(handler),
                 self,

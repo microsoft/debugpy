@@ -35,7 +35,7 @@ def main():
         try:
             return type(os.environ.pop(name, *args))
         except Exception:
-            raise log.exception("Error parsing {0!r}:", name)
+            log.reraise_exception("Error parsing {0!r}:", name)
 
     launcher_port = option("DEBUGPY_LAUNCHER_PORT", int)
 

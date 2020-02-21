@@ -152,8 +152,7 @@ def write_format(level, format_string, *args, **kwargs):
     try:
         text = fmt(format_string, *args, **kwargs)
     except Exception:
-        exception()
-        raise
+        reraise_exception()
 
     return write(level, text, kwargs.pop("_to_files", all))
 
@@ -178,26 +177,7 @@ def error(*args, **kwargs):
     return AssertionError(write_format("error", *args, **kwargs))
 
 
-def exception(format_string="", *args, **kwargs):
-    """Logs an exception with full traceback.
-
-    If format_string is specified, it is formatted with fmt(*args, **kwargs), and
-    prepended to the exception traceback on a separate line.
-
-    If exc_info is specified, the exception it describes will be logged. Otherwise,
-    sys.exc_info() - i.e. the exception being handled currently - will be logged.
-
-    If level is specified, the exception will be logged as a message of that level.
-    The default is "error".
-
-    Returns the exception object, for convenient re-raising::
-
-        try:
-            ...
-        except Exception:
-            raise log.exception()  # log it and re-raise
-    """
-
+def _exception(format_string="", *args, **kwargs):
     level = kwargs.pop("level", "error")
     exc_info = kwargs.pop("exc_info", sys.exc_info())
 
@@ -218,7 +198,30 @@ def exception(format_string="", *args, **kwargs):
         level, format_string, *args, exception=exception, stack=stack, **kwargs
     )
 
-    return exc_info[1]
+
+def swallow_exception(format_string="", *args, **kwargs):
+    """Logs an exception with full traceback.
+
+    If format_string is specified, it is formatted with fmt(*args, **kwargs), and
+    prepended to the exception traceback on a separate line.
+
+    If exc_info is specified, the exception it describes will be logged. Otherwise,
+    sys.exc_info() - i.e. the exception being handled currently - will be logged.
+
+    If level is specified, the exception will be logged as a message of that level.
+    The default is "error".
+    """
+
+    _exception(format_string, *args, **kwargs)
+
+
+def reraise_exception(format_string="", *args, **kwargs):
+    """Like swallow_exception(), but re-raises the current exception after logging it.
+    """
+
+    assert "exc_info" not in kwargs
+    _exception(format_string, *args, **kwargs)
+    raise
 
 
 def to_file(filename=None, prefix=None, levels=LEVELS):
@@ -300,7 +303,7 @@ def describe_environment(header):
             report("{0}<missing>\n", prefix)
             return
         except Exception:
-            exception(
+            swallow_exception(
                 "Error evaluating {0}",
                 repr(expr) if expr else compat.srcnameof(get_paths),
             )

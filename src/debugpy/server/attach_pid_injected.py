@@ -86,8 +86,9 @@ def attach(setup):
         import traceback
 
         traceback.print_exc()
-        if log is not None:
-            log.exception()
-        raise
+        if log is None:
+            raise
+        else:
+            log.reraise_exception()
 
     log.info("debugpy injected successfully")

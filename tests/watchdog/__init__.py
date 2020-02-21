@@ -74,7 +74,7 @@ def _dump_worker_log(command, problem, exc_info=None):
     if exc_info is None:
         log.error("{0}", reason)
     else:
-        log.exception("{0}", reason, exc_info=exc_info)
+        log.swallow_exception("{0}", reason, exc_info=exc_info)
     return reason
 
 
@@ -111,7 +111,7 @@ def stop():
         _invoke("stop")
         _stream.close()
     except Exception:
-        log.exception()
+        log.swallow_exception()
 
 
 def register_spawn(pid, name):

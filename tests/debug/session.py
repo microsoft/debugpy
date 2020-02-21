@@ -227,7 +227,7 @@ class Session(object):
                 self.wait_for_exit()
         else:
             # Log the error, in case another one happens during shutdown.
-            log.exception(exc_info=(exc_type, exc_val, exc_tb))
+            log.swallow_exception(exc_info=(exc_type, exc_val, exc_tb))
 
         if exc_type is None:
             self.disconnect()
@@ -498,7 +498,7 @@ class Session(object):
                 self.spawn_debuggee(args, cwd, exe=exe)
                 return {}
             except OSError as exc:
-                log.exception('"runInTerminal" failed:')
+                log.swallow_exception('"runInTerminal" failed:')
                 raise request.cant_handle(str(exc))
         else:
             raise request.isnt_valid("not supported")

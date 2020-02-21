@@ -130,7 +130,7 @@ class WebRequest(object):
             self.request = func(self.url, *args, **kwargs)
         except Exception as exc:
             if self.log_errors:
-                log.exception("{0} failed:", self)
+                log.swallow_exception("{0} failed:", self)
             self.exception = exc
         else:
             log.info(
