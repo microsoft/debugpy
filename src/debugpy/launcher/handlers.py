@@ -75,16 +75,16 @@ def launch_request(request):
 
     program = module = code = ()
     if "program" in request:
-        program = request("program", json.array(unicode, vectorize=True, size=(1,)))
-        cmdline += program
-        process_name = program[0]
+        program = request("program", unicode)
+        cmdline += [program]
+        process_name = program
     if "module" in request:
-        module = request("module", json.array(unicode, vectorize=True, size=(1,)))
-        cmdline += ["-m"] + module
-        process_name = module[0]
+        module = request("module", unicode)
+        cmdline += ["-m", module]
+        process_name = module
     if "code" in request:
         code = request("code", json.array(unicode, vectorize=True, size=(1,)))
-        cmdline += ["-c"] + code
+        cmdline += ["-c", "\n".join(code)]
         process_name = python[0]
 
     num_targets = len([x for x in (program, module, code) if x != ()])

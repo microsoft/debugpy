@@ -82,9 +82,8 @@ class Program(Target):
         return fmt("program {0!j}", self.filename)
 
     def configure(self, session):
-        session.config["program"] = (
-            [self.filename] + self.args if len(self.args) else self.filename
-        )
+        session.config["program"] = self.filename
+        session.config["args"] = self.args
 
     def cli(self, env):
         return [self.filename.strpath] + list(self.args)
@@ -108,9 +107,8 @@ class Module(Target):
         return fmt("module {0}", self.name)
 
     def configure(self, session):
-        session.config["module"] = (
-            [self.name] + self.args if len(self.args) else self.name
-        )
+        session.config["module"] = self.name
+        session.config["args"] = self.args
 
     def cli(self, env):
         if self.filename is not None:
@@ -137,9 +135,8 @@ class Code(Target):
         return fmt("code: {0!j}", lines)
 
     def configure(self, session):
-        session.config["code"] = (
-            [self.code] + self.args if len(self.args) else self.code
-        )
+        session.config["code"] = self.code
+        session.config["args"] = self.args
 
     def cli(self, env):
         return ["-c", self.code] + list(self.args)
