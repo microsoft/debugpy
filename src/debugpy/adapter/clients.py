@@ -459,4 +459,4 @@ def stop_serving():
     try:
         listener.close()
     except Exception:
-        log.exception(level="warning")
+        log.swallow_exception(level="warning")

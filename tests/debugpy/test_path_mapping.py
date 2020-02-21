@@ -134,8 +134,8 @@ def test_with_path_mappings(pyfile, long_tmpdir, target, run):
 
         try:
             session.request("source", {"sourceReference": 0})
-        except Exception as ex:
-            assert "Source unavailable" in str(ex)
+        except Exception as exc:
+            assert "Source unavailable" in str(exc)
         else:
             pytest.fail("sourceReference=0 should not be valid")
 

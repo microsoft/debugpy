@@ -59,7 +59,7 @@ def dump_after(secs):
         try:
             dump()
         except:
-            log.exception()
+            log.swallow_exception()
 
     thread = threading.Thread(target=dumper)
     thread.daemon = True

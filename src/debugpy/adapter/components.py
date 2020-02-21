@@ -123,7 +123,7 @@ def missing(session, type):
         try:
             raise ComponentNotAvailable(type)
         except Exception as exc:
-            raise log.exception("{0} in {1}", exc, session)
+            log.reraise_exception("{0} in {1}", exc, session)
 
     return Missing()
 

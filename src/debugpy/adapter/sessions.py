@@ -163,7 +163,7 @@ class Session(util.Observable):
         except Exception:
             # Finalization should never fail, and if it does, the session is in an
             # indeterminate and likely unrecoverable state, so just fail fast.
-            log.exception("Fatal error while finalizing {0}", self)
+            log.swallow_exception("Fatal error while finalizing {0}", self)
             os._exit(1)
 
         log.info("{0} finalized.", self)
@@ -215,7 +215,7 @@ class Session(util.Observable):
             try:
                 self.launcher.channel.close()
             except Exception:
-                log.exception()
+                log.swallow_exception()
 
         if self.client:
             if self.client.is_connected:
@@ -253,7 +253,7 @@ class Session(util.Observable):
                         try:
                             os.kill(conn.pid, signal.SIGTERM)
                         except Exception:
-                            log.exception("Failed to kill {0}", conn)
+                            log.swallow_exception("Failed to kill {0}", conn)
                         pids_killed.add(conn.pid)
 
 

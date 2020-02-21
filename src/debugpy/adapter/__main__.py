@@ -86,7 +86,7 @@ def main(args):
             finally:
                 sockets.close_socket(sock)
         except Exception:
-            raise log.exception("Error sending endpoints info to debug server:")
+            log.reraise_exception("Error sending endpoints info to debug server:")
 
         if "error" in endpoints:
             log.error("Couldn't set up endpoints; exiting.")
@@ -101,14 +101,14 @@ def main(args):
             try:
                 os.remove(listener_file)
             except Exception:
-                log.exception("Failed to delete {0!r}", listener_file, level="warning")
+                log.swallow_exception("Failed to delete {0!r}", listener_file, level="warning")
 
         try:
             with open(listener_file, "w") as f:
                 atexit.register(delete_listener_file)
                 print(json.dumps(endpoints), file=f)
         except Exception:
-            raise log.exception("Error writing endpoints info to file:")
+            log.reraise_exception("Error writing endpoints info to file:")
 
     if args.port is None:
         clients.Client("stdio")

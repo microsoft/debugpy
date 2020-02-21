@@ -93,15 +93,15 @@ def main(tests_pid):
 
             stream.write_json(["ok"])
 
-    except Exception as ex:
-        stream.write_json(["error", str(ex)])
-        raise log.exception()
+    except Exception as exc:
+        stream.write_json(["error", str(exc)])
+        log.reraise_exception()
 
     finally:
         try:
             stream.close()
         except Exception:
-            log.exception()
+            log.swallow_exception()
 
         # If the test runner becomes a zombie process, it is still considered alive,
         # and wait() will block indefinitely. Poll status instead.
@@ -156,7 +156,7 @@ def main(tests_pid):
             except psutil.NoSuchProcess:
                 pass
             except Exception:
-                log.exception()
+                log.swallow_exception()
 
         log.info("WatchDog-{0} exiting", tests_pid)
 
