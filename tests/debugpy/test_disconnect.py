@@ -12,7 +12,7 @@ from tests.debug import runners
 from tests.patterns import some
 
 
-@pytest.mark.parametrize("run", runners.all_attach_by_socket)
+@pytest.mark.parametrize("run", runners.all_attach_socket)
 def test_continue_on_disconnect_for_attach(pyfile, target, run):
     @pyfile
     def code_to_debug():

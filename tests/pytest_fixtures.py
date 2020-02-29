@@ -20,7 +20,7 @@ from tests.debug import runners, session, targets
 
 if int(os.environ.get("DEBUGPY_TESTS_FULL", "0")):
     TARGETS = targets.all_named
-    RUNNERS = runners.all_launch + runners.all_attach_by_socket
+    RUNNERS = runners.all_launch + runners.all_attach_socket
 else:
     TARGETS = [targets.Program]
     RUNNERS = [runners.launch]

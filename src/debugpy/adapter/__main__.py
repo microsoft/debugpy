@@ -49,24 +49,24 @@ def main(args):
     if args.for_server is None:
         adapter.access_token = compat.force_str(codecs.encode(os.urandom(32), "hex"))
 
+    endpoints = {}
     try:
-        server_host, server_port = servers.serve()
+        client_host, client_port = clients.serve(args.host, args.port)
     except Exception as exc:
         if args.for_server is None:
             raise
-        endpoints = {"error": "Can't listen for server connections: " + str(exc)}
+        endpoints = {"error": "Can't listen for client connections: " + str(exc)}
     else:
-        endpoints = {"server": {"host": server_host, "port": server_port}}
-        try:
-            client_host, client_port = clients.serve(args.host, args.port)
-        except Exception as exc:
-            if args.for_server is None:
-                raise
-            endpoints = {"error": "Can't listen for client connections: " + str(exc)}
-        else:
-            endpoints["client"] = {"host": client_host, "port": client_port}
+        endpoints["client"] = {"host": client_host, "port": client_port}
 
     if args.for_server is not None:
+        try:
+            server_host, server_port = servers.serve()
+        except Exception as exc:
+            endpoints = {"error": "Can't listen for server connections: " + str(exc)}
+        else:
+            endpoints["server"] = {"host": server_host, "port": server_port}
+
         log.info(
             "Sending endpoints info to debug server at localhost:{0}:\n{1!j}",
             args.for_server,
@@ -101,7 +101,9 @@ def main(args):
             try:
                 os.remove(listener_file)
             except Exception:
-                log.swallow_exception("Failed to delete {0!r}", listener_file, level="warning")
+                log.swallow_exception(
+                    "Failed to delete {0!r}", listener_file, level="warning"
+                )
 
         try:
             with open(listener_file, "w") as f:
@@ -147,6 +149,10 @@ def _parse_argv(argv):
         default="127.0.0.1",
         metavar="HOST",
         help="start the adapter in debugServer mode on the specified host",
+    )
+
+    parser.add_argument(
+        "--access-token", type=str, help="access token expected from the server"
     )
 
     parser.add_argument(

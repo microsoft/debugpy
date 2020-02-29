@@ -19,10 +19,10 @@ be bound to specific arguments, by using either [] or with_options(), which can 
 chained arbitrarily::
 
     # Direct invocation:
-    session.attach_by_socket("cli", log_dir="...")
+    session.attach_connect("cli", log_dir="...")
 
     # Indirect invocation:
-    run = runners.attach_by_socket
+    run = runners.attach_connect
     run = run["cli"]
     run = run.with_options(log_dir="...")
     run(session, target)
@@ -59,12 +59,13 @@ import sys
 
 import debugpy
 from debugpy.common import compat, fmt, log
-from tests import net
+from tests import net, timeline
 from tests.debug import session
+from tests.patterns import some
 
 
 def _runner(f):
-    assert f.__name__.startswith("launch") or f.__name__.startswith("attach")
+    # assert f.__name__.startswith("launch") or f.__name__.startswith("attach")
     setattr(session.Session, f.__name__, f)
 
     class Runner(object):
@@ -159,7 +160,7 @@ def _attach_common_config(session, target, cwd):
 
 @_runner
 @contextlib.contextmanager
-def attach_by_pid(session, target, cwd=None, wait=True):
+def attach_pid(session, target, cwd=None, wait=True):
     if sys.version_info < (3,) and sys.platform == "darwin":
         pytest.skip("https://github.com/microsoft/ptvsd/issues/1916")
     if wait and not sys.platform.startswith("linux"):
@@ -188,7 +189,7 @@ while "debugpy" not in sys.modules:
 
 from debuggee import scratchpad
 
-while "_attach_by_pid" not in scratchpad:
+while "_attach_pid" not in scratchpad:
     time.sleep(0.1)
     """
         else:
@@ -202,24 +203,20 @@ while "_attach_by_pid" not in scratchpad:
         yield
 
     if wait:
-        session.scratchpad["_attach_by_pid"] = True
+        session.scratchpad["_attach_pid"] = True
 
 
 @_runner
-def attach_by_socket(
-    session, target, method, listener="server", cwd=None, wait=True, log_dir=None
-):
+def attach_listen(session, target, method, cwd=None, wait=True, log_dir=None):
     log.info(
         "Attaching {0} to {1} by socket using {2}.", session, target, method.upper()
     )
 
     assert method in ("api", "cli")
-    assert listener in ("server")  # TODO: ("adapter", "server")
 
     config = _attach_common_config(session, target, cwd)
-
-    host = config["host"] = attach_by_socket.host
-    port = config["port"] = attach_by_socket.port
+    config["host"] = host = attach_listen.host
+    config["port"] = port = attach_listen.port
 
     if method == "cli":
         args = [
@@ -257,8 +254,57 @@ if {wait!r}:
     return session.request_attach()
 
 
-attach_by_socket.host = "127.0.0.1"
-attach_by_socket.port = net.get_test_server_port(5678, 5800)
+attach_listen.host = "127.0.0.1"
+attach_listen.port = net.get_test_server_port(5678, 5800)
+
+
+@_runner
+def attach_connect(session, target, method, cwd=None, log_dir=None):
+    log.info(
+        "Attaching {0} to {1} by socket using {2}.", session, target, method.upper()
+    )
+
+    assert method in ("api", "cli")
+
+    config = _attach_common_config(session, target, cwd)
+    config["listen"] = True
+    config["host"] = host = attach_connect.host
+    config["port"] = port = attach_connect.port
+
+    if method == "cli":
+        args = [
+            os.path.dirname(debugpy.__file__),
+            "--connect",
+            compat.filename_str(host) + ":" + str(port),
+        ]
+        if log_dir is not None:
+            args += ["--log-to", log_dir]
+        debuggee_setup = None
+    elif method == "api":
+        args = []
+        debuggee_setup = """
+import debugpy
+if {log_dir!r}:
+    debugpy.log_to({log_dir!r})
+debugpy.connect({address!r})
+"""
+        debuggee_setup = fmt(debuggee_setup, address=(host, port), log_dir=log_dir)
+    else:
+        raise ValueError
+    args += target.cli(session.spawn_debuggee.env)
+
+    def spawn_debuggee(occ):
+        assert occ.body == some.dict.containing({"host": host, "port": port})
+        session.spawn_debuggee(args, cwd=cwd, setup=debuggee_setup)
+
+    session.timeline.when(timeline.Event("debugpyWaitingForServer"), spawn_debuggee)
+    session.spawn_adapter(args=[] if log_dir is None else ["--log-dir", log_dir])
+    return session.request_attach()
+
+
+attach_connect.host = "127.0.0.1"
+attach_connect.port = net.get_test_server_port(5678, 5800)
+
 
 all_launch = [
     launch["internalConsole"],
@@ -266,8 +312,18 @@ all_launch = [
     launch["externalTerminal"],
 ]
 
-all_attach_by_socket = [attach_by_socket["api"], attach_by_socket["cli"]]
+all_attach_listen = [
+    attach_listen["api"],
+    attach_listen["cli"],
+]
 
-all_attach = all_attach_by_socket + [attach_by_pid]
+all_attach_connect = [
+    attach_connect["api"],
+    attach_connect["cli"],
+]
+
+all_attach_socket = all_attach_listen + all_attach_connect
+
+all_attach = all_attach_socket + [attach_pid]
 
 all = all_launch + all_attach

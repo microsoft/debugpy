@@ -12,7 +12,7 @@ from tests.debug import runners
 from tests.patterns import some
 
 
-@pytest.fixture(params=[runners.launch, runners.attach_by_socket["api"]])
+@pytest.fixture(params=[runners.launch, runners.attach_listen["api"]])
 def run(request):
     return request.param
 

@@ -8,6 +8,7 @@ import os
 import sys
 
 import debugpy
+from debugpy import adapter
 from debugpy.common import fmt, json, log, messaging, sockets
 from debugpy.common.compat import unicode
 from debugpy.adapter import components, servers, sessions
@@ -275,14 +276,22 @@ class Client(components.Component):
         )
         console_title = request("consoleTitle", json.default("Python Debug Console"))
 
-        launchers.spawn_debuggee(
-            self.session, request, args, console, console_title
-        )
+        servers.serve()
+        launchers.spawn_debuggee(self.session, request, args, console, console_title)
 
     @_start_message_handler
     def attach_request(self, request):
         if self.session.no_debug:
             raise request.isnt_valid('"noDebug" is not supported for "attach"')
+
+        listen = request("listen", False)
+        if listen:
+            host = request("host", "127.0.0.1")
+            port = request("port", int)
+            adapter.access_token = None
+            host, port = servers.serve(host, port)
+        else:
+            host, port = servers.serve()
 
         # There are four distinct possibilities here.
         #
@@ -294,12 +303,12 @@ class Client(components.Component):
         # in response to a "debugpyAttach" event. If so, the debug server should be
         # connected already, and thus the wait timeout is zero.
         #
-        # If neither is specified, and "waitForAttach" is true, this is attach-by-socket
+        # If neither is specified, and "listen" is true, this is attach-by-socket
         # with the server expected to connect to the adapter via debugpy.connect(). There
         # is no PID known in advance, so just wait until the first server connection
         # indefinitely, with no timeout.
         #
-        # If neither is specified, and "waitForAttach" is false, this is attach-by-socket
+        # If neither is specified, and "listen" is false, this is attach-by-socket
         # in which the server has spawned the adapter via debugpy.listen(). There
         # is no PID known to the client in advance, but the server connection should be
         # either be there already, or the server should be connecting shortly, so there
@@ -330,11 +339,12 @@ class Client(components.Component):
         else:
             if sub_pid == ():
                 pred = lambda conn: True
-                timeout = None if request("waitForAttach", False) else 10
+                timeout = None if listen else 10
             else:
                 pred = lambda conn: conn.pid == sub_pid
                 timeout = 0
 
+        self.channel.send_event("debugpyWaitingForServer", {"host": host, "port": port})
         conn = servers.wait_for_connection(self.session, pred, timeout)
         if conn is None:
             raise request.cant_handle(
@@ -436,15 +446,17 @@ class Client(components.Component):
             body = dict(self.start_request.arguments)
             self._known_subprocesses.add(conn)
 
+        body.pop("processId", None)
+        if body.pop("listen", False):
+            body.pop("host", None)
+            body.pop("port", None)
         body["name"] = fmt("Subprocess {0}", conn.pid)
         body["request"] = "attach"
+        body["subProcessId"] = conn.pid
         if "host" not in body:
             body["host"] = "127.0.0.1"
         if "port" not in body:
             _, body["port"] = listener.getsockname()
-        if "processId" in body:
-            del body["processId"]
-        body["subProcessId"] = conn.pid
 
         self.channel.send_event("debugpyAttach", body)
 

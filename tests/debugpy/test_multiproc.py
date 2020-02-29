@@ -13,7 +13,7 @@ from tests.debug import runners
 from tests.patterns import some
 
 
-@pytest.fixture(params=[runners.launch, runners.attach_by_socket["api"]])
+@pytest.fixture(params=[runners.launch] + runners.all_attach_socket)
 def run(request):
     return request.param
 
@@ -101,6 +101,7 @@ def test_multiprocessing(pyfile, target, run, start_method):
             pass
 
         expected_child_config = dict(parent_session.config)
+        expected_child_config.pop("listen", None)
         expected_child_config.update(
             {
                 "name": some.str,
@@ -120,6 +121,7 @@ def test_multiprocessing(pyfile, target, run, start_method):
                 pass
 
             expected_grandchild_config = dict(child_session.config)
+            expected_grandchild_config.pop("listen", None)
             expected_grandchild_config.update(
                 {
                     "name": some.str,
@@ -181,6 +183,7 @@ def test_subprocess(pyfile, target, run):
             pass
 
         expected_child_config = dict(parent_session.config)
+        expected_child_config.pop("listen", None)
         expected_child_config.update(
             {
                 "name": some.str,
