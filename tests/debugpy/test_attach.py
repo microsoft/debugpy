@@ -53,7 +53,7 @@ def test_attach_api(pyfile, target, wait_for_client, is_client_connected, stop_m
                 time.sleep(0.1)
 
     with debug.Session() as session:
-        host, port = runners.attach_by_socket.host, runners.attach_by_socket.port
+        host, port = runners.attach_connect.host, runners.attach_connect.port
         session.config.update({"host": host, "port": port})
 
         backchannel = session.open_backchannel()
@@ -97,7 +97,7 @@ def test_attach_api(pyfile, target, wait_for_client, is_client_connected, stop_m
         session.request_continue()
 
 
-@pytest.mark.parametrize("run", runners.all_attach_by_socket)
+@pytest.mark.parametrize("run", runners.all_attach_listen)
 def test_reattach(pyfile, target, run):
     @pyfile
     def code_to_debug():
@@ -146,7 +146,7 @@ def test_reattach(pyfile, target, run):
 
 
 @pytest.mark.parametrize("pid_type", ["int", "str"])
-def test_attach_by_pid_client(pyfile, target, pid_type):
+def test_attach_pid_client(pyfile, target, pid_type):
     @pyfile
     def code_to_debug():
         import debuggee
@@ -178,7 +178,7 @@ def test_attach_by_pid_client(pyfile, target, pid_type):
     session1.captured_output = set()
     session1.expected_exit_code = None  # not expected to exit on disconnect
 
-    with session1.attach_by_pid(target(code_to_debug), wait=False):
+    with session1.attach_pid(target(code_to_debug), wait=False):
         session1.set_breakpoints(code_to_debug, all)
 
     session1.wait_for_stop(expected_frames=[some.dap.frame(code_to_debug, "bp")])
@@ -191,7 +191,7 @@ def test_attach_by_pid_client(pyfile, target, pid_type):
     session1.wait_for_terminated()
 
     with debug.Session() as session2:
-        with session2.attach_by_pid(pid, wait=False):
+        with session2.attach_pid(pid, wait=False):
             session2.set_breakpoints(code_to_debug, all)
 
         stop = session2.wait_for_stop(

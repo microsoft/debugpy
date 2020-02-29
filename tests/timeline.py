@@ -30,6 +30,7 @@ class Timeline(object):
         self.name = str(name if name is not None else id(self))
         self.ignore_unobserved = []
 
+        self._listeners = []  # [(expectation, callable)]
         self._index_iter = itertools.count(1)
         self._accepting_new = threading.Event()
         self._finalized = threading.Event()
@@ -341,6 +342,10 @@ class Timeline(object):
                 self._recorded_new.notify_all()
                 self._record_queue.task_done()
 
+                for exp, callback in tuple(self._listeners):
+                    if exp == occ:
+                        callback(occ)
+
     def mark(self, id, block=True):
         occ = Occurrence("mark", id)
         occ.id = id
@@ -359,6 +364,12 @@ class Timeline(object):
     def record_response(self, request_occ, message, block=True):
         occ = ResponseOccurrence(request_occ, message)
         return self._record(occ, block)
+
+    def when(self, expectation, callback):
+        """For every occurrence recorded after this call, invokes callback(occurrence)
+        if occurrence == expectation.
+        """
+        self._listeners.append((expectation, callback))
 
     def _snapshot(self):
         last = self._last

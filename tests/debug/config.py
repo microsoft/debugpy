@@ -65,6 +65,7 @@ class DebugConfig(collections.MutableMapping):
         # Attach by socket
         "host": (),
         "port": (),
+        "listen": False,
         # Attach by PID
         "processId": (),
     }

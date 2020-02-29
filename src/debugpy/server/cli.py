@@ -26,7 +26,7 @@ TARGET = "<filename> | -m <module> | -c <code> | --pid <pid>"
 HELP = """debugpy {0}
 See https://aka.ms/debugpy for documentation.
 
-Usage: debugpy --listen [<address>:]<port>
+Usage: debugpy [--listen | --connect] [<address>:]<port>
                [--wait-for-client]
                [--configure-<name> <value>]...
                [--log-to <path>] [--log-to-stderr]

@@ -15,6 +15,7 @@ __all__ = [
     "__version__",
     "breakpoint",
     "configure",
+    "connect",
     "debug_this_thread",
     "is_client_connected",
     "listen",

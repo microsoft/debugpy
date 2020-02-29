@@ -166,8 +166,7 @@ class Session(object):
             [
                 timeline.Event("module"),
                 timeline.Event("continued"),
-                # timeline.Event("exited"),
-                # timeline.Event("terminated"),
+                timeline.Event("debugpyWaitingForServer"),
                 timeline.Event("thread", some.dict.containing({"reason": "started"})),
                 timeline.Event("thread", some.dict.containing({"reason": "exited"})),
                 timeline.Event("output", some.dict.containing({"category": "stdout"})),
@@ -390,11 +389,11 @@ class Session(object):
         while not self.adapter_endpoints.check():
             time.sleep(0.1)
 
-    def spawn_adapter(self):
+    def spawn_adapter(self, args=()):
         assert self.adapter is None
         assert self.channel is None
 
-        args = [sys.executable, os.path.dirname(debugpy.adapter.__file__)]
+        args = [sys.executable, os.path.dirname(debugpy.adapter.__file__)] + list(args)
         env = self._make_env(self.spawn_adapter.env)
 
         log.info(

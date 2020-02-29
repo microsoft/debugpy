@@ -30,7 +30,7 @@ class lines:
 
 
 @pytest.fixture
-@pytest.mark.parametrize("run", [runners.launch, runners.attach_by_socket["cli"]])
+@pytest.mark.parametrize("run", [runners.launch, runners.attach_listen["cli"]])
 def start_flask(run):
     def start(session, multiprocess=False):
         # No clean way to kill Flask server, expect non-zero exit code
