@@ -7,14 +7,16 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import pytest
 import sys
 
+import tests
 from tests import debug
 from tests.debug import runners
 from tests.patterns import some
 
 
-@pytest.fixture(params=[runners.launch, runners.attach_listen["api"]])
-def run(request):
-    return request.param
+if not tests.full:
+    @pytest.fixture(params=[runners.launch, runners.attach_listen["api"]])
+    def run(request):
+        return request.param
 
 
 def test_with_path_mappings(pyfile, tmpdir, target, run):
