@@ -6,14 +6,16 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import pytest
 
+import tests
 from tests import debug, test_data
 from tests.debug import targets
 from tests.patterns import some
 
 
-@pytest.fixture(params=targets.all_named)
-def target(request):
-    return request.param
+if not tests.full:
+    @pytest.fixture(params=targets.all_named)
+    def target(request):
+        return request.param
 
 
 def test_with_dot_remote_root(pyfile, long_tmpdir, target, run):

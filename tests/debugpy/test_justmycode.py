@@ -19,7 +19,9 @@ def test_justmycode_frames(pyfile, target, run, jmc):
         import debuggee
 
         debuggee.setup()
-        print("break here")  # @bp
+
+        import this  # @bp
+        assert this
 
     with debug.Session() as session:
         session.config["justMyCode"] = bool(jmc)
@@ -37,12 +39,14 @@ def test_justmycode_frames(pyfile, target, run, jmc):
 
         session.request("stepIn", {"threadId": stop.thread_id})
 
+        # With JMC, it should step out of the function, remaining in the same file.
+        # Without JMC, it should step into stdlib.
+        expected_path = some.path(code_to_debug)
         if not jmc:
-            # "stepIn" should stop somewhere inside stdlib
-            session.wait_for_stop(
-                "step",
-                expected_frames=[
-                    some.dap.frame(~some.str.equal_to(code_to_debug), some.int)
-                ],
-            )
-            session.request_continue()
+            expected_path = ~expected_path
+        session.wait_for_stop(
+            "step",
+            expected_frames=[some.dap.frame(some.dap.source(expected_path), some.int)],
+        )
+
+        session.request_continue()

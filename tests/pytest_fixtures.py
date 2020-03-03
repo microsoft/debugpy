@@ -13,12 +13,13 @@ import threading
 import types
 
 from debugpy.common import compat, fmt, log, timestamp
+import tests
 from tests import code, logs
 from tests.debug import runners, session, targets
 
 # Set up the test matrix for various code types and attach methods
 
-if int(os.environ.get("DEBUGPY_TESTS_FULL", "0")):
+if tests.full:
     TARGETS = targets.all_named
     RUNNERS = runners.all_launch + runners.all_attach_socket
 else:

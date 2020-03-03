@@ -8,14 +8,16 @@ import pytest
 import sys
 
 import debugpy
+import tests
 from tests import debug
 from tests.debug import runners
 from tests.patterns import some
 
 
-@pytest.fixture(params=[runners.launch] + runners.all_attach_socket)
-def run(request):
-    return request.param
+if not tests.full:
+    @pytest.fixture(params=[runners.launch] + runners.all_attach_socket)
+    def run(request):
+        return request.param
 
 
 @pytest.mark.parametrize(

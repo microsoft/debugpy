@@ -10,6 +10,7 @@ import re
 import sys
 
 from debugpy.common import fmt
+import tests
 from tests import debug, test_data
 from tests.debug import runners, targets
 from tests.patterns import some
@@ -17,9 +18,10 @@ from tests.patterns import some
 bp_root = test_data / "bp"
 
 
-@pytest.fixture(params=[runners.launch, runners.attach_listen["api"]])
-def run(request):
-    return request.param
+if not tests.full:
+    @pytest.fixture(params=[runners.launch, runners.attach_connect["cli"]])
+    def run(request):
+        return request.param
 
 
 @pytest.mark.parametrize("target", targets.all_named)
@@ -171,13 +173,14 @@ def test_error_in_condition(pyfile, target, run, error_name):
                 },
             )
 
-    assert not session.captured_stdout()
+    if "internalConsole" not in str(run):
+        assert not session.captured_stdout()
 
-    error_name = error_name.encode("ascii")
-    if expect_traceback:
-        assert error_name in session.captured_stderr()
-    else:
-        assert error_name not in session.captured_stderr()
+        error_name = error_name.encode("ascii")
+        if expect_traceback:
+            assert error_name in session.captured_stderr()
+        else:
+            assert error_name not in session.captured_stderr()
 
 
 @pytest.mark.parametrize("condition", ["condition", ""])
@@ -230,7 +233,8 @@ def test_log_point(pyfile, target, run, condition):
 
     # print() should produce both actual output, and "output" events on stderr,
     # but logpoints should only produce "output" events on stdout.
-    assert not session.captured_stdout()
+    if "internalConsole" not in str(run):
+        assert not session.captured_stdout()
 
     expected_stdout = "".join(
         (fmt(r"{0}\r?\n", re.escape(str(i))) for i in range(0, 10))

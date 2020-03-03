@@ -60,7 +60,7 @@ def test_gevent(pyfile, target, run):
     with debug.Session() as session:
         session.config["gevent"] = True
 
-        if str(run) == "listen(cli)" or str(run) == "connect(cli)":
+        if str(run).startswith("attach"):
             session.spawn_debuggee.env["GEVENT_SUPPORT"] = "True"
 
         with run(session, target(code_to_debug)):
