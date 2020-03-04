@@ -9,9 +9,11 @@ import pytest
 import sys
 
 from tests import debug
+from tests.debug import runners
 
 
 @pytest.mark.parametrize("case", ["match_case", "mismatch_case"])
+@pytest.mark.parametrize("run", runners.all_launch)
 def test_env_replace_var(pyfile, target, run, case):
     @pyfile
     def code_to_debug():
