@@ -97,7 +97,7 @@ def test_attach_api(pyfile, target, wait_for_client, is_client_connected, stop_m
         session.request_continue()
 
 
-@pytest.mark.parametrize("run", runners.all_attach_listen)
+@pytest.mark.parametrize("run", runners.all_attach_connect)
 def test_reattach(pyfile, target, run):
     @pyfile
     def code_to_debug():

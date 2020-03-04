@@ -207,7 +207,7 @@ while "_attach_pid" not in scratchpad:
 
 
 @_runner
-def attach_listen(session, target, method, cwd=None, wait=True, log_dir=None):
+def attach_connect(session, target, method, cwd=None, wait=True, log_dir=None):
     log.info(
         "Attaching {0} to {1} by socket using {2}.", session, target, method.upper()
     )
@@ -215,8 +215,8 @@ def attach_listen(session, target, method, cwd=None, wait=True, log_dir=None):
     assert method in ("api", "cli")
 
     config = _attach_common_config(session, target, cwd)
-    config["host"] = host = attach_listen.host
-    config["port"] = port = attach_listen.port
+    config["host"] = host = attach_connect.host
+    config["port"] = port = attach_connect.port
 
     if method == "cli":
         args = [
@@ -254,12 +254,12 @@ if {wait!r}:
     return session.request_attach()
 
 
-attach_listen.host = "127.0.0.1"
-attach_listen.port = net.get_test_server_port(5678, 5800)
+attach_connect.host = "127.0.0.1"
+attach_connect.port = net.get_test_server_port(5678, 5800)
 
 
 @_runner
-def attach_connect(session, target, method, cwd=None, log_dir=None):
+def attach_listen(session, target, method, cwd=None, log_dir=None):
     log.info(
         "Attaching {0} to {1} by socket using {2}.", session, target, method.upper()
     )
@@ -268,8 +268,8 @@ def attach_connect(session, target, method, cwd=None, log_dir=None):
 
     config = _attach_common_config(session, target, cwd)
     config["listen"] = True
-    config["host"] = host = attach_connect.host
-    config["port"] = port = attach_connect.port
+    config["host"] = host = attach_listen.host
+    config["port"] = port = attach_listen.port
 
     if method == "cli":
         args = [
@@ -302,8 +302,8 @@ debugpy.connect({address!r})
     return session.request_attach()
 
 
-attach_connect.host = "127.0.0.1"
-attach_connect.port = net.get_test_server_port(5678, 5800)
+attach_listen.host = "127.0.0.1"
+attach_listen.port = net.get_test_server_port(5478, 5600)
 
 
 all_launch = [
