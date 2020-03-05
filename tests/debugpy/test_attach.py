@@ -54,7 +54,7 @@ def test_attach_api(pyfile, target, wait_for_client, is_client_connected, stop_m
 
     with debug.Session() as session:
         host, port = runners.attach_connect.host, runners.attach_connect.port
-        session.config.update({"host": host, "port": port})
+        session.config.update({"connect": {"host": host, "port": port}})
 
         backchannel = session.open_backchannel()
         session.spawn_debuggee(
@@ -128,9 +128,9 @@ def test_reattach(pyfile, target, run):
 
     with debug.Session() as session2:
         session2.config.update(session1.config)
-        if "host" in session2.config:
+        if "connect" in session2.config:
             session2.connect_to_adapter(
-                (session2.config["host"], session2.config["port"])
+                (session2.config["connect"]["host"], session2.config["connect"]["port"])
             )
 
         with session2.request_attach():

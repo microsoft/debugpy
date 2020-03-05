@@ -215,8 +215,9 @@ def attach_connect(session, target, method, cwd=None, wait=True, log_dir=None):
     assert method in ("api", "cli")
 
     config = _attach_common_config(session, target, cwd)
-    config["host"] = host = attach_connect.host
-    config["port"] = port = attach_connect.port
+    config["connect"] = {}
+    config["connect"]["host"] = host = attach_connect.host
+    config["connect"]["port"] = port = attach_connect.port
 
     if method == "cli":
         args = [
@@ -267,9 +268,9 @@ def attach_listen(session, target, method, cwd=None, log_dir=None):
     assert method in ("api", "cli")
 
     config = _attach_common_config(session, target, cwd)
-    config["listen"] = True
-    config["host"] = host = attach_listen.host
-    config["port"] = port = attach_listen.port
+    config["listen"] = {}
+    config["listen"]["host"] = host = attach_listen.host
+    config["listen"]["port"] = port = attach_listen.port
 
     if method == "cli":
         args = [
