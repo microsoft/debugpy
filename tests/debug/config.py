@@ -63,9 +63,8 @@ class DebugConfig(collections.MutableMapping):
         "waitOnNormalExit": False,
         "waitOnAbnormalExit": False,
         # Attach by socket
-        "host": (),
-        "port": (),
-        "listen": False,
+        "listen": (),
+        "connect": (),
         # Attach by PID
         "processId": (),
     }

@@ -432,8 +432,8 @@ class Session(object):
         config = self.config
         request = config.get("request", None)
         if request == "attach":
-            host = config["host"]
-            port = config["port"]
+            host = config["connect"]["host"]
+            port = config["connect"]["port"]
             self.connect_to_adapter((host, port))
             return self.request_attach()
         else:

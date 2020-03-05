@@ -284,10 +284,43 @@ class Client(components.Component):
         if self.session.no_debug:
             raise request.isnt_valid('"noDebug" is not supported for "attach"')
 
-        listen = request("listen", False)
-        if listen:
-            host = request("host", "127.0.0.1")
-            port = request("port", int)
+        host = request("host", unicode, optional=True)
+        port = request("port", int, optional=True)
+        listen = request("listen", dict, optional=True)
+        connect = request("connect", dict, optional=True)
+        pid = request("processId", (int, unicode), optional=True)
+        sub_pid = request("subProcessId", int, optional=True)
+
+        if host != () or port != ():
+            if listen != ():
+                raise request.isnt_valid(
+                    '"listen" and "host"/"port" are mutually exclusive'
+                )
+            if connect != ():
+                raise request.isnt_valid(
+                    '"connect" and "host"/"port" are mutually exclusive'
+                )
+        if listen != ():
+            if connect != ():
+                raise request.isnt_valid(
+                    '"listen" and "connect" are mutually exclusive'
+                )
+            if pid != ():
+                raise request.isnt_valid(
+                    '"listen" and "processId" are mutually exclusive'
+                )
+            if sub_pid != ():
+                raise request.isnt_valid(
+                    '"listen" and "subProcessId" are mutually exclusive'
+                )
+        if pid != () and sub_pid != ():
+            raise request.isnt_valid(
+                '"processId" and "subProcessId" are mutually exclusive'
+            )
+
+        if listen != ():
+            host = listen("host", "127.0.0.1")
+            port = listen("port", int)
             adapter.access_token = None
             host, port = servers.serve(host, port)
         else:
@@ -303,30 +336,22 @@ class Client(components.Component):
         # in response to a "debugpyAttach" event. If so, the debug server should be
         # connected already, and thus the wait timeout is zero.
         #
-        # If neither is specified, and "listen" is true, this is attach-by-socket
-        # with the server expected to connect to the adapter via debugpy.connect(). There
-        # is no PID known in advance, so just wait until the first server connection
-        # indefinitely, with no timeout.
+        # If "listen" is specified, this is attach-by-socket with the server expected
+        # to connect to the adapter via debugpy.connect(). There is no PID known in
+        # advance, so just wait until the first server connection indefinitely, with
+        # no timeout.
         #
-        # If neither is specified, and "listen" is false, this is attach-by-socket
-        # in which the server has spawned the adapter via debugpy.listen(). There
-        # is no PID known to the client in advance, but the server connection should be
-        # either be there already, or the server should be connecting shortly, so there
-        # must be a timeout.
+        # If "connect" is specified, this is attach-by-socket in which the server has
+        # spawned the adapter via debugpy.listen(). There is no PID known to the client
+        # in advance, but the server connection should be either be there already, or
+        # the server should be connecting shortly, so there must be a timeout.
         #
         # In the last two cases, if there's more than one server connection already,
         # this is a multiprocess re-attach. The client doesn't know the PID, so we just
         # connect it to the oldest server connection that we have - in most cases, it
         # will be the one for the root debuggee process, but if it has exited already,
         # it will be some subprocess.
-
-        pid = request("processId", (int, unicode), optional=True)
-        sub_pid = request("subProcessId", int, optional=True)
         if pid != ():
-            if sub_pid != ():
-                raise request.isnt_valid(
-                    '"processId" and "subProcessId" are mutually exclusive'
-                )
             if not isinstance(pid, int):
                 try:
                     pid = int(pid)
@@ -339,7 +364,7 @@ class Client(components.Component):
         else:
             if sub_pid == ():
                 pred = lambda conn: True
-                timeout = None if listen else 10
+                timeout = 10 if listen == () else None
             else:
                 pred = lambda conn: conn.pid == sub_pid
                 timeout = 0
@@ -447,16 +472,21 @@ class Client(components.Component):
             self._known_subprocesses.add(conn)
 
         body.pop("processId", None)
-        if body.pop("listen", False):
-            body.pop("host", None)
-            body.pop("port", None)
+        body.pop("listen", None)
         body["name"] = fmt("Subprocess {0}", conn.pid)
         body["request"] = "attach"
         body["subProcessId"] = conn.pid
-        if "host" not in body:
-            body["host"] = "127.0.0.1"
-        if "port" not in body:
-            _, body["port"] = listener.getsockname()
+
+        host = body.pop("host", None)
+        port = body.pop("port", None)
+        if "connect" not in body:
+            body["connect"] = {}
+        if "host" not in body["connect"]:
+            body["connect"]["host"] = host if host is not None else "127.0.0.1"
+        if "port" not in body["connect"]:
+            if port is None:
+                _, port = listener.getsockname()
+            body["connect"]["port"] = port
 
         self.channel.send_event("debugpyAttach", body)
 

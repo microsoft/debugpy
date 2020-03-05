@@ -109,8 +109,10 @@ def test_multiprocessing(pyfile, target, run, start_method):
                 "name": some.str,
                 "request": "attach",
                 "subProcessId": some.int,
-                "host": some.str,
-                "port": some.int,
+                "connect": {
+                    "host": some.str,
+                    "port": some.int,
+                }
             }
         )
 
@@ -129,8 +131,10 @@ def test_multiprocessing(pyfile, target, run, start_method):
                     "name": some.str,
                     "request": "attach",
                     "subProcessId": some.int,
-                    "host": some.str,
-                    "port": some.int,
+                    "connect": {
+                        "host": some.str,
+                        "port": some.int,
+                    }
                 }
             )
 
@@ -191,8 +195,10 @@ def test_subprocess(pyfile, target, run):
                 "name": some.str,
                 "request": "attach",
                 "subProcessId": some.int,
-                "host": some.str,
-                "port": some.int,
+                "connect": {
+                    "host": some.str,
+                    "port": some.int,
+                }
             }
         )
 
