@@ -46,6 +46,15 @@ DEBUG_START = ('pydevd.py', 'run')
 DEBUG_START_PY3K = ('_pydev_execfile.py', 'execfile')
 TRACE_PROPERTY = 'pydevd_traceproperty.py'
 
+import dis
+
+
+def _get_func_lines(f_code):
+    try:
+        return set(lineno for (_, lineno) in dis.findlinestarts(f_code))
+    except:
+        return None
+
 
 #=======================================================================================================================
 # PyDBFrame
@@ -383,6 +392,8 @@ class PyDBFrame:
     #     cdef int breakpoints_in_frame_cache;
     #     cdef bint has_breakpoint_in_frame;
     #     cdef bint is_coroutine_or_generator;
+    #     cdef int bp_line;
+    #     cdef object bp;
     # ELSE
     def trace_dispatch(self, frame, event, arg):
     # ENDIF
@@ -600,18 +611,31 @@ class PyDBFrame:
 
                     else:
                         has_breakpoint_in_frame = False
-                        # Checks the breakpoint to see if there is a context match in some function
-                        curr_func_name = frame.f_code.co_name
 
-                        # global context is set with an empty name
-                        if curr_func_name in ('?', '<module>', '<lambda>'):
-                            curr_func_name = ''
+                        func_lines = _get_func_lines(frame.f_code)
+                        if func_lines is None:
+                            # This is a fallback for implementations where we can't get the function
+                            # lines -- i.e.: jython (in this case clients need to provide the function
+                            # name to decide on the skip or we won't be able to skip the function
+                            # completely).
 
-                        for breakpoint in dict_iter_values(breakpoints_for_file):  # jython does not support itervalues()
-                            # will match either global or some function
-                            if breakpoint.func_name in ('None', curr_func_name):
-                                has_breakpoint_in_frame = True
-                                break
+                            # Checks the breakpoint to see if there is a context match in some function.
+                            curr_func_name = frame.f_code.co_name
+
+                            # global context is set with an empty name
+                            if curr_func_name in ('?', '<module>', '<lambda>'):
+                                curr_func_name = ''
+
+                            for bp in dict_iter_values(breakpoints_for_file):  # jython does not support itervalues()
+                                # will match either global or some function
+                                if bp.func_name in ('None', curr_func_name):
+                                    has_breakpoint_in_frame = True
+                                    break
+                        else:
+                            for bp_line in breakpoints_for_file:  # iterate on keys
+                                if bp_line in func_lines:
+                                    has_breakpoint_in_frame = True
+                                    break
 
                         # Cache the value (1 or 0 or -1 for default because of cython).
                         if has_breakpoint_in_frame:
