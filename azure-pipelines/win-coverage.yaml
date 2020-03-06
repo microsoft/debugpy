@@ -8,6 +8,6 @@ jobs:
       pool:
           name: Azure Pipelines
           demands: java
-          vmImage: "vs2017-win2016"
+          vmImage: "windows-2019"
       steps:
         - template: "templates/coverage.yml"
