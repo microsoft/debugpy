@@ -5,7 +5,7 @@ jobs:
     - job: "Lint"
       timeoutInMinutes: 15
       displayName: "Lint"
-      pool: { vmImage: "ubuntu-16.04" }
+      pool: { vmImage: "ubuntu-18.04" }
 
       variables:
           python.version: "3.8"
@@ -33,7 +33,7 @@ jobs:
     - job: "Test_Linux"
       timeoutInMinutes: 15
       displayName: "Tests - Linux"
-      pool: { vmImage: "ubuntu-16.04" }
+      pool: { vmImage: "ubuntu-18.04" }
 
       strategy:
           matrix:
@@ -61,7 +61,7 @@ jobs:
     - job: "Test_MacOS"
       timeoutInMinutes: 15
       displayName: "Tests - macOS"
-      pool: { vmImage: "macOS-10.13" }
+      pool: { vmImage: "macOS-10.15" }
 
       strategy:
           matrix:
@@ -92,7 +92,7 @@ jobs:
     - job: "Test_Windows"
       timeoutInMinutes: 15
       displayName: "Tests - Windows"
-      pool: { vmImage: "vs2017-win2016" }
+      pool: { vmImage: "windows-2019" }
 
       strategy:
           matrix:
