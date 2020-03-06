@@ -570,6 +570,9 @@ def test_case_11(case_setup):
 
 
 def test_case_12(case_setup):
+    # Note: In CPython we now ignore the function names, so, we'll stop at the breakpoint in line 2
+    # regardless of the function name (we decide whether to stop in a line or not through the function
+    # lines).
     with case_setup.test_file('_debugger_case_simple_calls.py') as writer:
         writer.write_add_breakpoint(2, '')  # Should not be hit: setting empty function (not None) should only hit global.
         writer.write_add_breakpoint(6, 'Method1a')
@@ -580,11 +583,14 @@ def test_case_12(case_setup):
 
         writer.write_step_return(hit.thread_id)
 
-        hit = writer.wait_for_breakpoint_hit('111', line=6)  # not a return (it stopped in the other breakpoint)
+        hit = writer.wait_for_breakpoint_hit('111', line=6 if IS_JYTHON else 2)  # not a return (it stopped in the other breakpoint)
 
         writer.write_run_thread(hit.thread_id)
 
-        assert 13 == writer._sequence, 'Expected 13. Had: %s' % writer._sequence
+        if not IS_JYTHON:
+            hit = writer.wait_for_breakpoint_hit('111', line=6)
+
+            writer.write_run_thread(hit.thread_id)
 
         writer.finished_ok = True
 
@@ -3865,4 +3871,4 @@ def test_asyncio_step_return(case_setup, target_filename):
 
 
 if __name__ == '__main__':
-    pytest.main(['-k', 'test_unhandled_exceptions_in_top_level2'])
+    pytest.main(['-k', 'test_case_12'])

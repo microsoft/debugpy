@@ -342,7 +342,9 @@ def pyfile(request, tmpdir):
         # the body is indented by, then dedent all lines by that amount. Blank
         # lines don't matter indentation-wise, and might not be indented to begin
         # with, so just replace them with a simple newline.
-        line = source[0]
+        for line in source:
+            if line.strip():
+                break  # i.e.: use first non-empty line
         indent = len(line) - len(line.lstrip())
         source = [l[indent:] if l.strip() else "\n" for l in source]
         source = "".join(source)
