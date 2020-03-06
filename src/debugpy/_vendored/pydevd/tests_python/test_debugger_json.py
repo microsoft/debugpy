@@ -653,7 +653,7 @@ def test_case_unhandled_exception_just_my_code(case_setup, target, just_my_code)
         ) as writer:
         json_facade = JsonFacade(writer)
 
-        json_facade.write_launch(debugStdLib=False if just_my_code else True)
+        json_facade.write_launch(justMyCode=just_my_code)
         json_facade.write_set_exception_breakpoints(['uncaught'])
         json_facade.write_make_initial_run()
 
@@ -919,7 +919,7 @@ def test_case_path_translation_not_skipped(case_setup):
         my_code = debugger_unittest._get_debugger_test_file('my_code')
 
         json_facade.write_launch(
-            debugOptions=['DebugStdLib'],
+            justMyCode=False,
             pathMappings=[{
                 'localRoot': sys_folder,
                 'remoteRoot': my_code,
@@ -957,7 +957,7 @@ def test_case_skipping_filters(case_setup, custom_setup):
         expect_just_my_code = False
         if custom_setup == 'set_exclude_launch_path_match_filename':
             json_facade.write_launch(
-                debugOptions=['DebugStdLib'],
+                justMyCode=False,
                 rules=[
                     {'path': '**/other.py', 'include':False},
                 ]
@@ -966,7 +966,7 @@ def test_case_skipping_filters(case_setup, custom_setup):
         elif custom_setup == 'set_exclude_launch_path_match_folder':
             not_my_code_dir = debugger_unittest._get_debugger_test_file('not_my_code')
             json_facade.write_launch(
-                debugOptions=['DebugStdLib'],
+                debugStdLib=True,
                 rules=[
                     {'path': not_my_code_dir, 'include':False},
                 ]
@@ -2172,7 +2172,7 @@ def test_stepping(case_setup):
     with case_setup.test_file('_debugger_case_stepping.py') as writer:
         json_facade = JsonFacade(writer)
 
-        json_facade.write_launch(debugOptions=['DebugStdLib'])
+        json_facade.write_launch(justMyCode=False)
         json_facade.write_set_breakpoints([
             writer.get_line_index_with_content('Break here 1'),
             writer.get_line_index_with_content('Break here 2')
@@ -2589,7 +2589,7 @@ def test_source_mapping(case_setup):
         json_facade = JsonFacade(writer)
 
         json_facade.write_launch(
-            debugOptions=['DebugStdLib'],
+            justMyCode=False,
         )
 
         map_to_cell_1_line2 = writer.get_line_index_with_content('map to cell1, line 2')
@@ -3763,7 +3763,7 @@ def test_debug_options(case_setup, val):
     with case_setup.test_file('_debugger_case_debug_options.py') as writer:
         json_facade = JsonFacade(writer)
         args = dict(
-            debugStdLib=val,
+            justMyCode=val,
             redirectOutput=True,  # Always redirect the output regardless of other values.
             showReturnValue=val,
             breakOnSystemExitZero=val,
@@ -3787,7 +3787,7 @@ def test_debug_options(case_setup, val):
         translation = {
             'django': 'django_debug',
             'flask': 'flask_debug',
-            'debugStdLib': 'debug_stdlib',
+            'justMyCode': 'just_my_code',
             'redirectOutput': 'redirect_output',
             'showReturnValue': 'show_return_value',
             'breakOnSystemExitZero': 'break_system_exit_zero',
@@ -3797,6 +3797,36 @@ def test_debug_options(case_setup, val):
 
         assert json.loads(output.body.output) == dict((translation[key], val) for key, val in args.items())
         json_facade.wait_for_terminated()
+        writer.finished_ok = True
+
+
+@pytest.mark.parametrize('debug_stdlib', [True, False])
+def test_just_my_code_debug_option_deprecated(case_setup, debug_stdlib, debugger_runner_simple):
+    from _pydev_bundle import pydev_log
+    with case_setup.test_file('_debugger_case_debug_options.py') as writer:
+        json_facade = JsonFacade(writer)
+        args = dict(
+            redirectOutput=True,  # Always redirect the output regardless of other values.
+            debugStdLib=debug_stdlib
+        )
+        json_facade.write_launch(**args)
+        json_facade.write_make_initial_run()
+        output = json_facade.wait_for_json_message(
+            OutputEvent, lambda msg: msg.body.category == 'stdout' and msg.body.output.startswith('{')and msg.body.output.endswith('}'))
+
+        settings = json.loads(output.body.output)
+        # Note: the internal attribute is just_my_code.
+        assert settings['just_my_code'] == (not debug_stdlib)
+        json_facade.wait_for_terminated()
+
+        contents = []
+        for f in pydev_log.list_log_files(debugger_runner_simple.pydevd_debug_file):
+            if os.path.exists(f):
+                with open(f, 'r') as stream:
+                    contents.append(stream.read())
+
+        assert 'debugStdLib is deprecated. Use justMyCode=false instead.' in ''.join(contents)
+
         writer.finished_ok = True
 
 

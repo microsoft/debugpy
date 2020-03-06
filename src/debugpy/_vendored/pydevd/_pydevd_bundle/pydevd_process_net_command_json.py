@@ -343,7 +343,7 @@ class PyDevJsonCommandProcessor(object):
         self._options.update_fom_debug_options(debug_options)
         self._options.update_from_args(args)
 
-        self.api.set_use_libraries_filter(py_db, not self._options.debug_stdlib)
+        self.api.set_use_libraries_filter(py_db, self._options.just_my_code)
 
         path_mappings = []
         for pathMapping in args.get('pathMappings', []):

@@ -1,5 +1,6 @@
 import sys
 import json
+from _pydev_bundle import pydev_log
 try:
     import urllib
     urllib.unquote  # noqa
@@ -10,7 +11,7 @@ except Exception:
 class DebugOptions(object):
 
     __slots__ = [
-        'debug_stdlib',
+        'just_my_code',
         'redirect_output',
         'show_return_value',
         'break_system_exit_zero',
@@ -21,7 +22,7 @@ class DebugOptions(object):
     ]
 
     def __init__(self):
-        self.debug_stdlib = False
+        self.just_my_code = True
         self.redirect_output = False
         self.show_return_value = False
         self.break_system_exit_zero = False
@@ -37,8 +38,13 @@ class DebugOptions(object):
         return json.dumps(dct)
 
     def update_fom_debug_options(self, debug_options):
-        if 'DEBUG_STDLIB' in debug_options:
-            self.debug_stdlib = debug_options.get('DEBUG_STDLIB')
+
+        if 'JUST_MY_CODE' in debug_options:
+            self.just_my_code = debug_options.get('JUST_MY_CODE')
+        else:
+            if 'DEBUG_STDLIB' in debug_options:
+                pydev_log.error_once('DEBUG_STDLIB is deprecated. Use justMyCode=false instead.')
+                self.just_my_code = not debug_options.get('DEBUG_STDLIB')
 
         if 'REDIRECT_OUTPUT' in debug_options:
             self.redirect_output = debug_options.get('REDIRECT_OUTPUT')
@@ -61,8 +67,14 @@ class DebugOptions(object):
         # Note: _max_exception_stack_frames cannot be set by debug options.
 
     def update_from_args(self, args):
-        if 'debugStdLib' in args:
-            self.debug_stdlib = bool_parser(args['debugStdLib'])
+
+        if 'justMyCode' in args:
+            self.just_my_code = bool_parser(args['justMyCode'])
+        else:
+            # i.e.: if justMyCode is provided, don't check the deprecated value
+            if 'debugStdLib' in args:
+                pydev_log.error_once('debugStdLib is deprecated. Use justMyCode=false instead.')
+                self.just_my_code = not bool_parser(args['debugStdLib'])
 
         if 'redirectOutput' in args:
             self.redirect_output = bool_parser(args['redirectOutput'])
@@ -128,6 +140,7 @@ DEBUG_OPTIONS_PARSER = {
     'FIX_FILE_PATH_CASE': bool_parser,
     'CLIENT_OS_TYPE': unquote,
     'DEBUG_STDLIB': bool_parser,
+    'JUST_MY_CODE': bool_parser,
     'STOP_ON_ENTRY': bool_parser,
     'SHOW_RETURN_VALUE': bool_parser,
     'MULTIPROCESS': bool_parser,
@@ -143,6 +156,7 @@ DEBUG_OPTIONS_BY_FLAG = {
     'Jinja': 'FLASK_DEBUG=True',
     'FixFilePathCase': 'FIX_FILE_PATH_CASE=True',
     'DebugStdLib': 'DEBUG_STDLIB=True',
+    'JustMyCode': 'JUST_MY_CODE=True',
     'WindowsClient': 'CLIENT_OS_TYPE=WINDOWS',
     'UnixClient': 'CLIENT_OS_TYPE=UNIX',
     'StopOnEntry': 'STOP_ON_ENTRY=True',
