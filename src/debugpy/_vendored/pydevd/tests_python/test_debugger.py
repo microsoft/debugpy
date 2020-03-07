@@ -242,7 +242,6 @@ def test_case_3(case_setup):
         writer.write_make_initial_run()
         time.sleep(.5)
         breakpoint_id = writer.write_add_breakpoint(4, '')
-        writer.write_add_breakpoint(5, 'FuncNotAvailable')  # Check that it doesn't get hit in the global when a function is available
 
         hit = writer.wait_for_breakpoint_hit()
         thread_id = hit.thread_id
@@ -261,8 +260,6 @@ def test_case_3(case_setup):
         writer.write_remove_breakpoint(breakpoint_id)
 
         writer.write_run_thread(thread_id)
-
-        assert 17 == writer._sequence, 'Expected 17. Had: %s' % writer._sequence
 
         writer.finished_ok = True
 

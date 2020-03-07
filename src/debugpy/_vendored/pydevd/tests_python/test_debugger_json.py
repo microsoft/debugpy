@@ -785,7 +785,7 @@ def test_case_sys_exit_0_unhandled_exception(case_setup, break_on_system_exit_ze
     with case_setup.test_file('_debugger_case_sysexit_0.py', EXPECTED_RETURNCODE=0) as writer:
         json_facade = JsonFacade(writer)
         json_facade.write_launch(
-            debugOptions=['BreakOnSystemExitZero'] if break_on_system_exit_zero else [],
+            breakOnSystemExitZero=True if break_on_system_exit_zero else False,
         )
         json_facade.write_set_exception_breakpoints(['uncaught'])
         json_facade.write_make_initial_run()
@@ -805,7 +805,7 @@ def test_case_sys_exit_0_handled_exception(case_setup, break_on_system_exit_zero
     with case_setup.test_file('_debugger_case_sysexit_0.py', EXPECTED_RETURNCODE=0) as writer:
         json_facade = JsonFacade(writer)
         json_facade.write_launch(
-            debugOptions=['BreakOnSystemExitZero'] if break_on_system_exit_zero else [],
+            breakOnSystemExitZero=True if break_on_system_exit_zero else False,
         )
         json_facade.write_set_exception_breakpoints(['raised'])
         json_facade.write_make_initial_run()
@@ -988,7 +988,7 @@ def test_case_skipping_filters(case_setup, custom_setup):
 
         elif custom_setup == 'set_exclude_launch_module_full':
             json_facade.write_launch(
-                debugOptions=['DebugStdLib'],
+                justMyCode=False,
                 rules=[
                     {'module': 'not_my_code.other', 'include':False},
                 ]
@@ -996,7 +996,7 @@ def test_case_skipping_filters(case_setup, custom_setup):
 
         elif custom_setup == 'set_exclude_launch_module_prefix':
             json_facade.write_launch(
-                debugOptions=['DebugStdLib'],
+                justMyCode=False,
                 rules=[
                     {'module': 'not_my_code', 'include':False},
                 ]
@@ -1005,7 +1005,7 @@ def test_case_skipping_filters(case_setup, custom_setup):
         elif custom_setup == 'set_just_my_code':
             expect_just_my_code = True
             writer.write_set_project_roots([debugger_unittest._get_debugger_test_file('my_code')])
-            json_facade.write_launch(debugOptions=[])
+            json_facade.write_launch()
 
             not_my_code_dir = debugger_unittest._get_debugger_test_file('not_my_code')
             other_filename = os.path.join(not_my_code_dir, 'other.py')
@@ -1022,7 +1022,6 @@ def test_case_skipping_filters(case_setup, custom_setup):
             # I.e.: nothing in my_code (add it with rule).
             writer.write_set_project_roots([debugger_unittest._get_debugger_test_file('launch')])
             json_facade.write_launch(
-                debugOptions=[],
                 rules=[
                     {'module': '__main__', 'include':True},
                 ]
@@ -1333,7 +1332,7 @@ def test_return_value_regular(case_setup, scenario, asyncio):
         json_facade = JsonFacade(writer)
 
         break_line = writer.get_line_index_with_content('break here')
-        json_facade.write_launch(debugOptions=['ShowReturnValue'])
+        json_facade.write_launch(showReturnValue=True)
         json_facade.write_set_breakpoints(break_line)
         json_facade.write_make_initial_run()
 
@@ -2688,7 +2687,7 @@ cherrypy.quickstart(HelloWorld())
         writer._ignore_stderr_line = _ignore_stderr_line
 
         json_facade = JsonFacade(writer)
-        json_facade.write_launch(debugOptions=['DebugStdLib'])
+        json_facade.write_launch(justMyCode=False)
 
         break1_line = writer.get_line_index_with_content('break here')
         json_facade.write_set_breakpoints(break1_line)
@@ -3030,7 +3029,7 @@ def test_source_reference_no_file(case_setup, tmpdir):
         json_facade = JsonFacade(writer)
 
         json_facade.write_launch(
-            debugOptions=['DebugStdLib'],
+            justMyCode=False,
             pathMappings=[{
                 'localRoot': os.path.dirname(writer.TEST_FILE),
                 'remoteRoot': os.path.dirname(writer.TEST_FILE),
@@ -3100,10 +3099,10 @@ def test_case_django_no_attribute_exception_breakpoint(case_setup_django, jmc):
 
         if jmc:
             writer.write_set_project_roots([debugger_unittest._get_debugger_test_file('my_code')])
-            json_facade.write_launch(debugOptions=['Django'])
+            json_facade.write_launch(django=True)
             json_facade.write_set_exception_breakpoints(['raised'])
         else:
-            json_facade.write_launch(debugOptions=['DebugStdLib', 'Django'])
+            json_facade.write_launch(django=True, justMyCode=False)
             # Don't set to all 'raised' because we'd stop on standard library exceptions here
             # (which is not something we want).
             json_facade.write_set_exception_breakpoints(exception_options=[
@@ -3153,10 +3152,10 @@ def test_case_flask_exceptions(case_setup_flask, jmc):
 
         if jmc:
             writer.write_set_project_roots([debugger_unittest._get_debugger_test_file('my_code')])
-            json_facade.write_launch(debugOptions=['Jinja'])
+            json_facade.write_launch(jinja=True)
             json_facade.write_set_exception_breakpoints(['raised'])
         else:
-            json_facade.write_launch(debugOptions=['DebugStdLib', 'Jinja'])
+            json_facade.write_launch(justMyCode=False, jinja=True)
             # Don't set to all 'raised' because we'd stop on standard library exceptions here
             # (which is not something we want).
             json_facade.write_set_exception_breakpoints(exception_options=[
@@ -3273,7 +3272,7 @@ def test_listen_dap_messages(case_setup):
 
     with case_setup.test_file('_debugger_case_listen_dap_messages.py') as writer:
         json_facade = JsonFacade(writer)
-        json_facade.write_launch(debugOptions=['RedirectOutput'],)
+        json_facade.write_launch(redirectOutput=True)
 
         writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'))
         json_facade.write_make_initial_run()
@@ -3805,11 +3804,10 @@ def test_just_my_code_debug_option_deprecated(case_setup, debug_stdlib, debugger
     from _pydev_bundle import pydev_log
     with case_setup.test_file('_debugger_case_debug_options.py') as writer:
         json_facade = JsonFacade(writer)
-        args = dict(
+        json_facade.write_launch(
             redirectOutput=True,  # Always redirect the output regardless of other values.
             debugStdLib=debug_stdlib
         )
-        json_facade.write_launch(**args)
         json_facade.write_make_initial_run()
         output = json_facade.wait_for_json_message(
             OutputEvent, lambda msg: msg.body.category == 'stdout' and msg.body.output.startswith('{')and msg.body.output.endswith('}'))

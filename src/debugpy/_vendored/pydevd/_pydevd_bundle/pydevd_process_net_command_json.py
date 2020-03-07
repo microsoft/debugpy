@@ -23,7 +23,7 @@ from _pydevd_bundle.pydevd_comm_constants import (
     CMD_STEP_INTO_MY_CODE, CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE, file_system_encoding,
     CMD_STEP_RETURN_MY_CODE, CMD_STEP_RETURN)
 from _pydevd_bundle.pydevd_filtering import ExcludeFilter
-from _pydevd_bundle.pydevd_json_debug_options import _extract_debug_options, DebugOptions
+from _pydevd_bundle.pydevd_json_debug_options import DebugOptions
 from _pydevd_bundle.pydevd_net_command import NetCommand
 from _pydevd_bundle.pydevd_utils import convert_dap_log_message_to_expression
 from _pydevd_bundle.pydevd_constants import (PY_IMPL_NAME, DebugInfoHolder, PY_VERSION_STR,
@@ -335,12 +335,6 @@ class PyDevJsonCommandProcessor(object):
                 rules, self.api.filename_to_server, lambda msg: self.api.send_error_message(py_db, msg))
 
         self.api.set_exclude_filters(py_db, exclude_filters)
-
-        debug_options = _extract_debug_options(
-            args.get('options'),
-            args.get('debugOptions'),
-        )
-        self._options.update_fom_debug_options(debug_options)
         self._options.update_from_args(args)
 
         self.api.set_use_libraries_filter(py_db, self._options.just_my_code)
