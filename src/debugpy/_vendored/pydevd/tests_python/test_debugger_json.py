@@ -3805,11 +3805,10 @@ def test_just_my_code_debug_option_deprecated(case_setup, debug_stdlib, debugger
     from _pydev_bundle import pydev_log
     with case_setup.test_file('_debugger_case_debug_options.py') as writer:
         json_facade = JsonFacade(writer)
-        args = dict(
+        json_facade.write_launch(
             redirectOutput=True,  # Always redirect the output regardless of other values.
             debugStdLib=debug_stdlib
         )
-        json_facade.write_launch(**args)
         json_facade.write_make_initial_run()
         output = json_facade.wait_for_json_message(
             OutputEvent, lambda msg: msg.body.category == 'stdout' and msg.body.output.startswith('{')and msg.body.output.endswith('}'))
@@ -3824,8 +3823,6 @@ def test_just_my_code_debug_option_deprecated(case_setup, debug_stdlib, debugger
             if os.path.exists(f):
                 with open(f, 'r') as stream:
                     contents.append(stream.read())
-
-        assert 'debugStdLib is deprecated. Use justMyCode=false instead.' in ''.join(contents)
 
         writer.finished_ok = True
 
