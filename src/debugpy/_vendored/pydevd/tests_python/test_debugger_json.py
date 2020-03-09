@@ -134,7 +134,8 @@ class JsonFacade(object):
                 if isinstance(path, bytes):
                     path = path.decode('utf-8')
 
-            assert path.endswith(file)
+            if not path.endswith(file):
+                raise AssertionError('Expected path: %s to end with: %s' % (path, file))
         if name is not None:
             assert json_hit.stack_trace_response.body.stackFrames[0]['name'] == name
         if line is not None:
@@ -3755,6 +3756,50 @@ def test_access_token(case_setup):
         json_facade.write_continue()
         json_facade.wait_for_terminated()
 
+        writer.finished_ok = True
+
+
+def test_stop_on_entry(case_setup):
+    with case_setup.test_file('not_my_code/main_on_entry.py') as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(
+            justMyCode=False,
+            stopOnEntry=True,
+            rules=[
+                {'path': '**/not_my_code/**', 'include':False},
+            ]
+        )
+
+        json_facade.write_make_initial_run()
+        json_facade.wait_for_thread_stopped(
+            'entry',
+            file=(
+                # We need to match the end with the proper slash.
+                'my_code/__init__.py',
+                'my_code\\__init__.py'
+            )
+        )
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
+def test_stop_on_entry2(case_setup):
+    with case_setup.test_file('not_my_code/main_on_entry2.py') as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(
+            justMyCode=False,
+            stopOnEntry=True,
+            rules=[
+                {'path': '**/main_on_entry2.py', 'include':False},
+            ]
+        )
+
+        json_facade.write_make_initial_run()
+        json_facade.wait_for_thread_stopped(
+            'entry',
+            file='empty_file.py'
+        )
+        json_facade.write_continue()
         writer.finished_ok = True
 
 

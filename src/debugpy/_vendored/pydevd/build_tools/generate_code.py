@@ -108,6 +108,10 @@ from _pydevd_bundle.pydevd_constants import IS_PY3K
 LIB_FILE = 1
 PYDEV_FILE = 2
 
+DONT_TRACE_DIRS = {
+%(pydev_dirs)s
+}
+
 DONT_TRACE = {
     # commonly used things from the stdlib that we don't want to trace
     'Queue.py':LIB_FILE,
@@ -135,8 +139,13 @@ if IS_PY3K:
 '''
 
     pydev_files = []
+    pydev_dirs = []
 
     for root, dirs, files in os.walk(root_dir):
+        for d in dirs:
+            if 'pydev' in d:
+                pydev_dirs.append("    '%s': PYDEV_FILE," % (d,))
+
         for d in [
             '.git',
             '.settings',
@@ -154,7 +163,6 @@ if IS_PY3K:
             'test_pydevd_reload',
             'third_party',
             '__pycache__',
-            '_pydev_runfiles',
             'pydev_ipython',
             ]:
             try:
@@ -176,7 +184,10 @@ if IS_PY3K:
                     ):
                     pydev_files.append("    '%s': PYDEV_FILE," % (f,))
 
-    contents = template % (dict(pydev_files='\n'.join(sorted(pydev_files))))
+    contents = template % (dict(
+        pydev_files='\n'.join(sorted(pydev_files)),
+        pydev_dirs='\n'.join(sorted(pydev_dirs)),
+    ))
     assert 'pydevd.py' in contents
     assert 'pydevd_dont_trace.py' in contents
     with open(os.path.join(root_dir, '_pydevd_bundle', 'pydevd_dont_trace_files.py'), 'w') as stream:
