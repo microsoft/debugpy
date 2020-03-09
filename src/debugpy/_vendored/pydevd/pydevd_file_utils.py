@@ -747,10 +747,15 @@ setup_client_server_paths(PATHS_FROM_ECLIPSE_TO_PYTHON)
 
 # For given file f returns tuple of its absolute path, real path and base name
 def get_abs_path_real_path_and_base_from_file(
-        f, NORM_PATHS_AND_BASE_CONTAINER=NORM_PATHS_AND_BASE_CONTAINER):
+        filename, NORM_PATHS_AND_BASE_CONTAINER=NORM_PATHS_AND_BASE_CONTAINER):
     try:
-        return NORM_PATHS_AND_BASE_CONTAINER[f]
+        return NORM_PATHS_AND_BASE_CONTAINER[filename]
     except:
+        f = filename
+        if not f:
+            # i.e.: it's possible that the user compiled code with an empty string (consider
+            # it as <string> in this case).
+            f = '<string>'
         if _NormPaths is None:  # Interpreter shutdown
             i = max(f.rfind('/'), f.rfind('\\'))
             return (f, f, f[i + 1:])
@@ -770,7 +775,7 @@ def get_abs_path_real_path_and_base_from_file(
             i = max(f.rfind('/'), f.rfind('\\'))
             base = f[i + 1:]
         ret = abs_path, real_path, base
-        NORM_PATHS_AND_BASE_CONTAINER[f] = ret
+        NORM_PATHS_AND_BASE_CONTAINER[filename] = ret
         return ret
 
 
@@ -784,8 +789,14 @@ def get_abs_path_real_path_and_base_from_frame(frame):
             # files from eggs in Python 2.7 have paths like build/bdist.linux-x86_64/egg/<path-inside-egg>
             f = frame.f_globals['__file__']
 
-        if get_abs_path_real_path_and_base_from_file is None:  # Interpreter shutdown
-            return f
+        if get_abs_path_real_path_and_base_from_file is None:
+            # Interpreter shutdown
+            if not f:
+                # i.e.: it's possible that the user compiled code with an empty string (consider
+                # it as <string> in this case).
+                f = '<string>'
+            i = max(f.rfind('/'), f.rfind('\\'))
+            return f, f, f[i + 1:]
 
         ret = get_abs_path_real_path_and_base_from_file(f)
         # Also cache based on the frame.f_code.co_filename (if we had it inside build/bdist it can make a difference).

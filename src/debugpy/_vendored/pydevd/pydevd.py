@@ -43,7 +43,7 @@ from _pydevd_bundle.pydevd_constants import (IS_JYTH_LESS25, get_thread_id, get_
     ForkSafeLock)
 from _pydevd_bundle.pydevd_defaults import PydevdCustomization  # Note: import alias used on pydev_monkey.
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
-from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE, LIB_FILE
+from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE, LIB_FILE, DONT_TRACE_DIRS
 from _pydevd_bundle.pydevd_extension_api import DebuggerEventHandler
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, remove_exception_from_frame
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
@@ -605,6 +605,7 @@ class PyDB(object):
         self.collect_return_info = collect_return_info
         self.get_exception_breakpoint = get_exception_breakpoint
         self._dont_trace_get_file_type = DONT_TRACE.get
+        self._dont_trace_dirs_get_file_type = DONT_TRACE_DIRS.get
         self.PYDEV_FILE = PYDEV_FILE
         self.LIB_FILE = LIB_FILE
 
@@ -750,7 +751,25 @@ class PyDB(object):
         if abs_real_path_and_basename[0].startswith(('<builtin', '<attrs')):
             # In PyPy "<builtin> ..." can appear and should be ignored for the user.
             return self.PYDEV_FILE
-        return self._dont_trace_get_file_type(basename)
+        file_type = self._dont_trace_get_file_type(basename)
+        if file_type is not None:
+            return file_type
+
+        if basename.startswith('__init__.py'):
+            # i.e.: ignore the __init__ files inside pydevd (the other
+            # files are ignored just by their name).
+            abs_path = abs_real_path_and_basename[0]
+            i = max(abs_path.rfind('/'), abs_path.rfind('\\'))
+            if i:
+                abs_path = abs_path[0:i]
+                i = max(abs_path.rfind('/'), abs_path.rfind('\\'))
+                if i:
+                    dirname = abs_path[i + 1:]
+                    # At this point, something as:
+                    # "my_path\_pydev_runfiles\__init__.py"
+                    # is now  "_pydev_runfiles".
+                    return self._dont_trace_dirs_get_file_type(dirname)
+        return None
 
     def dont_trace_external_files(self, abs_path):
         '''
@@ -837,6 +856,7 @@ class PyDB(object):
             if file_type is None:
                 if self.dont_trace_external_files(abs_real_path_and_basename[0]):
                     file_type = PYDEV_FILE
+
             _cache_file_type[cache_key] = file_type
             return file_type
 
