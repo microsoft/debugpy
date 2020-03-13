@@ -141,15 +141,15 @@ def wait_for_exit():
 
 
 def _wait_for_user_input():
-    if sys.stdout and sys.stdin:
+    if sys.stdout and sys.stdin and sys.stdin.isatty():
         from debugpy.common import log
 
-        can_getch = sys.stdin.isatty()
-        if can_getch:
-            try:
-                import msvcrt
-            except ImportError:
-                can_getch = False
+        try:
+            import msvcrt
+        except ImportError:
+            can_getch = False
+        else:
+            can_getch = True
 
         if can_getch:
             log.debug("msvcrt available - waiting for user input via getch()")
