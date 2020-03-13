@@ -5,19 +5,6 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "ptvsd.adapter --port",
-            "type": "python",
-            "request": "launch",
-            "console": "integratedTerminal",
-            "consoleTitle": "ptvsd.adapter",
-            "program": "${workspaceFolder}/src/ptvsd/adapter",
-            "args": ["--port", "8765", "--log-stderr"],
-            "noDebug": true,
-        },
-
-        // For these, ptvsd.adapter must be started first via the above configuration.
-        {
-            //"debugServer": 8765,
             "name": "Launch Python file",
             "type": "python",
             "request": "launch",
@@ -27,19 +14,36 @@
             "logToFile": true,
         },
         {
-            "name": "Attach",
+            "name": "Attach: connect",
             "type": "python",
             "request": "attach",
-            "host": "localhost",
-            "port": 5678,
             "logToFile": true,
+            "connect": {
+                "port": 5678,
+                "host": "127.0.0.1",
+            }
+        },
+        {
+            "name": "Attach: listen",
+            "type": "python",
+            "request": "attach",
+            "logToFile": true,
+            "listen": {
+                "port": 5678,
+                "host": "127.0.0.1",
+            }
+        },
+        {
+            "name": "Attach: PID",
+            "type": "python",
+            "request": "attach",
+            "processId": "${command:pickProcess}"
         },
         {
             "name": "Debug Tests",
             "type": "python",
             "request": "test",
             "console": "integratedTerminal",
-            "justMyCode": true
         }
     ]
 }
