@@ -190,7 +190,9 @@ def parse_argv():
         except StopIteration:
             raise ValueError("missing target: " + TARGET)
 
-        switch = arg if arg.startswith("-") else ""
+        switch = compat.filename(arg)
+        if not switch.startswith("-"):
+            switch = ""
         for pattern, placeholder, action in switches:
             if re.match("^(" + pattern + ")$", switch):
                 break
