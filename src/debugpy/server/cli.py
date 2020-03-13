@@ -256,10 +256,10 @@ def run_file():
         dir = os.path.dirname(options.target)
         sys.path.insert(0, dir)
     else:
-        log.debug("Not a file: {0!j}", options.target)
+        log.debug("Not a file: {0!r}", options.target)
 
     log.describe_environment("Pre-launch environment:")
-    log.info("Running file {0!j}", options.target)
+    log.info("Running file {0!r}", options.target)
 
     runpy.run_path(options.target, run_name="__main__")
 

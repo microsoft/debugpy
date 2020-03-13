@@ -34,9 +34,9 @@ def describe():
 def spawn(process_name, cmdline, cwd, env, redirect_output):
     log.info(
         "Spawning debuggee process:\n\n"
-        "Current directory: {0!j}\n\n"
-        "Command line: {1!j}\n\n"
-        "Environment variables: {2!j}\n\n",
+        "Current directory: {0!r}\n\n"
+        "Command line: {1!r}\n\n"
+        "Environment variables: {2!r}\n\n",
         cwd,
         cmdline,
         env,
