@@ -126,12 +126,19 @@ def launch_request(request):
     if request("gevent", False):
         env["GEVENT_SUPPORT"] = "True"
 
+    console = request(
+        "console",
+        json.enum(
+            "internalConsole", "integratedTerminal", "externalTerminal", optional=True
+        ),
+    )
+
     redirect_output = property_or_debug_option("redirectOutput", "RedirectOutput")
     if redirect_output is None:
         # If neither the property nor the option were specified explicitly, choose
         # the default depending on console type - "internalConsole" needs it to
         # provide any output at all, but it's unnecessary for the terminals.
-        redirect_output = request("console", unicode) == "internalConsole"
+        redirect_output = console == "internalConsole"
     if redirect_output:
         # sys.stdout buffering must be disabled - otherwise we won't see the output
         # at all until the buffer fills up.
@@ -140,8 +147,16 @@ def launch_request(request):
         env["PYTHONIOENCODING"] = "utf-8"
 
     if property_or_debug_option("waitOnNormalExit", "WaitOnNormalExit"):
+        if console == "internalConsole":
+            raise request.isnt_valid(
+                '"waitOnNormalExit" is not supported for "console":"internalConsole"'
+            )
         debuggee.wait_on_exit_predicates.append(lambda code: code == 0)
     if property_or_debug_option("waitOnAbnormalExit", "WaitOnAbnormalExit"):
+        if console == "internalConsole":
+            raise request.isnt_valid(
+                '"waitOnAbnormalExit" is not supported for "console":"internalConsole"'
+            )
         debuggee.wait_on_exit_predicates.append(lambda code: code != 0)
 
     if sys.version_info < (3,):
