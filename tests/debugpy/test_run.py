@@ -8,10 +8,9 @@ import os
 import pytest
 import re
 import sys
-import time
 
 import debugpy
-from debugpy.common import log, messaging
+from debugpy.common import messaging
 from tests import debug, test_data, timeline
 from tests.debug import runners, targets
 from tests.patterns import some
