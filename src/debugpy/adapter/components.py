@@ -96,7 +96,10 @@ class Component(util.Observable):
             except ComponentNotAvailable as exc:
                 raise message.cant_handle("{0}", exc, silent=True)
             except messaging.MessageHandlingError as exc:
-                exc.propagate(message)
+                if exc.cause is message:
+                    raise
+                else:
+                    exc.propagate(message)
             except messaging.JsonIOError as exc:
                 raise message.cant_handle(
                     "{0} disconnected unexpectedly", exc.stream.name, silent=True
