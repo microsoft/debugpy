@@ -102,12 +102,12 @@ _library_dir = _get_library_dir()
 try:
     PATHS_FROM_ECLIPSE_TO_PYTHON = json.loads(os.environ.get('PATHS_FROM_ECLIPSE_TO_PYTHON', '[]'))
 except Exception:
-    sys.stderr.write('Error loading PATHS_FROM_ECLIPSE_TO_PYTHON from environment variable.\n')
+    pydev_log.critical('Error loading PATHS_FROM_ECLIPSE_TO_PYTHON from environment variable.')
     pydev_log.exception()
     PATHS_FROM_ECLIPSE_TO_PYTHON = []
 else:
     if not isinstance(PATHS_FROM_ECLIPSE_TO_PYTHON, list):
-        sys.stderr.write('Expected PATHS_FROM_ECLIPSE_TO_PYTHON loaded from environment variable to be a list.\n')
+        pydev_log.critical('Expected PATHS_FROM_ECLIPSE_TO_PYTHON loaded from environment variable to be a list.')
         PATHS_FROM_ECLIPSE_TO_PYTHON = []
     else:
         # Converting json lists to tuple
@@ -227,10 +227,12 @@ if sys.platform == 'win32':
                 except FileNotFoundError:
                     if os_path_exists(filename):
                         # This is really strange, ask the user to report as error.
-                        sys.stderr.write('\npydev debugger: critical: unable to get real case for file. Details:\n'
-                                         'filename: %s\ndrive: %s\nparts: %s\n'
-                                         '(please create a ticket in the tracker to address this).\n\n' % (
-                                             filename, drive, parts))
+                        pydev_log.critical(
+                            'pydev debugger: critical: unable to get real case for file. Details:\n'
+                            'filename: %s\ndrive: %s\nparts: %s\n'
+                            '(please create a ticket in the tracker to address this).',
+                            filename, drive, parts
+                        )
                         pydev_log.exception()
                     # Don't fail, just return the original file passed.
                     return filename
@@ -478,44 +480,20 @@ def exists(file):
     return False
 
 
-# Now, let's do a quick test to see if we're working with a version of python that has no problems
-# related to the names generated...
 try:
     try:
         code = rPath.func_code
     except AttributeError:
         code = rPath.__code__
-    if not os_path_exists(_NormFile(code.co_filename)):
-        sys.stderr.write('-------------------------------------------------------------------------------\n')
-        sys.stderr.write('pydev debugger: CRITICAL WARNING: This version of python seems to be incorrectly compiled (internal generated filenames are not absolute)\n')
-        sys.stderr.write('pydev debugger: The debugger may still function, but it will work slower and may miss breakpoints.\n')
-        sys.stderr.write('pydev debugger: Related bug: http://bugs.python.org/issue1666807\n')
-        sys.stderr.write('-------------------------------------------------------------------------------\n')
-        sys.stderr.flush()
-
-        NORM_SEARCH_CACHE = {}
-
-        initial_norm_paths = _NormPaths
-
-        def _NormPaths(filename):  # Let's redefine _NormPaths to work with paths that may be incorrect
-            try:
-                return NORM_SEARCH_CACHE[filename]
-            except KeyError:
-                abs_path, real_path = initial_norm_paths(filename)
-                if not os_path_exists(real_path):
-                    # We must actually go on and check if we can find it as if it was a relative path for some of the paths in the pythonpath
-                    for path in sys.path:
-                        abs_path, real_path = initial_norm_paths(join(path, filename))
-                        if os_path_exists(real_path):
-                            break
-                    else:
-                        sys.stderr.write('pydev debugger: Unable to find real location for: %s\n' % (filename,))
-                        abs_path = filename
-                        real_path = filename
-
-                NORM_SEARCH_CACHE[filename] = abs_path, real_path
-                return abs_path, real_path
-
+    if not os.path.isabs(code.co_filename):
+        pydev_log.critical('This version of python seems to be incorrectly compiled')
+        pydev_log.critical('(internal generated filenames are not absolute).')
+        pydev_log.critical('This may make the debugger miss breakpoints.')
+        pydev_log.critical('Related bug: http://bugs.python.org/issue1666807')
+    elif not exists(code.co_filename):  # Note: checks for files inside .zip containers.
+        pydev_log.critical('It seems the debugger cannot resolve %s', code.co_filename)
+        pydev_log.critical('This may make the debugger miss breakpoints in the standard library.')
+        pydev_log.critical('Related bug: https://bugs.python.org/issue1180193')
 except:
     # Don't fail if there's something not correct here -- but at least print it to the user so that we can correct that
     pydev_log.exception()
@@ -647,10 +625,10 @@ def setup_client_server_paths(paths):
                 if translated_normalized.startswith(eclipse_prefix):
                     found_translation = True
                     if DEBUG_CLIENT_SERVER_TRANSLATION:
-                        sys.stderr.write('pydev debugger: replacing to server: %s\n' % (filename,))
+                        pydev_log.critical('pydev debugger: replacing to server: %s', filename)
                     translated = server_prefix + filename[len(eclipse_prefix):]
                     if DEBUG_CLIENT_SERVER_TRANSLATION:
-                        sys.stderr.write('pydev debugger: sent to server: %s\n' % (translated,))
+                        pydev_log.critical('pydev debugger: sent to server: %s', translated)
                     break
             else:
                 found_translation = False
@@ -697,26 +675,26 @@ def setup_client_server_paths(paths):
                 if translated.lower() != translated_proper_case.lower():
                     translated_proper_case = translated
                     if DEBUG_CLIENT_SERVER_TRANSLATION:
-                        sys.stderr.write(
-                            'pydev debugger: _NormFile changed path (from: %s to %s)\n' % (
-                                translated_proper_case, translated))
+                        pydev_log.critical(
+                            'pydev debugger: _NormFile changed path (from: %s to %s)',
+                                translated_proper_case, translated)
 
             for i, (eclipse_prefix, python_prefix) in enumerate(paths_from_eclipse_to_python):
                 if translated.startswith(python_prefix):
                     if DEBUG_CLIENT_SERVER_TRANSLATION:
-                        sys.stderr.write('pydev debugger: replacing to client: %s\n' % (translated,))
+                        pydev_log.critical('pydev debugger: replacing to client: %s', translated)
 
                     # Note: use the non-normalized version.
                     eclipse_prefix = initial_paths[i][0]
                     translated = eclipse_prefix + translated_proper_case[len(python_prefix):]
                     if DEBUG_CLIENT_SERVER_TRANSLATION:
-                        sys.stderr.write('pydev debugger: sent to client: %s\n' % (translated,))
+                        pydev_log.critical('pydev debugger: sent to client: %s', translated)
                     path_mapping_applied = True
                     break
             else:
                 if DEBUG_CLIENT_SERVER_TRANSLATION:
-                    sys.stderr.write('pydev debugger: to client: unable to find matching prefix for: %s in %s\n' % \
-                        (translated, [x[1] for x in paths_from_eclipse_to_python]))
+                    pydev_log.critical('pydev debugger: to client: unable to find matching prefix for: %s in %s',
+                        translated, [x[1] for x in paths_from_eclipse_to_python])
                     translated = translated_proper_case
 
             if eclipse_sep != python_sep:
