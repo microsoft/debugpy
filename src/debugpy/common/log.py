@@ -281,7 +281,6 @@ def prefixed(format_string, *args, **kwargs):
 
 
 def describe_environment(header):
-    import multiprocessing
     import sysconfig
     import site  # noqa
 
@@ -321,7 +320,6 @@ def describe_environment(header):
 
             prefix = " " * len(prefix)
 
-    report("CPU count: {0}\n\n", multiprocessing.cpu_count())
     report("System paths:\n")
     report_paths("sys.prefix")
     report_paths("sys.base_prefix")

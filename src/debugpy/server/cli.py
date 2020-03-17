@@ -263,7 +263,7 @@ def run_file():
     log.describe_environment("Pre-launch environment:")
     log.info("Running file {0!r}", options.target)
 
-    runpy.run_path(options.target, run_name="__main__")
+    runpy.run_path(options.target, run_name=compat.force_str("__main__"))
 
 
 def run_module():

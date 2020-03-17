@@ -5,6 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "debugAdapterPath": "${workspaceFolder}/src/debugpy/adapter",
             "name": "Launch Python file",
             "type": "python",
             "request": "launch",
@@ -14,6 +15,7 @@
             "logToFile": true,
         },
         {
+            "debugAdapterPath": "${workspaceFolder}/src/debugpy/adapter",
             "name": "Attach: connect",
             "type": "python",
             "request": "attach",
@@ -24,6 +26,7 @@
             }
         },
         {
+            "debugAdapterPath": "${workspaceFolder}/src/debugpy/adapter",
             "name": "Attach: listen",
             "type": "python",
             "request": "attach",
@@ -34,12 +37,14 @@
             }
         },
         {
+            "debugAdapterPath": "${workspaceFolder}/src/debugpy/adapter",
             "name": "Attach: PID",
             "type": "python",
             "request": "attach",
             "processId": "${command:pickProcess}"
         },
         {
+            "debugAdapterPath": "${workspaceFolder}/src/debugpy/adapter",
             "name": "Debug Tests",
             "type": "python",
             "request": "test",

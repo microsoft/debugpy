@@ -39,6 +39,10 @@ def test_multiprocessing(pyfile, target, run, start_method):
         import os
         import sys
 
+        # https://github.com/microsoft/ptvsd/issues/2108
+        class Foo(object):
+            pass
+
         def parent(q, a):
             from debuggee import backchannel
 
@@ -48,6 +52,10 @@ def test_multiprocessing(pyfile, target, run, start_method):
             p = multiprocessing.Process(target=child, args=(q, a))
             p.start()
             print("child spawned")
+
+            q.put("foo?")
+            foo = a.get()
+            assert isinstance(foo, Foo), repr(foo)
 
             q.put("child_pid?")
             what, child_pid = a.get()
@@ -65,6 +73,9 @@ def test_multiprocessing(pyfile, target, run, start_method):
 
         def child(q, a):
             print("entering child")
+            assert q.get() == "foo?"
+            a.put(Foo())
+
             assert q.get() == "child_pid?"
             a.put(("child_pid", os.getpid()))
 
