@@ -9,6 +9,7 @@ from _pydevd_bundle.pydevd_net_command import NetCommand
 from pydevd_concurrency_analyser.pydevd_thread_wrappers import ObjectWrapper, wrap_attr
 import pydevd_file_utils
 from _pydev_bundle import pydev_log
+import sys
 
 file_system_encoding = getfilesystemencoding()
 
@@ -28,11 +29,6 @@ QUEUE_METHODS = ['put', 'get']
 
 # return time since epoch in milliseconds
 cur_time = lambda: int(round(time.time() * 1000000))
-
-try:
-    import asyncio  # @UnresolvedImport
-except:
-    pass
 
 
 def get_text_list_for_frame(frame):
@@ -255,6 +251,12 @@ class AsyncioLogger:
         self.start_time = cur_time()
 
     def get_task_id(self, frame):
+        asyncio = sys.modules.get('asyncio')
+        if asyncio is None:
+            # If asyncio was not imported, there's nothing to be done
+            # (also fixes issue where multiprocessing is imported due
+            # to asyncio).
+            return None
         while frame is not None:
             if "self" in frame.f_locals:
                 self_obj = frame.f_locals["self"]
@@ -275,6 +277,14 @@ class AsyncioLogger:
 
         if not hasattr(frame, "f_back") or frame.f_back is None:
             return
+
+        asyncio = sys.modules.get('asyncio')
+        if asyncio is None:
+            # If asyncio was not imported, there's nothing to be done
+            # (also fixes issue where multiprocessing is imported due
+            # to asyncio).
+            return
+
         back = frame.f_back
 
         if "self" in frame.f_locals:

@@ -2368,6 +2368,7 @@ def test_debug_zip_files(case_setup, tmpdir):
 
 @pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
 @pytest.mark.parametrize('file_to_check', [
+    '_debugger_case_multiprocessing_2.py',
     '_debugger_case_multiprocessing.py',
     '_debugger_case_python_c.py',
     '_debugger_case_multiprocessing_pool.py'
