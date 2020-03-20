@@ -4,7 +4,7 @@ import sys
 import traceback
 
 from _pydevd_bundle.pydevd_collect_bytecode_info import collect_try_except_info, \
-    collect_return_info
+    collect_return_info, uncompyle
 from tests_python.debugger_unittest import IS_CPYTHON, IS_PYPY
 from tests_python.debug_constants import IS_PY2
 from _pydevd_bundle.pydevd_constants import IS_PY38_OR_GREATER, IS_JYTHON
@@ -180,7 +180,7 @@ def test_collect_try_except_info(data_regression):
                         if try_except_info.except_end_line == 7:
                             try_except_info.except_end_line = 9
 
-            method_to_info[key] = [str(x) for x in info]
+            method_to_info[key] = sorted(str(x) for x in info)
 
     data_regression.check(method_to_info)
 
@@ -201,6 +201,114 @@ def test_collect_try_except_info2():
     lst = collect_try_except_info(code, use_func_first_line=True)
     if IS_CPYTHON or IS_PYPY:
         assert str(lst) == '[{try:1 except 3 end block 5 raises: 5}]'
+    else:
+        assert lst == []
+
+
+def test_collect_try_except_info3():
+
+    def method():
+        get_exc_class = lambda:AssertionError
+        try:  # SETUP_EXCEPT (to except line)
+            raise AssertionError()
+        except get_exc_class() \
+                as e:  # POP_TOP
+            raise e
+
+    code = method.__code__
+    lst = collect_try_except_info(code, use_func_first_line=True)
+    if IS_CPYTHON or IS_PYPY:
+        assert str(lst) == '[{try:2 except 4 end block 6}]'
+    else:
+        assert lst == []
+
+
+def test_collect_try_except_info4():
+
+    def method():
+        for i in range(2):
+            try:
+                raise AssertionError()
+            except AssertionError:
+                if i == 1:
+                    try:
+                        raise
+                    except:
+                        pass
+
+        _foo = 10
+
+    code = method.__code__
+
+    lst = sorted(collect_try_except_info(code, use_func_first_line=True), key=lambda t:t.try_line)
+    if IS_CPYTHON or IS_PYPY:
+        assert str(lst) == '[{try:2 except 4 end block 9 raises: 7}, {try:6 except 8 end block 9 raises: 7}]'
+    else:
+        assert lst == []
+
+
+def test_collect_try_except_info4a():
+
+    def method():
+        for i in range(2):
+            try:
+                raise AssertionError()
+            except:
+                if i == 1:
+                    try:
+                        raise
+                    except:
+                        pass
+
+        _foo = 10
+
+    code = method.__code__
+
+    lst = sorted(collect_try_except_info(code, use_func_first_line=True), key=lambda t:t.try_line)
+    if IS_CPYTHON or IS_PYPY:
+        assert str(lst) == '[{try:2 except 4 end block 9 raises: 7}, {try:6 except 8 end block 9 raises: 7}]'
+    else:
+        assert lst == []
+
+
+def test_collect_try_except_info_raise_unhandled7():
+
+    def raise_unhandled7():
+        try:
+            raise AssertionError()
+        except AssertionError:
+            try:
+                raise AssertionError()
+            except RuntimeError:
+                pass
+
+    code = raise_unhandled7.__code__
+
+    lst = sorted(collect_try_except_info(code, use_func_first_line=True), key=lambda t:t.try_line)
+    if IS_CPYTHON or IS_PYPY:
+        assert str(lst) == '[{try:1 except 3 end block 7}, {try:4 except 6 end block 7}]'
+    else:
+        assert lst == []
+
+
+def test_collect_try_except_info_raise_unhandled10():
+
+    def raise_unhandled10():
+        for i in range(2):
+            try:
+                raise AssertionError()
+            except AssertionError:
+                if i == 1:
+                    try:
+                        raise
+                    except RuntimeError:
+                        pass
+
+    code = raise_unhandled10.__code__
+
+    lst = sorted(collect_try_except_info(code, use_func_first_line=True), key=lambda t:t.try_line)
+    if IS_CPYTHON or IS_PYPY:
+        assert str(lst) == '[{try:2 except 4 end block 9 raises: 7}, {try:6 except 8 end block 9 raises: 7}]'
     else:
         assert lst == []
 
@@ -257,6 +365,37 @@ def method():
         exec(code, scope)
         assert str(collect_return_info(scope['method'].__code__, use_func_first_line=True)) == \
             '[{return: 4}, {return: 6}]'
+
+
+@pytest.mark.skipif(IS_JYTHON, reason='Jython does not have bytecode support.')
+def test_uncompyle():
+
+    def method4():
+        return (1,
+                2,
+                3,
+                call('tnh %s' % 1))
+
+    assert uncompyle(method4.__code__, use_func_first_line=True).count('\n') == 4
+
+
+@pytest.mark.skipif(IS_JYTHON, reason='Jython does not have bytecode support.')
+def test_uncompyle2():
+
+    def method():
+        print(10)
+
+        def method4(a, b):
+            return (1,
+                    2,
+                    3,
+                    call('somestr %s' % 1))
+
+        print(20)
+
+    s = uncompyle(method.__code__, use_func_first_line=True)
+    assert s.count('\n') == 9
+    assert 'somestr' in s  # i.e.: the contents of the inner code have been added too
 
 
 def _create_entry(instruction):

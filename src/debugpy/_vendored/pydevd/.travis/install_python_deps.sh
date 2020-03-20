@@ -1,7 +1,7 @@
 #!/bin/bash
 set -ev
 
-if [[ ("$PYDEVD_PYTHON_VERSION" != "3.8" && "$PYDEVD_PYTHON_VERSION" != "2.6") ]]; then
+if [[ ("$PYDEVD_USE_CONDA" != "NO" && "$PYDEVD_PYTHON_VERSION" != "2.6") ]]; then
     source activate build_env
     conda install --yes numpy ipython pytest cython psutil
 fi
@@ -44,13 +44,26 @@ if [ "$PYDEVD_PYTHON_VERSION" = "3.7" ]; then
     pip install trio
 fi
 
-if [ "$PYDEVD_PYTHON_VERSION" = "3.8" ]; then
+if [[ ("$PYDEVD_PYTHON_VERSION" = "3.8") ]]; then
     pip install "pytest"
     pip install "cython"
     pip install "psutil"
     pip install "numpy"
     pip install trio
     pip install gevent
+
+    # Note: track the latest web framework versions.
+    pip install "django"
+    pip install "cherrypy"
+fi
+
+if [[ ("$PYDEVD_PYTHON_VERSION" = "3.9") ]]; then
+    pip install "pytest"
+    pip install "cython"
+    pip install "psutil"
+    pip install "numpy"
+    pip install trio
+    # pip install gevent -- not compatible with 3.9 for now.
 
     # Note: track the latest web framework versions.
     pip install "django"

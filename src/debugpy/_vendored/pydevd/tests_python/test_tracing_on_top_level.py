@@ -476,6 +476,7 @@ def test_tracing_on_top_level_unhandled(trace_top_level_unhandled, func):
     trace_top_level_unhandled.set_target_func(func)
 
     collected_events = _collect_events(func)
+    # print([(x[0], x[1], x[2].__class__.__name__) for x in collected_events])
     _replay_events(collected_events, trace_top_level_unhandled)
 
     if func.__handled__:

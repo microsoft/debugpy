@@ -16,7 +16,7 @@ from _pydevd_bundle._debug_adapter.pydevd_schema import (ThreadEvent, ModuleEven
     InitializeRequestArguments, TerminateArguments, TerminateRequest, TerminatedEvent)
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
 from _pydevd_bundle.pydevd_constants import (int_types, IS_64BIT_PROCESS,
-    PY_VERSION_STR, PY_IMPL_VERSION_STR, PY_IMPL_NAME, IS_PY36_OR_GREATER)
+    PY_VERSION_STR, PY_IMPL_VERSION_STR, PY_IMPL_NAME, IS_PY36_OR_GREATER, IS_PY39_OR_GREATER)
 from tests_python import debugger_unittest
 from tests_python.debug_constants import TEST_CHERRYPY, IS_PY2, TEST_DJANGO, TEST_FLASK, IS_PY26, \
     IS_PY27, IS_CPYTHON, TEST_GEVENT
@@ -2631,7 +2631,8 @@ def test_source_mapping(case_setup):
         writer.finished_ok = True
 
 
-@pytest.mark.skipif(not TEST_CHERRYPY, reason='No CherryPy available')
+@pytest.mark.skipif(not TEST_CHERRYPY or IS_PY39_OR_GREATER, reason='No CherryPy available.'
+                    'Must investigate support on Python 3.9')
 def test_process_autoreload_cherrypy(case_setup_multiprocessing, tmpdir):
     '''
     CherryPy does an os.execv(...) which will kill the running process and replace

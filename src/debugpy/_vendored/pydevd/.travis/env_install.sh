@@ -1,5 +1,5 @@
 # Setup for PyPy and versions pre 3.8 (for 3.8 we use the travis image).
-if [[ ("$PYDEVD_PYTHON_VERSION" != "3.8") && ("$PYDEVD_TEST_VM" == "CPYTHON" || "$PYDEVD_TEST_VM" == "PYPY") ]]; then
+if [[ ("$PYDEVD_USE_CONDA" != "NO") ]]; then
 
     export CONDA_URL=http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh
     if [ "$TRAVIS_OS_NAME" == "osx" ]; then

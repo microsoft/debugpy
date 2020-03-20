@@ -322,8 +322,6 @@ class TopLevelThreadTracerNoBackFrame(object):
                                             # match the raised exception.
                                             py_db.stop_on_unhandled_exception(py_db, t, additional_info, self._last_exc_arg)
                                             break
-                                        else:
-                                            break  # exited during the except block (no exception raised)
             finally:
                 # Remove reference to exception after handling it.
                 self._last_exc_arg = None
