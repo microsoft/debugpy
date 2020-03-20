@@ -4,7 +4,7 @@ from _pydevd_bundle.pydevd_comm import pydevd_find_thread_by_id
 from _pydevd_bundle.pydevd_utils import convert_dap_log_message_to_expression
 from tests_python.debug_constants import IS_PY26, IS_PY3K, TEST_GEVENT
 import sys
-from _pydevd_bundle.pydevd_constants import IS_CPYTHON, IS_WINDOWS, IS_PY2
+from _pydevd_bundle.pydevd_constants import IS_CPYTHON, IS_WINDOWS, IS_PY2, IS_PY39_OR_GREATER
 import pytest
 import os
 import codecs
@@ -28,6 +28,7 @@ def test_expression_to_evaluate():
 
 def test_is_main_thread():
     from _pydevd_bundle.pydevd_utils import is_current_thread_main_thread
+    from _pydevd_bundle.pydevd_utils import dump_threads
     if not is_current_thread_main_thread():
         error_msg = 'Current thread does not seem to be a main thread. Details:\n'
         current_thread = threading.current_thread()
@@ -39,6 +40,14 @@ def test_is_main_thread():
             error_msg += 'Current main thread not instance of: %s (%s)' % (
                 threading._MainThread, current_thread.__class__.__mro__,)
 
+        try:
+            from StringIO import StringIO
+        except:
+            from io import StringIO
+
+        stream = StringIO()
+        dump_threads(stream=stream)
+        error_msg += '\n\n' + stream.getvalue()
         raise AssertionError(error_msg)
 
     class NonMainThread(threading.Thread):
@@ -307,14 +316,16 @@ def _check_in_separate_process(method_name, module_name='test_utilities', update
     )
 
 
-@pytest.mark.skipif(not IS_CPYTHON, reason='Functionality to trace other threads requires CPython.')
+@pytest.mark.skipif(not IS_CPYTHON or IS_PY39_OR_GREATER, reason='Functionality to trace other threads requires CPython.'
+                    '3.9: still needs support to tracing other threads (waiting for CPython api to stabilize)')
 def test_tracing_other_threads():
     # Note: run this test in a separate process so that it doesn't mess with any current tracing
     # in our current process.
     _check_in_separate_process('_check_tracing_other_threads')
 
 
-@pytest.mark.skipif(not IS_CPYTHON, reason='Functionality to trace other threads requires CPython.')
+@pytest.mark.skipif(not IS_CPYTHON or IS_PY39_OR_GREATER, reason='Functionality to trace other threads requires CPython.'
+                    '3.9: still needs support to tracing other threads (waiting for CPython api to stabilize)')
 def test_find_main_thread_id():
     # Note: run the checks below in a separate process because they rely heavily on what's available
     # in the env (such as threads or having threading imported).

@@ -109,7 +109,8 @@ class TestCPython(unittest.TestCase):
                 'math.cpython-35m' in completions or
                 'math.cpython-36m' in completions or
                 'math.cpython-37m' in completions or
-                'math.cpython-38' in completions
+                'math.cpython-38' in completions or
+                'math.cpython-39' in completions
                 ):
                 return
             self.assertTrue(completions.startswith(start) or completions.startswith(start_2), '%s DOESNT START WITH %s' % (completions, (start, start_2)))
