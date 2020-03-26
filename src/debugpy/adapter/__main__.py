@@ -209,7 +209,13 @@ if __name__ == "__main__":
         __import__("debugpy")
         del sys.path[0]
 
-    # Load locale settings.
-    locale.setlocale(locale.LC_ALL, "")
+    # Apply OS-global and user-specific locale settings.
+    try:
+        locale.setlocale(locale.LC_ALL, "")
+    except Exception:
+        # On POSIX, locale is set via environment variables, and this can fail if
+        # those variables reference a non-existing locale. Ignore and continue using
+        # the default "C" locale if so.
+        pass
 
     main(_parse_argv(sys.argv))
