@@ -36,9 +36,19 @@ class CaptureOutput(object):
             self._stream = None
         else:
             self._stream = stream if sys.version_info < (3,) else stream.buffer
-            self._encode = codecs.getencoder(
-                "utf-8" if stream.encoding is None else stream.encoding
-            )
+            encoding = stream.encoding
+            if encoding is None or encoding == "cp65001":
+                encoding = "utf-8"
+            try:
+                self._encode = codecs.getencoder(encoding)
+            except Exception:
+                log.swallow_exception(
+                    "Unsupported {0} encoding {1!r}; falling back to UTF-8.",
+                    category,
+                    encoding,
+                    level="warning",
+                )
+                self._encode = codecs.getencoder("utf-8")
 
         self._worker_thread = threading.Thread(target=self._worker, name=category)
         self._worker_thread.start()
