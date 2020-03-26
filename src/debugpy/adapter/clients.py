@@ -41,8 +41,9 @@ class Client(components.Component):
             stream = messaging.JsonIOStream.from_stdio()
             # Make sure that nothing else tries to interfere with the stdio streams
             # that are going to be used for DAP communication from now on.
-            sys.stdout = sys.stderr
             sys.stdin = open(os.devnull, "r")
+            sys.stdout = open(os.devnull, "w")
+            sys.stderr = open(os.devnull, "w")
         else:
             stream = messaging.JsonIOStream.from_socket(sock)
 
