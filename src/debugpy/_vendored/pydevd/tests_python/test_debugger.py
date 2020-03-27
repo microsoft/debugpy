@@ -2065,6 +2065,74 @@ def test_path_translation(case_setup, mixed_case):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
+def test_linecache_xml(case_setup, tmpdir):
+    from _pydevd_bundle.pydevd_comm_constants import CMD_LOAD_SOURCE_FROM_FRAME_ID
+
+    with case_setup.test_file('_debugger_case_linecache.py') as writer:
+        writer.write_add_breakpoint(writer.get_line_index_with_content('breakpoint'))
+        writer.write_make_initial_run()
+
+        # First hit is for breakpoint reached via a stack frame that doesn't have source.
+        hit = writer.wait_for_breakpoint_hit()
+
+        writer.write_get_thread_stack(hit.thread_id)
+        msg = writer.wait_for_get_thread_stack_message()
+        frame_ids = set()
+        for frame in  msg.thread.frame:
+            if frame['file'] == '<foo bar>':
+                frame_ids.add(frame['id'])
+
+        assert len(frame_ids) == 2
+
+        for frame_id in frame_ids:
+            writer.write_load_source_from_frame_id(frame_id)
+            writer.wait_for_message(
+                lambda msg:
+                    '%s\t' % CMD_LOAD_SOURCE_FROM_FRAME_ID in msg and (
+                        "[x for x in range(10)]" in msg and "def somemethod():" in msg
+                    )
+                , expect_xml=False)
+
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
+def test_show_bytecode_xml(case_setup, tmpdir):
+    from _pydevd_bundle.pydevd_comm_constants import CMD_LOAD_SOURCE_FROM_FRAME_ID
+
+    with case_setup.test_file('_debugger_case_show_bytecode.py') as writer:
+        writer.write_add_breakpoint(writer.get_line_index_with_content('breakpoint'))
+        writer.write_make_initial_run()
+
+        # First hit is for breakpoint reached via a stack frame that doesn't have source.
+        hit = writer.wait_for_breakpoint_hit()
+
+        writer.write_get_thread_stack(hit.thread_id)
+        msg = writer.wait_for_get_thread_stack_message()
+        frame_ids = set()
+        for frame in  msg.thread.frame:
+            if frame['file'] == '<something>':
+                frame_ids.add(frame['id'])
+
+        assert len(frame_ids) == 2
+
+        for frame_id in frame_ids:
+            writer.write_load_source_from_frame_id(frame_id)
+            writer.wait_for_message(
+                lambda msg:
+                    '%s\t' % CMD_LOAD_SOURCE_FROM_FRAME_ID in msg and (
+                        "MyClass" in msg or "foo()" in msg
+                    )
+                , expect_xml=False)
+
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+
+
 def test_evaluate_errors(case_setup):
     with case_setup.test_file('_debugger_case_local_variables.py') as writer:
         writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'), 'Call')

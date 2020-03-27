@@ -399,6 +399,10 @@ class _PyDevCommandProcessor(object):
     cmd_load_source = _load_source
     cmd_get_file_contents = _load_source
 
+    def cmd_load_source_from_frame_id(self, py_db, cmd_id, seq, text):
+        frame_id = text
+        self.api.request_load_source_from_frame_id(py_db, seq, frame_id)
+
     def cmd_set_property_trace(self, py_db, cmd_id, seq, text):
         # Command which receives whether to trace property getter/setter/deleter
         # text is feature_state(true/false);disable_getter/disable_setter/disable_deleter

@@ -1259,6 +1259,11 @@ class AbstractWriterThread(threading.Thread):
         self.log.append('write_load_source')
         self.write("%s\t%s\t%s" % (CMD_LOAD_SOURCE, self.next_seq(), filename,))
 
+    def write_load_source_from_frame_id(self, frame_id):
+        from _pydevd_bundle.pydevd_comm_constants import CMD_LOAD_SOURCE_FROM_FRAME_ID
+        self.log.append('write_load_source_from_frame_id')
+        self.write("%s\t%s\t%s" % (CMD_LOAD_SOURCE_FROM_FRAME_ID, self.next_seq(), frame_id,))
+
     def write_kill_thread(self, thread_id):
         self.write("%s\t%s\t%s" % (CMD_THREAD_KILL, self.next_seq(), thread_id,))
 

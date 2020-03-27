@@ -24,6 +24,7 @@ from _pydevd_bundle.pydevd_comm import build_exception_info_response, pydevd_fin
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
 from _pydevd_bundle import pydevd_frame_utils
 from _pydev_bundle import pydev_log
+import linecache
 
 
 class ModulesManager(object):
@@ -229,10 +230,24 @@ class NetCommandFactoryJson(NetCommandFactory):
                         presentation_hint = 'subtle'
 
                 formatted_name = self._format_frame_name(fmt, method_name, module_name, lineno, filename_in_utf8)
+                source_reference = pydevd_file_utils.get_client_filename_source_reference(filename_in_utf8)
+
+                if not source_reference:
+                    # Check if someone added a source reference to the linecache (Python attrs does this).
+                    if linecache.getline(original_filename, 0):
+                        source_reference = pydevd_file_utils.create_source_reference_for_linecache(
+                            original_filename, filename_in_utf8)
+
+                    if not source_reference:
+                        if getattr(frame.f_code, 'co_lnotab', None):
+                            if not os.path.exists(original_filename):
+                                # Create a source-reference to be used where we provide the source by decompiling the code.
+                                source_reference = pydevd_file_utils.create_source_reference_for_frame_id(frame_id)
+
                 frames.append(pydevd_schema.StackFrame(
                     frame_id, formatted_name, lineno, column=1, source={
                         'path': filename_in_utf8,
-                        'sourceReference': pydevd_file_utils.get_client_filename_source_reference(filename_in_utf8),
+                        'sourceReference': source_reference,
                     },
                     presentationHint=presentation_hint).to_dict())
         finally:

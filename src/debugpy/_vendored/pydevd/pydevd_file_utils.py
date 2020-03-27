@@ -550,7 +550,9 @@ def _fix_path(path, sep):
 
 _last_client_server_paths_set = []
 
+_source_reference_to_frame_id = {}
 _source_reference_to_server_filename = {}
+_line_cache_source_reference_to_server_filename = {}
 _client_filename_in_utf8_to_source_reference = {}
 _next_source_reference = partial(next, itertools.count(1))
 
@@ -561,6 +563,26 @@ def get_client_filename_source_reference(client_filename):
 
 def get_server_filename_from_source_reference(source_reference):
     return _source_reference_to_server_filename.get(source_reference, '')
+
+
+def create_source_reference_for_linecache(server_filename):
+    source_reference = _next_source_reference()
+    _line_cache_source_reference_to_server_filename[source_reference] = server_filename
+    return source_reference
+
+
+def get_source_reference_filename_from_linecache(source_reference):
+    return _line_cache_source_reference_to_server_filename.get(source_reference)
+
+
+def create_source_reference_for_frame_id(frame_id):
+    source_reference = _next_source_reference()
+    _source_reference_to_frame_id[source_reference] = frame_id
+    return source_reference
+
+
+def get_frame_id_from_source_reference(source_reference):
+    return _source_reference_to_frame_id.get(source_reference)
 
 
 def setup_client_server_paths(paths):

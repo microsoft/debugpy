@@ -77,7 +77,6 @@ matrix:
         - PYDEVD_PYTHON_VERSION=3.8
         - PYDEVD_USE_CYTHON=NO
         - PYDEVD_TEST_VM=CPYTHON
-        - CHECK_CYTHON_GENERATED=YES
         - PYDEVD_USE_CONDA=NO
 
     # i.e.: https://www.python.org/download/pre-releases/
@@ -94,7 +93,6 @@ matrix:
         - PYDEVD_PYTHON_VERSION=3.6
         - PYDEVD_USE_CYTHON=YES
         - PYDEVD_TEST_VM=CPYTHON
-        - CHECK_CYTHON_GENERATED=YES
 
 before_install:
   # CPython / Pypy setup

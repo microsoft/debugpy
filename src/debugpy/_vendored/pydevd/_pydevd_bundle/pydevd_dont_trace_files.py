@@ -87,6 +87,7 @@ DONT_TRACE = {
     'pydevd_api.py': PYDEV_FILE,
     'pydevd_base_schema.py': PYDEV_FILE,
     'pydevd_breakpoints.py': PYDEV_FILE,
+    'pydevd_code_to_source.py': PYDEV_FILE,
     'pydevd_collect_bytecode_info.py': PYDEV_FILE,
     'pydevd_comm.py': PYDEV_FILE,
     'pydevd_comm_constants.py': PYDEV_FILE,
