@@ -1,10 +1,11 @@
+# coding: utf-8
 from io import StringIO
 import os.path
 import sys
 import traceback
 
 from _pydevd_bundle.pydevd_collect_bytecode_info import collect_try_except_info, \
-    collect_return_info, uncompyle
+    collect_return_info, code_to_bytecode_representation
 from tests_python.debugger_unittest import IS_CPYTHON, IS_PYPY
 from tests_python.debug_constants import IS_PY2
 from _pydevd_bundle.pydevd_constants import IS_PY38_OR_GREATER, IS_JYTHON
@@ -368,7 +369,7 @@ def method():
 
 
 @pytest.mark.skipif(IS_JYTHON, reason='Jython does not have bytecode support.')
-def test_uncompyle():
+def test_simple_code_to_bytecode_repr():
 
     def method4():
         return (1,
@@ -376,11 +377,33 @@ def test_uncompyle():
                 3,
                 call('tnh %s' % 1))
 
-    assert uncompyle(method4.__code__, use_func_first_line=True).count('\n') == 4
+    assert code_to_bytecode_representation(method4.__code__, use_func_first_line=True).count('\n') == 4
 
 
 @pytest.mark.skipif(IS_JYTHON, reason='Jython does not have bytecode support.')
-def test_uncompyle2():
+def test_simple_code_to_bytecode_repr_many():
+
+    def method4():
+        a = call()
+        if a == 20:
+            [x for x in call()]
+
+        def method2():
+            for x in y:
+                yield x
+            raise AssertionError
+
+        return (1,
+                2,
+                3,
+                call('tnh 1' % 1))
+
+    new_repr = code_to_bytecode_representation(method4.__code__, use_func_first_line=True)
+    # print(new_repr)
+
+
+@pytest.mark.skipif(IS_JYTHON, reason='Jython does not have bytecode support.')
+def test_simple_code_to_bytecode_repr2():
 
     def method():
         print(10)
@@ -393,9 +416,108 @@ def test_uncompyle2():
 
         print(20)
 
-    s = uncompyle(method.__code__, use_func_first_line=True)
-    assert s.count('\n') == 9
+    s = code_to_bytecode_representation(method.__code__, use_func_first_line=True)
+    assert s.count('\n') == 9, 'Expected 9 lines. Found: %s in:>>\n%s\n<<' % (s.count('\n'), s)
     assert 'somestr' in s  # i.e.: the contents of the inner code have been added too
+
+
+@pytest.mark.skipif(IS_JYTHON, reason='Jython does not have bytecode support.')
+def test_simple_code_to_bytecode_repr_simple_method_calls():
+
+    def method4():
+        call()
+        a = 10
+        call(1, 2, 3, a, b, "x")
+
+    new_repr = code_to_bytecode_representation(method4.__code__, use_func_first_line=True)
+    assert 'call()' in new_repr
+    assert 'call(1, 2, 3, a, b, \'x\')' in new_repr
+
+
+@pytest.mark.skipif(IS_JYTHON, reason='Jython does not have bytecode support.')
+def test_simple_code_to_bytecode_repr_assign():
+
+    def method4():
+        a = call()
+        return call()
+
+    new_repr = code_to_bytecode_representation(method4.__code__, use_func_first_line=True)
+    assert 'a = call()' in new_repr
+    assert 'return call()' in new_repr
+
+
+@pytest.mark.skipif(IS_JYTHON, reason='Jython does not have bytecode support.')
+def test_simple_code_to_bytecode_repr_tuple():
+
+    def method4():
+        return (1, 2, call(3, 4))
+
+    new_repr = code_to_bytecode_representation(method4.__code__, use_func_first_line=True)
+    assert 'return (1, 2, call(3, 4))' in new_repr
+
+
+@pytest.mark.skipif(IS_JYTHON, reason='Jython does not have bytecode support.')
+def test_build_tuple():
+
+    def method4():
+        return call(1, (call2(), 2))
+
+    new_repr = code_to_bytecode_representation(method4.__code__, use_func_first_line=True)
+    assert 'return call(1, (call2(), 2))' in new_repr
+
+
+@pytest.mark.skipif(IS_JYTHON, reason='Jython does not have bytecode support.')
+def test_simple_code_to_bytecode_repr_return_tuple():
+
+    def method4():
+        return (1, 2, 3, a)
+
+    new_repr = code_to_bytecode_representation(method4.__code__, use_func_first_line=True)
+    assert 'return (1, 2, 3, a)' in new_repr
+
+
+@pytest.mark.skipif(IS_JYTHON, reason='Jython does not have bytecode support.')
+def test_simple_code_to_bytecode_repr_return_tuple_with_call():
+
+    def method4():
+        return (1, 2, 3, a())
+
+    new_repr = code_to_bytecode_representation(method4.__code__, use_func_first_line=True)
+    assert 'return (1, 2, 3, a())' in new_repr
+
+
+@pytest.mark.skipif(IS_JYTHON, reason='Jython does not have bytecode support.')
+def test_simple_code_to_bytecode_repr_attr():
+
+    def method4():
+        call(a.b.c)
+
+    new_repr = code_to_bytecode_representation(method4.__code__, use_func_first_line=True)
+    assert 'call(a.b.c)' in new_repr
+
+
+@pytest.mark.skipif(IS_JYTHON, reason='Jython does not have bytecode support.')
+def test_simple_code_to_bytecode_cls_method():
+
+    def method4():
+
+        class B:
+
+            def method(self):
+                self.a.b.c
+
+    new_repr = code_to_bytecode_representation(method4.__code__, use_func_first_line=True)
+    assert 'self.a.b.c' in new_repr
+
+
+@pytest.mark.skipif(IS_JYTHON, reason='Jython does not have bytecode support.')
+def test_simple_code_to_bytecode_repr_unicode():
+
+    def method4():
+        return 'αινσϊ'
+
+    new_repr = code_to_bytecode_representation(method4.__code__, use_func_first_line=True)
+    assert repr('αινσϊ') in new_repr
 
 
 def _create_entry(instruction):

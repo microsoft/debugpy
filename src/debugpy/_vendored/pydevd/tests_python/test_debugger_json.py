@@ -444,6 +444,12 @@ class JsonFacade(object):
         # Note: this currently terminates promptly, so, no answer is given.
         self.write_request(TerminateRequest(arguments=TerminateArguments()))
 
+    def write_get_source(self, source_reference, success=True):
+        response = self.wait_for_response(self.write_request(
+            pydevd_schema.SourceRequest(pydevd_schema.SourceArguments(source_reference))))
+        assert response.success == success
+        return response
+
 
 def test_case_json_logpoints(case_setup):
     with case_setup.test_file('_debugger_case_change_breaks.py') as writer:
@@ -3016,8 +3022,7 @@ def test_path_translation_and_source_reference(case_setup):
         source_reference = stack_frame_not_path_translated['source']['sourceReference']
         assert source_reference != 0  # Not translated
 
-        response = json_facade.wait_for_response(json_facade.write_request(
-            pydevd_schema.SourceRequest(pydevd_schema.SourceArguments(source_reference))))
+        response = json_facade.write_get_source(source_reference)
         assert "def call_me_back1(callback):" in response.body.content
 
         json_facade.write_continue()
@@ -3056,9 +3061,7 @@ def test_source_reference_no_file(case_setup, tmpdir):
         source_reference = stack_frame['source']['sourceReference']
         assert source_reference != 0
 
-        response = json_facade.wait_for_response(json_facade.write_request(
-            pydevd_schema.SourceRequest(pydevd_schema.SourceArguments(source_reference))))
-        assert not response.success
+        json_facade.write_get_source(source_reference, success=False)
 
         json_facade.write_continue()
 
@@ -3079,10 +3082,76 @@ def test_source_reference_no_file(case_setup, tmpdir):
         source_reference = stack_frame['source']['sourceReference']
         assert source_reference != 0
 
-        response = json_facade.wait_for_response(json_facade.write_request(
-            pydevd_schema.SourceRequest(pydevd_schema.SourceArguments(source_reference))))
-        assert response.success
+        response = json_facade.write_get_source(source_reference)
         assert response.body.content == 'foo()\n'
+
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
+def test_linecache_json(case_setup, tmpdir):
+
+    with case_setup.test_file('_debugger_case_linecache.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch(justMyCode=False)
+
+        writer.write_add_breakpoint(writer.get_line_index_with_content('breakpoint'))
+        json_facade.write_make_initial_run()
+
+        # First hit is for breakpoint reached via a stack frame that doesn't have source.
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        stack_trace_response_body = json_hit.stack_trace_response.body
+        source_references = []
+        for stack_frame in stack_trace_response_body.stackFrames:
+            if stack_frame['source']['path'] == '<foo bar>':
+                source_reference = stack_frame['source']['sourceReference']
+                assert source_reference != 0
+                source_references.append(source_reference)
+
+        # Each frame gets its own source reference.
+        assert len(set(source_references)) == 2
+
+        for source_reference in source_references:
+            response = json_facade.write_get_source(source_reference)
+            assert 'def somemethod():' in response.body.content
+            assert '    foo()' in response.body.content
+            assert '[x for x in range(10)]' in response.body.content
+
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
+def test_show_bytecode_json(case_setup, tmpdir):
+
+    with case_setup.test_file('_debugger_case_show_bytecode.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch(justMyCode=False)
+
+        writer.write_add_breakpoint(writer.get_line_index_with_content('breakpoint'))
+        json_facade.write_make_initial_run()
+
+        # First hit is for breakpoint reached via a stack frame that doesn't have source.
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        stack_trace_response_body = json_hit.stack_trace_response.body
+        source_references = []
+        for stack_frame in stack_trace_response_body.stackFrames:
+            if stack_frame['source']['path'] == '<something>':
+                source_reference = stack_frame['source']['sourceReference']
+                assert source_reference != 0
+                source_references.append(source_reference)
+
+        # Each frame gets its own source reference.
+        assert len(set(source_references)) == 2
+
+        for source_reference in source_references:
+            response = json_facade.write_get_source(source_reference)
+            assert 'MyClass' in response.body.content or 'foo()' in response.body.content
 
         json_facade.write_continue()
         writer.finished_ok = True

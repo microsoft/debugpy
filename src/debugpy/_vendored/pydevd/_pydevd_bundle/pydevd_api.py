@@ -25,6 +25,9 @@ from pydevd_tracing import get_exception_traceback_str
 import os
 import subprocess
 import ctypes
+from _pydevd_bundle.pydevd_collect_bytecode_info import code_to_bytecode_representation
+import itertools
+import linecache
 
 try:
     import dis
@@ -631,6 +634,36 @@ class PyDevdAPI(object):
 
         py_db.writer.add_command(cmd)
 
+    def get_decompiled_source_from_frame_id(self, py_db, frame_id):
+        '''
+        :param py_db:
+        :param frame_id:
+        :throws Exception:
+            If unable to get the frame in the currently paused frames or if some error happened
+            when decompiling.
+        '''
+        variable = py_db.suspended_frames_manager.get_variable(int(frame_id))
+        frame = variable.value
+
+        # Check if it's in the linecache first.
+        lines = (linecache.getline(frame.f_code.co_filename, i) for i in itertools.count(1))
+        lines = itertools.takewhile(bool, lines)  # empty lines are '\n', EOF is ''
+
+        source = ''.join(lines)
+        if not source:
+            source = code_to_bytecode_representation(frame.f_code)
+
+        return source
+
+    def request_load_source_from_frame_id(self, py_db, seq, frame_id):
+        try:
+            source = self.get_decompiled_source_from_frame_id(py_db, frame_id)
+            cmd = py_db.cmd_factory.make_load_source_from_frame_id_message(seq, source)
+        except:
+            cmd = py_db.cmd_factory.make_error_message(seq, get_exception_traceback_str())
+
+        py_db.writer.add_command(cmd)
+
     def add_python_exception_breakpoint(
             self,
             py_db,
@@ -983,5 +1016,5 @@ def _list_ppid_and_pid():
                     break
     finally:
         kernel32.CloseHandle(snapshot)
-        
+
     return ppid_and_pids

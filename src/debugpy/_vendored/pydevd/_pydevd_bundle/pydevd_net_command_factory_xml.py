@@ -17,7 +17,7 @@ from _pydevd_bundle.pydevd_comm_constants import (
     CMD_THREAD_RESUME_SINGLE_NOTIFICATION,
     CMD_GET_NEXT_STATEMENT_TARGETS, CMD_VERSION,
     CMD_RETURN, CMD_SET_PROTOCOL, CMD_ERROR, MAX_IO_MSG_SIZE, VERSION_STRING,
-    CMD_RELOAD_CODE)
+    CMD_RELOAD_CODE, CMD_LOAD_SOURCE_FROM_FRAME_ID)
 from _pydevd_bundle.pydevd_constants import (DebugInfoHolder, get_thread_id, IS_IRONPYTHON,
     get_global_debugger, GetGlobalDebugger, set_global_debugger)  # Keep for backward compatibility @UnusedImport
 from _pydevd_bundle.pydevd_net_command import NetCommand, NULL_NET_COMMAND, NULL_EXIT_COMMAND
@@ -407,7 +407,10 @@ class NetCommandFactory(object):
             return self.make_error_message(seq, get_exception_traceback_str())
 
     def make_load_source_message(self, seq, source):
-        return NetCommand(CMD_LOAD_SOURCE, seq, '%s' % source)
+        return NetCommand(CMD_LOAD_SOURCE, seq, source)
+
+    def make_load_source_from_frame_id_message(self, seq, source):
+        return NetCommand(CMD_LOAD_SOURCE_FROM_FRAME_ID, seq, source)
 
     def make_show_console_message(self, py_db, thread_id, frame):
         try:

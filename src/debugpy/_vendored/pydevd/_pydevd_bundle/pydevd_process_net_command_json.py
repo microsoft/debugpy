@@ -877,6 +877,9 @@ class PyDevJsonCommandProcessor(object):
 
         if source_reference != 0:
             server_filename = pydevd_file_utils.get_server_filename_from_source_reference(source_reference)
+            if not server_filename:
+                server_filename = pydevd_file_utils.get_source_reference_filename_from_linecache(source_reference)
+
             if server_filename:
                 # Try direct file access first - it's much faster when available.
                 try:
@@ -895,6 +898,16 @@ class PyDevJsonCommandProcessor(object):
                     # If we didn't get at least one line back, reset it to None so that it's
                     # reported as error below, and not as an empty file.
                     content = ''.join(lines) or None
+
+            if content is None:
+                frame_id = pydevd_file_utils.get_frame_id_from_source_reference(source_reference)
+                pydev_log.debug('Found frame id: %s for source reference: %s', frame_id, source_reference)
+                if frame_id is not None:
+                    try:
+                        content = self.api.get_decompiled_source_from_frame_id(py_db, frame_id)
+                    except Exception:
+                        pydev_log.exception('Error getting source for frame id: %s', frame_id)
+                        content = None
 
         body = SourceResponseBody(content or '')
         response_args = {'body': body}

@@ -1,7 +1,6 @@
 from contextlib import contextmanager
 import sys
 
-from _pydev_imps._pydev_saved_modules import threading
 from _pydevd_bundle.pydevd_constants import get_frame, dict_items, RETURN_VALUES_DICT, \
     dict_iter_items, ForkSafeLock
 from _pydevd_bundle.pydevd_xml import get_variable_details, get_type
