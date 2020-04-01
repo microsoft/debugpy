@@ -13,6 +13,8 @@ from debugpy.common import log
 
 def create_server(host, port=0, backlog=socket.SOMAXCONN, timeout=None):
     """Return a local server socket listening on the given port."""
+
+    assert backlog > 0
     if host is None:
         host = "127.0.0.1"
     if port is None:
@@ -64,6 +66,8 @@ def serve(name, handler, host, port=0, backlog=socket.SOMAXCONN, timeout=None):
 
     Returns the created server socket.
     """
+
+    assert backlog > 0
 
     try:
         listener = create_server(host, port, backlog, timeout)

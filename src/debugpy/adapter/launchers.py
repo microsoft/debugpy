@@ -81,13 +81,12 @@ def spawn_debuggee(session, start_request, args, console, console_title):
 
     try:
         listener = sockets.serve(
-            "Launcher", on_launcher_connected, "127.0.0.1", backlog=0
+            "Launcher", on_launcher_connected, "127.0.0.1", backlog=1
         )
     except Exception as exc:
         raise start_request.cant_handle(
-            "{0} couldn't create listener socket for {1}: {2}",
+            "{0} couldn't create listener socket for launcher: {1}",
             session,
-            session.launcher,
             exc,
         )
 
@@ -114,9 +113,7 @@ def spawn_debuggee(session, start_request, args, console, console_title):
                     stderr=sys.stderr,
                 )
             except Exception as exc:
-                raise start_request.cant_handle(
-                    "{0} failed to spawn {1}: {2}", session, session.launcher, exc
-                )
+                raise start_request.cant_handle("Failed to spawn launcher: {0}", exc)
         else:
             log.info('{0} spawning launcher via "runInTerminal" request.', session)
             session.client.capabilities.require("supportsRunInTerminalRequest")
@@ -135,9 +132,7 @@ def spawn_debuggee(session, start_request, args, console, console_title):
                 exc.propagate(start_request)
 
         if not session.wait_for(lambda: session.launcher, timeout=10):
-            raise start_request.cant_handle(
-                "{0} timed out waiting for {1} to connect", session, session.launcher
-            )
+            raise start_request.cant_handle("Timed out waiting for launcher to connect")
 
         try:
             session.launcher.channel.request(start_request.command, arguments)
@@ -149,18 +144,14 @@ def spawn_debuggee(session, start_request, args, console, console_title):
 
         if not session.wait_for(lambda: session.launcher.pid is not None, timeout=10):
             raise start_request.cant_handle(
-                '{0} timed out waiting for "process" event from {1}',
-                session,
-                session.launcher,
+                'Timed out waiting for "process" event from launcher'
             )
 
         # Wait for the first incoming connection regardless of the PID - it won't
         # necessarily match due to the use of stubs like py.exe or "conda run".
         conn = servers.wait_for_connection(session, lambda conn: True, timeout=10)
         if conn is None:
-            raise start_request.cant_handle(
-                "{0} timed out waiting for debuggee to spawn", session
-            )
+            raise start_request.cant_handle("Timed out waiting for debuggee to spawn")
         conn.attach_to_session(session)
 
     finally:
