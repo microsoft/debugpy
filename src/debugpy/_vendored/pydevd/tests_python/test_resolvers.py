@@ -1,4 +1,5 @@
 from tests_python.debug_constants import IS_PY2
+from _pydevd_bundle.pydevd_constants import IS_PY36_OR_GREATER
 
 
 def check_len_entry(len_entry, first_2_params):
@@ -14,7 +15,11 @@ def test_dict_resolver():
     contents_debug_adapter_protocol = dict_resolver.get_contents_debug_adapter_protocol(dct)
     len_entry = contents_debug_adapter_protocol.pop(-1)
     check_len_entry(len_entry, ('__len__', 2))
-    if IS_PY2:
+    if IS_PY36_OR_GREATER:
+        assert contents_debug_adapter_protocol == [
+            ('(1, 2)', 2, '[(1, 2)]'), ("'22'", 22, "['22']")]
+
+    elif IS_PY2:
         assert contents_debug_adapter_protocol == [
             ('(1, 2)', 2, '[(1, 2)]'), (u"u'22'", 22, u"[u'22']")]
     else:

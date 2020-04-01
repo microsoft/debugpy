@@ -8,7 +8,7 @@ import traceback
 from os.path import basename
 
 from functools import partial
-from _pydevd_bundle.pydevd_constants import dict_iter_items, dict_keys, xrange
+from _pydevd_bundle.pydevd_constants import dict_iter_items, dict_keys, xrange, IS_PY36_OR_GREATER
 from _pydevd_bundle.pydevd_safe_repr import SafeRepr
 
 # Note: 300 is already a lot to see in the outline (after that the user should really use the shell to get things)
@@ -241,6 +241,8 @@ class DefaultResolver:
 #=======================================================================================================================
 class DictResolver:
 
+    sort_keys = not IS_PY36_OR_GREATER
+
     def resolve(self, dict, key):
         if key in ('__len__', TOO_LARGE_ATTR):
             return None
@@ -301,6 +303,9 @@ class DictResolver:
 
         if from_default_resolver:
             ret = from_default_resolver + ret
+
+        if not self.sort_keys:
+            return ret
 
         return sorted(ret, key=lambda tup: sorted_attributes_key(tup[0]))
 
@@ -579,6 +584,8 @@ class DequeResolver(TupleResolver):
 # OrderedDictResolver
 #=======================================================================================================================
 class OrderedDictResolver(DictResolver):
+
+    sort_keys = False
 
     def init_dict(self):
         return OrderedDict()

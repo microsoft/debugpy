@@ -166,7 +166,10 @@ def test_variable_sort(pyfile, target, run):
             "variables", {"variablesReference": b_test["variablesReference"]}
         )["variables"]
         var_names = [v["name"] for v in b_test_vars]
-        assert var_names == ["'abcd'", "'eggs'", "'spam'", "__len__"]
+        if sys.version_info[:2] >= (3, 6):
+            assert var_names == ["'spam'", "'eggs'", "'abcd'", "__len__"]
+        else:
+            assert var_names == ["'abcd'", "'eggs'", "'spam'", "__len__"]
 
         # Numeric dict keys must be sorted as numbers.
         if not "https://github.com/microsoft/ptvsd/issues/213":
@@ -394,45 +397,89 @@ def test_hex_numbers(pyfile, target, run):
             "variables",
             {"variablesReference": c["variablesReference"], "format": {"hex": True}},
         )["variables"]
-        assert c_vars == [
-            some.dict.containing(
-                {
-                    "name": "0x3e8",
-                    "value": "0x3e8",
-                    "type": "int",
-                    "evaluateName": "c[1000]",
-                    "variablesReference": 0,
-                }
-            ),
-            some.dict.containing(
-                {
-                    "name": "0x64",
-                    "value": "0x64",
-                    "type": "int",
-                    "evaluateName": "c[100]",
-                    "variablesReference": 0,
-                }
-            ),
-            some.dict.containing(
-                {
-                    "name": "0xa",
-                    "value": "0xa",
-                    "type": "int",
-                    "evaluateName": "c[10]",
-                    "variablesReference": 0,
-                }
-            ),
-            some.dict.containing(
-                {
-                    "name": "__len__",
-                    "value": "0x3",
-                    "type": "int",
-                    "evaluateName": "len(c)",
-                    "variablesReference": 0,
-                    "presentationHint": {"attributes": ["readOnly"]},
-                }
-            ),
-        ]
+        if sys.version_info[:2] < (3, 6):
+            # Sorted dict keys by the name before Python 3.6.
+            assert c_vars == [
+                some.dict.containing(
+                    {
+                        "name": "0x3e8",
+                        "value": "0x3e8",
+                        "type": "int",
+                        "evaluateName": "c[1000]",
+                        "variablesReference": 0,
+                    }
+                ),
+                some.dict.containing(
+                    {
+                        "name": "0x64",
+                        "value": "0x64",
+                        "type": "int",
+                        "evaluateName": "c[100]",
+                        "variablesReference": 0,
+                    }
+                ),
+                some.dict.containing(
+                    {
+                        "name": "0xa",
+                        "value": "0xa",
+                        "type": "int",
+                        "evaluateName": "c[10]",
+                        "variablesReference": 0,
+                    }
+                ),
+                some.dict.containing(
+                    {
+                        "name": "__len__",
+                        "value": "0x3",
+                        "type": "int",
+                        "evaluateName": "len(c)",
+                        "variablesReference": 0,
+                        "presentationHint": {"attributes": ["readOnly"]},
+                    }
+                ),
+            ]
+        else:
+            # Use dict sequence on Python 3.6 onwards.
+            assert c_vars == [
+                some.dict.containing(
+                    {
+                        "name": "0xa",
+                        "value": "0xa",
+                        "type": "int",
+                        "evaluateName": "c[10]",
+                        "variablesReference": 0,
+                    }
+                ),
+                some.dict.containing(
+                    {
+                        "name": "0x64",
+                        "value": "0x64",
+                        "type": "int",
+                        "evaluateName": "c[100]",
+                        "variablesReference": 0,
+                    }
+                ),
+                some.dict.containing(
+                    {
+                        "name": "0x3e8",
+                        "value": "0x3e8",
+                        "type": "int",
+                        "evaluateName": "c[1000]",
+                        "variablesReference": 0,
+                    }
+                ),
+                some.dict.containing(
+                    {
+                        "name": "__len__",
+                        "value": "0x3",
+                        "type": "int",
+                        "evaluateName": "len(c)",
+                        "variablesReference": 0,
+                        "presentationHint": {"attributes": ["readOnly"]},
+                    }
+                ),
+            ]
+
 
         d_vars = session.request(
             "variables",
