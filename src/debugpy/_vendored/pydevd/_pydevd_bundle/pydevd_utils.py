@@ -134,7 +134,10 @@ def get_clsname_for_code(code, frame):
             if inspect.isclass(first_arg_obj):  # class method
                 first_arg_class = first_arg_obj
             else:  # instance method
-                first_arg_class = first_arg_obj.__class__
+                if hasattr(first_arg_obj, "__class__"):
+                    first_arg_class = first_arg_obj.__class__
+                else: # old style class, fall back on type
+                    first_arg_class = type(first_arg_obj)
             func_name = code.co_name
             if hasattr(first_arg_class, func_name):
                 method = getattr(first_arg_class, func_name)

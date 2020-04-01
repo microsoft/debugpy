@@ -151,7 +151,15 @@ def pytest_collection_modifyitems(session, config, items):
     pydev_runfiles_xml_rpc.notifyTestsCollected(len(items))
 
 
-from py.io import TerminalWriter
+try:
+    """
+    pytest > 5.4 uses own version of TerminalWriter based on py.io.TerminalWriter
+    and assumes there is a specific method TerminalWriter._write_source
+    so try load pytest version first or fallback to default one
+    """
+    from _pytest._io import TerminalWriter
+except ImportError:
+    from py.io import TerminalWriter
 
 
 def _get_error_contents_from_report(report):
