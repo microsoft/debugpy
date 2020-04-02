@@ -159,7 +159,8 @@ def test_multiprocessing(pyfile, target, run, start_method):
                 parent_backchannel.send("continue")
 
 
-def test_subprocess(pyfile, target, run):
+@pytest.mark.parametrize("subProcess", [True, False, None])
+def test_subprocess(pyfile, target, run, subProcess):
     @pyfile
     def child():
         import os
@@ -195,6 +196,8 @@ def test_subprocess(pyfile, target, run):
 
     with debug.Session() as parent_session:
         backchannel = parent_session.open_backchannel()
+        if subProcess is not None:
+            parent_session.config["subProcess"] = subProcess
 
         with run(parent_session, target(parent, args=[child])):
             pass
@@ -212,6 +215,9 @@ def test_subprocess(pyfile, target, run):
                 }
             }
         )
+
+        if subProcess is False:
+            return
 
         child_config = parent_session.wait_for_next_event("debugpyAttach")
         assert child_config == expected_child_config

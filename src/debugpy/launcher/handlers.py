@@ -67,6 +67,8 @@ def launch_request(request):
             "--connect",
             str(port),
         ]
+        if not request("subProcess", True):
+            cmdline += ["--configure-subProcess", "False"]
         adapter_access_token = request("adapterAccessToken", unicode, optional=True)
         if adapter_access_token != ():
             cmdline += ["--adapter-access-token", compat.filename(adapter_access_token)]
