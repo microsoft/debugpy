@@ -107,6 +107,7 @@ def _starts_debugging(func):
 
         ensure_logging()
         log.debug("{0}({1!r}, **{2!r})", func.__name__, address, kwargs)
+        log.info("Initial debug configuration: {0!j}", _config)
 
         settrace_kwargs = {
             "suspend": False,

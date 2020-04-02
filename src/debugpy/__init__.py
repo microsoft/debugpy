@@ -84,7 +84,10 @@ def configure(properties=None, **kwargs):
 
         debugpy.configure({"subProcess": False})
     """
-    pass
+
+    from debugpy.server import api
+
+    return api.configure(properties, **kwargs)
 
 
 def listen(address):

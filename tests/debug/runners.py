@@ -229,23 +229,37 @@ def attach_connect(session, target, method, cwd=None, wait=True, log_dir=None):
             args += ["--wait-for-client"]
         if log_dir is not None:
             args += ["--log-to", log_dir]
+        if "subProcess" in config:
+            args += ["--configure-subProcess", str(config["subProcess"])]
         debuggee_setup = None
     elif method == "api":
         args = []
+        api_config = {k: v for k, v in config.items() if k in {"subProcess"}}
         debuggee_setup = """
 import debugpy
 if {log_dir!r}:
     debugpy.log_to({log_dir!r})
+debugpy.configure({api_config!r})
 debugpy.listen(({host!r}, {port!r}))
 if {wait!r}:
     debugpy.wait_for_client()
 """
         debuggee_setup = fmt(
-            debuggee_setup, host=host, port=port, wait=wait, log_dir=log_dir
+            debuggee_setup,
+            host=host,
+            port=port,
+            wait=wait,
+            log_dir=log_dir,
+            api_config=api_config,
         )
     else:
         raise ValueError
     args += target.cli(session.spawn_debuggee.env)
+
+    try:
+        del config["subProcess"]
+    except KeyError:
+        pass
 
     session.spawn_debuggee(args, cwd=cwd, setup=debuggee_setup)
     if wait:
@@ -280,19 +294,30 @@ def attach_listen(session, target, method, cwd=None, log_dir=None):
         ]
         if log_dir is not None:
             args += ["--log-to", log_dir]
+        if "subProcess" in config:
+            args += ["--configure-subProcess", str(config["subProcess"])]
         debuggee_setup = None
     elif method == "api":
         args = []
+        api_config = {k: v for k, v in config.items() if k in {"subProcess"}}
         debuggee_setup = """
 import debugpy
 if {log_dir!r}:
     debugpy.log_to({log_dir!r})
+debugpy.configure({api_config!r})
 debugpy.connect({address!r})
 """
-        debuggee_setup = fmt(debuggee_setup, address=(host, port), log_dir=log_dir)
+        debuggee_setup = fmt(
+            debuggee_setup, address=(host, port), log_dir=log_dir, api_config=api_config
+        )
     else:
         raise ValueError
     args += target.cli(session.spawn_debuggee.env)
+
+    try:
+        del config["subProcess"]
+    except KeyError:
+        pass
 
     def spawn_debuggee(occ):
         assert occ.body == some.dict.containing({"host": host, "port": port})
@@ -313,15 +338,9 @@ all_launch = [
     launch["externalTerminal"],
 ]
 
-all_attach_listen = [
-    attach_listen["api"],
-    attach_listen["cli"],
-]
+all_attach_listen = [attach_listen["api"], attach_listen["cli"]]
 
-all_attach_connect = [
-    attach_connect["api"],
-    attach_connect["cli"],
-]
+all_attach_connect = [attach_connect["api"], attach_connect["cli"]]
 
 all_attach_socket = all_attach_listen + all_attach_connect
 
