@@ -38,13 +38,6 @@ def launch_request(request):
 
         return value
 
-    cmdline = []
-    if property_or_debug_option("sudo", "Sudo"):
-        if sys.platform == "win32":
-            raise request.cant_handle('"sudo":true is not supported on Windows.')
-        else:
-            cmdline += ["sudo"]
-
     # "pythonPath" is a deprecated legacy spelling. If "python" is missing, then try
     # the alternative. But if both are missing, the error message should say "python".
     python_key = "python"
@@ -55,10 +48,9 @@ def launch_request(request):
             )
     elif "pythonPath" in request:
         python_key = "pythonPath"
-    python = request(python_key, json.array(unicode, vectorize=True, size=(0,)))
-    if not len(python):
-        python = [compat.filename(sys.executable)]
-    cmdline += python
+    cmdline = request(python_key, json.array(unicode, vectorize=True, size=(0,)))
+    if not len(cmdline):
+        cmdline = [compat.filename(sys.executable)]
 
     if not request("noDebug", json.default(False)):
         port = request("port", int)
@@ -87,7 +79,7 @@ def launch_request(request):
     if "code" in request:
         code = request("code", json.array(unicode, vectorize=True, size=(1,)))
         cmdline += ["-c", "\n".join(code)]
-        process_name = python[0]
+        process_name = cmdline[0]
 
     num_targets = len([x for x in (program, module, code) if x != ()])
     if num_targets == 0:

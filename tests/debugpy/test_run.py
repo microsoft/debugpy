@@ -99,6 +99,7 @@ def test_sudo(pyfile, tmpdir, run, target):
     sudo = tmpdir / "sudo"
     sudo.write(
         """#!/bin/sh
+        if [ "$1" = "-E" ]; then shift; fi
         exec env DEBUGPY_SUDO=1 "$@"
         """
     )
@@ -116,7 +117,9 @@ def test_sudo(pyfile, tmpdir, run, target):
 
     with debug.Session() as session:
         session.config["sudo"] = True
-        session.config.env["PATH"] = tmpdir.strpath + ":" + os.environ["PATH"]
+        session.spawn_adapter.env["PATH"] = session.spawn_debuggee.env["PATH"] = (
+            tmpdir.strpath + ":" + os.environ["PATH"]
+        )
 
         backchannel = session.open_backchannel()
         with run(session, target(code_to_debug)):

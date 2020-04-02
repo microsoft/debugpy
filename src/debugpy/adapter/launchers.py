@@ -65,8 +65,13 @@ class Launcher(components.Component):
                     pass
 
 
-def spawn_debuggee(session, start_request, args, console, console_title):
-    cmdline = [sys.executable, os.path.dirname(launcher.__file__)] + args
+def spawn_debuggee(session, start_request, args, console, console_title, sudo):
+    # -E tells sudo to propagate environment variables to the target process - this
+    # is necessary for launcher to get DEBUGPY_LAUNCHER_PORT and DEBUGPY_LOG_DIR.
+    cmdline = ["sudo", "-E"] if sudo else []
+
+    cmdline += [sys.executable, os.path.dirname(launcher.__file__)]
+    cmdline += args
     env = {}
 
     arguments = dict(start_request.arguments)
@@ -131,7 +136,9 @@ def spawn_debuggee(session, start_request, args, console, console_title):
             except messaging.MessageHandlingError as exc:
                 exc.propagate(start_request)
 
-        if not session.wait_for(lambda: session.launcher, timeout=10):
+        # If using sudo, it might prompt for password, and launcher won't start running
+        # until the user enters it, so don't apply timeout in that case.
+        if not session.wait_for(lambda: session.launcher, timeout=(None if sudo else 10)):
             raise start_request.cant_handle("Timed out waiting for launcher to connect")
 
         try:
