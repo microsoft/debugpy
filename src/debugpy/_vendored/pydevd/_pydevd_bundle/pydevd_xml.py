@@ -46,6 +46,13 @@ def _create_default_type_map():
         (dict, pydevd_resolver.dictResolver),
     ]
     try:
+        from collections import OrderedDict
+        default_type_map.insert(0, (OrderedDict, pydevd_resolver.orderedDictResolver))
+        # we should put it before dict
+    except:
+        pass
+
+    try:
         default_type_map.append((long, None))  # @UndefinedVariable
     except:
         pass  # not available on all python versions

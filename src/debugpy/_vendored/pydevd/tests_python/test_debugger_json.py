@@ -16,7 +16,8 @@ from _pydevd_bundle._debug_adapter.pydevd_schema import (ThreadEvent, ModuleEven
     InitializeRequestArguments, TerminateArguments, TerminateRequest, TerminatedEvent)
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
 from _pydevd_bundle.pydevd_constants import (int_types, IS_64BIT_PROCESS,
-    PY_VERSION_STR, PY_IMPL_VERSION_STR, PY_IMPL_NAME, IS_PY36_OR_GREATER, IS_PY39_OR_GREATER)
+    PY_VERSION_STR, PY_IMPL_VERSION_STR, PY_IMPL_NAME, IS_PY36_OR_GREATER, IS_PY39_OR_GREATER,
+    IS_PY37_OR_GREATER)
 from tests_python import debugger_unittest
 from tests_python.debug_constants import TEST_CHERRYPY, IS_PY2, TEST_DJANGO, TEST_FLASK, IS_PY26, \
     IS_PY27, IS_CPYTHON, TEST_GEVENT
@@ -1172,6 +1173,38 @@ def test_modules(case_setup):
         module = next(iter(modules_response_body.modules))
         assert module['name'] == '__main__'
         assert module['path'].endswith('_debugger_case_local_variables.py')
+
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(IS_PY26, reason='Python 2.6 does not have an ordered dict')
+def test_dict_ordered(case_setup):
+    with case_setup.test_file('_debugger_case_odict.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_set_breakpoints(writer.get_line_index_with_content('break here'))
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        json_hit = json_facade.get_stack_as_json_hit(json_hit.thread_id)
+
+        variables_response = json_facade.get_variables_response(json_hit.frame_id)
+
+        variables_references = variables_response.body.variables
+        for dct in variables_references:
+            if dct['name'] == 'odict':
+                break
+        else:
+            raise AssertionError('Expected to find "odict".')
+        ref = dct['variablesReference']
+
+        assert isinstance(ref, int_types)
+        # : :type variables_response: VariablesResponse
+
+        variables_response = json_facade.get_variables_response(ref)
+        assert [(d['name'], d['value']) for d in variables_response.body.variables if not d['name'].startswith('_OrderedDict')] == [
+            ('4', "'first'"), ('3', "'second'"), ('2', "'last'"), ('__len__', '3')]
 
         json_facade.write_continue()
         writer.finished_ok = True
