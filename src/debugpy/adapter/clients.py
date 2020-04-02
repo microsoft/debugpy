@@ -250,6 +250,29 @@ class Client(components.Component):
         if self.session.id != 1 or len(servers.connections()):
             raise request.cant_handle('"attach" expected')
 
+        debug_options = set(request("debugOptions", json.array(unicode)))
+
+        # Handling of properties that can also be specified as legacy "debugOptions" flags.
+        # If property is explicitly set to false, but the flag is in "debugOptions", treat
+        # it as an error. Returns None if the property wasn't explicitly set either way.
+        def property_or_debug_option(prop_name, flag_name):
+            assert prop_name[0].islower() and flag_name[0].isupper()
+
+            value = request(prop_name, bool, optional=True)
+            if value == ():
+                value = None
+
+            if flag_name in debug_options:
+                if value is False:
+                    raise request.isnt_valid(
+                        '{0!j}:false and "debugOptions":[{1!j}] are mutually exclusive',
+                        prop_name,
+                        flag_name,
+                    )
+                value = True
+
+            return value
+
         # Launcher doesn't use the command line at all, but we pass the arguments so
         # that they show up in the terminal if we're using "runInTerminal".
         if "program" in request:
@@ -277,8 +300,12 @@ class Client(components.Component):
         )
         console_title = request("consoleTitle", json.default("Python Debug Console"))
 
+        sudo = bool(property_or_debug_option("sudo", "Sudo"))
+        if sudo and sys.platform == "win32":
+            raise request.cant_handle('"sudo":true is not supported on Windows.')
+
         servers.serve()
-        launchers.spawn_debuggee(self.session, request, args, console, console_title)
+        launchers.spawn_debuggee(self.session, request, args, console, console_title, sudo)
 
     @_start_message_handler
     def attach_request(self, request):

@@ -492,8 +492,7 @@ class Session(object):
             env = request("env", json.object(unicode))
             try:
                 exe = args.pop(0)
-                assert not len(self.spawn_debuggee.env)
-                self.spawn_debuggee.env = env
+                self.spawn_debuggee.env.update(env)
                 self.spawn_debuggee(args, cwd, exe=exe)
                 return {}
             except OSError as exc:
