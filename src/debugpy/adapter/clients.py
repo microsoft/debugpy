@@ -305,7 +305,9 @@ class Client(components.Component):
             raise request.cant_handle('"sudo":true is not supported on Windows.')
 
         servers.serve()
-        launchers.spawn_debuggee(self.session, request, args, console, console_title, sudo)
+        launchers.spawn_debuggee(
+            self.session, request, args, console, console_title, sudo
+        )
 
     @_start_message_handler
     def attach_request(self, request):
@@ -499,8 +501,9 @@ class Client(components.Component):
             body = dict(self.start_request.arguments)
             self._known_subprocesses.add(conn)
 
-        body.pop("processId", None)
-        body.pop("listen", None)
+        for key in "processId", "listen", "preLaunchTask", "postDebugTask":
+            body.pop(key, None)
+
         body["name"] = fmt("Subprocess {0}", conn.pid)
         body["request"] = "attach"
         body["subProcessId"] = conn.pid

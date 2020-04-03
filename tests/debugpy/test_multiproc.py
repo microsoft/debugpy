@@ -15,6 +15,7 @@ from tests.patterns import some
 
 
 if not tests.full:
+
     @pytest.fixture(params=[runners.launch] + runners.all_attach_socket)
     def run(request):
         return request.param
@@ -120,10 +121,7 @@ def test_multiprocessing(pyfile, target, run, start_method):
                 "name": some.str,
                 "request": "attach",
                 "subProcessId": some.int,
-                "connect": {
-                    "host": some.str,
-                    "port": some.int,
-                }
+                "connect": {"host": some.str, "port": some.int},
             }
         )
 
@@ -142,10 +140,7 @@ def test_multiprocessing(pyfile, target, run, start_method):
                     "name": some.str,
                     "request": "attach",
                     "subProcessId": some.int,
-                    "connect": {
-                        "host": some.str,
-                        "port": some.int,
-                    }
+                    "connect": {"host": some.str, "port": some.int},
                 }
             )
 
@@ -196,6 +191,9 @@ def test_subprocess(pyfile, target, run, subProcess):
 
     with debug.Session() as parent_session:
         backchannel = parent_session.open_backchannel()
+
+        parent_session.config["preLaunchTask"] = "doSomething"
+        parent_session.config["postDebugTask"] = "doSomethingElse"
         if subProcess is not None:
             parent_session.config["subProcess"] = subProcess
 
@@ -203,16 +201,14 @@ def test_subprocess(pyfile, target, run, subProcess):
             pass
 
         expected_child_config = dict(parent_session.config)
-        expected_child_config.pop("listen", None)
+        for key in "processId", "listen", "preLaunchTask", "postDebugTask":
+            expected_child_config.pop(key, None)
         expected_child_config.update(
             {
                 "name": some.str,
                 "request": "attach",
                 "subProcessId": some.int,
-                "connect": {
-                    "host": some.str,
-                    "port": some.int,
-                }
+                "connect": {"host": some.str, "port": some.int},
             }
         )
 
