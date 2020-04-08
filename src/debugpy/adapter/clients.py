@@ -43,7 +43,6 @@ class Client(components.Component):
             # that are going to be used for DAP communication from now on.
             sys.stdin = open(os.devnull, "r")
             sys.stdout = open(os.devnull, "w")
-            sys.stderr = open(os.devnull, "w")
         else:
             stream = messaging.JsonIOStream.from_socket(sock)
 
