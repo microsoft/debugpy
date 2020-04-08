@@ -20,6 +20,12 @@ __file__ = os.path.abspath(__file__)
 
 
 def main(args):
+    # If we're talking DAP over stdio, stderr is not guaranteed to be read from,
+    # so disable it to avoid the pipe filling and locking up. This must be done
+    # as early as possible, before the logging module starts writing to it.
+    if args.port is None:
+        sys.stderr = open(os.devnull, "w")
+
     from debugpy import adapter
     from debugpy.common import compat, log, sockets
     from debugpy.adapter import clients, servers, sessions
