@@ -32,7 +32,7 @@ class Client(components.Component):
             "locale": "en-US",
             "linesStartAt1": True,
             "columnsStartAt1": True,
-            "pathFormat": json.enum("path"),  # we don't support "uri"
+            "pathFormat": json.enum("path", optional=True),  # we don't support "uri"
         }
 
     def __init__(self, sock):
