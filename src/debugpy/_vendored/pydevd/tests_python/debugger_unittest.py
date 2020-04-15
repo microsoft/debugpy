@@ -749,11 +749,13 @@ class AbstractWriterThread(threading.Thread):
         dirname = os.path.dirname(dirname)
         return os.path.abspath(os.path.join(dirname, 'pydevconsole.py'))
 
-    def get_line_index_with_content(self, line_content):
+    def get_line_index_with_content(self, line_content, filename=None):
         '''
         :return the line index which has the given content (1-based).
         '''
-        with open(self.TEST_FILE, 'r') as stream:
+        if filename is None:
+            filename = self.TEST_FILE
+        with open(filename, 'r') as stream:
             for i_line, line in enumerate(stream):
                 if line_content in line:
                     return i_line + 1

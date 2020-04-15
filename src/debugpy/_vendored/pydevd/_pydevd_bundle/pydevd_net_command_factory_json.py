@@ -14,7 +14,7 @@ from _pydevd_bundle.pydevd_comm_constants import CMD_THREAD_CREATE, CMD_RETURN, 
     CMD_STEP_RETURN, CMD_STEP_CAUGHT_EXCEPTION, CMD_ADD_EXCEPTION_BREAK, CMD_SET_BREAK, \
     CMD_SET_NEXT_STATEMENT, CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION, \
     CMD_THREAD_RESUME_SINGLE_NOTIFICATION, CMD_THREAD_KILL, CMD_STOP_ON_START, CMD_INPUT_REQUESTED, \
-    CMD_EXIT, CMD_STEP_INTO_COROUTINE, constant_to_str, CMD_STEP_RETURN_MY_CODE
+    CMD_EXIT, CMD_STEP_INTO_COROUTINE, CMD_STEP_RETURN_MY_CODE
 from _pydevd_bundle.pydevd_constants import get_thread_id, dict_values, ForkSafeLock
 from _pydevd_bundle.pydevd_net_command import NetCommand, NULL_NET_COMMAND
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
@@ -23,7 +23,6 @@ import pydevd_file_utils
 from _pydevd_bundle.pydevd_comm import build_exception_info_response, pydevd_find_thread_by_id
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
 from _pydevd_bundle import pydevd_frame_utils
-from _pydev_bundle import pydev_log
 import linecache
 
 
@@ -210,7 +209,7 @@ class NetCommandFactoryJson(NetCommandFactory):
                 else:
                     frames_list = pydevd_frame_utils.create_frames_list_from_frame(topmost_frame)
 
-            for frame_id, frame, method_name, original_filename, filename_in_utf8, lineno in self._iter_visible_frames_info(
+            for frame_id, frame, method_name, original_filename, filename_in_utf8, lineno, applied_mapping in self._iter_visible_frames_info(
                     py_db, frames_list
                 ):
 
@@ -232,17 +231,17 @@ class NetCommandFactoryJson(NetCommandFactory):
                 formatted_name = self._format_frame_name(fmt, method_name, module_name, lineno, filename_in_utf8)
                 source_reference = pydevd_file_utils.get_client_filename_source_reference(filename_in_utf8)
 
-                if not source_reference:
-                    # Check if someone added a source reference to the linecache (Python attrs does this).
-                    if linecache.getline(original_filename, 0):
-                        source_reference = pydevd_file_utils.create_source_reference_for_linecache(
-                            original_filename, filename_in_utf8)
-
-                    if not source_reference:
-                        if getattr(frame.f_code, 'co_lnotab', None):
-                            if not os.path.exists(original_filename):
-                                # Create a source-reference to be used where we provide the source by decompiling the code.
-                                source_reference = pydevd_file_utils.create_source_reference_for_frame_id(frame_id)
+                if not source_reference and not applied_mapping and not os.path.exists(original_filename):
+                    if getattr(frame.f_code, 'co_lnotab', None):
+                        # Create a source-reference to be used where we provide the source by decompiling the code.
+                        # Note: When the time comes to retrieve the source reference in this case, we'll
+                        # check the linecache first (see: get_decompiled_source_from_frame_id).
+                        source_reference = pydevd_file_utils.create_source_reference_for_frame_id(frame_id)
+                    else:
+                        # Check if someone added a source reference to the linecache (Python attrs does this).
+                        if linecache.getline(original_filename, 1):
+                            source_reference = pydevd_file_utils.create_source_reference_for_linecache(
+                                original_filename)
 
                 frames.append(pydevd_schema.StackFrame(
                     frame_id, formatted_name, lineno, column=1, source={

@@ -76,10 +76,10 @@ def test_source_reference(tmpdir):
         # Client and server are on windows.
         pydevd_file_utils.setup_client_server_paths([('c:\\foo', 'c:\\bar')])
 
-        assert pydevd_file_utils.norm_file_to_client('c:\\bar\\my') == 'c:\\foo\\my'
+        assert pydevd_file_utils.norm_file_to_client('c:\\bar\\my') == ('c:\\foo\\my', True)
         assert pydevd_file_utils.get_client_filename_source_reference('c:\\foo\\my') == 0
 
-        assert pydevd_file_utils.norm_file_to_client('c:\\another\\my') == 'c:\\another\\my'
+        assert pydevd_file_utils.norm_file_to_client('c:\\another\\my') == ('c:\\another\\my', False)
         source_reference = pydevd_file_utils.get_client_filename_source_reference('c:\\another\\my')
         assert source_reference != 0
         assert pydevd_file_utils.get_server_filename_from_source_reference(source_reference) == 'c:\\another\\my'
@@ -90,10 +90,10 @@ def test_source_reference(tmpdir):
 
         pydevd_file_utils.setup_client_server_paths([('c:\\foo', '/bar')])
 
-        assert pydevd_file_utils.norm_file_to_client('/bar/my') == 'c:\\foo\\my'
+        assert pydevd_file_utils.norm_file_to_client('/bar/my') == ('c:\\foo\\my', True)
         assert pydevd_file_utils.get_client_filename_source_reference('c:\\foo\\my') == 0
 
-        assert pydevd_file_utils.norm_file_to_client('/another/my') == '\\another\\my'
+        assert pydevd_file_utils.norm_file_to_client('/another/my') == ('\\another\\my', False)
         source_reference = pydevd_file_utils.get_client_filename_source_reference('\\another\\my')
         assert source_reference != 0
         assert pydevd_file_utils.get_server_filename_from_source_reference(source_reference) == '/another/my'
@@ -104,8 +104,15 @@ def test_to_server_and_to_client(tmpdir):
 
         def check(obtained, expected):
             assert obtained == expected, '%s (%s) != %s (%s)' % (obtained, type(obtained), expected, type(expected))
-            assert isinstance(obtained, str)  # bytes on py2, unicode on py3
-            assert isinstance(expected, str)  # bytes on py2, unicode on py3
+            if isinstance(obtained, tuple):
+                assert isinstance(obtained[0], str)  # bytes on py2, unicode on py3
+            else:
+                assert isinstance(obtained, str)  # bytes on py2, unicode on py3
+
+            if isinstance(expected, tuple):
+                assert isinstance(expected[0], str)  # bytes on py2, unicode on py3
+            else:
+                assert isinstance(expected, str)  # bytes on py2, unicode on py3
 
         import pydevd_file_utils
         if IS_WINDOWS:
@@ -140,7 +147,7 @@ def test_to_server_and_to_client(tmpdir):
                 check(pydevd_file_utils.norm_file_to_server('c:/foo/my'), 'c:\\bar\\my')
                 check(pydevd_file_utils.norm_file_to_server('c:/foo/my/'), 'c:\\bar\\my')
                 check(pydevd_file_utils.norm_file_to_server('c:\\foo\\áéíóú'.upper()), 'c:\\bar\\áéíóú')
-                check(pydevd_file_utils.norm_file_to_client('c:\\bar\\my'), 'c:\\foo\\my')
+                check(pydevd_file_utils.norm_file_to_client('c:\\bar\\my'), ('c:\\foo\\my', True))
 
             # Client on unix and server on windows
             pydevd_file_utils.set_ide_os('UNIX')
@@ -158,10 +165,10 @@ def test_to_server_and_to_client(tmpdir):
                 ]
                 pydevd_file_utils.setup_client_server_paths(PATHS_FROM_ECLIPSE_TO_PYTHON)
                 check(pydevd_file_utils.norm_file_to_server('/foo/my'), 'c:\\bar\\my')
-                check(pydevd_file_utils.norm_file_to_client('c:\\bar\\my'), '/foo/my')
-                check(pydevd_file_utils.norm_file_to_client('c:\\bar\\my\\'), '/foo/my')
-                check(pydevd_file_utils.norm_file_to_client('c:/bar/my'), '/foo/my')
-                check(pydevd_file_utils.norm_file_to_client('c:/bar/my/'), '/foo/my')
+                check(pydevd_file_utils.norm_file_to_client('c:\\bar\\my'), ('/foo/my', True))
+                check(pydevd_file_utils.norm_file_to_client('c:\\bar\\my\\'), ('/foo/my', True))
+                check(pydevd_file_utils.norm_file_to_client('c:/bar/my'), ('/foo/my', True))
+                check(pydevd_file_utils.norm_file_to_client('c:/bar/my/'), ('/foo/my', True))
 
             # Test with 'real' files
             # Client and server are on windows.
@@ -178,13 +185,13 @@ def test_to_server_and_to_client(tmpdir):
             pydevd_file_utils.setup_client_server_paths(PATHS_FROM_ECLIPSE_TO_PYTHON)
 
             assert pydevd_file_utils.norm_file_to_server(in_eclipse) == in_python.lower()
-            found_in_eclipse = pydevd_file_utils.norm_file_to_client(in_python)
+            found_in_eclipse = pydevd_file_utils.norm_file_to_client(in_python)[0]
             assert found_in_eclipse.endswith('Bar')
 
             assert pydevd_file_utils.norm_file_to_server(
                 os.path.join(in_eclipse, 'another')) == os.path.join(in_python, 'another').lower()
             found_in_eclipse = pydevd_file_utils.norm_file_to_client(
-                os.path.join(in_python, 'another'))
+                os.path.join(in_python, 'another'))[0]
             assert found_in_eclipse.endswith('Bar\\Another')
 
             # Client on unix and server on windows
@@ -196,14 +203,14 @@ def test_to_server_and_to_client(tmpdir):
             ]
             pydevd_file_utils.setup_client_server_paths(PATHS_FROM_ECLIPSE_TO_PYTHON)
             assert pydevd_file_utils.norm_file_to_server('/foo').lower() == in_python.lower()
-            assert pydevd_file_utils.norm_file_to_client(in_python) == in_eclipse
+            assert pydevd_file_utils.norm_file_to_client(in_python) == (in_eclipse, True)
 
             # Test without translation in place (still needs to fix case and separators)
             pydevd_file_utils.set_ide_os('WINDOWS')
             PATHS_FROM_ECLIPSE_TO_PYTHON = []
             pydevd_file_utils.setup_client_server_paths(PATHS_FROM_ECLIPSE_TO_PYTHON)
             assert pydevd_file_utils.norm_file_to_server(test_dir) == test_dir.lower()
-            assert pydevd_file_utils.norm_file_to_client(test_dir).endswith('\\Foo')
+            assert pydevd_file_utils.norm_file_to_client(test_dir)[0].endswith('\\Foo')
         else:
             # Client on windows and server on unix
             pydevd_file_utils.set_ide_os('WINDOWS')
@@ -230,13 +237,13 @@ def test_to_server_and_to_client(tmpdir):
                 assert pydevd_file_utils.norm_file_to_server('c:\\foo\\my\\') == '/báéíóúr/my'
                 assert pydevd_file_utils.norm_file_to_server('c:/foo/my/') == '/báéíóúr/my'
 
-                assert pydevd_file_utils.norm_file_to_client('/báéíóúr/my') == 'c:\\foo\\my'
-                assert pydevd_file_utils.norm_file_to_client('/báéíóúr/my/') == 'c:\\foo\\my'
+                assert pydevd_file_utils.norm_file_to_client('/báéíóúr/my') == ('c:\\foo\\my', True)
+                assert pydevd_file_utils.norm_file_to_client('/báéíóúr/my/') == ('c:\\foo\\my', True)
 
                 # Files for which there's no translation have only their separators updated.
-                assert pydevd_file_utils.norm_file_to_client('/usr/bin/x.py') == '\\usr\\bin\\x.py'
-                assert pydevd_file_utils.norm_file_to_client('/usr/bin') == '\\usr\\bin'
-                assert pydevd_file_utils.norm_file_to_client('/usr/bin/') == '\\usr\\bin'
+                assert pydevd_file_utils.norm_file_to_client('/usr/bin/x.py') == ('\\usr\\bin\\x.py', False)
+                assert pydevd_file_utils.norm_file_to_client('/usr/bin') == ('\\usr\\bin', False)
+                assert pydevd_file_utils.norm_file_to_client('/usr/bin/') == ('\\usr\\bin', False)
                 assert pydevd_file_utils.norm_file_to_server('\\usr\\bin') == '/usr/bin'
                 assert pydevd_file_utils.norm_file_to_server('\\usr\\bin\\') == '/usr/bin'
 
@@ -255,7 +262,7 @@ def test_to_server_and_to_client(tmpdir):
             ]
             pydevd_file_utils.setup_client_server_paths(PATHS_FROM_ECLIPSE_TO_PYTHON)
             assert pydevd_file_utils.norm_file_to_server('/foo/my') == '/báéíóúr/my'
-            assert pydevd_file_utils.norm_file_to_client('/báéíóúr/my') == '/foo/my'
+            assert pydevd_file_utils.norm_file_to_client('/báéíóúr/my') == ('/foo/my', True)
     finally:
         pydevd_file_utils.setup_client_server_paths([])
 

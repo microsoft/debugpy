@@ -1223,7 +1223,7 @@ def build_exception_info_response(dbg, thread_id, request_seq, set_additional_th
                 exc_type = frames_list.exc_type
                 exc_desc = frames_list.exc_desc
                 trace_obj = frames_list.trace_obj
-                for frame_id, frame, method_name, original_filename, filename_in_utf8, lineno in iter_visible_frames_info(
+                for frame_id, frame, method_name, original_filename, filename_in_utf8, lineno, _applied_mapping in iter_visible_frames_info(
                         dbg, frames_list):
 
                     line_text = linecache.getline(original_filename, lineno)

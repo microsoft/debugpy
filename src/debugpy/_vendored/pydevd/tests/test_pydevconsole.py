@@ -98,10 +98,10 @@ class Test(unittest.TestCase):
                 if c[0] == 'RuntimeError':
                     self.fail('Did not expect to find RuntimeError there')
 
-            self.assertTrue(('__doc__', None, '', '3') not in interpreter.getCompletions('foo.CO', 'foo.'))
+            assert ('__doc__', None, '', '3') not in interpreter.getCompletions('foo.CO', 'foo.')
 
             comps = interpreter.getCompletions('va', 'va')
-            self.assertTrue(('val', '', '', '3') in comps or ('val', '', '', '4') in comps)
+            assert ('val', '', '', '3') in comps or ('val', '', '', '4') in comps
 
             interpreter.add_exec(CodeFragment('s = "mystring"'))
 

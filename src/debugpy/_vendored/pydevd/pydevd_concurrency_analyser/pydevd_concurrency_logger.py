@@ -52,10 +52,10 @@ def get_text_list_for_frame(frame):
 
             filename = pydevd_file_utils.get_abs_path_real_path_and_base_from_frame(curFrame)[1]
 
-            myFile = pydevd_file_utils.norm_file_to_client(filename)
+            my_file, _applied_mapping = pydevd_file_utils.norm_file_to_client(filename)
 
-            # print "file is ", myFile
-            # myFile = inspect.getsourcefile(curFrame) or inspect.getfile(frame)
+            # print "file is ", my_file
+            # my_file = inspect.getsourcefile(curFrame) or inspect.getfile(frame)
 
             myLine = str(curFrame.f_lineno)
             # print "line is ", myLine
@@ -65,7 +65,7 @@ def get_text_list_for_frame(frame):
 
             variables = ''
             cmdTextList.append('<frame id="%s" name="%s" ' % (myId , pydevd_xml.make_valid_xml_value(myName)))
-            cmdTextList.append('file="%s" line="%s">' % (quote(myFile, '/>_= \t'), myLine))
+            cmdTextList.append('file="%s" line="%s">' % (quote(my_file, '/>_= \t'), myLine))
             cmdTextList.append(variables)
             cmdTextList.append("</frame>")
             curFrame = curFrame.f_back

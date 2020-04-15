@@ -75,15 +75,17 @@ class SourceMapping(object):
                 return 'Cannot apply mapping from %s to %s (it conflicts with mapping: %s to %s)' % (
                     source_filename, map_entry.runtime_source, existing_source_filename, map_entry.runtime_source)
 
-        current_mapping = self._mappings_to_server.get(source_filename, [])
-        for map_entry in current_mapping:
-            del self._mappings_to_client[map_entry.runtime_source]
+        try:
+            current_mapping = self._mappings_to_server.get(source_filename, [])
+            for map_entry in current_mapping:
+                del self._mappings_to_client[map_entry.runtime_source]
 
-        self._mappings_to_server[source_filename] = sorted(mapping, key=lambda entry:entry.line)
+            self._mappings_to_server[source_filename] = sorted(mapping, key=lambda entry:entry.line)
 
-        for map_entry in mapping:
-            self._mappings_to_client[map_entry.runtime_source] = source_filename
-
+            for map_entry in mapping:
+                self._mappings_to_client[map_entry.runtime_source] = source_filename
+        finally:
+            self._cache.clear()
         return ''
 
     def map_to_client(self, filename, lineno):
@@ -96,9 +98,11 @@ class SourceMapping(object):
                 for map_entry in mapping:
                     if map_entry.runtime_source == filename:
                         if map_entry.contains_runtime_line(lineno):
-                            return source_filename, map_entry.line + (lineno - map_entry.runtime_line), True
+                            self._cache[key] = (source_filename, map_entry.line + (lineno - map_entry.runtime_line), True)
+                            return self._cache[key]
 
-            return filename, lineno, False
+            self._cache[key] = (filename, lineno, False)
+            return self._cache[key]
 
     def map_to_server(self, filename, lineno):
         # Note: the filename must be already normalized to the server at this point.
