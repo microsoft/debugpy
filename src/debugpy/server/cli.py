@@ -26,7 +26,8 @@ TARGET = "<filename> | -m <module> | -c <code> | --pid <pid>"
 HELP = """debugpy {0}
 See https://aka.ms/debugpy for documentation.
 
-Usage: debugpy [--listen | --connect] [<address>:]<port>
+Usage: debugpy --listen | --connect
+               [<host>:]<port>
                [--wait-for-client]
                [--configure-<name> <value>]...
                [--log-to <path>] [--log-to-stderr]
@@ -156,11 +157,11 @@ switches = [
     ("--log-to" ,               "<path>",           set_arg("log_to")),
     ("--log-to-stderr",         None,               set_const("log_to_stderr", True)),
     ("--listen",                "<address>",        set_address("listen")),
+    ("--connect",               "<address>",        set_address("connect")),
     ("--wait-for-client",       None,               set_const("wait_for_client", True)),
     ("--configure-.+",          "<value>",          set_config),
 
     # Switches that are used internally by the client or debugpy itself.
-    ("--connect",               "<address>",        set_address("connect")),
     ("--adapter-access-token",   "<token>",         set_arg("adapter_access_token")),
 
     # Targets. The "" entry corresponds to positional command line arguments,
