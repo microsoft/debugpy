@@ -943,8 +943,10 @@ def test_case_path_translation_not_skipped(case_setup):
 
         json_hit = json_facade.wait_for_thread_stopped(line=bp_line)
 
-        assert json_hit.stack_trace_response.body.stackFrames[-1]['source']['path'] == \
-            os.path.join(sys_folder, 'my_code.py')
+        stack_frame = json_hit.stack_trace_response.body.stackFrames[-1]
+        assert stack_frame['source']['path'] == os.path.join(sys_folder, 'my_code.py')
+        for stack_frame in json_hit.stack_trace_response.body.stackFrames:
+            assert stack_frame['source']['sourceReference'] == 0
         json_facade.write_continue()
 
         writer.finished_ok = True
@@ -2223,6 +2225,9 @@ def test_stepping(case_setup):
 
         # Test Step-Over or 'next'
         stack_trace_response = json_hit.stack_trace_response
+        for stack_frame in stack_trace_response.body.stackFrames:
+            assert stack_frame['source']['sourceReference'] == 0
+
         stack_frame = next(iter(stack_trace_response.body.stackFrames))
         before_step_over_line = stack_frame['line']
 
@@ -2619,13 +2624,17 @@ def test_source_mapping_errors(case_setup):
         writer.finished_ok = True
 
 
-def test_source_mapping(case_setup):
+@pytest.mark.parametrize(
+    'target',
+    ['_debugger_case_source_mapping.py', '_debugger_case_source_mapping_and_reference.py']
+)
+def test_source_mapping(case_setup, target):
     from _pydevd_bundle._debug_adapter.pydevd_schema import Source
     from _pydevd_bundle._debug_adapter.pydevd_schema import PydevdSourceMap
 
     case_setup.check_non_ascii = True
 
-    with case_setup.test_file('_debugger_case_source_mapping.py') as writer:
+    with case_setup.test_file(target) as writer:
         json_facade = JsonFacade(writer)
 
         json_facade.write_launch(
@@ -2657,13 +2666,18 @@ def test_source_mapping(case_setup):
 
         json_facade.write_make_initial_run()
 
-        json_facade.wait_for_thread_stopped(line=map_to_cell_1_line2, file=os.path.basename(test_file))
+        json_hit = json_facade.wait_for_thread_stopped(line=map_to_cell_1_line2, file=os.path.basename(test_file))
+        for stack_frame in json_hit.stack_trace_response.body.stackFrames:
+            assert stack_frame['source']['sourceReference'] == 0
+
         # Check that we no longer stop at the cell1 breakpoint (its mapping should be removed when
         # the new one is added and we should only stop at cell2).
         json_facade.write_set_breakpoints(map_to_cell_2_line2)
+        for stack_frame in json_hit.stack_trace_response.body.stackFrames:
+            assert stack_frame['source']['sourceReference'] == 0
         json_facade.write_continue()
 
-        json_facade.wait_for_thread_stopped(line=map_to_cell_2_line2, file=os.path.basename(test_file))
+        json_hit = json_facade.wait_for_thread_stopped(line=map_to_cell_2_line2, file=os.path.basename(test_file))
         json_facade.write_set_breakpoints([])  # Clears breakpoints
         json_facade.write_continue()
 
@@ -3117,6 +3131,29 @@ def test_source_reference_no_file(case_setup, tmpdir):
 
         response = json_facade.write_get_source(source_reference)
         assert response.body.content == 'foo()\n'
+
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
+def test_linecache_json_existing_file(case_setup, tmpdir):
+
+    with case_setup.test_file('_debugger_case_linecache_existing_file.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch(justMyCode=False)
+
+        debugger_case_stepping_filename = debugger_unittest._get_debugger_test_file('_debugger_case_stepping.py')
+        bp_line = writer.get_line_index_with_content('Break here 1', filename=debugger_case_stepping_filename)
+        json_facade.write_set_breakpoints(bp_line, filename=debugger_case_stepping_filename)
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        stack_trace_response_body = json_hit.stack_trace_response.body
+        for stack_frame in stack_trace_response_body.stackFrames:
+            source_reference = stack_frame['source']['sourceReference']
+            assert source_reference == 0
 
         json_facade.write_continue()
         writer.finished_ok = True

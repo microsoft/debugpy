@@ -529,7 +529,7 @@ def _original_file_to_client(filename, cache={}):
         return cache[filename]
     except KeyError:
         translated = _path_to_expected_str(get_path_with_real_case(_AbsFile(filename)))
-        cache[filename] = translated
+        cache[filename] = (translated, False)
     return cache[filename]
 
 
@@ -726,7 +726,7 @@ def setup_client_server_paths(paths):
 
             # The resulting path is not in the python process, so, we cannot do a _NormFile here,
             # only at the beginning of this method.
-            cache[filename] = translated
+            cache[filename] = (translated, path_mapping_applied)
 
             if translated not in _client_filename_in_utf8_to_source_reference:
                 if path_mapping_applied:
@@ -736,7 +736,7 @@ def setup_client_server_paths(paths):
                 _client_filename_in_utf8_to_source_reference[translated] = source_reference
                 _source_reference_to_server_filename[source_reference] = filename
 
-            return translated
+            return (translated, path_mapping_applied)
 
     norm_file_to_server = _norm_file_to_server
     norm_file_to_client = _norm_file_to_client
