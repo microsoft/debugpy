@@ -490,8 +490,7 @@ class BaseInterpreterInterface:
         if val_dict is None:
             val_dict = {}
 
-        keys = val_dict.keys()
-        for k in keys:
+        for k, val in dict_iter_items(val_dict):
             val = val_dict[k]
             evaluate_full_value = pydevd_xml.should_evaluate_full_value(val)
             xml.write(pydevd_vars.var_to_xml(val, k, evaluate_full_value=evaluate_full_value))

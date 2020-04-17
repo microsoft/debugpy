@@ -511,6 +511,15 @@ class DebuggerRunner(object):
                 yield dct_with_stdout_stder
             except:
                 fail_with_message = True
+                # Let's print the actuayl exception here (it doesn't appear properly on Python 2 and
+                # on Python 3 it's hard to find because pytest output is too verbose).
+                sys.stderr.write('***********\n')
+                sys.stderr.write('***********\n')
+                sys.stderr.write('***********\n')
+                traceback.print_exc()
+                sys.stderr.write('***********\n')
+                sys.stderr.write('***********\n')
+                sys.stderr.write('***********\n')
                 raise
 
             if not writer.finished_ok:

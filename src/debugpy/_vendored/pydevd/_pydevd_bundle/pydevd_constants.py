@@ -18,6 +18,12 @@ try:
 except NameError:
     int_types = (int,)
 
+# types does not include a MethodWrapperType
+try:
+    MethodWrapperType = type([].__str__)
+except:
+    MethodWrapperType = None
+
 import sys  # Note: the sys import must be here anyways (others depend on it)
 
 # Preload codecs to avoid imports to them later on which can potentially halt the debugger.

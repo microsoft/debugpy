@@ -7,7 +7,8 @@ from _pydevd_bundle.pydevd_constants import dict_iter_items, dict_keys, IS_PY3K,
     DEFAULT_VALUE
 from _pydev_bundle.pydev_imports import quote
 from _pydevd_bundle.pydevd_extension_api import TypeResolveProvider, StrPresentationProvider
-from _pydevd_bundle.pydevd_utils import isinstance_checked, hasattr_checked
+from _pydevd_bundle.pydevd_utils import isinstance_checked, hasattr_checked, DAPGrouper
+from _pydevd_bundle.pydevd_resolver import get_var_scope
 
 try:
     import types
@@ -61,6 +62,8 @@ def _create_default_type_map():
         default_type_map.append((unicode, None))  # @UndefinedVariable
     except:
         pass  # not available on all python versions
+
+    default_type_map.append((DAPGrouper, pydevd_resolver.dapGrouperResolver))
 
     try:
         default_type_map.append((set, pydevd_resolver.setResolver))
@@ -213,13 +216,13 @@ _TYPE_RESOLVE_HANDLER = TypeResolveHandler()
 
 """
 def get_type(o):
-    Receives object and returns a triple (typeObject, typeString, resolver).
+    Receives object and returns a triple (type_object, type_string, resolver).
 
     resolver != None means that variable is a container, and should be displayed as a hierarchy.
 
     Use the resolver to get its attributes.
 
-    All container objects should have a resolver.
+    All container objects (i.e.: dict, list, tuple, object, etc) should have a resolver.
 """
 get_type = _TYPE_RESOLVE_HANDLER.get_type
 
@@ -259,6 +262,9 @@ def frame_vars_to_xml(frame_f_locals, hidden_ns=None):
         try:
             v = frame_f_locals[k]
             eval_full_val = should_evaluate_full_value(v)
+
+            if k == '_pydev_stop_at_break':
+                continue
 
             if k == RETURN_VALUES_DICT:
                 for name, val in dict_iter_items(v):
@@ -354,6 +360,7 @@ def var_to_xml(val, name, trim_if_too_big=True, additional_in_xml='', evaluate_f
     type_name, type_qualifier, is_exception_on_eval, resolver, value = get_variable_details(
         val, evaluate_full_value)
 
+    scope = get_var_scope(name, val, '', True)
     try:
         name = quote(name, '/>_= ')  # TODO: Fix PY-5834 without using quote
     except:
@@ -384,4 +391,7 @@ def var_to_xml(val, name, trim_if_too_big=True, additional_in_xml='', evaluate_f
         else:
             xml_container = ''
 
-    return ''.join((xml, xml_qualifier, xml_value, xml_container, additional_in_xml, ' />\n'))
+    if scope:
+        return ''.join((xml, xml_qualifier, xml_value, xml_container, additional_in_xml, ' scope="', scope, '"', ' />\n'))
+    else:
+        return ''.join((xml, xml_qualifier, xml_value, xml_container, additional_in_xml, ' />\n'))

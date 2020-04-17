@@ -17,12 +17,13 @@ from _pydevd_bundle._debug_adapter.pydevd_schema import (ThreadEvent, ModuleEven
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
 from _pydevd_bundle.pydevd_constants import (int_types, IS_64BIT_PROCESS,
     PY_VERSION_STR, PY_IMPL_VERSION_STR, PY_IMPL_NAME, IS_PY36_OR_GREATER, IS_PY39_OR_GREATER,
-    IS_PY37_OR_GREATER)
+    IS_PY37_OR_GREATER, IS_PYPY)
 from tests_python import debugger_unittest
 from tests_python.debug_constants import TEST_CHERRYPY, IS_PY2, TEST_DJANGO, TEST_FLASK, IS_PY26, \
     IS_PY27, IS_CPYTHON, TEST_GEVENT
 from tests_python.debugger_unittest import (IS_JYTHON, IS_APPVEYOR, overrides,
     get_free_port, wait_for_condition)
+from _pydevd_bundle.pydevd_utils import DAPGrouper
 
 pytest_plugins = [
     str('tests_python.debugger_fixtures'),
@@ -108,7 +109,7 @@ class JsonFacade(object):
 
     def write_make_initial_run(self):
         if not self._sent_launch_or_attach:
-            self.write_launch()
+            self._auto_write_launch()
 
         configuration_done_request = self.write_request(pydevd_schema.ConfigurationDoneRequest())
         return self.wait_for_response(configuration_done_request)
@@ -160,7 +161,7 @@ class JsonFacade(object):
         Adds a breakpoint.
         '''
         if send_launch_if_needed and not self._sent_launch_or_attach:
-            self.write_launch()
+            self._auto_write_launch()
 
         if isinstance(lines, int):
             lines = [lines]
@@ -239,6 +240,12 @@ class JsonFacade(object):
         arguments['noDebug'] = False
         request = {'type': 'request', 'command': command, 'arguments': arguments, 'seq':-1}
         self.wait_for_response(self.write_request(request))
+
+    def _auto_write_launch(self):
+        self.write_launch(variablePresentation={
+            "all": "hide",
+            "protected": "inline",
+        })
 
     def write_launch(self, **arguments):
         return self._write_launch_or_attach('launch', **arguments)
@@ -357,8 +364,8 @@ class JsonFacade(object):
         scopes = scopes_response.body.scopes
         name_to_scopes = dict((scope['name'], pydevd_schema.Scope(**scope)) for scope in scopes)
 
-        assert len(scopes) == 1
-        assert sorted(name_to_scopes.keys()) == ['Locals']
+        assert len(scopes) == 2
+        assert sorted(name_to_scopes.keys()) == ['Globals', 'Locals']
         assert not name_to_scopes['Locals'].expensive
 
         return name_to_scopes
@@ -372,8 +379,18 @@ class JsonFacade(object):
 
         return self.get_name_to_var(name_to_scope['Locals'].variablesReference)
 
+    def get_globals_name_to_var(self, frame_id):
+        name_to_scope = self.get_name_to_scope(frame_id)
+
+        return self.get_name_to_var(name_to_scope['Globals'].variablesReference)
+
     def get_local_var(self, frame_id, var_name):
         ret = self.get_locals_name_to_var(frame_id)[var_name]
+        assert ret.name == var_name
+        return ret
+
+    def get_global_var(self, frame_id, var_name):
+        ret = self.get_globals_name_to_var(frame_id)[var_name]
         assert ret.name == var_name
         return ret
 
@@ -1205,7 +1222,7 @@ def test_dict_ordered(case_setup):
         # : :type variables_response: VariablesResponse
 
         variables_response = json_facade.get_variables_response(ref)
-        assert [(d['name'], d['value']) for d in variables_response.body.variables if not d['name'].startswith('_OrderedDict')] == [
+        assert [(d['name'], d['value']) for d in variables_response.body.variables if (not d['name'].startswith('_OrderedDict')) and (d['name'] not in DAPGrouper.SCOPES_SORTED)] == [
             ('4', "'first'"), ('3', "'second'"), ('2', "'last'"), ('__len__', '3')]
 
         json_facade.write_continue()
@@ -1255,7 +1272,8 @@ def test_stack_and_variables_dict(case_setup):
         ]
 
         variables_response = json_facade.get_variables_response(dict_variable_reference)
-        assert variables_response.body.variables == [
+        check = [x for x in variables_response.body.variables if x['name'] not in DAPGrouper.SCOPES_SORTED]
+        assert check == [
             {'name': "'a'", 'value': '30', 'type': 'int', 'evaluateName': "variable_for_test_3['a']", 'variablesReference': 0 },
             {'name': "'b'", 'value': '20', 'type': 'int', 'evaluateName': "variable_for_test_3['b']", 'variablesReference': 0},
             {'name': '__len__', 'value': '2', 'type': 'int', 'evaluateName': 'len(variable_for_test_3)', 'variablesReference': 0, 'presentationHint': {'attributes': ['readOnly']}}
@@ -1420,7 +1438,8 @@ def test_stack_and_variables_set_and_list(case_setup):
     with case_setup.test_file('_debugger_case_local_variables2.py') as writer:
         json_facade = JsonFacade(writer)
 
-        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'))
+        json_facade.write_launch()
+        json_facade.write_set_breakpoints(writer.get_line_index_with_content('Break here'))
         json_facade.write_make_initial_run()
 
         json_hit = json_facade.wait_for_thread_stopped()
@@ -1438,7 +1457,13 @@ def test_stack_and_variables_set_and_list(case_setup):
         ]
 
         variables_response = json_facade.get_variables_response(variables_references[0])
-        assert variables_response.body.variables == [{
+        cleaned_vars = _clear_groups(variables_response.body.variables)
+        if IS_PYPY:
+            # Functions are not found in PyPy.
+            assert cleaned_vars.groups_found == set([DAPGrouper.SCOPE_SPECIAL_VARS])
+        else:
+            assert cleaned_vars.groups_found == set([DAPGrouper.SCOPE_SPECIAL_VARS, DAPGrouper.SCOPE_FUNCTION_VARS])
+        assert cleaned_vars.variables == [{
             u'name': u'0',
             u'type': u'str',
             u'value': u"'a'",
@@ -1467,12 +1492,29 @@ def test_stack_and_variables_set_and_list(case_setup):
         writer.finished_ok = True
 
 
+_CleanedVars = namedtuple('_CleanedVars', 'variables, groups_found')
+
+
+def _clear_groups(variables):
+    groups_found = set()
+    new_variables = []
+    for v in variables:
+        if v['name'] in DAPGrouper.SCOPES_SORTED:
+            groups_found.add(v['name'])
+            continue
+
+        else:
+            new_variables.append(v)
+
+    return _CleanedVars(new_variables, groups_found)
+
+
 @pytest.mark.skipif(IS_JYTHON, reason='Putting unicode on frame vars does not work on Jython.')
 def test_evaluate_unicode(case_setup):
     with case_setup.test_file('_debugger_case_local_variables.py') as writer:
         json_facade = JsonFacade(writer)
 
-        writer.write_add_breakpoint(writer.get_line_index_with_content('Break 2 here'))
+        json_facade.write_set_breakpoints(writer.get_line_index_with_content('Break 2 here'))
         json_facade.write_make_initial_run()
 
         json_hit = json_facade.wait_for_thread_stopped()
@@ -3062,8 +3104,9 @@ def test_path_translation_and_source_reference(case_setup):
         assert source_reference == 0  # When it's translated the source reference must be == 0
 
         stack_frame_not_path_translated = stack_trace_response_body.stackFrames[1]
-        assert stack_frame_not_path_translated['name'].startswith(
-            'tests_python.resource_path_translation.other.call_me_back1 :')
+        if not stack_frame_not_path_translated['name'].startswith(
+            'tests_python.resource_path_translation.other.call_me_back1 :'):
+            raise AssertionError('Error. Found: >>%s<<.' % (stack_frame_not_path_translated['name'],))
 
         assert stack_frame_not_path_translated['source']['path'].endswith('other.py')
         source_reference = stack_frame_not_path_translated['source']['sourceReference']
@@ -3241,10 +3284,16 @@ def test_case_django_no_attribute_exception_breakpoint(case_setup_django, jmc):
 
         if jmc:
             writer.write_set_project_roots([debugger_unittest._get_debugger_test_file('my_code')])
-            json_facade.write_launch(debugOptions=['Django'])
+            json_facade.write_launch(debugOptions=['Django'], variablePresentation={
+                "all": "hide",
+                "protected": "inline",
+            })
             json_facade.write_set_exception_breakpoints(['raised'])
         else:
-            json_facade.write_launch(debugOptions=['DebugStdLib', 'Django'])
+            json_facade.write_launch(debugOptions=['DebugStdLib', 'Django'], variablePresentation={
+                "all": "hide",
+                "protected": "inline",
+            })
             # Don't set to all 'raised' because we'd stop on standard library exceptions here
             # (which is not something we want).
             json_facade.write_set_exception_breakpoints(exception_options=[
@@ -4070,6 +4119,63 @@ def test_send_json_message(case_setup):
 
         json_facade.wait_for_json_message(
             OutputEvent, lambda msg: msg.body.category == 'my_category2' and msg.body.output == 'some output 2')
+
+        writer.finished_ok = True
+
+
+def test_global_scope(case_setup):
+    with case_setup.test_file('_debugger_case_globals.py') as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_set_breakpoints(writer.get_line_index_with_content('breakpoint here'))
+
+        json_facade.write_make_initial_run()
+        json_hit = json_facade.wait_for_thread_stopped()
+
+        local_var = json_facade.get_global_var(json_hit.frame_id, 'in_global_scope')
+        assert local_var.value == "'in_global_scope_value'"
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
+def _check_inline_var_presentation(json_facade, json_hit, variables_response):
+    var_names = [v['name'] for v in variables_response.body.variables]
+    assert var_names[:3] == ['SomeClass', 'in_global_scope', '__builtins__']
+
+
+def _check_hide_var_presentation(json_facade, json_hit, variables_response):
+    var_names = [v['name'] for v in variables_response.body.variables]
+    assert var_names == ['in_global_scope']
+
+
+def _check_class_group_special_inline_presentation(json_facade, json_hit, variables_response):
+    var_names = [v['name'] for v in variables_response.body.variables]
+    assert var_names[:3] == ['class variables', 'in_global_scope', '__builtins__']
+
+    variables_response = json_facade.get_variables_response(variables_response.body.variables[0]['variablesReference'])
+    var_names = [v['name'] for v in variables_response.body.variables]
+    assert var_names == ['SomeClass']
+
+
+@pytest.mark.parametrize('var_presentation, check_func', [
+    ({"all": "inline"}, _check_inline_var_presentation),
+    ({"all": "hide"}, _check_hide_var_presentation),
+    ({"class": "group", "special": "inline"}, _check_class_group_special_inline_presentation),
+])
+def test_variable_presentation(case_setup, var_presentation, check_func):
+    with case_setup.test_file('_debugger_case_globals.py') as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(variablePresentation=var_presentation)
+        json_facade.write_set_breakpoints(writer.get_line_index_with_content('breakpoint here'))
+
+        json_facade.write_make_initial_run()
+        json_hit = json_facade.wait_for_thread_stopped()
+        name_to_scope = json_facade.get_name_to_scope(json_hit.frame_id)
+
+        variables_response = json_facade.get_variables_response(name_to_scope['Globals'].variablesReference)
+        check_func(json_facade, json_hit, variables_response)
+
+        json_facade.write_continue()
 
         writer.finished_ok = True
 

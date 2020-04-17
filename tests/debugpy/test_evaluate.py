@@ -60,6 +60,7 @@ def test_variables(pyfile, target, run):
         print([a, b, c])  # @bp
 
     with debug.Session() as session:
+        session.config["variablePresentation"] = {"all": "hide", "protected": "inline"}
         with run(session, target(code_to_debug)):
             session.set_breakpoints(code_to_debug, all)
 
@@ -134,6 +135,10 @@ def test_variable_sort(pyfile, target, run):
         print("done")  # @bp
 
     with debug.Session() as session:
+        session.config["variablePresentation"] = {
+            "special": "group",
+            "protected": "inline",
+        }
         with run(session, target(code_to_debug)):
             session.set_breakpoints(code_to_debug, all)
 
@@ -155,10 +160,17 @@ def test_variable_sort(pyfile, target, run):
             "__a_test",
             "__b_test",
             "__c_test",
-            "__a_test__",
-            "__b_test__",
-            "__c_test__",
         ]
+
+        special_vars_entry = [v for v in vars if v["name"] == "special variables"][0]
+        special_vars_variables = session.request(
+            "variables",
+            {"variablesReference": special_vars_entry["variablesReference"]},
+        )["variables"]
+        special_vars_variables = [
+            v["name"] for v in special_vars_variables if "_test" in v["name"]
+        ]
+        assert special_vars_variables == ["__a_test__", "__b_test__", "__c_test__"]
 
         # String dict keys must be sorted as strings.
         b_test, = (v for v in vars if v["name"] == "b_test")
@@ -167,9 +179,26 @@ def test_variable_sort(pyfile, target, run):
         )["variables"]
         var_names = [v["name"] for v in b_test_vars]
         if sys.version_info[:2] >= (3, 6):
-            assert var_names == ["'spam'", "'eggs'", "'abcd'", "__len__"]
+            # Note that the special __len__ we manually create is not added to special variables.
+            expected = [
+                "special variables",
+                "function variables",
+                "'spam'",
+                "'eggs'",
+                "'abcd'",
+                "__len__",
+            ]
         else:
-            assert var_names == ["'abcd'", "'eggs'", "'spam'", "__len__"]
+            expected = [
+                "special variables",
+                "function variables",
+                "'abcd'",
+                "'eggs'",
+                "'spam'",
+                "__len__",
+            ]
+
+        assert var_names == expected
 
         # Numeric dict keys must be sorted as numbers.
         if not "https://github.com/microsoft/ptvsd/issues/213":
@@ -178,7 +207,10 @@ def test_variable_sort(pyfile, target, run):
                 "variables", {"variablesReference": c_test["variablesReference"]}
             )["variables"]
             var_names = [v["name"] for v in c_test_vars]
-            assert var_names == ["1", "2", "10", "__len__"]
+            # Note that the special __len__ we manually create is not added to special variables.
+            expected = ["1", "2", "10", "__len__"]
+
+            assert var_names == expected
 
         session.request_continue()
 
@@ -301,6 +333,8 @@ def test_hex_numbers(pyfile, target, run):
         print((a, b, c, d))  # @bp
 
     with debug.Session() as session:
+        session.config["variablePresentation"] = {"all": "hide", "protected": "inline"}
+
         with run(session, target(code_to_debug)):
             session.set_breakpoints(code_to_debug, all)
 
@@ -479,7 +513,6 @@ def test_hex_numbers(pyfile, target, run):
                     }
                 ),
             ]
-
 
         d_vars = session.request(
             "variables",

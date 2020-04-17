@@ -481,6 +481,8 @@ class PyDB(object):
         # Set communication protocol
         PyDevdAPI().set_protocol(self, 0, PydevdCustomization.DEFAULT_PROTOCOL)
 
+        self.variable_presentation = PyDevdAPI.VariablePresentation()
+
         # mtime to be raised when breakpoints change
         self.mtime = 0
 
