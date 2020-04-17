@@ -76,7 +76,7 @@ def getVariable(dbg, thread_id, frame_id, scope, attrs):
                     if attrs is not None:
                         attrList = attrs.split('\t')
                         for k in attrList:
-                            _type, _typeName, resolver = get_type(var)
+                            _type, _type_name, resolver = get_type(var)
                             var = resolver.resolve(var, k)
 
                     return var
@@ -103,7 +103,7 @@ def getVariable(dbg, thread_id, frame_id, scope, attrs):
                 # An Expression can be in any scope (globals/locals), therefore it needs to evaluated as an expression
                 var = evaluate_expression(dbg, frame, attrList[count], False)
             else:
-                _type, _typeName, resolver = get_type(var)
+                _type, _type_name, resolver = get_type(var)
                 var = resolver.resolve(var, attrList[count])
     else:
         if scope == "GLOBAL":
@@ -116,7 +116,7 @@ def getVariable(dbg, thread_id, frame_id, scope, attrs):
             var.update(frame.f_locals)
 
         for k in attrList:
-            _type, _typeName, resolver = get_type(var)
+            _type, _type_name, resolver = get_type(var)
             var = resolver.resolve(var, k)
 
     return var
@@ -137,8 +137,8 @@ def resolve_compound_variable_fields(dbg, thread_id, frame_id, scope, attrs):
     var = getVariable(dbg, thread_id, frame_id, scope, attrs)
 
     try:
-        _type, _typeName, resolver = get_type(var)
-        return _typeName, resolver.get_dictionary(var)
+        _type, type_name, resolver = get_type(var)
+        return type_name, resolver.get_dictionary(var)
     except:
         pydev_log.exception('Error evaluating: thread_id: %s\nframe_id: %s\nscope: %s\nattrs: %s.',
             thread_id, frame_id, scope, attrs)
@@ -157,7 +157,7 @@ def resolve_var_object(var, attrs):
     else:
         attr_list = []
     for k in attr_list:
-        type, _typeName, resolver = get_type(var)
+        type, _type_name, resolver = get_type(var)
         var = resolver.resolve(var, k)
     return var
 
@@ -173,11 +173,11 @@ def resolve_compound_var_object_fields(var, attrs):
     attr_list = attrs.split('\t')
 
     for k in attr_list:
-        type, _typeName, resolver = get_type(var)
+        type, _type_name, resolver = get_type(var)
         var = resolver.resolve(var, k)
 
     try:
-        type, _typeName, resolver = get_type(var)
+        type, _type_name, resolver = get_type(var)
         return resolver.get_dictionary(var)
     except:
         pydev_log.exception()

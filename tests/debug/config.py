@@ -69,6 +69,7 @@ class DebugConfig(collections.MutableMapping):
         "connect": (),
         # Attach by PID
         "processId": (),
+        "variablePresentation": {},
     }
 
     def __init__(self, *args, **kwargs):

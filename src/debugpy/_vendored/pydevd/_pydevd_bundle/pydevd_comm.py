@@ -96,7 +96,7 @@ from _pydevd_bundle import pydevd_vm_type
 import sys
 import traceback
 from _pydevd_bundle.pydevd_utils import quote_smart as quote, compare_object_attrs_key, \
-    notify_about_gevent_if_needed, isinstance_checked
+    notify_about_gevent_if_needed, isinstance_checked, ScopeRequest
 from _pydev_bundle import pydev_log
 from _pydev_bundle.pydev_log import exception as pydev_log_exception
 from _pydev_bundle import _pydev_completer
@@ -729,6 +729,11 @@ def internal_get_variable_json(py_db, request):
     '''
     arguments = request.arguments  # : :type arguments: VariablesArguments
     variables_reference = arguments.variablesReference
+    scope = None
+    if isinstance_checked(variables_reference, ScopeRequest):
+        scope = variables_reference
+        variables_reference = variables_reference.variable_reference
+
     fmt = arguments.format
     if hasattr(fmt, 'to_dict'):
         fmt = fmt.to_dict()
@@ -739,7 +744,7 @@ def internal_get_variable_json(py_db, request):
     except KeyError:
         pass
     else:
-        for child_var in variable.get_children_variables(fmt=fmt):
+        for child_var in variable.get_children_variables(fmt=fmt, scope=scope):
             variables.append(child_var.get_var_data(fmt=fmt))
 
     body = VariablesResponseBody(variables)
@@ -844,6 +849,11 @@ def internal_change_variable_json(py_db, request):
     # : :type arguments: SetVariableArguments
     arguments = request.arguments
     variables_reference = arguments.variablesReference
+    scope = None
+    if isinstance_checked(variables_reference, ScopeRequest):
+        scope = variables_reference
+        variables_reference = variables_reference.variable_reference
+
     fmt = arguments.format
     if hasattr(fmt, 'to_dict'):
         fmt = fmt.to_dict()

@@ -707,7 +707,7 @@ def test_case_15(case_setup):
         writer.finished_ok = True
 
 
-def test_case_16(case_setup):
+def test_case_16_resolve_numpy_array(case_setup):
     # numpy.ndarray resolver
     try:
         import numpy

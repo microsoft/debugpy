@@ -12,7 +12,7 @@ def test_dict_resolver():
     from _pydevd_bundle.pydevd_resolver import DictResolver
     dict_resolver = DictResolver()
     dct = {(1, 2): 2, u'22': 22}
-    contents_debug_adapter_protocol = dict_resolver.get_contents_debug_adapter_protocol(dct)
+    contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(dict_resolver.get_contents_debug_adapter_protocol(dct))
     len_entry = contents_debug_adapter_protocol.pop(-1)
     check_len_entry(len_entry, ('__len__', 2))
     if IS_PY36_OR_GREATER:
@@ -31,7 +31,8 @@ def test_dict_resolver_hex():
     from _pydevd_bundle.pydevd_resolver import DictResolver
     dict_resolver = DictResolver()
     dct = {(1, 10, 100): (10000, 100000, 100000)}
-    contents_debug_adapter_protocol = dict_resolver.get_contents_debug_adapter_protocol(dct, fmt={'hex': True})
+    contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(
+        dict_resolver.get_contents_debug_adapter_protocol(dct, fmt={'hex': True}))
     len_entry = contents_debug_adapter_protocol.pop(-1)
     check_len_entry(len_entry, ('__len__', 1))
     assert contents_debug_adapter_protocol == [
@@ -49,10 +50,10 @@ def test_object_resolver_simple():
             self.b = 20
 
     obj = MyObject()
-    dictionary = default_resolver.get_dictionary(obj)
+    dictionary = clear_contents_dictionary(default_resolver.get_dictionary(obj))
     assert dictionary == {'a': 10, 'b': 20}
 
-    contents_debug_adapter_protocol = default_resolver.get_contents_debug_adapter_protocol(obj)
+    contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(default_resolver.get_contents_debug_adapter_protocol(obj))
     assert contents_debug_adapter_protocol == [('a', 10, '.a'), ('b', 20, '.b')]
 
 
@@ -115,14 +116,15 @@ def test_object_resolver__dict__non_strings():
             self.__dict__[(1, 2)] = (3, 4)
 
     obj = MyObject()
-    dictionary = default_resolver.get_dictionary(obj)
+    dictionary = clear_contents_dictionary(default_resolver.get_dictionary(obj))
     if IS_PY2:
         assert 'attribute name must be string' in dictionary.pop('(1, 2)')
         assert dictionary == {}
     else:
         assert dictionary == {'(1, 2)': (3, 4)}
 
-    contents_debug_adapter_protocol = default_resolver.get_contents_debug_adapter_protocol(obj)
+    contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(
+        default_resolver.get_contents_debug_adapter_protocol(obj))
     if IS_PY2:
         assert len(contents_debug_adapter_protocol) == 1
         entry = contents_debug_adapter_protocol[0]
@@ -145,7 +147,7 @@ def test_django_forms_resolver():
 
     obj = MyObject()
 
-    dictionary = django_form_resolver.get_dictionary(obj)
+    dictionary = clear_contents_dictionary(django_form_resolver.get_dictionary(obj))
     if IS_PY2:
         assert 'attribute name must be string' in dictionary.pop('(1, 2)')
         assert dictionary == {'errors': None}
@@ -153,7 +155,7 @@ def test_django_forms_resolver():
         assert dictionary == {'(1, 2)': (3, 4), 'errors': None}
 
     obj._errors = 'bar'
-    dictionary = django_form_resolver.get_dictionary(obj)
+    dictionary = clear_contents_dictionary(django_form_resolver.get_dictionary(obj))
     if IS_PY2:
         assert 'attribute name must be string' in dictionary.pop('(1, 2)')
         assert dictionary == {'errors': 'bar', '_errors': 'bar'}
@@ -161,12 +163,42 @@ def test_django_forms_resolver():
         assert dictionary == {'(1, 2)': (3, 4), 'errors': 'bar', '_errors': 'bar'}
 
 
+def clear_contents_debug_adapter_protocol(contents_debug_adapter_protocol):
+    lst = []
+    for x in contents_debug_adapter_protocol:
+        if x[0] == '__len__':
+            if x[2] == '.__len__':
+                # i.e.: remove a builtin __len__ method, but not the __len__ we add with the length.
+                continue
+            lst.append(x)
+
+        if not x[0].startswith('__'):
+
+            if '<built-in method' in str(x[1]) or '<method-wrapper' in str(x[1]) or '<bound method' in str(x[1]):
+                continue
+
+            lst.append(x)
+
+    return lst
+
+
+def clear_contents_dictionary(dictionary):
+    dictionary = dictionary.copy()
+    for key in list(dictionary):
+        if key == '__len__':
+            continue
+        if key.startswith('__') or key in ('count', 'index'):
+            del dictionary[key]
+    return dictionary
+
+
 def test_tuple_resolver():
     from _pydevd_bundle.pydevd_resolver import TupleResolver
     tuple_resolver = TupleResolver()
     fmt = {'hex': True}
     lst = tuple(range(11))
-    contents_debug_adapter_protocol = tuple_resolver.get_contents_debug_adapter_protocol(lst)
+    contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(
+        tuple_resolver.get_contents_debug_adapter_protocol(lst))
     len_entry = contents_debug_adapter_protocol.pop(-1)
     assert contents_debug_adapter_protocol == [
         ('00', 0, '[0]'),
@@ -183,7 +215,7 @@ def test_tuple_resolver():
     ]
     check_len_entry(len_entry, ('__len__', 11))
 
-    assert tuple_resolver.get_dictionary(lst) == {
+    assert clear_contents_dictionary(tuple_resolver.get_dictionary(lst)) == {
         '00': 0,
         '01': 1,
         '02': 2,
@@ -199,7 +231,8 @@ def test_tuple_resolver():
     }
 
     lst = tuple(range(17))
-    contents_debug_adapter_protocol = tuple_resolver.get_contents_debug_adapter_protocol(lst, fmt=fmt)
+    contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(
+        tuple_resolver.get_contents_debug_adapter_protocol(lst, fmt=fmt))
     len_entry = contents_debug_adapter_protocol.pop(-1)
     assert contents_debug_adapter_protocol == [
         ('0x00', 0, '[0]'),
@@ -222,7 +255,7 @@ def test_tuple_resolver():
     ]
     check_len_entry(len_entry, ('__len__', 17))
 
-    assert tuple_resolver.get_dictionary(lst, fmt=fmt) == {
+    assert clear_contents_dictionary(tuple_resolver.get_dictionary(lst, fmt=fmt)) == {
         '0x00': 0,
         '0x01': 1,
         '0x02': 2,
@@ -244,7 +277,7 @@ def test_tuple_resolver():
     }
 
     lst = tuple(range(10))
-    contents_debug_adapter_protocol = tuple_resolver.get_contents_debug_adapter_protocol(lst)
+    contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(tuple_resolver.get_contents_debug_adapter_protocol(lst))
     len_entry = contents_debug_adapter_protocol.pop(-1)
     assert contents_debug_adapter_protocol == [
         ('0', 0, '[0]'),
@@ -260,7 +293,7 @@ def test_tuple_resolver():
     ]
     check_len_entry(len_entry, ('__len__', 10))
 
-    assert tuple_resolver.get_dictionary(lst) == {
+    assert clear_contents_dictionary(tuple_resolver.get_dictionary(lst)) == {
         '0': 0,
         '1': 1,
         '2': 2,
@@ -274,7 +307,7 @@ def test_tuple_resolver():
         '__len__': 10
     }
 
-    contents_debug_adapter_protocol = tuple_resolver.get_contents_debug_adapter_protocol(lst, fmt=fmt)
+    contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(tuple_resolver.get_contents_debug_adapter_protocol(lst, fmt=fmt))
     len_entry = contents_debug_adapter_protocol.pop(-1)
     assert contents_debug_adapter_protocol == [
         ('0x0', 0, '[0]'),
@@ -290,7 +323,7 @@ def test_tuple_resolver():
     ]
     check_len_entry(len_entry, ('__len__', 10))
 
-    assert tuple_resolver.get_dictionary(lst, fmt=fmt) == {
+    assert clear_contents_dictionary(tuple_resolver.get_dictionary(lst, fmt=fmt)) == {
         '0x0': 0,
         '0x1': 1,
         '0x2': 2,
@@ -314,7 +347,7 @@ def test_tuple_resolver_mixed():
 
     my_tuple = CustomTuple([1, 2])
     my_tuple.some_value = 10
-    contents_debug_adapter_protocol = tuple_resolver.get_contents_debug_adapter_protocol(my_tuple)
+    contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(tuple_resolver.get_contents_debug_adapter_protocol(my_tuple))
     len_entry = contents_debug_adapter_protocol.pop(-1)
     check_len_entry(len_entry, ('__len__', 2))
     assert contents_debug_adapter_protocol == [

@@ -25,7 +25,7 @@ from _pydevd_bundle.pydevd_comm_constants import (
 from _pydevd_bundle.pydevd_filtering import ExcludeFilter
 from _pydevd_bundle.pydevd_json_debug_options import _extract_debug_options, DebugOptions
 from _pydevd_bundle.pydevd_net_command import NetCommand
-from _pydevd_bundle.pydevd_utils import convert_dap_log_message_to_expression
+from _pydevd_bundle.pydevd_utils import convert_dap_log_message_to_expression, ScopeRequest
 from _pydevd_bundle.pydevd_constants import (PY_IMPL_NAME, DebugInfoHolder, PY_VERSION_STR,
     PY_IMPL_VERSION_STR, IS_64BIT_PROCESS)
 from _pydevd_bundle.pydevd_trace_dispatch import USING_CYTHON
@@ -162,7 +162,7 @@ class PyDevJsonCommandProcessor(object):
         else:
             if DebugInfoHolder.DEBUG_RECORD_SOCKET_READS and DebugInfoHolder.DEBUG_TRACE_LEVEL >= 1:
                 pydev_log.info('Process %s: %s\n' % (
-                    request.__class__.__name__, json.dumps(request.to_dict(), indent=4, sort_keys=True),))
+                    request.__class__.__name__, json.dumps(request.to_dict(update_ids_to_dap=True), indent=4, sort_keys=True),))
 
             assert request.type == 'request'
             method_name = 'on_%s_request' % (request.command.lower(),)
@@ -327,6 +327,33 @@ class PyDevJsonCommandProcessor(object):
 
         terminate_child_processes = args.get('terminateChildProcesses', True)
         self.api.set_terminate_child_processes(py_db, terminate_child_processes)
+
+        variable_presentation = args.get('variablePresentation', None)
+        if isinstance(variable_presentation, dict):
+
+            def get_variable_presentation(setting, default):
+                value = variable_presentation.get(setting, default)
+                if value not in ('group', 'inline', 'hide'):
+                    pydev_log.info(
+                        'The value set for "%s" (%s) in the variablePresentation is not valid. Valid values are: "group", "inline", "hide"' % (
+                            setting, value,))
+                    value = default
+
+                return value
+
+            default = get_variable_presentation('all', 'group')
+
+            special_presentation = get_variable_presentation('special', default)
+            function_presentation = get_variable_presentation('function', default)
+            class_presentation = get_variable_presentation('class', default)
+            protected_presentation = get_variable_presentation('protected', default)
+
+            self.api.set_variable_presentation(py_db, self.api.VariablePresentation(
+                special_presentation,
+                function_presentation,
+                class_presentation,
+                protected_presentation
+            ))
 
         exclude_filters = []
 
@@ -747,7 +774,10 @@ class PyDevJsonCommandProcessor(object):
         frame_id = request.arguments.frameId
 
         variables_reference = frame_id
-        scopes = [Scope('Locals', int(variables_reference), False).to_dict()]
+        scopes = [
+            Scope('Locals', ScopeRequest(int(variables_reference), 'locals'), False),
+            Scope('Globals', ScopeRequest(int(variables_reference), 'globals'), False),
+        ]
         body = ScopesResponseBody(scopes)
         scopes_response = pydevd_base_schema.build_response(request, kwargs={'body': body})
         return NetCommand(CMD_RETURN, 0, scopes_response, is_json=True)
@@ -817,6 +847,9 @@ class PyDevJsonCommandProcessor(object):
         arguments = request.arguments  # : :type arguments: VariablesArguments
         variables_reference = arguments.variablesReference
 
+        if isinstance(variables_reference, ScopeRequest):
+            variables_reference = variables_reference.variable_reference
+
         thread_id = py_db.suspended_frames_manager.get_thread_id_for_variable_reference(
             variables_reference)
         if thread_id is not None:
@@ -834,6 +867,9 @@ class PyDevJsonCommandProcessor(object):
     def on_setvariable_request(self, py_db, request):
         arguments = request.arguments  # : :type arguments: SetVariableArguments
         variables_reference = arguments.variablesReference
+
+        if isinstance(variables_reference, ScopeRequest):
+            variables_reference = variables_reference.variable_reference
 
         if arguments.name.startswith('(return) '):
             response = pydevd_base_schema.build_response(

@@ -28,6 +28,7 @@ import ctypes
 from _pydevd_bundle.pydevd_collect_bytecode_info import code_to_bytecode_representation
 import itertools
 import linecache
+from _pydevd_bundle.pydevd_utils import DAPGrouper
 
 try:
     import dis
@@ -64,6 +65,19 @@ else:
 
 
 class PyDevdAPI(object):
+
+    class VariablePresentation(object):
+
+        def __init__(self, special='group', function='group', class_='group', protected='inline'):
+            self._presentation = {
+                DAPGrouper.SCOPE_SPECIAL_VARS: special,
+                DAPGrouper.SCOPE_FUNCTION_VARS: function,
+                DAPGrouper.SCOPE_CLASS_VARS: class_,
+                DAPGrouper.SCOPE_PROTECTED_VARS: protected,
+            }
+
+        def get_presentation(self, scope):
+            return self._presentation[scope]
 
     def run(self, py_db):
         py_db.ready_to_run = True
@@ -839,6 +853,10 @@ class PyDevdAPI(object):
 
         self.reapply_breakpoints(py_db)
         return ''
+
+    def set_variable_presentation(self, py_db, variable_presentation):
+        assert isinstance(variable_presentation, self.VariablePresentation)
+        py_db.variable_presentation = variable_presentation
 
     def get_ppid(self):
         '''
