@@ -71,6 +71,7 @@ except AttributeError:
 MAXIMUM_VARIABLE_REPRESENTATION_SIZE = 1000
 # Prefix for saving functions return values in locals
 RETURN_VALUES_DICT = '__pydevd_ret_val_dict'
+GENERATED_LEN_ATTR_NAME = 'len()'
 
 import os
 

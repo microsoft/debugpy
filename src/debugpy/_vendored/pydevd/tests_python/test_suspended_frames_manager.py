@@ -1,5 +1,5 @@
 import sys
-from _pydevd_bundle.pydevd_constants import int_types
+from _pydevd_bundle.pydevd_constants import int_types, GENERATED_LEN_ATTR_NAME
 from _pydevd_bundle.pydevd_resolver import MAX_ITEMS_TO_HANDLE, TOO_LARGE_ATTR
 from _pydevd_bundle import pydevd_frame_utils
 
@@ -68,7 +68,7 @@ def test_suspended_frames_manager():
         as_dict = (dict([x.get_name(), x.get_var_data()] for x in children_vars if x.get_name() not in DAPGrouper.SCOPES_SORTED))
         assert as_dict == {
             '0': {'name': '0', 'value': '1', 'type': 'int', 'evaluateName': 'var2[0]', 'variablesReference': 0 },
-            '__len__': {'name': '__len__', 'value': '1', 'type': 'int', 'evaluateName': 'len(var2)', 'variablesReference': 0, 'presentationHint': {'attributes': ['readOnly']}, },
+            GENERATED_LEN_ATTR_NAME: {'name': GENERATED_LEN_ATTR_NAME, 'value': '1', 'type': 'int', 'evaluateName': 'len(var2)', 'variablesReference': 0, 'presentationHint': {'attributes': ['readOnly']}, },
         }
 
         var3 = dict((x.get_name(), x) for x in variable.get_children_variables())['var3']
@@ -78,7 +78,7 @@ def test_suspended_frames_manager():
 
         check_vars_dict_expected(as_dict, {
             '33': {'name': '33', 'value': "[1]", 'type': 'list', 'evaluateName': 'var3[33]'},
-            '__len__': {'name': '__len__', 'value': '1', 'type': 'int', 'evaluateName': 'len(var3)', 'variablesReference': 0, 'presentationHint': {'attributes': ['readOnly']}, }
+            GENERATED_LEN_ATTR_NAME: {'name': GENERATED_LEN_ATTR_NAME, 'value': '1', 'type': 'int', 'evaluateName': 'len(var3)', 'variablesReference': 0, 'presentationHint': {'attributes': ['readOnly']}, }
         })
 
 
@@ -132,11 +132,11 @@ def test_get_child_variables():
                     var_data = x.get_var_data()
                     assert 'readOnly' in var_data['presentationHint']['attributes']
                     found_too_large = True
-                elif x.name == '__len__':
+                elif x.name == GENERATED_LEN_ATTR_NAME:
                     found_len = True
 
             if not found_too_large:
                 raise AssertionError('Expected to find variable named: %s' % (TOO_LARGE_ATTR,))
             if not found_len:
-                raise AssertionError('Expected to find variable named: __len__')
+                raise AssertionError('Expected to find variable named: len()')
 

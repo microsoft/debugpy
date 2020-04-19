@@ -1,5 +1,5 @@
 from tests_python.debug_constants import IS_PY2
-from _pydevd_bundle.pydevd_constants import IS_PY36_OR_GREATER
+from _pydevd_bundle.pydevd_constants import IS_PY36_OR_GREATER, GENERATED_LEN_ATTR_NAME
 
 
 def check_len_entry(len_entry, first_2_params):
@@ -14,7 +14,7 @@ def test_dict_resolver():
     dct = {(1, 2): 2, u'22': 22}
     contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(dict_resolver.get_contents_debug_adapter_protocol(dct))
     len_entry = contents_debug_adapter_protocol.pop(-1)
-    check_len_entry(len_entry, ('__len__', 2))
+    check_len_entry(len_entry, (GENERATED_LEN_ATTR_NAME, 2))
     if IS_PY36_OR_GREATER:
         assert contents_debug_adapter_protocol == [
             ('(1, 2)', 2, '[(1, 2)]'), ("'22'", 22, "['22']")]
@@ -34,7 +34,7 @@ def test_dict_resolver_hex():
     contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(
         dict_resolver.get_contents_debug_adapter_protocol(dct, fmt={'hex': True}))
     len_entry = contents_debug_adapter_protocol.pop(-1)
-    check_len_entry(len_entry, ('__len__', 1))
+    check_len_entry(len_entry, (GENERATED_LEN_ATTR_NAME, 1))
     assert contents_debug_adapter_protocol == [
         ('(0x1, 0xa, 0x64)', (10000, 100000, 100000), '[(1, 10, 100)]'), ]
 
@@ -166,12 +166,6 @@ def test_django_forms_resolver():
 def clear_contents_debug_adapter_protocol(contents_debug_adapter_protocol):
     lst = []
     for x in contents_debug_adapter_protocol:
-        if x[0] == '__len__':
-            if x[2] == '.__len__':
-                # i.e.: remove a builtin __len__ method, but not the __len__ we add with the length.
-                continue
-            lst.append(x)
-
         if not x[0].startswith('__'):
 
             if '<built-in method' in str(x[1]) or '<method-wrapper' in str(x[1]) or '<bound method' in str(x[1]):
@@ -185,8 +179,6 @@ def clear_contents_debug_adapter_protocol(contents_debug_adapter_protocol):
 def clear_contents_dictionary(dictionary):
     dictionary = dictionary.copy()
     for key in list(dictionary):
-        if key == '__len__':
-            continue
         if key.startswith('__') or key in ('count', 'index'):
             del dictionary[key]
     return dictionary
@@ -213,7 +205,7 @@ def test_tuple_resolver():
         ('09', 9, '[9]'),
         ('10', 10, '[10]'),
     ]
-    check_len_entry(len_entry, ('__len__', 11))
+    check_len_entry(len_entry, (GENERATED_LEN_ATTR_NAME, 11))
 
     assert clear_contents_dictionary(tuple_resolver.get_dictionary(lst)) == {
         '00': 0,
@@ -227,7 +219,7 @@ def test_tuple_resolver():
         '08': 8,
         '09': 9,
         '10': 10,
-        '__len__': 11
+        GENERATED_LEN_ATTR_NAME: 11
     }
 
     lst = tuple(range(17))
@@ -253,7 +245,7 @@ def test_tuple_resolver():
         ('0x0f', 15, '[15]'),
         ('0x10', 16, '[16]'),
     ]
-    check_len_entry(len_entry, ('__len__', 17))
+    check_len_entry(len_entry, (GENERATED_LEN_ATTR_NAME, 17))
 
     assert clear_contents_dictionary(tuple_resolver.get_dictionary(lst, fmt=fmt)) == {
         '0x00': 0,
@@ -273,7 +265,7 @@ def test_tuple_resolver():
         '0x0e': 14,
         '0x0f': 15,
         '0x10': 16,
-        '__len__': 17
+        GENERATED_LEN_ATTR_NAME: 17
     }
 
     lst = tuple(range(10))
@@ -291,7 +283,7 @@ def test_tuple_resolver():
         ('8', 8, '[8]'),
         ('9', 9, '[9]'),
     ]
-    check_len_entry(len_entry, ('__len__', 10))
+    check_len_entry(len_entry, (GENERATED_LEN_ATTR_NAME, 10))
 
     assert clear_contents_dictionary(tuple_resolver.get_dictionary(lst)) == {
         '0': 0,
@@ -304,7 +296,7 @@ def test_tuple_resolver():
         '7': 7,
         '8': 8,
         '9': 9,
-        '__len__': 10
+        GENERATED_LEN_ATTR_NAME: 10
     }
 
     contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(tuple_resolver.get_contents_debug_adapter_protocol(lst, fmt=fmt))
@@ -321,7 +313,7 @@ def test_tuple_resolver():
         ('0x8', 8, '[8]'),
         ('0x9', 9, '[9]'),
     ]
-    check_len_entry(len_entry, ('__len__', 10))
+    check_len_entry(len_entry, (GENERATED_LEN_ATTR_NAME, 10))
 
     assert clear_contents_dictionary(tuple_resolver.get_dictionary(lst, fmt=fmt)) == {
         '0x0': 0,
@@ -334,7 +326,7 @@ def test_tuple_resolver():
         '0x7': 7,
         '0x8': 8,
         '0x9': 9,
-        '__len__': 10
+        GENERATED_LEN_ATTR_NAME: 10
     }
 
 
@@ -349,6 +341,6 @@ def test_tuple_resolver_mixed():
     my_tuple.some_value = 10
     contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(tuple_resolver.get_contents_debug_adapter_protocol(my_tuple))
     len_entry = contents_debug_adapter_protocol.pop(-1)
-    check_len_entry(len_entry, ('__len__', 2))
+    check_len_entry(len_entry, (GENERATED_LEN_ATTR_NAME, 2))
     assert contents_debug_adapter_protocol == [
         ('some_value', 10, '.some_value'), ('0', 1, '[0]'), ('1', 2, '[1]'), ]

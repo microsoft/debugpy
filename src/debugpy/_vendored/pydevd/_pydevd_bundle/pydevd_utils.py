@@ -11,7 +11,7 @@ except:
 import inspect
 import sys
 from _pydevd_bundle.pydevd_constants import IS_PY3K, USE_CUSTOM_SYS_CURRENT_FRAMES, IS_PYPY, SUPPORT_GEVENT, \
-    GEVENT_SUPPORT_NOT_SET_MSG
+    GEVENT_SUPPORT_NOT_SET_MSG, GENERATED_LEN_ATTR_NAME
 from _pydev_imps._pydev_saved_modules import threading
 
 
@@ -76,11 +76,11 @@ def to_number(x):
 
 
 def compare_object_attrs_key(x):
-    if '__len__' == x:
+    if GENERATED_LEN_ATTR_NAME == x:
         as_number = to_number(x)
         if as_number is None:
             as_number = 99999999
-        # __len__ should appear after other attributes in a list.
+        # len() should appear after other attributes in a list.
         return (1, as_number)
     else:
         return (-1, to_string(x))
