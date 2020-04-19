@@ -2,7 +2,7 @@ from contextlib import contextmanager
 import sys
 
 from _pydevd_bundle.pydevd_constants import get_frame, dict_items, RETURN_VALUES_DICT, \
-    dict_iter_items, ForkSafeLock
+    dict_iter_items, ForkSafeLock, GENERATED_LEN_ATTR_NAME
 from _pydevd_bundle.pydevd_xml import get_variable_details, get_type
 from _pydev_bundle.pydev_override import overrides
 from _pydevd_bundle.pydevd_resolver import sorted_attributes_key, TOO_LARGE_ATTR, get_var_scope
@@ -61,7 +61,7 @@ class _AbstractVariable(object):
             attributes.append('readOnly')
             name = '(return) %s' % (name,)
 
-        elif name in (TOO_LARGE_ATTR, '__len__'):
+        elif name in (TOO_LARGE_ATTR, GENERATED_LEN_ATTR_NAME):
             attributes.append('readOnly')
 
         var_data = {

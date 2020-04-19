@@ -102,7 +102,7 @@ def test_variables(pyfile, target, run):
                 {
                     "type": "int",
                     "value": "2",
-                    "name": "__len__",
+                    "name": "len()",
                     "evaluateName": "len(b)",
                     "variablesReference": 0,
                     "presentationHint": {"attributes": ["readOnly"]},
@@ -162,7 +162,7 @@ def test_variable_sort(pyfile, target, run):
             "__c_test",
         ]
 
-        special_vars_entry = [v for v in vars if v["name"] == "special variables"][0]
+        special_vars_entry, = (v for v in vars if v["name"] == "special variables")
         special_vars_variables = session.request(
             "variables",
             {"variablesReference": special_vars_entry["variablesReference"]},
@@ -179,14 +179,14 @@ def test_variable_sort(pyfile, target, run):
         )["variables"]
         var_names = [v["name"] for v in b_test_vars]
         if sys.version_info[:2] >= (3, 6):
-            # Note that the special __len__ we manually create is not added to special variables.
+            # Note that the special len() we manually create is not added to special variables.
             expected = [
                 "special variables",
                 "function variables",
                 "'spam'",
                 "'eggs'",
                 "'abcd'",
-                "__len__",
+                "len()",
             ]
         else:
             expected = [
@@ -195,7 +195,7 @@ def test_variable_sort(pyfile, target, run):
                 "'abcd'",
                 "'eggs'",
                 "'spam'",
-                "__len__",
+                "len()",
             ]
 
         assert var_names == expected
@@ -207,8 +207,8 @@ def test_variable_sort(pyfile, target, run):
                 "variables", {"variablesReference": c_test["variablesReference"]}
             )["variables"]
             var_names = [v["name"] for v in c_test_vars]
-            # Note that the special __len__ we manually create is not added to special variables.
-            expected = ["1", "2", "10", "__len__"]
+            # Note that the special len() we manually create is not added to special variables.
+            expected = ["1", "2", "10", "len()"]
 
             assert var_names == expected
 
@@ -417,7 +417,7 @@ def test_hex_numbers(pyfile, target, run):
             ),
             some.dict.containing(
                 {
-                    "name": "__len__",
+                    "name": "len()",
                     "value": "0x3",
                     "type": "int",
                     "evaluateName": "len(b)",
@@ -463,7 +463,7 @@ def test_hex_numbers(pyfile, target, run):
                 ),
                 some.dict.containing(
                     {
-                        "name": "__len__",
+                        "name": "len()",
                         "value": "0x3",
                         "type": "int",
                         "evaluateName": "len(c)",
@@ -504,7 +504,7 @@ def test_hex_numbers(pyfile, target, run):
                 ),
                 some.dict.containing(
                     {
-                        "name": "__len__",
+                        "name": "len()",
                         "value": "0x3",
                         "type": "int",
                         "evaluateName": "len(c)",
@@ -530,7 +530,7 @@ def test_hex_numbers(pyfile, target, run):
             ),
             some.dict.containing(
                 {
-                    "name": "__len__",
+                    "name": "len()",
                     "value": "0x1",
                     "type": "int",
                     "evaluateName": "len(d)",
@@ -578,7 +578,7 @@ def test_hex_numbers(pyfile, target, run):
             ),
             some.dict.containing(
                 {
-                    "name": "__len__",
+                    "name": "len()",
                     "value": "0x3",
                     "type": "int",
                     "evaluateName": "len(d[(1, 10, 100)])",

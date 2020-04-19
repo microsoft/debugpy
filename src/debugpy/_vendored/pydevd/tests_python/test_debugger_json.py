@@ -17,7 +17,7 @@ from _pydevd_bundle._debug_adapter.pydevd_schema import (ThreadEvent, ModuleEven
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
 from _pydevd_bundle.pydevd_constants import (int_types, IS_64BIT_PROCESS,
     PY_VERSION_STR, PY_IMPL_VERSION_STR, PY_IMPL_NAME, IS_PY36_OR_GREATER, IS_PY39_OR_GREATER,
-    IS_PY37_OR_GREATER, IS_PYPY)
+    IS_PY37_OR_GREATER, IS_PYPY, GENERATED_LEN_ATTR_NAME)
 from tests_python import debugger_unittest
 from tests_python.debug_constants import TEST_CHERRYPY, IS_PY2, TEST_DJANGO, TEST_FLASK, IS_PY26, \
     IS_PY27, IS_CPYTHON, TEST_GEVENT
@@ -1223,7 +1223,7 @@ def test_dict_ordered(case_setup):
 
         variables_response = json_facade.get_variables_response(ref)
         assert [(d['name'], d['value']) for d in variables_response.body.variables if (not d['name'].startswith('_OrderedDict')) and (d['name'] not in DAPGrouper.SCOPES_SORTED)] == [
-            ('4', "'first'"), ('3', "'second'"), ('2', "'last'"), ('__len__', '3')]
+            ('4', "'first'"), ('3', "'second'"), ('2', "'last'"), (GENERATED_LEN_ATTR_NAME, '3')]
 
         json_facade.write_continue()
         writer.finished_ok = True
@@ -1276,7 +1276,7 @@ def test_stack_and_variables_dict(case_setup):
         assert check == [
             {'name': "'a'", 'value': '30', 'type': 'int', 'evaluateName': "variable_for_test_3['a']", 'variablesReference': 0 },
             {'name': "'b'", 'value': '20', 'type': 'int', 'evaluateName': "variable_for_test_3['b']", 'variablesReference': 0},
-            {'name': '__len__', 'value': '2', 'type': 'int', 'evaluateName': 'len(variable_for_test_3)', 'variablesReference': 0, 'presentationHint': {'attributes': ['readOnly']}}
+            {'name': GENERATED_LEN_ATTR_NAME, 'value': '2', 'type': 'int', 'evaluateName': 'len(variable_for_test_3)', 'variablesReference': 0, 'presentationHint': {'attributes': ['readOnly']}}
         ]
 
         json_facade.write_continue()
@@ -1480,7 +1480,7 @@ def test_stack_and_variables_set_and_list(case_setup):
             u'variablesReference': 0,
         },
         {
-            u'name': u'__len__',
+            u'name': GENERATED_LEN_ATTR_NAME,
             u'type': u'int',
             u'value': u'2',
             u'evaluateName': u'len(variable_for_test_1)',
@@ -1683,7 +1683,7 @@ def test_evaluate_variable_references(case_setup):
                 'variablesReference': 0,
             },
             {
-                'name': '__len__',
+                'name': GENERATED_LEN_ATTR_NAME,
                 'type': 'int',
                 'value': '1',
                 'presentationHint': {'attributes': ['readOnly']},

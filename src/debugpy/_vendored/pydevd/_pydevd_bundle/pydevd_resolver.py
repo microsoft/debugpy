@@ -9,7 +9,7 @@ from os.path import basename
 
 from functools import partial
 from _pydevd_bundle.pydevd_constants import dict_iter_items, dict_keys, xrange, IS_PY36_OR_GREATER, \
-    MethodWrapperType, RETURN_VALUES_DICT, DebugInfoHolder, IS_PYPY
+    MethodWrapperType, RETURN_VALUES_DICT, DebugInfoHolder, IS_PYPY, GENERATED_LEN_ATTR_NAME
 from _pydevd_bundle.pydevd_safe_repr import SafeRepr
 
 # Note: 300 is already a lot to see in the outline (after that the user should really use the shell to get things)
@@ -223,7 +223,7 @@ class DictResolver:
     sort_keys = not IS_PY36_OR_GREATER
 
     def resolve(self, dict, key):
-        if key in ('__len__', TOO_LARGE_ATTR):
+        if key in (GENERATED_LEN_ATTR_NAME, TOO_LARGE_ATTR):
             return None
 
         if '(' not in key:
@@ -276,17 +276,17 @@ class DictResolver:
                 ret.append((TOO_LARGE_ATTR, TOO_LARGE_MSG, None))
                 break
 
-        ret.append(('__len__', len(dct), partial(_apply_evaluate_name, evaluate_name='len(%s)')))
         # in case the class extends built-in type and has some additional fields
         from_default_resolver = defaultResolver.get_contents_debug_adapter_protocol(dct, fmt)
 
         if from_default_resolver:
             ret = from_default_resolver + ret
 
-        if not self.sort_keys:
-            return ret
+        if self.sort_keys:
+            ret = sorted(ret, key=lambda tup: sorted_attributes_key(tup[0]))
 
-        return sorted(ret, key=lambda tup: sorted_attributes_key(tup[0]))
+        ret.append((GENERATED_LEN_ATTR_NAME, len(dct), partial(_apply_evaluate_name, evaluate_name='len(%s)')))
+        return ret
 
     def get_dictionary(self, dict):
         ret = self.init_dict()
@@ -304,7 +304,7 @@ class DictResolver:
         # in case if the class extends built-in type and has some additional fields
         additional_fields = defaultResolver.get_dictionary(dict)
         ret.update(additional_fields)
-        ret['__len__'] = len(dict)
+        ret[GENERATED_LEN_ATTR_NAME] = len(dict)
         return ret
 
 
@@ -322,7 +322,7 @@ class TupleResolver:  # to enumerate tuples and lists
             @param var: that's the original attribute
             @param attribute: that's the key passed in the dict (as a string)
         '''
-        if attribute in ('__len__', TOO_LARGE_ATTR):
+        if attribute in (GENERATED_LEN_ATTR_NAME, TOO_LARGE_ATTR):
             return None
         try:
             return var[int(attribute)]
@@ -353,11 +353,12 @@ class TupleResolver:  # to enumerate tuples and lists
                 ret.append((TOO_LARGE_ATTR, TOO_LARGE_MSG, None))
                 break
 
-        ret.append(('__len__', len(lst), partial(_apply_evaluate_name, evaluate_name='len(%s)')))
         # Needed in case the class extends the built-in type and has some additional fields.
         from_default_resolver = defaultResolver.get_contents_debug_adapter_protocol(lst, fmt=fmt)
         if from_default_resolver:
             ret = from_default_resolver + ret
+
+        ret.append((GENERATED_LEN_ATTR_NAME, len(lst), partial(_apply_evaluate_name, evaluate_name='len(%s)')))
         return ret
 
     def get_dictionary(self, var, fmt={}):
@@ -378,7 +379,7 @@ class TupleResolver:  # to enumerate tuples and lists
         # in case if the class extends built-in type and has some additional fields
         additional_fields = defaultResolver.get_dictionary(var)
         d.update(additional_fields)
-        d['__len__'] = len(var)
+        d[GENERATED_LEN_ATTR_NAME] = len(var)
         return d
 
 
@@ -400,15 +401,15 @@ class SetResolver:
                 ret.append((TOO_LARGE_ATTR, TOO_LARGE_MSG, None))
                 break
 
-        ret.append(('__len__', len(obj), partial(_apply_evaluate_name, evaluate_name='len(%s)')))
         # Needed in case the class extends the built-in type and has some additional fields.
         from_default_resolver = defaultResolver.get_contents_debug_adapter_protocol(obj, fmt=fmt)
         if from_default_resolver:
             ret = from_default_resolver + ret
+        ret.append((GENERATED_LEN_ATTR_NAME, len(obj), partial(_apply_evaluate_name, evaluate_name='len(%s)')))
         return ret
 
     def resolve(self, var, attribute):
-        if attribute in ('__len__', TOO_LARGE_ATTR):
+        if attribute in (GENERATED_LEN_ATTR_NAME, TOO_LARGE_ATTR):
             return None
 
         try:
@@ -434,7 +435,7 @@ class SetResolver:
         # in case if the class extends built-in type and has some additional fields
         additional_fields = defaultResolver.get_dictionary(var)
         d.update(additional_fields)
-        d['__len__'] = len(var)
+        d[GENERATED_LEN_ATTR_NAME] = len(var)
         return d
 
     def change_var_from_name(self, container, name, new_value):
@@ -490,7 +491,7 @@ class JyArrayResolver:
     '''
 
     def resolve(self, var, attribute):
-        if attribute == '__len__':
+        if attribute == GENERATED_LEN_ATTR_NAME:
             return None
         return var[int(attribute)]
 
@@ -500,7 +501,7 @@ class JyArrayResolver:
         for i in xrange(len(obj)):
             ret[ i ] = obj[i]
 
-        ret['__len__'] = len(obj)
+        ret[GENERATED_LEN_ATTR_NAME] = len(obj)
         return ret
 
 
@@ -510,7 +511,7 @@ class JyArrayResolver:
 class MultiValueDictResolver(DictResolver):
 
     def resolve(self, dict, key):
-        if key in ('__len__', TOO_LARGE_ATTR):
+        if key in (GENERATED_LEN_ATTR_NAME, TOO_LARGE_ATTR):
             return None
 
         # ok, we have to iterate over the items to find the one that matches the id, because that's the only way
@@ -660,8 +661,7 @@ def get_var_scope(attr_name, attr_value, evaluate_name, handle_return_values):
     if handle_return_values and attr_name == RETURN_VALUES_DICT:
         return ''
 
-    elif attr_name == '__len__' and evaluate_name != '.__len__':
-        # Treat the __len__ we generate internally separate from the __len__ function
+    elif attr_name == GENERATED_LEN_ATTR_NAME:
         return ''
 
     if attr_name.startswith('__') and attr_name.endswith('__'):
