@@ -8,7 +8,7 @@ import os
 import sys
 
 import debugpy
-from debugpy import adapter
+from debugpy import adapter, launcher
 from debugpy.common import fmt, json, log, messaging, sockets
 from debugpy.common.compat import unicode
 from debugpy.adapter import components, servers, sessions
@@ -303,9 +303,11 @@ class Client(components.Component):
         if sudo and sys.platform == "win32":
             raise request.cant_handle('"sudo":true is not supported on Windows.')
 
+        launcher_path = request("debugLauncherPath", os.path.dirname(launcher.__file__))
+
         servers.serve()
         launchers.spawn_debuggee(
-            self.session, request, args, console, console_title, sudo
+            self.session, request, launcher_path, args, console, console_title, sudo
         )
 
     @_start_message_handler
