@@ -8,7 +8,7 @@ import os
 import subprocess
 import sys
 
-from debugpy import adapter, launcher
+from debugpy import adapter
 from debugpy.common import compat, log, messaging, sockets
 from debugpy.adapter import components, servers
 
@@ -65,12 +65,12 @@ class Launcher(components.Component):
                     pass
 
 
-def spawn_debuggee(session, start_request, args, console, console_title, sudo):
+def spawn_debuggee(session, start_request, launcher_path, args, console, console_title, sudo):
     # -E tells sudo to propagate environment variables to the target process - this
     # is necessary for launcher to get DEBUGPY_LAUNCHER_PORT and DEBUGPY_LOG_DIR.
     cmdline = ["sudo", "-E"] if sudo else []
 
-    cmdline += [sys.executable, os.path.dirname(launcher.__file__)]
+    cmdline += [sys.executable, launcher_path]
     cmdline += args
     env = {}
 
