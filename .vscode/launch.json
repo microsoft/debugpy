@@ -5,50 +5,71 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "debugAdapterPath": "${workspaceFolder}/src/debugpy/adapter",
-            "name": "Launch Python file",
+            "name": "Launch: program",
             "type": "python",
             "request": "launch",
             "console": "integratedTerminal",
-            "consoleTitle": "ptvsd.server",
             "program": "${file}",
             "logToFile": true,
+            "debugAdapterPath": "${workspaceFolder}/src/debugpy/adapter",
         },
         {
+            "name": "Launch: module",
+            "type": "python",
+            "request": "launch",
+            "console": "integratedTerminal",
+            "module": "${fileBasenameNoExtension}",
+            "cwd": "${fileDirname}",
+            "logToFile": true,
             "debugAdapterPath": "${workspaceFolder}/src/debugpy/adapter",
+        },
+        {
+            "name": "Launch: code",
+            "type": "python",
+            "request": "launch",
+            "console": "integratedTerminal",
+            "code": [
+                "import runpy",
+                "runpy.run_path(r'${file}')",
+            ],
+            "logToFile": true,
+            "debugAdapterPath": "${workspaceFolder}/src/debugpy/adapter",
+        },
+        {
             "name": "Attach: connect",
             "type": "python",
             "request": "attach",
-            "logToFile": true,
             "connect": {
                 "port": 5678,
                 "host": "127.0.0.1",
-            }
+            },
+            "logToFile": true,
+            "debugAdapterPath": "${workspaceFolder}/src/debugpy/adapter",
         },
         {
-            "debugAdapterPath": "${workspaceFolder}/src/debugpy/adapter",
             "name": "Attach: listen",
             "type": "python",
             "request": "attach",
-            "logToFile": true,
             "listen": {
                 "port": 5678,
                 "host": "127.0.0.1",
-            }
+            },
+            "logToFile": true,
+            "debugAdapterPath": "${workspaceFolder}/src/debugpy/adapter",
         },
         {
-            "debugAdapterPath": "${workspaceFolder}/src/debugpy/adapter",
             "name": "Attach: PID",
             "type": "python",
             "request": "attach",
-            "processId": "${command:pickProcess}"
+            "processId": "${command:pickProcess}",
+            "debugAdapterPath": "${workspaceFolder}/src/debugpy/adapter",
         },
         {
-            "debugAdapterPath": "${workspaceFolder}/src/debugpy/adapter",
             "name": "Debug Tests",
             "type": "python",
             "request": "test",
             "console": "integratedTerminal",
+            "debugAdapterPath": "${workspaceFolder}/src/debugpy/adapter",
         }
     ]
 }
