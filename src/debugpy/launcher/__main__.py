@@ -31,15 +31,22 @@ def main():
     # will also exit, so it doesn't need to observe the signal directly.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-    def option(name, type, *args):
-        try:
-            return type(os.environ.pop(name, *args))
-        except Exception:
-            log.reraise_exception("Error parsing {0!r}:", name)
+    # Everything before "--" is command line arguments for the launcher itself,
+    # and everything after "--" is command line arguments for the debuggee.
+    sep = sys.argv.index("--")
+    launcher_argv = sys.argv[1:sep]
+    sys.argv = sys.argv[sep + 1:]
 
-    launcher_port = option("DEBUGPY_LAUNCHER_PORT", int)
+    # The first argument specifies the host/port on which the adapter is waiting
+    # for launcher to connect. It's either host:port, or just port.
+    adapter = launcher_argv[0]
+    host, sep, port = adapter.partition(":")
+    if not sep:
+        host = "127.0.0.1"
+        port = adapter
+    port = int(port)
 
-    launcher.connect(launcher_port)
+    launcher.connect(host, port)
     launcher.channel.wait()
 
     if debuggee.process is not None:

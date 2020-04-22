@@ -16,7 +16,7 @@ channel = None
 """DAP message channel to the adapter."""
 
 
-def connect(launcher_port):
+def connect(host, port):
     from debugpy.common import messaging, sockets
     from debugpy.launcher import handlers
 
@@ -24,7 +24,7 @@ def connect(launcher_port):
     assert channel is None
 
     sock = sockets.create_client()
-    sock.connect(("127.0.0.1", launcher_port))
+    sock.connect((host, port))
 
     stream = messaging.JsonIOStream.from_socket(sock, "Adapter")
     channel = messaging.JsonMessageChannel(stream, handlers=handlers)
