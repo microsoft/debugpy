@@ -31,3 +31,37 @@ def test_args(pyfile, target, run):
             pass
         argv = backchannel.receive()
         assert argv == [some.str] + args
+
+
+@pytest.mark.parametrize("target", targets.all)
+@pytest.mark.parametrize("run", runners.all_launch)
+def test_shell_expansion(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        import sys
+        import debuggee
+        from debuggee import backchannel
+
+        debuggee.setup()
+        backchannel.send(sys.argv)
+
+    def expand(args):
+        for i, arg in enumerate(args):
+            if arg.startswith("$"):
+                args[i] = arg[1:]
+
+    class Session(debug.Session):
+        def run_in_terminal(self, args, cwd, env):
+            expand(args)
+            return super(Session, self).run_in_terminal(args, cwd, env)
+
+    args = ["0", "$1", "2"]
+    with Session() as session:
+        backchannel = session.open_backchannel()
+        with run(session, target(code_to_debug, args=args)):
+            pass
+        argv = backchannel.receive()
+
+    if session.config["console"] != "internalConsole":
+        expand(args)
+    assert argv == [some.str] + args

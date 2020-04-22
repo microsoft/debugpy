@@ -484,6 +484,12 @@ class Session(object):
                 pid, fmt("{0}-subprocess-{1}", self.debuggee_id, pid)
             )
 
+    def run_in_terminal(self, args, cwd, env):
+        exe = args.pop(0)
+        self.spawn_debuggee.env.update(env)
+        self.spawn_debuggee(args, cwd, exe=exe)
+        return {}
+
     def _process_request(self, request):
         self.timeline.record_request(request, block=False)
         if request.command == "runInTerminal":
@@ -491,11 +497,8 @@ class Session(object):
             cwd = request("cwd", ".")
             env = request("env", json.object(unicode))
             try:
-                exe = args.pop(0)
-                self.spawn_debuggee.env.update(env)
-                self.spawn_debuggee(args, cwd, exe=exe)
-                return {}
-            except OSError as exc:
+                return self.run_in_terminal(args, cwd, env)
+            except Exception as exc:
                 log.swallow_exception('"runInTerminal" failed:')
                 raise request.cant_handle(str(exc))
         else:
