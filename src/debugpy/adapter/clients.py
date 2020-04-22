@@ -272,21 +272,40 @@ class Client(components.Component):
 
             return value
 
-        # Launcher doesn't use the command line at all, but we pass the arguments so
-        # that they show up in the terminal if we're using "runInTerminal".
+        # Propagate command line arguments via launcher CLI rather than "args", so that
+        # they get shell expansion applied to them in "runInTerminal" scenarios.
+
+        program = module = code = ()
         if "program" in request:
-            args = request("program", json.array(unicode, vectorize=True, size=(1,)))
-        elif "module" in request:
-            args = ["-m"] + request(
-                "module", json.array(unicode, vectorize=True, size=(1,))
+            program = request("program", unicode)
+            args = [program]
+            # process_name = program
+        if "module" in request:
+            module = request("module", unicode)
+            args = ["-m", module]
+            # process_name = module
+        if "code" in request:
+            code = request("code", json.array(unicode, vectorize=True, size=(1,)))
+            args = ["-c", "\n".join(code)]
+            # process_name = cmdline[0]
+
+        num_targets = len([x for x in (program, module, code) if x != ()])
+        if num_targets == 0:
+            raise request.isnt_valid(
+                'either "program", "module", or "code" must be specified'
             )
-        elif "code" in request:
-            args = ["-c"] + request(
-                "code", json.array(unicode, vectorize=True, size=(1,))
+        elif num_targets != 1:
+            raise request.isnt_valid(
+                '"program", "module", and "code" are mutually exclusive'
             )
-        else:
-            args = []
+
         args += request("args", json.array(unicode))
+
+        cwd = request("cwd", unicode, optional=True)
+        if cwd == ():
+            # If it's not specified, but we're launching a file rather than a module,
+            # and the specified path has a directory in it, use that.
+            cwd = None if program == () else (os.path.dirname(program) or None)
 
         console = request(
             "console",
@@ -307,7 +326,14 @@ class Client(components.Component):
 
         servers.serve()
         launchers.spawn_debuggee(
-            self.session, request, launcher_path, args, console, console_title, sudo
+            self.session,
+            request,
+            launcher_path,
+            args,
+            cwd,
+            console,
+            console_title,
+            sudo,
         )
 
     @_start_message_handler

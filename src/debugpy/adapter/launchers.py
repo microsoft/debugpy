@@ -66,7 +66,7 @@ class Launcher(components.Component):
 
 
 def spawn_debuggee(
-    session, start_request, launcher_path, args, console, console_title, sudo
+    session, start_request, launcher_path, args, cwd, console, console_title, sudo
 ):
     # -E tells sudo to propagate environment variables to the target process - this
     # is necessary for launcher to get DEBUGPY_LAUNCHER_PORT and DEBUGPY_LOG_DIR.
@@ -119,6 +119,7 @@ def spawn_debuggee(
                 # the launcher also respects that.
                 subprocess.Popen(
                     cmdline,
+                    cwd=cwd,
                     env=dict(list(os.environ.items()) + list(env.items())),
                     stdin=sys.stdin,
                     stdout=sys.stdout,
@@ -130,16 +131,16 @@ def spawn_debuggee(
             log.info('{0} spawning launcher via "runInTerminal" request.', session)
             session.client.capabilities.require("supportsRunInTerminalRequest")
             kinds = {"integratedTerminal": "integrated", "externalTerminal": "external"}
+            request_args = {
+                "kind": kinds[console],
+                "title": console_title,
+                "args": cmdline,
+                "env": env,
+            }
+            if cwd is not None:
+                request_args["cwd"] = cwd
             try:
-                session.client.channel.request(
-                    "runInTerminal",
-                    {
-                        "kind": kinds[console],
-                        "title": console_title,
-                        "args": cmdline,
-                        "env": env,
-                    },
-                )
+                session.client.channel.request("runInTerminal", request_args)
             except messaging.MessageHandlingError as exc:
                 exc.propagate(start_request)
 

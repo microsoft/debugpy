@@ -31,13 +31,11 @@ def describe():
     return fmt("Debuggee[PID={0}]", process.pid)
 
 
-def spawn(process_name, cmdline, cwd, env, redirect_output):
+def spawn(process_name, cmdline, env, redirect_output):
     log.info(
         "Spawning debuggee process:\n\n"
-        "Current directory: {0!r}\n\n"
-        "Command line: {1!r}\n\n"
-        "Environment variables: {2!r}\n\n",
-        cwd,
+        "Command line: {0!r}\n\n"
+        "Environment variables: {1!r}\n\n",
         cmdline,
         env,
     )
@@ -56,7 +54,7 @@ def spawn(process_name, cmdline, cwd, env, redirect_output):
 
         try:
             global process
-            process = subprocess.Popen(cmdline, cwd=cwd, env=env, bufsize=0, **kwargs)
+            process = subprocess.Popen(cmdline, env=env, bufsize=0, **kwargs)
         except Exception as exc:
             raise messaging.MessageHandlingError(
                 fmt("Couldn't spawn debuggee: {0}\n\nCommand line:{1!r}", exc, cmdline)

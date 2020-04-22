@@ -67,37 +67,14 @@ def launch_request(request):
         debugpy_args = request("debugpyArgs", json.array(unicode))
         cmdline += debugpy_args
 
-    program = module = code = ()
-    if "program" in request:
-        program = request("program", unicode)
-        cmdline += [program]
-        process_name = program
-    if "module" in request:
-        module = request("module", unicode)
-        cmdline += ["-m", module]
-        process_name = module
-    if "code" in request:
-        code = request("code", json.array(unicode, vectorize=True, size=(1,)))
-        cmdline += ["-c", "\n".join(code)]
-        process_name = cmdline[0]
+    # Use command line arguments propagated via launcher CLI, rather than "args", to get
+    # their values after shell expansion in "runInTerminal" scenarios. The command line
+    # parser in __main__ has already removed everything up to and including "--" by now.
+    cmdline += sys.argv[1:]
 
-    num_targets = len([x for x in (program, module, code) if x != ()])
-    if num_targets == 0:
-        raise request.isnt_valid(
-            'either "program", "module", or "code" must be specified'
-        )
-    elif num_targets != 1:
-        raise request.isnt_valid(
-            '"program", "module", and "code" are mutually exclusive'
-        )
-
-    cmdline += request("args", json.array(unicode))
-
-    cwd = request("cwd", unicode, optional=True)
-    if cwd == ():
-        # If it's not specified, but we're launching a file rather than a module,
-        # and the specified path has a directory in it, use that.
-        cwd = None if program == () else (os.path.dirname(program[0]) or None)
+    # We want the process name to reflect the target. So for -m, use the module name
+    # that follows; otherwise use the first argument, which is either -c or filename.
+    process_name = compat.filename(sys.argv[1] if sys.argv[1] != "-m" else sys.argv[2])
 
     env = os.environ.copy()
     env_changes = request("env", json.object(unicode))
@@ -161,7 +138,7 @@ def launch_request(request):
         cmdline = [encode(s) for s in cmdline]
         env = {encode(k): encode(v) for k, v in env.items()}
 
-    debuggee.spawn(process_name, cmdline, cwd, env, redirect_output)
+    debuggee.spawn(process_name, cmdline, env, redirect_output)
     return {}
 
 
