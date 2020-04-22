@@ -35,7 +35,7 @@ def main():
     # and everything after "--" is command line arguments for the debuggee.
     sep = sys.argv.index("--")
     launcher_argv = sys.argv[1:sep]
-    sys.argv = sys.argv[sep + 1:]
+    sys.argv = [sys.argv[0]] + sys.argv[sep + 1:]
 
     # The first argument specifies the host/port on which the adapter is waiting
     # for launcher to connect. It's either host:port, or just port.
