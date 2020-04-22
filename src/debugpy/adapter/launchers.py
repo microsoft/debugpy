@@ -65,13 +65,13 @@ class Launcher(components.Component):
                     pass
 
 
-def spawn_debuggee(session, start_request, launcher_path, args, console, console_title, sudo):
+def spawn_debuggee(
+    session, start_request, launcher_path, args, console, console_title, sudo
+):
     # -E tells sudo to propagate environment variables to the target process - this
     # is necessary for launcher to get DEBUGPY_LAUNCHER_PORT and DEBUGPY_LOG_DIR.
     cmdline = ["sudo", "-E"] if sudo else []
-
     cmdline += [sys.executable, launcher_path]
-    cmdline += args
     env = {}
 
     arguments = dict(start_request.arguments)
@@ -90,15 +90,14 @@ def spawn_debuggee(session, start_request, launcher_path, args, console, console
         )
     except Exception as exc:
         raise start_request.cant_handle(
-            "{0} couldn't create listener socket for launcher: {1}",
-            session,
-            exc,
+            "{0} couldn't create listener socket for launcher: {1}", session, exc
         )
 
     try:
         _, launcher_port = listener.getsockname()
+        cmdline += [str(launcher_port), "--"]
+        cmdline += args
 
-        env[str("DEBUGPY_LAUNCHER_PORT")] = str(launcher_port)
         if log.log_dir is not None:
             env[str("DEBUGPY_LOG_DIR")] = compat.filename_str(log.log_dir)
         if log.stderr.levels != {"warning", "error"}:
@@ -107,6 +106,14 @@ def spawn_debuggee(session, start_request, launcher_path, args, console, console
         if console == "internalConsole":
             log.info("{0} spawning launcher: {1!r}", session, cmdline)
             try:
+                for i, arg in enumerate(cmdline):
+                    try:
+                        cmdline[i] = compat.filename_str(arg)
+                    except UnicodeEncodeError as exc:
+                        raise start_request.cant_handle(
+                            "Invalid command line argument {0!j}: {1}", arg, exc
+                        )
+
                 # If we are talking to the client over stdio, sys.stdin and sys.stdout
                 # are redirected to avoid mangling the DAP message stream. Make sure
                 # the launcher also respects that.
@@ -138,7 +145,9 @@ def spawn_debuggee(session, start_request, launcher_path, args, console, console
 
         # If using sudo, it might prompt for password, and launcher won't start running
         # until the user enters it, so don't apply timeout in that case.
-        if not session.wait_for(lambda: session.launcher, timeout=(None if sudo else 10)):
+        if not session.wait_for(
+            lambda: session.launcher, timeout=(None if sudo else 10)
+        ):
             raise start_request.cant_handle("Timed out waiting for launcher to connect")
 
         try:
