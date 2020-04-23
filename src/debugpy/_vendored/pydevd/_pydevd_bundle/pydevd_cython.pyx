@@ -731,6 +731,13 @@ cdef class PyDBFrame:
                     elif step_cmd in (108, 109, 159, 160) and stop_frame is not frame:
                         can_skip = True
 
+                    elif step_cmd == 144:
+                        if (
+                            main_debugger.apply_files_filter(frame, frame.f_code.co_filename, True)
+                            and (frame.f_back is None or main_debugger.apply_files_filter(frame.f_back, frame.f_back.f_code.co_filename, True))
+                            ):
+                                can_skip = True
+
                     elif step_cmd == 206:
                         f = frame
                         while f is not None:
@@ -872,7 +879,12 @@ cdef class PyDBFrame:
                     if is_return and (
                             (info.pydev_step_cmd in (108, 159) and (frame.f_back is stop_frame)) or
                             (info.pydev_step_cmd in (109, 160) and (frame is stop_frame)) or
-                            (info.pydev_step_cmd in (107, 144, 206))
+                            (info.pydev_step_cmd in (107, 206)) or
+                            (
+                                info.pydev_step_cmd == 144
+                                and frame.f_back is not None
+                                and not main_debugger.apply_files_filter(frame.f_back, frame.f_back.f_code.co_filename, True)
+                            )
                         ):
                         self.show_return_values(frame, arg)
 
