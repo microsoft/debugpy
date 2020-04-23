@@ -1077,7 +1077,7 @@ class PyDB(object):
 
     def apply_files_filter(self, frame, filename, force_check_project_scope):
         '''
-        Should only be called if `self.is_files_filter_enabled == True`.
+        Should only be called if `self.is_files_filter_enabled == True` or `force_check_project_scope == True`.
 
         Note that it covers both the filter by specific paths includes/excludes as well
         as the check which filters out libraries if not in the project scope.

@@ -3978,6 +3978,7 @@ def test_stop_on_entry2(case_setup):
         json_facade.write_launch(
             justMyCode=False,
             stopOnEntry=True,
+            showReturnValue=True,
             rules=[
                 {'path': '**/main_on_entry2.py', 'include':False},
             ]

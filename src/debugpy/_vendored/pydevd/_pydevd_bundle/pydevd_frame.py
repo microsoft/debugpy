@@ -568,6 +568,13 @@ class PyDBFrame:
                     elif step_cmd in (CMD_STEP_OVER, CMD_STEP_RETURN, CMD_STEP_OVER_MY_CODE, CMD_STEP_RETURN_MY_CODE) and stop_frame is not frame:
                         can_skip = True
 
+                    elif step_cmd == CMD_STEP_INTO_MY_CODE:
+                        if (
+                            main_debugger.apply_files_filter(frame, frame.f_code.co_filename, True)
+                            and (frame.f_back is None or main_debugger.apply_files_filter(frame.f_back, frame.f_back.f_code.co_filename, True))
+                            ):
+                                can_skip = True
+
                     elif step_cmd == CMD_STEP_INTO_COROUTINE:
                         f = frame
                         while f is not None:
@@ -709,7 +716,12 @@ class PyDBFrame:
                     if is_return and (
                             (info.pydev_step_cmd in (CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE) and (frame.f_back is stop_frame)) or
                             (info.pydev_step_cmd in (CMD_STEP_RETURN, CMD_STEP_RETURN_MY_CODE) and (frame is stop_frame)) or
-                            (info.pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_INTO_COROUTINE))
+                            (info.pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_COROUTINE)) or
+                            (
+                                info.pydev_step_cmd == CMD_STEP_INTO_MY_CODE
+                                and frame.f_back is not None
+                                and not main_debugger.apply_files_filter(frame.f_back, frame.f_back.f_code.co_filename, True)
+                            )
                         ):
                         self.show_return_values(frame, arg)
 
