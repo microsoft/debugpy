@@ -9,7 +9,7 @@ import subprocess
 import sys
 
 from debugpy import adapter
-from debugpy.common import compat, log, messaging, sockets
+from debugpy.common import compat, fmt, log, messaging, sockets
 from debugpy.adapter import components, servers
 
 
@@ -66,7 +66,15 @@ class Launcher(components.Component):
 
 
 def spawn_debuggee(
-    session, start_request, launcher_path, args, cwd, console, console_title, sudo
+    session,
+    start_request,
+    launcher_path,
+    launcher_host,
+    args,
+    cwd,
+    console,
+    console_title,
+    sudo,
 ):
     # -E tells sudo to propagate environment variables to the target process - this
     # is necessary for launcher to get DEBUGPY_LAUNCHER_PORT and DEBUGPY_LOG_DIR.
@@ -86,7 +94,7 @@ def spawn_debuggee(
 
     try:
         listener = sockets.serve(
-            "Launcher", on_launcher_connected, "127.0.0.1", backlog=1
+            "Launcher", on_launcher_connected, launcher_host, backlog=1
         )
     except Exception as exc:
         raise start_request.cant_handle(
@@ -94,8 +102,13 @@ def spawn_debuggee(
         )
 
     try:
-        _, launcher_port = listener.getsockname()
-        cmdline += [str(launcher_port), "--"]
+        launcher_host, launcher_port = listener.getsockname()
+        launcher_addr = (
+            launcher_port
+            if launcher_host == "127.0.0.1"
+            else fmt("{0}:{1}", launcher_host, launcher_port)
+        )
+        cmdline += [str(launcher_addr), "--"]
         cmdline += args
 
         if log.log_dir is not None:

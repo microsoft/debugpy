@@ -323,12 +323,14 @@ class Client(components.Component):
             raise request.cant_handle('"sudo":true is not supported on Windows.')
 
         launcher_path = request("debugLauncherPath", os.path.dirname(launcher.__file__))
+        launcher_host = request("debugLauncherHost", "127.0.0.1")
 
         servers.serve()
         launchers.spawn_debuggee(
             self.session,
             request,
             launcher_path,
+            launcher_host,
             args,
             cwd,
             console,
