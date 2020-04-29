@@ -666,17 +666,27 @@ class PyDevJsonCommandProcessor(object):
         ignore_libraries = 1 if py_db.get_use_libraries_filter() else 0
 
         if exception_options:
-            break_raised = True
-            break_uncaught = True
+            break_raised = False
+            break_uncaught = False
 
             for option in exception_options:
                 option = ExceptionOptions(**option)
                 if not option.path:
                     continue
 
+                # never: never breaks
+                #
+                # always: always breaks
+                #
+                # unhandled: breaks when exception unhandled
+                #
+                # userUnhandled: breaks if the exception is not handled by user code
+
                 notify_on_handled_exceptions = 1 if option.breakMode == 'always' else 0
                 notify_on_unhandled_exceptions = 1 if option.breakMode in ('unhandled', 'userUnhandled') else 0
                 exception_paths = option.path
+                break_raised |= notify_on_handled_exceptions
+                break_uncaught |= notify_on_unhandled_exceptions
 
                 exception_names = []
                 if len(exception_paths) == 0:
@@ -724,7 +734,7 @@ class PyDevJsonCommandProcessor(object):
                     ignore_libraries
                 )
 
-        if break_raised or break_uncaught:
+        if break_raised:
             btype = None
             if self._options.django_debug:
                 btype = 'django'
