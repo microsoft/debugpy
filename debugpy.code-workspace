@@ -10,7 +10,6 @@
         "python.linting.flake8Enabled": true,
         "python.envFile": "${workspaceFolder}/.env",
         "python.formatting.provider": "black",
-
         "files.exclude": {
             "**/*.pyc": true,
             "**/__pycache__": true,
@@ -18,5 +17,9 @@
             "src/debugpy.egg-info": true,
         },
         "python.testing.pytestEnabled": true,
-    },
+        "python.analysis.extraPaths": [
+            "src/debugpy/_vendored",
+            "src/debugpy/_vendored/pydevd"
+        ]
+    }
 }
