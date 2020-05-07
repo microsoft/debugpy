@@ -2670,7 +2670,8 @@ def test_source_mapping_errors(case_setup):
     'target',
     ['_debugger_case_source_mapping.py', '_debugger_case_source_mapping_and_reference.py']
 )
-def test_source_mapping(case_setup, target):
+@pytest.mark.parametrize('jmc', [True, False])
+def test_source_mapping_base(case_setup, target, jmc):
     from _pydevd_bundle._debug_adapter.pydevd_schema import Source
     from _pydevd_bundle._debug_adapter.pydevd_schema import PydevdSourceMap
 
@@ -2679,9 +2680,7 @@ def test_source_mapping(case_setup, target):
     with case_setup.test_file(target) as writer:
         json_facade = JsonFacade(writer)
 
-        json_facade.write_launch(
-            justMyCode=False,
-        )
+        json_facade.write_launch(justMyCode=jmc)
 
         map_to_cell_1_line2 = writer.get_line_index_with_content('map to cell1, line 2')
         map_to_cell_2_line2 = writer.get_line_index_with_content('map to cell2, line 2')
@@ -2721,6 +2720,55 @@ def test_source_mapping(case_setup, target):
 
         json_hit = json_facade.wait_for_thread_stopped(line=map_to_cell_2_line2, file=os.path.basename(test_file))
         json_facade.write_set_breakpoints([])  # Clears breakpoints
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
+def test_source_mapping_just_my_code(case_setup):
+    from _pydevd_bundle._debug_adapter.pydevd_schema import Source
+    from _pydevd_bundle._debug_adapter.pydevd_schema import PydevdSourceMap
+
+    case_setup.check_non_ascii = True
+
+    with case_setup.test_file('_debugger_case_source_mapping_jmc.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch(justMyCode=True)
+
+        map_to_cell_1_line1 = writer.get_line_index_with_content('map to cell1, line 1')
+        map_to_cell_1_line6 = writer.get_line_index_with_content('map to cell1, line 6')
+        map_to_cell_1_line7 = writer.get_line_index_with_content('map to cell1, line 7')
+
+        cell1_map = PydevdSourceMap(map_to_cell_1_line1, map_to_cell_1_line7, Source(path='<cell1>'), 1)
+        pydevd_source_maps = [cell1_map]
+
+        # Set breakpoints before setting the source map (check that we reapply them).
+        json_facade.write_set_breakpoints(map_to_cell_1_line6)
+
+        test_file = writer.TEST_FILE
+        if isinstance(test_file, bytes):
+            # file is in the filesystem encoding (needed for launch) but protocol needs it in utf-8
+            test_file = test_file.decode(file_system_encoding)
+            test_file = test_file.encode('utf-8')
+
+        json_facade.write_set_pydevd_source_map(
+            Source(path=test_file),
+            pydevd_source_maps=pydevd_source_maps,
+        )
+
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped(line=map_to_cell_1_line6, file=os.path.basename(test_file))
+        for stack_frame in json_hit.stack_trace_response.body.stackFrames:
+            assert stack_frame['source']['sourceReference'] == 0
+
+        # i.e.: Remove the source maps
+        json_facade.write_set_pydevd_source_map(
+            Source(path=test_file),
+            pydevd_source_maps=[],
+        )
+
         json_facade.write_continue()
 
         writer.finished_ok = True

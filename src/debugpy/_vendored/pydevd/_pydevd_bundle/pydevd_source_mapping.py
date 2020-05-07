@@ -1,5 +1,5 @@
 import bisect
-from _pydevd_bundle.pydevd_constants import dict_items
+from _pydevd_bundle.pydevd_constants import dict_items, NULL
 
 
 class SourceMappingEntry(object):
@@ -45,10 +45,11 @@ class _KeyifyList(object):
 
 class SourceMapping(object):
 
-    def __init__(self):
+    def __init__(self, on_source_mapping_changed=NULL):
         self._mappings_to_server = {}
         self._mappings_to_client = {}
         self._cache = {}
+        self._on_source_mapping_changed = on_source_mapping_changed
 
     def set_source_mapping(self, source_filename, mapping):
         '''
@@ -86,11 +87,12 @@ class SourceMapping(object):
                 self._mappings_to_client[map_entry.runtime_source] = source_filename
         finally:
             self._cache.clear()
+            self._on_source_mapping_changed()
         return ''
 
     def map_to_client(self, filename, lineno):
         # Note: the filename must be normalized to the client after this point.
-        key = (filename, lineno, 'client')
+        key = (lineno, 'client', filename)
         try:
             return self._cache[key]
         except KeyError:
@@ -102,6 +104,22 @@ class SourceMapping(object):
                             return self._cache[key]
 
             self._cache[key] = (filename, lineno, False)
+            return self._cache[key]
+
+    def has_mapping_entry(self, filename):
+        # Note that we're not interested in the line here, just on knowing if a given filename
+        # (from the server) has a mapping for it.
+        key = ('has_entry', filename)
+        try:
+            return self._cache[key]
+        except KeyError:
+            for _source_filename, mapping in dict_items(self._mappings_to_server):
+                for map_entry in mapping:
+                    if map_entry.runtime_source == filename:
+                        self._cache[key] = True
+                        return self._cache[key]
+
+            self._cache[key] = False
             return self._cache[key]
 
     def map_to_server(self, filename, lineno):
@@ -132,3 +150,4 @@ class SourceMapping(object):
                 changed = True
 
         return filename, lineno, changed
+

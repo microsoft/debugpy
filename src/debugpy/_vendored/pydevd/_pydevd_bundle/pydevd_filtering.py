@@ -9,6 +9,8 @@ import json
 from collections import namedtuple
 from _pydev_imps._pydev_saved_modules import threading
 from pydevd_file_utils import normcase
+from _pydevd_bundle.pydevd_constants import USER_CODE_BASENAMES_STARTING_WITH, \
+    LIBRARY_CODE_BASENAMES_STARTING_WITH
 
 try:
     xrange  # noqa
@@ -216,14 +218,15 @@ class FilesFiltering(object):
 
     def in_project_roots(self, filename):
         '''
-        Note: don't call directly. Use PyDb.in_project_scope (no caching here).
+        Note: don't call directly. Use PyDb.in_project_scope (there's no caching here and it doesn't
+        handle all possibilities for knowing whether a project is actually in the scope, it
+        just handles the heuristics based on the filename without the actual frame).
         '''
-        if filename.startswith('<'):  # Note: always use only startswith (pypy can have: "<builtin>some other name").
-            # This is a dummy filename that is usually used for eval or exec. Assume
-            # that it is user code, with one exception: <frozen ...> is used in the
-            # standard library.
-            in_project = not filename.startswith('<frozen ')
-            return in_project
+        if filename.startswith(USER_CODE_BASENAMES_STARTING_WITH):
+            return True
+
+        if filename.startswith(LIBRARY_CODE_BASENAMES_STARTING_WITH):
+            return False
 
         project_roots = self._get_project_roots()
 
