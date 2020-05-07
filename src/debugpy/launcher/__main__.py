@@ -33,9 +33,11 @@ def main():
 
     # Everything before "--" is command line arguments for the launcher itself,
     # and everything after "--" is command line arguments for the debuggee.
+    log.info("sys.argv before parsing: {0}", sys.argv)
     sep = sys.argv.index("--")
     launcher_argv = sys.argv[1:sep]
-    sys.argv = [sys.argv[0]] + sys.argv[sep + 1:]
+    sys.argv[:] = [sys.argv[0]] + sys.argv[sep + 1:]
+    log.info("sys.argv after patching: {0}", sys.argv)
 
     # The first argument specifies the host/port on which the adapter is waiting
     # for launcher to connect. It's either host:port, or just port.

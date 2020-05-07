@@ -9,6 +9,7 @@ import os
 import sys
 
 import debugpy
+from debugpy import launcher
 from debugpy.common import compat, json
 from debugpy.common.compat import unicode
 from debugpy.launcher import debuggee
@@ -57,7 +58,7 @@ def launch_request(request):
         cmdline += [
             compat.filename(os.path.dirname(debugpy.__file__)),
             "--connect",
-            str(port),
+            launcher.adapter_host + ":" + str(port),
         ]
         if not request("subProcess", True):
             cmdline += ["--configure-subProcess", "False"]

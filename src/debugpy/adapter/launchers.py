@@ -69,7 +69,7 @@ def spawn_debuggee(
     session,
     start_request,
     launcher_path,
-    launcher_host,
+    adapter_host,
     args,
     cwd,
     console,
@@ -94,7 +94,7 @@ def spawn_debuggee(
 
     try:
         listener = sockets.serve(
-            "Launcher", on_launcher_connected, launcher_host, backlog=1
+            "Launcher", on_launcher_connected, adapter_host, backlog=1
         )
     except Exception as exc:
         raise start_request.cant_handle(
