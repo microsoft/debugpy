@@ -21,6 +21,21 @@ if not tests.full:
         return request.param
 
 
+def expected_subprocess_config(parent_session):
+    config = dict(parent_session.config)
+    for key in "args", "listen", "postDebugTask", "preLaunchTask", "processId":
+        config.pop(key, None)
+    config.update(
+        {
+            "name": some.str,
+            "request": "attach",
+            "subProcessId": some.int,
+            "connect": {"host": some.str, "port": some.int},
+        }
+    )
+    return config
+
+
 @pytest.mark.parametrize(
     "start_method",
     [""]
@@ -114,17 +129,7 @@ def test_multiprocessing(pyfile, target, run, start_method):
         with run(parent_session, target(code_to_debug, args=[start_method])):
             pass
 
-        expected_child_config = dict(parent_session.config)
-        expected_child_config.pop("listen", None)
-        expected_child_config.update(
-            {
-                "name": some.str,
-                "request": "attach",
-                "subProcessId": some.int,
-                "connect": {"host": some.str, "port": some.int},
-            }
-        )
-
+        expected_child_config = expected_subprocess_config(parent_session)
         child_config = parent_session.wait_for_next_event("debugpyAttach")
         assert child_config == expected_child_config
         parent_session.proceed()
@@ -133,17 +138,7 @@ def test_multiprocessing(pyfile, target, run, start_method):
             with child_session.start():
                 pass
 
-            expected_grandchild_config = dict(child_session.config)
-            expected_grandchild_config.pop("listen", None)
-            expected_grandchild_config.update(
-                {
-                    "name": some.str,
-                    "request": "attach",
-                    "subProcessId": some.int,
-                    "connect": {"host": some.str, "port": some.int},
-                }
-            )
-
+            expected_grandchild_config = expected_subprocess_config(child_session)
             grandchild_config = child_session.wait_for_next_event("debugpyAttach")
             assert grandchild_config == expected_grandchild_config
 
@@ -200,21 +195,10 @@ def test_subprocess(pyfile, target, run, subProcess):
         with run(parent_session, target(parent, args=[child])):
             pass
 
-        expected_child_config = dict(parent_session.config)
-        for key in "processId", "listen", "preLaunchTask", "postDebugTask":
-            expected_child_config.pop(key, None)
-        expected_child_config.update(
-            {
-                "name": some.str,
-                "request": "attach",
-                "subProcessId": some.int,
-                "connect": {"host": some.str, "port": some.int},
-            }
-        )
-
         if subProcess is False:
             return
 
+        expected_child_config = expected_subprocess_config(parent_session)
         child_config = parent_session.wait_for_next_event("debugpyAttach")
         assert child_config == expected_child_config
         parent_session.proceed()
