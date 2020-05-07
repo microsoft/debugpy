@@ -50,12 +50,14 @@ def test_in_project_roots(tmpdir):
         (site_packages_inside_project_dir, False),
         (project_dir, True),
         (project_dir_inside_site_packages, False),
-        ('<foo>', True),
+        ('<foo>', False),
+        ('<ipython>', True),
         ('<frozen importlib._bootstrap>', False),
     ]
 
     for check_path, find in check:
-        assert files_filtering.in_project_roots(check_path) == find
+        assert files_filtering.in_project_roots(check_path) == find, \
+            'Expected: %s to be a part of the project: %s' % (check_path, find)
 
     sys.path.append(str(site_packages))
     try:

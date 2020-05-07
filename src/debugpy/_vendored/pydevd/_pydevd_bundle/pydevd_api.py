@@ -740,7 +740,7 @@ class PyDevdAPI(object):
         if supported_type:
             py_db.has_plugin_exception_breaks = py_db.plugin.has_exception_breaks()
         else:
-            raise NameError(exception_type)
+            pydev_log.info('No exception of type: %s was previously registered.', exception_type)
 
         py_db.on_breakpoints_changed(removed=True)
 

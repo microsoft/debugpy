@@ -46,6 +46,23 @@ class DebugInfoHolder:
     PYDEVD_DEBUG_FILE = None
 
 
+# Any filename that starts with these strings is not traced nor shown to the user.
+# In Python 3.7 "<frozen ..." appears multiple times during import and should be ignored for the user.
+# In PyPy "<builtin> ..." can appear and should be ignored for the user.
+# <attrs is used internally by attrs
+# <__array_function__ is used by numpy
+IGNORE_BASENAMES_STARTING_WITH = ('<frozen ', '<builtin', '<attrs', '<__array_function__')
+
+# Note: <string> has special heuristics to know whether it should be traced or not (it's part of
+# user code when it's the <string> used in python -c and part of the library otherwise).
+
+# Any filename that starts with these strings is considered user (project) code. Note
+# that files for which we have a source mapping are also considered as a part of the project.
+USER_CODE_BASENAMES_STARTING_WITH = ('<ipython',)
+
+# Any filename that starts with these strings is considered library code (note: checked after USER_CODE_BASENAMES_STARTING_WITH).
+LIBRARY_CODE_BASENAMES_STARTING_WITH = ('<',)
+
 IS_CPYTHON = platform.python_implementation() == 'CPython'
 
 # Hold a reference to the original _getframe (because psyco will change that as soon as it's imported)

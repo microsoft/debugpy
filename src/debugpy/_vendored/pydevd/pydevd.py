@@ -40,7 +40,7 @@ from _pydevd_bundle.pydevd_constants import (IS_JYTH_LESS25, get_thread_id, get_
     dict_keys, dict_iter_items, DebugInfoHolder, PYTHON_SUSPEND, STATE_SUSPEND, STATE_RUN, get_frame,
     clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, IS_PY34_OR_GREATER, IS_PY2, NULL,
     NO_FTRACE, IS_IRONPYTHON, JSON_PROTOCOL, IS_CPYTHON, HTTP_JSON_PROTOCOL, USE_CUSTOM_SYS_CURRENT_FRAMES_MAP, call_only_once,
-    ForkSafeLock)
+    ForkSafeLock, IGNORE_BASENAMES_STARTING_WITH, LIBRARY_CODE_BASENAMES_STARTING_WITH)
 from _pydevd_bundle.pydevd_defaults import PydevdCustomization  # Note: import alias used on pydev_monkey.
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
 from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE, LIB_FILE, DONT_TRACE_DIRS
@@ -466,7 +466,10 @@ class PyDB(object):
         self._cmd_queue = defaultdict(_queue.Queue)  # Key is thread id or '*', value is Queue
         self.suspended_frames_manager = SuspendedFramesManager()
         self._files_filtering = FilesFiltering()
-        self.source_mapping = SourceMapping()
+        # Note: when the source mapping is changed we also have to clear the file types cache
+        # (because if a given file is a part of the project or not may depend on it being
+        # defined in the source mapping).
+        self.source_mapping = SourceMapping(on_source_mapping_changed=self._clear_filters_caches)
 
         # Determines whether we should terminate child processes when asked to terminate.
         self.terminate_child_processes = True
@@ -746,12 +749,12 @@ class PyDB(object):
 
     def _internal_get_file_type(self, abs_real_path_and_basename):
         basename = abs_real_path_and_basename[-1]
-        if basename.startswith('<frozen '):
-            # In Python 3.7 "<frozen ..." appears multiple times during import and should be
-            # ignored for the user.
-            return self.PYDEV_FILE
-        if abs_real_path_and_basename[0].startswith(('<builtin', '<attrs')):
-            # In PyPy "<builtin> ..." can appear and should be ignored for the user.
+        if (
+                basename.startswith(IGNORE_BASENAMES_STARTING_WITH) or
+                abs_real_path_and_basename[0].startswith(IGNORE_BASENAMES_STARTING_WITH)
+            ):
+            # Note: these are the files that are completely ignored (they aren't shown to the user
+            # as user nor library code as it's usually just noise in the frame stack).
             return self.PYDEV_FILE
         file_type = self._dont_trace_get_file_type(basename)
         if file_type is not None:
@@ -1022,11 +1025,15 @@ class PyDB(object):
             if file_type == self.PYDEV_FILE:
                 cache[cache_key] = False
 
-            elif file_type == self.LIB_FILE and filename == '<string>':
-                # This means it's a <string> which should be considered to be a library file and
-                # shouldn't be considered as a part of the project.
-                # (i.e.: lib files must be traced if they're put inside a project).
-                cache[cache_key] = False
+            elif filename == '<string>':
+                # Special handling for '<string>'
+                if file_type == self.LIB_FILE:
+                    cache[cache_key] = False
+                else:
+                    cache[cache_key] = True
+
+            elif self.source_mapping.has_mapping_entry(filename):
+                cache[cache_key] = True
 
             else:
                 cache[cache_key] = self._files_filtering.in_project_roots(filename)
