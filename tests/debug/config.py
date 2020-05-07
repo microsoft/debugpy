@@ -52,6 +52,7 @@ class DebugConfig(collections.MutableMapping):
         "type": (),
         # Launch
         "args": [],
+        "argsExpansion": "shell",
         "code": (),
         "console": "internal",
         "cwd": (),

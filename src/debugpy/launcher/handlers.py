@@ -67,14 +67,14 @@ def launch_request(request):
         debugpy_args = request("debugpyArgs", json.array(unicode))
         cmdline += debugpy_args
 
-    # Use command line arguments propagated via launcher CLI, rather than "args", to get
-    # their values after shell expansion in "runInTerminal" scenarios. The command line
-    # parser in __main__ has already removed everything up to and including "--" by now.
+    # Further arguments can come via two channels: the launcher's own command line, or
+    # "args" in the request; effective arguments are concatenation of these two in order.
+    # Arguments for debugpy (such as -m) always come via CLI, but those specified by the
+    # user via "args" are passed differently by the adapter depending on "argsExpansion".
     cmdline += sys.argv[1:]
+    cmdline += request("args", json.array(unicode))
 
-    # We want the process name to reflect the target. So for -m, use the module name
-    # that follows; otherwise use the first argument, which is either -c or filename.
-    process_name = compat.filename(sys.argv[1] if sys.argv[1] != "-m" else sys.argv[2])
+    process_name = request("processName", compat.filename(sys.executable))
 
     env = os.environ.copy()
     env_changes = request("env", json.object(unicode))

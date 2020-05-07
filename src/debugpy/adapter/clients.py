@@ -272,22 +272,19 @@ class Client(components.Component):
 
             return value
 
-        # Propagate command line arguments via launcher CLI rather than "args", so that
-        # they get shell expansion applied to them in "runInTerminal" scenarios.
-
         program = module = code = ()
         if "program" in request:
             program = request("program", unicode)
             args = [program]
-            # process_name = program
+            request.arguments["processName"] = program
         if "module" in request:
             module = request("module", unicode)
             args = ["-m", module]
-            # process_name = module
+            request.arguments["processName"] = module
         if "code" in request:
             code = request("code", json.array(unicode, vectorize=True, size=(1,)))
             args = ["-c", "\n".join(code)]
-            # process_name = cmdline[0]
+            request.arguments["processName"] = "-c"
 
         num_targets = len([x for x in (program, module, code) if x != ()])
         if num_targets == 0:
@@ -299,7 +296,11 @@ class Client(components.Component):
                 '"program", "module", and "code" are mutually exclusive'
             )
 
-        args += request("args", json.array(unicode))
+        # Propagate "args" via CLI if and only if shell expansion is requested.
+        args_expansion = request("argsExpansion", json.enum("shell", "none", optional=True))
+        if args_expansion == "shell":
+            args += request("args", json.array(unicode))
+            del request.arguments["args"]
 
         cwd = request("cwd", unicode, optional=True)
         if cwd == ():
@@ -536,6 +537,8 @@ class Client(components.Component):
         body["name"] = fmt("Subprocess {0}", conn.pid)
         body["request"] = "attach"
         body["subProcessId"] = conn.pid
+        body.pop("processName", None)
+        body.pop("args", None)
 
         host = body.pop("host", None)
         port = body.pop("port", None)
