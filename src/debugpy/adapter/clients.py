@@ -9,7 +9,7 @@ import sys
 
 import debugpy
 from debugpy import adapter, launcher
-from debugpy.common import fmt, json, log, messaging, sockets
+from debugpy.common import compat, fmt, json, log, messaging, sockets
 from debugpy.common.compat import unicode
 from debugpy.adapter import components, servers, sessions
 
@@ -272,6 +272,21 @@ class Client(components.Component):
 
             return value
 
+        # "pythonPath" is a deprecated legacy spelling. If "python" is missing, then try
+        # the alternative. But if both are missing, the error message should say "python".
+        python_key = "python"
+        if python_key in request:
+            if "pythonPath" in request:
+                raise request.isnt_valid(
+                    '"pythonPath" is not valid if "python" is specified'
+                )
+        elif "pythonPath" in request:
+            python_key = "pythonPath"
+        python = request(python_key, json.array(unicode, vectorize=True, size=(0,)))
+        if not len(python):
+            python = [compat.filename(sys.executable)]
+        request.arguments["pythonArgs"] = python[1:]
+
         program = module = code = ()
         if "program" in request:
             program = request("program", unicode)
@@ -300,7 +315,7 @@ class Client(components.Component):
         args_expansion = request("argsExpansion", json.enum("shell", "none", optional=True))
         if args_expansion == "shell":
             args += request("args", json.array(unicode))
-            del request.arguments["args"]
+            request.arguments.pop("args", None)
 
         cwd = request("cwd", unicode, optional=True)
         if cwd == ():
@@ -330,6 +345,7 @@ class Client(components.Component):
         launchers.spawn_debuggee(
             self.session,
             request,
+            python,
             launcher_path,
             adapter_host,
             args,
@@ -537,8 +553,9 @@ class Client(components.Component):
         body["name"] = fmt("Subprocess {0}", conn.pid)
         body["request"] = "attach"
         body["subProcessId"] = conn.pid
-        body.pop("processName", None)
-        body.pop("args", None)
+
+        for key in "args", "processName", "pythonArgs":
+            body.pop(key, None)
 
         host = body.pop("host", None)
         port = body.pop("port", None)

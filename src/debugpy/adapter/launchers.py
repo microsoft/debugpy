@@ -68,6 +68,7 @@ class Launcher(components.Component):
 def spawn_debuggee(
     session,
     start_request,
+    python,
     launcher_path,
     adapter_host,
     args,
@@ -79,7 +80,8 @@ def spawn_debuggee(
     # -E tells sudo to propagate environment variables to the target process - this
     # is necessary for launcher to get DEBUGPY_LAUNCHER_PORT and DEBUGPY_LOG_DIR.
     cmdline = ["sudo", "-E"] if sudo else []
-    cmdline += [sys.executable, launcher_path]
+    cmdline += python
+    cmdline += [launcher_path]
     env = {}
 
     arguments = dict(start_request.arguments)

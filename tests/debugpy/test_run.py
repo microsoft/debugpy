@@ -135,3 +135,30 @@ def test_sudo(pyfile, tmpdir, run, target):
         # The launcher, however, should use our dummy sudo to spawn the debuggee,
         # and the debuggee should report the environment variable accordingly.
         assert backchannel.receive() == "1"
+
+
+@pytest.mark.parametrize("run", runners.all_launch_terminal)
+def test_custom_python(pyfile, run, target):
+    @pyfile
+    def code_to_debug():
+        import sys
+        import debuggee
+        from debuggee import backchannel
+
+        debuggee.setup()
+        backchannel.send(sys.executable)
+
+    class Session(debug.Session):
+        def run_in_terminal(self, args, cwd, env):
+            assert args[:2] == ["CUSTOMPY", "-O"]
+            args[0] = sys.executable
+            return super(Session, self).run_in_terminal(args, cwd, env)
+
+    with Session() as session:
+        session.config["pythonPath"] = ["CUSTOMPY", "-O"]
+
+        backchannel = session.open_backchannel()
+        with run(session, target(code_to_debug)):
+            pass
+
+        assert backchannel.receive() == sys.executable

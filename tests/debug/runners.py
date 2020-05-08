@@ -331,12 +331,9 @@ debugpy.connect({address!r})
 attach_listen.host = "127.0.0.1"
 attach_listen.port = net.get_test_server_port(5478, 5600)
 
+all_launch_terminal = [launch["integratedTerminal"], launch["externalTerminal"]]
 
-all_launch = [
-    launch["internalConsole"],
-    launch["integratedTerminal"],
-    launch["externalTerminal"],
-]
+all_launch = [launch["internalConsole"]] + all_launch_terminal
 
 all_attach_listen = [attach_listen["api"], attach_listen["cli"]]
 

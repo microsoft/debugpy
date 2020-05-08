@@ -39,19 +39,8 @@ def launch_request(request):
 
         return value
 
-    # "pythonPath" is a deprecated legacy spelling. If "python" is missing, then try
-    # the alternative. But if both are missing, the error message should say "python".
-    python_key = "python"
-    if python_key in request:
-        if "pythonPath" in request:
-            raise request.isnt_valid(
-                '"pythonPath" is not valid if "python" is specified'
-            )
-    elif "pythonPath" in request:
-        python_key = "pythonPath"
-    cmdline = request(python_key, json.array(unicode, vectorize=True, size=(0,)))
-    if not len(cmdline):
-        cmdline = [compat.filename(sys.executable)]
+    python_args = request("pythonArgs", json.array(unicode, vectorize=True, size=(0,)))
+    cmdline = [compat.filename(sys.executable)] + python_args
 
     if not request("noDebug", json.default(False)):
         port = request("port", int)
