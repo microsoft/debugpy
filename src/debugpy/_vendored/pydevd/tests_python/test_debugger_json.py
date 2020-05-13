@@ -370,6 +370,7 @@ class JsonFacade(object):
         assert len(scopes) == 2
         assert sorted(name_to_scopes.keys()) == ['Globals', 'Locals']
         assert not name_to_scopes['Locals'].expensive
+        assert name_to_scopes['Locals'].presentationHint == 'locals'
 
         return name_to_scopes
 

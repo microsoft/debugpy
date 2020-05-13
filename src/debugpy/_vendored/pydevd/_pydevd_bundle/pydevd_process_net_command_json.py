@@ -785,7 +785,7 @@ class PyDevJsonCommandProcessor(object):
 
         variables_reference = frame_id
         scopes = [
-            Scope('Locals', ScopeRequest(int(variables_reference), 'locals'), False),
+            Scope('Locals', ScopeRequest(int(variables_reference), 'locals'), False, presentationHint='locals'),
             Scope('Globals', ScopeRequest(int(variables_reference), 'globals'), False),
         ]
         body = ScopesResponseBody(scopes)
