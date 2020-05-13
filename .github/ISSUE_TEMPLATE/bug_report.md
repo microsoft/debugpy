@@ -6,7 +6,7 @@ about: Create a report to help us improve
 
 ## Environment data
 
-- PTVSD version: XXX
+- debugpy version: XXX (run `import debugpy; print(debugpy.__version__)` if uncertain)
 - OS and version: XXX
 - Python version (& distribution if applicable, e.g. Anaconda): XXX
 - Using VS Code or Visual Studio:
