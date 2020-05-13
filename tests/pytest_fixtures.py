@@ -219,7 +219,7 @@ def pyfile(request, long_tmpdir):
         # with, so just replace them with a simple newline.
         line = source[0]
         indent = len(line) - len(line.lstrip())
-        source = [l[indent:] if l.strip() else "\n" for l in source]
+        source = [s[indent:] if s.strip() else "\n" for s in source]
         source = "".join(source)
 
         # Write it to file.
