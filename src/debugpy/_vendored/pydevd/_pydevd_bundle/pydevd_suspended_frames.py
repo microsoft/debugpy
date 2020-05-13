@@ -64,6 +64,12 @@ class _AbstractVariable(object):
         elif name in (TOO_LARGE_ATTR, GENERATED_LEN_ATTR_NAME):
             attributes.append('readOnly')
 
+        try:
+            if self.value.__class__ == DAPGrouper:
+                type_name = ''
+        except:
+            pass  # Ignore errors accessing __class__.
+
         var_data = {
             'name': name,
             'value': value,
