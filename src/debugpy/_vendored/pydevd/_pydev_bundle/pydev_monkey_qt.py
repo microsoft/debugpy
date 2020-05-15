@@ -17,7 +17,7 @@ _patched_qt = False
 
 def patch_qt(qt_support_mode):
     '''
-    This method patches qt (PySide, PyQt4, PyQt5) so that we have hooks to set the tracing for QThread.
+    This method patches qt (PySide2, PySide, PyQt4, PyQt5) so that we have hooks to set the tracing for QThread.
     '''
     if not qt_support_mode:
         return
