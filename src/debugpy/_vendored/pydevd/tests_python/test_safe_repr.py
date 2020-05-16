@@ -28,6 +28,9 @@ class SafeReprTestBase(object):
     def assert_saferepr(self, value, expected):
         safe = self.saferepr(value)
 
+        if len(safe) != len(expected):
+            raise AssertionError('Expected:\n%s\nFound:\n%s\n Expected len: %s Found len: %s' % (
+                expected, safe, len(expected), len(safe),))
         assert safe == expected
         return safe
 
@@ -108,29 +111,29 @@ class TestStrings(SafeReprTestBase):
         value = 'A' * (SafeRepr.maxstring_outer + 10)
 
         self.assert_shortened(value,
-                              "'" + 'A' * 43689 + "..." + 'A' * 21844 + "'")
-        self.assert_shortened([value], "['AAAAAAAAAAAAAAAAAAA...AAAAAAAAA']")
+                              "'" + 'A' * 43690 + "..." + 'A' * 21845 + "'")
+        self.assert_shortened([value], "['AAAAAAAAAAAAAAAAAAAA...AAAAAAAAAA']")
 
     def test_str_largest_unchanged(self):
-        value = 'A' * (SafeRepr.maxstring_outer - 2)
+        value = 'A' * (SafeRepr.maxstring_outer)
 
-        self.assert_unchanged(value, "'" + 'A' * 65534 + "'")
+        self.assert_unchanged(value, "'" + 'A' * 65536 + "'")
 
     def test_str_smallest_changed(self):
-        value = 'A' * (SafeRepr.maxstring_outer - 1)
+        value = 'A' * (SafeRepr.maxstring_outer + 1)
 
         self.assert_shortened(value,
-                              "'" + 'A' * 43689 + "..." + 'A' * 21844 + "'")
+                              "'" + 'A' * 43690 + "..." + 'A' * 21845 + "'")
 
     def test_str_list_largest_unchanged(self):
-        value = 'A' * (SafeRepr.maxstring_inner - 2)
+        value = 'A' * (SafeRepr.maxstring_inner)
 
-        self.assert_unchanged([value], "['" + 'A' * 28 + "']")
+        self.assert_unchanged([value], "['AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA']")
 
     def test_str_list_smallest_changed(self):
-        value = 'A' * (SafeRepr.maxstring_inner - 1)
+        value = 'A' * (SafeRepr.maxstring_inner + 1)
 
-        self.assert_shortened([value], "['AAAAAAAAAAAAAAAAAAA...AAAAAAAAA']")
+        self.assert_shortened([value], "['AAAAAAAAAAAAAAAAAAAA...AAAAAAAAAA']")
 
     @pytest.mark.skipif(sys.version_info > (3, 0), reason='Py2 specific test')
     def test_unicode_small(self):
@@ -144,8 +147,8 @@ class TestStrings(SafeReprTestBase):
         value = u'A' * (SafeRepr.maxstring_outer + 10)
 
         self.assert_shortened(value,
-                              "u'" + 'A' * 43688 + "..." + 'A' * 21844 + "'")
-        self.assert_shortened([value], "[u'AAAAAAAAAAAAAAAAAA...AAAAAAAAA']")
+                              "u'" + 'A' * 43690 + "..." + 'A' * 21845 + "'")
+        self.assert_shortened([value], "[u'AAAAAAAAAAAAAAAAAAAA...AAAAAAAAAA']")
 
     @pytest.mark.skipif(sys.version_info < (3, 0), reason='Py3 specific test')
     def test_bytes_small(self):
@@ -159,8 +162,8 @@ class TestStrings(SafeReprTestBase):
         value = b'A' * (SafeRepr.maxstring_outer + 10)
 
         self.assert_shortened(value,
-                              "b'" + 'A' * 43688 + "..." + 'A' * 21844 + "'")
-        self.assert_shortened([value], "[b'AAAAAAAAAAAAAAAAAA...AAAAAAAAA']")
+                              "b'" + 'A' * 43690 + "..." + 'A' * 21845 + "'")
+        self.assert_shortened([value], "[b'AAAAAAAAAAAAAAAAAAAA...AAAAAAAAAA']")
 
     # @pytest.mark.skip(reason='not written')  # TODO: finish!
     # def test_bytearray_small(self):
@@ -603,23 +606,25 @@ class TestNumpy(SafeReprTestBase):
     # ucs-4 build (so, we have to strip the high-surrogate if it's ucs-2 and the number of chars
     # will be different).
 
-    {'maxother_outer': 20, 'input': u"😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄F😄FF😄F", 'output': (u"😄😄😄😄😄😄...FF😄F", u"😄😄😄😄😄😄😄😄😄😄😄😄😄...F😄FF😄F")},
+    {'maxother_outer': 20, 'input': u"😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄F😄FF😄F", 'output': (u"😄😄😄😄😄😄...FF😄F", u"😄😄😄😄😄😄😄😄😄😄😄😄😄...F😄FF😄F"), 'output_str': ("u'\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\ud83d...\\ude04FF\\U0001f604F'", "u'\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604...F\\U0001f604FF\\U0001f604F'")},
 
-    {'maxother_outer': 20, 'input': u"😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄FFFFFFFF", 'output': (u"😄😄😄😄😄😄...FFFFFF", u"😄😄😄😄😄😄😄😄😄😄😄😄😄...FFFFFF")},
-    {'maxother_outer': 20, 'input': u"🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐FFFFFFFF", 'output': (u"🌐🌐🌐🌐🌐🌐...FFFFFF", u"🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐...FFFFFF")},
-    {'maxother_outer': 10, 'input': u"😄😄😄😄😄😄😄😄😄FFFFFFFF", 'output': (u"😄😄😄...FFF", u"😄😄😄😄😄😄...FFF")},
-    {'maxother_outer': 10, 'input': u"🌐🌐🌐🌐🌐🌐🌐🌐🌐FFFFFFFF", 'output': (u"🌐🌐🌐...FFF", u"🌐🌐🌐🌐🌐🌐...FFF")},
+    {'maxother_outer': 20, 'input': u"😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄FFFFFFFF", 'output': (u"😄😄😄😄😄😄...FFFFFF", u"😄😄😄😄😄😄😄😄😄😄😄😄😄...FFFFFF"), 'output_str': ("u'\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\ud83d...FFFFFF'", "u'\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604...FFFFFF'")},
+    {'maxother_outer': 20, 'input': u"🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐FFFFFFFF", 'output': (u"🌐🌐🌐🌐🌐🌐...FFFFFF", u"🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐...FFFFFF"), 'output_str': ("u'\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\ud83c...FFFFFF'", "u'\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310...FFFFFF'")},
+    {'maxother_outer': 10, 'input': u"😄😄😄😄😄😄😄😄😄FFFFFFFF", 'output': (u"😄😄😄...FFF", u"😄😄😄😄😄😄...FFF"), 'output_str': ("u'\\U0001f604\\U0001f604\\U0001f604...FFF'", "u'\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604...FFF'")},
+    {'maxother_outer': 10, 'input': u"🌐🌐🌐🌐🌐🌐🌐🌐🌐FFFFFFFF", 'output': (u"🌐🌐🌐...FFF", u"🌐🌐🌐🌐🌐🌐...FFF"), 'output_str': ("u'\\U0001f310\\U0001f310\\U0001f310...FFF'", "u'\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310...FFF'")},
 
     # Regular unicode
-    {'maxother_outer': 20, 'input': u"ωωωωωωωωωωωωωωωωωωωωωωωFFFFFFFF", 'output': u"ωωωωωωωωωωωωω...FFFFFF"},
-    {'maxother_outer': 20, 'input': u"������������FFFFFFFF", 'output': u"������������F...FFFFFF"},
-    {'maxother_outer': 10, 'input': u"������������FFFFFFFF", 'output': u"������...FFF"},
+    {'maxother_outer': 20, 'input': u"ωωωωωωωωωωωωωωωωωωωωωωωFFFFFFFF", 'output': u"ωωωωωωωωωωωωω...FFFFFF", 'output_str': repr(u"ωωωωωωωωωωωωω...FFFFFF")},
+    {'maxother_outer': 10, 'input': u"������������FFFFFFFF", 'output': u"������...FFF", 'output_str': repr(u"������...FFF")},
+
+    # Note: as unicode directly doesn't reach the limit and is not elided.
+    {'maxother_outer': 20, 'input': u"������������FFFFFFFF", 'output': u"������������F...FFFFFF", 'output_str': repr(u"������������FFFFFFFF")},
 
     # Note that we actually get the repr() in this case as we can't decode it with any of the available encodings.
-    {'maxother_outer': 10, 'input': b'\xed\xbd\xbf\xff\xfe\xfa\xfd' * 10, 'output': b"'\\xed\\...fd'"},
-    {'maxother_outer': 20, 'input': b'\xed\xbd\xbf\xff\xfe\xfa\xfd' * 10, 'output': b"'\\xed\\xbd\\xbf...a\\xfd'"},
+    {'maxother_outer': 10, 'input': b'\xed\xbd\xbf\xff\xfe\xfa\xfd' * 10, 'output': b"'\\xed\\...fd'", 'output_str': "'\\xed\\xbd\\xbf\\xff\\xfe\\xfa...\\xfe\\xfa\\xfd'"},
+    {'maxother_outer': 20, 'input': b'\xed\xbd\xbf\xff\xfe\xfa\xfd' * 10, 'output': b"'\\xed\\xbd\\xbf...a\\xfd'", 'output_str': "'\\xed\\xbd\\xbf\\xff\\xfe\\xfa\\xfd\\xed\\xbd\\xbf\\xff\\xfe\\xfa...\\xbd\\xbf\\xff\\xfe\\xfa\\xfd'"},
     # Check that we use repr() even if it fits the maxother_outer limit.
-    {'maxother_outer': 100, 'input': b'\xed\xbd\xbf\xff\xfe\xfa\xfd', 'output': "'\\xed\\xbd\\xbf\\xff\\xfe\\xfa\\xfd'"},
+    {'maxother_outer': 100, 'input': b'\xed\xbd\xbf\xff\xfe\xfa\xfd', 'output': "'\\xed\\xbd\\xbf\\xff\\xfe\\xfa\\xfd'", 'output_str': repr(b'\xed\xbd\xbf\xff\xfe\xfa\xfd')},
 
     # Note that with latin1 encoding we can actually decode the string but when encoding back to utf-8 we have garbage
     # (couldn't find a good approach to know what to do here as we've actually been able to decode it as
@@ -628,11 +633,13 @@ class TestNumpy(SafeReprTestBase):
         'maxother_outer': 10,
         'sys_stdout_encoding': 'latin1',
         'input': b'\xed\xbd\xbf\xff\xfe\xfa\xfd' * 10,
-        'output': b'\xc3\xad\xc2\xbd\xc2\xbf\xc3\xbf\xc3\xbe\xc3\xba...\xc3\xbe\xc3\xba\xc3\xbd'
+        'output': b'\xc3\xad\xc2\xbd\xc2\xbf\xc3\xbf\xc3\xbe\xc3\xba...\xc3\xbe\xc3\xba\xc3\xbd',
+        'output_str': "\'\\xed\\xbd\\xbf\\xff\\xfe\\xfa...\\xfe\\xfa\\xfd\'",
     },
 ])
+@pytest.mark.parametrize('use_str', [True, False])
 @pytest.mark.skipif(not IS_PY2, reason='Py2 specific test.')
-def test_py2_bytes_slicing(params):
+def test_py2_bytes_slicing(params, use_str):
     safe_repr = SafeRepr()
     safe_repr.locale_preferred_encoding = 'ascii'
     safe_repr.sys_stdout_encoding = params.get('sys_stdout_encoding', 'ascii')
@@ -643,16 +650,26 @@ def test_py2_bytes_slicing(params):
     # later on, so, the return from SafeRepr must always be utf-8 regardless of the input).
     encoding = 'utf-8'
 
-    class MyObj(object):
+    if not use_str:
 
-        def __repr__(self):
-            ret = params['input']
-            if isinstance(ret, unicode):
-                ret = ret.encode(encoding)
-            return ret
+        class MyObj(object):
 
-    expected_output = params['output']
-    computed = safe_repr(MyObj())
+            def __repr__(self):
+                ret = params['input']
+                if isinstance(ret, unicode):
+                    ret = ret.encode(encoding)
+                return ret
+
+        safe_repr_input = MyObj()
+    else:
+        safe_repr_input = params['input']
+
+    computed = safe_repr(safe_repr_input)
+
+    if use_str:
+        expected_output = params['output_str']
+    else:
+        expected_output = params['output']
 
     expect_unicode = False
     if isinstance(expected_output, unicode):
@@ -667,7 +684,10 @@ def test_py2_bytes_slicing(params):
         else:
             assert computed == expected_output
     else:
-        assert repr(computed) == repr(expected_output)
+        if isinstance(expected_output, tuple):
+            assert computed in expected_output
+        else:
+            assert computed == expected_output
 
     # Check that we can json-encode the return.
     assert json.dumps(computed)
@@ -681,7 +701,8 @@ def test_py2_bytes_slicing(params):
     # Because we can't return bytes, byte-related tests aren't needed (and str works as it should).
 ])
 @pytest.mark.skipif(IS_PY2, reason='Py3 specific test')
-def test_py3_str_slicing(params):
+@pytest.mark.parametrize('use_str', [True, False])
+def test_py3_str_slicing(params, use_str):
     # Note: much simpler in python because __repr__ is required to return str
     # (which is actually unicode).
     safe_repr = SafeRepr()
@@ -690,20 +711,28 @@ def test_py3_str_slicing(params):
 
     safe_repr.maxother_outer = params['maxother_outer']
 
-    class MyObj(object):
+    if not use_str:
 
-        def __repr__(self):
-            return params['input']
+        class MyObj(object):
 
+            def __repr__(self):
+                return params['input']
+
+        safe_repr_input = MyObj()
+    else:
+        safe_repr_input = params['input']
     expected_output = params['output']
-    computed = safe_repr(MyObj())
-    assert repr(computed) == repr(expected_output)
+    computed = safe_repr(safe_repr_input)
+    expected = repr(expected_output)
+    if use_str:
+        expected = repr(expected)
+    assert repr(computed) == expected
 
     # Check that we can json-encode the return.
     assert json.dumps(computed)
 
 
-def test_raw():
+def test_raw_bytes():
     safe_repr = SafeRepr()
     safe_repr.raw_value = True
     obj = b'\xed\xbd\xbf\xff\xfe\xfa\xfd'
@@ -713,4 +742,50 @@ def test_raw():
         assert raw_value_repr == obj.decode('latin1').encode('utf-8')
     else:
         assert raw_value_repr == obj.decode('latin1')
+
+
+def test_raw_unicode():
+    safe_repr = SafeRepr()
+    safe_repr.raw_value = True
+    obj = u'\xed\xbd\xbf\xff\xfe\xfa\xfd'
+    raw_value_repr = safe_repr(obj)
+    assert isinstance(raw_value_repr, str)  # bytes on py2, str on py3
+    if IS_PY2:
+        assert raw_value_repr == obj.encode('utf-8')
+    else:
+        assert raw_value_repr == obj
+
+
+def test_no_repr():
+
+    class MyBytes(object):
+
+        def __init__(self, contents):
+            self.contents = contents
+            self.errored = None
+
+        def __iter__(self):
+            return iter(self.contents)
+
+        def decode(self, encoding):
+            self.errored = 'decode called'
+            raise RuntimeError('Should not be called.')
+
+        def __repr__(self):
+            self.errored = '__repr__ called'
+            raise RuntimeError('Should not be called.')
+
+        def __getitem__(self, *args):
+            return self.contents.__getitem__(*args)
+
+        def __len__(self):
+            return len(self.contents)
+
+    safe_repr = SafeRepr()
+    safe_repr.string_types = (MyBytes,)
+    safe_repr.bytes = MyBytes
+    obj = b'f' * (safe_repr.maxstring_outer * 10)
+    my_bytes = MyBytes(obj)
+    raw_value_repr = safe_repr(my_bytes)
+    assert not my_bytes.errored
 
