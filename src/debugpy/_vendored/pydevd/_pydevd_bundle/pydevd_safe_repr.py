@@ -6,7 +6,7 @@
 import sys
 from _pydevd_bundle.pydevd_constants import IS_PY2
 import locale
-import json
+from _pydev_bundle import pydev_log
 
 # Py3 compat - alias unicode to str, and xrange to range
 try:
@@ -33,6 +33,7 @@ class SafeRepr(object):
     maxstring_inner = 30
     if sys.version_info >= (3, 0):
         string_types = (str, bytes)
+        bytes = bytes
         set_info = (set, '{', '}', False)
         frozenset_info = (frozenset, 'frozenset({', '})', False)
         int_types = (int,)
@@ -40,6 +41,7 @@ class SafeRepr(object):
                            dict, set, frozenset)
     else:
         string_types = (str, unicode)
+        bytes = str
         set_info = (set, 'set([', '])', False)
         frozenset_info = (frozenset, 'frozenset([', '])', False)
         int_types = (int, long)  # noqa
@@ -279,8 +281,61 @@ class SafeRepr(object):
         yield suffix
 
     def _repr_str(self, obj, level):
-        return self._repr_obj(obj, level,
-                              self.maxstring_inner, self.maxstring_outer)
+        try:
+            if self.raw_value:
+                # For raw value retrieval, ignore all limits.
+                if isinstance(obj, bytes):
+                    yield obj.decode('latin-1')
+                else:
+                    yield obj
+                return
+
+            limit_inner = self.maxother_inner
+            limit_outer = self.maxother_outer
+            limit = limit_inner if level > 0 else limit_outer
+            if len(obj) <= limit:
+                # Note that we check the limit before doing the repr (so, the final string
+                # may actually be considerably bigger on some cases, as besides
+                # the additional u, b, ' chars, some chars may be escaped in repr, so
+                # even a single char such as \U0010ffff may end up adding more
+                # chars than expected).
+                yield self._convert_to_unicode_or_bytes_repr(repr(obj))
+                return
+
+            # Slightly imprecise calculations - we may end up with a string that is
+            # up to 6 characters longer than limit. If you need precise formatting,
+            # you are using the wrong class.
+            left_count, right_count = max(1, int(2 * limit / 3)), max(1, int(limit / 3))  # noqa
+
+            # Important: only do repr after slicing to avoid duplicating a byte array that could be
+            # huge.
+
+            # Note: we don't deal with high surrogates here because we're not dealing with the
+            # repr() of a random object.
+            # i.e.: A high surrogate unicode char may be splitted on Py2, but as we do a `repr`
+            # afterwards, that's ok.
+
+            # Also, we just show the unicode/string/bytes repr() directly to make clear what the
+            # input type was (so, on py2 a unicode would start with u' and on py3 a bytes would
+            # start with b').
+
+            part1 = obj[:left_count]
+            part1 = repr(part1)
+            part1 = part1[:part1.rindex("'")]  # Remove the last '
+
+            part2 = obj[-right_count:]
+            part2 = repr(part2)
+            part2 = part2[part2.index("'") + 1:]  # Remove the first ' (and possibly u or b).
+
+            yield part1
+            yield '...'
+            yield part2
+        except:
+            # This shouldn't really happen, but let's play it safe.
+            pydev_log.exception('Error getting string representation to show.')
+            for part in self._repr_obj(obj, level,
+                                  self.maxother_inner, self.maxother_outer):
+                yield part
 
     def _repr_other(self, obj, level):
         return self._repr_obj(obj, level,
@@ -327,7 +382,7 @@ class SafeRepr(object):
         # you are using the wrong class.
         left_count, right_count = max(1, int(2 * limit / 3)), max(1, int(limit / 3))  # noqa
 
-        if IS_PY2 and isinstance(obj_repr, bytes):
+        if IS_PY2 and isinstance(obj_repr, self.bytes):
             # If we can convert to unicode before slicing, that's better (but don't do
             # it if it's not possible as we may be dealing with actual binary data).
 
@@ -370,9 +425,9 @@ class SafeRepr(object):
         yield obj_repr[-right_count:]
 
     def _convert_to_unicode_or_bytes_repr(self, obj_repr):
-        if IS_PY2 and isinstance(obj_repr, bytes):
+        if IS_PY2 and isinstance(obj_repr, self.bytes):
             obj_repr = self._bytes_as_unicode_if_possible(obj_repr)
-            if isinstance(obj_repr, bytes):
+            if isinstance(obj_repr, self.bytes):
                 # If we haven't been able to decode it this means it's some binary data
                 # we can't make sense of, so, we need its repr() -- otherwise json
                 # encoding may break later on.
