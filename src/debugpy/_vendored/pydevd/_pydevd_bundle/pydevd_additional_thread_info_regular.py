@@ -87,6 +87,7 @@ class PyDBAdditionalThreadInfo(object):
         'top_level_thread_tracer_no_back_frames',
         'top_level_thread_tracer_unhandled',
         'thread_tracer',
+        'step_in_initial_location',
     ]
     # ENDIF
 
@@ -119,6 +120,7 @@ class PyDBAdditionalThreadInfo(object):
         self.top_level_thread_tracer_no_back_frames = []
         self.top_level_thread_tracer_unhandled = None
         self.thread_tracer = None
+        self.step_in_initial_location = None
 
     def get_topmost_frame(self, thread):
         '''

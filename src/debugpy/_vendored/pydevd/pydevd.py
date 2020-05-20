@@ -1838,6 +1838,7 @@ class PyDB(object):
 
     def _do_wait_suspend(self, thread, frame, event, arg, suspend_type, from_this_thread, frames_tracker):
         info = thread.additional_info
+        info.step_in_initial_location = None
         keep_suspended = False
 
         with self._main_lock:  # Use lock to check if suspended state changed
@@ -1865,6 +1866,7 @@ class PyDB(object):
 
         # process any stepping instructions
         if info.pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE):
+            info.step_in_initial_location = (frame, frame.f_lineno)
             if frame.f_code.co_flags & 0x80:  # CO_COROUTINE = 0x80
                 # When in a coroutine we switch to CMD_STEP_INTO_COROUTINE.
                 info.pydev_step_cmd = CMD_STEP_INTO_COROUTINE

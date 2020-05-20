@@ -12,3 +12,4 @@ def call_me_back1(callback):
 
 def raise_exception():
     raise RuntimeError('TEST SUCEEDED')
+

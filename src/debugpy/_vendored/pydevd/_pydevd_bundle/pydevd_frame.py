@@ -790,6 +790,11 @@ class PyDBFrame:
                         else:
                             if force_check_project_scope or main_debugger.is_files_filter_enabled:
                                 stop = not main_debugger.apply_files_filter(frame.f_back, frame.f_back.f_code.co_filename, force_check_project_scope)
+                                if stop:
+                                    # Prevent stopping in a return to the same location we were initially
+                                    # (i.e.: double-stop at the same place due to some filtering).
+                                    if info.step_in_initial_location == (frame.f_back, frame.f_back.f_lineno):
+                                        stop = False
                             else:
                                 stop = True
                     else:

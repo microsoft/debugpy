@@ -973,6 +973,28 @@ def test_case_path_translation_not_skipped(case_setup):
         writer.finished_ok = True
 
 
+def test_case_exclude_double_step(case_setup):
+    with case_setup.test_file('my_code/my_code_double_step.py') as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(
+            justMyCode=False,  # i.e.: exclude through rules and not my code
+            rules=[
+                {'path': '**/other_noop.py', 'include':False},
+            ]
+        )
+
+        break_line = writer.get_line_index_with_content('break here')
+        json_facade.write_set_breakpoints(break_line)
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped(line=break_line)
+        json_facade.write_step_in(json_hit.thread_id)
+        json_hit = json_facade.wait_for_thread_stopped('step', file='my_code_double_step.py', line=break_line + 1)
+
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
 def test_case_update_rules(case_setup):
     with case_setup.test_file('my_code/my_code.py') as writer:
         json_facade = JsonFacade(writer)
