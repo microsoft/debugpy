@@ -19,3 +19,4 @@ cdef class PyDBAdditionalThreadInfo:
     cdef public object top_level_thread_tracer_no_back_frames;
     cdef public object top_level_thread_tracer_unhandled;
     cdef public object thread_tracer;
+    cdef public object step_in_initial_location;
