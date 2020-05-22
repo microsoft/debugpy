@@ -1,6 +1,6 @@
-
 from _pydevd_bundle.pydevd_constants import get_frame, IS_CPYTHON, IS_64BIT_PROCESS, IS_WINDOWS, \
-    IS_LINUX, IS_MAC, IS_PY2, DebugInfoHolder, ForkSafeLock
+    IS_LINUX, IS_MAC, IS_PY2, DebugInfoHolder, ForkSafeLock, LOAD_NATIVE_LIB_FLAG, \
+    ENV_FALSE_LOWER_VALUES
 from _pydev_imps._pydev_saved_modules import thread, threading
 from _pydev_bundle import pydev_log, pydev_monkey
 from os.path import os
@@ -109,7 +109,7 @@ def restore_sys_set_trace_func():
 
 
 def load_python_helper_lib():
-    if not IS_CPYTHON or ctypes is None or sys.version_info[:2] > (3, 8):
+    if not IS_CPYTHON or ctypes is None or sys.version_info[:2] > (3, 8) or hasattr(sys, 'gettotalrefcount') or LOAD_NATIVE_LIB_FLAG in ENV_FALSE_LOWER_VALUES:
         return None
 
     if IS_WINDOWS:
@@ -159,7 +159,10 @@ def load_python_helper_lib():
 def set_trace_to_threads(tracing_func):
     lib = load_python_helper_lib()
     if lib is None:  # This is the case if it's not CPython.
+        pydev_log.info('Unable to load helper lib to set tracing to all threads (unsupported python vm).')
         return -1
+
+    pydev_log.info('Successfully Loaded helper lib to set tracing to all threads.')
 
     ret = 0
     set_trace_func = TracingFunctionHolder._original_tracing or sys.settrace
