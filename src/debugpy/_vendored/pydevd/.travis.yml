@@ -57,12 +57,12 @@ matrix:
         - PYDEVD_USE_CYTHON=NO
         - PYDEVD_TEST_VM=CPYTHON
 
-    # Python 3.7
+    # Python 3.8 debug
     - python: 2.7
       env:
-        - PYDEVD_PYTHON_VERSION=3.7
-        - PYDEVD_USE_CYTHON=YES
-        - PYDEVD_TEST_VM=CPYTHON
+        - PYDEVD_PYTHON_VERSION=3.8
+        - PYDEVD_TEST_VM=CPYTHON_DEBUG
+        - PYDEVD_USE_CONDA=NO
 
     - python: 3.8
       env:
@@ -124,6 +124,7 @@ install:
 # On local machine with jython: c:\bin\jython2.7.0\bin\jython.exe -Dpython.path=.;jython_test_deps/ant.jar;jython_test_deps/junit.jar -m pytest
 # On remove machine with python: c:\bin\python27\python.exe -m pytest
 script:
+  - if [[ ("$PYDEVD_TEST_VM" == "CPYTHON_DEBUG") ]]; then ./.travis/install_and_run_debug_py.sh; fi
   - if [[ ("$PYDEVD_TEST_VM" == "CPYTHON") ]]; then ./.travis/run_python_pytest.sh; fi
   - if [ "$PYDEVD_TEST_VM" == "PYPY" ]; then source activate build_env; pypy3 -m pytest -n auto; fi
   - if [ "$PYDEVD_TEST_VM" == "JYTHON" ]; then jython -Dpython.path=.:jython_test_deps/ant.jar:jython_test_deps/junit.jar -m pytest --tb=native; fi

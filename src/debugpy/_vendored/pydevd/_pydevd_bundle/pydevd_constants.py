@@ -173,7 +173,23 @@ try:
 except AttributeError:
     PY_IMPL_NAME = ''
 
-SUPPORT_GEVENT = os.getenv('GEVENT_SUPPORT', 'False') in ('True', 'true', '1')
+ENV_TRUE_LOWER_VALUES = ('yes', 'true', '1')
+ENV_FALSE_LOWER_VALUES = ('no', 'false', '0')
+
+
+def is_true_in_env(env_key):
+    if isinstance(env_key, tuple):
+        # If a tuple, return True if any of those ends up being true.
+        for v in env_key:
+            if is_true_in_env(v):
+                return True
+        return False
+    else:
+        return os.getenv(env_key, '').lower() in ENV_TRUE_LOWER_VALUES
+
+
+# If true in env, use gevent mode.
+SUPPORT_GEVENT = is_true_in_env('GEVENT_SUPPORT')
 
 GEVENT_SUPPORT_NOT_SET_MSG = os.getenv(
     'GEVENT_SUPPORT_NOT_SET_MSG',
@@ -187,14 +203,32 @@ USE_LIB_COPY = SUPPORT_GEVENT
 
 INTERACTIVE_MODE_AVAILABLE = sys.platform in ('darwin', 'win32') or os.getenv('DISPLAY') is not None
 
-SHOW_COMPILE_CYTHON_COMMAND_LINE = os.getenv('PYDEVD_SHOW_COMPILE_CYTHON_COMMAND_LINE', 'False') == 'True'
+# If true in env, forces cython to be used (raises error if not available).
+# If false in env, disables it.
+# If not specified, uses default heuristic to determine if it should be loaded.
+USE_CYTHON_FLAG = os.getenv('PYDEVD_USE_CYTHON')
 
-LOAD_VALUES_ASYNC = os.getenv('PYDEVD_LOAD_VALUES_ASYNC', 'False') == 'True'
+# Use to disable loading the lib to set tracing to all threads (default is using heuristics based on where we're running).
+LOAD_NATIVE_LIB_FLAG = os.getenv('PYDEVD_LOAD_NATIVE_LIB', '').lower()
+
+if USE_CYTHON_FLAG is not None:
+    USE_CYTHON_FLAG = USE_CYTHON_FLAG.lower()
+    if USE_CYTHON_FLAG not in ENV_TRUE_LOWER_VALUES and USE_CYTHON_FLAG not in ENV_FALSE_LOWER_VALUES:
+        raise RuntimeError('Unexpected value for PYDEVD_USE_CYTHON: %s (enable with one of: %s, disable with one of: %s)' % (
+            USE_CYTHON_FLAG, ENV_TRUE_LOWER_VALUES, ENV_FALSE_LOWER_VALUES))
+
+else:
+    if not CYTHON_SUPPORTED:
+        USE_CYTHON_FLAG = 'no'
+
+SHOW_COMPILE_CYTHON_COMMAND_LINE = is_true_in_env('PYDEVD_SHOW_COMPILE_CYTHON_COMMAND_LINE')
+
+LOAD_VALUES_ASYNC = is_true_in_env('PYDEVD_LOAD_VALUES_ASYNC')
 DEFAULT_VALUE = "__pydevd_value_async"
 ASYNC_EVAL_TIMEOUT_SEC = 60
 NEXT_VALUE_SEPARATOR = "__pydev_val__"
 BUILTINS_MODULE_NAME = '__builtin__' if IS_PY2 else 'builtins'
-SHOW_DEBUG_INFO_ENV = os.getenv('PYCHARM_DEBUG') == 'True' or os.getenv('PYDEV_DEBUG') == 'True' or os.getenv('PYDEVD_DEBUG') == 'True'
+SHOW_DEBUG_INFO_ENV = is_true_in_env(('PYCHARM_DEBUG', 'PYDEV_DEBUG', 'PYDEVD_DEBUG'))
 
 if SHOW_DEBUG_INFO_ENV:
     # show debug info before the debugger start
