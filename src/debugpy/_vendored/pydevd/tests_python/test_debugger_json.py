@@ -223,7 +223,7 @@ class JsonFacade(object):
 
         '''
         filters = filters or []
-        assert set(filters).issubset(set(('raised', 'uncaught')))
+        assert set(filters).issubset(set(('raised', 'uncaught', 'userUnhandled')))
 
         exception_options = exception_options or []
         exception_options = [exception_option.to_dict() for exception_option in exception_options]
@@ -624,6 +624,23 @@ def test_case_handled_exception_breaks(case_setup):
 
         # Clear so that the last one is not hit.
         json_facade.write_set_exception_breakpoints([])
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(IS_PY26, reason='Not ok on Python 2.6')
+def test_case_user_unhandled_exception(case_setup):
+    with case_setup.test_file('_debugger_case_user_unhandled.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch()
+        json_facade.write_set_exception_breakpoints(['userUnhandled'])
+        json_facade.write_make_initial_run()
+
+        json_facade.wait_for_thread_stopped(
+            reason='exception', line=writer.get_line_index_with_content('stop here'), file='_debugger_case_user_unhandled.py')
+
         json_facade.write_continue()
 
         writer.finished_ok = True

@@ -683,7 +683,8 @@ class PyDevJsonCommandProcessor(object):
                 # userUnhandled: breaks if the exception is not handled by user code
 
                 notify_on_handled_exceptions = 1 if option.breakMode == 'always' else 0
-                notify_on_unhandled_exceptions = 1 if option.breakMode in ('unhandled', 'userUnhandled') else 0
+                notify_on_unhandled_exceptions = 1 if option.breakMode == 'unhandled' else 0
+                notify_on_user_unhandled_exceptions = 1 if option.breakMode == 'userUnhandled' else 0
                 exception_paths = option.path
                 break_raised |= notify_on_handled_exceptions
                 break_uncaught |= notify_on_unhandled_exceptions
@@ -711,6 +712,7 @@ class PyDevJsonCommandProcessor(object):
                         expression,
                         notify_on_handled_exceptions,
                         notify_on_unhandled_exceptions,
+                        notify_on_user_unhandled_exceptions,
                         notify_on_first_raise_only,
                         ignore_libraries
                     )
@@ -718,9 +720,11 @@ class PyDevJsonCommandProcessor(object):
         else:
             break_raised = 'raised' in filters
             break_uncaught = 'uncaught' in filters
-            if break_raised or break_uncaught:
+            break_user = 'userUnhandled' in filters
+            if break_raised or break_uncaught or break_user:
                 notify_on_handled_exceptions = 1 if break_raised else 0
                 notify_on_unhandled_exceptions = 1 if break_uncaught else 0
+                notify_on_user_unhandled_exceptions = 1 if break_user else 0
                 exception = 'BaseException'
 
                 self.api.add_python_exception_breakpoint(
@@ -730,6 +734,7 @@ class PyDevJsonCommandProcessor(object):
                     expression,
                     notify_on_handled_exceptions,
                     notify_on_unhandled_exceptions,
+                    notify_on_user_unhandled_exceptions,
                     notify_on_first_raise_only,
                     ignore_libraries
                 )

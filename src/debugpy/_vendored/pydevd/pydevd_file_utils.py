@@ -567,6 +567,7 @@ def get_server_filename_from_source_reference(source_reference):
 
 def create_source_reference_for_linecache(server_filename):
     source_reference = _next_source_reference()
+    pydev_log.debug('Created linecache id source reference: %s for server filename: %s', source_reference, server_filename)
     _line_cache_source_reference_to_server_filename[source_reference] = server_filename
     return source_reference
 
@@ -575,8 +576,9 @@ def get_source_reference_filename_from_linecache(source_reference):
     return _line_cache_source_reference_to_server_filename.get(source_reference)
 
 
-def create_source_reference_for_frame_id(frame_id):
+def create_source_reference_for_frame_id(frame_id, original_filename):
     source_reference = _next_source_reference()
+    pydev_log.debug('Created frame id source reference: %s for frame id: %s (%s)', source_reference, frame_id, original_filename)
     _source_reference_to_frame_id[source_reference] = frame_id
     return source_reference
 
@@ -733,6 +735,8 @@ def setup_client_server_paths(paths):
                     source_reference = 0
                 else:
                     source_reference = _next_source_reference()
+                    pydev_log.debug('Created source reference: %s for untranslated path: %s', source_reference, filename)
+
                 _client_filename_in_utf8_to_source_reference[translated] = source_reference
                 _source_reference_to_server_filename[source_reference] = filename
 

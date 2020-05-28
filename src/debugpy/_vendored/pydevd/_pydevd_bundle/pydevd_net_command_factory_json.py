@@ -236,7 +236,7 @@ class NetCommandFactoryJson(NetCommandFactory):
                         # Create a source-reference to be used where we provide the source by decompiling the code.
                         # Note: When the time comes to retrieve the source reference in this case, we'll
                         # check the linecache first (see: get_decompiled_source_from_frame_id).
-                        source_reference = pydevd_file_utils.create_source_reference_for_frame_id(frame_id)
+                        source_reference = pydevd_file_utils.create_source_reference_for_frame_id(frame_id, original_filename)
                     else:
                         # Check if someone added a source reference to the linecache (Python attrs does this).
                         if linecache.getline(original_filename, 1):

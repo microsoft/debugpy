@@ -14,6 +14,7 @@ class ExceptionBreakpoint(object):
         expression,
         notify_on_handled_exceptions,
         notify_on_unhandled_exceptions,
+        notify_on_user_unhandled_exceptions,
         notify_on_first_raise_only,
         ignore_libraries
         ):
@@ -29,6 +30,7 @@ class ExceptionBreakpoint(object):
         self.notify_on_unhandled_exceptions = notify_on_unhandled_exceptions
         self.notify_on_handled_exceptions = notify_on_handled_exceptions
         self.notify_on_first_raise_only = notify_on_first_raise_only
+        self.notify_on_user_unhandled_exceptions = notify_on_user_unhandled_exceptions
         self.ignore_libraries = ignore_libraries
 
         self.type = exctype

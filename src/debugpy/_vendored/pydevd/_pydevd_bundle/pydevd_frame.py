@@ -115,7 +115,9 @@ class PyDBFrame:
     # IFDEF CYTHON
     # def should_stop_on_exception(self, frame, str event, arg):
     #     cdef PyDBAdditionalThreadInfo info;
-    #     cdef bint flag;
+    #     cdef bint should_stop;
+    #     cdef bint was_just_raised;
+    #     cdef list check_excs;
     # ELSE
     def should_stop_on_exception(self, frame, event, arg):
     # ENDIF
@@ -143,55 +145,71 @@ class PyDBFrame:
                     pydev_log.exception()
 
                 if not should_stop:
+                    was_just_raised = trace.tb_next is None
+
                     # It was not handled by any plugin, lets check exception breakpoints.
-                    exception_breakpoint = main_debugger.get_exception_breakpoint(
+                    check_excs = []
+                    exc_break_caught = main_debugger.get_exception_breakpoint(
                         exception, main_debugger.break_on_caught_exceptions)
+                    if exc_break_caught is not None:
+                        check_excs.append((exc_break_caught, False))
 
-                    if exception_breakpoint is not None:
+                    exc_break_user = main_debugger.get_exception_breakpoint(
+                        exception, main_debugger.break_on_user_uncaught_exceptions)
+                    if exc_break_user is not None:
+                        check_excs.append((exc_break_user, True))
+
+                    for exc_break, is_user_uncaught in check_excs:
+                        # Initially mark that it should stop and then go into exclusions.
+                        should_stop = True
+
                         if exception is SystemExit and main_debugger.ignore_system_exit_code(value):
-                            return False, frame
+                            should_stop = False
 
-                        if exception in (GeneratorExit, StopIteration):
+                        elif exception in (GeneratorExit, StopIteration):
                             # These exceptions are control-flow related (they work as a generator
                             # pause), so, we shouldn't stop on them.
-                            return False, frame
+                            should_stop = False
 
-                        if exception_breakpoint.condition is not None:
-                            eval_result = main_debugger.handle_breakpoint_condition(info, exception_breakpoint, frame)
-                            if not eval_result:
-                                return False, frame
-
-                        if main_debugger.exclude_exception_by_filter(exception_breakpoint, trace):
+                        elif main_debugger.exclude_exception_by_filter(exc_break, trace):
                             pydev_log.debug("Ignore exception %s in library %s -- (%s)" % (exception, frame.f_code.co_filename, frame.f_code.co_name))
-                            return False, frame
+                            should_stop = False
 
-                        if ignore_exception_trace(trace):
-                            return False, frame
+                        elif ignore_exception_trace(trace):
+                            should_stop = False
 
-                        was_just_raised = just_raised(trace)
-                        if was_just_raised:
+                        elif exc_break.condition is not None and \
+                                not main_debugger.handle_breakpoint_condition(info, exc_break, frame):
+                            should_stop = False
 
-                            if main_debugger.skip_on_exceptions_thrown_in_same_context:
-                                # Option: Don't break if an exception is caught in the same function from which it is thrown
-                                return False, frame
+                        elif was_just_raised and main_debugger.skip_on_exceptions_thrown_in_same_context:
+                            # Option: Don't break if an exception is caught in the same function from which it is thrown
+                            should_stop = False
 
-                        if exception_breakpoint.notify_on_first_raise_only:
-                            if main_debugger.skip_on_exceptions_thrown_in_same_context:
-                                # In this case we never stop if it was just raised, so, to know if it was the first we
-                                # need to check if we're in the 2nd method.
-                                if not was_just_raised and not just_raised(trace.tb_next):
-                                    return False, frame  # I.e.: we stop only when we're at the caller of a method that throws an exception
+                        elif exc_break.notify_on_first_raise_only and main_debugger.skip_on_exceptions_thrown_in_same_context \
+                                and not was_just_raised and not just_raised(trace.tb_next):
+                            # In this case we never stop if it was just raised, so, to know if it was the first we
+                            # need to check if we're in the 2nd method.
+                            should_stop = False  # I.e.: we stop only when we're at the caller of a method that throws an exception
 
-                            else:
-                                if not was_just_raised:
-                                    return False, frame  # I.e.: we stop only when it was just raised
+                        elif exc_break.notify_on_first_raise_only and not main_debugger.skip_on_exceptions_thrown_in_same_context \
+                                and not was_just_raised:
+                            should_stop = False  # I.e.: we stop only when it was just raised
 
-                        # If it got here we should stop.
-                        should_stop = True
-                        try:
-                            info.pydev_message = exception_breakpoint.qname
-                        except:
-                            info.pydev_message = exception_breakpoint.qname.encode('utf-8')
+                        elif is_user_uncaught and not (
+                            not main_debugger.apply_files_filter(frame, frame.f_code.co_filename, True)
+                                and (frame.f_back is None or main_debugger.apply_files_filter(frame.f_back, frame.f_back.f_code.co_filename, True))):
+                            # User uncaught means that we're currently in user code but the code
+                            # up the stack is library code.
+                            should_stop = False
+
+                        if should_stop:
+                            exception_breakpoint = exc_break
+                            try:
+                                info.pydev_message = exc_break.qname
+                            except:
+                                info.pydev_message = exc_break.qname.encode('utf-8')
+                            break
 
                 if should_stop:
                     # Always add exception to frame (must remove later after we proceed).
@@ -417,7 +435,10 @@ class PyDBFrame:
                 return None if event == 'call' else NO_FTRACE
 
             plugin_manager = main_debugger.plugin
-            has_exception_breakpoints = main_debugger.break_on_caught_exceptions or main_debugger.has_plugin_exception_breaks
+            has_exception_breakpoints = (
+                main_debugger.break_on_caught_exceptions
+                or main_debugger.break_on_user_uncaught_exceptions
+                or main_debugger.has_plugin_exception_breaks)
 
             stop_frame = info.pydev_step_stop
             step_cmd = info.pydev_step_cmd

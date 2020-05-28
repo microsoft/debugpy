@@ -686,6 +686,7 @@ class PyDevdAPI(object):
             expression,
             notify_on_handled_exceptions,
             notify_on_unhandled_exceptions,
+            notify_on_user_unhandled_exceptions,
             notify_on_first_raise_only,
             ignore_libraries,
         ):
@@ -695,6 +696,7 @@ class PyDevdAPI(object):
             expression=expression,
             notify_on_handled_exceptions=notify_on_handled_exceptions,
             notify_on_unhandled_exceptions=notify_on_unhandled_exceptions,
+            notify_on_user_unhandled_exceptions=notify_on_user_unhandled_exceptions,
             notify_on_first_raise_only=notify_on_first_raise_only,
             ignore_libraries=ignore_libraries,
         )
@@ -723,6 +725,10 @@ class PyDevdAPI(object):
             cp = py_db.break_on_caught_exceptions.copy()
             cp.pop(exception, None)
             py_db.break_on_caught_exceptions = cp
+
+            cp = py_db.break_on_user_uncaught_exceptions.copy()
+            cp.pop(exception, None)
+            py_db.break_on_user_uncaught_exceptions = cp
         except:
             pydev_log.exception("Error while removing exception %s", sys.exc_info()[0])
 
@@ -747,6 +753,7 @@ class PyDevdAPI(object):
     def remove_all_exception_breakpoints(self, py_db):
         py_db.break_on_uncaught_exceptions = {}
         py_db.break_on_caught_exceptions = {}
+        py_db.break_on_user_uncaught_exceptions = {}
 
         plugin = py_db.plugin
         if plugin is not None:
