@@ -345,6 +345,7 @@ class _PyDevCommandProcessor(object):
         splitted = text.split(';')
         py_db.break_on_uncaught_exceptions = {}
         py_db.break_on_caught_exceptions = {}
+        py_db.break_on_user_uncaught_exceptions = {}
         if len(splitted) >= 5:
             if splitted[0] == 'true':
                 break_on_uncaught = True
@@ -382,6 +383,7 @@ class _PyDevCommandProcessor(object):
                     expression=None,
                     notify_on_handled_exceptions=break_on_caught,
                     notify_on_unhandled_exceptions=break_on_uncaught,
+                    notify_on_user_unhandled_exceptions=False,  # TODO (not currently supported in this API).
                     notify_on_first_raise_only=True,
                     ignore_libraries=ignore_libraries,
                 )
@@ -480,6 +482,7 @@ class _PyDevCommandProcessor(object):
                 py_db, exception, condition, expression,
                 notify_on_handled_exceptions=int(notify_on_handled_exceptions) > 0,
                 notify_on_unhandled_exceptions=int(notify_on_unhandled_exceptions) == 1,
+                notify_on_user_unhandled_exceptions=0,  # TODO (not currently supported in this API).
                 notify_on_first_raise_only=int(notify_on_handled_exceptions) == 2,
                 ignore_libraries=int(ignore_libraries) > 0,
             )
