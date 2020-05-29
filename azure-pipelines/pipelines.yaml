@@ -31,7 +31,7 @@ jobs:
             displayName: "Publish linting results"
 
     - job: "Test_Linux"
-      timeoutInMinutes: 15
+      timeoutInMinutes: 20
       displayName: "Tests - Linux"
       pool: { vmImage: "ubuntu-18.04" }
 
@@ -59,7 +59,7 @@ jobs:
           - template: "templates/run_tests.yml"
 
     - job: "Test_MacOS"
-      timeoutInMinutes: 15
+      timeoutInMinutes: 20
       displayName: "Tests - macOS"
       pool: { vmImage: "macOS-10.15" }
 
@@ -90,7 +90,7 @@ jobs:
           - template: "templates/run_tests.yml"
 
     - job: "Test_Windows"
-      timeoutInMinutes: 15
+      timeoutInMinutes: 20
       displayName: "Tests - Windows"
       pool: { vmImage: "windows-2019" }
 
