@@ -2757,6 +2757,7 @@ class DispatchReader(ReaderThread):
 
         ReaderThread.__init__(
             self,
+            get_global_debugger(),
             self.dispatcher.client,
             PyDevJsonCommandProcessor=PyDevJsonCommandProcessor,
             process_net_command=process_net_command,
