@@ -247,12 +247,13 @@ def patch_args(args, is_exec=False):
     '''
     try:
         pydev_log.debug("Patching args: %s", args)
+        original_args = args
         args = remove_quotes_from_args(args)
 
         from pydevd import SetupHolder
         new_args = []
         if len(args) == 0:
-            return args
+            return original_args
 
         if is_python(args[0]):
             ind_c = get_c_option_index(args)
@@ -284,13 +285,13 @@ def patch_args(args, is_exec=False):
                     extensions = _get_str_type_compatible(arg, ['zip', 'pyz', 'pyzw'])
                     if arg.rsplit(dot)[-1] in extensions:
                         pydev_log.debug('Executing a PyZip, returning')
-                        return args
+                        return original_args
                     break
 
                 new_args.append(args[0])
         else:
             pydev_log.debug("Process is not python, returning.")
-            return args
+            return original_args
 
         i = 1
         # Original args should be something as:
@@ -323,7 +324,7 @@ def patch_args(args, is_exec=False):
         # in practice it'd raise an exception here and would return original args, which is not what we want... providing
         # a proper fix for https://youtrack.jetbrains.com/issue/PY-9767 elsewhere.
         if i < len(args) and _is_managed_arg(args[i]):  # no need to add pydevd twice
-            return args
+            return original_args
 
         for x in original:
             new_args.append(x)
@@ -340,7 +341,7 @@ def patch_args(args, is_exec=False):
         return quote_args(new_args)
     except:
         pydev_log.exception('Error patching args')
-        return args
+        return original_args
 
 
 def str_to_args_windows(args):
