@@ -223,6 +223,7 @@ class PyDevJsonCommandProcessor(object):
             exceptionBreakpointFilters=[
                 {'filter': 'raised', 'label': 'Raised Exceptions', 'default': False},
                 {'filter': 'uncaught', 'label': 'Uncaught Exceptions', 'default': True},
+                {"filter": "userUnhandled", "label": "User Uncaught Exceptions", "default": False},
             ],
 
             # Not supported.
