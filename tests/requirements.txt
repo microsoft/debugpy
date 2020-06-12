@@ -18,6 +18,4 @@ django
 requests
 gevent
 
-# https://github.com/microsoft/ptvsd/issues/1574
-# Remove specific version once Flask 1.1.2 is released.
-flask==1.0.3
+flask>=1.1.2
