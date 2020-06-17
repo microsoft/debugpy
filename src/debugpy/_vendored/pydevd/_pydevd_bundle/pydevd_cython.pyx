@@ -221,6 +221,60 @@ def _get_func_lines(f_code):
         return None
 
 
+def is_unhandled_exception(container_obj, py_db, frame, last_raise_line, raise_lines):
+    if frame.f_lineno in raise_lines:
+        return True
+
+    else:
+        try_except_infos = container_obj.try_except_infos
+        if not try_except_infos:
+            container_obj.try_except_infos = try_except_infos = py_db.collect_try_except_info(frame.f_code)
+
+        if not try_except_infos:
+            # Consider the last exception as unhandled because there's no try..except in it.
+            return True
+        else:
+            # Now, consider only the try..except for the raise
+            valid_try_except_infos = []
+            for try_except_info in try_except_infos:
+                if try_except_info.is_line_in_try_block(last_raise_line):
+                    valid_try_except_infos.append(try_except_info)
+
+            if not valid_try_except_infos:
+                return True
+
+            else:
+                # Note: check all, not only the "valid" ones to cover the case
+                # in "tests_python.test_tracing_on_top_level.raise_unhandled10"
+                # where one try..except is inside the other with only a raise
+                # and it's gotten in the except line.
+                for try_except_info in try_except_infos:
+                    if try_except_info.is_line_in_except_block(frame.f_lineno):
+                        if (
+                                frame.f_lineno == try_except_info.except_line or
+                                frame.f_lineno in try_except_info.raise_lines_in_except
+                            ):
+                            # In a raise inside a try..except block or some except which doesn't
+                            # match the raised exception.
+                            return True
+    return False
+
+
+# IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
+cdef class _TryExceptContainerObj:
+    cdef public list try_except_infos;
+    def __init__(self):
+        self.try_except_infos = None
+# ELSE
+# class _TryExceptContainerObj(object):
+#     '''
+#     A dumb container object just to containe the try..except info when needed. Meant to be
+#     persisent among multiple PyDBFrames to the same code object.
+#     '''
+#     try_except_infos = None
+# ENDIF
+
+
 #=======================================================================================================================
 # PyDBFrame
 #=======================================================================================================================
@@ -244,11 +298,14 @@ cdef class PyDBFrame:
     # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
     cdef tuple _args
     cdef int should_skip
+    cdef object exc_info
     def __init__(self, tuple args):
         self._args = args # In the cython version we don't need to pass the frame
         self.should_skip = -1  # On cythonized version, put in instance.
+        self.exc_info = ()
     # ELSE
 #     should_skip = -1  # Default value in class (put in instance on set).
+#     exc_info = ()  # Default value in class (put in instance on set).
 # 
 #     def __init__(self, args):
 #         # args = main_debugger, filename, base, info, t, frame
@@ -265,6 +322,7 @@ cdef class PyDBFrame:
     # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
     def trace_exception(self, frame, str event, arg):
         cdef bint should_stop;
+        cdef tuple exc_info;
     # ELSE
 #     def trace_exception(self, frame, event, arg):
     # ENDIF
@@ -272,8 +330,20 @@ cdef class PyDBFrame:
             should_stop, frame = self.should_stop_on_exception(frame, event, arg)
 
             if should_stop:
-                self.handle_exception(frame, event, arg)
-                return self.trace_dispatch
+                if self.handle_exception(frame, event, arg):
+                    return self.trace_dispatch
+
+        elif event == 'return':
+            exc_info = self.exc_info
+            if exc_info:
+                frame_skips_cache, frame_cache_key = self._args[4], self._args[5]
+                custom_key = (frame_cache_key, 'try_exc_info')
+                container_obj = frame_skips_cache.get(custom_key)
+                if container_obj is None:
+                    container_obj = frame_skips_cache[custom_key] = _TryExceptContainerObj()
+                if is_unhandled_exception(container_obj, self._args[0], frame, exc_info[1], exc_info[2]) and \
+                        self.handle_user_exception(frame):
+                    return self.trace_dispatch
 
         return self.trace_exception
 
@@ -361,12 +431,20 @@ cdef class PyDBFrame:
                                 and not was_just_raised:
                             should_stop = False  # I.e.: we stop only when it was just raised
 
-                        elif is_user_uncaught and not (
-                            not main_debugger.apply_files_filter(frame, frame.f_code.co_filename, True)
-                                and (frame.f_back is None or main_debugger.apply_files_filter(frame.f_back, frame.f_back.f_code.co_filename, True))):
-                            # User uncaught means that we're currently in user code but the code
-                            # up the stack is library code.
+                        elif is_user_uncaught:
                             should_stop = False
+                            if not main_debugger.apply_files_filter(frame, frame.f_code.co_filename, True) \
+                                    and (frame.f_back is None or main_debugger.apply_files_filter(frame.f_back, frame.f_back.f_code.co_filename, True)):
+                                # User uncaught means that we're currently in user code but the code
+                                # up the stack is library code.
+                                exc_info = self.exc_info
+                                if not exc_info:
+                                    exc_info = (arg, frame.f_lineno, set([frame.f_lineno]))
+                                else:
+                                    lines = exc_info[2]
+                                    lines.add(frame.f_lineno)
+                                    exc_info = (arg, frame.f_lineno, lines)
+                                self.exc_info = exc_info
 
                         if should_stop:
                             exception_breakpoint = exc_break
@@ -385,7 +463,14 @@ cdef class PyDBFrame:
 
         return should_stop, frame
 
+    def handle_user_exception(self, frame):
+        exc_info = self.exc_info
+        if exc_info:
+            return self.handle_exception(frame, 'exception', exc_info[0])
+        return False
+
     def handle_exception(self, frame, event, arg):
+        stopped = False
         try:
             # print('handle_exception', frame.f_lineno, frame.f_code.co_name)
 
@@ -452,14 +537,14 @@ cdef class PyDBFrame:
 
                         if IGNORE_EXCEPTION_TAG.match(line) is not None:
                             lines_ignored[exc_lineno] = 1
-                            return
+                            return False
                         else:
                             # Put in the cache saying not to ignore
                             lines_ignored[exc_lineno] = 0
                     else:
                         # Ok, dict has it already cached, so, let's check it...
                         if merged.get(exc_lineno, 0):
-                            return
+                            return False
 
             thread = self._args[3]
 
@@ -472,6 +557,7 @@ cdef class PyDBFrame:
                     f = f.f_back
                 f = None
 
+                stopped = True
                 main_debugger.send_caught_exception_stack(thread, arg, id(frame))
                 self.set_suspend(thread, 137)
                 self.do_wait_suspend(thread, frame, event, arg)
@@ -492,6 +578,8 @@ cdef class PyDBFrame:
             frame_id_to_frame = None
             main_debugger = None
             thread = None
+
+        return stopped
 
     def get_func_name(self, frame):
         code_obj = frame.f_code
@@ -643,6 +731,10 @@ cdef class PyDBFrame:
                         # Not really a return (coroutine/generator paused).
                         return self.trace_dispatch
                     else:
+                        if self.exc_info:
+                            self.handle_user_exception(frame)
+                            return self.trace_dispatch
+
                         # Tricky handling: usually when we're on a frame which is about to exit
                         # we set the step mode to step into, but in this case we'd end up in the
                         # asyncio internal machinery, which is not what we want, so, we just
@@ -682,8 +774,8 @@ cdef class PyDBFrame:
                     if has_exception_breakpoints:
                         should_stop, frame = self.should_stop_on_exception(frame, event, arg)
                         if should_stop:
-                            self.handle_exception(frame, event, arg)
-                            return self.trace_dispatch
+                            if self.handle_exception(frame, event, arg):
+                                return self.trace_dispatch
 
                     return self.trace_dispatch
                 else:
@@ -716,6 +808,10 @@ cdef class PyDBFrame:
                             info.pydev_step_cmd = 144
                         info.pydev_step_stop = None
 
+                    if self.exc_info:
+                        if self.handle_user_exception(frame):
+                            return self.trace_dispatch
+
                 elif event == 'call':
                     is_line = False
                     is_call = True
@@ -728,8 +824,8 @@ cdef class PyDBFrame:
                     if has_exception_breakpoints:
                         should_stop, frame = self.should_stop_on_exception(frame, event, arg)
                         if should_stop:
-                            self.handle_exception(frame, event, arg)
-                            return self.trace_dispatch
+                            if self.handle_exception(frame, event, arg):
+                                return self.trace_dispatch
                     is_line = False
                     is_return = False
                     is_call = False
@@ -1116,7 +1212,7 @@ from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame, NORM_P
 from cpython.object cimport PyObject
 from cpython.ref cimport Py_INCREF, Py_XDECREF
 # ELSE
-# from _pydevd_bundle.pydevd_frame import PyDBFrame
+# from _pydevd_bundle.pydevd_frame import PyDBFrame, is_unhandled_exception
 # ENDIF
 
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
@@ -1338,14 +1434,14 @@ cdef class TopLevelThreadTracerOnlyUnhandledExceptions:
 cdef class TopLevelThreadTracerNoBackFrame:
     cdef public object _frame_trace_dispatch;
     cdef public tuple _args;
-    cdef public object _try_except_info;
+    cdef public object try_except_infos;
     cdef public object _last_exc_arg;
     cdef public set _raise_lines;
     cdef public int _last_raise_line;
     def __init__(self, frame_trace_dispatch, tuple args):
         self._frame_trace_dispatch = frame_trace_dispatch
         self._args = args
-        self._try_except_info = None
+        self.try_except_infos = None
         self._last_exc_arg = None
         self._raise_lines = set()
         self._last_raise_line = -1
@@ -1366,7 +1462,7 @@ cdef class TopLevelThreadTracerNoBackFrame:
 #     def __init__(self, frame_trace_dispatch, args):
 #         self._frame_trace_dispatch = frame_trace_dispatch
 #         self._args = args
-#         self._try_except_info = None
+#         self.try_except_infos = None
 #         self._last_exc_arg = None
 #         self._raise_lines = set()
 #         self._last_raise_line = -1
@@ -1389,40 +1485,8 @@ cdef class TopLevelThreadTracerNoBackFrame:
             try:
                 py_db, t, additional_info = self._args[0:3]
                 if not additional_info.suspended_at_unhandled:  # Note: only check it here, don't set.
-                    if frame.f_lineno in self._raise_lines:
+                    if is_unhandled_exception(self, py_db, frame, self._last_raise_line, self._raise_lines):
                         py_db.stop_on_unhandled_exception(py_db, t, additional_info, self._last_exc_arg)
-
-                    else:
-                        if self._try_except_info is None:
-                            self._try_except_info = py_db.collect_try_except_info(frame.f_code)
-                        if not self._try_except_info:
-                            # Consider the last exception as unhandled because there's no try..except in it.
-                            py_db.stop_on_unhandled_exception(py_db, t, additional_info, self._last_exc_arg)
-                        else:
-                            # Now, consider only the try..except for the raise
-                            valid_try_except_infos = []
-                            for try_except_info in self._try_except_info:
-                                if try_except_info.is_line_in_try_block(self._last_raise_line):
-                                    valid_try_except_infos.append(try_except_info)
-
-                            if not valid_try_except_infos:
-                                py_db.stop_on_unhandled_exception(py_db, t, additional_info, self._last_exc_arg)
-
-                            else:
-                                # Note: check all, not only the "valid" ones to cover the case
-                                # in "tests_python.test_tracing_on_top_level.raise_unhandled10"
-                                # where one try..except is inside the other with only a raise
-                                # and it's gotten in the except line.
-                                for try_except_info in self._try_except_info:
-                                    if try_except_info.is_line_in_except_block(frame.f_lineno):
-                                        if (
-                                                frame.f_lineno == try_except_info.except_line or
-                                                frame.f_lineno in try_except_info.raise_lines_in_except
-                                            ):
-                                            # In a raise inside a try..except block or some except which doesn't
-                                            # match the raised exception.
-                                            py_db.stop_on_unhandled_exception(py_db, t, additional_info, self._last_exc_arg)
-                                            break
             finally:
                 # Remove reference to exception after handling it.
                 self._last_exc_arg = None

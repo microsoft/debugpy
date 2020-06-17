@@ -630,8 +630,123 @@ def test_case_handled_exception_breaks(case_setup):
 
 
 @pytest.mark.skipif(IS_PY26, reason='Not ok on Python 2.6')
-def test_case_user_unhandled_exception(case_setup):
-    with case_setup.test_file('_debugger_case_user_unhandled.py') as writer:
+@pytest.mark.parametrize('stop', [False, True])
+def test_case_user_unhandled_exception(case_setup, stop):
+
+    def get_environ(self):
+        env = os.environ.copy()
+
+        # Note that we put the working directory in the project roots to check that when expanded
+        # the relative file that doesn't exist is still considered a library file.
+        env["IDE_PROJECT_ROOTS"] = os.path.dirname(self.TEST_FILE) + os.pathsep + os.path.abspath('.')
+        return env
+
+    if stop:
+        target = '_debugger_case_user_unhandled.py'
+    else:
+        target = '_debugger_case_user_unhandled2.py'
+    with case_setup.test_file(target, get_environ=get_environ) as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch()
+        json_facade.write_set_exception_breakpoints(['userUnhandled'])
+        json_facade.write_make_initial_run()
+
+        if stop:
+            json_facade.wait_for_thread_stopped(
+                reason='exception', line=writer.get_line_index_with_content('stop here'), file=target)
+
+            json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not IS_PY36_OR_GREATER, reason='Only CPython 3.6 onwards')
+@pytest.mark.parametrize('stop', [False, True])
+def test_case_user_unhandled_exception_coroutine(case_setup, stop):
+    if stop:
+        target = 'my_code/my_code_coroutine_user_unhandled.py'
+    else:
+        target = 'my_code/my_code_coroutine_user_unhandled_no_stop.py'
+    basename = os.path.basename(target)
+
+    def additional_output_checks(writer, stdout, stderr):
+        if stop:
+            assert 'raise RuntimeError' in stderr
+        else:
+            assert 'raise RuntimeError' not in stderr
+
+    with case_setup.test_file(
+            target,
+            EXPECTED_RETURNCODE=1 if stop else 0,
+            additional_output_checks=additional_output_checks
+        ) as writer:
+        json_facade = JsonFacade(writer)
+
+        not_my_code_dir = debugger_unittest._get_debugger_test_file('not_my_code')
+        json_facade.write_launch(
+            rules=[
+                {'path': not_my_code_dir, 'include':False},
+            ]
+        )
+        json_facade.write_set_exception_breakpoints(['userUnhandled'])
+        json_facade.write_make_initial_run()
+
+        if stop:
+            json_facade.wait_for_thread_stopped(
+                reason='exception', line=writer.get_line_index_with_content('stop here 1'), file=basename)
+
+            json_facade.write_continue()
+
+            json_facade.wait_for_thread_stopped(
+                reason='exception', line=writer.get_line_index_with_content('stop here 2'), file=basename)
+
+            json_facade.write_continue()
+
+            json_facade.wait_for_thread_stopped(
+                reason='exception', line=(
+                    writer.get_line_index_with_content('stop here 3a'),
+                    writer.get_line_index_with_content('stop here 3b')
+                ), file=basename)
+
+            json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(IS_PY26, reason='Not ok on Python 2.6')
+def test_case_user_unhandled_exception_stop_on_yield(case_setup, pyfile):
+
+    @pyfile
+    def case_error_on_yield():
+
+        def on_yield():
+            yield
+            raise AssertionError()
+
+        try:
+            for _ in on_yield():  # stop here
+                pass
+        except:
+            print('TEST SUCEEDED!')
+            raise
+
+    def get_environ(self):
+        env = os.environ.copy()
+
+        # Note that we put the working directory in the project roots to check that when expanded
+        # the relative file that doesn't exist is still considered a library file.
+        env["IDE_PROJECT_ROOTS"] = os.path.dirname(self.TEST_FILE) + os.pathsep + os.path.abspath('.')
+        return env
+
+    def additional_output_checks(writer, stdout, stderr):
+        assert 'raise AssertionError' in stderr
+
+    with case_setup.test_file(
+            case_error_on_yield,
+            get_environ=get_environ,
+            EXPECTED_RETURNCODE=1,
+            additional_output_checks=additional_output_checks) as writer:
         json_facade = JsonFacade(writer)
 
         json_facade.write_launch()
@@ -639,10 +754,9 @@ def test_case_user_unhandled_exception(case_setup):
         json_facade.write_make_initial_run()
 
         json_facade.wait_for_thread_stopped(
-            reason='exception', line=writer.get_line_index_with_content('stop here'), file='_debugger_case_user_unhandled.py')
+            reason='exception', line=writer.get_line_index_with_content('stop here'), file=case_error_on_yield)
 
         json_facade.write_continue()
-
         writer.finished_ok = True
 
 
