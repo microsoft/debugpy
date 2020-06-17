@@ -51,6 +51,12 @@ def test_get_c_option_index():
     assert pydev_monkey.get_c_option_index(['a', '-c', 'd']) == 1
 
 
+def test_monkey_patch_return_original_args():
+    check = ['echo', '"my"', '"args"']
+    res = pydev_monkey.patch_args(check[:])
+    assert res == check
+
+
 def test_monkey_patch_args_indc():
     original = SetupHolder.setup
 

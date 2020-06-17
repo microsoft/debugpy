@@ -10,7 +10,7 @@ from collections import namedtuple
 from _pydev_imps._pydev_saved_modules import threading
 from pydevd_file_utils import normcase
 from _pydevd_bundle.pydevd_constants import USER_CODE_BASENAMES_STARTING_WITH, \
-    LIBRARY_CODE_BASENAMES_STARTING_WITH
+    LIBRARY_CODE_BASENAMES_STARTING_WITH, IS_PYPY
 
 try:
     xrange  # noqa
@@ -150,6 +150,7 @@ class FilesFiltering(object):
 
     @classmethod
     def _get_default_library_roots(cls):
+        pydev_log.debug("Collecting default library roots.")
         # Provide sensible defaults if not in env vars.
         import site
 
@@ -167,6 +168,17 @@ class FilesFiltering(object):
         # `threading` modules -- it's a bit weird that it may be different on the ci, but it happens).
         roots.append(os.path.dirname(os.__file__))
         roots.append(os.path.dirname(threading.__file__))
+        if IS_PYPY:
+            # On PyPy 3.6 (7.3.1) it wrongly says that sysconfig.get_path('stdlib') is
+            # <install>/lib-pypy when the installed version is <install>/lib_pypy.
+            try:
+                import _pypy_wait
+            except ImportError:
+                pydev_log.debug("Unable to import _pypy_wait on PyPy when collecting default library roots.")
+            else:
+                pypy_lib_dir = os.path.dirname(_pypy_wait.__file__)
+                pydev_log.debug("Adding %s to default library roots.", pypy_lib_dir)
+                roots.append(pypy_lib_dir)
 
         if hasattr(site, 'getusersitepackages'):
             site_paths = site.getusersitepackages()
@@ -222,10 +234,16 @@ class FilesFiltering(object):
         handle all possibilities for knowing whether a project is actually in the scope, it
         just handles the heuristics based on the filename without the actual frame).
         '''
+        DEBUG = False
+
         if filename.startswith(USER_CODE_BASENAMES_STARTING_WITH):
+            if DEBUG:
+                pydev_log.debug('In in_project_roots - user basenames - starts with %s (%s)', filename, USER_CODE_BASENAMES_STARTING_WITH)
             return True
 
         if filename.startswith(LIBRARY_CODE_BASENAMES_STARTING_WITH):
+            if DEBUG:
+                pydev_log.debug('Not in in_project_roots - library basenames - starts with %s (%s)', filename, LIBRARY_CODE_BASENAMES_STARTING_WITH)
             return False
 
         project_roots = self._get_project_roots()
@@ -235,6 +253,8 @@ class FilesFiltering(object):
         found_in_project = []
         for root in project_roots:
             if root and filename.startswith(root):
+                if DEBUG:
+                    pydev_log.debug('In project: %s (%s)', filename, root)
                 found_in_project.append(root)
 
         found_in_library = []
@@ -242,21 +262,33 @@ class FilesFiltering(object):
         for root in library_roots:
             if root and filename.startswith(root):
                 found_in_library.append(root)
+                if DEBUG:
+                    pydev_log.debug('In library: %s (%s)', filename, root)
+            else:
+                if DEBUG:
+                    pydev_log.debug('Not in library: %s (%s)', filename, root)
 
         if not project_roots:
             # If we have no project roots configured, consider it being in the project
             # roots if it's not found in site-packages (because we have defaults for those
             # and not the other way around).
             in_project = not found_in_library
+            if DEBUG:
+                pydev_log.debug('Final in project (no project roots): %s (%s)', filename, in_project)
+
         else:
             in_project = False
             if found_in_project:
                 if not found_in_library:
+                    if DEBUG:
+                        pydev_log.debug('Final in project (in_project and not found_in_library): %s (True)', filename)
                     in_project = True
                 else:
                     # Found in both, let's see which one has the bigger path matched.
                     if max(len(x) for x in found_in_project) > max(len(x) for x in found_in_library):
                         in_project = True
+                    if DEBUG:
+                        pydev_log.debug('Final in project (found in both): %s (%s)', filename, in_project)
 
         return in_project
 

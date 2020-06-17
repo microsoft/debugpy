@@ -164,7 +164,7 @@ if __name__ == '__main__':
         build()
     elif use_cython == 'no':
         remove_binaries(['.pyd', '.so'])
-    elif use_cython is None:
+    elif not use_cython:
         # Regular process
         if '--no-regenerate-files' not in sys.argv:
             generate_dont_trace_files()
