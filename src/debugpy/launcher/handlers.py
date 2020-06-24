@@ -49,8 +49,18 @@ def launch_request(request):
             "--connect",
             launcher.adapter_host + ":" + str(port),
         ]
+
         if not request("subProcess", True):
             cmdline += ["--configure-subProcess", "False"]
+
+        qt_mode = request(
+            "qt",
+            json.enum(
+                "auto", "none", "pyside", "pyside2", "pyqt4", "pyqt5", optional=True
+            ),
+        )
+        cmdline += ["--configure-qt", qt_mode]
+
         adapter_access_token = request("adapterAccessToken", unicode, optional=True)
         if adapter_access_token != ():
             cmdline += ["--adapter-access-token", compat.filename(adapter_access_token)]

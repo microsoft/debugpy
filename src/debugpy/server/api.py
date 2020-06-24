@@ -22,7 +22,16 @@ from pydevd_file_utils import get_abs_path_real_path_and_base_from_file
 _tls = threading.local()
 
 # TODO: "gevent", if possible.
-_config = {"subProcess": True}
+_config = {
+    "qt": "auto",
+    "subProcess": True,
+}
+
+_config_valid_values = {
+    # If property is not listed here, any value is considered valid, so long as
+    # its type matches that of the default value in _config.
+    "qt": ["auto", "none", "pyside", "pyside2", "pyqt4", "pyqt5"],
+}
 
 # This must be a global to prevent it from being garbage collected and triggering
 # https://bugs.python.org/issue37380.
@@ -85,6 +94,9 @@ def configure(properties, **kwargs):
         expected_type = type(_config[k])
         if type(v) is not expected_type:
             raise ValueError(fmt("{0!r} must be a {1}", k, expected_type.__name__))
+        valid_values = _config_valid_values.get(k)
+        if (valid_values is not None) and (v not in valid_values):
+            raise ValueError(fmt("{0!r} must be one of: {1!r}", k, valid_values))
         _config[k] = v
 
 
@@ -108,6 +120,10 @@ def _starts_debugging(func):
         ensure_logging()
         log.debug("{0}({1!r}, **{2!r})", func.__name__, address, kwargs)
         log.info("Initial debug configuration: {0!j}", _config)
+
+        qt_mode = _config.get("qt", "auto")
+        if qt_mode != "none":
+            pydevd.enable_qt_support(qt_mode)
 
         settrace_kwargs = {
             "suspend": False,
