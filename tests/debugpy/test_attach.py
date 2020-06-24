@@ -5,6 +5,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import pytest
+import sys
 
 from tests import debug
 from tests.debug import runners, targets
@@ -146,6 +147,10 @@ def test_reattach(pyfile, target, run):
 
 
 @pytest.mark.parametrize("pid_type", ["int", "str"])
+@pytest.mark.skipif(
+    not sys.platform.startswith("linux"),
+    reason="https://github.com/microsoft/debugpy/issues/311",
+)
 def test_attach_pid_client(pyfile, target, pid_type):
     @pyfile
     def code_to_debug():
