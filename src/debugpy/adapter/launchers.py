@@ -8,7 +8,7 @@ import os
 import subprocess
 import sys
 
-from debugpy import adapter
+from debugpy import adapter, common
 from debugpy.common import compat, fmt, log, messaging, sockets
 from debugpy.adapter import components, servers
 
@@ -162,7 +162,7 @@ def spawn_debuggee(
         # If using sudo, it might prompt for password, and launcher won't start running
         # until the user enters it, so don't apply timeout in that case.
         if not session.wait_for(
-            lambda: session.launcher, timeout=(None if sudo else 10)
+            lambda: session.launcher, timeout=(None if sudo else common.PROCESS_SPAWN_TIMEOUT)
         ):
             raise start_request.cant_handle("Timed out waiting for launcher to connect")
 
@@ -174,14 +174,14 @@ def spawn_debuggee(
         if session.no_debug:
             return
 
-        if not session.wait_for(lambda: session.launcher.pid is not None, timeout=10):
+        if not session.wait_for(lambda: session.launcher.pid is not None, timeout=common.PROCESS_SPAWN_TIMEOUT):
             raise start_request.cant_handle(
                 'Timed out waiting for "process" event from launcher'
             )
 
         # Wait for the first incoming connection regardless of the PID - it won't
         # necessarily match due to the use of stubs like py.exe or "conda run".
-        conn = servers.wait_for_connection(session, lambda conn: True, timeout=10)
+        conn = servers.wait_for_connection(session, lambda conn: True, timeout=common.PROCESS_SPAWN_TIMEOUT)
         if conn is None:
             raise start_request.cant_handle("Timed out waiting for debuggee to spawn")
         conn.attach_to_session(session)

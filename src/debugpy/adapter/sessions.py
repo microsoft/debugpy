@@ -10,6 +10,7 @@ import signal
 import threading
 import time
 
+from debugpy import common
 from debugpy.common import fmt, log, util
 from debugpy.adapter import components, launchers, servers
 
@@ -197,7 +198,8 @@ class Session(util.Observable):
             if self.server:
                 log.info('{0} waiting for "exited" event...', self)
                 if not self.wait_for(
-                    lambda: self.launcher.exit_code is not None, timeout=5
+                    lambda: self.launcher.exit_code is not None,
+                    timeout=common.PROCESS_EXIT_TIMEOUT,
                 ):
                     log.warning('{0} timed out waiting for "exited" event.', self)
 
