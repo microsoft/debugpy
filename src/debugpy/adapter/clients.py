@@ -185,6 +185,8 @@ class Client(components.Component):
             )
 
             f(self, request)
+            if request.response is not None:
+                return
 
             if self.server:
                 self.server.initialize(self._initialize_request)
@@ -449,13 +451,20 @@ class Client(components.Component):
         self.channel.send_event("debugpyWaitingForServer", {"host": host, "port": port})
         conn = servers.wait_for_connection(self.session, pred, timeout)
         if conn is None:
+            if sub_pid != ():
+                # If we can't find a matching subprocess, it's not always an error -
+                # it might have already exited, or didn't even get a chance to connect.
+                # To prevent the client from complaining, pretend that the "attach"
+                # request was successful, but that the session terminated immediately.
+                request.respond({})
+                self.session.finalize(fmt('No known subprocess with "subProcessId":{0}', sub_pid))
+                return
+
             raise request.cant_handle(
                 (
                     "Timed out waiting for debug server to connect."
                     if timeout
                     else "There is no debug server connected to this adapter."
-                    if sub_pid == ()
-                    else 'No known subprocess with "subProcessId":{0}'
                 ),
                 sub_pid,
             )
