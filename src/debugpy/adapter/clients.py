@@ -8,7 +8,7 @@ import os
 import sys
 
 import debugpy
-from debugpy import adapter, launcher
+from debugpy import adapter, common, launcher
 from debugpy.common import compat, fmt, json, log, messaging, sockets
 from debugpy.common.compat import unicode
 from debugpy.adapter import components, servers, sessions
@@ -436,12 +436,12 @@ class Client(components.Component):
                     raise request.isnt_valid('"processId" must be parseable as int')
             debugpy_args = request("debugpyArgs", json.array(unicode))
             servers.inject(pid, debugpy_args)
-            timeout = 10
+            timeout = common.PROCESS_SPAWN_TIMEOUT
             pred = lambda conn: conn.pid == pid
         else:
             if sub_pid == ():
                 pred = lambda conn: True
-                timeout = 10 if listen == () else None
+                timeout = common.PROCESS_SPAWN_TIMEOUT if listen == () else None
             else:
                 pred = lambda conn: conn.pid == sub_pid
                 timeout = 0
