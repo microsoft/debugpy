@@ -12,6 +12,7 @@
         "python.formatting.provider": "black",
         "files.exclude": {
             "**/*.pyc": true,
+            "**/*.pyo": true,
             "**/__pycache__": true,
             ".tox": true,
             "src/debugpy.egg-info": true,
