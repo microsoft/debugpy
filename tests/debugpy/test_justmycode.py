@@ -21,6 +21,7 @@ def test_justmycode_frames(pyfile, target, run, jmc):
         debuggee.setup()
 
         import this  # @bp
+
         assert this
 
     with debug.Session() as session:

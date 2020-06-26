@@ -4,7 +4,7 @@ import debuggee
 
 
 def ಏನಾದರೂ_ಮಾಡು():
-    print('ಏನೋ ಮಾಡಿದೆ'.encode(sys.stdout.encoding, errors='replace')) # @bp
+    print("ಏನೋ ಮಾಡಿದೆ".encode(sys.stdout.encoding, errors="replace"))  # @bp
 
 
 debuggee.setup()

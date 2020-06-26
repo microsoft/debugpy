@@ -429,4 +429,6 @@ def main():
         }[options.target_kind]
         run()
     except SystemExit as exc:
-        log.reraise_exception("Debuggee exited via SystemExit: {0!r}", exc.code, level="debug")
+        log.reraise_exception(
+            "Debuggee exited via SystemExit: {0!r}", exc.code, level="debug"
+        )

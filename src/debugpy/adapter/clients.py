@@ -159,7 +159,7 @@ class Client(components.Component):
             "exceptionBreakpointFilters": [
                 {"filter": "raised", "label": "Raised Exceptions", "default": False},
                 {"filter": "uncaught", "label": "Uncaught Exceptions", "default": True},
-                #{"filter": "userUnhandled", "label": "User Uncaught Exceptions", "default": False},
+                # {"filter": "userUnhandled", "label": "User Uncaught Exceptions", "default": False},
             ],
         }
 
@@ -315,7 +315,9 @@ class Client(components.Component):
             )
 
         # Propagate "args" via CLI if and only if shell expansion is requested.
-        args_expansion = request("argsExpansion", json.enum("shell", "none", optional=True))
+        args_expansion = request(
+            "argsExpansion", json.enum("shell", "none", optional=True)
+        )
         if args_expansion == "shell":
             args += request("args", json.array(unicode))
             request.arguments.pop("args", None)
@@ -457,7 +459,9 @@ class Client(components.Component):
                 # To prevent the client from complaining, pretend that the "attach"
                 # request was successful, but that the session terminated immediately.
                 request.respond({})
-                self.session.finalize(fmt('No known subprocess with "subProcessId":{0}', sub_pid))
+                self.session.finalize(
+                    fmt('No known subprocess with "subProcessId":{0}', sub_pid)
+                )
                 return
 
             raise request.cant_handle(

@@ -13,6 +13,7 @@ from tests.patterns import some
 
 
 if not tests.full:
+
     @pytest.fixture(params=targets.all_named)
     def target(request):
         return request.param

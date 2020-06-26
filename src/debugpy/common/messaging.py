@@ -177,7 +177,9 @@ class JsonIOStream(object):
             # read() or write(), which is a common and expected occurrence with
             # JsonMessageChannel, so don't even bother logging it.
             if sys.version_info >= (3,):
-                log.reraise_exception("Error while closing {0} message stream", self.name)
+                log.reraise_exception(
+                    "Error while closing {0} message stream", self.name
+                )
 
     def _log_message(self, dir, data, logger=log.debug):
         format_string = "{0} {1} " + (
@@ -236,7 +238,9 @@ class JsonIOStream(object):
                 # there's no message data to log in any case, and the caller might
                 # be anticipating the error - e.g. NoMoreMessages on disconnect.
                 if headers:
-                    log_message_and_reraise_exception("Error while reading message headers:")
+                    log_message_and_reraise_exception(
+                        "Error while reading message headers:"
+                    )
                 else:
                     raise
 
