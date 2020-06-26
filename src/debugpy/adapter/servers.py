@@ -142,7 +142,9 @@ if 'debugpy' not in sys.modules:
                 # session. We still want to keep the connection around, in case the
                 # client reconnects later. If the parent session was "launch", it'll take
                 # care of closing the remaining server connections.
-                log.swallow_exception("Failed to notify parent session about {0}:", self)
+                log.swallow_exception(
+                    "Failed to notify parent session about {0}:", self
+                )
 
     def __str__(self):
         return "Server" + fmt("[?]" if self.pid is None else "[pid={0}]", self.pid)
@@ -442,7 +444,9 @@ def inject(pid, debugpy_args):
             stderr=subprocess.STDOUT,
         )
     except Exception as exc:
-        log.swallow_exception("Failed to inject debug server into process with PID={0}", pid)
+        log.swallow_exception(
+            "Failed to inject debug server into process with PID={0}", pid
+        )
         raise messaging.MessageHandlingError(
             fmt(
                 "Failed to inject debug server into process with PID={0}: {1}", pid, exc

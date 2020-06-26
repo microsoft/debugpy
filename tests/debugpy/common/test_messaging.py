@@ -385,7 +385,7 @@ class TestJsonMessageChannel(object):
 
         log.info("Waiting for callback...")
         response2_received.wait()
-        response2, = response2
+        (response2,) = response2
 
         assert not response2.success
         assert response2.request is request2
@@ -410,7 +410,7 @@ class TestJsonMessageChannel(object):
 
         log.info("Waiting for callback...")
         response3_received.wait()
-        response3, = response3
+        (response3,) = response3
 
         assert response3.success
         assert response3.request is request3
@@ -433,7 +433,7 @@ class TestJsonMessageChannel(object):
 
         log.info("Waiting for callback...")
         response4_received.wait()
-        response4, = response4
+        (response4,) = response4
 
         assert not response4.success
         assert response4.request is request4

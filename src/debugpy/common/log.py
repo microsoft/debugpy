@@ -330,7 +330,8 @@ def describe_environment(header):
     site_packages = [
         p
         for p in sys.path
-        if os.path.exists(p) and os.path.basename(p) == compat.filename_str("site-packages")
+        if os.path.exists(p)
+        and os.path.basename(p) == compat.filename_str("site-packages")
     ]
     report_paths(lambda: site_packages, "sys.path (site-packages)")
 

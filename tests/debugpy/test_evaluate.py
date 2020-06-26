@@ -162,7 +162,7 @@ def test_variable_sort(pyfile, target, run):
             "__c_test",
         ]
 
-        special_vars_entry, = (v for v in vars if v["name"] == "special variables")
+        (special_vars_entry,) = (v for v in vars if v["name"] == "special variables")
         special_vars_variables = session.request(
             "variables",
             {"variablesReference": special_vars_entry["variablesReference"]},
@@ -173,7 +173,7 @@ def test_variable_sort(pyfile, target, run):
         assert special_vars_variables == ["__a_test__", "__b_test__", "__c_test__"]
 
         # String dict keys must be sorted as strings.
-        b_test, = (v for v in vars if v["name"] == "b_test")
+        (b_test,) = (v for v in vars if v["name"] == "b_test")
         b_test_vars = session.request(
             "variables", {"variablesReference": b_test["variablesReference"]}
         )["variables"]
@@ -202,7 +202,7 @@ def test_variable_sort(pyfile, target, run):
 
         # Numeric dict keys must be sorted as numbers.
         if not "https://github.com/microsoft/ptvsd/issues/213":
-            c_test, = (v for v in vars if v["name"] == "c_test")
+            (c_test,) = (v for v in vars if v["name"] == "c_test")
             c_test_vars = session.request(
                 "variables", {"variablesReference": c_test["variablesReference"]}
             )["variables"]
@@ -615,7 +615,7 @@ def test_set_variable(pyfile, target, run):
             "variables"
         ]
 
-        a, = (v for v in vars if v["name"] == "a")
+        (a,) = (v for v in vars if v["name"] == "a")
         assert a == some.dict.containing(
             {
                 "type": "int",
@@ -658,7 +658,7 @@ def test_set_expression(pyfile, target, run):
         vars = session.request("variables", {"variablesReference": globals_ref})[
             "variables"
         ]
-        a, = (v for v in vars if v["name"] == "a")
+        (a,) = (v for v in vars if v["name"] == "a")
         assert a == some.dict.containing(
             {
                 "type": "int",

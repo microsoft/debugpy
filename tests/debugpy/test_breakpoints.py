@@ -19,6 +19,7 @@ bp_root = test_data / "bp"
 
 
 if not tests.full:
+
     @pytest.fixture(params=[runners.launch, runners.attach_connect["cli"]])
     def run(request):
         return request.param
