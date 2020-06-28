@@ -266,17 +266,9 @@ def _win_write_to_shared_named_memory(python_code, pid):
     finally:
         CloseHandle(filemap)
 
-def escape_for_gdb_and_lldb(s):
-    """Returns a version of given string suitable for use as gdb
-       and lldb function argument"""
-    if not s:
-        return '""'
-
-    # wrap string in double qoutes, and escape any inner double 
-    # quotes
-    return '"' + s.replace('"', '\\"') + '"'
 
 def run_python_code_linux(pid, python_code, connect_debugger_tracing=False, show_debug_info=0):
+    assert '\'' not in python_code, 'Having a single quote messes with our command.'
     filedir = os.path.dirname(__file__)
 
     # Valid arguments for arch are i386, i386:x86-64, i386:x64-32, i8086,
@@ -312,14 +304,14 @@ def run_python_code_linux(pid, python_code, connect_debugger_tracing=False, show
 #         '--batch-silent',
     ]
 
-    cmd.extend(["--eval-command=set scheduler-locking off"])  # If on we'll deadlock.
+    cmd.extend(["--eval-command='set scheduler-locking off'"])  # If on we'll deadlock.
 
-    cmd.extend(["--eval-command=set architecture %s" % arch])
+    cmd.extend(["--eval-command='set architecture %s'" % arch])
 
     cmd.extend([
-        "--eval-command=call (void*)dlopen(\"%s\", 2)" % target_dll,
-        '--eval-command=call (int)DoAttach(%s, %s, %s)' % (
-            is_debug, escape_for_gdb_and_lldb(python_code), show_debug_info)
+        "--eval-command='call (void*)dlopen(\"%s\", 2)'" % target_dll,
+        "--eval-command='call (int)DoAttach(%s, \"%s\", %s)'" % (
+            is_debug, python_code, show_debug_info)
     ])
 
     # print ' '.join(cmd)
@@ -331,7 +323,8 @@ def run_python_code_linux(pid, python_code, connect_debugger_tracing=False, show
     env.pop('PYTHONPATH', None)
     print('Running: %s' % (' '.join(cmd)))
     p = subprocess.Popen(
-        cmd,
+        ' '.join(cmd),
+        shell=True,
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -353,6 +346,7 @@ def find_helper_script(filedir, script_name):
 
 
 def run_python_code_mac(pid, python_code, connect_debugger_tracing=False, show_debug_info=0):
+    assert '\'' not in python_code, 'Having a single quote messes with our command.'
     filedir = os.path.dirname(__file__)
 
     # Valid arguments for arch are i386, i386:x86-64, i386:x64-32, i8086,
@@ -369,7 +363,7 @@ def run_python_code_mac(pid, python_code, connect_debugger_tracing=False, show_d
     print('Attaching with arch: %s' % (arch,))
 
     target_dll = os.path.join(filedir, 'attach_%s' % suffix)
-    target_dll = os.path.abspath(target_dll)
+    target_dll = os.path.normpath(target_dll)
     if not os.path.exists(target_dll):
         raise RuntimeError('Could not find dll file to inject: %s' % target_dll)
 
@@ -391,15 +385,15 @@ def run_python_code_mac(pid, python_code, connect_debugger_tracing=False, show_d
     ]
 
     cmd.extend([
-        "-o", 'process attach --pid %d' % pid,
-        "-o", 'command script import "%s"' % (lldb_prepare_file,),
-        "-o", 'load_lib_and_attach "%s" %s %s %s' % (target_dll,
-            is_debug, escape_for_gdb_and_lldb(python_code), show_debug_info),
+        "-o 'process attach --pid %d'" % pid,
+        "-o 'command script import \"%s\"'" % (lldb_prepare_file,),
+        "-o 'load_lib_and_attach \"%s\" %s \"%s\" %s'" % (target_dll,
+            is_debug, python_code, show_debug_info),
     ])
 
     cmd.extend([
-        "-o", 'process detach',
-        "-o", 'script import os; os._exit(1)',
+        "-o 'process detach'",
+        "-o 'script import os; os._exit(1)'",
     ])
 
     # print ' '.join(cmd)
@@ -411,7 +405,8 @@ def run_python_code_mac(pid, python_code, connect_debugger_tracing=False, show_d
     env.pop('PYTHONPATH', None)
     print('Running: %s' % (' '.join(cmd)))
     p = subprocess.Popen(
-        cmd,
+        ' '.join(cmd),
+        shell=True,
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
