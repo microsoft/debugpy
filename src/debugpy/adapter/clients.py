@@ -211,6 +211,16 @@ class Client(components.Component):
                 # to conform to the DAP spec, we'll need to defer waiting for response.
                 try:
                     self.server.channel.request(request.command, arguments)
+                except messaging.NoMoreMessages:
+                    # Server closed connection before we could receive the response to
+                    # "configurationDone" - this can happen when debuggee exits shortly
+                    # after starting. It's not an error, but we can't do anything useful
+                    # here at this point, either, so just bail out.
+                    request.respond({})
+                    self.session.finalize(
+                        fmt('{0} disconnected before responding to "configurationDone"', self.server)
+                    )
+                    return
                 except messaging.MessageHandlingError as exc:
                     exc.propagate(request)
 
