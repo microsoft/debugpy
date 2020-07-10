@@ -213,12 +213,16 @@ class Client(components.Component):
                     self.server.channel.request(request.command, arguments)
                 except messaging.NoMoreMessages:
                     # Server closed connection before we could receive the response to
-                    # "configurationDone" - this can happen when debuggee exits shortly
+                    # "attach" or "launch" - this can happen when debuggee exits shortly
                     # after starting. It's not an error, but we can't do anything useful
                     # here at this point, either, so just bail out.
                     request.respond({})
                     self.session.finalize(
-                        fmt('{0} disconnected before responding to "configurationDone"', self.server)
+                        fmt(
+                            "{0} disconnected before responding to {1!j}",
+                            self.server,
+                            request.command,
+                        )
                     )
                     return
                 except messaging.MessageHandlingError as exc:
@@ -498,12 +502,31 @@ class Client(components.Component):
 
         try:
             self.has_started = True
-            request.respond(self.server.channel.delegate(request))
+            try:
+                result = self.server.channel.delegate(request)
+            except messaging.NoMoreMessages:
+                # Server closed connection before we could receive the response to
+                # "configurationDone" - this can happen when debuggee exits shortly
+                # after starting. It's not an error, but we can't do anything useful
+                # here at this point, either, so just bail out.
+                request.respond({})
+                self.start_request.respond({})
+                self.session.finalize(
+                    fmt(
+                        "{0} disconnected before responding to {1!j}",
+                        self.server,
+                        request.command,
+                    )
+                )
+                return
+            else:
+                request.respond(result)
         except messaging.MessageHandlingError as exc:
             self.start_request.cant_handle(str(exc))
         finally:
-            self.start_request.respond({})
-            self._propagate_deferred_events()
+            if self.start_request.response is None:
+                self.start_request.respond({})
+                self._propagate_deferred_events()
 
         # Notify the client of any child processes of the debuggee that aren't already
         # being debugged.
