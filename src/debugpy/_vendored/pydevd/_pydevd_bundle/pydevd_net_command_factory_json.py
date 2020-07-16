@@ -20,10 +20,16 @@ from _pydevd_bundle.pydevd_net_command import NetCommand, NULL_NET_COMMAND
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
 from _pydevd_bundle.pydevd_utils import get_non_pydevd_threads
 import pydevd_file_utils
-from _pydevd_bundle.pydevd_comm import build_exception_info_response, pydevd_find_thread_by_id
+from _pydevd_bundle.pydevd_comm import build_exception_info_response
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
-from _pydevd_bundle import pydevd_frame_utils
+from _pydevd_bundle import pydevd_frame_utils, pydevd_constants, pydevd_utils
 import linecache
+from _pydevd_bundle.pydevd_thread_lifecycle import pydevd_find_thread_by_id
+
+try:
+    from StringIO import StringIO
+except:
+    from io import StringIO
 
 
 class ModulesManager(object):
@@ -269,10 +275,17 @@ class NetCommandFactoryJson(NetCommandFactory):
             body=pydevd_schema.StackTraceResponseBody(stackFrames=stack_frames, totalFrames=total_frames))
         return NetCommand(CMD_RETURN, 0, response, is_json=True)
 
+    @overrides(NetCommandFactory.make_warning_message)
+    def make_warning_message(self, msg):
+        category = 'console'
+        body = OutputEventBody(msg, category)
+        event = OutputEvent(body)
+        return NetCommand(CMD_WRITE_TO_CONSOLE, 0, event, is_json=True)
+
     @overrides(NetCommandFactory.make_io_message)
-    def make_io_message(self, v, ctx):
+    def make_io_message(self, msg, ctx):
         category = 'stdout' if int(ctx) == 1 else 'stderr'
-        body = OutputEventBody(v, category)
+        body = OutputEventBody(msg, category)
         event = OutputEvent(body)
         return NetCommand(CMD_WRITE_TO_CONSOLE, 0, event, is_json=True)
 
@@ -386,10 +399,37 @@ class NetCommandFactoryJson(NetCommandFactory):
         if py_db.get_use_libraries_filter():
             msg += ('\nNote: may have been skipped because of "justMyCode" option (default == true). '
                     'Try setting \"justMyCode\": false in the debug configuration (e.g., launch.json).\n')
+        return self.make_warning_message(msg)
 
-        body = OutputEventBody(msg, category='console')
-        event = OutputEvent(body)
-        return NetCommand(CMD_WRITE_TO_CONSOLE, 0, event, is_json=True)
+    @overrides(NetCommandFactory.make_evaluation_timeout_msg)
+    def make_evaluation_timeout_msg(self, py_db, expression, curr_thread):
+        msg = '''Evaluating: %s did not finish after %.2fs seconds.
+This may mean a number of things:
+- This evaluation is really slow and this is expected.
+    In this case it's possible to silence this error by raising the timeout, setting the
+    PYDEVD_WARN_EVALUATION_TIMEOUT environment variable to a bigger value.
+
+- The evaluation may need other threads running while it's running:
+    In this case, it's possible to set the PYDEVD_UNBLOCK_THREADS_TIMEOUT
+    environment variable so that if after a given timeout an evaluation doesn't finish,
+    other threads are unblocked or you can manually resume all threads.
+
+    Alternatively, it's also possible to skip breaking on a particular thread by setting a
+    `pydev_do_not_trace = True` attribute in the related threading.Thread instance
+    (if some thread should always be running and no breakpoints are expected to be hit in it).
+
+- The evaluation is deadlocked:
+    In this case you may set the PYDEVD_THREAD_DUMP_ON_WARN_EVALUATION_TIMEOUT
+    environment variable to true so that a thread dump is shown along with this message and
+    optionally, set the PYDEVD_INTERRUPT_THREAD_TIMEOUT to some value so that the debugger
+    tries to interrupt the evaluation (if possible) when this happens.
+''' % (expression, pydevd_constants.PYDEVD_WARN_EVALUATION_TIMEOUT)
+
+        if pydevd_constants.PYDEVD_THREAD_DUMP_ON_WARN_EVALUATION_TIMEOUT:
+            stream = StringIO()
+            pydevd_utils.dump_threads(stream, show_pydevd_threads=False)
+            msg += '\n\n%s\n' % stream.getvalue()
+        return self.make_warning_message(msg)
 
     @overrides(NetCommandFactory.make_exit_command)
     def make_exit_command(self, py_db):

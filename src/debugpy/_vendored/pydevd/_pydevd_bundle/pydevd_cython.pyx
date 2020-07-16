@@ -4,9 +4,8 @@ from __future__ import print_function
 
 # DO NOT edit manually!
 # DO NOT edit manually!
-import sys
-from _pydevd_bundle.pydevd_constants import (STATE_RUN, PYTHON_SUSPEND, IS_JYTHON,
-    USE_CUSTOM_SYS_CURRENT_FRAMES, USE_CUSTOM_SYS_CURRENT_FRAMES_MAP, SUPPORT_GEVENT, ForkSafeLock)
+from _pydevd_bundle.pydevd_constants import (STATE_RUN, PYTHON_SUSPEND, SUPPORT_GEVENT, ForkSafeLock,
+    _current_frames)
 from _pydev_bundle import pydev_log
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
 pydev_log.debug("Using Cython speedups")
@@ -15,49 +14,6 @@ pydev_log.debug("Using Cython speedups")
 # ENDIF
 
 version = 11
-
-if USE_CUSTOM_SYS_CURRENT_FRAMES:
-
-    # Some versions of Jython don't have it (but we can provide a replacement)
-    if IS_JYTHON:
-        from java.lang import NoSuchFieldException
-        from org.python.core import ThreadStateMapping
-        try:
-            cachedThreadState = ThreadStateMapping.getDeclaredField('globalThreadStates')  # Dev version
-        except NoSuchFieldException:
-            cachedThreadState = ThreadStateMapping.getDeclaredField('cachedThreadState')  # Release Jython 2.7.0
-        cachedThreadState.accessible = True
-        thread_states = cachedThreadState.get(ThreadStateMapping)
-
-        def _current_frames():
-            as_array = thread_states.entrySet().toArray()
-            ret = {}
-            for thread_to_state in as_array:
-                thread = thread_to_state.getKey()
-                if thread is None:
-                    continue
-                thread_state = thread_to_state.getValue()
-                if thread_state is None:
-                    continue
-
-                frame = thread_state.frame
-                if frame is None:
-                    continue
-
-                ret[thread.getId()] = frame
-            return ret
-
-    elif USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
-        _tid_to_last_frame = {}
-
-        # IronPython doesn't have it. Let's use our workaround...
-        def _current_frames():
-            return _tid_to_last_frame
-
-    else:
-        raise RuntimeError('Unable to proceed (sys._current_frames not available in this Python implementation).')
-else:
-    _current_frames = sys._current_frames
 
 
 #=======================================================================================================================
@@ -1674,12 +1630,12 @@ if USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
     # be a reasonable workaround until IronPython itself is able to provide that functionality).
     #
     # See: https://github.com/IronLanguages/main/issues/1630
-    from _pydevd_bundle.pydevd_additional_thread_info_regular import _tid_to_last_frame
+    from _pydevd_bundle.pydevd_constants import constructed_tid_to_last_frame
 
     _original_call = ThreadTracer.__call__
 
     def __call__(self, frame, event, arg):
-        _tid_to_last_frame[self._args[1].ident] = frame
+        constructed_tid_to_last_frame[self._args[1].ident] = frame
         return _original_call(self, frame, event, arg)
 
     ThreadTracer.__call__ = __call__

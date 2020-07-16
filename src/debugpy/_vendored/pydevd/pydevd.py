@@ -40,7 +40,7 @@ from _pydevd_bundle.pydevd_constants import (IS_JYTH_LESS25, get_thread_id, get_
     dict_keys, dict_iter_items, DebugInfoHolder, PYTHON_SUSPEND, STATE_SUSPEND, STATE_RUN, get_frame,
     clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, IS_PY34_OR_GREATER, IS_PY2, NULL,
     NO_FTRACE, IS_IRONPYTHON, JSON_PROTOCOL, IS_CPYTHON, HTTP_JSON_PROTOCOL, USE_CUSTOM_SYS_CURRENT_FRAMES_MAP, call_only_once,
-    ForkSafeLock, IGNORE_BASENAMES_STARTING_WITH, LIBRARY_CODE_BASENAMES_STARTING_WITH)
+    ForkSafeLock, IGNORE_BASENAMES_STARTING_WITH)
 from _pydevd_bundle.pydevd_defaults import PydevdCustomization  # Note: import alias used on pydev_monkey.
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
 from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE, LIB_FILE, DONT_TRACE_DIRS
@@ -62,11 +62,11 @@ import pydevd_tracing
 from _pydevd_bundle.pydevd_comm import (InternalThreadCommand, InternalThreadCommandForAnyThread,
     create_server_socket)
 from _pydevd_bundle.pydevd_comm import(InternalConsoleExec,
-    PyDBDaemonThread, _queue, ReaderThread, GetGlobalDebugger, get_global_debugger,
+    _queue, ReaderThread, GetGlobalDebugger, get_global_debugger,
     set_global_debugger, WriterThread,
     start_client, start_server, InternalGetBreakpointException, InternalSendCurrExceptionTrace,
-    InternalSendCurrExceptionTraceProceeded, run_as_pydevd_daemon_thread)
-
+    InternalSendCurrExceptionTraceProceeded)
+from _pydevd_bundle.pydevd_daemon_thread import PyDBDaemonThread, mark_as_pydevd_daemon_thread
 from _pydevd_bundle.pydevd_process_net_command_json import PyDevJsonCommandProcessor
 from _pydevd_bundle.pydevd_process_net_command import process_net_command
 from _pydevd_bundle.pydevd_net_command import NetCommand
@@ -76,9 +76,11 @@ from _pydevd_bundle.pydevd_collect_bytecode_info import collect_try_except_info,
 from _pydevd_bundle.pydevd_suspended_frames import SuspendedFramesManager
 from socket import SHUT_RDWR
 from _pydevd_bundle.pydevd_api import PyDevdAPI
+from _pydevd_bundle.pydevd_timeout import TimeoutTracker
+from _pydevd_bundle.pydevd_thread_lifecycle import suspend_all_threads, mark_thread_suspended
 
 if USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
-    from _pydevd_bundle.pydevd_additional_thread_info_regular import _tid_to_last_frame
+    from _pydevd_bundle.pydevd_constants import constructed_tid_to_last_frame
 
 __version_info__ = (1, 3, 3)
 __version_info_str__ = []
@@ -309,19 +311,23 @@ class AbstractSingleNotificationBehavior(object):
             self._pause_requested = True
             global_suspend_time = self._suspend_time_request
         py_db = self._py_db()
-        run_as_pydevd_daemon_thread(py_db, self._notify_after_timeout, global_suspend_time)
+        if py_db is not None:
+            py_db.timeout_tracker.call_on_timeout(
+                self.NOTIFY_OF_PAUSE_TIMEOUT,
+                self._notify_after_timeout,
+                kwargs={'global_suspend_time': global_suspend_time}
+            )
 
     def _notify_after_timeout(self, global_suspend_time):
-        time.sleep(self.NOTIFY_OF_PAUSE_TIMEOUT)
         with self._lock:
             if self._suspended_thread_ids:
                 if global_suspend_time > self._last_suspend_notification_time:
                     self._last_suspend_notification_time = global_suspend_time
                     # Notify about any thread which is currently suspended.
+                    pydev_log.info('Sending suspend notification after timeout.')
                     self.send_suspend_notification(next(iter(self._suspended_thread_ids)), CMD_THREAD_SUSPEND)
 
-    @contextmanager
-    def notify_thread_suspended(self, thread_id, stop_reason):
+    def on_thread_suspend(self, thread_id, stop_reason):
         with self._lock:
             pause_requested = self._pause_requested
             if pause_requested:
@@ -334,17 +340,42 @@ class AbstractSingleNotificationBehavior(object):
             # issue for a CMD_THREAD_SUSPEND if a pause is pending.
             if stop_reason != CMD_THREAD_SUSPEND or pause_requested:
                 if self._suspend_time_request > self._last_suspend_notification_time:
+                    pydev_log.info('Sending suspend notification.')
                     self._last_suspend_notification_time = self._suspend_time_request
                     self.send_suspend_notification(thread_id, stop_reason)
+                else:
+                    pydev_log.info(
+                        'Suspend not sent (it was already sent). Last suspend % <= Last resume %s',
+                        self._last_suspend_notification_time,
+                        self._last_resume_notification_time,
+                    )
+            else:
+                pydev_log.info(
+                    'Suspend not sent because stop reason is thread suspend and pause was not requested.',
+                )
+
+    def on_thread_resume(self, thread_id):
+        # on resume (step, continue all):
+        with self._lock:
+            self._suspended_thread_ids.remove(thread_id)
+            if self._last_resume_notification_time < self._last_suspend_notification_time:
+                pydev_log.info('Sending resume notification.')
+                self._last_resume_notification_time = self._last_suspend_notification_time
+                self.send_resume_notification(thread_id)
+            else:
+                pydev_log.info(
+                    'Resume not sent (it was already sent). Last resume %s >= Last suspend %s',
+                    self._last_resume_notification_time,
+                    self._last_suspend_notification_time,
+                )
+
+    @contextmanager
+    def notify_thread_suspended(self, thread_id, stop_reason):
+        self.on_thread_suspend(thread_id, stop_reason)
         try:
             yield  # At this point the thread must be actually suspended.
         finally:
-            # on resume (step, continue all):
-            with self._lock:
-                self._suspended_thread_ids.remove(thread_id)
-                if self._last_resume_notification_time < self._last_suspend_notification_time:
-                    self._last_resume_notification_time = self._last_suspend_notification_time
-                    self.send_resume_notification(thread_id)
+            self.on_thread_resume(thread_id)
 
 
 class ThreadsSuspendedSingleNotification(AbstractSingleNotificationBehavior):
@@ -467,6 +498,8 @@ class PyDB(object):
         self._cmd_queue = defaultdict(_queue.Queue)  # Key is thread id or '*', value is Queue
         self.suspended_frames_manager = SuspendedFramesManager()
         self._files_filtering = FilesFiltering()
+        self.timeout_tracker = TimeoutTracker(self)
+
         # Note: when the source mapping is changed we also have to clear the file types cache
         # (because if a given file is a part of the project or not may depend on it being
         # defined in the source mapping).
@@ -1497,6 +1530,8 @@ class PyDB(object):
                     for thread_id in program_threads_dead:
                         self.notify_thread_not_alive(thread_id, use_lock=False)
 
+            cmds_to_execute = []
+
             # Without self._lock_running_thread_ids
             if len(program_threads_alive) == 0 and ready_to_run:
                 dispose = True
@@ -1531,19 +1566,24 @@ class PyDB(object):
                                 self.mpl_hooks_in_debug_console = True
 
                             if int_cmd.can_be_executed_by(curr_thread_id):
-                                pydev_log.verbose("processing internal command ", int_cmd)
-                                int_cmd.do_it(self)
+                                cmds_to_execute.append(int_cmd)
                             else:
-                                pydev_log.verbose("NOT processing internal command ", int_cmd)
+                                pydev_log.verbose("NOT processing internal command: %s ", int_cmd)
                                 cmds_to_add_back.append(int_cmd)
 
                     except _queue.Empty:  # @UndefinedVariable
                         # this is how we exit
                         for int_cmd in cmds_to_add_back:
                             queue.put(int_cmd)
+
         if dispose:
             # Note: must be called without the main lock to avoid deadlocks.
             self.dispose_and_kill_all_pydevd_threads()
+        else:
+            # Actually execute the commands without the main lock!
+            for int_cmd in cmds_to_execute:
+                pydev_log.verbose("processing internal command: %s", int_cmd)
+                int_cmd.do_it(self)
 
     def consolidate_breakpoints(self, file, id_to_breakpoint, breakpoints):
         break_dict = {}
@@ -1606,26 +1646,6 @@ class PyDB(object):
 
         return eb
 
-    def _mark_suspend(self, thread, stop_reason, original_step_cmd=-1):
-        info = set_additional_thread_info(thread)
-        info.suspend_type = PYTHON_SUSPEND
-        if original_step_cmd != -1:
-            stop_reason = original_step_cmd
-        thread.stop_reason = stop_reason
-
-        # Note: don't set the 'pydev_original_step_cmd' here if unset.
-
-        if info.pydev_step_cmd == -1:
-            # If the step command is not specified, set it to step into
-            # to make sure it'll break as soon as possible.
-            info.pydev_step_cmd = CMD_STEP_INTO
-            info.pydev_step_stop = None
-
-        # Mark as suspend as the last thing.
-        info.pydev_state = STATE_SUSPEND
-
-        return info
-
     def set_suspend(self, thread, stop_reason, suspend_other_threads=False, is_pause=False, original_step_cmd=-1):
         '''
         :param thread:
@@ -1649,7 +1669,7 @@ class PyDB(object):
         if is_pause:
             self._threads_suspended_single_notification.on_pause()
 
-        info = self._mark_suspend(thread, stop_reason, original_step_cmd=original_step_cmd)
+        info = mark_thread_suspended(thread, stop_reason, original_step_cmd=original_step_cmd)
 
         if is_pause:
             # Must set tracing after setting the state to suspend.
@@ -1672,23 +1692,8 @@ class PyDB(object):
             suspend_other_threads = True
 
         if suspend_other_threads:
-            # Suspend all other threads.
-            all_threads = pydevd_utils.get_non_pydevd_threads()
-            for t in all_threads:
-                if getattr(t, 'pydev_do_not_trace', None):
-                    pass  # skip some other threads, i.e. ipython history saving thread from debug console
-                else:
-                    if t is thread:
-                        continue
-                    info = self._mark_suspend(t, CMD_THREAD_SUSPEND)
-                    frame = info.get_topmost_frame(t)
-
-                    # Reset the time as in this case this was not the main thread suspended.
-                    if frame is not None:
-                        try:
-                            self.set_trace_for_frame_and_parents(frame)
-                        finally:
-                            frame = None
+            # Suspend all except the current one (which we're currently suspending already).
+            suspend_all_threads(self, except_thread=thread)
 
     def _send_breakpoint_condition_exception(self, thread, conditional_breakpoint_exception_tuple):
         """If conditional breakpoint raises an exception during evaluation
@@ -1775,7 +1780,7 @@ class PyDB(object):
             as the paused location on the top-level frame (exception info must be passed on 'arg').
         """
         if USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
-            _tid_to_last_frame[thread.ident] = sys._getframe()
+            constructed_tid_to_last_frame[thread.ident] = sys._getframe()
         self.process_internal_commands()
 
         thread_id = get_current_thread_id(thread)
@@ -1846,6 +1851,8 @@ class PyDB(object):
             # This means that we should pause again after a set next statement.
             self._threads_suspended_single_notification.increment_suspend_time()
             self.do_wait_suspend(thread, frame, event, arg, is_unhandled_exception)
+        if DebugInfoHolder.DEBUG_TRACE_LEVEL > 2:
+            pydev_log.debug('Leaving PyDB.do_wait_suspend: %s (%s) %s', thread, thread_id, id(thread))
 
     def _do_wait_suspend(self, thread, frame, event, arg, suspend_type, from_this_thread, frames_tracker):
         info = thread.additional_info
@@ -2381,6 +2388,42 @@ def set_debug(setup):
 def enable_qt_support(qt_support_mode):
     from _pydev_bundle import pydev_monkey_qt
     pydev_monkey_qt.patch_qt(qt_support_mode)
+
+
+def start_dump_threads_thread(filename_template, timeout, recurrent):
+    '''
+    Helper to dump threads after a timeout.
+
+    :param filename_template:
+        A template filename, such as 'c:/temp/thread_dump_%s.txt', where the %s will
+        be replaced by the time for the dump.
+    :param timeout:
+        The timeout (in seconds) for the dump.
+    :param recurrent:
+        If True we'll keep on doing thread dumps.
+    '''
+    assert filename_template.count('%s') == 1, \
+        'Expected one %%s to appear in: %s' % (filename_template,)
+
+    def _threads_on_timeout():
+        try:
+            while True:
+                time.sleep(timeout)
+                filename = filename_template % (time.time(),)
+                try:
+                    os.makedirs(os.path.dirname(filename))
+                except Exception:
+                    pass
+                with open(filename, 'w') as stream:
+                    dump_threads(stream)
+                if not recurrent:
+                    return
+        except Exception:
+            pydev_log.exception()
+
+    t = threading.Thread(target=_threads_on_timeout)
+    mark_as_pydevd_daemon_thread(t)
+    t.start()
 
 
 def dump_threads(stream=None):

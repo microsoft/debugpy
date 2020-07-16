@@ -535,6 +535,17 @@ class Client(components.Component):
                 self.notify_of_subprocess(conn)
 
     @message_handler
+    def evaluate_request(self, request):
+        propagated_request = self.server.channel.propagate(request)
+
+        def handle_response(response):
+            request.respond(response.body)
+
+        propagated_request.on_response(handle_response)
+
+        return messaging.NO_RESPONSE
+
+    @message_handler
     def pause_request(self, request):
         request.arguments["threadId"] = "*"
         return self.server.channel.delegate(request)

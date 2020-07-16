@@ -115,6 +115,49 @@ if IS_JYTHON:
 USE_CUSTOM_SYS_CURRENT_FRAMES = not hasattr(sys, '_current_frames') or IS_PYPY
 USE_CUSTOM_SYS_CURRENT_FRAMES_MAP = USE_CUSTOM_SYS_CURRENT_FRAMES and (IS_PYPY or IS_IRONPYTHON)
 
+if USE_CUSTOM_SYS_CURRENT_FRAMES:
+
+    # Some versions of Jython don't have it (but we can provide a replacement)
+    if IS_JYTHON:
+        from java.lang import NoSuchFieldException
+        from org.python.core import ThreadStateMapping
+        try:
+            cachedThreadState = ThreadStateMapping.getDeclaredField('globalThreadStates')  # Dev version
+        except NoSuchFieldException:
+            cachedThreadState = ThreadStateMapping.getDeclaredField('cachedThreadState')  # Release Jython 2.7.0
+        cachedThreadState.accessible = True
+        thread_states = cachedThreadState.get(ThreadStateMapping)
+
+        def _current_frames():
+            as_array = thread_states.entrySet().toArray()
+            ret = {}
+            for thread_to_state in as_array:
+                thread = thread_to_state.getKey()
+                if thread is None:
+                    continue
+                thread_state = thread_to_state.getValue()
+                if thread_state is None:
+                    continue
+
+                frame = thread_state.frame
+                if frame is None:
+                    continue
+
+                ret[thread.getId()] = frame
+            return ret
+
+    elif USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
+        constructed_tid_to_last_frame = {}
+
+        # IronPython doesn't have it. Let's use our workaround...
+        def _current_frames():
+            return constructed_tid_to_last_frame
+
+    else:
+        raise RuntimeError('Unable to proceed (sys._current_frames not available in this Python implementation).')
+else:
+    _current_frames = sys._current_frames
+
 IS_PYTHON_STACKLESS = "stackless" in sys.version.lower()
 CYTHON_SUPPORTED = False
 
@@ -188,6 +231,18 @@ def is_true_in_env(env_key):
         return os.getenv(env_key, '').lower() in ENV_TRUE_LOWER_VALUES
 
 
+def as_float_in_env(env_key, default):
+    value = os.getenv(env_key)
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except Exception:
+        raise RuntimeError(
+            'Error: expected the env variable: %s to be set to a float value. Found: %s' % (
+                env_key, value))
+
+
 # If true in env, use gevent mode.
 SUPPORT_GEVENT = is_true_in_env('GEVENT_SUPPORT')
 
@@ -229,6 +284,32 @@ ASYNC_EVAL_TIMEOUT_SEC = 60
 NEXT_VALUE_SEPARATOR = "__pydev_val__"
 BUILTINS_MODULE_NAME = '__builtin__' if IS_PY2 else 'builtins'
 SHOW_DEBUG_INFO_ENV = is_true_in_env(('PYCHARM_DEBUG', 'PYDEV_DEBUG', 'PYDEVD_DEBUG'))
+
+# This timeout is used to track the time to send a message saying that the evaluation
+# is taking too long and possible mitigations.
+PYDEVD_WARN_EVALUATION_TIMEOUT = as_float_in_env('PYDEVD_WARN_EVALUATION_TIMEOUT', 3.)
+
+# If True in env shows a thread dump when the evaluation times out.
+PYDEVD_THREAD_DUMP_ON_WARN_EVALUATION_TIMEOUT = is_true_in_env('PYDEVD_THREAD_DUMP_ON_WARN_EVALUATION_TIMEOUT')
+
+# This timeout is used only when the mode that all threads are stopped/resumed at once is used
+# (i.e.: multi_threads_single_notification)
+#
+# In this mode, if some evaluation doesn't finish until this timeout, we notify the user
+# and then resume all threads until the evaluation finishes.
+#
+# A negative value will disable the timeout and a value of 0 will automatically run all threads
+# (without any notification) when the evaluation is started and pause all threads when the
+# evaluation is finished. A positive value will run run all threads after the timeout
+# elapses.
+PYDEVD_UNBLOCK_THREADS_TIMEOUT = as_float_in_env('PYDEVD_UNBLOCK_THREADS_TIMEOUT', -1.)
+
+# Timeout to interrupt a thread (so, if some evaluation doesn't finish until this
+# timeout, the thread doing the evaluation is interrupted).
+# A value <= 0 means this is disabled.
+# See: _pydevd_bundle.pydevd_timeout.create_interrupt_this_thread_callback for details
+# on how the thread interruption works (there are some caveats related to it).
+PYDEVD_INTERRUPT_THREAD_TIMEOUT = as_float_in_env('PYDEVD_INTERRUPT_THREAD_TIMEOUT', -1)
 
 if SHOW_DEBUG_INFO_ENV:
     # show debug info before the debugger start
@@ -365,6 +446,10 @@ if IS_PY3K:
     def dict_items(d):
         return list(d.items())
 
+    def as_str(s):
+        assert isinstance(s, str)
+        return s
+
 else:
     dict_keys = None
     try:
@@ -402,6 +487,11 @@ else:
 
     def dict_items(d):
         return d.items()
+
+    def as_str(s):
+        if isinstance(s, unicode):
+            return s.encode('utf-8')
+        return s
 
 
 def sorted_dict_repr(d):
