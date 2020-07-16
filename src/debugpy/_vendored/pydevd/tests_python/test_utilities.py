@@ -1,13 +1,14 @@
 import threading
 
-from _pydevd_bundle.pydevd_comm import pydevd_find_thread_by_id
 from _pydevd_bundle.pydevd_utils import convert_dap_log_message_to_expression
 from tests_python.debug_constants import IS_PY26, IS_PY3K, TEST_GEVENT
 import sys
-from _pydevd_bundle.pydevd_constants import IS_CPYTHON, IS_WINDOWS, IS_PY2, IS_PY39_OR_GREATER
+from _pydevd_bundle.pydevd_constants import IS_CPYTHON, IS_WINDOWS, IS_PY2, IS_PY39_OR_GREATER, \
+    IS_PYPY
 import pytest
 import os
 import codecs
+from _pydevd_bundle.pydevd_thread_lifecycle import pydevd_find_thread_by_id
 
 
 def test_expression_to_evaluate():
@@ -389,3 +390,40 @@ def check_dont_notify_on_gevent_loaded():
 def test_gevent_notify():
     _check_in_separate_process('check_notify_on_gevent_loaded', update_env={'GEVENT_SUPPORT': ''})
     _check_in_separate_process('check_dont_notify_on_gevent_loaded', update_env={'GEVENT_SUPPORT': 'True'})
+
+
+def test_interrupt_main_thread():
+    from _pydevd_bundle.pydevd_utils import interrupt_main_thread
+    import time
+
+    main_thread = threading.current_thread()
+
+    def interrupt():
+        # sleep here so that the main thread in the test can get to the sleep too (otherwise
+        # if we interrupt too fast we won't really check that the sleep itself
+        # got interrupted -- although if that happens on some tests runs it's
+        # not really an issue either).
+        time.sleep(1)
+        interrupt_main_thread(main_thread)
+
+    if IS_PYPY:
+        # On PyPy a time.sleep() is not being properly interrupted,
+        # so, let's just check that it throws the KeyboardInterrupt in the
+        # next instruction.
+        timeout = 2
+    else:
+        timeout = 20
+    initial_time = time.time()
+    try:
+        t = threading.Thread(target=interrupt)
+        t.start()
+        time.sleep(timeout)
+    except KeyboardInterrupt:
+        if not IS_PYPY:
+            actual_timeout = time.time() - initial_time
+            # If this fails it means that although we interrupted Python actually waited for the next
+            # instruction to send the event and didn't really interrupt the thread.
+            assert actual_timeout < timeout, 'Expected the actual timeout (%s) to be < than the timeout (%s)' % (
+                actual_timeout, timeout)
+    else:
+        raise AssertionError('KeyboardInterrupt not generated in main thread.')

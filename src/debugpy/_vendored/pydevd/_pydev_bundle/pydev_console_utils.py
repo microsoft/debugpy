@@ -3,14 +3,12 @@ import sys
 import traceback
 from _pydev_bundle.pydev_imports import xmlrpclib, _queue, Exec
 from  _pydev_bundle._pydev_calltip_util import get_description
-from _pydev_imps._pydev_saved_modules import thread
 from _pydevd_bundle import pydevd_vars
 from _pydevd_bundle import pydevd_xml
-from _pydevd_bundle.pydevd_constants import (IS_JYTHON, dict_iter_items, NEXT_VALUE_SEPARATOR, Null,
-    get_global_debugger)
-import signal
+from _pydevd_bundle.pydevd_constants import (IS_JYTHON, dict_iter_items, NEXT_VALUE_SEPARATOR, get_global_debugger)
 from contextlib import contextmanager
 from _pydev_bundle import pydev_log
+from _pydevd_bundle.pydevd_utils import interrupt_main_thread
 
 try:
     import cStringIO as StringIO  # may not always be available @UnusedImport
@@ -402,43 +400,9 @@ class BaseInterpreterInterface:
         self.buffer = None  # Also clear the buffer when it's interrupted.
         try:
             if self.interruptable:
-                called = False
-                try:
-                    # Fix for #PyDev-500: Console interrupt can't interrupt on sleep
-                    if os.name == 'posix':
-                        # On Linux we can't interrupt 0 as in Windows because it's
-                        # actually owned by a process -- on the good side, signals
-                        # work much better on Linux!
-                        os.kill(os.getpid(), signal.SIGINT)
-                        called = True
+                # Fix for #PyDev-500: Console interrupt can't interrupt on sleep
+                interrupt_main_thread(self.mainThread)
 
-                    elif os.name == 'nt':
-                        # Stupid windows: sending a Ctrl+C to a process given its pid
-                        # is absurdly difficult.
-                        # There are utilities to make it work such as
-                        # http://www.latenighthacking.com/projects/2003/sendSignal/
-                        # but fortunately for us, it seems Python does allow a CTRL_C_EVENT
-                        # for the current process in Windows if pid 0 is passed... if we needed
-                        # to send a signal to another process the approach would be
-                        # much more difficult.
-                        # Still, note that CTRL_C_EVENT is only Python 2.7 onwards...
-                        # Also, this doesn't seem to be documented anywhere!? (stumbled
-                        # upon it by chance after digging quite a lot).
-                        os.kill(0, signal.CTRL_C_EVENT)
-                        called = True
-                except:
-                    # Many things to go wrong (from CTRL_C_EVENT not being there
-                    # to failing import signal)... if that's the case, ask for
-                    # forgiveness and go on to the approach which will interrupt
-                    # the main thread (but it'll only work when it's executing some Python
-                    # code -- not on sleep() for instance).
-                    pass
-
-                if not called:
-                    if hasattr(thread, 'interrupt_main'):  # Jython doesn't have it
-                        thread.interrupt_main()
-                    else:
-                        self.mainThread._thread.interrupt()  # Jython
             self.finish_exec(False)
             return True
         except:

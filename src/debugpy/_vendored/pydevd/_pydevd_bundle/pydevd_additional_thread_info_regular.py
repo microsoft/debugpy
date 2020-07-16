@@ -1,6 +1,5 @@
-import sys
-from _pydevd_bundle.pydevd_constants import (STATE_RUN, PYTHON_SUSPEND, IS_JYTHON,
-    USE_CUSTOM_SYS_CURRENT_FRAMES, USE_CUSTOM_SYS_CURRENT_FRAMES_MAP, SUPPORT_GEVENT, ForkSafeLock)
+from _pydevd_bundle.pydevd_constants import (STATE_RUN, PYTHON_SUSPEND, SUPPORT_GEVENT, ForkSafeLock,
+    _current_frames)
 from _pydev_bundle import pydev_log
 # IFDEF CYTHON
 # pydev_log.debug("Using Cython speedups")
@@ -9,49 +8,6 @@ from _pydevd_bundle.pydevd_frame import PyDBFrame
 # ENDIF
 
 version = 11
-
-if USE_CUSTOM_SYS_CURRENT_FRAMES:
-
-    # Some versions of Jython don't have it (but we can provide a replacement)
-    if IS_JYTHON:
-        from java.lang import NoSuchFieldException
-        from org.python.core import ThreadStateMapping
-        try:
-            cachedThreadState = ThreadStateMapping.getDeclaredField('globalThreadStates')  # Dev version
-        except NoSuchFieldException:
-            cachedThreadState = ThreadStateMapping.getDeclaredField('cachedThreadState')  # Release Jython 2.7.0
-        cachedThreadState.accessible = True
-        thread_states = cachedThreadState.get(ThreadStateMapping)
-
-        def _current_frames():
-            as_array = thread_states.entrySet().toArray()
-            ret = {}
-            for thread_to_state in as_array:
-                thread = thread_to_state.getKey()
-                if thread is None:
-                    continue
-                thread_state = thread_to_state.getValue()
-                if thread_state is None:
-                    continue
-
-                frame = thread_state.frame
-                if frame is None:
-                    continue
-
-                ret[thread.getId()] = frame
-            return ret
-
-    elif USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
-        _tid_to_last_frame = {}
-
-        # IronPython doesn't have it. Let's use our workaround...
-        def _current_frames():
-            return _tid_to_last_frame
-
-    else:
-        raise RuntimeError('Unable to proceed (sys._current_frames not available in this Python implementation).')
-else:
-    _current_frames = sys._current_frames
 
 
 #=======================================================================================================================

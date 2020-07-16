@@ -9,6 +9,9 @@ from _pydevd_bundle.pydevd_xml import ExceptionOnEvaluate, get_type, var_to_xml
 from _pydev_bundle import pydev_log
 import codecs
 import os
+import functools
+from _pydevd_bundle.pydevd_thread_lifecycle import resume_threads, mark_thread_suspended, suspend_all_threads
+from _pydevd_bundle.pydevd_comm_constants import CMD_SET_BREAK
 
 try:
     from StringIO import StringIO
@@ -18,7 +21,7 @@ import sys  # @Reimport
 
 from _pydev_imps._pydev_saved_modules import threading
 import traceback
-from _pydevd_bundle import pydevd_save_locals
+from _pydevd_bundle import pydevd_save_locals, pydevd_timeout, pydevd_constants, pydevd_utils
 from _pydev_bundle.pydev_imports import Exec, execfile
 from _pydevd_bundle.pydevd_utils import to_string
 
@@ -254,7 +257,7 @@ def eval_in_context(expression, globals, locals):
     result = None
     try:
         result = eval(_expression_to_evaluate(expression), globals, locals)
-    except Exception:
+    except (Exception, KeyboardInterrupt):
         s = StringIO()
         traceback.print_exc(file=s)
         result = s.getvalue()
@@ -290,22 +293,117 @@ def eval_in_context(expression, globals, locals):
     return result
 
 
-def evaluate_expression(dbg, frame, expression, is_exec):
-    '''returns the result of the evaluated expression
-    @param is_exec: determines if we should do an exec or an eval
+def _run_with_interrupt_thread(original_func, py_db, curr_thread, frame, expression, is_exec):
+    on_interrupt_threads = None
+    timeout_tracker = py_db.timeout_tracker  # : :type timeout_tracker: TimeoutTracker
+
+    interrupt_thread_timeout = pydevd_constants.PYDEVD_INTERRUPT_THREAD_TIMEOUT
+
+    if interrupt_thread_timeout > 0:
+        on_interrupt_threads = pydevd_timeout.create_interrupt_this_thread_callback()
+        pydev_log.info('Doing evaluate with interrupt threads timeout: %s.', interrupt_thread_timeout)
+
+    if on_interrupt_threads is None:
+        return original_func(py_db, frame, expression, is_exec)
+    else:
+        with timeout_tracker.call_on_timeout(interrupt_thread_timeout, on_interrupt_threads):
+            return original_func(py_db, frame, expression, is_exec)
+
+
+def _run_with_unblock_threads(original_func, py_db, curr_thread, frame, expression, is_exec):
+    on_timeout_unblock_threads = None
+    timeout_tracker = py_db.timeout_tracker  # : :type timeout_tracker: TimeoutTracker
+
+    if py_db.multi_threads_single_notification:
+        unblock_threads_timeout = pydevd_constants.PYDEVD_UNBLOCK_THREADS_TIMEOUT
+    else:
+        unblock_threads_timeout = -1  # Don't use this if threads are managed individually.
+
+    if unblock_threads_timeout >= 0:
+        pydev_log.info('Doing evaluate with unblock threads timeout: %s.', unblock_threads_timeout)
+        tid = get_current_thread_id(curr_thread)
+
+        def on_timeout_unblock_threads():
+            on_timeout_unblock_threads.called = True
+            pydev_log.info('Resuming threads after evaluate timeout.')
+            resume_threads('*', except_thread=curr_thread)
+            py_db.threads_suspended_single_notification.on_thread_resume(tid)
+
+        on_timeout_unblock_threads.called = False
+
+    try:
+        if on_timeout_unblock_threads is None:
+            return _run_with_interrupt_thread(original_func, py_db, curr_thread, frame, expression, is_exec)
+        else:
+            with timeout_tracker.call_on_timeout(unblock_threads_timeout, on_timeout_unblock_threads):
+                return _run_with_interrupt_thread(original_func, py_db, curr_thread, frame, expression, is_exec)
+
+    finally:
+        if on_timeout_unblock_threads is not None and on_timeout_unblock_threads.called:
+            mark_thread_suspended(curr_thread, CMD_SET_BREAK)
+            py_db.threads_suspended_single_notification.increment_suspend_time()
+            suspend_all_threads(py_db, except_thread=curr_thread)
+            py_db.threads_suspended_single_notification.on_thread_suspend(tid, CMD_SET_BREAK)
+
+
+def _evaluate_with_timeouts(original_func):
+    '''
+    Provides a decorator that wraps the original evaluate to deal with slow evaluates.
+
+    If some evaluation is too slow, we may show a message, resume threads or interrupt them
+    as needed (based on the related configurations).
+    '''
+
+    @functools.wraps(original_func)
+    def new_func(py_db, frame, expression, is_exec):
+        warn_evaluation_timeout = pydevd_constants.PYDEVD_WARN_EVALUATION_TIMEOUT
+        curr_thread = threading.current_thread()
+
+        def on_warn_evaluation_timeout():
+            py_db.writer.add_command(py_db.cmd_factory.make_evaluation_timeout_msg(
+                py_db, expression, curr_thread))
+
+        timeout_tracker = py_db.timeout_tracker  # : :type timeout_tracker: TimeoutTracker
+        with timeout_tracker.call_on_timeout(warn_evaluation_timeout, on_warn_evaluation_timeout):
+            return _run_with_unblock_threads(original_func, py_db, curr_thread, frame, expression, is_exec)
+
+    return new_func
+
+
+@_evaluate_with_timeouts
+def evaluate_expression(py_db, frame, expression, is_exec):
+    '''
+    There are some changes in this function depending on whether it's an exec or an eval.
+
+    When it's an exec (i.e.: is_exec==True):
+        This function returns None.
+        Any exception that happens during the evaluation is reraised.
+        If the expression could actually be evaluated, the variable is printed to the console if not None.
+
+    When it's an eval (i.e.: is_exec==False):
+        This function returns the result from the evaluation.
+        If some exception happens in this case, the exception is caught and a ExceptionOnEvaluate is returned.
+        Also, in this case we try to resolve name-mangling (i.e.: to be able to add a self.__my_var watch).
+
+    :param is_exec: determines if we should do an exec or an eval.
     '''
     if frame is None:
         return
 
-    # Not using frame.f_globals because of https://sourceforge.net/tracker2/?func=detail&aid=2541355&group_id=85796&atid=577329
-    # (Names not resolved in generator expression in method)
-    # See message: http://mail.python.org/pipermail/python-list/2009-January/526522.html
+    # Note: not using frame.f_globals directly because we need variables to be mutated in that
+    # context to support generator expressions (i.e.: the case below doesn't work unless
+    # globals=locals) because a generator expression actually creates a new function context.
+    # i.e.:
+    # global_vars = {}
+    # local_vars = {'ar':["foo", "bar"], 'y':"bar"}
+    # print eval('all((x == y for x in ar))', global_vars, local_vars)
+    # See: https://mail.python.org/pipermail/python-list/2009-January/522213.html
+
     updated_globals = {}
     updated_globals.update(frame.f_globals)
     updated_globals.update(frame.f_locals)  # locals later because it has precedence over the actual globals
 
     try:
-
         if IS_PY2 and isinstance(expression, unicode):
             expression = expression.replace(u'@LINE@', u'\n')
         else:
@@ -316,7 +414,7 @@ def evaluate_expression(dbg, frame, expression, is_exec):
                 # try to make it an eval (if it is an eval we can print it, otherwise we'll exec it and
                 # it will have whatever the user actually did)
                 compiled = compile(_expression_to_evaluate(expression), '<string>', 'eval')
-            except:
+            except Exception:
                 Exec(_expression_to_evaluate(expression), updated_globals, frame.f_locals)
                 pydevd_save_locals.save_locals(frame)
             else:

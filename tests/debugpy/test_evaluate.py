@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import pytest
 import sys
 
-from tests import debug
+from tests import debug, timeline
 from tests.patterns import some
 
 
@@ -677,3 +677,87 @@ def test_set_expression(pyfile, target, run):
 
         session.request_continue()
         assert backchannel.receive() == 1000
+
+
+def test_evaluate_thread_locks(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        """
+        The idea here is that a secondary thread does the processing of instructions,
+        so, when all threads are stopped, doing an evaluation for:
+
+        processor.process('xxx')
+
+        would be locked until secondary threads start running.
+        See: https://github.com/microsoft/debugpy/issues/157
+        """
+
+        import debuggee
+        import threading
+        from debugpy.common.compat import queue
+
+        debuggee.setup()
+
+        class EchoThread(threading.Thread):
+            def __init__(self, queue):
+                threading.Thread.__init__(self)
+                self._queue = queue
+
+            def run(self):
+                while True:
+                    obj = self._queue.get()
+                    if obj == "finish":
+                        break
+
+                    print("processed", obj.value)
+                    obj.event.set()
+
+        class NotificationObject(object):
+            def __init__(self, value):
+                self.value = value
+                self.event = threading.Event()
+
+        class Processor(object):
+            def __init__(self, queue):
+                self._queue = queue
+
+            def process(self, i):
+                obj = NotificationObject(i)
+                self._queue.put(obj)
+                assert obj.event.wait()
+
+            def finish(self):
+                self._queue.put("finish")
+
+        if __name__ == "__main__":
+            q = queue.Queue()
+            echo_thread = EchoThread(q)
+            processor = Processor(q)
+            echo_thread.start()
+
+            processor.process(1)
+            processor.process(2)  # @bp
+            processor.process(3)
+            processor.finish()
+
+    with debug.Session() as session:
+
+        # During the evaluation we'll actually have continued/stopped events because
+        # we're letting threads run at that time. Let's ignore these in the test.
+        session.ignore_unobserved.extend([timeline.Event("stopped")])
+
+        session.config.env.update({"PYDEVD_UNBLOCK_THREADS_TIMEOUT": "0.5"})
+
+        with run(session, target(code_to_debug)):
+            session.set_breakpoints(code_to_debug, all)
+
+        stop = session.wait_for_stop()
+
+        evaluate = session.request(
+            "evaluate",
+            {"expression": "processor.process('foo')", "frameId": stop.frame_id},
+        )
+        assert evaluate == some.dict.containing({"result": "None"})
+
+        session.request_continue()
+

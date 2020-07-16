@@ -6,12 +6,12 @@ from _pydev_imps._pydev_saved_modules import threading
 from _pydevd_bundle import pydevd_utils, pydevd_source_mapping
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
 from _pydevd_bundle.pydevd_comm import (InternalGetThreadStack, internal_get_completions,
-    pydevd_find_thread_by_id, InternalSetNextStatementThread, internal_reload_code,
+    InternalSetNextStatementThread, internal_reload_code,
     InternalGetVariable, InternalGetArray, InternalLoadFullValue,
     internal_get_description, internal_get_frame, internal_evaluate_expression, InternalConsoleExec,
     internal_get_variable_json, internal_change_variable, internal_change_variable_json,
     internal_evaluate_expression_json, internal_set_expression_json, internal_get_exception_details_json,
-    internal_step_in_thread, internal_run_thread, run_as_pydevd_daemon_thread)
+    internal_step_in_thread)
 from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, file_system_encoding,
     CMD_STEP_INTO_MY_CODE, CMD_STOP_ON_START)
 from _pydevd_bundle.pydevd_constants import (get_current_thread_id, set_protocol, get_protocol,
@@ -29,6 +29,8 @@ from _pydevd_bundle.pydevd_collect_bytecode_info import code_to_bytecode_represe
 import itertools
 import linecache
 from _pydevd_bundle.pydevd_utils import DAPGrouper
+from _pydevd_bundle.pydevd_daemon_thread import run_as_pydevd_daemon_thread
+from _pydevd_bundle.pydevd_thread_lifecycle import pydevd_find_thread_by_id, resume_threads
 
 try:
     import dis
@@ -187,21 +189,7 @@ class PyDevdAPI(object):
             self.request_resume_thread(thread_id='*')
 
     def request_resume_thread(self, thread_id):
-        threads = []
-        if thread_id == '*':
-            threads = pydevd_utils.get_non_pydevd_threads()
-
-        elif thread_id.startswith('__frame__:'):
-            sys.stderr.write("Can't make tasklet run: %s\n" % (thread_id,))
-
-        else:
-            threads = [pydevd_find_thread_by_id(thread_id)]
-
-        for t in threads:
-            if t is None:
-                continue
-
-            internal_run_thread(t, set_additional_thread_info=set_additional_thread_info)
+        resume_threads(thread_id)
 
     def request_completions(self, py_db, seq, thread_id, frame_id, act_tok, line=-1, column=-1):
         py_db.post_method_as_internal_command(

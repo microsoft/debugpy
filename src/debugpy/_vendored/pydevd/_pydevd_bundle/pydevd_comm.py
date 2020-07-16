@@ -83,14 +83,15 @@ from _pydevd_bundle._debug_adapter import pydevd_base_schema, pydevd_schema
 from _pydevd_bundle.pydevd_net_command import NetCommand
 from _pydevd_bundle.pydevd_xml import ExceptionOnEvaluate
 from _pydevd_bundle.pydevd_constants import ForkSafeLock, NULL
+from _pydevd_bundle.pydevd_daemon_thread import PyDBDaemonThread
+from _pydevd_bundle.pydevd_thread_lifecycle import pydevd_find_thread_by_id, resume_threads
 try:
-    from urllib import quote_plus, unquote_plus
+    from urllib import quote_plus, unquote_plus  # @UnresolvedImport
 except:
     from urllib.parse import quote_plus, unquote_plus  # @Reimport @UnresolvedImport
 
 import pydevconsole
 from _pydevd_bundle import pydevd_vars, pydevd_utils, pydevd_io
-import pydevd_tracing
 from _pydevd_bundle import pydevd_xml
 from _pydevd_bundle import pydevd_vm_type
 import sys
@@ -108,7 +109,7 @@ try:
     import cStringIO as StringIO  # may not always be available @UnusedImport
 except:
     try:
-        import StringIO  # @Reimport
+        import StringIO  # @Reimport @UnresolvedImport
     except:
         import io as StringIO
 
@@ -128,81 +129,6 @@ AF_INET, SOCK_STREAM, SHUT_WR, SOL_SOCKET, SO_REUSEADDR, IPPROTO_TCP, socket = (
 
 if IS_WINDOWS and not IS_JYTHON:
     SO_EXCLUSIVEADDRUSE = socket_module.SO_EXCLUSIVEADDRUSE
-
-if IS_JYTHON:
-    import org.python.core as JyCore  # @UnresolvedImport
-
-
-class PyDBDaemonThread(threading.Thread):
-
-    def __init__(self, py_db, target_and_args=None):
-        '''
-        :param target_and_args:
-            tuple(func, args, kwargs) if this should be a function and args to run.
-            -- Note: use through run_as_pydevd_daemon_thread().
-        '''
-        threading.Thread.__init__(self)
-        notify_about_gevent_if_needed()
-        self._py_db = weakref.ref(py_db)
-        self._kill_received = False
-        mark_as_pydevd_daemon_thread(self)
-        self._target_and_args = target_and_args
-
-    @property
-    def py_db(self):
-        return self._py_db()
-
-    def run(self):
-        created_pydb_daemon = self.py_db.created_pydb_daemon_threads
-        created_pydb_daemon[self] = 1
-        try:
-            try:
-                if IS_JYTHON and not isinstance(threading.currentThread(), threading._MainThread):
-                    # we shouldn't update sys.modules for the main thread, cause it leads to the second importing 'threading'
-                    # module, and the new instance of main thread is created
-                    ss = JyCore.PySystemState()
-                    # Note: Py.setSystemState() affects only the current thread.
-                    JyCore.Py.setSystemState(ss)
-
-                self._stop_trace()
-                self._on_run()
-            except:
-                if sys is not None and pydev_log_exception is not None:
-                    pydev_log_exception()
-        finally:
-            del created_pydb_daemon[self]
-
-    def _on_run(self):
-        if self._target_and_args is not None:
-            target, args, kwargs = self._target_and_args
-            target(*args, **kwargs)
-        else:
-            raise NotImplementedError('Should be reimplemented by: %s' % self.__class__)
-
-    def do_kill_pydev_thread(self):
-        if not self._kill_received:
-            pydev_log.debug('%s received kill signal', self.getName())
-            self._kill_received = True
-
-    def _stop_trace(self):
-        if self.pydev_do_not_trace:
-            pydevd_tracing.SetTrace(None)  # no debugging on this thread
-
-
-def mark_as_pydevd_daemon_thread(thread):
-    thread.pydev_do_not_trace = True
-    thread.is_pydev_daemon_thread = True
-    thread.daemon = True
-
-
-def run_as_pydevd_daemon_thread(py_db, func, *args, **kwargs):
-    '''
-    Runs a function as a pydevd daemon thread (without any tracing in place).
-    '''
-    t = PyDBDaemonThread(py_db, target_and_args=(func, args, kwargs))
-    t.name = '%s (pydevd daemon thread)' % (func.__name__,)
-    t.start()
-    return t
 
 
 class ReaderThread(PyDBDaemonThread):
@@ -573,6 +499,11 @@ class InternalThreadCommand(object):
             self.args = None
             self.kwargs = None
 
+    def __str__(self):
+        return 'InternalThreadCommands(%s, %s, %s)' % (self.method, self.args, self.kwargs)
+
+    __repr__ = __str__
+
 
 class InternalThreadCommandForAnyThread(InternalThreadCommand):
 
@@ -672,14 +603,6 @@ class InternalGetThreadStack(InternalThreadCommand):
             self._cmd = None
 
 
-def internal_run_thread(thread, set_additional_thread_info):
-    info = set_additional_thread_info(thread)
-    info.pydev_original_step_cmd = -1
-    info.pydev_step_cmd = -1
-    info.pydev_step_stop = None
-    info.pydev_state = STATE_RUN
-
-
 def internal_step_in_thread(py_db, thread_id, cmd_id, set_additional_thread_info):
     thread_to_step = pydevd_find_thread_by_id(thread_id)
     if thread_to_step:
@@ -690,10 +613,7 @@ def internal_step_in_thread(py_db, thread_id, cmd_id, set_additional_thread_info
         info.pydev_state = STATE_RUN
 
     if py_db.stepping_resumes_all_threads:
-        threads = pydevd_utils.get_non_pydevd_threads()
-        for t in threads:
-            if t is not thread_to_step:
-                internal_run_thread(t, set_additional_thread_info)
+        resume_threads('*', except_thread=thread_to_step)
 
 
 class InternalSetNextStatementThread(InternalThreadCommand):
@@ -995,7 +915,7 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
         if IS_PY2 and isinstance(expression, unicode):
             try:
                 expression.encode('utf-8')
-            except:
+            except Exception:
                 _evaluate_response(py_db, request, '', error_message='Expression is not valid utf-8.')
                 raise
 
@@ -1033,7 +953,7 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
         if try_exec:
             try:
                 pydevd_vars.evaluate_expression(py_db, frame, expression, is_exec=True)
-            except Exception as ex:
+            except (Exception, KeyboardInterrupt) as ex:
                 err = ''.join(traceback.format_exception_only(type(ex), ex))
                 # Currently there is an issue in VSC where returning success=false for an
                 # eval request, in repl context, VSC does not show the error response in
@@ -1600,20 +1520,3 @@ class GetValueAsyncThreadConsole(AbstractGetValueAsyncThread):
         if self.frame_accessor is not None:
             self.frame_accessor.ReturnFullValue(self.seq, xml.getvalue())
 
-
-def pydevd_find_thread_by_id(thread_id):
-    try:
-        # there was a deadlock here when I did not remove the tracing function when thread was dead
-        threads = threading.enumerate()
-        for i in threads:
-            tid = get_thread_id(i)
-            if thread_id == tid or thread_id.endswith('|' + tid):
-                return i
-
-        # This can happen when a request comes for a thread which was previously removed.
-        pydev_log.info("Could not find thread %s.", thread_id)
-        pydev_log.info("Available: %s.", ([get_thread_id(t) for t in threads],))
-    except:
-        pydev_log.exception()
-
-    return None

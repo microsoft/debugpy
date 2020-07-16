@@ -2,6 +2,10 @@ from __future__ import nested_scopes
 import traceback
 import warnings
 from _pydev_bundle import pydev_log
+from _pydev_imps._pydev_saved_modules import thread
+import signal
+import os
+import ctypes
 
 try:
     from urllib import quote
@@ -157,49 +161,57 @@ def get_non_pydevd_threads():
     return [t for t in threads if t and not getattr(t, 'is_pydev_daemon_thread', False)]
 
 
-def dump_threads(stream=None):
+if USE_CUSTOM_SYS_CURRENT_FRAMES and IS_PYPY:
+    # On PyPy we can use its fake_frames to get the traceback
+    # (instead of the actual real frames that need the tracing to be correct).
+    _tid_to_frame_for_dump_threads = sys._current_frames
+else:
+    from _pydevd_bundle.pydevd_constants import _current_frames as _tid_to_frame_for_dump_threads
+
+
+def dump_threads(stream=None, show_pydevd_threads=True):
     '''
     Helper to dump thread info.
     '''
     if stream is None:
         stream = sys.stderr
-    thread_id_to_name = {}
+    thread_id_to_name_and_is_pydevd_thread = {}
     try:
         for t in threading.enumerate():
-            thread_id_to_name[t.ident] = '%s  (daemon: %s, pydevd thread: %s)' % (
-                t.name, t.daemon, getattr(t, 'is_pydev_daemon_thread', False))
+            is_pydevd_thread = getattr(t, 'is_pydev_daemon_thread', False)
+            thread_id_to_name_and_is_pydevd_thread[t.ident] = (
+                '%s  (daemon: %s, pydevd thread: %s)' % (t.name, t.daemon, is_pydevd_thread),
+                is_pydevd_thread
+            )
     except:
         pass
-
-    if USE_CUSTOM_SYS_CURRENT_FRAMES and IS_PYPY:
-        # On PyPy we can use its fake_frames to get the traceback
-        # (instead of the actual real frames that need the tracing to be correct).
-        _current_frames = sys._current_frames
-    else:
-        from _pydevd_bundle.pydevd_additional_thread_info_regular import _current_frames
 
     stream.write('===============================================================================\n')
     stream.write('Threads running\n')
     stream.write('================================= Thread Dump =================================\n')
     stream.flush()
 
-    for thread_id, stack in _current_frames().items():
+    for thread_id, frame in _tid_to_frame_for_dump_threads().items():
+        name, is_pydevd_thread = thread_id_to_name_and_is_pydevd_thread.get(thread_id, (thread_id, False))
+        if not show_pydevd_threads and is_pydevd_thread:
+            continue
+
         stream.write('\n-------------------------------------------------------------------------------\n')
-        stream.write(" Thread %s" % thread_id_to_name.get(thread_id, thread_id))
+        stream.write(" Thread %s" % (name,))
         stream.write('\n\n')
 
-        for i, (filename, lineno, name, line) in enumerate(traceback.extract_stack(stack)):
+        for i, (filename, lineno, name, line) in enumerate(traceback.extract_stack(frame)):
 
             stream.write(' File "%s", line %d, in %s\n' % (filename, lineno, name))
             if line:
                 stream.write("   %s\n" % (line.strip()))
 
-            if i == 0 and 'self' in stack.f_locals:
+            if i == 0 and 'self' in frame.f_locals:
                 stream.write('   self: ')
                 try:
-                    stream.write(str(stack.f_locals['self']))
+                    stream.write(str(frame.f_locals['self']))
                 except:
-                    stream.write('Unable to get str of: %s' % (type(stack.f_locals['self']),))
+                    stream.write('Unable to get str of: %s' % (type(frame.f_locals['self']),))
                 stream.write('\n')
         stream.flush()
 
@@ -367,3 +379,66 @@ class DAPGrouper(object):
 
     def __str__(self):
         return ''
+
+
+def interrupt_main_thread(main_thread):
+    '''
+    Generates a KeyboardInterrupt in the main thread by sending a Ctrl+C
+    or by calling thread.interrupt_main().
+
+    :param main_thread:
+        Needed because Jython needs main_thread._thread.interrupt() to be called.
+
+    Note: if unable to send a Ctrl+C, the KeyboardInterrupt will only be raised
+    when the next Python instruction is about to be executed (so, it won't interrupt
+    a sleep(1000)).
+    '''
+    pydev_log.debug('Interrupt main thread.')
+    called = False
+    try:
+        if os.name == 'posix':
+            # On Linux we can't interrupt 0 as in Windows because it's
+            # actually owned by a process -- on the good side, signals
+            # work much better on Linux!
+            os.kill(os.getpid(), signal.SIGINT)
+            called = True
+
+        elif os.name == 'nt':
+            # This generates a Ctrl+C only for the current process and not
+            # to the process group!
+            # Note: there doesn't seem to be any public documentation for this
+            # function (although it seems to be  present from Windows Server 2003 SP1 onwards
+            # according to: https://www.geoffchappell.com/studies/windows/win32/kernel32/api/index.htm)
+            ctypes.windll.kernel32.CtrlRoutine(0)
+
+            # The code below is deprecated because it actually sends a Ctrl+C
+            # to the process group, so, if this was a process created without
+            # passing `CREATE_NEW_PROCESS_GROUP` the  signal may be sent to the
+            # parent process and to sub-processes too (which is not ideal --
+            # for instance, when using pytest-xdist, it'll actually stop the
+            # testing, even when called in the subprocess).
+
+            # if hasattr_checked(signal, 'CTRL_C_EVENT'):
+            #     os.kill(0, signal.CTRL_C_EVENT)
+            # else:
+            #     # Python 2.6
+            #     ctypes.windll.kernel32.GenerateConsoleCtrlEvent(0, 0)
+            called = True
+
+    except:
+        # If something went wrong, fallback to interrupting when the next
+        # Python instruction is being called.
+        pydev_log.exception('Error interrupting main thread (using fallback).')
+
+    if not called:
+        try:
+            # In this case, we don't really interrupt a sleep() nor IO operations
+            # (this makes the KeyboardInterrupt be sent only when the next Python
+            # instruction is about to be executed).
+            if hasattr(thread, 'interrupt_main'):
+                thread.interrupt_main()
+            else:
+                main_thread._thread.interrupt()  # Jython
+        except:
+            pydev_log.exception('Error on interrupt main thread fallback.')
+

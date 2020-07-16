@@ -477,12 +477,12 @@ if USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
     # be a reasonable workaround until IronPython itself is able to provide that functionality).
     #
     # See: https://github.com/IronLanguages/main/issues/1630
-    from _pydevd_bundle.pydevd_additional_thread_info_regular import _tid_to_last_frame
+    from _pydevd_bundle.pydevd_constants import constructed_tid_to_last_frame
 
     _original_call = ThreadTracer.__call__
 
     def __call__(self, frame, event, arg):
-        _tid_to_last_frame[self._args[1].ident] = frame
+        constructed_tid_to_last_frame[self._args[1].ident] = frame
         return _original_call(self, frame, event, arg)
 
     ThreadTracer.__call__ = __call__

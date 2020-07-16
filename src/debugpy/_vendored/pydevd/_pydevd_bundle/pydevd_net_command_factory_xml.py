@@ -1,9 +1,8 @@
 import json
-import sys
 
 from _pydev_bundle.pydev_is_thread_alive import is_thread_alive
 from _pydev_imps._pydev_saved_modules import thread
-from _pydevd_bundle import pydevd_xml, pydevd_frame_utils
+from _pydevd_bundle import pydevd_xml, pydevd_frame_utils, pydevd_constants, pydevd_utils
 from _pydevd_bundle.pydevd_comm_constants import (
     CMD_THREAD_CREATE, CMD_THREAD_KILL, CMD_THREAD_SUSPEND, CMD_THREAD_RUN, CMD_GET_VARIABLE,
     CMD_EVALUATE_EXPRESSION, CMD_GET_FRAME, CMD_WRITE_TO_CONSOLE, CMD_GET_COMPLETIONS,
@@ -28,6 +27,11 @@ from pydevd_tracing import get_exception_traceback_str
 from _pydev_bundle._pydev_completer import completions_to_xml
 from _pydev_bundle import pydev_log
 from _pydevd_bundle.pydevd_frame_utils import FramesList
+
+try:
+    from StringIO import StringIO
+except:
+    from io import StringIO
 
 if IS_IRONPYTHON:
 
@@ -122,19 +126,23 @@ class NetCommandFactory(object):
         # notify debugger that value was changed successfully
         return NetCommand(CMD_RETURN, seq, payload)
 
-    def make_io_message(self, v, ctx):
+    def make_warning_message(self, msg):
+        return self.make_io_message(msg, 2)
+
+    def make_io_message(self, msg, ctx):
         '''
-        @param v: the message to pass to the debug server
+        @param msg: the message to pass to the debug server
         @param ctx: 1 for stdio 2 for stderr
         '''
-
         try:
-            if len(v) > MAX_IO_MSG_SIZE:
-                v = v[0:MAX_IO_MSG_SIZE]
-                v += '...'
+            msg = pydevd_constants.as_str(msg)
 
-            v = pydevd_xml.make_valid_xml_value(quote(v, '/>_= '))
-            return NetCommand(str(CMD_WRITE_TO_CONSOLE), 0, '<xml><io s="%s" ctx="%s"/></xml>' % (v, ctx))
+            if len(msg) > MAX_IO_MSG_SIZE:
+                msg = msg[0:MAX_IO_MSG_SIZE]
+                msg += '...'
+
+            msg = pydevd_xml.make_valid_xml_value(quote(msg, '/>_= '))
+            return NetCommand(str(CMD_WRITE_TO_CONSOLE), 0, '<xml><io s="%s" ctx="%s"/></xml>' % (msg, ctx))
         except:
             return self.make_error_message(0, get_exception_traceback_str())
 
@@ -449,6 +457,33 @@ class NetCommandFactory(object):
 
     def make_skipped_step_in_because_of_filters(self, py_db, frame):
         return NULL_NET_COMMAND  # Not a part of the xml protocol
+
+    def make_evaluation_timeout_msg(self, py_db, expression, thread):
+        msg = '''pydevd: Evaluating: %s did not finish after %.2fs seconds.
+This may mean a number of things:
+- This evaluation is really slow and this is expected.
+    In this case it's possible to silence this error by raising the timeout, setting the
+    PYDEVD_WARN_EVALUATION_TIMEOUT environment variable to a bigger value.
+
+- The evaluation may need other threads running while it's running:
+    In this case, you may need to manually let other paused threads continue.
+
+    Alternatively, it's also possible to skip breaking on a particular thread by setting a
+    `pydev_do_not_trace = True` attribute in the related threading.Thread instance
+    (if some thread should always be running and no breakpoints are expected to be hit in it).
+
+- The evaluation is deadlocked:
+    In this case you may set the PYDEVD_THREAD_DUMP_ON_WARN_EVALUATION_TIMEOUT
+    environment variable to true so that a thread dump is shown along with this message and
+    optionally, set the PYDEVD_INTERRUPT_THREAD_TIMEOUT to some value so that the debugger
+    tries to interrupt the evaluation (if possible) when this happens.
+''' % (expression, pydevd_constants.PYDEVD_WARN_EVALUATION_TIMEOUT)
+
+        if pydevd_constants.PYDEVD_THREAD_DUMP_ON_WARN_EVALUATION_TIMEOUT:
+            stream = StringIO()
+            pydevd_utils.dump_threads(stream, show_pydevd_threads=False)
+            msg += '\n\n%s\n' % stream.getvalue()
+        return self.make_warning_message(msg)
 
     def make_exit_command(self, py_db):
         return NULL_EXIT_COMMAND

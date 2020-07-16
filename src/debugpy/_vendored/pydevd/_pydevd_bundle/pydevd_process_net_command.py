@@ -8,14 +8,15 @@ from _pydev_bundle.pydev_log import exception as pydev_log_exception
 from _pydevd_bundle import pydevd_traceproperty, pydevd_dont_trace, pydevd_utils
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
 from _pydevd_bundle.pydevd_breakpoints import get_exception_class
-from _pydevd_bundle.pydevd_comm import (pydevd_find_thread_by_id,
+from _pydevd_bundle.pydevd_comm import (
     InternalEvaluateConsoleExpression, InternalConsoleGetCompletions, InternalRunCustomOperation,
     internal_get_next_statement_targets)
-from _pydevd_bundle.pydevd_constants import IS_PY3K, NEXT_VALUE_SEPARATOR, IS_WINDOWS, IS_PY2
+from _pydevd_bundle.pydevd_constants import IS_PY3K, NEXT_VALUE_SEPARATOR, IS_WINDOWS, IS_PY2, NULL
 from _pydevd_bundle.pydevd_comm_constants import ID_TO_MEANING, CMD_EXEC_EXPRESSION, CMD_AUTHENTICATE
 from _pydevd_bundle.pydevd_api import PyDevdAPI
 from _pydev_bundle.pydev_imports import StringIO
 from _pydevd_bundle.pydevd_net_command import NetCommand
+from _pydevd_bundle.pydevd_thread_lifecycle import pydevd_find_thread_by_id
 
 
 class _PyDevCommandProcessor(object):
@@ -51,7 +52,12 @@ class _PyDevCommandProcessor(object):
             py_db.writer.add_command(cmd)
             return
 
-        with py_db._main_lock:
+        lock = py_db._main_lock
+        if method_name == 'cmd_thread_dump_to_stderr':
+            # We can skip the main debugger locks for cases where we know it's not needed.
+            lock = NULL
+
+        with lock:
             try:
                 cmd = on_command(py_db, cmd_id, seq, text)
                 if cmd is not None:
