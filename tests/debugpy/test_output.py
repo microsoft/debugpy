@@ -122,6 +122,24 @@ def test_non_ascii_output(pyfile, target, run):
     )
 
 
+def test_stdin_not_patched(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        import sys
+        import debuggee
+        from debuggee import backchannel
+
+        debuggee.setup()
+        backchannel.send(sys.stdin == sys.__stdin__)
+
+    with debug.Session() as session:
+        backchannel = session.open_backchannel()
+        with run(session, target(code_to_debug)):
+            pass
+        is_original_stdin = backchannel.receive()
+        assert is_original_stdin, 'Expected sys.stdin and sys.__stdin__ to be the same.'
+
+
 if sys.platform == "win32":
 
     @pytest.mark.parametrize("redirect_output", ["", "redirect_output"])

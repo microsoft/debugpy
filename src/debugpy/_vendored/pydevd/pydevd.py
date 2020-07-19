@@ -2531,6 +2531,7 @@ def settrace(
     dont_trace_end_patterns=(),
     access_token=None,
     client_access_token=None,
+    notify_stdin=True,
     **kwargs
     ):
     '''Sets the tracing function with the pydev debug function and initializes needed facilities.
@@ -2577,6 +2578,14 @@ def settrace(
 
     :param client_access_token: token to be sent from the debugger to the client (i.e.: IDE) when
         a connection is established (verified by the client).
+
+    :param notify_stdin:
+        If True sys.stdin will be patched to notify the client when a message is requested
+        from the IDE. This is done so that when reading the stdin the client is notified.
+        Clients may need this to know when something that is being written should be interpreted
+        as an input to the process or as a command to be evaluated.
+        Note that parallel-python has issues with this (because it tries to assert that sys.stdin
+        is of a given type instead of just checking that it has what it needs).
     '''
 
     stdout_to_server = stdout_to_server or kwargs.get('stdoutToServer', False)  # Backward compatibility
@@ -2602,6 +2611,7 @@ def settrace(
             access_token,
             client_access_token,
             __setup_holder__=__setup_holder__,
+            notify_stdin=notify_stdin,
         )
 
 
@@ -2624,6 +2634,7 @@ def _locked_settrace(
     access_token,
     client_access_token,
     __setup_holder__,
+    notify_stdin,
     ):
     if patch_multiprocessing:
         try:
@@ -2653,6 +2664,7 @@ def _locked_settrace(
                 'server': False,
                 'port': int(port),
                 'multiprocess': patch_multiprocessing,
+                'skip-notify-stdin': not notify_stdin,
             }
             SetupHolder.setup = setup
 
@@ -2682,7 +2694,8 @@ def _locked_settrace(
         if _global_redirect_stderr_to_server:
             _init_stderr_redirect()
 
-        patch_stdin()
+        if notify_stdin:
+            patch_stdin()
 
         t = threadingCurrentThread()
         additional_info = set_additional_thread_info(t)
@@ -3130,7 +3143,8 @@ def main():
             pass
 
     is_module = setup['module']
-    patch_stdin()
+    if not setup['skip-notify-stdin']:
+        patch_stdin()
 
     if setup[pydevd_constants.ARGUMENT_JSON_PROTOCOL]:
         PyDevdAPI().set_protocol(debugger, 0, JSON_PROTOCOL)

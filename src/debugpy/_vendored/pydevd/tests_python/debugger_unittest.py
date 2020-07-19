@@ -477,6 +477,7 @@ class DebuggerRunner(object):
             args,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            stdin=subprocess.PIPE,
             cwd=writer.get_cwd() if writer is not None else '.',
             env=env,
         )
