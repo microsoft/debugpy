@@ -19,7 +19,7 @@ from tests_python.debugger_unittest import (CMD_SET_PROPERTY_TRACE, REASON_CAUGH
     CMD_THREAD_RESUME_SINGLE_NOTIFICATION, REASON_STEP_RETURN, REASON_STEP_RETURN_MY_CODE,
     REASON_STEP_OVER_MY_CODE, REASON_STEP_INTO, CMD_THREAD_KILL, IS_PYPY, REASON_STOP_ON_START)
 from _pydevd_bundle.pydevd_constants import IS_WINDOWS, IS_PY38_OR_GREATER, IS_PY39_OR_GREATER
-from _pydevd_bundle.pydevd_comm_constants import CMD_RELOAD_CODE
+from _pydevd_bundle.pydevd_comm_constants import CMD_RELOAD_CODE, CMD_INPUT_REQUESTED
 import json
 import pydevd_file_utils
 import subprocess
@@ -3930,6 +3930,36 @@ def test_asyncio_step_return(case_setup, target_filename):
 
         writer.write_run_thread(hit.thread_id)
         writer.finished_ok = True
+
+
+def test_notify_stdin(case_setup, pyfile):
+
+    @pyfile
+    def case_stdin():
+        import sys
+        print('Write something:')
+        contents = sys.stdin.readline()
+        print('Found: ' + contents)
+
+        print('TEST SUCEEDED')
+
+    def additional_output_checks(writer, stdout, stderr):
+        assert 'Found: foo' in stdout
+
+    with case_setup.test_file(
+            case_stdin,
+            additional_output_checks=additional_output_checks,
+        ) as writer:
+            writer.write_make_initial_run()
+            msg = writer.wait_for_message(CMD_INPUT_REQUESTED, expect_xml=False)
+            assert msg.split('\t')[-1] == 'True'
+            process = writer.process
+            process.stdin.write(b'foo\n')
+            process.stdin.flush()
+            msg = writer.wait_for_message(CMD_INPUT_REQUESTED, expect_xml=False)
+            assert msg.split('\t')[-1] == 'False'
+
+            writer.finished_ok = True
 
 # Jython needs some vars to be set locally.
 # set JAVA_HOME=c:\bin\jdk1.8.0_172

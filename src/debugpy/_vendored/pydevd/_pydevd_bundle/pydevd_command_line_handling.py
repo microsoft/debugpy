@@ -78,6 +78,7 @@ ACCEPTED_ARG_HANDLERS = [
     ArgHandlerBool('print-in-debugger-startup'),
     ArgHandlerBool('cmd-line'),
     ArgHandlerBool('module'),
+    ArgHandlerBool('skip-notify-stdin'),
 
     # The ones below should've been just one setting to specify the protocol, but for compatibility
     # reasons they're passed as a flag but are mutually exclusive.

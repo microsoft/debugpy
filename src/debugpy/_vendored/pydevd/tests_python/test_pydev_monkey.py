@@ -61,7 +61,7 @@ def test_monkey_patch_args_indc():
     original = SetupHolder.setup
 
     try:
-        SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'ppid': os.getpid(), 'protocol-quoted-line': True}
+        SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'ppid': os.getpid(), 'protocol-quoted-line': True, 'skip-notify-stdin': True}
         check = ['C:\\bin\\python.exe', '-u', '-c', 'connect("127.0.0.1")']
         debug_command = (
             "import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL='quoted-line'; "
@@ -86,7 +86,7 @@ def test_monkey_patch_args_module():
     original = SetupHolder.setup
 
     try:
-        SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'multiprocess': True}
+        SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'multiprocess': True, 'skip-notify-stdin': True}
         check = ['C:\\bin\\python.exe', '-m', 'test']
         from _pydevd_bundle.pydevd_command_line_handling import get_pydevd_file
         assert pydev_monkey.patch_args(check) == [
@@ -100,6 +100,7 @@ def test_monkey_patch_args_module():
             '--client',
             '127.0.0.1',
             '--multiprocess',
+            '--skip-notify-stdin',
             '--protocol-quoted-line',
             '--file',
             'test',
