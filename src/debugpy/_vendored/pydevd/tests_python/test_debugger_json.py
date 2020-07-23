@@ -2600,6 +2600,51 @@ def test_evaluate_failures(case_setup):
         writer.finished_ok = True
 
 
+def test_evaluate_exception_trace(case_setup, pyfile):
+
+    @pyfile
+    def exception_trace_file():
+
+        class A(object):
+
+            def __init__(self, a):
+                pass
+
+        def method():
+            A()
+
+        def method2():
+            method()
+
+        def method3():
+            method2()
+
+        print('TEST SUCEEDED')  # Break here
+
+    with case_setup.test_file(exception_trace_file) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(justMyCode=False)
+
+        json_facade.write_set_breakpoints(writer.get_line_index_with_content('Break here'))
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+
+        exec_response = json_facade.evaluate('method3()', json_hit.frame_id, 'repl', success=False)
+        assert 'pydevd' not in exec_response.message  # i.e.: don't show pydevd in the trace
+        assert 'method3' in exec_response.message
+        assert 'method2' in exec_response.message
+
+        exec_response = json_facade.evaluate('method2()', json_hit.frame_id, 'repl', success=False)
+        assert 'pydevd' not in exec_response.message
+        assert 'method3' not in exec_response.message
+        assert 'method2' in exec_response.message
+
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
 @pytest.mark.parametrize('max_frames', ['default', 'all', 10])  # -1 = default, 0 = all, 10 = 10 frames
 def test_exception_details(case_setup, max_frames):
     with case_setup.test_file('_debugger_case_large_exception_stack.py') as writer:
