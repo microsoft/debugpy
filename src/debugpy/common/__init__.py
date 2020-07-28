@@ -10,7 +10,7 @@ import os
 __all__ = []
 
 # The lower time bound for assuming that the process hasn't spawned successfully.
-PROCESS_SPAWN_TIMEOUT = os.getenv("DEBUGPY_PROCESS_SPAWN_TIMEOUT", 15)
+PROCESS_SPAWN_TIMEOUT = float(os.getenv("DEBUGPY_PROCESS_SPAWN_TIMEOUT", 15))
 
 # The lower time bound for assuming that the process hasn't exited gracefully.
-PROCESS_EXIT_TIMEOUT = os.getenv("DEBUGPY_PROCESS_EXIT_TIMEOUT", 5)
+PROCESS_EXIT_TIMEOUT = float(os.getenv("DEBUGPY_PROCESS_EXIT_TIMEOUT", 5))
