@@ -42,6 +42,8 @@ class DebugConfig(collections.MutableMapping):
         "postDebugTask": (),
         "preLaunchTask": (),
         "pyramid": False,
+        "python": (),
+        "pythonArgs": [],
         "pythonPath": (),
         "redirectOutput": False,
         "rules": [],

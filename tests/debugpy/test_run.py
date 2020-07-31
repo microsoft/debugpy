@@ -138,7 +138,10 @@ def test_sudo(pyfile, tmpdir, run, target):
 
 
 @pytest.mark.parametrize("run", runners.all_launch_terminal)
-def test_custom_python(pyfile, run, target):
+@pytest.mark.parametrize("python_args", ["", "-v"])
+@pytest.mark.parametrize("python", ["", "custompy", "custompy -O"])
+@pytest.mark.parametrize("python_key", ["python", "pythonPath"])
+def test_custom_python(pyfile, run, target, python_key, python, python_args):
     @pyfile
     def code_to_debug():
         import sys
@@ -146,19 +149,32 @@ def test_custom_python(pyfile, run, target):
         from debuggee import backchannel
 
         debuggee.setup()
-        backchannel.send(sys.executable)
+        backchannel.send([sys.executable, sys.flags.optimize, sys.flags.verbose])
+
+    python = python.split()
+    python_args = python_args.split()
+    python_cmd = (python if len(python) else [sys.executable]) + python_args
 
     class Session(debug.Session):
         def run_in_terminal(self, args, cwd, env):
-            assert args[:2] == ["CUSTOMPY", "-O"]
+            assert args[: len(python_cmd)] == python_cmd
             args[0] = sys.executable
             return super(Session, self).run_in_terminal(args, cwd, env)
 
     with Session() as session:
-        session.config["pythonPath"] = ["CUSTOMPY", "-O"]
+        session.config.pop("python", None)
+        session.config.pop("pythonPath", None)
+        if len(python):
+            session.config[python_key] = python[0] if len(python) == 1 else python
+        if len(python_args):
+            session.config["pythonArgs"] = python_args
 
         backchannel = session.open_backchannel()
         with run(session, target(code_to_debug)):
             pass
 
-        assert backchannel.receive() == sys.executable
+        assert backchannel.receive() == [
+            sys.executable,
+            "-O" in python_cmd,
+            "-v" in python_cmd,
+        ]
