@@ -3,9 +3,42 @@ from opcode import opmap, EXTENDED_ARG, HAVE_ARGUMENT
 from types import CodeType
 from _pydev_bundle import pydev_log
 from _pydevd_bundle.pydevd_constants import IS_PY38_OR_GREATER
+import os.path
+import itertools
+from functools import partial
+from collections import namedtuple
 
 MAX_BYTE = 255
 RETURN_VALUE_SIZE = 2
+
+
+class DebugHelper(object):
+
+    def __init__(self):
+        self._debug_dir = os.path.join(os.path.dirname(__file__), 'debug_info')
+        try:
+            os.makedirs(self._debug_dir)
+        except:
+            pass
+        self._next = partial(next, itertools.count(0))
+
+    def write_dis(self, msg, code_to_modify, op_number=None):
+        if op_number is None:
+            op_number = self._next()
+            name = '%03d_before.txt' % op_number
+        else:
+            name = '%03d_change.txt' % op_number
+
+        filename = os.path.join(self._debug_dir, name)
+        with open(filename, 'w') as stream:
+            stream.write('-------- ')
+            stream.write(msg)
+            stream.write('\n')
+            stream.write('-------- ')
+            stream.write('id(code_to_modify): %s' % id(code_to_modify))
+            stream.write('\n\n')
+            dis.dis(code_to_modify, file=stream)
+        return op_number
 
 
 def _add_attr_values_from_insert_to_original(original_code, insert_code, insert_code_list, attribute_name, op_list):
@@ -183,44 +216,25 @@ def add_jump_instruction(jump_arg, code_to_insert):
     return list(code_to_insert.co_code[:-RETURN_VALUE_SIZE]) + extended_arg_list + [opmap['POP_JUMP_IF_TRUE'], jump_arg]
 
 
-_created = {}
+_CodeLineInfo = namedtuple('_CodeLineInfo', 'line_to_offset, first_line, last_line')
 
 
-def insert_code(code_to_modify, code_to_insert, before_line, all_lines_with_breaks=()):
-    '''
-    :param all_lines_with_breaks:
-        tuple(int) a tuple with all the breaks in the given code object (this method is expected
-        to be called multiple times with different lines to add multiple breakpoints, so, the
-        variable `before_line` should have the current breakpoint an the all_lines_with_breaks
-        should have all the breakpoints added so far (including the `before_line`).
-    '''
-    if not all_lines_with_breaks:
-        # Backward-compatibility with signature which received only one line.
-        all_lines_with_breaks = (before_line,)
+# Note: this method has a version in cython too.
+def _get_code_line_info(code_obj):
+    line_to_offset = {}
+    first_line = None
+    last_line = None
 
-    # The cache is needed for generator functions, because after each yield a new frame
-    # is created but the former code object is used (so, check if code_to_modify is
-    # already there and if not cache based on the new code generated).
+    for offset, line in dis.findlinestarts(code_obj):
+        line_to_offset[line] = offset
 
-    # print('inserting code', before_line, all_lines_with_breaks)
-    # dis.dis(code_to_modify)
-
-    ok_and_new_code = _created.get((code_to_modify, all_lines_with_breaks))
-    if ok_and_new_code is not None:
-        return ok_and_new_code
-
-    ok, new_code = _insert_code(code_to_modify, code_to_insert, before_line)
-
-    # print('insert code ok', ok)
-    # dis.dis(new_code)
-
-    # Note: caching with new code!
-    cache_key = new_code, all_lines_with_breaks
-    _created[cache_key] = (ok, new_code)
-    return _created[cache_key]
+    if line_to_offset:
+        first_line = min(line_to_offset)
+        last_line = max(line_to_offset)
+    return _CodeLineInfo(line_to_offset, first_line, last_line)
 
 
-def _insert_code(code_to_modify, code_to_insert, before_line):
+def insert_code(code_to_modify, code_to_insert, before_line, code_line_info=None):
     """
     Insert piece of code `code_to_insert` to `code_to_modify` right inside the line `before_line` before the
     instruction on this line by modifying original bytecode
@@ -230,25 +244,22 @@ def _insert_code(code_to_modify, code_to_insert, before_line):
     :param before_line: Number of line for code insertion
     :return: boolean flag whether insertion was successful, modified code
     """
-    linestarts = dict(dis.findlinestarts(code_to_modify))
-    if not linestarts:
+    if code_line_info is None:
+        code_line_info = _get_code_line_info(code_to_modify)
+
+    if not code_line_info.line_to_offset:
         return False, code_to_modify
 
     if code_to_modify.co_name == '<module>':
         # There's a peculiarity here: if a breakpoint is added in the first line of a module, we
         # can't replace the code because we require a line event to stop and the line event
         # was already generated, so, fallback to tracing.
-        if before_line == min(linestarts.values()):
+        if before_line == code_line_info.first_line:
             return False, code_to_modify
 
-    if before_line not in linestarts.values():
+    offset = code_line_info.line_to_offset.get(before_line)
+    if offset is None:
         return False, code_to_modify
-
-    offset = None
-    for off, line_no in linestarts.items():
-        if line_no == before_line:
-            offset = off
-            break
 
     code_to_insert_list = add_jump_instruction(offset, code_to_insert)
     try:

@@ -23,6 +23,22 @@ from distutils import sysconfig
         contents = contents.decode('utf-8')
     source_to_dict(contents)
 
+def test_dump_class():
+    contents = u'''
+class A:pass
+'''
+    if isinstance(contents, bytes):
+        contents = contents.decode('utf-8')
+    source_to_dict(contents)
+
+def test_comp():
+    contents = u'''
+{i: j for i, j in a}
+'''
+    if isinstance(contents, bytes):
+        contents = contents.decode('utf-8')
+    source_to_dict(contents)
+
 def test_global():
     contents = u'''
 def method():

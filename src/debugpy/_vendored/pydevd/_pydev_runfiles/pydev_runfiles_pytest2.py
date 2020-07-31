@@ -164,10 +164,16 @@ except ImportError:
 
 def _get_error_contents_from_report(report):
     if report.longrepr is not None:
-        tw = TerminalWriter(stringio=True)
+        try:
+            tw = TerminalWriter(stringio=True)
+            stringio = tw.stringio
+        except TypeError:
+            import io
+            stringio = io.StringIO()
+            tw = TerminalWriter(file=stringio)
         tw.hasmarkup = False
         report.toterminal(tw)
-        exc = tw.stringio.getvalue()
+        exc = stringio.getvalue()
         s = exc.strip()
         if s:
             return s

@@ -807,19 +807,35 @@ def test_case_17(case_setup):
     # Check dont trace
     with case_setup.test_file('_debugger_case17.py') as writer:
         writer.write_enable_dont_trace(True)
-        writer.write_add_breakpoint(27, 'main')
-        writer.write_add_breakpoint(29, 'main')
-        writer.write_add_breakpoint(31, 'main')
-        writer.write_add_breakpoint(33, 'main')
+        writer.write_add_breakpoint(writer.get_line_index_with_content('break1'), 'main')
+        writer.write_add_breakpoint(writer.get_line_index_with_content('break2'), 'main')
+        writer.write_add_breakpoint(writer.get_line_index_with_content('break3'), 'main')
+        writer.write_add_breakpoint(writer.get_line_index_with_content('break4'), 'main')
         writer.write_make_initial_run()
 
-        for _i in range(4):
-            hit = writer.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT)
+        hit = writer.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT)
+        writer.write_step_in(hit.thread_id)
+        hit = writer.wait_for_breakpoint_hit('107', line=2)
+        # Should Skip step into properties setter
+        writer.write_run_thread(hit.thread_id)
 
-            writer.write_step_in(hit.thread_id)
-            hit = writer.wait_for_breakpoint_hit('107', line=2)
-            # Should Skip step into properties setter
-            writer.write_run_thread(hit.thread_id)
+        hit = writer.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT)
+        writer.write_step_in(hit.thread_id)
+        hit = writer.wait_for_breakpoint_hit('107', line=2)
+        # Should Skip step into properties setter
+        writer.write_run_thread(hit.thread_id)
+
+        hit = writer.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT)
+        writer.write_step_in(hit.thread_id)
+        hit = writer.wait_for_breakpoint_hit('107', line=2)
+        # Should Skip step into properties setter
+        writer.write_run_thread(hit.thread_id)
+
+        hit = writer.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT)
+        writer.write_step_in(hit.thread_id)
+        hit = writer.wait_for_breakpoint_hit('107', line=2)
+        # Should Skip step into properties setter
+        writer.write_run_thread(hit.thread_id)
 
         writer.finished_ok = True
 

@@ -8,59 +8,86 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Note: Cython has some recursive structures in some classes, so, parsing only what we really
+# expect may be a bit better (although our recursion check should get that too).
+accepted_info = {
+    'PyClassDef': set(['name', 'doc', 'body', 'bases', 'decorators', 'pos'])
+}
 
-def node_to_dict(node, _recurse_level=0):
-    _recurse_level += 1
-    assert _recurse_level < 5000, "It seems we are recursing..."
+def node_to_dict(node, _recurse_level=0, memo=None):
+    nodeid = id(node)  # just to be sure it's checked by identity in the memo
+    if memo is None:
+        memo = {}
+    else:
+        if nodeid in memo:
+            # i.e.: prevent Nodes recursion.
+            return None
+    memo[nodeid] = 1
+    try:
+        _recurse_level += 1
+        assert _recurse_level < 500, "It seems we are recursing..."
 
-    node_name = node.__class__.__name__
-    # print((' ' * _recurse_level) + node_name)
-    if node_name.endswith("Node"):
-        node_name = node_name[:-4]
-    data = {"__node__": node_name}
-    if _recurse_level == 1:
-        data['__version__'] = Cython.__version__
+        node_name = node.__class__.__name__
+        # print((' ' * _recurse_level) + node_name)
+        if node_name.endswith("Node"):
+            node_name = node_name[:-4]
+        data = {"__node__": node_name}
+        if _recurse_level == 1:
+            data['__version__'] = Cython.__version__
 
-    for attr_name, attr in [(key, value) for key, value in node.__dict__.items()]:
-        if attr_name in ("pos", "position"):
-            data["line"] = attr[1]
-            data["col"] = attr[2]
-            continue
 
-        if isinstance(attr, Nodes.Node):
-            data[attr_name] = node_to_dict(attr, _recurse_level)
-
-        elif isinstance(attr, (list, tuple)):
-            lst = []
-
-            for x in attr:
-                if isinstance(x, Nodes.Node):
-                    lst.append(node_to_dict(x, _recurse_level))
-
-                elif isinstance(x, (bytes, str)):
-                    lst.append(x)
-
-                elif hasattr(x, 'encode'):
-                    lst.append(x.encode('utf-8', 'replace'))
-
-                elif isinstance(x, (list, tuple)):
-                    tup = []
-
-                    for y in x:
-                        if isinstance(y, (str, bytes)):
-                            tup.append(y)
-                        elif isinstance(y, Nodes.Node):
-                            tup.append(node_to_dict(y, _recurse_level))
-
-                    lst.append(tup)
-
-            data[attr_name] = lst
-
+        dct = node.__dict__
+        accepted = accepted_info.get(node_name)
+        if accepted is None:
+            items = [(key, value) for key, value in dct.items()]
         else:
-            data[attr_name] = str(attr)
+            # for key in dct.keys():
+            #     if key not in accepted:
+            #         print('Skipped: %s' % (key,))
+            items = [(key, dct[key]) for key in accepted]
+
+
+        for attr_name, attr in items:
+            if attr_name in ("pos", "position"):
+                data["line"] = attr[1]
+                data["col"] = attr[2]
+                continue
+
+            if isinstance(attr, Nodes.Node):
+                data[attr_name] = node_to_dict(attr, _recurse_level, memo)
+
+            elif isinstance(attr, (list, tuple)):
+                lst = []
+
+                for x in attr:
+                    if isinstance(x, Nodes.Node):
+                        lst.append(node_to_dict(x, _recurse_level, memo))
+
+                    elif isinstance(x, (bytes, str)):
+                        lst.append(x)
+
+                    elif hasattr(x, 'encode'):
+                        lst.append(x.encode('utf-8', 'replace'))
+
+                    elif isinstance(x, (list, tuple)):
+                        tup = []
+
+                        for y in x:
+                            if isinstance(y, (str, bytes)):
+                                tup.append(y)
+                            elif isinstance(y, Nodes.Node):
+                                tup.append(node_to_dict(y, _recurse_level, memo))
+
+                        lst.append(tup)
+
+                data[attr_name] = lst
+
+            else:
+                data[attr_name] = str(attr)
+    finally:
+        memo.pop(nodeid, None)
 
     return data
-
 
 
 def source_to_dict(source, name=None):

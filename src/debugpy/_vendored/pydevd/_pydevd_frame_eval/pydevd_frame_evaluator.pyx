@@ -1,17 +1,18 @@
 from __future__ import print_function
-import dis
 from _pydev_imps._pydev_saved_modules import threading, thread
 from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder
+import dis
 from _pydevd_frame_eval.pydevd_frame_tracing import create_pydev_trace_code_wrapper, update_globals_dict, dummy_tracing_holder
-from _pydevd_frame_eval.pydevd_modify_bytecode import insert_code
+from _pydevd_frame_eval.pydevd_modify_bytecode import insert_code, DebugHelper
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_file, NORM_PATHS_AND_BASE_CONTAINER
 from _pydevd_bundle.pydevd_trace_dispatch import fix_top_level_trace_and_get_trace_func
 
 from _pydevd_bundle.pydevd_additional_thread_info import _set_additional_thread_info_lock
 from _pydevd_bundle.pydevd_cython cimport PyDBAdditionalThreadInfo
 
-
+_get_ident = threading.get_ident  # Note this is py3 only, if py2 needed to be supported, _get_ident would be needed.
 _thread_local_info = threading.local()
+_thread_active = threading._active
 
 def clear_thread_local_info():
     global _thread_local_info
@@ -26,6 +27,12 @@ cdef class ThreadInfo:
     cdef public bint fully_initialized
     cdef public object thread_trace_func
 
+    # Note: whenever get_func_code_info is called, this value is reset (we're using
+    # it as a thread-local value info).
+    # If True the debugger should not go into trace mode even if the new
+    # code for a function is None and there are breakpoints.
+    cdef public bint force_stay_in_untraced_mode
+
     def __init__(self):
         self.additional_info = None
         self.is_pydevd_thread = False
@@ -39,8 +46,8 @@ cdef class ThreadInfo:
         self.inside_frame_eval += 1
 
         try:
-            thread_ident = threading.get_ident()  # Note this is py3 only, if py2 needed to be supported, _get_ident would be needed.
-            t = threading._active.get(thread_ident)
+            thread_ident = _get_ident()
+            t = _thread_active.get(thread_ident)
             if t is None:
                 return  # Cannot initialize until thread becomes active.
 
@@ -140,16 +147,16 @@ def decref_py(obj):
     Py_DECREF(obj)
 
 
-def get_func_code_info_py(frame, code_obj) -> FuncCodeInfo:
+def get_func_code_info_py(thread_info, frame, code_obj) -> FuncCodeInfo:
     '''
     Helper to be called from Python.
     '''
-    return get_func_code_info(<PyFrameObject *> frame, <PyCodeObject *> code_obj)
+    return get_func_code_info(<ThreadInfo> thread_info, <PyFrameObject *> frame, <PyCodeObject *> code_obj)
 
 
 _code_extra_index: Py_SIZE = -1
 
-cdef FuncCodeInfo get_func_code_info(PyFrameObject * frame_obj, PyCodeObject * code_obj):
+cdef FuncCodeInfo get_func_code_info(ThreadInfo thread_info, PyFrameObject * frame_obj, PyCodeObject * code_obj):
     '''
     Provides code-object related info.
 
@@ -158,6 +165,7 @@ cdef FuncCodeInfo get_func_code_info(PyFrameObject * frame_obj, PyCodeObject * c
 
     get_thread_info() *must* be called at least once before get_func_code_info()
     to initialize _code_extra_index.
+
     '''
     # f_code = <object> code_obj
     # DEBUG = f_code.co_filename.endswith('_debugger_case_multiprocessing.py')
@@ -165,6 +173,7 @@ cdef FuncCodeInfo get_func_code_info(PyFrameObject * frame_obj, PyCodeObject * c
     #     print('get_func_code_info', f_code.co_name, f_code.co_filename)
 
     cdef object main_debugger = GlobalDebuggerHolder.global_dbg
+    thread_info.force_stay_in_untraced_mode = False  # This is an output value of the function.
 
     cdef PyObject * extra
     _PyCode_GetExtra(<PyObject *> code_obj, _code_extra_index, & extra)
@@ -179,8 +188,6 @@ cdef FuncCodeInfo get_func_code_info(PyFrameObject * frame_obj, PyCodeObject * c
                 return func_code_info_obj
 
     cdef str co_filename = <str> code_obj.co_filename
-    cdef str co_name = <str> code_obj.co_name
-    cdef set break_at_lines
     cdef dict cache_file_type
     cdef tuple cache_file_type_key
 
@@ -210,43 +217,192 @@ cdef FuncCodeInfo get_func_code_info(PyFrameObject * frame_obj, PyCodeObject * c
             func_code_info.always_skip_code = True
 
     if not func_code_info.always_skip_code:
-        was_break: bool = False
         if main_debugger is not None:
+
             breakpoints: dict = main_debugger.breakpoints.get(func_code_info.real_path)
             # print('\n---')
             # print(main_debugger.breakpoints)
             # print(func_code_info.real_path)
             # print(main_debugger.breakpoints.get(func_code_info.real_path))
             code_obj_py: object = <object> code_obj
-            if breakpoints:
+            cached_code_obj_info: object = _cache.get(code_obj_py)
+            if cached_code_obj_info:
+                # The cache is for new code objects, so, in this case it's already
+                # using the new code and we can't change it as this is a generator!
+                # There's still a catch though: even though we don't replace the code,
+                # we may not want to go into tracing mode (as would usually happen
+                # when the new_code is None).
+                func_code_info.new_code = None
+                breakpoint_found, thread_info.force_stay_in_untraced_mode = \
+                    cached_code_obj_info.compute_force_stay_in_untraced_mode(breakpoints)
+                func_code_info.breakpoint_found = breakpoint_found
+
+            elif breakpoints:
                 # if DEBUG:
                 #    print('found breakpoints', code_obj_py.co_name, breakpoints)
-                break_at_lines = set()
-                new_code = None
-                for offset, line in dis.findlinestarts(code_obj_py):
-                    if line in breakpoints:
-                        # breakpoint = breakpoints[line]
-                        # if DEBUG:
-                        #    print('created breakpoint', code_obj_py.co_name, line)
-                        func_code_info.breakpoint_found = True
-                        break_at_lines.add(line)
 
-                        success, new_code = insert_code(
-                            code_obj_py, create_pydev_trace_code_wrapper(line), line, tuple(break_at_lines))
-                        code_obj_py = new_code
-
-                        if not success:
-                            func_code_info.new_code = None
-                            break
-                else:
-                    # Ok, all succeeded, set to generated code object.
-                    func_code_info.new_code = new_code
-
+                # Note: new_code can be None if unable to generate.
+                # It should automatically put the new code object in the cache.
+                breakpoint_found, func_code_info.new_code = generate_code_with_breakpoints(code_obj_py, breakpoints)
+                func_code_info.breakpoint_found = breakpoint_found
 
     Py_INCREF(func_code_info)
     _PyCode_SetExtra(<PyObject *> code_obj, _code_extra_index, <PyObject *> func_code_info)
 
     return func_code_info
+
+
+cdef class _CodeLineInfo:
+
+    cdef public dict line_to_offset
+    cdef public int first_line
+    cdef public int last_line
+
+    def __init__(self, dict line_to_offset,  int first_line,  int last_line):
+        self.line_to_offset = line_to_offset
+        self.first_line = first_line
+        self.last_line = last_line
+
+
+# Note: this method has a version in pure-python too.
+def _get_code_line_info(code_obj):
+    line_to_offset: dict = {}
+    first_line: int = None
+    last_line: int = None
+
+    cdef int offset
+    cdef int line
+
+    for offset, line in dis.findlinestarts(code_obj):
+        line_to_offset[line] = offset
+
+    if line_to_offset:
+        first_line = min(line_to_offset)
+        last_line = max(line_to_offset)
+    return _CodeLineInfo(line_to_offset, first_line, last_line)
+
+
+# Note: this is a cache where the key is the code objects we create ourselves so that
+# we always return the same code object for generators.
+# (so, we don't have a cache from the old code to the new info -- that's actually
+# handled by the cython side in `FuncCodeInfo get_func_code_info` by providing the
+# same code info if the debugger mtime is still the same).
+_cache: dict = {}
+
+def get_cached_code_obj_info_py(code_obj_py):
+    '''
+    :return _CacheValue:
+    :note: on cython use _cache.get(code_obj_py) directly.
+    '''
+    return _cache.get(code_obj_py)
+
+
+cdef class _CacheValue(object):
+
+    cdef public object code_obj_py
+    cdef public _CodeLineInfo code_line_info
+    cdef public set breakpoints_hit_at_lines
+    cdef public set code_lines_as_set
+
+    def __init__(self, object code_obj_py, _CodeLineInfo code_line_info, set breakpoints_hit_at_lines):
+        '''
+        :param code_obj_py:
+        :param _CodeLineInfo code_line_info:
+        :param set[int] breakpoints_hit_at_lines:
+        '''
+        self.code_obj_py = code_obj_py
+        self.code_line_info = code_line_info
+        self.breakpoints_hit_at_lines = breakpoints_hit_at_lines
+        self.code_lines_as_set = set(code_line_info.line_to_offset)
+
+    def compute_force_stay_in_untraced_mode(self, breakpoints):
+        '''
+        :param breakpoints:
+            set(breakpoint_lines) or dict(breakpoint_line->breakpoint info)
+        :return tuple(breakpoint_found, force_stay_in_untraced_mode)
+        '''
+        force_stay_in_untraced_mode = False
+
+        target_breakpoints = self.code_lines_as_set.intersection(breakpoints)
+        breakpoint_found = bool(target_breakpoints)
+
+        if not breakpoint_found:
+            force_stay_in_untraced_mode = True
+        else:
+            force_stay_in_untraced_mode = self.breakpoints_hit_at_lines.issuperset(set(breakpoints))
+
+        return breakpoint_found, force_stay_in_untraced_mode
+
+def generate_code_with_breakpoints_py(object code_obj_py, dict breakpoints):
+    return generate_code_with_breakpoints(code_obj_py, breakpoints)
+
+# DEBUG = True
+# debug_helper = DebugHelper()
+
+cdef generate_code_with_breakpoints(object code_obj_py, dict breakpoints):
+    '''
+    :param breakpoints:
+        dict where the keys are the breakpoint lines.
+    :return tuple(breakpoint_found, new_code)
+    '''
+    # The cache is needed for generator functions, because after each yield a new frame
+    # is created but the former code object is used (so, check if code_to_modify is
+    # already there and if not cache based on the new code generated).
+
+    cdef bint success
+    cdef int breakpoint_line
+    cdef bint breakpoint_found
+    cdef _CacheValue cache_value
+    cdef set breakpoints_hit_at_lines
+    cdef dict line_to_offset
+
+    assert code_obj_py not in _cache, 'If a code object is cached, that same code object must be reused.'
+
+#     if DEBUG:
+#         initial_code_obj_py = code_obj_py
+
+    code_line_info = _get_code_line_info(code_obj_py)
+
+    success = True
+
+    breakpoints_hit_at_lines = set()
+    line_to_offset = code_line_info.line_to_offset
+
+    for breakpoint_line in reversed(sorted(breakpoints)):
+        if breakpoint_line in line_to_offset:
+            breakpoints_hit_at_lines.add(breakpoint_line)
+
+            success, new_code = insert_code(
+                code_obj_py,
+                create_pydev_trace_code_wrapper(breakpoint_line),
+                breakpoint_line,
+                code_line_info
+            )
+
+            if not success:
+                code_obj_py = None
+                break
+
+            code_obj_py = new_code
+
+    breakpoint_found = bool(breakpoints_hit_at_lines)
+    if breakpoint_found and success:
+#         if DEBUG:
+#             op_number = debug_helper.write_dis(
+#                 'inserting code, breaks at: %s' % (list(breakpoints),),
+#                 initial_code_obj_py
+#             )
+#
+#             debug_helper.write_dis(
+#                 'after inserting code, breaks at: %s' % (list(breakpoints,)),
+#                 code_obj_py,
+#                 op_number=op_number,
+#             )
+
+        cache_value = _CacheValue(code_obj_py, code_line_info, breakpoints_hit_at_lines)
+        _cache[code_obj_py] = cache_value
+
+    return breakpoint_found, code_obj_py
 
 
 cdef PyObject * get_bytecode_while_frame_eval(PyFrameObject * frame_obj, int exc):
@@ -323,7 +479,7 @@ cdef PyObject * get_bytecode_while_frame_eval(PyFrameObject * frame_obj, int exc
             else:
                 frame.f_trace = <object> main_debugger.trace_dispatch
         else:
-            func_code_info: FuncCodeInfo = get_func_code_info(frame_obj, frame_obj.f_code)
+            func_code_info: FuncCodeInfo = get_func_code_info(thread_info, frame_obj, frame_obj.f_code)
             # if DEBUG:
             #     print('get_bytecode_while_frame_eval always skip', func_code_info.always_skip_code)
             if not func_code_info.always_skip_code:
@@ -342,22 +498,27 @@ cdef PyObject * get_bytecode_while_frame_eval(PyFrameObject * frame_obj, int exc
                 if can_skip and func_code_info.breakpoint_found:
                     # if DEBUG:
                     #     print('get_bytecode_while_frame_eval new_code', func_code_info.new_code)
-
-                    # If breakpoints are found but new_code is None,
-                    # this means we weren't able to actually add the code
-                    # where needed, so, fallback to tracing.
-                    if func_code_info.new_code is None:
-                        if thread_info.thread_trace_func is not None:
-                            frame.f_trace = thread_info.thread_trace_func
+                    if not thread_info.force_stay_in_untraced_mode:
+                        # If breakpoints are found but new_code is None,
+                        # this means we weren't able to actually add the code
+                        # where needed, so, fallback to tracing.
+                        if func_code_info.new_code is None:
+                            if thread_info.thread_trace_func is not None:
+                                frame.f_trace = thread_info.thread_trace_func
+                            else:
+                                frame.f_trace = <object> main_debugger.trace_dispatch
                         else:
-                            frame.f_trace = <object> main_debugger.trace_dispatch
+                            # print('Using frame eval break for', <object> frame_obj.f_code.co_name)
+                            update_globals_dict(<object> frame_obj.f_globals)
+                            Py_INCREF(func_code_info.new_code)
+                            old = <object> frame_obj.f_code
+                            frame_obj.f_code = <PyCodeObject *> func_code_info.new_code
+                            Py_DECREF(old)
                     else:
-                        # print('Using frame eval break for', <object> frame_obj.f_code.co_name)
+                        # When we're forcing to stay in traced mode we need to
+                        # update the globals dict (because this means that we're reusing
+                        # a previous code which had breakpoints added in a new frame).
                         update_globals_dict(<object> frame_obj.f_globals)
-                        Py_INCREF(func_code_info.new_code)
-                        old = <object> frame_obj.f_code
-                        frame_obj.f_code = <PyCodeObject *> func_code_info.new_code
-                        Py_DECREF(old)
 
     finally:
         thread_info.inside_frame_eval -= 1
