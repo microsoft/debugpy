@@ -117,23 +117,22 @@ def _runner(f):
 
 
 @_runner
-def launch(session, target, console="integratedTerminal", cwd=None):
-    assert console in ("internalConsole", "integratedTerminal", "externalTerminal")
+def launch(session, target, console=None, cwd=None):
+    assert console in (None, "internalConsole", "integratedTerminal", "externalTerminal")
 
     log.info("Launching {0} in {1} using {2!j}.", target, session, console)
 
     target.configure(session)
     config = session.config
     config.setdefaults(
-        {
-            "console": "externalTerminal",
-            "internalConsoleOptions": "neverOpen",
-            "pythonPath": sys.executable,
-        }
+        {"console": "externalTerminal", "internalConsoleOptions": "neverOpen"}
     )
-    config["console"] = console
+    if console is not None:
+        config["console"] = console
     if cwd is not None:
         config["cwd"] = cwd
+    if "python" not in config and "pythonPath" not in config:
+        config["python"] = sys.executable
 
     env = (
         session.spawn_adapter.env
