@@ -60,7 +60,7 @@ def _pydev_stop_at_break(line):
             return
 
         if python_breakpoint:
-            pydev_log.debug("Suspending at breakpoint in file: {} on line {}".format(frame.f_code.co_filename, line))
+            pydev_log.debug("Setting f_trace due to frame eval mode in file: %s on line %s", frame.f_code.co_filename, line)
             t.additional_info.trace_suspend_type = 'frame_eval'
 
             pydevd_frame_eval_cython_wrapper = sys.modules['_pydevd_frame_eval.pydevd_frame_eval_cython_wrapper']
