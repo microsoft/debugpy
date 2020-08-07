@@ -4,12 +4,13 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import psutil
 import pytest
 import sys
 
 import debugpy
 import tests
-from tests import debug
+from tests import debug, log
 from tests.debug import runners
 from tests.patterns import some
 
@@ -218,9 +219,68 @@ def test_subprocess(pyfile, target, run, subProcess):
             assert child_argv == [child, "--arg1", "--arg2", "--arg3"]
 
 
-def test_autokill(pyfile, target):
+@pytest.mark.parametrize("run", runners.all_launch)
+def test_autokill(daemon, pyfile, target, run):
     @pyfile
     def child():
+        import os
+        from debuggee import backchannel
+
+        backchannel.send(os.getpid())
+        while True:
+            pass
+
+    @pyfile
+    def parent():
+        import debuggee
+        import os
+        import subprocess
+        import sys
+
+        debuggee.setup()
+        argv = [sys.executable, sys.argv[1]]
+        env = os.environ.copy()
+        subprocess.Popen(
+            argv,
+            env=env,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).wait()
+
+    with debug.Session() as parent_session:
+        parent_session.expected_exit_code = some.int
+        
+        backchannel = parent_session.open_backchannel()
+        with run(parent_session, target(parent, args=[child])):
+            pass
+
+        child_config = parent_session.wait_for_next_event("debugpyAttach")
+        parent_session.proceed()
+
+        with debug.Session(child_config) as child_session:
+            with child_session.start():
+                pass
+
+            child_pid = backchannel.receive()
+            assert child_config["subProcessId"] == child_pid
+            child_process = psutil.Process(child_pid)
+
+            parent_session.request("terminate")
+            child_session.wait_for_exit()
+
+    log.info("Waiting for child process...")
+    child_process.wait()
+
+
+@pytest.mark.parametrize("run", runners.all_launch)
+def test_autokill_nodebug(daemon, pyfile, target, run):
+    @pyfile
+    def child():
+        import os
+        from debuggee import backchannel
+
+        backchannel.send(os.getpid())
         while True:
             pass
 
@@ -240,21 +300,20 @@ def test_autokill(pyfile, target):
             stderr=subprocess.PIPE,
         ).wait()
 
-    with debug.Session() as parent_session:
-        parent_session.expected_exit_code = some.int
+    with debug.Session() as session:
+        session.expected_exit_code = some.int
+        session.config["noDebug"] = True
 
-        with parent_session.launch(target(parent, args=[child])):
-            pass
+        backchannel = session.open_backchannel()
+        run(session, target(parent, args=[child]))
 
-        child_config = parent_session.wait_for_next_event("debugpyAttach")
-        parent_session.proceed()
+        child_pid = backchannel.receive()
+        child_process = psutil.Process(child_pid)
 
-        with debug.Session(child_config) as child_session:
-            with child_session.start():
-                pass
-
-            parent_session.request("terminate")
-            child_session.wait_for_exit()
+        session.request("terminate")
+    
+    log.info("Waiting for child process...")
+    child_process.wait()
 
 
 def test_argv_quoting(pyfile, target, run):

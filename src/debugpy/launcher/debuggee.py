@@ -5,7 +5,9 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import atexit
+import ctypes
 import os
+import signal
 import struct
 import subprocess
 import sys
@@ -15,9 +17,15 @@ from debugpy import launcher
 from debugpy.common import fmt, log, messaging, compat
 from debugpy.launcher import output
 
+if sys.platform == "win32":
+    from debugpy.launcher import winapi
+
 
 process = None
 """subprocess.Popen instance for the debuggee process."""
+
+job_handle = None
+"""On Windows, the handle for the job object to which the debuggee is assigned."""
 
 wait_on_exit_predicates = []
 """List of functions that determine whether to pause after debuggee process exits.
@@ -52,6 +60,11 @@ def spawn(process_name, cmdline, env, redirect_output):
         else:
             kwargs = {}
 
+        if sys.platform != "win32":
+            # Start the debuggee in a new process group, so that the launcher can kill
+            # the entire process tree later.
+            kwargs.update(preexec_fn=os.setpgrp)
+
         try:
             global process
             process = subprocess.Popen(cmdline, env=env, bufsize=0, **kwargs)
@@ -61,7 +74,45 @@ def spawn(process_name, cmdline, env, redirect_output):
             )
 
         log.info("Spawned {0}.", describe())
+
+        if sys.platform == "win32":
+            # Assign the debuggee to a new job object, so that the launcher can kill
+            # the entire process tree later.
+            try:
+                global job_handle
+                job_handle = winapi.kernel32.CreateJobObjectA(None, None)
+
+                job_info = winapi.JOBOBJECT_EXTENDED_LIMIT_INFORMATION()
+                job_info_size = winapi.DWORD(ctypes.sizeof(job_info))
+                winapi.kernel32.QueryInformationJobObject(
+                    job_handle,
+                    winapi.JobObjectExtendedLimitInformation,
+                    ctypes.pointer(job_info),
+                    job_info_size,
+                    ctypes.pointer(job_info_size),
+                )
+
+                # Setting this flag ensures that the job will be terminated by the OS once the
+                # launcher exits, even if it doesn't terminate the job explicitly.
+                job_info.BasicLimitInformation.LimitFlags |= winapi.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+                winapi.kernel32.SetInformationJobObject(
+                    job_handle,
+                    winapi.JobObjectExtendedLimitInformation,
+                    ctypes.pointer(job_info),
+                    job_info_size,
+                )
+
+                process_handle = winapi.kernel32.OpenProcess(
+                    winapi.PROCESS_TERMINATE | winapi.PROCESS_SET_QUOTA, False, process.pid
+                )
+
+                winapi.kernel32.AssignProcessToJobObject(job_handle, process_handle)
+
+            except Exception:
+                log.swallow_exception("Failed to set up job object", level="warning")
+
         atexit.register(kill)
+
         launcher.channel.send_event(
             "process",
             {
@@ -90,16 +141,23 @@ def spawn(process_name, cmdline, env, redirect_output):
             try:
                 os.close(fd)
             except Exception:
-                log.swallow_exception()
+                log.swallow_exception(level="warning")
 
 
 def kill():
     if process is None:
         return
+
     try:
         if process.poll() is None:
             log.info("Killing {0}", describe())
-            process.kill()
+            # Clean up the process tree
+            if sys.platform == "win32":
+                # On Windows, kill the job object.
+                winapi.kernel32.TerminateJobObject(job_handle, 0)
+            else:
+                # On POSIX, kill the debuggee's process group.
+                os.killpg(process.pid, signal.SIGKILL)
     except Exception:
         log.swallow_exception("Failed to kill {0}", describe())
 
@@ -114,7 +172,7 @@ def wait_for_exit():
             # taking the lowest 8 bits of that negative returncode.
             code &= 0xFF
     except Exception:
-        log.swallow_exception("Couldn't determine process exit code:")
+        log.swallow_exception("Couldn't determine process exit code")
         code = -1
 
     log.info("{0} exited with code {1}", describe(), code)
