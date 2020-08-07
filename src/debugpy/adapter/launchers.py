@@ -172,9 +172,6 @@ def spawn_debuggee(
         except messaging.MessageHandlingError as exc:
             exc.propagate(start_request)
 
-        if session.no_debug:
-            return
-
         if not session.wait_for(
             lambda: session.launcher.pid is not None,
             timeout=common.PROCESS_SPAWN_TIMEOUT,
@@ -182,6 +179,9 @@ def spawn_debuggee(
             raise start_request.cant_handle(
                 'Timed out waiting for "process" event from launcher'
             )
+
+        if session.no_debug:
+            return
 
         # Wait for the first incoming connection regardless of the PID - it won't
         # necessarily match due to the use of stubs like py.exe or "conda run".

@@ -64,6 +64,7 @@ def launch_request(request):
         adapter_access_token = request("adapterAccessToken", unicode, optional=True)
         if adapter_access_token != ():
             cmdline += ["--adapter-access-token", compat.filename(adapter_access_token)]
+            
         debugpy_args = request("debugpyArgs", json.array(unicode))
         cmdline += debugpy_args
 
