@@ -61,9 +61,26 @@ def spawn(process_name, cmdline, env, redirect_output):
             kwargs = {}
 
         if sys.platform != "win32":
-            # Start the debuggee in a new process group, so that the launcher can kill
-            # the entire process tree later.
-            kwargs.update(preexec_fn=os.setpgrp)
+
+            def preexec_fn():
+                # Start the debuggee in a new process group, so that the launcher can
+                # kill the entire process tree later.
+                os.setpgrp()
+
+                # Make the new process group the foreground group in its session, so
+                # that it can interact with the terminal. The debuggee will receive
+                # SIGTTOU when tcsetpgrp() is called, and must ignore it.
+                hdlr = signal.signal(signal.SIGTTOU, signal.SIG_IGN)
+                try:
+                    tty = os.open("/dev/tty", os.O_RDWR)
+                    try:
+                        os.tcsetpgrp(tty, os.getpgrp())
+                    finally:
+                        os.close(tty)
+                finally:
+                    signal.signal(signal.SIGTTOU, hdlr)
+
+            kwargs.update(preexec_fn=preexec_fn)
 
         try:
             global process
@@ -94,7 +111,9 @@ def spawn(process_name, cmdline, env, redirect_output):
 
                 # Setting this flag ensures that the job will be terminated by the OS once the
                 # launcher exits, even if it doesn't terminate the job explicitly.
-                job_info.BasicLimitInformation.LimitFlags |= winapi.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+                job_info.BasicLimitInformation.LimitFlags |= (
+                    winapi.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+                )
                 winapi.kernel32.SetInformationJobObject(
                     job_handle,
                     winapi.JobObjectExtendedLimitInformation,
@@ -103,7 +122,9 @@ def spawn(process_name, cmdline, env, redirect_output):
                 )
 
                 process_handle = winapi.kernel32.OpenProcess(
-                    winapi.PROCESS_TERMINATE | winapi.PROCESS_SET_QUOTA, False, process.pid
+                    winapi.PROCESS_TERMINATE | winapi.PROCESS_SET_QUOTA,
+                    False,
+                    process.pid,
                 )
 
                 winapi.kernel32.AssignProcessToJobObject(job_handle, process_handle)
