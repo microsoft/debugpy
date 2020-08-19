@@ -63,22 +63,28 @@ def spawn(process_name, cmdline, env, redirect_output):
         if sys.platform != "win32":
 
             def preexec_fn():
-                # Start the debuggee in a new process group, so that the launcher can
-                # kill the entire process tree later.
-                os.setpgrp()
-
-                # Make the new process group the foreground group in its session, so
-                # that it can interact with the terminal. The debuggee will receive
-                # SIGTTOU when tcsetpgrp() is called, and must ignore it.
-                hdlr = signal.signal(signal.SIGTTOU, signal.SIG_IGN)
                 try:
-                    tty = os.open("/dev/tty", os.O_RDWR)
+                    # Start the debuggee in a new process group, so that the launcher can
+                    # kill the entire process tree later.
+                    os.setpgrp()
+
+                    # Make the new process group the foreground group in its session, so
+                    # that it can interact with the terminal. The debuggee will receive
+                    # SIGTTOU when tcsetpgrp() is called, and must ignore it.
+                    old_handler = signal.signal(signal.SIGTTOU, signal.SIG_IGN)
                     try:
-                        os.tcsetpgrp(tty, os.getpgrp())
+                        tty = os.open("/dev/tty", os.O_RDWR)
+                        try:
+                            os.tcsetpgrp(tty, os.getpgrp())
+                        finally:
+                            os.close(tty)
                     finally:
-                        os.close(tty)
-                finally:
-                    signal.signal(signal.SIGTTOU, hdlr)
+                        signal.signal(signal.SIGTTOU, old_handler)
+                except Exception:
+                    # Not an error - /dev/tty doesn't work when there's no terminal.
+                    log.swallow_exception(
+                        "Failed to set up process group", level="info"
+                    )
 
             kwargs.update(preexec_fn=preexec_fn)
 
