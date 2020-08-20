@@ -13,6 +13,7 @@ class NdArrayItemsContainer: pass
 
 
 class NDArrayTypeResolveProvider(object):
+
     def can_provide(self, type_object, type_name):
         nd_array = find_mod_attr('numpy', 'ndarray')
         return nd_array is not None and issubclass(type_object, nd_array)
@@ -77,7 +78,11 @@ class NDArrayTypeResolveProvider(object):
         ret['shape'] = obj.shape
         ret['dtype'] = obj.dtype
         ret['size'] = obj.size
-        ret['[0:%s] ' % (len(obj))] = list(obj[0:MAX_ITEMS_TO_HANDLE])
+        try:
+            ret['[0:%s] ' % (len(obj))] = list(obj[0:MAX_ITEMS_TO_HANDLE])
+        except:
+            # This may not work depending on the array shape.
+            pass
         return ret
 
 

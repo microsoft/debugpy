@@ -1583,7 +1583,10 @@ class PyDB(object):
             # Actually execute the commands without the main lock!
             for int_cmd in cmds_to_execute:
                 pydev_log.verbose("processing internal command: %s", int_cmd)
-                int_cmd.do_it(self)
+                try:
+                    int_cmd.do_it(self)
+                except:
+                    pydev_log.exception('Error processing internal command.')
 
     def consolidate_breakpoints(self, file, id_to_breakpoint, breakpoints):
         break_dict = {}
