@@ -2,8 +2,8 @@ from __future__ import print_function
 from _pydev_imps._pydev_saved_modules import threading, thread
 from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder
 import dis
-from _pydevd_frame_eval.pydevd_frame_tracing import create_pydev_trace_code_wrapper, update_globals_dict, dummy_tracing_holder
-from _pydevd_frame_eval.pydevd_modify_bytecode import insert_code, DebugHelper
+from _pydevd_frame_eval.pydevd_frame_tracing import update_globals_dict, dummy_tracing_holder
+from _pydevd_frame_eval.pydevd_modify_bytecode import DebugHelper, insert_pydevd_breaks
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_file, NORM_PATHS_AND_BASE_CONTAINER
 from _pydevd_bundle.pydevd_trace_dispatch import fix_top_level_trace_and_get_trace_func
 
@@ -368,21 +368,20 @@ cdef generate_code_with_breakpoints(object code_obj_py, dict breakpoints):
     breakpoints_hit_at_lines = set()
     line_to_offset = code_line_info.line_to_offset
 
-    for breakpoint_line in reversed(sorted(breakpoints)):
+    for breakpoint_line in breakpoints:
         if breakpoint_line in line_to_offset:
             breakpoints_hit_at_lines.add(breakpoint_line)
 
-            success, new_code = insert_code(
-                code_obj_py,
-                create_pydev_trace_code_wrapper(breakpoint_line),
-                breakpoint_line,
-                code_line_info
-            )
+    if breakpoints_hit_at_lines:
+        success, new_code = insert_pydevd_breaks(
+            code_obj_py,
+            breakpoints_hit_at_lines,
+            code_line_info
+        )
 
-            if not success:
-                code_obj_py = None
-                break
-
+        if not success:
+            code_obj_py = None
+        else:
             code_obj_py = new_code
 
     breakpoint_found = bool(breakpoints_hit_at_lines)

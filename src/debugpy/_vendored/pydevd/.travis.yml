@@ -126,6 +126,6 @@ install:
 script:
   - if [[ ("$PYDEVD_TEST_VM" == "CPYTHON_DEBUG") ]]; then ./.travis/install_and_run_debug_py.sh; fi
   - if [[ ("$PYDEVD_TEST_VM" == "CPYTHON") ]]; then ./.travis/run_python_pytest.sh; fi
-  - if [ "$PYDEVD_TEST_VM" == "PYPY" ]; then source activate build_env; pypy3 -m pytest -n auto; fi
-  - if [ "$PYDEVD_TEST_VM" == "JYTHON" ]; then jython -Dpython.path=.:jython_test_deps/ant.jar:jython_test_deps/junit.jar -m pytest --tb=native; fi
+  - if [ "$PYDEVD_TEST_VM" == "PYPY" ]; then source activate build_env; pypy3 -m pytest -n auto -rf --ignore-glob=*/vendored/*; fi
+  - if [ "$PYDEVD_TEST_VM" == "JYTHON" ]; then jython -Dpython.path=.:jython_test_deps/ant.jar:jython_test_deps/junit.jar -m pytest --tb=native --ignore-glob=*/vendored/*; fi
 

@@ -190,8 +190,9 @@ DEBUG_MEMORY_INFO = False
 
 _global_collect_info = False
 
+PRINT_MEMORY_BEFORE_AFTER_TEST = False  # This makes running tests slower (but it may be handy to diagnose memory issues).
 
-@pytest.yield_fixture(autouse=True)
+@pytest.yield_fixture(autouse=PRINT_MEMORY_BEFORE_AFTER_TEST)
 def before_after_each_function(request):
     global _global_collect_info
 

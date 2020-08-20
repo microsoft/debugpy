@@ -1646,6 +1646,11 @@ def test_case_get_next_statement_targets(case_setup):
 
         writer.write_get_next_statement_targets(hit.thread_id, hit.frame_id)
         targets = writer.wait_for_get_next_statement_targets()
+        # Note: 20 may appear as a side-effect of the frame eval
+        # mode (so, we have to ignore it here) -- this isn't ideal, but
+        # it's also not that bad (that line has no code in the source and
+        # executing it will just set the tracing for the method).
+        targets.discard(20)
         expected = set((2, 3, 5, 8, 9, 10, 12, 13, 14, 15, 17, 18, 19, 21))
         assert targets == expected, 'Expected targets to be %s, was: %s' % (expected, targets)
 
@@ -2202,6 +2207,36 @@ def test_case_lamdda(case_setup):
         writer.write_make_initial_run()
 
         for _ in range(3):  # We'll hit the same breakpoint 3 times.
+            hit = writer.wait_for_breakpoint_hit()
+
+            writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(IS_JYTHON, reason='Not working on Jython (needs to be investigated).')
+def test_case_lamdda_multiline(case_setup):
+    with case_setup.test_file('_debugger_case_lambda_multiline.py') as writer:
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'), 'None')
+        writer.write_make_initial_run()
+
+        for _ in range(2):  # We'll hit the same breakpoint 2 times.
+            hit = writer.wait_for_breakpoint_hit()
+
+            writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(IS_JYTHON, reason='Not working on Jython (needs to be investigated).')
+def test_case_method_single_line(case_setup):
+    with case_setup.test_file('_debugger_case_method_single_line.py') as writer:
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'), 'None')
+        writer.write_make_initial_run()
+
+        for _ in range(5):
+            # We'll hit the same breakpoint 5 times (method creation,
+            # (enter method, exit method) * 2.
             hit = writer.wait_for_breakpoint_hit()
 
             writer.write_run_thread(hit.thread_id)
@@ -3308,13 +3343,11 @@ def test_top_level_exceptions_on_attach(case_setup_remote, check_scenario):
 
 
 @pytest.mark.parametrize('filename, break_at_lines', [
-    # Known limitation: when it's added to the first line of the module, the
-    # module becomes traced.
-    ('_debugger_case_tracing.py', {2: 'trace'}),
+    ('_debugger_case_tracing.py', {2: 'frame_eval'}),
 
     ('_debugger_case_tracing.py', {3: 'frame_eval'}),
     ('_debugger_case_tracing.py', {4: 'frame_eval'}),
-    ('_debugger_case_tracing.py', {2: 'trace', 4: 'trace'}),
+    ('_debugger_case_tracing.py', {2: 'frame_eval', 4: 'trace'}),
 
     ('_debugger_case_tracing.py', {8: 'frame_eval'}),
     ('_debugger_case_tracing.py', {9: 'frame_eval'}),
@@ -3324,7 +3357,7 @@ def test_top_level_exceptions_on_attach(case_setup_remote, check_scenario):
     # hit the first frame eval we don't actually stop tracing a given
     # frame (known limitation to be fixed in the future).
     # -- needs a better test
-    ('_debugger_case_tracing.py', {8: 'frame_eval', 10: 'frame_eval'}),
+    ('_debugger_case_tracing.py', {8: 'frame_eval', 10: 'trace'}),
 ])
 def test_frame_eval_limitations(case_setup, filename, break_at_lines):
     '''
@@ -3974,6 +4007,133 @@ def test_notify_stdin(case_setup, pyfile):
             process.stdin.flush()
             msg = writer.wait_for_message(CMD_INPUT_REQUESTED, expect_xml=False)
             assert msg.split('\t')[-1] == 'False'
+
+            writer.finished_ok = True
+
+
+def test_frame_eval_mode_corner_case_01(case_setup):
+
+    with case_setup.test_file(
+            'wrong_bytecode/_debugger_case_wrong_bytecode.py',
+        ) as writer:
+            line = writer.get_line_index_with_content('break here')
+            writer.write_add_breakpoint(line)
+            writer.write_make_initial_run()
+            hit = writer.wait_for_breakpoint_hit(line=writer.get_line_index_with_content('break here'), file='_debugger_case_wrong_bytecode.py')
+            writer.write_step_over(hit.thread_id)
+
+            hit = writer.wait_for_breakpoint_hit(line=writer.get_line_index_with_content('step 1'), file='_debugger_case_wrong_bytecode.py', reason=REASON_STEP_OVER)
+            writer.write_step_over(hit.thread_id)
+
+            hit = writer.wait_for_breakpoint_hit(line=writer.get_line_index_with_content('step 2'), file='_debugger_case_wrong_bytecode.py', reason=REASON_STEP_OVER)
+            writer.write_step_over(hit.thread_id)
+
+            hit = writer.wait_for_breakpoint_hit(line=writer.get_line_index_with_content('step 3'), file='_debugger_case_wrong_bytecode.py', reason=REASON_STEP_OVER)
+            writer.write_step_over(hit.thread_id)
+
+            hit = writer.wait_for_breakpoint_hit(line=writer.get_line_index_with_content('step 4'), file='_debugger_case_wrong_bytecode.py', reason=REASON_STEP_OVER)
+            writer.write_step_over(hit.thread_id)
+
+            hit = writer.wait_for_breakpoint_hit(line=writer.get_line_index_with_content('step 5'), file='_debugger_case_wrong_bytecode.py', reason=REASON_STEP_OVER)
+            writer.write_run_thread(hit.thread_id)
+
+            writer.finished_ok = True
+
+
+@pytest.mark.skipif(not IS_PY36_OR_GREATER, reason='Only CPython 3.6 onwards')
+def test_frame_eval_mode_corner_case_02(case_setup):
+
+    with case_setup.test_file(
+            '_bytecode_super.py',
+        ) as writer:
+            line = writer.get_line_index_with_content('break here')
+            writer.write_add_breakpoint(line)
+            writer.write_make_initial_run()
+
+            hit = writer.wait_for_breakpoint_hit(line=line, file='_bytecode_super.py')
+
+            writer.write_run_thread(hit.thread_id)
+
+            writer.finished_ok = True
+
+
+@pytest.mark.skipif(not IS_PY36_OR_GREATER, reason='Only CPython 3.6 onwards')
+def test_frame_eval_mode_corner_case_03(case_setup):
+
+    with case_setup.test_file(
+            '_bytecode_constructs.py',
+        ) as writer:
+            line = writer.get_line_index_with_content('break while')
+            writer.write_add_breakpoint(line)
+            writer.write_make_initial_run()
+
+            hit = writer.wait_for_breakpoint_hit(line=line)
+
+            writer.write_step_over(hit.thread_id)
+            hit = writer.wait_for_breakpoint_hit(line=line + 1, reason=REASON_STEP_OVER)
+
+            writer.write_step_over(hit.thread_id)  # i.e.: check that the jump target is still ok.
+            hit = writer.wait_for_breakpoint_hit(line=line, reason=REASON_STEP_OVER)
+
+            writer.write_step_over(hit.thread_id)
+            hit = writer.wait_for_breakpoint_hit(line=line + 1, reason=REASON_STEP_OVER)
+
+            writer.write_step_over(hit.thread_id)
+            hit = writer.wait_for_breakpoint_hit(line=line, reason=REASON_STEP_OVER)
+
+            writer.write_run_thread(hit.thread_id)
+
+            writer.finished_ok = True
+
+
+@pytest.mark.skipif(not IS_PY36_OR_GREATER, reason='Only CPython 3.6 onwards')
+def test_frame_eval_mode_corner_case_04(case_setup):
+
+    with case_setup.test_file(
+            '_bytecode_constructs.py',
+        ) as writer:
+            line = writer.get_line_index_with_content('break for')
+            writer.write_add_breakpoint(line)
+            writer.write_make_initial_run()
+
+            hit = writer.wait_for_breakpoint_hit(line=line)
+            writer.write_run_thread(hit.thread_id)
+
+            hit = writer.wait_for_breakpoint_hit(line=line)
+            writer.write_run_thread(hit.thread_id)
+
+            hit = writer.wait_for_breakpoint_hit(line=line)
+            writer.write_run_thread(hit.thread_id)
+
+            writer.finished_ok = True
+
+
+@pytest.mark.skipif(not IS_PY36_OR_GREATER, reason='Only CPython 3.6 onwards')
+@pytest.mark.parametrize(
+    'break_name',
+    [
+        'break except',
+        'break with',
+        'break try 1',
+        'break try 2',
+        'break finally 1',
+        'break except 2',
+        'break finally 2',
+        'break in dict',
+        'break else',
+    ]
+)
+def test_frame_eval_mode_corner_case_many(case_setup, break_name):
+    # Check the constructs where we stop only once and proceed.
+    with case_setup.test_file(
+            '_bytecode_constructs.py',
+        ) as writer:
+            line = writer.get_line_index_with_content(break_name)
+            writer.write_add_breakpoint(line)
+            writer.write_make_initial_run()
+
+            hit = writer.wait_for_breakpoint_hit(line=line)
+            writer.write_run_thread(hit.thread_id)
 
             writer.finished_ok = True
 

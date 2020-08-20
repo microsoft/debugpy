@@ -86,6 +86,7 @@ from _pydevd_bundle.pydevd_constants import ForkSafeLock, NULL
 from _pydevd_bundle.pydevd_daemon_thread import PyDBDaemonThread
 from _pydevd_bundle.pydevd_thread_lifecycle import pydevd_find_thread_by_id, resume_threads
 from _pydevd_bundle.pydevd_dont_trace_files import PYDEV_FILE
+import dis
 try:
     from urllib import quote_plus, unquote_plus  # @UnresolvedImport
 except:
@@ -864,18 +865,14 @@ def internal_get_next_statement_targets(dbg, seq, thread_id, frame_id):
         if frame is not None:
             code = frame.f_code
             xml = "<xml>"
-            if hasattr(code, 'co_lnotab'):
-                lineno = code.co_firstlineno
-                lnotab = code.co_lnotab
-                for i in itertools.islice(lnotab, 1, len(lnotab), 2):
-                    if isinstance(i, int):
-                        lineno = lineno + i
-                    else:
-                        # in python 2 elements in co_lnotab are of type str
-                        lineno = lineno + ord(i)
-                    xml += "<line>%d</line>" % (lineno,)
-            else:
+            try:
+                linestarts = dis.findlinestarts(code)
+            except:
+                # i.e.: jython doesn't provide co_lnotab, so, we can only keep at the current line.
                 xml += "<line>%d</line>" % (frame.f_lineno,)
+            else:
+                for _, line in linestarts:
+                    xml += "<line>%d</line>" % (line,)
             del frame
             xml += "</xml>"
             cmd = dbg.cmd_factory.make_get_next_statement_targets_message(seq, xml)
