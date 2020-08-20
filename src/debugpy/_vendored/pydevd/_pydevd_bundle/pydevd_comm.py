@@ -661,12 +661,26 @@ def internal_get_variable_json(py_db, request):
 
     variables = []
     try:
-        variable = py_db.suspended_frames_manager.get_variable(variables_reference)
-    except KeyError:
-        pass
-    else:
-        for child_var in variable.get_children_variables(fmt=fmt, scope=scope):
-            variables.append(child_var.get_var_data(fmt=fmt))
+        try:
+            variable = py_db.suspended_frames_manager.get_variable(variables_reference)
+        except KeyError:
+            pass
+        else:
+            for child_var in variable.get_children_variables(fmt=fmt, scope=scope):
+                variables.append(child_var.get_var_data(fmt=fmt))
+    except:
+        try:
+            exc, exc_type, tb = sys.exc_info()
+            err = ''.join(traceback.format_exception(exc, exc_type, tb))
+            variables = [{
+                'name': '<error>',
+                'value': err,
+                'type': '<error>',
+            }]
+        except:
+            err = '<Internal error - unable to get traceback when getting variables>'
+            pydev_log.exception(err)
+            variables = []
 
     body = VariablesResponseBody(variables)
     variables_response = pydevd_base_schema.build_response(request, kwargs={'body':body})

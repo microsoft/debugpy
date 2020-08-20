@@ -1524,6 +1524,58 @@ def test_hasattr_failure(case_setup):
         writer.finished_ok = True
 
 
+def test_evaluate_numpy(case_setup, pyfile):
+    try:
+        import numpy
+    except ImportError:
+        pytest.skip('numpy not available')
+
+    @pyfile
+    def numpy_small_array_file():
+        import numpy
+
+        test_array = numpy.array(2)
+
+        print('TEST SUCEEDED')  # break here
+
+    with case_setup.test_file(numpy_small_array_file) as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch(justMyCode=False)
+
+        json_facade.write_set_breakpoints(writer.get_line_index_with_content('break here'))
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        json_hit = json_facade.get_stack_as_json_hit(json_hit.thread_id)
+
+        variables_response = json_facade.get_variables_response(json_hit.frame_id)
+
+        for variable in variables_response.body.variables:
+            if variable['evaluateName'] == 'test_array':
+                break
+        else:
+            raise AssertionError('Did not find "test_array" in %s' % (variables_response.body.variables,))
+
+        evaluate_response = json_facade.evaluate('test_array', json_hit.frame_id, context='repl')
+
+        variables_response = json_facade.get_variables_response(evaluate_response.body.variablesReference)
+
+        check = [dict([(variable['name'], variable['value'])]) for variable in variables_response.body.variables]
+        assert check == [
+            {'special variables': ''},
+            {'dtype': "dtype('int32')"},
+            {'max': '2'},
+            {'min': '2'},
+            {'shape': '()'},
+            {'size': '1'}
+        ]
+
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
 def test_evaluate_block_repl(case_setup):
 
     with case_setup.test_file('_debugger_case_local_variables2.py') as writer:
