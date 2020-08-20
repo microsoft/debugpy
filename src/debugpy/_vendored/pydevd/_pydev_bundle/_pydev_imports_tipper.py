@@ -191,7 +191,8 @@ def generate_imports_tip_for_module(obj_to_complete, dir_comps=None, getattr=get
 
         get_complete_info = False
 
-    dontGetDocsOn = (float, int, str, tuple, list)
+    dontGetDocsOn = (float, int, str, tuple, list, dict)
+    dontGetattrOn = (dict, list, set, tuple)
     for d in dir_comps:
 
         if d is None:
@@ -204,6 +205,13 @@ def generate_imports_tip_for_module(obj_to_complete, dir_comps=None, getattr=get
 
         try:
             try:
+                if isinstance(obj_to_complete, dontGetattrOn):
+                    raise Exception('Since python 3.9, e.g. "dict[str]" will return'
+                                    " a dict that's only supposed to take strings. "
+                                    'Interestingly, e.g. dict["val"] is also valid '
+                                    'and presumably represents a dict that only takes '
+                                    'keys that are "val". This breaks our check for '
+                                    'class attributes.')
                 obj = getattr(obj_to_complete.__class__, d)
             except:
                 obj = getattr(obj_to_complete, d)

@@ -164,6 +164,7 @@ if IS_PY3K:
             'third_party',
             '__pycache__',
             'pydev_ipython',
+            'vendored',
             ]:
             try:
                 dirs.remove(d)
