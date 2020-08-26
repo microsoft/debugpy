@@ -25,6 +25,11 @@ if "DEBUGPY_LOG_DIR" in os.environ:
     os.environ["PYDEVD_DEBUG"] = str("True")
     os.environ["PYDEVD_DEBUG_FILE"] = os.environ["DEBUGPY_LOG_DIR"] + str("/debugpy.pydevd.log")
 
+# Work around https://github.com/microsoft/debugpy/issues/346.
+# Disable pydevd frame-eval optimizations only if unset, to allow opt-in.
+if "PYDEVD_USE_FRAME_EVAL" not in os.environ:
+    os.environ["PYDEVD_USE_FRAME_EVAL"] = str("NO")
+
 
 # Constants must be set before importing any other pydevd module
 # # due to heavy use of "from" in them.
