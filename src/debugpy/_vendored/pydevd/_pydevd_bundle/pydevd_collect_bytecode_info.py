@@ -14,9 +14,16 @@ except NameError:
 
 class TryExceptInfo(object):
 
-    def __init__(self, try_line, is_finally=False):
+    def __init__(self, try_line, ignore=False):
+        '''
+        :param try_line:
+        :param ignore:
+            Usually we should ignore any block that's not a try..except
+            (this can happen for finally blocks, with statements, etc, for
+            which we create temporary entries).
+        '''
         self.try_line = try_line
-        self.is_finally = is_finally
+        self.ignore = ignore
         self.except_line = -1
         self.except_bytecode_offset = -1
         self.except_end_line = -1
@@ -187,7 +194,7 @@ def collect_try_except_info(co, use_func_first_line=False):
             # Note: On Py3.8 both except and finally statements use 'SETUP_FINALLY'.
             try_except_info = TryExceptInfo(
                 _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True),
-                is_finally=curr_op_name == 'SETUP_FINALLY'
+                ignore=curr_op_name == 'SETUP_FINALLY'
             )
             try_except_info.except_bytecode_offset = instruction.argval
             try_except_info.except_line = _get_line(
@@ -196,13 +203,19 @@ def collect_try_except_info(co, use_func_first_line=False):
                 firstlineno,
             )
 
+            try_except_info.except_end_bytecode_offset = instruction.argval
+            try_except_info.except_end_line = _get_line(op_offset_to_line, instruction.argval, firstlineno, search=True)
+
             stack_in_setup.append(try_except_info)
 
         elif curr_op_name == 'POP_EXCEPT':
             # On Python 3.8 there's no SETUP_EXCEPT (both except and finally start with SETUP_FINALLY),
             # so, we differentiate by a POP_EXCEPT.
             if IS_PY38_OR_GREATER:
-                stack_in_setup[-1].is_finally = False
+                stack_in_setup[-1].ignore = False
+
+        elif curr_op_name in ('WITH_CLEANUP_START', 'WITH_CLEANUP'):  # WITH_CLEANUP is Python 2.7, WITH_CLEANUP_START Python 3.
+            stack_in_setup.append(TryExceptInfo(-1, ignore=True))  # Just there to be removed at END_FINALLY.
 
         elif curr_op_name == 'RAISE_VARARGS':
             # We want to know about reraises and returns inside of except blocks (unfortunately
@@ -215,7 +228,7 @@ def collect_try_except_info(co, use_func_first_line=False):
         elif curr_op_name == 'END_FINALLY':  # The except block also ends with 'END_FINALLY'.
             stack_in_setup[-1].except_end_bytecode_offset = instruction.offset
             stack_in_setup[-1].except_end_line = _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True)
-            if not stack_in_setup[-1].is_finally:
+            if not stack_in_setup[-1].ignore:
                 # Don't add try..finally blocks.
                 try_except_info_lst.append(stack_in_setup[-1])
             del stack_in_setup[-1]
@@ -225,7 +238,7 @@ def collect_try_except_info(co, use_func_first_line=False):
         # of the stack).
         stack_in_setup[-1].except_end_bytecode_offset = instruction.offset
         stack_in_setup[-1].except_end_line = _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True)
-        if not stack_in_setup[-1].is_finally:
+        if not stack_in_setup[-1].ignore:
             # Don't add try..finally blocks.
             try_except_info_lst.append(stack_in_setup[-1])
         del stack_in_setup[-1]
@@ -233,7 +246,79 @@ def collect_try_except_info(co, use_func_first_line=False):
     return try_except_info_lst
 
 
-if sys.version_info[:2] >= (3, 9):
+if sys.version_info[:2] >= (3, 5):
+
+    class _TargetInfo(object):
+
+        def __init__(self, except_end_instruction, jump_if_not_exc_instruction=None):
+            self.except_end_instruction = except_end_instruction
+            self.jump_if_not_exc_instruction = jump_if_not_exc_instruction
+
+        def __str__(self):
+            msg = ['_TargetInfo(']
+            msg.append(self.except_end_instruction.opname)
+            if self.jump_if_not_exc_instruction:
+                msg.append(' - ')
+                msg.append(self.jump_if_not_exc_instruction.opname)
+                msg.append('(')
+                msg.append(str(self.jump_if_not_exc_instruction.argval))
+                msg.append(')')
+            msg.append(')')
+            return ''.join(msg)
+
+    def _get_except_target_info(instructions, exception_end_instruction_index, offset_to_instruction_idx):
+        next_3 = [j_instruction.opname for j_instruction in instructions[exception_end_instruction_index:exception_end_instruction_index + 3]]
+        # print('next_3:', [(j_instruction.opname, j_instruction.argval) for j_instruction in instructions[exception_end_instruction_index:exception_end_instruction_index + 3]])
+        if next_3 == ['POP_TOP', 'POP_TOP', 'POP_TOP']:  # try..except without checking exception.
+            try:
+                jump_instruction = instructions[exception_end_instruction_index - 1]
+                if jump_instruction.opname not in('JUMP_FORWARD', 'JUMP_ABSOLUTE'):
+                    return None
+            except IndexError:
+                pass
+
+            if jump_instruction.opname == 'JUMP_ABSOLUTE':
+                # On latest versions of Python 3 the interpreter has a go-backwards step,
+                # used to show the initial line of a for/while, etc (which is this
+                # JUMP_ABSOLUTE)... we're not really interested in it, but rather on where
+                # it points to.
+                except_end_instruction = instructions[offset_to_instruction_idx[jump_instruction.argval]]
+                idx = offset_to_instruction_idx[except_end_instruction.argval]
+                # Search for the POP_EXCEPT which should be at the end of the block.
+                for pop_except_instruction in reversed(instructions[:idx]):
+                    if pop_except_instruction.opname == 'POP_EXCEPT':
+                        except_end_instruction = pop_except_instruction
+                        return _TargetInfo(except_end_instruction)
+                else:
+                    return None  # i.e.: Continue outer loop
+
+            else:
+                except_end_instruction = instructions[offset_to_instruction_idx[jump_instruction.argval]]
+                return _TargetInfo(except_end_instruction)
+
+        elif next_3 and next_3[0] == 'DUP_TOP':  # try..except AssertionError.
+            iter_in = instructions[exception_end_instruction_index + 1:]
+            for j, jump_if_not_exc_instruction in enumerate(iter_in):
+                if jump_if_not_exc_instruction.opname == 'JUMP_IF_NOT_EXC_MATCH':
+                    # Python 3.9
+                    except_end_instruction = instructions[offset_to_instruction_idx[jump_if_not_exc_instruction.argval]]
+                    return _TargetInfo(except_end_instruction, jump_if_not_exc_instruction)
+
+                elif jump_if_not_exc_instruction.opname == 'COMPARE_OP' and jump_if_not_exc_instruction.argval == 'exception match':
+                    # Python 3.8 and before
+                    try:
+                        next_instruction = iter_in[j + 1]
+                    except:
+                        continue
+                    if next_instruction.opname == 'POP_JUMP_IF_FALSE':
+                        except_end_instruction = instructions[offset_to_instruction_idx[next_instruction.argval]]
+                        return _TargetInfo(except_end_instruction, next_instruction)
+            else:
+                return None  # i.e.: Continue outer loop
+
+        else:
+            # i.e.: we're not interested in try..finally statements, only try..except.
+            return None
 
     def collect_try_except_info(co, use_func_first_line=False):
         # We no longer have 'END_FINALLY', so, we need to do things differently in Python 3.9
@@ -267,66 +352,53 @@ if sys.version_info[:2] >= (3, 9):
 
         for i, instruction in enumerate(instructions):
             curr_op_name = instruction.opname
-            if curr_op_name == 'SETUP_FINALLY':
+            if curr_op_name in ('SETUP_FINALLY', 'SETUP_EXCEPT'):  # SETUP_EXCEPT before Python 3.8, SETUP_FINALLY Python 3.8 onwards.
                 exception_end_instruction_index = offset_to_instruction_idx[instruction.argval]
 
                 jump_instruction = instructions[exception_end_instruction_index - 1]
                 if jump_instruction.opname not in('JUMP_FORWARD', 'JUMP_ABSOLUTE'):
                     continue
 
-                next_3 = [instruction.opname for instruction in instructions[exception_end_instruction_index:exception_end_instruction_index + 3]]
-                if next_3 == ['POP_TOP', 'POP_TOP', 'POP_TOP']:  # try..except without checking exception.
+                except_end_instruction = None
+                indexes_checked = set()
+                indexes_checked.add(exception_end_instruction_index)
+                target_info = _get_except_target_info(instructions, exception_end_instruction_index, offset_to_instruction_idx)
+                while target_info is not None:
+                    # Handle a try..except..except..except.
+                    jump_instruction = target_info.jump_if_not_exc_instruction
+                    except_end_instruction = target_info.except_end_instruction
 
-                    if jump_instruction.opname == 'JUMP_ABSOLUTE':
-                        # On latest versions of Python 3 the interpreter has a go-backwards step,
-                        # used to show the initial line of a for/while, etc (which is this
-                        # JUMP_ABSOLUTE)... we're not really interested in it, but rather on where
-                        # it points to.
-                        except_end_instruction = instructions[offset_to_instruction_idx[jump_instruction.argval]]
-                        idx = offset_to_instruction_idx[except_end_instruction.argval]
-                        # Search for the POP_EXCEPT which should be at the end of the block.
-                        for pop_except_instruction in reversed(instructions[:idx]):
-                            if pop_except_instruction.opname == 'POP_EXCEPT':
-                                except_end_instruction = pop_except_instruction
-                                break
-                        else:
-                            continue  # i.e.: Continue outer loop
-
-                    else:
-                        except_end_instruction = instructions[offset_to_instruction_idx[jump_instruction.argval]]
-
-                elif next_3 and next_3[0] == 'DUP_TOP':  # try..except AssertionError.
-                    for jump_if_not_exc_instruction in instructions[exception_end_instruction_index + 1:]:
-                        if jump_if_not_exc_instruction.opname == 'JUMP_IF_NOT_EXC_MATCH':
-                            except_end_instruction = instructions[offset_to_instruction_idx[jump_if_not_exc_instruction.argval]]
+                    if jump_instruction is not None:
+                        check_index = offset_to_instruction_idx[jump_instruction.argval]
+                        if check_index in indexes_checked:
                             break
+                        indexes_checked.add(check_index)
+                        target_info = _get_except_target_info(instructions, check_index, offset_to_instruction_idx)
                     else:
-                        continue  # i.e.: Continue outer loop
+                        break
 
-                else:
-                    # i.e.: we're not interested in try..finally statements, only try..except.
-                    continue
+                if except_end_instruction is not None:
+                    try_except_info = TryExceptInfo(
+                        _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True),
+                        ignore=False
+                    )
+                    try_except_info.except_bytecode_offset = instruction.argval
+                    try_except_info.except_line = _get_line(
+                        op_offset_to_line,
+                        try_except_info.except_bytecode_offset,
+                        firstlineno,
+                        search=True
+                    )
 
-                try_except_info = TryExceptInfo(
-                    _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True),
-                    is_finally=False
-                )
-                try_except_info.except_bytecode_offset = instruction.argval
-                try_except_info.except_line = _get_line(
-                    op_offset_to_line,
-                    try_except_info.except_bytecode_offset,
-                    firstlineno,
-                )
+                    try_except_info.except_end_bytecode_offset = except_end_instruction.offset
+                    try_except_info.except_end_line = _get_line(op_offset_to_line, except_end_instruction.offset, firstlineno, search=True)
+                    try_except_info_lst.append(try_except_info)
 
-                try_except_info.except_end_bytecode_offset = except_end_instruction.offset
-                try_except_info.except_end_line = _get_line(op_offset_to_line, except_end_instruction.offset, firstlineno, search=True)
-                try_except_info_lst.append(try_except_info)
-
-                for raise_instruction in instructions[i:offset_to_instruction_idx[try_except_info.except_end_bytecode_offset]]:
-                    if raise_instruction.opname == 'RAISE_VARARGS':
-                        if raise_instruction.argval == 0:
-                            try_except_info.raise_lines_in_except.append(
-                                _get_line(op_offset_to_line, raise_instruction.offset, firstlineno, search=True))
+                    for raise_instruction in instructions[i:offset_to_instruction_idx[try_except_info.except_end_bytecode_offset]]:
+                        if raise_instruction.opname == 'RAISE_VARARGS':
+                            if raise_instruction.argval == 0:
+                                try_except_info.raise_lines_in_except.append(
+                                    _get_line(op_offset_to_line, raise_instruction.offset, firstlineno, search=True))
 
         return try_except_info_lst
 

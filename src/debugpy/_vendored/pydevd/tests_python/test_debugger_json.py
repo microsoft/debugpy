@@ -1562,14 +1562,24 @@ def test_evaluate_numpy(case_setup, pyfile):
         variables_response = json_facade.get_variables_response(evaluate_response.body.variablesReference)
 
         check = [dict([(variable['name'], variable['value'])]) for variable in variables_response.body.variables]
-        assert check == [
-            {'special variables': ''},
-            {'dtype': "dtype('int32')"},
-            {'max': '2'},
-            {'min': '2'},
-            {'shape': '()'},
-            {'size': '1'}
-        ]
+        assert check in (
+            [
+                {'special variables': ''},
+                {'dtype': "dtype('int32')"},
+                {'max': '2'},
+                {'min': '2'},
+                {'shape': '()'},
+                {'size': '1'}
+            ],
+            [
+                {'special variables': ''},
+                {'dtype': "dtype('int64')"},
+                {'max': '2'},
+                {'min': '2'},
+                {'shape': '()'},
+                {'size': '1'}
+            ],
+        )
 
         json_facade.write_continue()
 

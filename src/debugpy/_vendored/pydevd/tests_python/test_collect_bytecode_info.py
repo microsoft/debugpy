@@ -7,8 +7,9 @@ import traceback
 from _pydevd_bundle.pydevd_collect_bytecode_info import collect_try_except_info, \
     collect_return_info, code_to_bytecode_representation
 from tests_python.debugger_unittest import IS_CPYTHON, IS_PYPY
-from tests_python.debug_constants import IS_PY2
-from _pydevd_bundle.pydevd_constants import IS_PY38_OR_GREATER, IS_JYTHON
+from tests_python.debug_constants import IS_PY2, IS_PY3K
+from _pydevd_bundle.pydevd_constants import IS_PY38_OR_GREATER, IS_JYTHON, IS_PY36_OR_GREATER, \
+    IS_PY35_OR_GREATER
 
 
 def _method_call_with_error():
@@ -310,6 +311,78 @@ def test_collect_try_except_info_raise_unhandled10():
     lst = sorted(collect_try_except_info(code, use_func_first_line=True), key=lambda t:t.try_line)
     if IS_CPYTHON or IS_PYPY:
         assert str(lst) == '[{try:2 except 4 end block 9 raises: 7}, {try:6 except 8 end block 9 raises: 7}]'
+    else:
+        assert lst == []
+
+
+def test_collect_try_except_info_with():
+
+    def try_except_with():
+        try:
+            with object():
+                pass
+        except AssertionError:
+            pass
+
+    code = try_except_with.__code__
+
+    lst = sorted(collect_try_except_info(code, use_func_first_line=True), key=lambda t:t.try_line)
+    if IS_CPYTHON or IS_PYPY:
+        assert str(lst) == '[{try:1 except 4 end block 5}]'
+    else:
+        assert lst == []
+
+
+def test_collect_try_except_info_multiple_except():
+
+    def try_except_with():
+        try:
+            pass
+        except AssertionError:
+            a = 1
+        except RuntimeError:
+            a = 2
+        except:
+            a = 3
+
+    code = try_except_with.__code__
+
+    lst = sorted(collect_try_except_info(code, use_func_first_line=True), key=lambda t:t.try_line)
+    if IS_CPYTHON or IS_PYPY:
+        assert str(lst) == '[{try:1 except 3 end block 8}]'
+    else:
+        assert lst == []
+
+
+@pytest.mark.skipif(not IS_PY35_OR_GREATER, reason='Python 3.5 onwards required for async for/async def')
+def test_collect_try_except_info_async_for():
+
+    # Not valid on Python 2.
+    code = '''
+async def try_except_with():
+    try:
+        async for a in object():
+            b = 10
+        else:
+            b = 20
+    except AssertionError:
+        pass
+'''
+
+    namespace = {}
+    exec(code, namespace, namespace)
+    code = namespace['try_except_with'].__code__
+
+    lst = sorted(collect_try_except_info(code, use_func_first_line=True), key=lambda t:t.try_line)
+    if IS_CPYTHON or IS_PYPY:
+        if IS_PY38_OR_GREATER:
+            assert str(lst) == '[{try:1 except 6 end block 7}]'
+        else:
+            # Before Python 3.8 the async for does a try..except StopAsyncIteration internally.
+            if sys.version_info[:2] == (3, 5) or IS_PYPY:
+                assert str(lst) == '[{try:1 except 6 end block 7}, {try:2 except 2 end block 2}]'
+            else:
+                assert str(lst) == '[{try:1 except 6 end block 7}, {try:2 except 2 end block 7}]'
     else:
         assert lst == []
 
