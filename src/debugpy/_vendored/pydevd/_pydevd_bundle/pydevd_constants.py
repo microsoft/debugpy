@@ -177,6 +177,7 @@ if python_implementation == 'CPython' and not IS_PYTHON_STACKLESS:
 #=======================================================================================================================
 IS_PY3K = False
 IS_PY34_OR_GREATER = False
+IS_PY35_OR_GREATER = False
 IS_PY36_OR_GREATER = False
 IS_PY37_OR_GREATER = False
 IS_PY38_OR_GREATER = False
@@ -189,6 +190,7 @@ try:
         IS_PY3K = True
         IS_PY2 = False
         IS_PY34_OR_GREATER = sys.version_info >= (3, 4)
+        IS_PY35_OR_GREATER = sys.version_info >= (3, 5)
         IS_PY36_OR_GREATER = sys.version_info >= (3, 6)
         IS_PY37_OR_GREATER = sys.version_info >= (3, 7)
         IS_PY38_OR_GREATER = sys.version_info >= (3, 8)
