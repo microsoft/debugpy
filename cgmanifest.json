@@ -1,0 +1,54 @@
+{
+  "Registrations": [
+    {
+      "Component": {
+        "Type": "pip",
+        "pip": { "Name": "isort", "Version": "4.2.15" }
+      },
+      "DevelopmentDependency": false
+    },
+    {
+      "Component": {
+        "Type": "pip",
+        "pip": { "Name": "autopep8", "Version": "1.3" }
+      },
+      "DevelopmentDependency": false
+    },
+    {
+      "Component": {
+        "Type": "pip",
+        "pip": { "Name": "pycodestyle", "Version": "2.3.1" }
+      },
+      "DevelopmentDependency": false
+    },
+    {
+      "Component": {
+        "Type": "pip",
+        "pip": { "Name": "pydevd", "Version": "1.9.2" }
+      },
+      "DevelopmentDependency": false
+    },
+    {
+      "Component": {
+        "Type": "git",
+        "git": {
+          "Name": "winappdbg",
+          "RepositoryUrl": "https://github.com/fabioz/winappdbg",
+          "CommitHash": "1603870dc3fa3d2984ef23b6d77e400fb0a21b99"
+        },
+        "DevelopmentDependency": false
+      }
+    },
+    {
+      "Component": {
+        "Type": "git",
+        "git": {
+          "Name": "bytecode",
+          "RepositoryUrl": "https://github.com/vstinner/bytecode",
+          "CommitHash": "e3e77fb690ed05ac171e15694e1c5d0e0dc34e86"
+        },
+        "DevelopmentDependency": false
+      }
+    }
+  ]
+}
