@@ -152,7 +152,7 @@ switches = [
     # ======                    ===========         ======
 
     # Switches that are documented for use by end users.
-    ("-(\?|h|-help)",           None,               print_help_and_exit),
+    ("-(\\?|h|-help)",          None,               print_help_and_exit),
     ("-(V|-version)",           None,               print_version_and_exit),
     ("--log-to" ,               "<path>",           set_arg("log_to")),
     ("--log-to-stderr",         None,               set_const("log_to_stderr", True)),

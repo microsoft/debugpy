@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import atexit
 import os
 import sys
 
@@ -41,8 +42,10 @@ class Client(components.Component):
             stream = messaging.JsonIOStream.from_stdio()
             # Make sure that nothing else tries to interfere with the stdio streams
             # that are going to be used for DAP communication from now on.
-            sys.stdin = open(os.devnull, "r")
-            sys.stdout = open(os.devnull, "w")
+            sys.stdin = stdin = open(os.devnull, "r")
+            atexit.register(stdin.close)
+            sys.stdout = stdout = open(os.devnull, "w")
+            atexit.register(stdout.close)
         else:
             stream = messaging.JsonIOStream.from_socket(sock)
 
