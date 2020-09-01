@@ -139,7 +139,7 @@ def test_sudo(pyfile, tmpdir, run, target):
 
 @pytest.mark.parametrize("run", runners.all_launch_terminal)
 @pytest.mark.parametrize("python_args", ["", "-v"])
-@pytest.mark.parametrize("python", ["", "custompy", "custompy -O"])
+@pytest.mark.parametrize("python", ["", "custompy", "custompy|-O"])
 @pytest.mark.parametrize("python_key", ["python", "pythonPath"])
 def test_custom_python(pyfile, run, target, python_key, python, python_args):
     @pyfile
@@ -151,7 +151,7 @@ def test_custom_python(pyfile, run, target, python_key, python, python_args):
         debuggee.setup()
         backchannel.send([sys.executable, sys.flags.optimize, sys.flags.verbose])
 
-    python = python.split()
+    python = python.split("|")
     python_args = python_args.split()
     python_cmd = (python if len(python) else [sys.executable]) + python_args
 

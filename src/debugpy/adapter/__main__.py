@@ -24,7 +24,8 @@ def main(args):
     # so disable it to avoid the pipe filling and locking up. This must be done
     # as early as possible, before the logging module starts writing to it.
     if args.port is None:
-        sys.stderr = open(os.devnull, "w")
+        sys.stderr = stderr = open(os.devnull, "w")
+        atexit.register(stderr.close)
 
     from debugpy import adapter
     from debugpy.common import compat, log, sockets

@@ -183,7 +183,13 @@ def kwonly(f):
     If the default value is kwonly.required, then the argument must be specified.
     """
 
-    arg_names, args_name, kwargs_name, arg_defaults = inspect.getargspec(f)
+    try:
+        inspect.getfullargspec
+    except AttributeError:
+        arg_names, args_name, kwargs_name, arg_defaults = inspect.getargspec(f)
+    else:
+        arg_names, args_name, kwargs_name, arg_defaults, _, _, _ = inspect.getfullargspec(f)
+
     assert args_name is None and kwargs_name is None
     argc = len(arg_names)
     pos_argc = argc - len(arg_defaults)

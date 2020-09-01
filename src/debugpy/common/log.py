@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import atexit
 import contextlib
 import functools
 import inspect
@@ -43,11 +44,12 @@ def _update_levels():
 
 
 class LogFile(object):
-    def __init__(self, filename, file, levels=LEVELS):
+    def __init__(self, filename, file, levels=LEVELS, close_file=True):
         info("Also logging to {0!j}.", filename)
 
         self.filename = filename
         self.file = file
+        self.close_file = close_file
         self._levels = frozenset(levels)
 
         with _lock:
@@ -88,10 +90,11 @@ class LogFile(object):
             _update_levels()
         info("Not logging to {0!j} anymore.", self.filename)
 
-        try:
-            self.file.close()
-        except Exception:
-            pass
+        if self.close_file:
+            try:
+                self.file.close()
+            except Exception:
+                pass
 
     def __enter__(self):
         return self
@@ -350,7 +353,14 @@ stderr = LogFile(
     "<stderr>",
     sys.stderr,
     levels=os.getenv("DEBUGPY_LOG_STDERR", "warning error").split(),
+    close_file=False,
 )
+
+
+@atexit.register
+def _close_files():
+    for file in tuple(_files.values()):
+        file.close()
 
 
 # The following are helper shortcuts for printf debugging. They must never be used
