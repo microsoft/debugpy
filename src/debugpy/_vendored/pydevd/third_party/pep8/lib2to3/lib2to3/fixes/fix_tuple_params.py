@@ -50,7 +50,7 @@ class FixTupleParams(fixer_base.BaseFix):
         new_lines = []
         suite = results["suite"]
         args = results["args"]
-        # This crap is so "def foo(...): x = 5; y = 7" is handled correctly.
+        # This is so "def foo(...): x = 5; y = 7" is handled correctly.
         # TODO(cwinter): suite-cleanup
         if suite[0].children[1].type == token.INDENT:
             start = 2

@@ -514,7 +514,7 @@ else:
             try:
                 self.parser.close()
             finally:
-                self.parser = self.feed = None # nuke circular reference
+                self.parser = self.feed = None # remove circular reference
 
         def handle_proc(self, tag, attr):
             m = re.search("encoding\s*=\s*['\"]([^\"']+)[\"']", attr) #@UndefinedVariable
