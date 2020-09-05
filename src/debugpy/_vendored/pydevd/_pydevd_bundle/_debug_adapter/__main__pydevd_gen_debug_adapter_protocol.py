@@ -447,7 +447,7 @@ def update_class_to_generate_init(class_to_generate):
 
     # Note: added kwargs because some messages are expected to be extended by the user (so, we'll actually
     # make all extendable so that we don't have to worry about which ones -- we loose a little on typing,
-    # but may be better than doing a whitelist based on something only pointed out in the documentation).
+    # but may be better than doing a allow list based on something only pointed out in the documentation).
     class_to_generate['init'] = '''def __init__(self%(args)s, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
     """
 %(docstring)s

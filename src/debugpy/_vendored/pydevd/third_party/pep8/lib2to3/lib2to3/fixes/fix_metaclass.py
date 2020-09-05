@@ -121,7 +121,7 @@ def find_metas(cls_node):
 
 
 def fixup_indent(suite):
-    """ If an INDENT is followed by a thing with a prefix then nuke the prefix
+    """ If an INDENT is followed by a thing with a prefix then remove the prefix
         Otherwise we get in trouble when removing __metaclass__ at suite start
     """
     kids = suite.children[::-1]
