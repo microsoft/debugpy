@@ -16,7 +16,7 @@ class NotificationHelper {
 public:
 #pragma warning( push )
 #pragma warning( disable : 4722 )
-// disable c4722 here: Destructor newver returns warning. Compiler sees ExitThread and assumes that
+// disable c4722 here: Destructor never returns warning. Compiler sees ExitThread and assumes that
 // there is a potential memory leak.
     ~NotificationHelper(){
         std::string eventName("_pydevd_pid_event_");
