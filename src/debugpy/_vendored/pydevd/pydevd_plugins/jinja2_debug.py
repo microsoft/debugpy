@@ -2,33 +2,28 @@ from _pydevd_bundle.pydevd_breakpoints import LineBreakpoint
 from _pydevd_bundle.pydevd_constants import STATE_SUSPEND, dict_iter_items, dict_keys, JINJA2_SUSPEND, \
     IS_PY2
 from _pydevd_bundle.pydevd_comm import CMD_SET_BREAK, CMD_ADD_EXCEPTION_BREAK
-from pydevd_file_utils import get_abs_path_real_path_and_base_from_file
+from pydevd_file_utils import canonical_normalized_path
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, FCode
 from _pydev_bundle import pydev_log
 
 
 class Jinja2LineBreakpoint(LineBreakpoint):
 
-    def __init__(self, file, line, condition, func_name, expression, hit_condition=None, is_logpoint=False):
-        self.file = file
+    def __init__(self, canonical_normalized_filename, line, condition, func_name, expression, hit_condition=None, is_logpoint=False):
+        self.canonical_normalized_filename = canonical_normalized_filename
         LineBreakpoint.__init__(self, line, condition, func_name, expression, hit_condition=hit_condition, is_logpoint=is_logpoint)
 
-    def is_triggered(self, template_frame_file, template_frame_line):
-        return self.file == template_frame_file and self.line == template_frame_line
-
     def __str__(self):
-        return "Jinja2LineBreakpoint: %s-%d" % (self.file, self.line)
+        return "Jinja2LineBreakpoint: %s-%d" % (self.canonical_normalized_filename, self.line)
 
 
-def add_line_breakpoint(plugin, pydb, type, file, line, condition, expression, func_name, hit_condition=None, is_logpoint=False):
-    result = None
+def add_line_breakpoint(plugin, pydb, type, canonical_normalized_filename, line, condition, expression, func_name, hit_condition=None, is_logpoint=False):
     if type == 'jinja2-line':
-        breakpoint = Jinja2LineBreakpoint(file, line, condition, func_name, expression, hit_condition=hit_condition, is_logpoint=is_logpoint)
+        jinja2_line_breakpoint = Jinja2LineBreakpoint(canonical_normalized_filename, line, condition, func_name, expression, hit_condition=hit_condition, is_logpoint=is_logpoint)
         if not hasattr(pydb, 'jinja2_breakpoints'):
             _init_plugin_breaks(pydb)
-        result = breakpoint, pydb.jinja2_breakpoints
-        return result
-    return result
+        return jinja2_line_breakpoint, pydb.jinja2_breakpoints
+    return None
 
 
 def add_exception_breakpoint(plugin, pydb, type, exception):
@@ -125,14 +120,20 @@ class Jinja2TemplateFrame(object):
 
     IS_PLUGIN_FRAME = True
 
-    def __init__(self, frame):
-        file_name = _get_jinja2_template_filename(frame)
+    def __init__(self, frame, original_filename=None, template_lineno=None):
+
+        if original_filename is None:
+            original_filename = _get_jinja2_template_original_filename(frame)
+
+        if template_lineno is None:
+            template_lineno = _get_jinja2_template_line(frame)
+
         self.back_context = None
         if 'context' in frame.f_locals:
             # sometimes we don't have 'context', e.g. in macros
             self.back_context = frame.f_locals['context']
-        self.f_code = FCode('template', file_name)
-        self.f_lineno = _get_jinja2_template_line(frame)
+        self.f_code = FCode('template', original_filename)
+        self.f_lineno = template_lineno
         self.f_back = frame
         self.f_globals = {}
         self.f_locals = self.collect_context(frame)
@@ -243,11 +244,10 @@ def _convert_to_str(s):
     return s
 
 
-def _get_jinja2_template_filename(frame):
+def _get_jinja2_template_original_filename(frame):
     if '__jinja_template__' in frame.f_globals:
-        fname = _convert_to_str(frame.f_globals['__jinja_template__'].filename)
-        abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_file(fname)
-        return abs_path_real_path_and_base[1]
+        return _convert_to_str(frame.f_globals['__jinja_template__'].filename)
+
     return None
 
 #=======================================================================================================================
@@ -262,7 +262,7 @@ def has_exception_breaks(plugin):
 
 
 def has_line_breaks(plugin):
-    for file, breakpoints in dict_iter_items(plugin.main_debugger.jinja2_breakpoints):
+    for _canonical_normalized_filename, breakpoints in dict_iter_items(plugin.main_debugger.jinja2_breakpoints):
         if len(breakpoints) > 0:
             return True
     return False
@@ -270,10 +270,12 @@ def has_line_breaks(plugin):
 
 def can_skip(plugin, pydb, frame):
     if pydb.jinja2_breakpoints and _is_jinja2_render_call(frame):
-        filename = _get_jinja2_template_filename(frame)
-        jinja2_breakpoints_for_file = pydb.jinja2_breakpoints.get(filename)
-        if jinja2_breakpoints_for_file:
-            return False
+        filename = _get_jinja2_template_original_filename(frame)
+        if filename is not None:
+            canonical_normalized_filename = canonical_normalized_path(filename)
+            jinja2_breakpoints_for_file = pydb.jinja2_breakpoints.get(canonical_normalized_filename)
+            if jinja2_breakpoints_for_file:
+                return False
 
     if pydb.jinja2_exception_break:
         name = frame.f_code.co_name
@@ -384,27 +386,29 @@ def stop(plugin, pydb, frame, event, args, stop_info, arg, step_cmd):
 
 def get_breakpoint(plugin, pydb, pydb_frame, frame, event, args):
     pydb = args[0]
-    filename = args[1]
+    _filename = args[1]
     info = args[2]
     new_frame = None
     jinja2_breakpoint = None
     flag = False
-    type = 'jinja2'
+    break_type = 'jinja2'
     if event == 'line' and info.pydev_state != STATE_SUSPEND and \
             pydb.jinja2_breakpoints and _is_jinja2_render_call(frame):
-        filename = _get_jinja2_template_filename(frame)
-        jinja2_breakpoints_for_file = pydb.jinja2_breakpoints.get(filename)
-        new_frame = Jinja2TemplateFrame(frame)
+        original_filename = _get_jinja2_template_original_filename(frame)
+        if original_filename is not None:
+            pydev_log.debug("Jinja2 is rendering a template: %s", original_filename)
+            canonical_normalized_filename = canonical_normalized_path(original_filename)
+            jinja2_breakpoints_for_file = pydb.jinja2_breakpoints.get(canonical_normalized_filename)
 
-        if jinja2_breakpoints_for_file:
-            lineno = frame.f_lineno
-            template_lineno = _get_jinja2_template_line(frame)
-            if template_lineno is not None and template_lineno in jinja2_breakpoints_for_file:
-                jinja2_breakpoint = jinja2_breakpoints_for_file[template_lineno]
-                flag = True
-                new_frame = Jinja2TemplateFrame(frame)
+            if jinja2_breakpoints_for_file:
+                template_lineno = _get_jinja2_template_line(frame)
+                if template_lineno is not None:
+                    jinja2_breakpoint = jinja2_breakpoints_for_file.get(template_lineno)
+                    if jinja2_breakpoint is not None:
+                        flag = True
+                        new_frame = Jinja2TemplateFrame(frame, original_filename, template_lineno)
 
-    return flag, jinja2_breakpoint, new_frame, type
+    return flag, jinja2_breakpoint, new_frame, break_type
 
 
 def suspend(plugin, pydb, thread, frame, bp_type):

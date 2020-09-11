@@ -3,7 +3,7 @@ import pickle
 import zlib
 import base64
 import os
-from pydevd_file_utils import _NormFile
+from pydevd_file_utils import canonical_normalized_path
 import pytest
 import sys
 import time
@@ -32,7 +32,7 @@ def _load_filters():
                 # may need to filter with a resolved path too.
                 new_dct = {}
                 for filename, value in py_test_accept_filter.items():
-                    new_dct[_NormFile(str(Path(filename).resolve()))] = value
+                    new_dct[canonical_normalized_path(str(Path(filename).resolve()))] = value
 
                 py_test_accept_filter.update(new_dct)
 
@@ -110,12 +110,17 @@ def pytest_collection_modifyitems(session, config, items):
 
     new_items = []
     for item in items:
-        f = _NormFile(str(item.parent.fspath))
+        f = canonical_normalized_path(str(item.parent.fspath))
         name = item.name
 
         if f not in py_test_accept_filter:
             # print('Skip file: %s' % (f,))
             continue  # Skip the file
+
+        i = name.find('[')
+        name_without_parametrize = None
+        if i > 0:
+            name_without_parametrize = name[:i]
 
         accept_tests = py_test_accept_filter[f]
 
@@ -124,18 +129,25 @@ def pytest_collection_modifyitems(session, config, items):
         else:
             class_name = None
         for test in accept_tests:
-            # This happens when parameterizing pytest tests.
-            i = name.find('[')
-            if i > 0:
-                name = name[:i]
             if test == name:
                 # Direct match of the test (just go on with the default
                 # loading)
                 new_items.append(item)
                 break
 
+            if name_without_parametrize is not None and test == name_without_parametrize:
+                # This happens when parameterizing pytest tests on older versions
+                # of pytest where the test name doesn't include the fixture name
+                # in it.
+                new_items.append(item)
+                break
+
             if class_name is not None:
                 if test == class_name + '.' + name:
+                    new_items.append(item)
+                    break
+
+                if name_without_parametrize is not None and test == class_name + '.' + name_without_parametrize:
                     new_items.append(item)
                     break
 

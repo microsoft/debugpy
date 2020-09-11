@@ -17,7 +17,7 @@ from _pydevd_bundle._debug_adapter.pydevd_schema import (ThreadEvent, ModuleEven
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
 from _pydevd_bundle.pydevd_constants import (int_types, IS_64BIT_PROCESS,
     PY_VERSION_STR, PY_IMPL_VERSION_STR, PY_IMPL_NAME, IS_PY36_OR_GREATER, IS_PY39_OR_GREATER,
-    IS_PYPY, GENERATED_LEN_ATTR_NAME)
+    IS_PYPY, GENERATED_LEN_ATTR_NAME, IS_WINDOWS, IS_LINUX)
 from tests_python import debugger_unittest
 from tests_python.debug_constants import TEST_CHERRYPY, IS_PY2, TEST_DJANGO, TEST_FLASK, IS_PY26, \
     IS_PY27, IS_CPYTHON, TEST_GEVENT
@@ -2911,7 +2911,7 @@ def test_set_debugger_property(case_setup, dbg_property):
         json_facade.write_set_breakpoints(writer.get_line_index_with_content('Break here'))
 
         if dbg_property in ('dont_trace', 'change_pattern', 'dont_trace_after_start'):
-            json_facade.write_set_debugger_property([], ['dont_trace.py'])
+            json_facade.write_set_debugger_property([], ['dont_trace.py'] if not IS_WINDOWS else ['Dont_Trace.py'])
 
         if dbg_property == 'change_pattern':
             json_facade.write_set_debugger_property([], ['something_else.py'])
@@ -2956,11 +2956,11 @@ def test_source_mapping_errors(case_setup):
     with case_setup.test_file('_debugger_case_source_mapping.py') as writer:
         json_facade = JsonFacade(writer)
 
-        map_to_cell_1_line2 = writer.get_line_index_with_content('map to cell1, line 2')
-        map_to_cell_2_line2 = writer.get_line_index_with_content('map to cell2, line 2')
+        map_to_cell_1_line2 = writer.get_line_index_with_content('map to cEll1, line 2')
+        map_to_cell_2_line2 = writer.get_line_index_with_content('map to cEll2, line 2')
 
-        cell1_map = PydevdSourceMap(map_to_cell_1_line2, map_to_cell_1_line2 + 1, Source(path='<cell1>'), 2)
-        cell2_map = PydevdSourceMap(map_to_cell_2_line2, map_to_cell_2_line2 + 1, Source(path='<cell2>'), 2)
+        cell1_map = PydevdSourceMap(map_to_cell_1_line2, map_to_cell_1_line2 + 1, Source(path='<cEll1>'), 2)
+        cell2_map = PydevdSourceMap(map_to_cell_2_line2, map_to_cell_2_line2 + 1, Source(path='<cEll2>'), 2)
         pydevd_source_maps = [
             cell1_map, cell2_map
         ]
@@ -2969,8 +2969,8 @@ def test_source_mapping_errors(case_setup):
             Source(path=writer.TEST_FILE),
             pydevd_source_maps=pydevd_source_maps,
         )
-        # This will fail because file mappings must be 1:N, not M:N (i.e.: if there's a mapping from file1.py to <cell1>,
-        # there can be no other mapping from any other file to <cell1>).
+        # This will fail because file mappings must be 1:N, not M:N (i.e.: if there's a mapping from file1.py to <cEll1>,
+        # there can be no other mapping from any other file to <cEll1>).
         # This is a limitation to make it easier to remove existing breakpoints when new breakpoints are
         # set to a file (so, any file matching that breakpoint can be removed instead of needing to check
         # which lines are corresponding to that file).
@@ -3000,11 +3000,11 @@ def test_source_mapping_base(case_setup, target, jmc):
 
         json_facade.write_launch(justMyCode=jmc)
 
-        map_to_cell_1_line2 = writer.get_line_index_with_content('map to cell1, line 2')
-        map_to_cell_2_line2 = writer.get_line_index_with_content('map to cell2, line 2')
+        map_to_cell_1_line2 = writer.get_line_index_with_content('map to cEll1, line 2')
+        map_to_cell_2_line2 = writer.get_line_index_with_content('map to cEll2, line 2')
 
-        cell1_map = PydevdSourceMap(map_to_cell_1_line2, map_to_cell_1_line2 + 1, Source(path='<cell1>'), 2)
-        cell2_map = PydevdSourceMap(map_to_cell_2_line2, map_to_cell_2_line2 + 1, Source(path='<cell2>'), 2)
+        cell1_map = PydevdSourceMap(map_to_cell_1_line2, map_to_cell_1_line2 + 1, Source(path='<cEll1>'), 2)
+        cell2_map = PydevdSourceMap(map_to_cell_2_line2, map_to_cell_2_line2 + 1, Source(path='<cEll2>'), 2)
         pydevd_source_maps = [
             cell1_map, cell2_map, cell2_map,  # The one repeated should be ignored.
         ]
@@ -3029,8 +3029,8 @@ def test_source_mapping_base(case_setup, target, jmc):
         for stack_frame in json_hit.stack_trace_response.body.stackFrames:
             assert stack_frame['source']['sourceReference'] == 0
 
-        # Check that we no longer stop at the cell1 breakpoint (its mapping should be removed when
-        # the new one is added and we should only stop at cell2).
+        # Check that we no longer stop at the cEll1 breakpoint (its mapping should be removed when
+        # the new one is added and we should only stop at cEll2).
         json_facade.write_set_breakpoints(map_to_cell_2_line2)
         for stack_frame in json_hit.stack_trace_response.body.stackFrames:
             assert stack_frame['source']['sourceReference'] == 0
@@ -3054,11 +3054,11 @@ def test_source_mapping_just_my_code(case_setup):
 
         json_facade.write_launch(justMyCode=True)
 
-        map_to_cell_1_line1 = writer.get_line_index_with_content('map to cell1, line 1')
-        map_to_cell_1_line6 = writer.get_line_index_with_content('map to cell1, line 6')
-        map_to_cell_1_line7 = writer.get_line_index_with_content('map to cell1, line 7')
+        map_to_cell_1_line1 = writer.get_line_index_with_content('map to cEll1, line 1')
+        map_to_cell_1_line6 = writer.get_line_index_with_content('map to cEll1, line 6')
+        map_to_cell_1_line7 = writer.get_line_index_with_content('map to cEll1, line 7')
 
-        cell1_map = PydevdSourceMap(map_to_cell_1_line1, map_to_cell_1_line7, Source(path='<cell1>'), 1)
+        cell1_map = PydevdSourceMap(map_to_cell_1_line1, map_to_cell_1_line7, Source(path='<cEll1>'), 1)
         pydevd_source_maps = [cell1_map]
 
         # Set breakpoints before setting the source map (check that we reapply them).
@@ -4715,6 +4715,90 @@ def test_debugger_case_deadlock_interrupt_thread(case_setup, pyfile):
 
         # If threads aren't resumed, this will deadlock.
         json_facade.evaluate('infinite_evaluate()', json_hit.frame_id, wait_for_response=False)
+
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
+@pytest.mark.parametrize('launch_through_link', [True, False])
+@pytest.mark.parametrize('breakpoints_through_link', [True, False])
+def test_debugger_case_symlink(case_setup, tmpdir, launch_through_link, breakpoints_through_link):
+    '''
+    Test that even if we resolve links internally, externally the contents will be
+    related to the version launched.
+    '''
+
+    from tests_python.debugger_unittest import _get_debugger_test_file
+    original_filename = _get_debugger_test_file('_debugger_case2.py')
+
+    target_link = str(tmpdir.join('resources_link'))
+    try:
+        os.symlink(os.path.dirname(original_filename), target_link, target_is_directory=True)
+    except (OSError, TypeError, AttributeError):
+        pytest.skip('Symlink support not available.')
+
+    try:
+        target_filename_in_link = os.path.join(target_link, '_debugger_case2.py')
+
+        with case_setup.test_file(target_filename_in_link if launch_through_link else original_filename) as writer:
+            json_facade = JsonFacade(writer)
+            json_facade.write_launch(justMyCode=False)
+
+            # Note that internally links are resolved to match the breakpoint, so,
+            # it doesn't matter if the breakpoint was added as viewed through the
+            # link or the real path.
+            json_facade.write_set_breakpoints(
+                writer.get_line_index_with_content("print('Start Call1')"),
+                filename=target_filename_in_link if breakpoints_through_link else original_filename
+            )
+
+            json_facade.write_make_initial_run()
+            json_hit = json_facade.wait_for_thread_stopped()
+            path = json_hit.stack_trace_response.body.stackFrames[0]['source']['path']
+
+            # Regardless of how it was hit, what's shown is what was launched.
+            assert path == target_filename_in_link if launch_through_link else original_filename
+
+            json_facade.write_continue()
+
+            writer.finished_ok = True
+    finally:
+        # We must remove the link, otherwise pytest can end up removing things under that
+        # directory when collecting temporary files.
+        os.unlink(target_link)
+
+
+@pytest.mark.skipif(not IS_LINUX, reason='Linux only test.')
+def test_debugger_case_sensitive(case_setup, tmpdir):
+    path = os.path.abspath(str(tmpdir.join('Path1').join('PaTh2')))
+    os.makedirs(path)
+    target = os.path.join(path, 'myFile.py')
+    with open(target, 'w') as stream:
+        stream.write('''
+print('current file', __file__) # Break here
+print('TEST SUCEEDED')
+''')
+    assert not os.path.exists(target.lower())
+    assert os.path.exists(target)
+
+    def get_environ(self):
+        env = os.environ.copy()
+        # Force to normalize by doing filename.lower().
+        env['PYDEVD_FILENAME_NORMALIZATION'] = 'lower'
+        return env
+
+    # Sometimes we end up with a different return code on Linux when interrupting (even
+    # though we go through completion and print the 'TEST SUCEEDED' msg).
+    with case_setup.test_file(target, get_environ=get_environ) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(justMyCode=False)
+        json_facade.write_set_breakpoints(writer.get_line_index_with_content('Break here'))
+
+        json_facade.write_make_initial_run()
+        json_hit = json_facade.wait_for_thread_stopped()
+        path = json_hit.stack_trace_response.body.stackFrames[0]['source']['path']
+        assert path == target
 
         json_facade.write_continue()
 

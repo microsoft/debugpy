@@ -180,7 +180,7 @@ class NetCommandFactory(object):
             lineno = frames_list.frame_id_to_lineno.get(frame_id, frame.f_lineno)
 
             filename_in_utf8, lineno, changed = py_db.source_mapping.map_to_client(abs_path_real_path_and_base[0], lineno)
-            new_filename_in_utf8, applied_mapping = pydevd_file_utils.norm_file_to_client(filename_in_utf8)
+            new_filename_in_utf8, applied_mapping = pydevd_file_utils.map_file_to_client(filename_in_utf8)
             applied_mapping = applied_mapping or changed
 
             yield frame_id, frame, method_name, abs_path_real_path_and_base[0], new_filename_in_utf8, lineno, applied_mapping

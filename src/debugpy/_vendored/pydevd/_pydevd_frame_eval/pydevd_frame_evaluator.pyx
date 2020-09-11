@@ -4,7 +4,7 @@ from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder
 import dis
 from _pydevd_frame_eval.pydevd_frame_tracing import update_globals_dict, dummy_tracing_holder
 from _pydevd_frame_eval.pydevd_modify_bytecode import DebugHelper, insert_pydevd_breaks
-from pydevd_file_utils import get_abs_path_real_path_and_base_from_file, NORM_PATHS_AND_BASE_CONTAINER
+from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame, NORM_PATHS_AND_BASE_CONTAINER
 from _pydevd_bundle.pydevd_trace_dispatch import fix_top_level_trace_and_get_trace_func
 
 from _pydevd_bundle.pydevd_additional_thread_info import _set_additional_thread_info_lock
@@ -76,7 +76,7 @@ cdef class ThreadInfo:
 cdef class FuncCodeInfo:
 
     cdef public str co_filename
-    cdef public str real_path
+    cdef public str canonical_normalized_filename
     cdef bint always_skip_code
     cdef public bint breakpoint_found
     cdef public object new_code
@@ -88,7 +88,7 @@ cdef class FuncCodeInfo:
 
     def __init__(self):
         self.co_filename = ''
-        self.real_path = ''
+        self.canonical_normalized_filename = ''
         self.always_skip_code = False
 
         # If breakpoints are found but new_code is None,
@@ -200,9 +200,9 @@ cdef FuncCodeInfo get_func_code_info(ThreadInfo thread_info, PyFrameObject * fra
         try:
             abs_path_real_path_and_base = NORM_PATHS_AND_BASE_CONTAINER[co_filename]
         except:
-            abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_file(co_filename)
+            abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(<object>frame_obj)
 
-        func_code_info.real_path = abs_path_real_path_and_base[1]
+        func_code_info.canonical_normalized_filename = abs_path_real_path_and_base[1]
 
         cache_file_type = main_debugger.get_cache_file_type()
         # Note: this cache key must be the same from PyDB.get_file_type() -- see it for comments
@@ -219,11 +219,11 @@ cdef FuncCodeInfo get_func_code_info(ThreadInfo thread_info, PyFrameObject * fra
     if not func_code_info.always_skip_code:
         if main_debugger is not None:
 
-            breakpoints: dict = main_debugger.breakpoints.get(func_code_info.real_path)
+            breakpoints: dict = main_debugger.breakpoints.get(func_code_info.canonical_normalized_filename)
             # print('\n---')
             # print(main_debugger.breakpoints)
-            # print(func_code_info.real_path)
-            # print(main_debugger.breakpoints.get(func_code_info.real_path))
+            # print(func_code_info.canonical_normalized_filename)
+            # print(main_debugger.breakpoints.get(func_code_info.canonical_normalized_filename))
             code_obj_py: object = <object> code_obj
             cached_code_obj_info: object = _cache.get(code_obj_py)
             if cached_code_obj_info:
@@ -529,7 +529,6 @@ cdef PyObject * get_bytecode_while_frame_eval(PyFrameObject * frame_obj, int exc
 def frame_eval_func():
     cdef PyThreadState *state = PyThreadState_Get()
     state.interp.eval_frame = get_bytecode_while_frame_eval
-    global dummy_tracing_holder
     dummy_tracing_holder.set_trace_func(dummy_trace_dispatch)
 
 

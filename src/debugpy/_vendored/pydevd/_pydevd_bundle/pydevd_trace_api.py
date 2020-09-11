@@ -1,4 +1,4 @@
-def add_line_breakpoint(plugin, pydb, type, file, line, condition, expression, func_name):
+def add_line_breakpoint(plugin, pydb, type, canonical_normalized_filename, line, condition, expression, func_name):
     return None
 
 

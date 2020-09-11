@@ -1,12 +1,12 @@
 import inspect
-import traceback
 
 from _pydev_bundle import pydev_log
 from _pydevd_bundle.pydevd_breakpoints import LineBreakpoint
 from _pydevd_bundle.pydevd_comm import CMD_SET_BREAK, CMD_ADD_EXCEPTION_BREAK
-from _pydevd_bundle.pydevd_constants import STATE_SUSPEND, dict_iter_items, DJANGO_SUSPEND, IS_PY2
+from _pydevd_bundle.pydevd_constants import STATE_SUSPEND, dict_iter_items, DJANGO_SUSPEND, IS_PY2, \
+    DebugInfoHolder
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, FCode, just_raised, ignore_exception_trace
-from pydevd_file_utils import get_abs_path_real_path_and_base_from_file, normcase
+from pydevd_file_utils import canonical_normalized_path, absolute_path
 
 IS_DJANGO18 = False
 IS_DJANGO19 = False
@@ -23,23 +23,20 @@ except:
 
 class DjangoLineBreakpoint(LineBreakpoint):
 
-    def __init__(self, file, line, condition, func_name, expression, hit_condition=None, is_logpoint=False):
-        self.file = file
+    def __init__(self, canonical_normalized_filename, line, condition, func_name, expression, hit_condition=None, is_logpoint=False):
+        self.canonical_normalized_filename = canonical_normalized_filename
         LineBreakpoint.__init__(self, line, condition, func_name, expression, hit_condition=hit_condition, is_logpoint=is_logpoint)
 
-    def is_triggered(self, template_frame_file, template_frame_line):
-        return self.file == template_frame_file and self.line == template_frame_line
-
     def __str__(self):
-        return "DjangoLineBreakpoint: %s-%d" % (self.file, self.line)
+        return "DjangoLineBreakpoint: %s-%d" % (self.canonical_normalized_filename, self.line)
 
 
-def add_line_breakpoint(plugin, pydb, type, file, line, condition, expression, func_name, hit_condition=None, is_logpoint=False):
+def add_line_breakpoint(plugin, pydb, type, canonical_normalized_filename, line, condition, expression, func_name, hit_condition=None, is_logpoint=False):
     if type == 'django-line':
-        breakpoint = DjangoLineBreakpoint(file, line, condition, func_name, expression, hit_condition=hit_condition, is_logpoint=is_logpoint)
+        django_line_breakpoint = DjangoLineBreakpoint(canonical_normalized_filename, line, condition, func_name, expression, hit_condition=hit_condition, is_logpoint=is_logpoint)
         if not hasattr(pydb, 'django_breakpoints'):
             _init_plugin_breaks(pydb)
-        return breakpoint, pydb.django_breakpoints
+        return django_line_breakpoint, pydb.django_breakpoints
     return None
 
 
@@ -236,7 +233,7 @@ def _convert_to_str(s):
     return s
 
 
-def _get_template_file_name(frame):
+def _get_template_original_file_name_from_frame(frame):
     try:
         if IS_DJANGO19:
             # The Node source was removed since Django 1.9
@@ -251,19 +248,19 @@ def _get_template_file_name(frame):
                             self = locals['self']
                             if self.__class__.__name__ == 'Template' and hasattr(self, 'origin') and \
                                     hasattr(self.origin, 'name'):
-                                return normcase(_convert_to_str(self.origin.name))
+                                return _convert_to_str(self.origin.name)
                         back = back.f_back
                 else:
                     if hasattr(context, 'template') and hasattr(context.template, 'origin') and \
                             hasattr(context.template.origin, 'name'):
-                        return normcase(_convert_to_str(context.template.origin.name))
+                        return _convert_to_str(context.template.origin.name)
             return None
         elif IS_DJANGO19_OR_HIGHER:
             # For Django 1.10 and later there is much simpler way to get template name
             if 'self' in frame.f_locals:
                 self = frame.f_locals['self']
                 if hasattr(self, 'origin') and hasattr(self.origin, 'name'):
-                    return normcase(_convert_to_str(self.origin.name))
+                    return _convert_to_str(self.origin.name)
             return None
 
         source = _get_source_django_18_or_lower(frame)
@@ -276,10 +273,10 @@ def _get_template_file_name(frame):
             pydev_log.debug("Source name is %s\n" % fname)
             return None
         else:
-            abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_file(fname)
-            return abs_path_real_path_and_base[1]
+            return fname
     except:
-        pydev_log.debug(traceback.format_exc())
+        if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 2:
+            pydev_log.exception('Error getting django template filename.')
         return None
 
 
@@ -292,11 +289,14 @@ def _get_template_line(frame):
         else:
             return None
     source = _get_source_django_18_or_lower(frame)
-    file_name = _get_template_file_name(frame)
-    try:
-        return _offset_to_line_number(_read_file(file_name), source[1][0])
-    except:
-        return None
+    original_filename = _get_template_original_file_name_from_frame(frame)
+    if original_filename is not None:
+        try:
+            absolute_filename = absolute_path(original_filename)
+            return _offset_to_line_number(_read_file(absolute_filename), source[1][0])
+        except:
+            return None
+    return None
 
 
 class DjangoTemplateFrame(object):
@@ -304,9 +304,9 @@ class DjangoTemplateFrame(object):
     IS_PLUGIN_FRAME = True
 
     def __init__(self, frame):
-        file_name = _get_template_file_name(frame)
+        original_filename = _get_template_original_file_name_from_frame(frame)
         self._back_context = frame.f_locals['context']
-        self.f_code = FCode('Django Template', file_name)
+        self.f_code = FCode('Django Template', original_filename)
         self.f_lineno = _get_template_line(frame)
         self.f_back = frame
         self.f_globals = {}
@@ -334,8 +334,8 @@ class DjangoTemplateSyntaxErrorFrame(object):
 
     IS_PLUGIN_FRAME = True
 
-    def __init__(self, frame, filename, lineno, f_locals):
-        self.f_code = FCode('Django TemplateSyntaxError', filename)
+    def __init__(self, frame, original_filename, lineno, f_locals):
+        self.f_code = FCode('Django TemplateSyntaxError', original_filename)
         self.f_lineno = lineno
         self.f_back = frame
         self.f_globals = {}
@@ -396,7 +396,7 @@ def has_exception_breaks(plugin):
 
 
 def has_line_breaks(plugin):
-    for file, breakpoints in dict_iter_items(plugin.main_debugger.django_breakpoints):
+    for _canonical_normalized_filename, breakpoints in dict_iter_items(plugin.main_debugger.django_breakpoints):
         if len(breakpoints) > 0:
             return True
     return False
@@ -447,28 +447,31 @@ def stop(plugin, main_debugger, frame, event, args, stop_info, arg, step_cmd):
 
 def get_breakpoint(plugin, main_debugger, pydb_frame, frame, event, args):
     main_debugger = args[0]
-    filename = args[1]
+    _filename = args[1]
     info = args[2]
     flag = False
     django_breakpoint = None
     new_frame = None
-    type = 'django'
+    breakpoint_type = 'django'
 
-    if event == 'call' and info.pydev_state != STATE_SUSPEND and \
-            main_debugger.django_breakpoints and _is_django_render_call(frame):
-        filename = _get_template_file_name(frame)
-        pydev_log.debug("Django is rendering a template: %s\n" % filename)
-        django_breakpoints_for_file = main_debugger.django_breakpoints.get(filename)
+    if event == 'call' and info.pydev_state != STATE_SUSPEND and main_debugger.django_breakpoints and _is_django_render_call(frame):
+        original_filename = _get_template_original_file_name_from_frame(frame)
+        pydev_log.debug("Django is rendering a template: %s", original_filename)
+
+        canonical_normalized_filename = canonical_normalized_path(original_filename)
+        django_breakpoints_for_file = main_debugger.django_breakpoints.get(canonical_normalized_filename)
+
         if django_breakpoints_for_file:
-            pydev_log.debug("Breakpoints for that file: %s\n" % django_breakpoints_for_file)
+            pydev_log.debug("Breakpoints for that file: %s", django_breakpoints_for_file)
             template_line = _get_template_line(frame)
-            pydev_log.debug("Tracing template line: %s\n" % str(template_line))
+            pydev_log.debug("Tracing template line: %s", template_line)
 
             if template_line in django_breakpoints_for_file:
                 django_breakpoint = django_breakpoints_for_file[template_line]
                 flag = True
                 new_frame = DjangoTemplateFrame(frame)
-    return flag, django_breakpoint, new_frame, type
+
+    return flag, django_breakpoint, new_frame, breakpoint_type
 
 
 def suspend(plugin, main_debugger, thread, frame, bp_type):
@@ -477,7 +480,7 @@ def suspend(plugin, main_debugger, thread, frame, bp_type):
     return None
 
 
-def _get_filename_from_origin_in_parent_frame_locals(frame, parent_frame_name):
+def _get_original_filename_from_origin_in_parent_frame_locals(frame, parent_frame_name):
     filename = None
     parent_frame = frame
     while parent_frame.f_code.co_name != parent_frame_name:
@@ -488,7 +491,7 @@ def _get_filename_from_origin_in_parent_frame_locals(frame, parent_frame_name):
         origin = parent_frame.f_locals.get('origin')
 
     if hasattr(origin, 'name') and origin.name is not None:
-        filename = normcase(_convert_to_str(origin.name))
+        filename = _convert_to_str(origin.name)
     return filename
 
 
@@ -512,18 +515,18 @@ def exception_break(plugin, main_debugger, pydb_frame, frame, args, arg):
 
                 lineno = getattr(token, 'lineno', None)
 
-                filename = None
+                original_filename = None
                 if lineno is not None:
-                    filename = _get_filename_from_origin_in_parent_frame_locals(frame, 'get_template')
+                    original_filename = _get_original_filename_from_origin_in_parent_frame_locals(frame, 'get_template')
 
-                    if filename is None:
+                    if original_filename is None:
                         # Django 1.7 does not have origin in get_template. Try to get it from
                         # load_template.
-                        filename = _get_filename_from_origin_in_parent_frame_locals(frame, 'load_template')
+                        original_filename = _get_original_filename_from_origin_in_parent_frame_locals(frame, 'load_template')
 
-                if filename is not None and lineno is not None:
+                if original_filename is not None and lineno is not None:
                     syntax_error_frame = DjangoTemplateSyntaxErrorFrame(
-                        frame, filename, lineno, {'token': token, 'exception': exception})
+                        frame, original_filename, lineno, {'token': token, 'exception': exception})
 
                     suspend_frame = suspend_django(
                         main_debugger, thread, syntax_error_frame, CMD_ADD_EXCEPTION_BREAK)

@@ -98,10 +98,10 @@ def _pydev_needs_stop_at_break(line):
             abs_path_real_path_and_base = NORM_PATHS_AND_BASE_CONTAINER[frame.f_code.co_filename]
         except:
             abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(frame)
-        filename = abs_path_real_path_and_base[1]
+        canonical_normalized_filename = abs_path_real_path_and_base[1]
 
         try:
-            python_breakpoint = py_db.breakpoints[filename][line]
+            python_breakpoint = py_db.breakpoints[canonical_normalized_filename][line]
         except:
             # print("Couldn't find breakpoint in the file %s on line %s" % (frame.f_code.co_filename, line))
             # Could be KeyError if line is not there or TypeError if breakpoints_for_file is None.

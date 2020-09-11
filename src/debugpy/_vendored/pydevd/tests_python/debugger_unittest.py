@@ -1417,14 +1417,7 @@ class AbstractWriterThread(threading.Thread):
 
 
 def _get_debugger_test_file(filename):
-    try:
-        rPath = os.path.realpath  # @UndefinedVariable
-    except:
-        # jython does not support os.path.realpath
-        # realpath is a no-op on systems without islink support
-        rPath = os.path.abspath
-
-    ret = os.path.normcase(rPath(os.path.join(os.path.dirname(__file__), filename)))
+    ret = os.path.abspath(os.path.join(os.path.dirname(__file__), filename))
     if not os.path.exists(ret):
         ret = os.path.join(os.path.dirname(__file__), 'resources', filename)
     if not os.path.exists(ret):
