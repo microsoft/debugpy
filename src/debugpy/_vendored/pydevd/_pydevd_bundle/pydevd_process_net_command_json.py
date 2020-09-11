@@ -32,7 +32,7 @@ from _pydevd_bundle.pydevd_trace_dispatch import USING_CYTHON
 from _pydevd_frame_eval.pydevd_frame_eval_main import USING_FRAME_EVAL
 
 
-def _convert_rules_to_exclude_filters(rules, filename_to_server, on_error):
+def _convert_rules_to_exclude_filters(rules, on_error):
     exclude_filters = []
     if not isinstance(rules, list):
         on_error('Invalid "rules" (expected list of dicts). Found: %s' % (rules,))
@@ -61,8 +61,6 @@ def _convert_rules_to_exclude_filters(rules, filename_to_server, on_error):
             if path is not None:
                 glob_pattern = path
                 if '*' not in path and '?' not in path:
-                    path = filename_to_server(path)
-
                     if os.path.isdir(glob_pattern):
                         # If a directory was specified, add a '/**'
                         # to be consistent with the glob pattern required
@@ -360,7 +358,7 @@ class PyDevJsonCommandProcessor(object):
 
         if rules is not None:
             exclude_filters = _convert_rules_to_exclude_filters(
-                rules, self.api.filename_to_server, lambda msg: self.api.send_error_message(py_db, msg))
+                rules, lambda msg: self.api.send_error_message(py_db, msg))
 
         self.api.set_exclude_filters(py_db, exclude_filters)
 

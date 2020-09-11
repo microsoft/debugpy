@@ -46,7 +46,7 @@ def main():
     from _pydev_runfiles import pydev_runfiles
     from _pydev_runfiles import pydev_runfiles_xml_rpc
     from _pydevd_bundle import pydevd_constants
-    from pydevd_file_utils import _NormFile
+    from pydevd_file_utils import canonical_normalized_path
 
     DEBUG = 0
     if DEBUG:
@@ -122,8 +122,8 @@ def main():
                         files_or_dirs.append(file + ':' + test)
 
                 elif test_framework == PY_TEST_FRAMEWORK:
-                    file = _NormFile(file)
                     py_test_accept_filter[file] = tests
+                    py_test_accept_filter[canonical_normalized_path(file)] = tests
                     files_or_dirs.append(file)
 
                 else:
@@ -139,8 +139,8 @@ def main():
                             files_or_dirs.append(file + ':' + t)
 
                     elif test_framework == PY_TEST_FRAMEWORK:
-                        file = _NormFile(file)
                         py_test_accept_filter[file] = configuration.tests
+                        py_test_accept_filter[canonical_normalized_path(file)] = configuration.tests
                         files_or_dirs.append(file)
 
                     else:

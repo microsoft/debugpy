@@ -911,7 +911,7 @@ struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo {
 struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo {
   PyObject_HEAD
   PyObject *co_filename;
-  PyObject *real_path;
+  PyObject *canonical_normalized_filename;
   int always_skip_code;
   int breakpoint_found;
   PyObject *new_code;
@@ -1613,7 +1613,7 @@ static const char __pyx_k_NORM_PATHS_AND_BASE_CONTAINER[] = "NORM_PATHS_AND_BASE
 static const char __pyx_k_pydevd_bundle_pydevd_constants[] = "_pydevd_bundle.pydevd_constants";
 static const char __pyx_k_pydevd_frame_eval_pydevd_frame[] = "_pydevd_frame_eval.pydevd_frame_tracing";
 static const char __pyx_k_If_a_code_object_is_cached_that[] = "If a code object is cached, that same code object must be reused.";
-static const char __pyx_k_get_abs_path_real_path_and_base[] = "get_abs_path_real_path_and_base_from_file";
+static const char __pyx_k_get_abs_path_real_path_and_base[] = "get_abs_path_real_path_and_base_from_frame";
 static const char __pyx_k_pydev_imps__pydev_saved_modules[] = "_pydev_imps._pydev_saved_modules";
 static const char __pyx_k_pydevd_bundle_pydevd_additional[] = "_pydevd_bundle.pydevd_additional_thread_info";
 static const char __pyx_k_pydevd_bundle_pydevd_trace_disp[] = "_pydevd_bundle.pydevd_trace_dispatch";
@@ -1622,7 +1622,7 @@ static const char __pyx_k_set_additional_thread_info_lock[] = "_set_additional_t
 static const char __pyx_k_Incompatible_checksums_s_vs_0x3d[] = "Incompatible checksums (%s vs 0x3d481b9 = (breakpoints_hit_at_lines, code_line_info, code_lines_as_set, code_obj_py))";
 static const char __pyx_k_Incompatible_checksums_s_vs_0x3f[] = "Incompatible checksums (%s vs 0x3fbbd02 = (first_line, last_line, line_to_offset))";
 static const char __pyx_k_Incompatible_checksums_s_vs_0x85[] = "Incompatible checksums (%s vs 0x8515e66 = (additional_info, force_stay_in_untraced_mode, fully_initialized, inside_frame_eval, is_pydevd_thread, thread_trace_func))";
-static const char __pyx_k_Incompatible_checksums_s_vs_0xe2[] = "Incompatible checksums (%s vs 0xe2c2285 = (always_skip_code, breakpoint_found, breakpoints_mtime, co_filename, new_code, real_path))";
+static const char __pyx_k_Incompatible_checksums_s_vs_0xd5[] = "Incompatible checksums (%s vs 0xd55f285 = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, new_code))";
 static const char __pyx_k_break_on_user_uncaught_exception[] = "break_on_user_uncaught_exceptions";
 static const char __pyx_k_compute_force_stay_in_untraced_m[] = "compute_force_stay_in_untraced_mode";
 static const char __pyx_k_fix_top_level_trace_and_get_trac[] = "fix_top_level_trace_and_get_trace_func";
@@ -1639,7 +1639,7 @@ static PyObject *__pyx_kp_s_If_a_code_object_is_cached_that;
 static PyObject *__pyx_kp_s_Incompatible_checksums_s_vs_0x3d;
 static PyObject *__pyx_kp_s_Incompatible_checksums_s_vs_0x3f;
 static PyObject *__pyx_kp_s_Incompatible_checksums_s_vs_0x85;
-static PyObject *__pyx_kp_s_Incompatible_checksums_s_vs_0xe2;
+static PyObject *__pyx_kp_s_Incompatible_checksums_s_vs_0xd5;
 static PyObject *__pyx_n_s_NORM_PATHS_AND_BASE_CONTAINER;
 static PyObject *__pyx_n_s_PickleError;
 static PyObject *__pyx_n_s_ThreadInfo;
@@ -1773,9 +1773,9 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
 static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_11co_filename___get__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self); /* proto */
 static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_11co_filename_2__set__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self, PyObject *__pyx_v_value); /* proto */
 static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_11co_filename_4__del__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_9real_path___get__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self); /* proto */
-static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_9real_path_2__set__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self, PyObject *__pyx_v_value); /* proto */
-static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_9real_path_4__del__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_29canonical_normalized_filename___get__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self); /* proto */
+static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_29canonical_normalized_filename_2__set__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self, PyObject *__pyx_v_value); /* proto */
+static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_29canonical_normalized_filename_4__del__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self); /* proto */
 static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_16breakpoint_found___get__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self); /* proto */
 static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_16breakpoint_found_2__set__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self, PyObject *__pyx_v_value); /* proto */
 static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_8new_code___get__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self); /* proto */
@@ -1831,7 +1831,7 @@ static PyObject *__pyx_tp_new_18_pydevd_frame_eval_22pydevd_frame_evaluator__Cac
 static PyObject *__pyx_int_64258489;
 static PyObject *__pyx_int_66829570;
 static PyObject *__pyx_int_139550310;
-static PyObject *__pyx_int_237773445;
+static PyObject *__pyx_int_223736453;
 static PyObject *__pyx_int_neg_1;
 static PyObject *__pyx_tuple_;
 static PyObject *__pyx_tuple__4;
@@ -3527,7 +3527,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_10Thread
  * 
  *     def __init__(self):             # <<<<<<<<<<<<<<
  *         self.co_filename = ''
- *         self.real_path = ''
+ *         self.canonical_normalized_filename = ''
  */
 
 /* Python wrapper */
@@ -3555,7 +3555,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
  * 
  *     def __init__(self):
  *         self.co_filename = ''             # <<<<<<<<<<<<<<
- *         self.real_path = ''
+ *         self.canonical_normalized_filename = ''
  *         self.always_skip_code = False
  */
   __Pyx_INCREF(__pyx_kp_s__2);
@@ -3567,19 +3567,19 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
   /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":91
  *     def __init__(self):
  *         self.co_filename = ''
- *         self.real_path = ''             # <<<<<<<<<<<<<<
+ *         self.canonical_normalized_filename = ''             # <<<<<<<<<<<<<<
  *         self.always_skip_code = False
  * 
  */
   __Pyx_INCREF(__pyx_kp_s__2);
   __Pyx_GIVEREF(__pyx_kp_s__2);
-  __Pyx_GOTREF(__pyx_v_self->real_path);
-  __Pyx_DECREF(__pyx_v_self->real_path);
-  __pyx_v_self->real_path = __pyx_kp_s__2;
+  __Pyx_GOTREF(__pyx_v_self->canonical_normalized_filename);
+  __Pyx_DECREF(__pyx_v_self->canonical_normalized_filename);
+  __pyx_v_self->canonical_normalized_filename = __pyx_kp_s__2;
 
   /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":92
  *         self.co_filename = ''
- *         self.real_path = ''
+ *         self.canonical_normalized_filename = ''
  *         self.always_skip_code = False             # <<<<<<<<<<<<<<
  * 
  *         # If breakpoints are found but new_code is None,
@@ -3622,7 +3622,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
  * 
  *     def __init__(self):             # <<<<<<<<<<<<<<
  *         self.co_filename = ''
- *         self.real_path = ''
+ *         self.canonical_normalized_filename = ''
  */
 
   /* function exit code */
@@ -3635,7 +3635,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
  * cdef class FuncCodeInfo:
  * 
  *     cdef public str co_filename             # <<<<<<<<<<<<<<
- *     cdef public str real_path
+ *     cdef public str canonical_normalized_filename
  *     cdef bint always_skip_code
  */
 
@@ -3742,31 +3742,31 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
 /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":79
  * 
  *     cdef public str co_filename
- *     cdef public str real_path             # <<<<<<<<<<<<<<
+ *     cdef public str canonical_normalized_filename             # <<<<<<<<<<<<<<
  *     cdef bint always_skip_code
  *     cdef public bint breakpoint_found
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_9real_path_1__get__(PyObject *__pyx_v_self); /*proto*/
-static PyObject *__pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_9real_path_1__get__(PyObject *__pyx_v_self) {
+static PyObject *__pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_29canonical_normalized_filename_1__get__(PyObject *__pyx_v_self); /*proto*/
+static PyObject *__pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_29canonical_normalized_filename_1__get__(PyObject *__pyx_v_self) {
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__get__ (wrapper)", 0);
-  __pyx_r = __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_9real_path___get__(((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *)__pyx_v_self));
+  __pyx_r = __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_29canonical_normalized_filename___get__(((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_9real_path___get__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self) {
+static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_29canonical_normalized_filename___get__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__get__", 0);
   __Pyx_XDECREF(__pyx_r);
-  __Pyx_INCREF(__pyx_v_self->real_path);
-  __pyx_r = __pyx_v_self->real_path;
+  __Pyx_INCREF(__pyx_v_self->canonical_normalized_filename);
+  __pyx_r = __pyx_v_self->canonical_normalized_filename;
   goto __pyx_L0;
 
   /* function exit code */
@@ -3777,19 +3777,19 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
 }
 
 /* Python wrapper */
-static int __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_9real_path_3__set__(PyObject *__pyx_v_self, PyObject *__pyx_v_value); /*proto*/
-static int __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_9real_path_3__set__(PyObject *__pyx_v_self, PyObject *__pyx_v_value) {
+static int __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_29canonical_normalized_filename_3__set__(PyObject *__pyx_v_self, PyObject *__pyx_v_value); /*proto*/
+static int __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_29canonical_normalized_filename_3__set__(PyObject *__pyx_v_self, PyObject *__pyx_v_value) {
   int __pyx_r;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__set__ (wrapper)", 0);
-  __pyx_r = __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_9real_path_2__set__(((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *)__pyx_v_self), ((PyObject *)__pyx_v_value));
+  __pyx_r = __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_29canonical_normalized_filename_2__set__(((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *)__pyx_v_self), ((PyObject *)__pyx_v_value));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_9real_path_2__set__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self, PyObject *__pyx_v_value) {
+static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_29canonical_normalized_filename_2__set__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self, PyObject *__pyx_v_value) {
   int __pyx_r;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -3801,9 +3801,9 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
   __pyx_t_1 = __pyx_v_value;
   __Pyx_INCREF(__pyx_t_1);
   __Pyx_GIVEREF(__pyx_t_1);
-  __Pyx_GOTREF(__pyx_v_self->real_path);
-  __Pyx_DECREF(__pyx_v_self->real_path);
-  __pyx_v_self->real_path = ((PyObject*)__pyx_t_1);
+  __Pyx_GOTREF(__pyx_v_self->canonical_normalized_filename);
+  __Pyx_DECREF(__pyx_v_self->canonical_normalized_filename);
+  __pyx_v_self->canonical_normalized_filename = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
 
   /* function exit code */
@@ -3811,7 +3811,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
   goto __pyx_L0;
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
-  __Pyx_AddTraceback("_pydevd_frame_eval.pydevd_frame_evaluator.FuncCodeInfo.real_path.__set__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("_pydevd_frame_eval.pydevd_frame_evaluator.FuncCodeInfo.canonical_normalized_filename.__set__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = -1;
   __pyx_L0:;
   __Pyx_RefNannyFinishContext();
@@ -3819,27 +3819,27 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
 }
 
 /* Python wrapper */
-static int __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_9real_path_5__del__(PyObject *__pyx_v_self); /*proto*/
-static int __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_9real_path_5__del__(PyObject *__pyx_v_self) {
+static int __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_29canonical_normalized_filename_5__del__(PyObject *__pyx_v_self); /*proto*/
+static int __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_29canonical_normalized_filename_5__del__(PyObject *__pyx_v_self) {
   int __pyx_r;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__del__ (wrapper)", 0);
-  __pyx_r = __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_9real_path_4__del__(((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *)__pyx_v_self));
+  __pyx_r = __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_29canonical_normalized_filename_4__del__(((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_9real_path_4__del__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self) {
+static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_29canonical_normalized_filename_4__del__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self) {
   int __pyx_r;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__del__", 0);
   __Pyx_INCREF(Py_None);
   __Pyx_GIVEREF(Py_None);
-  __Pyx_GOTREF(__pyx_v_self->real_path);
-  __Pyx_DECREF(__pyx_v_self->real_path);
-  __pyx_v_self->real_path = ((PyObject*)Py_None);
+  __Pyx_GOTREF(__pyx_v_self->canonical_normalized_filename);
+  __Pyx_DECREF(__pyx_v_self->canonical_normalized_filename);
+  __pyx_v_self->canonical_normalized_filename = ((PyObject*)Py_None);
 
   /* function exit code */
   __pyx_r = 0;
@@ -3848,7 +3848,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
 }
 
 /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":81
- *     cdef public str real_path
+ *     cdef public str canonical_normalized_filename
  *     cdef bint always_skip_code
  *     cdef public bint breakpoint_found             # <<<<<<<<<<<<<<
  *     cdef public object new_code
@@ -4146,7 +4146,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
   /* "(tree fragment)":5
  *     cdef object _dict
  *     cdef bint use_setstate
- *     state = (self.always_skip_code, self.breakpoint_found, self.breakpoints_mtime, self.co_filename, self.new_code, self.real_path)             # <<<<<<<<<<<<<<
+ *     state = (self.always_skip_code, self.breakpoint_found, self.breakpoints_mtime, self.canonical_normalized_filename, self.co_filename, self.new_code)             # <<<<<<<<<<<<<<
  *     _dict = getattr(self, '__dict__', None)
  *     if _dict is not None:
  */
@@ -4164,15 +4164,15 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
   PyTuple_SET_ITEM(__pyx_t_4, 1, __pyx_t_2);
   __Pyx_GIVEREF(__pyx_t_3);
   PyTuple_SET_ITEM(__pyx_t_4, 2, __pyx_t_3);
+  __Pyx_INCREF(__pyx_v_self->canonical_normalized_filename);
+  __Pyx_GIVEREF(__pyx_v_self->canonical_normalized_filename);
+  PyTuple_SET_ITEM(__pyx_t_4, 3, __pyx_v_self->canonical_normalized_filename);
   __Pyx_INCREF(__pyx_v_self->co_filename);
   __Pyx_GIVEREF(__pyx_v_self->co_filename);
-  PyTuple_SET_ITEM(__pyx_t_4, 3, __pyx_v_self->co_filename);
+  PyTuple_SET_ITEM(__pyx_t_4, 4, __pyx_v_self->co_filename);
   __Pyx_INCREF(__pyx_v_self->new_code);
   __Pyx_GIVEREF(__pyx_v_self->new_code);
-  PyTuple_SET_ITEM(__pyx_t_4, 4, __pyx_v_self->new_code);
-  __Pyx_INCREF(__pyx_v_self->real_path);
-  __Pyx_GIVEREF(__pyx_v_self->real_path);
-  PyTuple_SET_ITEM(__pyx_t_4, 5, __pyx_v_self->real_path);
+  PyTuple_SET_ITEM(__pyx_t_4, 5, __pyx_v_self->new_code);
   __pyx_t_1 = 0;
   __pyx_t_2 = 0;
   __pyx_t_3 = 0;
@@ -4181,7 +4181,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
 
   /* "(tree fragment)":6
  *     cdef bint use_setstate
- *     state = (self.always_skip_code, self.breakpoint_found, self.breakpoints_mtime, self.co_filename, self.new_code, self.real_path)
+ *     state = (self.always_skip_code, self.breakpoint_found, self.breakpoints_mtime, self.canonical_normalized_filename, self.co_filename, self.new_code)
  *     _dict = getattr(self, '__dict__', None)             # <<<<<<<<<<<<<<
  *     if _dict is not None:
  *         state += (_dict,)
@@ -4192,7 +4192,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
   __pyx_t_4 = 0;
 
   /* "(tree fragment)":7
- *     state = (self.always_skip_code, self.breakpoint_found, self.breakpoints_mtime, self.co_filename, self.new_code, self.real_path)
+ *     state = (self.always_skip_code, self.breakpoint_found, self.breakpoints_mtime, self.canonical_normalized_filename, self.co_filename, self.new_code)
  *     _dict = getattr(self, '__dict__', None)
  *     if _dict is not None:             # <<<<<<<<<<<<<<
  *         state += (_dict,)
@@ -4225,12 +4225,12 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
  *         state += (_dict,)
  *         use_setstate = True             # <<<<<<<<<<<<<<
  *     else:
- *         use_setstate = self.co_filename is not None or self.new_code is not None or self.real_path is not None
+ *         use_setstate = self.canonical_normalized_filename is not None or self.co_filename is not None or self.new_code is not None
  */
     __pyx_v_use_setstate = 1;
 
     /* "(tree fragment)":7
- *     state = (self.always_skip_code, self.breakpoint_found, self.breakpoints_mtime, self.co_filename, self.new_code, self.real_path)
+ *     state = (self.always_skip_code, self.breakpoint_found, self.breakpoints_mtime, self.canonical_normalized_filename, self.co_filename, self.new_code)
  *     _dict = getattr(self, '__dict__', None)
  *     if _dict is not None:             # <<<<<<<<<<<<<<
  *         state += (_dict,)
@@ -4242,26 +4242,26 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
   /* "(tree fragment)":11
  *         use_setstate = True
  *     else:
- *         use_setstate = self.co_filename is not None or self.new_code is not None or self.real_path is not None             # <<<<<<<<<<<<<<
+ *         use_setstate = self.canonical_normalized_filename is not None or self.co_filename is not None or self.new_code is not None             # <<<<<<<<<<<<<<
  *     if use_setstate:
- *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xe2c2285, None), state
+ *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xd55f285, None), state
  */
   /*else*/ {
-    __pyx_t_5 = (__pyx_v_self->co_filename != ((PyObject*)Py_None));
+    __pyx_t_5 = (__pyx_v_self->canonical_normalized_filename != ((PyObject*)Py_None));
     __pyx_t_7 = (__pyx_t_5 != 0);
     if (!__pyx_t_7) {
     } else {
       __pyx_t_6 = __pyx_t_7;
       goto __pyx_L4_bool_binop_done;
     }
-    __pyx_t_7 = (__pyx_v_self->new_code != Py_None);
+    __pyx_t_7 = (__pyx_v_self->co_filename != ((PyObject*)Py_None));
     __pyx_t_5 = (__pyx_t_7 != 0);
     if (!__pyx_t_5) {
     } else {
       __pyx_t_6 = __pyx_t_5;
       goto __pyx_L4_bool_binop_done;
     }
-    __pyx_t_5 = (__pyx_v_self->real_path != ((PyObject*)Py_None));
+    __pyx_t_5 = (__pyx_v_self->new_code != Py_None);
     __pyx_t_7 = (__pyx_t_5 != 0);
     __pyx_t_6 = __pyx_t_7;
     __pyx_L4_bool_binop_done:;
@@ -4271,20 +4271,20 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
 
   /* "(tree fragment)":12
  *     else:
- *         use_setstate = self.co_filename is not None or self.new_code is not None or self.real_path is not None
+ *         use_setstate = self.canonical_normalized_filename is not None or self.co_filename is not None or self.new_code is not None
  *     if use_setstate:             # <<<<<<<<<<<<<<
- *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xe2c2285, None), state
+ *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xd55f285, None), state
  *     else:
  */
   __pyx_t_6 = (__pyx_v_use_setstate != 0);
   if (__pyx_t_6) {
 
     /* "(tree fragment)":13
- *         use_setstate = self.co_filename is not None or self.new_code is not None or self.real_path is not None
+ *         use_setstate = self.canonical_normalized_filename is not None or self.co_filename is not None or self.new_code is not None
  *     if use_setstate:
- *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xe2c2285, None), state             # <<<<<<<<<<<<<<
+ *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xd55f285, None), state             # <<<<<<<<<<<<<<
  *     else:
- *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xe2c2285, state)
+ *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xd55f285, state)
  */
     __Pyx_XDECREF(__pyx_r);
     __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_pyx_unpickle_FuncCodeInfo); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 13, __pyx_L1_error)
@@ -4294,9 +4294,9 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
     __Pyx_INCREF(((PyObject *)Py_TYPE(((PyObject *)__pyx_v_self))));
     __Pyx_GIVEREF(((PyObject *)Py_TYPE(((PyObject *)__pyx_v_self))));
     PyTuple_SET_ITEM(__pyx_t_4, 0, ((PyObject *)Py_TYPE(((PyObject *)__pyx_v_self))));
-    __Pyx_INCREF(__pyx_int_237773445);
-    __Pyx_GIVEREF(__pyx_int_237773445);
-    PyTuple_SET_ITEM(__pyx_t_4, 1, __pyx_int_237773445);
+    __Pyx_INCREF(__pyx_int_223736453);
+    __Pyx_GIVEREF(__pyx_int_223736453);
+    PyTuple_SET_ITEM(__pyx_t_4, 1, __pyx_int_223736453);
     __Pyx_INCREF(Py_None);
     __Pyx_GIVEREF(Py_None);
     PyTuple_SET_ITEM(__pyx_t_4, 2, Py_None);
@@ -4317,17 +4317,17 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
 
     /* "(tree fragment)":12
  *     else:
- *         use_setstate = self.co_filename is not None or self.new_code is not None or self.real_path is not None
+ *         use_setstate = self.canonical_normalized_filename is not None or self.co_filename is not None or self.new_code is not None
  *     if use_setstate:             # <<<<<<<<<<<<<<
- *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xe2c2285, None), state
+ *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xd55f285, None), state
  *     else:
  */
   }
 
   /* "(tree fragment)":15
- *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xe2c2285, None), state
+ *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xd55f285, None), state
  *     else:
- *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xe2c2285, state)             # <<<<<<<<<<<<<<
+ *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xd55f285, state)             # <<<<<<<<<<<<<<
  * def __setstate_cython__(self, __pyx_state):
  *     __pyx_unpickle_FuncCodeInfo__set_state(self, __pyx_state)
  */
@@ -4340,9 +4340,9 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
     __Pyx_INCREF(((PyObject *)Py_TYPE(((PyObject *)__pyx_v_self))));
     __Pyx_GIVEREF(((PyObject *)Py_TYPE(((PyObject *)__pyx_v_self))));
     PyTuple_SET_ITEM(__pyx_t_4, 0, ((PyObject *)Py_TYPE(((PyObject *)__pyx_v_self))));
-    __Pyx_INCREF(__pyx_int_237773445);
-    __Pyx_GIVEREF(__pyx_int_237773445);
-    PyTuple_SET_ITEM(__pyx_t_4, 1, __pyx_int_237773445);
+    __Pyx_INCREF(__pyx_int_223736453);
+    __Pyx_GIVEREF(__pyx_int_223736453);
+    PyTuple_SET_ITEM(__pyx_t_4, 1, __pyx_int_223736453);
     __Pyx_INCREF(__pyx_v_state);
     __Pyx_GIVEREF(__pyx_v_state);
     PyTuple_SET_ITEM(__pyx_t_4, 2, __pyx_v_state);
@@ -4383,7 +4383,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
 
 /* "(tree fragment)":16
  *     else:
- *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xe2c2285, state)
+ *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xd55f285, state)
  * def __setstate_cython__(self, __pyx_state):             # <<<<<<<<<<<<<<
  *     __pyx_unpickle_FuncCodeInfo__set_state(self, __pyx_state)
  */
@@ -4411,7 +4411,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
   __Pyx_RefNannySetupContext("__setstate_cython__", 0);
 
   /* "(tree fragment)":17
- *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xe2c2285, state)
+ *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xd55f285, state)
  * def __setstate_cython__(self, __pyx_state):
  *     __pyx_unpickle_FuncCodeInfo__set_state(self, __pyx_state)             # <<<<<<<<<<<<<<
  */
@@ -4422,7 +4422,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
 
   /* "(tree fragment)":16
  *     else:
- *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xe2c2285, state)
+ *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xd55f285, state)
  * def __setstate_cython__(self, __pyx_state):             # <<<<<<<<<<<<<<
  *     __pyx_unpickle_FuncCodeInfo__set_state(self, __pyx_state)
  */
@@ -5502,7 +5502,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
  *         try:
  *             abs_path_real_path_and_base = NORM_PATHS_AND_BASE_CONTAINER[co_filename]             # <<<<<<<<<<<<<<
  *         except:
- *             abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_file(co_filename)
+ *             abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(<object>frame_obj)
  */
         __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_NORM_PATHS_AND_BASE_CONTAINER); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 201, __pyx_L7_error)
         __Pyx_GOTREF(__pyx_t_5);
@@ -5533,7 +5533,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
  *         try:
  *             abs_path_real_path_and_base = NORM_PATHS_AND_BASE_CONTAINER[co_filename]
  *         except:             # <<<<<<<<<<<<<<
- *             abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_file(co_filename)
+ *             abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(<object>frame_obj)
  * 
  */
       /*except:*/ {
@@ -5546,9 +5546,9 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
         /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":203
  *             abs_path_real_path_and_base = NORM_PATHS_AND_BASE_CONTAINER[co_filename]
  *         except:
- *             abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_file(co_filename)             # <<<<<<<<<<<<<<
+ *             abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(<object>frame_obj)             # <<<<<<<<<<<<<<
  * 
- *         func_code_info.real_path = abs_path_real_path_and_base[1]
+ *         func_code_info.canonical_normalized_filename = abs_path_real_path_and_base[1]
  */
         __Pyx_GetModuleGlobalName(__pyx_t_11, __pyx_n_s_get_abs_path_real_path_and_base); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 203, __pyx_L9_except_error)
         __Pyx_GOTREF(__pyx_t_11);
@@ -5562,7 +5562,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
             __Pyx_DECREF_SET(__pyx_t_11, function);
           }
         }
-        __pyx_t_10 = (__pyx_t_12) ? __Pyx_PyObject_Call2Args(__pyx_t_11, __pyx_t_12, __pyx_v_co_filename) : __Pyx_PyObject_CallOneArg(__pyx_t_11, __pyx_v_co_filename);
+        __pyx_t_10 = (__pyx_t_12) ? __Pyx_PyObject_Call2Args(__pyx_t_11, __pyx_t_12, ((PyObject *)__pyx_v_frame_obj)) : __Pyx_PyObject_CallOneArg(__pyx_t_11, ((PyObject *)__pyx_v_frame_obj));
         __Pyx_XDECREF(__pyx_t_12); __pyx_t_12 = 0;
         if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 203, __pyx_L9_except_error)
         __Pyx_GOTREF(__pyx_t_10);
@@ -5597,9 +5597,9 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
     }
 
     /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":205
- *             abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_file(co_filename)
+ *             abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(<object>frame_obj)
  * 
- *         func_code_info.real_path = abs_path_real_path_and_base[1]             # <<<<<<<<<<<<<<
+ *         func_code_info.canonical_normalized_filename = abs_path_real_path_and_base[1]             # <<<<<<<<<<<<<<
  * 
  *         cache_file_type = main_debugger.get_cache_file_type()
  */
@@ -5607,13 +5607,13 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
     __Pyx_GOTREF(__pyx_t_2);
     if (!(likely(PyString_CheckExact(__pyx_t_2))||((__pyx_t_2) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "str", Py_TYPE(__pyx_t_2)->tp_name), 0))) __PYX_ERR(0, 205, __pyx_L1_error)
     __Pyx_GIVEREF(__pyx_t_2);
-    __Pyx_GOTREF(__pyx_v_func_code_info->real_path);
-    __Pyx_DECREF(__pyx_v_func_code_info->real_path);
-    __pyx_v_func_code_info->real_path = ((PyObject*)__pyx_t_2);
+    __Pyx_GOTREF(__pyx_v_func_code_info->canonical_normalized_filename);
+    __Pyx_DECREF(__pyx_v_func_code_info->canonical_normalized_filename);
+    __pyx_v_func_code_info->canonical_normalized_filename = ((PyObject*)__pyx_t_2);
     __pyx_t_2 = 0;
 
     /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":207
- *         func_code_info.real_path = abs_path_real_path_and_base[1]
+ *         func_code_info.canonical_normalized_filename = abs_path_real_path_and_base[1]
  * 
  *         cache_file_type = main_debugger.get_cache_file_type()             # <<<<<<<<<<<<<<
  *         # Note: this cache key must be the same from PyDB.get_file_type() -- see it for comments
@@ -5867,7 +5867,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
  *     if not func_code_info.always_skip_code:
  *         if main_debugger is not None:             # <<<<<<<<<<<<<<
  * 
- *             breakpoints: dict = main_debugger.breakpoints.get(func_code_info.real_path)
+ *             breakpoints: dict = main_debugger.breakpoints.get(func_code_info.canonical_normalized_filename)
  */
     __pyx_t_14 = (__pyx_v_main_debugger != Py_None);
     __pyx_t_4 = (__pyx_t_14 != 0);
@@ -5876,7 +5876,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
       /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":222
  *         if main_debugger is not None:
  * 
- *             breakpoints: dict = main_debugger.breakpoints.get(func_code_info.real_path)             # <<<<<<<<<<<<<<
+ *             breakpoints: dict = main_debugger.breakpoints.get(func_code_info.canonical_normalized_filename)             # <<<<<<<<<<<<<<
  *             # print('\n---')
  *             # print(main_debugger.breakpoints)
  */
@@ -5895,7 +5895,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
           __Pyx_DECREF_SET(__pyx_t_1, function);
         }
       }
-      __pyx_t_2 = (__pyx_t_5) ? __Pyx_PyObject_Call2Args(__pyx_t_1, __pyx_t_5, __pyx_v_func_code_info->real_path) : __Pyx_PyObject_CallOneArg(__pyx_t_1, __pyx_v_func_code_info->real_path);
+      __pyx_t_2 = (__pyx_t_5) ? __Pyx_PyObject_Call2Args(__pyx_t_1, __pyx_t_5, __pyx_v_func_code_info->canonical_normalized_filename) : __Pyx_PyObject_CallOneArg(__pyx_t_1, __pyx_v_func_code_info->canonical_normalized_filename);
       __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
       if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 222, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
@@ -5905,8 +5905,8 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
       __pyx_t_2 = 0;
 
       /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":227
- *             # print(func_code_info.real_path)
- *             # print(main_debugger.breakpoints.get(func_code_info.real_path))
+ *             # print(func_code_info.canonical_normalized_filename)
+ *             # print(main_debugger.breakpoints.get(func_code_info.canonical_normalized_filename))
  *             code_obj_py: object = <object> code_obj             # <<<<<<<<<<<<<<
  *             cached_code_obj_info: object = _cache.get(code_obj_py)
  *             if cached_code_obj_info:
@@ -5917,7 +5917,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
       __pyx_t_2 = 0;
 
       /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":228
- *             # print(main_debugger.breakpoints.get(func_code_info.real_path))
+ *             # print(main_debugger.breakpoints.get(func_code_info.canonical_normalized_filename))
  *             code_obj_py: object = <object> code_obj
  *             cached_code_obj_info: object = _cache.get(code_obj_py)             # <<<<<<<<<<<<<<
  *             if cached_code_obj_info:
@@ -6171,7 +6171,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
  *     if not func_code_info.always_skip_code:
  *         if main_debugger is not None:             # <<<<<<<<<<<<<<
  * 
- *             breakpoints: dict = main_debugger.breakpoints.get(func_code_info.real_path)
+ *             breakpoints: dict = main_debugger.breakpoints.get(func_code_info.canonical_normalized_filename)
  */
     }
 
@@ -10607,7 +10607,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_16frame_
  * def frame_eval_func():
  *     cdef PyThreadState *state = PyThreadState_Get()             # <<<<<<<<<<<<<<
  *     state.interp.eval_frame = get_bytecode_while_frame_eval
- *     global dummy_tracing_holder
+ *     dummy_tracing_holder.set_trace_func(dummy_trace_dispatch)
  */
   __pyx_v_state = PyThreadState_Get();
 
@@ -10615,24 +10615,24 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_16frame_
  * def frame_eval_func():
  *     cdef PyThreadState *state = PyThreadState_Get()
  *     state.interp.eval_frame = get_bytecode_while_frame_eval             # <<<<<<<<<<<<<<
- *     global dummy_tracing_holder
  *     dummy_tracing_holder.set_trace_func(dummy_trace_dispatch)
+ * 
  */
   __pyx_v_state->interp->eval_frame = __pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytecode_while_frame_eval;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":533
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":532
+ *     cdef PyThreadState *state = PyThreadState_Get()
  *     state.interp.eval_frame = get_bytecode_while_frame_eval
- *     global dummy_tracing_holder
  *     dummy_tracing_holder.set_trace_func(dummy_trace_dispatch)             # <<<<<<<<<<<<<<
  * 
  * 
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_dummy_tracing_holder); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 533, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_dummy_tracing_holder); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 532, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_set_trace_func); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 533, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_set_trace_func); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 532, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_dummy_trace_dispatch); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 533, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_dummy_trace_dispatch); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 532, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_4 = NULL;
   if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_3))) {
@@ -10647,7 +10647,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_16frame_
   __pyx_t_1 = (__pyx_t_4) ? __Pyx_PyObject_Call2Args(__pyx_t_3, __pyx_t_4, __pyx_t_2) : __Pyx_PyObject_CallOneArg(__pyx_t_3, __pyx_t_2);
   __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 533, __pyx_L1_error)
+  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 532, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
@@ -10676,7 +10676,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_16frame_
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":536
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":535
  * 
  * 
  * def stop_frame_eval():             # <<<<<<<<<<<<<<
@@ -10704,7 +10704,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_18stop_f
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("stop_frame_eval", 0);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":537
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":536
  * 
  * def stop_frame_eval():
  *     cdef PyThreadState *state = PyThreadState_Get()             # <<<<<<<<<<<<<<
@@ -10712,14 +10712,14 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_18stop_f
  */
   __pyx_v_state = PyThreadState_Get();
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":538
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":537
  * def stop_frame_eval():
  *     cdef PyThreadState *state = PyThreadState_Get()
  *     state.interp.eval_frame = _PyEval_EvalFrameDefault             # <<<<<<<<<<<<<<
  */
   __pyx_v_state->interp->eval_frame = _PyEval_EvalFrameDefault;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":536
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":535
  * 
  * 
  * def stop_frame_eval():             # <<<<<<<<<<<<<<
@@ -11281,18 +11281,18 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_22__pyx_
   /* "(tree fragment)":4
  *     cdef object __pyx_PickleError
  *     cdef object __pyx_result
- *     if __pyx_checksum != 0xe2c2285:             # <<<<<<<<<<<<<<
+ *     if __pyx_checksum != 0xd55f285:             # <<<<<<<<<<<<<<
  *         from pickle import PickleError as __pyx_PickleError
- *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xe2c2285 = (always_skip_code, breakpoint_found, breakpoints_mtime, co_filename, new_code, real_path))" % __pyx_checksum)
+ *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xd55f285 = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, new_code))" % __pyx_checksum)
  */
-  __pyx_t_1 = ((__pyx_v___pyx_checksum != 0xe2c2285) != 0);
+  __pyx_t_1 = ((__pyx_v___pyx_checksum != 0xd55f285) != 0);
   if (__pyx_t_1) {
 
     /* "(tree fragment)":5
  *     cdef object __pyx_result
- *     if __pyx_checksum != 0xe2c2285:
+ *     if __pyx_checksum != 0xd55f285:
  *         from pickle import PickleError as __pyx_PickleError             # <<<<<<<<<<<<<<
- *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xe2c2285 = (always_skip_code, breakpoint_found, breakpoints_mtime, co_filename, new_code, real_path))" % __pyx_checksum)
+ *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xd55f285 = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, new_code))" % __pyx_checksum)
  *     __pyx_result = FuncCodeInfo.__new__(__pyx_type)
  */
     __pyx_t_2 = PyList_New(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 5, __pyx_L1_error)
@@ -11311,15 +11311,15 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_22__pyx_
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
     /* "(tree fragment)":6
- *     if __pyx_checksum != 0xe2c2285:
+ *     if __pyx_checksum != 0xd55f285:
  *         from pickle import PickleError as __pyx_PickleError
- *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xe2c2285 = (always_skip_code, breakpoint_found, breakpoints_mtime, co_filename, new_code, real_path))" % __pyx_checksum)             # <<<<<<<<<<<<<<
+ *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xd55f285 = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, new_code))" % __pyx_checksum)             # <<<<<<<<<<<<<<
  *     __pyx_result = FuncCodeInfo.__new__(__pyx_type)
  *     if __pyx_state is not None:
  */
     __pyx_t_2 = __Pyx_PyInt_From_long(__pyx_v___pyx_checksum); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 6, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_4 = __Pyx_PyString_Format(__pyx_kp_s_Incompatible_checksums_s_vs_0xe2, __pyx_t_2); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 6, __pyx_L1_error)
+    __pyx_t_4 = __Pyx_PyString_Format(__pyx_kp_s_Incompatible_checksums_s_vs_0xd5, __pyx_t_2); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 6, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     __Pyx_INCREF(__pyx_v___pyx_PickleError);
@@ -11346,15 +11346,15 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_22__pyx_
     /* "(tree fragment)":4
  *     cdef object __pyx_PickleError
  *     cdef object __pyx_result
- *     if __pyx_checksum != 0xe2c2285:             # <<<<<<<<<<<<<<
+ *     if __pyx_checksum != 0xd55f285:             # <<<<<<<<<<<<<<
  *         from pickle import PickleError as __pyx_PickleError
- *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xe2c2285 = (always_skip_code, breakpoint_found, breakpoints_mtime, co_filename, new_code, real_path))" % __pyx_checksum)
+ *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xd55f285 = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, new_code))" % __pyx_checksum)
  */
   }
 
   /* "(tree fragment)":7
  *         from pickle import PickleError as __pyx_PickleError
- *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xe2c2285 = (always_skip_code, breakpoint_found, breakpoints_mtime, co_filename, new_code, real_path))" % __pyx_checksum)
+ *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xd55f285 = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, new_code))" % __pyx_checksum)
  *     __pyx_result = FuncCodeInfo.__new__(__pyx_type)             # <<<<<<<<<<<<<<
  *     if __pyx_state is not None:
  *         __pyx_unpickle_FuncCodeInfo__set_state(<FuncCodeInfo> __pyx_result, __pyx_state)
@@ -11380,7 +11380,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_22__pyx_
   __pyx_t_3 = 0;
 
   /* "(tree fragment)":8
- *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xe2c2285 = (always_skip_code, breakpoint_found, breakpoints_mtime, co_filename, new_code, real_path))" % __pyx_checksum)
+ *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xd55f285 = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, new_code))" % __pyx_checksum)
  *     __pyx_result = FuncCodeInfo.__new__(__pyx_type)
  *     if __pyx_state is not None:             # <<<<<<<<<<<<<<
  *         __pyx_unpickle_FuncCodeInfo__set_state(<FuncCodeInfo> __pyx_result, __pyx_state)
@@ -11403,7 +11403,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_22__pyx_
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
     /* "(tree fragment)":8
- *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xe2c2285 = (always_skip_code, breakpoint_found, breakpoints_mtime, co_filename, new_code, real_path))" % __pyx_checksum)
+ *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xd55f285 = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, new_code))" % __pyx_checksum)
  *     __pyx_result = FuncCodeInfo.__new__(__pyx_type)
  *     if __pyx_state is not None:             # <<<<<<<<<<<<<<
  *         __pyx_unpickle_FuncCodeInfo__set_state(<FuncCodeInfo> __pyx_result, __pyx_state)
@@ -11416,7 +11416,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_22__pyx_
  *         __pyx_unpickle_FuncCodeInfo__set_state(<FuncCodeInfo> __pyx_result, __pyx_state)
  *     return __pyx_result             # <<<<<<<<<<<<<<
  * cdef __pyx_unpickle_FuncCodeInfo__set_state(FuncCodeInfo __pyx_result, tuple __pyx_state):
- *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.co_filename = __pyx_state[3]; __pyx_result.new_code = __pyx_state[4]; __pyx_result.real_path = __pyx_state[5]
+ *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.canonical_normalized_filename = __pyx_state[3]; __pyx_result.co_filename = __pyx_state[4]; __pyx_result.new_code = __pyx_state[5]
  */
   __Pyx_XDECREF(__pyx_r);
   __Pyx_INCREF(__pyx_v___pyx_result);
@@ -11449,7 +11449,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_22__pyx_
  *         __pyx_unpickle_FuncCodeInfo__set_state(<FuncCodeInfo> __pyx_result, __pyx_state)
  *     return __pyx_result
  * cdef __pyx_unpickle_FuncCodeInfo__set_state(FuncCodeInfo __pyx_result, tuple __pyx_state):             # <<<<<<<<<<<<<<
- *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.co_filename = __pyx_state[3]; __pyx_result.new_code = __pyx_state[4]; __pyx_result.real_path = __pyx_state[5]
+ *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.canonical_normalized_filename = __pyx_state[3]; __pyx_result.co_filename = __pyx_state[4]; __pyx_result.new_code = __pyx_state[5]
  *     if len(__pyx_state) > 6 and hasattr(__pyx_result, '__dict__'):
  */
 
@@ -11473,7 +11473,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator___pyx_unp
   /* "(tree fragment)":12
  *     return __pyx_result
  * cdef __pyx_unpickle_FuncCodeInfo__set_state(FuncCodeInfo __pyx_result, tuple __pyx_state):
- *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.co_filename = __pyx_state[3]; __pyx_result.new_code = __pyx_state[4]; __pyx_result.real_path = __pyx_state[5]             # <<<<<<<<<<<<<<
+ *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.canonical_normalized_filename = __pyx_state[3]; __pyx_result.co_filename = __pyx_state[4]; __pyx_result.new_code = __pyx_state[5]             # <<<<<<<<<<<<<<
  *     if len(__pyx_state) > 6 and hasattr(__pyx_result, '__dict__'):
  *         __pyx_result.__dict__.update(__pyx_state[6])
  */
@@ -11512,6 +11512,18 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator___pyx_unp
   __Pyx_GOTREF(__pyx_t_1);
   if (!(likely(PyString_CheckExact(__pyx_t_1))||((__pyx_t_1) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "str", Py_TYPE(__pyx_t_1)->tp_name), 0))) __PYX_ERR(1, 12, __pyx_L1_error)
   __Pyx_GIVEREF(__pyx_t_1);
+  __Pyx_GOTREF(__pyx_v___pyx_result->canonical_normalized_filename);
+  __Pyx_DECREF(__pyx_v___pyx_result->canonical_normalized_filename);
+  __pyx_v___pyx_result->canonical_normalized_filename = ((PyObject*)__pyx_t_1);
+  __pyx_t_1 = 0;
+  if (unlikely(__pyx_v___pyx_state == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
+    __PYX_ERR(1, 12, __pyx_L1_error)
+  }
+  __pyx_t_1 = __Pyx_GetItemInt_Tuple(__pyx_v___pyx_state, 4, long, 1, __Pyx_PyInt_From_long, 0, 0, 1); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 12, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  if (!(likely(PyString_CheckExact(__pyx_t_1))||((__pyx_t_1) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "str", Py_TYPE(__pyx_t_1)->tp_name), 0))) __PYX_ERR(1, 12, __pyx_L1_error)
+  __Pyx_GIVEREF(__pyx_t_1);
   __Pyx_GOTREF(__pyx_v___pyx_result->co_filename);
   __Pyx_DECREF(__pyx_v___pyx_result->co_filename);
   __pyx_v___pyx_result->co_filename = ((PyObject*)__pyx_t_1);
@@ -11520,29 +11532,17 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator___pyx_unp
     PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
     __PYX_ERR(1, 12, __pyx_L1_error)
   }
-  __pyx_t_1 = __Pyx_GetItemInt_Tuple(__pyx_v___pyx_state, 4, long, 1, __Pyx_PyInt_From_long, 0, 0, 1); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 12, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_GetItemInt_Tuple(__pyx_v___pyx_state, 5, long, 1, __Pyx_PyInt_From_long, 0, 0, 1); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 12, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_GIVEREF(__pyx_t_1);
   __Pyx_GOTREF(__pyx_v___pyx_result->new_code);
   __Pyx_DECREF(__pyx_v___pyx_result->new_code);
   __pyx_v___pyx_result->new_code = __pyx_t_1;
   __pyx_t_1 = 0;
-  if (unlikely(__pyx_v___pyx_state == Py_None)) {
-    PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
-    __PYX_ERR(1, 12, __pyx_L1_error)
-  }
-  __pyx_t_1 = __Pyx_GetItemInt_Tuple(__pyx_v___pyx_state, 5, long, 1, __Pyx_PyInt_From_long, 0, 0, 1); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 12, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_1);
-  if (!(likely(PyString_CheckExact(__pyx_t_1))||((__pyx_t_1) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "str", Py_TYPE(__pyx_t_1)->tp_name), 0))) __PYX_ERR(1, 12, __pyx_L1_error)
-  __Pyx_GIVEREF(__pyx_t_1);
-  __Pyx_GOTREF(__pyx_v___pyx_result->real_path);
-  __Pyx_DECREF(__pyx_v___pyx_result->real_path);
-  __pyx_v___pyx_result->real_path = ((PyObject*)__pyx_t_1);
-  __pyx_t_1 = 0;
 
   /* "(tree fragment)":13
  * cdef __pyx_unpickle_FuncCodeInfo__set_state(FuncCodeInfo __pyx_result, tuple __pyx_state):
- *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.co_filename = __pyx_state[3]; __pyx_result.new_code = __pyx_state[4]; __pyx_result.real_path = __pyx_state[5]
+ *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.canonical_normalized_filename = __pyx_state[3]; __pyx_result.co_filename = __pyx_state[4]; __pyx_result.new_code = __pyx_state[5]
  *     if len(__pyx_state) > 6 and hasattr(__pyx_result, '__dict__'):             # <<<<<<<<<<<<<<
  *         __pyx_result.__dict__.update(__pyx_state[6])
  */
@@ -11564,7 +11564,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator___pyx_unp
   if (__pyx_t_2) {
 
     /* "(tree fragment)":14
- *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.co_filename = __pyx_state[3]; __pyx_result.new_code = __pyx_state[4]; __pyx_result.real_path = __pyx_state[5]
+ *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.canonical_normalized_filename = __pyx_state[3]; __pyx_result.co_filename = __pyx_state[4]; __pyx_result.new_code = __pyx_state[5]
  *     if len(__pyx_state) > 6 and hasattr(__pyx_result, '__dict__'):
  *         __pyx_result.__dict__.update(__pyx_state[6])             # <<<<<<<<<<<<<<
  */
@@ -11599,7 +11599,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator___pyx_unp
 
     /* "(tree fragment)":13
  * cdef __pyx_unpickle_FuncCodeInfo__set_state(FuncCodeInfo __pyx_result, tuple __pyx_state):
- *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.co_filename = __pyx_state[3]; __pyx_result.new_code = __pyx_state[4]; __pyx_result.real_path = __pyx_state[5]
+ *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.canonical_normalized_filename = __pyx_state[3]; __pyx_result.co_filename = __pyx_state[4]; __pyx_result.new_code = __pyx_state[5]
  *     if len(__pyx_state) > 6 and hasattr(__pyx_result, '__dict__'):             # <<<<<<<<<<<<<<
  *         __pyx_result.__dict__.update(__pyx_state[6])
  */
@@ -11609,7 +11609,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator___pyx_unp
  *         __pyx_unpickle_FuncCodeInfo__set_state(<FuncCodeInfo> __pyx_result, __pyx_state)
  *     return __pyx_result
  * cdef __pyx_unpickle_FuncCodeInfo__set_state(FuncCodeInfo __pyx_result, tuple __pyx_state):             # <<<<<<<<<<<<<<
- *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.co_filename = __pyx_state[3]; __pyx_result.new_code = __pyx_state[4]; __pyx_result.real_path = __pyx_state[5]
+ *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.canonical_normalized_filename = __pyx_state[3]; __pyx_result.co_filename = __pyx_state[4]; __pyx_result.new_code = __pyx_state[5]
  *     if len(__pyx_state) > 6 and hasattr(__pyx_result, '__dict__'):
  */
 
@@ -12710,7 +12710,7 @@ static PyObject *__pyx_tp_new_18_pydevd_frame_eval_22pydevd_frame_evaluator_Func
   if (unlikely(!o)) return 0;
   p = ((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *)o);
   p->co_filename = ((PyObject*)Py_None); Py_INCREF(Py_None);
-  p->real_path = ((PyObject*)Py_None); Py_INCREF(Py_None);
+  p->canonical_normalized_filename = ((PyObject*)Py_None); Py_INCREF(Py_None);
   p->new_code = Py_None; Py_INCREF(Py_None);
   return o;
 }
@@ -12724,7 +12724,7 @@ static void __pyx_tp_dealloc_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncC
   #endif
   PyObject_GC_UnTrack(o);
   Py_CLEAR(p->co_filename);
-  Py_CLEAR(p->real_path);
+  Py_CLEAR(p->canonical_normalized_filename);
   Py_CLEAR(p->new_code);
   (*Py_TYPE(o)->tp_free)(o);
 }
@@ -12760,16 +12760,16 @@ static int __pyx_setprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCod
   }
 }
 
-static PyObject *__pyx_getprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_real_path(PyObject *o, CYTHON_UNUSED void *x) {
-  return __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_9real_path_1__get__(o);
+static PyObject *__pyx_getprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_canonical_normalized_filename(PyObject *o, CYTHON_UNUSED void *x) {
+  return __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_29canonical_normalized_filename_1__get__(o);
 }
 
-static int __pyx_setprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_real_path(PyObject *o, PyObject *v, CYTHON_UNUSED void *x) {
+static int __pyx_setprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_canonical_normalized_filename(PyObject *o, PyObject *v, CYTHON_UNUSED void *x) {
   if (v) {
-    return __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_9real_path_3__set__(o, v);
+    return __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_29canonical_normalized_filename_3__set__(o, v);
   }
   else {
-    return __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_9real_path_5__del__(o);
+    return __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_29canonical_normalized_filename_5__del__(o);
   }
 }
 
@@ -12822,7 +12822,7 @@ static PyMethodDef __pyx_methods_18_pydevd_frame_eval_22pydevd_frame_evaluator_F
 
 static struct PyGetSetDef __pyx_getsets_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo[] = {
   {(char *)"co_filename", __pyx_getprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_co_filename, __pyx_setprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_co_filename, (char *)0, 0},
-  {(char *)"real_path", __pyx_getprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_real_path, __pyx_setprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_real_path, (char *)0, 0},
+  {(char *)"canonical_normalized_filename", __pyx_getprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_canonical_normalized_filename, __pyx_setprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_canonical_normalized_filename, (char *)0, 0},
   {(char *)"breakpoint_found", __pyx_getprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_breakpoint_found, __pyx_setprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_breakpoint_found, (char *)0, 0},
   {(char *)"new_code", __pyx_getprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_new_code, __pyx_setprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_new_code, (char *)0, 0},
   {(char *)"breakpoints_mtime", __pyx_getprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_breakpoints_mtime, __pyx_setprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_breakpoints_mtime, (char *)0, 0},
@@ -13325,7 +13325,7 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_kp_s_Incompatible_checksums_s_vs_0x3d, __pyx_k_Incompatible_checksums_s_vs_0x3d, sizeof(__pyx_k_Incompatible_checksums_s_vs_0x3d), 0, 0, 1, 0},
   {&__pyx_kp_s_Incompatible_checksums_s_vs_0x3f, __pyx_k_Incompatible_checksums_s_vs_0x3f, sizeof(__pyx_k_Incompatible_checksums_s_vs_0x3f), 0, 0, 1, 0},
   {&__pyx_kp_s_Incompatible_checksums_s_vs_0x85, __pyx_k_Incompatible_checksums_s_vs_0x85, sizeof(__pyx_k_Incompatible_checksums_s_vs_0x85), 0, 0, 1, 0},
-  {&__pyx_kp_s_Incompatible_checksums_s_vs_0xe2, __pyx_k_Incompatible_checksums_s_vs_0xe2, sizeof(__pyx_k_Incompatible_checksums_s_vs_0xe2), 0, 0, 1, 0},
+  {&__pyx_kp_s_Incompatible_checksums_s_vs_0xd5, __pyx_k_Incompatible_checksums_s_vs_0xd5, sizeof(__pyx_k_Incompatible_checksums_s_vs_0xd5), 0, 0, 1, 0},
   {&__pyx_n_s_NORM_PATHS_AND_BASE_CONTAINER, __pyx_k_NORM_PATHS_AND_BASE_CONTAINER, sizeof(__pyx_k_NORM_PATHS_AND_BASE_CONTAINER), 0, 0, 1, 1},
   {&__pyx_n_s_PickleError, __pyx_k_PickleError, sizeof(__pyx_k_PickleError), 0, 0, 1, 1},
   {&__pyx_n_s_ThreadInfo, __pyx_k_ThreadInfo, sizeof(__pyx_k_ThreadInfo), 0, 0, 1, 1},
@@ -13564,17 +13564,17 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GIVEREF(__pyx_tuple__17);
   __pyx_codeobj__18 = (PyObject*)__Pyx_PyCode_New(0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__17, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_frame_eval_func, 529, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__18)) __PYX_ERR(0, 529, __pyx_L1_error)
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":536
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":535
  * 
  * 
  * def stop_frame_eval():             # <<<<<<<<<<<<<<
  *     cdef PyThreadState *state = PyThreadState_Get()
  *     state.interp.eval_frame = _PyEval_EvalFrameDefault
  */
-  __pyx_tuple__19 = PyTuple_Pack(1, __pyx_n_s_state); if (unlikely(!__pyx_tuple__19)) __PYX_ERR(0, 536, __pyx_L1_error)
+  __pyx_tuple__19 = PyTuple_Pack(1, __pyx_n_s_state); if (unlikely(!__pyx_tuple__19)) __PYX_ERR(0, 535, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__19);
   __Pyx_GIVEREF(__pyx_tuple__19);
-  __pyx_codeobj__20 = (PyObject*)__Pyx_PyCode_New(0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__19, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_stop_frame_eval, 536, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__20)) __PYX_ERR(0, 536, __pyx_L1_error)
+  __pyx_codeobj__20 = (PyObject*)__Pyx_PyCode_New(0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__19, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_stop_frame_eval, 535, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__20)) __PYX_ERR(0, 535, __pyx_L1_error)
 
   /* "(tree fragment)":1
  * def __pyx_unpickle_ThreadInfo(__pyx_type, long __pyx_checksum, __pyx_state):             # <<<<<<<<<<<<<<
@@ -13609,7 +13609,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitGlobals(void) {
   __pyx_int_64258489 = PyInt_FromLong(64258489L); if (unlikely(!__pyx_int_64258489)) __PYX_ERR(0, 1, __pyx_L1_error)
   __pyx_int_66829570 = PyInt_FromLong(66829570L); if (unlikely(!__pyx_int_66829570)) __PYX_ERR(0, 1, __pyx_L1_error)
   __pyx_int_139550310 = PyInt_FromLong(139550310L); if (unlikely(!__pyx_int_139550310)) __PYX_ERR(0, 1, __pyx_L1_error)
-  __pyx_int_237773445 = PyInt_FromLong(237773445L); if (unlikely(!__pyx_int_237773445)) __PYX_ERR(0, 1, __pyx_L1_error)
+  __pyx_int_223736453 = PyInt_FromLong(223736453L); if (unlikely(!__pyx_int_223736453)) __PYX_ERR(0, 1, __pyx_L1_error)
   __pyx_int_neg_1 = PyInt_FromLong(-1); if (unlikely(!__pyx_int_neg_1)) __PYX_ERR(0, 1, __pyx_L1_error)
   return 0;
   __pyx_L1_error:;
@@ -14017,7 +14017,7 @@ if (!__Pyx_RefNanny) {
  * import dis
  * from _pydevd_frame_eval.pydevd_frame_tracing import update_globals_dict, dummy_tracing_holder             # <<<<<<<<<<<<<<
  * from _pydevd_frame_eval.pydevd_modify_bytecode import DebugHelper, insert_pydevd_breaks
- * from pydevd_file_utils import get_abs_path_real_path_and_base_from_file, NORM_PATHS_AND_BASE_CONTAINER
+ * from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame, NORM_PATHS_AND_BASE_CONTAINER
  */
   __pyx_t_1 = PyList_New(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 5, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
@@ -14044,7 +14044,7 @@ if (!__Pyx_RefNanny) {
  * import dis
  * from _pydevd_frame_eval.pydevd_frame_tracing import update_globals_dict, dummy_tracing_holder
  * from _pydevd_frame_eval.pydevd_modify_bytecode import DebugHelper, insert_pydevd_breaks             # <<<<<<<<<<<<<<
- * from pydevd_file_utils import get_abs_path_real_path_and_base_from_file, NORM_PATHS_AND_BASE_CONTAINER
+ * from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame, NORM_PATHS_AND_BASE_CONTAINER
  * from _pydevd_bundle.pydevd_trace_dispatch import fix_top_level_trace_and_get_trace_func
  */
   __pyx_t_2 = PyList_New(2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 6, __pyx_L1_error)
@@ -14071,7 +14071,7 @@ if (!__Pyx_RefNanny) {
   /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":7
  * from _pydevd_frame_eval.pydevd_frame_tracing import update_globals_dict, dummy_tracing_holder
  * from _pydevd_frame_eval.pydevd_modify_bytecode import DebugHelper, insert_pydevd_breaks
- * from pydevd_file_utils import get_abs_path_real_path_and_base_from_file, NORM_PATHS_AND_BASE_CONTAINER             # <<<<<<<<<<<<<<
+ * from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame, NORM_PATHS_AND_BASE_CONTAINER             # <<<<<<<<<<<<<<
  * from _pydevd_bundle.pydevd_trace_dispatch import fix_top_level_trace_and_get_trace_func
  * 
  */
@@ -14098,7 +14098,7 @@ if (!__Pyx_RefNanny) {
 
   /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":8
  * from _pydevd_frame_eval.pydevd_modify_bytecode import DebugHelper, insert_pydevd_breaks
- * from pydevd_file_utils import get_abs_path_real_path_and_base_from_file, NORM_PATHS_AND_BASE_CONTAINER
+ * from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame, NORM_PATHS_AND_BASE_CONTAINER
  * from _pydevd_bundle.pydevd_trace_dispatch import fix_top_level_trace_and_get_trace_func             # <<<<<<<<<<<<<<
  * 
  * from _pydevd_bundle.pydevd_additional_thread_info import _set_additional_thread_info_lock
@@ -14315,16 +14315,16 @@ if (!__Pyx_RefNanny) {
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_frame_eval_func, __pyx_t_2) < 0) __PYX_ERR(0, 529, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":536
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":535
  * 
  * 
  * def stop_frame_eval():             # <<<<<<<<<<<<<<
  *     cdef PyThreadState *state = PyThreadState_Get()
  *     state.interp.eval_frame = _PyEval_EvalFrameDefault
  */
-  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_18_pydevd_frame_eval_22pydevd_frame_evaluator_19stop_frame_eval, NULL, __pyx_n_s_pydevd_frame_eval_pydevd_frame_3); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 536, __pyx_L1_error)
+  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_18_pydevd_frame_eval_22pydevd_frame_evaluator_19stop_frame_eval, NULL, __pyx_n_s_pydevd_frame_eval_pydevd_frame_3); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 535, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_stop_frame_eval, __pyx_t_2) < 0) __PYX_ERR(0, 536, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_stop_frame_eval, __pyx_t_2) < 0) __PYX_ERR(0, 535, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
   /* "(tree fragment)":1

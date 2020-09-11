@@ -8,7 +8,6 @@ from _pydevd_bundle.pydevd_constants import call_only_once
 from _pydev_imps._pydev_saved_modules import threading
 from _pydevd_bundle.pydevd_constants import dict_items
 from _pydevd_bundle.pydevd_custom_frames import update_custom_frame, remove_custom_frame, add_custom_frame
-from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame
 import stackless  # @UnresolvedImport
 from _pydev_bundle import pydev_log
 

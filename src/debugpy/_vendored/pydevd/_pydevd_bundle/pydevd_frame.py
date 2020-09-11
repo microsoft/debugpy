@@ -143,7 +143,7 @@ class PyDBFrame:
     exc_info = ()  # Default value in class (put in instance on set).
 
     def __init__(self, args):
-        # args = main_debugger, filename, base, info, t, frame
+        # args = main_debugger, abs_path_canonical_path_and_base, base, info, t, frame
         # yeap, much faster than putting in self and then getting it from self later on
         self._args = args
     # ENDIF
@@ -304,7 +304,21 @@ class PyDBFrame:
             return self.handle_exception(frame, 'exception', exc_info[0])
         return False
 
+    # IFDEF CYTHON
+    # cpdef handle_exception(self, frame, str event, arg):
+    #     cdef bint stopped;
+    #     cdef tuple abs_real_path_and_base;
+    #     cdef str absolute_filename;
+    #     cdef str canonical_normalized_filename;
+    #     cdef dict filename_to_lines_where_exceptions_are_ignored;
+    #     cdef dict lines_ignored;
+    #     cdef dict frame_id_to_frame;
+    #     cdef dict merged;
+    #     cdef object trace_obj;
+    #     cdef object main_debugger;
+    # ELSE
     def handle_exception(self, frame, event, arg):
+    # ENDIF
         stopped = False
         try:
             # print('handle_exception', frame.f_lineno, frame.f_code.co_name)
@@ -324,31 +338,33 @@ class PyDBFrame:
 
             if main_debugger.ignore_exceptions_thrown_in_lines_with_ignore_exception:
                 for check_trace_obj in (initial_trace_obj, trace_obj):
-                    filename = get_abs_path_real_path_and_base_from_frame(check_trace_obj.tb_frame)[1]
+                    abs_real_path_and_base = get_abs_path_real_path_and_base_from_frame(check_trace_obj.tb_frame)
+                    absolute_filename = abs_real_path_and_base[0]
+                    canonical_normalized_filename = abs_real_path_and_base[1]
 
                     filename_to_lines_where_exceptions_are_ignored = self.filename_to_lines_where_exceptions_are_ignored
 
-                    lines_ignored = filename_to_lines_where_exceptions_are_ignored.get(filename)
+                    lines_ignored = filename_to_lines_where_exceptions_are_ignored.get(canonical_normalized_filename)
                     if lines_ignored is None:
-                        lines_ignored = filename_to_lines_where_exceptions_are_ignored[filename] = {}
+                        lines_ignored = filename_to_lines_where_exceptions_are_ignored[canonical_normalized_filename] = {}
 
                     try:
-                        curr_stat = os.stat(filename)
+                        curr_stat = os.stat(absolute_filename)
                         curr_stat = (curr_stat.st_size, curr_stat.st_mtime)
                     except:
                         curr_stat = None
 
-                    last_stat = self.filename_to_stat_info.get(filename)
+                    last_stat = self.filename_to_stat_info.get(absolute_filename)
                     if last_stat != curr_stat:
-                        self.filename_to_stat_info[filename] = curr_stat
+                        self.filename_to_stat_info[absolute_filename] = curr_stat
                         lines_ignored.clear()
                         try:
-                            linecache.checkcache(filename)
+                            linecache.checkcache(absolute_filename)
                         except:
                             # Jython 2.1
                             linecache.checkcache()
 
-                    from_user_input = main_debugger.filename_to_lines_where_exceptions_are_ignored.get(filename)
+                    from_user_input = main_debugger.filename_to_lines_where_exceptions_are_ignored.get(canonical_normalized_filename)
                     if from_user_input:
                         merged = {}
                         merged.update(lines_ignored)
@@ -365,10 +381,10 @@ class PyDBFrame:
 
                     if exc_lineno not in merged:  # Note: check on merged but update lines_ignored.
                         try:
-                            line = linecache.getline(filename, exc_lineno, check_trace_obj.tb_frame.f_globals)
+                            line = linecache.getline(absolute_filename, exc_lineno, check_trace_obj.tb_frame.f_globals)
                         except:
                             # Jython 2.1
-                            line = linecache.getline(filename, exc_lineno)
+                            line = linecache.getline(absolute_filename, exc_lineno)
 
                         if IGNORE_EXCEPTION_TAG.match(line) is not None:
                             lines_ignored[exc_lineno] = 1
@@ -477,7 +493,7 @@ class PyDBFrame:
 
     # IFDEF CYTHON
     # cpdef trace_dispatch(self, frame, str event, arg):
-    #     cdef str filename;
+    #     cdef tuple abs_path_canonical_path_and_base;
     #     cdef bint is_exception_event;
     #     cdef bint has_exception_breakpoints;
     #     cdef bint can_skip;
@@ -512,7 +528,7 @@ class PyDBFrame:
         # generation be better split among what each part does).
 
         # DEBUG = '_debugger_case_generator.py' in frame.f_code.co_filename
-        main_debugger, filename, info, thread, frame_skips_cache, frame_cache_key = self._args
+        main_debugger, abs_path_canonical_path_and_base, info, thread, frame_skips_cache, frame_cache_key = self._args
         # if DEBUG: print('frame trace_dispatch %s %s %s %s %s %s, stop: %s' % (frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename, event, constant_to_str(info.pydev_step_cmd), arg, info.pydev_step_stop))
         try:
             info.is_tracing += 1
@@ -670,7 +686,7 @@ class PyDBFrame:
                     return self.trace_dispatch
 
             if not is_exception_event:
-                breakpoints_for_file = main_debugger.breakpoints.get(filename)
+                breakpoints_for_file = main_debugger.breakpoints.get(abs_path_canonical_path_and_base[1])
 
                 can_skip = False
 
@@ -881,7 +897,7 @@ class PyDBFrame:
                         # I.e.: cache the result on self.should_skip (no need to evaluate the same frame multiple times).
                         # Note that on a code reload, we won't re-evaluate this because in practice, the frame.f_code
                         # Which will be handled by this frame is read-only, so, we can cache it safely.
-                        if not pydevd_dont_trace.should_trace_hook(frame, filename):
+                        if not pydevd_dont_trace.should_trace_hook(frame, abs_path_canonical_path_and_base[0]):
                             # -1, 0, 1 to be Cython-friendly
                             should_skip = self.should_skip = 1
                         else:
@@ -986,7 +1002,7 @@ class PyDBFrame:
                             # When we get to the pydevd run function, the debugging has actually finished for the main thread
                             # (note that it can still go on for other threads, but for this one, we just make it finish)
                             # So, just setting it to None should be OK
-                            _, back_filename, base = get_abs_path_real_path_and_base_from_frame(back)
+                            back_absolute_filename, _, base = get_abs_path_real_path_and_base_from_frame(back)
                             if (base, back.f_code.co_name) in (DEBUG_START, DEBUG_START_PY3K):
                                 back = None
 
@@ -996,7 +1012,7 @@ class PyDBFrame:
                                 return None if is_call else NO_FTRACE
 
                             elif pydevd_dont_trace.should_trace_hook is not None:
-                                if not pydevd_dont_trace.should_trace_hook(back, back_filename):
+                                if not pydevd_dont_trace.should_trace_hook(back, back_absolute_filename):
                                     # In this case, we'll have to skip the previous one because it shouldn't be traced.
                                     # Also, we have to reset the tracing, because if the parent's parent (or some
                                     # other parent) has to be traced and it's not currently, we wouldn't stop where

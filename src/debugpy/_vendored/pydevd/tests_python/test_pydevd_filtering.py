@@ -168,9 +168,6 @@ def test_rules_to_exclude_filter(tmpdir):
     with fileb.open('w') as stream:
         stream.write('')
 
-    def filename_to_server(filename):
-        return filename
-
     def on_error(msg):
         raise AssertionError(msg)
 
@@ -184,7 +181,7 @@ def test_rules_to_exclude_filter(tmpdir):
         {'module': 'bar.foo', 'include': True},
     ]
     shuffle(rules)
-    exclude_filters = _convert_rules_to_exclude_filters(rules, filename_to_server, on_error)
+    exclude_filters = _convert_rules_to_exclude_filters(rules, on_error)
     assert exclude_filters == [
         ExcludeFilter(name=str(fileb2), exclude=False, is_path=True),
         ExcludeFilter(name=str(fileb), exclude=False, is_path=True),

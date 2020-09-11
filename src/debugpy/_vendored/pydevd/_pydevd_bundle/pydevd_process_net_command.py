@@ -17,6 +17,7 @@ from _pydevd_bundle.pydevd_api import PyDevdAPI
 from _pydev_bundle.pydev_imports import StringIO
 from _pydevd_bundle.pydevd_net_command import NetCommand
 from _pydevd_bundle.pydevd_thread_lifecycle import pydevd_find_thread_by_id
+import pydevd_file_utils
 
 
 class _PyDevCommandProcessor(object):
@@ -571,17 +572,20 @@ class _PyDevCommandProcessor(object):
 
             if text:
                 for line in text.split('||'):  # Can be bulk-created (one in each line)
-                    filename, line_number = line.split('|')
-                    filename = self.api.filename_to_server(filename)
+                    original_filename, line_number = line.split('|')
+                    original_filename = self.api.filename_to_server(original_filename)
 
-                    if os.path.exists(filename):
-                        lines_ignored = py_db.filename_to_lines_where_exceptions_are_ignored.get(filename)
+                    canonical_normalized_filename = pydevd_file_utils.canonical_normalized_path(original_filename)
+                    absolute_filename = pydevd_file_utils.absolute_path(original_filename)
+
+                    if os.path.exists(absolute_filename):
+                        lines_ignored = py_db.filename_to_lines_where_exceptions_are_ignored.get(canonical_normalized_filename)
                         if lines_ignored is None:
-                            lines_ignored = py_db.filename_to_lines_where_exceptions_are_ignored[filename] = {}
+                            lines_ignored = py_db.filename_to_lines_where_exceptions_are_ignored[canonical_normalized_filename] = {}
                         lines_ignored[int(line_number)] = 1
                     else:
                         sys.stderr.write('pydev debugger: warning: trying to ignore exception thrown'\
-                            ' on file that does not exist: %s (will have no effect)\n' % (filename,))
+                            ' on file that does not exist: %s (will have no effect)\n' % (absolute_filename,))
 
     def cmd_enable_dont_trace(self, py_db, cmd_id, seq, text):
         if text:

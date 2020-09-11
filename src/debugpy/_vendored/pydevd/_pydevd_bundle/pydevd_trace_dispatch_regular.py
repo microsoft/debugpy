@@ -340,7 +340,7 @@ class ThreadTracer(object):
         # cdef tuple frame_cache_key;
         # cdef dict cache_skips;
         # cdef bint is_stepping;
-        # cdef tuple abs_path_real_path_and_base;
+        # cdef tuple abs_path_canonical_path_and_base;
         # cdef PyDBAdditionalThreadInfo additional_info;
         # ENDIF
 
@@ -388,26 +388,25 @@ class ThreadTracer(object):
 
             try:
                 # Make fast path faster!
-                abs_path_real_path_and_base = NORM_PATHS_AND_BASE_CONTAINER[frame.f_code.co_filename]
+                abs_path_canonical_path_and_base = NORM_PATHS_AND_BASE_CONTAINER[frame.f_code.co_filename]
             except:
-                abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(frame)
+                abs_path_canonical_path_and_base = get_abs_path_real_path_and_base_from_frame(frame)
 
-            filename = abs_path_real_path_and_base[1]
-            file_type = py_db.get_file_type(frame, abs_path_real_path_and_base)  # we don't want to debug threading or anything related to pydevd
+            file_type = py_db.get_file_type(frame, abs_path_canonical_path_and_base)  # we don't want to debug threading or anything related to pydevd
 
             if file_type is not None:
                 if file_type == 1:  # inlining LIB_FILE = 1
-                    if not py_db.in_project_scope(frame, abs_path_real_path_and_base[0]):
-                        # if DEBUG: print('skipped: trace_dispatch (not in scope)', abs_path_real_path_and_base[-1], frame.f_lineno, event, frame.f_code.co_name, file_type)
+                    if not py_db.in_project_scope(frame, abs_path_canonical_path_and_base[0]):
+                        # if DEBUG: print('skipped: trace_dispatch (not in scope)', abs_path_canonical_path_and_base[2], frame.f_lineno, event, frame.f_code.co_name, file_type)
                         cache_skips[frame_cache_key] = 1
                         return None if event == 'call' else NO_FTRACE
                 else:
-                    # if DEBUG: print('skipped: trace_dispatch', abs_path_real_path_and_base[-1], frame.f_lineno, event, frame.f_code.co_name, file_type)
+                    # if DEBUG: print('skipped: trace_dispatch', abs_path_canonical_path_and_base[2], frame.f_lineno, event, frame.f_code.co_name, file_type)
                     cache_skips[frame_cache_key] = 1
                     return None if event == 'call' else NO_FTRACE
 
             if py_db.is_files_filter_enabled:
-                if py_db.apply_files_filter(frame, filename, False):
+                if py_db.apply_files_filter(frame, abs_path_canonical_path_and_base[0], False):
                     cache_skips[frame_cache_key] = 1
 
                     if is_stepping and additional_info.pydev_original_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE) and not _global_notify_skipped_step_in:
@@ -433,7 +432,7 @@ class ThreadTracer(object):
             # reference to the frame).
             ret = PyDBFrame(
                 (
-                    py_db, filename, additional_info, t, frame_skips_cache, frame_cache_key,
+                    py_db, abs_path_canonical_path_and_base, additional_info, t, frame_skips_cache, frame_cache_key,
                 )
             ).trace_dispatch(frame, event, arg)
             if ret is None:

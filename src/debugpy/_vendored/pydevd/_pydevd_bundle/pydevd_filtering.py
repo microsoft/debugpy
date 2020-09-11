@@ -204,15 +204,18 @@ class FilesFiltering(object):
 
         return sorted(set(roots))
 
-    def _normpath(self, filename):
-        return pydevd_file_utils.get_abs_path_real_path_and_base_from_file(filename)[0]
-
     def _fix_roots(self, roots):
         roots = _convert_to_str_and_clear_empty(roots)
         new_roots = []
         for root in roots:
-            new_roots.append(self._normpath(root))
+            new_roots.append(self._absolute_normalized_path(root))
         return new_roots
+
+    def _absolute_normalized_path(self, filename):
+        '''
+        Provides a version of the filename that's absolute and normalized.
+        '''
+        return normcase(pydevd_file_utils.absolute_path(filename))
 
     def set_project_roots(self, project_roots):
         self._project_roots = self._fix_roots(project_roots)
@@ -228,45 +231,45 @@ class FilesFiltering(object):
     def _get_library_roots(self):
         return self._library_roots
 
-    def in_project_roots(self, filename):
+    def in_project_roots(self, received_filename):
         '''
         Note: don't call directly. Use PyDb.in_project_scope (there's no caching here and it doesn't
         handle all possibilities for knowing whether a project is actually in the scope, it
-        just handles the heuristics based on the filename without the actual frame).
+        just handles the heuristics based on the absolute_normalized_filename without the actual frame).
         '''
         DEBUG = False
 
-        if filename.startswith(USER_CODE_BASENAMES_STARTING_WITH):
+        if received_filename.startswith(USER_CODE_BASENAMES_STARTING_WITH):
             if DEBUG:
-                pydev_log.debug('In in_project_roots - user basenames - starts with %s (%s)', filename, USER_CODE_BASENAMES_STARTING_WITH)
+                pydev_log.debug('In in_project_roots - user basenames - starts with %s (%s)', received_filename, USER_CODE_BASENAMES_STARTING_WITH)
             return True
 
-        if filename.startswith(LIBRARY_CODE_BASENAMES_STARTING_WITH):
+        if received_filename.startswith(LIBRARY_CODE_BASENAMES_STARTING_WITH):
             if DEBUG:
-                pydev_log.debug('Not in in_project_roots - library basenames - starts with %s (%s)', filename, LIBRARY_CODE_BASENAMES_STARTING_WITH)
+                pydev_log.debug('Not in in_project_roots - library basenames - starts with %s (%s)', received_filename, LIBRARY_CODE_BASENAMES_STARTING_WITH)
             return False
 
-        project_roots = self._get_project_roots()
+        project_roots = self._get_project_roots()  # roots are absolute/normalized.
 
-        filename = self._normpath(filename)
+        absolute_normalized_filename = self._absolute_normalized_path(received_filename)
 
         found_in_project = []
         for root in project_roots:
-            if root and filename.startswith(root):
+            if root and absolute_normalized_filename.startswith(root):
                 if DEBUG:
-                    pydev_log.debug('In project: %s (%s)', filename, root)
+                    pydev_log.debug('In project: %s (%s)', absolute_normalized_filename, root)
                 found_in_project.append(root)
 
         found_in_library = []
         library_roots = self._get_library_roots()
         for root in library_roots:
-            if root and filename.startswith(root):
+            if root and absolute_normalized_filename.startswith(root):
                 found_in_library.append(root)
                 if DEBUG:
-                    pydev_log.debug('In library: %s (%s)', filename, root)
+                    pydev_log.debug('In library: %s (%s)', absolute_normalized_filename, root)
             else:
                 if DEBUG:
-                    pydev_log.debug('Not in library: %s (%s)', filename, root)
+                    pydev_log.debug('Not in library: %s (%s)', absolute_normalized_filename, root)
 
         if not project_roots:
             # If we have no project roots configured, consider it being in the project
@@ -274,21 +277,21 @@ class FilesFiltering(object):
             # and not the other way around).
             in_project = not found_in_library
             if DEBUG:
-                pydev_log.debug('Final in project (no project roots): %s (%s)', filename, in_project)
+                pydev_log.debug('Final in project (no project roots): %s (%s)', absolute_normalized_filename, in_project)
 
         else:
             in_project = False
             if found_in_project:
                 if not found_in_library:
                     if DEBUG:
-                        pydev_log.debug('Final in project (in_project and not found_in_library): %s (True)', filename)
+                        pydev_log.debug('Final in project (in_project and not found_in_library): %s (True)', absolute_normalized_filename)
                     in_project = True
                 else:
                     # Found in both, let's see which one has the bigger path matched.
                     if max(len(x) for x in found_in_project) > max(len(x) for x in found_in_library):
                         in_project = True
                     if DEBUG:
-                        pydev_log.debug('Final in project (found in both): %s (%s)', filename, in_project)
+                        pydev_log.debug('Final in project (found in both): %s (%s)', absolute_normalized_filename, in_project)
 
         return in_project
 
@@ -306,14 +309,14 @@ class FilesFiltering(object):
         # Enabled if we have any filters registered.
         return len(self._exclude_filters) > 0
 
-    def exclude_by_filter(self, filename, module_name):
+    def exclude_by_filter(self, absolute_filename, module_name):
         '''
         :return: True if it should be excluded, False if it should be included and None
             if no rule matched the given file.
         '''
         for exclude_filter in self._exclude_filters:  # : :type exclude_filter: ExcludeFilter
             if exclude_filter.is_path:
-                if glob_matches_path(filename, exclude_filter.name):
+                if glob_matches_path(absolute_filename, exclude_filter.name):
                     return exclude_filter.exclude
             else:
                 # Module filter.

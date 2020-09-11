@@ -16,7 +16,7 @@ import debugpy
 from debugpy import adapter
 from debugpy.common import compat, fmt, log, sockets
 from _pydevd_bundle.pydevd_constants import get_global_debugger
-from pydevd_file_utils import get_abs_path_real_path_and_base_from_file
+from pydevd_file_utils import absolute_path
 
 
 _tls = threading.local()
@@ -133,8 +133,7 @@ def _starts_debugging(func):
             "patch_multiprocessing": _config.get("subProcess", True),
         }
 
-        debugpy_path, _, _ = get_abs_path_real_path_and_base_from_file(debugpy.__file__)
-        debugpy_path = os.path.dirname(debugpy_path)
+        debugpy_path = os.path.dirname(absolute_path(debugpy.__file__))
         settrace_kwargs["dont_trace_start_patterns"] = (debugpy_path,)
         settrace_kwargs["dont_trace_end_patterns"] = ("debugpy_launcher.py",)
 
