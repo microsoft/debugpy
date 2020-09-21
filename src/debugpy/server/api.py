@@ -25,6 +25,7 @@ _tls = threading.local()
 _config = {
     "qt": "auto",
     "subProcess": True,
+    "python": sys.executable,
 }
 
 _config_valid_values = {
@@ -170,7 +171,7 @@ def listen(address, settrace_kwargs):
 
         host, port = address
         adapter_args = [
-            sys.executable,
+            _config.get("python", sys.executable),
             os.path.dirname(adapter.__file__),
             "--for-server",
             str(endpoints_port),
