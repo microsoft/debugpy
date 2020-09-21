@@ -355,7 +355,9 @@ def test_invalid_breakpoints(pyfile, target, run):
             bps = session.set_breakpoints(code_to_debug, bp_markers)
             actual_lines = [bp["line"] for bp in bps]
 
-            if sys.version_info >= (3, 8):
+            if sys.version_info >= (3, 9):
+                expected_markers = ["bp1-expected", "bp2-requested", "bp2-requested"]
+            elif sys.version_info >= (3, 8):
                 # See: https://bugs.python.org/issue38508
                 expected_markers = ["bp1-expected", "bp2-requested", "bp3-expected"]
             else:
@@ -374,7 +376,7 @@ def test_invalid_breakpoints(pyfile, target, run):
         # If there's multiple breakpoints on the same line, we only stop once,
         # so remove duplicates first.
         expected_lines = sorted(set(expected_lines))
-        if sys.version_info >= (3, 8):
+        if (3, 8) <= sys.version_info < (3, 9):
             # We'll actually hit @bp3-expected and later @bp2-requested
             # (there's a line event when the list creation is finished
             # at the start of the list creation on 3.8).
