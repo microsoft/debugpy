@@ -14,6 +14,10 @@ HINSTANCE globalDllInstance = NULL;
 
 class NotificationHelper {
 public:
+#pragma warning( push )
+#pragma warning( disable : 4722 )
+// disable c4722 here: Destructor never returns warning. Compiler sees ExitThread and assumes that
+// there is a potential memory leak.
     ~NotificationHelper(){
         std::string eventName("_pydevd_pid_event_");
         eventName += std::to_string(GetCurrentProcessId());
@@ -27,6 +31,7 @@ public:
         }
         FreeLibraryAndExitThread(globalDllInstance, 0);
     }
+#pragma warning( pop )
 };
 
 DWORD WINAPI RunCodeInThread(LPVOID lpParam){

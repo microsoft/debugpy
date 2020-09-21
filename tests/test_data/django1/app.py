@@ -23,6 +23,7 @@ def sigint_handler(signal, frame):
 signal.signal(signal.SIGINT, sigint_handler)
 
 settings.configure(
+    MIDDLEWARE=[],
     DEBUG=True,
     SECRET_KEY="CD8FF4C1-7E6C-4E45-922D-C796271F2345",
     ROOT_URLCONF=sys.modules[__name__],

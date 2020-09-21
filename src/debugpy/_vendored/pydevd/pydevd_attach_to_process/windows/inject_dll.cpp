@@ -74,7 +74,8 @@ int wmain( int argc, wchar_t *argv[ ], wchar_t *envp[ ] )
     const int MAX_PATH_SIZE_PADDED = MAX_PATH + 1;
     char dllPath[MAX_PATH_SIZE_PADDED];
     memset(&dllPath[0], '\0', MAX_PATH_SIZE_PADDED);
-    wcstombs(dllPath, argv[2], MAX_PATH);
+    size_t pathLen = 0;
+    wcstombs_s(&pathLen, dllPath, argv[2], MAX_PATH);
     
     const bool inheritable = false;
     const HANDLE hProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_CREATE_THREAD | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, inheritable, pid);
@@ -95,7 +96,7 @@ int wmain( int argc, wchar_t *argv[ ], wchar_t *envp[ ] )
     
     std::cout << "VirtualAllocEx in pid: " << pid << std::endl;
     
-    const bool written = WriteProcessMemory(hProcess, remoteMemoryAddr, dllPath, MAX_PATH_SIZE_PADDED, nullptr);
+    const bool written = WriteProcessMemory(hProcess, remoteMemoryAddr, dllPath, pathLen, nullptr);
     if(!written){
         std::cout << "Error. Unable to write to memory in pid: " << pid << ". Error code: " << GetLastError() << "." << std::endl;
         return 5;

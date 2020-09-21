@@ -42,7 +42,7 @@ _adapter_process = None
 def _settrace(*args, **kwargs):
     log.debug("pydevd.settrace(*{0!r}, **{1!r})", args, kwargs)
     # The stdin in notification is not acted upon in debugpy, so, disable it.
-    kwargs.setdefault('notify_stdin', False)
+    kwargs.setdefault("notify_stdin", False)
     try:
         return pydevd.settrace(*args, **kwargs)
     except Exception:
@@ -160,74 +160,83 @@ def listen(address, settrace_kwargs):
     except Exception as exc:
         log.swallow_exception("Can't listen for adapter endpoints:")
         raise RuntimeError("can't listen for adapter endpoints: " + str(exc))
-    endpoints_host, endpoints_port = endpoints_listener.getsockname()
-    log.info(
-        "Waiting for adapter endpoints on {0}:{1}...", endpoints_host, endpoints_port
-    )
 
-    host, port = address
-    adapter_args = [
-        _config.get('python', sys.executable),
-        os.path.dirname(adapter.__file__),
-        "--for-server",
-        str(endpoints_port),
-        "--host",
-        host,
-        "--port",
-        str(port),
-        "--server-access-token",
-        server_access_token,
-    ]
-    if log.log_dir is not None:
-        adapter_args += ["--log-dir", log.log_dir]
-    log.info("debugpy.listen() spawning adapter: {0!j}", adapter_args)
-
-    # On Windows, detach the adapter from our console, if any, so that it doesn't
-    # receive Ctrl+C from it, and doesn't keep it open once we exit.
-    creationflags = 0
-    if sys.platform == "win32":
-        creationflags |= 0x08000000  # CREATE_NO_WINDOW
-        creationflags |= 0x00000200  # CREATE_NEW_PROCESS_GROUP
-
-    # Adapter will outlive this process, so we shouldn't wait for it. However, we
-    # need to ensure that the Popen instance for it doesn't get garbage-collected
-    # by holding a reference to it in a non-local variable, to avoid triggering
-    # https://bugs.python.org/issue37380.
     try:
-        global _adapter_process
-        _adapter_process = subprocess.Popen(
-            adapter_args, close_fds=True, creationflags=creationflags
+        endpoints_host, endpoints_port = endpoints_listener.getsockname()
+        log.info(
+            "Waiting for adapter endpoints on {0}:{1}...",
+            endpoints_host,
+            endpoints_port,
         )
-        if os.name == "posix":
-            # It's going to fork again to daemonize, so we need to wait on it to
-            # clean it up properly.
-            _adapter_process.wait()
-        else:
-            # Suppress misleading warning about child process still being alive when
-            # this process exits (https://bugs.python.org/issue38890).
-            _adapter_process.returncode = 0
-            pydevd.add_dont_terminate_child_pid(_adapter_process.pid)
-    except Exception as exc:
-        log.swallow_exception("Error spawning debug adapter:", level="info")
-        raise RuntimeError("error spawning debug adapter: " + str(exc))
 
-    try:
-        sock, _ = endpoints_listener.accept()
+        host, port = address
+        adapter_args = [
+            _config.get("python", sys.executable),
+            os.path.dirname(adapter.__file__),
+            "--for-server",
+            str(endpoints_port),
+            "--host",
+            host,
+            "--port",
+            str(port),
+            "--server-access-token",
+            server_access_token,
+        ]
+        if log.log_dir is not None:
+            adapter_args += ["--log-dir", log.log_dir]
+        log.info("debugpy.listen() spawning adapter: {0!j}", adapter_args)
+
+        # On Windows, detach the adapter from our console, if any, so that it doesn't
+        # receive Ctrl+C from it, and doesn't keep it open once we exit.
+        creationflags = 0
+        if sys.platform == "win32":
+            creationflags |= 0x08000000  # CREATE_NO_WINDOW
+            creationflags |= 0x00000200  # CREATE_NEW_PROCESS_GROUP
+
+        # Adapter will outlive this process, so we shouldn't wait for it. However, we
+        # need to ensure that the Popen instance for it doesn't get garbage-collected
+        # by holding a reference to it in a non-local variable, to avoid triggering
+        # https://bugs.python.org/issue37380.
         try:
-            sock.settimeout(None)
-            sock_io = sock.makefile("rb", 0)
+            global _adapter_process
+            _adapter_process = subprocess.Popen(
+                adapter_args, close_fds=True, creationflags=creationflags
+            )
+            if os.name == "posix":
+                # It's going to fork again to daemonize, so we need to wait on it to
+                # clean it up properly.
+                _adapter_process.wait()
+            else:
+                # Suppress misleading warning about child process still being alive when
+                # this process exits (https://bugs.python.org/issue38890).
+                _adapter_process.returncode = 0
+                pydevd.add_dont_terminate_child_pid(_adapter_process.pid)
+        except Exception as exc:
+            log.swallow_exception("Error spawning debug adapter:", level="info")
+            raise RuntimeError("error spawning debug adapter: " + str(exc))
+
+        try:
+            sock, _ = endpoints_listener.accept()
             try:
-                endpoints = json.loads(sock_io.read().decode("utf-8"))
+                sock.settimeout(None)
+                sock_io = sock.makefile("rb", 0)
+                try:
+                    endpoints = json.loads(sock_io.read().decode("utf-8"))
+                finally:
+                    sock_io.close()
             finally:
-                sock_io.close()
-        finally:
-            sockets.close_socket(sock)
-    except socket.timeout:
-        log.swallow_exception("Timed out waiting for adapter to connect:", level="info")
-        raise RuntimeError("timed out waiting for adapter to connect")
-    except Exception as exc:
-        log.swallow_exception("Error retrieving adapter endpoints:", level="info")
-        raise RuntimeError("error retrieving adapter endpoints: " + str(exc))
+                sockets.close_socket(sock)
+        except socket.timeout:
+            log.swallow_exception(
+                "Timed out waiting for adapter to connect:", level="info"
+            )
+            raise RuntimeError("timed out waiting for adapter to connect")
+        except Exception as exc:
+            log.swallow_exception("Error retrieving adapter endpoints:", level="info")
+            raise RuntimeError("error retrieving adapter endpoints: " + str(exc))
+
+    finally:
+        endpoints_listener.close()
 
     log.info("Endpoints received from adapter: {0!j}", endpoints)
 

@@ -40,8 +40,8 @@ class UserModuleDeleter:
     User Module Deleter (UMD) aims at deleting user modules
     to force Python to deeply reload them during import
 
-    pathlist [list]: blacklist in terms of module path
-    namelist [list]: blacklist in terms of module name
+    pathlist [list]: ignore list in terms of module path
+    namelist [list]: ignore list in terms of module name
     """
     def __init__(self, namelist=None, pathlist=None):
         if namelist is None:
@@ -51,14 +51,14 @@ class UserModuleDeleter:
             pathlist = []
         self.pathlist = pathlist
         try:
-            # blacklist all files in org.python.pydev/pysrc
+            # ignore all files in org.python.pydev/pysrc
             import pydev_pysrc, inspect
             self.pathlist.append(os.path.dirname(pydev_pysrc.__file__))
         except:
             pass
         self.previous_modules = list(sys.modules.keys())
 
-    def is_module_blacklisted(self, modname, modpath):
+    def is_module_ignored(self, modname, modpath):
         for path in [sys.prefix] + self.pathlist:
             if modpath.startswith(path):
                 return True
@@ -86,7 +86,7 @@ class UserModuleDeleter:
                     # interpreter. There is no way to know its path, so we
                     # choose to ignore it.
                     continue
-                if not self.is_module_blacklisted(modname, modpath):
+                if not self.is_module_ignored(modname, modpath):
                     log.append(modname)
                     del sys.modules[modname]
         if verbose and log:

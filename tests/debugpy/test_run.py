@@ -139,7 +139,7 @@ def test_sudo(pyfile, tmpdir, run, target):
 
 @pytest.mark.parametrize("run", runners.all_launch_terminal)
 @pytest.mark.parametrize("python_args", ["", "-v"])
-@pytest.mark.parametrize("python", ["", "custompy", "custompy -O"])
+@pytest.mark.parametrize("python", ["", "custompy", "custompy|-O"])
 @pytest.mark.parametrize("python_key", ["python", "pythonPath"])
 def test_custom_python(pyfile, run, target, python_key, python, python_args):
     @pyfile
@@ -151,7 +151,7 @@ def test_custom_python(pyfile, run, target, python_key, python, python_args):
         debuggee.setup()
         backchannel.send([sys.executable, sys.flags.optimize, sys.flags.verbose])
 
-    python = python.split()
+    python = python.split("|")
     python_args = python_args.split()
     python_cmd = (python if len(python) else [sys.executable]) + python_args
 
@@ -178,3 +178,47 @@ def test_custom_python(pyfile, run, target, python_key, python, python_args):
             "-O" in python_cmd,
             "-v" in python_cmd,
         ]
+
+
+@pytest.mark.parametrize("run", runners.all)
+@pytest.mark.parametrize("target", targets.all)
+@pytest.mark.parametrize("frame_eval", ["", "yes", "no"])
+def test_frame_eval(pyfile, target, run, frame_eval):
+    # Frame-eval optimizations are not available for some Python implementations,
+    # but pydevd will still try to use them if the environment variable is set to
+    # "yes" explicitly, so the test must detect and skip those cases.
+    if frame_eval == "yes":
+        try:
+            import _pydevd_frame_eval.pydevd_frame_eval_cython_wrapper  # noqa
+        except ImportError:
+            pytest.skip("Frame-eval not available")
+        else:
+            pass
+
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        from debuggee import backchannel
+
+        debuggee.setup()
+
+        from _pydevd_frame_eval.pydevd_frame_eval_main import USING_FRAME_EVAL
+
+        backchannel.send(USING_FRAME_EVAL)
+
+    with debug.Session() as session:
+        assert "PYDEVD_USE_FRAME_EVAL" not in os.environ
+        if len(frame_eval):
+            env = (
+                session.config.env
+                if run.request == "launch"
+                else session.spawn_debuggee.env
+            )
+            env["PYDEVD_USE_FRAME_EVAL"] = frame_eval
+
+        backchannel = session.open_backchannel()
+        with run(session, target(code_to_debug)):
+            pass
+
+        using_frame_eval = backchannel.receive()
+        assert using_frame_eval == (frame_eval == "yes")

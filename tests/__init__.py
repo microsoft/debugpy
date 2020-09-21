@@ -56,6 +56,17 @@ for _, submodule, _ in tests_submodules:
 from debugpy.common import json, log
 import debugpy.server  # noqa
 
+# Clean up environment variables that were automatically set when importing pydevd -
+# we don't need them in the test runner process (since pydevd is not tracing it),
+# and some tests must be able to spawn debuggee with them unset.
+for name in (
+    "DEBUGPY_LOG_DIR",
+    "PYDEVD_DEBUG",
+    "PYDEVD_DEBUG_FILE",
+    "PYDEVD_USE_FRAME_EVAL",
+):
+    os.environ.pop(name, None)
+
 # Enable full logging to stderr, and make timestamps shorter to match maximum test
 # run time better.
 log.stderr.levels = all
@@ -64,8 +75,6 @@ log.to_file(prefix="tests")
 
 
 # Enable JSON serialization for py.path.local.
-
-
 def json_default(self, obj):
     if isinstance(obj, py.path.local):
         return obj.strpath

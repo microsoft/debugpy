@@ -310,6 +310,7 @@ class Session(object):
             env.update(base_env)
 
         env["PYTHONUNBUFFERED"] = "1"
+        env["PYTHONWARNINGS"] = "error"
         env["DEBUGPY_TEST_SESSION_ID"] = str(self.id)
         env.prepend_to("PYTHONPATH", DEBUGGEE_PYTHONPATH.strpath)
 
