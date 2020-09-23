@@ -24,7 +24,7 @@
     {
       "Component": {
         "Type": "pip",
-        "pip": { "Name": "pydevd", "Version": "1.9.2" }
+        "pip": { "Name": "pydevd", "Version": "2.0.0" }
       },
       "DevelopmentDependency": false
     },
