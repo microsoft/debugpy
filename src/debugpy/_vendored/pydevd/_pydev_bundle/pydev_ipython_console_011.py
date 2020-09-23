@@ -105,6 +105,11 @@ class PyDevIPCompleter6(IPCompleter):
             self.dict_key_matches,
         ]
 
+    @matchers.setter
+    def matchers(self, value):
+        # To stop the init in IPCompleter raising an AttributeError we now have to specify a setter as it's now a property in the superclass.
+        return
+
 class PyDevTerminalInteractiveShell(TerminalInteractiveShell):
     banner1 = Unicode(default_pydev_banner, config=True,
         help="""The part of the banner to be printed before the profile"""
