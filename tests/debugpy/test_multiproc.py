@@ -220,7 +220,7 @@ def test_subprocess(pyfile, target, run, subProcess):
 
 
 @pytest.mark.parametrize("run", runners.all_launch)
-def test_autokill(daemon, pyfile, target, run):
+def test_autokill(pyfile, target, run):
     @pyfile
     def child():
         import os
@@ -250,7 +250,7 @@ def test_autokill(daemon, pyfile, target, run):
 
     with debug.Session() as parent_session:
         parent_session.expected_exit_code = some.int
-        
+
         backchannel = parent_session.open_backchannel()
         with run(parent_session, target(parent, args=[child])):
             pass
@@ -274,7 +274,7 @@ def test_autokill(daemon, pyfile, target, run):
 
 
 @pytest.mark.parametrize("run", runners.all_launch)
-def test_autokill_nodebug(daemon, pyfile, target, run):
+def test_autokill_nodebug(pyfile, target, run):
     @pyfile
     def child():
         import os
@@ -311,7 +311,7 @@ def test_autokill_nodebug(daemon, pyfile, target, run):
         child_process = psutil.Process(child_pid)
 
         session.request("terminate")
-    
+
     log.info("Waiting for child process...")
     child_process.wait()
 
@@ -412,3 +412,60 @@ def test_echo_and_shell(pyfile, target, run):
     with debug.Session() as parent_session:
         with run(parent_session, target(code_to_run)):
             pass
+
+
+@pytest.mark.parametrize("run", runners.all_attach_connect)
+@pytest.mark.parametrize("wait", ["wait", ""])
+def test_subprocess_unobserved(pyfile, run, target, wait):
+    @pyfile
+    def child():
+        from debuggee import backchannel  # @bp
+
+        backchannel.send("child running")
+        backchannel.receive()
+
+    @pyfile
+    def parent():
+        import debuggee
+        import os
+        import subprocess
+        import sys
+
+        debuggee.setup()
+        args = [sys.executable, sys.argv[1]]
+        env = os.environ.copy()
+        subprocess.Popen(args, env=env).wait()
+
+    with debug.Session() as parent_session:
+        backchannel = parent_session.open_backchannel()
+
+        if not wait:
+            # The child process should have started running user code as soon as it's
+            # spawned, before there is a client connection.
+            def before_connect(address):
+                assert backchannel.receive() == "child running"
+
+            parent_session.before_connect = before_connect
+
+        with run(parent_session, target(parent, args=[child]), wait=bool(wait)):
+            pass
+
+        child_config = parent_session.wait_for_next_event("debugpyAttach")
+        parent_session.proceed()
+
+        with debug.Session(child_config) as child_session:
+            with child_session.start():
+                child_session.set_breakpoints(child, all)
+
+            if wait:
+                # The child process should not have started running user code until
+                # there was a client connection, so the breakpoint should be hit.
+                child_session.wait_for_stop(expected_frames=[some.dap.frame(child, line="bp")])
+                child_session.request_continue()
+            else:
+                # The breakpoint shouldn't be hit, since that line should have been
+                # executed before we attached. 
+                pass
+
+            backchannel.send("proceed")
+            child_session.wait_for_terminated()
