@@ -115,6 +115,8 @@ if 'debugpy' not in sys.modules:
                     raise KeyError(
                         fmt("{0} is already connected to this adapter", self)
                     )
+
+                is_first_server = len(_connections) == 0
                 _connections.append(self)
                 _connections_changed.set()
 
@@ -137,6 +139,7 @@ if 'debugpy' not in sys.modules:
         else:
             try:
                 parent_session.client.notify_of_subprocess(self)
+                return
             except Exception:
                 # This might fail if the client concurrently disconnects from the parent
                 # session. We still want to keep the connection around, in case the
@@ -145,6 +148,25 @@ if 'debugpy' not in sys.modules:
                 log.swallow_exception(
                     "Failed to notify parent session about {0}:", self
                 )
+
+        # If we got to this point, the subprocess notification was either not sent,
+        # or not delivered successfully. For the first server, this is expected, since
+        # it corresponds to the root process, and there is no other debug session to
+        # notify. But subsequent server connections represent subprocesses, and those
+        # will not start running user code until the client tells them to. Since there
+        # isn't going to be a client without the notification, such subprocesses have
+        # to be unblocked.
+        if is_first_server:
+            return
+        log.info("No clients to wait for - unblocking {0}.", self)
+        try:
+            self.channel.request("initialize", {"adapterID": "debugpy"})
+            self.channel.request("attach", {"subProcessId": self.pid})
+            self.channel.request("configurationDone")
+            self.channel.request("disconnect")
+        except Exception:
+            log.swallow_exception("Failed to unblock orphaned subprocess:")
+            self.channel.close()
 
     def __str__(self):
         return "Server" + fmt("[?]" if self.pid is None else "[pid={0}]", self.pid)

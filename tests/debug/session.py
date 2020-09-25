@@ -143,6 +143,10 @@ class Session(object):
         )
         """The debug configuration for this session."""
 
+        self.before_connect = lambda address: None
+        """Invoked right before a socket connection to the adapter is established.
+        """
+
         self.before_request = lambda command, arguments: None
         """Invoked for every outgoing request in this session, allowing any final
         tweaks to the request before it is sent.
@@ -421,6 +425,7 @@ class Session(object):
     def connect_to_adapter(self, address):
         assert self.channel is None
 
+        self.before_connect(address)
         host, port = address
         log.info("Connecting to {0} at {1}:{2}", self.adapter_id, host, port)
         sock = sockets.create_client()

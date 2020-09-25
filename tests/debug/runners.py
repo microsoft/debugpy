@@ -261,9 +261,7 @@ if {wait!r}:
         pass
 
     session.spawn_debuggee(args, cwd=cwd, setup=debuggee_setup)
-    if wait:
-        session.wait_for_adapter_socket()
-
+    session.wait_for_adapter_socket()
     session.connect_to_adapter((host, port))
     return session.request_attach()
 
