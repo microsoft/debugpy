@@ -161,6 +161,7 @@ class NetCommandFactory(object):
     def _iter_visible_frames_info(self, py_db, frames_list):
         assert frames_list.__class__ == FramesList
         for frame in frames_list:
+            show_as_current_frame = frame is frames_list.current_frame
             if frame.f_code is None:
                 pydev_log.info('Frame without f_code: %s', frame)
                 continue  # IronPython sometimes does not have it!
@@ -183,7 +184,7 @@ class NetCommandFactory(object):
             new_filename_in_utf8, applied_mapping = pydevd_file_utils.map_file_to_client(filename_in_utf8)
             applied_mapping = applied_mapping or changed
 
-            yield frame_id, frame, method_name, abs_path_real_path_and_base[0], new_filename_in_utf8, lineno, applied_mapping
+            yield frame_id, frame, method_name, abs_path_real_path_and_base[0], new_filename_in_utf8, lineno, applied_mapping, show_as_current_frame
 
     def make_thread_stack_str(self, py_db, frames_list):
         assert frames_list.__class__ == FramesList
@@ -192,7 +193,7 @@ class NetCommandFactory(object):
         append = cmd_text_list.append
 
         try:
-            for frame_id, frame, method_name, _original_filename, filename_in_utf8, lineno, _applied_mapping in self._iter_visible_frames_info(
+            for frame_id, frame, method_name, _original_filename, filename_in_utf8, lineno, _applied_mapping, _show_as_current_frame in self._iter_visible_frames_info(
                     py_db, frames_list
                 ):
 

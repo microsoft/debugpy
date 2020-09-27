@@ -333,72 +333,100 @@ class _PyDevCommandProcessor(object):
         thread_id, frame_id, scope, expression = text.split('\t', 3)
         self.api.request_console_exec(py_db, seq, thread_id, frame_id, expression)
 
-    def cmd_set_py_exception(self, py_db, cmd_id, seq, text):
-        # Command which receives set of exceptions on which user wants to break the debugger
-        # text is:
-        #
-        # break_on_uncaught;
-        # break_on_caught;
-        # skip_on_exceptions_thrown_in_same_context;
-        # ignore_exceptions_thrown_in_lines_with_ignore_exception;
-        # ignore_libraries;
-        # TypeError;ImportError;zipimport.ZipImportError;
-        #
-        # i.e.: true;true;true;true;true;TypeError;ImportError;zipimport.ZipImportError;
-        #
+    def cmd_set_py_exception_json(self, py_db, cmd_id, seq, text):
         # This API is optional and works 'in bulk' -- it's possible
         # to get finer-grained control with CMD_ADD_EXCEPTION_BREAK/CMD_REMOVE_EXCEPTION_BREAK
-        # which allows setting caught/uncaught per exception.
-        splitted = text.split(';')
-        py_db.break_on_uncaught_exceptions = {}
-        py_db.break_on_caught_exceptions = {}
-        py_db.break_on_user_uncaught_exceptions = {}
-        if len(splitted) >= 5:
-            if splitted[0] == 'true':
-                break_on_uncaught = True
-            else:
-                break_on_uncaught = False
+        # which allows setting caught/uncaught per exception, although global settings such as:
+        # - skip_on_exceptions_thrown_in_same_context
+        # - ignore_exceptions_thrown_in_lines_with_ignore_exception
+        # must still be set through this API (before anything else as this clears all existing
+        # exception breakpoints).
+        try:
+            py_db.break_on_uncaught_exceptions = {}
+            py_db.break_on_caught_exceptions = {}
+            py_db.break_on_user_uncaught_exceptions = {}
 
-            if splitted[1] == 'true':
-                break_on_caught = True
-            else:
-                break_on_caught = False
+            as_json = json.loads(text)
+            break_on_uncaught = as_json.get('break_on_uncaught', False)
+            break_on_caught = as_json.get('break_on_caught', False)
+            break_on_user_caught = as_json.get('break_on_user_caught', False)
+            py_db.skip_on_exceptions_thrown_in_same_context = as_json.get('skip_on_exceptions_thrown_in_same_context', False)
+            py_db.ignore_exceptions_thrown_in_lines_with_ignore_exception = as_json.get('ignore_exceptions_thrown_in_lines_with_ignore_exception', False)
+            ignore_libraries = as_json.get('ignore_libraries', False)
+            exception_types = as_json.get('exception_types', [])
 
-            if splitted[2] == 'true':
-                py_db.skip_on_exceptions_thrown_in_same_context = True
-            else:
-                py_db.skip_on_exceptions_thrown_in_same_context = False
-
-            if splitted[3] == 'true':
-                py_db.ignore_exceptions_thrown_in_lines_with_ignore_exception = True
-            else:
-                py_db.ignore_exceptions_thrown_in_lines_with_ignore_exception = False
-
-            if splitted[4] == 'true':
-                ignore_libraries = True
-            else:
-                ignore_libraries = False
-
-            for exception_type in splitted[5:]:
-                exception_type = exception_type.strip()
+            for exception_type in exception_types:
                 if not exception_type:
                     continue
 
-                exception_breakpoint = py_db.add_break_on_exception(
+                py_db.add_break_on_exception(
                     exception_type,
                     condition=None,
                     expression=None,
                     notify_on_handled_exceptions=break_on_caught,
                     notify_on_unhandled_exceptions=break_on_uncaught,
-                    notify_on_user_unhandled_exceptions=False,  # TODO (not currently supported in this API).
+                    notify_on_user_unhandled_exceptions=break_on_user_caught,
                     notify_on_first_raise_only=True,
                     ignore_libraries=ignore_libraries,
                 )
 
-            py_db.on_breakpoints_changed()
+                py_db.on_breakpoints_changed()
+        except:
+            pydev_log.exception("Error when setting exception list. Received: %s", text)
 
-        else:
-            sys.stderr.write("Error when setting exception list. Received: %s\n" % (text,))
+    def cmd_set_py_exception(self, py_db, cmd_id, seq, text):
+        # DEPRECATED. Use cmd_set_py_exception_json instead.
+        try:
+            splitted = text.split(';')
+            py_db.break_on_uncaught_exceptions = {}
+            py_db.break_on_caught_exceptions = {}
+            py_db.break_on_user_uncaught_exceptions = {}
+            if len(splitted) >= 5:
+                if splitted[0] == 'true':
+                    break_on_uncaught = True
+                else:
+                    break_on_uncaught = False
+
+                if splitted[1] == 'true':
+                    break_on_caught = True
+                else:
+                    break_on_caught = False
+
+                if splitted[2] == 'true':
+                    py_db.skip_on_exceptions_thrown_in_same_context = True
+                else:
+                    py_db.skip_on_exceptions_thrown_in_same_context = False
+
+                if splitted[3] == 'true':
+                    py_db.ignore_exceptions_thrown_in_lines_with_ignore_exception = True
+                else:
+                    py_db.ignore_exceptions_thrown_in_lines_with_ignore_exception = False
+
+                if splitted[4] == 'true':
+                    ignore_libraries = True
+                else:
+                    ignore_libraries = False
+
+                for exception_type in splitted[5:]:
+                    exception_type = exception_type.strip()
+                    if not exception_type:
+                        continue
+
+                    py_db.add_break_on_exception(
+                        exception_type,
+                        condition=None,
+                        expression=None,
+                        notify_on_handled_exceptions=break_on_caught,
+                        notify_on_unhandled_exceptions=break_on_uncaught,
+                        notify_on_user_unhandled_exceptions=False,  # TODO (not currently supported in this API).
+                        notify_on_first_raise_only=True,
+                        ignore_libraries=ignore_libraries,
+                    )
+            else:
+                pydev_log.exception("Expected to have at least 5 ';' separated items. Received: %s", text)
+
+        except:
+            pydev_log.exception("Error when setting exception list. Received: %s", text)
 
     def _load_source(self, py_db, cmd_id, seq, text):
         filename = text

@@ -215,7 +215,7 @@ class NetCommandFactoryJson(NetCommandFactory):
                 else:
                     frames_list = pydevd_frame_utils.create_frames_list_from_frame(topmost_frame)
 
-            for frame_id, frame, method_name, original_filename, filename_in_utf8, lineno, applied_mapping in self._iter_visible_frames_info(
+            for frame_id, frame, method_name, original_filename, filename_in_utf8, lineno, applied_mapping, show_as_current_frame in self._iter_visible_frames_info(
                     py_db, frames_list
                 ):
 
@@ -235,6 +235,8 @@ class NetCommandFactoryJson(NetCommandFactory):
                         presentation_hint = 'subtle'
 
                 formatted_name = self._format_frame_name(fmt, method_name, module_name, lineno, filename_in_utf8)
+                if show_as_current_frame:
+                    formatted_name += ' (Current frame)'
                 source_reference = pydevd_file_utils.get_client_filename_source_reference(filename_in_utf8)
 
                 if not source_reference and not applied_mapping and not os.path.exists(original_filename):

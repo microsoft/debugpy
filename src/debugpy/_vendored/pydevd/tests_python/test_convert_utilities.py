@@ -314,7 +314,7 @@ def test_relative_paths(tmpdir):
         pydevd_file_utils.NORM_PATHS_CONTAINER.clear()
         abs_path = pydevd_file_utils.get_abs_path_real_path_and_base_from_file('my_dir/my_file.pyx')[0]
         assert 'site-packages' not in abs_path
-        assert os.path.normcase(str(tmpdir)) in abs_path
+        assert str(tmpdir) in abs_path
         assert pydevd_file_utils.exists('my_dir/my_file.pyx')
     finally:
         sys.path.remove(str(tmpdir))
@@ -344,7 +344,7 @@ def test_zip_paths(tmpdir):
         assert pydevd_file_utils.exists(zipfile_path)
         abspath, realpath, basename = pydevd_file_utils.get_abs_path_real_path_and_base_from_file(zipfile_path)
         if IS_WINDOWS:
-            assert abspath == zipfile_path.lower()
+            assert abspath == zipfile_path
             assert basename == zip_basename.lower()
         else:
             assert abspath == zipfile_path

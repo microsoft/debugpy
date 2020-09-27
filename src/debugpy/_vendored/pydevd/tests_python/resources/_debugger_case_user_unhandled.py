@@ -2,7 +2,7 @@ import pytest
 
 
 def some_call():
-    assert 0
+    assert 0  # raise here
 
 
 def test_example():
