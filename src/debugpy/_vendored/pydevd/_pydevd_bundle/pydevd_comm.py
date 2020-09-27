@@ -1182,6 +1182,7 @@ def build_exception_info_response(dbg, thread_id, request_seq, set_additional_th
     frames = []
     exc_type = None
     exc_desc = None
+    current_paused_frame_name = ''
     if topmost_frame is not None:
         try:
             frames_list = dbg.suspended_frames_manager.get_frames_list(thread_id)
@@ -1189,8 +1190,8 @@ def build_exception_info_response(dbg, thread_id, request_seq, set_additional_th
                 exc_type = frames_list.exc_type
                 exc_desc = frames_list.exc_desc
                 trace_obj = frames_list.trace_obj
-                for frame_id, frame, method_name, original_filename, filename_in_utf8, lineno, _applied_mapping in iter_visible_frames_info(
-                        dbg, frames_list):
+                for frame_id, frame, method_name, original_filename, filename_in_utf8, lineno, _applied_mapping, show_as_current_frame in \
+                    iter_visible_frames_info(dbg, frames_list):
 
                     line_text = linecache.getline(original_filename, lineno)
 
@@ -1198,6 +1199,10 @@ def build_exception_info_response(dbg, thread_id, request_seq, set_additional_th
                     if not getattr(frame, 'IS_PLUGIN_FRAME', False):
                         if dbg.is_files_filter_enabled and dbg.apply_files_filter(frame, original_filename, False):
                             continue
+
+                    if show_as_current_frame:
+                        current_paused_frame_name = method_name
+                        method_name += ' (Current frame)'
                     frames.append((filename_in_utf8, lineno, method_name, line_text))
         finally:
             topmost_frame = None
@@ -1221,6 +1226,9 @@ def build_exception_info_response(dbg, thread_id, request_seq, set_additional_th
             description = str(exc_desc)
         except:
             pass
+
+    if current_paused_frame_name:
+        name += '       (note: full exception trace is shown but execution is paused at: %s)' % (current_paused_frame_name,)
 
     stack_str = ''.join(traceback.format_list(frames[-max_frames:]))
 

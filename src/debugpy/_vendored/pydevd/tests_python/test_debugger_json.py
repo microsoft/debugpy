@@ -641,6 +641,26 @@ def test_case_handled_exception_breaks(case_setup):
         writer.finished_ok = True
 
 
+def _check_current_line(json_hit, current_line):
+    if not isinstance(current_line, (list, tuple)):
+        current_line = (current_line,)
+    for frame in json_hit.stack_trace_response.body.stackFrames:
+        if '(Current frame)' in frame['name']:
+            if frame['line'] not in current_line:
+                rep = json.dumps(json_hit.stack_trace_response.body.stackFrames, indent=4)
+                raise AssertionError('Expected: %s to be one of: %s\nFrames:\n%s.' % (
+                    frame['line'],
+                    current_line,
+                    rep
+                ))
+
+            break
+    else:
+        rep = json.dumps(json_hit.stack_trace_response.body.stackFrames, indent=4)
+        raise AssertionError('Could not find (Current frame) in any frame name in: %s.' % (
+            rep))
+
+
 @pytest.mark.skipif(IS_PY26, reason='Not ok on Python 2.6')
 @pytest.mark.parametrize('stop', [False, True])
 def test_case_user_unhandled_exception(case_setup, stop):
@@ -665,8 +685,9 @@ def test_case_user_unhandled_exception(case_setup, stop):
         json_facade.write_make_initial_run()
 
         if stop:
-            json_facade.wait_for_thread_stopped(
-                reason='exception', line=writer.get_line_index_with_content('stop here'), file=target)
+            json_hit = json_facade.wait_for_thread_stopped(
+                reason='exception', line=writer.get_line_index_with_content('raise here'), file=target)
+            _check_current_line(json_hit, writer.get_line_index_with_content('stop here'))
 
             json_facade.write_continue()
 
@@ -705,21 +726,30 @@ def test_case_user_unhandled_exception_coroutine(case_setup, stop):
         json_facade.write_make_initial_run()
 
         if stop:
-            json_facade.wait_for_thread_stopped(
-                reason='exception', line=writer.get_line_index_with_content('stop here 1'), file=basename)
+            stop_line = writer.get_line_index_with_content('stop here 1')
+            current_line = stop_line
+
+            json_hit = json_facade.wait_for_thread_stopped(
+                reason='exception', line=stop_line, file=basename)
+            _check_current_line(json_hit, current_line)
 
             json_facade.write_continue()
 
-            json_facade.wait_for_thread_stopped(
-                reason='exception', line=writer.get_line_index_with_content('stop here 2'), file=basename)
+            current_line = writer.get_line_index_with_content('stop here 2')
+            json_hit = json_facade.wait_for_thread_stopped(
+                reason='exception', line=stop_line, file=basename)
+            _check_current_line(json_hit, current_line)
 
             json_facade.write_continue()
 
-            json_facade.wait_for_thread_stopped(
-                reason='exception', line=(
-                    writer.get_line_index_with_content('stop here 3a'),
-                    writer.get_line_index_with_content('stop here 3b')
-                ), file=basename)
+            current_line = (
+                writer.get_line_index_with_content('stop here 3a'),
+                writer.get_line_index_with_content('stop here 3b'),
+            )
+
+            json_hit = json_facade.wait_for_thread_stopped(
+                reason='exception', line=stop_line, file=basename)
+            _check_current_line(json_hit, current_line)
 
             json_facade.write_continue()
 
@@ -734,7 +764,7 @@ def test_case_user_unhandled_exception_stop_on_yield(case_setup, pyfile):
 
         def on_yield():
             yield
-            raise AssertionError()
+            raise AssertionError()  # raise here
 
         try:
             for _ in on_yield():  # stop here
@@ -765,8 +795,9 @@ def test_case_user_unhandled_exception_stop_on_yield(case_setup, pyfile):
         json_facade.write_set_exception_breakpoints(['userUnhandled'])
         json_facade.write_make_initial_run()
 
-        json_facade.wait_for_thread_stopped(
-            reason='exception', line=writer.get_line_index_with_content('stop here'), file=case_error_on_yield)
+        json_hit = json_facade.wait_for_thread_stopped(
+            reason='exception', line=writer.get_line_index_with_content('raise here'), file=case_error_on_yield)
+        _check_current_line(json_hit, writer.get_line_index_with_content('stop here'))
 
         json_facade.write_continue()
         writer.finished_ok = True

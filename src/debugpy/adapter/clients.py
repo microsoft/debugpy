@@ -162,7 +162,7 @@ class Client(components.Component):
             "exceptionBreakpointFilters": [
                 {"filter": "raised", "label": "Raised Exceptions", "default": False},
                 {"filter": "uncaught", "label": "Uncaught Exceptions", "default": True},
-                # {"filter": "userUnhandled", "label": "User Uncaught Exceptions", "default": False},
+                {"filter": "userUnhandled", "label": "User Uncaught Exceptions", "default": False},
             ],
         }
 
@@ -305,7 +305,7 @@ class Client(components.Component):
         python = request(python_key, json.array(unicode, vectorize=True, size=(0,)))
         if not len(python):
             python = [compat.filename(sys.executable)]
-            
+
         python += request("pythonArgs", json.array(unicode, size=(0,)))
         request.arguments["pythonArgs"] = python[1:]
 

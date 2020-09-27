@@ -1,4 +1,5 @@
-from _pydevd_bundle.pydevd_constants import IS_PY3K
+from _pydevd_bundle.pydevd_constants import IS_PY3K, EXCEPTION_TYPE_USER_UNHANDLED, \
+    EXCEPTION_TYPE_UNHANDLED
 from _pydev_bundle import pydev_log
 import sys
 
@@ -89,8 +90,19 @@ class FramesList(object):
         self.exc_desc = None
         self.trace_obj = None
 
+        # This may be set to set the current frame (for the case where we have
+        # an unhandled exception where we want to show the root bu we have a different
+        # executing frame).
+        self.current_frame = None
+
     def append(self, frame):
         self._frames.append(frame)
+
+    def last_frame(self):
+        return self._frames[-1]
+
+    def __len__(self):
+        return len(self._frames)
 
     def __iter__(self):
         return iter(self._frames)
@@ -107,6 +119,9 @@ class FramesList(object):
         lst.append('\n    trace_obj: ')
         lst.append(str(self.trace_obj))
 
+        lst.append('\n    current_frame: ')
+        lst.append(str(self.current_frame))
+
         for frame in self._frames:
             lst.append('\n    ')
             lst.append(repr(frame))
@@ -117,13 +132,18 @@ class FramesList(object):
     __str__ = __repr__
 
 
-def create_frames_list_from_traceback(trace_obj, frame, exc_type, exc_desc):
+def create_frames_list_from_traceback(trace_obj, frame, exc_type, exc_desc, exception_type=None):
     '''
     :param trace_obj:
         This is the traceback from which the list should be created.
 
     :param frame:
-        This is the first frame to be considered (i.e.: topmost frame).
+        This is the first frame to be considered (i.e.: topmost frame). If None is passed, all
+        the frames from the traceback are shown (so, None should be passed for unhandled exceptions).
+
+    :param exception_type:
+        If this is an unhandled exception or user unhandled exception, we'll not trim the stack to create from the passed
+        frame, rather, we'll just mark the frame in the frames list.
     '''
     lst = []
 
@@ -141,7 +161,11 @@ def create_frames_list_from_traceback(trace_obj, frame, exc_type, exc_desc):
     frames_list = None
 
     for tb_frame, tb_lineno in reversed(lst):
-        if frames_list is None and (frame is tb_frame or frame is None):
+        if frames_list is None and (
+                (frame is tb_frame) or
+                (frame is None) or
+                (exception_type == EXCEPTION_TYPE_USER_UNHANDLED)
+            ):
             frames_list = FramesList()
 
         if frames_list is not None:
@@ -156,6 +180,12 @@ def create_frames_list_from_traceback(trace_obj, frame, exc_type, exc_desc):
     frames_list.exc_type = exc_type
     frames_list.exc_desc = exc_desc
     frames_list.trace_obj = trace_obj
+
+    if exception_type == EXCEPTION_TYPE_USER_UNHANDLED:
+        frames_list.current_frame = frame
+    elif exception_type == EXCEPTION_TYPE_UNHANDLED:
+        if len(frames_list) > 0:
+            frames_list.current_frame = frames_list.last_frame()
 
     return frames_list
 

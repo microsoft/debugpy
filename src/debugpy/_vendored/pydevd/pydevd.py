@@ -41,7 +41,7 @@ from _pydevd_bundle.pydevd_constants import (IS_JYTH_LESS25, get_thread_id, get_
     dict_keys, dict_iter_items, DebugInfoHolder, PYTHON_SUSPEND, STATE_SUSPEND, STATE_RUN, get_frame,
     clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, IS_PY34_OR_GREATER, IS_PY2, NULL,
     NO_FTRACE, IS_IRONPYTHON, JSON_PROTOCOL, IS_CPYTHON, HTTP_JSON_PROTOCOL, USE_CUSTOM_SYS_CURRENT_FRAMES_MAP, call_only_once,
-    ForkSafeLock, IGNORE_BASENAMES_STARTING_WITH)
+    ForkSafeLock, IGNORE_BASENAMES_STARTING_WITH, EXCEPTION_TYPE_UNHANDLED)
 from _pydevd_bundle.pydevd_defaults import PydevdCustomization  # Note: import alias used on pydev_monkey.
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
 from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE, LIB_FILE, DONT_TRACE_DIRS
@@ -1780,14 +1780,13 @@ class PyDB(object):
         """ returns a frame on the thread that has a given frame_id """
         return self.suspended_frames_manager.find_frame(thread_id, frame_id)
 
-    def do_wait_suspend(self, thread, frame, event, arg, is_unhandled_exception=False):  # @UnusedVariable
+    def do_wait_suspend(self, thread, frame, event, arg, exception_type=None):  # @UnusedVariable
         """ busy waits until the thread state changes to RUN
         it expects thread's state as attributes of the thread.
         Upon running, processes any outstanding Stepping commands.
 
-        :param is_unhandled_exception:
-            If True we should use the line of the exception instead of the current line in the frame
-            as the paused location on the top-level frame (exception info must be passed on 'arg').
+        :param exception_type:
+            If pausing due to an exception, its type.
         """
         if USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
             constructed_tid_to_last_frame[thread.ident] = sys._getframe()
@@ -1809,7 +1808,7 @@ class PyDB(object):
             # arg must be the exception info (tuple(exc_type, exc, traceback))
             exc_type, exc_desc, trace_obj = arg
             if trace_obj is not None:
-                frames_list = pydevd_frame_utils.create_frames_list_from_traceback(trace_obj, frame, exc_type, exc_desc)
+                frames_list = pydevd_frame_utils.create_frames_list_from_traceback(trace_obj, frame, exc_type, exc_desc, exception_type=exception_type)
 
         if frames_list is None:
             frames_list = pydevd_frame_utils.create_frames_list_from_frame(frame)
@@ -1860,7 +1859,7 @@ class PyDB(object):
         if keep_suspended:
             # This means that we should pause again after a set next statement.
             self._threads_suspended_single_notification.increment_suspend_time()
-            self.do_wait_suspend(thread, frame, event, arg, is_unhandled_exception)
+            self.do_wait_suspend(thread, frame, event, arg, exception_type)
         if DebugInfoHolder.DEBUG_TRACE_LEVEL > 2:
             pydev_log.debug('Leaving PyDB.do_wait_suspend: %s (%s) %s', thread, thread_id, id(thread))
 
@@ -1992,7 +1991,7 @@ class PyDB(object):
         try:
             add_exception_to_frame(frame, arg)
             self.set_suspend(thread, CMD_ADD_EXCEPTION_BREAK)
-            self.do_wait_suspend(thread, frame, 'exception', arg, is_unhandled_exception=True)
+            self.do_wait_suspend(thread, frame, 'exception', arg, EXCEPTION_TYPE_UNHANDLED)
         except:
             pydev_log.exception("We've got an error while stopping in unhandled exception: %s.", arg[0])
         finally:
@@ -2812,7 +2811,7 @@ class Dispatcher(object):
     def close(self):
         try:
             self.reader.do_kill_pydev_thread()
-        except :
+        except:
             pass
 
 

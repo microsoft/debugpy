@@ -313,6 +313,10 @@ PYDEVD_UNBLOCK_THREADS_TIMEOUT = as_float_in_env('PYDEVD_UNBLOCK_THREADS_TIMEOUT
 # on how the thread interruption works (there are some caveats related to it).
 PYDEVD_INTERRUPT_THREAD_TIMEOUT = as_float_in_env('PYDEVD_INTERRUPT_THREAD_TIMEOUT', -1)
 
+EXCEPTION_TYPE_UNHANDLED = 'UNHANDLED'
+EXCEPTION_TYPE_USER_UNHANDLED = 'USER_UNHANDLED'
+EXCEPTION_TYPE_HANDLED = 'HANDLED'
+
 if SHOW_DEBUG_INFO_ENV:
     # show debug info before the debugger start
     DebugInfoHolder.DEBUG_RECORD_SOCKET_READS = True
