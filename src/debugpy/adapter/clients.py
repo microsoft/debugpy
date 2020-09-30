@@ -142,6 +142,19 @@ class Client(components.Component):
         self.expectations = self.Expectations(self, request)
         self._initialize_request = request
 
+        exception_breakpoint_filters = [
+            {"filter": "raised", "label": "Raised Exceptions", "default": False},
+            {"filter": "uncaught", "label": "Uncaught Exceptions", "default": True},
+        ]
+        if int(os.getenv("DEBUGPY_EXCEPTION_FILTER_USER_UNHANDLED", "0")) != 0:
+            exception_breakpoint_filters += [
+                {
+                    "filter": "userUnhandled",
+                    "label": "User Uncaught Exceptions",
+                    "default": True,
+                },
+            ]
+
         return {
             "supportsCompletionsRequest": True,
             "supportsConditionalBreakpoints": True,
@@ -159,11 +172,7 @@ class Client(components.Component):
             "supportsValueFormattingOptions": True,
             "supportsTerminateDebuggee": True,
             "supportsGotoTargetsRequest": True,
-            "exceptionBreakpointFilters": [
-                {"filter": "raised", "label": "Raised Exceptions", "default": False},
-                {"filter": "uncaught", "label": "Uncaught Exceptions", "default": True},
-                {"filter": "userUnhandled", "label": "User Uncaught Exceptions", "default": False},
-            ],
+            "exceptionBreakpointFilters": exception_breakpoint_filters,
         }
 
     # Common code for "launch" and "attach" request handlers.
