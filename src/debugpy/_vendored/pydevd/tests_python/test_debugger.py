@@ -18,7 +18,7 @@ from tests_python.debugger_unittest import (CMD_SET_PROPERTY_TRACE, REASON_CAUGH
     CMD_THREAD_SUSPEND, CMD_STEP_OVER, REASON_STEP_OVER, CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION,
     CMD_THREAD_RESUME_SINGLE_NOTIFICATION, REASON_STEP_RETURN, REASON_STEP_RETURN_MY_CODE,
     REASON_STEP_OVER_MY_CODE, REASON_STEP_INTO, CMD_THREAD_KILL, IS_PYPY, REASON_STOP_ON_START)
-from _pydevd_bundle.pydevd_constants import IS_WINDOWS, IS_PY38_OR_GREATER, IS_PY39_OR_GREATER
+from _pydevd_bundle.pydevd_constants import IS_WINDOWS, IS_PY38_OR_GREATER
 from _pydevd_bundle.pydevd_comm_constants import CMD_RELOAD_CODE, CMD_INPUT_REQUESTED
 import json
 import pydevd_file_utils
@@ -2748,8 +2748,7 @@ def test_attach_to_pid_no_threads(case_setup_remote, reattach):
         writer.finished_ok = True
 
 
-@pytest.mark.skipif(not IS_CPYTHON or IS_PY39_OR_GREATER, reason='CPython only test.'
-                    '3.9: still needs support to attach to pid (waiting for CPython api to stabilize)')
+@pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
 def test_attach_to_pid_halted(case_setup_remote):
     with case_setup_remote.test_file('_debugger_case_attach_to_pid_multiple_threads.py', wait_for_port=False) as writer:
         time.sleep(1)  # Give it some time to initialize and get to the proper halting condition
@@ -2792,8 +2791,7 @@ def test_remote_debugger_basic(case_setup_remote):
         writer.finished_ok = True
 
 
-@pytest.mark.skipif(not IS_CPYTHON or IS_PY39_OR_GREATER, reason='CPython only test.'
-                    '3.9: still needs support to trace other threads (waiting for CPython api to stabilize).')
+@pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
 def test_remote_debugger_threads(case_setup_remote):
     with case_setup_remote.test_file('_debugger_case_remote_threads.py') as writer:
         writer.write_make_initial_run()

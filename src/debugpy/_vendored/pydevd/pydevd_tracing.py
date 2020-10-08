@@ -109,7 +109,7 @@ def restore_sys_set_trace_func():
 
 
 def load_python_helper_lib():
-    if not IS_CPYTHON or ctypes is None or sys.version_info[:2] > (3, 8) or hasattr(sys, 'gettotalrefcount') or LOAD_NATIVE_LIB_FLAG in ENV_FALSE_LOWER_VALUES:
+    if not IS_CPYTHON or ctypes is None or sys.version_info[:2] > (3, 9) or hasattr(sys, 'gettotalrefcount') or LOAD_NATIVE_LIB_FLAG in ENV_FALSE_LOWER_VALUES:
         return None
 
     if IS_WINDOWS:

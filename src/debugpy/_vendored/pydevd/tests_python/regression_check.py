@@ -133,7 +133,7 @@ def perform_regression_check(
     __tracebackhide__ = True
 
     if basename is None:
-        basename = re.sub("[\W]", "_", request.node.name)
+        basename = re.sub(r"[\W]", "_", request.node.name)
 
     if fullpath:
         filename = source_filename = Path(fullpath)

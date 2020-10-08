@@ -217,6 +217,8 @@ void InternalPySetTrace(PyThreadState* curThread, PyObjectHolder* traceFunc, boo
         InternalPySetTrace_Template<PyThreadState_34_36*>(reinterpret_cast<PyThreadState_34_36*>(curThread), traceFunc, isDebug);
     } else if (PyThreadState_37_38::IsFor(version)) {
         InternalPySetTrace_Template<PyThreadState_37_38*>(reinterpret_cast<PyThreadState_37_38*>(curThread), traceFunc, isDebug);
+    } else if (PyThreadState_39::IsFor(version)) {
+        InternalPySetTrace_Template<PyThreadState_39*>(reinterpret_cast<PyThreadState_39*>(curThread), traceFunc, isDebug);
     } else {
         printf("Unable to set trace to target thread with Python version: %d", version);
     }
