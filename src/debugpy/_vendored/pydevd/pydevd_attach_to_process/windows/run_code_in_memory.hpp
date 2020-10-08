@@ -30,7 +30,7 @@ DECLDIR int AttachAndRunPythonCode(const char *command, int *attachInfo );
 class DataToFree {
 
 public:
-    
+
     HANDLE hMapFile;
     void* mapViewOfFile;
     char* codeToRun;
@@ -72,7 +72,7 @@ extern "C"
         char* mapViewOfFile;
 
         DataToFree dataToFree;
-        
+
         std::string namedSharedMemoryName("__pydevd_pid_code_to_run__");
         namedSharedMemoryName += std::to_string(GetCurrentProcessId());
 
@@ -104,11 +104,11 @@ extern "C"
         }
         dataToFree.mapViewOfFile = mapViewOfFile;
         // std::cout << "Will run contents: " << mapViewOfFile << std::endl;
-        
+
         dataToFree.codeToRun = new char[BUFSIZE];
         memmove(dataToFree.codeToRun, mapViewOfFile, BUFSIZE);
 
-        int attachInfo = 2;
+        int attachInfo = 0;
         return AttachAndRunPythonCode(dataToFree.codeToRun, &attachInfo);
     }
 }
