@@ -5,6 +5,7 @@ import sys
 import inspect
 from collections import namedtuple
 from _pydevd_bundle.pydevd_constants import IS_PY38_OR_GREATER, dict_iter_items, dict_iter_values
+from _pydev_bundle import pydev_log
 
 try:
     xrange
@@ -31,7 +32,7 @@ class TryExceptInfo(object):
         self.raise_lines_in_except = []
 
     def is_line_in_try_block(self, line):
-        return self.try_line <= line <= self.except_line
+        return self.try_line <= line < self.except_line
 
     def is_line_in_except_block(self, line):
         return self.except_line <= line <= self.except_end_line
@@ -293,7 +294,16 @@ if sys.version_info[:2] >= (3, 5):
                     return None  # i.e.: Continue outer loop
 
             else:
-                except_end_instruction = instructions[offset_to_instruction_idx[jump_instruction.argval]]
+                # JUMP_FORWARD
+                i = offset_to_instruction_idx[jump_instruction.argval]
+                try:
+                    # i.e.: the jump is to the instruction after the block finishes (so, we need to
+                    # get the previous instruction as that should be the place where the exception
+                    # block finishes).
+                    except_end_instruction = instructions[i - 1]
+                except:
+                    pydev_log.critical('Error when computing try..except block end.')
+                    return None
                 return _TargetInfo(except_end_instruction)
 
         elif next_3 and next_3[0] == 'DUP_TOP':  # try..except AssertionError.

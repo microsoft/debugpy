@@ -85,9 +85,17 @@ class PydevTestResult(_PythonTextTestResult):
         error_contents = ''
         test_name = self.get_test_name(test)
 
-
         diff_time = '%.2f' % (end_time - self.start_time)
-        if not self._current_errors_stack and not self._current_failures_stack:
+
+        skipped = False
+        outcome = getattr(test, '_outcome', None)
+        if outcome is not None:
+            skipped = bool(getattr(outcome, 'skipped', None))
+
+        if skipped:
+            pydev_runfiles_xml_rpc.notifyTest(
+                'skip', captured_output, error_contents, test.__pydev_pyfile__, test_name, diff_time)            
+        elif not self._current_errors_stack and not self._current_failures_stack:
             pydev_runfiles_xml_rpc.notifyTest(
                 'ok', captured_output, error_contents, test.__pydev_pyfile__, test_name, diff_time)
         else:

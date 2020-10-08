@@ -171,14 +171,11 @@ TRACE_PROPERTY = 'pydevd_traceproperty.py'
 import dis
 
 
-def _get_func_lines(f_code):
-    try:
-        return set(lineno for (_, lineno) in dis.findlinestarts(f_code))
-    except:
-        return None
-
-
-def is_unhandled_exception(container_obj, py_db, frame, last_raise_line, raise_lines):
+# IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
+cdef is_unhandled_exception(container_obj, py_db, frame, int last_raise_line, set raise_lines):
+# ELSE
+# def is_unhandled_exception(container_obj, py_db, frame, last_raise_line, raise_lines):
+# ENDIF
     if frame.f_lineno in raise_lines:
         return True
 
@@ -284,15 +281,15 @@ cdef class PyDBFrame:
 #     def trace_exception(self, frame, event, arg):
     # ENDIF
         if event == 'exception':
-            should_stop, frame = self.should_stop_on_exception(frame, event, arg)
+            should_stop, frame = self._should_stop_on_exception(frame, event, arg)
 
             if should_stop:
-                if self.handle_exception(frame, event, arg, EXCEPTION_TYPE_HANDLED):
+                if self._handle_exception(frame, event, arg, EXCEPTION_TYPE_HANDLED):
                     return self.trace_dispatch
 
         elif event == 'return':
             exc_info = self.exc_info
-            if exc_info:
+            if exc_info and arg is None:
                 frame_skips_cache, frame_cache_key = self._args[4], self._args[5]
                 custom_key = (frame_cache_key, 'try_exc_info')
                 container_obj = frame_skips_cache.get(custom_key)
@@ -305,13 +302,13 @@ cdef class PyDBFrame:
         return self.trace_exception
 
     # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
-    def should_stop_on_exception(self, frame, str event, arg):
+    cdef _should_stop_on_exception(self, frame, str event, arg):
         cdef PyDBAdditionalThreadInfo info;
         cdef bint should_stop;
         cdef bint was_just_raised;
         cdef list check_excs;
     # ELSE
-#     def should_stop_on_exception(self, frame, event, arg):
+#     def _should_stop_on_exception(self, frame, event, arg):
     # ENDIF
 
         # main_debugger, _filename, info, _thread = self._args
@@ -429,11 +426,11 @@ cdef class PyDBFrame:
     def handle_user_exception(self, frame):
         exc_info = self.exc_info
         if exc_info:
-            return self.handle_exception(frame, 'exception', exc_info[0], EXCEPTION_TYPE_USER_UNHANDLED)
+            return self._handle_exception(frame, 'exception', exc_info[0], EXCEPTION_TYPE_USER_UNHANDLED)
         return False
 
     # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
-    cpdef handle_exception(self, frame, str event, arg, str exception_type):
+    cdef _handle_exception(self, frame, str event, arg, str exception_type):
         cdef bint stopped;
         cdef tuple abs_real_path_and_base;
         cdef str absolute_filename;
@@ -445,11 +442,11 @@ cdef class PyDBFrame:
         cdef object trace_obj;
         cdef object main_debugger;
     # ELSE
-#     def handle_exception(self, frame, event, arg, exception_type):
+#     def _handle_exception(self, frame, event, arg, exception_type):
     # ENDIF
         stopped = False
         try:
-            # print('handle_exception', frame.f_lineno, frame.f_code.co_name)
+            # print('_handle_exception', frame.f_lineno, frame.f_code.co_name)
 
             # We have 3 things in arg: exception type, description, traceback object
             trace_obj = arg[2]
@@ -560,7 +557,12 @@ cdef class PyDBFrame:
 
         return stopped
 
-    def get_func_name(self, frame):
+    # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
+    cdef get_func_name(self, frame):
+        cdef str func_name
+    # ELSE
+#     def get_func_name(self, frame):
+    # ENDIF
         code_obj = frame.f_code
         func_name = code_obj.co_name
         try:
@@ -573,7 +575,11 @@ cdef class PyDBFrame:
             pydev_log.exception()
             return func_name
 
-    def show_return_values(self, frame, arg):
+    # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
+    cdef _show_return_values(self, frame, arg):
+    # ELSE
+#     def _show_return_values(self, frame, arg):
+    # ENDIF
         try:
             try:
                 f_locals_back = getattr(frame.f_back, "f_locals", None)
@@ -589,7 +595,11 @@ cdef class PyDBFrame:
         finally:
             f_locals_back = None
 
-    def remove_return_values(self, main_debugger, frame):
+    # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
+    cdef _remove_return_values(self, main_debugger, frame):
+    # ELSE
+#     def _remove_return_values(self, main_debugger, frame):
+    # ENDIF
         try:
             try:
                 # Showing return values was turned off, we should remove them from locals dict.
@@ -604,7 +614,11 @@ cdef class PyDBFrame:
         finally:
             f_locals_back = None
 
-    def _get_unfiltered_back_frame(self, main_debugger, frame):
+    # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
+    cdef _get_unfiltered_back_frame(self, main_debugger, frame):
+    # ELSE
+#     def _get_unfiltered_back_frame(self, main_debugger, frame):
+    # ENDIF
         f = frame.f_back
         while f is not None:
             if not main_debugger.is_files_filter_enabled:
@@ -751,9 +765,9 @@ cdef class PyDBFrame:
                 elif event == 'exception':
                     breakpoints_for_file = None
                     if has_exception_breakpoints:
-                        should_stop, frame = self.should_stop_on_exception(frame, event, arg)
+                        should_stop, frame = self._should_stop_on_exception(frame, event, arg)
                         if should_stop:
-                            if self.handle_exception(frame, event, arg, EXCEPTION_TYPE_HANDLED):
+                            if self._handle_exception(frame, event, arg, EXCEPTION_TYPE_HANDLED):
                                 return self.trace_dispatch
 
                     return self.trace_dispatch
@@ -801,9 +815,9 @@ cdef class PyDBFrame:
                     is_exception_event = True
                     breakpoints_for_file = None
                     if has_exception_breakpoints:
-                        should_stop, frame = self.should_stop_on_exception(frame, event, arg)
+                        should_stop, frame = self._should_stop_on_exception(frame, event, arg)
                         if should_stop:
-                            if self.handle_exception(frame, event, arg, EXCEPTION_TYPE_HANDLED):
+                            if self._handle_exception(frame, event, arg, EXCEPTION_TYPE_HANDLED):
                                 return self.trace_dispatch
                     is_line = False
                     is_return = False
@@ -880,8 +894,11 @@ cdef class PyDBFrame:
                     else:
                         has_breakpoint_in_frame = False
 
-                        func_lines = _get_func_lines(frame.f_code)
-                        if func_lines is None:
+                        try:
+                            func_lines = set()
+                            for offset_and_lineno in dis.findlinestarts(frame.f_code):
+                                func_lines.add(offset_and_lineno[1])
+                        except:
                             # This is a fallback for implementations where we can't get the function
                             # lines -- i.e.: jython (in this case clients need to provide the function
                             # name to decide on the skip or we won't be able to skip the function
@@ -984,11 +1001,11 @@ cdef class PyDBFrame:
                                 and not main_debugger.apply_files_filter(frame.f_back, frame.f_back.f_code.co_filename, True)
                             )
                         ):
-                        self.show_return_values(frame, arg)
+                        self._show_return_values(frame, arg)
 
                 elif main_debugger.remove_return_values_flag:
                     try:
-                        self.remove_return_values(main_debugger, frame)
+                        self._remove_return_values(main_debugger, frame)
                     finally:
                         main_debugger.remove_return_values_flag = False
 
