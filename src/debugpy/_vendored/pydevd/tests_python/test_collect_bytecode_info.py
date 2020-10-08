@@ -333,6 +333,39 @@ def test_collect_try_except_info_with():
         assert lst == []
 
 
+def test_collect_try_except_info_in_single_line_1():
+
+    def try_except_single_line():
+        try:range()
+        except:
+            return False
+        return True
+
+    code = try_except_single_line.__code__
+
+    lst = sorted(collect_try_except_info(code, use_func_first_line=True), key=lambda t:t.try_line)
+    if IS_CPYTHON or IS_PYPY:
+        assert str(lst) == '[{try:1 except 2 end block 3}]'
+    else:
+        assert lst == []
+
+
+def test_collect_try_except_info_in_single_line_2():
+
+    def try_except_single_line():
+        try:range()
+        except: return False
+        return True
+
+    code = try_except_single_line.__code__
+
+    lst = sorted(collect_try_except_info(code, use_func_first_line=True), key=lambda t:t.try_line)
+    if IS_CPYTHON or IS_PYPY:
+        assert str(lst) == '[{try:1 except 2 end block 2}]'
+    else:
+        assert lst == []
+
+
 def test_collect_try_except_info_multiple_except():
 
     def try_except_with():

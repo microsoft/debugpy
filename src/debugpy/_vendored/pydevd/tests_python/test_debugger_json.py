@@ -24,6 +24,7 @@ from tests_python.debug_constants import TEST_CHERRYPY, IS_PY2, TEST_DJANGO, TES
 from tests_python.debugger_unittest import (IS_JYTHON, IS_APPVEYOR, overrides,
     get_free_port, wait_for_condition)
 from _pydevd_bundle.pydevd_utils import DAPGrouper
+import pydevd_file_utils
 
 pytest_plugins = [
     str('tests_python.debugger_fixtures'),
@@ -137,7 +138,11 @@ class JsonFacade(object):
                     path = path.decode('utf-8')
 
             if not path.endswith(file):
-                raise AssertionError('Expected path: %s to end with: %s' % (path, file))
+                # pytest may give a lowercase tempdir, so, also check with
+                # the real case if possible
+                file = pydevd_file_utils.get_path_with_real_case(file)
+                if not path.endswith(file):
+                    raise AssertionError('Expected path: %s to end with: %s' % (path, file))
         if name is not None:
             assert json_hit.stack_trace_response.body.stackFrames[0]['name'] == name
         if line is not None:
@@ -752,6 +757,27 @@ def test_case_user_unhandled_exception_coroutine(case_setup, stop):
             _check_current_line(json_hit, current_line)
 
             json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(IS_PY26, reason='Not ok on Python 2.6')
+def test_case_user_unhandled_exception_dont_stop(case_setup):
+
+    with case_setup.test_file(
+            'my_code/my_code_exception_user_unhandled.py',) as writer:
+        json_facade = JsonFacade(writer)
+
+        not_my_code_dir = debugger_unittest._get_debugger_test_file('not_my_code')
+        json_facade.write_launch(
+            debugStdLib=True,
+            rules=[
+                {'path': not_my_code_dir, 'include':False},
+            ]
+        )
+
+        json_facade.write_set_exception_breakpoints(['userUnhandled'])
+        json_facade.write_make_initial_run()
 
         writer.finished_ok = True
 

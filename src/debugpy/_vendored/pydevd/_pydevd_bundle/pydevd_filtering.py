@@ -130,6 +130,7 @@ class FilesFiltering(object):
 
         # Stepping filters.
         pydevd_filters = os.getenv('PYDEVD_FILTERS', '')
+        # To filter out it's something as: {'**/not_my_code/**': True}
         if pydevd_filters:
             pydev_log.debug("PYDEVD_FILTERS %s", (pydevd_filters,))
             if pydevd_filters.startswith('{'):
