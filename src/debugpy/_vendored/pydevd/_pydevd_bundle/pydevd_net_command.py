@@ -129,7 +129,7 @@ class NetCommand(_BaseNetCommand):
 
             cls._showing_debug_info += 1
             try:
-                out_message = 'sending cmd --> '
+                out_message = 'sending cmd (%s) --> ' % (get_protocol(),)
                 out_message += "%20s" % ID_TO_MEANING.get(str(cmd_id), 'UNKNOWN')
                 out_message += ' '
                 out_message += text.replace('\n', ' ')
