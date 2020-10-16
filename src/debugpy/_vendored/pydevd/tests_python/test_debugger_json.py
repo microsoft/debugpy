@@ -4047,6 +4047,80 @@ def test_subprocess_pydevd_customization(case_setup_remote, command_line_args):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(IS_PY26, reason='Only Python 2.7 onwards.')
+def test_subprocess_then_fork(case_setup_multiprocessing):
+    import threading
+    from tests_python.debugger_unittest import AbstractWriterThread
+
+    with case_setup_multiprocessing.test_file('_debugger_case_subprocess_and_fork.py') as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(justMyCode=False)
+
+        break_line = writer.get_line_index_with_content('break here')
+        json_facade.write_set_breakpoints([break_line])
+
+        server_socket = writer.server_socket
+
+        class SecondaryProcessWriterThread(AbstractWriterThread):
+
+            TEST_FILE = writer.get_main_filename()
+            _sequence = -1
+
+        class SecondaryProcessThreadCommunication(threading.Thread):
+
+            def run(self):
+                from tests_python.debugger_unittest import ReaderThread
+
+                # Note that we accept 2 connections and then we proceed to receive the breakpoints.
+                json_facades = []
+                for i in range(2):
+                    server_socket.listen(1)
+                    self.server_socket = server_socket
+                    writer.log.append('  *** Multiprocess %s waiting on server_socket.accept()' % (i,))
+                    new_sock, addr = server_socket.accept()
+                    writer.log.append('  *** Multiprocess %s completed server_socket.accept()' % (i,))
+
+                    reader_thread = ReaderThread(new_sock)
+                    reader_thread.name = '  *** Multiprocess %s Reader Thread' % i
+                    reader_thread.start()
+                    writer.log.append('  *** Multiprocess %s started ReaderThread' % (i,))
+
+                    writer2 = SecondaryProcessWriterThread()
+                    writer2._WRITE_LOG_PREFIX = '  *** Multiprocess %s write: ' % i
+                    writer2.reader_thread = reader_thread
+                    writer2.sock = new_sock
+                    json_facade2 = JsonFacade(writer2, send_json_startup_messages=False)
+                    json_facade2.writer.write_multi_threads_single_notification(True)
+                    writer.log.append('  *** Multiprocess %s write attachThread' % (i,))
+                    json_facade2.write_attach(justMyCode=False)
+
+                    writer.log.append('  *** Multiprocess %s write set breakpoints' % (i,))
+                    json_facade2.write_set_breakpoints([break_line])
+                    writer.log.append('  *** Multiprocess %s write make initial run' % (i,))
+                    json_facade2.write_make_initial_run()
+                    json_facades.append(json_facade2)
+
+                for i, json_facade3 in enumerate(json_facades):
+                    writer.log.append('  *** Multiprocess %s wait for thread stopped' % (i,))
+                    json_facade3.wait_for_thread_stopped(line=break_line)
+                    writer.log.append('  *** Multiprocess %s continue' % (i,))
+                    json_facade3.write_continue()
+
+        secondary_process_thread_communication = SecondaryProcessThreadCommunication()
+        secondary_process_thread_communication.start()
+        time.sleep(.1)
+        json_facade.write_make_initial_run()
+
+        secondary_process_thread_communication.join(20)
+        if secondary_process_thread_communication.is_alive():
+            raise AssertionError('The SecondaryProcessThreadCommunication did not finish')
+
+        json_facade.wait_for_thread_stopped(line=break_line)
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
 @pytest.mark.parametrize('apply_multiprocessing_patch', [True, False])
 def test_no_subprocess_patching(case_setup_multiprocessing, apply_multiprocessing_patch):
     import threading

@@ -8,6 +8,7 @@ from _pydevd_bundle.pydevd_constants import get_global_debugger, IS_WINDOWS, IS_
 from _pydev_bundle import pydev_log
 from contextlib import contextmanager
 from _pydevd_bundle import pydevd_constants
+from _pydevd_bundle.pydevd_defaults import PydevdCustomization
 
 try:
     xrange
@@ -676,9 +677,12 @@ def create_fork(original_name):
             frame = frame.f_back
         frame = None  # Just make sure we don't hold on to it.
 
+        protocol = pydevd_constants.get_protocol()
+
         child_process = getattr(os, original_name)()  # fork
         if not child_process:
             if is_new_python_process:
+                PydevdCustomization.DEFAULT_PROTOCOL = protocol
                 _on_forked_process(setup_tracing=apply_arg_patch and not is_subprocess_fork)
         else:
             if is_new_python_process:
