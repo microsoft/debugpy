@@ -28,5 +28,5 @@ If you want to debug library files, you have to disable `justMyCode` in `launch.
 When filing an issue, make sure you do the following:
 
 - Check existing issues for the same problem (also see the "Known Issues" section above for widespread problems).
-- Follow instructions in [this](https://github.com/microsoft/debugpy/blob/master/.github/ISSUE_TEMPLATE/bug_report.md) template for filing a bug report.
+- Follow instructions in [this](https://github.com/microsoft/debugpy/blob/main/.github/ISSUE_TEMPLATE/bug_report.md) template for filing a bug report.
 - Include any debugger logs that you may have. See [here](https://github.com/microsoft/debugpy#debugger-logging) for instructions on how to enable logging.
