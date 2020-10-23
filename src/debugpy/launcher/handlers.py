@@ -78,7 +78,7 @@ def launch_request(request):
     process_name = request("processName", compat.filename(sys.executable))
 
     env = os.environ.copy()
-    env_changes = request("env", json.object(unicode))
+    env_changes = request("env", json.object((unicode, type(None))))
     if sys.platform == "win32":
         # Environment variables are case-insensitive on Win32, so we need to normalize
         # both dicts to make sure that env vars specified in the debug configuration
@@ -94,6 +94,7 @@ def launch_request(request):
         # applied to the debuggee, since it will conflict with pydevd.
         env.pop("COV_CORE_SOURCE", None)
     env.update(env_changes)
+    env = {k: v for k, v in env.items() if v is not None}
 
     if request("gevent", False):
         env["GEVENT_SUPPORT"] = "True"
