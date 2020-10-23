@@ -39,8 +39,8 @@ def launch_request(request):
 
         return value
 
-    python_args = request("pythonArgs", json.array(unicode, vectorize=True, size=(0,)))
-    cmdline = [compat.filename(sys.executable)] + python_args
+    python = request("python", json.array(unicode, size=(1,)))
+    cmdline = list(python)
 
     if not request("noDebug", json.default(False)):
         port = request("port", int)
