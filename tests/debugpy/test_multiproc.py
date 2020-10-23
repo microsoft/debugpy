@@ -26,6 +26,9 @@ def expected_subprocess_config(parent_session):
     config = dict(parent_session.config)
     for key in "args", "listen", "postDebugTask", "preLaunchTask", "processId":
         config.pop(key, None)
+    for key in "python", "pythonArgs", "pythonPath":
+        if key in config:
+            config[key] = some.thing
     config.update(
         {
             "name": some.str,

@@ -137,31 +137,48 @@ def test_sudo(pyfile, tmpdir, run, target):
         assert backchannel.receive() == "1"
 
 
-@pytest.mark.parametrize("run", runners.all_launch_terminal)
-@pytest.mark.parametrize("python_args", ["", "-v"])
-@pytest.mark.parametrize("python", ["", "custompy", "custompy|-O"])
+@pytest.mark.parametrize("run", runners.all_launch)
+@pytest.mark.parametrize("python_args", [None, "-B"])
+@pytest.mark.parametrize("python", [None, "custompy", "custompy,-O"])
 @pytest.mark.parametrize("python_key", ["python", "pythonPath"])
-def test_custom_python(pyfile, run, target, python_key, python, python_args):
+def test_custom_python(pyfile, tmpdir, run, target, python_key, python, python_args):
+    if sys.platform == "win32":
+        custompy = tmpdir / "custompy.cmd"
+        script = """@echo off
+            set DEBUGPY_CUSTOM_PYTHON=1%DEBUGPY_CUSTOM_PYTHON%
+            <python> %*
+            """
+    else:
+        custompy = tmpdir / "custompy.sh"
+        script = """#!/bin/sh
+            env DEBUGPY_CUSTOM_PYTHON=1$DEBUGPY_CUSTOM_PYTHON <python> "$@"
+            """
+    custompy.write(script.replace("<python>", sys.executable))
+    os.chmod(custompy.strpath, 0o777)
+
     @pyfile
     def code_to_debug():
+        import os
         import sys
+
         import debuggee
         from debuggee import backchannel
 
         debuggee.setup()
-        backchannel.send([sys.executable, sys.flags.optimize, sys.flags.verbose])
+        backchannel.send(
+            [
+                os.getenv("DEBUGPY_CUSTOM_PYTHON"),
+                sys.flags.optimize,
+                sys.flags.dont_write_bytecode,
+            ]
+        )
 
-    python = python.split("|")
-    python_args = python_args.split()
+    python = [] if python is None else python.split(",")
+    python = [(custompy.strpath if arg == "custompy" else arg) for arg in python]
+    python_args = [] if python_args is None else python_args.split(",")
     python_cmd = (python if len(python) else [sys.executable]) + python_args
 
-    class Session(debug.Session):
-        def run_in_terminal(self, args, cwd, env):
-            assert args[: len(python_cmd)] == python_cmd
-            args[0] = sys.executable
-            return super(Session, self).run_in_terminal(args, cwd, env)
-
-    with Session() as session:
+    with debug.Session() as session:
         session.config.pop("python", None)
         session.config.pop("pythonPath", None)
         if len(python):
@@ -174,9 +191,9 @@ def test_custom_python(pyfile, run, target, python_key, python, python_args):
             pass
 
         assert backchannel.receive() == [
-            sys.executable,
+            "11" if len(python) else None,  # one for launcher, one for debuggee
             "-O" in python_cmd,
-            "-v" in python_cmd,
+            "-B" in python_cmd,
         ]
 
 

@@ -317,6 +317,7 @@ class Client(components.Component):
 
         python += request("pythonArgs", json.array(unicode, size=(0,)))
         request.arguments["pythonArgs"] = python[1:]
+        request.arguments["python"] = python
 
         program = module = code = ()
         if "program" in request:
