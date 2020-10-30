@@ -23,7 +23,7 @@ _tls = threading.local()
 
 # TODO: "gevent", if possible.
 _config = {
-    "qt": "auto",
+    "qt": "none",
     "subProcess": True,
     "python": sys.executable,
 }
@@ -124,7 +124,7 @@ def _starts_debugging(func):
         log.debug("{0}({1!r}, **{2!r})", func.__name__, address, kwargs)
         log.info("Initial debug configuration: {0!j}", _config)
 
-        qt_mode = _config.get("qt", "auto")
+        qt_mode = _config.get("qt", "none")
         if qt_mode != "none":
             pydevd.enable_qt_support(qt_mode)
 
