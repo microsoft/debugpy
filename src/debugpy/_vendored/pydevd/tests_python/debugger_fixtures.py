@@ -420,7 +420,7 @@ def case_setup_multiprocessing(debugger_runner_simple):
 
             def update_command_line_args(writer, args):
                 ret = debugger_unittest.AbstractWriterThread.update_command_line_args(writer, args)
-                ret.insert(ret.index('--qt-support'), '--multiprocess')
+                ret.insert(ret.index('--DEBUG_RECORD_SOCKET_READS'), '--multiprocess')
                 return ret
 
             WriterThread.update_command_line_args = update_command_line_args

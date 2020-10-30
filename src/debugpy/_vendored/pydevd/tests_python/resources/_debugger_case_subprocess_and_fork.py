@@ -13,12 +13,20 @@ if '--fork-in-subprocess' in sys.argv:
         pid = popen.pid
     else:
         pid = os.fork()
-    print('currently in pid: %s, ppid: %s' % (os.getpid(), os.getppid()))
+    try:
+        ppid = os.getppid()
+    except:
+        ppid = '<unknown>'
+    print('currently in pid: %s, ppid: %s' % (os.getpid(), ppid))
     print('os.fork returned', pid)
     breaknow()
 
 elif '--forked' in sys.argv:
-    print('currently in pid: %s, ppid: %s' % (os.getpid(), os.getppid()))
+    try:
+        ppid = os.getppid()
+    except:
+        ppid = '<unknown>'
+    print('currently in pid: %s, ppid: %s' % (os.getpid(), ppid))
     breaknow()
 
 elif '--fork-in-subprocess' not in sys.argv:

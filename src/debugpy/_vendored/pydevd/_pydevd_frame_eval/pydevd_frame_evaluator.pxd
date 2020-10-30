@@ -26,6 +26,7 @@ cdef extern from *:
 
 cdef extern from "frameobject.h":
     ctypedef struct PyFrameObject:
+        PyFrameObject *f_back
         PyCodeObject *f_code       # code segment
         PyObject *f_builtins       # builtin symbol table (PyDictObject)
         PyObject *f_globals        # global symbol table (PyDictObject) */
@@ -45,7 +46,7 @@ cdef extern from "frameobject.h":
         PyObject *f_localsplus[1];
 
 cdef extern from "release_mem.h":
-    void release_co_extra(void *) 
+    void release_co_extra(void *)
 
 cdef extern from "code.h":
     ctypedef void freefunc(void *)
