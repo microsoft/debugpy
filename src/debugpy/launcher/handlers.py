@@ -56,7 +56,7 @@ def launch_request(request):
         qt_mode = request(
             "qt",
             json.enum(
-                "auto", "none", "pyside", "pyside2", "pyqt4", "pyqt5", optional=True
+                "none", "auto", "pyside", "pyside2", "pyqt4", "pyqt5", optional=True
             ),
         )
         cmdline += ["--configure-qt", qt_mode]
@@ -64,7 +64,7 @@ def launch_request(request):
         adapter_access_token = request("adapterAccessToken", unicode, optional=True)
         if adapter_access_token != ():
             cmdline += ["--adapter-access-token", compat.filename(adapter_access_token)]
-            
+
         debugpy_args = request("debugpyArgs", json.array(unicode))
         cmdline += debugpy_args
 

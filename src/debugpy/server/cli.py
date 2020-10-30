@@ -50,7 +50,7 @@ class Options(object):
 
 
 options = Options()
-options.config = {"qt": "auto", "subProcess": True}
+options.config = {"qt": "none", "subProcess": True}
 
 
 def in_range(parser, start, stop):
