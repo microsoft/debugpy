@@ -624,7 +624,7 @@ def test_case_13(case_setup):
         # Should go inside setter method
 
         writer.write_step_in(hit.thread_id)
-        hit = writer.wait_for_breakpoint_hit('107')
+        hit = writer.wait_for_breakpoint_hit('107', line=36)
 
         writer.write_step_in(hit.thread_id)
         hit = writer.wait_for_breakpoint_hit('107', line=21)

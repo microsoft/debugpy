@@ -405,7 +405,14 @@ class DebuggerRunner(object):
         ret = [
             writer.get_pydevd_file(),
             '--DEBUG_RECORD_SOCKET_READS',
-            '--qt-support',
+        ]
+
+        if not IS_PY36_OR_GREATER or not IS_CPYTHON or not TEST_CYTHON:
+            # i.e.: in frame-eval mode we support native threads, whereas
+            # on other cases we need the qt monkeypatch.
+            ret += ['--qt-support']
+
+        ret += [
             '--client',
             localhost,
             '--port',
@@ -1014,7 +1021,7 @@ class AbstractWriterThread(threading.Thread):
             assert frame_file.endswith(file), 'Expected hit to be in file %s, was: %s' % (file, frame_file)
 
         if line is not None:
-            assert line == frame_line, 'Expected hit to be in line %s, was: %s' % (line, frame_line)
+            assert line == frame_line, 'Expected hit to be in line %s, was: %s (in file: %s)' % (line, frame_line, frame_file)
 
         if name is not None:
             if not isinstance(name, (list, tuple, set)):

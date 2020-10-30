@@ -29,7 +29,7 @@ def check():
         finally:
             proceed2.set()
 
-        lib = pydevd_tracing.load_python_helper_lib()
+        lib = pydevd_tracing._load_python_helper_lib()
         assert lib is None
         print('Finished OK')
 

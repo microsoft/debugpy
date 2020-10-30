@@ -446,7 +446,7 @@ class _PyDevCommandProcessor(object):
         if text:
             splitted = text.split(';')
             if len(splitted) >= 3:
-                if py_db.disable_property_trace is False and splitted[0] == 'true':
+                if not py_db.disable_property_trace and splitted[0] == 'true':
                     # Replacing property by custom property only when the debugger starts
                     pydevd_traceproperty.replace_builtin_property()
                     py_db.disable_property_trace = True

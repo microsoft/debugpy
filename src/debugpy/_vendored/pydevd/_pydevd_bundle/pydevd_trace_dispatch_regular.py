@@ -128,6 +128,9 @@ def fix_top_level_trace_and_get_trace_func(py_db, frame):
                 force_only_unhandled_tracer = True
                 break
 
+        elif name == 'pydevd_tracing':
+            return None, False
+
         elif f_unhandled.f_back is None:
             break
 

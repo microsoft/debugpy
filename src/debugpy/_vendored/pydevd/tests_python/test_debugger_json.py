@@ -20,11 +20,12 @@ from _pydevd_bundle.pydevd_constants import (int_types, IS_64BIT_PROCESS,
     IS_PYPY, GENERATED_LEN_ATTR_NAME, IS_WINDOWS, IS_LINUX)
 from tests_python import debugger_unittest
 from tests_python.debug_constants import TEST_CHERRYPY, IS_PY2, TEST_DJANGO, TEST_FLASK, IS_PY26, \
-    IS_PY27, IS_CPYTHON, TEST_GEVENT
+    IS_PY27, IS_CPYTHON, TEST_GEVENT, TEST_CYTHON
 from tests_python.debugger_unittest import (IS_JYTHON, IS_APPVEYOR, overrides,
     get_free_port, wait_for_condition)
 from _pydevd_bundle.pydevd_utils import DAPGrouper
 import pydevd_file_utils
+from _pydevd_bundle import pydevd_constants
 
 pytest_plugins = [
     str('tests_python.debugger_fixtures'),
@@ -147,9 +148,10 @@ class JsonFacade(object):
             assert json_hit.stack_trace_response.body.stackFrames[0]['name'] == name
         if line is not None:
             found_line = json_hit.stack_trace_response.body.stackFrames[0]['line']
+            path = json_hit.stack_trace_response.body.stackFrames[0]['source']['path']
             if not isinstance(line, (tuple, list)):
                 line = [line]
-            assert found_line in line, 'Expect to break at line: %s. Found: %s' % (line, found_line)
+            assert found_line in line, 'Expect to break at line: %s. Found: %s (file: %s)' % (line, found_line, path)
         return json_hit
 
     def write_set_breakpoints(
@@ -3308,7 +3310,7 @@ def test_wait_for_attach(case_setup_remote_attach_to):
 
     with case_setup_remote_attach_to.test_file('_debugger_case_wait_for_attach.py', host_port[1]) as writer:
         writer.TEST_FILE = debugger_unittest._get_debugger_test_file('_debugger_case_wait_for_attach_impl.py')
-        time.sleep(.5)  # Give some time for it to pass the first breakpoint and wait in 'wait_for_attach'.
+        time.sleep(1)  # Give some time for it to pass the first breakpoint and wait in 'wait_for_attach'.
         writer.start_socket_client(*host_port)
 
         json_facade = JsonFacade(writer)
@@ -3397,7 +3399,10 @@ def test_wait_for_attach_gevent(case_setup_remote_attach_to):
         writer.finished_ok = True
 
 
-@pytest.mark.skipif(not TEST_GEVENT, reason='Gevent not installed.')
+@pytest.mark.skipif(
+    not TEST_GEVENT or IS_WINDOWS,
+    reason='Gevent not installed / Sometimes the debugger crashes on Windows as the compiled extensions conflict with gevent.'
+)
 def test_notify_gevent(case_setup, pyfile):
 
     def get_environ(writer):
@@ -3409,8 +3414,10 @@ def test_notify_gevent(case_setup, pyfile):
     @pyfile
     def case_gevent():
         from gevent import monkey
+        import os
         monkey.patch_all()
-        print('TEST SUCEEDED')
+        print('TEST SUCEEDED')  # Break here
+        os._exit(0)
 
     def additional_output_checks(writer, stdout, stderr):
         assert 'environment variable' in stderr
@@ -3425,7 +3432,10 @@ def test_notify_gevent(case_setup, pyfile):
         ) as writer:
         json_facade = JsonFacade(writer)
         json_facade.write_launch()
+        json_facade.write_set_breakpoints(writer.get_line_index_with_content('Break here'))
         json_facade.write_make_initial_run()
+        json_facade.wait_for_thread_stopped()
+        json_facade.write_continue(wait_for_response=False)
 
         wait_for_condition(lambda: 'GEVENT_SUPPORT=True' in writer.get_stderr())
 
@@ -3442,8 +3452,8 @@ def test_ppid(case_setup, pyfile):
 
     def update_command_line_args(writer, args):
         ret = debugger_unittest.AbstractWriterThread.update_command_line_args(writer, args)
-        ret.insert(ret.index('--qt-support'), '--ppid')
-        ret.insert(ret.index('--qt-support'), '22')
+        ret.insert(ret.index('--DEBUG_RECORD_SOCKET_READS'), '--ppid')
+        ret.insert(ret.index('--DEBUG_RECORD_SOCKET_READS'), '22')
         return ret
 
     with case_setup.test_file(
@@ -4128,7 +4138,7 @@ def test_no_subprocess_patching(case_setup_multiprocessing, apply_multiprocessin
 
     def update_command_line_args(writer, args):
         ret = debugger_unittest.AbstractWriterThread.update_command_line_args(writer, args)
-        ret.insert(ret.index('--qt-support'), '--multiprocess')
+        ret.insert(ret.index('--DEBUG_RECORD_SOCKET_READS'), '--multiprocess')
         if apply_multiprocessing_patch:
             ret.append('apply-multiprocessing-patch')
         return ret
@@ -4863,6 +4873,9 @@ def test_debugger_case_symlink(case_setup, tmpdir, launch_through_link, breakpoi
     original_filename = _get_debugger_test_file('_debugger_case2.py')
 
     target_link = str(tmpdir.join('resources_link'))
+    if pydevd_constants.IS_WINDOWS and not pydevd_constants.IS_PY38_OR_GREATER:
+        pytest.skip('Symlink support not available.')
+
     try:
         os.symlink(os.path.dirname(original_filename), target_link, target_is_directory=True)
     except (OSError, TypeError, AttributeError):
@@ -4932,6 +4945,43 @@ print('TEST SUCEEDED')
 
         json_facade.write_continue()
 
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not IS_WINDOWS or not IS_PY36_OR_GREATER or not IS_CPYTHON or not TEST_CYTHON, reason='Windows only test and only Python 3.6 onwards.')
+def test_native_threads(case_setup, pyfile):
+
+    @pyfile
+    def case_native_thread():
+        from ctypes import windll, WINFUNCTYPE, c_uint32, c_void_p, c_size_t
+        import time
+
+        ThreadProc = WINFUNCTYPE(c_uint32, c_void_p)
+
+        entered_thread = [False]
+
+        @ThreadProc
+        def method(_):
+            entered_thread[0] = True  # Break here
+            return 0
+
+        windll.kernel32.CreateThread(None, c_size_t(0), method, None, c_uint32(0), None)
+        while not entered_thread[0]:
+            time.sleep(.1)
+
+        print('TEST SUCEEDED')
+
+    with case_setup.test_file(case_native_thread) as writer:
+        json_facade = JsonFacade(writer)
+
+        line = writer.get_line_index_with_content('Break here')
+        json_facade.write_launch(justMyCode=False)
+        json_facade.write_set_breakpoints(line)
+        json_facade.write_make_initial_run()
+
+        json_facade.wait_for_thread_stopped(line=line)
+
+        json_facade.write_continue()
         writer.finished_ok = True
 
 

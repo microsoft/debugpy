@@ -20,8 +20,10 @@ class EchoThread(threading.Thread):
     def __init__(self, queue):
         threading.Thread.__init__(self)
         self._queue = queue
+        self.started = threading.Event()
 
     def run(self):
+        self.started.set()
         while True:
             obj = self._queue.get()
             if obj == 'finish':
@@ -57,6 +59,7 @@ def main():
     echo_thread = EchoThread(queue)
     processor = Processor(queue)
     echo_thread.start()
+    echo_thread.started.wait()
 
     processor.process(1)  # Break here 1
     processor.process(2)
