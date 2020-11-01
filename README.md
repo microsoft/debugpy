@@ -55,7 +55,7 @@ The following command injects the debugger into a process with a given PID that 
 ### Ignoring subprocesses
 The following command will ignore subprocesses started by the debugged process.
 ```console
--m debugpy --listen localhost:5678 -pid 12345 --config-subProcess False
+-m debugpy --listen localhost:5678 --pid 12345 --config-subProcess False
 ```
 
 
