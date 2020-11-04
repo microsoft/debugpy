@@ -3,7 +3,7 @@
 @for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set VSDIR=%%i
 @echo Using Visual C++ at %VSDIR%
                                  
-call "%VSDIR%\VC\Auxiliary\Build\vcvarsall.bat" x86
+call "%VSDIR%\VC\Auxiliary\Build\vcvarsall.bat" x86 -vcvars_spectre_libs=spectre
 
 cl -DUNICODE -D_UNICODE /EHsc /Zi /O1 /W3 /LD /MD /Qspectre attach.cpp /link /DEBUG /OPT:REF /OPT:ICF /GUARD:CF /out:attach_x86.dll
 copy attach_x86.dll ..\attach_x86.dll /Y
@@ -17,7 +17,7 @@ cl /EHsc /Zi /O1 /W3 /Qspectre inject_dll.cpp /link /DEBUG  /OPT:REF /OPT:ICF /G
 copy inject_dll_x86.exe ..\inject_dll_x86.exe /Y
 copy inject_dll_x86.pdb ..\inject_dll_x86.pdb /Y
 
-call "%VSDIR%\VC\Auxiliary\Build\vcvarsall.bat" x86_amd64
+call "%VSDIR%\VC\Auxiliary\Build\vcvarsall.bat" x86_amd64 -vcvars_spectre_libs=spectre
 
 cl -DUNICODE -D_UNICODE /EHsc /Zi /O1 /W3 /LD /MD /Qspectre attach.cpp /link /DEBUG /OPT:REF /OPT:ICF /GUARD:CF /out:attach_amd64.dll
 copy attach_amd64.dll ..\attach_amd64.dll /Y
