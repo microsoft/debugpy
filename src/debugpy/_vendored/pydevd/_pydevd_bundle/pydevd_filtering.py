@@ -11,6 +11,7 @@ from _pydev_imps._pydev_saved_modules import threading
 from pydevd_file_utils import normcase
 from _pydevd_bundle.pydevd_constants import USER_CODE_BASENAMES_STARTING_WITH, \
     LIBRARY_CODE_BASENAMES_STARTING_WITH, IS_PYPY
+from _pydevd_bundle import pydevd_constants
 
 try:
     xrange  # noqa
@@ -209,7 +210,11 @@ class FilesFiltering(object):
         roots = _convert_to_str_and_clear_empty(roots)
         new_roots = []
         for root in roots:
-            new_roots.append(self._absolute_normalized_path(root))
+            path = self._absolute_normalized_path(root)
+            if pydevd_constants.IS_WINDOWS:
+                new_roots.append(path + '\\')
+            else:
+                new_roots.append(path + '/')
         return new_roots
 
     def _absolute_normalized_path(self, filename):
