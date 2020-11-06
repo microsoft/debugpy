@@ -41,8 +41,60 @@ def process_args():
     return extension_folder, target_pydevd_name, target_frame_eval, force_cython
 
 
-def build_extension(dir_name, extension_name, target_pydevd_name, force_cython, extended=False, has_pxd=False):
+def process_template_lines(template_lines):
+    # Create 2 versions of the template, one for Python 3.8 and another for Python 3.9
+    for version in ('38', '39'):
+        yield '### WARNING: GENERATED CODE, DO NOT EDIT!'
+        yield '### WARNING: GENERATED CODE, DO NOT EDIT!'
+        yield '### WARNING: GENERATED CODE, DO NOT EDIT!'
+
+        for line in template_lines:
+            if version == '38':
+                line = line.replace('get_bytecode_while_frame_eval(PyFrameObject * frame_obj, int exc)', 'get_bytecode_while_frame_eval_38(PyFrameObject * frame_obj, int exc)')
+                line = line.replace('CALL_EvalFrameDefault', 'CALL_EvalFrameDefault_38(frame_obj, exc)')
+            else:  # 3.9
+                line = line.replace('get_bytecode_while_frame_eval(PyFrameObject * frame_obj, int exc)', 'get_bytecode_while_frame_eval_39(PyThreadState* tstate, PyFrameObject * frame_obj, int exc)')
+                line = line.replace('CALL_EvalFrameDefault', 'CALL_EvalFrameDefault_39(tstate, frame_obj, exc)')
+
+            yield line
+
+        yield '### WARNING: GENERATED CODE, DO NOT EDIT!'
+        yield '### WARNING: GENERATED CODE, DO NOT EDIT!'
+        yield '### WARNING: GENERATED CODE, DO NOT EDIT!'
+        yield ''
+        yield ''
+
+
+def process_template_file(contents):
+    ret = []
+    template_lines = []
+
+    append_to = ret
+    for line in contents.splitlines(keepends=False):
+        if line.strip() == '### TEMPLATE_START':
+            append_to = template_lines
+        elif line.strip() == '### TEMPLATE_END':
+            append_to = ret
+            for line in process_template_lines(template_lines):
+                ret.append(line)
+        else:
+            append_to.append(line)
+
+    return '\n'.join(ret)
+
+
+def build_extension(dir_name, extension_name, target_pydevd_name, force_cython, extended=False, has_pxd=False, template=False):
     pyx_file = os.path.join(os.path.dirname(__file__), dir_name, "%s.pyx" % (extension_name,))
+
+    if template:
+        pyx_template_file = os.path.join(os.path.dirname(__file__), dir_name, "%s.template.pyx" % (extension_name,))
+        with open(pyx_template_file, 'r') as stream:
+            contents = stream.read()
+
+        contents = process_template_file(contents)
+
+        with open(pyx_file, 'w') as stream:
+            stream.write(contents)
 
     if target_pydevd_name != extension_name:
         # It MUST be there in this case!
@@ -73,16 +125,22 @@ def build_extension(dir_name, extension_name, target_pydevd_name, force_cython, 
                     pass
             from Cython.Build import cythonize  # @UnusedImport
             # Generate the .c files in cythonize (will not compile at this point).
-            cythonize([
-                "%s/%s.pyx" % (dir_name, target_pydevd_name,),
-            ])
 
-            # This is needed in CPython 3.8 to access PyInterpreterState.eval_frame.
-            # i.e.: we change #include "pystate.h" to also #include "internal/pycore_pystate.h"
-            # if compiling on Python 3.8.
+            target = "%s/%s.pyx" % (dir_name, target_pydevd_name,)
+            cythonize([target])
+
+            # Workarounds needed in CPython 3.8 and 3.9 to access PyInterpreterState.eval_frame.
             for c_file in c_files:
                 with open(c_file, 'r') as stream:
                     c_file_contents = stream.read()
+
+                if '#include "internal/pycore_gc.h"' not in c_file_contents:
+                    c_file_contents = c_file_contents.replace('#include "Python.h"', '''#include "Python.h"
+#if PY_VERSION_HEX >= 0x03090000
+#include "internal/pycore_gc.h"
+#include "internal/pycore_interp.h"
+#endif
+''')
 
                 if '#include "internal/pycore_pystate.h"' not in c_file_contents:
                     c_file_contents = c_file_contents.replace('#include "pystate.h"', '''#include "pystate.h"
@@ -149,7 +207,7 @@ if IS_PY36_OR_GREATER:
     extension_name = "pydevd_frame_evaluator"
     if target_frame_eval is None:
         target_frame_eval = extension_name
-    build_extension("_pydevd_frame_eval", extension_name, target_frame_eval, force_cython, extension_folder, True)
+    build_extension("_pydevd_frame_eval", extension_name, target_frame_eval, force_cython, extension_folder, True, template=True)
 
 if extension_folder:
     os.chdir(extension_folder)

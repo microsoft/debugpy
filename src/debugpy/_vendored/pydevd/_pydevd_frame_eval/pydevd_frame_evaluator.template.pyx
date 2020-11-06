@@ -186,7 +186,7 @@ cdef ThreadInfo get_thread_info():
             # but this is a good point to initialize it.
             global _code_extra_index
             if _code_extra_index == -1:
-                _code_extra_index = _PyEval_RequestCodeExtraIndex(release_co_extra)
+                _code_extra_index = <int> _PyEval_RequestCodeExtraIndex(release_co_extra)
 
             thread_info.initialize_if_possible()
         finally:
@@ -209,7 +209,7 @@ def get_func_code_info_py(thread_info, frame, code_obj) -> FuncCodeInfo:
     return get_func_code_info(<ThreadInfo> thread_info, <PyFrameObject *> frame, <PyCodeObject *> code_obj)
 
 
-_code_extra_index: Py_SIZE = -1
+cdef int _code_extra_index = -1
 
 cdef FuncCodeInfo get_func_code_info(ThreadInfo thread_info, PyFrameObject * frame_obj, PyCodeObject * code_obj):
     '''
@@ -462,7 +462,27 @@ cdef generate_code_with_breakpoints(object code_obj_py, dict breakpoints):
 
     return breakpoint_found, code_obj_py
 
+import sys
 
+cdef bint IS_PY_39_OWNARDS = sys.version_info[:2] >= (3, 9)
+
+def frame_eval_func():
+    cdef PyThreadState *state = PyThreadState_Get()
+    if IS_PY_39_OWNARDS:
+        state.interp.eval_frame = <_PyFrameEvalFunction *> get_bytecode_while_frame_eval_39
+    else:
+        state.interp.eval_frame = <_PyFrameEvalFunction *> get_bytecode_while_frame_eval_38
+    dummy_tracing_holder.set_trace_func(dummy_trace_dispatch)
+
+
+def stop_frame_eval():
+    cdef PyThreadState *state = PyThreadState_Get()
+    state.interp.eval_frame = _PyEval_EvalFrameDefault
+
+# During the build we'll generate 2 versions of the code below so that we're compatible with
+# Python 3.9, which receives a "PyThreadState* tstate" as the first parameter and Python 3.6-3.8
+# which doesn't.
+### TEMPLATE_START
 cdef PyObject * get_bytecode_while_frame_eval(PyFrameObject * frame_obj, int exc):
     '''
     This function makes the actual evaluation and changes the bytecode to a version
@@ -470,11 +490,11 @@ cdef PyObject * get_bytecode_while_frame_eval(PyFrameObject * frame_obj, int exc
     '''
     if GlobalDebuggerHolder is None or _thread_local_info is None or exc:
         # Sometimes during process shutdown these global variables become None
-        return _PyEval_EvalFrameDefault(frame_obj, exc)
+        return CALL_EvalFrameDefault
 
     # co_filename: str = <str>frame_obj.f_code.co_filename
     # if co_filename.endswith('threading.py'):
-    #     return _PyEval_EvalFrameDefault(frame_obj, exc)
+    #     return CALL_EvalFrameDefault
 
     cdef ThreadInfo thread_info
     cdef int STATE_SUSPEND = 2
@@ -489,21 +509,21 @@ cdef PyObject * get_bytecode_while_frame_eval(PyFrameObject * frame_obj, int exc
     except:
         thread_info = get_thread_info()
         if thread_info is None:
-            return _PyEval_EvalFrameDefault(frame_obj, exc)
+            return CALL_EvalFrameDefault
 
     if thread_info.inside_frame_eval:
-        return _PyEval_EvalFrameDefault(frame_obj, exc)
+        return CALL_EvalFrameDefault
 
     if not thread_info.fully_initialized:
         thread_info.initialize_if_possible()
         if not thread_info.fully_initialized:
-            return _PyEval_EvalFrameDefault(frame_obj, exc)
+            return CALL_EvalFrameDefault
 
     # Can only get additional_info when fully initialized.
     cdef PyDBAdditionalThreadInfo additional_info = thread_info.additional_info
     if thread_info.is_pydevd_thread or additional_info.is_tracing:
         # Make sure that we don't trace pydevd threads or inside our own calls.
-        return _PyEval_EvalFrameDefault(frame_obj, exc)
+        return CALL_EvalFrameDefault
 
     # frame = <object> frame_obj
     # DEBUG = frame.f_code.co_filename.endswith('_debugger_case_tracing.py')
@@ -515,7 +535,7 @@ cdef PyObject * get_bytecode_while_frame_eval(PyFrameObject * frame_obj, int exc
     try:
         main_debugger: object = GlobalDebuggerHolder.global_dbg
         if main_debugger is None:
-            return _PyEval_EvalFrameDefault(frame_obj, exc)
+            return CALL_EvalFrameDefault
         frame = <object> frame_obj
 
         if thread_info.thread_trace_func is None:
@@ -582,15 +602,5 @@ cdef PyObject * get_bytecode_while_frame_eval(PyFrameObject * frame_obj, int exc
         thread_info.inside_frame_eval -= 1
         additional_info.is_tracing = False
 
-    return _PyEval_EvalFrameDefault(frame_obj, exc)
-
-
-def frame_eval_func():
-    cdef PyThreadState *state = PyThreadState_Get()
-    state.interp.eval_frame = get_bytecode_while_frame_eval
-    dummy_tracing_holder.set_trace_func(dummy_trace_dispatch)
-
-
-def stop_frame_eval():
-    cdef PyThreadState *state = PyThreadState_Get()
-    state.interp.eval_frame = _PyEval_EvalFrameDefault
+    return CALL_EvalFrameDefault
+### TEMPLATE_END
