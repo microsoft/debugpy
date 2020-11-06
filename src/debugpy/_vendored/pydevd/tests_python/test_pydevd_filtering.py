@@ -1,6 +1,36 @@
 from _pydevd_bundle.pydevd_constants import IS_WINDOWS
 
 
+def test_in_project_roots_prefix_01(tmpdir):
+    from _pydevd_bundle.pydevd_filtering import FilesFiltering
+    files_filtering = FilesFiltering()
+
+    another = str(tmpdir.join('another'))
+    assert not another.endswith('/') and not another.endswith('\\')
+
+    files_filtering.set_library_roots([another])
+    files_filtering.set_project_roots([])
+    assert not files_filtering.in_project_roots(another + '/f.py')
+    assert not files_filtering.in_project_roots(another + '\\f.py')
+
+    assert files_filtering.in_project_roots(another + 'f.py')
+
+
+def test_in_project_roots_prefix_02(tmpdir):
+    from _pydevd_bundle.pydevd_filtering import FilesFiltering
+    files_filtering = FilesFiltering()
+
+    another = str(tmpdir.join('another'))
+    assert not another.endswith('/') and not another.endswith('\\')
+
+    files_filtering.set_library_roots([])
+    files_filtering.set_project_roots([another])
+    assert files_filtering.in_project_roots(another + '/f.py')
+    assert files_filtering.in_project_roots(another + '\\f.py')
+
+    assert not files_filtering.in_project_roots(another + 'f.py')
+
+
 def test_in_project_roots(tmpdir):
     from _pydevd_bundle.pydevd_filtering import FilesFiltering
     files_filtering = FilesFiltering()
