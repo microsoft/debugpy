@@ -319,6 +319,10 @@ class Client(components.Component):
         request.arguments["pythonArgs"] = python[1:]
         request.arguments["python"] = python
 
+        launcher_python = request("debugLauncherPython", unicode, optional=True)
+        if launcher_python == ():
+            launcher_python = python[0]
+
         program = module = code = ()
         if "program" in request:
             program = request("program", unicode)
@@ -379,7 +383,7 @@ class Client(components.Component):
         launchers.spawn_debuggee(
             self.session,
             request,
-            python,
+            [launcher_python],
             launcher_path,
             adapter_host,
             args,

@@ -137,44 +137,90 @@ def test_sudo(pyfile, tmpdir, run, target):
         assert backchannel.receive() == "1"
 
 
+def make_custompy(tmpdir, id=""):
+    if sys.platform == "win32":
+        custompy = tmpdir / ("custompy" + id + ".cmd")
+        script = """@echo off
+            set DEBUGPY_CUSTOM_PYTHON=<id>;%DEBUGPY_CUSTOM_PYTHON%
+            <python> %*
+            """
+    else:
+        custompy = tmpdir / ("custompy" + id + ".sh")
+        script = """#!/bin/sh
+            env "DEBUGPY_CUSTOM_PYTHON=<id>;$DEBUGPY_CUSTOM_PYTHON" <python> "$@"
+            """
+
+    script = script.replace("<id>", id)
+    script = script.replace("<python>", sys.executable)
+    custompy.write(script)
+    os.chmod(custompy.strpath, 0o777)
+
+    return custompy.strpath
+
+
+@pytest.mark.parametrize("run", runners.all_launch)
+@pytest.mark.parametrize("debuggee_custompy", [None, "launcher"])
+@pytest.mark.parametrize("launcher_custompy", [None, "debuggee"])
+def test_custom_python(
+    pyfile, tmpdir, run, target, debuggee_custompy, launcher_custompy,
+):
+    @pyfile
+    def code_to_debug():
+        import os
+
+        import debuggee
+        from debuggee import backchannel
+
+        debuggee.setup()
+        backchannel.send(os.getenv("DEBUGPY_CUSTOM_PYTHON"))
+
+    expected = ""
+    if debuggee_custompy:
+        debuggee_custompy = make_custompy(tmpdir, "debuggee")
+        expected += "debuggee;"
+    if launcher_custompy:
+        launcher_custompy = make_custompy(tmpdir, "launcher")
+        expected += "launcher;"
+    else:
+        # If "python" is set, it also becomes the default for "debugLauncherPython"
+        expected *= 2
+    if not len(expected):
+        pytest.skip()
+
+    with debug.Session() as session:
+        session.config.pop("python", None)
+        if launcher_custompy:
+            session.config["debugLauncherPython"] = launcher_custompy
+        if debuggee_custompy:
+            session.config["python"] = debuggee_custompy
+
+        backchannel = session.open_backchannel()
+        with run(session, target(code_to_debug)):
+            pass
+
+        assert backchannel.receive() == expected
+
+
 @pytest.mark.parametrize("run", runners.all_launch)
 @pytest.mark.parametrize("python_args", [None, "-B"])
 @pytest.mark.parametrize("python", [None, "custompy", "custompy,-O"])
 @pytest.mark.parametrize("python_key", ["python", "pythonPath"])
-def test_custom_python(pyfile, tmpdir, run, target, python_key, python, python_args):
-    if sys.platform == "win32":
-        custompy = tmpdir / "custompy.cmd"
-        script = """@echo off
-            set DEBUGPY_CUSTOM_PYTHON=1%DEBUGPY_CUSTOM_PYTHON%
-            <python> %*
-            """
-    else:
-        custompy = tmpdir / "custompy.sh"
-        script = """#!/bin/sh
-            env DEBUGPY_CUSTOM_PYTHON=1$DEBUGPY_CUSTOM_PYTHON <python> "$@"
-            """
-    custompy.write(script.replace("<python>", sys.executable))
-    os.chmod(custompy.strpath, 0o777)
-
+def test_custom_python_args(
+    pyfile, tmpdir, run, target, python_key, python, python_args
+):
     @pyfile
     def code_to_debug():
-        import os
         import sys
 
         import debuggee
         from debuggee import backchannel
 
         debuggee.setup()
-        backchannel.send(
-            [
-                os.getenv("DEBUGPY_CUSTOM_PYTHON"),
-                sys.flags.optimize,
-                sys.flags.dont_write_bytecode,
-            ]
-        )
+        backchannel.send([sys.flags.optimize, sys.flags.dont_write_bytecode])
 
+    custompy = make_custompy(tmpdir)
     python = [] if python is None else python.split(",")
-    python = [(custompy.strpath if arg == "custompy" else arg) for arg in python]
+    python = [(custompy if arg == "custompy" else arg) for arg in python]
     python_args = [] if python_args is None else python_args.split(",")
     python_cmd = (python if len(python) else [sys.executable]) + python_args
 
@@ -191,7 +237,6 @@ def test_custom_python(pyfile, tmpdir, run, target, python_key, python, python_a
             pass
 
         assert backchannel.receive() == [
-            "11" if len(python) else None,  # one for launcher, one for debuggee
             "-O" in python_cmd,
             "-B" in python_cmd,
         ]
