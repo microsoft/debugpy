@@ -40,6 +40,7 @@ def test_timeout():
     except KeyboardInterrupt:
         pass
 
+
 def test_timeout_0_time():
 
     class _DummyPyDb(object):
@@ -95,7 +96,10 @@ def test_create_interrupt_this_thread_callback():
     assert t.interrupted
 
 
+@pytest.mark.skipif(True, reason='Skipping because running this test can interrupt the test suite execution.')
 def test_interrupt_main_thread():
+
+    from _pydevd_bundle.pydevd_constants import IS_PY39_OR_GREATER
 
     class MyThread(threading.Thread):
 
@@ -108,7 +112,8 @@ def test_interrupt_main_thread():
             self.interrupt_thread_callback()
 
     initial_time = time.time()
-    if IS_PYPY:
+    interrupt_only_on_callback = IS_PYPY or IS_PY39_OR_GREATER
+    if interrupt_only_on_callback:
         timeout = 2
     else:
         timeout = 20
@@ -117,7 +122,7 @@ def test_interrupt_main_thread():
         t.start()
         time.sleep(timeout)
     except KeyboardInterrupt:
-        if not IS_PYPY:
+        if not interrupt_only_on_callback:
             assert time.time() - initial_time < timeout
     else:
         raise AssertionError('Expected main thread to be interrupted.')

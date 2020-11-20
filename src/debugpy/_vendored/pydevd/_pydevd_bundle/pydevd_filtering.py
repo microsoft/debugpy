@@ -10,7 +10,7 @@ from collections import namedtuple
 from _pydev_imps._pydev_saved_modules import threading
 from pydevd_file_utils import normcase
 from _pydevd_bundle.pydevd_constants import USER_CODE_BASENAMES_STARTING_WITH, \
-    LIBRARY_CODE_BASENAMES_STARTING_WITH, IS_PYPY
+    LIBRARY_CODE_BASENAMES_STARTING_WITH, IS_PYPY, IS_WINDOWS
 from _pydevd_bundle import pydevd_constants
 
 try:
@@ -258,10 +258,11 @@ class FilesFiltering(object):
         project_roots = self._get_project_roots()  # roots are absolute/normalized.
 
         absolute_normalized_filename = self._absolute_normalized_path(received_filename)
+        absolute_normalized_filename_as_dir = absolute_normalized_filename + ('\\' if IS_WINDOWS else '/')
 
         found_in_project = []
         for root in project_roots:
-            if root and absolute_normalized_filename.startswith(root):
+            if root and (absolute_normalized_filename.startswith(root) or root == absolute_normalized_filename_as_dir):
                 if DEBUG:
                     pydev_log.debug('In project: %s (%s)', absolute_normalized_filename, root)
                 found_in_project.append(root)
@@ -269,7 +270,7 @@ class FilesFiltering(object):
         found_in_library = []
         library_roots = self._get_library_roots()
         for root in library_roots:
-            if root and absolute_normalized_filename.startswith(root):
+            if root and (absolute_normalized_filename.startswith(root) or root == absolute_normalized_filename_as_dir):
                 found_in_library.append(root)
                 if DEBUG:
                     pydev_log.debug('In library: %s (%s)', absolute_normalized_filename, root)

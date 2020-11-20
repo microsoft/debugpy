@@ -2,6 +2,7 @@ from __future__ import print_function
 from _pydev_imps._pydev_saved_modules import threading, thread
 from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder
 import dis
+import sys
 from _pydevd_frame_eval.pydevd_frame_tracing import update_globals_dict, dummy_tracing_holder
 from _pydevd_frame_eval.pydevd_modify_bytecode import DebugHelper, insert_pydevd_breaks
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame, NORM_PATHS_AND_BASE_CONTAINER
@@ -35,10 +36,7 @@ cdef class ThreadInfo:
     # code for a function is None and there are breakpoints.
     cdef public bint force_stay_in_untraced_mode
 
-    def __init__(self):
-        cdef PyFrameObject * frame_obj
-        frame_obj = PyEval_GetFrame()
-
+    cdef initialize(self, PyFrameObject * frame_obj):
         # Places that create a ThreadInfo should verify that
         # a current Python frame is being executed!
         assert frame_obj != NULL
@@ -158,26 +156,25 @@ def dummy_trace_dispatch(frame, str event, arg):
 
 
 def get_thread_info_py() -> ThreadInfo:
-    return get_thread_info()
+    return get_thread_info(PyEval_GetFrame())
 
 
-cdef ThreadInfo get_thread_info():
+cdef ThreadInfo get_thread_info(PyFrameObject * frame_obj):
     '''
     Provides thread-related info.
 
     May return None if the thread is still not active.
     '''
     cdef ThreadInfo thread_info
-    cdef PyFrameObject * frame_obj
     try:
         # Note: changing to a `dict[thread.ident] = thread_info` had almost no
         # effect in the performance.
         thread_info = _thread_local_info.thread_info
     except:
-        frame_obj = PyEval_GetFrame()
         if frame_obj == NULL:
             return None
         thread_info = ThreadInfo()
+        thread_info.initialize(frame_obj)
         thread_info.inside_frame_eval += 1
         try:
             _thread_local_info.thread_info = thread_info
@@ -507,7 +504,7 @@ cdef PyObject * get_bytecode_while_frame_eval(PyFrameObject * frame_obj, int exc
     try:
         thread_info = _thread_local_info.thread_info
     except:
-        thread_info = get_thread_info()
+        thread_info = get_thread_info(frame_obj)
         if thread_info is None:
             return CALL_EvalFrameDefault
 

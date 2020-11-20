@@ -389,6 +389,7 @@ def test_gevent_notify():
     _check_in_separate_process('check_dont_notify_on_gevent_loaded', update_env={'GEVENT_SUPPORT': 'True'})
 
 
+@pytest.mark.skipif(True, reason='Skipping because running this test can interrupt the test suite execution.')
 def test_interrupt_main_thread():
     from _pydevd_bundle.pydevd_utils import interrupt_main_thread
     import time

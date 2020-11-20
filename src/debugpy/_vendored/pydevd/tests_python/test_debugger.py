@@ -18,7 +18,8 @@ from tests_python.debugger_unittest import (CMD_SET_PROPERTY_TRACE, REASON_CAUGH
     CMD_THREAD_SUSPEND, CMD_STEP_OVER, REASON_STEP_OVER, CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION,
     CMD_THREAD_RESUME_SINGLE_NOTIFICATION, REASON_STEP_RETURN, REASON_STEP_RETURN_MY_CODE,
     REASON_STEP_OVER_MY_CODE, REASON_STEP_INTO, CMD_THREAD_KILL, IS_PYPY, REASON_STOP_ON_START)
-from _pydevd_bundle.pydevd_constants import IS_WINDOWS, IS_PY38_OR_GREATER
+from _pydevd_bundle.pydevd_constants import IS_WINDOWS, IS_PY38_OR_GREATER, \
+    IS_MAC
 from _pydevd_bundle.pydevd_comm_constants import CMD_RELOAD_CODE, CMD_INPUT_REQUESTED
 import json
 import pydevd_file_utils
@@ -1534,7 +1535,10 @@ def test_unhandled_exceptions_in_top_level3(case_setup_unhandled_exceptions):
         ) as writer:
 
         # Handled and unhandled
-        writer.write_add_exception_breakpoint_with_policy('Exception', "1", "1", "0")
+        # PySide2 has a bug in shibokensupport which will try to do: sys._getframe(1).
+        # during the teardown (which will fail as there's no back frame in this case).
+        # So, mark ignore libraries in this case.
+        writer.write_add_exception_breakpoint_with_policy('Exception', "1", "1", ignore_libraries="1")
         writer.write_make_initial_run()
 
         # Will stop in main thread twice: once one we find that the exception is being
@@ -2704,7 +2708,7 @@ def _attach_to_writer_pid(writer):
     wait_for_condition(lambda: writer.finished_initialization)
 
 
-@pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
+@pytest.mark.skipif(not IS_CPYTHON or IS_MAC, reason='CPython only test (brittle on Mac).')
 @pytest.mark.parametrize('reattach', [True, False])
 def test_attach_to_pid_no_threads(case_setup_remote, reattach):
     with case_setup_remote.test_file('_debugger_case_attach_to_pid_simple.py', wait_for_port=False) as writer:
