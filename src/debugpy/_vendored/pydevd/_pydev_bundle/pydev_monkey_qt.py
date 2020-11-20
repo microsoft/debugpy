@@ -2,6 +2,7 @@ from __future__ import nested_scopes
 
 from _pydev_imps._pydev_saved_modules import threading
 import os
+from _pydev_bundle import pydev_log
 
 
 def set_trace_in_qt():
@@ -33,6 +34,8 @@ def patch_qt(qt_support_mode):
     global _patched_qt
     if _patched_qt:
         return
+
+    pydev_log.debug('Qt support mode: %s', qt_support_mode)
 
     _patched_qt = True
 
@@ -103,6 +106,8 @@ def _patch_import_to_patch_pyqt_on_import(patch_qt_on_import, get_qt_core_module
     # So, our approach is to patch PyQt4 right before the user tries to import it (at which
     # point he should've set the sip api version properly already anyways).
 
+    pydev_log.debug('Setting up Qt post-import monkeypatch.')
+
     dotted = patch_qt_on_import + '.'
     original_import = __import__
 
@@ -128,6 +133,8 @@ def _patch_import_to_patch_pyqt_on_import(patch_qt_on_import, get_qt_core_module
 
 
 def _internal_patch_qt(QtCore, qt_support_mode='auto'):
+    pydev_log.debug('Patching Qt: %s', QtCore)
+
     _original_thread_init = QtCore.QThread.__init__
     _original_runnable_init = QtCore.QRunnable.__init__
     _original_QThread = QtCore.QThread

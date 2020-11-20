@@ -173,7 +173,7 @@ def test_to_server_and_to_client(tmpdir):
             # Client and server are on windows.
             pydevd_file_utils.set_ide_os('WINDOWS')
 
-            test_dir = str(tmpdir.mkdir("Foo"))
+            test_dir = pydevd_file_utils.get_path_with_real_case(str(tmpdir.mkdir("Foo")))
             os.makedirs(os.path.join(test_dir, "Another"))
 
             in_eclipse = os.path.join(os.path.dirname(test_dir), 'Bar')
@@ -183,7 +183,10 @@ def test_to_server_and_to_client(tmpdir):
             ]
             pydevd_file_utils.setup_client_server_paths(PATHS_FROM_ECLIPSE_TO_PYTHON)
 
-            assert pydevd_file_utils.map_file_to_server(in_eclipse) == in_python.lower()
+            if pydevd_file_utils.map_file_to_server(in_eclipse) != in_python.lower():
+                raise AssertionError('%s != %s\ntmpdir:%s\nin_eclipse: %s\nin_python: %s\ntest_dir: %s' % (
+                    pydevd_file_utils.map_file_to_server(in_eclipse), in_python.lower(), tmpdir, in_eclipse, in_python, test_dir))
+
             found_in_eclipse = pydevd_file_utils.map_file_to_client(in_python)[0]
             assert found_in_eclipse.endswith('Bar')
 

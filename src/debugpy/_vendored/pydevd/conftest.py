@@ -106,13 +106,41 @@ def check_no_threads():
     _start_monitoring_threads()
 
 
+from _pydevd_bundle.pydevd_utils import is_current_thread_main_thread
+import threading
+
+
+@pytest.yield_fixture(autouse=True)
+def check_main_thread(request):
+    was_main = is_current_thread_main_thread()
+
+    yield
+
+    is_main = is_current_thread_main_thread()
+    if not is_main:
+        error_msg = 'Current thread does not seem to be a main thread. Details:\n'
+        current_thread = threading.current_thread()
+        error_msg += 'Current thread: %s\n' % (current_thread,)
+
+        if hasattr(threading, 'main_thread'):
+            error_msg += 'Main thread found: %s\n' % (threading.main_thread(),)
+        else:
+            error_msg += 'Current main thread not instance of: %s (%s)\n' % (
+                threading._MainThread, current_thread.__class__.__mro__,)
+
+        error_msg += 'Was main: %s\n' % (was_main,)
+        error_msg += 'Function: %s\n' % (request.node.nodeid,)
+
+        raise AssertionError(error_msg)
+
+
 # see: http://goo.gl/kTQMs
 SYMBOLS = {
-    'customary'     : ('B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'),
-    'customary_ext' : ('byte', 'kilo', 'mega', 'giga', 'tera', 'peta', 'exa',
+    'customary': ('B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'),
+    'customary_ext': ('byte', 'kilo', 'mega', 'giga', 'tera', 'peta', 'exa',
                        'zetta', 'iotta'),
-    'iec'           : ('Bi', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi', 'Yi'),
-    'iec_ext'       : ('byte', 'kibi', 'mebi', 'gibi', 'tebi', 'pebi', 'exbi',
+    'iec': ('Bi', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi', 'Yi'),
+    'iec_ext': ('byte', 'kibi', 'mebi', 'gibi', 'tebi', 'pebi', 'exbi',
                        'zebi', 'yobi'),
 }
 
@@ -191,6 +219,7 @@ DEBUG_MEMORY_INFO = False
 _global_collect_info = False
 
 PRINT_MEMORY_BEFORE_AFTER_TEST = False  # This makes running tests slower (but it may be handy to diagnose memory issues).
+
 
 @pytest.yield_fixture(autouse=PRINT_MEMORY_BEFORE_AFTER_TEST)
 def before_after_each_function(request):
@@ -336,7 +365,7 @@ def pyfile(request, tmpdir):
             raise ValueError("Failed to locate function header.")
 
         # Remove everything up to and including "def".
-        source = source[def_lineno + 1 :]
+        source = source[def_lineno + 1:]
         assert source
 
         # Now we need to adjust indentation. Compute how much the first line of

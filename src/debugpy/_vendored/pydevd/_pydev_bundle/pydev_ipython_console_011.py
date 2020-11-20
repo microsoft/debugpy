@@ -40,6 +40,7 @@ default_pydev_banner_parts = default_banner_parts
 
 default_pydev_banner = ''.join(default_pydev_banner_parts)
 
+
 def show_in_pager(self, strng, *args, **kwargs):
     """ Run a string through pager """
     # On PyDev we just output the string, there are scroll bars in the console
@@ -49,6 +50,7 @@ def show_in_pager(self, strng, *args, **kwargs):
     if isinstance(strng, dict):
         strng = strng.get('text/plain', strng)
     print(strng)
+
 
 def create_editor_hook(pydev_host, pydev_client_port):
 
@@ -73,6 +75,7 @@ def create_editor_hook(pydev_host, pydev_client_port):
                 raw_input("Press Enter when done editing:")
             except NameError:
                 input("Press Enter when done editing:")
+
     return call_editor
 
 
@@ -86,7 +89,8 @@ class PyDevIPCompleter(IPCompleter):
         if self.python_matches in self.matchers:
             # `self.python_matches` matches attributes or global python names
             self.matchers.remove(self.python_matches)
-            
+
+
 class PyDevIPCompleter6(IPCompleter):
 
     def __init__(self, *args, **kwargs):
@@ -109,6 +113,7 @@ class PyDevIPCompleter6(IPCompleter):
     def matchers(self, value):
         # To stop the init in IPCompleter raising an AttributeError we now have to specify a setter as it's now a property in the superclass.
         return
+
 
 class PyDevTerminalInteractiveShell(TerminalInteractiveShell):
     banner1 = Unicode(default_pydev_banner, config=True,
@@ -157,6 +162,12 @@ class PyDevTerminalInteractiveShell(TerminalInteractiveShell):
     # Things related to hooks
     #-------------------------------------------------------------------------
 
+    def init_history(self):
+        # Disable history so that we don't have an additional thread for that
+        # (and we don't use the history anyways).
+        self.config.HistoryManager.enabled = False
+        super(PyDevTerminalInteractiveShell, self).init_history()
+
     def init_hooks(self):
         super(PyDevTerminalInteractiveShell, self).init_hooks()
         self.set_hook('show_in_pager', show_in_pager)
@@ -182,8 +193,6 @@ class PyDevTerminalInteractiveShell(TerminalInteractiveShell):
 
         if tb is not None:
             traceback.print_exception(etype, value, tb)
-
-
 
     #-------------------------------------------------------------------------
     # Things related to text completion
@@ -244,12 +253,12 @@ class PyDevTerminalInteractiveShell(TerminalInteractiveShell):
         self.strdispatchers['complete_command'] = sdisp
         self.Completer.custom_completers = sdisp
 
-        self.set_hook('complete_command', module_completer, str_key = 'import')
-        self.set_hook('complete_command', module_completer, str_key = 'from')
-        self.set_hook('complete_command', magic_run_completer, str_key = '%run')
-        self.set_hook('complete_command', cd_completer, str_key = '%cd')
+        self.set_hook('complete_command', module_completer, str_key='import')
+        self.set_hook('complete_command', module_completer, str_key='from')
+        self.set_hook('complete_command', magic_run_completer, str_key='%run')
+        self.set_hook('complete_command', cd_completer, str_key='%cd')
         if reset_completer:
-            self.set_hook('complete_command', reset_completer, str_key = '%reset')
+            self.set_hook('complete_command', reset_completer, str_key='%reset')
 
     def init_completer(self):
         """Initialize the completion machinery.
@@ -328,7 +337,9 @@ class PyDevTerminalInteractiveShell(TerminalInteractiveShell):
         super(PyDevTerminalInteractiveShell, self).init_magics()
         # TODO Any additional magics for PyDev?
 
+
 InteractiveShellABC.register(PyDevTerminalInteractiveShell)  # @UndefinedVariable
+
 
 #=======================================================================================================================
 # _PyDevFrontEnd
@@ -362,7 +373,7 @@ class _PyDevFrontEnd:
         self.ipython.user_ns = locals
 
         if hasattr(self.ipython, 'history_manager') and hasattr(self.ipython.history_manager, 'save_thread'):
-            self.ipython.history_manager.save_thread.pydev_do_not_trace = True #don't trace ipython history saving thread
+            self.ipython.history_manager.save_thread.pydev_do_not_trace = True  # don't trace ipython history saving thread
 
     def complete(self, string):
         try:
@@ -375,7 +386,7 @@ class _PyDevFrontEnd:
             pass
 
     def is_complete(self, string):
-        #Based on IPython 0.10.1
+        # Based on IPython 0.10.1
 
         if string in ('', '\n'):
             # Prefiltering, eg through ipython0, may return an empty
@@ -404,7 +415,6 @@ class _PyDevFrontEnd:
                 is_complete = True
             return is_complete
 
-
     def getCompletions(self, text, act_tok):
         # Get completions from IPython and from PyDev and merge the results
         # IPython only gives context free list of completions, while PyDev
@@ -422,10 +432,10 @@ class _PyDevFrontEnd:
             pydev_completions = set([f[0] for f in ret])
             for ipython_completion in ipython_completions:
 
-                #PyCharm was not expecting completions with '%'...
-                #Could be fixed in the backend, but it's probably better
-                #fixing it at PyCharm.
-                #if ipython_completion.startswith('%'):
+                # PyCharm was not expecting completions with '%'...
+                # Could be fixed in the backend, but it's probably better
+                # fixing it at PyCharm.
+                # if ipython_completion.startswith('%'):
                 #    ipython_completion = ipython_completion[1:]
 
                 if ipython_completion not in pydev_completions:
@@ -444,7 +454,6 @@ class _PyDevFrontEnd:
             import traceback;traceback.print_exc()
             return []
 
-
     def get_namespace(self):
         return self.ipython.user_ns
 
@@ -461,23 +470,23 @@ class _PyDevFrontEnd:
                 self._curr_exec_line += 1
                 self.ipython.run_cell(buf)
                 del self._curr_exec_lines[:]
-                return False #execute complete (no more)
+                return False  # execute complete (no more)
 
-            return True #needs more
+            return True  # needs more
         else:
 
             if not self.is_complete(line):
-                #Did not execute
+                # Did not execute
                 self._curr_exec_lines.append(line)
-                return True #needs more
+                return True  # needs more
             else:
                 self._curr_exec_line += 1
                 self.ipython.run_cell(line, store_history=True)
-                #hist = self.ipython.history_manager.output_hist_reprs
-                #rep = hist.get(self._curr_exec_line, None)
-                #if rep is not None:
+                # hist = self.ipython.history_manager.output_hist_reprs
+                # rep = hist.get(self._curr_exec_line, None)
+                # if rep is not None:
                 #    print(rep)
-                return False #execute complete (no more)
+                return False  # execute complete (no more)
 
     def is_automagic(self):
         return self.ipython.automagic
@@ -508,5 +517,4 @@ def get_pydev_frontend(pydev_host, pydev_client_port):
         # _PyDevFrontEndContainer._instance.ipython.set_hook('editor', create_editor_hook(pydev_host, pydev_client_port))
 
     return _PyDevFrontEndContainer._instance
-
 
