@@ -26,7 +26,55 @@ def test_expression_to_evaluate():
         assert _expression_to_evaluate(u'  for a in expr:\n  pass') == u'for a in expr:\npass'
 
 
+@pytest.mark.skipif(IS_WINDOWS, reason='Brittle on Windows.')
 def test_is_main_thread():
+    '''
+    This is now skipped due to it failing sometimes (only on Windows).
+
+    I (fabioz) am not 100% sure on why this happens, but when this happens the initial thread for
+    the tests seems to be a non main thread.
+
+    i.e.: With an autouse fixture with a scope='session' with the code and error message below, it's
+    possible to see that at even at the `conftest` import (where indent_at_import is assigned) the
+    current thread is already not the main thread.
+
+    As far as I know this seems to be an issue in how pytest-xdist is running the tests (i.e.:
+    I couldn't reproduce this without running with `python -m pytest -n 0 ...`).
+
+    -------- Code to check error / error output ----------
+
+    from _pydevd_bundle.pydevd_utils import is_current_thread_main_thread
+    import threading
+    indent_at_import = threading.get_ident()
+
+    @pytest.yield_fixture(autouse=True, scope='session')
+    def check_main_thread_session(request):
+        if not is_current_thread_main_thread():
+            error_msg = 'Current thread does not seem to be a main thread at the start of the session. Details:\n'
+            current_thread = threading.current_thread()
+            error_msg += 'Current thread: %s\n' % (current_thread,)
+            error_msg += 'Current thread ident: %s\n' % (current_thread.ident,)
+            error_msg += 'ident at import: %s\n' % (indent_at_import,)
+            error_msg += 'curr ident: %s\n' % (threading.get_ident(),)
+
+            if hasattr(threading, 'main_thread'):
+                error_msg += 'Main thread found: %s\n' % (threading.main_thread(),)
+                error_msg += 'Main thread id: %s\n' % (threading.main_thread().ident,)
+            else:
+                error_msg += 'Current main thread not instance of: %s (%s)\n' % (
+                    threading._MainThread, current_thread.__class__.__mro__,)
+
+>           raise AssertionError(error_msg)
+E           AssertionError: Current thread does not seem to be a main thread at the start of the session. Details:
+E           Current thread: <_DummyThread(Dummy-2, started daemon 7072)>
+E           Current thread ident: 7072
+E           ident at import: 7072
+E           curr ident: 7072
+E           Main thread found: <_MainThread(MainThread, started 5924)>
+E           Main thread id: 5924
+
+conftest.py:67: AssertionError
+    '''
     from _pydevd_bundle.pydevd_utils import is_current_thread_main_thread
     from _pydevd_bundle.pydevd_utils import dump_threads
     if not is_current_thread_main_thread():

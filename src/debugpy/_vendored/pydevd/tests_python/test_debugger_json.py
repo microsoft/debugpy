@@ -17,7 +17,7 @@ from _pydevd_bundle._debug_adapter.pydevd_schema import (ThreadEvent, ModuleEven
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
 from _pydevd_bundle.pydevd_constants import (int_types, IS_64BIT_PROCESS,
     PY_VERSION_STR, PY_IMPL_VERSION_STR, PY_IMPL_NAME, IS_PY36_OR_GREATER,
-    IS_PYPY, GENERATED_LEN_ATTR_NAME, IS_WINDOWS, IS_LINUX)
+    IS_PYPY, GENERATED_LEN_ATTR_NAME, IS_WINDOWS, IS_LINUX, IS_MAC)
 from tests_python import debugger_unittest
 from tests_python.debug_constants import TEST_CHERRYPY, IS_PY2, TEST_DJANGO, TEST_FLASK, IS_PY26, \
     IS_PY27, IS_CPYTHON, TEST_GEVENT, TEST_CYTHON
@@ -3958,7 +3958,7 @@ def _attach_to_writer_pid(writer):
 
 
 @pytest.mark.parametrize('reattach', [True, False])
-@pytest.mark.skipif(not IS_CPYTHON, reason='Attach to pid only available in CPython.')
+@pytest.mark.skipif(not IS_CPYTHON or IS_MAC, reason='Attach to pid only available in CPython (brittle on Mac).')
 def test_attach_to_pid(case_setup_remote, reattach):
     import threading
 
