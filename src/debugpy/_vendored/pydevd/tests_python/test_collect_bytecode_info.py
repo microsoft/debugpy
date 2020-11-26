@@ -412,10 +412,10 @@ async def try_except_with():
             assert str(lst) == '[{try:1 except 6 end block 7}]'
         else:
             # Before Python 3.8 the async for does a try..except StopAsyncIteration internally.
-            if sys.version_info[:2] == (3, 5) or IS_PYPY:
-                assert str(lst) == '[{try:1 except 6 end block 7}, {try:2 except 2 end block 2}]'
-            else:
-                assert str(lst) == '[{try:1 except 6 end block 7}, {try:2 except 2 end block 7}]'
+            assert str(lst) in (
+                '[{try:1 except 6 end block 7}, {try:2 except 2 end block 7}]',
+                '[{try:1 except 6 end block 7}, {try:2 except 2 end block 2}]'
+            )
     else:
         assert lst == []
 

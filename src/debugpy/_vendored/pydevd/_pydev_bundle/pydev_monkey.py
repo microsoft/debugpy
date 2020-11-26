@@ -70,7 +70,7 @@ def _get_setup_updated_with_protocol_and_ppid(setup, is_exec=False):
     return setup
 
 
-def _get_python_c_args(host, port, indC, args, setup):
+def _get_python_c_args(host, port, code, args, setup):
     setup = _get_setup_updated_with_protocol_and_ppid(setup)
 
     # i.e.: We want to make the repr sorted so that it works in tests.
@@ -87,7 +87,7 @@ def _get_python_c_args(host, port, indC, args, setup):
                setup.get('access-token'),
                setup.get('client-access-token'),
                setup_repr,
-               args[indC + 1])
+               code)
 
 
 def _get_host_port():
@@ -218,25 +218,6 @@ def quote_args(args):
         return args
 
 
-def get_c_option_index(args):
-    """
-    Get index of "-c" argument and check if it's interpreter's option
-    :param args: list of arguments
-    :return: index of "-c" if it's an interpreter's option and -1 if it doesn't exist or program's option
-    """
-    for ind_c, arg in enumerate(args):
-        if arg == _get_str_type_compatible(arg, '-c'):
-            break
-    else:
-        return -1
-
-    for i in range(1, ind_c):
-        if not args[i].startswith(_get_str_type_compatible(args[i], '-')):
-            # there is an arg without "-" before "-c", so it's not an interpreter's option
-            return -1
-    return ind_c
-
-
 def patch_args(args, is_exec=False):
     '''
     :param list args:
@@ -249,99 +230,207 @@ def patch_args(args, is_exec=False):
     try:
         pydev_log.debug("Patching args: %s", args)
         original_args = args
-        args = remove_quotes_from_args(args)
+        unquoted_args = remove_quotes_from_args(args)
+
+        # Internally we should reference original_args (if we want to return them) or unquoted_args
+        # to add to the list which will be then quoted in the end.
+        del args
 
         from pydevd import SetupHolder
-        new_args = []
-        if len(args) == 0:
+        if not unquoted_args:
             return original_args
 
-        if is_python(args[0]):
-            ind_c = get_c_option_index(args)
-
-            if ind_c != -1:
-                host, port = _get_host_port()
-
-                if port is not None:
-                    new_args.extend(args)
-                    new_args[ind_c + 1] = _get_python_c_args(host, port, ind_c, args, SetupHolder.setup)
-                    return quote_args(new_args)
-            else:
-                # Check for Python ZIP Applications and don't patch the args for them.
-                # Assumes the first non `-<flag>` argument is what we need to check.
-                # There's probably a better way to determine this but it works for most cases.
-                continue_next = False
-                for i in range(1, len(args)):
-                    if continue_next:
-                        continue_next = False
-                        continue
-
-                    arg = args[i]
-                    if arg.startswith(_get_str_type_compatible(arg, '-')):
-                        # Skip the next arg too if this flag expects a value.
-                        continue_next = arg in _get_str_type_compatible(arg, ['-m', '-W', '-X'])
-                        continue
-
-                    dot = _get_str_type_compatible(arg, '.')
-                    extensions = _get_str_type_compatible(arg, ['zip', 'pyz', 'pyzw'])
-                    if arg.rsplit(dot)[-1] in extensions:
-                        pydev_log.debug('Executing a PyZip, returning')
-                        return original_args
-                    break
-
-                new_args.append(args[0])
-        else:
+        if not is_python(unquoted_args[0]):
             pydev_log.debug("Process is not python, returning.")
             return original_args
 
-        i = 1
+        # Note: we create a copy as string to help with analyzing the arguments, but
+        # the final list should have items from the unquoted_args as they were initially.
+        args_as_str = _get_str_type_compatible('', unquoted_args)
+
+        params_with_value_in_separate_arg = (
+            '--check-hash-based-pycs',
+            '--jit'  # pypy option
+        )
+
+        # All short switches may be combined together. The ones below require a value and the
+        # value itself may be embedded in the arg.
+        #
+        # i.e.: Python accepts things as:
+        #
+        # python -OQold -qmtest
+        #
+        # Which is the same as:
+        #
+        # python -O -Q old -q -m test
+        #
+        # or even:
+        #
+        # python -OQold "-vcimport sys;print(sys)"
+        #
+        # Which is the same as:
+        #
+        # python -O -Q old -v -c "import sys;print(sys)"
+
+        params_with_combinable_arg = set(('W', 'X', 'Q', 'c', 'm'))
+
+        module_name = None
+        before_module_flag = ''
+        module_name_i_start = -1
+        module_name_i_end = -1
+
+        code = None
+        code_i = -1
+        code_i_end = -1
+        code_flag = ''
+
+        filename = None
+        filename_i = -1
+
+        ignore_next = True  # start ignoring the first (the first entry is the python executable)
+        for i, arg_as_str in enumerate(args_as_str):
+            if ignore_next:
+                ignore_next = False
+                continue
+
+            if arg_as_str.startswith('-'):
+                if arg_as_str == '-':
+                    # Contents will be read from the stdin. This is not currently handled.
+                    pydev_log.debug('Unable to fix arguments to attach debugger on subprocess when reading from stdin ("python ... -").')
+                    return original_args
+
+                if arg_as_str.startswith(params_with_value_in_separate_arg):
+                    if arg_as_str in params_with_value_in_separate_arg:
+                        ignore_next = True
+                    continue
+
+                break_out = False
+                for j, c in enumerate(arg_as_str):
+
+                    # i.e.: Python supports -X faulthandler as well as -Xfaulthandler
+                    # (in one case we have to ignore the next and in the other we don't
+                    # have to ignore it).
+                    if c in params_with_combinable_arg:
+                        remainder = arg_as_str[j + 1:]
+                        if not remainder:
+                            ignore_next = True
+
+                        if c == 'm':
+                            # i.e.: Something as
+                            # python -qm test
+                            # python -m test
+                            # python -qmtest
+                            before_module_flag = arg_as_str[:j]  # before_module_flag would then be "-q"
+                            if before_module_flag == '-':
+                                before_module_flag = ''
+                            module_name_i_start = i
+                            if not remainder:
+                                module_name = unquoted_args[i + 1]
+                                module_name_i_end = i + 1
+                            else:
+                                # i.e.: python -qmtest should provide 'test' as the module_name
+                                module_name = unquoted_args[i][j + 1:]
+                                module_name_i_end = module_name_i_start
+                            break_out = True
+                            break
+
+                        elif c == 'c':
+                            # i.e.: Something as
+                            # python -qc "import sys"
+                            # python -c "import sys"
+                            # python "-qcimport sys"
+                            code_flag = arg_as_str[:j + 1]  # code_flag would then be "-qc"
+
+                            if not remainder:
+                                # arg_as_str is something as "-qc", "import sys"
+                                code = unquoted_args[i + 1]
+                                code_i_end = i + 2
+                            else:
+                                # if arg_as_str is something as "-qcimport sys"
+                                code = remainder  # code would be "import sys"
+                                code_i_end = i + 1
+                            code_i = i
+                            break_out = True
+                            break
+
+                        else:
+                            break
+
+                if break_out:
+                    break
+
+            else:
+                # It doesn't start with '-' and we didn't ignore this entry:
+                # this means that this is the file to be executed.
+                filename = unquoted_args[i]
+                filename_i = i
+
+                # When executing .zip applications, don't attach the debugger.
+                extensions = _get_str_type_compatible(filename, ['.zip', '.pyz', '.pyzw'])
+                for ext in extensions:
+                    if filename.endswith(ext):
+                        pydev_log.debug('Executing a PyZip (debugger will not be attached to subprocess).')
+                        return original_args
+
+                if _is_managed_arg(filename):  # no need to add pydevd twice
+                    pydev_log.debug('Skipped monkey-patching as pydevd.py is in args already.')
+                    return original_args
+
+                break
+        else:
+            # We didn't find the filename (something is unexpected).
+            pydev_log.debug('Unable to fix arguments to attach debugger on subprocess (filename not found).')
+            return original_args
+
+        if code_i != -1:
+            host, port = _get_host_port()
+
+            if port is not None:
+                new_args = []
+                new_args.extend(unquoted_args[:code_i])
+                new_args.append(code_flag)
+                new_args.append(_get_python_c_args(host, port, code, unquoted_args, SetupHolder.setup))
+                new_args.extend(unquoted_args[code_i_end:])
+
+                return quote_args(new_args)
+
+        first_non_vm_index = max(filename_i, module_name_i_start)
+        if first_non_vm_index == -1:
+            pydev_log.debug('Unable to fix arguments to attach debugger on subprocess (could not resolve filename nor module name).')
+            return original_args
+
         # Original args should be something as:
         # ['X:\\pysrc\\pydevd.py', '--multiprocess', '--print-in-debugger-startup',
         #  '--vm_type', 'python', '--client', '127.0.0.1', '--port', '56352', '--file', 'x:\\snippet1.py']
         from _pydevd_bundle.pydevd_command_line_handling import setup_to_argv
-        original = setup_to_argv(
+        new_args = []
+        new_args.extend(unquoted_args[:first_non_vm_index])
+        if before_module_flag:
+            new_args.append(before_module_flag)
+        new_args.extend(setup_to_argv(
             _get_setup_updated_with_protocol_and_ppid(SetupHolder.setup, is_exec=is_exec)
-        ) + ['--file']
-
-        module_name = None
-        m_flag = _get_str_type_compatible(args[i], '-m')
-        while i < len(args):
-            if args[i] == m_flag:
-                # Always insert at pos == 1 (i.e.: pydevd "--module" --multiprocess ...)
-                original.insert(1, '--module')
-            elif args[i].startswith(m_flag):
-                # Case where the user does: python -mmodule_name (using a single parameter).
-                original.insert(1, '--module')
-                module_name = args[i][2:]
-            else:
-                if args[i].startswith(_get_str_type_compatible(args[i], '-')):
-                    new_args.append(args[i])
-                else:
-                    break
-            i += 1
-
-        # Note: undoing https://github.com/Elizaveta239/PyDev.Debugger/commit/053c9d6b1b455530bca267e7419a9f63bf51cddf
-        # (i >= len(args) instead of i < len(args))
-        # in practice it'd raise an exception here and would return original args, which is not what we want... providing
-        # a proper fix for https://youtrack.jetbrains.com/issue/PY-9767 elsewhere.
-        if i < len(args) and _is_managed_arg(args[i]):  # no need to add pydevd twice
-            return original_args
-
-        for x in original:
-            new_args.append(x)
-            if x == _get_str_type_compatible(x, '--file'):
-                break
+        ))
+        new_args.append('--file')
 
         if module_name is not None:
+            assert module_name_i_start != -1
+            assert module_name_i_end != -1
+            # Always after 'pydevd' (i.e.: pydevd "--module" --multiprocess ...)
+            new_args.insert(2 if not before_module_flag else 3, '--module')
             new_args.append(module_name)
+            new_args.extend(unquoted_args[module_name_i_end + 1:])
 
-        while i < len(args):
-            new_args.append(args[i])
-            i += 1
+        elif filename is not None:
+            assert filename_i != -1
+            new_args.append(filename)
+            new_args.extend(unquoted_args[filename_i + 1:])
+
+        else:
+            raise AssertionError('Internal error (unexpected condition)')
 
         return quote_args(new_args)
     except:
-        pydev_log.exception('Error patching args')
+        pydev_log.exception('Error patching args (debugger not attached to subprocess).')
         return original_args
 
 
