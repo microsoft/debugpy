@@ -558,7 +558,7 @@ class DebuggerRunner(object):
                             continue
 
                         if not shown_intermediate and (time.time() - initial_time > (TIMEOUT / 3.)):  # 1/3 of timeout
-                            print('Warning: writer thread exited and process still did not (%.2fs seconds elapsed).' % (time.time() - initial_time,))
+                            print('Warning: writer thread exited and process still did not (%.2f seconds elapsed).' % (time.time() - initial_time,))
                             shown_intermediate = True
 
                         if time.time() - initial_time > ((TIMEOUT / 3.) * 2.):  # 2/3 of timeout
@@ -575,7 +575,7 @@ class DebuggerRunner(object):
                             process.kill()
                             time.sleep(.2)
                             self.fail_with_message(
-                                "The other process should've exited but still didn't (%.2fs seconds timeout for process to exit)." % (time.time() - initial_time,),
+                                "The other process should've exited but still didn't (%.2f seconds timeout for process to exit)." % (time.time() - initial_time,),
                                 stdout, stderr, writer
                             )
                 time.sleep(.2)

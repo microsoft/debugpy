@@ -106,34 +106,6 @@ def check_no_threads():
     _start_monitoring_threads()
 
 
-from _pydevd_bundle.pydevd_utils import is_current_thread_main_thread
-import threading
-
-
-@pytest.yield_fixture(autouse=True)
-def check_main_thread(request):
-    was_main = is_current_thread_main_thread()
-
-    yield
-
-    is_main = is_current_thread_main_thread()
-    if not is_main:
-        error_msg = 'Current thread does not seem to be a main thread. Details:\n'
-        current_thread = threading.current_thread()
-        error_msg += 'Current thread: %s\n' % (current_thread,)
-
-        if hasattr(threading, 'main_thread'):
-            error_msg += 'Main thread found: %s\n' % (threading.main_thread(),)
-        else:
-            error_msg += 'Current main thread not instance of: %s (%s)\n' % (
-                threading._MainThread, current_thread.__class__.__mro__,)
-
-        error_msg += 'Was main: %s\n' % (was_main,)
-        error_msg += 'Function: %s\n' % (request.node.nodeid,)
-
-        raise AssertionError(error_msg)
-
-
 # see: http://goo.gl/kTQMs
 SYMBOLS = {
     'customary': ('B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'),

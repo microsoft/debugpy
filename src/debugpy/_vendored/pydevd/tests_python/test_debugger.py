@@ -2752,7 +2752,7 @@ def test_attach_to_pid_no_threads(case_setup_remote, reattach):
         writer.finished_ok = True
 
 
-@pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
+@pytest.mark.skipif(not IS_CPYTHON or IS_MAC, reason='CPython only test (brittle on Mac).')
 def test_attach_to_pid_halted(case_setup_remote):
     with case_setup_remote.test_file('_debugger_case_attach_to_pid_multiple_threads.py', wait_for_port=False) as writer:
         time.sleep(1)  # Give it some time to initialize and get to the proper halting condition

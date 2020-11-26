@@ -405,7 +405,7 @@ class NetCommandFactoryJson(NetCommandFactory):
 
     @overrides(NetCommandFactory.make_evaluation_timeout_msg)
     def make_evaluation_timeout_msg(self, py_db, expression, curr_thread):
-        msg = '''Evaluating: %s did not finish after %.2fs seconds.
+        msg = '''Evaluating: %s did not finish after %.2f seconds.
 This may mean a number of things:
 - This evaluation is really slow and this is expected.
     In this case it's possible to silence this error by raising the timeout, setting the
