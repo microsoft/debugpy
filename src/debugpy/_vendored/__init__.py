@@ -15,16 +15,14 @@ from . import _util
 VENDORED_ROOT = os.path.dirname(os.path.abspath(__file__))
 # TODO: Move the "pydevd" git submodule to the debugpy/_vendored directory
 # and then drop the following fallback.
-if 'pydevd' not in os.listdir(VENDORED_ROOT):
+if "pydevd" not in os.listdir(VENDORED_ROOT):
     VENDORED_ROOT = os.path.dirname(VENDORED_ROOT)
 
 
 def list_all(resolve=False):
     """Return the list of vendored projects."""
     # TODO: Derive from os.listdir(VENDORED_ROOT)?
-    projects = [
-        'pydevd',
-    ]
+    projects = ["pydevd"]
     if not resolve:
         return projects
     return [project_root(name) for name in projects]
@@ -37,7 +35,7 @@ def project_root(project):
     projects (e.g. "debugpy/_vendored/") will be returned.
     """
     if not project:
-        project = ''
+        project = ""
     return os.path.join(VENDORED_ROOT, project)
 
 
@@ -63,17 +61,14 @@ def iter_packaging_files(project):
     prune_dir = None
     exclude_file = None
     try:
-        mod = import_module('._{}_packaging'.format(project), __name__)
+        mod = import_module("._{}_packaging".format(project), __name__)
     except ImportError:
         pass
     else:
-        prune_dir = getattr(mod, 'prune_dir', prune_dir)
-        exclude_file = getattr(mod, 'exclude_file', exclude_file)
+        prune_dir = getattr(mod, "prune_dir", prune_dir)
+        exclude_file = getattr(mod, "exclude_file", exclude_file)
     results = iter_project_files(
-        project,
-        relative=True,
-        prune_dir=prune_dir,
-        exclude_file=exclude_file,
+        project, relative=True, prune_dir=prune_dir, exclude_file=exclude_file
     )
     for _, _, filename in results:
         yield filename
@@ -89,6 +84,7 @@ def prefix_matcher(*prefixes):
                 return True
         else:
             return False
+
     return match
 
 
@@ -101,10 +97,14 @@ def check_modules(project, match, root=None):
     for modname, mod in list(sys.modules.items()):
         if not match(modname, mod):
             continue
-        if not hasattr(mod, '__file__'):  # extension module
+        try:
+            filename = getattr(mod, "__file__", None)
+        except:  # In theory it's possible that any error is raised when accessing __file__
+            filename = None
+        if not filename:  # extension module
             extensions.append(modname)
-        elif not mod.__file__.startswith(root):
-            unvendored[modname] = mod.__file__
+        elif not filename.startswith(root):
+            unvendored[modname] = filename
     return unvendored, extensions
 
 

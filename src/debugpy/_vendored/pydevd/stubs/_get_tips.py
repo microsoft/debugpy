@@ -62,9 +62,12 @@ def GetFile(mod):
     try:
         f = inspect.getsourcefile(mod) or inspect.getfile(mod)
     except:
-        if hasattr(mod, '__file__'):
-            f = mod.__file__
-            if f.lower(f[-4:]) in ['.pyc', '.pyo']:
+        try:
+            f = getattr(mod, '__file__', None)
+        except:
+            pass
+        else:
+            if f and f.lower(f[-4:]) in ['.pyc', '.pyo']:
                 filename = f[:-4] + '.py'
                 if os.path.exists(filename):
                     f = filename
