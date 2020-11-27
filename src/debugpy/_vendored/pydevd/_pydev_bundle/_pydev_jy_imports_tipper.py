@@ -56,8 +56,10 @@ def Find(name):
     parent = mod
     foundAs = ''
 
-    if hasattr(mod, '__file__'):
-        f = mod.__file__
+    try:
+        f = getattr(mod, '__file__', None)
+    except:
+        f = None
 
 
     components = name.split('.')
