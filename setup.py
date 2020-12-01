@@ -134,5 +134,10 @@ if __name__ == "__main__":
             "debugpy._vendored": list(iter_vendored_files()),
         },
         cmdclass=cmds,
+        entry_points={
+            "console_scripts": [
+                "debugpy = debugpy.__main__:cli.main"
+            ]
+        },
         **extras
     )
