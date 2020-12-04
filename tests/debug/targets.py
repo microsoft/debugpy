@@ -6,7 +6,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import py
 
-from debugpy.common import fmt
+from debugpy.common import fmt, compat
 from tests.patterns import some
 
 
@@ -79,10 +79,10 @@ class Program(Target):
     pytest_id = "program"
 
     def __repr__(self):
-        return fmt("program {0!j}", self.filename)
+        return fmt("program {0!j}", compat.filename(self.filename.strpath))
 
     def configure(self, session):
-        session.config["program"] = self.filename
+        session.config["program"] = compat.filename(self.filename.strpath)
         session.config["args"] = self.args
 
     def cli(self, env):
