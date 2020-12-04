@@ -135,7 +135,7 @@ def _starts_debugging(func):
 
         debugpy_path = os.path.dirname(absolute_path(debugpy.__file__))
         settrace_kwargs["dont_trace_start_patterns"] = (debugpy_path,)
-        settrace_kwargs["dont_trace_end_patterns"] = ("debugpy_launcher.py",)
+        settrace_kwargs["dont_trace_end_patterns"] = (str("debugpy_launcher.py"),)
 
         try:
             return func(address, settrace_kwargs, **kwargs)

@@ -43,7 +43,7 @@ class Options(object):
     address = None
     log_to = None
     log_to_stderr = False
-    target = None
+    target = None  # unicode
     target_kind = None
     wait_for_client = False
     adapter_access_token = None
@@ -141,7 +141,20 @@ def set_config(arg, it):
 def set_target(kind, parser=(lambda x: x), positional=False):
     def do(arg, it):
         options.target_kind = kind
-        options.target = parser(arg if positional else next(it))
+        target = parser(arg if positional else next(it))
+
+        if isinstance(target, bytes):
+            # target may be the code, so, try some additional encodings...
+            try:
+                target = target.decode(sys.getfilesystemencoding())
+            except UnicodeDecodeError:
+                try:
+                    target = target.decode("utf-8")
+                except UnicodeDecodeError:
+                    import locale
+
+                    target = target.decode(locale.getpreferredencoding(False))
+        options.target = target
 
     return do
 
@@ -233,6 +246,7 @@ def start_debugging(argv_0):
     # because they use it to report the "process" event. Thus, we can't rely on
     # run_path() and run_module() doing that, even though they will eventually.
     sys.argv[0] = compat.filename_str(argv_0)
+
     log.debug("sys.argv after patching: {0!r}", sys.argv)
 
     debugpy.configure(options.config)
@@ -249,43 +263,48 @@ def start_debugging(argv_0):
 
 
 def run_file():
-    start_debugging(options.target)
+    target = options.target
+    start_debugging(target)
+
+    target_as_str = compat.filename_str(target)
 
     # run_path has one difference with invoking Python from command-line:
     # if the target is a file (rather than a directory), it does not add its
     # parent directory to sys.path. Thus, importing other modules from the
     # same directory is broken unless sys.path is patched here.
-    if os.path.isfile(options.target):
-        dir = os.path.dirname(options.target)
+
+    if os.path.isfile(target_as_str):
+        dir = os.path.dirname(target_as_str)
         sys.path.insert(0, dir)
     else:
-        log.debug("Not a file: {0!r}", options.target)
+        log.debug("Not a file: {0!r}", target)
 
     log.describe_environment("Pre-launch environment:")
-    log.info("Running file {0!r}", options.target)
 
-    runpy.run_path(options.target, run_name=compat.force_str("__main__"))
+    log.info("Running file {0!r}", target)
+    runpy.run_path(target_as_str, run_name=compat.force_str("__main__"))
 
 
 def run_module():
     # Add current directory to path, like Python itself does for -m. This must
     # be in place before trying to use find_spec below to resolve submodules.
-    sys.path.insert(0, "")
+    sys.path.insert(0, str(""))
 
     # We want to do the same thing that run_module() would do here, without
     # actually invoking it. On Python 3, it's exposed as a public API, but
     # on Python 2, we have to invoke a private function in runpy for this.
     # Either way, if it fails to resolve for any reason, just leave argv as is.
     argv_0 = sys.argv[0]
+    target_as_str = compat.filename_str(options.target)
     try:
         if sys.version_info >= (3,):
             from importlib.util import find_spec
 
-            spec = find_spec(options.target)
+            spec = find_spec(target_as_str)
             if spec is not None:
                 argv_0 = spec.origin
         else:
-            _, _, _, argv_0 = runpy._get_module_details(options.target)
+            _, _, _, argv_0 = runpy._get_module_details(target_as_str)
     except Exception:
         log.swallow_exception("Error determining module path for sys.argv")
 
@@ -294,14 +313,9 @@ def run_module():
     # On Python 2, module name must be a non-Unicode string, because it ends up
     # a part of module's __package__, and Python will refuse to run the module
     # if __package__ is Unicode.
-    target = (
-        compat.filename_bytes(options.target)
-        if sys.version_info < (3,)
-        else options.target
-    )
 
     log.describe_environment("Pre-launch environment:")
-    log.info("Running module {0!r}", target)
+    log.info("Running module {0!r}", options.target)
 
     # Docs say that runpy.run_module is equivalent to -m, but it's not actually
     # the case for packages - -m sets __name__ to "__main__", but run_module sets
@@ -312,17 +326,17 @@ def run_module():
         run_module_as_main = runpy._run_module_as_main
     except AttributeError:
         log.warning("runpy._run_module_as_main is missing, falling back to run_module.")
-        runpy.run_module(target, alter_sys=True)
+        runpy.run_module(target_as_str, alter_sys=True)
     else:
-        run_module_as_main(target, alter_argv=True)
+        run_module_as_main(target_as_str, alter_argv=True)
 
 
 def run_code():
     # Add current directory to path, like Python itself does for -c.
-    sys.path.insert(0, "")
-    code = compile(options.target, "<string>", "exec")
+    sys.path.insert(0, str(""))
+    code = compile(options.target, str("<string>"), str("exec"))
 
-    start_debugging("-c")
+    start_debugging(str("-c"))
 
     log.describe_environment("Pre-launch environment:")
     log.info("Running code:\n\n{0}", options.target)
@@ -404,7 +418,7 @@ def main():
     try:
         parse_argv()
     except Exception as exc:
-        print(HELP + "\nError: " + str(exc), file=sys.stderr)
+        print(str(HELP) + str("\nError: ") + str(exc), file=sys.stderr)
         sys.exit(2)
 
     if options.log_to is not None:
@@ -415,7 +429,7 @@ def main():
     api.ensure_logging()
 
     log.info(
-        "sys.argv before parsing: {0!r}\n" "         after parsing:  {1!r}",
+        str("sys.argv before parsing: {0!r}\n" "         after parsing:  {1!r}"),
         original_argv,
         sys.argv,
     )
