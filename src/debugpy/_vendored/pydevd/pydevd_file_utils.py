@@ -594,9 +594,13 @@ map_file_to_client = _original_file_to_client
 map_file_to_server = _original_map_file_to_server
 
 
-def _fix_path(path, sep):
-    if path.endswith('/') or path.endswith('\\'):
-        path = path[:-1]
+def _fix_path(path, sep, add_end_sep=False):
+    if add_end_sep:
+        if not path.endswith('/') and not path.endswith('\\'):
+            path += '/'
+    else:
+        if path.endswith('/') or path.endswith('\\'):
+            path = path[:-1]
 
     if sep != '/':
         path = path.replace('/', sep)
@@ -662,23 +666,39 @@ def setup_client_server_paths(paths):
 
     norm_filename_to_server_container = {}
     norm_filename_to_client_container = {}
-    initial_paths = list(paths)
-    paths_from_eclipse_to_python = initial_paths[:]
+
+    initial_paths = []
+    initial_paths_with_end_sep = []
+
+    paths_from_eclipse_to_python = []
+    paths_from_eclipse_to_python_with_end_sep = []
 
     # Apply normcase to the existing paths to follow the os preferences.
 
-    for i, (path0, path1) in enumerate(paths_from_eclipse_to_python[:]):
+    for i, (path0, path1) in enumerate(paths):
         if IS_PY2:
             if isinstance(path0, unicode):  # noqa
                 path0 = path0.encode(sys.getfilesystemencoding())
             if isinstance(path1, unicode):  # noqa
                 path1 = path1.encode(sys.getfilesystemencoding())
 
-        path0 = _fix_path(path0, eclipse_sep)
-        path1 = _fix_path(path1, python_sep)
-        initial_paths[i] = (path0, path1)
+        force_only_slash = path0.endswith(('/', '\\')) and path1.endswith(('/', '\\'))
 
-        paths_from_eclipse_to_python[i] = (_normcase_from_client(path0), normcase(path1))
+        if not force_only_slash:
+            path0 = _fix_path(path0, eclipse_sep, False)
+            path1 = _fix_path(path1, python_sep, False)
+            initial_paths.append((path0, path1))
+            paths_from_eclipse_to_python.append((_normcase_from_client(path0), normcase(path1)))
+
+        # Now, make a version with a slash in the end.
+        path0 = _fix_path(path0, eclipse_sep, True)
+        path1 = _fix_path(path1, python_sep, True)
+        initial_paths_with_end_sep.append((path0, path1))
+        paths_from_eclipse_to_python_with_end_sep.append((_normcase_from_client(path0), normcase(path1)))
+
+    # Fix things so that we always match the versions with a slash in the end first.
+    initial_paths = initial_paths_with_end_sep + initial_paths
+    paths_from_eclipse_to_python = paths_from_eclipse_to_python_with_end_sep + paths_from_eclipse_to_python
 
     if not paths_from_eclipse_to_python:
         # no translation step needed (just inline the calls)
@@ -707,7 +727,7 @@ def setup_client_server_paths(paths):
                         pydev_log.critical('pydev debugger: replacing to server: %s', filename)
                     translated = server_prefix + filename[len(eclipse_prefix):]
                     if DEBUG_CLIENT_SERVER_TRANSLATION:
-                        pydev_log.critical('pydev debugger: sent to server: %s', translated)
+                        pydev_log.critical('pydev debugger: sent to server: %s - matched prefix: %s', translated, eclipse_prefix)
                     break
             else:
                 found_translation = False
@@ -765,7 +785,7 @@ def setup_client_server_paths(paths):
                     eclipse_prefix = initial_paths[i][0]
                     translated = eclipse_prefix + translated_proper_case[len(python_prefix):]
                     if DEBUG_CLIENT_SERVER_TRANSLATION:
-                        pydev_log.critical('pydev debugger: sent to client: %s', translated)
+                        pydev_log.critical('pydev debugger: sent to client: %s - matched prefix: %s', translated, python_prefix)
                     path_mapping_applied = True
                     break
             else:

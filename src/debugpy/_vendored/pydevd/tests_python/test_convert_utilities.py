@@ -4,6 +4,7 @@ from _pydevd_bundle.pydevd_constants import IS_WINDOWS, IS_PY2
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
 import io
 from _pydev_bundle.pydev_log import log_context
+import pytest
 
 
 def test_convert_utilities(tmpdir):
@@ -122,7 +123,7 @@ def test_to_server_and_to_client(tmpdir):
             stream = io.StringIO()
             with log_context(0, stream=stream):
                 pydevd_file_utils.map_file_to_server('y:\\only_exists_in_client_not_in_server')
-            assert r'pydev debugger: unable to find translation for: "y:\only_exists_in_client_not_in_server" in ["c:\foo", "c:\foo2"] (please revise your path mappings).' in stream.getvalue()
+            assert r'pydev debugger: unable to find translation for: "y:\only_exists_in_client_not_in_server" in ["c:\foo\", "c:\foo2\", "c:\foo", "c:\foo2"] (please revise your path mappings).' in stream.getvalue()
 
             # Client and server are on windows.
             pydevd_file_utils.set_ide_os('WINDOWS')
@@ -424,4 +425,100 @@ def test_source_mapping():
     assert source_mapping.map_to_client('<cell2>', 2) == (filename, 11, True)
 
     assert source_mapping.map_to_client(filename, 12) == (filename, 12, False)
+
+
+@pytest.mark.skipif(IS_WINDOWS, reason='Linux-only test')
+def test_mapping_conflict_to_client():
+    import pydevd_file_utils
+
+    path_mappings = []
+    for pathMapping in _MAPPING_CONFLICT:
+        localRoot = pathMapping.get('localRoot', '')
+        remoteRoot = pathMapping.get('remoteRoot', '')
+        if (localRoot != '') and (remoteRoot != ''):
+            path_mappings.append((localRoot, remoteRoot))
+
+    pydevd_file_utils.setup_client_server_paths(path_mappings)
+
+    assert pydevd_file_utils.map_file_to_client('/opt/pathsomething/foo.py') == \
+        ('/var/home/p2/foo.py', True)
+
+    assert pydevd_file_utils.map_file_to_client('/opt/v2/pathsomething/foo.py') == \
+        ('/var/home/p4/foo.py', True)
+
+    # This is an odd case, but the user didn't really put a slash in the end,
+    # so, it's possible that this is what the user actually wants.
+    assert pydevd_file_utils.map_file_to_client('/opt/v2/path_r1/foo.py') == \
+        ('/var/home/p3_r1/foo.py', True)
+
+    # The client said both local and remote end with a slash, so, we can only
+    # match it with the slash in the end.
+    assert pydevd_file_utils.map_file_to_client('/opt/pathsomething_foo.py') == \
+        ('/opt/pathsomething_foo.py', False)
+
+
+_MAPPING_CONFLICT = [
+    {
+        "localRoot": "/var/home/p1/",
+        "remoteRoot": "/opt/path/"
+    },
+    {
+        "localRoot": "/var/home/p2/",
+        "remoteRoot": "/opt/pathsomething/"
+    },
+    {
+        "localRoot": "/var/home/p3",
+        "remoteRoot": "/opt/v2/path"
+    },
+    {
+        "localRoot": "/var/home/p4",
+        "remoteRoot": "/opt/v2/pathsomething"
+    },
+]
+
+
+@pytest.mark.skipif(IS_WINDOWS, reason='Linux-only test')
+def test_mapping_conflict_to_server():
+    import pydevd_file_utils
+
+    path_mappings = []
+    for pathMapping in _MAPPING_CONFLICT_TO_SERVER:
+        localRoot = pathMapping.get('localRoot', '')
+        remoteRoot = pathMapping.get('remoteRoot', '')
+        if (localRoot != '') and (remoteRoot != ''):
+            path_mappings.append((localRoot, remoteRoot))
+
+    pydevd_file_utils.setup_client_server_paths(path_mappings)
+
+    assert pydevd_file_utils.map_file_to_server('/opt/pathsomething/foo.py') == '/var/home/p2/foo.py'
+
+    assert pydevd_file_utils.map_file_to_server('/opt/v2/pathsomething/foo.py') == '/var/home/p4/foo.py'
+
+    # This is an odd case, but the user didn't really put a slash in the end,
+    # so, it's possible that this is what the user actually wants.
+    assert pydevd_file_utils.map_file_to_server('/opt/v2/path_r1/foo.py') == '/var/home/p3_r1/foo.py'
+
+    # The client said both local and remote end with a slash, so, we can only
+    # match it with the slash in the end.
+    assert pydevd_file_utils.map_file_to_server('/opt/pathsomething_foo.py') == '/opt/pathsomething_foo.py'
+
+
+_MAPPING_CONFLICT_TO_SERVER = [
+    {
+        "remoteRoot": "/var/home/p1/",
+        "localRoot": "/opt/path/"
+    },
+    {
+        "remoteRoot": "/var/home/p2/",
+        "localRoot": "/opt/pathsomething/"
+    },
+    {
+        "remoteRoot": "/var/home/p3",
+        "localRoot": "/opt/v2/path"
+    },
+    {
+        "remoteRoot": "/var/home/p4",
+        "localRoot": "/opt/v2/pathsomething"
+    },
+]
 
