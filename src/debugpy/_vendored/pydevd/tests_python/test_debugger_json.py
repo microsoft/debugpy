@@ -1011,17 +1011,19 @@ def test_case_sys_exit_unhandled_exception(case_setup):
 
 
 @pytest.mark.parametrize('break_on_system_exit_zero', [True, False])
-def test_case_sys_exit_0_unhandled_exception(case_setup, break_on_system_exit_zero):
+@pytest.mark.parametrize('target', ['_debugger_case_sysexit_0.py', '_debugger_case_sysexit_none.py'])
+def test_case_sys_exit_0_unhandled_exception(case_setup, break_on_system_exit_zero, target):
 
-    with case_setup.test_file('_debugger_case_sysexit_0.py', EXPECTED_RETURNCODE=0) as writer:
+    with case_setup.test_file(target, EXPECTED_RETURNCODE=0) as writer:
         json_facade = JsonFacade(writer)
-        json_facade.write_launch(
-            debugOptions=['BreakOnSystemExitZero'] if break_on_system_exit_zero else [],
-        )
+        kwargs = {}
+        if break_on_system_exit_zero:
+            kwargs = {'breakOnSystemExitZero': True}
+        json_facade.write_launch(**kwargs)
         json_facade.write_set_exception_breakpoints(['uncaught'])
         json_facade.write_make_initial_run()
 
-        break_line = writer.get_line_index_with_content('sys.exit(0)')
+        break_line = writer.get_line_index_with_content('sys.exit(')
         if break_on_system_exit_zero:
             json_facade.wait_for_thread_stopped(
                 reason='exception', line=break_line)
