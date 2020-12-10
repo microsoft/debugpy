@@ -441,18 +441,20 @@ def start_client(host, port):
     #  then sends a keepalive ping once every 3 seconds (TCP_KEEPINTVL),
     #  and closes the connection after 5 failed ping (TCP_KEEPCNT), or 15 seconds
     try:
-        IPPROTO_TCP, SO_KEEPALIVE, TCP_KEEPIDLE, TCP_KEEPINTVL, TCP_KEEPCNT = (
-            socket_module.IPPROTO_TCP,
-            socket_module.SO_KEEPALIVE,
-            socket_module.TCP_KEEPIDLE,
-            socket_module.TCP_KEEPINTVL,
-            socket_module.TCP_KEEPCNT,
-        )
-        s.setsockopt(SOL_SOCKET, SO_KEEPALIVE, 1)
-        s.setsockopt(IPPROTO_TCP, TCP_KEEPIDLE, 1)
-        s.setsockopt(IPPROTO_TCP, TCP_KEEPINTVL, 3)
-        s.setsockopt(IPPROTO_TCP, TCP_KEEPCNT, 5)
-    except AttributeError:
+        s.setsockopt(SOL_SOCKET, socket_module.SO_KEEPALIVE, 1)
+    except (AttributeError, OSError):
+        pass  # May not be available everywhere.
+    try :
+        s.setsockopt(socket_module.IPPROTO_TCP, socket_module.TCP_KEEPIDLE, 1)
+    except (AttributeError, OSError):
+        pass  # May not be available everywhere.
+    try:
+        s.setsockopt(socket_module.IPPROTO_TCP, socket_module.TCP_KEEPINTVL, 3)
+    except (AttributeError, OSError):
+        pass  # May not be available everywhere.
+    try:
+        s.setsockopt(socket_module.IPPROTO_TCP, socket_module.TCP_KEEPCNT, 5)
+    except (AttributeError, OSError):
         pass  # May not be available everywhere.
 
     try:
