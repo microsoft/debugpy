@@ -400,8 +400,9 @@ class PyDevJsonCommandProcessor(object):
             self.api.stop_on_entry()
 
     def _send_process_event(self, py_db, start_method):
-        if len(sys.argv) > 0:
-            name = sys.argv[0]
+        argv = getattr(sys, 'argv', [])
+        if len(argv) > 0:
+            name = argv[0]
         else:
             name = ''
 

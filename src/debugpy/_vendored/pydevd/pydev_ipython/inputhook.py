@@ -38,9 +38,11 @@ GUI_NONE = 'none'  # i.e. disable
 # Utilities
 #-----------------------------------------------------------------------------
 
+
 def ignore_CTRL_C():
     """Ignore CTRL+C (not implemented)."""
     pass
+
 
 def allow_CTRL_C():
     """Take CTRL+C into account (not implemented)."""
@@ -297,7 +299,6 @@ class InputHookManager(object):
         """
         self.clear_inputhook()
 
-
     def enable_glut(self, app=None):
         """ Enable event loop integration with GLUT.
 
@@ -329,13 +330,14 @@ class InputHookManager(object):
                                               glut_idle, inputhook_glut
 
         if GUI_GLUT not in self._apps:
-            glut.glutInit(sys.argv)
+            argv = getattr(sys, 'argv', [])
+            glut.glutInit(argv)
             glut.glutInitDisplayMode(glut_display_mode)
             # This is specific to freeglut
             if bool(glut.glutSetOption):
                 glut.glutSetOption(glut.GLUT_ACTION_ON_WINDOW_CLOSE,
                                     glut.GLUT_ACTION_GLUTMAINLOOP_RETURNS)
-            glut.glutCreateWindow(sys.argv[0])
+            glut.glutCreateWindow(argv[0] if len(argv) > 0 else '')
             glut.glutReshapeWindow(1, 1)
             glut.glutHideWindow()
             glut.glutWMCloseFunc(glut_close)
@@ -348,7 +350,6 @@ class InputHookManager(object):
         self.set_inputhook(inputhook_glut)
         self._current_gui = GUI_GLUT
         self._apps[GUI_GLUT] = True
-
 
     def disable_glut(self):
         """Disable event loop integration with glut.
@@ -430,6 +431,7 @@ class InputHookManager(object):
         possible to choose backend before importing pyplot for the first
         time only.
         """
+
         def inputhook_mac(app=None):
             if self.pyplot_imported:
                 pyplot = sys.modules['matplotlib.pyplot']
@@ -450,6 +452,7 @@ class InputHookManager(object):
     def current_gui(self):
         """Return a string indicating the currently active GUI or None."""
         return self._current_gui
+
 
 inputhook_manager = InputHookManager()
 
@@ -483,6 +486,7 @@ stdin_ready = inputhook_manager.return_control
 set_return_control_callback = inputhook_manager.set_return_control_callback
 get_return_control_callback = inputhook_manager.get_return_control_callback
 get_inputhook = inputhook_manager.get_inputhook
+
 
 # Convenience function to switch amongst them
 def enable_gui(gui=None, app=None):
@@ -535,6 +539,7 @@ def enable_gui(gui=None, app=None):
             raise ValueError(e)
     return gui_hook(app)
 
+
 __all__ = [
     "GUI_WX",
     "GUI_QT",
@@ -547,7 +552,6 @@ __all__ = [
     "GUI_PYGLET",
     "GUI_GTK3",
     "GUI_NONE",
-
 
     "ignore_CTRL_C",
     "allow_CTRL_C",
