@@ -237,7 +237,7 @@ class JsonFacade(object):
         exception_options = exception_options or []
         exception_options = [exception_option.to_dict() for exception_option in exception_options]
 
-        arguments = pydevd_schema.SetExceptionBreakpointsArguments(filters, exception_options)
+        arguments = pydevd_schema.SetExceptionBreakpointsArguments(filters=filters, exceptionOptions=exception_options)
         request = pydevd_schema.SetExceptionBreakpointsRequest(arguments)
         # : :type response: SetExceptionBreakpointsResponse
         response = self.wait_for_response(self.write_request(request))
@@ -1685,6 +1685,66 @@ def test_evaluate_block_repl(case_setup):
         messages = json_facade.mark_messages(
             OutputEvent, lambda output_event: u'foo1' in output_event.body.output)
         assert len(messages) == 1
+
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
+def test_evaluate_block_clipboard(case_setup, pyfile):
+
+    @pyfile
+    def target():
+        MAX_LIMIT = 65538
+
+        class SomeObj(object):
+
+            def __str__(self):
+                return var1
+
+            __repr__ = __str__
+
+        var1 = 'a' * 80000
+        var2 = 20000
+        var3 = SomeObj()
+
+        print('TEST SUCEEDED')  # Break here
+
+    def verify(evaluate_response):
+        # : :type evaluate_response: EvaluateResponse
+        assert len(evaluate_response.body.result) >= 80000
+        assert '...' not in evaluate_response.body.result
+        assert set(evaluate_response.body.result).issubset(set(['a', "'"]))
+
+    with case_setup.test_file(target) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(justMyCode=False)
+        json_facade.write_set_breakpoints(writer.get_line_index_with_content('Break here'))
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        json_hit = json_facade.get_stack_as_json_hit(json_hit.thread_id)
+
+        evaluate_response = json_facade.evaluate(
+            'var1',
+            frameId=json_hit.frame_id,
+            context='clipboard',
+        )
+        verify(evaluate_response)
+
+        evaluate_response = json_facade.evaluate(
+            'var2',
+            frameId=json_hit.frame_id,
+            context='clipboard',
+            fmt={'hex': True}
+        )
+        assert evaluate_response.body.result == "0x4e20"
+
+        evaluate_response = json_facade.evaluate(
+            'var3',
+            frameId=json_hit.frame_id,
+            context='clipboard',
+        )
+        verify(evaluate_response)
 
         json_facade.write_continue()
         writer.finished_ok = True
