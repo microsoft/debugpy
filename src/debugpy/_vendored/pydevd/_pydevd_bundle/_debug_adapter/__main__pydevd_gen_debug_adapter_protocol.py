@@ -235,7 +235,7 @@ def update_class_to_generate_register_dec(classes_to_generate, class_to_generate
                 command = classes_to_generate[request_name]['properties'].get('command')
             else:
                 if response_name == 'ErrorResponse':
-                    command = {'enum' : ['error']}
+                    command = {'enum': ['error']}
                 else:
                     raise AssertionError('Unhandled: %s' % (response_name,))
 
@@ -398,7 +398,8 @@ def update_class_to_generate_init(class_to_generate):
                 ref = prop['type']
                 ref_data = ref.ref_data
                 if ref_data.get('is_enum', False):
-                    init_body.append('    assert %s in %s.VALID_VALUES' % (prop_name, str(ref)))
+                    init_body.append('    if %s is not None:' % (prop_name,))
+                    init_body.append('        assert %s in %s.VALID_VALUES' % (prop_name, str(ref)))
                     init_body.append('    self.%(prop_name)s = %(prop_name)s' % dict(
                         prop_name=prop_name))
                 else:

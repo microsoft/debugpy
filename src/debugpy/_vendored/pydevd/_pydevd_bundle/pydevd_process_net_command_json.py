@@ -217,6 +217,7 @@ class PyDevJsonCommandProcessor(object):
             supportsLogPoints=True,
             supportsSetExpression=True,
             supportsTerminateRequest=True,
+            supportsClipboardContext=True,
 
             exceptionBreakpointFilters=[
                 {'filter': 'raised', 'label': 'Raised Exceptions', 'default': False},

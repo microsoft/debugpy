@@ -1010,7 +1010,17 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
             return
 
     variable = frame_tracker.obtain_as_variable(expression, eval_result, frame=frame)
-    var_data = variable.get_var_data(fmt=fmt)
+
+    safe_repr_custom_attrs = {}
+    if context == 'clipboard':
+        safe_repr_custom_attrs = dict(
+            maxstring_outer=2 ** 64,
+            maxstring_inner=2 ** 64,
+            maxother_outer=2 ** 64,
+            maxother_inner=2 ** 64,
+        )
+
+    var_data = variable.get_var_data(fmt=fmt, **safe_repr_custom_attrs)
 
     body = pydevd_schema.EvaluateResponseBody(
         result=var_data['value'],

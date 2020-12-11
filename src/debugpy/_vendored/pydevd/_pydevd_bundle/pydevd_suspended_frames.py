@@ -35,7 +35,7 @@ class _AbstractVariable(object):
     def get_variable_reference(self):
         return id(self.value)
 
-    def get_var_data(self, fmt=None):
+    def get_var_data(self, fmt=None, **safe_repr_custom_attrs):
         '''
         :param dict fmt:
             Format expected by the DAP (keys: 'hex': bool, 'rawString': bool)
@@ -44,6 +44,8 @@ class _AbstractVariable(object):
         if fmt is not None:
             safe_repr.convert_to_hex = fmt.get('hex', False)
             safe_repr.raw_value = fmt.get('rawString', False)
+        for key, val in safe_repr_custom_attrs.items():
+            setattr(safe_repr, key, val)
 
         type_name, _type_qualifier, _is_exception_on_eval, resolver, value = get_variable_details(
             self.value, to_string=safe_repr)

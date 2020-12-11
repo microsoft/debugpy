@@ -172,6 +172,7 @@ class Client(components.Component):
             "supportsValueFormattingOptions": True,
             "supportsTerminateDebuggee": True,
             "supportsGotoTargetsRequest": True,
+            "supportsClipboardContext": True,
             "exceptionBreakpointFilters": exception_breakpoint_filters,
         }
 
