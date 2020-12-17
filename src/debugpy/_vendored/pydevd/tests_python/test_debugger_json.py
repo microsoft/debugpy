@@ -1585,6 +1585,34 @@ def test_hasattr_failure(case_setup):
         writer.finished_ok = True
 
 
+def test_getattr_warning(case_setup):
+    with case_setup.test_file('_debugger_case_warnings.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_add_breakpoint(writer.get_line_index_with_content('break here'))
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        json_hit = json_facade.get_stack_as_json_hit(json_hit.thread_id)
+
+        variables_response = json_facade.get_variables_response(json_hit.frame_id)
+
+        for variable in variables_response.body.variables:
+            if variable['evaluateName'] == 'obj':
+                break
+        else:
+            raise AssertionError('Did not find "obj" in %s' % (variables_response.body.variables,))
+
+        json_facade.evaluate('obj', json_hit.frame_id, context='hover')
+        json_facade.evaluate('not_there', json_hit.frame_id, context='hover', success=False)
+        json_facade.evaluate('not_there', json_hit.frame_id, context='watch', success=False)
+
+        json_facade.write_continue()
+
+        # i.e.: the test will fail if anything is printed to stderr!
+        writer.finished_ok = True
+
+
 def test_evaluate_numpy(case_setup, pyfile):
     try:
         import numpy

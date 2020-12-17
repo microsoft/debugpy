@@ -5,6 +5,8 @@ from __future__ import nested_scopes
 import platform
 import weakref
 import struct
+import warnings
+import functools
 
 STATE_RUN = 1
 STATE_SUSPEND = 2
@@ -498,6 +500,17 @@ else:
         if isinstance(s, unicode):
             return s.encode('utf-8')
         return s
+
+
+def silence_warnings_decorator(func):
+
+    @functools.wraps(func)
+    def new_func(*args, **kwargs):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            return func(*args, **kwargs)
+
+    return new_func
 
 
 def sorted_dict_repr(d):

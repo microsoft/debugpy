@@ -3,7 +3,7 @@
 """
 import pickle
 from _pydevd_bundle.pydevd_constants import get_frame, get_current_thread_id, xrange, IS_PY2, \
-    iter_chars
+    iter_chars, silence_warnings_decorator
 
 from _pydevd_bundle.pydevd_xml import ExceptionOnEvaluate, get_type, var_to_xml
 from _pydev_bundle import pydev_log
@@ -49,6 +49,7 @@ def dump_frames(thread_id):
         sys.stdout.write('%s\n' % pickle.dumps(frame))
 
 
+@silence_warnings_decorator
 def getVariable(dbg, thread_id, frame_id, scope, attrs):
     """
     returns the value of a variable

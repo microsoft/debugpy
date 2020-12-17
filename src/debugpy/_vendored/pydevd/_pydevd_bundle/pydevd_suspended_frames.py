@@ -2,7 +2,7 @@ from contextlib import contextmanager
 import sys
 
 from _pydevd_bundle.pydevd_constants import get_frame, dict_items, RETURN_VALUES_DICT, \
-    dict_iter_items, ForkSafeLock, GENERATED_LEN_ATTR_NAME
+    dict_iter_items, ForkSafeLock, GENERATED_LEN_ATTR_NAME, silence_warnings_decorator
 from _pydevd_bundle.pydevd_xml import get_variable_details, get_type
 from _pydev_bundle.pydev_override import overrides
 from _pydevd_bundle.pydevd_resolver import sorted_attributes_key, TOO_LARGE_ATTR, get_var_scope
@@ -154,6 +154,7 @@ class _ObjectVariable(_AbstractVariable):
         self._is_return_value = is_return_value
         self.evaluate_name = evaluate_name
 
+    @silence_warnings_decorator
     @overrides(_AbstractVariable.get_children_variables)
     def get_children_variables(self, fmt=None, scope=None):
         _type, _type_name, resolver = get_type(self.value)
@@ -258,6 +259,7 @@ class _FrameVariable(_AbstractVariable):
 
         return self.get_child_variable_named(name, fmt=fmt)
 
+    @silence_warnings_decorator
     @overrides(_AbstractVariable.get_children_variables)
     def get_children_variables(self, fmt=None, scope=None):
         children_variables = []
