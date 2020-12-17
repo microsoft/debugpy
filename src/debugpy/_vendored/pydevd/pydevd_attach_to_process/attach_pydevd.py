@@ -38,6 +38,7 @@ def process_command_line(argv):
 
 
 def main(setup):
+    sys.path.append(os.path.dirname(__file__))
     import add_code_to_python_process
     show_debug_info_on_target_process = 0
 

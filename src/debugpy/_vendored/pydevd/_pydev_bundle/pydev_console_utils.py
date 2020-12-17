@@ -5,7 +5,8 @@ from _pydev_bundle.pydev_imports import xmlrpclib, _queue, Exec
 from  _pydev_bundle._pydev_calltip_util import get_description
 from _pydevd_bundle import pydevd_vars
 from _pydevd_bundle import pydevd_xml
-from _pydevd_bundle.pydevd_constants import (IS_JYTHON, dict_iter_items, NEXT_VALUE_SEPARATOR, get_global_debugger)
+from _pydevd_bundle.pydevd_constants import (IS_JYTHON, dict_iter_items, NEXT_VALUE_SEPARATOR, get_global_debugger,
+    silence_warnings_decorator)
 from contextlib import contextmanager
 from _pydev_bundle import pydev_log
 from _pydevd_bundle.pydevd_utils import interrupt_main_thread
@@ -447,6 +448,7 @@ class BaseInterpreterInterface:
 
         return xml.getvalue()
 
+    @silence_warnings_decorator
     def getVariable(self, attributes):
         xml = StringIO.StringIO()
         xml.write("<xml>")
@@ -476,6 +478,7 @@ class BaseInterpreterInterface:
         xml.write("</xml>")
         return xml.getvalue()
 
+    @silence_warnings_decorator
     def loadFullValue(self, seq, scope_attrs):
         """
         Evaluate full value for async Console variables in a separate thread and send results to IDE side

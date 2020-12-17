@@ -3212,6 +3212,24 @@ def test_return_value(case_setup):
         writer.finished_ok = True
 
 
+def test_gettr_warning(case_setup):
+    with case_setup.test_file('_debugger_case_warnings.py') as writer:
+        break_line = writer.get_line_index_with_content('break here')
+        writer.write_add_breakpoint(break_line)
+        writer.write_make_initial_run()
+        hit = writer.wait_for_breakpoint_hit(line=break_line)
+
+        writer.write_get_frame(hit.thread_id, hit.frame_id)
+        writer.wait_for_vars([
+            [
+                '<var name="obj'
+            ],
+        ])
+
+        writer.write_run_thread(hit.thread_id)
+        writer.finished_ok = True
+
+
 @pytest.mark.skipif(IS_JYTHON, reason='Jython can only have one thread stopped at each time.')
 @pytest.mark.parametrize('check_single_notification', [True, False])
 def test_run_pause_all_threads_single_notification(case_setup, check_single_notification):

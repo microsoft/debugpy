@@ -73,7 +73,7 @@ from _pydev_imps._pydev_saved_modules import threading
 from _pydev_imps._pydev_saved_modules import socket as socket_module
 from _pydevd_bundle.pydevd_constants import (DebugInfoHolder, get_thread_id, IS_WINDOWS, IS_JYTHON,
     IS_PY2, IS_PY36_OR_GREATER, STATE_RUN, dict_keys, ASYNC_EVAL_TIMEOUT_SEC,
-    get_global_debugger, GetGlobalDebugger, set_global_debugger)  # Keep for backward compatibility @UnusedImport
+    get_global_debugger, GetGlobalDebugger, set_global_debugger, silence_warnings_decorator)  # Keep for backward compatibility @UnusedImport
 from _pydev_bundle.pydev_override import overrides
 import weakref
 from _pydev_bundle._pydev_completer import extract_token_and_qualifier
@@ -444,7 +444,7 @@ def start_client(host, port):
         s.setsockopt(SOL_SOCKET, socket_module.SO_KEEPALIVE, 1)
     except (AttributeError, OSError):
         pass  # May not be available everywhere.
-    try :
+    try:
         s.setsockopt(socket_module.IPPROTO_TCP, socket_module.TCP_KEEPIDLE, 1)
     except (AttributeError, OSError):
         pass  # May not be available everywhere.
@@ -647,6 +647,7 @@ class InternalSetNextStatementThread(InternalThreadCommand):
             t.additional_info.pydev_message = str(self.seq)
 
 
+@silence_warnings_decorator
 def internal_get_variable_json(py_db, request):
     '''
         :param VariablesRequest request:
@@ -700,6 +701,7 @@ class InternalGetVariable(InternalThreadCommand):
         self.scope = scope
         self.attributes = attrs
 
+    @silence_warnings_decorator
     def do_it(self, dbg):
         ''' Converts request into python variable '''
         try:
@@ -838,6 +840,7 @@ def _write_variable_response(py_db, request, value, success, message):
     py_db.writer.add_command(cmd)
 
 
+@silence_warnings_decorator
 def internal_get_frame(dbg, seq, thread_id, frame_id):
     ''' Converts request into python variable '''
     try:
@@ -905,6 +908,7 @@ def _evaluate_response(py_db, request, result, error_message=''):
 _global_frame = None
 
 
+@silence_warnings_decorator
 def internal_evaluate_expression_json(py_db, request, thread_id):
     '''
     :param EvaluateRequest request:
@@ -1034,6 +1038,7 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
     py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response, is_json=True))
 
 
+@silence_warnings_decorator
 def internal_evaluate_expression(dbg, seq, thread_id, frame_id, expression, is_exec, trim_if_too_big, attr_to_set_result):
     ''' gets the value of a variable '''
     try:
@@ -1499,6 +1504,7 @@ class InternalLoadFullValue(InternalThreadCommand):
         self.frame_id = frame_id
         self.vars = vars
 
+    @silence_warnings_decorator
     def do_it(self, dbg):
         '''Starts a thread that will load values asynchronously'''
         try:
