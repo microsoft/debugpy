@@ -136,7 +136,9 @@ if __name__ == "__main__":
         cmdclass=cmds,
         entry_points={
             "console_scripts": [
-                "debugpy = debugpy.__main__:cli.main"
+                "debugpy = debugpy.__main__:cli.main",
+                "debugpy-adapter = debugpy.adapter.__main__:cli.main",
+                "debugpy-launcher = debugpy.launcher.__main__:cli.main",
             ]
         },
         **extras
