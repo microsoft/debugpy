@@ -333,6 +333,40 @@ class _PyDevCommandProcessor(object):
         thread_id, frame_id, scope, expression = text.split('\t', 3)
         self.api.request_console_exec(py_db, seq, thread_id, frame_id, expression)
 
+    def cmd_set_path_mapping_json(self, py_db, cmd_id, seq, text):
+        '''
+        :param text:
+            Json text. Something as:
+
+            {
+                "pathMappings": [
+                    {
+                        "localRoot": "c:/temp",
+                        "remoteRoot": "/usr/temp"
+                    }
+                ],
+                "debug": true,
+                "force": false
+            }
+        '''
+        as_json = json.loads(text)
+        force = as_json.get('force', False)
+
+        path_mappings = []
+        for pathMapping in as_json.get('pathMappings', []):
+            localRoot = pathMapping.get('localRoot', '')
+            remoteRoot = pathMapping.get('remoteRoot', '')
+            if (localRoot != '') and (remoteRoot != ''):
+                path_mappings.append((localRoot, remoteRoot))
+
+        if bool(path_mappings) or force:
+            pydevd_file_utils.setup_client_server_paths(path_mappings)
+
+        debug = as_json.get('debug', False)
+        if debug or force:
+            pydevd_file_utils.DEBUG_CLIENT_SERVER_TRANSLATION = debug
+
+
     def cmd_set_py_exception_json(self, py_db, cmd_id, seq, text):
         # This API is optional and works 'in bulk' -- it's possible
         # to get finer-grained control with CMD_ADD_EXCEPTION_BREAK/CMD_REMOVE_EXCEPTION_BREAK
