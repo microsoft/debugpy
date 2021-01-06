@@ -43,8 +43,3 @@ if __name__ == "__main__":
     from debugpy.server import cli
 
     cli.main()
-else:
-    # Instead of hard-coding "debugpy = debugpy.server.cli:main" in setup.py, import it
-    # here. If the fully-qualified name of our `main()` function changes, we don't need
-    # to change it in setup.py, as long as we import it here as `cli.main()`.
-    from debugpy.server import cli
