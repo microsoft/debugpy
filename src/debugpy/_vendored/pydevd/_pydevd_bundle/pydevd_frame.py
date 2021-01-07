@@ -414,9 +414,11 @@ class PyDBFrame:
 
                 stopped = True
                 main_debugger.send_caught_exception_stack(thread, arg, id(frame))
-                self.set_suspend(thread, CMD_STEP_CAUGHT_EXCEPTION)
-                self.do_wait_suspend(thread, frame, event, arg, exception_type=exception_type)
-                main_debugger.send_caught_exception_stack_proceeded(thread)
+                try:
+                    self.set_suspend(thread, CMD_STEP_CAUGHT_EXCEPTION)
+                    self.do_wait_suspend(thread, frame, event, arg, exception_type=exception_type)
+                finally:
+                    main_debugger.send_caught_exception_stack_proceeded(thread)
             except:
                 pydev_log.exception()
 

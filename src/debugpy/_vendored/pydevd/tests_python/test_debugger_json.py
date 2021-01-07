@@ -626,6 +626,58 @@ def test_case_handled_exception_no_break_on_generator(case_setup):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(not IS_PY36_OR_GREATER, reason='Requires Python 3.')
+def test_case_throw_exc_reason(case_setup):
+
+    def check_test_suceeded_msg(self, stdout, stderr):
+        return 'TEST SUCEEDED' in ''.join(stderr)
+
+    def additional_output_checks(writer, stdout, stderr):
+        assert "raise RuntimeError('TEST SUCEEDED')" in stderr
+        assert "raise RuntimeError from e" in stderr
+        assert "raise Exception('another while handling')" in stderr
+
+    with case_setup.test_file(
+            '_debugger_case_raise_with_cause.py',
+            EXPECTED_RETURNCODE=1,
+            check_test_suceeded_msg=check_test_suceeded_msg,
+            additional_output_checks=additional_output_checks
+        ) as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch(justMyCode=False)
+        json_facade.write_set_exception_breakpoints(['uncaught'])
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped(
+            reason='exception', line=writer.get_line_index_with_content('raise RuntimeError from e'))
+
+        exc_info_request = json_facade.write_request(
+            pydevd_schema.ExceptionInfoRequest(pydevd_schema.ExceptionInfoArguments(json_hit.thread_id)))
+        exc_info_response = json_facade.wait_for_response(exc_info_request)
+
+        stack_frames = json_hit.stack_trace_response.body.stackFrames
+        # Note that the additional context doesn't really appear in the stack
+        # frames, only in the details.
+        assert [x['name'] for x in stack_frames] == ['foobar', '<module>']
+
+        body = exc_info_response.body
+        assert body.exceptionId.endswith('RuntimeError')
+        assert body.description == 'another while handling'
+        assert normcase(body.details.kwargs['source']) == normcase(writer.TEST_FILE)
+
+        # Check that we have all the lines (including the cause/context) in the stack trace.
+        import re
+        lines_and_names = re.findall(r',\sline\s(\d+),\sin\s([\w|<|>]+)', body.details.stackTrace)
+        assert lines_and_names == [
+            ('16', 'foobar'), ('6', 'method'), ('2', 'method2'), ('18', 'foobar'), ('10', 'handle'), ('20', 'foobar'), ('23', '<module>')
+        ]
+
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
 def test_case_handled_exception_breaks(case_setup):
     with case_setup.test_file('_debugger_case_exceptions.py') as writer:
         json_facade = JsonFacade(writer)

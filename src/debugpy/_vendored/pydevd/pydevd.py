@@ -1990,8 +1990,12 @@ class PyDB(object):
         pydev_log.debug("We are stopping in unhandled exception.")
         try:
             add_exception_to_frame(frame, arg)
-            self.set_suspend(thread, CMD_ADD_EXCEPTION_BREAK)
-            self.do_wait_suspend(thread, frame, 'exception', arg, EXCEPTION_TYPE_UNHANDLED)
+            self.send_caught_exception_stack(thread, arg, id(frame))
+            try:
+                self.set_suspend(thread, CMD_ADD_EXCEPTION_BREAK)
+                self.do_wait_suspend(thread, frame, 'exception', arg, EXCEPTION_TYPE_UNHANDLED)
+            except:
+                self.send_caught_exception_stack_proceeded(thread)
         except:
             pydev_log.exception("We've got an error while stopping in unhandled exception: %s.", arg[0])
         finally:

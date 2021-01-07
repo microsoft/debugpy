@@ -1,7 +1,5 @@
-from _pydevd_bundle.pydevd_constants import IS_PY3K, EXCEPTION_TYPE_USER_UNHANDLED, \
-    EXCEPTION_TYPE_UNHANDLED
+from _pydevd_bundle.pydevd_constants import EXCEPTION_TYPE_USER_UNHANDLED, EXCEPTION_TYPE_UNHANDLED
 from _pydev_bundle import pydev_log
-import sys
 
 
 class Frame(object):
@@ -95,6 +93,9 @@ class FramesList(object):
         # executing frame).
         self.current_frame = None
 
+        # This is to know whether an exception was extracted from a __cause__ or __context__.
+        self.exc_context_msg = ''
+
     def append(self, frame):
         self._frames.append(frame)
 
@@ -132,6 +133,77 @@ class FramesList(object):
     __str__ = __repr__
 
 
+class _DummyFrameWrapper(object):
+
+    def __init__(self, frame, f_lineno, f_back):
+        self._base_frame = frame
+        self.f_lineno = f_lineno
+        self.f_back = f_back
+        self.f_trace = None
+        original_code = frame.f_code
+        self.f_code = FCode(original_code.co_name , original_code.co_filename)
+
+    @property
+    def f_locals(self):
+        return self._base_frame.f_locals
+
+    @property
+    def f_globals(self):
+        return self._base_frame.f_globals
+
+
+_cause_message = (
+    "\nThe above exception was the direct cause "
+    "of the following exception:\n\n")
+
+_context_message = (
+    "\nDuring handling of the above exception, "
+    "another exception occurred:\n\n")
+
+
+def create_frames_list_from_exception_cause(trace_obj, frame, exc_type, exc_desc, memo):
+    lst = []
+    msg = '<Unknown context>'
+    try:
+        exc_cause = getattr(exc_desc, '__cause__', None)
+        msg = _cause_message
+    except Exception:
+        exc_cause = None
+
+    if exc_cause is None:
+        try:
+            exc_cause = getattr(exc_desc, '__context__', None)
+            msg = _context_message
+        except Exception:
+            exc_cause = None
+
+    if exc_cause is None or id(exc_cause) in memo:
+        return None
+
+    # The traceback module does this, so, let's play safe here too...
+    memo.add(id(exc_cause))
+
+    tb = exc_cause.__traceback__
+    frames_list = FramesList()
+    frames_list.exc_type = type(exc_cause)
+    frames_list.exc_desc = exc_cause
+    frames_list.trace_obj = tb
+    frames_list.exc_context_msg = msg
+
+    while tb is not None:
+        # Note: we don't use the actual tb.tb_frame because if the cause of the exception
+        # uses the same frame object, the id(frame) would be the same and the frame_id_to_lineno
+        # would be wrong as the same frame needs to appear with 2 different lines.
+        lst.append((_DummyFrameWrapper(tb.tb_frame, tb.tb_lineno, None), tb.tb_lineno))
+        tb = tb.tb_next
+
+    for tb_frame, tb_lineno in lst:
+        frames_list.append(tb_frame)
+        frames_list.frame_id_to_lineno[id(tb_frame)] = tb_lineno
+
+    return frames_list
+
+
 def create_frames_list_from_traceback(trace_obj, frame, exc_type, exc_desc, exception_type=None):
     '''
     :param trace_obj:
@@ -157,6 +229,36 @@ def create_frames_list_from_traceback(trace_obj, frame, exc_type, exc_desc, exce
     while tb is not None:
         lst.append((tb.tb_frame, tb.tb_lineno))
         tb = tb.tb_next
+
+    curr = exc_desc
+    memo = set()
+    while True:
+        initial = curr
+        try:
+            curr = getattr(initial, '__cause__', None)
+        except Exception:
+            curr = None
+
+        if curr is None:
+            try:
+                curr = getattr(initial, '__context__', None)
+            except Exception:
+                curr = None
+
+        if curr is None or id(curr) in memo:
+            break
+
+        # The traceback module does this, so, let's play safe here too...
+        memo.add(id(curr))
+
+        tb = getattr(curr, '__traceback__', None)
+
+        while tb is not None:
+            # Note: we don't use the actual tb.tb_frame because if the cause of the exception
+            # uses the same frame object, the id(frame) would be the same and the frame_id_to_lineno
+            # would be wrong as the same frame needs to appear with 2 different lines.
+            lst.append((_DummyFrameWrapper(tb.tb_frame, tb.tb_lineno, None), tb.tb_lineno))
+            tb = tb.tb_next
 
     frames_list = None
 

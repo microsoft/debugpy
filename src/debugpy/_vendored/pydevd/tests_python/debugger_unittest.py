@@ -1323,6 +1323,9 @@ class AbstractWriterThread(threading.Thread):
     def wait_for_get_thread_stack_message(self):
         return self.wait_for_message(CMD_GET_THREAD_STACK)
 
+    def wait_for_curr_exc_stack(self):
+        return self.wait_for_message(CMD_SEND_CURR_EXCEPTION_TRACE)
+
     def wait_for_json_message(self, accept_message, unquote_msg=True, timeout=None):
         last = self.wait_for_message(accept_message, unquote_msg, expect_xml=False, timeout=timeout)
         json_msg = last.split('\t', 2)[-1]  # We have something as: CMD\tSEQ\tJSON
