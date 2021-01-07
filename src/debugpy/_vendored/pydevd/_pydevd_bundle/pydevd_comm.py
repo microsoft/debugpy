@@ -87,6 +87,7 @@ from _pydevd_bundle.pydevd_daemon_thread import PyDBDaemonThread
 from _pydevd_bundle.pydevd_thread_lifecycle import pydevd_find_thread_by_id, resume_threads
 from _pydevd_bundle.pydevd_dont_trace_files import PYDEV_FILE
 import dis
+from _pydevd_bundle.pydevd_frame_utils import create_frames_list_from_exception_cause
 try:
     from urllib import quote_plus, unquote_plus  # @UnresolvedImport
 except:
@@ -1196,61 +1197,85 @@ def build_exception_info_response(dbg, thread_id, request_seq, set_additional_th
     additional_info = set_additional_thread_info(thread)
     topmost_frame = additional_info.get_topmost_frame(thread)
 
-    frames = []
-    exc_type = None
-    exc_desc = None
     current_paused_frame_name = ''
+
+    source_path = ''  # This is an extra bit of data used by Visual Studio
+    stack_str_lst = []
+    name = None
+    description = None
+
     if topmost_frame is not None:
         try:
-            frames_list = dbg.suspended_frames_manager.get_frames_list(thread_id)
-            if frames_list is not None:
-                exc_type = frames_list.exc_type
-                exc_desc = frames_list.exc_desc
-                trace_obj = frames_list.trace_obj
-                for frame_id, frame, method_name, original_filename, filename_in_utf8, lineno, _applied_mapping, show_as_current_frame in \
-                    iter_visible_frames_info(dbg, frames_list):
+            try:
+                frames_list = dbg.suspended_frames_manager.get_frames_list(thread_id)
+                memo = set()
+                while frames_list is not None and len(frames_list):
+                    frames = []
 
-                    line_text = linecache.getline(original_filename, lineno)
+                    frame = None
 
-                    # Never filter out plugin frames!
-                    if not getattr(frame, 'IS_PLUGIN_FRAME', False):
-                        if dbg.is_files_filter_enabled and dbg.apply_files_filter(frame, original_filename, False):
-                            continue
+                    if not name:
+                        exc_type = frames_list.exc_type
+                        if exc_type is not None:
+                            try:
+                                name = exc_type.__qualname__
+                            except:
+                                try:
+                                    name = exc_type.__name__
+                                except:
+                                    try:
+                                        name = str(exc_type)
+                                    except:
+                                        pass
 
-                    if show_as_current_frame:
-                        current_paused_frame_name = method_name
-                        method_name += ' (Current frame)'
-                    frames.append((filename_in_utf8, lineno, method_name, line_text))
+                    if not description:
+                        exc_desc = frames_list.exc_desc
+                        if exc_desc is not None:
+                            try:
+                                description = str(exc_desc)
+                            except:
+                                pass
+
+                    for frame_id, frame, method_name, original_filename, filename_in_utf8, lineno, _applied_mapping, show_as_current_frame in \
+                        iter_visible_frames_info(dbg, frames_list):
+
+                        line_text = linecache.getline(original_filename, lineno)
+
+                        # Never filter out plugin frames!
+                        if not getattr(frame, 'IS_PLUGIN_FRAME', False):
+                            if dbg.is_files_filter_enabled and dbg.apply_files_filter(frame, original_filename, False):
+                                continue
+
+                        if show_as_current_frame:
+                            current_paused_frame_name = method_name
+                            method_name += ' (Current frame)'
+                        frames.append((filename_in_utf8, lineno, method_name, line_text))
+
+                    if not source_path and frames:
+                        source_path = frames[0][0]
+
+                    stack_str = ''.join(traceback.format_list(frames[-max_frames:]))
+                    stack_str += frames_list.exc_context_msg
+                    stack_str_lst.append(stack_str)
+
+                    frames_list = create_frames_list_from_exception_cause(
+                        frames_list.trace_obj, None, frames_list.exc_type, frames_list.exc_desc, memo)
+                    if frames_list is None or not frames_list:
+                        break
+
+            except:
+                pydev_log.exception('Error on build_exception_info_response.')
         finally:
             topmost_frame = None
+    full_stack_str = ''.join(reversed(stack_str_lst))
 
-    name = 'exception: type unknown'
-    if exc_type is not None:
-        try:
-            name = exc_type.__qualname__
-        except:
-            try:
-                name = exc_type.__name__
-            except:
-                try:
-                    name = str(exc_type)
-                except:
-                    pass
-
-    description = 'exception: no description'
-    if exc_desc is not None:
-        try:
-            description = str(exc_desc)
-        except:
-            pass
+    if not name:
+        name = 'exception: type unknown'
+    if not description:
+        description = 'exception: no description'
 
     if current_paused_frame_name:
         name += '       (note: full exception trace is shown but execution is paused at: %s)' % (current_paused_frame_name,)
-
-    stack_str = ''.join(traceback.format_list(frames[-max_frames:]))
-
-    # This is an extra bit of data used by Visual Studio
-    source_path = frames[0][0] if frames else ''
 
     if thread.stop_reason == CMD_STEP_CAUGHT_EXCEPTION:
         break_mode = pydevd_schema.ExceptionBreakMode.ALWAYS
@@ -1268,8 +1293,10 @@ def build_exception_info_response(dbg, thread_id, request_seq, set_additional_th
             details=pydevd_schema.ExceptionDetails(
                 message=description,
                 typeName=name,
-                stackTrace=stack_str,
-                source=source_path
+                stackTrace=full_stack_str,
+                source=source_path,
+                # Note: ExceptionDetails actually accepts an 'innerException', but
+                # when passing it, VSCode is not showing the stack trace at all.
             )
         )
     )

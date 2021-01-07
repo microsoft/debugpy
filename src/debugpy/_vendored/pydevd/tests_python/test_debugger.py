@@ -1640,6 +1640,50 @@ def test_unhandled_exceptions_get_stack(case_setup_unhandled_exceptions):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(not IS_PY36_OR_GREATER, reason='Requires Python 3.')
+def test_case_throw_exc_reason_xml(case_setup):
+
+    def check_test_suceeded_msg(self, stdout, stderr):
+        return 'TEST SUCEEDED' in ''.join(stderr)
+
+    def additional_output_checks(writer, stdout, stderr):
+        assert "raise RuntimeError('TEST SUCEEDED')" in stderr
+        assert "raise RuntimeError from e" in stderr
+        assert "raise Exception('another while handling')" in stderr
+
+    with case_setup.test_file(
+            '_debugger_case_raise_with_cause.py',
+            EXPECTED_RETURNCODE=1,
+            check_test_suceeded_msg=check_test_suceeded_msg,
+            additional_output_checks=additional_output_checks
+        ) as writer:
+
+        writer.write_add_exception_breakpoint_with_policy('Exception', "0", "1", "0")
+        writer.write_make_initial_run()
+
+        el = writer.wait_for_curr_exc_stack()
+        name_and_lines = []
+        for frame in el.thread.frame:
+            name_and_lines.append((frame['name'], frame['line']))
+
+        assert name_and_lines == [
+            ('method2', '2'),
+            ('method', '6'),
+            ('foobar', '16'),
+            ('handle', '10'),
+            ('foobar', '18'),
+            ('foobar', '20'),
+            ('<module>', '23'),
+        ]
+
+        hit = writer.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
+        writer.write_get_thread_stack(hit.thread_id)
+
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+
+
 @pytest.mark.skipif(not IS_CPYTHON, reason='Only for Python.')
 def test_case_get_next_statement_targets(case_setup):
     with case_setup.test_file('_debugger_case_get_next_statement_targets.py') as writer:
