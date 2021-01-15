@@ -161,12 +161,43 @@ def build_extension(dir_name, extension_name, target_pydevd_name, force_cython, 
 
         # Always compile the .c (and not the .pyx) file (which we should keep up-to-date by running build_tools/build.py).
         from distutils.extension import Extension
-        ext_modules = [Extension("%s%s.%s" % (dir_name, "_ext" if extended else "", target_pydevd_name,),
-                                 c_files,
-                                 # uncomment to generate pdbs for visual studio.
-                                 # extra_compile_args=["-Zi", "/Od"],
-                                 # extra_link_args=["-debug"],
-                                 )]
+        extra_compile_args = []
+        extra_link_args = []
+
+        if 'linux' in sys.platform:
+            # Enabling -flto brings executable from 4MB to 0.56MB and -Os to 0.41MB
+            # Profiling shows an execution around 3-5% slower with -Os vs -O3,
+            # so, kept only -flto.
+            extra_compile_args = ["-flto", "-O3"]
+            extra_link_args = extra_compile_args[:]
+
+            # Note: also experimented with profile-guided optimization. The executable
+            # size became a bit smaller (from 0.56MB to 0.5MB) but this would add an
+            # extra step to run the debugger to obtain the optimizations
+            # so, skipped it for now (note: the actual benchmarks time was in the
+            # margin of a 0-1% improvement, which is probably not worth it for
+            # speed increments).
+            # extra_compile_args = ["-flto", "-fprofile-generate"]
+            # ... Run benchmarks ...
+            # extra_compile_args = ["-flto", "-fprofile-use", "-fprofile-correction"]
+        elif 'win32' in sys.platform:
+            pass
+            # uncomment to generate pdbs for visual studio.
+            # extra_compile_args=["-Zi", "/Od"]
+            # extra_link_args=["-debug"]
+
+        kwargs = {}
+        if extra_link_args:
+            kwargs['extra_link_args'] = extra_link_args
+        if extra_compile_args:
+            kwargs['extra_compile_args'] = extra_compile_args
+
+        ext_modules = [
+            Extension(
+                "%s%s.%s" % (dir_name, "_ext" if extended else "", target_pydevd_name,),
+                c_files,
+                **kwargs,
+            )]
 
         # This is needed in CPython 3.8 to be able to include internal/pycore_pystate.h
         # (needed to set PyInterpreterState.eval_frame).
