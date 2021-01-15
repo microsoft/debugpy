@@ -994,7 +994,7 @@ class PyDevJsonCommandProcessor(object):
         target_id = int(request.arguments.targetId)
         thread_id = request.arguments.threadId
         try:
-            _, line = self._goto_targets_map.obtain_value(target_id)
+            path, line = self._goto_targets_map.obtain_value(target_id)
         except KeyError:
             response = pydevd_base_schema.build_response(
                 request,
@@ -1005,7 +1005,7 @@ class PyDevJsonCommandProcessor(object):
                 })
             return NetCommand(CMD_RETURN, 0, response, is_json=True)
 
-        self.api.request_set_next(py_db, request.seq, thread_id, CMD_SET_NEXT_STATEMENT, line, '*')
+        self.api.request_set_next(py_db, request.seq, thread_id, CMD_SET_NEXT_STATEMENT, path, line, '*')
         # See 'NetCommandFactoryJson.make_set_next_stmnt_status_message' for response
         return None
 

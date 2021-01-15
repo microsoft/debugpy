@@ -3293,6 +3293,64 @@ def test_source_mapping_just_my_code(case_setup):
         writer.finished_ok = True
 
 
+def test_source_mapping_goto_target(case_setup):
+    from _pydevd_bundle._debug_adapter.pydevd_schema import Source
+    from _pydevd_bundle._debug_adapter.pydevd_schema import PydevdSourceMap
+
+    def additional_output_checks(writer, stdout, stderr):
+        assert 'Skip this print' not in stdout
+        assert 'TEST SUCEEDED' in stdout
+
+    with case_setup.test_file('_debugger_case_source_map_goto_target.py', additional_output_checks=additional_output_checks) as writer:
+        test_file = writer.TEST_FILE
+        if isinstance(test_file, bytes):
+            # file is in the filesystem encoding (needed for launch) but protocol needs it in utf-8
+            test_file = test_file.decode(file_system_encoding)
+            test_file = test_file.encode('utf-8')
+
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(justMyCode=False)
+
+        map_to_cell_1_line1 = writer.get_line_index_with_content('map to Cell1, line 1')
+        map_to_cell_1_line2 = writer.get_line_index_with_content('map to Cell1, line 2')
+        map_to_cell_1_line4 = writer.get_line_index_with_content('map to Cell1, line 4')
+        map_to_cell_1_line5 = writer.get_line_index_with_content('map to Cell1, line 5')
+
+        cell1_map = PydevdSourceMap(map_to_cell_1_line1, map_to_cell_1_line5, Source(path='<Cell1>'), 1)
+        pydevd_source_maps = [cell1_map]
+        json_facade.write_set_pydevd_source_map(
+            Source(path=test_file),
+            pydevd_source_maps=pydevd_source_maps,
+        )
+        json_facade.write_set_breakpoints(map_to_cell_1_line2)
+
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped(line=map_to_cell_1_line2, file=os.path.basename(test_file))
+        for stack_frame in json_hit.stack_trace_response.body.stackFrames:
+            assert stack_frame['source']['sourceReference'] == 0
+
+        goto_targets_request = json_facade.write_request(
+            pydevd_schema.GotoTargetsRequest(pydevd_schema.GotoTargetsArguments(
+                source=pydevd_schema.Source(path=writer.TEST_FILE, sourceReference=0),
+                line=map_to_cell_1_line4)))
+        goto_targets_response = json_facade.wait_for_response(goto_targets_request)
+        target_id = goto_targets_response.body.targets[0]['id']
+
+        goto_request = json_facade.write_request(
+            pydevd_schema.GotoRequest(pydevd_schema.GotoArguments(
+                threadId=json_hit.thread_id,
+                targetId=target_id)))
+        goto_response = json_facade.wait_for_response(goto_request)
+        assert goto_response.success
+
+        json_hit = json_facade.wait_for_thread_stopped('goto')
+
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
 @pytest.mark.skipif(not TEST_CHERRYPY or IS_WINDOWS, reason='No CherryPy available / not ok in Windows.')
 def test_process_autoreload_cherrypy(case_setup_multiprocessing, tmpdir):
     '''

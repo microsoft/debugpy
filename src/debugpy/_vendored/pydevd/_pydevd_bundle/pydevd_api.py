@@ -228,9 +228,31 @@ class PyDevdAPI(object):
         elif thread_id.startswith('__frame__:'):
             sys.stderr.write("Can't make tasklet step command: %s\n" % (thread_id,))
 
-    def request_set_next(self, py_db, seq, thread_id, set_next_cmd_id, line, func_name):
+    def request_set_next(self, py_db, seq, thread_id, set_next_cmd_id, original_filename, line, func_name):
+        '''
+        :param Optional[str] original_filename:
+            If available, the filename may be source translated, otherwise no translation will take
+            place (the set next just needs the line afterwards as it executes locally, but for
+            the Jupyter integration, the source mapping may change the actual lines and not only
+            the filename).
+        '''
         t = pydevd_find_thread_by_id(thread_id)
         if t:
+            if original_filename is not None:
+                translated_filename = self.filename_to_server(original_filename)  # Apply user path mapping.
+                pydev_log.debug('Set next (after path translation) in: %s line: %s', translated_filename, line)
+                func_name = self.to_str(func_name)
+
+                assert translated_filename.__class__ == str  # i.e.: bytes on py2 and str on py3
+                assert func_name.__class__ == str  # i.e.: bytes on py2 and str on py3
+
+                # Apply source mapping (i.e.: ipython).
+                _source_mapped_filename, new_line, multi_mapping_applied = py_db.source_mapping.map_to_server(
+                    translated_filename, line)
+                if multi_mapping_applied:
+                    pydev_log.debug('Set next (after source mapping) in: %s line: %s', translated_filename, line)
+                    line = new_line
+
             int_cmd = InternalSetNextStatementThread(thread_id, set_next_cmd_id, line, func_name, seq=seq)
             py_db.post_internal_command(int_cmd, thread_id)
         elif thread_id.startswith('__frame__:'):
