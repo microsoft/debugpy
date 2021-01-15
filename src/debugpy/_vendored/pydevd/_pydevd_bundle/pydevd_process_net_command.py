@@ -163,7 +163,7 @@ class _PyDevCommandProcessor(object):
 
     def _cmd_set_next(self, py_db, cmd_id, seq, text):
         thread_id, line, func_name = text.split('\t', 2)
-        return self.api.request_set_next(py_db, seq, thread_id, cmd_id, line, func_name)
+        return self.api.request_set_next(py_db, seq, thread_id, cmd_id, None, line, func_name)
 
     cmd_run_to_line = _cmd_set_next
     cmd_set_next_statement = _cmd_set_next
@@ -365,7 +365,6 @@ class _PyDevCommandProcessor(object):
         debug = as_json.get('debug', False)
         if debug or force:
             pydevd_file_utils.DEBUG_CLIENT_SERVER_TRANSLATION = debug
-
 
     def cmd_set_py_exception_json(self, py_db, cmd_id, seq, text):
         # This API is optional and works 'in bulk' -- it's possible
