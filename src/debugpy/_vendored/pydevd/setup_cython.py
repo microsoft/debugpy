@@ -196,7 +196,7 @@ def build_extension(dir_name, extension_name, target_pydevd_name, force_cython, 
             Extension(
                 "%s%s.%s" % (dir_name, "_ext" if extended else "", target_pydevd_name,),
                 c_files,
-                **kwargs,
+                **kwargs
             )]
 
         # This is needed in CPython 3.8 to be able to include internal/pycore_pystate.h
