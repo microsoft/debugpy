@@ -215,6 +215,30 @@ class DAPGrouperResolver:
         return obj.get_contents_debug_adapter_protocol()
 
 
+_basic_immutable_types = (int, float, complex, str, bytes, type(None), bool, frozenset)
+try:
+    _basic_immutable_types += (long, unicode)  # Py2 types
+except NameError:
+    pass
+
+
+def _does_obj_repr_evaluate_to_obj(obj):
+    '''
+    If obj is an object where evaluating its representation leads to
+    the same object, return True, otherwise, return False.
+    '''
+    try:
+        if isinstance(obj, tuple):
+            for o in obj:
+                if not _does_obj_repr_evaluate_to_obj(o):
+                    return False
+            return True
+        else:
+            return isinstance(obj, _basic_immutable_types)
+    except:
+        return False
+
+
 #=======================================================================================================================
 # DictResolver
 #=======================================================================================================================
@@ -267,11 +291,28 @@ class DictResolver:
         ret = []
 
         i = 0
+
+        found_representations = set()
+
         for key, val in dict_iter_items(dct):
             i += 1
             key_as_str = self.key_to_str(key, fmt)
-            eval_key_str = self.key_to_str(key)  # do not format the key
-            ret.append((key_as_str, val, '[%s]' % (eval_key_str,)))
+
+            if key_as_str not in found_representations:
+                found_representations.add(key_as_str)
+            else:
+                # If the key would be a duplicate, add the key id (otherwise
+                # VSCode won't show all keys correctly).
+                # See: https://github.com/microsoft/debugpy/issues/148
+                key_as_str = '%s (id: %s)' % (key_as_str, id(key))
+                found_representations.add(key_as_str)
+
+            if _does_obj_repr_evaluate_to_obj(key):
+                s = self.key_to_str(key)  # do not format the key
+                eval_key_str = '[%s]' % (s,)
+            else:
+                eval_key_str = None
+            ret.append((key_as_str, val, eval_key_str))
             if i > MAX_ITEMS_TO_HANDLE:
                 ret.append((TOO_LARGE_ATTR, TOO_LARGE_MSG, None))
                 break

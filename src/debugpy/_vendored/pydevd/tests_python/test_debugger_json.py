@@ -1606,6 +1606,92 @@ def test_stack_and_variables_dict(case_setup):
         writer.finished_ok = True
 
 
+def test_variables_with_same_name(case_setup):
+    with case_setup.test_file('_debugger_case_variables_with_same_name.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'))
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        json_hit = json_facade.get_stack_as_json_hit(json_hit.thread_id)
+
+        variables_response = json_facade.get_variables_response(json_hit.frame_id)
+
+        variables_references = json_facade.pop_variables_reference(variables_response.body.variables)
+        dict_variable_reference = variables_references[0]
+        assert isinstance(dict_variable_reference, int_types)
+        # : :type variables_response: VariablesResponse
+
+        assert variables_response.body.variables == [
+            {'name': 'td', 'value': "{foo: 'bar', gad: 'zooks', foo: 'bur'}", 'type': 'dict', 'evaluateName': 'td'}
+        ]
+
+        dict_variables_response = json_facade.get_variables_response(dict_variable_reference)
+        # Note that we don't have the evaluateName because it's not possible to create a key
+        # from the user object to actually get its value from the dict in this case.
+        variables = dict_variables_response.body.variables[:]
+
+        found_foo = False
+        found_foo_with_id = False
+        for v in variables:
+            if v['name'].startswith('foo'):
+                if not found_foo:
+                    assert v['name'] == 'foo'
+                    found_foo = True
+                else:
+                    assert v['name'].startswith('foo (id: ')
+                    v['name'] = 'foo'
+                    found_foo_with_id = True
+
+        assert found_foo
+        assert found_foo_with_id
+
+        def compute_key(entry):
+            return (entry['name'], entry['value'])
+
+        # Sort because the order may be different on Py2/Py3.
+        assert sorted(variables, key=compute_key) == sorted([
+            {
+                'name': 'foo',
+                'value': "'bar'",
+                'type': 'str',
+                'variablesReference': 0,
+                'presentationHint': {'attributes': ['rawString']}
+            },
+
+            {
+                # 'name': 'foo (id: 2699272929584)', In the code above we changed this
+                # to 'name': 'foo' for the comparisson.
+                'name': 'foo',
+                'value': "'bur'",
+                'type': 'str',
+                'variablesReference': 0,
+                'presentationHint': {'attributes': ['rawString']}
+            },
+
+            {
+                'name': 'gad',
+                'value': "'zooks'",
+                'type': 'str',
+                'variablesReference': 0,
+                'presentationHint': {'attributes': ['rawString']}
+            },
+
+            {
+                'name': 'len()',
+                'value': '3',
+                'type': 'int',
+                'evaluateName': 'len(td)',
+                'variablesReference': 0,
+                'presentationHint': {'attributes': ['readOnly']}
+            },
+        ], key=compute_key)
+
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
 def test_hasattr_failure(case_setup):
     with case_setup.test_file('_debugger_case_hasattr_crash.py') as writer:
         json_facade = JsonFacade(writer)
