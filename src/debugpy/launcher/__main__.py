@@ -8,7 +8,6 @@ __all__ = ["main"]
 
 import locale
 import os
-import signal
 import sys
 
 # WARNING: debugpy and submodules must not be imported on top level in this module,
