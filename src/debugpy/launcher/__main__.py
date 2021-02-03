@@ -26,10 +26,12 @@ def main():
     log.to_file(prefix="debugpy.launcher")
     log.describe_environment("debugpy.launcher startup environment:")
 
-    # Disable exceptions on Ctrl+C - we want to allow the debuggee process to handle
-    # these, or not, as it sees fit. If the debuggee exits on Ctrl+C, the launcher
-    # will also exit, so it doesn't need to observe the signal directly.
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    if sys.platform == "win32":
+        # For windows, disable exceptions on Ctrl+C - we want to allow the debuggee
+        # process to handle these, or not, as it sees fit. If the debuggee exits
+        # on Ctrl+C, the launcher will also exit, so it doesn't need to observe
+        # the signal directly.
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
 
     # Everything before "--" is command line arguments for the launcher itself,
     # and everything after "--" is command line arguments for the debuggee.
