@@ -79,6 +79,19 @@ class DebugConfig(collections.MutableMapping):
             "class_": "group",
             "protected": "inline",
         },
+        "autoReload": {
+            "enable": False,
+            "watch_dirs": [],
+            "pollingInterval": 1,
+            "exclude": [
+                "**/.git/**",
+                "**/__pycache__/**",
+                "**/node_modules/**",
+                "**/.metadata/**",
+                "**/site-packages/**",
+            ],
+            "include": ["**/*.py", "**/*.pyw"],
+        },
     }
 
     def __init__(self, *args, **kwargs):

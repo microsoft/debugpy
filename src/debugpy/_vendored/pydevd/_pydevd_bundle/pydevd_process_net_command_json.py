@@ -397,6 +397,51 @@ class PyDevJsonCommandProcessor(object):
 
             self.api.set_ignore_system_exit_codes(py_db, ignore_system_exit_codes)
 
+        auto_reload = args.get('autoReload', {})
+        if not isinstance(auto_reload, dict):
+            pydev_log.info('Expected autoReload to be a dict. Received: %s' % (auto_reload,))
+            auto_reload = {}
+
+        enable_auto_reload = auto_reload.get('enable', False)
+        watch_dirs = auto_reload.get('watchDirectories')
+        if not watch_dirs:
+            watch_dirs = []
+            # Note: by default this is no longer done because on some cases there are entries in the PYTHONPATH
+            # such as the home directory or /python/x64, where the site packages are in /python/x64/libs, so,
+            # we only watch the current working directory as well as executed script.
+            # check = getattr(sys, 'path', [])[:]
+            # # By default only watch directories that are in the project roots /
+            # # program dir (if available), sys.argv[0], as well as the current dir (we don't want to
+            # # listen to the whole site-packages by default as it can be huge).
+            # watch_dirs = [pydevd_file_utils.absolute_path(w) for w in check]
+            # watch_dirs = [w for w in watch_dirs if py_db.in_project_roots_filename_uncached(w) and os.path.isdir(w)]
+
+            program = args.get('program')
+            if program:
+                if os.path.isdir(program):
+                    watch_dirs.append(program)
+                else:
+                    watch_dirs.append(os.path.dirname(program))
+            watch_dirs.append(os.path.abspath('.'))
+
+            argv = getattr(sys, 'argv', [])
+            if argv:
+                f = argv[0]
+                if os.path.isdir(f):
+                    watch_dirs.append(program)
+                else:
+                    watch_dirs.append(os.path.dirname(f))
+
+        if not isinstance(watch_dirs, (list, set, tuple)):
+            watch_dirs = (watch_dirs,)
+        watch_dirs = set(pydevd_file_utils.get_path_with_real_case(w) for w in watch_dirs)
+
+        poll_target_time = auto_reload.get('pollingInterval', 1)
+        exclude_patterns = auto_reload.get('exclude', ('**/.git/**', '**/__pycache__/**', '**/node_modules/**', '**/.metadata/**', '**/site-packages/**'))
+        include_patterns = auto_reload.get('include', ('**/*.py', '**/*.pyw'))
+        self.api.setup_auto_reload_watcher(
+            py_db, enable_auto_reload, watch_dirs, poll_target_time, exclude_patterns, include_patterns)
+
         if self._options.stop_on_entry and start_reason == 'launch':
             self.api.stop_on_entry()
 

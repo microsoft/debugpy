@@ -98,13 +98,11 @@ target namespace.
 
 """
 
-import imp
-from _pydev_bundle.pydev_imports import Exec
+from _pydev_bundle.pydev_imports import execfile
 from _pydevd_bundle import pydevd_dont_trace
-import sys
-import traceback
 import types
 from _pydev_bundle import pydev_log
+from _pydevd_bundle.pydevd_constants import get_global_debugger
 
 NO_DEBUG = 0
 LEVEL1 = 1
@@ -113,22 +111,18 @@ LEVEL2 = 2
 DEBUG = NO_DEBUG
 
 
-def write(*args):
-    new_lst = []
-    for a in args:
-        new_lst.append(str(a))
-
-    msg = ' '.join(new_lst)
-    sys.stdout.write('%s\n' % (msg,))
-
-
 def write_err(*args):
-    new_lst = []
-    for a in args:
-        new_lst.append(str(a))
+    py_db = get_global_debugger()
+    if py_db is not None:
+        new_lst = []
+        for a in args:
+            new_lst.append(str(a))
 
-    msg = ' '.join(new_lst)
-    sys.stderr.write('pydev debugger: %s\n' % (msg,))
+        msg = ' '.join(new_lst)
+        s = 'code reload: %s\n' % (msg,)
+        cmd = py_db.cmd_factory.make_io_message(s, 2)
+        if py_db.writer is not None:
+            py_db.writer.add_command(cmd)
 
 
 def notify_info0(*args):
@@ -137,12 +131,12 @@ def notify_info0(*args):
 
 def notify_info(*args):
     if DEBUG >= LEVEL1:
-        write(*args)
+        write_err(*args)
 
 
 def notify_info2(*args):
     if DEBUG >= LEVEL2:
-        write(*args)
+        write_err(*args)
 
 
 def notify_error(*args):
@@ -197,51 +191,19 @@ def xreload(mod):
 #=======================================================================================================================
 class Reload:
 
-    def __init__(self, mod):
+    def __init__(self, mod, mod_name=None, mod_filename=None):
         self.mod = mod
+        self.mod_name = (mod_name or mod.__name__) if mod_name else None
+        self.mod_filename = (mod_filename or mod.__file__) if mod else None
         self.found_change = False
 
     def apply(self):
         mod = self.mod
         self._on_finish_callbacks = []
         try:
-            # Get the module name, e.g. 'foo.bar.whatever'
-            modname = mod.__name__
             # Get the module namespace (dict) early; this is part of the type check
             modns = mod.__dict__
-            # Parse it into package name and module name, e.g. 'foo.bar' and 'whatever'
-            i = modname.rfind(".")
-            if i >= 0:
-                pkgname, modname = modname[:i], modname[i + 1:]
-            else:
-                pkgname = None
-            # Compute the search path
-            if pkgname:
-                # We're not reloading the package, only the module in it
-                pkg = sys.modules[pkgname]
-                path = pkg.__path__  # Search inside the package
-            else:
-                # Search the top-level module path
-                pkg = None
-                path = None  # Make find_module() uses the default search path
-            # Find the module; may raise ImportError
-            (stream, filename, (suffix, mode, kind)) = imp.find_module(modname, path)
-            # Turn it into a code object
-            try:
-                # Is it Python source code or byte code read from a file?
-                if kind not in (imp.PY_COMPILED, imp.PY_SOURCE):
-                    # Fall back to built-in reload()
-                    notify_error('Could not find source to reload (mod: %s)' % (modname,))
-                    return
-                if kind == imp.PY_SOURCE:
-                    source = stream.read()
-                    code = compile(source, filename, "exec")
-                else:
-                    import marshal
-                    code = marshal.load(stream)
-            finally:
-                if stream:
-                    stream.close()
+
             # Execute the code.  We copy the module dict to a temporary; then
             # clear the module dict; then execute the new code in the module
             # dict; then swap things back and around.  This trick (due to
@@ -250,8 +212,22 @@ class Reload:
             # object.
             new_namespace = modns.copy()
             new_namespace.clear()
-            new_namespace["__name__"] = modns["__name__"]
-            Exec(code, new_namespace)
+            if self.mod_filename:
+                new_namespace["__file__"] = self.mod_filename
+                try:
+                    new_namespace["__builtins__"] = __builtins__
+                except NameError:
+                    raise  # Ok if not there.
+
+            if self.mod_name:
+                new_namespace["__name__"] = self.mod_name
+                if new_namespace["__name__"] == '__main__':
+                    # We do this because usually the __main__ starts-up the program, guarded by
+                    # the if __name__ == '__main__', but we don't want to start the program again
+                    # on a reload.
+                    new_namespace["__name__"] = '__main_reloaded__'
+
+            execfile(self.mod_filename, new_namespace, new_namespace)
             # Now we get to the hard part
             oldnames = set(modns)
             newnames = set(new_namespace)
@@ -308,7 +284,8 @@ class Reload:
 
             if type(oldobj) is not type(newobj):
                 # Cop-out: if the type changed, give up
-                notify_error('Type of: %s changed... Skipping.' % (oldobj,))
+                if name not in ('__builtins__',):
+                    notify_error('Type of: %s (old: %s != new: %s) changed... Skipping.' % (name, type(oldobj), type(newobj)))
                 return
 
             if isinstance(newobj, types.FunctionType):

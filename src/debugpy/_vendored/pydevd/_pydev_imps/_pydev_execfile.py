@@ -1,4 +1,4 @@
-#We must redefine it in Py3k if it's not already there
+# We must redefine it in Py3k if it's not already there
 def execfile(file, glob=None, loc=None):
     if glob is None:
         import sys
@@ -14,12 +14,12 @@ def execfile(file, glob=None, loc=None):
         stream = tokenize.open(file)  # @UndefinedVariable
     else:
         # version 3.0 or 3.1
-        detect_encoding = tokenize.detect_encoding(open(file, mode="rb" ).readline)
+        detect_encoding = tokenize.detect_encoding(open(file, mode="rb").readline)
         stream = open(file, encoding=detect_encoding[0])
     try:
         contents = stream.read()
     finally:
         stream.close()
 
-    #execute the script (note: it's important to compile first to have the filename set in debug mode)
-    exec(compile(contents+"\n", file, 'exec'), glob, loc)
+    # execute the script (note: it's important to compile first to have the filename set in debug mode)
+    exec(compile(contents + "\n", file, 'exec'), glob, loc)
