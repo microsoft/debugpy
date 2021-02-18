@@ -170,8 +170,13 @@ class _PyDevCommandProcessor(object):
     cmd_smart_step_into = _cmd_set_next
 
     def cmd_reload_code(self, py_db, cmd_id, seq, text):
-        module_name = text.strip()
-        self.api.request_reload_code(py_db, seq, module_name)
+        text = text.strip()
+        if '\t' not in text:
+            module_name = text.strip()
+            filename = None
+        else:
+            module_name, filename = text.split('\t', 1)
+        self.api.request_reload_code(py_db, seq, module_name, filename)
 
     def cmd_change_variable(self, py_db, cmd_id, seq, text):
         # the text is: thread\tstackframe\tFRAME|GLOBAL\tattribute_to_change\tvalue_to_change

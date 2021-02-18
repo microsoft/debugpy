@@ -180,6 +180,14 @@ def test_glob_matching():
         assert glob_matches_path(build('/a/b/c/d'), '**/c/*', sep, altsep)
         assert glob_matches_path(build('/a/b/c/d'), '/a/**/c/*', sep, altsep)
 
+        # I.e. directories are expected to end with '/', so, it'll match
+        # something as **/directory/**
+        assert glob_matches_path(build('/a/b/c/'), '**/c/**', sep, altsep)
+        assert glob_matches_path(build('/a/b/c/'), '**/c/', sep, altsep)
+        # But not something as **/directory (that'd be a file match).
+        assert not glob_matches_path(build('/a/b/c/'), '**/c', sep, altsep)
+        assert not glob_matches_path(build('/a/b/c'), '**/c/', sep, altsep)
+
         assert glob_matches_path(build('/a/b/c/d.py'), '/a/**/c/*', sep, altsep)
         assert glob_matches_path(build('/a/b/c/d.py'), '/a/**/c/*.py', sep, altsep)
         assert glob_matches_path(build('/a/b/c/some.py'), '/a/**/c/so*.py', sep, altsep)

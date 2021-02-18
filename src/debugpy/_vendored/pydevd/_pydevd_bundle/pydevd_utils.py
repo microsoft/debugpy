@@ -297,6 +297,13 @@ def hasattr_checked(obj, name):
     else:
         return True
 
+def getattr_checked(obj, name):
+    try:
+        return getattr(obj, name)
+    except:
+        # i.e.: Handle any exception, not only AttributeError.
+        return None
+
 
 def dir_checked(obj):
     try:

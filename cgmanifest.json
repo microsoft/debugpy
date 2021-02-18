@@ -49,6 +49,17 @@
         },
         "DevelopmentDependency": false
       }
+    },
+    {
+      "Component": {
+        "Type": "git",
+        "git": {
+          "Name": "scandir",
+          "RepositoryUrl": "https://github.com/benhoyt/scandir",
+          "CommitHash": "6ed381881bc2fb9de05804e892eeeeb3601a3af2"
+        },
+        "DevelopmentDependency": false
+      }
     }
   ]
 }

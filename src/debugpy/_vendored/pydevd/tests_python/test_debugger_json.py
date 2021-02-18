@@ -1623,9 +1623,13 @@ def test_variables_with_same_name(case_setup):
         assert isinstance(dict_variable_reference, int_types)
         # : :type variables_response: VariablesResponse
 
-        assert variables_response.body.variables == [
-            {'name': 'td', 'value': "{foo: 'bar', gad: 'zooks', foo: 'bur'}", 'type': 'dict', 'evaluateName': 'td'}
-        ]
+        if not IS_PY2:
+            assert variables_response.body.variables == [
+                {'name': 'td', 'value': "{foo: 'bar', gad: 'zooks', foo: 'bur'}", 'type': 'dict', 'evaluateName': 'td'}
+            ]
+        else:
+            # The value may change the representation on Python 2 as dictionaries don't keep the insertion order.
+            assert len(variables_response.body.variables) == 1
 
         dict_variables_response = json_facade.get_variables_response(dict_variable_reference)
         # Note that we don't have the evaluateName because it's not possible to create a key
@@ -5303,6 +5307,55 @@ def test_native_threads(case_setup, pyfile):
         json_facade.wait_for_thread_stopped(line=line)
 
         json_facade.write_continue()
+        writer.finished_ok = True
+
+
+def test_code_reload(case_setup, pyfile):
+
+    @pyfile
+    def mod1():
+        import mod2
+        import time
+        finish = False
+        for _ in range(50):
+            finish = mod2.do_something()
+            if finish:
+                break
+            time.sleep(.1)  # Break 1
+        else:
+            raise AssertionError('It seems the reload was not done in the available amount of time.')
+
+        print('TEST SUCEEDED')  # Break 2
+
+    @pyfile
+    def mod2():
+
+        def do_something():
+            return False
+
+    with case_setup.test_file(mod1) as writer:
+        json_facade = JsonFacade(writer)
+
+        line1 = writer.get_line_index_with_content('Break 1')
+        line2 = writer.get_line_index_with_content('Break 2')
+        json_facade.write_launch(justMyCode=False, autoReload={'pollingInterval': 0, 'enable': True})
+        json_facade.write_set_breakpoints([line1, line2])
+        json_facade.write_make_initial_run()
+
+        # At this point we know that 'do_something' was called at least once.
+        json_facade.wait_for_thread_stopped(line=line1)
+        json_facade.write_set_breakpoints(line2)
+
+        with open(mod2, 'w') as stream:
+            stream.write('''
+def do_something():
+    return True
+''')
+
+        json_facade.write_continue()
+        json_facade.wait_for_thread_stopped(line=line2)
+        json_facade.write_continue()
+
         writer.finished_ok = True
 
 

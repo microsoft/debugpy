@@ -258,12 +258,17 @@ class PyDevdAPI(object):
         elif thread_id.startswith('__frame__:'):
             sys.stderr.write("Can't set next statement in tasklet: %s\n" % (thread_id,))
 
-    def request_reload_code(self, py_db, seq, module_name):
+    def request_reload_code(self, py_db, seq, module_name, filename):
+        '''
+        :param seq: if -1 no message will be sent back when the reload is done.
+
+        Note: either module_name or filename may be None (but not both at the same time).
+        '''
         thread_id = '*'  # Any thread
         # Note: not going for the main thread because in this case it'd only do the load
         # when we stopped on a breakpoint.
         py_db.post_method_as_internal_command(
-            thread_id, internal_reload_code, seq, module_name)
+            thread_id, internal_reload_code, seq, module_name, filename)
 
     def request_change_variable(self, py_db, seq, thread_id, frame_id, scope, attr, value):
         '''
@@ -1037,6 +1042,9 @@ class PyDevdAPI(object):
         # (we should terminate as is without letting any paused thread run).
         py_db.terminate_requested = True
         run_as_pydevd_daemon_thread(py_db, self._terminate_if_commands_processed, py_db)
+
+    def setup_auto_reload_watcher(self, py_db, enable_auto_reload, watch_dirs, poll_target_time, exclude_patterns, include_patterns):
+        py_db.setup_auto_reload_watcher(enable_auto_reload, watch_dirs, poll_target_time, exclude_patterns, include_patterns)
 
 
 def _list_ppid_and_pid():

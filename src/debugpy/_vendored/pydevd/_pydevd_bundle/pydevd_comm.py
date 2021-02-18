@@ -88,20 +88,21 @@ from _pydevd_bundle.pydevd_thread_lifecycle import pydevd_find_thread_by_id, res
 from _pydevd_bundle.pydevd_dont_trace_files import PYDEV_FILE
 import dis
 from _pydevd_bundle.pydevd_frame_utils import create_frames_list_from_exception_cause
+import pydevd_file_utils
 try:
     from urllib import quote_plus, unquote_plus  # @UnresolvedImport
 except:
     from urllib.parse import quote_plus, unquote_plus  # @Reimport @UnresolvedImport
 
 import pydevconsole
-from _pydevd_bundle import pydevd_vars, pydevd_utils, pydevd_io
+from _pydevd_bundle import pydevd_vars, pydevd_utils, pydevd_io, pydevd_reload
 from _pydevd_bundle import pydevd_xml
 from _pydevd_bundle import pydevd_vm_type
 import sys
 import traceback
 from _pydevd_bundle.pydevd_utils import quote_smart as quote, compare_object_attrs_key, \
-    notify_about_gevent_if_needed, isinstance_checked, ScopeRequest
-from _pydev_bundle import pydev_log
+    notify_about_gevent_if_needed, isinstance_checked, ScopeRequest, getattr_checked
+from _pydev_bundle import pydev_log, fsnotify
 from _pydev_bundle.pydev_log import exception as pydev_log_exception
 from _pydev_bundle import _pydev_completer
 
@@ -308,6 +309,40 @@ class ReaderThread(PyDBDaemonThread):
 
     def process_command(self, cmd_id, seq, text):
         self.process_net_command(self.py_db, cmd_id, seq, text)
+
+
+class FSNotifyThread(PyDBDaemonThread):
+
+    def __init__(self, py_db, api, watch_dirs):
+        PyDBDaemonThread.__init__(self, py_db)
+        self.api = api
+        self.setName("pydevd.FSNotifyThread")
+        self.watcher = fsnotify.Watcher()
+        self.watch_dirs = watch_dirs
+
+    @overrides(PyDBDaemonThread._on_run)
+    def _on_run(self):
+        try:
+            pydev_log.info('Watching directories for code reload:\n---\n%s\n---' % ('\n'.join(sorted(self.watch_dirs))))
+
+            # i.e.: The first call to set_tracked_paths will do a full scan, so, do it in the thread
+            # too (after everything is configured).
+            self.watcher.set_tracked_paths(self.watch_dirs)
+            while not self._kill_received:
+                for change_enum, change_path in self.watcher.iter_changes():
+                    # We're only interested in modified events
+                    if change_enum == fsnotify.Change.modified:
+                        pydev_log.info('Modified: %s', change_path)
+                        self.api.request_reload_code(self.py_db, -1, None, change_path)
+                    else:
+                        pydev_log.info('Ignored (add or remove) change in: %s', change_path)
+        except:
+            pydev_log.exception('Error when waiting for filesystem changes in FSNotifyThread.')
+
+    @overrides(PyDBDaemonThread.do_kill_pydev_thread)
+    def do_kill_pydev_thread(self):
+        self.watcher.dispose()
+        PyDBDaemonThread.do_kill_pydev_thread(self)
 
 
 class WriterThread(PyDBDaemonThread):
@@ -532,32 +567,67 @@ class InternalThreadCommandForAnyThread(InternalThreadCommand):
         InternalThreadCommand.do_it(self, dbg)
 
 
-def internal_reload_code(dbg, seq, module_name):
-    module_name = module_name
-    if module_name not in sys.modules:
-        if '.' in module_name:
-            new_module_name = module_name.split('.')[-1]
-            if new_module_name in sys.modules:
-                module_name = new_module_name
+def _send_io_message(py_db, s):
+    cmd = py_db.cmd_factory.make_io_message(s, 2)
+    if py_db.writer is not None:
+        py_db.writer.add_command(cmd)
 
-    reloaded_ok = False
 
-    if module_name not in sys.modules:
-        sys.stderr.write('pydev debugger: Unable to find module to reload: "' + module_name + '".\n')
-        # Too much info...
-        # sys.stderr.write('pydev debugger: This usually means you are trying to reload the __main__ module (which cannot be reloaded).\n')
+def internal_reload_code(dbg, seq, module_name, filename):
+    try:
+        found_module_to_reload = False
+        if IS_PY2 and isinstance(filename, unicode):
+            filename = filename.encode(sys.getfilesystemencoding())
 
-    else:
-        sys.stderr.write('pydev debugger: Start reloading module: "' + module_name + '" ... \n')
-        from _pydevd_bundle import pydevd_reload
-        if pydevd_reload.xreload(sys.modules[module_name]):
-            sys.stderr.write('pydev debugger: reload finished\n')
-            reloaded_ok = True
+        if module_name is not None:
+            module_name = module_name
+            if module_name not in sys.modules:
+                if '.' in module_name:
+                    new_module_name = module_name.split('.')[-1]
+                    if new_module_name in sys.modules:
+                        module_name = new_module_name
+
+        modules_to_reload = {}
+        module = sys.modules.get(module_name)
+        if module is not None:
+            modules_to_reload[id(module)] = (module, module_name)
+
+        if filename:
+            filename = pydevd_file_utils.normcase(filename)
+            for module_name, module in sys.modules.copy().items():
+                f = getattr_checked(module, '__file__')
+                if f is not None:
+                    if f.endswith(('.pyc', '.pyo')):
+                        f = f[:-1]
+
+                    if pydevd_file_utils.normcase(f) == filename:
+                        modules_to_reload[id(module)] = (module, module_name)
+
+        if not modules_to_reload:
+            if filename and module_name:
+                _send_io_message(dbg, 'code reload: Unable to find module %s to reload for path: %s\n' % (module_name, filename))
+            elif filename:
+                _send_io_message(dbg, 'code reload: Unable to find module to reload for path: %s\n' % (filename,))
+            elif module_name:
+                _send_io_message(dbg, 'code reload: Unable to find module to reload: %s\n' % (module_name,))
+
         else:
-            sys.stderr.write('pydev debugger: reload finished without applying any change\n')
+            # Too much info...
+            # _send_io_message(dbg, 'code reload: This usually means you are trying to reload the __main__ module (which cannot be reloaded).\n')
+            from _pydevd_bundle import pydevd_reload
+            for module, module_name in modules_to_reload.values():
+                _send_io_message(dbg, 'code reload: Start reloading module: "' + module_name + '" ... \n')
+                found_module_to_reload = True
 
-    cmd = dbg.cmd_factory.make_reloaded_code_message(seq, reloaded_ok)
-    dbg.writer.add_command(cmd)
+                if pydevd_reload.xreload(module):
+                    _send_io_message(dbg, 'code reload: reload finished\n')
+                else:
+                    _send_io_message(dbg, 'code reload: reload finished without applying any change\n')
+
+        cmd = dbg.cmd_factory.make_reloaded_code_message(seq, found_module_to_reload)
+        dbg.writer.add_command(cmd)
+    except:
+        pydev_log.exception('Error reloading code')
 
 
 class InternalGetThreadStack(InternalThreadCommand):

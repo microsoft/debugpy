@@ -27,7 +27,7 @@ from _pydev_imps._pydev_saved_modules import thread
 from _pydev_imps._pydev_saved_modules import threading
 from _pydev_imps._pydev_saved_modules import time
 from _pydevd_bundle import pydevd_extension_utils, pydevd_frame_utils, pydevd_constants
-from _pydevd_bundle.pydevd_filtering import FilesFiltering
+from _pydevd_bundle.pydevd_filtering import FilesFiltering, glob_matches_path
 from _pydevd_bundle import pydevd_io, pydevd_vm_type
 from _pydevd_bundle import pydevd_utils
 from _pydev_bundle.pydev_console_utils import DebugConsoleStdIn
@@ -62,7 +62,7 @@ from pydevd_file_utils import get_fullname, get_package_dir
 from os.path import abspath as os_path_abspath
 import pydevd_tracing
 from _pydevd_bundle.pydevd_comm import (InternalThreadCommand, InternalThreadCommandForAnyThread,
-    create_server_socket)
+    create_server_socket, FSNotifyThread)
 from _pydevd_bundle.pydevd_comm import(InternalConsoleExec,
     _queue, ReaderThread, GetGlobalDebugger, get_global_debugger,
     set_global_debugger, WriterThread,
@@ -490,6 +490,7 @@ class PyDB(object):
 
         self.reader = None
         self.writer = None
+        self._fsnotify_thread = None
         self.created_pydb_daemon_threads = {}
         self._waiting_for_connection_thread = None
         self._on_configuration_done_event = threading.Event()
@@ -537,6 +538,7 @@ class PyDB(object):
         self.ready_to_run = False
         self._main_lock = thread.allocate_lock()
         self._lock_running_thread_ids = thread.allocate_lock()
+        self._lock_create_fs_notify = thread.allocate_lock()
         self._py_db_command_thread_event = threading.Event()
         if set_as_global:
             CustomFramesContainer._py_db_command_thread_event = self._py_db_command_thread_event
@@ -665,6 +667,77 @@ class PyDB(object):
 
         # Stop the tracing as the last thing before the actual shutdown for a clean exit.
         atexit.register(stoptrace)
+
+    def setup_auto_reload_watcher(self, enable_auto_reload, watch_dirs, poll_target_time, exclude_patterns, include_patterns):
+        try:
+            with self._lock_create_fs_notify:
+
+                # When setting up, dispose of the previous one (if any).
+                if self._fsnotify_thread is not None:
+                    self._fsnotify_thread.do_kill_pydev_thread()
+                    self._fsnotify_thread = None
+
+                if not enable_auto_reload:
+                    return
+
+                exclude_patterns = tuple(exclude_patterns)
+                include_patterns = tuple(include_patterns)
+
+                def accept_directory(absolute_filename, cache={}):
+                    try:
+                        return cache[absolute_filename]
+                    except:
+                        if absolute_filename and absolute_filename[-1] not in ('/', '\\'):
+                            # I.e.: for directories we always end with '/' or '\\' so that
+                            # we match exclusions such as "**/node_modules/**"
+                            absolute_filename += os.path.sep
+
+                        # First include what we want
+                        for include_pattern in include_patterns:
+                            if glob_matches_path(absolute_filename, include_pattern):
+                                cache[absolute_filename] = True
+                                return True
+                            
+                        # Then exclude what we don't want
+                        for exclude_pattern in exclude_patterns:
+                            if glob_matches_path(absolute_filename, exclude_pattern):
+                                cache[absolute_filename] = False
+                                return False
+
+                        # By default track all directories not excluded.
+                        cache[absolute_filename] = True
+                        return True
+
+                def accept_file(absolute_filename, cache={}):
+                    try:
+                        return cache[absolute_filename]
+                    except:
+                        # First include what we want
+                        for include_pattern in include_patterns:
+                            if glob_matches_path(absolute_filename, include_pattern):
+                                cache[absolute_filename] = True
+                                return True
+                            
+                        # Then exclude what we don't want
+                        for exclude_pattern in exclude_patterns:
+                            if glob_matches_path(absolute_filename, exclude_pattern):
+                                cache[absolute_filename] = False
+                                return False
+
+                        # By default don't track files not included.
+                        cache[absolute_filename] = False
+                        return False
+
+                self._fsnotify_thread = FSNotifyThread(self, PyDevdAPI(), watch_dirs)
+                watcher = self._fsnotify_thread.watcher
+                watcher.accept_directory = accept_directory
+                watcher.accept_file = accept_file
+
+                watcher.target_time_for_single_scan = poll_target_time
+                watcher.target_time_for_notification = poll_target_time
+                self._fsnotify_thread.start()
+        except:
+            pydev_log.exception('Error setting up auto-reload.')
 
     def get_arg_ppid(self):
         try:
@@ -1076,6 +1149,9 @@ class PyDB(object):
                 cache[cache_key] = self._files_filtering.in_project_roots(absolute_filename)
 
             return cache[cache_key]
+
+    def in_project_roots_filename_uncached(self, absolute_filename):
+        return self._files_filtering.in_project_roots(absolute_filename)
 
     def _clear_filters_caches(self):
         self._in_project_scope_cache.clear()

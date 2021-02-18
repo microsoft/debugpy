@@ -390,6 +390,10 @@ class NetCommandFactoryJson(NetCommandFactory):
     def make_thread_run_message(self, *args, **kwargs):
         return NULL_NET_COMMAND  # Not a part of the debug adapter protocol
 
+    @overrides(NetCommandFactory.make_reloaded_code_message)
+    def make_reloaded_code_message(self, *args, **kwargs):
+        return NULL_NET_COMMAND  # Not a part of the debug adapter protocol
+
     @overrides(NetCommandFactory.make_input_requested_message)
     def make_input_requested_message(self, started):
         event = pydevd_schema.PydevdInputRequestedEvent(body={})
