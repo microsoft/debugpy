@@ -90,7 +90,7 @@ jobs:
           - template: "templates/run_tests.yml"
 
     - job: "Test_Windows"
-      timeoutInMinutes: 30
+      timeoutInMinutes: 40
       displayName: "Tests - Windows"
       pool: { vmImage: "windows-2019" }
 
