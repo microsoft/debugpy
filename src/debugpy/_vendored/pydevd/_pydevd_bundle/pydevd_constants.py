@@ -588,7 +588,7 @@ else:
             # the fix in later 2.7 versions is the same one we're dealing with).
             return None
 
-    sys.settrace(None)
+    sys.settrace(_curr_trace)
 
 
 #=======================================================================================================================

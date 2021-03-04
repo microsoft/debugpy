@@ -222,12 +222,14 @@ def _schedule_callback(prev, next):
                             frame = frame.f_back
                         if frame is not None:
                             # print >>sys.stderr, "SchedCB: %r, %d, '%s', '%s'" % (tasklet, frame.f_lineno, _filename, base)
-                            if debugger.get_file_type(frame) is None:
+                            debugger = get_global_debugger()
+                            if debugger is not None and debugger.get_file_type(frame) is None:
                                 tasklet_info.update_name()
                                 if tasklet_info.frame_id is None:
                                     tasklet_info.frame_id = add_custom_frame(frame, tasklet_info.tasklet_name, tasklet.thread_id)
                                 else:
                                     update_custom_frame(tasklet_info.frame_id, frame, tasklet.thread_id, name=tasklet_info.tasklet_name)
+                            debugger = None
 
                     elif tasklet is next or is_running:
                         if tasklet_info.frame_id is not None:
@@ -288,11 +290,13 @@ if not hasattr(stackless.tasklet, "trace_function"):
                         if tasklet.paused or tasklet.blocked or tasklet.scheduled:
                             if tasklet.frame and tasklet.frame.f_back:
                                 f_back = tasklet.frame.f_back
-                                if debugger.get_file_type(f_back) is None:
+                                debugger = get_global_debugger()
+                                if debugger is not None and debugger.get_file_type(f_back) is None:
                                     if tasklet_info.frame_id is None:
                                         tasklet_info.frame_id = add_custom_frame(f_back, tasklet_info.tasklet_name, tasklet.thread_id)
                                     else:
                                         update_custom_frame(tasklet_info.frame_id, f_back, tasklet.thread_id)
+                                debugger = None
 
                         elif tasklet.is_current:
                             if tasklet_info.frame_id is not None:
