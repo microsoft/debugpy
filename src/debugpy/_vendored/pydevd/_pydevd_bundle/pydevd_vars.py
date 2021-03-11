@@ -279,10 +279,12 @@ def eval_in_context(expression, globals, locals):
             if IS_PY2 and isinstance(expression, unicode):
                 expression = expression.encode('utf-8')
 
-            if '__' in expression:
-                # Try to handle '__' name mangling...
+            if '.__' in expression:
+                # Try to handle '__' name mangling (for simple cases such as self.__variable.__another_var).
                 split = expression.split('.')
-                curr = locals.get(split[0])
+                entry = split[0]
+
+                curr = locals[entry]  # Note: we want the KeyError if it's not there.
                 for entry in split[1:]:
                     if entry.startswith('__') and not hasattr(curr, entry):
                         entry = '_%s%s' % (curr.__class__.__name__, entry)
@@ -430,7 +432,17 @@ def evaluate_expression(py_db, frame, expression, is_exec):
             return
 
         else:
-            return eval_in_context(expression, updated_globals, frame.f_locals)
+            ret = eval_in_context(expression, updated_globals, frame.f_locals)
+            try:
+                is_exception_returned = ret.__class__ == ExceptionOnEvaluate
+            except:
+                pass
+            else:
+                if not is_exception_returned:
+                    # i.e.: by using a walrus assignment (:=), expressions can change the locals,
+                    # so, make sure that we save the locals back to the frame.
+                    pydevd_save_locals.save_locals(frame)
+            return ret
     finally:
         # Should not be kept alive if an exception happens and this frame is kept in the stack.
         del updated_globals
