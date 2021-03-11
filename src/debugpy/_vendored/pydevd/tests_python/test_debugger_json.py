@@ -1817,6 +1817,80 @@ def test_evaluate_numpy(case_setup, pyfile):
         writer.finished_ok = True
 
 
+def test_evaluate_name_mangling(case_setup, pyfile):
+
+    @pyfile
+    def target():
+
+        class SomeObj(object):
+
+            def __init__(self):
+                self.__value = 10
+                print('here')  # Break here
+
+        SomeObj()
+
+        print('TEST SUCEEDED')
+
+    with case_setup.test_file(target) as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'))
+        json_facade.write_launch(justMyCode=False)
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        json_hit = json_facade.get_stack_as_json_hit(json_hit.thread_id)
+
+        # Check eval with a properly indented block
+        evaluate_response = json_facade.evaluate(
+            'self.__value',
+            frameId=json_hit.frame_id,
+            context="repl",
+        )
+
+        assert evaluate_response.body.result == '10'
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
+def test_evaluate_no_name_mangling(case_setup):
+
+    with case_setup.test_file('_debugger_case_local_variables2.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'))
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        json_hit = json_facade.get_stack_as_json_hit(json_hit.thread_id)
+
+        # Check eval with a properly indented block
+        json_facade.evaluate(
+            'x = "_"',
+            frameId=json_hit.frame_id,
+            context="repl",
+        )
+        json_facade.evaluate(
+            'x',
+            frameId=json_hit.frame_id,
+            context="repl",
+        )
+        json_facade.evaluate(
+            'y = "__"',
+            frameId=json_hit.frame_id,
+            context="repl",
+        )
+        json_facade.evaluate(
+            'y',
+            frameId=json_hit.frame_id,
+            context="repl",
+        )
+
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
 def test_evaluate_block_repl(case_setup):
 
     with case_setup.test_file('_debugger_case_local_variables2.py') as writer:
