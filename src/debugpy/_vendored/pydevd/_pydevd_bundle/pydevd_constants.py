@@ -743,6 +743,19 @@ class Null:
 NULL = Null()
 
 
+class KeyifyList(object):
+
+    def __init__(self, inner, key):
+        self.inner = inner
+        self.key = key
+
+    def __len__(self):
+        return len(self.inner)
+
+    def __getitem__(self, k):
+        return self.key(self.inner[k])
+
+
 def call_only_once(func):
     '''
     To be used as a decorator

@@ -17,7 +17,8 @@ from tests_python.debugger_unittest import (CMD_SET_PROPERTY_TRACE, REASON_CAUGH
     IS_APPVEYOR, wait_for_condition, CMD_GET_FRAME, CMD_GET_BREAKPOINT_EXCEPTION,
     CMD_THREAD_SUSPEND, CMD_STEP_OVER, REASON_STEP_OVER, CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION,
     CMD_THREAD_RESUME_SINGLE_NOTIFICATION, REASON_STEP_RETURN, REASON_STEP_RETURN_MY_CODE,
-    REASON_STEP_OVER_MY_CODE, REASON_STEP_INTO, CMD_THREAD_KILL, IS_PYPY, REASON_STOP_ON_START)
+    REASON_STEP_OVER_MY_CODE, REASON_STEP_INTO, CMD_THREAD_KILL, IS_PYPY, REASON_STOP_ON_START,
+    CMD_SMART_STEP_INTO)
 from _pydevd_bundle.pydevd_constants import IS_WINDOWS, IS_PY38_OR_GREATER, \
     IS_MAC
 from _pydevd_bundle.pydevd_comm_constants import CMD_RELOAD_CODE, CMD_INPUT_REQUESTED
@@ -3475,6 +3476,55 @@ def test_step_return_my_code(case_setup):
         assert hit.name == '<module>'
 
         writer.write_step_return_my_code(hit.thread_id)
+        writer.finished_ok = True
+
+
+def test_smart_step_into_case1(case_setup):
+    with case_setup.test_file('_debugger_case_smart_step_into.py') as writer:
+        line = writer.get_line_index_with_content('break here')
+        writer.write_add_breakpoint(line)
+        writer.write_make_initial_run()
+        hit = writer.wait_for_breakpoint_hit(line=line)
+
+        found = writer.get_step_into_variants(hit.thread_id, hit.frame_id, line, line)
+
+        # Remove the offset to compare (as it changes for each python version)
+        assert [x[:-1] for x in found] == [
+            ('bar', 'false', '14', '1'), ('foo', 'false', '14', '1'), ('call_outer', 'false', '14', '1')]
+
+        # Note: this is just using the name, not really taking using the context.
+        writer.write_smart_step_into(hit.thread_id, line, 'foo')
+        hit = writer.wait_for_breakpoint_hit(reason=CMD_SMART_STEP_INTO)
+        assert hit.line == writer.get_line_index_with_content('on foo mark')
+
+        writer.write_run_thread(hit.thread_id)
+        writer.finished_ok = True
+
+
+def test_smart_step_into_case2(case_setup):
+    with case_setup.test_file('_debugger_case_smart_step_into2.py') as writer:
+        line = writer.get_line_index_with_content('break here')
+        writer.write_add_breakpoint(line)
+        writer.write_make_initial_run()
+        hit = writer.wait_for_breakpoint_hit(line=line)
+
+        found = writer.get_step_into_variants(hit.thread_id, hit.frame_id, line, line)
+
+        # Note: we have multiple 'foo' calls, so, we have to differentiate to
+        # know in which one we want to stop.
+        writer.write_smart_step_into(hit.thread_id, 'offset=' + found[2][-1], 'foo')
+        hit = writer.wait_for_breakpoint_hit(reason=CMD_SMART_STEP_INTO)
+        assert hit.line == writer.get_line_index_with_content('on foo mark')
+
+        writer.write_get_frame(hit.thread_id, hit.frame_id)
+        writer.wait_for_var([
+            (
+                '<var name="arg" type="int" qualifier="__builtin__" value="int: 3"',
+                '<var name="arg" type="int" qualifier="builtins" value="int: 3"',
+            )
+        ])
+
+        writer.write_run_thread(hit.thread_id)
         writer.finished_ok = True
 
 

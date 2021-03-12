@@ -11,9 +11,9 @@ from _pydevd_bundle.pydevd_comm import (InternalGetThreadStack, internal_get_com
     internal_get_description, internal_get_frame, internal_evaluate_expression, InternalConsoleExec,
     internal_get_variable_json, internal_change_variable, internal_change_variable_json,
     internal_evaluate_expression_json, internal_set_expression_json, internal_get_exception_details_json,
-    internal_step_in_thread)
+    internal_step_in_thread, internal_smart_step_into)
 from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, file_system_encoding,
-    CMD_STEP_INTO_MY_CODE, CMD_STOP_ON_START)
+    CMD_STEP_INTO_MY_CODE, CMD_STOP_ON_START, CMD_SMART_STEP_INTO)
 from _pydevd_bundle.pydevd_constants import (get_current_thread_id, set_protocol, get_protocol,
     HTTP_JSON_PROTOCOL, JSON_PROTOCOL, IS_PY3K, DebugInfoHolder, dict_keys, dict_items, IS_WINDOWS)
 from _pydevd_bundle.pydevd_net_command_factory_json import NetCommandFactoryJson
@@ -228,8 +228,28 @@ class PyDevdAPI(object):
         elif thread_id.startswith('__frame__:'):
             sys.stderr.write("Can't make tasklet step command: %s\n" % (thread_id,))
 
+    def request_smart_step_into(self, py_db, seq, thread_id, offset):
+        t = pydevd_find_thread_by_id(thread_id)
+        if t:
+            py_db.post_method_as_internal_command(
+                thread_id, internal_smart_step_into, thread_id, offset, set_additional_thread_info=set_additional_thread_info)
+        elif thread_id.startswith('__frame__:'):
+            sys.stderr.write("Can't set next statement in tasklet: %s\n" % (thread_id,))
+
+    def request_smart_step_into_by_func_name(self, py_db, seq, thread_id, line, func_name):
+        # Same thing as set next, just with a different cmd id.
+        self.request_set_next(py_db, seq, thread_id, CMD_SMART_STEP_INTO, None, line, func_name)
+
     def request_set_next(self, py_db, seq, thread_id, set_next_cmd_id, original_filename, line, func_name):
         '''
+        set_next_cmd_id may actually be one of:
+
+        CMD_RUN_TO_LINE
+        CMD_SET_NEXT_STATEMENT
+
+        CMD_SMART_STEP_INTO -- note: request_smart_step_into is preferred if it's possible
+                               to work with bytecode offset.
+
         :param Optional[str] original_filename:
             If available, the filename may be source translated, otherwise no translation will take
             place (the set next just needs the line afterwards as it executes locally, but for

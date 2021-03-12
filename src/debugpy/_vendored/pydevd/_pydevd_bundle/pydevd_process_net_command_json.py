@@ -15,7 +15,8 @@ from _pydevd_bundle._debug_adapter.pydevd_schema import (
     ProcessEvent, Scope, ScopesResponseBody, SetExpressionResponseBody,
     SetVariableResponseBody, SourceBreakpoint, SourceResponseBody,
     VariablesResponseBody, SetBreakpointsResponseBody, Response,
-    Capabilities, PydevdAuthorizeRequest, Request)
+    Capabilities, PydevdAuthorizeRequest, Request, StepInTargetsResponse, StepInTarget,
+    StepInTargetsResponseBody)
 from _pydevd_bundle.pydevd_api import PyDevdAPI
 from _pydevd_bundle.pydevd_breakpoints import get_exception_class
 from _pydevd_bundle.pydevd_comm_constants import (
@@ -30,6 +31,9 @@ from _pydevd_bundle.pydevd_constants import (PY_IMPL_NAME, DebugInfoHolder, PY_V
     PY_IMPL_VERSION_STR, IS_64BIT_PROCESS)
 from _pydevd_bundle.pydevd_trace_dispatch import USING_CYTHON
 from _pydevd_frame_eval.pydevd_frame_eval_main import USING_FRAME_EVAL
+from _pydevd_bundle.pydevd_comm import internal_get_step_in_targets_json
+from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
+from _pydevd_bundle.pydevd_thread_lifecycle import pydevd_find_thread_by_id
 
 
 def _convert_rules_to_exclude_filters(rules, on_error):
@@ -229,7 +233,7 @@ class PyDevJsonCommandProcessor(object):
             supportsFunctionBreakpoints=False,
             supportsStepBack=False,
             supportsRestartFrame=False,
-            supportsStepInTargetsRequest=False,
+            supportsStepInTargetsRequest=True,
             supportsRestartRequest=False,
             supportsLoadedSourcesRequest=False,
             supportsTerminateThreadsRequest=False,
@@ -541,15 +545,66 @@ class PyDevJsonCommandProcessor(object):
         arguments = request.arguments  # : :type arguments: StepInArguments
         thread_id = arguments.threadId
 
-        if py_db.get_use_libraries_filter():
-            step_cmd_id = CMD_STEP_INTO_MY_CODE
-        else:
-            step_cmd_id = CMD_STEP_INTO
+        target_id = arguments.targetId
+        if target_id is not None:
+            thread = pydevd_find_thread_by_id(thread_id)
+            info = set_additional_thread_info(thread)
+            pydev_smart_step_into_variants = info.pydev_smart_step_into_variants
+            if not pydev_smart_step_into_variants:
+                variables_response = pydevd_base_schema.build_response(
+                    request,
+                    kwargs={
+                        'success': False,
+                        'message': 'Unable to step into target (no targets are saved in the thread info).'
+                    })
+                return NetCommand(CMD_RETURN, 0, variables_response, is_json=True)
 
-        self.api.request_step(py_db, thread_id, step_cmd_id)
+            for variant in pydev_smart_step_into_variants:
+                if variant.offset == target_id:
+                    self.api.request_smart_step_into(py_db, request.seq, thread_id, variant.offset)
+                    break
+            else:
+                variables_response = pydevd_base_schema.build_response(
+                    request,
+                    kwargs={
+                        'success': False,
+                        'message': 'Unable to find step into target %s. Available targets: %s' % (
+                            target_id, [variant.offset for variant in pydev_smart_step_into_variants])
+                    })
+                return NetCommand(CMD_RETURN, 0, variables_response, is_json=True)
+
+        else:
+            if py_db.get_use_libraries_filter():
+                step_cmd_id = CMD_STEP_INTO_MY_CODE
+            else:
+                step_cmd_id = CMD_STEP_INTO
+
+            self.api.request_step(py_db, thread_id, step_cmd_id)
 
         response = pydevd_base_schema.build_response(request)
         return NetCommand(CMD_RETURN, 0, response, is_json=True)
+
+    def on_stepintargets_request(self, py_db, request):
+        '''
+        :param StepInTargetsRequest request:
+        '''
+        frame_id = request.arguments.frameId
+        thread_id = py_db.suspended_frames_manager.get_thread_id_for_variable_reference(
+            frame_id)
+
+        if thread_id is None:
+            body = StepInTargetsResponseBody([])
+            variables_response = pydevd_base_schema.build_response(
+                request,
+                kwargs={
+                    'body': body,
+                    'success': False,
+                    'message': 'Unable to get thread_id from frame_id (thread to get step in targets seems to have resumed already).'
+                })
+            return NetCommand(CMD_RETURN, 0, variables_response, is_json=True)
+
+        py_db.post_method_as_internal_command(
+            thread_id, internal_get_step_in_targets_json, request.seq, thread_id, frame_id, request, set_additional_thread_info)
 
     def on_stepout_request(self, py_db, request):
         '''

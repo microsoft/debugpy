@@ -1974,21 +1974,13 @@ class PyDB(object):
                 # When in a coroutine we switch to CMD_STEP_INTO_COROUTINE.
                 info.pydev_step_cmd = CMD_STEP_INTO_COROUTINE
                 info.pydev_step_stop = frame
-                info.pydev_smart_step_stop = None
                 self.set_trace_for_frame_and_parents(frame)
             else:
                 info.pydev_step_stop = None
-                info.pydev_smart_step_stop = None
                 self.set_trace_for_frame_and_parents(frame)
 
-        elif info.pydev_step_cmd in (CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE):
+        elif info.pydev_step_cmd in (CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE, CMD_SMART_STEP_INTO):
             info.pydev_step_stop = frame
-            info.pydev_smart_step_stop = None
-            self.set_trace_for_frame_and_parents(frame)
-
-        elif info.pydev_step_cmd == CMD_SMART_STEP_INTO:
-            info.pydev_step_stop = None
-            info.pydev_smart_step_stop = frame
             self.set_trace_for_frame_and_parents(frame)
 
         elif info.pydev_step_cmd == CMD_RUN_TO_LINE or info.pydev_step_cmd == CMD_SET_NEXT_STATEMENT:

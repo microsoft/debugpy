@@ -28,7 +28,6 @@ class PyDBAdditionalThreadInfo(object):
         'pydev_original_step_cmd',
         'pydev_step_cmd',
         'pydev_notify_kill',
-        'pydev_smart_step_stop',
         'pydev_django_resolve_frame',
         'pydev_call_from_jinja2',
         'pydev_call_inside_jinja2',
@@ -44,6 +43,14 @@ class PyDBAdditionalThreadInfo(object):
         'top_level_thread_tracer_unhandled',
         'thread_tracer',
         'step_in_initial_location',
+
+        # Used for CMD_SMART_STEP_INTO (to know which smart step into variant to use)
+        'pydev_smart_parent_offset',
+
+        # Used for CMD_SMART_STEP_INTO (list[_pydevd_bundle.pydevd_bytecode_utils.Variant])
+        # Filled when the cmd_get_smart_step_into_variants is requested (so, this is a copy
+        # of the last request for a given thread and pydev_smart_parent_offset relies on it).
+        'pydev_smart_step_into_variants',
     ]
     # ENDIF
 
@@ -61,7 +68,6 @@ class PyDBAdditionalThreadInfo(object):
         self.pydev_step_cmd = -1  # Something as CMD_STEP_INTO, CMD_STEP_OVER, etc.
 
         self.pydev_notify_kill = False
-        self.pydev_smart_step_stop = None
         self.pydev_django_resolve_frame = False
         self.pydev_call_from_jinja2 = None
         self.pydev_call_inside_jinja2 = None
@@ -77,6 +83,8 @@ class PyDBAdditionalThreadInfo(object):
         self.top_level_thread_tracer_unhandled = None
         self.thread_tracer = None
         self.step_in_initial_location = None
+        self.pydev_smart_parent_offset = -1
+        self.pydev_smart_step_into_variants = ()
 
     def get_topmost_frame(self, thread):
         '''
