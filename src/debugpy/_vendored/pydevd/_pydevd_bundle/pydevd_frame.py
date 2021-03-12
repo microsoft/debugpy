@@ -10,6 +10,7 @@ from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, just_raise
 from _pydevd_bundle.pydevd_utils import get_clsname_for_code
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame
 from _pydevd_bundle.pydevd_comm_constants import constant_to_str
+from _pydevd_bundle.pydevd_bytecode_utils import get_smart_step_into_variant_from_frame_offset
 
 # IFDEF CYTHON
 # cython_inline_constant: CMD_STEP_INTO = 107
@@ -520,6 +521,7 @@ class PyDBFrame:
     #     cdef bint is_exception_event;
     #     cdef bint has_exception_breakpoints;
     #     cdef bint can_skip;
+    #     cdef bint stop;
     #     cdef PyDBAdditionalThreadInfo info;
     #     cdef int step_cmd;
     #     cdef int line;
@@ -528,6 +530,7 @@ class PyDBFrame:
     #     cdef bint is_return;
     #     cdef bint should_stop;
     #     cdef dict breakpoints_for_file;
+    #     cdef dict stop_info;
     #     cdef str curr_func_name;
     #     cdef bint exist_result;
     #     cdef dict frame_skips_cache;
@@ -539,6 +542,8 @@ class PyDBFrame:
     #     cdef bint is_coroutine_or_generator;
     #     cdef int bp_line;
     #     cdef object bp;
+    #     cdef int pydev_smart_parent_offset
+    #     cdef tuple pydev_smart_step_into_variants
     # ELSE
     def trace_dispatch(self, frame, event, arg):
     # ENDIF
@@ -675,8 +680,8 @@ class PyDBFrame:
                     # to make a step in or step over at that location).
                     # Note: this is especially troublesome when we're skipping code with the
                     # @DontTrace comment.
-                    if stop_frame is frame and is_return and step_cmd in (CMD_STEP_OVER, CMD_STEP_RETURN, CMD_STEP_OVER_MY_CODE, CMD_STEP_RETURN_MY_CODE):
-                        if step_cmd in (CMD_STEP_OVER, CMD_STEP_RETURN):
+                    if stop_frame is frame and is_return and step_cmd in (CMD_STEP_OVER, CMD_STEP_RETURN, CMD_STEP_OVER_MY_CODE, CMD_STEP_RETURN_MY_CODE, CMD_SMART_STEP_INTO):
+                        if step_cmd in (CMD_STEP_OVER, CMD_STEP_RETURN, CMD_SMART_STEP_INTO):
                             info.pydev_step_cmd = CMD_STEP_INTO
                         else:
                             info.pydev_step_cmd = CMD_STEP_INTO_MY_CODE
@@ -722,6 +727,9 @@ class PyDBFrame:
                         can_skip = True
 
                     elif step_cmd in (CMD_STEP_OVER, CMD_STEP_RETURN, CMD_STEP_OVER_MY_CODE, CMD_STEP_RETURN_MY_CODE) and stop_frame is not frame:
+                        can_skip = True
+
+                    elif step_cmd == CMD_SMART_STEP_INTO and stop_frame is not frame and stop_frame is not frame.f_back:
                         can_skip = True
 
                     elif step_cmd == CMD_STEP_INTO_MY_CODE:
@@ -873,7 +881,7 @@ class PyDBFrame:
 
                 if main_debugger.show_return_values:
                     if is_return and (
-                            (info.pydev_step_cmd in (CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE) and (frame.f_back is stop_frame)) or
+                            (info.pydev_step_cmd in (CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE, CMD_SMART_STEP_INTO) and (frame.f_back is stop_frame)) or
                             (info.pydev_step_cmd in (CMD_STEP_RETURN, CMD_STEP_RETURN_MY_CODE) and (frame is stop_frame)) or
                             (info.pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_COROUTINE)) or
                             (
@@ -990,19 +998,32 @@ class PyDBFrame:
 
                 elif step_cmd == CMD_SMART_STEP_INTO:
                     stop = False
-                    if info.pydev_smart_step_stop is frame:
-                        info.pydev_func_name = '.invalid.'  # Must match the type in cython
-                        info.pydev_smart_step_stop = None
+                    if stop_frame is frame and is_return:
+                        # We're exiting the smart step into initial frame (so, we probably didn't find our target).
+                        stop = True
+                    elif stop_frame is frame.f_back and is_line:
+                        pydev_smart_parent_offset = info.pydev_smart_parent_offset
+                        pydev_smart_step_into_variants = info.pydev_smart_step_into_variants
+                        if pydev_smart_parent_offset >= 0 and pydev_smart_step_into_variants:
+                            # Preferred mode (when the smart step into variants are available
+                            # and the offset is set).
+                            stop = get_smart_step_into_variant_from_frame_offset(frame.f_back.f_lasti, pydev_smart_step_into_variants) is \
+                                   get_smart_step_into_variant_from_frame_offset(pydev_smart_parent_offset, pydev_smart_step_into_variants)
 
-                    if is_line or is_exception_event:
-                        curr_func_name = frame.f_code.co_name
+                        else:
+                            # Only the name/line is available, so, check that.
+                            curr_func_name = frame.f_code.co_name
 
-                        # global context is set with an empty name
-                        if curr_func_name in ('?', '<module>') or curr_func_name is None:
-                            curr_func_name = ''
+                            # global context is set with an empty name
+                            if curr_func_name in ('?', '<module>') or curr_func_name is None:
+                                curr_func_name = ''
+                            if curr_func_name == info.pydev_func_name and stop_frame.f_lineno == info.pydev_next_line:
+                                stop = True
 
-                        if curr_func_name == info.pydev_func_name:
-                            stop = True
+                        if not stop:
+                            # In smart step into, if we didn't hit it in this frame once, that'll
+                            # not be the case next time either, so, disable tracing for this frame.
+                            return None if is_call else NO_FTRACE
 
                 elif step_cmd in (CMD_STEP_RETURN, CMD_STEP_RETURN_MY_CODE):
                     stop = is_return and stop_frame is frame

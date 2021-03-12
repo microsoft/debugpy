@@ -10,7 +10,7 @@ from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_i
 from _pydevd_bundle.pydevd_breakpoints import get_exception_class
 from _pydevd_bundle.pydevd_comm import (
     InternalEvaluateConsoleExpression, InternalConsoleGetCompletions, InternalRunCustomOperation,
-    internal_get_next_statement_targets)
+    internal_get_next_statement_targets, internal_get_smart_step_into_variants)
 from _pydevd_bundle.pydevd_constants import IS_PY3K, NEXT_VALUE_SEPARATOR, IS_WINDOWS, IS_PY2, NULL
 from _pydevd_bundle.pydevd_comm_constants import ID_TO_MEANING, CMD_EXEC_EXPRESSION, CMD_AUTHENTICATE
 from _pydevd_bundle.pydevd_api import PyDevdAPI
@@ -167,7 +167,19 @@ class _PyDevCommandProcessor(object):
 
     cmd_run_to_line = _cmd_set_next
     cmd_set_next_statement = _cmd_set_next
-    cmd_smart_step_into = _cmd_set_next
+
+    def cmd_smart_step_into(self, py_db, cmd_id, seq, text):
+        thread_id, line_or_bytecode_offset, func_name = text.split('\t', 2)
+        if line_or_bytecode_offset.startswith('offset='):
+            # In this case we request the smart step into to stop given the parent frame
+            # and the location of the parent frame bytecode offset and not just the func_name
+            # (this implies that `CMD_GET_SMART_STEP_INTO_VARIANTS` was previously used
+            # to know what are the valid stop points).
+            offset = int(line_or_bytecode_offset[len('offset='):])
+            return self.api.request_smart_step_into(py_db, seq, thread_id, offset)
+        else:
+            # If the offset wasn't passed, just use the line/func_name to do the stop.
+            return self.api.request_smart_step_into_by_func_name(py_db, seq, thread_id, line_or_bytecode_offset, func_name)
 
     def cmd_reload_code(self, py_db, cmd_id, seq, text):
         text = text.strip()
@@ -671,6 +683,12 @@ class _PyDevCommandProcessor(object):
 
         py_db.post_method_as_internal_command(
             thread_id, internal_get_next_statement_targets, seq, thread_id, frame_id)
+
+    def cmd_get_smart_step_into_variants(self, py_db, cmd_id, seq, text):
+        thread_id, frame_id, start_line, end_line = text.split('\t', 3)
+
+        py_db.post_method_as_internal_command(
+            thread_id, internal_get_smart_step_into_variants, seq, thread_id, frame_id, start_line, end_line, set_additional_thread_info=set_additional_thread_info)
 
     def cmd_set_project_roots(self, py_db, cmd_id, seq, text):
         self.api.set_project_roots(py_db, text.split(u'\t'))

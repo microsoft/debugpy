@@ -20,3 +20,5 @@ cdef class PyDBAdditionalThreadInfo:
     cdef public object top_level_thread_tracer_unhandled;
     cdef public object thread_tracer;
     cdef public object step_in_initial_location;
+    cdef public int pydev_smart_parent_offset;
+    cdef public tuple pydev_smart_step_into_variants;

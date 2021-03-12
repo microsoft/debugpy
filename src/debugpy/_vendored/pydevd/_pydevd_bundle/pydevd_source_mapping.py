@@ -1,5 +1,5 @@
 import bisect
-from _pydevd_bundle.pydevd_constants import dict_items, NULL
+from _pydevd_bundle.pydevd_constants import dict_items, NULL, KeyifyList
 import pydevd_file_utils
 
 
@@ -32,19 +32,6 @@ class SourceMappingEntry(object):
             ', '.join('%s=%r' % (attr, getattr(self, attr)) for attr in self.__slots__))
 
     __repr__ = __str__
-
-
-class _KeyifyList(object):
-
-    def __init__(self, inner, key):
-        self.inner = inner
-        self.key = key
-
-    def __len__(self):
-        return len(self.inner)
-
-    def __getitem__(self, k):
-        return self.key(self.inner[k])
 
 
 class SourceMapping(object):
@@ -141,14 +128,14 @@ class SourceMapping(object):
         mappings = self._mappings_to_server.get(absolute_normalized_filename)
         if mappings:
 
-            i = bisect.bisect(_KeyifyList(mappings, lambda entry:entry.line), lineno)
+            i = bisect.bisect(KeyifyList(mappings, lambda entry:entry.line), lineno)
             if i >= len(mappings):
                 i -= 1
 
             if i == 0:
                 entry = mappings[i]
 
-            elif i > 0:
+            else:
                 entry = mappings[i - 1]
 
             if not entry.contains_line(lineno):

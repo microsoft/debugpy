@@ -82,6 +82,9 @@ CMD_STEP_OVER_MY_CODE = 159
 CMD_STEP_RETURN_MY_CODE = 160
 
 CMD_SET_PY_EXCEPTION = 161
+CMD_SET_PATH_MAPPING_JSON = 162
+
+CMD_GET_SMART_STEP_INTO_VARIANTS = 163  # XXX: PyCharm has 160 for this (we're currently incompatible anyways).
 
 CMD_REDIRECT_OUTPUT = 200
 CMD_GET_NEXT_STATEMENT_TARGETS = 201
@@ -1291,6 +1294,9 @@ class AbstractWriterThread(threading.Thread):
     def write_set_next_statement(self, thread_id, line, func_name):
         self.write("%s\t%s\t%s\t%s\t%s" % (CMD_SET_NEXT_STATEMENT, self.next_seq(), thread_id, line, func_name,))
 
+    def write_smart_step_into(self, thread_id, line, func_name):
+        self.write("%s\t%s\t%s\t%s\t%s" % (CMD_SMART_STEP_INTO, self.next_seq(), thread_id, line, func_name,))
+
     def write_debug_console_expression(self, locator):
         self.write("%s\t%s\t%s" % (CMD_EVALUATE_CONSOLE_EXPRESSION, self.next_seq(), locator))
 
@@ -1380,6 +1386,14 @@ class AbstractWriterThread(threading.Thread):
             frame_names = [frame['name'] for frame in msg.thread.frame]
             return frame_names
         return [msg.thread.frame['name']]
+
+    def get_step_into_variants(self, thread_id, frame_id, start_line, end_line):
+        self.write("%s\t%s\t%s\t%s\t%s\t%s" % (CMD_GET_SMART_STEP_INTO_VARIANTS, self.next_seq(), thread_id, frame_id, start_line, end_line))
+        msg = self.wait_for_message(CMD_GET_SMART_STEP_INTO_VARIANTS)
+        if msg.variant:
+            variant_info = [(variant['name'], variant['isVisited'], variant['line'], variant['callOrder'], variant['offset']) for variant in msg.variant]
+            return variant_info
+        return []
 
     def wait_for_thread_join(self, main_thread_id):
 

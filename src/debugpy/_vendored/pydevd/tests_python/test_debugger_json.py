@@ -342,8 +342,8 @@ class JsonFacade(object):
         pause_response = self.wait_for_response(pause_request)
         assert pause_response.success
 
-    def write_step_in(self, thread_id):
-        arguments = pydevd_schema.StepInArguments(threadId=thread_id)
+    def write_step_in(self, thread_id, target_id=None):
+        arguments = pydevd_schema.StepInArguments(threadId=thread_id, targetId=target_id)
         self.wait_for_response(self.write_request(pydevd_schema.StepInRequest(arguments)))
 
     def write_step_next(self, thread_id, wait_for_response=True):
@@ -385,6 +385,19 @@ class JsonFacade(object):
         assert name_to_scopes['Locals'].presentationHint == 'locals'
 
         return name_to_scopes
+
+    def get_step_in_targets(self, frame_id):
+        request = self.write_request(pydevd_schema.StepInTargetsRequest(
+            pydevd_schema.StepInTargetsArguments(frame_id)))
+
+        # : :type response: StepInTargetsResponse
+        response = self.wait_for_response(request)
+
+        # : :type body: StepInTargetsResponseBody
+        body = response.body
+        targets = body.targets
+        # : :type targets: List[StepInTarget]
+        return targets
 
     def get_name_to_var(self, variables_reference):
         variables_response = self.get_variables_response(variables_reference)
@@ -5428,6 +5441,54 @@ def do_something():
 
         json_facade.write_continue()
         json_facade.wait_for_thread_stopped(line=line2)
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
+def test_step_into_target_basic(case_setup):
+    with case_setup.test_file('_debugger_case_smart_step_into.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        bp = writer.get_line_index_with_content('break here')
+        json_facade.write_set_breakpoints([bp])
+        json_facade.write_make_initial_run()
+
+        # At this point we know that 'do_something' was called at least once.
+        hit = json_facade.wait_for_thread_stopped(line=bp)
+
+        # : :type step_in_targets: List[StepInTarget]
+        step_in_targets = json_facade.get_step_in_targets(hit.frame_id)
+        label_to_id = dict((target['label'], target['id']) for target in step_in_targets)
+        assert set(label_to_id.keys()) == {'bar', 'foo', 'call_outer'}
+        json_facade.write_step_in(hit.thread_id, target_id=label_to_id['foo'])
+
+        on_foo_mark_line = writer.get_line_index_with_content('on foo mark')
+        hit = json_facade.wait_for_thread_stopped(reason='step', line=on_foo_mark_line)
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
+def test_step_into_target_multiple(case_setup):
+    with case_setup.test_file('_debugger_case_smart_step_into2.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        bp = writer.get_line_index_with_content('break here')
+        json_facade.write_set_breakpoints([bp])
+        json_facade.write_make_initial_run()
+
+        # At this point we know that 'do_something' was called at least once.
+        hit = json_facade.wait_for_thread_stopped(line=bp)
+
+        # : :type step_in_targets: List[StepInTarget]
+        step_in_targets = json_facade.get_step_in_targets(hit.frame_id)
+        label_to_id = dict((target['label'], target['id']) for target in step_in_targets)
+        assert set(label_to_id.keys()) == {'foo', 'foo (call 2)', 'foo (call 3)', 'foo (call 4)'}
+        json_facade.write_step_in(hit.thread_id, target_id=label_to_id['foo (call 2)'])
+
+        on_foo_mark_line = writer.get_line_index_with_content('on foo mark')
+        hit = json_facade.wait_for_thread_stopped(reason='step', line=on_foo_mark_line)
         json_facade.write_continue()
 
         writer.finished_ok = True

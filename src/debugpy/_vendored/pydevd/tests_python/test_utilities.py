@@ -473,3 +473,26 @@ def test_interrupt_main_thread():
                 actual_timeout, timeout)
     else:
         raise AssertionError('KeyboardInterrupt not generated in main thread.')
+
+
+def test_get_smart_step_into_variant_from_frame_offset():
+    from _pydevd_bundle.pydevd_bytecode_utils import get_smart_step_into_variant_from_frame_offset
+    variants = []
+    assert get_smart_step_into_variant_from_frame_offset(0, variants) is None
+
+    class DummyVariant(object):
+
+        def __init__(self, offset):
+            self.offset = offset
+
+    variants.append(DummyVariant(1))
+    assert get_smart_step_into_variant_from_frame_offset(0, variants) is None
+    assert get_smart_step_into_variant_from_frame_offset(1, variants) is variants[0]
+    assert get_smart_step_into_variant_from_frame_offset(2, variants) is variants[0]
+
+    variants.append(DummyVariant(3))
+    assert get_smart_step_into_variant_from_frame_offset(0, variants) is None
+    assert get_smart_step_into_variant_from_frame_offset(1, variants) is variants[0]
+    assert get_smart_step_into_variant_from_frame_offset(2, variants) is variants[0]
+    assert get_smart_step_into_variant_from_frame_offset(3, variants) is variants[1]
+    assert get_smart_step_into_variant_from_frame_offset(4, variants) is variants[1]
