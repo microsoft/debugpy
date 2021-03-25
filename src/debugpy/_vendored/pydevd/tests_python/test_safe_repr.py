@@ -5,7 +5,7 @@ import re
 import pytest
 from _pydevd_bundle.pydevd_safe_repr import SafeRepr
 import json
-from _pydevd_bundle.pydevd_constants import IS_JYTHON, IS_PY2
+from _pydevd_bundle.pydevd_constants import IS_JYTHON, IS_PY2, IS_PY36_OR_GREATER
 
 try:
     import numpy as np
@@ -400,7 +400,10 @@ class TestDicts(SafeReprTestBase):
         d1['c'] = None
         d1['b'] = None
         d1['a'] = None
-        self.assert_saferepr(d1, "{'a': None, 'b': None, 'c': None}")
+        if IS_PY36_OR_GREATER:
+            self.assert_saferepr(d1, "{'c': None, 'b': None, 'a': None}")
+        else:
+            self.assert_saferepr(d1, "{'a': None, 'b': None, 'c': None}")
 
     @pytest.mark.skipif(sys.version_info < (3, 0), reason='Py3 specific test')
     def test_unsortable_keys(self):

@@ -4,7 +4,7 @@
 
 # Gotten from ptvsd for supporting the format expected there.
 import sys
-from _pydevd_bundle.pydevd_constants import IS_PY2
+from _pydevd_bundle.pydevd_constants import IS_PY2, IS_PY36_OR_GREATER
 import locale
 from _pydev_bundle import pydev_log
 
@@ -248,10 +248,15 @@ class SafeRepr(object):
         count = self.maxcollection[level]
         yield_comma = False
 
-        try:
-            sorted_keys = sorted(obj)
-        except Exception:
+        if IS_PY36_OR_GREATER:
+            # On Python 3.6 (onwards) dictionaries now keep
+            # insertion order.
             sorted_keys = list(obj)
+        else:
+            try:
+                sorted_keys = sorted(obj)
+            except Exception:
+                sorted_keys = list(obj)
 
         for key in sorted_keys:
             if yield_comma:
