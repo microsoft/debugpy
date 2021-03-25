@@ -17,7 +17,13 @@ import traceback
 import weakref
 import getpass as getpass_mod
 import functools
-import pydevd_file_utils
+try:
+    import pydevd_file_utils
+except ImportError:
+    # On the first import of a pydevd module, add pydevd itself to the PYTHONPATH
+    # if its dependencies cannot be imported.
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    import pydevd_file_utils
 
 from _pydev_bundle import pydev_imports, pydev_log
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
@@ -697,7 +703,7 @@ class PyDB(object):
                             if glob_matches_path(absolute_filename, include_pattern):
                                 cache[absolute_filename] = True
                                 return True
-                            
+
                         # Then exclude what we don't want
                         for exclude_pattern in exclude_patterns:
                             if glob_matches_path(absolute_filename, exclude_pattern):
@@ -717,7 +723,7 @@ class PyDB(object):
                             if glob_matches_path(absolute_filename, include_pattern):
                                 cache[absolute_filename] = True
                                 return True
-                            
+
                         # Then exclude what we don't want
                         for exclude_pattern in exclude_patterns:
                             if glob_matches_path(absolute_filename, exclude_pattern):
