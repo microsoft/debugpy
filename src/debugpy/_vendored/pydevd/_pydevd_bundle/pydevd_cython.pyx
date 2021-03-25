@@ -179,6 +179,11 @@ TRACE_PROPERTY = 'pydevd_traceproperty.py'
 
 import dis
 
+try:
+    StopAsyncIteration
+except NameError:
+    StopAsyncIteration = StopIteration
+
 
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
 cdef is_unhandled_exception(container_obj, py_db, frame, int last_raise_line, set raise_lines):
@@ -347,7 +352,7 @@ cdef class PyDBFrame:
                     if exception == SystemExit and main_debugger.ignore_system_exit_code(value):
                         pass
 
-                    elif exception in (GeneratorExit, StopIteration):
+                    elif exception in (GeneratorExit, StopIteration, StopAsyncIteration):
                         # These exceptions are control-flow related (they work as a generator
                         # pause), so, we shouldn't stop on them.
                         pass
