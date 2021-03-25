@@ -20,7 +20,7 @@ from _pydevd_bundle.pydevd_constants import (int_types, IS_64BIT_PROCESS,
     IS_PYPY, GENERATED_LEN_ATTR_NAME, IS_WINDOWS, IS_LINUX, IS_MAC)
 from tests_python import debugger_unittest
 from tests_python.debug_constants import TEST_CHERRYPY, IS_PY2, TEST_DJANGO, TEST_FLASK, IS_PY26, \
-    IS_PY27, IS_CPYTHON, TEST_GEVENT, TEST_CYTHON
+    IS_PY27, IS_CPYTHON, TEST_GEVENT, TEST_CYTHON, IS_PY36_OR_GREATER
 from tests_python.debugger_unittest import (IS_JYTHON, IS_APPVEYOR, overrides,
     get_free_port, wait_for_condition)
 from _pydevd_bundle.pydevd_utils import DAPGrouper
@@ -963,6 +963,31 @@ def test_case_unhandled_exception_just_my_code(case_setup, target, just_my_code)
             assert frames[0]['source']['path'].endswith('my_filename.pyx')
 
         json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not IS_PY36_OR_GREATER, reason='Python 3.6 onwards required for test.')
+def test_case_stop_async_iteration_exception(case_setup):
+
+    def get_environ(self):
+        env = os.environ.copy()
+        env["IDE_PROJECT_ROOTS"] = os.path.dirname(self.TEST_FILE) + os.pathsep + os.path.abspath('.')
+        return env
+
+    with case_setup.test_file(
+            '_debugger_case_stop_async_iteration.py',
+            get_environ=get_environ,
+        ) as writer:
+        json_facade = JsonFacade(writer)
+
+        # We don't want to hit common library exceptions here.
+        json_facade.write_launch(justMyCode=True)
+
+        json_facade.write_set_exception_breakpoints(['raised'])
+        json_facade.write_make_initial_run()
+
+        # Just making sure that no exception breakpoints are hit.
 
         writer.finished_ok = True
 
