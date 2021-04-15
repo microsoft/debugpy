@@ -407,6 +407,9 @@ def patch_args(args, is_exec=False):
         new_args.extend(unquoted_args[:first_non_vm_index])
         if before_module_flag:
             new_args.append(before_module_flag)
+
+        add_module_at = len(new_args) + 1
+
         new_args.extend(setup_to_argv(
             _get_setup_updated_with_protocol_and_ppid(SetupHolder.setup, is_exec=is_exec)
         ))
@@ -416,7 +419,7 @@ def patch_args(args, is_exec=False):
             assert module_name_i_start != -1
             assert module_name_i_end != -1
             # Always after 'pydevd' (i.e.: pydevd "--module" --multiprocess ...)
-            new_args.insert(2 if not before_module_flag else 3, '--module')
+            new_args.insert(add_module_at, '--module')
             new_args.append(module_name)
             new_args.extend(unquoted_args[module_name_i_end + 1:])
 

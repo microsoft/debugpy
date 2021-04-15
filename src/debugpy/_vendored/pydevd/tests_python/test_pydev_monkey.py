@@ -281,6 +281,34 @@ def test_monkey_patch_args_module():
         SetupHolder.setup = original
 
 
+def test_monkey_patch_args_unbuffered_module():
+    original = SetupHolder.setup
+
+    try:
+        SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'multiprocess': True, 'skip-notify-stdin': True}
+        check = ['C:\\bin\\python.exe', '-u', '-m', 'test']
+        from _pydevd_bundle.pydevd_command_line_handling import get_pydevd_file
+        assert pydev_monkey.patch_args(check) == [
+            'C:\\bin\\python.exe',
+            '-u',
+            get_pydevd_file(),
+            '--module',
+            '--port',
+            '0',
+            '--ppid',
+            str(os.getpid()),
+            '--client',
+            '127.0.0.1',
+            '--multiprocess',
+            '--skip-notify-stdin',
+            '--protocol-quoted-line',
+            '--file',
+            'test',
+        ]
+    finally:
+        SetupHolder.setup = original
+
+
 def test_monkey_patch_args_module_inline():
     original = SetupHolder.setup
 
