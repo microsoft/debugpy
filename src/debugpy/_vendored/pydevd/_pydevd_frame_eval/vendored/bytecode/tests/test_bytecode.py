@@ -4,6 +4,7 @@ from tests_python.debugger_unittest import IS_PY36_OR_GREATER, IS_CPYTHON
 from tests_python.debug_constants import TEST_CYTHON
 pytestmark = pytest.mark.skipif(not IS_PY36_OR_GREATER or not IS_CPYTHON or not TEST_CYTHON, reason='Requires CPython >= 3.6')
 #!/usr/bin/env python3
+import sys
 import textwrap
 import unittest
 from _pydevd_frame_eval.vendored.bytecode import Label, Instr, FreeVar, Bytecode, SetLineno, ConcreteInstr
@@ -257,6 +258,211 @@ class BytecodeTests(TestCase):
 
         co = code.to_code(stacksize=42)
         self.assertEqual(co.co_stacksize, 42)
+
+    def test_negative_size_unary(self):
+        opnames = (
+            "UNARY_POSITIVE",
+            "UNARY_NEGATIVE",
+            "UNARY_NOT",
+            "UNARY_INVERT",
+        )
+        for opname in opnames:
+            with self.subTest():
+                code = Bytecode()
+                code.first_lineno = 1
+                code.extend([Instr(opname)])
+                with self.assertRaises(RuntimeError):
+                    code.compute_stacksize()
+
+    def test_negative_size_unary_with_disable_check_of_pre_and_post(self):
+        opnames = (
+            "UNARY_POSITIVE",
+            "UNARY_NEGATIVE",
+            "UNARY_NOT",
+            "UNARY_INVERT",
+        )
+        for opname in opnames:
+            with self.subTest():
+                code = Bytecode()
+                code.first_lineno = 1
+                code.extend([Instr(opname)])
+                co = code.to_code(check_pre_and_post=False)
+                self.assertEqual(co.co_stacksize, 0)
+
+    def test_negative_size_binary(self):
+        opnames = (
+            "BINARY_POWER",
+            "BINARY_MULTIPLY",
+            "BINARY_MATRIX_MULTIPLY",
+            "BINARY_FLOOR_DIVIDE",
+            "BINARY_TRUE_DIVIDE",
+            "BINARY_MODULO",
+            "BINARY_ADD",
+            "BINARY_SUBTRACT",
+            "BINARY_SUBSCR",
+            "BINARY_LSHIFT",
+            "BINARY_RSHIFT",
+            "BINARY_AND",
+            "BINARY_XOR",
+            "BINARY_OR",
+        )
+        for opname in opnames:
+            with self.subTest():
+                code = Bytecode()
+                code.first_lineno = 1
+                code.extend([Instr("LOAD_CONST", 1), Instr(opname)])
+                with self.assertRaises(RuntimeError):
+                    code.compute_stacksize()
+
+    def test_negative_size_binary_with_disable_check_of_pre_and_post(self):
+        opnames = (
+            "BINARY_POWER",
+            "BINARY_MULTIPLY",
+            "BINARY_MATRIX_MULTIPLY",
+            "BINARY_FLOOR_DIVIDE",
+            "BINARY_TRUE_DIVIDE",
+            "BINARY_MODULO",
+            "BINARY_ADD",
+            "BINARY_SUBTRACT",
+            "BINARY_SUBSCR",
+            "BINARY_LSHIFT",
+            "BINARY_RSHIFT",
+            "BINARY_AND",
+            "BINARY_XOR",
+            "BINARY_OR",
+        )
+        for opname in opnames:
+            with self.subTest():
+                code = Bytecode()
+                code.first_lineno = 1
+                code.extend([Instr("LOAD_CONST", 1), Instr(opname)])
+                co = code.to_code(check_pre_and_post=False)
+                self.assertEqual(co.co_stacksize, 1)
+
+    def test_negative_size_call(self):
+        code = Bytecode()
+        code.first_lineno = 1
+        code.extend([Instr("CALL_FUNCTION", 0)])
+        with self.assertRaises(RuntimeError):
+            code.compute_stacksize()
+
+    def test_negative_size_unpack(self):
+        opnames = (
+            "UNPACK_SEQUENCE",
+            "UNPACK_EX",
+        )
+        for opname in opnames:
+            with self.subTest():
+                code = Bytecode()
+                code.first_lineno = 1
+                code.extend([Instr(opname, 1)])
+                with self.assertRaises(RuntimeError):
+                    code.compute_stacksize()
+
+    def test_negative_size_build(self):
+        opnames = (
+            "BUILD_TUPLE",
+            "BUILD_LIST",
+            "BUILD_SET",
+        )
+        if sys.version_info >= (3, 6):
+            opnames = (*opnames, "BUILD_STRING")
+
+        for opname in opnames:
+            with self.subTest():
+                code = Bytecode()
+                code.first_lineno = 1
+                code.extend([Instr(opname, 1)])
+                with self.assertRaises(RuntimeError):
+                    code.compute_stacksize()
+
+    def test_negative_size_build_map(self):
+        code = Bytecode()
+        code.first_lineno = 1
+        code.extend([Instr("LOAD_CONST", 1), Instr("BUILD_MAP", 1)])
+        with self.assertRaises(RuntimeError):
+            code.compute_stacksize()
+
+    def test_negative_size_build_map_with_disable_check_of_pre_and_post(self):
+        code = Bytecode()
+        code.first_lineno = 1
+        code.extend([Instr("LOAD_CONST", 1), Instr("BUILD_MAP", 1)])
+        co = code.to_code(check_pre_and_post=False)
+        self.assertEqual(co.co_stacksize, 1)
+
+    @unittest.skipIf(sys.version_info < (3, 6), "Inexistent opcode")
+    def test_negative_size_build_const_map(self):
+        code = Bytecode()
+        code.first_lineno = 1
+        code.extend([Instr("LOAD_CONST", ("a",)), Instr("BUILD_CONST_KEY_MAP", 1)])
+        with self.assertRaises(RuntimeError):
+            code.compute_stacksize()
+
+    @unittest.skipIf(sys.version_info < (3, 6), "Inexistent opcode")
+    def test_negative_size_build_const_map_with_disable_check_of_pre_and_post(self):
+        code = Bytecode()
+        code.first_lineno = 1
+        code.extend([Instr("LOAD_CONST", ("a",)), Instr("BUILD_CONST_KEY_MAP", 1)])
+        co = code.to_code(check_pre_and_post=False)
+        self.assertEqual(co.co_stacksize, 1)
+
+    def test_empty_dup(self):
+        code = Bytecode()
+        code.first_lineno = 1
+        code.extend([Instr("DUP_TOP")])
+        with self.assertRaises(RuntimeError):
+            code.compute_stacksize()
+
+    def test_not_enough_dup(self):
+        code = Bytecode()
+        code.first_lineno = 1
+        code.extend([Instr("LOAD_CONST", 1), Instr("DUP_TOP_TWO")])
+        with self.assertRaises(RuntimeError):
+            code.compute_stacksize()
+
+    def test_not_enough_rot(self):
+        opnames = ["ROT_TWO", "ROT_THREE"]
+        if sys.version_info >= (3, 8):
+            opnames.append("ROT_FOUR")
+        for opname in opnames:
+            with self.subTest():
+                code = Bytecode()
+                code.first_lineno = 1
+                code.extend([Instr("LOAD_CONST", 1), Instr(opname)])
+                with self.assertRaises(RuntimeError):
+                    code.compute_stacksize()
+
+    def test_not_enough_rot_with_disable_check_of_pre_and_post(self):
+        opnames = ["ROT_TWO", "ROT_THREE"]
+        if sys.version_info >= (3, 8):
+            opnames.append("ROT_FOUR")
+        for opname in opnames:
+            with self.subTest():
+                code = Bytecode()
+                code.first_lineno = 1
+                code.extend([Instr("LOAD_CONST", 1), Instr(opname)])
+                co = code.to_code(check_pre_and_post=False)
+                self.assertEqual(co.co_stacksize, 1)
+
+    def test_for_iter_stack_effect_computation(self):
+        with self.subTest():
+            code = Bytecode()
+            code.first_lineno = 1
+            lab1 = Label()
+            lab2 = Label()
+            code.extend(
+                [
+                    lab1,
+                    Instr("FOR_ITER", lab2),
+                    Instr("STORE_FAST", "i"),
+                    Instr("JUMP_ABSOLUTE", lab1),
+                    lab2,
+                ]
+            )
+            with self.assertRaises(RuntimeError):
+                # Use compute_stacksize since the code is so broken that conversion
+                # to from concrete is actually broken
+                code.compute_stacksize(check_pre_and_post=False)
 
 
 if __name__ == "__main__":

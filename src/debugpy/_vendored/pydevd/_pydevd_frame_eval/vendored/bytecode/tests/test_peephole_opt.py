@@ -12,6 +12,7 @@ from unittest import mock
 
 
 class Tests(TestCase):
+
     maxDiff = 80 * 100
 
     def optimize_blocks(self, code):

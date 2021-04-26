@@ -16,13 +16,6 @@ pip install -U "setuptools>=0.9"
 pip install -U "pip>=1.4" "wheel>=0.21" twine
 conda deactivate
 
-conda create -y -f -n py35_32 python=3.5 cython numpy nose ipython pip
-activate py35_32
-pip install "django>=1.9"
-pip install -U "setuptools>=0.9"
-pip install -U "pip>=1.4" "wheel>=0.21" twine
-conda deactivate
-
 conda create -y -f -n py36_32 python=3.6 cython numpy nose ipython pip
 activate py36_32
 pip install "django>=1.9"
@@ -44,18 +37,19 @@ pip install -U "setuptools>=0.9"
 pip install -U "pip>=1.4" "wheel>=0.21" twine
 conda deactivate
 
+conda create -y -f -n py39_32 python=3.9 cython pip
+activate py39_32
+pip install "django>=1.9"
+pip install -U "setuptools>=0.9"
+pip install -U "pip>=1.4" "wheel>=0.21" twine
+conda deactivate
+
+
 set CONDA_FORCE_32BIT=
 
 conda create -y -f -n py27_64 python=2.7 cython numpy nose ipython pip
 activate py27_64
 pip install "django>=1.7,<1.8"
-pip install -U "setuptools>=0.9"
-pip install -U "pip>=1.4" "wheel>=0.21" twine
-conda deactivate
-
-conda create -y -f -n py35_64 python=3.5 cython numpy nose ipython pip
-activate py35_64
-pip install "django>=1.9"
 pip install -U "setuptools>=0.9"
 pip install -U "pip>=1.4" "wheel>=0.21" twine
 conda deactivate
@@ -82,15 +76,18 @@ pip install -U "setuptools>=0.9"
 pip install -U "pip>=1.4" "wheel>=0.21" twine
 conda deactivate
 
+conda create -y -f -n py39_64 python=3.9 cython pip
+activate py39_64
+pip install "django>=1.9"
+pip install -U "setuptools>=0.9"
+pip install -U "pip>=1.4" "wheel>=0.21" twine
+conda deactivate
+
 ### UPDATE CYTHON
 
 set CONDA_FORCE_32BIT=1
 
 activate py27_32
-conda update -y cython
-conda deactivate
-
-activate py35_32
 conda update -y cython
 conda deactivate
 
@@ -106,13 +103,13 @@ activate py38_32
 conda update -y cython
 conda deactivate
 
-set CONDA_FORCE_32BIT=
-
-activate py27_64
+activate py39_32
 conda update -y cython
 conda deactivate
 
-activate py35_64
+set CONDA_FORCE_32BIT=
+
+activate py27_64
 conda update -y cython
 conda deactivate
 
@@ -125,6 +122,10 @@ conda update -y cython
 conda deactivate
 
 activate py38_64
+conda update -y cython
+conda deactivate
+
+activate py39_64
 conda update -y cython
 conda deactivate
 
@@ -163,11 +164,6 @@ python setup.py sdist bdist_wheel
 conda deactivate
 dir dist
 
-activate py35_32
-python setup.py sdist bdist_wheel
-conda deactivate
-dir dist
-
 activate py36_32
 python setup.py sdist bdist_wheel
 conda deactivate
@@ -179,6 +175,11 @@ conda deactivate
 dir dist
 
 activate py38_32
+python setup.py sdist bdist_wheel
+conda deactivate
+dir dist
+
+activate py39_32
 python setup.py sdist bdist_wheel
 conda deactivate
 dir dist
@@ -208,9 +209,14 @@ python setup.py sdist bdist_wheel
 conda deactivate
 dir dist
 
+activate py39_64
+python setup.py sdist bdist_wheel
+conda deactivate
+dir dist
+
 # Note: uploading with twine gives an error in the end, but apparently it works (check final result in pypi).
 twine upload dist/pydevd*
 
-git tag pydev_debugger_2_1_0 -a -m "PyDev.Debugger 2.1.0"
+git tag pydev_debugger_2_3_0 -a -m "PyDev.Debugger 2.3.0"
 git push --tags
 

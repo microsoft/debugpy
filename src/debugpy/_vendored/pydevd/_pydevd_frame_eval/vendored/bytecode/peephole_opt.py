@@ -7,7 +7,12 @@ import operator
 import sys
 from _pydevd_frame_eval.vendored.bytecode import Instr, Bytecode, ControlFlowGraph, BasicBlock, Compare
 
-JUMPS_ON_TRUE = frozenset(("POP_JUMP_IF_TRUE", "JUMP_IF_TRUE_OR_POP",))
+JUMPS_ON_TRUE = frozenset(
+    (
+        "POP_JUMP_IF_TRUE",
+        "JUMP_IF_TRUE_OR_POP",
+    )
+)
 
 NOT_COMPARE = {
     Compare.IN: Compare.NOT_IN,

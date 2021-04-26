@@ -88,13 +88,21 @@ from _pydevd_bundle.pydevd_dont_trace_files import PYDEV_FILE
 import dis
 from _pydevd_bundle.pydevd_frame_utils import create_frames_list_from_exception_cause
 import pydevd_file_utils
+import itertools
+from functools import partial
 try:
     from urllib import quote_plus, unquote_plus  # @UnresolvedImport
 except:
     from urllib.parse import quote_plus, unquote_plus  # @Reimport @UnresolvedImport
 
 import pydevconsole
-from _pydevd_bundle import pydevd_vars, pydevd_io, pydevd_reload, pydevd_bytecode_utils
+from _pydevd_bundle import pydevd_vars, pydevd_io, pydevd_reload
+
+try:
+    from _pydevd_bundle import pydevd_bytecode_utils
+except ImportError:
+    pydevd_bytecode_utils = None  # i.e.: Not available on Py2.
+
 from _pydevd_bundle import pydevd_xml
 from _pydevd_bundle import pydevd_vm_type
 import sys
@@ -689,7 +697,7 @@ def internal_step_in_thread(py_db, thread_id, cmd_id, set_additional_thread_info
         resume_threads('*', except_thread=thread_to_step)
 
 
-def internal_smart_step_into(py_db, thread_id, offset, set_additional_thread_info):
+def internal_smart_step_into(py_db, thread_id, offset, child_offset, set_additional_thread_info):
     thread_to_step = pydevd_find_thread_by_id(thread_id)
     if thread_to_step:
         info = set_additional_thread_info(thread_to_step)
@@ -697,6 +705,7 @@ def internal_smart_step_into(py_db, thread_id, offset, set_additional_thread_inf
         info.pydev_step_cmd = CMD_SMART_STEP_INTO
         info.pydev_step_stop = None
         info.pydev_smart_parent_offset = int(offset)
+        info.pydev_smart_child_offset = int(child_offset)
         info.pydev_state = STATE_RUN
 
     if py_db.stepping_resumes_all_threads:
@@ -736,6 +745,7 @@ class InternalSetNextStatementThread(InternalThreadCommand):
             info.pydev_func_name = self.func_name
             info.pydev_message = str(self.seq)
             info.pydev_smart_parent_offset = -1
+            info.pydev_smart_child_offset = -1
             info.pydev_state = STATE_RUN
 
 
@@ -965,7 +975,11 @@ def internal_get_smart_step_into_variants(dbg, seq, thread_id, frame_id, start_l
             dbg.writer.add_command(cmd)
             return
 
-        variants = pydevd_bytecode_utils.calculate_smart_step_into_variants(frame, int(start_line), int(end_line))
+        if pydevd_bytecode_utils is None:
+            variants = []
+        else:
+            variants = pydevd_bytecode_utils.calculate_smart_step_into_variants(frame, int(start_line), int(end_line))
+
         info = set_additional_thread_info(thread)
 
         # Store the last request (may be used afterwards when stepping).
@@ -973,13 +987,26 @@ def internal_get_smart_step_into_variants(dbg, seq, thread_id, frame_id, start_l
         xml = "<xml>"
 
         for variant in variants:
-            xml += '<variant name="%s" isVisited="%s" line="%s" offset="%s" callOrder="%s"/>' % (
-                quote(variant.name),
-                str(variant.is_visited).lower(),
-                variant.line,
-                variant.offset,
-                variant.call_order,
-            )
+            if variant.children_variants:
+                for child_variant in variant.children_variants:
+                    # If there are child variants, the current one is just an intermediary, so,
+                    # just create variants for the child (notifying properly about the parent too).
+                    xml += '<variant name="%s" isVisited="%s" line="%s" offset="%s" childOffset="%s" callOrder="%s"/>' % (
+                        quote(child_variant.name),
+                        str(child_variant.is_visited).lower(),
+                        child_variant.line,
+                        variant.offset,
+                        child_variant.offset,
+                        child_variant.call_order,
+                    )
+            else:
+                xml += '<variant name="%s" isVisited="%s" line="%s" offset="%s" childOffset="-1" callOrder="%s"/>' % (
+                    quote(variant.name),
+                    str(variant.is_visited).lower(),
+                    variant.line,
+                    variant.offset,
+                    variant.call_order,
+                )
 
         xml += "</xml>"
         cmd = NetCommand(CMD_GET_SMART_STEP_INTO_VARIANTS, seq, xml)
@@ -1013,21 +1040,43 @@ def internal_get_step_in_targets_json(dbg, seq, thread_id, frame_id, request, se
 
         start_line = 0
         end_line = 99999999
-        variants = pydevd_bytecode_utils.calculate_smart_step_into_variants(frame, start_line, end_line)
+        if pydevd_bytecode_utils is None:
+            variants = []
+        else:
+            variants = pydevd_bytecode_utils.calculate_smart_step_into_variants(frame, start_line, end_line)
+
         info = set_additional_thread_info(thread)
         targets = []
+        counter = itertools.count(0)
+        target_id_to_variant = {}
         for variant in variants:
             if not variant.is_visited:
-                if variant.call_order > 1:
-                    targets.append(StepInTarget(id=variant.offset, label='%s (call %s)' % (variant.name, variant.call_order),))
-                else:
-                    targets.append(StepInTarget(id=variant.offset, label=variant.name))
+                if variant.children_variants:
+                    for child_variant in variant.children_variants:
+                        target_id = next(counter)
 
-                if len(targets) >= 15:  # Show at most 15 targets.
-                    break
+                        if child_variant.call_order > 1:
+                            targets.append(StepInTarget(id=target_id, label='%s (call %s)' % (child_variant.name, child_variant.call_order),))
+                        else:
+                            targets.append(StepInTarget(id=target_id, label=child_variant.name))
+                        target_id_to_variant[target_id] = child_variant
+
+                        if len(targets) >= 15:  # Show at most 15 targets.
+                            break
+                else:
+                    target_id = next(counter)
+                    if variant.call_order > 1:
+                        targets.append(StepInTarget(id=target_id, label='%s (call %s)' % (variant.name, variant.call_order),))
+                    else:
+                        targets.append(StepInTarget(id=target_id, label=variant.name))
+                    target_id_to_variant[target_id] = variant
+
+                    if len(targets) >= 15:  # Show at most 15 targets.
+                        break
 
         # Store the last request (may be used afterwards when stepping).
         info.pydev_smart_step_into_variants = tuple(variants)
+        info.target_id_to_smart_step_into_variant = target_id_to_variant
 
         body = StepInTargetsResponseBody(targets=targets)
         response = pydevd_base_schema.build_response(request, kwargs={'body': body})

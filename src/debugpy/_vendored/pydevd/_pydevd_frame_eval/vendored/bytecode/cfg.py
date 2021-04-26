@@ -51,9 +51,7 @@ class BasicBlock(_bytecode._InstrList):
         return new
 
     def legalize(self, first_lineno):
-        """Check that all the element of the list are valid and remove SetLineno.
-
-        """
+        """Check that all the element of the list are valid and remove SetLineno."""
         lineno_pos = []
         set_lineno = None
         current_lineno = first_lineno
@@ -88,8 +86,8 @@ class BasicBlock(_bytecode._InstrList):
         return target_block
 
 
-def _compute_stack_size(block, size, maxsize):
-    """ Generator used to reduce the use of function stacks.
+def _compute_stack_size(block, size, maxsize, *, check_pre_and_post=True):
+    """Generator used to reduce the use of function stacks.
 
     This allows to avoid nested recursion and allow to treat more cases.
 
@@ -119,11 +117,12 @@ def _compute_stack_size(block, size, maxsize):
     if block.seen or block.startsize >= size:
         yield maxsize
 
-    def update_size(delta, size, maxsize):
-        size += delta
+    def update_size(pre_delta, post_delta, size, maxsize):
+        size += pre_delta
         if size < 0:
             msg = "Failed to compute stacksize, got negative size"
             raise RuntimeError(msg)
+        size += post_delta
         maxsize = max(maxsize, size)
         return size, maxsize
 
@@ -141,9 +140,12 @@ def _compute_stack_size(block, size, maxsize):
         # For instructions with a jump first compute the stacksize required when the
         # jump is taken.
         if instr.has_jump():
-            taken_size, maxsize = update_size(
-                instr.stack_effect(jump=True), size, maxsize
+            effect = (
+                instr.pre_and_post_stack_effect(jump=True)
+                if check_pre_and_post
+                else (instr.stack_effect(jump=True), 0)
             )
+            taken_size, maxsize = update_size(*effect, size, maxsize)
             # Yield the parameters required to compute the stacksize required
             # by the block to which the jumnp points to and resume when we now
             # the maxsize.
@@ -156,7 +158,12 @@ def _compute_stack_size(block, size, maxsize):
                 yield maxsize
 
         # jump=False: non-taken path of jumps, or any non-jump
-        size, maxsize = update_size(instr.stack_effect(jump=False), size, maxsize)
+        effect = (
+            instr.pre_and_post_stack_effect(jump=False)
+            if check_pre_and_post
+            else (instr.stack_effect(jump=False), 0)
+        )
+        size, maxsize = update_size(*effect, size, maxsize)
 
     if block.next_block:
         maxsize = yield block.next_block, size, maxsize
@@ -175,9 +182,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         self.add_block()
 
     def legalize(self):
-        """Legalize all blocks.
-
-        """
+        """Legalize all blocks."""
         current_lineno = self.first_lineno
         for block in self._blocks:
             current_lineno = block.legalize(current_lineno)
@@ -198,7 +203,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         self._add_block(block)
         return block
 
-    def compute_stacksize(self):
+    def compute_stacksize(self, *, check_pre_and_post=True):
         """Compute the stack size by iterating through the blocks
 
         The implementation make use of a generator function to avoid issue with
@@ -215,7 +220,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             block.startsize = -32768  # INT_MIN
 
         # Create a generator/coroutine responsible of dealing with the first block
-        coro = _compute_stack_size(self[0], 0, 0)
+        coro = _compute_stack_size(self[0], 0, 0, check_pre_and_post=check_pre_and_post)
 
         # Create a list of generator that have not yet been exhausted
         coroutines = []
@@ -237,7 +242,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                 # Otherwise we enter a new block and we store the generator under
                 # use and create a new one to process the new block
                 push_coroutine(coro)
-                coro = _compute_stack_size(*args)
+                coro = _compute_stack_size(*args, check_pre_and_post=check_pre_and_post)
 
         except IndexError:
             # The exception occurs when all the generators have been exhausted

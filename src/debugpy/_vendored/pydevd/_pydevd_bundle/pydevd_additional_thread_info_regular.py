@@ -46,11 +46,13 @@ class PyDBAdditionalThreadInfo(object):
 
         # Used for CMD_SMART_STEP_INTO (to know which smart step into variant to use)
         'pydev_smart_parent_offset',
+        'pydev_smart_child_offset',
 
         # Used for CMD_SMART_STEP_INTO (list[_pydevd_bundle.pydevd_bytecode_utils.Variant])
         # Filled when the cmd_get_smart_step_into_variants is requested (so, this is a copy
-        # of the last request for a given thread and pydev_smart_parent_offset relies on it).
+        # of the last request for a given thread and pydev_smart_parent_offset/pydev_smart_child_offset relies on it).
         'pydev_smart_step_into_variants',
+        'target_id_to_smart_step_into_variant',
     ]
     # ENDIF
 
@@ -84,7 +86,9 @@ class PyDBAdditionalThreadInfo(object):
         self.thread_tracer = None
         self.step_in_initial_location = None
         self.pydev_smart_parent_offset = -1
+        self.pydev_smart_child_offset = -1
         self.pydev_smart_step_into_variants = ()
+        self.target_id_to_smart_step_into_variant = {}
 
     def get_topmost_frame(self, thread):
         '''

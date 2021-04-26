@@ -1391,7 +1391,10 @@ class AbstractWriterThread(threading.Thread):
         self.write("%s\t%s\t%s\t%s\t%s\t%s" % (CMD_GET_SMART_STEP_INTO_VARIANTS, self.next_seq(), thread_id, frame_id, start_line, end_line))
         msg = self.wait_for_message(CMD_GET_SMART_STEP_INTO_VARIANTS)
         if msg.variant:
-            variant_info = [(variant['name'], variant['isVisited'], variant['line'], variant['callOrder'], variant['offset']) for variant in msg.variant]
+            variant_info = [
+                (variant['name'], variant['isVisited'], variant['line'], variant['callOrder'], variant['offset'], variant['childOffset'])
+                for variant in msg.variant
+            ]
             return variant_info
         return []
 

@@ -44,8 +44,8 @@
         "Type": "git",
         "git": {
           "Name": "bytecode",
-          "RepositoryUrl": "https://github.com/vstinner/bytecode",
-          "CommitHash": "e3e77fb690ed05ac171e15694e1c5d0e0dc34e86"
+          "RepositoryUrl": "https://github.com/MatthieuDartiailh/bytecode",
+          "CommitHash": "826344ec533643fad068754e0b9799bfeac46634"
         },
         "DevelopmentDependency": false
       }

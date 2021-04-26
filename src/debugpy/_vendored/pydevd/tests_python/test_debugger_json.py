@@ -5471,6 +5471,7 @@ def do_something():
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(IS_PY2, reason='Python 3 onwards required.')
 def test_step_into_target_basic(case_setup):
     with case_setup.test_file('_debugger_case_smart_step_into.py') as writer:
         json_facade = JsonFacade(writer)
@@ -5495,6 +5496,7 @@ def test_step_into_target_basic(case_setup):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(IS_PY2, reason='Python 3 onwards required.')
 def test_step_into_target_multiple(case_setup):
     with case_setup.test_file('_debugger_case_smart_step_into2.py') as writer:
         json_facade = JsonFacade(writer)
@@ -5511,6 +5513,30 @@ def test_step_into_target_multiple(case_setup):
         label_to_id = dict((target['label'], target['id']) for target in step_in_targets)
         assert set(label_to_id.keys()) == {'foo', 'foo (call 2)', 'foo (call 3)', 'foo (call 4)'}
         json_facade.write_step_in(hit.thread_id, target_id=label_to_id['foo (call 2)'])
+
+        on_foo_mark_line = writer.get_line_index_with_content('on foo mark')
+        hit = json_facade.wait_for_thread_stopped(reason='step', line=on_foo_mark_line)
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(IS_PY2, reason='Python 3 onwards required.')
+def test_step_into_target_genexpr(case_setup):
+    with case_setup.test_file('_debugger_case_smart_step_into3.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        bp = writer.get_line_index_with_content('break here')
+        json_facade.write_set_breakpoints([bp])
+        json_facade.write_make_initial_run()
+
+        # At this point we know that 'do_something' was called at least once.
+        hit = json_facade.wait_for_thread_stopped(line=bp)
+
+        # : :type step_in_targets: List[StepInTarget]
+        step_in_targets = json_facade.get_step_in_targets(hit.frame_id)
+        label_to_id = dict((target['label'], target['id']) for target in step_in_targets)
+        json_facade.write_step_in(hit.thread_id, target_id=label_to_id['foo'])
 
         on_foo_mark_line = writer.get_line_index_with_content('on foo mark')
         hit = json_facade.wait_for_thread_stopped(reason='step', line=on_foo_mark_line)

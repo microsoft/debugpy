@@ -310,6 +310,41 @@ class ConcreteBytecodeTests(TestCase):
                 "negative line number delta is not supported " "on Python < 3.6",
             )
 
+    def test_extended_lnotab(self):
+        # x = 7
+        # y = 8
+        concrete = ConcreteBytecode(
+            [
+                ConcreteInstr("LOAD_CONST", 0),
+                SetLineno(1 + 128),
+                ConcreteInstr("STORE_NAME", 0),
+                # line number goes backward!
+                SetLineno(1 + 129),
+                ConcreteInstr("LOAD_CONST", 1),
+                SetLineno(1),
+                ConcreteInstr("STORE_NAME", 1),
+            ]
+        )
+        concrete.consts = [7, 8]
+        concrete.names = ["x", "y"]
+        concrete.first_lineno = 1
+
+        if sys.version_info >= (3, 6):
+            code = concrete.to_code()
+            expected = b"d\x00Z\x00d\x01Z\x01"
+            self.assertEqual(code.co_code, expected)
+            self.assertEqual(code.co_firstlineno, 1)
+            self.assertEqual(
+                code.co_lnotab, b"\x00\x7f\x02\x01\x02\x01\x00\x80\x02\xff"
+            )
+        else:
+            with self.assertRaises(ValueError) as cm:
+                code = concrete.to_code()
+            self.assertEqual(
+                str(cm.exception),
+                "negative line number delta is not supported " "on Python < 3.6",
+            )
+
     def test_to_bytecode_consts(self):
         # x = -0.0
         # x = +0.0
@@ -653,10 +688,11 @@ class ConcreteFromCodeTests(TestCase):
             q, r, *s, t = p
             return q, r, s, t
 
+        cpython_stacksize = test.__code__.co_stacksize
         test.__code__ = ConcreteBytecode.from_code(
             test.__code__, extended_arg=True
         ).to_code()
-        self.assertEqual(test.__code__.co_stacksize, 6)
+        self.assertEqual(test.__code__.co_stacksize, cpython_stacksize)
         self.assertEqual(test(), (1, 2, [3, 4, 5], 6))
 
     def test_expected_arg_with_many_consts(self):
@@ -1314,7 +1350,7 @@ class BytecodeToConcreteTests(TestCase):
         code = Bytecode()
         label1 = Label()
         label2 = Label()
-        nop = "UNARY_POSITIVE"  # don't use NOP, dis.stack_effect will raise
+        nop = "NOP"
         code.append(Instr("JUMP_ABSOLUTE", label1))
         code.append(Instr("JUMP_ABSOLUTE", label2))
         for x in range(4, 254, 2):
@@ -1395,9 +1431,7 @@ class BytecodeToConcreteTests(TestCase):
         code.to_code(compute_jumps_passes=(len(labels) + 1))
 
     def test_general_constants(self):
-        """Test if general object could be linked as constants.
-
-        """
+        """Test if general object could be linked as constants."""
 
         class CustomObject:
             pass

@@ -62,11 +62,14 @@ args = dict(
     license='EPL (Eclipse Public License)',
     packages=[
         '_pydev_bundle',
+        '_pydev_bundle.fsnotify',
         '_pydev_imps',
         '_pydev_runfiles',
         '_pydevd_bundle',
         '_pydevd_bundle._debug_adapter',
         '_pydevd_frame_eval',
+        '_pydevd_frame_eval.vendored',
+        '_pydevd_frame_eval.vendored.bytecode',
         'pydev_ipython',
 
         # 'pydev_sitecustomize', -- Not actually a package (not added)
@@ -76,6 +79,7 @@ args = dict(
         'pydevd_concurrency_analyser',
         'pydevd_plugins',
         'pydevd_plugins.extensions',
+        'pydevd_plugins.extensions.types',
     ],
     py_modules=[
         # 'interpreterInfo', -- Not needed for debugger

@@ -100,7 +100,7 @@ def pytest_unconfigure():
     _start_monitoring_threads()
 
 
-@pytest.yield_fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session", autouse=True)
 def check_no_threads():
     yield
     _start_monitoring_threads()
@@ -193,7 +193,7 @@ _global_collect_info = False
 PRINT_MEMORY_BEFORE_AFTER_TEST = False  # This makes running tests slower (but it may be handy to diagnose memory issues).
 
 
-@pytest.yield_fixture(autouse=PRINT_MEMORY_BEFORE_AFTER_TEST)
+@pytest.fixture(autouse=PRINT_MEMORY_BEFORE_AFTER_TEST)
 def before_after_each_function(request):
     global _global_collect_info
 
