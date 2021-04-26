@@ -141,31 +141,37 @@ if IS_PY3K:
     pydev_files = []
     pydev_dirs = []
 
+    exclude_dirs = [
+        '.git',
+        '.settings',
+        'build',
+        'build_tools',
+        'dist',
+        'pydevd.egg-info',
+        'pydevd_attach_to_process',
+        'pydev_sitecustomize',
+        'stubs',
+        'tests',
+        'tests_mainloop',
+        'tests_python',
+        'tests_runfiles',
+        'test_pydevd_reload',
+        'third_party',
+        '__pycache__',
+        'pydev_ipython',
+        'vendored',
+        '.mypy_cache',
+        'pydevd.egg-info',
+    ]
+
     for root, dirs, files in os.walk(root_dir):
+
         for d in dirs:
-            if 'pydev' in d:
+            if 'pydev' in d and d != 'pydevd.egg-info':
+                # print(os.path.join(root, d))
                 pydev_dirs.append("    '%s': PYDEV_FILE," % (d,))
 
-        for d in [
-            '.git',
-            '.settings',
-            'build',
-            'build_tools',
-            'dist',
-            'pydevd.egg-info',
-            'pydevd_attach_to_process',
-            'pydev_sitecustomize',
-            'stubs',
-            'tests',
-            'tests_mainloop',
-            'tests_python',
-            'tests_runfiles',
-            'test_pydevd_reload',
-            'third_party',
-            '__pycache__',
-            'pydev_ipython',
-            'vendored',
-            ]:
+        for d in exclude_dirs:
             try:
                 dirs.remove(d)
             except:

@@ -475,6 +475,7 @@ def test_interrupt_main_thread():
         raise AssertionError('KeyboardInterrupt not generated in main thread.')
 
 
+@pytest.mark.skipif(sys.version_info[0] < 3, reason='Only available for Python 3.')
 def test_get_smart_step_into_variant_from_frame_offset():
     from _pydevd_bundle.pydevd_bytecode_utils import get_smart_step_into_variant_from_frame_offset
     variants = []

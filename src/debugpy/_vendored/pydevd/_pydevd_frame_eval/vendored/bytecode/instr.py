@@ -34,6 +34,38 @@ def const_key(obj):
         return (type(obj), id(obj))
 
 
+def _pushes_back(opname):
+    if opname in ["CALL_FINALLY"]:
+        # CALL_FINALLY pushes the address of the "finally" block instead of a
+        # value, hence we don't treat it as pushing back op
+        return False
+    return (
+        opname.startswith("UNARY_")
+        or opname.startswith("GET_")
+        or opname.startswith("BINARY_")
+        or opname.startswith("INPLACE_")
+        or opname.startswith("BUILD_")
+        or opname.startswith("CALL_")
+    ) or opname in (
+        "LIST_TO_TUPLE",
+        "LIST_EXTEND",
+        "SET_UPDATE",
+        "DICT_UPDATE",
+        "DICT_MERGE",
+        "IS_OP",
+        "CONTAINS_OP",
+        "FORMAT_VALUE",
+        "MAKE_FUNCTION",
+        "IMPORT_NAME",
+        # technically, these three do not push back, but leave the container
+        # object on TOS
+        "SET_ADD",
+        "LIST_APPEND",
+        "MAP_ADD",
+        "LOAD_ATTR",
+    )
+
+
 def _check_lineno(lineno):
     if not isinstance(lineno, int):
         raise TypeError("lineno must be an int")
@@ -132,10 +164,11 @@ if sys.version_info < (3, 8):
 class Instr:
     """Abstract instruction."""
 
-    __slots__ = ("_name", "_opcode", "_arg", "_lineno")
+    __slots__ = ("_name", "_opcode", "_arg", "_lineno", "offset")
 
-    def __init__(self, name, arg=UNSET, *, lineno=None):
+    def __init__(self, name, arg=UNSET, *, lineno=None, offset=None):
         self._set(name, arg, lineno)
+        self.offset = offset
 
     def _check_arg(self, name, opcode, arg):
         if name == "EXTENDED_ARG":
@@ -282,8 +315,32 @@ class Instr:
         else:
             return dis.stack_effect(self._opcode, arg, jump=jump)
 
+    def pre_and_post_stack_effect(self, jump=None):
+        _effect = self.stack_effect(jump=jump)
+
+        # To compute pre size and post size to avoid segfault cause by not enough stack element
+        _opname = _opcode.opname[self._opcode]
+        if _opname.startswith("DUP_TOP"):
+            return _effect * -1, _effect * 2
+        if _pushes_back(_opname):
+            # if the op pushes value back to the stack, then the stack effect given by dis.stack_effect
+            # actually equals pre + post effect, therefore we need -1 from the stack effect as a pre
+            # condition
+            return _effect - 1, 1
+        if _opname.startswith("UNPACK_"):
+            # Instr(UNPACK_* , n) pops 1 and pushes n
+            # _effect = n - 1
+            # hence we return -1, _effect + 1
+            return -1, _effect + 1
+        if _opname == "FOR_ITER" and not jump:
+            # Since FOR_ITER needs TOS to be an iterator, which basically means a prerequisite of 1 on the stack
+            return -1, 2
+        return {"ROT_TWO": (-2, 2), "ROT_THREE": (-3, 3), "ROT_FOUR": (-4, 4)}.get(
+            _opname, (_effect, 0)
+        )
+
     def copy(self):
-        return self.__class__(self._name, self._arg, lineno=self._lineno)
+        return self.__class__(self._name, self._arg, lineno=self._lineno, offset=self.offset)
 
     def __repr__(self):
         if self._arg is not UNSET:

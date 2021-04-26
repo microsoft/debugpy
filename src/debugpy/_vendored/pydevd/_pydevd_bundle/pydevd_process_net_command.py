@@ -175,8 +175,16 @@ class _PyDevCommandProcessor(object):
             # and the location of the parent frame bytecode offset and not just the func_name
             # (this implies that `CMD_GET_SMART_STEP_INTO_VARIANTS` was previously used
             # to know what are the valid stop points).
-            offset = int(line_or_bytecode_offset[len('offset='):])
-            return self.api.request_smart_step_into(py_db, seq, thread_id, offset)
+
+            temp = line_or_bytecode_offset[len('offset='):]
+            if ';' in temp:
+                offset, child_offset = temp.split(';')
+                offset = int(offset)
+                child_offset = int(child_offset)
+            else:
+                child_offset = -1
+                offset = int(temp)
+            return self.api.request_smart_step_into(py_db, seq, thread_id, offset, child_offset)
         else:
             # If the offset wasn't passed, just use the line/func_name to do the stop.
             return self.api.request_smart_step_into_by_func_name(py_db, seq, thread_id, line_or_bytecode_offset, func_name)

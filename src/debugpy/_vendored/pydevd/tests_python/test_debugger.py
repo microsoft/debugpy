@@ -3479,6 +3479,7 @@ def test_step_return_my_code(case_setup):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(IS_PY2, reason='Python 3 onwards required.')
 def test_smart_step_into_case1(case_setup):
     with case_setup.test_file('_debugger_case_smart_step_into.py') as writer:
         line = writer.get_line_index_with_content('break here')
@@ -3488,8 +3489,8 @@ def test_smart_step_into_case1(case_setup):
 
         found = writer.get_step_into_variants(hit.thread_id, hit.frame_id, line, line)
 
-        # Remove the offset to compare (as it changes for each python version)
-        assert [x[:-1] for x in found] == [
+        # Remove the offset/childOffset to compare (as it changes for each python version)
+        assert [x[:-2] for x in found] == [
             ('bar', 'false', '14', '1'), ('foo', 'false', '14', '1'), ('call_outer', 'false', '14', '1')]
 
         # Note: this is just using the name, not really taking using the context.
@@ -3501,6 +3502,7 @@ def test_smart_step_into_case1(case_setup):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(IS_PY2, reason='Python 3 onwards required.')
 def test_smart_step_into_case2(case_setup):
     with case_setup.test_file('_debugger_case_smart_step_into2.py') as writer:
         line = writer.get_line_index_with_content('break here')
@@ -3512,7 +3514,8 @@ def test_smart_step_into_case2(case_setup):
 
         # Note: we have multiple 'foo' calls, so, we have to differentiate to
         # know in which one we want to stop.
-        writer.write_smart_step_into(hit.thread_id, 'offset=' + found[2][-1], 'foo')
+        OFFSET_POS = 4
+        writer.write_smart_step_into(hit.thread_id, 'offset=' + found[2][OFFSET_POS], 'foo')
         hit = writer.wait_for_breakpoint_hit(reason=CMD_SMART_STEP_INTO)
         assert hit.line == writer.get_line_index_with_content('on foo mark')
 
@@ -3523,6 +3526,33 @@ def test_smart_step_into_case2(case_setup):
                 '<var name="arg" type="int" qualifier="builtins" value="int: 3"',
             )
         ])
+
+        writer.write_run_thread(hit.thread_id)
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(IS_PY2, reason='Python 3 onwards required.')
+def test_smart_step_into_case3(case_setup):
+    with case_setup.test_file('_debugger_case_smart_step_into3.py') as writer:
+        line = writer.get_line_index_with_content('break here')
+        writer.write_add_breakpoint(line)
+        writer.write_make_initial_run()
+        hit = writer.wait_for_breakpoint_hit(line=line)
+
+        found = writer.get_step_into_variants(hit.thread_id, hit.frame_id, 0, 9999)
+
+        # Note: we have multiple 'foo' calls, so, we have to differentiate to
+        # know in which one we want to stop.
+        NAME_POS = 0
+        OFFSET_POS = 4
+        CHILD_OFFSET_POS = 5
+
+        f = [x for x in found if x[NAME_POS] == 'foo']
+        assert len(f) == 1
+
+        writer.write_smart_step_into(hit.thread_id, 'offset=' + f[0][OFFSET_POS] + ';' + f[0][CHILD_OFFSET_POS], 'foo')
+        hit = writer.wait_for_breakpoint_hit(reason=CMD_SMART_STEP_INTO)
+        assert hit.line == writer.get_line_index_with_content('on foo mark')
 
         writer.write_run_thread(hit.thread_id)
         writer.finished_ok = True

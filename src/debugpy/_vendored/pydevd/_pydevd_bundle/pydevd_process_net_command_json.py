@@ -549,8 +549,8 @@ class PyDevJsonCommandProcessor(object):
         if target_id is not None:
             thread = pydevd_find_thread_by_id(thread_id)
             info = set_additional_thread_info(thread)
-            pydev_smart_step_into_variants = info.pydev_smart_step_into_variants
-            if not pydev_smart_step_into_variants:
+            target_id_to_smart_step_into_variant = info.target_id_to_smart_step_into_variant
+            if not target_id_to_smart_step_into_variant:
                 variables_response = pydevd_base_schema.build_response(
                     request,
                     kwargs={
@@ -559,17 +559,20 @@ class PyDevJsonCommandProcessor(object):
                     })
                 return NetCommand(CMD_RETURN, 0, variables_response, is_json=True)
 
-            for variant in pydev_smart_step_into_variants:
-                if variant.offset == target_id:
-                    self.api.request_smart_step_into(py_db, request.seq, thread_id, variant.offset)
-                    break
+            variant = target_id_to_smart_step_into_variant.get(target_id)
+            if variant is not None:
+                parent = variant.parent
+                if parent is not None:
+                    self.api.request_smart_step_into(py_db, request.seq, thread_id, parent.offset, variant.offset)
+                else:
+                    self.api.request_smart_step_into(py_db, request.seq, thread_id, variant.offset, -1)
             else:
                 variables_response = pydevd_base_schema.build_response(
                     request,
                     kwargs={
                         'success': False,
                         'message': 'Unable to find step into target %s. Available targets: %s' % (
-                            target_id, [variant.offset for variant in pydev_smart_step_into_variants])
+                            target_id, target_id_to_smart_step_into_variant)
                     })
                 return NetCommand(CMD_RETURN, 0, variables_response, is_json=True)
 
