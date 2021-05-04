@@ -5,7 +5,7 @@ jobs:
     - job: "Lint"
       timeoutInMinutes: 15
       displayName: "Lint"
-      pool: { vmImage: "ubuntu-18.04" }
+      pool: { vmImage: "ubuntu-latest" }
 
       variables:
           python.version: "3.8"
@@ -33,7 +33,7 @@ jobs:
     - job: "Test_Linux"
       timeoutInMinutes: 30
       displayName: "Tests - Linux"
-      pool: { vmImage: "ubuntu-18.04" }
+      pool: { vmImage: "ubuntu-latest" }
 
       strategy:
           matrix:
@@ -50,6 +50,7 @@ jobs:
 
       steps:
           - script: |
+                sudo apt-get update
                 sudo apt-get --yes install gdb
                 sudo sysctl kernel.yama.ptrace_scope=0
             displayName: "Setup gdb"
