@@ -593,6 +593,7 @@ class PyDB(object):
         self.asyncio_analyser = None
 
         # matplotlib support in debugger and debug console
+        self._installed_mpl_support = False
         self.mpl_in_use = False
         self.mpl_hooks_in_debug_console = False
         self.mpl_modules_for_patching = {}
@@ -1471,6 +1472,9 @@ class PyDB(object):
                 import_hook_manager.add_module_name(module, self.mpl_modules_for_patching.pop(module))
 
     def init_matplotlib_support(self):
+        if self._installed_mpl_support:
+            return
+        self._installed_mpl_support = True
         # prepare debugger for integration with matplotlib GUI event loop
         from pydev_ipython.matplotlibtools import activate_matplotlib, activate_pylab, activate_pyplot, do_enable_gui
 
@@ -2343,8 +2347,7 @@ class PyDB(object):
             if INTERACTIVE_MODE_AVAILABLE:
                 self.init_matplotlib_support()
         except:
-            sys.stderr.write("Matplotlib support in debugger failed\n")
-            pydev_log.exception()
+            pydev_log.exception("Matplotlib support in debugger failed")
 
         if hasattr(sys, 'exc_clear'):
             # we should clean exception information in Python 2, before user's code execution
@@ -2792,6 +2795,13 @@ def _locked_settrace(
 
         py_db.wait_for_ready_to_run()
         py_db.start_auxiliary_daemon_threads()
+        
+        try:
+            if INTERACTIVE_MODE_AVAILABLE:
+                py_db.init_matplotlib_support()
+        except:
+            pydev_log.exception("Matplotlib support in debugger failed")
+
         if trace_only_current_thread:
             py_db.enable_tracing()
         else:
