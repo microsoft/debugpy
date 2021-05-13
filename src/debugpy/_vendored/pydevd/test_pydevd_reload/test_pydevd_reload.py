@@ -6,7 +6,6 @@ from _pydevd_bundle import pydevd_reload
 import tempfile
 import unittest
 
-
 SAMPLE_CODE = """
 class C:
     def foo(self):
@@ -26,9 +25,9 @@ class C:
 
 from _pydevd_bundle.pydevd_constants import IS_JYTHON, IS_IRONPYTHON
 
+
 @pytest.mark.skipif(IS_JYTHON or IS_IRONPYTHON, reason='CPython related test')
 class Test(unittest.TestCase):
-
 
     def setUp(self):
         unittest.TestCase.setUp(self)
@@ -41,7 +40,6 @@ class Test(unittest.TestCase):
             del sys.modules['x']
         except:
             pass
-
 
     def tearDown(self):
         unittest.TestCase.tearDown(self)
@@ -60,7 +58,6 @@ class Test(unittest.TestCase):
             f.write(sample)
         finally:
             f.close()
-
 
     def test_pydevd_reload(self):
 
@@ -104,7 +101,6 @@ class Test(unittest.TestCase):
             pydevd_reload.xreload(x)
             check(count)
 
-
     def test_pydevd_reload2(self):
 
         self.make_mod()
@@ -121,10 +117,14 @@ class Test(unittest.TestCase):
         self.assertEqual(1, cfoo())
 
     def test_pydevd_reload3(self):
+
         class F:
+
             def m1(self):
                 return 1
+
         class G:
+
             def m1(self):
                 return 2
 
@@ -132,29 +132,36 @@ class Test(unittest.TestCase):
         pydevd_reload.Reload(None)._update(None, None, F, G)
         self.assertEqual(F().m1(), 2)
 
-
     def test_pydevd_reload4(self):
+
         class F:
             pass
+
         F.m1 = lambda a:None
+
         class G:
             pass
+
         G.m1 = lambda a:10
 
         self.assertEqual(F().m1(), None)
         pydevd_reload.Reload(None)._update(None, None, F, G)
         self.assertEqual(F().m1(), 10)
 
-
-
     def test_if_code_obj_equals(self):
+
         class F:
+
             def m1(self):
                 return 1
+
         class G:
+
             def m1(self):
                 return 1
+
         class H:
+
             def m1(self):
                 return 2
 
@@ -165,11 +172,10 @@ class Test(unittest.TestCase):
             self.assertTrue(pydevd_reload.code_objects_equal(F.m1.__code__, G.m1.__code__))
             self.assertFalse(pydevd_reload.code_objects_equal(F.m1.__code__, H.m1.__code__))
 
-
-
     def test_metaclass(self):
 
         class Meta(type):
+
             def __init__(cls, name, bases, attrs):
                 super(Meta, cls).__init__(name, bases, attrs)
 
@@ -178,7 +184,6 @@ class Test(unittest.TestCase):
 
             def m1(self):
                 return 1
-
 
         class G:
             __metaclass__ = Meta
@@ -190,8 +195,6 @@ class Test(unittest.TestCase):
         pydevd_reload.Reload(None)._update(None, None, F, G)
         self.assertEqual(F().m1(), 2)
 
-
-
     def test_change_hierarchy(self):
 
         class F(object):
@@ -199,8 +202,8 @@ class Test(unittest.TestCase):
             def m1(self):
                 return 1
 
-
         class B(object):
+
             def super_call(self):
                 return 2
 
@@ -212,15 +215,16 @@ class Test(unittest.TestCase):
         self.assertEqual(F().m1(), 1)
         old = pydevd_reload.notify_error
         self._called = False
+
         def on_error(*args):
             self._called = True
+
         try:
             pydevd_reload.notify_error = on_error
             pydevd_reload.Reload(None)._update(None, None, F, G)
             self.assertTrue(self._called)
         finally:
             pydevd_reload.notify_error = old
-
 
     def test_change_hierarchy_old_style(self):
 
@@ -229,8 +233,8 @@ class Test(unittest.TestCase):
             def m1(self):
                 return 1
 
-
         class B:
+
             def super_call(self):
                 return 2
 
@@ -239,19 +243,19 @@ class Test(unittest.TestCase):
             def m1(self):
                 return self.super_call()
 
-
         self.assertEqual(F().m1(), 1)
         old = pydevd_reload.notify_error
         self._called = False
+
         def on_error(*args):
             self._called = True
+
         try:
             pydevd_reload.notify_error = on_error
             pydevd_reload.Reload(None)._update(None, None, F, G)
             self.assertTrue(self._called)
         finally:
             pydevd_reload.notify_error = old
-
 
     def test_create_class(self):
         SAMPLE_CODE1 = """
@@ -332,7 +336,6 @@ class C(B):
         pydevd_reload.xreload(x)
         self.assertEqual(call(), 'bar')
 
-
     def test_update_constant(self):
         SAMPLE_CODE1 = """
 CONSTANT = 1
@@ -355,8 +358,7 @@ class B(object):
         self.assertEqual(foo(), 1)
         self.make_mod(sample=SAMPLE_CODE2)
         pydevd_reload.xreload(x)
-        self.assertEqual(foo(), 1) #Just making it explicit we don't reload constants.
-
+        self.assertEqual(foo(), 1)  # Just making it explicit we don't reload constants.
 
     def test_update_constant_with_custom_code(self):
         SAMPLE_CODE1 = """
@@ -384,8 +386,7 @@ class B(object):
         self.assertEqual(foo(), 1)
         self.make_mod(sample=SAMPLE_CODE2)
         pydevd_reload.xreload(x)
-        self.assertEqual(foo(), 2) #Actually updated it now!
-
+        self.assertEqual(foo(), 2)  # Actually updated it now!
 
     def test_reload_custom_code_after_changes(self):
         SAMPLE_CODE1 = """
@@ -412,8 +413,7 @@ class B(object):
         self.assertEqual(foo(), 1)
         self.make_mod(sample=SAMPLE_CODE2)
         pydevd_reload.xreload(x)
-        self.assertEqual(foo(), 2) #Actually updated it now!
-
+        self.assertEqual(foo(), 2)  # Actually updated it now!
 
     def test_reload_custom_code_after_changes_in_class(self):
         SAMPLE_CODE1 = """
@@ -444,8 +444,7 @@ class B(object):
         self.assertEqual(foo(), 1)
         self.make_mod(sample=SAMPLE_CODE2)
         pydevd_reload.xreload(x)
-        self.assertEqual(foo(), 2) #Actually updated it now!
-
+        self.assertEqual(foo(), 2)  # Actually updated it now!
 
     def test_update_constant_with_custom_code2(self):
         SAMPLE_CODE1 = """
@@ -478,8 +477,7 @@ class B(object):
         self.assertEqual(foo(), 1)
         self.make_mod(sample=SAMPLE_CODE2)
         pydevd_reload.xreload(x)
-        self.assertEqual(foo(), 2) #Actually updated it now!
-
+        self.assertEqual(foo(), 2)  # Actually updated it now!
 
     def test_update_with_slots(self):
         SAMPLE_CODE1 = """
@@ -507,6 +505,29 @@ class B(object):
         b = B()
         self.assertEqual(1, b.m1())
         self.assertEqual(10, b.bar)
-        self.assertRaises(Exception, setattr, b, 'foo', 20) #__slots__ can't be updated
+        self.assertRaises(Exception, setattr, b, 'foo', 20)  # __slots__ can't be updated
 
+    def test_reload_numpy(self):
+        SAMPLE_CODE1 = """
+import numpy as np
+global_numpy = np.array([1, 2, 3])
+def method():
+    return 1
+"""
+        SAMPLE_CODE2 = """
+import numpy as np
+global_numpy = np.array([1, 2, 3, 4])
+def method():
+    return 2
+"""
+
+        self.make_mod(sample=SAMPLE_CODE1)
+        import x  # @UnresolvedImport
+        assert str(x.global_numpy) == '[1 2 3]'
+        self.make_mod(sample=SAMPLE_CODE2)
+        pydevd_reload.xreload(x)
+        # Note that we don't patch globals (the user could do that in a module,
+        # but he'd have to create a custom `__xreload_old_new__` method to
+        # do it).
+        assert str(x.global_numpy) == '[1 2 3]'
 

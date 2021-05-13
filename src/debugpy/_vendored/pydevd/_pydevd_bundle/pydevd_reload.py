@@ -319,23 +319,23 @@ class Reload:
                 return
 
             if namespace is not None:
-
-                if oldobj != newobj and str(oldobj) != str(newobj) and repr(oldobj) != repr(newobj):
-                    xreload_old_new = None
-                    if is_class_namespace:
-                        xreload_old_new = getattr(namespace, '__xreload_old_new__', None)
-                        if xreload_old_new is not None:
-                            self.found_change = True
-                            xreload_old_new(name, oldobj, newobj)
-
-                    elif '__xreload_old_new__' in namespace:
-                        xreload_old_new = namespace['__xreload_old_new__']
-                        xreload_old_new(namespace, name, oldobj, newobj)
+                # Check for the `__xreload_old_new__` protocol (don't even compare things
+                # as even doing a comparison may break things -- see: https://github.com/microsoft/debugpy/issues/615).
+                xreload_old_new = None
+                if is_class_namespace:
+                    xreload_old_new = getattr(namespace, '__xreload_old_new__', None)
+                    if xreload_old_new is not None:
                         self.found_change = True
+                        xreload_old_new(name, oldobj, newobj)
 
-                    # Too much information to the user...
-                    # else:
-                    #     notify_info0('%s NOT updated. Create __xreload_old_new__(name, old, new) for custom reload' % (name,))
+                elif '__xreload_old_new__' in namespace:
+                    xreload_old_new = namespace['__xreload_old_new__']
+                    xreload_old_new(namespace, name, oldobj, newobj)
+                    self.found_change = True
+
+                # Too much information to the user...
+                # else:
+                #     notify_info0('%s NOT updated. Create __xreload_old_new__(name, old, new) for custom reload' % (name,))
 
         except:
             notify_error('Exception found when updating %s. Proceeding for other items.' % (name,))
