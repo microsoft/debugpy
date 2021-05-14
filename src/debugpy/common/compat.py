@@ -14,38 +14,44 @@ import sys
 
 from debugpy.common import fmt
 
+if sys.version_info[0] < 3:
+    # Py2
+    import __builtin__ as builtins  # noqa
+    from __builtin__ import unicode, bytes, xrange, reload  # noqa
 
-try:
-    import __builtin__ as builtins
-except ImportError:
-    import builtins
-
-try:
-    unicode = builtins.unicode
-    bytes = builtins.str
-except AttributeError:
-    unicode = builtins.str
-    bytes = builtins.bytes
-
-try:
-    xrange = builtins.xrange
-except AttributeError:
-    xrange = builtins.range
-
-try:
     izip = itertools.izip
-except AttributeError:
-    izip = builtins.zip
 
-try:
-    reload = builtins.reload
-except AttributeError:
-    from importlib import reload  # noqa
-
-try:
-    import queue
-except ImportError:
     import Queue as queue  # noqa
+
+    def force_str(s, encoding="ascii", errors="strict"):
+        """Converts s to str (which is bytes on Python 2, and unicode on Python 3), using
+        the provided encoding if necessary. If s is already str, it is returned as is.
+    
+        If errors="strict", str is bytes, and s is str, its encoding is verified by decoding
+        it; UnicodeError is raised if it cannot be decoded.
+        """
+        return force_bytes(s, encoding, errors)
+
+
+else:
+    # Py3
+    import builtins  # noqa
+    from builtins import bytes  # noqa
+
+    unicode = str
+    xrange = range
+    izip = zip
+    from importlib import reload  # noqa
+    import queue  # noqa
+
+    def force_str(s, encoding="ascii", errors="strict"):
+        """Converts s to str (which is bytes on Python 2, and unicode on Python 3), using
+        the provided encoding if necessary. If s is already str, it is returned as is.
+    
+        If errors="strict", str is bytes, and s is str, its encoding is verified by decoding
+        it; UnicodeError is raised if it cannot be decoded.
+        """
+        return force_unicode(s, encoding, errors)
 
 
 def force_unicode(s, encoding, errors="strict"):
@@ -70,16 +76,6 @@ def force_bytes(s, encoding, errors="strict"):
             # Return value ignored - invoked solely for verification.
             s.decode(encoding, errors)
         return s
-
-
-def force_str(s, encoding="ascii", errors="strict"):
-    """Converts s to str (which is bytes on Python 2, and unicode on Python 3), using
-    the provided encoding if necessary. If s is already str, it is returned as is.
-
-    If errors="strict", str is bytes, and s is str, its encoding is verified by decoding
-    it; UnicodeError is raised if it cannot be decoded.
-    """
-    return (force_bytes if str is bytes else force_unicode)(s, encoding, errors)
 
 
 def force_ascii(s, errors="strict"):
@@ -188,7 +184,9 @@ def kwonly(f):
     except AttributeError:
         arg_names, args_name, kwargs_name, arg_defaults = inspect.getargspec(f)
     else:
-        arg_names, args_name, kwargs_name, arg_defaults, _, _, _ = inspect.getfullargspec(f)
+        arg_names, args_name, kwargs_name, arg_defaults, _, _, _ = inspect.getfullargspec(
+            f
+        )
 
     assert args_name is None and kwargs_name is None
     argc = len(arg_names)
