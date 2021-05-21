@@ -36,6 +36,35 @@ def check(found, expected):
         last_offset = f.offset
 
 
+def collect_smart_step_into_variants(*args, **kwargs):
+    try:
+        return pydevd_bytecode_utils.calculate_smart_step_into_variants(*args, **kwargs)
+    except:
+        # In a failure, rerun with DEBUG!
+        debug = pydevd_bytecode_utils.DEBUG
+        pydevd_bytecode_utils.DEBUG = True
+        try:
+            return pydevd_bytecode_utils.calculate_smart_step_into_variants(*args, **kwargs)
+        finally:
+            pydevd_bytecode_utils.DEBUG = debug
+
+
+def check_names_from_func_str(func_str, expected):
+    locs = {}
+    exec(func_str, globals(), locs)
+
+    function = locs['function']
+
+    class Frame:
+        f_code = function.__code__
+        f_lasti = 0
+
+    found = collect_smart_step_into_variants(
+        Frame, 0, 99999, base=function.__code__.co_firstlineno)
+
+    check_name_and_line(found, expected)
+
+
 def test_smart_step_into_bytecode_info():
     from _pydevd_bundle.pydevd_bytecode_utils import Variant
 
@@ -53,7 +82,7 @@ def test_smart_step_into_bytecode_info():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check(found, [
@@ -90,7 +119,7 @@ def test_smart_step_into_bytecode_info_002():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('bar', 2), ('Something', 3), ('yyy', 3), ('call', 5)])
@@ -108,7 +137,7 @@ def test_smart_step_into_bytecode_info_003():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('bar', 2), ('Something', 3), ('yyy', 3), ('call', 5)])
@@ -126,7 +155,7 @@ def test_smart_step_into_bytecode_info_004():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('bar', 2), ('Something', 3), ('yyy', 3), ('call', 5)])
@@ -144,7 +173,7 @@ def test_smart_step_into_bytecode_info_005():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [
@@ -170,7 +199,7 @@ def test_smart_step_into_bytecode_info_006():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [
@@ -186,7 +215,7 @@ def test_smart_step_into_bytecode_info_007():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('__getitem__', 2)])
@@ -202,7 +231,7 @@ def test_smart_step_into_bytecode_info_008():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('call', 2)])
@@ -217,7 +246,7 @@ def test_smart_step_into_bytecode_info_009():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('__getitem__', 2), ('__getitem__().__call__', 2)])
@@ -232,10 +261,10 @@ def test_smart_step_into_bytecode_info_011():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
-    check_name_and_line(found, [('_getframe', 1), ('__getitem__', 2), ('__getitem__().__call__', 2), ('__call__().__call__', 2)])
+    check_name_and_line(found, [('_getframe', 1), ('__getitem__', 2), ('__getitem__().__call__', 2)])
 
 
 def test_smart_step_into_bytecode_info_012():
@@ -247,7 +276,7 @@ def test_smart_step_into_bytecode_info_012():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('<lambda>', 2)])
@@ -262,7 +291,7 @@ def test_smart_step_into_bytecode_info_013():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('__getitem__().__call__', 2), ('__getitem__', 2)])
@@ -282,7 +311,7 @@ def test_smart_step_into_bytecode_info_014():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('RuntimeError', 3), ('call2', 5), ('call3', 7)])
@@ -298,7 +327,7 @@ def test_smart_step_into_bytecode_info_015():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('call', 2), ('call2', 3)])
@@ -319,7 +348,7 @@ def test_smart_step_into_bytecode_info_016():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('call2', 2)])
@@ -337,7 +366,7 @@ def test_smart_step_into_bytecode_info_017():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found,
@@ -360,7 +389,7 @@ def test_smart_step_into_bytecode_info_018():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('Foo', 8)])
@@ -381,7 +410,7 @@ def test_smart_step_into_bytecode_info_019():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('Foo', 8)])
@@ -406,7 +435,7 @@ def test_smart_step_into_bytecode_info_020():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [
@@ -425,7 +454,7 @@ def test_smart_step_into_bytecode_info_021():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('a', 5)])
@@ -449,7 +478,7 @@ def test_smart_step_into_bytecode_info_022():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [
@@ -474,7 +503,7 @@ def test_smart_step_into_bytecode_info_023():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [
@@ -507,7 +536,7 @@ def test_smart_step_into_bytecode_info_024():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [
@@ -580,7 +609,7 @@ def test_smart_step_into_bytecode_info_025():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('call', 15)])
@@ -600,7 +629,7 @@ def test_smart_step_into_bytecode_info_026():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('call', 2)])
@@ -621,7 +650,7 @@ def test_smart_step_into_bytecode_info_027():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('__getitem__', 8), ('__getitem__().__call__', 8)])
@@ -642,7 +671,7 @@ def test_smart_step_into_bytecode_info_028():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('__getitem__', 7), ('__getitem__', 8), ('__getitem__().__call__', 8)])
@@ -658,7 +687,7 @@ def test_smart_step_into_bytecode_info_029():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('__add__', 3), ('__mul__', 3), ('__sub__', 3), ('call', 3)])
@@ -674,7 +703,7 @@ def test_smart_step_into_bytecode_info_030():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('call', 3)])
@@ -690,7 +719,7 @@ def test_smart_step_into_bytecode_info_031():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('call', 3)])
@@ -707,7 +736,7 @@ def test_smart_step_into_bytecode_info_032():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [('_getframe', 1), ('call', 4)])
@@ -715,18 +744,253 @@ def test_smart_step_into_bytecode_info_032():
 
 def test_smart_step_into_bytecode_info_033():
 
-    def function():
+    check_names_from_func_str('''def function():
         yield sys._getframe()
 
         raise call()
+    ''', [('_getframe', 1), ('call', 3)])
 
-    generator = iter(function())
+
+@pytest.mark.skipif(sys.version_info[0:2] < (3, 6), reason='Async only available for Python 3.6 onwards.')
+def test_smart_step_into_bytecode_info_034():
+
+    check_names_from_func_str('''async def function():
+    await a()
+    async for b in c():
+        await d()
+''', [('a', 1), ('c', 2), ('d', 3)])
+
+
+def test_smart_step_into_bytecode_info_035():
+
+    check_names_from_func_str('''def function():
+    assert 0, 'Foo'
+''', [('AssertionError', 1)])
+
+
+def test_smart_step_into_bytecode_info_036():
+
+    check_names_from_func_str('''def function(a):
+    global some_name
+    some_name = a
+    some_name()
+''', [('some_name', 3)])
+
+
+def test_smart_step_into_bytecode_info_037():
+
+    func = '''def function():
+    some_name = 10
+    def another():
+        nonlocal some_name
+        some_name = a
+        some_name()
+    return another
+'''
+    locs = {}
+    exec(func, globals(), locs)
+
+    function = locs['function']()
+
+    class Frame:
+        f_code = function.__code__
+        f_lasti = 0
+
+    found = collect_smart_step_into_variants(
+        Frame, 0, 99999, base=function.__code__.co_firstlineno)
+
+    check_name_and_line(found, [('some_name', 3)])
+
+
+def test_smart_step_into_bytecode_info_038():
+    check_names_from_func_str('''def function():
+    try:
+        call()
+    finally:
+        call2()
+''', [('call', 2), ('call2', 4)])
+
+
+def test_smart_step_into_bytecode_info_039():
+    check_names_from_func_str('''def function():
+    try:
+        call()
+    except:
+        return call2()
+    finally:
+        return call3()
+''', [('call', 2), ('call2', 4), ('call3', 6)])
+
+
+def test_smart_step_into_bytecode_info_040():
+    check_names_from_func_str('''def function():
+    a.call = foo()
+    a.call()
+''', [('foo', 1), ('call', 2)])
+
+
+def test_smart_step_into_bytecode_info_041():
+    check_names_from_func_str('''def function():
+    foo = 10
+    del foo
+    foo = method
+    foo()
+''', [('foo', 4)])
+
+
+def test_smart_step_into_bytecode_info_042():
+    check_names_from_func_str('''
+foo = 10
+def function():
+    global foo
+    foo()
+''', [('foo', 2)])
+
+
+def test_smart_step_into_bytecode_info_043():
+
+    def function(call):
+
+        def another_function():
+            yield sys._getframe()
+
+            call()
+
+        for frame in another_function():
+            yield frame
+
+    generator = iter(function(lambda: None))
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
-    check_name_and_line(found, [('_getframe', 1), ('call', 3)])
+    check_name_and_line(found, [('_getframe', 3), ('call', 5)])
+
+
+def test_smart_step_into_bytecode_info_044():
+    check_names_from_func_str('''
+def function(args):
+    call, *c = args
+    call(*c)
+''', [('call', 2)])
+
+
+def test_smart_step_into_bytecode_info_045():
+    check_names_from_func_str('''
+def function():
+    x.foo = 10
+    del x.foo
+    x.foo = lambda:None
+    x.foo()
+''', [('foo', 4)])
+
+
+def test_smart_step_into_bytecode_info_046():
+    check_names_from_func_str('''
+a = 10
+def function(args):
+    global a
+    del a
+    a()
+''', [('a', 3)])
+
+
+def test_smart_step_into_bytecode_info_047():
+    check_names_from_func_str('''
+def function():
+    call(a, b=1, *c, **kw)
+''', [('call', 1)])
+
+
+def test_smart_step_into_bytecode_info_048():
+    check_names_from_func_str('''
+def function(fn):
+    fn = call(fn)
+
+    def pa():
+        fn()
+
+    return pa()
+
+''', [('call', 1), ('pa', 6)])
+
+
+def test_smart_step_into_bytecode_info_049():
+
+    def function(foo):
+
+        class SomeClass(object):
+            implementation = foo
+
+            implementation()
+            f = sys._getframe()
+
+        return SomeClass.f
+
+    frame = function(object)
+
+    found = collect_smart_step_into_variants(
+        frame, 0, 99999, base=function.__code__.co_firstlineno)
+
+    check_name_and_line(found, [('implementation', 5), ('_getframe', 6)])
+
+
+def test_smart_step_into_bytecode_info_050():
+    check_names_from_func_str('''
+def function():
+    ('a' 'b').index('x')
+
+''', [('index', 1)])
+
+
+def test_smart_step_into_bytecode_info_051():
+    check_names_from_func_str('''
+def function():
+    v = 1
+    v2 = 2
+    call((f'a{v()!r}' f'b{v2()}'))
+
+''', [('call', 3), ('v', 3), ('v2', 3)])
+
+
+def test_smart_step_into_bytecode_info_052():
+    check_names_from_func_str('''
+def function():
+    v = 1
+    v2 = 2
+    call({*v(), *v2()})
+
+''', [('call', 3), ('v', 3), ('v2', 3)])
+
+
+def test_smart_step_into_bytecode_info_053():
+    check_names_from_func_str('''
+def function():
+    v = 1
+    v2 = 2
+    call({**v(), **v2()})
+
+''', [('call', 3), ('v', 3), ('v2', 3)])
+
+
+def test_smart_step_into_bytecode_info_054():
+    check_names_from_func_str('''
+def function():
+    import a
+    from a import b
+    call()
+
+''', [('call', 3)])
+
+
+def test_smart_step_into_bytecode_info_055():
+    check_names_from_func_str('''
+async def function():
+    async with lock() as foo:
+        await foo()
+
+''', [('lock', 1), ('foo', 2)])
 
 
 def test_get_smart_step_into_variant_from_frame_offset():
@@ -778,7 +1042,7 @@ def test_smart_step_into_bytecode_info_00eq():
     generator = iter(function())
     frame = next(generator)
 
-    found = pydevd_bytecode_utils.calculate_smart_step_into_variants(
+    found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     if sys.version_info[:2] < (3, 9):
@@ -802,3 +1066,28 @@ def test_smart_step_into_bytecode_info_00eq():
             Variant(name='__le__', is_visited=True, line=13, offset=93, call_order=1),
             Variant(name=('_getframe', 'sys'), is_visited=True, line=18, offset=123, call_order=1),
         ])
+
+
+def _test_find_bytecode():
+    import glob
+    import dis
+    from io import StringIO
+    root_dir = 'C:\\bin\\Miniconda\\envs\\py36_tests\\Lib\\site-packages\\'
+
+    i = 0
+    for filename in glob.iglob(root_dir + '**/*.py', recursive=True):
+        print(filename)
+        with open(filename, 'r', encoding='utf-8') as stream:
+            contents = stream.read()
+
+            code_obj = compile(contents, filename, 'exec')
+            s = StringIO()
+            dis.dis(code_obj, file=s)
+            if 'EXTENDED_ARG' in s.getvalue():
+                dis.dis(code_obj)
+                raise AssertionError('Found bytecode in: %s' % filename)
+
+        # i += 1
+        # if i == 1000:
+        #     break
+
