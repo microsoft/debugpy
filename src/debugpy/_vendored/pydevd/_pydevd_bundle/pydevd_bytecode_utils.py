@@ -5,11 +5,12 @@ Note: not importable from Python 2.
 """
 
 import sys
-from _pydev_bundle import pydev_log
 if sys.version_info[0] < 3:
     raise ImportError('This module is only compatible with Python 3.')
 
+from _pydev_bundle import pydev_log
 from types import CodeType
+from _pydevd_frame_eval.vendored.bytecode.instr import _Variable
 from _pydevd_frame_eval.vendored import bytecode
 from _pydevd_frame_eval.vendored.bytecode import cfg as bytecode_cfg
 import dis
@@ -118,10 +119,19 @@ class _StackInterpreter(object):
         if instr.name == 'BINARY_SUBSCR':
             return '__getitem__().__call__'
         if instr.name == 'CALL_FUNCTION':
-            return '__call__().__call__'
+            # Note: previously a '__call__().__call__' was returned, but this was a bit weird
+            # and on Python 3.9 this construct could appear for some internal things where
+            # it wouldn't be expected.
+            # Note: it'd be what we had in func()().
+            return None
         if instr.name == 'MAKE_FUNCTION':
             return '__func__().__call__'
+        if instr.name == 'LOAD_ASSERTION_ERROR':
+            return 'AssertionError'
         name = self._getname(instr)
+        if isinstance(name, _Variable):
+            name = name.name
+
         if not isinstance(name, str):
             return None
         if name.endswith('>'):  # xxx.<listcomp>, xxx.<lambda>, ...
@@ -134,8 +144,14 @@ class _StackInterpreter(object):
     def on_LOAD_GLOBAL(self, instr):
         self._stack.append(instr)
 
+    def on_POP_TOP(self, instr):
+        try:
+            self._stack.pop()
+        except IndexError:
+            pass  # Ok (in the end of blocks)
+
     def on_LOAD_ATTR(self, instr):
-        self._stack.pop()  # replaces the current top
+        self.on_POP_TOP(instr)  # replaces the current top
         self._stack.append(instr)
         self.load_attrs[_TargetIdHashable(instr)] = Target(self._getname(instr), instr.lineno, instr.offset)
 
@@ -143,6 +159,18 @@ class _StackInterpreter(object):
 
     def on_LOAD_CONST(self, instr):
         self._stack.append(instr)
+
+    on_LOAD_DEREF = on_LOAD_CONST
+    on_LOAD_NAME = on_LOAD_CONST
+    on_LOAD_CLOSURE = on_LOAD_CONST
+    on_LOAD_CLASSDEREF = on_LOAD_CONST
+
+    # Although it actually changes the stack, it's inconsequential for us as a function call can't
+    # really be found there.
+    on_IMPORT_NAME = _no_stack_change
+    on_IMPORT_FROM = _no_stack_change
+    on_IMPORT_STAR = _no_stack_change
+    on_SETUP_ANNOTATIONS = _no_stack_change
 
     def on_STORE_FAST(self, instr):
         try:
@@ -152,9 +180,24 @@ class _StackInterpreter(object):
 
         # Note: it stores in the locals and doesn't put anything in the stack.
 
+    on_STORE_GLOBAL = on_STORE_FAST
+    on_STORE_DEREF = on_STORE_FAST
+    on_STORE_ATTR = on_STORE_FAST
+    on_STORE_NAME = on_STORE_FAST
+
+    on_DELETE_NAME = on_POP_TOP
+    on_DELETE_ATTR = on_POP_TOP
+    on_DELETE_GLOBAL = on_POP_TOP
+    on_DELETE_FAST = on_POP_TOP
+    on_DELETE_DEREF = on_POP_TOP
+
+    on_DICT_UPDATE = on_POP_TOP
+    on_SET_UPDATE = on_POP_TOP
+
     def _handle_call_from_instr(self, func_name_instr, func_call_instr):
         self.load_attrs.pop(_TargetIdHashable(func_name_instr), None)
         call_name = self._getcallname(func_name_instr)
+        target = None
         if not call_name:
             pass  # Ignore if we can't identify a name
         elif call_name in ('<listcomp>', '<genexpr>', '<setcomp>', '<dictcomp>'):
@@ -165,12 +208,17 @@ class _StackInterpreter(object):
                     # i.e.: we have targets inside of a <listcomp> or <genexpr>.
                     # Note that to actually match this in the debugger we need to do matches on 2 frames,
                     # the one with the <listcomp> and then the actual target inside the <listcomp>.
+                    target = Target(call_name, func_name_instr.lineno, func_call_instr.offset, children_targets)
                     self.function_calls.append(
-                        Target(call_name, func_name_instr.lineno, func_call_instr.offset, children_targets))
+                        target)
 
         else:
             # Ok, regular call
-            self.function_calls.append(Target(call_name, func_name_instr.lineno, func_call_instr.offset))
+            target = Target(call_name, func_name_instr.lineno, func_call_instr.offset)
+            self.function_calls.append(target)
+
+        if DEBUG and target is not None:
+            print('Created target', target)
         self._stack.append(func_call_instr)  # Keep the func call as the result
 
     def on_COMPARE_OP(self, instr):
@@ -252,6 +300,9 @@ class _StackInterpreter(object):
     def on_LOAD_FAST(self, instr):
         self._stack.append(instr)
 
+    def on_LOAD_ASSERTION_ERROR(self, instr):
+        self._stack.append(instr)
+
     on_LOAD_BUILD_CLASS = on_LOAD_FAST
 
     def on_CALL_METHOD(self, instr):
@@ -286,7 +337,28 @@ class _StackInterpreter(object):
         _names_of_kw_args = self._stack.pop()
 
         # pop the actual args
-        for _ in range(instr.arg):
+        arg = instr.arg
+
+        argc = arg & 0xff  # positional args
+        argc += ((arg >> 8) * 2)  # keyword args
+
+        for _ in range(argc):
+            self._stack.pop()
+
+        func_name_instr = self._stack.pop()
+        self._handle_call_from_instr(func_name_instr, instr)
+
+    def on_CALL_FUNCTION_VAR(self, instr):
+        # var name
+        _var_arg = self._stack.pop()
+
+        # pop the actual args
+        arg = instr.arg
+
+        argc = arg & 0xff  # positional args
+        argc += ((arg >> 8) * 2)  # keyword args
+
+        for _ in range(argc):
             self._stack.pop()
 
         func_name_instr = self._stack.pop()
@@ -319,12 +391,20 @@ class _StackInterpreter(object):
         self._handle_call_from_instr(func_name_instr, instr)
 
     on_YIELD_VALUE = _no_stack_change
+    on_GET_AITER = _no_stack_change
+    on_GET_ANEXT = _no_stack_change
+    on_END_ASYNC_FOR = _no_stack_change
+    on_BEFORE_ASYNC_WITH = _no_stack_change
+    on_SETUP_ASYNC_WITH = _no_stack_change
+    on_YIELD_FROM = _no_stack_change
     on_SETUP_LOOP = _no_stack_change
     on_FOR_ITER = _no_stack_change
     on_BREAK_LOOP = _no_stack_change
     on_JUMP_ABSOLUTE = _no_stack_change
     on_RERAISE = _no_stack_change
     on_LIST_TO_TUPLE = _no_stack_change
+    on_CALL_FINALLY = _no_stack_change
+    on_POP_FINALLY = _no_stack_change
 
     def on_JUMP_IF_FALSE_OR_POP(self, instr):
         try:
@@ -414,12 +494,6 @@ class _StackInterpreter(object):
         self._stack.append(p2)
         self._stack.append(p3)
 
-    def on_POP_TOP(self, instr):
-        try:
-            self._stack.pop()
-        except IndexError:
-            pass  # Ok (in the end of blocks)
-
     def on_BUILD_LIST_FROM_ARG(self, instr):
         self._stack.append(instr)
 
@@ -442,9 +516,12 @@ class _StackInterpreter(object):
     on_LIST_APPEND = on_POP_TOP
     on_SET_ADD = on_POP_TOP
     on_LIST_EXTEND = on_POP_TOP
+    on_UNPACK_EX = on_POP_TOP
 
     # ok: doesn't change the stack (converts top to getiter(top))
     on_GET_ITER = _no_stack_change
+    on_GET_AWAITABLE = _no_stack_change
+    on_GET_YIELD_FROM_ITER = _no_stack_change
 
     def on_MAP_ADD(self, instr):
         self.on_POP_TOP(instr)
@@ -461,13 +538,19 @@ class _StackInterpreter(object):
         self._stack.append(instr)
 
     on_BUILD_TUPLE = on_BUILD_LIST
+    on_BUILD_STRING = on_BUILD_LIST
     on_BUILD_TUPLE_UNPACK_WITH_CALL = on_BUILD_LIST
     on_BUILD_TUPLE_UNPACK = on_BUILD_LIST
     on_BUILD_LIST_UNPACK = on_BUILD_LIST
     on_BUILD_MAP_UNPACK_WITH_CALL = on_BUILD_LIST
+    on_BUILD_MAP_UNPACK = on_BUILD_LIST
     on_BUILD_SET = on_BUILD_LIST
+    on_BUILD_SET_UNPACK = on_BUILD_LIST
 
     on_SETUP_FINALLY = _no_stack_change
+    on_POP_FINALLY = _no_stack_change
+    on_BEGIN_FINALLY = _no_stack_change
+    on_END_FINALLY = _no_stack_change
 
     def on_RAISE_VARARGS(self, instr):
         for _i in range(instr.arg):
@@ -484,6 +567,8 @@ class _StackInterpreter(object):
     on_SETUP_WITH = _no_stack_change
     on_WITH_CLEANUP_START = _no_stack_change
     on_WITH_CLEANUP_FINISH = _no_stack_change
+    on_FORMAT_VALUE = _no_stack_change
+    on_EXTENDED_ARG = _no_stack_change
 
     def on_INPLACE_ADD(self, instr):
         # This would actually pop 2 and leave the value in the stack.
