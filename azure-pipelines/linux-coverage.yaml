@@ -11,9 +11,9 @@ jobs:
           vmImage: "ubuntu-latest"
       steps:
           - script: |
-              sudo apt-get update
-              sudo apt-get --yes install gdb
-              sudo sysctl kernel.yama.ptrace_scope=0
-            displayName: 'Install gdb'
+                sudo apt-get update
+                sudo apt-get --yes install gdb
+                sudo sysctl kernel.yama.ptrace_scope=0
+            displayName: "Install gdb"
 
           - template: "templates/coverage.yml"
