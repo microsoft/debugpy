@@ -3,7 +3,7 @@ variables:
     python.version: "3.8"
 
 jobs:
-    - job: 'Coverage'
+    - job: "Coverage"
       timeoutInMinutes: 15
       pool:
           name: Azure Pipelines

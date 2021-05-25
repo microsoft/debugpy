@@ -3,15 +3,15 @@ variables:
     python.version: "3.8"
 
 jobs:
-    - job: 'Coverage'
+    - job: "Coverage"
       timeoutInMinutes: 15
       pool:
           name: Azure Pipelines
           demands: java
-          vmImage: "macOS-10.15"
+          vmImage: "macOS-latest"
       steps:
           - script: |
-              ulimit -Sn 8192
-            displayName: 'Increase file descriptor limit'
+                ulimit -Sn 8192
+            displayName: "Increase file descriptor limit"
 
           - template: "templates/coverage.yml"
