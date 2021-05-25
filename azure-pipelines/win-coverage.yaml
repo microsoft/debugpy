@@ -3,11 +3,11 @@ variables:
     python.version: "3.8"
 
 jobs:
-    - job: 'Coverage'
+    - job: "Coverage"
       timeoutInMinutes: 20
       pool:
           name: Azure Pipelines
           demands: java
-          vmImage: "windows-2019"
+          vmImage: "windows-latest"
       steps:
-        - template: "templates/coverage.yml"
+          - template: "templates/coverage.yml"

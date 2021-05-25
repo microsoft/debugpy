@@ -47,6 +47,8 @@ jobs:
                   python.version: "3.7"
               py38:
                   python.version: "3.8"
+              py39:
+                  python.version: "3.9"
 
       steps:
           - script: |
@@ -62,7 +64,7 @@ jobs:
     - job: "Test_MacOS"
       timeoutInMinutes: 30
       displayName: "Tests - macOS"
-      pool: { vmImage: "macOS-10.15" }
+      pool: { vmImage: "macOS-latest" }
 
       strategy:
           matrix:
@@ -76,6 +78,8 @@ jobs:
                   python.version: "3.7"
               py38:
                   python.version: "3.8"
+              py39:
+                  python.version: "3.9"
 
       steps:
           - script: |
@@ -93,7 +97,7 @@ jobs:
     - job: "Test_Windows"
       timeoutInMinutes: 40
       displayName: "Tests - Windows"
-      pool: { vmImage: "windows-2019" }
+      pool: { vmImage: "windows-latest" }
 
       strategy:
           matrix:
@@ -107,11 +111,13 @@ jobs:
                   python.version: "3.7"
               py38:
                   python.version: "3.8"
+              py39:
+                  python.version: "3.9"
               py27_32:
                   python.version: "2.7"
                   architecture: "x86"
-              py38_32:
-                  python.version: "3.8"
+              py39_32:
+                  python.version: "3.9"
                   architecture: "x86"
 
       steps:
