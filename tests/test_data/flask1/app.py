@@ -1,8 +1,10 @@
+import os
 from flask import Flask
 from flask import render_template
 
 
 app = Flask(__name__)
+exiting = False
 
 
 @app.route("/")
@@ -34,10 +36,11 @@ def bad_template():
 
 @app.route("/exit")
 def exit_app():
-    from flask import request
-
-    func = request.environ.get("werkzeug.server.shutdown")
-    if func is None:
-        raise RuntimeError("No shutdown")
-    func()
+    global exiting
+    exiting = True
     return "Done"
+
+@app.teardown_request
+def teardown(exception):
+    if exiting:
+        os._exit(0)
