@@ -3,24 +3,23 @@ import debuggee
 debuggee.setup()
 
 import os
-import signal
 import sys
 
 from django.conf import settings
 from django.core.management import execute_from_command_line
+from django.core.signals import request_finished
+from django.dispatch import receiver
 from django.http import HttpResponse
 from django.template import loader
 
 
-def sigint_handler(signal, frame):
-    import django.dispatch
+exiting = False
 
-    djshutdown = django.dispatch.Signal()
-    djshutdown.send("system")
-    sys.exit(0)
+@receiver(request_finished)
+def on_request_finished(sender, **kwargs):
+    if exiting:
+        os._exit(0)   
 
-
-signal.signal(signal.SIGINT, sigint_handler)
 
 settings.configure(
     MIDDLEWARE=[],
@@ -76,10 +75,8 @@ def bad_template(request):
 
 
 def exit_app(request):
-    if hasattr(signal, "SIGBREAK"):
-        os.kill(os.getpid(), signal.SIGBREAK)
-    else:
-        os.kill(os.getpid(), signal.SIGTERM)
+    global exiting
+    exiting = True
     return HttpResponse("Done")
 
 
