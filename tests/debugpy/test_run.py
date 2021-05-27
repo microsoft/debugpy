@@ -49,6 +49,52 @@ def test_run(pyfile, target, run):
         session.proceed()
 
 
+@pytest.mark.parametrize("run", [runners.launch["internalConsole"]])
+def test_run_relative_path(pyfile, run):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        from debuggee import backchannel
+        from _pydev_bundle.pydev_log import list_log_files
+
+        debuggee.setup()
+        from _pydevd_bundle import pydevd_constants  # @ bp1
+
+        backchannel.send(
+            list_log_files(pydevd_constants.DebugInfoHolder.PYDEVD_DEBUG_FILE)
+        )
+        assert backchannel.receive() == "continue"
+
+    with debug.Session() as session:
+        backchannel = session.open_backchannel()
+        code_to_debug = str(code_to_debug)
+        cwd = os.path.dirname(os.path.dirname(code_to_debug))
+
+        program = targets.Program(code_to_debug)
+        program.make_relative(cwd)
+        with run(session, program):
+            session.set_breakpoints(code_to_debug, all)
+
+        session.wait_for_stop()
+        session.request_continue()
+
+        pydevd_debug_files = backchannel.receive()
+        backchannel.send("continue")
+        session.wait_for_next_event("terminated")
+        session.proceed()
+
+    # Check if we don't have errors in the pydevd log (the
+    # particular error this test is covering:
+    # https://github.com/microsoft/debugpy/issues/620
+    # is handled by pydevd but produces a Traceback in the logs).
+    for pydevd_debug_file in pydevd_debug_files:
+        with open(pydevd_debug_file, "r") as stream:
+            contents = stream.read()
+
+    assert "critical" not in contents
+    assert "Traceback" not in contents
+
+
 @pytest.mark.parametrize("run", runners.all_launch)
 def test_run_submodule(run):
     with debug.Session() as session:

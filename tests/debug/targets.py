@@ -5,6 +5,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import py
+import os
 
 from debugpy.common import fmt, compat
 from tests.patterns import some
@@ -73,20 +74,64 @@ class Target(object):
 
 
 class Program(Target):
-    """A Python script, executed directly: python foo.py
+    """
+    A Python script, executed directly.
+    
+    By default executes a program through its absolute path with:
+        python /full/path/to/foo.py
+        
+    If made relative through make_relative(cwd), the cwd is set and the
+    launch is made relative to it.
+    
+        i.e.:
+        Given a path such as /full/path/to/foo.py
+        if make_relative('/full/path') is called,
+        the cwd becomes `/full/path` and the launch is made as:
+            python to/foo.py
     """
 
     pytest_id = "program"
 
+    def __init__(self, filename, args=()):
+        super(Program, self).__init__(filename, args)
+        self._cwd = ""
+
+    def make_relative(self, cwd):
+        if not cwd.endswith(("/", "\\")):
+            cwd += os.path.sep
+        assert self.filename.strpath.lower().startswith(cwd.lower())
+        self._cwd = cwd
+
+    def _get_relative_program(self):
+        assert self._cwd
+        relative_filename = compat.filename(self.filename.strpath)[len(self._cwd) :]
+        assert not relative_filename.startswith(("/", "\\"))
+        return relative_filename
+
     def __repr__(self):
-        return fmt("program {0!j}", compat.filename(self.filename.strpath))
+        if self._cwd:
+            return fmt(
+                "program (relative) {0!j} / {1!j}",
+                self._cwd,
+                self._get_relative_program(),
+            )
+        else:
+            return fmt("program {0!j}", compat.filename(self.filename.strpath))
 
     def configure(self, session):
-        session.config["program"] = compat.filename(self.filename.strpath)
+        if self._cwd:
+            session.config["cwd"] = self._cwd
+            session.config["program"] = self._get_relative_program()
+        else:
+            session.config["program"] = compat.filename(self.filename.strpath)
+
         session.config["args"] = self.args
 
     def cli(self, env):
-        return [self.filename.strpath] + list(self.args)
+        if self._cwd:
+            return [self._get_relative_program()] + list(self.args)
+        else:
+            return [self.filename.strpath] + list(self.args)
 
 
 class Module(Target):
