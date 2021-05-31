@@ -85,10 +85,16 @@ def launch_request(request):
         # overwrite the global env vars correctly. If debug config has entries that
         # differ in case only, that's an error.
         env = {k.upper(): v for k, v in os.environ.items()}
-        n = len(env_changes)
-        env_changes = {k.upper(): v for k, v in env_changes.items()}
-        if len(env_changes) != n:
-            raise request.isnt_valid('Duplicate entries in "env"')
+        new_env_changes = {}
+        for k, v in env_changes.items():
+            k_upper = k.upper()
+            if k_upper in new_env_changes:
+                if new_env_changes[k_upper] == v:
+                    continue
+                else:
+                    raise request.isnt_valid('Found duplicate in "env": {0}.'.format(k_upper))
+            new_env_changes[k_upper] = v
+        env_changes = new_env_changes
     if "DEBUGPY_TEST" in env:
         # If we're running as part of a debugpy test, make sure that codecov is not
         # applied to the debuggee, since it will conflict with pydevd.
