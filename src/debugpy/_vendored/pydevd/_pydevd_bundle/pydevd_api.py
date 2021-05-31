@@ -1088,12 +1088,12 @@ def _list_ppid_and_pid():
     try:
         process_entry = PROCESSENTRY32()
         process_entry.dwSize = ctypes.sizeof(PROCESSENTRY32)
-        if not kernel32.Process32First(snapshot, ctypes.byref(process_entry)):
+        if not kernel32.Process32First(ctypes.c_void_p(snapshot), ctypes.byref(process_entry)):
             pydev_log.critical('Process32First failed (getting process from CreateToolhelp32Snapshot).')
         else:
             while True:
                 ppid_and_pids.append((process_entry.th32ParentProcessID, process_entry.th32ProcessID))
-                if not kernel32.Process32Next(snapshot, ctypes.byref(process_entry)):
+                if not kernel32.Process32Next(ctypes.c_void_p(snapshot), ctypes.byref(process_entry)):
                     break
     finally:
         kernel32.CloseHandle(snapshot)

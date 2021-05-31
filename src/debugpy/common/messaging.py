@@ -1211,11 +1211,17 @@ class JsonMessageChannel(object):
         message handlers to finish executing.
         """
         parser_thread = self._parser_thread
-        if parser_thread is not None:
-            parser_thread.join()
-        handler_thread = self._handler_thread
-        if handler_thread is not None:
-            handler_thread.join()
+        try:
+            if parser_thread is not None:
+                parser_thread.join()
+        except AssertionError:
+            log.debug("Handled error joining parser thread.")
+        try:
+            handler_thread = self._handler_thread
+            if handler_thread is not None:
+                handler_thread.join()
+        except AssertionError:
+            log.debug("Handled error joining handler thread.")
 
     # Order of keys for _prettify() - follows the order of properties in
     # https://microsoft.github.io/debug-adapter-protocol/specification
