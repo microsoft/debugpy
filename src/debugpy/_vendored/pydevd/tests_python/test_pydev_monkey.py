@@ -49,6 +49,65 @@ def test_monkey_patch_return_original_args():
     assert res == check
 
 
+def test_monkey_patch_pathlib_args():
+    try:
+        import pathlib
+    except ImportError:
+        pytest.skip('pathlib not available.')
+
+    check = [pathlib.Path('echo'), '"my"', '"args"']
+    res = pydev_monkey.patch_args(check[:])
+    assert res == check
+
+
+def test_monkey_patch_wrong_object_type():
+    check = [1, 22, '"my"', '"args"']
+    res = pydev_monkey.patch_args(check[:])
+    assert res == check
+
+
+def test_monkey_patch_wrong_object_type_2():
+    check = ['C:\\bin\\python.exe', '-u', 1, '-qcconnect("127.0.0.1")']
+    res = pydev_monkey.patch_args(check[:])
+    assert res == check
+
+
+def test_monkey_patch_args_module_subprocess_pathlib():
+    try:
+        import pathlib
+    except ImportError:
+        pytest.skip('pathlib not available.')
+
+    original = SetupHolder.setup
+
+    try:
+        SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'multiprocess': True}
+        if sys.platform == 'win32':
+            python_path = 'C:\\bin\\python.exe'
+        else:
+            python_path = '/bin/python'
+        check = [pathlib.Path(python_path), '-mtest', pathlib.Path('bar')]
+        from _pydevd_bundle.pydevd_command_line_handling import get_pydevd_file
+        assert pydev_monkey.patch_args(check) == [
+            python_path,
+            get_pydevd_file(),
+            '--module',
+            '--port',
+            '0',
+            '--ppid',
+            str(os.getpid()),
+            '--client',
+            '127.0.0.1',
+            '--multiprocess',
+            '--protocol-quoted-line',
+            '--file',
+            'test',
+            'bar',
+        ]
+    finally:
+        SetupHolder.setup = original
+
+
 def test_monkey_patch_args_indc():
     original = SetupHolder.setup
 
