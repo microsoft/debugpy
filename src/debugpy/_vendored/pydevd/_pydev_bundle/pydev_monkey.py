@@ -4,7 +4,7 @@ import re
 import sys
 from _pydev_imps._pydev_saved_modules import threading
 from _pydevd_bundle.pydevd_constants import get_global_debugger, IS_WINDOWS, IS_JYTHON, get_current_thread_id, \
-    sorted_dict_repr
+    sorted_dict_repr, IS_PY2
 from _pydev_bundle import pydev_log
 from contextlib import contextmanager
 from _pydevd_bundle import pydevd_constants
@@ -14,6 +14,11 @@ try:
     xrange
 except:
     xrange = range
+
+try:
+    from pathlib import Path
+except ImportError:
+    Path = None
 
 #===============================================================================
 # Things that are dependent on having the pydevd debugger
@@ -161,11 +166,24 @@ def is_python(path):
     return False
 
 
+class InvalidTypeInArgsException(Exception):
+    pass
+
+
 def remove_quotes_from_args(args):
     if sys.platform == "win32":
         new_args = []
 
         for x in args:
+            if Path is not None and isinstance(x, Path):
+                x = str(x)
+            elif IS_PY2:
+                if not isinstance(x, (str, unicode)):
+                    raise InvalidTypeInArgsException(str(type(x)))
+            else:
+                if not isinstance(x, (bytes, str)):
+                    raise InvalidTypeInArgsException(str(type(x)))
+
             double_quote, two_double_quotes = _get_str_type_compatible(x, ['"', '""'])
 
             if x != two_double_quotes:
@@ -175,7 +193,19 @@ def remove_quotes_from_args(args):
             new_args.append(x)
         return new_args
     else:
-        return args
+        new_args = []
+        for x in args:
+            if Path is not None and isinstance(x, Path):
+                x = x.as_posix()
+            elif IS_PY2:
+                if not isinstance(x, (str, unicode)):
+                    raise InvalidTypeInArgsException(str(type(x)))
+            else:
+                if not isinstance(x, (bytes, str)):
+                    raise InvalidTypeInArgsException(str(type(x)))
+            new_args.append(x)
+
+        return new_args
 
 
 def quote_arg_win32(arg):
@@ -230,7 +260,11 @@ def patch_args(args, is_exec=False):
     try:
         pydev_log.debug("Patching args: %s", args)
         original_args = args
-        unquoted_args = remove_quotes_from_args(args)
+        try:
+            unquoted_args = remove_quotes_from_args(args)
+        except InvalidTypeInArgsException as e:
+            pydev_log.info('Unable to monkey-patch subprocess arguments because a type found in the args is invalid: %s', e)
+            return original_args
 
         # Internally we should reference original_args (if we want to return them) or unquoted_args
         # to add to the list which will be then quoted in the end.
