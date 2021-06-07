@@ -43,6 +43,27 @@ def _new_sock():
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
     else:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+    # Set TCP keepalive on an open socket.
+    # It activates after 1 second (TCP_KEEPIDLE,) of idleness,
+    # then sends a keepalive ping once every 3 seconds (TCP_KEEPINTVL),
+    # and closes the connection after 5 failed ping (TCP_KEEPCNT), or 15 seconds
+    try:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+    except (AttributeError, OSError):
+        pass  # May not be available everywhere.
+    try:
+        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 1)
+    except (AttributeError, OSError):
+        pass  # May not be available everywhere.
+    try:
+        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 3)
+    except (AttributeError, OSError):
+        pass  # May not be available everywhere.
+    try:
+        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 5)
+    except (AttributeError, OSError):
+        pass  # May not be available everywhere.
     return sock
 
 
