@@ -9,6 +9,7 @@ from _pydev_bundle import pydev_log
 from contextlib import contextmanager
 from _pydevd_bundle import pydevd_constants
 from _pydevd_bundle.pydevd_defaults import PydevdCustomization
+import ast
 
 try:
     xrange
@@ -75,16 +76,116 @@ def _get_setup_updated_with_protocol_and_ppid(setup, is_exec=False):
     return setup
 
 
+class _LastFutureImportFinder(ast.NodeVisitor):
+
+    def __init__(self):
+        self.last_future_import_found = None
+
+    def visit_ImportFrom(self, node):
+        if node.module == '__future__':
+            self.last_future_import_found = node
+
+
+def _get_offset_from_line_col(code, line, col):
+    offset = 0
+    for i, line_contents in enumerate(code.splitlines(True)):
+        if i == line:
+            offset += col
+            return offset
+        else:
+            offset += len(line_contents)
+
+    return -1
+
+
+def _separate_future_imports(code):
+    '''
+    :param code:
+        The code from where we want to get the __future__ imports (note that it's possible that
+        there's no such entry).
+
+    :return tuple(str, str):
+        The return is a tuple(future_import, code).
+
+        If the future import is not available a return such as ('', code) is given, otherwise, the
+        future import will end with a ';' (so that it can be put right before the pydevd attach
+        code).
+    '''
+    try:
+        node = ast.parse(code, '<string>', 'exec')
+        visitor = _LastFutureImportFinder()
+        visitor.visit(node)
+
+        if visitor.last_future_import_found is None:
+            return '', code
+
+        node = visitor.last_future_import_found
+        offset = -1
+        if hasattr(node, 'end_lineno') and hasattr(node, 'end_col_offset'):
+            # Python 3.8 onwards has these (so, use when possible).
+            line, col = node.end_lineno, node.end_col_offset
+            offset = _get_offset_from_line_col(code, line - 1, col)  # ast lines are 1-based, make it 0-based.
+
+        else:
+            # end line/col not available, let's just find the offset and then search
+            # for the alias from there.
+            line, col = node.lineno, node.col_offset
+            offset = _get_offset_from_line_col(code, line - 1, col)  # ast lines are 1-based, make it 0-based.
+            if offset >= 0 and node.names:
+                from_future_import_name = node.names[-1].name
+                i = code.find(from_future_import_name, offset)
+                if i < 0:
+                    offset = -1
+                else:
+                    offset = i + len(from_future_import_name)
+
+        if offset >= 0:
+            for i in range(offset, len(code)):
+                if code[i] in (' ', '\t', ';', ')', '\n'):
+                    offset += 1
+                else:
+                    break
+
+            future_import = code[:offset]
+            code_remainder = code[offset:]
+
+            # Now, put '\n' lines back into the code remainder (we had to search for
+            # `\n)`, but in case we just got the `\n`, it should be at the remainder,
+            # not at the future import.
+            while future_import.endswith('\n'):
+                future_import = future_import[:-1]
+                code_remainder = '\n' + code_remainder
+
+            if not future_import.endswith(';'):
+                future_import += ';'
+            return future_import, code_remainder
+
+        # This shouldn't happen...
+        pydev_log.info('Unable to find line %s in code:\n%r', line, code)
+        return '', code
+
+    except:
+        pydev_log.exception('Error getting from __future__ imports from: %r', code)
+        return '', code
+
+
 def _get_python_c_args(host, port, code, args, setup):
     setup = _get_setup_updated_with_protocol_and_ppid(setup)
 
     # i.e.: We want to make the repr sorted so that it works in tests.
     setup_repr = setup if setup is None else (sorted_dict_repr(setup))
 
-    return ("import sys; sys.path.insert(0, r'%s'); import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL=%r; "
+    future_imports = ''
+    if '__future__' in code:
+        # If the code has a __future__ import, we need to be able to strip the __future__
+        # imports from the code and add them to the start of our code snippet.
+        future_imports, code = _separate_future_imports(code)
+
+    return ("%simport sys; sys.path.insert(0, r'%s'); import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL=%r; "
             "pydevd.settrace(host=%r, port=%s, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=%r, client_access_token=%r, __setup_holder__=%s); "
             "%s"
             ) % (
+               future_imports,
                pydev_src_dir,
                pydevd_constants.get_protocol(),
                host,
