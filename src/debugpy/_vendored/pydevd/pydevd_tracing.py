@@ -4,6 +4,7 @@ from _pydevd_bundle.pydevd_constants import get_frame, IS_CPYTHON, IS_64BIT_PROC
 from _pydev_imps._pydev_saved_modules import thread, threading
 from _pydev_bundle import pydev_log, pydev_monkey
 from os.path import os
+import platform
 try:
     import ctypes
 except ImportError:
@@ -125,44 +126,124 @@ def _load_python_helper_lib():
         return lib
 
 
-def _load_python_helper_lib_uncached():
-    if (not IS_CPYTHON or ctypes is None or sys.version_info[:2] > (3, 9)
-            or hasattr(sys, 'gettotalrefcount') or LOAD_NATIVE_LIB_FLAG in ENV_FALSE_LOWER_VALUES):
-        return None
+def get_python_helper_lib_filename():
+    # Note: we have an independent (and similar -- but not equal) version of this method in
+    # `add_code_to_python_process.py` which should be kept synchronized with this one (we do a copy
+    # because the `pydevd_attach_to_process` is mostly independent and shouldn't be imported in the
+    # debugger -- the only situation where it's imported is if the user actually does an attach to
+    # process, through `attach_pydevd.py`, but this should usually be called from the IDE directly
+    # and not from the debugger).
+    libdir = os.path.join(os.path.dirname(__file__), 'pydevd_attach_to_process')
+
+    arch = ''
+    if IS_WINDOWS:
+        # prefer not using platform.machine() when possible (it's a bit heavyweight as it may
+        # spawn a subprocess).
+        arch = os.environ.get("PROCESSOR_ARCHITEW6432", os.environ.get('PROCESSOR_ARCHITECTURE', ''))
+
+    if not arch:
+        arch = platform.machine()
+        if not arch:
+            pydev_log.info('platform.machine() did not return valid value.')  # This shouldn't happen...
+            return None
 
     if IS_WINDOWS:
-        if IS_64BIT_PROCESS:
-            suffix = 'amd64'
-        else:
-            suffix = 'x86'
-
-        filename = os.path.join(os.path.dirname(__file__), 'pydevd_attach_to_process', 'attach_%s.dll' % (suffix,))
+        extension = '.dll'
+        suffix_64 = 'amd64'
+        suffix_32 = 'x86'
 
     elif IS_LINUX:
-        if IS_64BIT_PROCESS:
-            suffix = 'amd64'
-        else:
-            suffix = 'x86'
-
-        filename = os.path.join(os.path.dirname(__file__), 'pydevd_attach_to_process', 'attach_linux_%s.so' % (suffix,))
+        extension = '.so'
+        suffix_64 = 'amd64'
+        suffix_32 = 'x86'
 
     elif IS_MAC:
-        if IS_64BIT_PROCESS:
-            suffix = 'x86_64.dylib'
-        else:
-            suffix = 'x86.dylib'
-
-        filename = os.path.join(os.path.dirname(__file__), 'pydevd_attach_to_process', 'attach_%s' % (suffix,))
+        extension = '.dylib'
+        suffix_64 = 'x86_64'
+        suffix_32 = 'x86'
 
     else:
         pydev_log.info('Unable to set trace to all threads in platform: %s', sys.platform)
         return None
 
+    if arch.lower() not in ('amd64', 'x86', 'x86_64', 'i386', 'x86'):
+        # We don't support this processor by default. Still, let's support the case where the
+        # user manually compiled it himself with some heuristics.
+        #
+        # Ideally the user would provide a library in the format: "attach_<arch>.<extension>"
+        # based on the way it's currently compiled -- see:
+        # - windows/compile_windows.bat
+        # - linux_and_mac/compile_linux.sh
+        # - linux_and_mac/compile_mac.sh
+
+        try:
+            found = [name for name in os.listdir(libdir) if name.startswith('attach_') and name.endswith(extension)]
+        except:
+            if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 1:
+                # There is no need to show this unless debug tracing is enabled.
+                pydev_log.exception('Error listing dir: %s', libdir)
+            return None
+
+        expected_name = 'attach_' + arch + extension
+        expected_name_linux = 'attach_linux_' + arch + extension
+
+        filename = None
+        if expected_name in found:  # Heuristic: user compiled with "attach_<arch>.<extension>"
+            filename = os.path.join(libdir, expected_name)
+
+        elif IS_LINUX and expected_name_linux in found:  # Heuristic: user compiled with "attach_linux_<arch>.<extension>"
+            filename = os.path.join(libdir, expected_name_linux)
+
+        elif len(found) == 1:  # Heuristic: user removed all libraries and just left his own lib.
+            filename = os.path.join(libdir, found[0])
+
+        else:  # Heuristic: there's one additional library which doesn't seem to be our own. Find the odd one.
+            filtered = [name for name in found if not name.endswith((suffix_64 + extension, suffix_32 + extension))]
+            if len(filtered) == 1:  # If more than one is available we can't be sure...
+                filename = os.path.join(libdir, found[0])
+
+        if filename is None:
+            pydev_log.info(
+                'Unable to set trace to all threads in arch: %s (did not find a %s lib in %s).', (
+                    arch, expected_name, libdir
+                )
+            )
+            return None
+
+        pydev_log.info('Using %s lib in arch: %s.', filename, arch)
+
+    else:
+        # Happy path for which we have pre-compiled binaries.
+        if IS_64BIT_PROCESS:
+            suffix = suffix_64
+        else:
+            suffix = suffix_32
+
+        if IS_WINDOWS or IS_MAC:  # just the extension changes
+            prefix = 'attach_'
+        elif IS_LINUX:  #
+            prefix = 'attach_linux_'  # historically it has a different name
+        else:
+            pydev_log.info('Unable to set trace to all threads in platform: %s', sys.platform)
+            return None
+
+        filename = os.path.join(libdir, '%s%s%s' % (prefix, suffix, extension))
+
     if not os.path.exists(filename):
         pydev_log.critical('Expected: %s to exist.', filename)
         return None
 
+    return filename
+
+
+def _load_python_helper_lib_uncached():
+    if (not IS_CPYTHON or ctypes is None or sys.version_info[:2] > (3, 9)
+            or hasattr(sys, 'gettotalrefcount') or LOAD_NATIVE_LIB_FLAG in ENV_FALSE_LOWER_VALUES):
+        pydev_log.info('Helper lib to set tracing to all threads not loaded.')
+        return None
+
     try:
+        filename = get_python_helper_lib_filename()
         # Load as pydll so that we don't release the gil.
         lib = ctypes.pydll.LoadLibrary(filename)
         pydev_log.info('Successfully Loaded helper lib to set tracing to all threads.')
