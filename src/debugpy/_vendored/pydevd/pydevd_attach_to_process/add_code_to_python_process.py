@@ -76,6 +76,8 @@ import subprocess
 import sys
 import time
 from contextlib import contextmanager
+import platform
+import traceback
 
 try:
     TimeoutError = TimeoutError  # @ReservedAssignment
@@ -122,13 +124,139 @@ def _create_win_event(name):
         CloseHandle(event)
 
 
+IS_WINDOWS = sys.platform == 'win32'
+IS_LINUX = sys.platform in ('linux', 'linux2')
+IS_MAC = sys.platform == 'darwin'
+
+
 def is_python_64bit():
     return (struct.calcsize('P') == 8)
 
 
-def is_mac():
-    import platform
-    return platform.system() == 'Darwin'
+def get_target_filename(is_target_process_64=None, prefix=None, extension=None):
+    # Note: we have an independent (and similar -- but not equal) version of this method in
+    # `pydevd_tracing.py` which should be kept synchronized with this one (we do a copy
+    # because the `pydevd_attach_to_process` is mostly independent and shouldn't be imported in the
+    # debugger -- the only situation where it's imported is if the user actually does an attach to
+    # process, through `attach_pydevd.py`, but this should usually be called from the IDE directly
+    # and not from the debugger).
+    libdir = os.path.dirname(__file__)
+
+    if is_target_process_64 is None:
+        if IS_WINDOWS:
+            # i.e.: On windows the target process could have a different bitness (32bit is emulated on 64bit).
+            raise AssertionError("On windows it's expected that the target bitness is specified.")
+
+        # For other platforms, just use the the same bitness of the process we're running in.
+        is_target_process_64 = is_python_64bit()
+
+    arch = ''
+    if IS_WINDOWS:
+        # prefer not using platform.machine() when possible (it's a bit heavyweight as it may
+        # spawn a subprocess).
+        arch = os.environ.get("PROCESSOR_ARCHITEW6432", os.environ.get('PROCESSOR_ARCHITECTURE', ''))
+
+    if not arch:
+        arch = platform.machine()
+        if not arch:
+            print('platform.machine() did not return valid value.')  # This shouldn't happen...
+            return None
+
+    if IS_WINDOWS:
+        if not extension:
+            extension = '.dll'
+        suffix_64 = 'amd64'
+        suffix_32 = 'x86'
+
+    elif IS_LINUX:
+        if not extension:
+            extension = '.so'
+        suffix_64 = 'amd64'
+        suffix_32 = 'x86'
+
+    elif IS_MAC:
+        if not extension:
+            extension = '.dylib'
+        suffix_64 = 'x86_64'
+        suffix_32 = 'x86'
+
+    else:
+        print('Unable to attach to process in platform: %s', sys.platform)
+        return None
+
+    if arch.lower() not in ('amd64', 'x86', 'x86_64', 'i386', 'x86'):
+        # We don't support this processor by default. Still, let's support the case where the
+        # user manually compiled it himself with some heuristics.
+        #
+        # Ideally the user would provide a library in the format: "attach_<arch>.<extension>"
+        # based on the way it's currently compiled -- see:
+        # - windows/compile_windows.bat
+        # - linux_and_mac/compile_linux.sh
+        # - linux_and_mac/compile_mac.sh
+
+        try:
+            found = [name for name in os.listdir(libdir) if name.startswith('attach_') and name.endswith(extension)]
+        except:
+            print('Error listing dir: %s' % (libdir,))
+            traceback.print_exc()
+            return None
+
+        if prefix:
+            expected_name = prefix + arch + extension
+            expected_name_linux = prefix + 'linux_' + arch + extension
+        else:
+            # Default is looking for the attach_ / attach_linux
+            expected_name = 'attach_' + arch + extension
+            expected_name_linux = 'attach_linux_' + arch + extension
+
+        filename = None
+        if expected_name in found:  # Heuristic: user compiled with "attach_<arch>.<extension>"
+            filename = os.path.join(libdir, expected_name)
+
+        elif IS_LINUX and expected_name_linux in found:  # Heuristic: user compiled with "attach_linux_<arch>.<extension>"
+            filename = os.path.join(libdir, expected_name_linux)
+
+        elif len(found) == 1:  # Heuristic: user removed all libraries and just left his own lib.
+            filename = os.path.join(libdir, found[0])
+
+        else:  # Heuristic: there's one additional library which doesn't seem to be our own. Find the odd one.
+            filtered = [name for name in found if not name.endswith((suffix_64 + extension, suffix_32 + extension))]
+            if len(filtered) == 1:  # If more than one is available we can't be sure...
+                filename = os.path.join(libdir, found[0])
+
+        if filename is None:
+            print(
+                'Unable to attach to process in arch: %s (did not find %s in %s).' % (
+                    arch, expected_name, libdir
+                )
+            )
+            return None
+
+        print('Using %s in arch: %s.' % (filename, arch))
+
+    else:
+        if is_target_process_64:
+            suffix = suffix_64
+        else:
+            suffix = suffix_32
+
+        if not prefix:
+            # Default is looking for the attach_ / attach_linux
+            if IS_WINDOWS or IS_MAC:  # just the extension changes
+                prefix = 'attach_'
+            elif IS_LINUX:
+                prefix = 'attach_linux_'  # historically it has a different name
+            else:
+                print('Unable to attach to process in platform: %s' % (sys.platform,))
+                return None
+
+        filename = os.path.join(libdir, '%s%s%s' % (prefix, suffix, extension))
+
+    if not os.path.exists(filename):
+        print('Expected: %s to exist.' % (filename,))
+        return None
+
+    return filename
 
 
 def run_python_code_windows(pid, python_code, connect_debugger_tracing=False, show_debug_info=0):
@@ -139,49 +267,41 @@ def run_python_code_windows(pid, python_code, connect_debugger_tracing=False, sh
 
     process = Process(pid)
     bits = process.get_bits()
-    is_64 = bits == 64
+    is_target_process_64 = bits == 64
 
     # Note: this restriction no longer applies (we create a process with the proper bitness from
     # this process so that the attach works).
-    # if is_64 != is_python_64bit():
+    # if is_target_process_64 != is_python_64bit():
     #     raise RuntimeError("The architecture of the Python used to connect doesn't match the architecture of the target.\n"
     #     "Target 64 bits: %s\n"
-    #     "Current Python 64 bits: %s" % (is_64, is_python_64bit()))
+    #     "Current Python 64 bits: %s" % (is_target_process_64, is_python_64bit()))
 
     with _acquire_mutex('_pydevd_pid_attach_mutex_%s' % (pid,), 10):
         print('--- Connecting to %s bits target (current process is: %s) ---' % (bits, 64 if is_python_64bit() else 32))
 
         with _win_write_to_shared_named_memory(python_code, pid):
 
-            filedir = os.path.dirname(__file__)
-            if is_64:
-                suffix = 'amd64'
-            else:
-                suffix = 'x86'
+            target_executable = get_target_filename(is_target_process_64, 'inject_dll_', '.exe')
+            if not target_executable:
+                raise RuntimeError('Could not find expected .exe file to inject dll in attach to process.')
 
-            target_executable = os.path.join(filedir, 'inject_dll_%s.exe' % suffix)
-            if not os.path.exists(target_executable):
-                raise RuntimeError('Could not find exe file to inject: %s' % target_executable)
+            target_dll = get_target_filename(is_target_process_64)
+            if not target_dll:
+                raise RuntimeError('Could not find expected .dll file in attach to process.')
 
-            name = 'attach_%s.dll' % suffix
-            target_dll = os.path.join(filedir, name)
-            if not os.path.exists(target_dll):
-                raise RuntimeError('Could not find dll file to inject: %s' % target_dll)
-
-            print('\n--- Injecting attach dll: %s into pid: %s ---' % (name, pid))
+            print('\n--- Injecting attach dll: %s into pid: %s ---' % (os.path.basename(target_dll), pid))
             args = [target_executable, str(pid), target_dll]
             subprocess.check_call(args)
 
             # Now, if the first injection worked, go on to the second which will actually
             # run the code.
-            name = 'run_code_on_dllmain_%s.dll' % suffix
-            target_dll = os.path.join(filedir, name)
-            if not os.path.exists(target_dll):
-                raise RuntimeError('Could not find dll file to inject: %s' % target_dll)
+            target_dll_run_on_dllmain = get_target_filename(is_target_process_64, 'run_code_on_dllmain_', '.dll')
+            if not target_dll_run_on_dllmain:
+                raise RuntimeError('Could not find expected .dll in attach to process.')
 
             with _create_win_event('_pydevd_pid_event_%s' % (pid,)) as event:
-                print('\n--- Injecting run code dll: %s into pid: %s ---' % (name, pid))
-                args = [target_executable, str(pid), target_dll]
+                print('\n--- Injecting run code dll: %s into pid: %s ---' % (os.path.basename(target_dll_run_on_dllmain), pid))
+                args = [target_executable, str(pid), target_dll_run_on_dllmain]
                 subprocess.check_call(args)
 
                 if not event.wait_for_event_set(10):
@@ -269,25 +389,10 @@ def _win_write_to_shared_named_memory(python_code, pid):
 
 def run_python_code_linux(pid, python_code, connect_debugger_tracing=False, show_debug_info=0):
     assert '\'' not in python_code, 'Having a single quote messes with our command.'
-    filedir = os.path.dirname(__file__)
 
-    # Valid arguments for arch are i386, i386:x86-64, i386:x64-32, i8086,
-    #   i386:intel, i386:x86-64:intel, i386:x64-32:intel, i386:nacl,
-    #   i386:x86-64:nacl, i386:x64-32:nacl, auto.
-
-    if is_python_64bit():
-        suffix = 'amd64'
-        arch = 'i386:x86-64'
-    else:
-        suffix = 'x86'
-        arch = 'i386'
-
-    print('Attaching with arch: %s' % (arch,))
-
-    target_dll = os.path.join(filedir, 'attach_linux_%s.so' % suffix)
-    target_dll = os.path.abspath(os.path.normpath(target_dll))
-    if not os.path.exists(target_dll):
-        raise RuntimeError('Could not find dll file to inject: %s' % target_dll)
+    target_dll = get_target_filename()
+    if not target_dll:
+        raise RuntimeError('Could not find .so for attach to process.')
 
     # Note: we currently don't support debug builds
     is_debug = 0
@@ -306,7 +411,9 @@ def run_python_code_linux(pid, python_code, connect_debugger_tracing=False, show
 
     cmd.extend(["--eval-command='set scheduler-locking off'"])  # If on we'll deadlock.
 
-    cmd.extend(["--eval-command='set architecture %s'" % arch])
+    # Leave auto by default (it should do the right thing as we're attaching to a process in the
+    # current host).
+    cmd.extend(["--eval-command='set architecture auto'"])
 
     cmd.extend([
         "--eval-command='call (void*)dlopen(\"%s\", 2)'" % target_dll,
@@ -347,27 +454,13 @@ def find_helper_script(filedir, script_name):
 
 def run_python_code_mac(pid, python_code, connect_debugger_tracing=False, show_debug_info=0):
     assert '\'' not in python_code, 'Having a single quote messes with our command.'
-    filedir = os.path.dirname(__file__)
 
-    # Valid arguments for arch are i386, i386:x86-64, i386:x64-32, i8086,
-    #   i386:intel, i386:x86-64:intel, i386:x64-32:intel, i386:nacl,
-    #   i386:x86-64:nacl, i386:x64-32:nacl, auto.
+    target_dll = get_target_filename()
+    if not target_dll:
+        raise RuntimeError('Could not find .dylib for attach to process.')
 
-    if is_python_64bit():
-        suffix = 'x86_64.dylib'
-        arch = 'i386:x86-64'
-    else:
-        suffix = 'x86.dylib'
-        arch = 'i386'
-
-    print('Attaching with arch: %s' % (arch,))
-
-    target_dll = os.path.join(filedir, 'attach_%s' % suffix)
-    target_dll = os.path.normpath(target_dll)
-    if not os.path.exists(target_dll):
-        raise RuntimeError('Could not find dll file to inject: %s' % target_dll)
-
-    lldb_prepare_file = find_helper_script(filedir, 'lldb_prepare.py')
+    libdir = os.path.dirname(__file__)
+    lldb_prepare_file = find_helper_script(libdir, 'lldb_prepare.py')
     # Note: we currently don't support debug builds
 
     is_debug = 0
@@ -418,12 +511,16 @@ def run_python_code_mac(pid, python_code, connect_debugger_tracing=False, show_d
     return out, err
 
 
-if sys.platform == 'win32':
+if IS_WINDOWS:
     run_python_code = run_python_code_windows
-elif is_mac():
+elif IS_MAC:
     run_python_code = run_python_code_mac
-else:
+elif IS_LINUX:
     run_python_code = run_python_code_linux
+else:
+
+    def run_python_code(*args, **kwargs):
+        print('Unable to attach to process in platform: %s', sys.platform)
 
 
 def test():
