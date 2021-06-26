@@ -256,6 +256,8 @@ def case_setup(tmpdir, debugger_runner_simple):
         def test_file(
                 self,
                 filename,
+                wait_for_port=True,
+                wait_for_initialization=True,
                 **kwargs
             ):
             import shutil
@@ -282,7 +284,11 @@ def case_setup(tmpdir, debugger_runner_simple):
                 assert hasattr(WriterThread, key)
                 setattr(WriterThread, key, value)
 
-            with runner.check_case(WriterThread) as writer:
+            with runner.check_case(
+                    WriterThread,
+                    wait_for_port=wait_for_port,
+                    wait_for_initialization=wait_for_initialization
+                ) as writer:
                 yield writer
 
     return CaseSetup()
