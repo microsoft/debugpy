@@ -430,7 +430,7 @@ class DebuggerRunner(object):
         return args + ret
 
     @contextmanager
-    def check_case(self, writer_class, wait_for_port=True):
+    def check_case(self, writer_class, wait_for_port=True, wait_for_initialization=True):
         try:
             if callable(writer_class):
                 writer = writer_class()
@@ -451,7 +451,11 @@ class DebuggerRunner(object):
 
                 with self.run_process(args, writer) as dct_with_stdout_stder:
                     try:
-                        if wait_for_port:
+                        if not wait_for_initialization:
+                            # The use-case for this is that the debugger can't even start-up in this
+                            # scenario, as such, sleep a bit so that the output can be collected.
+                            time.sleep(1)
+                        elif wait_for_port:
                             wait_for_condition(lambda: writer.finished_initialization)
                     except TimeoutError:
                         sys.stderr.write('Timed out waiting for initialization\n')

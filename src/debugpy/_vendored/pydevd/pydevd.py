@@ -6,33 +6,40 @@ This module starts the debugger.
 import sys  # @NoMove
 if sys.version_info[:2] < (2, 6):
     raise RuntimeError('The PyDev.Debugger requires Python 2.6 onwards to be run. If you need to use an older Python version, use an older version of the debugger.')
+import os
+
+try:
+    # Just empty packages to check if they're in the PYTHONPATH.
+    import _pydev_imps
+    import _pydev_bundle
+except ImportError:
+    # On the first import of a pydevd module, add pydevd itself to the PYTHONPATH
+    # if its dependencies cannot be imported.
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    import _pydev_imps
+    import _pydev_bundle
+
+# Import this first as it'll check for shadowed modules and will make sure that we import
+# things as needed for gevent.
+from _pydevd_bundle import pydevd_constants
 
 import atexit
 from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial
 import itertools
-import os
 import traceback
 import weakref
 import getpass as getpass_mod
 import functools
-try:
-    import pydevd_file_utils
-except ImportError:
-    # On the first import of a pydevd module, add pydevd itself to the PYTHONPATH
-    # if its dependencies cannot be imported.
-    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    import pydevd_file_utils
 
+import pydevd_file_utils
 from _pydev_bundle import pydev_imports, pydev_log
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
 from _pydev_bundle.pydev_is_thread_alive import is_thread_alive
 from _pydev_bundle.pydev_override import overrides
-from _pydev_imps._pydev_saved_modules import thread
-from _pydev_imps._pydev_saved_modules import threading
-from _pydev_imps._pydev_saved_modules import time
-from _pydevd_bundle import pydevd_extension_utils, pydevd_frame_utils, pydevd_constants
+from _pydev_imps._pydev_saved_modules import threading, time, thread
+from _pydevd_bundle import pydevd_extension_utils, pydevd_frame_utils
 from _pydevd_bundle.pydevd_filtering import FilesFiltering, glob_matches_path
 from _pydevd_bundle import pydevd_io, pydevd_vm_type
 from _pydevd_bundle import pydevd_utils
@@ -2795,7 +2802,7 @@ def _locked_settrace(
 
         py_db.wait_for_ready_to_run()
         py_db.start_auxiliary_daemon_threads()
-        
+
         try:
             if INTERACTIVE_MODE_AVAILABLE:
                 py_db.init_matplotlib_support()

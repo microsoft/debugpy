@@ -33,13 +33,7 @@ try:
 except NameError:
     from _pydev_imps._pydev_execfile import execfile
 
-try:
-    if USE_LIB_COPY:
-        from _pydev_imps._pydev_saved_modules import _queue
-    else:
-        import Queue as _queue
-except:
-    import queue as _queue  # @UnresolvedImport
+from _pydev_imps._pydev_saved_modules import _queue
 
 try:
     from _pydevd_bundle.pydevd_exec import Exec

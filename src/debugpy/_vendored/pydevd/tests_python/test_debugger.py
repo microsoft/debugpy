@@ -4281,6 +4281,83 @@ def test_frame_eval_mode_corner_case_many(case_setup, break_name):
 
             writer.finished_ok = True
 
+
+if IS_PY3K:
+    check_shadowed = [
+    (
+        u'''
+if __name__ == '__main__':
+    import queue
+    print(queue)
+''',
+        'queue.py',
+        u'shadowed = True\n'
+    ),
+
+    (
+        u'''
+if __name__ == '__main__':
+    import queue
+    print(queue)
+''',
+        'queue.py',
+        u'raise AssertionError("error on import")'
+    )
+    ]
+
+else:
+    check_shadowed = [
+    (
+        u'''
+if __name__ == '__main__':
+    import Queue
+    print(Queue)
+''',
+        'Queue.py',
+        u'shadowed = True\n'
+    ),
+
+    (
+        u'''
+if __name__ == '__main__':
+    import Queue
+    print(Queue)
+''',
+        'Queue.py',
+        u'raise AssertionError("error on import")'
+    )
+    ]
+
+
+@pytest.mark.parametrize('module_name_and_content', check_shadowed)
+def test_debugger_shadowed_imports(case_setup, tmpdir, module_name_and_content):
+    main_content, module_name, content = module_name_and_content
+    target = tmpdir.join('main.py')
+    shadowed = tmpdir.join(module_name)
+
+    target.write_text(main_content, encoding='utf-8')
+
+    shadowed.write_text(content, encoding='utf-8')
+
+    def get_environ(writer):
+        env = os.environ.copy()
+        env.update({
+            'PYTHONPATH': str(tmpdir),
+        })
+        return env
+
+    try:
+        with case_setup.test_file(
+                str(target),
+                get_environ=get_environ,
+                wait_for_initialization=False,
+            ) as writer:
+            writer.write_make_initial_run()
+    except AssertionError:
+        pass  # This is expected as pydevd didn't start-up.
+
+    assert ('the module "%s" could not be imported because it is shadowed by:' % (module_name.split('.')[0])) in writer.get_stderr()
+
 # Jython needs some vars to be set locally.
 # set JAVA_HOME=c:\bin\jdk1.8.0_172
 # set PATH=%PATH%;C:\bin\jython2.7.0\bin
