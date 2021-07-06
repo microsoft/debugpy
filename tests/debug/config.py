@@ -4,11 +4,16 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import collections
 import os
+import sys
+
+if sys.version_info >= (3, 3):
+    from collections.abc import MutableMapping, MutableSet
+else:
+    from collections import MutableMapping, MutableSet
 
 
-class DebugConfig(collections.MutableMapping):
+class DebugConfig(MutableMapping):
     """Debug configuration for a session. Corresponds to bodies of DAP "launch" and
     "attach" requests, or launch.json in VSCode.
 
@@ -137,8 +142,7 @@ class DebugConfig(collections.MutableMapping):
         return self[key]
 
     def setdefaults(self, defaults):
-        """Like setdefault(), but sets multiple default values at once.
-        """
+        """Like setdefault(), but sets multiple default values at once."""
         for k, v in defaults.items():
             self.setdefault(k, v)
 
@@ -192,9 +196,8 @@ class DebugConfig(collections.MutableMapping):
     def debug_options(self):
         return self._debug_options
 
-    class Env(collections.MutableMapping):
-        """Wraps config["env"], automatically creating and destroying it as needed.
-        """
+    class Env(MutableMapping):
+        """Wraps config["env"], automatically creating and destroying it as needed."""
 
         def __init__(self, config):
             self.config = config
@@ -230,7 +233,7 @@ class DebugConfig(collections.MutableMapping):
                 tail = ""
             self[key] = entry + tail
 
-    class DebugOptions(collections.MutableSet):
+    class DebugOptions(MutableSet):
         """Wraps config["debugOptions"], automatically creating and destroying it as
         needed, and providing set operations for it.
         """
