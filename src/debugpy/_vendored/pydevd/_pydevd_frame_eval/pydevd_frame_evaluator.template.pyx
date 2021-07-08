@@ -125,6 +125,7 @@ cdef class ThreadInfo:
 cdef class FuncCodeInfo:
 
     cdef public str co_filename
+    cdef public str co_name
     cdef public str canonical_normalized_filename
     cdef bint always_skip_code
     cdef public bint breakpoint_found
@@ -240,6 +241,7 @@ cdef FuncCodeInfo get_func_code_info(ThreadInfo thread_info, PyFrameObject * fra
                 return func_code_info_obj
 
     cdef str co_filename = <str> code_obj.co_filename
+    cdef str co_name = <str> code_obj.co_name
     cdef dict cache_file_type
     cdef tuple cache_file_type_key
 
@@ -247,6 +249,7 @@ cdef FuncCodeInfo get_func_code_info(ThreadInfo thread_info, PyFrameObject * fra
     func_code_info.breakpoints_mtime = main_debugger.mtime
 
     func_code_info.co_filename = co_filename
+    func_code_info.co_name = co_name
 
     if not func_code_info.always_skip_code:
         try:
@@ -272,6 +275,7 @@ cdef FuncCodeInfo get_func_code_info(ThreadInfo thread_info, PyFrameObject * fra
         if main_debugger is not None:
 
             breakpoints: dict = main_debugger.breakpoints.get(func_code_info.canonical_normalized_filename)
+            function_breakpoint: object = main_debugger.function_breakpoint_name_to_breakpoint.get(func_code_info.co_name)
             # print('\n---')
             # print(main_debugger.breakpoints)
             # print(func_code_info.canonical_normalized_filename)
@@ -289,6 +293,11 @@ cdef FuncCodeInfo get_func_code_info(ThreadInfo thread_info, PyFrameObject * fra
                     cached_code_obj_info.compute_force_stay_in_untraced_mode(breakpoints)
                 func_code_info.breakpoint_found = breakpoint_found
 
+            elif function_breakpoint:
+                # Go directly into tracing mode
+                func_code_info.breakpoint_found = True
+                func_code_info.new_code = None
+                
             elif breakpoints:
                 # if DEBUG:
                 #    print('found breakpoints', code_obj_py.co_name, breakpoints)

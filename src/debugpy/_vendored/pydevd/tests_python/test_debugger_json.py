@@ -13,14 +13,15 @@ from _pydevd_bundle._debug_adapter import pydevd_schema, pydevd_base_schema
 from _pydevd_bundle._debug_adapter.pydevd_base_schema import from_json
 from _pydevd_bundle._debug_adapter.pydevd_schema import (ThreadEvent, ModuleEvent, OutputEvent,
     ExceptionOptions, Response, StoppedEvent, ContinuedEvent, ProcessEvent, InitializeRequest,
-    InitializeRequestArguments, TerminateArguments, TerminateRequest, TerminatedEvent)
+    InitializeRequestArguments, TerminateArguments, TerminateRequest, TerminatedEvent,
+    FunctionBreakpoint, SetFunctionBreakpointsRequest, SetFunctionBreakpointsArguments)
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
 from _pydevd_bundle.pydevd_constants import (int_types, IS_64BIT_PROCESS,
     PY_VERSION_STR, PY_IMPL_VERSION_STR, PY_IMPL_NAME, IS_PY36_OR_GREATER,
     IS_PYPY, GENERATED_LEN_ATTR_NAME, IS_WINDOWS, IS_LINUX, IS_MAC)
 from tests_python import debugger_unittest
 from tests_python.debug_constants import TEST_CHERRYPY, IS_PY2, TEST_DJANGO, TEST_FLASK, IS_PY26, \
-    IS_PY27, IS_CPYTHON, TEST_GEVENT, TEST_CYTHON, IS_PY36_OR_GREATER
+    IS_PY27, IS_CPYTHON, TEST_GEVENT, TEST_CYTHON
 from tests_python.debugger_unittest import (IS_JYTHON, IS_APPVEYOR, overrides,
     get_free_port, wait_for_condition)
 from _pydevd_bundle.pydevd_utils import DAPGrouper
@@ -153,6 +154,14 @@ class JsonFacade(object):
                 line = [line]
             assert found_line in line, 'Expect to break at line: %s. Found: %s (file: %s)' % (line, found_line, path)
         return json_hit
+
+    def write_set_function_breakpoints(
+        self, function_names):
+        function_breakpoints = [FunctionBreakpoint(name,) for name in function_names]
+        arguments = SetFunctionBreakpointsArguments(function_breakpoints)
+        request = SetFunctionBreakpointsRequest(arguments)
+        response = self.wait_for_response(self.write_request(request))
+        assert response.success
 
     def write_set_breakpoints(
             self,
@@ -5540,6 +5549,46 @@ def test_step_into_target_genexpr(case_setup):
 
         on_foo_mark_line = writer.get_line_index_with_content('on foo mark')
         hit = json_facade.wait_for_thread_stopped(reason='step', line=on_foo_mark_line)
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
+def test_function_breakpoints_basic(case_setup, pyfile):
+
+    @pyfile
+    def module():
+
+        def do_something():  # break here
+            print('TEST SUCEEDED')
+
+        if __name__ == '__main__':
+            do_something()
+
+    with case_setup.test_file(module) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(justMyCode=False)
+        bp = writer.get_line_index_with_content('break here')
+        json_facade.write_set_function_breakpoints(['do_something'])
+        json_facade.write_make_initial_run()
+
+        hit = json_facade.wait_for_thread_stopped('function breakpoint', line=bp)
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not IS_PY36_OR_GREATER, reason='Python 3.6 onwards required for test.')
+def test_function_breakpoints_async(case_setup):
+
+    with case_setup.test_file('_debugger_case_stop_async_iteration.py') as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(justMyCode=False)
+        bp = writer.get_line_index_with_content('async def gen():')
+        json_facade.write_set_function_breakpoints(['gen'])
+        json_facade.write_make_initial_run()
+
+        hit = json_facade.wait_for_thread_stopped('function breakpoint', line=bp)
         json_facade.write_continue()
 
         writer.finished_ok = True
