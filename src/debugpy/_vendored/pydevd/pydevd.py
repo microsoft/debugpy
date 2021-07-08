@@ -530,6 +530,7 @@ class PyDB(object):
 
         # These are the breakpoints meant to be consumed during runtime.
         self.breakpoints = {}
+        self.function_breakpoint_name_to_breakpoint = {}
 
         # Set communication protocol
         PyDevdAPI().set_protocol(self, 0, PydevdCustomization.DEFAULT_PROTOCOL)

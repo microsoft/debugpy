@@ -657,6 +657,14 @@ class PyDevdAPI(object):
 
         py_db.on_breakpoints_changed(removed=True)
 
+    def set_function_breakpoints(self, py_db, function_breakpoints):
+        function_breakpoint_name_to_breakpoint = {}
+        for function_breakpoint in function_breakpoints:
+            function_breakpoint_name_to_breakpoint[function_breakpoint.func_name] = function_breakpoint
+
+        py_db.function_breakpoint_name_to_breakpoint = function_breakpoint_name_to_breakpoint
+        py_db.on_breakpoints_changed()
+
     def request_exec_or_evaluate(
             self, py_db, seq, thread_id, frame_id, expression, is_exec, trim_if_too_big, attr_to_set_result):
         py_db.post_method_as_internal_command(

@@ -939,6 +939,7 @@ struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo {
 struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo {
   PyObject_HEAD
   PyObject *co_filename;
+  PyObject *co_name;
   PyObject *canonical_normalized_filename;
   int always_skip_code;
   int breakpoint_found;
@@ -947,7 +948,7 @@ struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo {
 };
 
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":307
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":316
  * 
  * 
  * cdef class _CodeLineInfo:             # <<<<<<<<<<<<<<
@@ -962,7 +963,7 @@ struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator__CodeLineInfo {
 };
 
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":352
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":361
  * 
  * 
  * cdef class _CacheValue(object):             # <<<<<<<<<<<<<<
@@ -995,7 +996,7 @@ struct __pyx_vtabstruct_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo
 static struct __pyx_vtabstruct_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo *__pyx_vtabptr_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo;
 
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":352
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":361
  * 
  * 
  * cdef class _CacheValue(object):             # <<<<<<<<<<<<<<
@@ -1723,10 +1724,11 @@ static const char __pyx_k_set_additional_thread_info_lock[] = "_set_additional_t
 static const char __pyx_k_Incompatible_checksums_s_vs_0x0a[] = "Incompatible checksums (%s vs 0x0af4089 = (_can_create_dummy_thread, additional_info, force_stay_in_untraced_mode, fully_initialized, inside_frame_eval, is_pydevd_thread, thread_trace_func))";
 static const char __pyx_k_Incompatible_checksums_s_vs_0x3d[] = "Incompatible checksums (%s vs 0x3d481b9 = (breakpoints_hit_at_lines, code_line_info, code_lines_as_set, code_obj_py))";
 static const char __pyx_k_Incompatible_checksums_s_vs_0x3f[] = "Incompatible checksums (%s vs 0x3fbbd02 = (first_line, last_line, line_to_offset))";
-static const char __pyx_k_Incompatible_checksums_s_vs_0xd5[] = "Incompatible checksums (%s vs 0xd55f285 = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, new_code))";
+static const char __pyx_k_Incompatible_checksums_s_vs_0xb3[] = "Incompatible checksums (%s vs 0xb3ee05d = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, co_name, new_code))";
 static const char __pyx_k_break_on_user_uncaught_exception[] = "break_on_user_uncaught_exceptions";
 static const char __pyx_k_compute_force_stay_in_untraced_m[] = "compute_force_stay_in_untraced_mode";
 static const char __pyx_k_fix_top_level_trace_and_get_trac[] = "fix_top_level_trace_and_get_trace_func";
+static const char __pyx_k_function_breakpoint_name_to_brea[] = "function_breakpoint_name_to_breakpoint";
 static const char __pyx_k_generate_code_with_breakpoints_p[] = "generate_code_with_breakpoints_py";
 static const char __pyx_k_pydevd_frame_eval_pydevd_frame_2[] = "_pydevd_frame_eval/pydevd_frame_evaluator.pyx";
 static const char __pyx_k_pydevd_frame_eval_pydevd_frame_3[] = "_pydevd_frame_eval.pydevd_frame_evaluator";
@@ -1741,7 +1743,7 @@ static PyObject *__pyx_kp_s_If_a_code_object_is_cached_that;
 static PyObject *__pyx_kp_s_Incompatible_checksums_s_vs_0x0a;
 static PyObject *__pyx_kp_s_Incompatible_checksums_s_vs_0x3d;
 static PyObject *__pyx_kp_s_Incompatible_checksums_s_vs_0x3f;
-static PyObject *__pyx_kp_s_Incompatible_checksums_s_vs_0xd5;
+static PyObject *__pyx_kp_s_Incompatible_checksums_s_vs_0xb3;
 static PyObject *__pyx_n_s_NORM_PATHS_AND_BASE_CONTAINER;
 static PyObject *__pyx_n_s_PickleError;
 static PyObject *__pyx_n_s_SetTrace;
@@ -1787,6 +1789,7 @@ static PyObject *__pyx_n_s_first_line;
 static PyObject *__pyx_n_s_fix_top_level_trace_and_get_trac;
 static PyObject *__pyx_n_s_frame;
 static PyObject *__pyx_n_s_frame_eval_func;
+static PyObject *__pyx_n_s_function_breakpoint_name_to_brea;
 static PyObject *__pyx_n_s_generate_code_with_breakpoints_p;
 static PyObject *__pyx_n_s_get;
 static PyObject *__pyx_n_s_get_abs_path_real_path_and_base;
@@ -1890,6 +1893,9 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
 static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_11co_filename___get__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self); /* proto */
 static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_11co_filename_2__set__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self, PyObject *__pyx_v_value); /* proto */
 static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_11co_filename_4__del__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_7co_name___get__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self); /* proto */
+static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_7co_name_2__set__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self, PyObject *__pyx_v_value); /* proto */
+static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_7co_name_4__del__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self); /* proto */
 static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_29canonical_normalized_filename___get__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self); /* proto */
 static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_29canonical_normalized_filename_2__set__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self, PyObject *__pyx_v_value); /* proto */
 static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_29canonical_normalized_filename_4__del__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self); /* proto */
@@ -1953,7 +1959,7 @@ static PyObject *__pyx_int_9;
 static PyObject *__pyx_int_11485321;
 static PyObject *__pyx_int_64258489;
 static PyObject *__pyx_int_66829570;
-static PyObject *__pyx_int_223736453;
+static PyObject *__pyx_int_188670045;
 static PyObject *__pyx_tuple__4;
 static PyObject *__pyx_tuple__7;
 static PyObject *__pyx_slice__20;
@@ -4170,7 +4176,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_10Thread
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":138
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":139
  *     cdef public int breakpoints_mtime
  * 
  *     def __init__(self):             # <<<<<<<<<<<<<<
@@ -4199,7 +4205,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__init__", 0);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":139
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":140
  * 
  *     def __init__(self):
  *         self.co_filename = ''             # <<<<<<<<<<<<<<
@@ -4212,7 +4218,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
   __Pyx_DECREF(__pyx_v_self->co_filename);
   __pyx_v_self->co_filename = __pyx_kp_s__5;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":140
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":141
  *     def __init__(self):
  *         self.co_filename = ''
  *         self.canonical_normalized_filename = ''             # <<<<<<<<<<<<<<
@@ -4225,7 +4231,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
   __Pyx_DECREF(__pyx_v_self->canonical_normalized_filename);
   __pyx_v_self->canonical_normalized_filename = __pyx_kp_s__5;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":141
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":142
  *         self.co_filename = ''
  *         self.canonical_normalized_filename = ''
  *         self.always_skip_code = False             # <<<<<<<<<<<<<<
@@ -4234,7 +4240,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
  */
   __pyx_v_self->always_skip_code = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":146
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":147
  *         # this means we weren't able to actually add the code
  *         # where needed, so, fallback to tracing.
  *         self.breakpoint_found = False             # <<<<<<<<<<<<<<
@@ -4243,7 +4249,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
  */
   __pyx_v_self->breakpoint_found = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":147
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":148
  *         # where needed, so, fallback to tracing.
  *         self.breakpoint_found = False
  *         self.new_code = None             # <<<<<<<<<<<<<<
@@ -4256,7 +4262,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
   __Pyx_DECREF(__pyx_v_self->new_code);
   __pyx_v_self->new_code = Py_None;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":148
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":149
  *         self.breakpoint_found = False
  *         self.new_code = None
  *         self.breakpoints_mtime = -1             # <<<<<<<<<<<<<<
@@ -4265,7 +4271,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
  */
   __pyx_v_self->breakpoints_mtime = -1;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":138
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":139
  *     cdef public int breakpoints_mtime
  * 
  *     def __init__(self):             # <<<<<<<<<<<<<<
@@ -4283,8 +4289,8 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
  * cdef class FuncCodeInfo:
  * 
  *     cdef public str co_filename             # <<<<<<<<<<<<<<
+ *     cdef public str co_name
  *     cdef public str canonical_normalized_filename
- *     cdef bint always_skip_code
  */
 
 /* Python wrapper */
@@ -4390,6 +4396,114 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
 /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":128
  * 
  *     cdef public str co_filename
+ *     cdef public str co_name             # <<<<<<<<<<<<<<
+ *     cdef public str canonical_normalized_filename
+ *     cdef bint always_skip_code
+ */
+
+/* Python wrapper */
+static PyObject *__pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_7co_name_1__get__(PyObject *__pyx_v_self); /*proto*/
+static PyObject *__pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_7co_name_1__get__(PyObject *__pyx_v_self) {
+  PyObject *__pyx_r = 0;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("__get__ (wrapper)", 0);
+  __pyx_r = __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_7co_name___get__(((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *)__pyx_v_self));
+
+  /* function exit code */
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_7co_name___get__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self) {
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("__get__", 0);
+  __Pyx_XDECREF(__pyx_r);
+  __Pyx_INCREF(__pyx_v_self->co_name);
+  __pyx_r = __pyx_v_self->co_name;
+  goto __pyx_L0;
+
+  /* function exit code */
+  __pyx_L0:;
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* Python wrapper */
+static int __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_7co_name_3__set__(PyObject *__pyx_v_self, PyObject *__pyx_v_value); /*proto*/
+static int __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_7co_name_3__set__(PyObject *__pyx_v_self, PyObject *__pyx_v_value) {
+  int __pyx_r;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("__set__ (wrapper)", 0);
+  __pyx_r = __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_7co_name_2__set__(((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *)__pyx_v_self), ((PyObject *)__pyx_v_value));
+
+  /* function exit code */
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_7co_name_2__set__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self, PyObject *__pyx_v_value) {
+  int __pyx_r;
+  __Pyx_RefNannyDeclarations
+  PyObject *__pyx_t_1 = NULL;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("__set__", 0);
+  if (!(likely(PyString_CheckExact(__pyx_v_value))||((__pyx_v_value) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "str", Py_TYPE(__pyx_v_value)->tp_name), 0))) __PYX_ERR(0, 128, __pyx_L1_error)
+  __pyx_t_1 = __pyx_v_value;
+  __Pyx_INCREF(__pyx_t_1);
+  __Pyx_GIVEREF(__pyx_t_1);
+  __Pyx_GOTREF(__pyx_v_self->co_name);
+  __Pyx_DECREF(__pyx_v_self->co_name);
+  __pyx_v_self->co_name = ((PyObject*)__pyx_t_1);
+  __pyx_t_1 = 0;
+
+  /* function exit code */
+  __pyx_r = 0;
+  goto __pyx_L0;
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_1);
+  __Pyx_AddTraceback("_pydevd_frame_eval.pydevd_frame_evaluator.FuncCodeInfo.co_name.__set__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = -1;
+  __pyx_L0:;
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* Python wrapper */
+static int __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_7co_name_5__del__(PyObject *__pyx_v_self); /*proto*/
+static int __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_7co_name_5__del__(PyObject *__pyx_v_self) {
+  int __pyx_r;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("__del__ (wrapper)", 0);
+  __pyx_r = __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_7co_name_4__del__(((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *)__pyx_v_self));
+
+  /* function exit code */
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_7co_name_4__del__(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_self) {
+  int __pyx_r;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("__del__", 0);
+  __Pyx_INCREF(Py_None);
+  __Pyx_GIVEREF(Py_None);
+  __Pyx_GOTREF(__pyx_v_self->co_name);
+  __Pyx_DECREF(__pyx_v_self->co_name);
+  __pyx_v_self->co_name = ((PyObject*)Py_None);
+
+  /* function exit code */
+  __pyx_r = 0;
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":129
+ *     cdef public str co_filename
+ *     cdef public str co_name
  *     cdef public str canonical_normalized_filename             # <<<<<<<<<<<<<<
  *     cdef bint always_skip_code
  *     cdef public bint breakpoint_found
@@ -4445,7 +4559,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  if (!(likely(PyString_CheckExact(__pyx_v_value))||((__pyx_v_value) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "str", Py_TYPE(__pyx_v_value)->tp_name), 0))) __PYX_ERR(0, 128, __pyx_L1_error)
+  if (!(likely(PyString_CheckExact(__pyx_v_value))||((__pyx_v_value) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "str", Py_TYPE(__pyx_v_value)->tp_name), 0))) __PYX_ERR(0, 129, __pyx_L1_error)
   __pyx_t_1 = __pyx_v_value;
   __Pyx_INCREF(__pyx_t_1);
   __Pyx_GIVEREF(__pyx_t_1);
@@ -4495,7 +4609,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":130
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":131
  *     cdef public str canonical_normalized_filename
  *     cdef bint always_skip_code
  *     cdef public bint breakpoint_found             # <<<<<<<<<<<<<<
@@ -4525,7 +4639,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_v_self->breakpoint_found); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 130, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_v_self->breakpoint_found); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 131, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -4563,7 +4677,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_value); if (unlikely((__pyx_t_1 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 130, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_value); if (unlikely((__pyx_t_1 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 131, __pyx_L1_error)
   __pyx_v_self->breakpoint_found = __pyx_t_1;
 
   /* function exit code */
@@ -4577,7 +4691,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":131
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":132
  *     cdef bint always_skip_code
  *     cdef public bint breakpoint_found
  *     cdef public object new_code             # <<<<<<<<<<<<<<
@@ -4672,7 +4786,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":136
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":137
  *     # to be re-evaluated (if invalid a new FuncCodeInfo must be created and
  *     # tracing can't be disabled for the related frames).
  *     cdef public int breakpoints_mtime             # <<<<<<<<<<<<<<
@@ -4702,7 +4816,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_self->breakpoints_mtime); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 136, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_self->breakpoints_mtime); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 137, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -4740,7 +4854,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  __pyx_t_1 = __Pyx_PyInt_As_int(__pyx_v_value); if (unlikely((__pyx_t_1 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 136, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_As_int(__pyx_v_value); if (unlikely((__pyx_t_1 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 137, __pyx_L1_error)
   __pyx_v_self->breakpoints_mtime = __pyx_t_1;
 
   /* function exit code */
@@ -4794,7 +4908,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
   /* "(tree fragment)":5
  *     cdef object _dict
  *     cdef bint use_setstate
- *     state = (self.always_skip_code, self.breakpoint_found, self.breakpoints_mtime, self.canonical_normalized_filename, self.co_filename, self.new_code)             # <<<<<<<<<<<<<<
+ *     state = (self.always_skip_code, self.breakpoint_found, self.breakpoints_mtime, self.canonical_normalized_filename, self.co_filename, self.co_name, self.new_code)             # <<<<<<<<<<<<<<
  *     _dict = getattr(self, '__dict__', None)
  *     if _dict is not None:
  */
@@ -4804,7 +4918,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_3 = __Pyx_PyInt_From_int(__pyx_v_self->breakpoints_mtime); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 5, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  __pyx_t_4 = PyTuple_New(6); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 5, __pyx_L1_error)
+  __pyx_t_4 = PyTuple_New(7); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 5, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_GIVEREF(__pyx_t_1);
   PyTuple_SET_ITEM(__pyx_t_4, 0, __pyx_t_1);
@@ -4818,9 +4932,12 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
   __Pyx_INCREF(__pyx_v_self->co_filename);
   __Pyx_GIVEREF(__pyx_v_self->co_filename);
   PyTuple_SET_ITEM(__pyx_t_4, 4, __pyx_v_self->co_filename);
+  __Pyx_INCREF(__pyx_v_self->co_name);
+  __Pyx_GIVEREF(__pyx_v_self->co_name);
+  PyTuple_SET_ITEM(__pyx_t_4, 5, __pyx_v_self->co_name);
   __Pyx_INCREF(__pyx_v_self->new_code);
   __Pyx_GIVEREF(__pyx_v_self->new_code);
-  PyTuple_SET_ITEM(__pyx_t_4, 5, __pyx_v_self->new_code);
+  PyTuple_SET_ITEM(__pyx_t_4, 6, __pyx_v_self->new_code);
   __pyx_t_1 = 0;
   __pyx_t_2 = 0;
   __pyx_t_3 = 0;
@@ -4829,7 +4946,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
 
   /* "(tree fragment)":6
  *     cdef bint use_setstate
- *     state = (self.always_skip_code, self.breakpoint_found, self.breakpoints_mtime, self.canonical_normalized_filename, self.co_filename, self.new_code)
+ *     state = (self.always_skip_code, self.breakpoint_found, self.breakpoints_mtime, self.canonical_normalized_filename, self.co_filename, self.co_name, self.new_code)
  *     _dict = getattr(self, '__dict__', None)             # <<<<<<<<<<<<<<
  *     if _dict is not None:
  *         state += (_dict,)
@@ -4840,7 +4957,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
   __pyx_t_4 = 0;
 
   /* "(tree fragment)":7
- *     state = (self.always_skip_code, self.breakpoint_found, self.breakpoints_mtime, self.canonical_normalized_filename, self.co_filename, self.new_code)
+ *     state = (self.always_skip_code, self.breakpoint_found, self.breakpoints_mtime, self.canonical_normalized_filename, self.co_filename, self.co_name, self.new_code)
  *     _dict = getattr(self, '__dict__', None)
  *     if _dict is not None:             # <<<<<<<<<<<<<<
  *         state += (_dict,)
@@ -4873,12 +4990,12 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
  *         state += (_dict,)
  *         use_setstate = True             # <<<<<<<<<<<<<<
  *     else:
- *         use_setstate = self.canonical_normalized_filename is not None or self.co_filename is not None or self.new_code is not None
+ *         use_setstate = self.canonical_normalized_filename is not None or self.co_filename is not None or self.co_name is not None or self.new_code is not None
  */
     __pyx_v_use_setstate = 1;
 
     /* "(tree fragment)":7
- *     state = (self.always_skip_code, self.breakpoint_found, self.breakpoints_mtime, self.canonical_normalized_filename, self.co_filename, self.new_code)
+ *     state = (self.always_skip_code, self.breakpoint_found, self.breakpoints_mtime, self.canonical_normalized_filename, self.co_filename, self.co_name, self.new_code)
  *     _dict = getattr(self, '__dict__', None)
  *     if _dict is not None:             # <<<<<<<<<<<<<<
  *         state += (_dict,)
@@ -4890,9 +5007,9 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
   /* "(tree fragment)":11
  *         use_setstate = True
  *     else:
- *         use_setstate = self.canonical_normalized_filename is not None or self.co_filename is not None or self.new_code is not None             # <<<<<<<<<<<<<<
+ *         use_setstate = self.canonical_normalized_filename is not None or self.co_filename is not None or self.co_name is not None or self.new_code is not None             # <<<<<<<<<<<<<<
  *     if use_setstate:
- *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xd55f285, None), state
+ *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xb3ee05d, None), state
  */
   /*else*/ {
     __pyx_t_5 = (__pyx_v_self->canonical_normalized_filename != ((PyObject*)Py_None));
@@ -4909,9 +5026,16 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
       __pyx_t_6 = __pyx_t_5;
       goto __pyx_L4_bool_binop_done;
     }
-    __pyx_t_5 = (__pyx_v_self->new_code != Py_None);
+    __pyx_t_5 = (__pyx_v_self->co_name != ((PyObject*)Py_None));
     __pyx_t_7 = (__pyx_t_5 != 0);
-    __pyx_t_6 = __pyx_t_7;
+    if (!__pyx_t_7) {
+    } else {
+      __pyx_t_6 = __pyx_t_7;
+      goto __pyx_L4_bool_binop_done;
+    }
+    __pyx_t_7 = (__pyx_v_self->new_code != Py_None);
+    __pyx_t_5 = (__pyx_t_7 != 0);
+    __pyx_t_6 = __pyx_t_5;
     __pyx_L4_bool_binop_done:;
     __pyx_v_use_setstate = __pyx_t_6;
   }
@@ -4919,20 +5043,20 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
 
   /* "(tree fragment)":12
  *     else:
- *         use_setstate = self.canonical_normalized_filename is not None or self.co_filename is not None or self.new_code is not None
+ *         use_setstate = self.canonical_normalized_filename is not None or self.co_filename is not None or self.co_name is not None or self.new_code is not None
  *     if use_setstate:             # <<<<<<<<<<<<<<
- *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xd55f285, None), state
+ *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xb3ee05d, None), state
  *     else:
  */
   __pyx_t_6 = (__pyx_v_use_setstate != 0);
   if (__pyx_t_6) {
 
     /* "(tree fragment)":13
- *         use_setstate = self.canonical_normalized_filename is not None or self.co_filename is not None or self.new_code is not None
+ *         use_setstate = self.canonical_normalized_filename is not None or self.co_filename is not None or self.co_name is not None or self.new_code is not None
  *     if use_setstate:
- *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xd55f285, None), state             # <<<<<<<<<<<<<<
+ *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xb3ee05d, None), state             # <<<<<<<<<<<<<<
  *     else:
- *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xd55f285, state)
+ *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xb3ee05d, state)
  */
     __Pyx_XDECREF(__pyx_r);
     __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_pyx_unpickle_FuncCodeInfo); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 13, __pyx_L1_error)
@@ -4942,9 +5066,9 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
     __Pyx_INCREF(((PyObject *)Py_TYPE(((PyObject *)__pyx_v_self))));
     __Pyx_GIVEREF(((PyObject *)Py_TYPE(((PyObject *)__pyx_v_self))));
     PyTuple_SET_ITEM(__pyx_t_4, 0, ((PyObject *)Py_TYPE(((PyObject *)__pyx_v_self))));
-    __Pyx_INCREF(__pyx_int_223736453);
-    __Pyx_GIVEREF(__pyx_int_223736453);
-    PyTuple_SET_ITEM(__pyx_t_4, 1, __pyx_int_223736453);
+    __Pyx_INCREF(__pyx_int_188670045);
+    __Pyx_GIVEREF(__pyx_int_188670045);
+    PyTuple_SET_ITEM(__pyx_t_4, 1, __pyx_int_188670045);
     __Pyx_INCREF(Py_None);
     __Pyx_GIVEREF(Py_None);
     PyTuple_SET_ITEM(__pyx_t_4, 2, Py_None);
@@ -4965,17 +5089,17 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
 
     /* "(tree fragment)":12
  *     else:
- *         use_setstate = self.canonical_normalized_filename is not None or self.co_filename is not None or self.new_code is not None
+ *         use_setstate = self.canonical_normalized_filename is not None or self.co_filename is not None or self.co_name is not None or self.new_code is not None
  *     if use_setstate:             # <<<<<<<<<<<<<<
- *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xd55f285, None), state
+ *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xb3ee05d, None), state
  *     else:
  */
   }
 
   /* "(tree fragment)":15
- *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xd55f285, None), state
+ *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xb3ee05d, None), state
  *     else:
- *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xd55f285, state)             # <<<<<<<<<<<<<<
+ *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xb3ee05d, state)             # <<<<<<<<<<<<<<
  * def __setstate_cython__(self, __pyx_state):
  *     __pyx_unpickle_FuncCodeInfo__set_state(self, __pyx_state)
  */
@@ -4988,9 +5112,9 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
     __Pyx_INCREF(((PyObject *)Py_TYPE(((PyObject *)__pyx_v_self))));
     __Pyx_GIVEREF(((PyObject *)Py_TYPE(((PyObject *)__pyx_v_self))));
     PyTuple_SET_ITEM(__pyx_t_4, 0, ((PyObject *)Py_TYPE(((PyObject *)__pyx_v_self))));
-    __Pyx_INCREF(__pyx_int_223736453);
-    __Pyx_GIVEREF(__pyx_int_223736453);
-    PyTuple_SET_ITEM(__pyx_t_4, 1, __pyx_int_223736453);
+    __Pyx_INCREF(__pyx_int_188670045);
+    __Pyx_GIVEREF(__pyx_int_188670045);
+    PyTuple_SET_ITEM(__pyx_t_4, 1, __pyx_int_188670045);
     __Pyx_INCREF(__pyx_v_state);
     __Pyx_GIVEREF(__pyx_v_state);
     PyTuple_SET_ITEM(__pyx_t_4, 2, __pyx_v_state);
@@ -5031,7 +5155,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
 
 /* "(tree fragment)":16
  *     else:
- *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xd55f285, state)
+ *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xb3ee05d, state)
  * def __setstate_cython__(self, __pyx_state):             # <<<<<<<<<<<<<<
  *     __pyx_unpickle_FuncCodeInfo__set_state(self, __pyx_state)
  */
@@ -5059,7 +5183,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
   __Pyx_RefNannySetupContext("__setstate_cython__", 0);
 
   /* "(tree fragment)":17
- *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xd55f285, state)
+ *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xb3ee05d, state)
  * def __setstate_cython__(self, __pyx_state):
  *     __pyx_unpickle_FuncCodeInfo__set_state(self, __pyx_state)             # <<<<<<<<<<<<<<
  */
@@ -5070,7 +5194,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
 
   /* "(tree fragment)":16
  *     else:
- *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xd55f285, state)
+ *         return __pyx_unpickle_FuncCodeInfo, (type(self), 0xb3ee05d, state)
  * def __setstate_cython__(self, __pyx_state):             # <<<<<<<<<<<<<<
  *     __pyx_unpickle_FuncCodeInfo__set_state(self, __pyx_state)
  */
@@ -5088,7 +5212,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCo
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":151
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":152
  * 
  * 
  * def dummy_trace_dispatch(frame, str event, arg):             # <<<<<<<<<<<<<<
@@ -5134,17 +5258,17 @@ static PyObject *__pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_3dummy_t
         case  1:
         if (likely((values[1] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_event)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("dummy_trace_dispatch", 1, 3, 3, 1); __PYX_ERR(0, 151, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("dummy_trace_dispatch", 1, 3, 3, 1); __PYX_ERR(0, 152, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
         if (likely((values[2] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_arg)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("dummy_trace_dispatch", 1, 3, 3, 2); __PYX_ERR(0, 151, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("dummy_trace_dispatch", 1, 3, 3, 2); __PYX_ERR(0, 152, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "dummy_trace_dispatch") < 0)) __PYX_ERR(0, 151, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "dummy_trace_dispatch") < 0)) __PYX_ERR(0, 152, __pyx_L3_error)
       }
     } else if (PyTuple_GET_SIZE(__pyx_args) != 3) {
       goto __pyx_L5_argtuple_error;
@@ -5159,13 +5283,13 @@ static PyObject *__pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_3dummy_t
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("dummy_trace_dispatch", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 151, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("dummy_trace_dispatch", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 152, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("_pydevd_frame_eval.pydevd_frame_evaluator.dummy_trace_dispatch", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_event), (&PyString_Type), 1, "event", 1))) __PYX_ERR(0, 151, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_event), (&PyString_Type), 1, "event", 1))) __PYX_ERR(0, 152, __pyx_L1_error)
   __pyx_r = __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_2dummy_trace_dispatch(__pyx_self, __pyx_v_frame, __pyx_v_event, __pyx_v_arg);
 
   /* function exit code */
@@ -5192,32 +5316,32 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_2dummy_t
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("dummy_trace_dispatch", 0);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":152
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":153
  * 
  * def dummy_trace_dispatch(frame, str event, arg):
  *     if event == 'call':             # <<<<<<<<<<<<<<
  *         if frame.f_trace is not None:
  *             return frame.f_trace(frame, event, arg)
  */
-  __pyx_t_1 = (__Pyx_PyString_Equals(__pyx_v_event, __pyx_n_s_call_2, Py_EQ)); if (unlikely(__pyx_t_1 < 0)) __PYX_ERR(0, 152, __pyx_L1_error)
+  __pyx_t_1 = (__Pyx_PyString_Equals(__pyx_v_event, __pyx_n_s_call_2, Py_EQ)); if (unlikely(__pyx_t_1 < 0)) __PYX_ERR(0, 153, __pyx_L1_error)
   __pyx_t_2 = (__pyx_t_1 != 0);
   if (__pyx_t_2) {
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":153
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":154
  * def dummy_trace_dispatch(frame, str event, arg):
  *     if event == 'call':
  *         if frame.f_trace is not None:             # <<<<<<<<<<<<<<
  *             return frame.f_trace(frame, event, arg)
  *     return None
  */
-    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 153, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 154, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
     __pyx_t_2 = (__pyx_t_3 != Py_None);
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __pyx_t_1 = (__pyx_t_2 != 0);
     if (__pyx_t_1) {
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":154
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":155
  *     if event == 'call':
  *         if frame.f_trace is not None:
  *             return frame.f_trace(frame, event, arg)             # <<<<<<<<<<<<<<
@@ -5225,7 +5349,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_2dummy_t
  * 
  */
       __Pyx_XDECREF(__pyx_r);
-      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 154, __pyx_L1_error)
+      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 155, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
       __pyx_t_5 = NULL;
       __pyx_t_6 = 0;
@@ -5242,7 +5366,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_2dummy_t
       #if CYTHON_FAST_PYCALL
       if (PyFunction_Check(__pyx_t_4)) {
         PyObject *__pyx_temp[4] = {__pyx_t_5, __pyx_v_frame, __pyx_v_event, __pyx_v_arg};
-        __pyx_t_3 = __Pyx_PyFunction_FastCall(__pyx_t_4, __pyx_temp+1-__pyx_t_6, 3+__pyx_t_6); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 154, __pyx_L1_error)
+        __pyx_t_3 = __Pyx_PyFunction_FastCall(__pyx_t_4, __pyx_temp+1-__pyx_t_6, 3+__pyx_t_6); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 155, __pyx_L1_error)
         __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
         __Pyx_GOTREF(__pyx_t_3);
       } else
@@ -5250,13 +5374,13 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_2dummy_t
       #if CYTHON_FAST_PYCCALL
       if (__Pyx_PyFastCFunction_Check(__pyx_t_4)) {
         PyObject *__pyx_temp[4] = {__pyx_t_5, __pyx_v_frame, __pyx_v_event, __pyx_v_arg};
-        __pyx_t_3 = __Pyx_PyCFunction_FastCall(__pyx_t_4, __pyx_temp+1-__pyx_t_6, 3+__pyx_t_6); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 154, __pyx_L1_error)
+        __pyx_t_3 = __Pyx_PyCFunction_FastCall(__pyx_t_4, __pyx_temp+1-__pyx_t_6, 3+__pyx_t_6); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 155, __pyx_L1_error)
         __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
         __Pyx_GOTREF(__pyx_t_3);
       } else
       #endif
       {
-        __pyx_t_7 = PyTuple_New(3+__pyx_t_6); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 154, __pyx_L1_error)
+        __pyx_t_7 = PyTuple_New(3+__pyx_t_6); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 155, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_7);
         if (__pyx_t_5) {
           __Pyx_GIVEREF(__pyx_t_5); PyTuple_SET_ITEM(__pyx_t_7, 0, __pyx_t_5); __pyx_t_5 = NULL;
@@ -5270,7 +5394,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_2dummy_t
         __Pyx_INCREF(__pyx_v_arg);
         __Pyx_GIVEREF(__pyx_v_arg);
         PyTuple_SET_ITEM(__pyx_t_7, 2+__pyx_t_6, __pyx_v_arg);
-        __pyx_t_3 = __Pyx_PyObject_Call(__pyx_t_4, __pyx_t_7, NULL); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 154, __pyx_L1_error)
+        __pyx_t_3 = __Pyx_PyObject_Call(__pyx_t_4, __pyx_t_7, NULL); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 155, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_3);
         __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
       }
@@ -5279,7 +5403,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_2dummy_t
       __pyx_t_3 = 0;
       goto __pyx_L0;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":153
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":154
  * def dummy_trace_dispatch(frame, str event, arg):
  *     if event == 'call':
  *         if frame.f_trace is not None:             # <<<<<<<<<<<<<<
@@ -5288,7 +5412,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_2dummy_t
  */
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":152
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":153
  * 
  * def dummy_trace_dispatch(frame, str event, arg):
  *     if event == 'call':             # <<<<<<<<<<<<<<
@@ -5297,7 +5421,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_2dummy_t
  */
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":155
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":156
  *         if frame.f_trace is not None:
  *             return frame.f_trace(frame, event, arg)
  *     return None             # <<<<<<<<<<<<<<
@@ -5308,7 +5432,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_2dummy_t
   __pyx_r = Py_None; __Pyx_INCREF(Py_None);
   goto __pyx_L0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":151
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":152
  * 
  * 
  * def dummy_trace_dispatch(frame, str event, arg):             # <<<<<<<<<<<<<<
@@ -5330,7 +5454,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_2dummy_t
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":158
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":159
  * 
  * 
  * def get_thread_info_py() -> ThreadInfo:             # <<<<<<<<<<<<<<
@@ -5361,7 +5485,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("get_thread_info_py", 0);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":159
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":160
  * 
  * def get_thread_info_py() -> ThreadInfo:
  *     return get_thread_info(PyEval_GetFrame())             # <<<<<<<<<<<<<<
@@ -5369,13 +5493,13 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo
  * 
  */
   __Pyx_XDECREF(((PyObject *)__pyx_r));
-  __pyx_t_1 = ((PyObject *)__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_thread_info(PyEval_GetFrame())); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 159, __pyx_L1_error)
+  __pyx_t_1 = ((PyObject *)__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_thread_info(PyEval_GetFrame())); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 160, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = ((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo *)__pyx_t_1);
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":158
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":159
  * 
  * 
  * def get_thread_info_py() -> ThreadInfo:             # <<<<<<<<<<<<<<
@@ -5394,7 +5518,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":162
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":163
  * 
  * 
  * cdef ThreadInfo get_thread_info(PyFrameObject * frame_obj):             # <<<<<<<<<<<<<<
@@ -5428,7 +5552,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("get_thread_info", 0);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":169
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":170
  *     '''
  *     cdef ThreadInfo thread_info
  *     try:             # <<<<<<<<<<<<<<
@@ -5444,23 +5568,23 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo
     __Pyx_XGOTREF(__pyx_t_3);
     /*try:*/ {
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":172
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":173
  *         # Note: changing to a `dict[thread.ident] = thread_info` had almost no
  *         # effect in the performance.
  *         thread_info = _thread_local_info.thread_info             # <<<<<<<<<<<<<<
  *     except:
  *         if frame_obj == NULL:
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_thread_local_info); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 172, __pyx_L3_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_thread_local_info); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 173, __pyx_L3_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_thread_info); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 172, __pyx_L3_error)
+      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_thread_info); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 173, __pyx_L3_error)
       __Pyx_GOTREF(__pyx_t_5);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-      if (!(likely(((__pyx_t_5) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_5, __pyx_ptype_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo))))) __PYX_ERR(0, 172, __pyx_L3_error)
+      if (!(likely(((__pyx_t_5) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_5, __pyx_ptype_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo))))) __PYX_ERR(0, 173, __pyx_L3_error)
       __pyx_v_thread_info = ((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo *)__pyx_t_5);
       __pyx_t_5 = 0;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":169
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":170
  *     '''
  *     cdef ThreadInfo thread_info
  *     try:             # <<<<<<<<<<<<<<
@@ -5476,7 +5600,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo
     __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
     __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":173
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":174
  *         # effect in the performance.
  *         thread_info = _thread_local_info.thread_info
  *     except:             # <<<<<<<<<<<<<<
@@ -5485,12 +5609,12 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo
  */
     /*except:*/ {
       __Pyx_AddTraceback("_pydevd_frame_eval.pydevd_frame_evaluator.get_thread_info", __pyx_clineno, __pyx_lineno, __pyx_filename);
-      if (__Pyx_GetException(&__pyx_t_5, &__pyx_t_4, &__pyx_t_6) < 0) __PYX_ERR(0, 173, __pyx_L5_except_error)
+      if (__Pyx_GetException(&__pyx_t_5, &__pyx_t_4, &__pyx_t_6) < 0) __PYX_ERR(0, 174, __pyx_L5_except_error)
       __Pyx_GOTREF(__pyx_t_5);
       __Pyx_GOTREF(__pyx_t_4);
       __Pyx_GOTREF(__pyx_t_6);
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":174
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":175
  *         thread_info = _thread_local_info.thread_info
  *     except:
  *         if frame_obj == NULL:             # <<<<<<<<<<<<<<
@@ -5500,7 +5624,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo
       __pyx_t_7 = ((__pyx_v_frame_obj == NULL) != 0);
       if (__pyx_t_7) {
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":175
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":176
  *     except:
  *         if frame_obj == NULL:
  *             return None             # <<<<<<<<<<<<<<
@@ -5514,7 +5638,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo
         __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
         goto __pyx_L6_except_return;
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":174
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":175
  *         thread_info = _thread_local_info.thread_info
  *     except:
  *         if frame_obj == NULL:             # <<<<<<<<<<<<<<
@@ -5523,30 +5647,30 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo
  */
       }
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":176
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":177
  *         if frame_obj == NULL:
  *             return None
  *         thread_info = ThreadInfo()             # <<<<<<<<<<<<<<
  *         thread_info.initialize(frame_obj)
  *         thread_info.inside_frame_eval += 1
  */
-      __pyx_t_8 = __Pyx_PyObject_CallNoArg(((PyObject *)__pyx_ptype_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo)); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 176, __pyx_L5_except_error)
+      __pyx_t_8 = __Pyx_PyObject_CallNoArg(((PyObject *)__pyx_ptype_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo)); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 177, __pyx_L5_except_error)
       __Pyx_GOTREF(__pyx_t_8);
       __Pyx_XDECREF_SET(__pyx_v_thread_info, ((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo *)__pyx_t_8));
       __pyx_t_8 = 0;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":177
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":178
  *             return None
  *         thread_info = ThreadInfo()
  *         thread_info.initialize(frame_obj)             # <<<<<<<<<<<<<<
  *         thread_info.inside_frame_eval += 1
  *         try:
  */
-      __pyx_t_8 = ((struct __pyx_vtabstruct_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo *)__pyx_v_thread_info->__pyx_vtab)->initialize(__pyx_v_thread_info, __pyx_v_frame_obj); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 177, __pyx_L5_except_error)
+      __pyx_t_8 = ((struct __pyx_vtabstruct_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo *)__pyx_v_thread_info->__pyx_vtab)->initialize(__pyx_v_thread_info, __pyx_v_frame_obj); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 178, __pyx_L5_except_error)
       __Pyx_GOTREF(__pyx_t_8);
       __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":178
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":179
  *         thread_info = ThreadInfo()
  *         thread_info.initialize(frame_obj)
  *         thread_info.inside_frame_eval += 1             # <<<<<<<<<<<<<<
@@ -5555,7 +5679,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo
  */
       __pyx_v_thread_info->inside_frame_eval = (__pyx_v_thread_info->inside_frame_eval + 1);
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":179
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":180
  *         thread_info.initialize(frame_obj)
  *         thread_info.inside_frame_eval += 1
  *         try:             # <<<<<<<<<<<<<<
@@ -5564,19 +5688,19 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo
  */
       /*try:*/ {
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":180
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":181
  *         thread_info.inside_frame_eval += 1
  *         try:
  *             _thread_local_info.thread_info = thread_info             # <<<<<<<<<<<<<<
  * 
  *             # Note: _code_extra_index is not actually thread-related,
  */
-        __Pyx_GetModuleGlobalName(__pyx_t_8, __pyx_n_s_thread_local_info); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 180, __pyx_L15_error)
+        __Pyx_GetModuleGlobalName(__pyx_t_8, __pyx_n_s_thread_local_info); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 181, __pyx_L15_error)
         __Pyx_GOTREF(__pyx_t_8);
-        if (__Pyx_PyObject_SetAttrStr(__pyx_t_8, __pyx_n_s_thread_info, ((PyObject *)__pyx_v_thread_info)) < 0) __PYX_ERR(0, 180, __pyx_L15_error)
+        if (__Pyx_PyObject_SetAttrStr(__pyx_t_8, __pyx_n_s_thread_info, ((PyObject *)__pyx_v_thread_info)) < 0) __PYX_ERR(0, 181, __pyx_L15_error)
         __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":185
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":186
  *             # but this is a good point to initialize it.
  *             global _code_extra_index
  *             if _code_extra_index == -1:             # <<<<<<<<<<<<<<
@@ -5586,7 +5710,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo
         __pyx_t_7 = ((__pyx_v_18_pydevd_frame_eval_22pydevd_frame_evaluator__code_extra_index == -1L) != 0);
         if (__pyx_t_7) {
 
-          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":186
+          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":187
  *             global _code_extra_index
  *             if _code_extra_index == -1:
  *                 _code_extra_index = <int> _PyEval_RequestCodeExtraIndex(release_co_extra)             # <<<<<<<<<<<<<<
@@ -5595,7 +5719,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo
  */
           __pyx_v_18_pydevd_frame_eval_22pydevd_frame_evaluator__code_extra_index = ((int)_PyEval_RequestCodeExtraIndex(release_co_extra));
 
-          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":185
+          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":186
  *             # but this is a good point to initialize it.
  *             global _code_extra_index
  *             if _code_extra_index == -1:             # <<<<<<<<<<<<<<
@@ -5604,19 +5728,19 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo
  */
         }
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":188
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":189
  *                 _code_extra_index = <int> _PyEval_RequestCodeExtraIndex(release_co_extra)
  * 
  *             thread_info.initialize_if_possible()             # <<<<<<<<<<<<<<
  *         finally:
  *             thread_info.inside_frame_eval -= 1
  */
-        __pyx_t_8 = ((struct __pyx_vtabstruct_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo *)__pyx_v_thread_info->__pyx_vtab)->initialize_if_possible(__pyx_v_thread_info); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 188, __pyx_L15_error)
+        __pyx_t_8 = ((struct __pyx_vtabstruct_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo *)__pyx_v_thread_info->__pyx_vtab)->initialize_if_possible(__pyx_v_thread_info); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 189, __pyx_L15_error)
         __Pyx_GOTREF(__pyx_t_8);
         __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
       }
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":190
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":191
  *             thread_info.initialize_if_possible()
  *         finally:
  *             thread_info.inside_frame_eval -= 1             # <<<<<<<<<<<<<<
@@ -5669,7 +5793,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo
     }
     __pyx_L5_except_error:;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":169
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":170
  *     '''
  *     cdef ThreadInfo thread_info
  *     try:             # <<<<<<<<<<<<<<
@@ -5695,7 +5819,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo
     __pyx_L8_try_end:;
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":192
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":193
  *             thread_info.inside_frame_eval -= 1
  * 
  *     return thread_info             # <<<<<<<<<<<<<<
@@ -5707,7 +5831,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo
   __pyx_r = __pyx_v_thread_info;
   goto __pyx_L0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":162
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":163
  * 
  * 
  * cdef ThreadInfo get_thread_info(PyFrameObject * frame_obj):             # <<<<<<<<<<<<<<
@@ -5730,7 +5854,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":195
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":196
  * 
  * 
  * def decref_py(obj):             # <<<<<<<<<<<<<<
@@ -5758,7 +5882,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_6decref_
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("decref_py", 0);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":199
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":200
  *     Helper to be called from Python.
  *     '''
  *     Py_DECREF(obj)             # <<<<<<<<<<<<<<
@@ -5767,7 +5891,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_6decref_
  */
   Py_DECREF(__pyx_v_obj);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":195
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":196
  * 
  * 
  * def decref_py(obj):             # <<<<<<<<<<<<<<
@@ -5782,7 +5906,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_6decref_
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":202
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":203
  * 
  * 
  * def get_func_code_info_py(thread_info, frame, code_obj) -> FuncCodeInfo:             # <<<<<<<<<<<<<<
@@ -5829,17 +5953,17 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
         case  1:
         if (likely((values[1] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_frame)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("get_func_code_info_py", 1, 3, 3, 1); __PYX_ERR(0, 202, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("get_func_code_info_py", 1, 3, 3, 1); __PYX_ERR(0, 203, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
         if (likely((values[2] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_code_obj)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("get_func_code_info_py", 1, 3, 3, 2); __PYX_ERR(0, 202, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("get_func_code_info_py", 1, 3, 3, 2); __PYX_ERR(0, 203, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "get_func_code_info_py") < 0)) __PYX_ERR(0, 202, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "get_func_code_info_py") < 0)) __PYX_ERR(0, 203, __pyx_L3_error)
       }
     } else if (PyTuple_GET_SIZE(__pyx_args) != 3) {
       goto __pyx_L5_argtuple_error;
@@ -5854,7 +5978,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("get_func_code_info_py", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 202, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("get_func_code_info_py", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 203, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("_pydevd_frame_eval.pydevd_frame_evaluator.get_func_code_info_py", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -5876,7 +6000,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("get_func_code_info_py", 0);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":206
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":207
  *     Helper to be called from Python.
  *     '''
  *     return get_func_code_info(<ThreadInfo> thread_info, <PyFrameObject *> frame, <PyCodeObject *> code_obj)             # <<<<<<<<<<<<<<
@@ -5884,13 +6008,13 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
  * 
  */
   __Pyx_XDECREF(((PyObject *)__pyx_r));
-  __pyx_t_1 = ((PyObject *)__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_func_code_info(((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo *)__pyx_v_thread_info), ((PyFrameObject *)__pyx_v_frame), ((PyCodeObject *)__pyx_v_code_obj))); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 206, __pyx_L1_error)
+  __pyx_t_1 = ((PyObject *)__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_func_code_info(((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo *)__pyx_v_thread_info), ((PyFrameObject *)__pyx_v_frame), ((PyCodeObject *)__pyx_v_code_obj))); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 207, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = ((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *)__pyx_t_1);
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":202
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":203
  * 
  * 
  * def get_func_code_info_py(thread_info, frame, code_obj) -> FuncCodeInfo:             # <<<<<<<<<<<<<<
@@ -5909,7 +6033,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":211
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":212
  * cdef int _code_extra_index = -1
  * 
  * cdef FuncCodeInfo get_func_code_info(ThreadInfo thread_info, PyFrameObject * frame_obj, PyCodeObject * code_obj):             # <<<<<<<<<<<<<<
@@ -5923,12 +6047,14 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
   PyObject *__pyx_v_extra_obj;
   struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_func_code_info_obj = NULL;
   PyObject *__pyx_v_co_filename = 0;
+  PyObject *__pyx_v_co_name = 0;
   PyObject *__pyx_v_cache_file_type = 0;
   PyObject *__pyx_v_cache_file_type_key = 0;
   struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v_func_code_info = NULL;
   PyObject *__pyx_v_abs_path_real_path_and_base = NULL;
   PyObject *__pyx_v_file_type = NULL;
   PyObject *__pyx_v_breakpoints = 0;
+  PyObject *__pyx_v_function_breakpoint = 0;
   PyObject *__pyx_v_code_obj_py = 0;
   PyObject *__pyx_v_cached_code_obj_info = 0;
   PyObject *__pyx_v_breakpoint_found = NULL;
@@ -5953,22 +6079,22 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("get_func_code_info", 0);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":227
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":228
  *     #     print('get_func_code_info', f_code.co_name, f_code.co_filename)
  * 
  *     cdef object main_debugger = GlobalDebuggerHolder.global_dbg             # <<<<<<<<<<<<<<
  *     thread_info.force_stay_in_untraced_mode = False  # This is an output value of the function.
  * 
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_GlobalDebuggerHolder); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 227, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_GlobalDebuggerHolder); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 228, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_global_dbg); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 227, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_global_dbg); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 228, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __pyx_v_main_debugger = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":228
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":229
  * 
  *     cdef object main_debugger = GlobalDebuggerHolder.global_dbg
  *     thread_info.force_stay_in_untraced_mode = False  # This is an output value of the function.             # <<<<<<<<<<<<<<
@@ -5977,7 +6103,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
  */
   __pyx_v_thread_info->force_stay_in_untraced_mode = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":231
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":232
  * 
  *     cdef PyObject * extra
  *     _PyCode_GetExtra(<PyObject *> code_obj, _code_extra_index, & extra)             # <<<<<<<<<<<<<<
@@ -5986,7 +6112,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
  */
   (void)(_PyCode_GetExtra(((PyObject *)__pyx_v_code_obj), __pyx_v_18_pydevd_frame_eval_22pydevd_frame_evaluator__code_extra_index, (&__pyx_v_extra)));
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":232
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":233
  *     cdef PyObject * extra
  *     _PyCode_GetExtra(<PyObject *> code_obj, _code_extra_index, & extra)
  *     if extra is not NULL:             # <<<<<<<<<<<<<<
@@ -5996,7 +6122,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
   __pyx_t_3 = ((__pyx_v_extra != NULL) != 0);
   if (__pyx_t_3) {
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":233
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":234
  *     _PyCode_GetExtra(<PyObject *> code_obj, _code_extra_index, & extra)
  *     if extra is not NULL:
  *         extra_obj = <PyObject *> extra             # <<<<<<<<<<<<<<
@@ -6005,7 +6131,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
  */
     __pyx_v_extra_obj = ((PyObject *)__pyx_v_extra);
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":234
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":235
  *     if extra is not NULL:
  *         extra_obj = <PyObject *> extra
  *         if extra_obj is not NULL:             # <<<<<<<<<<<<<<
@@ -6015,7 +6141,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
     __pyx_t_3 = ((__pyx_v_extra_obj != NULL) != 0);
     if (__pyx_t_3) {
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":235
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":236
  *         extra_obj = <PyObject *> extra
  *         if extra_obj is not NULL:
  *             func_code_info_obj = <FuncCodeInfo> extra_obj             # <<<<<<<<<<<<<<
@@ -6027,25 +6153,25 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
       __pyx_v_func_code_info_obj = ((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *)__pyx_t_2);
       __pyx_t_2 = 0;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":236
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":237
  *         if extra_obj is not NULL:
  *             func_code_info_obj = <FuncCodeInfo> extra_obj
  *             if func_code_info_obj.breakpoints_mtime == main_debugger.mtime:             # <<<<<<<<<<<<<<
  *                 # if DEBUG:
  *                 #     print('get_func_code_info: matched mtime', f_code.co_name, f_code.co_filename)
  */
-      __pyx_t_2 = __Pyx_PyInt_From_int(__pyx_v_func_code_info_obj->breakpoints_mtime); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 236, __pyx_L1_error)
+      __pyx_t_2 = __Pyx_PyInt_From_int(__pyx_v_func_code_info_obj->breakpoints_mtime); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 237, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
-      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_mtime); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 236, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_mtime); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 237, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
-      __pyx_t_4 = PyObject_RichCompare(__pyx_t_2, __pyx_t_1, Py_EQ); __Pyx_XGOTREF(__pyx_t_4); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 236, __pyx_L1_error)
+      __pyx_t_4 = PyObject_RichCompare(__pyx_t_2, __pyx_t_1, Py_EQ); __Pyx_XGOTREF(__pyx_t_4); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 237, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-      __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_t_4); if (unlikely(__pyx_t_3 < 0)) __PYX_ERR(0, 236, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_t_4); if (unlikely(__pyx_t_3 < 0)) __PYX_ERR(0, 237, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
       if (__pyx_t_3) {
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":240
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":241
  *                 #     print('get_func_code_info: matched mtime', f_code.co_name, f_code.co_filename)
  * 
  *                 return func_code_info_obj             # <<<<<<<<<<<<<<
@@ -6057,7 +6183,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
         __pyx_r = __pyx_v_func_code_info_obj;
         goto __pyx_L0;
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":236
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":237
  *         if extra_obj is not NULL:
  *             func_code_info_obj = <FuncCodeInfo> extra_obj
  *             if func_code_info_obj.breakpoints_mtime == main_debugger.mtime:             # <<<<<<<<<<<<<<
@@ -6066,7 +6192,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
  */
       }
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":234
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":235
  *     if extra is not NULL:
  *         extra_obj = <PyObject *> extra
  *         if extra_obj is not NULL:             # <<<<<<<<<<<<<<
@@ -6075,7 +6201,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
  */
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":232
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":233
  *     cdef PyObject * extra
  *     _PyCode_GetExtra(<PyObject *> code_obj, _code_extra_index, & extra)
  *     if extra is not NULL:             # <<<<<<<<<<<<<<
@@ -6084,49 +6210,61 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
  */
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":242
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":243
  *                 return func_code_info_obj
  * 
  *     cdef str co_filename = <str> code_obj.co_filename             # <<<<<<<<<<<<<<
+ *     cdef str co_name = <str> code_obj.co_name
  *     cdef dict cache_file_type
- *     cdef tuple cache_file_type_key
  */
   __pyx_t_4 = ((PyObject *)__pyx_v_code_obj->co_filename);
   __Pyx_INCREF(__pyx_t_4);
   __pyx_v_co_filename = ((PyObject*)__pyx_t_4);
   __pyx_t_4 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":246
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":244
+ * 
+ *     cdef str co_filename = <str> code_obj.co_filename
+ *     cdef str co_name = <str> code_obj.co_name             # <<<<<<<<<<<<<<
+ *     cdef dict cache_file_type
+ *     cdef tuple cache_file_type_key
+ */
+  __pyx_t_4 = ((PyObject *)__pyx_v_code_obj->co_name);
+  __Pyx_INCREF(__pyx_t_4);
+  __pyx_v_co_name = ((PyObject*)__pyx_t_4);
+  __pyx_t_4 = 0;
+
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":248
  *     cdef tuple cache_file_type_key
  * 
  *     func_code_info = FuncCodeInfo()             # <<<<<<<<<<<<<<
  *     func_code_info.breakpoints_mtime = main_debugger.mtime
  * 
  */
-  __pyx_t_4 = __Pyx_PyObject_CallNoArg(((PyObject *)__pyx_ptype_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo)); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 246, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_CallNoArg(((PyObject *)__pyx_ptype_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo)); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 248, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __pyx_v_func_code_info = ((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *)__pyx_t_4);
   __pyx_t_4 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":247
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":249
  * 
  *     func_code_info = FuncCodeInfo()
  *     func_code_info.breakpoints_mtime = main_debugger.mtime             # <<<<<<<<<<<<<<
  * 
  *     func_code_info.co_filename = co_filename
  */
-  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_mtime); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 247, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_mtime); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 249, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  __pyx_t_5 = __Pyx_PyInt_As_int(__pyx_t_4); if (unlikely((__pyx_t_5 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 247, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyInt_As_int(__pyx_t_4); if (unlikely((__pyx_t_5 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 249, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
   __pyx_v_func_code_info->breakpoints_mtime = __pyx_t_5;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":249
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":251
  *     func_code_info.breakpoints_mtime = main_debugger.mtime
  * 
  *     func_code_info.co_filename = co_filename             # <<<<<<<<<<<<<<
+ *     func_code_info.co_name = co_name
  * 
- *     if not func_code_info.always_skip_code:
  */
   __Pyx_INCREF(__pyx_v_co_filename);
   __Pyx_GIVEREF(__pyx_v_co_filename);
@@ -6134,8 +6272,21 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
   __Pyx_DECREF(__pyx_v_func_code_info->co_filename);
   __pyx_v_func_code_info->co_filename = __pyx_v_co_filename;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":251
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":252
+ * 
  *     func_code_info.co_filename = co_filename
+ *     func_code_info.co_name = co_name             # <<<<<<<<<<<<<<
+ * 
+ *     if not func_code_info.always_skip_code:
+ */
+  __Pyx_INCREF(__pyx_v_co_name);
+  __Pyx_GIVEREF(__pyx_v_co_name);
+  __Pyx_GOTREF(__pyx_v_func_code_info->co_name);
+  __Pyx_DECREF(__pyx_v_func_code_info->co_name);
+  __pyx_v_func_code_info->co_name = __pyx_v_co_name;
+
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":254
+ *     func_code_info.co_name = co_name
  * 
  *     if not func_code_info.always_skip_code:             # <<<<<<<<<<<<<<
  *         try:
@@ -6144,7 +6295,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
   __pyx_t_3 = ((!(__pyx_v_func_code_info->always_skip_code != 0)) != 0);
   if (__pyx_t_3) {
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":252
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":255
  * 
  *     if not func_code_info.always_skip_code:
  *         try:             # <<<<<<<<<<<<<<
@@ -6160,22 +6311,22 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
       __Pyx_XGOTREF(__pyx_t_8);
       /*try:*/ {
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":253
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":256
  *     if not func_code_info.always_skip_code:
  *         try:
  *             abs_path_real_path_and_base = NORM_PATHS_AND_BASE_CONTAINER[co_filename]             # <<<<<<<<<<<<<<
  *         except:
  *             abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(<object>frame_obj)
  */
-        __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_NORM_PATHS_AND_BASE_CONTAINER); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 253, __pyx_L7_error)
+        __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_NORM_PATHS_AND_BASE_CONTAINER); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 256, __pyx_L7_error)
         __Pyx_GOTREF(__pyx_t_4);
-        __pyx_t_1 = __Pyx_PyObject_Dict_GetItem(__pyx_t_4, __pyx_v_co_filename); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 253, __pyx_L7_error)
+        __pyx_t_1 = __Pyx_PyObject_Dict_GetItem(__pyx_t_4, __pyx_v_co_filename); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 256, __pyx_L7_error)
         __Pyx_GOTREF(__pyx_t_1);
         __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
         __pyx_v_abs_path_real_path_and_base = __pyx_t_1;
         __pyx_t_1 = 0;
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":252
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":255
  * 
  *     if not func_code_info.always_skip_code:
  *         try:             # <<<<<<<<<<<<<<
@@ -6192,7 +6343,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
       __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
       __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":254
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":257
  *         try:
  *             abs_path_real_path_and_base = NORM_PATHS_AND_BASE_CONTAINER[co_filename]
  *         except:             # <<<<<<<<<<<<<<
@@ -6201,19 +6352,19 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
  */
       /*except:*/ {
         __Pyx_AddTraceback("_pydevd_frame_eval.pydevd_frame_evaluator.get_func_code_info", __pyx_clineno, __pyx_lineno, __pyx_filename);
-        if (__Pyx_GetException(&__pyx_t_1, &__pyx_t_4, &__pyx_t_2) < 0) __PYX_ERR(0, 254, __pyx_L9_except_error)
+        if (__Pyx_GetException(&__pyx_t_1, &__pyx_t_4, &__pyx_t_2) < 0) __PYX_ERR(0, 257, __pyx_L9_except_error)
         __Pyx_GOTREF(__pyx_t_1);
         __Pyx_GOTREF(__pyx_t_4);
         __Pyx_GOTREF(__pyx_t_2);
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":255
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":258
  *             abs_path_real_path_and_base = NORM_PATHS_AND_BASE_CONTAINER[co_filename]
  *         except:
  *             abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(<object>frame_obj)             # <<<<<<<<<<<<<<
  * 
  *         func_code_info.canonical_normalized_filename = abs_path_real_path_and_base[1]
  */
-        __Pyx_GetModuleGlobalName(__pyx_t_10, __pyx_n_s_get_abs_path_real_path_and_base); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 255, __pyx_L9_except_error)
+        __Pyx_GetModuleGlobalName(__pyx_t_10, __pyx_n_s_get_abs_path_real_path_and_base); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 258, __pyx_L9_except_error)
         __Pyx_GOTREF(__pyx_t_10);
         __pyx_t_11 = NULL;
         if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_10))) {
@@ -6227,7 +6378,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
         }
         __pyx_t_9 = (__pyx_t_11) ? __Pyx_PyObject_Call2Args(__pyx_t_10, __pyx_t_11, ((PyObject *)__pyx_v_frame_obj)) : __Pyx_PyObject_CallOneArg(__pyx_t_10, ((PyObject *)__pyx_v_frame_obj));
         __Pyx_XDECREF(__pyx_t_11); __pyx_t_11 = 0;
-        if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 255, __pyx_L9_except_error)
+        if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 258, __pyx_L9_except_error)
         __Pyx_GOTREF(__pyx_t_9);
         __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
         __Pyx_XDECREF_SET(__pyx_v_abs_path_real_path_and_base, __pyx_t_9);
@@ -6239,7 +6390,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
       }
       __pyx_L9_except_error:;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":252
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":255
  * 
  *     if not func_code_info.always_skip_code:
  *         try:             # <<<<<<<<<<<<<<
@@ -6259,30 +6410,30 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
       __pyx_L12_try_end:;
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":257
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":260
  *             abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(<object>frame_obj)
  * 
  *         func_code_info.canonical_normalized_filename = abs_path_real_path_and_base[1]             # <<<<<<<<<<<<<<
  * 
  *         cache_file_type = main_debugger.get_cache_file_type()
  */
-    __pyx_t_2 = __Pyx_GetItemInt(__pyx_v_abs_path_real_path_and_base, 1, long, 1, __Pyx_PyInt_From_long, 0, 0, 1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 257, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_GetItemInt(__pyx_v_abs_path_real_path_and_base, 1, long, 1, __Pyx_PyInt_From_long, 0, 0, 1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 260, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
-    if (!(likely(PyString_CheckExact(__pyx_t_2))||((__pyx_t_2) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "str", Py_TYPE(__pyx_t_2)->tp_name), 0))) __PYX_ERR(0, 257, __pyx_L1_error)
+    if (!(likely(PyString_CheckExact(__pyx_t_2))||((__pyx_t_2) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "str", Py_TYPE(__pyx_t_2)->tp_name), 0))) __PYX_ERR(0, 260, __pyx_L1_error)
     __Pyx_GIVEREF(__pyx_t_2);
     __Pyx_GOTREF(__pyx_v_func_code_info->canonical_normalized_filename);
     __Pyx_DECREF(__pyx_v_func_code_info->canonical_normalized_filename);
     __pyx_v_func_code_info->canonical_normalized_filename = ((PyObject*)__pyx_t_2);
     __pyx_t_2 = 0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":259
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":262
  *         func_code_info.canonical_normalized_filename = abs_path_real_path_and_base[1]
  * 
  *         cache_file_type = main_debugger.get_cache_file_type()             # <<<<<<<<<<<<<<
  *         # Note: this cache key must be the same from PyDB.get_file_type() -- see it for comments
  *         # on the cache.
  */
-    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_get_cache_file_type); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 259, __pyx_L1_error)
+    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_get_cache_file_type); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 262, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __pyx_t_1 = NULL;
     if (CYTHON_UNPACK_METHODS && likely(PyMethod_Check(__pyx_t_4))) {
@@ -6296,25 +6447,25 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
     }
     __pyx_t_2 = (__pyx_t_1) ? __Pyx_PyObject_CallOneArg(__pyx_t_4, __pyx_t_1) : __Pyx_PyObject_CallNoArg(__pyx_t_4);
     __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
-    if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 259, __pyx_L1_error)
+    if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 262, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    if (!(likely(PyDict_CheckExact(__pyx_t_2))||((__pyx_t_2) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "dict", Py_TYPE(__pyx_t_2)->tp_name), 0))) __PYX_ERR(0, 259, __pyx_L1_error)
+    if (!(likely(PyDict_CheckExact(__pyx_t_2))||((__pyx_t_2) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "dict", Py_TYPE(__pyx_t_2)->tp_name), 0))) __PYX_ERR(0, 262, __pyx_L1_error)
     __pyx_v_cache_file_type = ((PyObject*)__pyx_t_2);
     __pyx_t_2 = 0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":262
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":265
  *         # Note: this cache key must be the same from PyDB.get_file_type() -- see it for comments
  *         # on the cache.
  *         cache_file_type_key = (frame_obj.f_code.co_firstlineno, abs_path_real_path_and_base[0], <object>frame_obj.f_code)             # <<<<<<<<<<<<<<
  *         try:
  *             file_type = cache_file_type[cache_file_type_key]  # Make it faster
  */
-    __pyx_t_2 = __Pyx_PyInt_From_int(__pyx_v_frame_obj->f_code->co_firstlineno); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 262, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyInt_From_int(__pyx_v_frame_obj->f_code->co_firstlineno); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 265, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_4 = __Pyx_GetItemInt(__pyx_v_abs_path_real_path_and_base, 0, long, 1, __Pyx_PyInt_From_long, 0, 0, 1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 262, __pyx_L1_error)
+    __pyx_t_4 = __Pyx_GetItemInt(__pyx_v_abs_path_real_path_and_base, 0, long, 1, __Pyx_PyInt_From_long, 0, 0, 1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 265, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
-    __pyx_t_1 = PyTuple_New(3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 262, __pyx_L1_error)
+    __pyx_t_1 = PyTuple_New(3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 265, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_GIVEREF(__pyx_t_2);
     PyTuple_SET_ITEM(__pyx_t_1, 0, __pyx_t_2);
@@ -6328,7 +6479,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
     __pyx_v_cache_file_type_key = ((PyObject*)__pyx_t_1);
     __pyx_t_1 = 0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":263
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":266
  *         # on the cache.
  *         cache_file_type_key = (frame_obj.f_code.co_firstlineno, abs_path_real_path_and_base[0], <object>frame_obj.f_code)
  *         try:             # <<<<<<<<<<<<<<
@@ -6344,7 +6495,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
       __Pyx_XGOTREF(__pyx_t_6);
       /*try:*/ {
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":264
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":267
  *         cache_file_type_key = (frame_obj.f_code.co_firstlineno, abs_path_real_path_and_base[0], <object>frame_obj.f_code)
  *         try:
  *             file_type = cache_file_type[cache_file_type_key]  # Make it faster             # <<<<<<<<<<<<<<
@@ -6353,14 +6504,14 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
  */
         if (unlikely(__pyx_v_cache_file_type == Py_None)) {
           PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
-          __PYX_ERR(0, 264, __pyx_L15_error)
+          __PYX_ERR(0, 267, __pyx_L15_error)
         }
-        __pyx_t_1 = __Pyx_PyDict_GetItem(__pyx_v_cache_file_type, __pyx_v_cache_file_type_key); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 264, __pyx_L15_error)
+        __pyx_t_1 = __Pyx_PyDict_GetItem(__pyx_v_cache_file_type, __pyx_v_cache_file_type_key); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 267, __pyx_L15_error)
         __Pyx_GOTREF(__pyx_t_1);
         __pyx_v_file_type = __pyx_t_1;
         __pyx_t_1 = 0;
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":263
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":266
  *         # on the cache.
  *         cache_file_type_key = (frame_obj.f_code.co_firstlineno, abs_path_real_path_and_base[0], <object>frame_obj.f_code)
  *         try:             # <<<<<<<<<<<<<<
@@ -6380,7 +6531,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
       __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
       __Pyx_XDECREF(__pyx_t_9); __pyx_t_9 = 0;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":265
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":268
  *         try:
  *             file_type = cache_file_type[cache_file_type_key]  # Make it faster
  *         except:             # <<<<<<<<<<<<<<
@@ -6389,19 +6540,19 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
  */
       /*except:*/ {
         __Pyx_AddTraceback("_pydevd_frame_eval.pydevd_frame_evaluator.get_func_code_info", __pyx_clineno, __pyx_lineno, __pyx_filename);
-        if (__Pyx_GetException(&__pyx_t_1, &__pyx_t_4, &__pyx_t_2) < 0) __PYX_ERR(0, 265, __pyx_L17_except_error)
+        if (__Pyx_GetException(&__pyx_t_1, &__pyx_t_4, &__pyx_t_2) < 0) __PYX_ERR(0, 268, __pyx_L17_except_error)
         __Pyx_GOTREF(__pyx_t_1);
         __Pyx_GOTREF(__pyx_t_4);
         __Pyx_GOTREF(__pyx_t_2);
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":266
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":269
  *             file_type = cache_file_type[cache_file_type_key]  # Make it faster
  *         except:
  *             file_type = main_debugger.get_file_type(<object>frame_obj, abs_path_real_path_and_base)  # we don't want to debug anything related to pydevd             # <<<<<<<<<<<<<<
  * 
  *         if file_type is not None:
  */
-        __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_get_file_type); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 266, __pyx_L17_except_error)
+        __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_get_file_type); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 269, __pyx_L17_except_error)
         __Pyx_GOTREF(__pyx_t_10);
         __pyx_t_11 = NULL;
         __pyx_t_5 = 0;
@@ -6418,7 +6569,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
         #if CYTHON_FAST_PYCALL
         if (PyFunction_Check(__pyx_t_10)) {
           PyObject *__pyx_temp[3] = {__pyx_t_11, ((PyObject *)__pyx_v_frame_obj), __pyx_v_abs_path_real_path_and_base};
-          __pyx_t_9 = __Pyx_PyFunction_FastCall(__pyx_t_10, __pyx_temp+1-__pyx_t_5, 2+__pyx_t_5); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 266, __pyx_L17_except_error)
+          __pyx_t_9 = __Pyx_PyFunction_FastCall(__pyx_t_10, __pyx_temp+1-__pyx_t_5, 2+__pyx_t_5); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 269, __pyx_L17_except_error)
           __Pyx_XDECREF(__pyx_t_11); __pyx_t_11 = 0;
           __Pyx_GOTREF(__pyx_t_9);
         } else
@@ -6426,13 +6577,13 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
         #if CYTHON_FAST_PYCCALL
         if (__Pyx_PyFastCFunction_Check(__pyx_t_10)) {
           PyObject *__pyx_temp[3] = {__pyx_t_11, ((PyObject *)__pyx_v_frame_obj), __pyx_v_abs_path_real_path_and_base};
-          __pyx_t_9 = __Pyx_PyCFunction_FastCall(__pyx_t_10, __pyx_temp+1-__pyx_t_5, 2+__pyx_t_5); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 266, __pyx_L17_except_error)
+          __pyx_t_9 = __Pyx_PyCFunction_FastCall(__pyx_t_10, __pyx_temp+1-__pyx_t_5, 2+__pyx_t_5); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 269, __pyx_L17_except_error)
           __Pyx_XDECREF(__pyx_t_11); __pyx_t_11 = 0;
           __Pyx_GOTREF(__pyx_t_9);
         } else
         #endif
         {
-          __pyx_t_12 = PyTuple_New(2+__pyx_t_5); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 266, __pyx_L17_except_error)
+          __pyx_t_12 = PyTuple_New(2+__pyx_t_5); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 269, __pyx_L17_except_error)
           __Pyx_GOTREF(__pyx_t_12);
           if (__pyx_t_11) {
             __Pyx_GIVEREF(__pyx_t_11); PyTuple_SET_ITEM(__pyx_t_12, 0, __pyx_t_11); __pyx_t_11 = NULL;
@@ -6443,7 +6594,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
           __Pyx_INCREF(__pyx_v_abs_path_real_path_and_base);
           __Pyx_GIVEREF(__pyx_v_abs_path_real_path_and_base);
           PyTuple_SET_ITEM(__pyx_t_12, 1+__pyx_t_5, __pyx_v_abs_path_real_path_and_base);
-          __pyx_t_9 = __Pyx_PyObject_Call(__pyx_t_10, __pyx_t_12, NULL); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 266, __pyx_L17_except_error)
+          __pyx_t_9 = __Pyx_PyObject_Call(__pyx_t_10, __pyx_t_12, NULL); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 269, __pyx_L17_except_error)
           __Pyx_GOTREF(__pyx_t_9);
           __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
         }
@@ -6457,7 +6608,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
       }
       __pyx_L17_except_error:;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":263
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":266
  *         # on the cache.
  *         cache_file_type_key = (frame_obj.f_code.co_firstlineno, abs_path_real_path_and_base[0], <object>frame_obj.f_code)
  *         try:             # <<<<<<<<<<<<<<
@@ -6477,7 +6628,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
       __pyx_L20_try_end:;
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":268
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":271
  *             file_type = main_debugger.get_file_type(<object>frame_obj, abs_path_real_path_and_base)  # we don't want to debug anything related to pydevd
  * 
  *         if file_type is not None:             # <<<<<<<<<<<<<<
@@ -6488,7 +6639,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
     __pyx_t_13 = (__pyx_t_3 != 0);
     if (__pyx_t_13) {
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":269
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":272
  * 
  *         if file_type is not None:
  *             func_code_info.always_skip_code = True             # <<<<<<<<<<<<<<
@@ -6497,7 +6648,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
  */
       __pyx_v_func_code_info->always_skip_code = 1;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":268
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":271
  *             file_type = main_debugger.get_file_type(<object>frame_obj, abs_path_real_path_and_base)  # we don't want to debug anything related to pydevd
  * 
  *         if file_type is not None:             # <<<<<<<<<<<<<<
@@ -6506,8 +6657,8 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
  */
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":251
- *     func_code_info.co_filename = co_filename
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":254
+ *     func_code_info.co_name = co_name
  * 
  *     if not func_code_info.always_skip_code:             # <<<<<<<<<<<<<<
  *         try:
@@ -6515,7 +6666,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
  */
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":271
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":274
  *             func_code_info.always_skip_code = True
  * 
  *     if not func_code_info.always_skip_code:             # <<<<<<<<<<<<<<
@@ -6525,7 +6676,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
   __pyx_t_13 = ((!(__pyx_v_func_code_info->always_skip_code != 0)) != 0);
   if (__pyx_t_13) {
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":272
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":275
  * 
  *     if not func_code_info.always_skip_code:
  *         if main_debugger is not None:             # <<<<<<<<<<<<<<
@@ -6536,16 +6687,16 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
     __pyx_t_3 = (__pyx_t_13 != 0);
     if (__pyx_t_3) {
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":274
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":277
  *         if main_debugger is not None:
  * 
  *             breakpoints: dict = main_debugger.breakpoints.get(func_code_info.canonical_normalized_filename)             # <<<<<<<<<<<<<<
+ *             function_breakpoint: object = main_debugger.function_breakpoint_name_to_breakpoint.get(func_code_info.co_name)
  *             # print('\n---')
- *             # print(main_debugger.breakpoints)
  */
-      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_breakpoints); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 274, __pyx_L1_error)
+      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_breakpoints); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 277, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_get); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 274, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_get); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 277, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
       __pyx_t_4 = NULL;
@@ -6560,14 +6711,44 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
       }
       __pyx_t_2 = (__pyx_t_4) ? __Pyx_PyObject_Call2Args(__pyx_t_1, __pyx_t_4, __pyx_v_func_code_info->canonical_normalized_filename) : __Pyx_PyObject_CallOneArg(__pyx_t_1, __pyx_v_func_code_info->canonical_normalized_filename);
       __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
-      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 274, __pyx_L1_error)
+      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 277, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-      if (!(likely(PyDict_CheckExact(__pyx_t_2))||((__pyx_t_2) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "dict", Py_TYPE(__pyx_t_2)->tp_name), 0))) __PYX_ERR(0, 274, __pyx_L1_error)
+      if (!(likely(PyDict_CheckExact(__pyx_t_2))||((__pyx_t_2) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "dict", Py_TYPE(__pyx_t_2)->tp_name), 0))) __PYX_ERR(0, 277, __pyx_L1_error)
       __pyx_v_breakpoints = ((PyObject*)__pyx_t_2);
       __pyx_t_2 = 0;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":279
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":278
+ * 
+ *             breakpoints: dict = main_debugger.breakpoints.get(func_code_info.canonical_normalized_filename)
+ *             function_breakpoint: object = main_debugger.function_breakpoint_name_to_breakpoint.get(func_code_info.co_name)             # <<<<<<<<<<<<<<
+ *             # print('\n---')
+ *             # print(main_debugger.breakpoints)
+ */
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_function_breakpoint_name_to_brea); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 278, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_1);
+      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_get); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 278, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_4);
+      __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+      __pyx_t_1 = NULL;
+      if (CYTHON_UNPACK_METHODS && likely(PyMethod_Check(__pyx_t_4))) {
+        __pyx_t_1 = PyMethod_GET_SELF(__pyx_t_4);
+        if (likely(__pyx_t_1)) {
+          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_4);
+          __Pyx_INCREF(__pyx_t_1);
+          __Pyx_INCREF(function);
+          __Pyx_DECREF_SET(__pyx_t_4, function);
+        }
+      }
+      __pyx_t_2 = (__pyx_t_1) ? __Pyx_PyObject_Call2Args(__pyx_t_4, __pyx_t_1, __pyx_v_func_code_info->co_name) : __Pyx_PyObject_CallOneArg(__pyx_t_4, __pyx_v_func_code_info->co_name);
+      __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
+      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 278, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_2);
+      __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __pyx_v_function_breakpoint = __pyx_t_2;
+      __pyx_t_2 = 0;
+
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":283
  *             # print(func_code_info.canonical_normalized_filename)
  *             # print(main_debugger.breakpoints.get(func_code_info.canonical_normalized_filename))
  *             code_obj_py: object = <object> code_obj             # <<<<<<<<<<<<<<
@@ -6579,47 +6760,47 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
       __pyx_v_code_obj_py = __pyx_t_2;
       __pyx_t_2 = 0;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":280
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":284
  *             # print(main_debugger.breakpoints.get(func_code_info.canonical_normalized_filename))
  *             code_obj_py: object = <object> code_obj
  *             cached_code_obj_info: object = _cache.get(code_obj_py)             # <<<<<<<<<<<<<<
  *             if cached_code_obj_info:
  *                 # The cache is for new code objects, so, in this case it's already
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_cache); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 280, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_1);
-      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_get); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 280, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_cache); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 284, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-      __pyx_t_1 = NULL;
-      if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_4))) {
-        __pyx_t_1 = PyMethod_GET_SELF(__pyx_t_4);
-        if (likely(__pyx_t_1)) {
-          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_4);
-          __Pyx_INCREF(__pyx_t_1);
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_get); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 284, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_1);
+      __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __pyx_t_4 = NULL;
+      if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_1))) {
+        __pyx_t_4 = PyMethod_GET_SELF(__pyx_t_1);
+        if (likely(__pyx_t_4)) {
+          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_1);
+          __Pyx_INCREF(__pyx_t_4);
           __Pyx_INCREF(function);
-          __Pyx_DECREF_SET(__pyx_t_4, function);
+          __Pyx_DECREF_SET(__pyx_t_1, function);
         }
       }
-      __pyx_t_2 = (__pyx_t_1) ? __Pyx_PyObject_Call2Args(__pyx_t_4, __pyx_t_1, __pyx_v_code_obj_py) : __Pyx_PyObject_CallOneArg(__pyx_t_4, __pyx_v_code_obj_py);
-      __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
-      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 280, __pyx_L1_error)
+      __pyx_t_2 = (__pyx_t_4) ? __Pyx_PyObject_Call2Args(__pyx_t_1, __pyx_t_4, __pyx_v_code_obj_py) : __Pyx_PyObject_CallOneArg(__pyx_t_1, __pyx_v_code_obj_py);
+      __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
+      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 284, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
-      __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
       __pyx_v_cached_code_obj_info = __pyx_t_2;
       __pyx_t_2 = 0;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":281
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":285
  *             code_obj_py: object = <object> code_obj
  *             cached_code_obj_info: object = _cache.get(code_obj_py)
  *             if cached_code_obj_info:             # <<<<<<<<<<<<<<
  *                 # The cache is for new code objects, so, in this case it's already
  *                 # using the new code and we can't change it as this is a generator!
  */
-      __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_v_cached_code_obj_info); if (unlikely(__pyx_t_3 < 0)) __PYX_ERR(0, 281, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_v_cached_code_obj_info); if (unlikely(__pyx_t_3 < 0)) __PYX_ERR(0, 285, __pyx_L1_error)
       if (__pyx_t_3) {
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":287
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":291
  *                 # we may not want to go into tracing mode (as would usually happen
  *                 # when the new_code is None).
  *                 func_code_info.new_code = None             # <<<<<<<<<<<<<<
@@ -6632,136 +6813,37 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
         __Pyx_DECREF(__pyx_v_func_code_info->new_code);
         __pyx_v_func_code_info->new_code = Py_None;
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":289
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":293
  *                 func_code_info.new_code = None
  *                 breakpoint_found, thread_info.force_stay_in_untraced_mode = \
  *                     cached_code_obj_info.compute_force_stay_in_untraced_mode(breakpoints)             # <<<<<<<<<<<<<<
  *                 func_code_info.breakpoint_found = breakpoint_found
  * 
  */
-        __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_v_cached_code_obj_info, __pyx_n_s_compute_force_stay_in_untraced_m); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 289, __pyx_L1_error)
-        __Pyx_GOTREF(__pyx_t_4);
-        __pyx_t_1 = NULL;
-        if (CYTHON_UNPACK_METHODS && likely(PyMethod_Check(__pyx_t_4))) {
-          __pyx_t_1 = PyMethod_GET_SELF(__pyx_t_4);
-          if (likely(__pyx_t_1)) {
-            PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_4);
-            __Pyx_INCREF(__pyx_t_1);
+        __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_cached_code_obj_info, __pyx_n_s_compute_force_stay_in_untraced_m); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 293, __pyx_L1_error)
+        __Pyx_GOTREF(__pyx_t_1);
+        __pyx_t_4 = NULL;
+        if (CYTHON_UNPACK_METHODS && likely(PyMethod_Check(__pyx_t_1))) {
+          __pyx_t_4 = PyMethod_GET_SELF(__pyx_t_1);
+          if (likely(__pyx_t_4)) {
+            PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_1);
+            __Pyx_INCREF(__pyx_t_4);
             __Pyx_INCREF(function);
-            __Pyx_DECREF_SET(__pyx_t_4, function);
+            __Pyx_DECREF_SET(__pyx_t_1, function);
           }
         }
-        __pyx_t_2 = (__pyx_t_1) ? __Pyx_PyObject_Call2Args(__pyx_t_4, __pyx_t_1, __pyx_v_breakpoints) : __Pyx_PyObject_CallOneArg(__pyx_t_4, __pyx_v_breakpoints);
-        __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
-        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 289, __pyx_L1_error)
+        __pyx_t_2 = (__pyx_t_4) ? __Pyx_PyObject_Call2Args(__pyx_t_1, __pyx_t_4, __pyx_v_breakpoints) : __Pyx_PyObject_CallOneArg(__pyx_t_1, __pyx_v_breakpoints);
+        __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
+        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 293, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_2);
-        __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-        if ((likely(PyTuple_CheckExact(__pyx_t_2))) || (PyList_CheckExact(__pyx_t_2))) {
-          PyObject* sequence = __pyx_t_2;
-          Py_ssize_t size = __Pyx_PySequence_SIZE(sequence);
-          if (unlikely(size != 2)) {
-            if (size > 2) __Pyx_RaiseTooManyValuesError(2);
-            else if (size >= 0) __Pyx_RaiseNeedMoreValuesError(size);
-            __PYX_ERR(0, 288, __pyx_L1_error)
-          }
-          #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-          if (likely(PyTuple_CheckExact(sequence))) {
-            __pyx_t_4 = PyTuple_GET_ITEM(sequence, 0); 
-            __pyx_t_1 = PyTuple_GET_ITEM(sequence, 1); 
-          } else {
-            __pyx_t_4 = PyList_GET_ITEM(sequence, 0); 
-            __pyx_t_1 = PyList_GET_ITEM(sequence, 1); 
-          }
-          __Pyx_INCREF(__pyx_t_4);
-          __Pyx_INCREF(__pyx_t_1);
-          #else
-          __pyx_t_4 = PySequence_ITEM(sequence, 0); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 288, __pyx_L1_error)
-          __Pyx_GOTREF(__pyx_t_4);
-          __pyx_t_1 = PySequence_ITEM(sequence, 1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 288, __pyx_L1_error)
-          __Pyx_GOTREF(__pyx_t_1);
-          #endif
-          __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-        } else {
-          Py_ssize_t index = -1;
-          __pyx_t_9 = PyObject_GetIter(__pyx_t_2); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 288, __pyx_L1_error)
-          __Pyx_GOTREF(__pyx_t_9);
-          __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-          __pyx_t_14 = Py_TYPE(__pyx_t_9)->tp_iternext;
-          index = 0; __pyx_t_4 = __pyx_t_14(__pyx_t_9); if (unlikely(!__pyx_t_4)) goto __pyx_L27_unpacking_failed;
-          __Pyx_GOTREF(__pyx_t_4);
-          index = 1; __pyx_t_1 = __pyx_t_14(__pyx_t_9); if (unlikely(!__pyx_t_1)) goto __pyx_L27_unpacking_failed;
-          __Pyx_GOTREF(__pyx_t_1);
-          if (__Pyx_IternextUnpackEndCheck(__pyx_t_14(__pyx_t_9), 2) < 0) __PYX_ERR(0, 288, __pyx_L1_error)
-          __pyx_t_14 = NULL;
-          __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-          goto __pyx_L28_unpacking_done;
-          __pyx_L27_unpacking_failed:;
-          __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-          __pyx_t_14 = NULL;
-          if (__Pyx_IterFinish() == 0) __Pyx_RaiseNeedMoreValuesError(index);
-          __PYX_ERR(0, 288, __pyx_L1_error)
-          __pyx_L28_unpacking_done:;
-        }
-
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":288
- *                 # when the new_code is None).
- *                 func_code_info.new_code = None
- *                 breakpoint_found, thread_info.force_stay_in_untraced_mode = \             # <<<<<<<<<<<<<<
- *                     cached_code_obj_info.compute_force_stay_in_untraced_mode(breakpoints)
- *                 func_code_info.breakpoint_found = breakpoint_found
- */
-        __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_t_1); if (unlikely((__pyx_t_3 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 288, __pyx_L1_error)
         __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-        __pyx_v_breakpoint_found = __pyx_t_4;
-        __pyx_t_4 = 0;
-        __pyx_v_thread_info->force_stay_in_untraced_mode = __pyx_t_3;
-
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":290
- *                 breakpoint_found, thread_info.force_stay_in_untraced_mode = \
- *                     cached_code_obj_info.compute_force_stay_in_untraced_mode(breakpoints)
- *                 func_code_info.breakpoint_found = breakpoint_found             # <<<<<<<<<<<<<<
- * 
- *             elif breakpoints:
- */
-        __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_v_breakpoint_found); if (unlikely((__pyx_t_3 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 290, __pyx_L1_error)
-        __pyx_v_func_code_info->breakpoint_found = __pyx_t_3;
-
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":281
- *             code_obj_py: object = <object> code_obj
- *             cached_code_obj_info: object = _cache.get(code_obj_py)
- *             if cached_code_obj_info:             # <<<<<<<<<<<<<<
- *                 # The cache is for new code objects, so, in this case it's already
- *                 # using the new code and we can't change it as this is a generator!
- */
-        goto __pyx_L26;
-      }
-
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":292
- *                 func_code_info.breakpoint_found = breakpoint_found
- * 
- *             elif breakpoints:             # <<<<<<<<<<<<<<
- *                 # if DEBUG:
- *                 #    print('found breakpoints', code_obj_py.co_name, breakpoints)
- */
-      __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_v_breakpoints); if (unlikely(__pyx_t_3 < 0)) __PYX_ERR(0, 292, __pyx_L1_error)
-      if (__pyx_t_3) {
-
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":298
- *                 # Note: new_code can be None if unable to generate.
- *                 # It should automatically put the new code object in the cache.
- *                 breakpoint_found, func_code_info.new_code = generate_code_with_breakpoints(code_obj_py, breakpoints)             # <<<<<<<<<<<<<<
- *                 func_code_info.breakpoint_found = breakpoint_found
- * 
- */
-        __pyx_t_2 = __pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_code_with_breakpoints(__pyx_v_code_obj_py, __pyx_v_breakpoints); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 298, __pyx_L1_error)
-        __Pyx_GOTREF(__pyx_t_2);
         if ((likely(PyTuple_CheckExact(__pyx_t_2))) || (PyList_CheckExact(__pyx_t_2))) {
           PyObject* sequence = __pyx_t_2;
           Py_ssize_t size = __Pyx_PySequence_SIZE(sequence);
           if (unlikely(size != 2)) {
             if (size > 2) __Pyx_RaiseTooManyValuesError(2);
             else if (size >= 0) __Pyx_RaiseNeedMoreValuesError(size);
-            __PYX_ERR(0, 298, __pyx_L1_error)
+            __PYX_ERR(0, 292, __pyx_L1_error)
           }
           #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
           if (likely(PyTuple_CheckExact(sequence))) {
@@ -6774,23 +6856,164 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
           __Pyx_INCREF(__pyx_t_1);
           __Pyx_INCREF(__pyx_t_4);
           #else
-          __pyx_t_1 = PySequence_ITEM(sequence, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 298, __pyx_L1_error)
+          __pyx_t_1 = PySequence_ITEM(sequence, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 292, __pyx_L1_error)
           __Pyx_GOTREF(__pyx_t_1);
-          __pyx_t_4 = PySequence_ITEM(sequence, 1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 298, __pyx_L1_error)
+          __pyx_t_4 = PySequence_ITEM(sequence, 1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 292, __pyx_L1_error)
           __Pyx_GOTREF(__pyx_t_4);
           #endif
           __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
         } else {
           Py_ssize_t index = -1;
-          __pyx_t_9 = PyObject_GetIter(__pyx_t_2); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 298, __pyx_L1_error)
+          __pyx_t_9 = PyObject_GetIter(__pyx_t_2); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 292, __pyx_L1_error)
           __Pyx_GOTREF(__pyx_t_9);
           __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
           __pyx_t_14 = Py_TYPE(__pyx_t_9)->tp_iternext;
-          index = 0; __pyx_t_1 = __pyx_t_14(__pyx_t_9); if (unlikely(!__pyx_t_1)) goto __pyx_L29_unpacking_failed;
+          index = 0; __pyx_t_1 = __pyx_t_14(__pyx_t_9); if (unlikely(!__pyx_t_1)) goto __pyx_L27_unpacking_failed;
           __Pyx_GOTREF(__pyx_t_1);
-          index = 1; __pyx_t_4 = __pyx_t_14(__pyx_t_9); if (unlikely(!__pyx_t_4)) goto __pyx_L29_unpacking_failed;
+          index = 1; __pyx_t_4 = __pyx_t_14(__pyx_t_9); if (unlikely(!__pyx_t_4)) goto __pyx_L27_unpacking_failed;
           __Pyx_GOTREF(__pyx_t_4);
-          if (__Pyx_IternextUnpackEndCheck(__pyx_t_14(__pyx_t_9), 2) < 0) __PYX_ERR(0, 298, __pyx_L1_error)
+          if (__Pyx_IternextUnpackEndCheck(__pyx_t_14(__pyx_t_9), 2) < 0) __PYX_ERR(0, 292, __pyx_L1_error)
+          __pyx_t_14 = NULL;
+          __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
+          goto __pyx_L28_unpacking_done;
+          __pyx_L27_unpacking_failed:;
+          __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
+          __pyx_t_14 = NULL;
+          if (__Pyx_IterFinish() == 0) __Pyx_RaiseNeedMoreValuesError(index);
+          __PYX_ERR(0, 292, __pyx_L1_error)
+          __pyx_L28_unpacking_done:;
+        }
+
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":292
+ *                 # when the new_code is None).
+ *                 func_code_info.new_code = None
+ *                 breakpoint_found, thread_info.force_stay_in_untraced_mode = \             # <<<<<<<<<<<<<<
+ *                     cached_code_obj_info.compute_force_stay_in_untraced_mode(breakpoints)
+ *                 func_code_info.breakpoint_found = breakpoint_found
+ */
+        __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_t_4); if (unlikely((__pyx_t_3 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 292, __pyx_L1_error)
+        __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+        __pyx_v_breakpoint_found = __pyx_t_1;
+        __pyx_t_1 = 0;
+        __pyx_v_thread_info->force_stay_in_untraced_mode = __pyx_t_3;
+
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":294
+ *                 breakpoint_found, thread_info.force_stay_in_untraced_mode = \
+ *                     cached_code_obj_info.compute_force_stay_in_untraced_mode(breakpoints)
+ *                 func_code_info.breakpoint_found = breakpoint_found             # <<<<<<<<<<<<<<
+ * 
+ *             elif function_breakpoint:
+ */
+        __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_v_breakpoint_found); if (unlikely((__pyx_t_3 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 294, __pyx_L1_error)
+        __pyx_v_func_code_info->breakpoint_found = __pyx_t_3;
+
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":285
+ *             code_obj_py: object = <object> code_obj
+ *             cached_code_obj_info: object = _cache.get(code_obj_py)
+ *             if cached_code_obj_info:             # <<<<<<<<<<<<<<
+ *                 # The cache is for new code objects, so, in this case it's already
+ *                 # using the new code and we can't change it as this is a generator!
+ */
+        goto __pyx_L26;
+      }
+
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":296
+ *                 func_code_info.breakpoint_found = breakpoint_found
+ * 
+ *             elif function_breakpoint:             # <<<<<<<<<<<<<<
+ *                 # Go directly into tracing mode
+ *                 func_code_info.breakpoint_found = True
+ */
+      __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_v_function_breakpoint); if (unlikely(__pyx_t_3 < 0)) __PYX_ERR(0, 296, __pyx_L1_error)
+      if (__pyx_t_3) {
+
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":298
+ *             elif function_breakpoint:
+ *                 # Go directly into tracing mode
+ *                 func_code_info.breakpoint_found = True             # <<<<<<<<<<<<<<
+ *                 func_code_info.new_code = None
+ * 
+ */
+        __pyx_v_func_code_info->breakpoint_found = 1;
+
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":299
+ *                 # Go directly into tracing mode
+ *                 func_code_info.breakpoint_found = True
+ *                 func_code_info.new_code = None             # <<<<<<<<<<<<<<
+ * 
+ *             elif breakpoints:
+ */
+        __Pyx_INCREF(Py_None);
+        __Pyx_GIVEREF(Py_None);
+        __Pyx_GOTREF(__pyx_v_func_code_info->new_code);
+        __Pyx_DECREF(__pyx_v_func_code_info->new_code);
+        __pyx_v_func_code_info->new_code = Py_None;
+
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":296
+ *                 func_code_info.breakpoint_found = breakpoint_found
+ * 
+ *             elif function_breakpoint:             # <<<<<<<<<<<<<<
+ *                 # Go directly into tracing mode
+ *                 func_code_info.breakpoint_found = True
+ */
+        goto __pyx_L26;
+      }
+
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":301
+ *                 func_code_info.new_code = None
+ * 
+ *             elif breakpoints:             # <<<<<<<<<<<<<<
+ *                 # if DEBUG:
+ *                 #    print('found breakpoints', code_obj_py.co_name, breakpoints)
+ */
+      __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_v_breakpoints); if (unlikely(__pyx_t_3 < 0)) __PYX_ERR(0, 301, __pyx_L1_error)
+      if (__pyx_t_3) {
+
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":307
+ *                 # Note: new_code can be None if unable to generate.
+ *                 # It should automatically put the new code object in the cache.
+ *                 breakpoint_found, func_code_info.new_code = generate_code_with_breakpoints(code_obj_py, breakpoints)             # <<<<<<<<<<<<<<
+ *                 func_code_info.breakpoint_found = breakpoint_found
+ * 
+ */
+        __pyx_t_2 = __pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_code_with_breakpoints(__pyx_v_code_obj_py, __pyx_v_breakpoints); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 307, __pyx_L1_error)
+        __Pyx_GOTREF(__pyx_t_2);
+        if ((likely(PyTuple_CheckExact(__pyx_t_2))) || (PyList_CheckExact(__pyx_t_2))) {
+          PyObject* sequence = __pyx_t_2;
+          Py_ssize_t size = __Pyx_PySequence_SIZE(sequence);
+          if (unlikely(size != 2)) {
+            if (size > 2) __Pyx_RaiseTooManyValuesError(2);
+            else if (size >= 0) __Pyx_RaiseNeedMoreValuesError(size);
+            __PYX_ERR(0, 307, __pyx_L1_error)
+          }
+          #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+          if (likely(PyTuple_CheckExact(sequence))) {
+            __pyx_t_4 = PyTuple_GET_ITEM(sequence, 0); 
+            __pyx_t_1 = PyTuple_GET_ITEM(sequence, 1); 
+          } else {
+            __pyx_t_4 = PyList_GET_ITEM(sequence, 0); 
+            __pyx_t_1 = PyList_GET_ITEM(sequence, 1); 
+          }
+          __Pyx_INCREF(__pyx_t_4);
+          __Pyx_INCREF(__pyx_t_1);
+          #else
+          __pyx_t_4 = PySequence_ITEM(sequence, 0); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 307, __pyx_L1_error)
+          __Pyx_GOTREF(__pyx_t_4);
+          __pyx_t_1 = PySequence_ITEM(sequence, 1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 307, __pyx_L1_error)
+          __Pyx_GOTREF(__pyx_t_1);
+          #endif
+          __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+        } else {
+          Py_ssize_t index = -1;
+          __pyx_t_9 = PyObject_GetIter(__pyx_t_2); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 307, __pyx_L1_error)
+          __Pyx_GOTREF(__pyx_t_9);
+          __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+          __pyx_t_14 = Py_TYPE(__pyx_t_9)->tp_iternext;
+          index = 0; __pyx_t_4 = __pyx_t_14(__pyx_t_9); if (unlikely(!__pyx_t_4)) goto __pyx_L29_unpacking_failed;
+          __Pyx_GOTREF(__pyx_t_4);
+          index = 1; __pyx_t_1 = __pyx_t_14(__pyx_t_9); if (unlikely(!__pyx_t_1)) goto __pyx_L29_unpacking_failed;
+          __Pyx_GOTREF(__pyx_t_1);
+          if (__Pyx_IternextUnpackEndCheck(__pyx_t_14(__pyx_t_9), 2) < 0) __PYX_ERR(0, 307, __pyx_L1_error)
           __pyx_t_14 = NULL;
           __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
           goto __pyx_L30_unpacking_done;
@@ -6798,29 +7021,29 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
           __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
           __pyx_t_14 = NULL;
           if (__Pyx_IterFinish() == 0) __Pyx_RaiseNeedMoreValuesError(index);
-          __PYX_ERR(0, 298, __pyx_L1_error)
+          __PYX_ERR(0, 307, __pyx_L1_error)
           __pyx_L30_unpacking_done:;
         }
-        __pyx_v_breakpoint_found = __pyx_t_1;
-        __pyx_t_1 = 0;
-        __Pyx_GIVEREF(__pyx_t_4);
+        __pyx_v_breakpoint_found = __pyx_t_4;
+        __pyx_t_4 = 0;
+        __Pyx_GIVEREF(__pyx_t_1);
         __Pyx_GOTREF(__pyx_v_func_code_info->new_code);
         __Pyx_DECREF(__pyx_v_func_code_info->new_code);
-        __pyx_v_func_code_info->new_code = __pyx_t_4;
-        __pyx_t_4 = 0;
+        __pyx_v_func_code_info->new_code = __pyx_t_1;
+        __pyx_t_1 = 0;
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":299
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":308
  *                 # It should automatically put the new code object in the cache.
  *                 breakpoint_found, func_code_info.new_code = generate_code_with_breakpoints(code_obj_py, breakpoints)
  *                 func_code_info.breakpoint_found = breakpoint_found             # <<<<<<<<<<<<<<
  * 
  *     Py_INCREF(func_code_info)
  */
-        __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_v_breakpoint_found); if (unlikely((__pyx_t_3 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 299, __pyx_L1_error)
+        __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_v_breakpoint_found); if (unlikely((__pyx_t_3 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 308, __pyx_L1_error)
         __pyx_v_func_code_info->breakpoint_found = __pyx_t_3;
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":292
- *                 func_code_info.breakpoint_found = breakpoint_found
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":301
+ *                 func_code_info.new_code = None
  * 
  *             elif breakpoints:             # <<<<<<<<<<<<<<
  *                 # if DEBUG:
@@ -6829,7 +7052,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
       }
       __pyx_L26:;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":272
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":275
  * 
  *     if not func_code_info.always_skip_code:
  *         if main_debugger is not None:             # <<<<<<<<<<<<<<
@@ -6838,7 +7061,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
  */
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":271
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":274
  *             func_code_info.always_skip_code = True
  * 
  *     if not func_code_info.always_skip_code:             # <<<<<<<<<<<<<<
@@ -6847,7 +7070,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
  */
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":301
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":310
  *                 func_code_info.breakpoint_found = breakpoint_found
  * 
  *     Py_INCREF(func_code_info)             # <<<<<<<<<<<<<<
@@ -6856,7 +7079,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
  */
   Py_INCREF(((PyObject *)__pyx_v_func_code_info));
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":302
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":311
  * 
  *     Py_INCREF(func_code_info)
  *     _PyCode_SetExtra(<PyObject *> code_obj, _code_extra_index, <PyObject *> func_code_info)             # <<<<<<<<<<<<<<
@@ -6865,7 +7088,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
  */
   (void)(_PyCode_SetExtra(((PyObject *)__pyx_v_code_obj), __pyx_v_18_pydevd_frame_eval_22pydevd_frame_evaluator__code_extra_index, ((PyObject *)__pyx_v_func_code_info)));
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":304
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":313
  *     _PyCode_SetExtra(<PyObject *> code_obj, _code_extra_index, <PyObject *> func_code_info)
  * 
  *     return func_code_info             # <<<<<<<<<<<<<<
@@ -6877,7 +7100,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
   __pyx_r = __pyx_v_func_code_info;
   goto __pyx_L0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":211
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":212
  * cdef int _code_extra_index = -1
  * 
  * cdef FuncCodeInfo get_func_code_info(ThreadInfo thread_info, PyFrameObject * frame_obj, PyCodeObject * code_obj):             # <<<<<<<<<<<<<<
@@ -6900,12 +7123,14 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
   __Pyx_XDECREF(__pyx_v_main_debugger);
   __Pyx_XDECREF((PyObject *)__pyx_v_func_code_info_obj);
   __Pyx_XDECREF(__pyx_v_co_filename);
+  __Pyx_XDECREF(__pyx_v_co_name);
   __Pyx_XDECREF(__pyx_v_cache_file_type);
   __Pyx_XDECREF(__pyx_v_cache_file_type_key);
   __Pyx_XDECREF((PyObject *)__pyx_v_func_code_info);
   __Pyx_XDECREF(__pyx_v_abs_path_real_path_and_base);
   __Pyx_XDECREF(__pyx_v_file_type);
   __Pyx_XDECREF(__pyx_v_breakpoints);
+  __Pyx_XDECREF(__pyx_v_function_breakpoint);
   __Pyx_XDECREF(__pyx_v_code_obj_py);
   __Pyx_XDECREF(__pyx_v_cached_code_obj_info);
   __Pyx_XDECREF(__pyx_v_breakpoint_found);
@@ -6914,7 +7139,7 @@ static struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeIn
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":313
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":322
  *     cdef public int last_line
  * 
  *     def __init__(self, dict line_to_offset,  int first_line,  int last_line):             # <<<<<<<<<<<<<<
@@ -6959,17 +7184,17 @@ static int __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_13_CodeLineInf
         case  1:
         if (likely((values[1] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_first_line)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 3, 3, 1); __PYX_ERR(0, 313, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 3, 3, 1); __PYX_ERR(0, 322, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
         if (likely((values[2] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_last_line)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 3, 3, 2); __PYX_ERR(0, 313, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 3, 3, 2); __PYX_ERR(0, 322, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "__init__") < 0)) __PYX_ERR(0, 313, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "__init__") < 0)) __PYX_ERR(0, 322, __pyx_L3_error)
       }
     } else if (PyTuple_GET_SIZE(__pyx_args) != 3) {
       goto __pyx_L5_argtuple_error;
@@ -6979,18 +7204,18 @@ static int __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_13_CodeLineInf
       values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
     }
     __pyx_v_line_to_offset = ((PyObject*)values[0]);
-    __pyx_v_first_line = __Pyx_PyInt_As_int(values[1]); if (unlikely((__pyx_v_first_line == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 313, __pyx_L3_error)
-    __pyx_v_last_line = __Pyx_PyInt_As_int(values[2]); if (unlikely((__pyx_v_last_line == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 313, __pyx_L3_error)
+    __pyx_v_first_line = __Pyx_PyInt_As_int(values[1]); if (unlikely((__pyx_v_first_line == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 322, __pyx_L3_error)
+    __pyx_v_last_line = __Pyx_PyInt_As_int(values[2]); if (unlikely((__pyx_v_last_line == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 322, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("__init__", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 313, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("__init__", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 322, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("_pydevd_frame_eval.pydevd_frame_evaluator._CodeLineInfo.__init__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return -1;
   __pyx_L4_argument_unpacking_done:;
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_line_to_offset), (&PyDict_Type), 1, "line_to_offset", 1))) __PYX_ERR(0, 313, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_line_to_offset), (&PyDict_Type), 1, "line_to_offset", 1))) __PYX_ERR(0, 322, __pyx_L1_error)
   __pyx_r = __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_13_CodeLineInfo___init__(((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator__CodeLineInfo *)__pyx_v_self), __pyx_v_line_to_offset, __pyx_v_first_line, __pyx_v_last_line);
 
   /* function exit code */
@@ -7007,7 +7232,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_13_CodeLineInf
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__init__", 0);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":314
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":323
  * 
  *     def __init__(self, dict line_to_offset,  int first_line,  int last_line):
  *         self.line_to_offset = line_to_offset             # <<<<<<<<<<<<<<
@@ -7020,7 +7245,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_13_CodeLineInf
   __Pyx_DECREF(__pyx_v_self->line_to_offset);
   __pyx_v_self->line_to_offset = __pyx_v_line_to_offset;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":315
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":324
  *     def __init__(self, dict line_to_offset,  int first_line,  int last_line):
  *         self.line_to_offset = line_to_offset
  *         self.first_line = first_line             # <<<<<<<<<<<<<<
@@ -7029,7 +7254,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_13_CodeLineInf
  */
   __pyx_v_self->first_line = __pyx_v_first_line;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":316
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":325
  *         self.line_to_offset = line_to_offset
  *         self.first_line = first_line
  *         self.last_line = last_line             # <<<<<<<<<<<<<<
@@ -7038,7 +7263,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_13_CodeLineInf
  */
   __pyx_v_self->last_line = __pyx_v_last_line;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":313
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":322
  *     cdef public int last_line
  * 
  *     def __init__(self, dict line_to_offset,  int first_line,  int last_line):             # <<<<<<<<<<<<<<
@@ -7052,7 +7277,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_13_CodeLineInf
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":309
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":318
  * cdef class _CodeLineInfo:
  * 
  *     cdef public dict line_to_offset             # <<<<<<<<<<<<<<
@@ -7110,7 +7335,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_13_CodeLineInf
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  if (!(likely(PyDict_CheckExact(__pyx_v_value))||((__pyx_v_value) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "dict", Py_TYPE(__pyx_v_value)->tp_name), 0))) __PYX_ERR(0, 309, __pyx_L1_error)
+  if (!(likely(PyDict_CheckExact(__pyx_v_value))||((__pyx_v_value) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "dict", Py_TYPE(__pyx_v_value)->tp_name), 0))) __PYX_ERR(0, 318, __pyx_L1_error)
   __pyx_t_1 = __pyx_v_value;
   __Pyx_INCREF(__pyx_t_1);
   __Pyx_GIVEREF(__pyx_t_1);
@@ -7160,7 +7385,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_13_CodeLineInf
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":310
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":319
  * 
  *     cdef public dict line_to_offset
  *     cdef public int first_line             # <<<<<<<<<<<<<<
@@ -7190,7 +7415,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_13_CodeL
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_self->first_line); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 310, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_self->first_line); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 319, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -7228,7 +7453,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_13_CodeLineInf
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  __pyx_t_1 = __Pyx_PyInt_As_int(__pyx_v_value); if (unlikely((__pyx_t_1 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 310, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_As_int(__pyx_v_value); if (unlikely((__pyx_t_1 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 319, __pyx_L1_error)
   __pyx_v_self->first_line = __pyx_t_1;
 
   /* function exit code */
@@ -7242,7 +7467,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_13_CodeLineInf
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":311
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":320
  *     cdef public dict line_to_offset
  *     cdef public int first_line
  *     cdef public int last_line             # <<<<<<<<<<<<<<
@@ -7272,7 +7497,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_13_CodeL
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_self->last_line); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 311, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_self->last_line); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 320, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -7310,7 +7535,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_13_CodeLineInf
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  __pyx_t_1 = __Pyx_PyInt_As_int(__pyx_v_value); if (unlikely((__pyx_t_1 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 311, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_As_int(__pyx_v_value); if (unlikely((__pyx_t_1 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 320, __pyx_L1_error)
   __pyx_v_self->last_line = __pyx_t_1;
 
   /* function exit code */
@@ -7627,7 +7852,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_13_CodeL
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":320
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":329
  * 
  * # Note: this method has a version in pure-python too.
  * def _get_code_line_info(code_obj):             # <<<<<<<<<<<<<<
@@ -7673,19 +7898,19 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_10_get_c
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("_get_code_line_info", 0);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":321
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":330
  * # Note: this method has a version in pure-python too.
  * def _get_code_line_info(code_obj):
  *     line_to_offset: dict = {}             # <<<<<<<<<<<<<<
  *     first_line: int = None
  *     last_line: int = None
  */
-  __pyx_t_1 = __Pyx_PyDict_NewPresized(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 321, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyDict_NewPresized(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 330, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_v_line_to_offset = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":322
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":331
  * def _get_code_line_info(code_obj):
  *     line_to_offset: dict = {}
  *     first_line: int = None             # <<<<<<<<<<<<<<
@@ -7695,7 +7920,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_10_get_c
   __Pyx_INCREF(Py_None);
   __pyx_v_first_line = Py_None;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":323
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":332
  *     line_to_offset: dict = {}
  *     first_line: int = None
  *     last_line: int = None             # <<<<<<<<<<<<<<
@@ -7705,16 +7930,16 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_10_get_c
   __Pyx_INCREF(Py_None);
   __pyx_v_last_line = Py_None;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":328
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":337
  *     cdef int line
  * 
  *     for offset, line in dis.findlinestarts(code_obj):             # <<<<<<<<<<<<<<
  *         line_to_offset[line] = offset
  * 
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_dis); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 328, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_dis); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 337, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_findlinestarts); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 328, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_findlinestarts); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 337, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __pyx_t_2 = NULL;
@@ -7729,16 +7954,16 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_10_get_c
   }
   __pyx_t_1 = (__pyx_t_2) ? __Pyx_PyObject_Call2Args(__pyx_t_3, __pyx_t_2, __pyx_v_code_obj) : __Pyx_PyObject_CallOneArg(__pyx_t_3, __pyx_v_code_obj);
   __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
-  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 328, __pyx_L1_error)
+  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 337, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   if (likely(PyList_CheckExact(__pyx_t_1)) || PyTuple_CheckExact(__pyx_t_1)) {
     __pyx_t_3 = __pyx_t_1; __Pyx_INCREF(__pyx_t_3); __pyx_t_4 = 0;
     __pyx_t_5 = NULL;
   } else {
-    __pyx_t_4 = -1; __pyx_t_3 = PyObject_GetIter(__pyx_t_1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 328, __pyx_L1_error)
+    __pyx_t_4 = -1; __pyx_t_3 = PyObject_GetIter(__pyx_t_1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 337, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
-    __pyx_t_5 = Py_TYPE(__pyx_t_3)->tp_iternext; if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 328, __pyx_L1_error)
+    __pyx_t_5 = Py_TYPE(__pyx_t_3)->tp_iternext; if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 337, __pyx_L1_error)
   }
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   for (;;) {
@@ -7746,17 +7971,17 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_10_get_c
       if (likely(PyList_CheckExact(__pyx_t_3))) {
         if (__pyx_t_4 >= PyList_GET_SIZE(__pyx_t_3)) break;
         #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-        __pyx_t_1 = PyList_GET_ITEM(__pyx_t_3, __pyx_t_4); __Pyx_INCREF(__pyx_t_1); __pyx_t_4++; if (unlikely(0 < 0)) __PYX_ERR(0, 328, __pyx_L1_error)
+        __pyx_t_1 = PyList_GET_ITEM(__pyx_t_3, __pyx_t_4); __Pyx_INCREF(__pyx_t_1); __pyx_t_4++; if (unlikely(0 < 0)) __PYX_ERR(0, 337, __pyx_L1_error)
         #else
-        __pyx_t_1 = PySequence_ITEM(__pyx_t_3, __pyx_t_4); __pyx_t_4++; if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 328, __pyx_L1_error)
+        __pyx_t_1 = PySequence_ITEM(__pyx_t_3, __pyx_t_4); __pyx_t_4++; if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 337, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_1);
         #endif
       } else {
         if (__pyx_t_4 >= PyTuple_GET_SIZE(__pyx_t_3)) break;
         #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-        __pyx_t_1 = PyTuple_GET_ITEM(__pyx_t_3, __pyx_t_4); __Pyx_INCREF(__pyx_t_1); __pyx_t_4++; if (unlikely(0 < 0)) __PYX_ERR(0, 328, __pyx_L1_error)
+        __pyx_t_1 = PyTuple_GET_ITEM(__pyx_t_3, __pyx_t_4); __Pyx_INCREF(__pyx_t_1); __pyx_t_4++; if (unlikely(0 < 0)) __PYX_ERR(0, 337, __pyx_L1_error)
         #else
-        __pyx_t_1 = PySequence_ITEM(__pyx_t_3, __pyx_t_4); __pyx_t_4++; if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 328, __pyx_L1_error)
+        __pyx_t_1 = PySequence_ITEM(__pyx_t_3, __pyx_t_4); __pyx_t_4++; if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 337, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_1);
         #endif
       }
@@ -7766,7 +7991,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_10_get_c
         PyObject* exc_type = PyErr_Occurred();
         if (exc_type) {
           if (likely(__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();
-          else __PYX_ERR(0, 328, __pyx_L1_error)
+          else __PYX_ERR(0, 337, __pyx_L1_error)
         }
         break;
       }
@@ -7778,7 +8003,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_10_get_c
       if (unlikely(size != 2)) {
         if (size > 2) __Pyx_RaiseTooManyValuesError(2);
         else if (size >= 0) __Pyx_RaiseNeedMoreValuesError(size);
-        __PYX_ERR(0, 328, __pyx_L1_error)
+        __PYX_ERR(0, 337, __pyx_L1_error)
       }
       #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
       if (likely(PyTuple_CheckExact(sequence))) {
@@ -7791,15 +8016,15 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_10_get_c
       __Pyx_INCREF(__pyx_t_2);
       __Pyx_INCREF(__pyx_t_6);
       #else
-      __pyx_t_2 = PySequence_ITEM(sequence, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 328, __pyx_L1_error)
+      __pyx_t_2 = PySequence_ITEM(sequence, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 337, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
-      __pyx_t_6 = PySequence_ITEM(sequence, 1); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 328, __pyx_L1_error)
+      __pyx_t_6 = PySequence_ITEM(sequence, 1); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 337, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_6);
       #endif
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     } else {
       Py_ssize_t index = -1;
-      __pyx_t_7 = PyObject_GetIter(__pyx_t_1); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 328, __pyx_L1_error)
+      __pyx_t_7 = PyObject_GetIter(__pyx_t_1); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 337, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_7);
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
       __pyx_t_8 = Py_TYPE(__pyx_t_7)->tp_iternext;
@@ -7807,7 +8032,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_10_get_c
       __Pyx_GOTREF(__pyx_t_2);
       index = 1; __pyx_t_6 = __pyx_t_8(__pyx_t_7); if (unlikely(!__pyx_t_6)) goto __pyx_L5_unpacking_failed;
       __Pyx_GOTREF(__pyx_t_6);
-      if (__Pyx_IternextUnpackEndCheck(__pyx_t_8(__pyx_t_7), 2) < 0) __PYX_ERR(0, 328, __pyx_L1_error)
+      if (__Pyx_IternextUnpackEndCheck(__pyx_t_8(__pyx_t_7), 2) < 0) __PYX_ERR(0, 337, __pyx_L1_error)
       __pyx_t_8 = NULL;
       __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
       goto __pyx_L6_unpacking_done;
@@ -7815,32 +8040,32 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_10_get_c
       __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
       __pyx_t_8 = NULL;
       if (__Pyx_IterFinish() == 0) __Pyx_RaiseNeedMoreValuesError(index);
-      __PYX_ERR(0, 328, __pyx_L1_error)
+      __PYX_ERR(0, 337, __pyx_L1_error)
       __pyx_L6_unpacking_done:;
     }
-    __pyx_t_9 = __Pyx_PyInt_As_int(__pyx_t_2); if (unlikely((__pyx_t_9 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 328, __pyx_L1_error)
+    __pyx_t_9 = __Pyx_PyInt_As_int(__pyx_t_2); if (unlikely((__pyx_t_9 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 337, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __pyx_t_10 = __Pyx_PyInt_As_int(__pyx_t_6); if (unlikely((__pyx_t_10 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 328, __pyx_L1_error)
+    __pyx_t_10 = __Pyx_PyInt_As_int(__pyx_t_6); if (unlikely((__pyx_t_10 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 337, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
     __pyx_v_offset = __pyx_t_9;
     __pyx_v_line = __pyx_t_10;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":329
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":338
  * 
  *     for offset, line in dis.findlinestarts(code_obj):
  *         line_to_offset[line] = offset             # <<<<<<<<<<<<<<
  * 
  *     if line_to_offset:
  */
-    __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_offset); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 329, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_offset); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 338, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_6 = __Pyx_PyInt_From_int(__pyx_v_line); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 329, __pyx_L1_error)
+    __pyx_t_6 = __Pyx_PyInt_From_int(__pyx_v_line); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 338, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_6);
-    if (unlikely(PyDict_SetItem(__pyx_v_line_to_offset, __pyx_t_6, __pyx_t_1) < 0)) __PYX_ERR(0, 329, __pyx_L1_error)
+    if (unlikely(PyDict_SetItem(__pyx_v_line_to_offset, __pyx_t_6, __pyx_t_1) < 0)) __PYX_ERR(0, 338, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":328
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":337
  *     cdef int line
  * 
  *     for offset, line in dis.findlinestarts(code_obj):             # <<<<<<<<<<<<<<
@@ -7850,41 +8075,41 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_10_get_c
   }
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":331
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":340
  *         line_to_offset[line] = offset
  * 
  *     if line_to_offset:             # <<<<<<<<<<<<<<
  *         first_line = min(line_to_offset)
  *         last_line = max(line_to_offset)
  */
-  __pyx_t_11 = __Pyx_PyObject_IsTrue(__pyx_v_line_to_offset); if (unlikely(__pyx_t_11 < 0)) __PYX_ERR(0, 331, __pyx_L1_error)
+  __pyx_t_11 = __Pyx_PyObject_IsTrue(__pyx_v_line_to_offset); if (unlikely(__pyx_t_11 < 0)) __PYX_ERR(0, 340, __pyx_L1_error)
   if (__pyx_t_11) {
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":332
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":341
  * 
  *     if line_to_offset:
  *         first_line = min(line_to_offset)             # <<<<<<<<<<<<<<
  *         last_line = max(line_to_offset)
  *     return _CodeLineInfo(line_to_offset, first_line, last_line)
  */
-    __pyx_t_3 = __Pyx_PyObject_CallOneArg(__pyx_builtin_min, __pyx_v_line_to_offset); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 332, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_PyObject_CallOneArg(__pyx_builtin_min, __pyx_v_line_to_offset); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 341, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
     __Pyx_DECREF_SET(__pyx_v_first_line, __pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":333
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":342
  *     if line_to_offset:
  *         first_line = min(line_to_offset)
  *         last_line = max(line_to_offset)             # <<<<<<<<<<<<<<
  *     return _CodeLineInfo(line_to_offset, first_line, last_line)
  * 
  */
-    __pyx_t_3 = __Pyx_PyObject_CallOneArg(__pyx_builtin_max, __pyx_v_line_to_offset); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 333, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_PyObject_CallOneArg(__pyx_builtin_max, __pyx_v_line_to_offset); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 342, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
     __Pyx_DECREF_SET(__pyx_v_last_line, __pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":331
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":340
  *         line_to_offset[line] = offset
  * 
  *     if line_to_offset:             # <<<<<<<<<<<<<<
@@ -7893,7 +8118,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_10_get_c
  */
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":334
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":343
  *         first_line = min(line_to_offset)
  *         last_line = max(line_to_offset)
  *     return _CodeLineInfo(line_to_offset, first_line, last_line)             # <<<<<<<<<<<<<<
@@ -7901,7 +8126,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_10_get_c
  * 
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_3 = PyTuple_New(3); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 334, __pyx_L1_error)
+  __pyx_t_3 = PyTuple_New(3); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 343, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_INCREF(__pyx_v_line_to_offset);
   __Pyx_GIVEREF(__pyx_v_line_to_offset);
@@ -7912,14 +8137,14 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_10_get_c
   __Pyx_INCREF(__pyx_v_last_line);
   __Pyx_GIVEREF(__pyx_v_last_line);
   PyTuple_SET_ITEM(__pyx_t_3, 2, __pyx_v_last_line);
-  __pyx_t_1 = __Pyx_PyObject_Call(((PyObject *)__pyx_ptype_18_pydevd_frame_eval_22pydevd_frame_evaluator__CodeLineInfo), __pyx_t_3, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 334, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_Call(((PyObject *)__pyx_ptype_18_pydevd_frame_eval_22pydevd_frame_evaluator__CodeLineInfo), __pyx_t_3, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 343, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":320
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":329
  * 
  * # Note: this method has a version in pure-python too.
  * def _get_code_line_info(code_obj):             # <<<<<<<<<<<<<<
@@ -7945,7 +8170,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_10_get_c
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":344
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":353
  * _cache: dict = {}
  * 
  * def get_cached_code_obj_info_py(code_obj_py):             # <<<<<<<<<<<<<<
@@ -7979,7 +8204,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12get_ca
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("get_cached_code_obj_info_py", 0);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":349
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":358
  *     :note: on cython use _cache.get(code_obj_py) directly.
  *     '''
  *     return _cache.get(code_obj_py)             # <<<<<<<<<<<<<<
@@ -7987,9 +8212,9 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12get_ca
  * 
  */
   __Pyx_XDECREF(__pyx_r);
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_cache); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 349, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_cache); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 358, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_get); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 349, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_get); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 358, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __pyx_t_2 = NULL;
@@ -8004,14 +8229,14 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12get_ca
   }
   __pyx_t_1 = (__pyx_t_2) ? __Pyx_PyObject_Call2Args(__pyx_t_3, __pyx_t_2, __pyx_v_code_obj_py) : __Pyx_PyObject_CallOneArg(__pyx_t_3, __pyx_v_code_obj_py);
   __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
-  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 349, __pyx_L1_error)
+  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 358, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":344
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":353
  * _cache: dict = {}
  * 
  * def get_cached_code_obj_info_py(code_obj_py):             # <<<<<<<<<<<<<<
@@ -8032,7 +8257,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_12get_ca
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":359
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":368
  *     cdef public set code_lines_as_set
  * 
  *     def __init__(self, object code_obj_py, _CodeLineInfo code_line_info, set breakpoints_hit_at_lines):             # <<<<<<<<<<<<<<
@@ -8081,17 +8306,17 @@ static int __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue_
         case  1:
         if (likely((values[1] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_code_line_info)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 3, 3, 1); __PYX_ERR(0, 359, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 3, 3, 1); __PYX_ERR(0, 368, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
         if (likely((values[2] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_breakpoints_hit_at_lines)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 3, 3, 2); __PYX_ERR(0, 359, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 3, 3, 2); __PYX_ERR(0, 368, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "__init__") < 0)) __PYX_ERR(0, 359, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "__init__") < 0)) __PYX_ERR(0, 368, __pyx_L3_error)
       }
     } else if (PyTuple_GET_SIZE(__pyx_args) != 3) {
       goto __pyx_L5_argtuple_error;
@@ -8106,14 +8331,14 @@ static int __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue_
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("__init__", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 359, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("__init__", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 368, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("_pydevd_frame_eval.pydevd_frame_evaluator._CacheValue.__init__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return -1;
   __pyx_L4_argument_unpacking_done:;
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_code_line_info), __pyx_ptype_18_pydevd_frame_eval_22pydevd_frame_evaluator__CodeLineInfo, 1, "code_line_info", 0))) __PYX_ERR(0, 359, __pyx_L1_error)
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_breakpoints_hit_at_lines), (&PySet_Type), 1, "breakpoints_hit_at_lines", 1))) __PYX_ERR(0, 359, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_code_line_info), __pyx_ptype_18_pydevd_frame_eval_22pydevd_frame_evaluator__CodeLineInfo, 1, "code_line_info", 0))) __PYX_ERR(0, 368, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_breakpoints_hit_at_lines), (&PySet_Type), 1, "breakpoints_hit_at_lines", 1))) __PYX_ERR(0, 368, __pyx_L1_error)
   __pyx_r = __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue___init__(((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue *)__pyx_v_self), __pyx_v_code_obj_py, __pyx_v_code_line_info, __pyx_v_breakpoints_hit_at_lines);
 
   /* function exit code */
@@ -8134,7 +8359,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue_
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__init__", 0);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":365
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":374
  *         :param set[int] breakpoints_hit_at_lines:
  *         '''
  *         self.code_obj_py = code_obj_py             # <<<<<<<<<<<<<<
@@ -8147,7 +8372,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue_
   __Pyx_DECREF(__pyx_v_self->code_obj_py);
   __pyx_v_self->code_obj_py = __pyx_v_code_obj_py;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":366
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":375
  *         '''
  *         self.code_obj_py = code_obj_py
  *         self.code_line_info = code_line_info             # <<<<<<<<<<<<<<
@@ -8160,7 +8385,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue_
   __Pyx_DECREF(((PyObject *)__pyx_v_self->code_line_info));
   __pyx_v_self->code_line_info = __pyx_v_code_line_info;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":367
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":376
  *         self.code_obj_py = code_obj_py
  *         self.code_line_info = code_line_info
  *         self.breakpoints_hit_at_lines = breakpoints_hit_at_lines             # <<<<<<<<<<<<<<
@@ -8173,14 +8398,14 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue_
   __Pyx_DECREF(__pyx_v_self->breakpoints_hit_at_lines);
   __pyx_v_self->breakpoints_hit_at_lines = __pyx_v_breakpoints_hit_at_lines;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":368
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":377
  *         self.code_line_info = code_line_info
  *         self.breakpoints_hit_at_lines = breakpoints_hit_at_lines
  *         self.code_lines_as_set = set(code_line_info.line_to_offset)             # <<<<<<<<<<<<<<
  * 
  *     cpdef compute_force_stay_in_untraced_mode(self, breakpoints):
  */
-  __pyx_t_1 = PySet_New(__pyx_v_code_line_info->line_to_offset); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 368, __pyx_L1_error)
+  __pyx_t_1 = PySet_New(__pyx_v_code_line_info->line_to_offset); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 377, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_GIVEREF(__pyx_t_1);
   __Pyx_GOTREF(__pyx_v_self->code_lines_as_set);
@@ -8188,7 +8413,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue_
   __pyx_v_self->code_lines_as_set = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":359
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":368
  *     cdef public set code_lines_as_set
  * 
  *     def __init__(self, object code_obj_py, _CodeLineInfo code_line_info, set breakpoints_hit_at_lines):             # <<<<<<<<<<<<<<
@@ -8208,7 +8433,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue_
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":370
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":379
  *         self.code_lines_as_set = set(code_line_info.line_to_offset)
  * 
  *     cpdef compute_force_stay_in_untraced_mode(self, breakpoints):             # <<<<<<<<<<<<<<
@@ -8241,7 +8466,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheV
     if (unlikely(!__Pyx_object_dict_version_matches(((PyObject *)__pyx_v_self), __pyx_tp_dict_version, __pyx_obj_dict_version))) {
       PY_UINT64_T __pyx_type_dict_guard = __Pyx_get_tp_dict_version(((PyObject *)__pyx_v_self));
       #endif
-      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_compute_force_stay_in_untraced_m); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 370, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_compute_force_stay_in_untraced_m); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 379, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
       if (!PyCFunction_Check(__pyx_t_1) || (PyCFunction_GET_FUNCTION(__pyx_t_1) != (PyCFunction)(void*)__pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue_3compute_force_stay_in_untraced_mode)) {
         __Pyx_XDECREF(__pyx_r);
@@ -8258,7 +8483,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheV
         }
         __pyx_t_2 = (__pyx_t_4) ? __Pyx_PyObject_Call2Args(__pyx_t_3, __pyx_t_4, __pyx_v_breakpoints) : __Pyx_PyObject_CallOneArg(__pyx_t_3, __pyx_v_breakpoints);
         __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
-        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 370, __pyx_L1_error)
+        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 379, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_2);
         __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
         __pyx_r = __pyx_t_2;
@@ -8279,7 +8504,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheV
     #endif
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":380
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":389
  *         cdef set target_breakpoints
  * 
  *         force_stay_in_untraced_mode = False             # <<<<<<<<<<<<<<
@@ -8288,14 +8513,14 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheV
  */
   __pyx_v_force_stay_in_untraced_mode = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":382
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":391
  *         force_stay_in_untraced_mode = False
  * 
  *         target_breakpoints = self.code_lines_as_set.intersection(breakpoints)             # <<<<<<<<<<<<<<
  *         breakpoint_found = bool(target_breakpoints)
  * 
  */
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_self->code_lines_as_set, __pyx_n_s_intersection); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 382, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_self->code_lines_as_set, __pyx_n_s_intersection); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 391, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_3 = NULL;
   if (CYTHON_UNPACK_METHODS && likely(PyMethod_Check(__pyx_t_2))) {
@@ -8309,14 +8534,14 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheV
   }
   __pyx_t_1 = (__pyx_t_3) ? __Pyx_PyObject_Call2Args(__pyx_t_2, __pyx_t_3, __pyx_v_breakpoints) : __Pyx_PyObject_CallOneArg(__pyx_t_2, __pyx_v_breakpoints);
   __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
-  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 382, __pyx_L1_error)
+  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 391, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  if (!(likely(PySet_CheckExact(__pyx_t_1))||((__pyx_t_1) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "set", Py_TYPE(__pyx_t_1)->tp_name), 0))) __PYX_ERR(0, 382, __pyx_L1_error)
+  if (!(likely(PySet_CheckExact(__pyx_t_1))||((__pyx_t_1) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "set", Py_TYPE(__pyx_t_1)->tp_name), 0))) __PYX_ERR(0, 391, __pyx_L1_error)
   __pyx_v_target_breakpoints = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":383
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":392
  * 
  *         target_breakpoints = self.code_lines_as_set.intersection(breakpoints)
  *         breakpoint_found = bool(target_breakpoints)             # <<<<<<<<<<<<<<
@@ -8326,7 +8551,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheV
   __pyx_t_5 = (__pyx_v_target_breakpoints != Py_None)&&(PySet_GET_SIZE(__pyx_v_target_breakpoints) != 0);
   __pyx_v_breakpoint_found = (!(!__pyx_t_5));
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":385
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":394
  *         breakpoint_found = bool(target_breakpoints)
  * 
  *         if not breakpoint_found:             # <<<<<<<<<<<<<<
@@ -8336,7 +8561,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheV
   __pyx_t_5 = ((!(__pyx_v_breakpoint_found != 0)) != 0);
   if (__pyx_t_5) {
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":386
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":395
  * 
  *         if not breakpoint_found:
  *             force_stay_in_untraced_mode = True             # <<<<<<<<<<<<<<
@@ -8345,7 +8570,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheV
  */
     __pyx_v_force_stay_in_untraced_mode = 1;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":385
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":394
  *         breakpoint_found = bool(target_breakpoints)
  * 
  *         if not breakpoint_found:             # <<<<<<<<<<<<<<
@@ -8355,7 +8580,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheV
     goto __pyx_L3;
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":388
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":397
  *             force_stay_in_untraced_mode = True
  *         else:
  *             force_stay_in_untraced_mode = self.breakpoints_hit_at_lines.issuperset(set(breakpoints))             # <<<<<<<<<<<<<<
@@ -8363,9 +8588,9 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheV
  *         return breakpoint_found, force_stay_in_untraced_mode
  */
   /*else*/ {
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_self->breakpoints_hit_at_lines, __pyx_n_s_issuperset); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 388, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_self->breakpoints_hit_at_lines, __pyx_n_s_issuperset); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 397, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_3 = PySet_New(__pyx_v_breakpoints); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 388, __pyx_L1_error)
+    __pyx_t_3 = PySet_New(__pyx_v_breakpoints); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 397, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
     __pyx_t_4 = NULL;
     if (CYTHON_UNPACK_METHODS && likely(PyMethod_Check(__pyx_t_2))) {
@@ -8380,16 +8605,16 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheV
     __pyx_t_1 = (__pyx_t_4) ? __Pyx_PyObject_Call2Args(__pyx_t_2, __pyx_t_4, __pyx_t_3) : __Pyx_PyObject_CallOneArg(__pyx_t_2, __pyx_t_3);
     __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 388, __pyx_L1_error)
+    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 397, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __pyx_t_5 = __Pyx_PyObject_IsTrue(__pyx_t_1); if (unlikely((__pyx_t_5 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 388, __pyx_L1_error)
+    __pyx_t_5 = __Pyx_PyObject_IsTrue(__pyx_t_1); if (unlikely((__pyx_t_5 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 397, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     __pyx_v_force_stay_in_untraced_mode = __pyx_t_5;
   }
   __pyx_L3:;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":390
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":399
  *             force_stay_in_untraced_mode = self.breakpoints_hit_at_lines.issuperset(set(breakpoints))
  * 
  *         return breakpoint_found, force_stay_in_untraced_mode             # <<<<<<<<<<<<<<
@@ -8397,11 +8622,11 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheV
  * def generate_code_with_breakpoints_py(object code_obj_py, dict breakpoints):
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_v_breakpoint_found); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 390, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_v_breakpoint_found); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 399, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = __Pyx_PyBool_FromLong(__pyx_v_force_stay_in_untraced_mode); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 390, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyBool_FromLong(__pyx_v_force_stay_in_untraced_mode); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 399, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_3 = PyTuple_New(2); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 390, __pyx_L1_error)
+  __pyx_t_3 = PyTuple_New(2); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 399, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_GIVEREF(__pyx_t_1);
   PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_t_1);
@@ -8413,7 +8638,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheV
   __pyx_t_3 = 0;
   goto __pyx_L0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":370
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":379
  *         self.code_lines_as_set = set(code_line_info.line_to_offset)
  * 
  *     cpdef compute_force_stay_in_untraced_mode(self, breakpoints):             # <<<<<<<<<<<<<<
@@ -8459,7 +8684,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_Cache
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("compute_force_stay_in_untraced_mode", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue_compute_force_stay_in_untraced_mode(__pyx_v_self, __pyx_v_breakpoints, 1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 370, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue_compute_force_stay_in_untraced_mode(__pyx_v_self, __pyx_v_breakpoints, 1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 379, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -8476,7 +8701,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_Cache
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":354
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":363
  * cdef class _CacheValue(object):
  * 
  *     cdef public object code_obj_py             # <<<<<<<<<<<<<<
@@ -8571,7 +8796,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue_
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":355
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":364
  * 
  *     cdef public object code_obj_py
  *     cdef public _CodeLineInfo code_line_info             # <<<<<<<<<<<<<<
@@ -8629,7 +8854,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue_
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  if (!(likely(((__pyx_v_value) == Py_None) || likely(__Pyx_TypeTest(__pyx_v_value, __pyx_ptype_18_pydevd_frame_eval_22pydevd_frame_evaluator__CodeLineInfo))))) __PYX_ERR(0, 355, __pyx_L1_error)
+  if (!(likely(((__pyx_v_value) == Py_None) || likely(__Pyx_TypeTest(__pyx_v_value, __pyx_ptype_18_pydevd_frame_eval_22pydevd_frame_evaluator__CodeLineInfo))))) __PYX_ERR(0, 364, __pyx_L1_error)
   __pyx_t_1 = __pyx_v_value;
   __Pyx_INCREF(__pyx_t_1);
   __Pyx_GIVEREF(__pyx_t_1);
@@ -8679,7 +8904,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue_
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":356
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":365
  *     cdef public object code_obj_py
  *     cdef public _CodeLineInfo code_line_info
  *     cdef public set breakpoints_hit_at_lines             # <<<<<<<<<<<<<<
@@ -8737,7 +8962,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue_
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  if (!(likely(PySet_CheckExact(__pyx_v_value))||((__pyx_v_value) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "set", Py_TYPE(__pyx_v_value)->tp_name), 0))) __PYX_ERR(0, 356, __pyx_L1_error)
+  if (!(likely(PySet_CheckExact(__pyx_v_value))||((__pyx_v_value) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "set", Py_TYPE(__pyx_v_value)->tp_name), 0))) __PYX_ERR(0, 365, __pyx_L1_error)
   __pyx_t_1 = __pyx_v_value;
   __Pyx_INCREF(__pyx_t_1);
   __Pyx_GIVEREF(__pyx_t_1);
@@ -8787,7 +9012,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue_
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":357
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":366
  *     cdef public _CodeLineInfo code_line_info
  *     cdef public set breakpoints_hit_at_lines
  *     cdef public set code_lines_as_set             # <<<<<<<<<<<<<<
@@ -8845,7 +9070,7 @@ static int __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue_
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  if (!(likely(PySet_CheckExact(__pyx_v_value))||((__pyx_v_value) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "set", Py_TYPE(__pyx_v_value)->tp_name), 0))) __PYX_ERR(0, 357, __pyx_L1_error)
+  if (!(likely(PySet_CheckExact(__pyx_v_value))||((__pyx_v_value) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "set", Py_TYPE(__pyx_v_value)->tp_name), 0))) __PYX_ERR(0, 366, __pyx_L1_error)
   __pyx_t_1 = __pyx_v_value;
   __Pyx_INCREF(__pyx_t_1);
   __Pyx_GIVEREF(__pyx_t_1);
@@ -9222,7 +9447,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_Cache
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":392
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":401
  *         return breakpoint_found, force_stay_in_untraced_mode
  * 
  * def generate_code_with_breakpoints_py(object code_obj_py, dict breakpoints):             # <<<<<<<<<<<<<<
@@ -9265,11 +9490,11 @@ static PyObject *__pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_15genera
         case  1:
         if (likely((values[1] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_breakpoints)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("generate_code_with_breakpoints_py", 1, 2, 2, 1); __PYX_ERR(0, 392, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("generate_code_with_breakpoints_py", 1, 2, 2, 1); __PYX_ERR(0, 401, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "generate_code_with_breakpoints_py") < 0)) __PYX_ERR(0, 392, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "generate_code_with_breakpoints_py") < 0)) __PYX_ERR(0, 401, __pyx_L3_error)
       }
     } else if (PyTuple_GET_SIZE(__pyx_args) != 2) {
       goto __pyx_L5_argtuple_error;
@@ -9282,13 +9507,13 @@ static PyObject *__pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_15genera
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("generate_code_with_breakpoints_py", 1, 2, 2, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 392, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("generate_code_with_breakpoints_py", 1, 2, 2, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 401, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("_pydevd_frame_eval.pydevd_frame_evaluator.generate_code_with_breakpoints_py", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_breakpoints), (&PyDict_Type), 1, "breakpoints", 1))) __PYX_ERR(0, 392, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_breakpoints), (&PyDict_Type), 1, "breakpoints", 1))) __PYX_ERR(0, 401, __pyx_L1_error)
   __pyx_r = __pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_14generate_code_with_breakpoints_py(__pyx_self, __pyx_v_code_obj_py, __pyx_v_breakpoints);
 
   /* function exit code */
@@ -9309,7 +9534,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_14genera
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("generate_code_with_breakpoints_py", 0);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":393
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":402
  * 
  * def generate_code_with_breakpoints_py(object code_obj_py, dict breakpoints):
  *     return generate_code_with_breakpoints(code_obj_py, breakpoints)             # <<<<<<<<<<<<<<
@@ -9317,13 +9542,13 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_14genera
  * # DEBUG = True
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_code_with_breakpoints(__pyx_v_code_obj_py, __pyx_v_breakpoints); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 393, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_code_with_breakpoints(__pyx_v_code_obj_py, __pyx_v_breakpoints); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 402, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":392
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":401
  *         return breakpoint_found, force_stay_in_untraced_mode
  * 
  * def generate_code_with_breakpoints_py(object code_obj_py, dict breakpoints):             # <<<<<<<<<<<<<<
@@ -9342,7 +9567,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_14genera
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":398
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":407
  * # debug_helper = DebugHelper()
  * 
  * cdef generate_code_with_breakpoints(object code_obj_py, dict breakpoints):             # <<<<<<<<<<<<<<
@@ -9379,7 +9604,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
   __Pyx_RefNannySetupContext("generate_code_with_breakpoints", 0);
   __Pyx_INCREF(__pyx_v_code_obj_py);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":415
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":424
  *     cdef dict line_to_offset
  * 
  *     assert code_obj_py not in _cache, 'If a code object is cached, that same code object must be reused.'             # <<<<<<<<<<<<<<
@@ -9388,25 +9613,25 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
  */
   #ifndef CYTHON_WITHOUT_ASSERTIONS
   if (unlikely(!Py_OptimizeFlag)) {
-    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_cache); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 415, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_cache); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 424, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_2 = (__Pyx_PySequence_ContainsTF(__pyx_v_code_obj_py, __pyx_t_1, Py_NE)); if (unlikely(__pyx_t_2 < 0)) __PYX_ERR(0, 415, __pyx_L1_error)
+    __pyx_t_2 = (__Pyx_PySequence_ContainsTF(__pyx_v_code_obj_py, __pyx_t_1, Py_NE)); if (unlikely(__pyx_t_2 < 0)) __PYX_ERR(0, 424, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     if (unlikely(!(__pyx_t_2 != 0))) {
       PyErr_SetObject(PyExc_AssertionError, __pyx_kp_s_If_a_code_object_is_cached_that);
-      __PYX_ERR(0, 415, __pyx_L1_error)
+      __PYX_ERR(0, 424, __pyx_L1_error)
     }
   }
   #endif
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":420
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":429
  * #         initial_code_obj_py = code_obj_py
  * 
  *     code_line_info = _get_code_line_info(code_obj_py)             # <<<<<<<<<<<<<<
  * 
  *     success = True
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_get_code_line_info); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 420, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_get_code_line_info); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 429, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __pyx_t_4 = NULL;
   if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_3))) {
@@ -9420,13 +9645,13 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
   }
   __pyx_t_1 = (__pyx_t_4) ? __Pyx_PyObject_Call2Args(__pyx_t_3, __pyx_t_4, __pyx_v_code_obj_py) : __Pyx_PyObject_CallOneArg(__pyx_t_3, __pyx_v_code_obj_py);
   __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
-  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 420, __pyx_L1_error)
+  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 429, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __pyx_v_code_line_info = __pyx_t_1;
   __pyx_t_1 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":422
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":431
  *     code_line_info = _get_code_line_info(code_obj_py)
  * 
  *     success = True             # <<<<<<<<<<<<<<
@@ -9435,32 +9660,32 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
  */
   __pyx_v_success = 1;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":424
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":433
  *     success = True
  * 
  *     breakpoints_hit_at_lines = set()             # <<<<<<<<<<<<<<
  *     line_to_offset = code_line_info.line_to_offset
  * 
  */
-  __pyx_t_1 = PySet_New(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 424, __pyx_L1_error)
+  __pyx_t_1 = PySet_New(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 433, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_v_breakpoints_hit_at_lines = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":425
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":434
  * 
  *     breakpoints_hit_at_lines = set()
  *     line_to_offset = code_line_info.line_to_offset             # <<<<<<<<<<<<<<
  * 
  *     for breakpoint_line in breakpoints:
  */
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_code_line_info, __pyx_n_s_line_to_offset); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 425, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_code_line_info, __pyx_n_s_line_to_offset); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 434, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (!(likely(PyDict_CheckExact(__pyx_t_1))||((__pyx_t_1) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "dict", Py_TYPE(__pyx_t_1)->tp_name), 0))) __PYX_ERR(0, 425, __pyx_L1_error)
+  if (!(likely(PyDict_CheckExact(__pyx_t_1))||((__pyx_t_1) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "dict", Py_TYPE(__pyx_t_1)->tp_name), 0))) __PYX_ERR(0, 434, __pyx_L1_error)
   __pyx_v_line_to_offset = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":427
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":436
  *     line_to_offset = code_line_info.line_to_offset
  * 
  *     for breakpoint_line in breakpoints:             # <<<<<<<<<<<<<<
@@ -9470,9 +9695,9 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
   __pyx_t_5 = 0;
   if (unlikely(__pyx_v_breakpoints == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "'NoneType' object is not iterable");
-    __PYX_ERR(0, 427, __pyx_L1_error)
+    __PYX_ERR(0, 436, __pyx_L1_error)
   }
-  __pyx_t_3 = __Pyx_dict_iterator(__pyx_v_breakpoints, 1, ((PyObject *)NULL), (&__pyx_t_6), (&__pyx_t_7)); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 427, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_dict_iterator(__pyx_v_breakpoints, 1, ((PyObject *)NULL), (&__pyx_t_6), (&__pyx_t_7)); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 436, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_XDECREF(__pyx_t_1);
   __pyx_t_1 = __pyx_t_3;
@@ -9480,43 +9705,43 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
   while (1) {
     __pyx_t_8 = __Pyx_dict_iter_next(__pyx_t_1, __pyx_t_6, &__pyx_t_5, &__pyx_t_3, NULL, NULL, __pyx_t_7);
     if (unlikely(__pyx_t_8 == 0)) break;
-    if (unlikely(__pyx_t_8 == -1)) __PYX_ERR(0, 427, __pyx_L1_error)
+    if (unlikely(__pyx_t_8 == -1)) __PYX_ERR(0, 436, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
-    __pyx_t_8 = __Pyx_PyInt_As_int(__pyx_t_3); if (unlikely((__pyx_t_8 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 427, __pyx_L1_error)
+    __pyx_t_8 = __Pyx_PyInt_As_int(__pyx_t_3); if (unlikely((__pyx_t_8 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 436, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __pyx_v_breakpoint_line = __pyx_t_8;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":428
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":437
  * 
  *     for breakpoint_line in breakpoints:
  *         if breakpoint_line in line_to_offset:             # <<<<<<<<<<<<<<
  *             breakpoints_hit_at_lines.add(breakpoint_line)
  * 
  */
-    __pyx_t_3 = __Pyx_PyInt_From_int(__pyx_v_breakpoint_line); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 428, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_PyInt_From_int(__pyx_v_breakpoint_line); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 437, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
     if (unlikely(__pyx_v_line_to_offset == Py_None)) {
       PyErr_SetString(PyExc_TypeError, "'NoneType' object is not iterable");
-      __PYX_ERR(0, 428, __pyx_L1_error)
+      __PYX_ERR(0, 437, __pyx_L1_error)
     }
-    __pyx_t_2 = (__Pyx_PyDict_ContainsTF(__pyx_t_3, __pyx_v_line_to_offset, Py_EQ)); if (unlikely(__pyx_t_2 < 0)) __PYX_ERR(0, 428, __pyx_L1_error)
+    __pyx_t_2 = (__Pyx_PyDict_ContainsTF(__pyx_t_3, __pyx_v_line_to_offset, Py_EQ)); if (unlikely(__pyx_t_2 < 0)) __PYX_ERR(0, 437, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __pyx_t_9 = (__pyx_t_2 != 0);
     if (__pyx_t_9) {
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":429
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":438
  *     for breakpoint_line in breakpoints:
  *         if breakpoint_line in line_to_offset:
  *             breakpoints_hit_at_lines.add(breakpoint_line)             # <<<<<<<<<<<<<<
  * 
  *     if breakpoints_hit_at_lines:
  */
-      __pyx_t_3 = __Pyx_PyInt_From_int(__pyx_v_breakpoint_line); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 429, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyInt_From_int(__pyx_v_breakpoint_line); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 438, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __pyx_t_10 = PySet_Add(__pyx_v_breakpoints_hit_at_lines, __pyx_t_3); if (unlikely(__pyx_t_10 == ((int)-1))) __PYX_ERR(0, 429, __pyx_L1_error)
+      __pyx_t_10 = PySet_Add(__pyx_v_breakpoints_hit_at_lines, __pyx_t_3); if (unlikely(__pyx_t_10 == ((int)-1))) __PYX_ERR(0, 438, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":428
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":437
  * 
  *     for breakpoint_line in breakpoints:
  *         if breakpoint_line in line_to_offset:             # <<<<<<<<<<<<<<
@@ -9527,7 +9752,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
   }
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":431
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":440
  *             breakpoints_hit_at_lines.add(breakpoint_line)
  * 
  *     if breakpoints_hit_at_lines:             # <<<<<<<<<<<<<<
@@ -9537,17 +9762,17 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
   __pyx_t_9 = (PySet_GET_SIZE(__pyx_v_breakpoints_hit_at_lines) != 0);
   if (__pyx_t_9) {
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":432
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":441
  * 
  *     if breakpoints_hit_at_lines:
  *         success, new_code = insert_pydevd_breaks(             # <<<<<<<<<<<<<<
  *             code_obj_py,
  *             breakpoints_hit_at_lines,
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_insert_pydevd_breaks); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 432, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_insert_pydevd_breaks); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 441, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":435
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":444
  *             code_obj_py,
  *             breakpoints_hit_at_lines,
  *             code_line_info             # <<<<<<<<<<<<<<
@@ -9569,7 +9794,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
     #if CYTHON_FAST_PYCALL
     if (PyFunction_Check(__pyx_t_3)) {
       PyObject *__pyx_temp[4] = {__pyx_t_4, __pyx_v_code_obj_py, __pyx_v_breakpoints_hit_at_lines, __pyx_v_code_line_info};
-      __pyx_t_1 = __Pyx_PyFunction_FastCall(__pyx_t_3, __pyx_temp+1-__pyx_t_7, 3+__pyx_t_7); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 432, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyFunction_FastCall(__pyx_t_3, __pyx_temp+1-__pyx_t_7, 3+__pyx_t_7); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 441, __pyx_L1_error)
       __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
       __Pyx_GOTREF(__pyx_t_1);
     } else
@@ -9577,13 +9802,13 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
     #if CYTHON_FAST_PYCCALL
     if (__Pyx_PyFastCFunction_Check(__pyx_t_3)) {
       PyObject *__pyx_temp[4] = {__pyx_t_4, __pyx_v_code_obj_py, __pyx_v_breakpoints_hit_at_lines, __pyx_v_code_line_info};
-      __pyx_t_1 = __Pyx_PyCFunction_FastCall(__pyx_t_3, __pyx_temp+1-__pyx_t_7, 3+__pyx_t_7); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 432, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyCFunction_FastCall(__pyx_t_3, __pyx_temp+1-__pyx_t_7, 3+__pyx_t_7); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 441, __pyx_L1_error)
       __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
       __Pyx_GOTREF(__pyx_t_1);
     } else
     #endif
     {
-      __pyx_t_11 = PyTuple_New(3+__pyx_t_7); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 432, __pyx_L1_error)
+      __pyx_t_11 = PyTuple_New(3+__pyx_t_7); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 441, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_11);
       if (__pyx_t_4) {
         __Pyx_GIVEREF(__pyx_t_4); PyTuple_SET_ITEM(__pyx_t_11, 0, __pyx_t_4); __pyx_t_4 = NULL;
@@ -9597,7 +9822,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
       __Pyx_INCREF(__pyx_v_code_line_info);
       __Pyx_GIVEREF(__pyx_v_code_line_info);
       PyTuple_SET_ITEM(__pyx_t_11, 2+__pyx_t_7, __pyx_v_code_line_info);
-      __pyx_t_1 = __Pyx_PyObject_Call(__pyx_t_3, __pyx_t_11, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 432, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyObject_Call(__pyx_t_3, __pyx_t_11, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 441, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
       __Pyx_DECREF(__pyx_t_11); __pyx_t_11 = 0;
     }
@@ -9608,7 +9833,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
       if (unlikely(size != 2)) {
         if (size > 2) __Pyx_RaiseTooManyValuesError(2);
         else if (size >= 0) __Pyx_RaiseNeedMoreValuesError(size);
-        __PYX_ERR(0, 432, __pyx_L1_error)
+        __PYX_ERR(0, 441, __pyx_L1_error)
       }
       #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
       if (likely(PyTuple_CheckExact(sequence))) {
@@ -9621,15 +9846,15 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
       __Pyx_INCREF(__pyx_t_3);
       __Pyx_INCREF(__pyx_t_11);
       #else
-      __pyx_t_3 = PySequence_ITEM(sequence, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 432, __pyx_L1_error)
+      __pyx_t_3 = PySequence_ITEM(sequence, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 441, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __pyx_t_11 = PySequence_ITEM(sequence, 1); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 432, __pyx_L1_error)
+      __pyx_t_11 = PySequence_ITEM(sequence, 1); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 441, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_11);
       #endif
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     } else {
       Py_ssize_t index = -1;
-      __pyx_t_4 = PyObject_GetIter(__pyx_t_1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 432, __pyx_L1_error)
+      __pyx_t_4 = PyObject_GetIter(__pyx_t_1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 441, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
       __pyx_t_12 = Py_TYPE(__pyx_t_4)->tp_iternext;
@@ -9637,7 +9862,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
       __Pyx_GOTREF(__pyx_t_3);
       index = 1; __pyx_t_11 = __pyx_t_12(__pyx_t_4); if (unlikely(!__pyx_t_11)) goto __pyx_L7_unpacking_failed;
       __Pyx_GOTREF(__pyx_t_11);
-      if (__Pyx_IternextUnpackEndCheck(__pyx_t_12(__pyx_t_4), 2) < 0) __PYX_ERR(0, 432, __pyx_L1_error)
+      if (__Pyx_IternextUnpackEndCheck(__pyx_t_12(__pyx_t_4), 2) < 0) __PYX_ERR(0, 441, __pyx_L1_error)
       __pyx_t_12 = NULL;
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
       goto __pyx_L8_unpacking_done;
@@ -9645,24 +9870,24 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
       __pyx_t_12 = NULL;
       if (__Pyx_IterFinish() == 0) __Pyx_RaiseNeedMoreValuesError(index);
-      __PYX_ERR(0, 432, __pyx_L1_error)
+      __PYX_ERR(0, 441, __pyx_L1_error)
       __pyx_L8_unpacking_done:;
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":432
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":441
  * 
  *     if breakpoints_hit_at_lines:
  *         success, new_code = insert_pydevd_breaks(             # <<<<<<<<<<<<<<
  *             code_obj_py,
  *             breakpoints_hit_at_lines,
  */
-    __pyx_t_9 = __Pyx_PyObject_IsTrue(__pyx_t_3); if (unlikely((__pyx_t_9 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 432, __pyx_L1_error)
+    __pyx_t_9 = __Pyx_PyObject_IsTrue(__pyx_t_3); if (unlikely((__pyx_t_9 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 441, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __pyx_v_success = __pyx_t_9;
     __pyx_v_new_code = __pyx_t_11;
     __pyx_t_11 = 0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":438
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":447
  *         )
  * 
  *         if not success:             # <<<<<<<<<<<<<<
@@ -9672,7 +9897,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
     __pyx_t_9 = ((!(__pyx_v_success != 0)) != 0);
     if (__pyx_t_9) {
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":439
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":448
  * 
  *         if not success:
  *             code_obj_py = None             # <<<<<<<<<<<<<<
@@ -9682,7 +9907,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
       __Pyx_INCREF(Py_None);
       __Pyx_DECREF_SET(__pyx_v_code_obj_py, Py_None);
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":438
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":447
  *         )
  * 
  *         if not success:             # <<<<<<<<<<<<<<
@@ -9692,7 +9917,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
       goto __pyx_L9;
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":441
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":450
  *             code_obj_py = None
  *         else:
  *             code_obj_py = new_code             # <<<<<<<<<<<<<<
@@ -9705,7 +9930,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
     }
     __pyx_L9:;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":431
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":440
  *             breakpoints_hit_at_lines.add(breakpoint_line)
  * 
  *     if breakpoints_hit_at_lines:             # <<<<<<<<<<<<<<
@@ -9714,7 +9939,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
  */
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":443
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":452
  *             code_obj_py = new_code
  * 
  *     breakpoint_found = bool(breakpoints_hit_at_lines)             # <<<<<<<<<<<<<<
@@ -9724,7 +9949,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
   __pyx_t_9 = (PySet_GET_SIZE(__pyx_v_breakpoints_hit_at_lines) != 0);
   __pyx_v_breakpoint_found = (!(!__pyx_t_9));
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":444
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":453
  * 
  *     breakpoint_found = bool(breakpoints_hit_at_lines)
  *     if breakpoint_found and success:             # <<<<<<<<<<<<<<
@@ -9742,14 +9967,14 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
   __pyx_L11_bool_binop_done:;
   if (__pyx_t_9) {
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":457
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":466
  * #             )
  * 
  *         cache_value = _CacheValue(code_obj_py, code_line_info, breakpoints_hit_at_lines)             # <<<<<<<<<<<<<<
  *         _cache[code_obj_py] = cache_value
  * 
  */
-    __pyx_t_1 = PyTuple_New(3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 457, __pyx_L1_error)
+    __pyx_t_1 = PyTuple_New(3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 466, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_INCREF(__pyx_v_code_obj_py);
     __Pyx_GIVEREF(__pyx_v_code_obj_py);
@@ -9760,25 +9985,25 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
     __Pyx_INCREF(__pyx_v_breakpoints_hit_at_lines);
     __Pyx_GIVEREF(__pyx_v_breakpoints_hit_at_lines);
     PyTuple_SET_ITEM(__pyx_t_1, 2, __pyx_v_breakpoints_hit_at_lines);
-    __pyx_t_11 = __Pyx_PyObject_Call(((PyObject *)__pyx_ptype_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue), __pyx_t_1, NULL); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 457, __pyx_L1_error)
+    __pyx_t_11 = __Pyx_PyObject_Call(((PyObject *)__pyx_ptype_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue), __pyx_t_1, NULL); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 466, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_11);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     __pyx_v_cache_value = ((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue *)__pyx_t_11);
     __pyx_t_11 = 0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":458
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":467
  * 
  *         cache_value = _CacheValue(code_obj_py, code_line_info, breakpoints_hit_at_lines)
  *         _cache[code_obj_py] = cache_value             # <<<<<<<<<<<<<<
  * 
  *     return breakpoint_found, code_obj_py
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_11, __pyx_n_s_cache); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 458, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_11, __pyx_n_s_cache); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 467, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_11);
-    if (unlikely(PyObject_SetItem(__pyx_t_11, __pyx_v_code_obj_py, ((PyObject *)__pyx_v_cache_value)) < 0)) __PYX_ERR(0, 458, __pyx_L1_error)
+    if (unlikely(PyObject_SetItem(__pyx_t_11, __pyx_v_code_obj_py, ((PyObject *)__pyx_v_cache_value)) < 0)) __PYX_ERR(0, 467, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_11); __pyx_t_11 = 0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":444
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":453
  * 
  *     breakpoint_found = bool(breakpoints_hit_at_lines)
  *     if breakpoint_found and success:             # <<<<<<<<<<<<<<
@@ -9787,7 +10012,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
  */
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":460
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":469
  *         _cache[code_obj_py] = cache_value
  * 
  *     return breakpoint_found, code_obj_py             # <<<<<<<<<<<<<<
@@ -9795,9 +10020,9 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
  * import sys
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_11 = __Pyx_PyBool_FromLong(__pyx_v_breakpoint_found); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 460, __pyx_L1_error)
+  __pyx_t_11 = __Pyx_PyBool_FromLong(__pyx_v_breakpoint_found); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 469, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_11);
-  __pyx_t_1 = PyTuple_New(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 460, __pyx_L1_error)
+  __pyx_t_1 = PyTuple_New(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 469, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_GIVEREF(__pyx_t_11);
   PyTuple_SET_ITEM(__pyx_t_1, 0, __pyx_t_11);
@@ -9809,7 +10034,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":398
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":407
  * # debug_helper = DebugHelper()
  * 
  * cdef generate_code_with_breakpoints(object code_obj_py, dict breakpoints):             # <<<<<<<<<<<<<<
@@ -9837,7 +10062,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_generate_
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":466
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":475
  * cdef bint IS_PY_39_OWNARDS = sys.version_info[:2] >= (3, 9)
  * 
  * def frame_eval_func():             # <<<<<<<<<<<<<<
@@ -9873,7 +10098,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_16frame_
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("frame_eval_func", 0);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":467
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":476
  * 
  * def frame_eval_func():
  *     cdef PyThreadState *state = PyThreadState_Get()             # <<<<<<<<<<<<<<
@@ -9882,7 +10107,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_16frame_
  */
   __pyx_v_state = PyThreadState_Get();
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":468
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":477
  * def frame_eval_func():
  *     cdef PyThreadState *state = PyThreadState_Get()
  *     if IS_PY_39_OWNARDS:             # <<<<<<<<<<<<<<
@@ -9892,7 +10117,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_16frame_
   __pyx_t_1 = (__pyx_v_18_pydevd_frame_eval_22pydevd_frame_evaluator_IS_PY_39_OWNARDS != 0);
   if (__pyx_t_1) {
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":469
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":478
  *     cdef PyThreadState *state = PyThreadState_Get()
  *     if IS_PY_39_OWNARDS:
  *         state.interp.eval_frame = <_PyFrameEvalFunction *> get_bytecode_while_frame_eval_39             # <<<<<<<<<<<<<<
@@ -9901,7 +10126,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_16frame_
  */
     __pyx_v_state->interp->eval_frame = ((_PyFrameEvalFunction *)__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytecode_while_frame_eval_39);
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":468
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":477
  * def frame_eval_func():
  *     cdef PyThreadState *state = PyThreadState_Get()
  *     if IS_PY_39_OWNARDS:             # <<<<<<<<<<<<<<
@@ -9911,7 +10136,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_16frame_
     goto __pyx_L3;
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":471
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":480
  *         state.interp.eval_frame = <_PyFrameEvalFunction *> get_bytecode_while_frame_eval_39
  *     else:
  *         state.interp.eval_frame = <_PyFrameEvalFunction *> get_bytecode_while_frame_eval_38             # <<<<<<<<<<<<<<
@@ -9923,19 +10148,19 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_16frame_
   }
   __pyx_L3:;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":472
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":481
  *     else:
  *         state.interp.eval_frame = <_PyFrameEvalFunction *> get_bytecode_while_frame_eval_38
  *     dummy_tracing_holder.set_trace_func(dummy_trace_dispatch)             # <<<<<<<<<<<<<<
  * 
  * 
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_dummy_tracing_holder); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 472, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_dummy_tracing_holder); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 481, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_set_trace_func); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 472, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_set_trace_func); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 481, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_dummy_trace_dispatch); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 472, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_dummy_trace_dispatch); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 481, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __pyx_t_5 = NULL;
   if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_4))) {
@@ -9950,12 +10175,12 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_16frame_
   __pyx_t_2 = (__pyx_t_5) ? __Pyx_PyObject_Call2Args(__pyx_t_4, __pyx_t_5, __pyx_t_3) : __Pyx_PyObject_CallOneArg(__pyx_t_4, __pyx_t_3);
   __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 472, __pyx_L1_error)
+  if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 481, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":466
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":475
  * cdef bint IS_PY_39_OWNARDS = sys.version_info[:2] >= (3, 9)
  * 
  * def frame_eval_func():             # <<<<<<<<<<<<<<
@@ -9979,7 +10204,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_16frame_
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":475
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":484
  * 
  * 
  * def stop_frame_eval():             # <<<<<<<<<<<<<<
@@ -10007,7 +10232,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_18stop_f
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("stop_frame_eval", 0);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":476
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":485
  * 
  * def stop_frame_eval():
  *     cdef PyThreadState *state = PyThreadState_Get()             # <<<<<<<<<<<<<<
@@ -10016,7 +10241,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_18stop_f
  */
   __pyx_v_state = PyThreadState_Get();
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":477
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":486
  * def stop_frame_eval():
  *     cdef PyThreadState *state = PyThreadState_Get()
  *     state.interp.eval_frame = _PyEval_EvalFrameDefault             # <<<<<<<<<<<<<<
@@ -10025,7 +10250,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_18stop_f
  */
   __pyx_v_state->interp->eval_frame = _PyEval_EvalFrameDefault;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":475
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":484
  * 
  * 
  * def stop_frame_eval():             # <<<<<<<<<<<<<<
@@ -10040,7 +10265,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_18stop_f
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":485
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":494
  * ### WARNING: GENERATED CODE, DO NOT EDIT!
  * ### WARNING: GENERATED CODE, DO NOT EDIT!
  * cdef PyObject * get_bytecode_while_frame_eval_38(PyFrameObject * frame_obj, int exc):             # <<<<<<<<<<<<<<
@@ -10090,14 +10315,14 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("get_bytecode_while_frame_eval_38", 0);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":490
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":499
  *     where programmatic breakpoints are added.
  *     '''
  *     if GlobalDebuggerHolder is None or _thread_local_info is None or exc:             # <<<<<<<<<<<<<<
  *         # Sometimes during process shutdown these global variables become None
  *         return CALL_EvalFrameDefault_38(frame_obj, exc)
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_GlobalDebuggerHolder); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 490, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_GlobalDebuggerHolder); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 499, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_3 = (__pyx_t_2 == Py_None);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
@@ -10107,7 +10332,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_t_1 = __pyx_t_4;
     goto __pyx_L4_bool_binop_done;
   }
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_thread_local_info); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 490, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_thread_local_info); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 499, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_4 = (__pyx_t_2 == Py_None);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
@@ -10122,7 +10347,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
   __pyx_L4_bool_binop_done:;
   if (__pyx_t_1) {
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":492
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":501
  *     if GlobalDebuggerHolder is None or _thread_local_info is None or exc:
  *         # Sometimes during process shutdown these global variables become None
  *         return CALL_EvalFrameDefault_38(frame_obj, exc)             # <<<<<<<<<<<<<<
@@ -10132,7 +10357,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_r = CALL_EvalFrameDefault_38(__pyx_v_frame_obj, __pyx_v_exc);
     goto __pyx_L0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":490
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":499
  *     where programmatic breakpoints are added.
  *     '''
  *     if GlobalDebuggerHolder is None or _thread_local_info is None or exc:             # <<<<<<<<<<<<<<
@@ -10141,7 +10366,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":499
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":508
  * 
  *     cdef ThreadInfo thread_info
  *     cdef int STATE_SUSPEND = 2             # <<<<<<<<<<<<<<
@@ -10150,7 +10375,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   __pyx_v_STATE_SUSPEND = 2;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":500
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":509
  *     cdef ThreadInfo thread_info
  *     cdef int STATE_SUSPEND = 2
  *     cdef int CMD_STEP_INTO = 107             # <<<<<<<<<<<<<<
@@ -10159,7 +10384,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   __pyx_v_CMD_STEP_INTO = 0x6B;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":501
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":510
  *     cdef int STATE_SUSPEND = 2
  *     cdef int CMD_STEP_INTO = 107
  *     cdef int CMD_STEP_OVER = 108             # <<<<<<<<<<<<<<
@@ -10168,7 +10393,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   __pyx_v_CMD_STEP_OVER = 0x6C;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":502
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":511
  *     cdef int CMD_STEP_INTO = 107
  *     cdef int CMD_STEP_OVER = 108
  *     cdef int CMD_STEP_OVER_MY_CODE = 159             # <<<<<<<<<<<<<<
@@ -10177,7 +10402,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   __pyx_v_CMD_STEP_OVER_MY_CODE = 0x9F;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":503
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":512
  *     cdef int CMD_STEP_OVER = 108
  *     cdef int CMD_STEP_OVER_MY_CODE = 159
  *     cdef int CMD_STEP_INTO_MY_CODE = 144             # <<<<<<<<<<<<<<
@@ -10186,7 +10411,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   __pyx_v_CMD_STEP_INTO_MY_CODE = 0x90;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":504
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":513
  *     cdef int CMD_STEP_OVER_MY_CODE = 159
  *     cdef int CMD_STEP_INTO_MY_CODE = 144
  *     cdef int CMD_STEP_INTO_COROUTINE = 206             # <<<<<<<<<<<<<<
@@ -10195,7 +10420,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   __pyx_v_CMD_STEP_INTO_COROUTINE = 0xCE;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":505
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":514
  *     cdef int CMD_STEP_INTO_MY_CODE = 144
  *     cdef int CMD_STEP_INTO_COROUTINE = 206
  *     cdef int CMD_SMART_STEP_INTO = 128             # <<<<<<<<<<<<<<
@@ -10204,7 +10429,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   __pyx_v_CMD_SMART_STEP_INTO = 0x80;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":506
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":515
  *     cdef int CMD_STEP_INTO_COROUTINE = 206
  *     cdef int CMD_SMART_STEP_INTO = 128
  *     cdef bint can_skip = True             # <<<<<<<<<<<<<<
@@ -10213,7 +10438,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   __pyx_v_can_skip = 1;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":507
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":516
  *     cdef int CMD_SMART_STEP_INTO = 128
  *     cdef bint can_skip = True
  *     try:             # <<<<<<<<<<<<<<
@@ -10229,23 +10454,23 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __Pyx_XGOTREF(__pyx_t_7);
     /*try:*/ {
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":508
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":517
  *     cdef bint can_skip = True
  *     try:
  *         thread_info = _thread_local_info.thread_info             # <<<<<<<<<<<<<<
  *     except:
  *         thread_info = get_thread_info(frame_obj)
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_thread_local_info); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 508, __pyx_L7_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_thread_local_info); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 517, __pyx_L7_error)
       __Pyx_GOTREF(__pyx_t_2);
-      __pyx_t_8 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_thread_info); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 508, __pyx_L7_error)
+      __pyx_t_8 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_thread_info); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 517, __pyx_L7_error)
       __Pyx_GOTREF(__pyx_t_8);
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-      if (!(likely(((__pyx_t_8) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_8, __pyx_ptype_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo))))) __PYX_ERR(0, 508, __pyx_L7_error)
+      if (!(likely(((__pyx_t_8) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_8, __pyx_ptype_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo))))) __PYX_ERR(0, 517, __pyx_L7_error)
       __pyx_v_thread_info = ((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo *)__pyx_t_8);
       __pyx_t_8 = 0;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":507
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":516
  *     cdef int CMD_SMART_STEP_INTO = 128
  *     cdef bint can_skip = True
  *     try:             # <<<<<<<<<<<<<<
@@ -10261,7 +10486,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
     __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":509
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":518
  *     try:
  *         thread_info = _thread_local_info.thread_info
  *     except:             # <<<<<<<<<<<<<<
@@ -10270,24 +10495,24 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
     /*except:*/ {
       __Pyx_AddTraceback("_pydevd_frame_eval.pydevd_frame_evaluator.get_bytecode_while_frame_eval_38", __pyx_clineno, __pyx_lineno, __pyx_filename);
-      if (__Pyx_GetException(&__pyx_t_8, &__pyx_t_2, &__pyx_t_9) < 0) __PYX_ERR(0, 509, __pyx_L9_except_error)
+      if (__Pyx_GetException(&__pyx_t_8, &__pyx_t_2, &__pyx_t_9) < 0) __PYX_ERR(0, 518, __pyx_L9_except_error)
       __Pyx_GOTREF(__pyx_t_8);
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_GOTREF(__pyx_t_9);
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":510
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":519
  *         thread_info = _thread_local_info.thread_info
  *     except:
  *         thread_info = get_thread_info(frame_obj)             # <<<<<<<<<<<<<<
  *         if thread_info is None:
  *             return CALL_EvalFrameDefault_38(frame_obj, exc)
  */
-      __pyx_t_10 = ((PyObject *)__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_thread_info(__pyx_v_frame_obj)); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 510, __pyx_L9_except_error)
+      __pyx_t_10 = ((PyObject *)__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_thread_info(__pyx_v_frame_obj)); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 519, __pyx_L9_except_error)
       __Pyx_GOTREF(__pyx_t_10);
       __Pyx_XDECREF_SET(__pyx_v_thread_info, ((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo *)__pyx_t_10));
       __pyx_t_10 = 0;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":511
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":520
  *     except:
  *         thread_info = get_thread_info(frame_obj)
  *         if thread_info is None:             # <<<<<<<<<<<<<<
@@ -10298,7 +10523,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       __pyx_t_3 = (__pyx_t_1 != 0);
       if (__pyx_t_3) {
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":512
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":521
  *         thread_info = get_thread_info(frame_obj)
  *         if thread_info is None:
  *             return CALL_EvalFrameDefault_38(frame_obj, exc)             # <<<<<<<<<<<<<<
@@ -10311,7 +10536,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
         __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
         goto __pyx_L10_except_return;
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":511
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":520
  *     except:
  *         thread_info = get_thread_info(frame_obj)
  *         if thread_info is None:             # <<<<<<<<<<<<<<
@@ -10326,7 +10551,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     }
     __pyx_L9_except_error:;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":507
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":516
  *     cdef int CMD_SMART_STEP_INTO = 128
  *     cdef bint can_skip = True
  *     try:             # <<<<<<<<<<<<<<
@@ -10352,7 +10577,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_L12_try_end:;
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":514
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":523
  *             return CALL_EvalFrameDefault_38(frame_obj, exc)
  * 
  *     if thread_info.inside_frame_eval:             # <<<<<<<<<<<<<<
@@ -10362,7 +10587,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
   __pyx_t_3 = (__pyx_v_thread_info->inside_frame_eval != 0);
   if (__pyx_t_3) {
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":515
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":524
  * 
  *     if thread_info.inside_frame_eval:
  *         return CALL_EvalFrameDefault_38(frame_obj, exc)             # <<<<<<<<<<<<<<
@@ -10372,7 +10597,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_r = CALL_EvalFrameDefault_38(__pyx_v_frame_obj, __pyx_v_exc);
     goto __pyx_L0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":514
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":523
  *             return CALL_EvalFrameDefault_38(frame_obj, exc)
  * 
  *     if thread_info.inside_frame_eval:             # <<<<<<<<<<<<<<
@@ -10381,7 +10606,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":517
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":526
  *         return CALL_EvalFrameDefault_38(frame_obj, exc)
  * 
  *     if not thread_info.fully_initialized:             # <<<<<<<<<<<<<<
@@ -10391,18 +10616,18 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
   __pyx_t_3 = ((!(__pyx_v_thread_info->fully_initialized != 0)) != 0);
   if (__pyx_t_3) {
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":518
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":527
  * 
  *     if not thread_info.fully_initialized:
  *         thread_info.initialize_if_possible()             # <<<<<<<<<<<<<<
  *         if not thread_info.fully_initialized:
  *             return CALL_EvalFrameDefault_38(frame_obj, exc)
  */
-    __pyx_t_9 = ((struct __pyx_vtabstruct_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo *)__pyx_v_thread_info->__pyx_vtab)->initialize_if_possible(__pyx_v_thread_info); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 518, __pyx_L1_error)
+    __pyx_t_9 = ((struct __pyx_vtabstruct_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo *)__pyx_v_thread_info->__pyx_vtab)->initialize_if_possible(__pyx_v_thread_info); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 527, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_9);
     __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":519
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":528
  *     if not thread_info.fully_initialized:
  *         thread_info.initialize_if_possible()
  *         if not thread_info.fully_initialized:             # <<<<<<<<<<<<<<
@@ -10412,7 +10637,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_t_3 = ((!(__pyx_v_thread_info->fully_initialized != 0)) != 0);
     if (__pyx_t_3) {
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":520
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":529
  *         thread_info.initialize_if_possible()
  *         if not thread_info.fully_initialized:
  *             return CALL_EvalFrameDefault_38(frame_obj, exc)             # <<<<<<<<<<<<<<
@@ -10422,7 +10647,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       __pyx_r = CALL_EvalFrameDefault_38(__pyx_v_frame_obj, __pyx_v_exc);
       goto __pyx_L0;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":519
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":528
  *     if not thread_info.fully_initialized:
  *         thread_info.initialize_if_possible()
  *         if not thread_info.fully_initialized:             # <<<<<<<<<<<<<<
@@ -10431,7 +10656,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":517
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":526
  *         return CALL_EvalFrameDefault_38(frame_obj, exc)
  * 
  *     if not thread_info.fully_initialized:             # <<<<<<<<<<<<<<
@@ -10440,7 +10665,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":523
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":532
  * 
  *     # Can only get additional_info when fully initialized.
  *     cdef PyDBAdditionalThreadInfo additional_info = thread_info.additional_info             # <<<<<<<<<<<<<<
@@ -10452,7 +10677,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
   __pyx_v_additional_info = ((struct __pyx_obj_14_pydevd_bundle_13pydevd_cython_PyDBAdditionalThreadInfo *)__pyx_t_9);
   __pyx_t_9 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":524
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":533
  *     # Can only get additional_info when fully initialized.
  *     cdef PyDBAdditionalThreadInfo additional_info = thread_info.additional_info
  *     if thread_info.is_pydevd_thread or additional_info.is_tracing:             # <<<<<<<<<<<<<<
@@ -10470,7 +10695,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
   __pyx_L20_bool_binop_done:;
   if (__pyx_t_3) {
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":526
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":535
  *     if thread_info.is_pydevd_thread or additional_info.is_tracing:
  *         # Make sure that we don't trace pydevd threads or inside our own calls.
  *         return CALL_EvalFrameDefault_38(frame_obj, exc)             # <<<<<<<<<<<<<<
@@ -10480,7 +10705,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_r = CALL_EvalFrameDefault_38(__pyx_v_frame_obj, __pyx_v_exc);
     goto __pyx_L0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":524
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":533
  *     # Can only get additional_info when fully initialized.
  *     cdef PyDBAdditionalThreadInfo additional_info = thread_info.additional_info
  *     if thread_info.is_pydevd_thread or additional_info.is_tracing:             # <<<<<<<<<<<<<<
@@ -10489,7 +10714,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":533
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":542
  *     #     print('get_bytecode_while_frame_eval', frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename)
  * 
  *     thread_info.inside_frame_eval += 1             # <<<<<<<<<<<<<<
@@ -10498,7 +10723,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   __pyx_v_thread_info->inside_frame_eval = (__pyx_v_thread_info->inside_frame_eval + 1);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":534
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":543
  * 
  *     thread_info.inside_frame_eval += 1
  *     additional_info.is_tracing = True             # <<<<<<<<<<<<<<
@@ -10507,7 +10732,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   __pyx_v_additional_info->is_tracing = 1;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":535
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":544
  *     thread_info.inside_frame_eval += 1
  *     additional_info.is_tracing = True
  *     try:             # <<<<<<<<<<<<<<
@@ -10516,22 +10741,22 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   /*try:*/ {
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":536
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":545
  *     additional_info.is_tracing = True
  *     try:
  *         main_debugger: object = GlobalDebuggerHolder.global_dbg             # <<<<<<<<<<<<<<
  *         if main_debugger is None:
  *             return CALL_EvalFrameDefault_38(frame_obj, exc)
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_GlobalDebuggerHolder); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 536, __pyx_L23_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_GlobalDebuggerHolder); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 545, __pyx_L23_error)
     __Pyx_GOTREF(__pyx_t_9);
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_9, __pyx_n_s_global_dbg); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 536, __pyx_L23_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_9, __pyx_n_s_global_dbg); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 545, __pyx_L23_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
     __pyx_v_main_debugger = __pyx_t_2;
     __pyx_t_2 = 0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":537
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":546
  *     try:
  *         main_debugger: object = GlobalDebuggerHolder.global_dbg
  *         if main_debugger is None:             # <<<<<<<<<<<<<<
@@ -10542,7 +10767,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_t_1 = (__pyx_t_3 != 0);
     if (__pyx_t_1) {
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":538
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":547
  *         main_debugger: object = GlobalDebuggerHolder.global_dbg
  *         if main_debugger is None:
  *             return CALL_EvalFrameDefault_38(frame_obj, exc)             # <<<<<<<<<<<<<<
@@ -10552,7 +10777,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       __pyx_r = CALL_EvalFrameDefault_38(__pyx_v_frame_obj, __pyx_v_exc);
       goto __pyx_L22_return;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":537
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":546
  *     try:
  *         main_debugger: object = GlobalDebuggerHolder.global_dbg
  *         if main_debugger is None:             # <<<<<<<<<<<<<<
@@ -10561,7 +10786,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":539
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":548
  *         if main_debugger is None:
  *             return CALL_EvalFrameDefault_38(frame_obj, exc)
  *         frame = <object> frame_obj             # <<<<<<<<<<<<<<
@@ -10573,7 +10798,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_v_frame = __pyx_t_2;
     __pyx_t_2 = 0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":541
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":550
  *         frame = <object> frame_obj
  * 
  *         if thread_info.thread_trace_func is None:             # <<<<<<<<<<<<<<
@@ -10584,14 +10809,14 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_t_3 = (__pyx_t_1 != 0);
     if (__pyx_t_3) {
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":542
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":551
  * 
  *         if thread_info.thread_trace_func is None:
  *             trace_func, apply_to_global = fix_top_level_trace_and_get_trace_func(main_debugger, frame)             # <<<<<<<<<<<<<<
  *             if apply_to_global:
  *                 thread_info.thread_trace_func = trace_func
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_fix_top_level_trace_and_get_trac); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 542, __pyx_L23_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_fix_top_level_trace_and_get_trac); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 551, __pyx_L23_error)
       __Pyx_GOTREF(__pyx_t_9);
       __pyx_t_8 = NULL;
       __pyx_t_11 = 0;
@@ -10608,7 +10833,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       #if CYTHON_FAST_PYCALL
       if (PyFunction_Check(__pyx_t_9)) {
         PyObject *__pyx_temp[3] = {__pyx_t_8, __pyx_v_main_debugger, __pyx_v_frame};
-        __pyx_t_2 = __Pyx_PyFunction_FastCall(__pyx_t_9, __pyx_temp+1-__pyx_t_11, 2+__pyx_t_11); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 542, __pyx_L23_error)
+        __pyx_t_2 = __Pyx_PyFunction_FastCall(__pyx_t_9, __pyx_temp+1-__pyx_t_11, 2+__pyx_t_11); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 551, __pyx_L23_error)
         __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
         __Pyx_GOTREF(__pyx_t_2);
       } else
@@ -10616,13 +10841,13 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       #if CYTHON_FAST_PYCCALL
       if (__Pyx_PyFastCFunction_Check(__pyx_t_9)) {
         PyObject *__pyx_temp[3] = {__pyx_t_8, __pyx_v_main_debugger, __pyx_v_frame};
-        __pyx_t_2 = __Pyx_PyCFunction_FastCall(__pyx_t_9, __pyx_temp+1-__pyx_t_11, 2+__pyx_t_11); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 542, __pyx_L23_error)
+        __pyx_t_2 = __Pyx_PyCFunction_FastCall(__pyx_t_9, __pyx_temp+1-__pyx_t_11, 2+__pyx_t_11); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 551, __pyx_L23_error)
         __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
         __Pyx_GOTREF(__pyx_t_2);
       } else
       #endif
       {
-        __pyx_t_10 = PyTuple_New(2+__pyx_t_11); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 542, __pyx_L23_error)
+        __pyx_t_10 = PyTuple_New(2+__pyx_t_11); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 551, __pyx_L23_error)
         __Pyx_GOTREF(__pyx_t_10);
         if (__pyx_t_8) {
           __Pyx_GIVEREF(__pyx_t_8); PyTuple_SET_ITEM(__pyx_t_10, 0, __pyx_t_8); __pyx_t_8 = NULL;
@@ -10633,7 +10858,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
         __Pyx_INCREF(__pyx_v_frame);
         __Pyx_GIVEREF(__pyx_v_frame);
         PyTuple_SET_ITEM(__pyx_t_10, 1+__pyx_t_11, __pyx_v_frame);
-        __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_9, __pyx_t_10, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 542, __pyx_L23_error)
+        __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_9, __pyx_t_10, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 551, __pyx_L23_error)
         __Pyx_GOTREF(__pyx_t_2);
         __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
       }
@@ -10644,7 +10869,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
         if (unlikely(size != 2)) {
           if (size > 2) __Pyx_RaiseTooManyValuesError(2);
           else if (size >= 0) __Pyx_RaiseNeedMoreValuesError(size);
-          __PYX_ERR(0, 542, __pyx_L23_error)
+          __PYX_ERR(0, 551, __pyx_L23_error)
         }
         #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
         if (likely(PyTuple_CheckExact(sequence))) {
@@ -10657,15 +10882,15 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
         __Pyx_INCREF(__pyx_t_9);
         __Pyx_INCREF(__pyx_t_10);
         #else
-        __pyx_t_9 = PySequence_ITEM(sequence, 0); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 542, __pyx_L23_error)
+        __pyx_t_9 = PySequence_ITEM(sequence, 0); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 551, __pyx_L23_error)
         __Pyx_GOTREF(__pyx_t_9);
-        __pyx_t_10 = PySequence_ITEM(sequence, 1); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 542, __pyx_L23_error)
+        __pyx_t_10 = PySequence_ITEM(sequence, 1); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 551, __pyx_L23_error)
         __Pyx_GOTREF(__pyx_t_10);
         #endif
         __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
       } else {
         Py_ssize_t index = -1;
-        __pyx_t_8 = PyObject_GetIter(__pyx_t_2); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 542, __pyx_L23_error)
+        __pyx_t_8 = PyObject_GetIter(__pyx_t_2); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 551, __pyx_L23_error)
         __Pyx_GOTREF(__pyx_t_8);
         __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
         __pyx_t_12 = Py_TYPE(__pyx_t_8)->tp_iternext;
@@ -10673,7 +10898,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
         __Pyx_GOTREF(__pyx_t_9);
         index = 1; __pyx_t_10 = __pyx_t_12(__pyx_t_8); if (unlikely(!__pyx_t_10)) goto __pyx_L27_unpacking_failed;
         __Pyx_GOTREF(__pyx_t_10);
-        if (__Pyx_IternextUnpackEndCheck(__pyx_t_12(__pyx_t_8), 2) < 0) __PYX_ERR(0, 542, __pyx_L23_error)
+        if (__Pyx_IternextUnpackEndCheck(__pyx_t_12(__pyx_t_8), 2) < 0) __PYX_ERR(0, 551, __pyx_L23_error)
         __pyx_t_12 = NULL;
         __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
         goto __pyx_L28_unpacking_done;
@@ -10681,7 +10906,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
         __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
         __pyx_t_12 = NULL;
         if (__Pyx_IterFinish() == 0) __Pyx_RaiseNeedMoreValuesError(index);
-        __PYX_ERR(0, 542, __pyx_L23_error)
+        __PYX_ERR(0, 551, __pyx_L23_error)
         __pyx_L28_unpacking_done:;
       }
       __pyx_v_trace_func = __pyx_t_9;
@@ -10689,17 +10914,17 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       __pyx_v_apply_to_global = __pyx_t_10;
       __pyx_t_10 = 0;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":543
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":552
  *         if thread_info.thread_trace_func is None:
  *             trace_func, apply_to_global = fix_top_level_trace_and_get_trace_func(main_debugger, frame)
  *             if apply_to_global:             # <<<<<<<<<<<<<<
  *                 thread_info.thread_trace_func = trace_func
  * 
  */
-      __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_v_apply_to_global); if (unlikely(__pyx_t_3 < 0)) __PYX_ERR(0, 543, __pyx_L23_error)
+      __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_v_apply_to_global); if (unlikely(__pyx_t_3 < 0)) __PYX_ERR(0, 552, __pyx_L23_error)
       if (__pyx_t_3) {
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":544
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":553
  *             trace_func, apply_to_global = fix_top_level_trace_and_get_trace_func(main_debugger, frame)
  *             if apply_to_global:
  *                 thread_info.thread_trace_func = trace_func             # <<<<<<<<<<<<<<
@@ -10712,7 +10937,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
         __Pyx_DECREF(__pyx_v_thread_info->thread_trace_func);
         __pyx_v_thread_info->thread_trace_func = __pyx_v_trace_func;
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":543
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":552
  *         if thread_info.thread_trace_func is None:
  *             trace_func, apply_to_global = fix_top_level_trace_and_get_trace_func(main_debugger, frame)
  *             if apply_to_global:             # <<<<<<<<<<<<<<
@@ -10721,7 +10946,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
       }
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":541
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":550
  *         frame = <object> frame_obj
  * 
  *         if thread_info.thread_trace_func is None:             # <<<<<<<<<<<<<<
@@ -10730,7 +10955,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":546
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":555
  *                 thread_info.thread_trace_func = trace_func
  * 
  *         if additional_info.pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_INTO_COROUTINE, CMD_SMART_STEP_INTO) or \             # <<<<<<<<<<<<<<
@@ -10766,16 +10991,16 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       goto __pyx_L31_bool_binop_done;
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":547
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":556
  * 
  *         if additional_info.pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_INTO_COROUTINE, CMD_SMART_STEP_INTO) or \
  *                 main_debugger.break_on_caught_exceptions or \             # <<<<<<<<<<<<<<
  *                 main_debugger.break_on_user_uncaught_exceptions or \
  *                 main_debugger.has_plugin_exception_breaks or \
  */
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_break_on_caught_exceptions); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 547, __pyx_L23_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_break_on_caught_exceptions); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 556, __pyx_L23_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_4 < 0)) __PYX_ERR(0, 547, __pyx_L23_error)
+    __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_4 < 0)) __PYX_ERR(0, 556, __pyx_L23_error)
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     if (!__pyx_t_4) {
     } else {
@@ -10783,16 +11008,16 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       goto __pyx_L31_bool_binop_done;
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":548
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":557
  *         if additional_info.pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_INTO_COROUTINE, CMD_SMART_STEP_INTO) or \
  *                 main_debugger.break_on_caught_exceptions or \
  *                 main_debugger.break_on_user_uncaught_exceptions or \             # <<<<<<<<<<<<<<
  *                 main_debugger.has_plugin_exception_breaks or \
  *                 main_debugger.signature_factory or \
  */
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_break_on_user_uncaught_exception); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 548, __pyx_L23_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_break_on_user_uncaught_exception); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 557, __pyx_L23_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_4 < 0)) __PYX_ERR(0, 548, __pyx_L23_error)
+    __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_4 < 0)) __PYX_ERR(0, 557, __pyx_L23_error)
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     if (!__pyx_t_4) {
     } else {
@@ -10800,16 +11025,16 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       goto __pyx_L31_bool_binop_done;
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":549
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":558
  *                 main_debugger.break_on_caught_exceptions or \
  *                 main_debugger.break_on_user_uncaught_exceptions or \
  *                 main_debugger.has_plugin_exception_breaks or \             # <<<<<<<<<<<<<<
  *                 main_debugger.signature_factory or \
  *                 additional_info.pydev_step_cmd in (CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE) and main_debugger.show_return_values and frame.f_back is additional_info.pydev_step_stop:
  */
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_has_plugin_exception_breaks); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 549, __pyx_L23_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_has_plugin_exception_breaks); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 558, __pyx_L23_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_4 < 0)) __PYX_ERR(0, 549, __pyx_L23_error)
+    __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_4 < 0)) __PYX_ERR(0, 558, __pyx_L23_error)
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     if (!__pyx_t_4) {
     } else {
@@ -10817,16 +11042,16 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       goto __pyx_L31_bool_binop_done;
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":550
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":559
  *                 main_debugger.break_on_user_uncaught_exceptions or \
  *                 main_debugger.has_plugin_exception_breaks or \
  *                 main_debugger.signature_factory or \             # <<<<<<<<<<<<<<
  *                 additional_info.pydev_step_cmd in (CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE) and main_debugger.show_return_values and frame.f_back is additional_info.pydev_step_stop:
  * 
  */
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_signature_factory); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 550, __pyx_L23_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_signature_factory); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 559, __pyx_L23_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_4 < 0)) __PYX_ERR(0, 550, __pyx_L23_error)
+    __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_4 < 0)) __PYX_ERR(0, 559, __pyx_L23_error)
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     if (!__pyx_t_4) {
     } else {
@@ -10834,7 +11059,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       goto __pyx_L31_bool_binop_done;
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":551
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":560
  *                 main_debugger.has_plugin_exception_breaks or \
  *                 main_debugger.signature_factory or \
  *                 additional_info.pydev_step_cmd in (CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE) and main_debugger.show_return_values and frame.f_back is additional_info.pydev_step_stop:             # <<<<<<<<<<<<<<
@@ -10857,16 +11082,16 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       __pyx_t_3 = __pyx_t_1;
       goto __pyx_L31_bool_binop_done;
     }
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_show_return_values); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 551, __pyx_L23_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_show_return_values); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 560, __pyx_L23_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_1 < 0)) __PYX_ERR(0, 551, __pyx_L23_error)
+    __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_1 < 0)) __PYX_ERR(0, 560, __pyx_L23_error)
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     if (__pyx_t_1) {
     } else {
       __pyx_t_3 = __pyx_t_1;
       goto __pyx_L31_bool_binop_done;
     }
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_frame, __pyx_n_s_f_back); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 551, __pyx_L23_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_frame, __pyx_n_s_f_back); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 560, __pyx_L23_error)
     __Pyx_GOTREF(__pyx_t_2);
     __pyx_t_1 = (__pyx_t_2 == __pyx_v_additional_info->pydev_step_stop);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
@@ -10874,7 +11099,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_t_3 = __pyx_t_4;
     __pyx_L31_bool_binop_done:;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":546
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":555
  *                 thread_info.thread_trace_func = trace_func
  * 
  *         if additional_info.pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_INTO_COROUTINE, CMD_SMART_STEP_INTO) or \             # <<<<<<<<<<<<<<
@@ -10883,7 +11108,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
     if (__pyx_t_3) {
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":555
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":564
  *             # if DEBUG:
  *             #     print('get_bytecode_while_frame_eval enabled trace')
  *             if thread_info.thread_trace_func is not None:             # <<<<<<<<<<<<<<
@@ -10894,7 +11119,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       __pyx_t_4 = (__pyx_t_3 != 0);
       if (__pyx_t_4) {
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":556
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":565
  *             #     print('get_bytecode_while_frame_eval enabled trace')
  *             if thread_info.thread_trace_func is not None:
  *                 frame.f_trace = thread_info.thread_trace_func             # <<<<<<<<<<<<<<
@@ -10903,10 +11128,10 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
         __pyx_t_2 = __pyx_v_thread_info->thread_trace_func;
         __Pyx_INCREF(__pyx_t_2);
-        if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_2) < 0) __PYX_ERR(0, 556, __pyx_L23_error)
+        if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_2) < 0) __PYX_ERR(0, 565, __pyx_L23_error)
         __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":555
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":564
  *             # if DEBUG:
  *             #     print('get_bytecode_while_frame_eval enabled trace')
  *             if thread_info.thread_trace_func is not None:             # <<<<<<<<<<<<<<
@@ -10916,7 +11141,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
         goto __pyx_L45;
       }
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":558
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":567
  *                 frame.f_trace = thread_info.thread_trace_func
  *             else:
  *                 frame.f_trace = <object> main_debugger.trace_dispatch             # <<<<<<<<<<<<<<
@@ -10924,17 +11149,17 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  *             func_code_info: FuncCodeInfo = get_func_code_info(thread_info, frame_obj, frame_obj.f_code)
  */
       /*else*/ {
-        __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_trace_dispatch); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 558, __pyx_L23_error)
+        __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_trace_dispatch); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 567, __pyx_L23_error)
         __Pyx_GOTREF(__pyx_t_2);
         __pyx_t_10 = __pyx_t_2;
         __Pyx_INCREF(__pyx_t_10);
         __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-        if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_10) < 0) __PYX_ERR(0, 558, __pyx_L23_error)
+        if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_10) < 0) __PYX_ERR(0, 567, __pyx_L23_error)
         __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
       }
       __pyx_L45:;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":546
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":555
  *                 thread_info.thread_trace_func = trace_func
  * 
  *         if additional_info.pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_INTO_COROUTINE, CMD_SMART_STEP_INTO) or \             # <<<<<<<<<<<<<<
@@ -10944,7 +11169,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       goto __pyx_L30;
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":560
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":569
  *                 frame.f_trace = <object> main_debugger.trace_dispatch
  *         else:
  *             func_code_info: FuncCodeInfo = get_func_code_info(thread_info, frame_obj, frame_obj.f_code)             # <<<<<<<<<<<<<<
@@ -10952,12 +11177,12 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  *             #     print('get_bytecode_while_frame_eval always skip', func_code_info.always_skip_code)
  */
     /*else*/ {
-      __pyx_t_10 = ((PyObject *)__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_func_code_info(__pyx_v_thread_info, __pyx_v_frame_obj, __pyx_v_frame_obj->f_code)); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 560, __pyx_L23_error)
+      __pyx_t_10 = ((PyObject *)__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_func_code_info(__pyx_v_thread_info, __pyx_v_frame_obj, __pyx_v_frame_obj->f_code)); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 569, __pyx_L23_error)
       __Pyx_GOTREF(__pyx_t_10);
       __pyx_v_func_code_info = ((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *)__pyx_t_10);
       __pyx_t_10 = 0;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":563
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":572
  *             # if DEBUG:
  *             #     print('get_bytecode_while_frame_eval always skip', func_code_info.always_skip_code)
  *             if not func_code_info.always_skip_code:             # <<<<<<<<<<<<<<
@@ -10967,40 +11192,40 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       __pyx_t_4 = ((!(__pyx_v_func_code_info->always_skip_code != 0)) != 0);
       if (__pyx_t_4) {
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":565
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":574
  *             if not func_code_info.always_skip_code:
  * 
  *                 if main_debugger.has_plugin_line_breaks or main_debugger.has_plugin_exception_breaks:             # <<<<<<<<<<<<<<
  *                     can_skip = main_debugger.plugin.can_skip(main_debugger, <object> frame_obj)
  * 
  */
-        __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_has_plugin_line_breaks); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 565, __pyx_L23_error)
+        __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_has_plugin_line_breaks); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 574, __pyx_L23_error)
         __Pyx_GOTREF(__pyx_t_10);
-        __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_t_10); if (unlikely(__pyx_t_3 < 0)) __PYX_ERR(0, 565, __pyx_L23_error)
+        __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_t_10); if (unlikely(__pyx_t_3 < 0)) __PYX_ERR(0, 574, __pyx_L23_error)
         __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
         if (!__pyx_t_3) {
         } else {
           __pyx_t_4 = __pyx_t_3;
           goto __pyx_L48_bool_binop_done;
         }
-        __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_has_plugin_exception_breaks); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 565, __pyx_L23_error)
+        __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_has_plugin_exception_breaks); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 574, __pyx_L23_error)
         __Pyx_GOTREF(__pyx_t_10);
-        __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_t_10); if (unlikely(__pyx_t_3 < 0)) __PYX_ERR(0, 565, __pyx_L23_error)
+        __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_t_10); if (unlikely(__pyx_t_3 < 0)) __PYX_ERR(0, 574, __pyx_L23_error)
         __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
         __pyx_t_4 = __pyx_t_3;
         __pyx_L48_bool_binop_done:;
         if (__pyx_t_4) {
 
-          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":566
+          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":575
  * 
  *                 if main_debugger.has_plugin_line_breaks or main_debugger.has_plugin_exception_breaks:
  *                     can_skip = main_debugger.plugin.can_skip(main_debugger, <object> frame_obj)             # <<<<<<<<<<<<<<
  * 
  *                     if not can_skip:
  */
-          __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_plugin); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 566, __pyx_L23_error)
+          __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_plugin); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 575, __pyx_L23_error)
           __Pyx_GOTREF(__pyx_t_2);
-          __pyx_t_9 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_can_skip); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 566, __pyx_L23_error)
+          __pyx_t_9 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_can_skip); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 575, __pyx_L23_error)
           __Pyx_GOTREF(__pyx_t_9);
           __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
           __pyx_t_2 = NULL;
@@ -11018,7 +11243,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
           #if CYTHON_FAST_PYCALL
           if (PyFunction_Check(__pyx_t_9)) {
             PyObject *__pyx_temp[3] = {__pyx_t_2, __pyx_v_main_debugger, ((PyObject *)__pyx_v_frame_obj)};
-            __pyx_t_10 = __Pyx_PyFunction_FastCall(__pyx_t_9, __pyx_temp+1-__pyx_t_11, 2+__pyx_t_11); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 566, __pyx_L23_error)
+            __pyx_t_10 = __Pyx_PyFunction_FastCall(__pyx_t_9, __pyx_temp+1-__pyx_t_11, 2+__pyx_t_11); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 575, __pyx_L23_error)
             __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
             __Pyx_GOTREF(__pyx_t_10);
           } else
@@ -11026,13 +11251,13 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
           #if CYTHON_FAST_PYCCALL
           if (__Pyx_PyFastCFunction_Check(__pyx_t_9)) {
             PyObject *__pyx_temp[3] = {__pyx_t_2, __pyx_v_main_debugger, ((PyObject *)__pyx_v_frame_obj)};
-            __pyx_t_10 = __Pyx_PyCFunction_FastCall(__pyx_t_9, __pyx_temp+1-__pyx_t_11, 2+__pyx_t_11); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 566, __pyx_L23_error)
+            __pyx_t_10 = __Pyx_PyCFunction_FastCall(__pyx_t_9, __pyx_temp+1-__pyx_t_11, 2+__pyx_t_11); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 575, __pyx_L23_error)
             __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
             __Pyx_GOTREF(__pyx_t_10);
           } else
           #endif
           {
-            __pyx_t_8 = PyTuple_New(2+__pyx_t_11); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 566, __pyx_L23_error)
+            __pyx_t_8 = PyTuple_New(2+__pyx_t_11); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 575, __pyx_L23_error)
             __Pyx_GOTREF(__pyx_t_8);
             if (__pyx_t_2) {
               __Pyx_GIVEREF(__pyx_t_2); PyTuple_SET_ITEM(__pyx_t_8, 0, __pyx_t_2); __pyx_t_2 = NULL;
@@ -11043,16 +11268,16 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
             __Pyx_INCREF(((PyObject *)__pyx_v_frame_obj));
             __Pyx_GIVEREF(((PyObject *)__pyx_v_frame_obj));
             PyTuple_SET_ITEM(__pyx_t_8, 1+__pyx_t_11, ((PyObject *)__pyx_v_frame_obj));
-            __pyx_t_10 = __Pyx_PyObject_Call(__pyx_t_9, __pyx_t_8, NULL); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 566, __pyx_L23_error)
+            __pyx_t_10 = __Pyx_PyObject_Call(__pyx_t_9, __pyx_t_8, NULL); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 575, __pyx_L23_error)
             __Pyx_GOTREF(__pyx_t_10);
             __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
           }
           __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-          __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_10); if (unlikely((__pyx_t_4 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 566, __pyx_L23_error)
+          __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_10); if (unlikely((__pyx_t_4 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 575, __pyx_L23_error)
           __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
           __pyx_v_can_skip = __pyx_t_4;
 
-          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":568
+          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":577
  *                     can_skip = main_debugger.plugin.can_skip(main_debugger, <object> frame_obj)
  * 
  *                     if not can_skip:             # <<<<<<<<<<<<<<
@@ -11062,7 +11287,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
           __pyx_t_4 = ((!(__pyx_v_can_skip != 0)) != 0);
           if (__pyx_t_4) {
 
-            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":571
+            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":580
  *                         # if DEBUG:
  *                         #     print('get_bytecode_while_frame_eval not can_skip')
  *                         if thread_info.thread_trace_func is not None:             # <<<<<<<<<<<<<<
@@ -11073,7 +11298,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
             __pyx_t_3 = (__pyx_t_4 != 0);
             if (__pyx_t_3) {
 
-              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":572
+              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":581
  *                         #     print('get_bytecode_while_frame_eval not can_skip')
  *                         if thread_info.thread_trace_func is not None:
  *                             frame.f_trace = thread_info.thread_trace_func             # <<<<<<<<<<<<<<
@@ -11082,10 +11307,10 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
               __pyx_t_10 = __pyx_v_thread_info->thread_trace_func;
               __Pyx_INCREF(__pyx_t_10);
-              if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_10) < 0) __PYX_ERR(0, 572, __pyx_L23_error)
+              if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_10) < 0) __PYX_ERR(0, 581, __pyx_L23_error)
               __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
 
-              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":571
+              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":580
  *                         # if DEBUG:
  *                         #     print('get_bytecode_while_frame_eval not can_skip')
  *                         if thread_info.thread_trace_func is not None:             # <<<<<<<<<<<<<<
@@ -11095,7 +11320,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
               goto __pyx_L51;
             }
 
-            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":574
+            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":583
  *                             frame.f_trace = thread_info.thread_trace_func
  *                         else:
  *                             frame.f_trace = <object> main_debugger.trace_dispatch             # <<<<<<<<<<<<<<
@@ -11103,17 +11328,17 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  *                 if can_skip and func_code_info.breakpoint_found:
  */
             /*else*/ {
-              __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_trace_dispatch); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 574, __pyx_L23_error)
+              __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_trace_dispatch); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 583, __pyx_L23_error)
               __Pyx_GOTREF(__pyx_t_10);
               __pyx_t_9 = __pyx_t_10;
               __Pyx_INCREF(__pyx_t_9);
               __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
-              if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_9) < 0) __PYX_ERR(0, 574, __pyx_L23_error)
+              if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_9) < 0) __PYX_ERR(0, 583, __pyx_L23_error)
               __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
             }
             __pyx_L51:;
 
-            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":568
+            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":577
  *                     can_skip = main_debugger.plugin.can_skip(main_debugger, <object> frame_obj)
  * 
  *                     if not can_skip:             # <<<<<<<<<<<<<<
@@ -11122,7 +11347,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
           }
 
-          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":565
+          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":574
  *             if not func_code_info.always_skip_code:
  * 
  *                 if main_debugger.has_plugin_line_breaks or main_debugger.has_plugin_exception_breaks:             # <<<<<<<<<<<<<<
@@ -11131,7 +11356,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
         }
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":576
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":585
  *                             frame.f_trace = <object> main_debugger.trace_dispatch
  * 
  *                 if can_skip and func_code_info.breakpoint_found:             # <<<<<<<<<<<<<<
@@ -11149,7 +11374,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
         __pyx_L53_bool_binop_done:;
         if (__pyx_t_3) {
 
-          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":579
+          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":588
  *                     # if DEBUG:
  *                     #     print('get_bytecode_while_frame_eval new_code', func_code_info.new_code)
  *                     if not thread_info.force_stay_in_untraced_mode:             # <<<<<<<<<<<<<<
@@ -11159,7 +11384,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
           __pyx_t_3 = ((!(__pyx_v_thread_info->force_stay_in_untraced_mode != 0)) != 0);
           if (__pyx_t_3) {
 
-            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":583
+            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":592
  *                         # this means we weren't able to actually add the code
  *                         # where needed, so, fallback to tracing.
  *                         if func_code_info.new_code is None:             # <<<<<<<<<<<<<<
@@ -11170,7 +11395,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
             __pyx_t_4 = (__pyx_t_3 != 0);
             if (__pyx_t_4) {
 
-              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":584
+              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":593
  *                         # where needed, so, fallback to tracing.
  *                         if func_code_info.new_code is None:
  *                             if thread_info.thread_trace_func is not None:             # <<<<<<<<<<<<<<
@@ -11181,7 +11406,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
               __pyx_t_3 = (__pyx_t_4 != 0);
               if (__pyx_t_3) {
 
-                /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":585
+                /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":594
  *                         if func_code_info.new_code is None:
  *                             if thread_info.thread_trace_func is not None:
  *                                 frame.f_trace = thread_info.thread_trace_func             # <<<<<<<<<<<<<<
@@ -11190,10 +11415,10 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
                 __pyx_t_9 = __pyx_v_thread_info->thread_trace_func;
                 __Pyx_INCREF(__pyx_t_9);
-                if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_9) < 0) __PYX_ERR(0, 585, __pyx_L23_error)
+                if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_9) < 0) __PYX_ERR(0, 594, __pyx_L23_error)
                 __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
 
-                /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":584
+                /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":593
  *                         # where needed, so, fallback to tracing.
  *                         if func_code_info.new_code is None:
  *                             if thread_info.thread_trace_func is not None:             # <<<<<<<<<<<<<<
@@ -11203,7 +11428,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
                 goto __pyx_L57;
               }
 
-              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":587
+              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":596
  *                                 frame.f_trace = thread_info.thread_trace_func
  *                             else:
  *                                 frame.f_trace = <object> main_debugger.trace_dispatch             # <<<<<<<<<<<<<<
@@ -11211,17 +11436,17 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  *                             # print('Using frame eval break for', <object> frame_obj.f_code.co_name)
  */
               /*else*/ {
-                __pyx_t_9 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_trace_dispatch); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 587, __pyx_L23_error)
+                __pyx_t_9 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_trace_dispatch); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 596, __pyx_L23_error)
                 __Pyx_GOTREF(__pyx_t_9);
                 __pyx_t_10 = __pyx_t_9;
                 __Pyx_INCREF(__pyx_t_10);
                 __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-                if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_10) < 0) __PYX_ERR(0, 587, __pyx_L23_error)
+                if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_10) < 0) __PYX_ERR(0, 596, __pyx_L23_error)
                 __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
               }
               __pyx_L57:;
 
-              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":583
+              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":592
  *                         # this means we weren't able to actually add the code
  *                         # where needed, so, fallback to tracing.
  *                         if func_code_info.new_code is None:             # <<<<<<<<<<<<<<
@@ -11231,7 +11456,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
               goto __pyx_L56;
             }
 
-            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":590
+            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":599
  *                         else:
  *                             # print('Using frame eval break for', <object> frame_obj.f_code.co_name)
  *                             update_globals_dict(<object> frame_obj.f_globals)             # <<<<<<<<<<<<<<
@@ -11239,7 +11464,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  *                             old = <object> frame_obj.f_code
  */
             /*else*/ {
-              __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_update_globals_dict); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 590, __pyx_L23_error)
+              __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_update_globals_dict); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 599, __pyx_L23_error)
               __Pyx_GOTREF(__pyx_t_9);
               __pyx_t_8 = NULL;
               if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_9))) {
@@ -11253,12 +11478,12 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
               }
               __pyx_t_10 = (__pyx_t_8) ? __Pyx_PyObject_Call2Args(__pyx_t_9, __pyx_t_8, ((PyObject *)__pyx_v_frame_obj->f_globals)) : __Pyx_PyObject_CallOneArg(__pyx_t_9, ((PyObject *)__pyx_v_frame_obj->f_globals));
               __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
-              if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 590, __pyx_L23_error)
+              if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 599, __pyx_L23_error)
               __Pyx_GOTREF(__pyx_t_10);
               __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
               __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
 
-              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":591
+              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":600
  *                             # print('Using frame eval break for', <object> frame_obj.f_code.co_name)
  *                             update_globals_dict(<object> frame_obj.f_globals)
  *                             Py_INCREF(func_code_info.new_code)             # <<<<<<<<<<<<<<
@@ -11270,7 +11495,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
               Py_INCREF(__pyx_t_10);
               __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
 
-              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":592
+              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":601
  *                             update_globals_dict(<object> frame_obj.f_globals)
  *                             Py_INCREF(func_code_info.new_code)
  *                             old = <object> frame_obj.f_code             # <<<<<<<<<<<<<<
@@ -11282,7 +11507,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
               __pyx_v_old = __pyx_t_10;
               __pyx_t_10 = 0;
 
-              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":593
+              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":602
  *                             Py_INCREF(func_code_info.new_code)
  *                             old = <object> frame_obj.f_code
  *                             frame_obj.f_code = <PyCodeObject *> func_code_info.new_code             # <<<<<<<<<<<<<<
@@ -11291,7 +11516,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
               __pyx_v_frame_obj->f_code = ((PyCodeObject *)__pyx_v_func_code_info->new_code);
 
-              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":594
+              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":603
  *                             old = <object> frame_obj.f_code
  *                             frame_obj.f_code = <PyCodeObject *> func_code_info.new_code
  *                             Py_DECREF(old)             # <<<<<<<<<<<<<<
@@ -11302,7 +11527,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
             }
             __pyx_L56:;
 
-            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":579
+            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":588
  *                     # if DEBUG:
  *                     #     print('get_bytecode_while_frame_eval new_code', func_code_info.new_code)
  *                     if not thread_info.force_stay_in_untraced_mode:             # <<<<<<<<<<<<<<
@@ -11312,7 +11537,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
             goto __pyx_L55;
           }
 
-          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":599
+          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":608
  *                         # update the globals dict (because this means that we're reusing
  *                         # a previous code which had breakpoints added in a new frame).
  *                         update_globals_dict(<object> frame_obj.f_globals)             # <<<<<<<<<<<<<<
@@ -11320,7 +11545,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  *     finally:
  */
           /*else*/ {
-            __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_update_globals_dict); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 599, __pyx_L23_error)
+            __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_update_globals_dict); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 608, __pyx_L23_error)
             __Pyx_GOTREF(__pyx_t_9);
             __pyx_t_8 = NULL;
             if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_9))) {
@@ -11334,14 +11559,14 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
             }
             __pyx_t_10 = (__pyx_t_8) ? __Pyx_PyObject_Call2Args(__pyx_t_9, __pyx_t_8, ((PyObject *)__pyx_v_frame_obj->f_globals)) : __Pyx_PyObject_CallOneArg(__pyx_t_9, ((PyObject *)__pyx_v_frame_obj->f_globals));
             __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
-            if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 599, __pyx_L23_error)
+            if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 608, __pyx_L23_error)
             __Pyx_GOTREF(__pyx_t_10);
             __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
             __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
           }
           __pyx_L55:;
 
-          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":576
+          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":585
  *                             frame.f_trace = <object> main_debugger.trace_dispatch
  * 
  *                 if can_skip and func_code_info.breakpoint_found:             # <<<<<<<<<<<<<<
@@ -11350,7 +11575,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
         }
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":563
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":572
  *             # if DEBUG:
  *             #     print('get_bytecode_while_frame_eval always skip', func_code_info.always_skip_code)
  *             if not func_code_info.always_skip_code:             # <<<<<<<<<<<<<<
@@ -11362,7 +11587,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_L30:;
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":602
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":611
  * 
  *     finally:
  *         thread_info.inside_frame_eval -= 1             # <<<<<<<<<<<<<<
@@ -11373,7 +11598,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     /*normal exit:*/{
       __pyx_v_thread_info->inside_frame_eval = (__pyx_v_thread_info->inside_frame_eval - 1);
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":603
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":612
  *     finally:
  *         thread_info.inside_frame_eval -= 1
  *         additional_info.is_tracing = False             # <<<<<<<<<<<<<<
@@ -11403,7 +11628,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       __pyx_t_11 = __pyx_lineno; __pyx_t_13 = __pyx_clineno; __pyx_t_14 = __pyx_filename;
       {
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":602
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":611
  * 
  *     finally:
  *         thread_info.inside_frame_eval -= 1             # <<<<<<<<<<<<<<
@@ -11412,7 +11637,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
         __pyx_v_thread_info->inside_frame_eval = (__pyx_v_thread_info->inside_frame_eval - 1);
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":603
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":612
  *     finally:
  *         thread_info.inside_frame_eval -= 1
  *         additional_info.is_tracing = False             # <<<<<<<<<<<<<<
@@ -11438,7 +11663,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_L22_return: {
       __pyx_t_18 = __pyx_r;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":602
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":611
  * 
  *     finally:
  *         thread_info.inside_frame_eval -= 1             # <<<<<<<<<<<<<<
@@ -11447,7 +11672,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
       __pyx_v_thread_info->inside_frame_eval = (__pyx_v_thread_info->inside_frame_eval - 1);
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":603
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":612
  *     finally:
  *         thread_info.inside_frame_eval -= 1
  *         additional_info.is_tracing = False             # <<<<<<<<<<<<<<
@@ -11461,7 +11686,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_L24:;
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":605
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":614
  *         additional_info.is_tracing = False
  * 
  *     return CALL_EvalFrameDefault_38(frame_obj, exc)             # <<<<<<<<<<<<<<
@@ -11471,7 +11696,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
   __pyx_r = CALL_EvalFrameDefault_38(__pyx_v_frame_obj, __pyx_v_exc);
   goto __pyx_L0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":485
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":494
  * ### WARNING: GENERATED CODE, DO NOT EDIT!
  * ### WARNING: GENERATED CODE, DO NOT EDIT!
  * cdef PyObject * get_bytecode_while_frame_eval_38(PyFrameObject * frame_obj, int exc):             # <<<<<<<<<<<<<<
@@ -11500,7 +11725,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
   return __pyx_r;
 }
 
-/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":614
+/* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":623
  * ### WARNING: GENERATED CODE, DO NOT EDIT!
  * ### WARNING: GENERATED CODE, DO NOT EDIT!
  * cdef PyObject * get_bytecode_while_frame_eval_39(PyThreadState* tstate, PyFrameObject * frame_obj, int exc):             # <<<<<<<<<<<<<<
@@ -11550,14 +11775,14 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("get_bytecode_while_frame_eval_39", 0);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":619
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":628
  *     where programmatic breakpoints are added.
  *     '''
  *     if GlobalDebuggerHolder is None or _thread_local_info is None or exc:             # <<<<<<<<<<<<<<
  *         # Sometimes during process shutdown these global variables become None
  *         return CALL_EvalFrameDefault_39(tstate, frame_obj, exc)
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_GlobalDebuggerHolder); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 619, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_GlobalDebuggerHolder); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 628, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_3 = (__pyx_t_2 == Py_None);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
@@ -11567,7 +11792,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_t_1 = __pyx_t_4;
     goto __pyx_L4_bool_binop_done;
   }
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_thread_local_info); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 619, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_thread_local_info); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 628, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_4 = (__pyx_t_2 == Py_None);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
@@ -11582,7 +11807,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
   __pyx_L4_bool_binop_done:;
   if (__pyx_t_1) {
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":621
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":630
  *     if GlobalDebuggerHolder is None or _thread_local_info is None or exc:
  *         # Sometimes during process shutdown these global variables become None
  *         return CALL_EvalFrameDefault_39(tstate, frame_obj, exc)             # <<<<<<<<<<<<<<
@@ -11592,7 +11817,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_r = CALL_EvalFrameDefault_39(__pyx_v_tstate, __pyx_v_frame_obj, __pyx_v_exc);
     goto __pyx_L0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":619
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":628
  *     where programmatic breakpoints are added.
  *     '''
  *     if GlobalDebuggerHolder is None or _thread_local_info is None or exc:             # <<<<<<<<<<<<<<
@@ -11601,7 +11826,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":628
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":637
  * 
  *     cdef ThreadInfo thread_info
  *     cdef int STATE_SUSPEND = 2             # <<<<<<<<<<<<<<
@@ -11610,7 +11835,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   __pyx_v_STATE_SUSPEND = 2;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":629
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":638
  *     cdef ThreadInfo thread_info
  *     cdef int STATE_SUSPEND = 2
  *     cdef int CMD_STEP_INTO = 107             # <<<<<<<<<<<<<<
@@ -11619,7 +11844,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   __pyx_v_CMD_STEP_INTO = 0x6B;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":630
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":639
  *     cdef int STATE_SUSPEND = 2
  *     cdef int CMD_STEP_INTO = 107
  *     cdef int CMD_STEP_OVER = 108             # <<<<<<<<<<<<<<
@@ -11628,7 +11853,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   __pyx_v_CMD_STEP_OVER = 0x6C;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":631
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":640
  *     cdef int CMD_STEP_INTO = 107
  *     cdef int CMD_STEP_OVER = 108
  *     cdef int CMD_STEP_OVER_MY_CODE = 159             # <<<<<<<<<<<<<<
@@ -11637,7 +11862,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   __pyx_v_CMD_STEP_OVER_MY_CODE = 0x9F;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":632
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":641
  *     cdef int CMD_STEP_OVER = 108
  *     cdef int CMD_STEP_OVER_MY_CODE = 159
  *     cdef int CMD_STEP_INTO_MY_CODE = 144             # <<<<<<<<<<<<<<
@@ -11646,7 +11871,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   __pyx_v_CMD_STEP_INTO_MY_CODE = 0x90;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":633
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":642
  *     cdef int CMD_STEP_OVER_MY_CODE = 159
  *     cdef int CMD_STEP_INTO_MY_CODE = 144
  *     cdef int CMD_STEP_INTO_COROUTINE = 206             # <<<<<<<<<<<<<<
@@ -11655,7 +11880,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   __pyx_v_CMD_STEP_INTO_COROUTINE = 0xCE;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":634
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":643
  *     cdef int CMD_STEP_INTO_MY_CODE = 144
  *     cdef int CMD_STEP_INTO_COROUTINE = 206
  *     cdef int CMD_SMART_STEP_INTO = 128             # <<<<<<<<<<<<<<
@@ -11664,7 +11889,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   __pyx_v_CMD_SMART_STEP_INTO = 0x80;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":635
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":644
  *     cdef int CMD_STEP_INTO_COROUTINE = 206
  *     cdef int CMD_SMART_STEP_INTO = 128
  *     cdef bint can_skip = True             # <<<<<<<<<<<<<<
@@ -11673,7 +11898,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   __pyx_v_can_skip = 1;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":636
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":645
  *     cdef int CMD_SMART_STEP_INTO = 128
  *     cdef bint can_skip = True
  *     try:             # <<<<<<<<<<<<<<
@@ -11689,23 +11914,23 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __Pyx_XGOTREF(__pyx_t_7);
     /*try:*/ {
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":637
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":646
  *     cdef bint can_skip = True
  *     try:
  *         thread_info = _thread_local_info.thread_info             # <<<<<<<<<<<<<<
  *     except:
  *         thread_info = get_thread_info(frame_obj)
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_thread_local_info); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 637, __pyx_L7_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_thread_local_info); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 646, __pyx_L7_error)
       __Pyx_GOTREF(__pyx_t_2);
-      __pyx_t_8 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_thread_info); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 637, __pyx_L7_error)
+      __pyx_t_8 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_thread_info); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 646, __pyx_L7_error)
       __Pyx_GOTREF(__pyx_t_8);
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-      if (!(likely(((__pyx_t_8) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_8, __pyx_ptype_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo))))) __PYX_ERR(0, 637, __pyx_L7_error)
+      if (!(likely(((__pyx_t_8) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_8, __pyx_ptype_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo))))) __PYX_ERR(0, 646, __pyx_L7_error)
       __pyx_v_thread_info = ((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo *)__pyx_t_8);
       __pyx_t_8 = 0;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":636
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":645
  *     cdef int CMD_SMART_STEP_INTO = 128
  *     cdef bint can_skip = True
  *     try:             # <<<<<<<<<<<<<<
@@ -11721,7 +11946,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
     __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":638
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":647
  *     try:
  *         thread_info = _thread_local_info.thread_info
  *     except:             # <<<<<<<<<<<<<<
@@ -11730,24 +11955,24 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
     /*except:*/ {
       __Pyx_AddTraceback("_pydevd_frame_eval.pydevd_frame_evaluator.get_bytecode_while_frame_eval_39", __pyx_clineno, __pyx_lineno, __pyx_filename);
-      if (__Pyx_GetException(&__pyx_t_8, &__pyx_t_2, &__pyx_t_9) < 0) __PYX_ERR(0, 638, __pyx_L9_except_error)
+      if (__Pyx_GetException(&__pyx_t_8, &__pyx_t_2, &__pyx_t_9) < 0) __PYX_ERR(0, 647, __pyx_L9_except_error)
       __Pyx_GOTREF(__pyx_t_8);
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_GOTREF(__pyx_t_9);
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":639
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":648
  *         thread_info = _thread_local_info.thread_info
  *     except:
  *         thread_info = get_thread_info(frame_obj)             # <<<<<<<<<<<<<<
  *         if thread_info is None:
  *             return CALL_EvalFrameDefault_39(tstate, frame_obj, exc)
  */
-      __pyx_t_10 = ((PyObject *)__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_thread_info(__pyx_v_frame_obj)); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 639, __pyx_L9_except_error)
+      __pyx_t_10 = ((PyObject *)__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_thread_info(__pyx_v_frame_obj)); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 648, __pyx_L9_except_error)
       __Pyx_GOTREF(__pyx_t_10);
       __Pyx_XDECREF_SET(__pyx_v_thread_info, ((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo *)__pyx_t_10));
       __pyx_t_10 = 0;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":640
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":649
  *     except:
  *         thread_info = get_thread_info(frame_obj)
  *         if thread_info is None:             # <<<<<<<<<<<<<<
@@ -11758,7 +11983,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       __pyx_t_3 = (__pyx_t_1 != 0);
       if (__pyx_t_3) {
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":641
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":650
  *         thread_info = get_thread_info(frame_obj)
  *         if thread_info is None:
  *             return CALL_EvalFrameDefault_39(tstate, frame_obj, exc)             # <<<<<<<<<<<<<<
@@ -11771,7 +11996,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
         __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
         goto __pyx_L10_except_return;
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":640
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":649
  *     except:
  *         thread_info = get_thread_info(frame_obj)
  *         if thread_info is None:             # <<<<<<<<<<<<<<
@@ -11786,7 +12011,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     }
     __pyx_L9_except_error:;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":636
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":645
  *     cdef int CMD_SMART_STEP_INTO = 128
  *     cdef bint can_skip = True
  *     try:             # <<<<<<<<<<<<<<
@@ -11812,7 +12037,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_L12_try_end:;
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":643
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":652
  *             return CALL_EvalFrameDefault_39(tstate, frame_obj, exc)
  * 
  *     if thread_info.inside_frame_eval:             # <<<<<<<<<<<<<<
@@ -11822,7 +12047,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
   __pyx_t_3 = (__pyx_v_thread_info->inside_frame_eval != 0);
   if (__pyx_t_3) {
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":644
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":653
  * 
  *     if thread_info.inside_frame_eval:
  *         return CALL_EvalFrameDefault_39(tstate, frame_obj, exc)             # <<<<<<<<<<<<<<
@@ -11832,7 +12057,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_r = CALL_EvalFrameDefault_39(__pyx_v_tstate, __pyx_v_frame_obj, __pyx_v_exc);
     goto __pyx_L0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":643
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":652
  *             return CALL_EvalFrameDefault_39(tstate, frame_obj, exc)
  * 
  *     if thread_info.inside_frame_eval:             # <<<<<<<<<<<<<<
@@ -11841,7 +12066,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":646
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":655
  *         return CALL_EvalFrameDefault_39(tstate, frame_obj, exc)
  * 
  *     if not thread_info.fully_initialized:             # <<<<<<<<<<<<<<
@@ -11851,18 +12076,18 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
   __pyx_t_3 = ((!(__pyx_v_thread_info->fully_initialized != 0)) != 0);
   if (__pyx_t_3) {
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":647
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":656
  * 
  *     if not thread_info.fully_initialized:
  *         thread_info.initialize_if_possible()             # <<<<<<<<<<<<<<
  *         if not thread_info.fully_initialized:
  *             return CALL_EvalFrameDefault_39(tstate, frame_obj, exc)
  */
-    __pyx_t_9 = ((struct __pyx_vtabstruct_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo *)__pyx_v_thread_info->__pyx_vtab)->initialize_if_possible(__pyx_v_thread_info); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 647, __pyx_L1_error)
+    __pyx_t_9 = ((struct __pyx_vtabstruct_18_pydevd_frame_eval_22pydevd_frame_evaluator_ThreadInfo *)__pyx_v_thread_info->__pyx_vtab)->initialize_if_possible(__pyx_v_thread_info); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 656, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_9);
     __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":648
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":657
  *     if not thread_info.fully_initialized:
  *         thread_info.initialize_if_possible()
  *         if not thread_info.fully_initialized:             # <<<<<<<<<<<<<<
@@ -11872,7 +12097,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_t_3 = ((!(__pyx_v_thread_info->fully_initialized != 0)) != 0);
     if (__pyx_t_3) {
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":649
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":658
  *         thread_info.initialize_if_possible()
  *         if not thread_info.fully_initialized:
  *             return CALL_EvalFrameDefault_39(tstate, frame_obj, exc)             # <<<<<<<<<<<<<<
@@ -11882,7 +12107,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       __pyx_r = CALL_EvalFrameDefault_39(__pyx_v_tstate, __pyx_v_frame_obj, __pyx_v_exc);
       goto __pyx_L0;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":648
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":657
  *     if not thread_info.fully_initialized:
  *         thread_info.initialize_if_possible()
  *         if not thread_info.fully_initialized:             # <<<<<<<<<<<<<<
@@ -11891,7 +12116,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":646
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":655
  *         return CALL_EvalFrameDefault_39(tstate, frame_obj, exc)
  * 
  *     if not thread_info.fully_initialized:             # <<<<<<<<<<<<<<
@@ -11900,7 +12125,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":652
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":661
  * 
  *     # Can only get additional_info when fully initialized.
  *     cdef PyDBAdditionalThreadInfo additional_info = thread_info.additional_info             # <<<<<<<<<<<<<<
@@ -11912,7 +12137,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
   __pyx_v_additional_info = ((struct __pyx_obj_14_pydevd_bundle_13pydevd_cython_PyDBAdditionalThreadInfo *)__pyx_t_9);
   __pyx_t_9 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":653
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":662
  *     # Can only get additional_info when fully initialized.
  *     cdef PyDBAdditionalThreadInfo additional_info = thread_info.additional_info
  *     if thread_info.is_pydevd_thread or additional_info.is_tracing:             # <<<<<<<<<<<<<<
@@ -11930,7 +12155,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
   __pyx_L20_bool_binop_done:;
   if (__pyx_t_3) {
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":655
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":664
  *     if thread_info.is_pydevd_thread or additional_info.is_tracing:
  *         # Make sure that we don't trace pydevd threads or inside our own calls.
  *         return CALL_EvalFrameDefault_39(tstate, frame_obj, exc)             # <<<<<<<<<<<<<<
@@ -11940,7 +12165,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_r = CALL_EvalFrameDefault_39(__pyx_v_tstate, __pyx_v_frame_obj, __pyx_v_exc);
     goto __pyx_L0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":653
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":662
  *     # Can only get additional_info when fully initialized.
  *     cdef PyDBAdditionalThreadInfo additional_info = thread_info.additional_info
  *     if thread_info.is_pydevd_thread or additional_info.is_tracing:             # <<<<<<<<<<<<<<
@@ -11949,7 +12174,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":662
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":671
  *     #     print('get_bytecode_while_frame_eval', frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename)
  * 
  *     thread_info.inside_frame_eval += 1             # <<<<<<<<<<<<<<
@@ -11958,7 +12183,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   __pyx_v_thread_info->inside_frame_eval = (__pyx_v_thread_info->inside_frame_eval + 1);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":663
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":672
  * 
  *     thread_info.inside_frame_eval += 1
  *     additional_info.is_tracing = True             # <<<<<<<<<<<<<<
@@ -11967,7 +12192,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   __pyx_v_additional_info->is_tracing = 1;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":664
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":673
  *     thread_info.inside_frame_eval += 1
  *     additional_info.is_tracing = True
  *     try:             # <<<<<<<<<<<<<<
@@ -11976,22 +12201,22 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
   /*try:*/ {
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":665
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":674
  *     additional_info.is_tracing = True
  *     try:
  *         main_debugger: object = GlobalDebuggerHolder.global_dbg             # <<<<<<<<<<<<<<
  *         if main_debugger is None:
  *             return CALL_EvalFrameDefault_39(tstate, frame_obj, exc)
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_GlobalDebuggerHolder); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 665, __pyx_L23_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_GlobalDebuggerHolder); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 674, __pyx_L23_error)
     __Pyx_GOTREF(__pyx_t_9);
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_9, __pyx_n_s_global_dbg); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 665, __pyx_L23_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_9, __pyx_n_s_global_dbg); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 674, __pyx_L23_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
     __pyx_v_main_debugger = __pyx_t_2;
     __pyx_t_2 = 0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":666
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":675
  *     try:
  *         main_debugger: object = GlobalDebuggerHolder.global_dbg
  *         if main_debugger is None:             # <<<<<<<<<<<<<<
@@ -12002,7 +12227,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_t_1 = (__pyx_t_3 != 0);
     if (__pyx_t_1) {
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":667
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":676
  *         main_debugger: object = GlobalDebuggerHolder.global_dbg
  *         if main_debugger is None:
  *             return CALL_EvalFrameDefault_39(tstate, frame_obj, exc)             # <<<<<<<<<<<<<<
@@ -12012,7 +12237,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       __pyx_r = CALL_EvalFrameDefault_39(__pyx_v_tstate, __pyx_v_frame_obj, __pyx_v_exc);
       goto __pyx_L22_return;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":666
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":675
  *     try:
  *         main_debugger: object = GlobalDebuggerHolder.global_dbg
  *         if main_debugger is None:             # <<<<<<<<<<<<<<
@@ -12021,7 +12246,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":668
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":677
  *         if main_debugger is None:
  *             return CALL_EvalFrameDefault_39(tstate, frame_obj, exc)
  *         frame = <object> frame_obj             # <<<<<<<<<<<<<<
@@ -12033,7 +12258,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_v_frame = __pyx_t_2;
     __pyx_t_2 = 0;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":670
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":679
  *         frame = <object> frame_obj
  * 
  *         if thread_info.thread_trace_func is None:             # <<<<<<<<<<<<<<
@@ -12044,14 +12269,14 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_t_3 = (__pyx_t_1 != 0);
     if (__pyx_t_3) {
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":671
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":680
  * 
  *         if thread_info.thread_trace_func is None:
  *             trace_func, apply_to_global = fix_top_level_trace_and_get_trace_func(main_debugger, frame)             # <<<<<<<<<<<<<<
  *             if apply_to_global:
  *                 thread_info.thread_trace_func = trace_func
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_fix_top_level_trace_and_get_trac); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 671, __pyx_L23_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_fix_top_level_trace_and_get_trac); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 680, __pyx_L23_error)
       __Pyx_GOTREF(__pyx_t_9);
       __pyx_t_8 = NULL;
       __pyx_t_11 = 0;
@@ -12068,7 +12293,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       #if CYTHON_FAST_PYCALL
       if (PyFunction_Check(__pyx_t_9)) {
         PyObject *__pyx_temp[3] = {__pyx_t_8, __pyx_v_main_debugger, __pyx_v_frame};
-        __pyx_t_2 = __Pyx_PyFunction_FastCall(__pyx_t_9, __pyx_temp+1-__pyx_t_11, 2+__pyx_t_11); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 671, __pyx_L23_error)
+        __pyx_t_2 = __Pyx_PyFunction_FastCall(__pyx_t_9, __pyx_temp+1-__pyx_t_11, 2+__pyx_t_11); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 680, __pyx_L23_error)
         __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
         __Pyx_GOTREF(__pyx_t_2);
       } else
@@ -12076,13 +12301,13 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       #if CYTHON_FAST_PYCCALL
       if (__Pyx_PyFastCFunction_Check(__pyx_t_9)) {
         PyObject *__pyx_temp[3] = {__pyx_t_8, __pyx_v_main_debugger, __pyx_v_frame};
-        __pyx_t_2 = __Pyx_PyCFunction_FastCall(__pyx_t_9, __pyx_temp+1-__pyx_t_11, 2+__pyx_t_11); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 671, __pyx_L23_error)
+        __pyx_t_2 = __Pyx_PyCFunction_FastCall(__pyx_t_9, __pyx_temp+1-__pyx_t_11, 2+__pyx_t_11); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 680, __pyx_L23_error)
         __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
         __Pyx_GOTREF(__pyx_t_2);
       } else
       #endif
       {
-        __pyx_t_10 = PyTuple_New(2+__pyx_t_11); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 671, __pyx_L23_error)
+        __pyx_t_10 = PyTuple_New(2+__pyx_t_11); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 680, __pyx_L23_error)
         __Pyx_GOTREF(__pyx_t_10);
         if (__pyx_t_8) {
           __Pyx_GIVEREF(__pyx_t_8); PyTuple_SET_ITEM(__pyx_t_10, 0, __pyx_t_8); __pyx_t_8 = NULL;
@@ -12093,7 +12318,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
         __Pyx_INCREF(__pyx_v_frame);
         __Pyx_GIVEREF(__pyx_v_frame);
         PyTuple_SET_ITEM(__pyx_t_10, 1+__pyx_t_11, __pyx_v_frame);
-        __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_9, __pyx_t_10, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 671, __pyx_L23_error)
+        __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_9, __pyx_t_10, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 680, __pyx_L23_error)
         __Pyx_GOTREF(__pyx_t_2);
         __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
       }
@@ -12104,7 +12329,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
         if (unlikely(size != 2)) {
           if (size > 2) __Pyx_RaiseTooManyValuesError(2);
           else if (size >= 0) __Pyx_RaiseNeedMoreValuesError(size);
-          __PYX_ERR(0, 671, __pyx_L23_error)
+          __PYX_ERR(0, 680, __pyx_L23_error)
         }
         #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
         if (likely(PyTuple_CheckExact(sequence))) {
@@ -12117,15 +12342,15 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
         __Pyx_INCREF(__pyx_t_9);
         __Pyx_INCREF(__pyx_t_10);
         #else
-        __pyx_t_9 = PySequence_ITEM(sequence, 0); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 671, __pyx_L23_error)
+        __pyx_t_9 = PySequence_ITEM(sequence, 0); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 680, __pyx_L23_error)
         __Pyx_GOTREF(__pyx_t_9);
-        __pyx_t_10 = PySequence_ITEM(sequence, 1); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 671, __pyx_L23_error)
+        __pyx_t_10 = PySequence_ITEM(sequence, 1); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 680, __pyx_L23_error)
         __Pyx_GOTREF(__pyx_t_10);
         #endif
         __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
       } else {
         Py_ssize_t index = -1;
-        __pyx_t_8 = PyObject_GetIter(__pyx_t_2); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 671, __pyx_L23_error)
+        __pyx_t_8 = PyObject_GetIter(__pyx_t_2); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 680, __pyx_L23_error)
         __Pyx_GOTREF(__pyx_t_8);
         __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
         __pyx_t_12 = Py_TYPE(__pyx_t_8)->tp_iternext;
@@ -12133,7 +12358,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
         __Pyx_GOTREF(__pyx_t_9);
         index = 1; __pyx_t_10 = __pyx_t_12(__pyx_t_8); if (unlikely(!__pyx_t_10)) goto __pyx_L27_unpacking_failed;
         __Pyx_GOTREF(__pyx_t_10);
-        if (__Pyx_IternextUnpackEndCheck(__pyx_t_12(__pyx_t_8), 2) < 0) __PYX_ERR(0, 671, __pyx_L23_error)
+        if (__Pyx_IternextUnpackEndCheck(__pyx_t_12(__pyx_t_8), 2) < 0) __PYX_ERR(0, 680, __pyx_L23_error)
         __pyx_t_12 = NULL;
         __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
         goto __pyx_L28_unpacking_done;
@@ -12141,7 +12366,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
         __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
         __pyx_t_12 = NULL;
         if (__Pyx_IterFinish() == 0) __Pyx_RaiseNeedMoreValuesError(index);
-        __PYX_ERR(0, 671, __pyx_L23_error)
+        __PYX_ERR(0, 680, __pyx_L23_error)
         __pyx_L28_unpacking_done:;
       }
       __pyx_v_trace_func = __pyx_t_9;
@@ -12149,17 +12374,17 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       __pyx_v_apply_to_global = __pyx_t_10;
       __pyx_t_10 = 0;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":672
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":681
  *         if thread_info.thread_trace_func is None:
  *             trace_func, apply_to_global = fix_top_level_trace_and_get_trace_func(main_debugger, frame)
  *             if apply_to_global:             # <<<<<<<<<<<<<<
  *                 thread_info.thread_trace_func = trace_func
  * 
  */
-      __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_v_apply_to_global); if (unlikely(__pyx_t_3 < 0)) __PYX_ERR(0, 672, __pyx_L23_error)
+      __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_v_apply_to_global); if (unlikely(__pyx_t_3 < 0)) __PYX_ERR(0, 681, __pyx_L23_error)
       if (__pyx_t_3) {
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":673
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":682
  *             trace_func, apply_to_global = fix_top_level_trace_and_get_trace_func(main_debugger, frame)
  *             if apply_to_global:
  *                 thread_info.thread_trace_func = trace_func             # <<<<<<<<<<<<<<
@@ -12172,7 +12397,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
         __Pyx_DECREF(__pyx_v_thread_info->thread_trace_func);
         __pyx_v_thread_info->thread_trace_func = __pyx_v_trace_func;
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":672
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":681
  *         if thread_info.thread_trace_func is None:
  *             trace_func, apply_to_global = fix_top_level_trace_and_get_trace_func(main_debugger, frame)
  *             if apply_to_global:             # <<<<<<<<<<<<<<
@@ -12181,7 +12406,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
       }
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":670
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":679
  *         frame = <object> frame_obj
  * 
  *         if thread_info.thread_trace_func is None:             # <<<<<<<<<<<<<<
@@ -12190,7 +12415,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":675
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":684
  *                 thread_info.thread_trace_func = trace_func
  * 
  *         if additional_info.pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_INTO_COROUTINE, CMD_SMART_STEP_INTO) or \             # <<<<<<<<<<<<<<
@@ -12226,16 +12451,16 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       goto __pyx_L31_bool_binop_done;
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":676
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":685
  * 
  *         if additional_info.pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_INTO_COROUTINE, CMD_SMART_STEP_INTO) or \
  *                 main_debugger.break_on_caught_exceptions or \             # <<<<<<<<<<<<<<
  *                 main_debugger.break_on_user_uncaught_exceptions or \
  *                 main_debugger.has_plugin_exception_breaks or \
  */
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_break_on_caught_exceptions); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 676, __pyx_L23_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_break_on_caught_exceptions); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 685, __pyx_L23_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_4 < 0)) __PYX_ERR(0, 676, __pyx_L23_error)
+    __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_4 < 0)) __PYX_ERR(0, 685, __pyx_L23_error)
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     if (!__pyx_t_4) {
     } else {
@@ -12243,16 +12468,16 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       goto __pyx_L31_bool_binop_done;
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":677
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":686
  *         if additional_info.pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_INTO_COROUTINE, CMD_SMART_STEP_INTO) or \
  *                 main_debugger.break_on_caught_exceptions or \
  *                 main_debugger.break_on_user_uncaught_exceptions or \             # <<<<<<<<<<<<<<
  *                 main_debugger.has_plugin_exception_breaks or \
  *                 main_debugger.signature_factory or \
  */
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_break_on_user_uncaught_exception); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 677, __pyx_L23_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_break_on_user_uncaught_exception); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 686, __pyx_L23_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_4 < 0)) __PYX_ERR(0, 677, __pyx_L23_error)
+    __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_4 < 0)) __PYX_ERR(0, 686, __pyx_L23_error)
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     if (!__pyx_t_4) {
     } else {
@@ -12260,16 +12485,16 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       goto __pyx_L31_bool_binop_done;
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":678
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":687
  *                 main_debugger.break_on_caught_exceptions or \
  *                 main_debugger.break_on_user_uncaught_exceptions or \
  *                 main_debugger.has_plugin_exception_breaks or \             # <<<<<<<<<<<<<<
  *                 main_debugger.signature_factory or \
  *                 additional_info.pydev_step_cmd in (CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE) and main_debugger.show_return_values and frame.f_back is additional_info.pydev_step_stop:
  */
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_has_plugin_exception_breaks); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 678, __pyx_L23_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_has_plugin_exception_breaks); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 687, __pyx_L23_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_4 < 0)) __PYX_ERR(0, 678, __pyx_L23_error)
+    __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_4 < 0)) __PYX_ERR(0, 687, __pyx_L23_error)
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     if (!__pyx_t_4) {
     } else {
@@ -12277,16 +12502,16 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       goto __pyx_L31_bool_binop_done;
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":679
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":688
  *                 main_debugger.break_on_user_uncaught_exceptions or \
  *                 main_debugger.has_plugin_exception_breaks or \
  *                 main_debugger.signature_factory or \             # <<<<<<<<<<<<<<
  *                 additional_info.pydev_step_cmd in (CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE) and main_debugger.show_return_values and frame.f_back is additional_info.pydev_step_stop:
  * 
  */
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_signature_factory); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 679, __pyx_L23_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_signature_factory); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 688, __pyx_L23_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_4 < 0)) __PYX_ERR(0, 679, __pyx_L23_error)
+    __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_4 < 0)) __PYX_ERR(0, 688, __pyx_L23_error)
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     if (!__pyx_t_4) {
     } else {
@@ -12294,7 +12519,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       goto __pyx_L31_bool_binop_done;
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":680
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":689
  *                 main_debugger.has_plugin_exception_breaks or \
  *                 main_debugger.signature_factory or \
  *                 additional_info.pydev_step_cmd in (CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE) and main_debugger.show_return_values and frame.f_back is additional_info.pydev_step_stop:             # <<<<<<<<<<<<<<
@@ -12317,16 +12542,16 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       __pyx_t_3 = __pyx_t_1;
       goto __pyx_L31_bool_binop_done;
     }
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_show_return_values); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 680, __pyx_L23_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_show_return_values); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 689, __pyx_L23_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_1 < 0)) __PYX_ERR(0, 680, __pyx_L23_error)
+    __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_1 < 0)) __PYX_ERR(0, 689, __pyx_L23_error)
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     if (__pyx_t_1) {
     } else {
       __pyx_t_3 = __pyx_t_1;
       goto __pyx_L31_bool_binop_done;
     }
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_frame, __pyx_n_s_f_back); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 680, __pyx_L23_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_frame, __pyx_n_s_f_back); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 689, __pyx_L23_error)
     __Pyx_GOTREF(__pyx_t_2);
     __pyx_t_1 = (__pyx_t_2 == __pyx_v_additional_info->pydev_step_stop);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
@@ -12334,7 +12559,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_t_3 = __pyx_t_4;
     __pyx_L31_bool_binop_done:;
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":675
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":684
  *                 thread_info.thread_trace_func = trace_func
  * 
  *         if additional_info.pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_INTO_COROUTINE, CMD_SMART_STEP_INTO) or \             # <<<<<<<<<<<<<<
@@ -12343,7 +12568,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
     if (__pyx_t_3) {
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":684
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":693
  *             # if DEBUG:
  *             #     print('get_bytecode_while_frame_eval enabled trace')
  *             if thread_info.thread_trace_func is not None:             # <<<<<<<<<<<<<<
@@ -12354,7 +12579,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       __pyx_t_4 = (__pyx_t_3 != 0);
       if (__pyx_t_4) {
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":685
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":694
  *             #     print('get_bytecode_while_frame_eval enabled trace')
  *             if thread_info.thread_trace_func is not None:
  *                 frame.f_trace = thread_info.thread_trace_func             # <<<<<<<<<<<<<<
@@ -12363,10 +12588,10 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
         __pyx_t_2 = __pyx_v_thread_info->thread_trace_func;
         __Pyx_INCREF(__pyx_t_2);
-        if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_2) < 0) __PYX_ERR(0, 685, __pyx_L23_error)
+        if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_2) < 0) __PYX_ERR(0, 694, __pyx_L23_error)
         __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":684
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":693
  *             # if DEBUG:
  *             #     print('get_bytecode_while_frame_eval enabled trace')
  *             if thread_info.thread_trace_func is not None:             # <<<<<<<<<<<<<<
@@ -12376,7 +12601,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
         goto __pyx_L45;
       }
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":687
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":696
  *                 frame.f_trace = thread_info.thread_trace_func
  *             else:
  *                 frame.f_trace = <object> main_debugger.trace_dispatch             # <<<<<<<<<<<<<<
@@ -12384,17 +12609,17 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  *             func_code_info: FuncCodeInfo = get_func_code_info(thread_info, frame_obj, frame_obj.f_code)
  */
       /*else*/ {
-        __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_trace_dispatch); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 687, __pyx_L23_error)
+        __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_trace_dispatch); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 696, __pyx_L23_error)
         __Pyx_GOTREF(__pyx_t_2);
         __pyx_t_10 = __pyx_t_2;
         __Pyx_INCREF(__pyx_t_10);
         __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-        if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_10) < 0) __PYX_ERR(0, 687, __pyx_L23_error)
+        if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_10) < 0) __PYX_ERR(0, 696, __pyx_L23_error)
         __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
       }
       __pyx_L45:;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":675
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":684
  *                 thread_info.thread_trace_func = trace_func
  * 
  *         if additional_info.pydev_step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_INTO_COROUTINE, CMD_SMART_STEP_INTO) or \             # <<<<<<<<<<<<<<
@@ -12404,7 +12629,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       goto __pyx_L30;
     }
 
-    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":689
+    /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":698
  *                 frame.f_trace = <object> main_debugger.trace_dispatch
  *         else:
  *             func_code_info: FuncCodeInfo = get_func_code_info(thread_info, frame_obj, frame_obj.f_code)             # <<<<<<<<<<<<<<
@@ -12412,12 +12637,12 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  *             #     print('get_bytecode_while_frame_eval always skip', func_code_info.always_skip_code)
  */
     /*else*/ {
-      __pyx_t_10 = ((PyObject *)__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_func_code_info(__pyx_v_thread_info, __pyx_v_frame_obj, __pyx_v_frame_obj->f_code)); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 689, __pyx_L23_error)
+      __pyx_t_10 = ((PyObject *)__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_func_code_info(__pyx_v_thread_info, __pyx_v_frame_obj, __pyx_v_frame_obj->f_code)); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 698, __pyx_L23_error)
       __Pyx_GOTREF(__pyx_t_10);
       __pyx_v_func_code_info = ((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *)__pyx_t_10);
       __pyx_t_10 = 0;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":692
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":701
  *             # if DEBUG:
  *             #     print('get_bytecode_while_frame_eval always skip', func_code_info.always_skip_code)
  *             if not func_code_info.always_skip_code:             # <<<<<<<<<<<<<<
@@ -12427,40 +12652,40 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       __pyx_t_4 = ((!(__pyx_v_func_code_info->always_skip_code != 0)) != 0);
       if (__pyx_t_4) {
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":694
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":703
  *             if not func_code_info.always_skip_code:
  * 
  *                 if main_debugger.has_plugin_line_breaks or main_debugger.has_plugin_exception_breaks:             # <<<<<<<<<<<<<<
  *                     can_skip = main_debugger.plugin.can_skip(main_debugger, <object> frame_obj)
  * 
  */
-        __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_has_plugin_line_breaks); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 694, __pyx_L23_error)
+        __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_has_plugin_line_breaks); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 703, __pyx_L23_error)
         __Pyx_GOTREF(__pyx_t_10);
-        __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_t_10); if (unlikely(__pyx_t_3 < 0)) __PYX_ERR(0, 694, __pyx_L23_error)
+        __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_t_10); if (unlikely(__pyx_t_3 < 0)) __PYX_ERR(0, 703, __pyx_L23_error)
         __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
         if (!__pyx_t_3) {
         } else {
           __pyx_t_4 = __pyx_t_3;
           goto __pyx_L48_bool_binop_done;
         }
-        __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_has_plugin_exception_breaks); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 694, __pyx_L23_error)
+        __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_has_plugin_exception_breaks); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 703, __pyx_L23_error)
         __Pyx_GOTREF(__pyx_t_10);
-        __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_t_10); if (unlikely(__pyx_t_3 < 0)) __PYX_ERR(0, 694, __pyx_L23_error)
+        __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_t_10); if (unlikely(__pyx_t_3 < 0)) __PYX_ERR(0, 703, __pyx_L23_error)
         __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
         __pyx_t_4 = __pyx_t_3;
         __pyx_L48_bool_binop_done:;
         if (__pyx_t_4) {
 
-          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":695
+          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":704
  * 
  *                 if main_debugger.has_plugin_line_breaks or main_debugger.has_plugin_exception_breaks:
  *                     can_skip = main_debugger.plugin.can_skip(main_debugger, <object> frame_obj)             # <<<<<<<<<<<<<<
  * 
  *                     if not can_skip:
  */
-          __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_plugin); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 695, __pyx_L23_error)
+          __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_plugin); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 704, __pyx_L23_error)
           __Pyx_GOTREF(__pyx_t_2);
-          __pyx_t_9 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_can_skip); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 695, __pyx_L23_error)
+          __pyx_t_9 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_can_skip); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 704, __pyx_L23_error)
           __Pyx_GOTREF(__pyx_t_9);
           __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
           __pyx_t_2 = NULL;
@@ -12478,7 +12703,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
           #if CYTHON_FAST_PYCALL
           if (PyFunction_Check(__pyx_t_9)) {
             PyObject *__pyx_temp[3] = {__pyx_t_2, __pyx_v_main_debugger, ((PyObject *)__pyx_v_frame_obj)};
-            __pyx_t_10 = __Pyx_PyFunction_FastCall(__pyx_t_9, __pyx_temp+1-__pyx_t_11, 2+__pyx_t_11); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 695, __pyx_L23_error)
+            __pyx_t_10 = __Pyx_PyFunction_FastCall(__pyx_t_9, __pyx_temp+1-__pyx_t_11, 2+__pyx_t_11); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 704, __pyx_L23_error)
             __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
             __Pyx_GOTREF(__pyx_t_10);
           } else
@@ -12486,13 +12711,13 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
           #if CYTHON_FAST_PYCCALL
           if (__Pyx_PyFastCFunction_Check(__pyx_t_9)) {
             PyObject *__pyx_temp[3] = {__pyx_t_2, __pyx_v_main_debugger, ((PyObject *)__pyx_v_frame_obj)};
-            __pyx_t_10 = __Pyx_PyCFunction_FastCall(__pyx_t_9, __pyx_temp+1-__pyx_t_11, 2+__pyx_t_11); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 695, __pyx_L23_error)
+            __pyx_t_10 = __Pyx_PyCFunction_FastCall(__pyx_t_9, __pyx_temp+1-__pyx_t_11, 2+__pyx_t_11); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 704, __pyx_L23_error)
             __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
             __Pyx_GOTREF(__pyx_t_10);
           } else
           #endif
           {
-            __pyx_t_8 = PyTuple_New(2+__pyx_t_11); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 695, __pyx_L23_error)
+            __pyx_t_8 = PyTuple_New(2+__pyx_t_11); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 704, __pyx_L23_error)
             __Pyx_GOTREF(__pyx_t_8);
             if (__pyx_t_2) {
               __Pyx_GIVEREF(__pyx_t_2); PyTuple_SET_ITEM(__pyx_t_8, 0, __pyx_t_2); __pyx_t_2 = NULL;
@@ -12503,16 +12728,16 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
             __Pyx_INCREF(((PyObject *)__pyx_v_frame_obj));
             __Pyx_GIVEREF(((PyObject *)__pyx_v_frame_obj));
             PyTuple_SET_ITEM(__pyx_t_8, 1+__pyx_t_11, ((PyObject *)__pyx_v_frame_obj));
-            __pyx_t_10 = __Pyx_PyObject_Call(__pyx_t_9, __pyx_t_8, NULL); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 695, __pyx_L23_error)
+            __pyx_t_10 = __Pyx_PyObject_Call(__pyx_t_9, __pyx_t_8, NULL); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 704, __pyx_L23_error)
             __Pyx_GOTREF(__pyx_t_10);
             __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
           }
           __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-          __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_10); if (unlikely((__pyx_t_4 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 695, __pyx_L23_error)
+          __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_10); if (unlikely((__pyx_t_4 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 704, __pyx_L23_error)
           __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
           __pyx_v_can_skip = __pyx_t_4;
 
-          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":697
+          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":706
  *                     can_skip = main_debugger.plugin.can_skip(main_debugger, <object> frame_obj)
  * 
  *                     if not can_skip:             # <<<<<<<<<<<<<<
@@ -12522,7 +12747,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
           __pyx_t_4 = ((!(__pyx_v_can_skip != 0)) != 0);
           if (__pyx_t_4) {
 
-            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":700
+            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":709
  *                         # if DEBUG:
  *                         #     print('get_bytecode_while_frame_eval not can_skip')
  *                         if thread_info.thread_trace_func is not None:             # <<<<<<<<<<<<<<
@@ -12533,7 +12758,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
             __pyx_t_3 = (__pyx_t_4 != 0);
             if (__pyx_t_3) {
 
-              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":701
+              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":710
  *                         #     print('get_bytecode_while_frame_eval not can_skip')
  *                         if thread_info.thread_trace_func is not None:
  *                             frame.f_trace = thread_info.thread_trace_func             # <<<<<<<<<<<<<<
@@ -12542,10 +12767,10 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
               __pyx_t_10 = __pyx_v_thread_info->thread_trace_func;
               __Pyx_INCREF(__pyx_t_10);
-              if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_10) < 0) __PYX_ERR(0, 701, __pyx_L23_error)
+              if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_10) < 0) __PYX_ERR(0, 710, __pyx_L23_error)
               __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
 
-              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":700
+              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":709
  *                         # if DEBUG:
  *                         #     print('get_bytecode_while_frame_eval not can_skip')
  *                         if thread_info.thread_trace_func is not None:             # <<<<<<<<<<<<<<
@@ -12555,7 +12780,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
               goto __pyx_L51;
             }
 
-            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":703
+            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":712
  *                             frame.f_trace = thread_info.thread_trace_func
  *                         else:
  *                             frame.f_trace = <object> main_debugger.trace_dispatch             # <<<<<<<<<<<<<<
@@ -12563,17 +12788,17 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  *                 if can_skip and func_code_info.breakpoint_found:
  */
             /*else*/ {
-              __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_trace_dispatch); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 703, __pyx_L23_error)
+              __pyx_t_10 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_trace_dispatch); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 712, __pyx_L23_error)
               __Pyx_GOTREF(__pyx_t_10);
               __pyx_t_9 = __pyx_t_10;
               __Pyx_INCREF(__pyx_t_9);
               __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
-              if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_9) < 0) __PYX_ERR(0, 703, __pyx_L23_error)
+              if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_9) < 0) __PYX_ERR(0, 712, __pyx_L23_error)
               __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
             }
             __pyx_L51:;
 
-            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":697
+            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":706
  *                     can_skip = main_debugger.plugin.can_skip(main_debugger, <object> frame_obj)
  * 
  *                     if not can_skip:             # <<<<<<<<<<<<<<
@@ -12582,7 +12807,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
           }
 
-          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":694
+          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":703
  *             if not func_code_info.always_skip_code:
  * 
  *                 if main_debugger.has_plugin_line_breaks or main_debugger.has_plugin_exception_breaks:             # <<<<<<<<<<<<<<
@@ -12591,7 +12816,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
         }
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":705
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":714
  *                             frame.f_trace = <object> main_debugger.trace_dispatch
  * 
  *                 if can_skip and func_code_info.breakpoint_found:             # <<<<<<<<<<<<<<
@@ -12609,7 +12834,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
         __pyx_L53_bool_binop_done:;
         if (__pyx_t_3) {
 
-          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":708
+          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":717
  *                     # if DEBUG:
  *                     #     print('get_bytecode_while_frame_eval new_code', func_code_info.new_code)
  *                     if not thread_info.force_stay_in_untraced_mode:             # <<<<<<<<<<<<<<
@@ -12619,7 +12844,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
           __pyx_t_3 = ((!(__pyx_v_thread_info->force_stay_in_untraced_mode != 0)) != 0);
           if (__pyx_t_3) {
 
-            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":712
+            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":721
  *                         # this means we weren't able to actually add the code
  *                         # where needed, so, fallback to tracing.
  *                         if func_code_info.new_code is None:             # <<<<<<<<<<<<<<
@@ -12630,7 +12855,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
             __pyx_t_4 = (__pyx_t_3 != 0);
             if (__pyx_t_4) {
 
-              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":713
+              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":722
  *                         # where needed, so, fallback to tracing.
  *                         if func_code_info.new_code is None:
  *                             if thread_info.thread_trace_func is not None:             # <<<<<<<<<<<<<<
@@ -12641,7 +12866,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
               __pyx_t_3 = (__pyx_t_4 != 0);
               if (__pyx_t_3) {
 
-                /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":714
+                /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":723
  *                         if func_code_info.new_code is None:
  *                             if thread_info.thread_trace_func is not None:
  *                                 frame.f_trace = thread_info.thread_trace_func             # <<<<<<<<<<<<<<
@@ -12650,10 +12875,10 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
                 __pyx_t_9 = __pyx_v_thread_info->thread_trace_func;
                 __Pyx_INCREF(__pyx_t_9);
-                if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_9) < 0) __PYX_ERR(0, 714, __pyx_L23_error)
+                if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_9) < 0) __PYX_ERR(0, 723, __pyx_L23_error)
                 __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
 
-                /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":713
+                /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":722
  *                         # where needed, so, fallback to tracing.
  *                         if func_code_info.new_code is None:
  *                             if thread_info.thread_trace_func is not None:             # <<<<<<<<<<<<<<
@@ -12663,7 +12888,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
                 goto __pyx_L57;
               }
 
-              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":716
+              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":725
  *                                 frame.f_trace = thread_info.thread_trace_func
  *                             else:
  *                                 frame.f_trace = <object> main_debugger.trace_dispatch             # <<<<<<<<<<<<<<
@@ -12671,17 +12896,17 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  *                             # print('Using frame eval break for', <object> frame_obj.f_code.co_name)
  */
               /*else*/ {
-                __pyx_t_9 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_trace_dispatch); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 716, __pyx_L23_error)
+                __pyx_t_9 = __Pyx_PyObject_GetAttrStr(__pyx_v_main_debugger, __pyx_n_s_trace_dispatch); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 725, __pyx_L23_error)
                 __Pyx_GOTREF(__pyx_t_9);
                 __pyx_t_10 = __pyx_t_9;
                 __Pyx_INCREF(__pyx_t_10);
                 __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-                if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_10) < 0) __PYX_ERR(0, 716, __pyx_L23_error)
+                if (__Pyx_PyObject_SetAttrStr(__pyx_v_frame, __pyx_n_s_f_trace, __pyx_t_10) < 0) __PYX_ERR(0, 725, __pyx_L23_error)
                 __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
               }
               __pyx_L57:;
 
-              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":712
+              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":721
  *                         # this means we weren't able to actually add the code
  *                         # where needed, so, fallback to tracing.
  *                         if func_code_info.new_code is None:             # <<<<<<<<<<<<<<
@@ -12691,7 +12916,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
               goto __pyx_L56;
             }
 
-            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":719
+            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":728
  *                         else:
  *                             # print('Using frame eval break for', <object> frame_obj.f_code.co_name)
  *                             update_globals_dict(<object> frame_obj.f_globals)             # <<<<<<<<<<<<<<
@@ -12699,7 +12924,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  *                             old = <object> frame_obj.f_code
  */
             /*else*/ {
-              __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_update_globals_dict); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 719, __pyx_L23_error)
+              __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_update_globals_dict); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 728, __pyx_L23_error)
               __Pyx_GOTREF(__pyx_t_9);
               __pyx_t_8 = NULL;
               if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_9))) {
@@ -12713,12 +12938,12 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
               }
               __pyx_t_10 = (__pyx_t_8) ? __Pyx_PyObject_Call2Args(__pyx_t_9, __pyx_t_8, ((PyObject *)__pyx_v_frame_obj->f_globals)) : __Pyx_PyObject_CallOneArg(__pyx_t_9, ((PyObject *)__pyx_v_frame_obj->f_globals));
               __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
-              if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 719, __pyx_L23_error)
+              if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 728, __pyx_L23_error)
               __Pyx_GOTREF(__pyx_t_10);
               __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
               __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
 
-              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":720
+              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":729
  *                             # print('Using frame eval break for', <object> frame_obj.f_code.co_name)
  *                             update_globals_dict(<object> frame_obj.f_globals)
  *                             Py_INCREF(func_code_info.new_code)             # <<<<<<<<<<<<<<
@@ -12730,7 +12955,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
               Py_INCREF(__pyx_t_10);
               __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
 
-              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":721
+              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":730
  *                             update_globals_dict(<object> frame_obj.f_globals)
  *                             Py_INCREF(func_code_info.new_code)
  *                             old = <object> frame_obj.f_code             # <<<<<<<<<<<<<<
@@ -12742,7 +12967,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
               __pyx_v_old = __pyx_t_10;
               __pyx_t_10 = 0;
 
-              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":722
+              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":731
  *                             Py_INCREF(func_code_info.new_code)
  *                             old = <object> frame_obj.f_code
  *                             frame_obj.f_code = <PyCodeObject *> func_code_info.new_code             # <<<<<<<<<<<<<<
@@ -12751,7 +12976,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
               __pyx_v_frame_obj->f_code = ((PyCodeObject *)__pyx_v_func_code_info->new_code);
 
-              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":723
+              /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":732
  *                             old = <object> frame_obj.f_code
  *                             frame_obj.f_code = <PyCodeObject *> func_code_info.new_code
  *                             Py_DECREF(old)             # <<<<<<<<<<<<<<
@@ -12762,7 +12987,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
             }
             __pyx_L56:;
 
-            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":708
+            /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":717
  *                     # if DEBUG:
  *                     #     print('get_bytecode_while_frame_eval new_code', func_code_info.new_code)
  *                     if not thread_info.force_stay_in_untraced_mode:             # <<<<<<<<<<<<<<
@@ -12772,7 +12997,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
             goto __pyx_L55;
           }
 
-          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":728
+          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":737
  *                         # update the globals dict (because this means that we're reusing
  *                         # a previous code which had breakpoints added in a new frame).
  *                         update_globals_dict(<object> frame_obj.f_globals)             # <<<<<<<<<<<<<<
@@ -12780,7 +13005,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  *     finally:
  */
           /*else*/ {
-            __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_update_globals_dict); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 728, __pyx_L23_error)
+            __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_update_globals_dict); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 737, __pyx_L23_error)
             __Pyx_GOTREF(__pyx_t_9);
             __pyx_t_8 = NULL;
             if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_9))) {
@@ -12794,14 +13019,14 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
             }
             __pyx_t_10 = (__pyx_t_8) ? __Pyx_PyObject_Call2Args(__pyx_t_9, __pyx_t_8, ((PyObject *)__pyx_v_frame_obj->f_globals)) : __Pyx_PyObject_CallOneArg(__pyx_t_9, ((PyObject *)__pyx_v_frame_obj->f_globals));
             __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
-            if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 728, __pyx_L23_error)
+            if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 737, __pyx_L23_error)
             __Pyx_GOTREF(__pyx_t_10);
             __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
             __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
           }
           __pyx_L55:;
 
-          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":705
+          /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":714
  *                             frame.f_trace = <object> main_debugger.trace_dispatch
  * 
  *                 if can_skip and func_code_info.breakpoint_found:             # <<<<<<<<<<<<<<
@@ -12810,7 +13035,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
         }
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":692
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":701
  *             # if DEBUG:
  *             #     print('get_bytecode_while_frame_eval always skip', func_code_info.always_skip_code)
  *             if not func_code_info.always_skip_code:             # <<<<<<<<<<<<<<
@@ -12822,7 +13047,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_L30:;
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":731
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":740
  * 
  *     finally:
  *         thread_info.inside_frame_eval -= 1             # <<<<<<<<<<<<<<
@@ -12833,7 +13058,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     /*normal exit:*/{
       __pyx_v_thread_info->inside_frame_eval = (__pyx_v_thread_info->inside_frame_eval - 1);
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":732
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":741
  *     finally:
  *         thread_info.inside_frame_eval -= 1
  *         additional_info.is_tracing = False             # <<<<<<<<<<<<<<
@@ -12863,7 +13088,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
       __pyx_t_11 = __pyx_lineno; __pyx_t_13 = __pyx_clineno; __pyx_t_14 = __pyx_filename;
       {
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":731
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":740
  * 
  *     finally:
  *         thread_info.inside_frame_eval -= 1             # <<<<<<<<<<<<<<
@@ -12872,7 +13097,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
         __pyx_v_thread_info->inside_frame_eval = (__pyx_v_thread_info->inside_frame_eval - 1);
 
-        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":732
+        /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":741
  *     finally:
  *         thread_info.inside_frame_eval -= 1
  *         additional_info.is_tracing = False             # <<<<<<<<<<<<<<
@@ -12898,7 +13123,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_L22_return: {
       __pyx_t_18 = __pyx_r;
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":731
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":740
  * 
  *     finally:
  *         thread_info.inside_frame_eval -= 1             # <<<<<<<<<<<<<<
@@ -12907,7 +13132,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
  */
       __pyx_v_thread_info->inside_frame_eval = (__pyx_v_thread_info->inside_frame_eval - 1);
 
-      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":732
+      /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":741
  *     finally:
  *         thread_info.inside_frame_eval -= 1
  *         additional_info.is_tracing = False             # <<<<<<<<<<<<<<
@@ -12921,7 +13146,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
     __pyx_L24:;
   }
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":734
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":743
  *         additional_info.is_tracing = False
  * 
  *     return CALL_EvalFrameDefault_39(tstate, frame_obj, exc)             # <<<<<<<<<<<<<<
@@ -12931,7 +13156,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_get_bytec
   __pyx_r = CALL_EvalFrameDefault_39(__pyx_v_tstate, __pyx_v_frame_obj, __pyx_v_exc);
   goto __pyx_L0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":614
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":623
  * ### WARNING: GENERATED CODE, DO NOT EDIT!
  * ### WARNING: GENERATED CODE, DO NOT EDIT!
  * cdef PyObject * get_bytecode_while_frame_eval_39(PyThreadState* tstate, PyFrameObject * frame_obj, int exc):             # <<<<<<<<<<<<<<
@@ -13516,18 +13741,18 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_22__pyx_
   /* "(tree fragment)":4
  *     cdef object __pyx_PickleError
  *     cdef object __pyx_result
- *     if __pyx_checksum != 0xd55f285:             # <<<<<<<<<<<<<<
+ *     if __pyx_checksum != 0xb3ee05d:             # <<<<<<<<<<<<<<
  *         from pickle import PickleError as __pyx_PickleError
- *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xd55f285 = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, new_code))" % __pyx_checksum)
+ *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xb3ee05d = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, co_name, new_code))" % __pyx_checksum)
  */
-  __pyx_t_1 = ((__pyx_v___pyx_checksum != 0xd55f285) != 0);
+  __pyx_t_1 = ((__pyx_v___pyx_checksum != 0xb3ee05d) != 0);
   if (__pyx_t_1) {
 
     /* "(tree fragment)":5
  *     cdef object __pyx_result
- *     if __pyx_checksum != 0xd55f285:
+ *     if __pyx_checksum != 0xb3ee05d:
  *         from pickle import PickleError as __pyx_PickleError             # <<<<<<<<<<<<<<
- *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xd55f285 = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, new_code))" % __pyx_checksum)
+ *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xb3ee05d = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, co_name, new_code))" % __pyx_checksum)
  *     __pyx_result = FuncCodeInfo.__new__(__pyx_type)
  */
     __pyx_t_2 = PyList_New(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 5, __pyx_L1_error)
@@ -13546,15 +13771,15 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_22__pyx_
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
     /* "(tree fragment)":6
- *     if __pyx_checksum != 0xd55f285:
+ *     if __pyx_checksum != 0xb3ee05d:
  *         from pickle import PickleError as __pyx_PickleError
- *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xd55f285 = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, new_code))" % __pyx_checksum)             # <<<<<<<<<<<<<<
+ *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xb3ee05d = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, co_name, new_code))" % __pyx_checksum)             # <<<<<<<<<<<<<<
  *     __pyx_result = FuncCodeInfo.__new__(__pyx_type)
  *     if __pyx_state is not None:
  */
     __pyx_t_2 = __Pyx_PyInt_From_long(__pyx_v___pyx_checksum); if (unlikely(!__pyx_t_2)) __PYX_ERR(1, 6, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_4 = __Pyx_PyString_Format(__pyx_kp_s_Incompatible_checksums_s_vs_0xd5, __pyx_t_2); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 6, __pyx_L1_error)
+    __pyx_t_4 = __Pyx_PyString_Format(__pyx_kp_s_Incompatible_checksums_s_vs_0xb3, __pyx_t_2); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 6, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     __Pyx_INCREF(__pyx_v___pyx_PickleError);
@@ -13581,15 +13806,15 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_22__pyx_
     /* "(tree fragment)":4
  *     cdef object __pyx_PickleError
  *     cdef object __pyx_result
- *     if __pyx_checksum != 0xd55f285:             # <<<<<<<<<<<<<<
+ *     if __pyx_checksum != 0xb3ee05d:             # <<<<<<<<<<<<<<
  *         from pickle import PickleError as __pyx_PickleError
- *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xd55f285 = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, new_code))" % __pyx_checksum)
+ *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xb3ee05d = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, co_name, new_code))" % __pyx_checksum)
  */
   }
 
   /* "(tree fragment)":7
  *         from pickle import PickleError as __pyx_PickleError
- *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xd55f285 = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, new_code))" % __pyx_checksum)
+ *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xb3ee05d = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, co_name, new_code))" % __pyx_checksum)
  *     __pyx_result = FuncCodeInfo.__new__(__pyx_type)             # <<<<<<<<<<<<<<
  *     if __pyx_state is not None:
  *         __pyx_unpickle_FuncCodeInfo__set_state(<FuncCodeInfo> __pyx_result, __pyx_state)
@@ -13615,7 +13840,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_22__pyx_
   __pyx_t_3 = 0;
 
   /* "(tree fragment)":8
- *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xd55f285 = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, new_code))" % __pyx_checksum)
+ *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xb3ee05d = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, co_name, new_code))" % __pyx_checksum)
  *     __pyx_result = FuncCodeInfo.__new__(__pyx_type)
  *     if __pyx_state is not None:             # <<<<<<<<<<<<<<
  *         __pyx_unpickle_FuncCodeInfo__set_state(<FuncCodeInfo> __pyx_result, __pyx_state)
@@ -13638,7 +13863,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_22__pyx_
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
     /* "(tree fragment)":8
- *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xd55f285 = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, new_code))" % __pyx_checksum)
+ *         raise __pyx_PickleError("Incompatible checksums (%s vs 0xb3ee05d = (always_skip_code, breakpoint_found, breakpoints_mtime, canonical_normalized_filename, co_filename, co_name, new_code))" % __pyx_checksum)
  *     __pyx_result = FuncCodeInfo.__new__(__pyx_type)
  *     if __pyx_state is not None:             # <<<<<<<<<<<<<<
  *         __pyx_unpickle_FuncCodeInfo__set_state(<FuncCodeInfo> __pyx_result, __pyx_state)
@@ -13651,7 +13876,7 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_22__pyx_
  *         __pyx_unpickle_FuncCodeInfo__set_state(<FuncCodeInfo> __pyx_result, __pyx_state)
  *     return __pyx_result             # <<<<<<<<<<<<<<
  * cdef __pyx_unpickle_FuncCodeInfo__set_state(FuncCodeInfo __pyx_result, tuple __pyx_state):
- *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.canonical_normalized_filename = __pyx_state[3]; __pyx_result.co_filename = __pyx_state[4]; __pyx_result.new_code = __pyx_state[5]
+ *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.canonical_normalized_filename = __pyx_state[3]; __pyx_result.co_filename = __pyx_state[4]; __pyx_result.co_name = __pyx_state[5]; __pyx_result.new_code = __pyx_state[6]
  */
   __Pyx_XDECREF(__pyx_r);
   __Pyx_INCREF(__pyx_v___pyx_result);
@@ -13684,8 +13909,8 @@ static PyObject *__pyx_pf_18_pydevd_frame_eval_22pydevd_frame_evaluator_22__pyx_
  *         __pyx_unpickle_FuncCodeInfo__set_state(<FuncCodeInfo> __pyx_result, __pyx_state)
  *     return __pyx_result
  * cdef __pyx_unpickle_FuncCodeInfo__set_state(FuncCodeInfo __pyx_result, tuple __pyx_state):             # <<<<<<<<<<<<<<
- *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.canonical_normalized_filename = __pyx_state[3]; __pyx_result.co_filename = __pyx_state[4]; __pyx_result.new_code = __pyx_state[5]
- *     if len(__pyx_state) > 6 and hasattr(__pyx_result, '__dict__'):
+ *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.canonical_normalized_filename = __pyx_state[3]; __pyx_result.co_filename = __pyx_state[4]; __pyx_result.co_name = __pyx_state[5]; __pyx_result.new_code = __pyx_state[6]
+ *     if len(__pyx_state) > 7 and hasattr(__pyx_result, '__dict__'):
  */
 
 static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator___pyx_unpickle_FuncCodeInfo__set_state(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *__pyx_v___pyx_result, PyObject *__pyx_v___pyx_state) {
@@ -13708,9 +13933,9 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator___pyx_unp
   /* "(tree fragment)":12
  *     return __pyx_result
  * cdef __pyx_unpickle_FuncCodeInfo__set_state(FuncCodeInfo __pyx_result, tuple __pyx_state):
- *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.canonical_normalized_filename = __pyx_state[3]; __pyx_result.co_filename = __pyx_state[4]; __pyx_result.new_code = __pyx_state[5]             # <<<<<<<<<<<<<<
- *     if len(__pyx_state) > 6 and hasattr(__pyx_result, '__dict__'):
- *         __pyx_result.__dict__.update(__pyx_state[6])
+ *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.canonical_normalized_filename = __pyx_state[3]; __pyx_result.co_filename = __pyx_state[4]; __pyx_result.co_name = __pyx_state[5]; __pyx_result.new_code = __pyx_state[6]             # <<<<<<<<<<<<<<
+ *     if len(__pyx_state) > 7 and hasattr(__pyx_result, '__dict__'):
+ *         __pyx_result.__dict__.update(__pyx_state[7])
  */
   if (unlikely(__pyx_v___pyx_state == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
@@ -13769,6 +13994,18 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator___pyx_unp
   }
   __pyx_t_1 = __Pyx_GetItemInt_Tuple(__pyx_v___pyx_state, 5, long, 1, __Pyx_PyInt_From_long, 0, 0, 1); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 12, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
+  if (!(likely(PyString_CheckExact(__pyx_t_1))||((__pyx_t_1) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "str", Py_TYPE(__pyx_t_1)->tp_name), 0))) __PYX_ERR(1, 12, __pyx_L1_error)
+  __Pyx_GIVEREF(__pyx_t_1);
+  __Pyx_GOTREF(__pyx_v___pyx_result->co_name);
+  __Pyx_DECREF(__pyx_v___pyx_result->co_name);
+  __pyx_v___pyx_result->co_name = ((PyObject*)__pyx_t_1);
+  __pyx_t_1 = 0;
+  if (unlikely(__pyx_v___pyx_state == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
+    __PYX_ERR(1, 12, __pyx_L1_error)
+  }
+  __pyx_t_1 = __Pyx_GetItemInt_Tuple(__pyx_v___pyx_state, 6, long, 1, __Pyx_PyInt_From_long, 0, 0, 1); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 12, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
   __Pyx_GIVEREF(__pyx_t_1);
   __Pyx_GOTREF(__pyx_v___pyx_result->new_code);
   __Pyx_DECREF(__pyx_v___pyx_result->new_code);
@@ -13777,16 +14014,16 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator___pyx_unp
 
   /* "(tree fragment)":13
  * cdef __pyx_unpickle_FuncCodeInfo__set_state(FuncCodeInfo __pyx_result, tuple __pyx_state):
- *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.canonical_normalized_filename = __pyx_state[3]; __pyx_result.co_filename = __pyx_state[4]; __pyx_result.new_code = __pyx_state[5]
- *     if len(__pyx_state) > 6 and hasattr(__pyx_result, '__dict__'):             # <<<<<<<<<<<<<<
- *         __pyx_result.__dict__.update(__pyx_state[6])
+ *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.canonical_normalized_filename = __pyx_state[3]; __pyx_result.co_filename = __pyx_state[4]; __pyx_result.co_name = __pyx_state[5]; __pyx_result.new_code = __pyx_state[6]
+ *     if len(__pyx_state) > 7 and hasattr(__pyx_result, '__dict__'):             # <<<<<<<<<<<<<<
+ *         __pyx_result.__dict__.update(__pyx_state[7])
  */
   if (unlikely(__pyx_v___pyx_state == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
     __PYX_ERR(1, 13, __pyx_L1_error)
   }
   __pyx_t_4 = PyTuple_GET_SIZE(__pyx_v___pyx_state); if (unlikely(__pyx_t_4 == ((Py_ssize_t)-1))) __PYX_ERR(1, 13, __pyx_L1_error)
-  __pyx_t_5 = ((__pyx_t_4 > 6) != 0);
+  __pyx_t_5 = ((__pyx_t_4 > 7) != 0);
   if (__pyx_t_5) {
   } else {
     __pyx_t_2 = __pyx_t_5;
@@ -13799,9 +14036,9 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator___pyx_unp
   if (__pyx_t_2) {
 
     /* "(tree fragment)":14
- *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.canonical_normalized_filename = __pyx_state[3]; __pyx_result.co_filename = __pyx_state[4]; __pyx_result.new_code = __pyx_state[5]
- *     if len(__pyx_state) > 6 and hasattr(__pyx_result, '__dict__'):
- *         __pyx_result.__dict__.update(__pyx_state[6])             # <<<<<<<<<<<<<<
+ *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.canonical_normalized_filename = __pyx_state[3]; __pyx_result.co_filename = __pyx_state[4]; __pyx_result.co_name = __pyx_state[5]; __pyx_result.new_code = __pyx_state[6]
+ *     if len(__pyx_state) > 7 and hasattr(__pyx_result, '__dict__'):
+ *         __pyx_result.__dict__.update(__pyx_state[7])             # <<<<<<<<<<<<<<
  */
     __pyx_t_7 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v___pyx_result), __pyx_n_s_dict); if (unlikely(!__pyx_t_7)) __PYX_ERR(1, 14, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_7);
@@ -13812,7 +14049,7 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator___pyx_unp
       PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
       __PYX_ERR(1, 14, __pyx_L1_error)
     }
-    __pyx_t_7 = __Pyx_GetItemInt_Tuple(__pyx_v___pyx_state, 6, long, 1, __Pyx_PyInt_From_long, 0, 0, 1); if (unlikely(!__pyx_t_7)) __PYX_ERR(1, 14, __pyx_L1_error)
+    __pyx_t_7 = __Pyx_GetItemInt_Tuple(__pyx_v___pyx_state, 7, long, 1, __Pyx_PyInt_From_long, 0, 0, 1); if (unlikely(!__pyx_t_7)) __PYX_ERR(1, 14, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_7);
     __pyx_t_9 = NULL;
     if (CYTHON_UNPACK_METHODS && likely(PyMethod_Check(__pyx_t_8))) {
@@ -13834,9 +14071,9 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator___pyx_unp
 
     /* "(tree fragment)":13
  * cdef __pyx_unpickle_FuncCodeInfo__set_state(FuncCodeInfo __pyx_result, tuple __pyx_state):
- *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.canonical_normalized_filename = __pyx_state[3]; __pyx_result.co_filename = __pyx_state[4]; __pyx_result.new_code = __pyx_state[5]
- *     if len(__pyx_state) > 6 and hasattr(__pyx_result, '__dict__'):             # <<<<<<<<<<<<<<
- *         __pyx_result.__dict__.update(__pyx_state[6])
+ *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.canonical_normalized_filename = __pyx_state[3]; __pyx_result.co_filename = __pyx_state[4]; __pyx_result.co_name = __pyx_state[5]; __pyx_result.new_code = __pyx_state[6]
+ *     if len(__pyx_state) > 7 and hasattr(__pyx_result, '__dict__'):             # <<<<<<<<<<<<<<
+ *         __pyx_result.__dict__.update(__pyx_state[7])
  */
   }
 
@@ -13844,8 +14081,8 @@ static PyObject *__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator___pyx_unp
  *         __pyx_unpickle_FuncCodeInfo__set_state(<FuncCodeInfo> __pyx_result, __pyx_state)
  *     return __pyx_result
  * cdef __pyx_unpickle_FuncCodeInfo__set_state(FuncCodeInfo __pyx_result, tuple __pyx_state):             # <<<<<<<<<<<<<<
- *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.canonical_normalized_filename = __pyx_state[3]; __pyx_result.co_filename = __pyx_state[4]; __pyx_result.new_code = __pyx_state[5]
- *     if len(__pyx_state) > 6 and hasattr(__pyx_result, '__dict__'):
+ *     __pyx_result.always_skip_code = __pyx_state[0]; __pyx_result.breakpoint_found = __pyx_state[1]; __pyx_result.breakpoints_mtime = __pyx_state[2]; __pyx_result.canonical_normalized_filename = __pyx_state[3]; __pyx_result.co_filename = __pyx_state[4]; __pyx_result.co_name = __pyx_state[5]; __pyx_result.new_code = __pyx_state[6]
+ *     if len(__pyx_state) > 7 and hasattr(__pyx_result, '__dict__'):
  */
 
   /* function exit code */
@@ -14946,6 +15183,7 @@ static PyObject *__pyx_tp_new_18_pydevd_frame_eval_22pydevd_frame_evaluator_Func
   if (unlikely(!o)) return 0;
   p = ((struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo *)o);
   p->co_filename = ((PyObject*)Py_None); Py_INCREF(Py_None);
+  p->co_name = ((PyObject*)Py_None); Py_INCREF(Py_None);
   p->canonical_normalized_filename = ((PyObject*)Py_None); Py_INCREF(Py_None);
   p->new_code = Py_None; Py_INCREF(Py_None);
   return o;
@@ -14960,6 +15198,7 @@ static void __pyx_tp_dealloc_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncC
   #endif
   PyObject_GC_UnTrack(o);
   Py_CLEAR(p->co_filename);
+  Py_CLEAR(p->co_name);
   Py_CLEAR(p->canonical_normalized_filename);
   Py_CLEAR(p->new_code);
   (*Py_TYPE(o)->tp_free)(o);
@@ -14993,6 +15232,19 @@ static int __pyx_setprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCod
   }
   else {
     return __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_11co_filename_5__del__(o);
+  }
+}
+
+static PyObject *__pyx_getprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_co_name(PyObject *o, CYTHON_UNUSED void *x) {
+  return __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_7co_name_1__get__(o);
+}
+
+static int __pyx_setprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_co_name(PyObject *o, PyObject *v, CYTHON_UNUSED void *x) {
+  if (v) {
+    return __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_7co_name_3__set__(o, v);
+  }
+  else {
+    return __pyx_pw_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_7co_name_5__del__(o);
   }
 }
 
@@ -15058,6 +15310,7 @@ static PyMethodDef __pyx_methods_18_pydevd_frame_eval_22pydevd_frame_evaluator_F
 
 static struct PyGetSetDef __pyx_getsets_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo[] = {
   {(char *)"co_filename", __pyx_getprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_co_filename, __pyx_setprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_co_filename, (char *)0, 0},
+  {(char *)"co_name", __pyx_getprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_co_name, __pyx_setprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_co_name, (char *)0, 0},
   {(char *)"canonical_normalized_filename", __pyx_getprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_canonical_normalized_filename, __pyx_setprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_canonical_normalized_filename, (char *)0, 0},
   {(char *)"breakpoint_found", __pyx_getprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_breakpoint_found, __pyx_setprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_breakpoint_found, (char *)0, 0},
   {(char *)"new_code", __pyx_getprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_new_code, __pyx_setprop_18_pydevd_frame_eval_22pydevd_frame_evaluator_12FuncCodeInfo_new_code, (char *)0, 0},
@@ -15564,7 +15817,7 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_kp_s_Incompatible_checksums_s_vs_0x0a, __pyx_k_Incompatible_checksums_s_vs_0x0a, sizeof(__pyx_k_Incompatible_checksums_s_vs_0x0a), 0, 0, 1, 0},
   {&__pyx_kp_s_Incompatible_checksums_s_vs_0x3d, __pyx_k_Incompatible_checksums_s_vs_0x3d, sizeof(__pyx_k_Incompatible_checksums_s_vs_0x3d), 0, 0, 1, 0},
   {&__pyx_kp_s_Incompatible_checksums_s_vs_0x3f, __pyx_k_Incompatible_checksums_s_vs_0x3f, sizeof(__pyx_k_Incompatible_checksums_s_vs_0x3f), 0, 0, 1, 0},
-  {&__pyx_kp_s_Incompatible_checksums_s_vs_0xd5, __pyx_k_Incompatible_checksums_s_vs_0xd5, sizeof(__pyx_k_Incompatible_checksums_s_vs_0xd5), 0, 0, 1, 0},
+  {&__pyx_kp_s_Incompatible_checksums_s_vs_0xb3, __pyx_k_Incompatible_checksums_s_vs_0xb3, sizeof(__pyx_k_Incompatible_checksums_s_vs_0xb3), 0, 0, 1, 0},
   {&__pyx_n_s_NORM_PATHS_AND_BASE_CONTAINER, __pyx_k_NORM_PATHS_AND_BASE_CONTAINER, sizeof(__pyx_k_NORM_PATHS_AND_BASE_CONTAINER), 0, 0, 1, 1},
   {&__pyx_n_s_PickleError, __pyx_k_PickleError, sizeof(__pyx_k_PickleError), 0, 0, 1, 1},
   {&__pyx_n_s_SetTrace, __pyx_k_SetTrace, sizeof(__pyx_k_SetTrace), 0, 0, 1, 1},
@@ -15610,6 +15863,7 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_n_s_fix_top_level_trace_and_get_trac, __pyx_k_fix_top_level_trace_and_get_trac, sizeof(__pyx_k_fix_top_level_trace_and_get_trac), 0, 0, 1, 1},
   {&__pyx_n_s_frame, __pyx_k_frame, sizeof(__pyx_k_frame), 0, 0, 1, 1},
   {&__pyx_n_s_frame_eval_func, __pyx_k_frame_eval_func, sizeof(__pyx_k_frame_eval_func), 0, 0, 1, 1},
+  {&__pyx_n_s_function_breakpoint_name_to_brea, __pyx_k_function_breakpoint_name_to_brea, sizeof(__pyx_k_function_breakpoint_name_to_brea), 0, 0, 1, 1},
   {&__pyx_n_s_generate_code_with_breakpoints_p, __pyx_k_generate_code_with_breakpoints_p, sizeof(__pyx_k_generate_code_with_breakpoints_p), 0, 0, 1, 1},
   {&__pyx_n_s_get, __pyx_k_get, sizeof(__pyx_k_get), 0, 0, 1, 1},
   {&__pyx_n_s_get_abs_path_real_path_and_base, __pyx_k_get_abs_path_real_path_and_base, sizeof(__pyx_k_get_abs_path_real_path_and_base), 0, 0, 1, 1},
@@ -15696,8 +15950,8 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
 };
 static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(void) {
   __pyx_builtin_AttributeError = __Pyx_GetBuiltinName(__pyx_n_s_AttributeError); if (!__pyx_builtin_AttributeError) __PYX_ERR(0, 110, __pyx_L1_error)
-  __pyx_builtin_min = __Pyx_GetBuiltinName(__pyx_n_s_min); if (!__pyx_builtin_min) __PYX_ERR(0, 332, __pyx_L1_error)
-  __pyx_builtin_max = __Pyx_GetBuiltinName(__pyx_n_s_max); if (!__pyx_builtin_max) __PYX_ERR(0, 333, __pyx_L1_error)
+  __pyx_builtin_min = __Pyx_GetBuiltinName(__pyx_n_s_min); if (!__pyx_builtin_min) __PYX_ERR(0, 341, __pyx_L1_error)
+  __pyx_builtin_max = __Pyx_GetBuiltinName(__pyx_n_s_max); if (!__pyx_builtin_max) __PYX_ERR(0, 342, __pyx_L1_error)
   return 0;
   __pyx_L1_error:;
   return -1;
@@ -15727,124 +15981,124 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
  */
   __pyx_codeobj__6 = (PyObject*)__Pyx_PyCode_New(0, 0, 0, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_clear_thread_local_info, 19, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__6)) __PYX_ERR(0, 19, __pyx_L1_error)
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":151
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":152
  * 
  * 
  * def dummy_trace_dispatch(frame, str event, arg):             # <<<<<<<<<<<<<<
  *     if event == 'call':
  *         if frame.f_trace is not None:
  */
-  __pyx_tuple__7 = PyTuple_Pack(3, __pyx_n_s_frame, __pyx_n_s_event, __pyx_n_s_arg); if (unlikely(!__pyx_tuple__7)) __PYX_ERR(0, 151, __pyx_L1_error)
+  __pyx_tuple__7 = PyTuple_Pack(3, __pyx_n_s_frame, __pyx_n_s_event, __pyx_n_s_arg); if (unlikely(!__pyx_tuple__7)) __PYX_ERR(0, 152, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__7);
   __Pyx_GIVEREF(__pyx_tuple__7);
-  __pyx_codeobj__8 = (PyObject*)__Pyx_PyCode_New(3, 0, 3, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__7, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_dummy_trace_dispatch, 151, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__8)) __PYX_ERR(0, 151, __pyx_L1_error)
+  __pyx_codeobj__8 = (PyObject*)__Pyx_PyCode_New(3, 0, 3, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__7, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_dummy_trace_dispatch, 152, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__8)) __PYX_ERR(0, 152, __pyx_L1_error)
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":158
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":159
  * 
  * 
  * def get_thread_info_py() -> ThreadInfo:             # <<<<<<<<<<<<<<
  *     return get_thread_info(PyEval_GetFrame())
  * 
  */
-  __pyx_codeobj__9 = (PyObject*)__Pyx_PyCode_New(0, 0, 0, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_get_thread_info_py, 158, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__9)) __PYX_ERR(0, 158, __pyx_L1_error)
+  __pyx_codeobj__9 = (PyObject*)__Pyx_PyCode_New(0, 0, 0, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_get_thread_info_py, 159, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__9)) __PYX_ERR(0, 159, __pyx_L1_error)
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":195
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":196
  * 
  * 
  * def decref_py(obj):             # <<<<<<<<<<<<<<
  *     '''
  *     Helper to be called from Python.
  */
-  __pyx_tuple__10 = PyTuple_Pack(1, __pyx_n_s_obj); if (unlikely(!__pyx_tuple__10)) __PYX_ERR(0, 195, __pyx_L1_error)
+  __pyx_tuple__10 = PyTuple_Pack(1, __pyx_n_s_obj); if (unlikely(!__pyx_tuple__10)) __PYX_ERR(0, 196, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__10);
   __Pyx_GIVEREF(__pyx_tuple__10);
-  __pyx_codeobj__11 = (PyObject*)__Pyx_PyCode_New(1, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__10, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_decref_py, 195, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__11)) __PYX_ERR(0, 195, __pyx_L1_error)
+  __pyx_codeobj__11 = (PyObject*)__Pyx_PyCode_New(1, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__10, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_decref_py, 196, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__11)) __PYX_ERR(0, 196, __pyx_L1_error)
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":202
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":203
  * 
  * 
  * def get_func_code_info_py(thread_info, frame, code_obj) -> FuncCodeInfo:             # <<<<<<<<<<<<<<
  *     '''
  *     Helper to be called from Python.
  */
-  __pyx_tuple__12 = PyTuple_Pack(3, __pyx_n_s_thread_info, __pyx_n_s_frame, __pyx_n_s_code_obj); if (unlikely(!__pyx_tuple__12)) __PYX_ERR(0, 202, __pyx_L1_error)
+  __pyx_tuple__12 = PyTuple_Pack(3, __pyx_n_s_thread_info, __pyx_n_s_frame, __pyx_n_s_code_obj); if (unlikely(!__pyx_tuple__12)) __PYX_ERR(0, 203, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__12);
   __Pyx_GIVEREF(__pyx_tuple__12);
-  __pyx_codeobj__13 = (PyObject*)__Pyx_PyCode_New(3, 0, 3, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__12, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_get_func_code_info_py, 202, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__13)) __PYX_ERR(0, 202, __pyx_L1_error)
+  __pyx_codeobj__13 = (PyObject*)__Pyx_PyCode_New(3, 0, 3, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__12, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_get_func_code_info_py, 203, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__13)) __PYX_ERR(0, 203, __pyx_L1_error)
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":320
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":329
  * 
  * # Note: this method has a version in pure-python too.
  * def _get_code_line_info(code_obj):             # <<<<<<<<<<<<<<
  *     line_to_offset: dict = {}
  *     first_line: int = None
  */
-  __pyx_tuple__14 = PyTuple_Pack(6, __pyx_n_s_code_obj, __pyx_n_s_line_to_offset, __pyx_n_s_first_line, __pyx_n_s_last_line, __pyx_n_s_offset, __pyx_n_s_line); if (unlikely(!__pyx_tuple__14)) __PYX_ERR(0, 320, __pyx_L1_error)
+  __pyx_tuple__14 = PyTuple_Pack(6, __pyx_n_s_code_obj, __pyx_n_s_line_to_offset, __pyx_n_s_first_line, __pyx_n_s_last_line, __pyx_n_s_offset, __pyx_n_s_line); if (unlikely(!__pyx_tuple__14)) __PYX_ERR(0, 329, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__14);
   __Pyx_GIVEREF(__pyx_tuple__14);
-  __pyx_codeobj__15 = (PyObject*)__Pyx_PyCode_New(1, 0, 6, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__14, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_get_code_line_info, 320, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__15)) __PYX_ERR(0, 320, __pyx_L1_error)
+  __pyx_codeobj__15 = (PyObject*)__Pyx_PyCode_New(1, 0, 6, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__14, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_get_code_line_info, 329, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__15)) __PYX_ERR(0, 329, __pyx_L1_error)
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":344
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":353
  * _cache: dict = {}
  * 
  * def get_cached_code_obj_info_py(code_obj_py):             # <<<<<<<<<<<<<<
  *     '''
  *     :return _CacheValue:
  */
-  __pyx_tuple__16 = PyTuple_Pack(1, __pyx_n_s_code_obj_py); if (unlikely(!__pyx_tuple__16)) __PYX_ERR(0, 344, __pyx_L1_error)
+  __pyx_tuple__16 = PyTuple_Pack(1, __pyx_n_s_code_obj_py); if (unlikely(!__pyx_tuple__16)) __PYX_ERR(0, 353, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__16);
   __Pyx_GIVEREF(__pyx_tuple__16);
-  __pyx_codeobj__17 = (PyObject*)__Pyx_PyCode_New(1, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__16, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_get_cached_code_obj_info_py, 344, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__17)) __PYX_ERR(0, 344, __pyx_L1_error)
+  __pyx_codeobj__17 = (PyObject*)__Pyx_PyCode_New(1, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__16, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_get_cached_code_obj_info_py, 353, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__17)) __PYX_ERR(0, 353, __pyx_L1_error)
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":392
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":401
  *         return breakpoint_found, force_stay_in_untraced_mode
  * 
  * def generate_code_with_breakpoints_py(object code_obj_py, dict breakpoints):             # <<<<<<<<<<<<<<
  *     return generate_code_with_breakpoints(code_obj_py, breakpoints)
  * 
  */
-  __pyx_tuple__18 = PyTuple_Pack(2, __pyx_n_s_code_obj_py, __pyx_n_s_breakpoints); if (unlikely(!__pyx_tuple__18)) __PYX_ERR(0, 392, __pyx_L1_error)
+  __pyx_tuple__18 = PyTuple_Pack(2, __pyx_n_s_code_obj_py, __pyx_n_s_breakpoints); if (unlikely(!__pyx_tuple__18)) __PYX_ERR(0, 401, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__18);
   __Pyx_GIVEREF(__pyx_tuple__18);
-  __pyx_codeobj__19 = (PyObject*)__Pyx_PyCode_New(2, 0, 2, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__18, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_generate_code_with_breakpoints_p, 392, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__19)) __PYX_ERR(0, 392, __pyx_L1_error)
+  __pyx_codeobj__19 = (PyObject*)__Pyx_PyCode_New(2, 0, 2, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__18, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_generate_code_with_breakpoints_p, 401, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__19)) __PYX_ERR(0, 401, __pyx_L1_error)
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":464
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":473
  * import sys
  * 
  * cdef bint IS_PY_39_OWNARDS = sys.version_info[:2] >= (3, 9)             # <<<<<<<<<<<<<<
  * 
  * def frame_eval_func():
  */
-  __pyx_slice__20 = PySlice_New(Py_None, __pyx_int_2, Py_None); if (unlikely(!__pyx_slice__20)) __PYX_ERR(0, 464, __pyx_L1_error)
+  __pyx_slice__20 = PySlice_New(Py_None, __pyx_int_2, Py_None); if (unlikely(!__pyx_slice__20)) __PYX_ERR(0, 473, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_slice__20);
   __Pyx_GIVEREF(__pyx_slice__20);
-  __pyx_tuple__21 = PyTuple_Pack(2, __pyx_int_3, __pyx_int_9); if (unlikely(!__pyx_tuple__21)) __PYX_ERR(0, 464, __pyx_L1_error)
+  __pyx_tuple__21 = PyTuple_Pack(2, __pyx_int_3, __pyx_int_9); if (unlikely(!__pyx_tuple__21)) __PYX_ERR(0, 473, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__21);
   __Pyx_GIVEREF(__pyx_tuple__21);
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":466
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":475
  * cdef bint IS_PY_39_OWNARDS = sys.version_info[:2] >= (3, 9)
  * 
  * def frame_eval_func():             # <<<<<<<<<<<<<<
  *     cdef PyThreadState *state = PyThreadState_Get()
  *     if IS_PY_39_OWNARDS:
  */
-  __pyx_tuple__22 = PyTuple_Pack(1, __pyx_n_s_state); if (unlikely(!__pyx_tuple__22)) __PYX_ERR(0, 466, __pyx_L1_error)
+  __pyx_tuple__22 = PyTuple_Pack(1, __pyx_n_s_state); if (unlikely(!__pyx_tuple__22)) __PYX_ERR(0, 475, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__22);
   __Pyx_GIVEREF(__pyx_tuple__22);
-  __pyx_codeobj__23 = (PyObject*)__Pyx_PyCode_New(0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__22, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_frame_eval_func, 466, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__23)) __PYX_ERR(0, 466, __pyx_L1_error)
+  __pyx_codeobj__23 = (PyObject*)__Pyx_PyCode_New(0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__22, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_frame_eval_func, 475, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__23)) __PYX_ERR(0, 475, __pyx_L1_error)
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":475
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":484
  * 
  * 
  * def stop_frame_eval():             # <<<<<<<<<<<<<<
  *     cdef PyThreadState *state = PyThreadState_Get()
  *     state.interp.eval_frame = _PyEval_EvalFrameDefault
  */
-  __pyx_tuple__24 = PyTuple_Pack(1, __pyx_n_s_state); if (unlikely(!__pyx_tuple__24)) __PYX_ERR(0, 475, __pyx_L1_error)
+  __pyx_tuple__24 = PyTuple_Pack(1, __pyx_n_s_state); if (unlikely(!__pyx_tuple__24)) __PYX_ERR(0, 484, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__24);
   __Pyx_GIVEREF(__pyx_tuple__24);
-  __pyx_codeobj__25 = (PyObject*)__Pyx_PyCode_New(0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__24, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_stop_frame_eval, 475, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__25)) __PYX_ERR(0, 475, __pyx_L1_error)
+  __pyx_codeobj__25 = (PyObject*)__Pyx_PyCode_New(0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__24, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_frame_eval_pydevd_frame_2, __pyx_n_s_stop_frame_eval, 484, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__25)) __PYX_ERR(0, 484, __pyx_L1_error)
 
   /* "(tree fragment)":1
  * def __pyx_unpickle_ThreadInfo(__pyx_type, long __pyx_checksum, __pyx_state):             # <<<<<<<<<<<<<<
@@ -15884,7 +16138,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitGlobals(void) {
   __pyx_int_11485321 = PyInt_FromLong(11485321L); if (unlikely(!__pyx_int_11485321)) __PYX_ERR(0, 1, __pyx_L1_error)
   __pyx_int_64258489 = PyInt_FromLong(64258489L); if (unlikely(!__pyx_int_64258489)) __PYX_ERR(0, 1, __pyx_L1_error)
   __pyx_int_66829570 = PyInt_FromLong(66829570L); if (unlikely(!__pyx_int_66829570)) __PYX_ERR(0, 1, __pyx_L1_error)
-  __pyx_int_223736453 = PyInt_FromLong(223736453L); if (unlikely(!__pyx_int_223736453)) __PYX_ERR(0, 1, __pyx_L1_error)
+  __pyx_int_188670045 = PyInt_FromLong(188670045L); if (unlikely(!__pyx_int_188670045)) __PYX_ERR(0, 1, __pyx_L1_error)
   return 0;
   __pyx_L1_error:;
   return -1;
@@ -15953,19 +16207,19 @@ static int __Pyx_modinit_type_init_code(void) {
   if (PyObject_SetAttr(__pyx_m, __pyx_n_s_FuncCodeInfo, (PyObject *)&__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo) < 0) __PYX_ERR(0, 125, __pyx_L1_error)
   if (__Pyx_setup_reduce((PyObject*)&__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo) < 0) __PYX_ERR(0, 125, __pyx_L1_error)
   __pyx_ptype_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo = &__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator_FuncCodeInfo;
-  if (PyType_Ready(&__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CodeLineInfo) < 0) __PYX_ERR(0, 307, __pyx_L1_error)
+  if (PyType_Ready(&__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CodeLineInfo) < 0) __PYX_ERR(0, 316, __pyx_L1_error)
   #if PY_VERSION_HEX < 0x030800B1
   __pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CodeLineInfo.tp_print = 0;
   #endif
   if ((CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP) && likely(!__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CodeLineInfo.tp_dictoffset && __pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CodeLineInfo.tp_getattro == PyObject_GenericGetAttr)) {
     __pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CodeLineInfo.tp_getattro = __Pyx_PyObject_GenericGetAttr;
   }
-  if (PyObject_SetAttr(__pyx_m, __pyx_n_s_CodeLineInfo, (PyObject *)&__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CodeLineInfo) < 0) __PYX_ERR(0, 307, __pyx_L1_error)
-  if (__Pyx_setup_reduce((PyObject*)&__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CodeLineInfo) < 0) __PYX_ERR(0, 307, __pyx_L1_error)
+  if (PyObject_SetAttr(__pyx_m, __pyx_n_s_CodeLineInfo, (PyObject *)&__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CodeLineInfo) < 0) __PYX_ERR(0, 316, __pyx_L1_error)
+  if (__Pyx_setup_reduce((PyObject*)&__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CodeLineInfo) < 0) __PYX_ERR(0, 316, __pyx_L1_error)
   __pyx_ptype_18_pydevd_frame_eval_22pydevd_frame_evaluator__CodeLineInfo = &__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CodeLineInfo;
   __pyx_vtabptr_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue = &__pyx_vtable_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue;
   __pyx_vtable_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue.compute_force_stay_in_untraced_mode = (PyObject *(*)(struct __pyx_obj_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue *, PyObject *, int __pyx_skip_dispatch))__pyx_f_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue_compute_force_stay_in_untraced_mode;
-  if (PyType_Ready(&__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue) < 0) __PYX_ERR(0, 352, __pyx_L1_error)
+  if (PyType_Ready(&__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue) < 0) __PYX_ERR(0, 361, __pyx_L1_error)
   #if PY_VERSION_HEX < 0x030800B1
   __pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue.tp_print = 0;
   #endif
@@ -15974,7 +16228,7 @@ static int __Pyx_modinit_type_init_code(void) {
   }
   #if CYTHON_COMPILING_IN_CPYTHON
   {
-    PyObject *wrapper = PyObject_GetAttrString((PyObject *)&__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue, "__init__"); if (unlikely(!wrapper)) __PYX_ERR(0, 352, __pyx_L1_error)
+    PyObject *wrapper = PyObject_GetAttrString((PyObject *)&__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue, "__init__"); if (unlikely(!wrapper)) __PYX_ERR(0, 361, __pyx_L1_error)
     if (Py_TYPE(wrapper) == &PyWrapperDescr_Type) {
       __pyx_wrapperbase_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue___init__ = *((PyWrapperDescrObject *)wrapper)->d_base;
       __pyx_wrapperbase_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue___init__.doc = __pyx_doc_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_CacheValue___init__;
@@ -15982,9 +16236,9 @@ static int __Pyx_modinit_type_init_code(void) {
     }
   }
   #endif
-  if (__Pyx_SetVtable(__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue.tp_dict, __pyx_vtabptr_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue) < 0) __PYX_ERR(0, 352, __pyx_L1_error)
-  if (PyObject_SetAttr(__pyx_m, __pyx_n_s_CacheValue, (PyObject *)&__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue) < 0) __PYX_ERR(0, 352, __pyx_L1_error)
-  if (__Pyx_setup_reduce((PyObject*)&__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue) < 0) __PYX_ERR(0, 352, __pyx_L1_error)
+  if (__Pyx_SetVtable(__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue.tp_dict, __pyx_vtabptr_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue) < 0) __PYX_ERR(0, 361, __pyx_L1_error)
+  if (PyObject_SetAttr(__pyx_m, __pyx_n_s_CacheValue, (PyObject *)&__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue) < 0) __PYX_ERR(0, 361, __pyx_L1_error)
+  if (__Pyx_setup_reduce((PyObject*)&__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue) < 0) __PYX_ERR(0, 361, __pyx_L1_error)
   __pyx_ptype_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue = &__pyx_type_18_pydevd_frame_eval_22pydevd_frame_evaluator__CacheValue;
   __Pyx_RefNannyFinishContext();
   return 0;
@@ -16513,55 +16767,55 @@ if (!__Pyx_RefNanny) {
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_clear_thread_local_info, __pyx_t_1) < 0) __PYX_ERR(0, 19, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":151
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":152
  * 
  * 
  * def dummy_trace_dispatch(frame, str event, arg):             # <<<<<<<<<<<<<<
  *     if event == 'call':
  *         if frame.f_trace is not None:
  */
-  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_18_pydevd_frame_eval_22pydevd_frame_evaluator_3dummy_trace_dispatch, NULL, __pyx_n_s_pydevd_frame_eval_pydevd_frame_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 151, __pyx_L1_error)
+  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_18_pydevd_frame_eval_22pydevd_frame_evaluator_3dummy_trace_dispatch, NULL, __pyx_n_s_pydevd_frame_eval_pydevd_frame_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 152, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_dummy_trace_dispatch, __pyx_t_1) < 0) __PYX_ERR(0, 151, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_dummy_trace_dispatch, __pyx_t_1) < 0) __PYX_ERR(0, 152, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":158
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":159
  * 
  * 
  * def get_thread_info_py() -> ThreadInfo:             # <<<<<<<<<<<<<<
  *     return get_thread_info(PyEval_GetFrame())
  * 
  */
-  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_18_pydevd_frame_eval_22pydevd_frame_evaluator_5get_thread_info_py, NULL, __pyx_n_s_pydevd_frame_eval_pydevd_frame_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 158, __pyx_L1_error)
+  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_18_pydevd_frame_eval_22pydevd_frame_evaluator_5get_thread_info_py, NULL, __pyx_n_s_pydevd_frame_eval_pydevd_frame_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 159, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_get_thread_info_py, __pyx_t_1) < 0) __PYX_ERR(0, 158, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_get_thread_info_py, __pyx_t_1) < 0) __PYX_ERR(0, 159, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":195
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":196
  * 
  * 
  * def decref_py(obj):             # <<<<<<<<<<<<<<
  *     '''
  *     Helper to be called from Python.
  */
-  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_18_pydevd_frame_eval_22pydevd_frame_evaluator_7decref_py, NULL, __pyx_n_s_pydevd_frame_eval_pydevd_frame_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 195, __pyx_L1_error)
+  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_18_pydevd_frame_eval_22pydevd_frame_evaluator_7decref_py, NULL, __pyx_n_s_pydevd_frame_eval_pydevd_frame_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 196, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_decref_py, __pyx_t_1) < 0) __PYX_ERR(0, 195, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_decref_py, __pyx_t_1) < 0) __PYX_ERR(0, 196, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":202
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":203
  * 
  * 
  * def get_func_code_info_py(thread_info, frame, code_obj) -> FuncCodeInfo:             # <<<<<<<<<<<<<<
  *     '''
  *     Helper to be called from Python.
  */
-  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_18_pydevd_frame_eval_22pydevd_frame_evaluator_9get_func_code_info_py, NULL, __pyx_n_s_pydevd_frame_eval_pydevd_frame_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 202, __pyx_L1_error)
+  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_18_pydevd_frame_eval_22pydevd_frame_evaluator_9get_func_code_info_py, NULL, __pyx_n_s_pydevd_frame_eval_pydevd_frame_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 203, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_get_func_code_info_py, __pyx_t_1) < 0) __PYX_ERR(0, 202, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_get_func_code_info_py, __pyx_t_1) < 0) __PYX_ERR(0, 203, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":209
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":210
  * 
  * 
  * cdef int _code_extra_index = -1             # <<<<<<<<<<<<<<
@@ -16570,109 +16824,109 @@ if (!__Pyx_RefNanny) {
  */
   __pyx_v_18_pydevd_frame_eval_22pydevd_frame_evaluator__code_extra_index = -1;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":320
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":329
  * 
  * # Note: this method has a version in pure-python too.
  * def _get_code_line_info(code_obj):             # <<<<<<<<<<<<<<
  *     line_to_offset: dict = {}
  *     first_line: int = None
  */
-  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_get_code_line_info, NULL, __pyx_n_s_pydevd_frame_eval_pydevd_frame_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 320, __pyx_L1_error)
+  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_18_pydevd_frame_eval_22pydevd_frame_evaluator_11_get_code_line_info, NULL, __pyx_n_s_pydevd_frame_eval_pydevd_frame_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 329, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_get_code_line_info, __pyx_t_1) < 0) __PYX_ERR(0, 320, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_get_code_line_info, __pyx_t_1) < 0) __PYX_ERR(0, 329, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":342
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":351
  * # handled by the cython side in `FuncCodeInfo get_func_code_info` by providing the
  * # same code info if the debugger mtime is still the same).
  * _cache: dict = {}             # <<<<<<<<<<<<<<
  * 
  * def get_cached_code_obj_info_py(code_obj_py):
  */
-  __pyx_t_1 = __Pyx_PyDict_NewPresized(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 342, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyDict_NewPresized(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 351, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_cache, __pyx_t_1) < 0) __PYX_ERR(0, 342, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_cache, __pyx_t_1) < 0) __PYX_ERR(0, 351, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":344
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":353
  * _cache: dict = {}
  * 
  * def get_cached_code_obj_info_py(code_obj_py):             # <<<<<<<<<<<<<<
  *     '''
  *     :return _CacheValue:
  */
-  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_18_pydevd_frame_eval_22pydevd_frame_evaluator_13get_cached_code_obj_info_py, NULL, __pyx_n_s_pydevd_frame_eval_pydevd_frame_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 344, __pyx_L1_error)
+  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_18_pydevd_frame_eval_22pydevd_frame_evaluator_13get_cached_code_obj_info_py, NULL, __pyx_n_s_pydevd_frame_eval_pydevd_frame_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 353, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_get_cached_code_obj_info_py, __pyx_t_1) < 0) __PYX_ERR(0, 344, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_get_cached_code_obj_info_py, __pyx_t_1) < 0) __PYX_ERR(0, 353, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":392
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":401
  *         return breakpoint_found, force_stay_in_untraced_mode
  * 
  * def generate_code_with_breakpoints_py(object code_obj_py, dict breakpoints):             # <<<<<<<<<<<<<<
  *     return generate_code_with_breakpoints(code_obj_py, breakpoints)
  * 
  */
-  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_18_pydevd_frame_eval_22pydevd_frame_evaluator_15generate_code_with_breakpoints_py, NULL, __pyx_n_s_pydevd_frame_eval_pydevd_frame_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 392, __pyx_L1_error)
+  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_18_pydevd_frame_eval_22pydevd_frame_evaluator_15generate_code_with_breakpoints_py, NULL, __pyx_n_s_pydevd_frame_eval_pydevd_frame_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 401, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_generate_code_with_breakpoints_p, __pyx_t_1) < 0) __PYX_ERR(0, 392, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_generate_code_with_breakpoints_p, __pyx_t_1) < 0) __PYX_ERR(0, 401, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":462
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":471
  *     return breakpoint_found, code_obj_py
  * 
  * import sys             # <<<<<<<<<<<<<<
  * 
  * cdef bint IS_PY_39_OWNARDS = sys.version_info[:2] >= (3, 9)
  */
-  __pyx_t_1 = __Pyx_Import(__pyx_n_s_sys, 0, -1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 462, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_Import(__pyx_n_s_sys, 0, -1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 471, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_sys, __pyx_t_1) < 0) __PYX_ERR(0, 462, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_sys, __pyx_t_1) < 0) __PYX_ERR(0, 471, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":464
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":473
  * import sys
  * 
  * cdef bint IS_PY_39_OWNARDS = sys.version_info[:2] >= (3, 9)             # <<<<<<<<<<<<<<
  * 
  * def frame_eval_func():
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_sys); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 464, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_sys); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 473, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_version_info); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 464, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_version_info); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 473, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_1 = __Pyx_PyObject_GetSlice(__pyx_t_2, 0, 2, NULL, NULL, &__pyx_slice__20, 0, 1, 1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 464, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_GetSlice(__pyx_t_2, 0, 2, NULL, NULL, &__pyx_slice__20, 0, 1, 1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 473, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = PyObject_RichCompare(__pyx_t_1, __pyx_tuple__21, Py_GE); __Pyx_XGOTREF(__pyx_t_2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 464, __pyx_L1_error)
+  __pyx_t_2 = PyObject_RichCompare(__pyx_t_1, __pyx_tuple__21, Py_GE); __Pyx_XGOTREF(__pyx_t_2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 473, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely((__pyx_t_3 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 464, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely((__pyx_t_3 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 473, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __pyx_v_18_pydevd_frame_eval_22pydevd_frame_evaluator_IS_PY_39_OWNARDS = __pyx_t_3;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":466
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":475
  * cdef bint IS_PY_39_OWNARDS = sys.version_info[:2] >= (3, 9)
  * 
  * def frame_eval_func():             # <<<<<<<<<<<<<<
  *     cdef PyThreadState *state = PyThreadState_Get()
  *     if IS_PY_39_OWNARDS:
  */
-  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_18_pydevd_frame_eval_22pydevd_frame_evaluator_17frame_eval_func, NULL, __pyx_n_s_pydevd_frame_eval_pydevd_frame_3); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 466, __pyx_L1_error)
+  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_18_pydevd_frame_eval_22pydevd_frame_evaluator_17frame_eval_func, NULL, __pyx_n_s_pydevd_frame_eval_pydevd_frame_3); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 475, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_frame_eval_func, __pyx_t_2) < 0) __PYX_ERR(0, 466, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_frame_eval_func, __pyx_t_2) < 0) __PYX_ERR(0, 475, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":475
+  /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":484
  * 
  * 
  * def stop_frame_eval():             # <<<<<<<<<<<<<<
  *     cdef PyThreadState *state = PyThreadState_Get()
  *     state.interp.eval_frame = _PyEval_EvalFrameDefault
  */
-  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_18_pydevd_frame_eval_22pydevd_frame_evaluator_19stop_frame_eval, NULL, __pyx_n_s_pydevd_frame_eval_pydevd_frame_3); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 475, __pyx_L1_error)
+  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_18_pydevd_frame_eval_22pydevd_frame_evaluator_19stop_frame_eval, NULL, __pyx_n_s_pydevd_frame_eval_pydevd_frame_3); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 484, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_stop_frame_eval, __pyx_t_2) < 0) __PYX_ERR(0, 475, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_stop_frame_eval, __pyx_t_2) < 0) __PYX_ERR(0, 484, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
   /* "(tree fragment)":1

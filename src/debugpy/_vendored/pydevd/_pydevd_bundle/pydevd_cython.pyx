@@ -154,7 +154,7 @@ from _pydevd_bundle.pydevd_constants import (dict_iter_values, IS_PY3K, RETURN_V
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, just_raised, remove_exception_from_frame, ignore_exception_trace
 from _pydevd_bundle.pydevd_utils import get_clsname_for_code
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame
-from _pydevd_bundle.pydevd_comm_constants import constant_to_str
+from _pydevd_bundle.pydevd_comm_constants import constant_to_str, CMD_SET_FUNCTION_BREAK
 try:
     from _pydevd_bundle.pydevd_bytecode_utils import get_smart_step_into_variant_from_frame_offset
 except ImportError:
@@ -718,6 +718,7 @@ cdef class PyDBFrame:
 
             stop_frame = info.pydev_step_stop
             step_cmd = info.pydev_step_cmd
+            function_breakpoint_on_call_event = None
 
             if frame.f_code.co_flags & 0xa0:  # 0xa0 ==  CO_GENERATOR = 0x20 | CO_COROUTINE = 0x80
                 # Dealing with coroutines and generators:
@@ -840,6 +841,8 @@ cdef class PyDBFrame:
                     is_call = True
                     is_return = False
                     is_exception_event = False
+                    if frame.f_code.co_firstlineno == frame.f_lineno:  # Check line to deal with async/await.
+                        function_breakpoint_on_call_event = main_debugger.function_breakpoint_name_to_breakpoint.get(frame.f_code.co_name)
 
                 elif event == 'exception':
                     is_exception_event = True
@@ -909,7 +912,11 @@ cdef class PyDBFrame:
                 # we will return nothing for the next trace
                 # also, after we hit a breakpoint and go to some other debugging state, we have to force the set trace anyway,
                 # so, that's why the additional checks are there.
-                if not breakpoints_for_file:
+
+                if function_breakpoint_on_call_event:
+                    pass  # Do nothing here (just keep on going as we can't skip it).
+
+                elif not breakpoints_for_file:
                     if can_skip:
                         if has_exception_breakpoints:
                             return self.trace_exception
@@ -983,8 +990,16 @@ cdef class PyDBFrame:
                 breakpoint = None
                 exist_result = False
                 stop = False
+                stop_reason = 111
                 bp_type = None
-                if not is_return and info.pydev_state != 2 and breakpoints_for_file is not None and line in breakpoints_for_file:
+
+                if function_breakpoint_on_call_event:
+                    breakpoint = function_breakpoint_on_call_event
+                    stop = True
+                    new_frame = frame
+                    stop_reason = CMD_SET_FUNCTION_BREAK
+
+                elif not is_return and info.pydev_state != 2 and breakpoints_for_file is not None and line in breakpoints_for_file:
                     breakpoint = breakpoints_for_file[line]
                     new_frame = frame
                     stop = True
@@ -1049,7 +1064,7 @@ cdef class PyDBFrame:
                 if stop:
                     self.set_suspend(
                         thread,
-                        111,
+                        stop_reason,
                         suspend_other_threads=breakpoint and breakpoint.suspend_policy == "ALL",
                     )
 
