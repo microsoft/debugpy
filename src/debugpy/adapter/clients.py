@@ -164,6 +164,7 @@ class Client(components.Component):
             "supportsEvaluateForHovers": True,
             "supportsExceptionInfoRequest": True,
             "supportsExceptionOptions": True,
+            "supportsFunctionBreakpoints": True,
             "supportsHitConditionalBreakpoints": True,
             "supportsLogPoints": True,
             "supportsModulesRequest": True,
