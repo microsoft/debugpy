@@ -316,6 +316,7 @@ class NetCommandFactoryJson(NetCommandFactory):
         thread = pydevd_find_thread_by_id(thread_id)
         info = set_additional_thread_info(thread)
 
+        preserve_focus_hint = False
         if stop_reason in self._STEP_REASONS:
             if info.pydev_original_step_cmd == CMD_STOP_ON_START:
 
@@ -334,6 +335,7 @@ class NetCommandFactoryJson(NetCommandFactory):
             stop_reason = 'goto'
         else:
             stop_reason = 'pause'
+            preserve_focus_hint = True
 
         if stop_reason == 'exception':
             exception_info_response = build_exception_info_response(
@@ -349,7 +351,7 @@ class NetCommandFactoryJson(NetCommandFactory):
             threadId=thread_id,
             text=exc_name,
             allThreadsStopped=True,
-            preserveFocusHint=stop_reason not in ['step', 'exception', 'breakpoint', 'entry', 'goto'],
+            preserveFocusHint=preserve_focus_hint,
         )
         event = pydevd_schema.StoppedEvent(body)
         return NetCommand(CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION, 0, event, is_json=True)
