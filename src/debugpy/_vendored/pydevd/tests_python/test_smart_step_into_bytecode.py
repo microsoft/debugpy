@@ -122,7 +122,7 @@ def test_smart_step_into_bytecode_info_002():
     found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
-    check_name_and_line(found, [('_getframe', 1), ('bar', 2), ('Something', 3), ('yyy', 3), ('call', 5)])
+    check_name_and_line(found, [('_getframe', 1), ('bar', 2), ('Something', 3), ('call', 5)])
 
 
 def test_smart_step_into_bytecode_info_003():
@@ -140,7 +140,7 @@ def test_smart_step_into_bytecode_info_003():
     found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
-    check_name_and_line(found, [('_getframe', 1), ('bar', 2), ('Something', 3), ('yyy', 3), ('call', 5)])
+    check_name_and_line(found, [('_getframe', 1), ('bar', 2), ('Something', 3), ('call', 5)])
 
 
 def test_smart_step_into_bytecode_info_004():
@@ -158,7 +158,7 @@ def test_smart_step_into_bytecode_info_004():
     found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
-    check_name_and_line(found, [('_getframe', 1), ('bar', 2), ('Something', 3), ('yyy', 3), ('call', 5)])
+    check_name_and_line(found, [('_getframe', 1), ('bar', 2), ('Something', 3), ('call', 5)])
 
 
 def test_smart_step_into_bytecode_info_005():
@@ -177,7 +177,7 @@ def test_smart_step_into_bytecode_info_005():
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [
-        ('_getframe', 1), ('bar', 2), ('Something', 3), ('yyy', 3), ('call', 5)])
+        ('_getframe', 1), ('bar', 2), ('Something', 3), ('call', 5)])
 
 
 def test_smart_step_into_bytecode_info_006():
@@ -991,6 +991,32 @@ async def function():
         await foo()
 
 ''', [('lock', 1), ('foo', 2)])
+
+
+def test_smart_step_into_bytecode_info_056():
+    check_names_from_func_str('''
+def function(mask_path):
+    wc = some_func(
+        parsed_content,
+        np.array(
+            Image.open(mask_path)
+        )
+    )
+
+''', [('some_func', 1), ('array', 3), ('open', 4)])
+
+
+def test_smart_step_into_bytecode_info_057():
+    check_names_from_func_str('''
+def function(mask_path):
+    wc = some_func(
+        parsed_content,
+        np.array(
+            my.pack.Image.open(mask_path)
+        )
+    )
+
+''', [('some_func', 1), ('array', 3), ('open', 4)])
 
 
 def test_get_smart_step_into_variant_from_frame_offset():

@@ -274,8 +274,7 @@ class _StackInterpreter(object):
     on_BINARY_XOR = on_BINARY_SUBSCR
 
     def on_LOAD_METHOD(self, instr):
-        # ceval sets the top and pushes an additional... the
-        # final result is simply one additional instruction.
+        self.on_POP_TOP(instr)  # Remove the previous as we're loading something from it.
         self._stack.append(instr)
 
     def on_MAKE_FUNCTION(self, instr):
@@ -688,7 +687,11 @@ def _get_smart_step_into_targets(code):
                         pydev_log.exception('Exception computing step into targets (handled).')
 
         ret.extend(stack.function_calls)
-        ret.extend(stack.load_attrs.values())
+        # No longer considering attr loads as calls (while in theory sometimes it's possible
+        # that something as `some.attr` can turn out to be a property which could be stepped
+        # in, it's not that common in practice and can be surprising for users, so, disabling
+        # step into from stepping into properties).
+        # ret.extend(stack.load_attrs.values())
 
     return ret
 
