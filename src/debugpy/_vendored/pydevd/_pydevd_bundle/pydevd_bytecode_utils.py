@@ -274,8 +274,7 @@ class _StackInterpreter(object):
     on_BINARY_XOR = on_BINARY_SUBSCR
 
     def on_LOAD_METHOD(self, instr):
-        # ceval sets the top and pushes an additional... the
-        # final result is simply one additional instruction.
+        self.on_POP_TOP(instr)  # Remove the previous as we're loading something from it.
         self._stack.append(instr)
 
     def on_MAKE_FUNCTION(self, instr):

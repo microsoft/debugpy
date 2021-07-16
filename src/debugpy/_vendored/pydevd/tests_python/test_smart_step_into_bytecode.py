@@ -993,6 +993,32 @@ async def function():
 ''', [('lock', 1), ('foo', 2)])
 
 
+def test_smart_step_into_bytecode_info_056():
+    check_names_from_func_str('''
+def function(mask_path):
+    wc = some_func(
+        parsed_content,
+        np.array(
+            Image.open(mask_path)
+        )
+    )
+
+''', [('some_func', 1), ('array', 3), ('open', 4)])
+
+
+def test_smart_step_into_bytecode_info_057():
+    check_names_from_func_str('''
+def function(mask_path):
+    wc = some_func(
+        parsed_content,
+        np.array(
+            my.pack.Image.open(mask_path)
+        )
+    )
+
+''', [('some_func', 1), ('array', 3), ('open', 4)])
+
+
 def test_get_smart_step_into_variant_from_frame_offset():
     from _pydevd_bundle.pydevd_bytecode_utils import Variant
 

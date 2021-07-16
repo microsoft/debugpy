@@ -123,13 +123,15 @@ class JsonFacade(object):
     def wait_for_terminated(self):
         return self.wait_for_json_message(TerminatedEvent)
 
-    def wait_for_thread_stopped(self, reason='breakpoint', line=None, file=None, name=None):
+    def wait_for_thread_stopped(self, reason='breakpoint', line=None, file=None, name=None, preserve_focus_hint=None):
         '''
         :param file:
             utf-8 bytes encoded file or unicode
         '''
         stopped_event = self.wait_for_json_message(StoppedEvent)
         assert stopped_event.body.reason == reason
+        if preserve_focus_hint is not None:
+            assert stopped_event.body.preserveFocusHint == preserve_focus_hint
         json_hit = self.get_stack_as_json_hit(stopped_event.body.threadId)
         if file is not None:
             path = json_hit.stack_trace_response.body.stackFrames[0]['source']['path']
@@ -5572,7 +5574,8 @@ def test_function_breakpoints_basic(case_setup, pyfile):
         json_facade.write_set_function_breakpoints(['do_something'])
         json_facade.write_make_initial_run()
 
-        hit = json_facade.wait_for_thread_stopped('function breakpoint', line=bp)
+        json_facade.wait_for_thread_stopped(
+            'function breakpoint', line=bp, preserve_focus_hint=False)
         json_facade.write_continue()
 
         writer.finished_ok = True
@@ -5588,7 +5591,8 @@ def test_function_breakpoints_async(case_setup):
         json_facade.write_set_function_breakpoints(['gen'])
         json_facade.write_make_initial_run()
 
-        hit = json_facade.wait_for_thread_stopped('function breakpoint', line=bp)
+        json_facade.wait_for_thread_stopped(
+            'function breakpoint', line=bp, preserve_focus_hint=False)
         json_facade.write_continue()
 
         writer.finished_ok = True
