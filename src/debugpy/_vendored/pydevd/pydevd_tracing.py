@@ -204,9 +204,9 @@ def get_python_helper_lib_filename():
 
         if filename is None:
             pydev_log.info(
-                'Unable to set trace to all threads in arch: %s (did not find a %s lib in %s).', (
-                    arch, expected_name, libdir
-                )
+                'Unable to set trace to all threads in arch: %s (did not find a %s lib in %s).',
+                arch, expected_name, libdir
+
             )
             return None
 
@@ -244,6 +244,8 @@ def _load_python_helper_lib_uncached():
 
     try:
         filename = get_python_helper_lib_filename()
+        if filename is None:
+            return None
         # Load as pydll so that we don't release the gil.
         lib = ctypes.pydll.LoadLibrary(filename)
         pydev_log.info('Successfully Loaded helper lib to set tracing to all threads.')
@@ -346,16 +348,23 @@ def set_trace_to_threads(tracing_func, thread_idents=None, create_dummy_thread=T
             pydev_log.info('Unable to load helper lib to set tracing to all threads (unsupported python vm).')
             ret = -1
         else:
-            result = lib.AttachDebuggerTracing(
-                ctypes.c_int(show_debug_info),
-                ctypes.py_object(set_trace_func),
-                ctypes.py_object(tracing_func),
-                ctypes.c_uint(thread_ident),
-                ctypes.py_object(None),
-            )
-            if result != 0:
-                pydev_log.info('Unable to set tracing for existing thread. Result: %s', result)
-                ret = result
+            try:
+                result = lib.AttachDebuggerTracing(
+                    ctypes.c_int(show_debug_info),
+                    ctypes.py_object(set_trace_func),
+                    ctypes.py_object(tracing_func),
+                    ctypes.c_uint(thread_ident),
+                    ctypes.py_object(None),
+                )
+            except:
+                if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 1:
+                    # There is no need to show this unless debug tracing is enabled.
+                    pydev_log.exception('Error attaching debugger tracing')
+                ret = -1
+            else:
+                if result != 0:
+                    pydev_log.info('Unable to set tracing for existing thread. Result: %s', result)
+                    ret = result
 
     return ret
 
