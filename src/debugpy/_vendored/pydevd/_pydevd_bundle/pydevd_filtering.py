@@ -199,7 +199,7 @@ class FilesFiltering(object):
                 roots.append(site_paths)
 
         for path in sys.path:
-            if os.path.exists(path) and os.path.basename(path) == 'site-packages':
+            if os.path.exists(path) and os.path.basename(path) in ('site-packages', 'pip-global'):
                 roots.append(path)
 
         roots.extend([os.path.realpath(path) for path in roots])
