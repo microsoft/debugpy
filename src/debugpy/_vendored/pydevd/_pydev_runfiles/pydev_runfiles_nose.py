@@ -127,6 +127,8 @@ class PydevPlugin(Plugin):
                 from io import StringIO
             s = StringIO()
             etype, value, tb = err
+            if isinstance(value, str):
+                return value
             import traceback;traceback.print_exception(etype, value, tb, file=s)
             return s.getvalue()
         return err
