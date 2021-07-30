@@ -193,8 +193,16 @@ class Reload:
 
     def __init__(self, mod, mod_name=None, mod_filename=None):
         self.mod = mod
-        self.mod_name = (mod_name or mod.__name__) if mod_name else None
-        self.mod_filename = (mod_filename or mod.__file__) if mod else None
+        if mod_name:
+            self.mod_name = mod_name
+        else:
+            self.mod_name = mod.__name__ if mod is not None else None
+
+        if mod_filename:
+            self.mod_filename = mod_filename
+        else:
+            self.mod_filename = mod.__file__ if mod is not None else None
+
         self.found_change = False
 
     def apply(self):

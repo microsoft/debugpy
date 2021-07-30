@@ -50,7 +50,17 @@ class Test(unittest.TestCase):
             pass
 
     def make_mod(self, name="x", repl=None, subst=None, sample=SAMPLE_CODE):
-        fn = os.path.join(self.tempdir, name + ".py")
+        basedir = self.tempdir
+        if '.' in name:
+            splitted = name.split('.')
+            basedir = os.path.join(self.tempdir, *splitted[:-1])
+            name = splitted[-1]
+            try:
+                os.makedirs(basedir)
+            except:
+                pass
+
+        fn = os.path.join(basedir, name + ".py")
         f = open(fn, "w")
         if repl is not None and subst is not None:
             sample = sample.replace(repl, subst)
@@ -531,3 +541,33 @@ def method():
         # do it).
         assert str(x.global_numpy) == '[1 2 3]'
 
+    def test_reload_relative(self):
+        MODULE_CODE = """
+def add_text(s):
+    return s + " module"
+"""
+        MODULE1_CODE = """
+from . import module
+
+def add_more_text(s):
+    s = module.add_text(s)
+    return s + ' module1'
+"""
+
+        MODULE1_CODE_V2 = """
+from . import module
+
+def add_more_text(s):
+    s = module.add_text(s)
+    return s + ' module1V2'
+"""
+
+        self.make_mod(sample='', name='package.__init__')
+        self.make_mod(sample=MODULE_CODE, name='package.module')
+        self.make_mod(sample=MODULE1_CODE, name='package.module1')
+        from package import module1  # @UnresolvedImport
+        assert module1.add_more_text('1') == '1 module module1'
+
+        self.make_mod(sample=MODULE1_CODE_V2, name='package.module1')
+        pydevd_reload.xreload(module1)
+        assert module1.add_more_text('1') == '1 module module1V2'
