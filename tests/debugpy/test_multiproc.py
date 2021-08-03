@@ -472,3 +472,65 @@ def test_subprocess_unobserved(pyfile, run, target, wait):
 
             backchannel.send("proceed")
             child_session.wait_for_terminated()
+
+
+@pytest.mark.parametrize("run", runners.all_launch)
+@pytest.mark.skipif(sys.platform != "win32", reason="job objects are specific to Windows")
+def test_breakaway_job(pyfile, target, run):
+    @pyfile
+    def child():
+        import os
+        from debuggee import backchannel
+
+        backchannel.send(os.getpid())
+        backchannel.receive()
+        backchannel.send("ok")
+
+    @pyfile
+    def parent():
+        import debuggee
+        import os
+        import subprocess
+        import sys
+
+        debuggee.setup()
+        argv = [sys.executable, sys.argv[1]]
+        env = os.environ.copy()
+        pipe_in = open(os.devnull, "r")
+        pipe_out = open(os.devnull, "w")
+        CREATE_BREAKAWAY_FROM_JOB = 0x01000000
+        proc = subprocess.Popen(
+            argv,
+            env=env,
+            stdin=pipe_in,
+            stdout=pipe_out,
+            stderr=pipe_out,
+            creationflags=CREATE_BREAKAWAY_FROM_JOB,
+        )
+        pipe_in.close()
+        pipe_out.close()
+        proc.wait()
+
+    with debug.Session() as parent_session:
+        parent_session.config.update({
+            "redirectOutput": False,
+            "subProcess": False,
+        })
+        parent_session.expected_exit_code = some.int
+        backchannel = parent_session.open_backchannel()
+
+        with run(parent_session, target(parent, args=[child])):
+            pass
+
+        child_pid = backchannel.receive()
+        child_process = psutil.Process(child_pid)
+
+        parent_session.request("terminate")
+        parent_session.wait_for_exit()
+
+        # child should still be running
+        backchannel.send("proceed")
+        assert backchannel.receive() == "ok"
+
+    log.info("Waiting for child process...")
+    child_process.wait()

@@ -312,7 +312,7 @@ class JsonIOStream(object):
         try:
             body = encoder.encode(value)
         except Exception:
-            raise self._log_message("<--", value, logger=log.exception)
+            self._log_message("<--", value, logger=log.reraise_exception)
         if not isinstance(body, bytes):
             body = body.encode("utf-8")
 
@@ -332,7 +332,7 @@ class JsonIOStream(object):
                 data_written += written
             writer.flush()
         except Exception as exc:
-            self._log_message("<--", value, logger=log.exception)
+            self._log_message("<--", value, logger=log.swallow_exception)
             raise JsonIOError(stream=self, cause=exc)
 
         self._log_message("<--", value)
