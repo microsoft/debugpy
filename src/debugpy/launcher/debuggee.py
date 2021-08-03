@@ -115,10 +115,12 @@ def spawn(process_name, cmdline, env, redirect_output):
                     ctypes.pointer(job_info_size),
                 )
 
-                # Setting this flag ensures that the job will be terminated by the OS once the
-                # launcher exits, even if it doesn't terminate the job explicitly.
                 job_info.BasicLimitInformation.LimitFlags |= (
-                    winapi.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+                    # Ensure that the job will be terminated by the OS once the
+                    # launcher exits, even if it doesn't terminate the job explicitly.
+                    winapi.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE |
+                    # Allow the debuggee to create its own jobs unrelated to ours.
+                    winapi.JOB_OBJECT_LIMIT_BREAKAWAY_OK
                 )
                 winapi.kernel32.SetInformationJobObject(
                     job_handle,
