@@ -440,7 +440,7 @@ def start_server(host, port, client_port):
     # note that this does not work in jython!!! (sys method can't be replaced).
     sys.exit = do_exit
 
-    interpreter = InterpreterInterface(host, client_port, threading.currentThread())
+    interpreter = InterpreterInterface(host, client_port, threading.current_thread())
 
     start_new_thread(start_console_server, (host, port, interpreter))
 
@@ -457,7 +457,7 @@ def get_interpreter():
     try:
         interpreterInterface = getattr(__builtin__, 'interpreter')
     except AttributeError:
-        interpreterInterface = InterpreterInterface(None, None, threading.currentThread())
+        interpreterInterface = InterpreterInterface(None, None, threading.current_thread())
         __builtin__.interpreter = interpreterInterface
         sys.stderr.write(interpreterInterface.get_greeting_msg())
         sys.stderr.flush()

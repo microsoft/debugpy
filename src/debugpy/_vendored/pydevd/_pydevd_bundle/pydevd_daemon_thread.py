@@ -35,7 +35,7 @@ class PyDBDaemonThread(threading.Thread):
         created_pydb_daemon[self] = 1
         try:
             try:
-                if IS_JYTHON and not isinstance(threading.currentThread(), threading._MainThread):
+                if IS_JYTHON and not isinstance(threading.current_thread(), threading._MainThread):
                     # we shouldn't update sys.modules for the main thread, cause it leads to the second importing 'threading'
                     # module, and the new instance of main thread is created
                     ss = JyCore.PySystemState()
@@ -59,7 +59,7 @@ class PyDBDaemonThread(threading.Thread):
 
     def do_kill_pydev_thread(self):
         if not self._kill_received:
-            pydev_log.debug('%s received kill signal', self.getName())
+            pydev_log.debug('%s received kill signal', self.name)
             self._kill_received = True
 
     def _stop_trace(self):

@@ -142,7 +142,7 @@ class NetCommandFactoryJson(NetCommandFactory):
                 # Notify that it's created (no-op if we already notified before).
                 py_db.notify_thread_created(thread_id, thread)
 
-                thread_schema = pydevd_schema.Thread(id=thread_id, name=thread.getName())
+                thread_schema = pydevd_schema.Thread(id=thread_id, name=thread.name)
                 threads.append(thread_schema.to_dict())
 
         body = pydevd_schema.ThreadsResponseBody(threads)

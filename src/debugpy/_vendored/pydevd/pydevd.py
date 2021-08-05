@@ -153,7 +153,7 @@ if SUPPORT_PLUGINS:
     from _pydevd_bundle.pydevd_plugin_utils import PluginManager
 
 threadingEnumerate = threading.enumerate
-threadingCurrentThread = threading.currentThread
+threadingCurrentThread = threading.current_thread
 
 try:
     'dummy'.encode('utf-8')  # Added because otherwise Jython 2.2.1 wasn't finding the encoding (if it wasn't loaded in the main thread).
@@ -179,7 +179,7 @@ class PyDBCommandThread(PyDBDaemonThread):
     def __init__(self, py_db):
         PyDBDaemonThread.__init__(self, py_db)
         self._py_db_command_thread_event = py_db._py_db_command_thread_event
-        self.setName('pydevd.CommandThread')
+        self.name = 'pydevd.CommandThread'
 
     @overrides(PyDBDaemonThread._on_run)
     def _on_run(self):
@@ -223,7 +223,7 @@ class CheckAliveThread(PyDBDaemonThread):
 
     def __init__(self, py_db):
         PyDBDaemonThread.__init__(self, py_db)
-        self.setName('pydevd.CheckAliveThread')
+        self.name = 'pydevd.CheckAliveThread'
         self.daemon = False
         self._wait_event = threading.Event()
 
@@ -1317,7 +1317,7 @@ class PyDB(object):
                     'Error in debugger: Found PyDBDaemonThread not marked with is_pydev_daemon_thread=True.\n')
 
             if is_thread_alive(t):
-                if not t.isDaemon() or hasattr(t, "__pydevd_main_thread"):
+                if not t.daemon or hasattr(t, "__pydevd_main_thread"):
                     return True
 
         return False
@@ -2159,8 +2159,8 @@ class PyDB(object):
                             break
                         time.sleep(1 / 10.)
                     else:
-                        thread_names = [t.getName() for t in get_pydb_daemon_threads_to_wait()]
-                        if thread_names:
+                        thread_names = [t.name for t in get_pydb_daemon_threads_to_wait()]
+                        if thread_names: 
                             pydev_log.debug("The following pydb threads may not have finished correctly: %s",
                                             ', '.join(thread_names))
                 finally:
@@ -2345,8 +2345,8 @@ class PyDB(object):
         if self.thread_analyser is not None:
             wrap_threads()
             self.thread_analyser.set_start_time(cur_time())
-            send_concurrency_message("threading_event", 0, t.getName(), thread_id, "thread", "start", file, 1, None, parent=thread_id)
-
+            send_concurrency_message("threading_event", 0, t.name, thread_id, "thread", "start", file, 1, None, parent=thread_id)
+                                                            
         if self.asyncio_analyser is not None:
             # we don't have main thread in asyncio graph, so we should add a fake event
             send_concurrency_message("asyncio_event", 0, "Task", "Task", "thread", "stop", file, 1, frame=None, parent=None)
@@ -2400,7 +2400,7 @@ class PyDB(object):
     def wait_for_commands(self, globals):
         self._activate_mpl_if_needed()
 
-        thread = threading.currentThread()
+        thread = threading.current_thread()
         from _pydevd_bundle import pydevd_frame_utils
         frame = pydevd_frame_utils.Frame(None, -1, pydevd_frame_utils.FCode("Console",
                                                                             os.path.abspath(os.path.dirname(__file__))), globals, globals)
@@ -2926,7 +2926,7 @@ class DispatchReader(ReaderThread):
 
     @overrides(ReaderThread._on_run)
     def _on_run(self):
-        dummy_thread = threading.currentThread()
+        dummy_thread = threading.current_thread()
         dummy_thread.is_pydev_daemon_thread = False
         return ReaderThread._on_run(self)
 

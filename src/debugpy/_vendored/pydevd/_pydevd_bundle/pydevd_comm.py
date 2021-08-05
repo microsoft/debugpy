@@ -152,7 +152,7 @@ class ReaderThread(PyDBDaemonThread):
 
         self.sock = sock
         self._buffer = b''
-        self.setName("pydevd.Reader")
+        self.name = "pydevd.Reader"
         self.process_net_command = process_net_command
         self.process_net_command_json = PyDevJsonCommandProcessor(self._from_json).process_net_command_json
 
@@ -323,7 +323,7 @@ class FSNotifyThread(PyDBDaemonThread):
     def __init__(self, py_db, api, watch_dirs):
         PyDBDaemonThread.__init__(self, py_db)
         self.api = api
-        self.setName("pydevd.FSNotifyThread")
+        self.name = "pydevd.FSNotifyThread"
         self.watcher = fsnotify.Watcher()
         self.watch_dirs = watch_dirs
 
@@ -359,7 +359,7 @@ class WriterThread(PyDBDaemonThread):
         PyDBDaemonThread.__init__(self, py_db)
         self.sock = sock
         self.__terminate_on_socket_close = terminate_on_socket_close
-        self.setName("pydevd.Writer")
+        self.name = "pydevd.Writer"
         self._cmd_queue = _queue.Queue()
         if pydevd_vm_type.get_vm_type() == 'python':
             self.timeout = 0

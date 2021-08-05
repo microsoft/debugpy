@@ -21,11 +21,11 @@ def get_marked_line_numbers(path):
 
         print(1)  # @foo
         print(2)
-        print(3)  # @bar
+        print(3)  # @bar,baz
 
     the function will return::
 
-        {"foo": 1, "bar": 3}
+        {"foo": 1, "bar": 3, "baz": 3}
     """
 
     if isinstance(path, py.path.local):
@@ -40,10 +40,11 @@ def get_marked_line_numbers(path):
     with open(path, "rb") as f:
         lines = {}
         for i, line in enumerate(f):
-            match = re.search(br"#\s*@\s*(.+?)\s*$", line)
+            match = re.search(br"#\s*@(.+?)\s*$", line)
             if match:
-                marker = compat.force_unicode(match.group(1), "ascii")
-                lines[marker] = i + 1
+                markers = compat.force_unicode(match.group(1), "ascii")
+                for marker in markers.split(","):
+                    lines[marker] = i + 1
 
     _marked_line_numbers_cache[path] = lines
     return lines

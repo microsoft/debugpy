@@ -448,4 +448,3 @@ def interrupt_main_thread(main_thread):
                 main_thread._thread.interrupt()  # Jython
         except:
             pydev_log.exception('Error on interrupt main thread fallback.')
-
