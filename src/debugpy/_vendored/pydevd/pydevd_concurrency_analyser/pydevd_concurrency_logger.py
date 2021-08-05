@@ -18,7 +18,7 @@ try:
 except:
     from urllib.parse import quote  # @UnresolvedImport
 
-threadingCurrentThread = threading.currentThread
+threadingCurrentThread = threading.current_thread
 
 DONT_TRACE_THREADING = ['threading.py', 'pydevd.py']
 INNER_METHODS = ['_stop']
@@ -105,7 +105,7 @@ def send_concurrency_message(event_class, time, name, thread_id, type, event, fi
 
 def log_new_thread(global_debugger, t):
     event_time = cur_time() - global_debugger.thread_analyser.start_time
-    send_concurrency_message("threading_event", event_time, t.getName(), get_thread_id(t), "thread",
+    send_concurrency_message("threading_event", event_time, t.name, get_thread_id(t), "thread",
              "start", "code_name", 0, None, parent=get_thread_id(t))
 
 
@@ -162,7 +162,7 @@ class ThreadingLogger:
                             if not self_obj.is_alive():
                                 return
                             thread_id = get_thread_id(t)
-                            name = t.getName()
+                            name = t.name
                             self_obj._pydev_join_called = True
 
                         if real_method == "start":
@@ -200,7 +200,7 @@ class ThreadingLogger:
                         # back_back_base is the file, where the method was called froms
                         return
                     if method_name == "__init__":
-                        send_concurrency_message("threading_event", event_time, t.getName(), get_thread_id(t), "lock",
+                        send_concurrency_message("threading_event", event_time, t.name, get_thread_id(t), "lock",
                                      method_name, back.f_code.co_filename, back.f_lineno, back, lock_id=str(id(frame.f_locals["self"])))
                     if "attr" in frame.f_locals and \
                             (frame.f_locals["attr"] in LOCK_METHODS or
@@ -215,14 +215,14 @@ class ThreadingLogger:
                         if real_method == "release_end":
                             # do not log release end. Maybe use it later
                             return
-                        send_concurrency_message("threading_event", event_time, t.getName(), get_thread_id(t), "lock",
+                        send_concurrency_message("threading_event", event_time, t.name, get_thread_id(t), "lock",
                         real_method, back.f_code.co_filename, back.f_lineno, back, lock_id=str(id(self_obj)))
 
                         if real_method in ("put_end", "get_end"):
                             # fake release for queue, cause we don't call it directly
-                            send_concurrency_message("threading_event", event_time, t.getName(), get_thread_id(t), "lock",
+                            send_concurrency_message("threading_event", event_time, t.name, get_thread_id(t), "lock",
                                          "release", back.f_code.co_filename, back.f_lineno, back, lock_id=str(id(self_obj)))
-                        # print(event_time, t.getName(), get_thread_id(t), "lock",
+                        # print(event_time, t.name, get_thread_id(t), "lock",
                         #       real_method, back.f_code.co_filename, back.f_lineno)
 
         except Exception:

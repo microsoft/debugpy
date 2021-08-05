@@ -47,7 +47,7 @@ class NetCommandFactory(object):
 
     def _thread_to_xml(self, thread):
         """ thread information as XML """
-        name = pydevd_xml.make_valid_xml_value(thread.getName())
+        name = pydevd_xml.make_valid_xml_value(thread.name)
         cmdText = '<thread name="%s" id="%s" />' % (quote(name), get_thread_id(thread))
         return cmdText
 

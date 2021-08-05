@@ -1,9 +1,11 @@
-setuptools>=57.4.0
-
 ## Used to run the tests:
 
-pytest
-pytest-xdist
+# pytest>=5 does not support Python 2.7
+pytest<5
+
+# pytest-xdist>=2 does not support Python 2.7
+pytest-xdist<2
+
 pytest-cov
 pytest-timeout
 tox

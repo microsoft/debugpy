@@ -41,7 +41,7 @@ def iter_frames(frame):
 
 def dump_frames(thread_id):
     sys.stdout.write('dumping frames\n')
-    if thread_id != get_current_thread_id(threading.currentThread()):
+    if thread_id != get_current_thread_id(threading.current_thread()):
         raise VariableError("find_frame: must execute on same thread")
 
     frame = get_frame()
@@ -65,7 +65,7 @@ def getVariable(dbg, thread_id, frame_id, scope, attrs):
            not the frame (as we don't care about the frame in this case).
     """
     if scope == 'BY_ID':
-        if thread_id != get_current_thread_id(threading.currentThread()):
+        if thread_id != get_current_thread_id(current_thread()):
             raise VariableError("getVariable: must execute on same thread")
 
         try:

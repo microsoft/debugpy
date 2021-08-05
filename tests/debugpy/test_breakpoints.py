@@ -328,46 +328,46 @@ def test_invalid_breakpoints(pyfile, target, run):
 
         debuggee.setup()
 
+        # For markers below, rN = requested breakpoint, eN = expected breakpoint.
+        # If there's no eN for some rN, it's assumed to be the same line.
         # fmt: off
         b = True
-        while b:         # @bp1-expected
-            pass         # @bp1-requested
+        while b:         # @e0-27,e0-35,e0-36,e0-37,e0-38,e0-39
+            pass         # @r0
             break
 
-        print()  # @bp2-expected
-        [  # @bp2-requested
-            1, 2, 3,    # @bp3-expected
-        ]               # @bp3-requested
+        print()         # @e1-27,e1-35,e1-36,e1-37 
+        [               # @r1,e2
+            1, 2, 3,    # @e2-27,e2-35,e2-36,e2-37,e2-38
+        ]               # @r2
 
         # Python 2.7 only.
-        print()         # @bp4-expected
-        print(1,        # @bp4-requested-1
-              2, 3,     # @bp4-requested-2
+        print()         # @e3,e4
+        print(1,        # @r3
+              2, 3,     # @r4
               4, 5, 6)
         # fmt: on
 
     with debug.Session() as session:
         with run(session, target(code_to_debug)):
-            bp_markers = ["bp1-requested", "bp2-requested", "bp3-requested"]
-            if sys.version_info < (3,):
-                bp_markers += ["bp4-requested-1", "bp4-requested-2"]
+            count = 5 if sys.version_info < (3,) else 3
+            requested_markers = ["r" + str(i) for i in range(0, count)]
 
-            bps = session.set_breakpoints(code_to_debug, bp_markers)
+            bps = session.set_breakpoints(code_to_debug, requested_markers)
             actual_lines = [bp["line"] for bp in bps]
 
-            if sys.version_info >= (3, 9):
-                expected_markers = ["bp1-expected", "bp2-requested", "bp2-requested"]
-            elif sys.version_info >= (3, 8):
-                # See: https://bugs.python.org/issue38508
-                expected_markers = ["bp1-expected", "bp2-requested", "bp3-expected"]
-            else:
-                expected_markers = ["bp1-expected", "bp2-expected", "bp3-expected"]
-            if sys.version_info < (3,):
-                expected_markers += ["bp4-expected", "bp4-expected"]
+            expected_markers = []
+            for r in requested_markers:
+                e_generic = "e" + r[1:]
+                e_versioned = e_generic + "-" + str(sys.version_info.major) + str(sys.version_info.minor)
+                for e in e_versioned, e_generic, r:
+                    if e in code_to_debug.lines:
+                        expected_markers.append(e)
+                        break
+
             expected_lines = [
                 code_to_debug.lines[marker] for marker in expected_markers
             ]
-
             assert actual_lines == expected_lines
 
         # Now let's make sure that we hit all of the expected breakpoints,
@@ -377,10 +377,9 @@ def test_invalid_breakpoints(pyfile, target, run):
         # so remove duplicates first.
         expected_lines = sorted(set(expected_lines))
         if (3, 8) <= sys.version_info < (3, 9):
-            # We'll actually hit @bp3-expected and later @bp2-requested
-            # (there's a line event when the list creation is finished
-            # at the start of the list creation on 3.8).
-            # See: https://bugs.python.org/issue38508
+            # We'll actually hit @e2-38 first, and only then @r1, because there's
+            # a line event for [ when the list creation is finished on 3.8).
+            # See https://bugs.python.org/issue38508 for details.
             expected_lines[1], expected_lines[2] = expected_lines[2], expected_lines[1]
 
         while expected_lines:

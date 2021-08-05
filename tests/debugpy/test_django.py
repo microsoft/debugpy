@@ -5,13 +5,17 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import pytest
+import sys
 
 from debugpy.common import compat
 from tests import code, debug, log, net, test_data
 from tests.debug import runners, targets
 from tests.patterns import some
 
-pytestmark = pytest.mark.timeout(60)
+pytestmark = [
+    pytest.mark.timeout(60),
+    pytest.mark.skipif(sys.version_info >= (3, 10), reason="https://github.com/microsoft/debugpy/issues/689"),
+]
 
 django_server = net.WebServer(net.get_test_server_port(8000, 8100))
 
