@@ -42,6 +42,7 @@ def _pushes_back(opname):
     return (
         opname.startswith("UNARY_")
         or opname.startswith("GET_")
+        # BUILD_XXX_UNPACK have been removed in 3.9
         or opname.startswith("BINARY_")
         or opname.startswith("INPLACE_")
         or opname.startswith("BUILD_")
@@ -318,14 +319,15 @@ class Instr:
     def pre_and_post_stack_effect(self, jump=None):
         _effect = self.stack_effect(jump=jump)
 
-        # To compute pre size and post size to avoid segfault cause by not enough stack element
+        # To compute pre size and post size to avoid segfault cause by not enough
+        # stack element
         _opname = _opcode.opname[self._opcode]
         if _opname.startswith("DUP_TOP"):
             return _effect * -1, _effect * 2
         if _pushes_back(_opname):
-            # if the op pushes value back to the stack, then the stack effect given by dis.stack_effect
-            # actually equals pre + post effect, therefore we need -1 from the stack effect as a pre
-            # condition
+            # if the op pushes value back to the stack, then the stack effect given
+            # by dis.stack_effect actually equals pre + post effect, therefore we need
+            # -1 from the stack effect as a pre condition
             return _effect - 1, 1
         if _opname.startswith("UNPACK_"):
             # Instr(UNPACK_* , n) pops 1 and pushes n
@@ -333,8 +335,11 @@ class Instr:
             # hence we return -1, _effect + 1
             return -1, _effect + 1
         if _opname == "FOR_ITER" and not jump:
-            # Since FOR_ITER needs TOS to be an iterator, which basically means a prerequisite of 1 on the stack
+            # Since FOR_ITER needs TOS to be an iterator, which basically means
+            # a prerequisite of 1 on the stack
             return -1, 2
+        if _opname == "ROT_N":
+            return (-self._arg, self._arg)
         return {"ROT_TWO": (-2, 2), "ROT_THREE": (-3, 3), "ROT_FOUR": (-4, 4)}.get(
             _opname, (_effect, 0)
         )
@@ -381,6 +386,7 @@ class Instr:
         if self._name in {
             "RETURN_VALUE",
             "RAISE_VARARGS",
+            "RERAISE",
             "BREAK_LOOP",
             "CONTINUE_LOOP",
         }:

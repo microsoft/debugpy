@@ -131,7 +131,7 @@ if __name__ == '__main__':
     server_thread = threading.Thread(target=start_console_server,
                                      name='ServerThread',
                                      args=(host, int(port), interpreter))
-    server_thread.setDaemon(True)
+    server_thread.daemon = True
     server_thread.start()
 
     sys.stdin = StdIn(interpreter, host, client_port, sys.stdin)

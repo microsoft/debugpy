@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: bytecode
-Version: 0.12.0
+Version: 0.13.0.dev0
 Summary: Python module to generate and modify bytecode
 Home-page: https://github.com/MatthieuDartiailh/bytecode
 Author: Victor Stinner
@@ -15,8 +15,12 @@ Classifier: License :: OSI Approved :: MIT License
 Classifier: Natural Language :: English
 Classifier: Operating System :: OS Independent
 Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
 Classifier: Topic :: Software Development :: Libraries :: Python Modules
-Requires-Dist: aenum (>=2.0) ; python_version < "3.6"
+Requires-Python: >=3.6
 
 ********
 bytecode
@@ -51,8 +55,10 @@ bytecode
 * `Download latest bytecode release at the Python Cheeseshop (PyPI)
   <https://pypi.python.org/pypi/bytecode>`_
 
-Install bytecode: ``python3 -m pip install bytecode``. It requires Python 3.5
-or newer.
+Install bytecode: ``python3 -m pip install bytecode``. It requires Python 3.6
+or newer. The latest release that supports Python 3.5 is 0.12.0. For Python 2.7
+support, have a look at  `dead-bytecode
+<https://github.com/p403n1x87/dead-bytecode>`_ instead.
 
 Example executing ``print('Hello World!')``:
 

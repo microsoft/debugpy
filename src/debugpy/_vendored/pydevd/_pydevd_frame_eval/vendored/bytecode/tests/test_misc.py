@@ -6,12 +6,14 @@ pytestmark = pytest.mark.skipif(not IS_PY36_OR_GREATER or not IS_CPYTHON or not 
 #!/usr/bin/env python3
 import contextlib
 import io
+import sys
 import textwrap
 import unittest
 
 from _pydevd_frame_eval.vendored import bytecode
 from _pydevd_frame_eval.vendored.bytecode import Label, Instr, Bytecode, BasicBlock, ControlFlowGraph
-from _pydevd_frame_eval.vendored.bytecode.tests import disassemble, WORDCODE
+from _pydevd_frame_eval.vendored.bytecode.concrete import OFFSET_AS_INSTRUCTION
+from _pydevd_frame_eval.vendored.bytecode.tests import disassemble
 
 
 class DumpCodeTests(unittest.TestCase):
@@ -39,10 +41,11 @@ class DumpCodeTests(unittest.TestCase):
         code = disassemble(source, function=True)
 
         # without line numbers
-        expected = """
+        enum_repr = "<Compare.EQ: 2>"
+        expected = f"""
     LOAD_FAST 'test'
     LOAD_CONST 1
-    COMPARE_OP <Compare.EQ: 2>
+    COMPARE_OP {enum_repr}
     POP_JUMP_IF_FALSE <label_instr6>
     LOAD_CONST 1
     RETURN_VALUE
@@ -50,7 +53,7 @@ class DumpCodeTests(unittest.TestCase):
 label_instr6:
     LOAD_FAST 'test'
     LOAD_CONST 2
-    COMPARE_OP <Compare.EQ: 2>
+    COMPARE_OP {enum_repr}
     POP_JUMP_IF_FALSE <label_instr13>
     LOAD_CONST 2
     RETURN_VALUE
@@ -67,10 +70,10 @@ label_instr13:
         self.check_dump_bytecode(code, expected)
 
         # with line numbers
-        expected = """
+        expected = f"""
     L.  2   0: LOAD_FAST 'test'
             1: LOAD_CONST 1
-            2: COMPARE_OP <Compare.EQ: 2>
+            2: COMPARE_OP {enum_repr}
             3: POP_JUMP_IF_FALSE <label_instr6>
     L.  3   4: LOAD_CONST 1
             5: RETURN_VALUE
@@ -78,7 +81,7 @@ label_instr13:
 label_instr6:
     L.  4   7: LOAD_FAST 'test'
             8: LOAD_CONST 2
-            9: COMPARE_OP <Compare.EQ: 2>
+            9: COMPARE_OP {enum_repr}
            10: POP_JUMP_IF_FALSE <label_instr13>
     L.  5  11: LOAD_CONST 2
            12: RETURN_VALUE
@@ -128,12 +131,13 @@ label_instr13:
         code = ControlFlowGraph.from_bytecode(code)
 
         # without line numbers
+        enum_repr = "<Compare.EQ: 2>"
         expected = textwrap.dedent(
-            """
+            f"""
             block1:
                 LOAD_FAST 'test'
                 LOAD_CONST 1
-                COMPARE_OP <Compare.EQ: 2>
+                COMPARE_OP {enum_repr}
                 POP_JUMP_IF_FALSE <block3>
                 -> block2
 
@@ -144,7 +148,7 @@ label_instr13:
             block3:
                 LOAD_FAST 'test'
                 LOAD_CONST 2
-                COMPARE_OP <Compare.EQ: 2>
+                COMPARE_OP {enum_repr}
                 POP_JUMP_IF_FALSE <block5>
                 -> block4
 
@@ -162,11 +166,11 @@ label_instr13:
 
         # with line numbers
         expected = textwrap.dedent(
-            """
+            f"""
             block1:
                 L.  2   0: LOAD_FAST 'test'
                         1: LOAD_CONST 1
-                        2: COMPARE_OP <Compare.EQ: 2>
+                        2: COMPARE_OP {enum_repr}
                         3: POP_JUMP_IF_FALSE <block3>
                 -> block2
 
@@ -177,7 +181,7 @@ label_instr13:
             block3:
                 L.  4   0: LOAD_FAST 'test'
                         1: LOAD_CONST 2
-                        2: COMPARE_OP <Compare.EQ: 2>
+                        2: COMPARE_OP {enum_repr}
                         3: POP_JUMP_IF_FALSE <block5>
                 -> block4
 
@@ -206,85 +210,45 @@ label_instr13:
         code = code.to_concrete_bytecode()
 
         # without line numbers
-        if WORDCODE:
-            expected = """
+        expected = f"""
   0    LOAD_FAST 0
   2    LOAD_CONST 1
   4    COMPARE_OP 2
-  6    POP_JUMP_IF_FALSE 12
+  6    POP_JUMP_IF_FALSE {6 if OFFSET_AS_INSTRUCTION else 12}
   8    LOAD_CONST 1
  10    RETURN_VALUE
  12    LOAD_FAST 0
  14    LOAD_CONST 2
  16    COMPARE_OP 2
- 18    POP_JUMP_IF_FALSE 24
+ 18    POP_JUMP_IF_FALSE {12 if OFFSET_AS_INSTRUCTION else 24}
  20    LOAD_CONST 2
  22    RETURN_VALUE
  24    LOAD_CONST 3
  26    RETURN_VALUE
 """.lstrip(
-                "\n"
-            )
-        else:
-            expected = """
-  0    LOAD_FAST 0
-  3    LOAD_CONST 1
-  6    COMPARE_OP 2
-  9    POP_JUMP_IF_FALSE 16
- 12    LOAD_CONST 1
- 15    RETURN_VALUE
- 16    LOAD_FAST 0
- 19    LOAD_CONST 2
- 22    COMPARE_OP 2
- 25    POP_JUMP_IF_FALSE 32
- 28    LOAD_CONST 2
- 31    RETURN_VALUE
- 32    LOAD_CONST 3
- 35    RETURN_VALUE
-""".lstrip(
-                "\n"
-            )
+            "\n"
+        )
         self.check_dump_bytecode(code, expected)
 
         # with line numbers
-        if WORDCODE:
-            expected = """
+        expected = f"""
 L.  2   0: LOAD_FAST 0
         2: LOAD_CONST 1
         4: COMPARE_OP 2
-        6: POP_JUMP_IF_FALSE 12
+        6: POP_JUMP_IF_FALSE {6 if OFFSET_AS_INSTRUCTION else 12}
 L.  3   8: LOAD_CONST 1
        10: RETURN_VALUE
 L.  4  12: LOAD_FAST 0
        14: LOAD_CONST 2
        16: COMPARE_OP 2
-       18: POP_JUMP_IF_FALSE 24
+       18: POP_JUMP_IF_FALSE {12 if OFFSET_AS_INSTRUCTION else 24}
 L.  5  20: LOAD_CONST 2
        22: RETURN_VALUE
 L.  6  24: LOAD_CONST 3
        26: RETURN_VALUE
 """.lstrip(
-                "\n"
-            )
-        else:
-            expected = """
-L.  2   0: LOAD_FAST 0
-        3: LOAD_CONST 1
-        6: COMPARE_OP 2
-        9: POP_JUMP_IF_FALSE 16
-L.  3  12: LOAD_CONST 1
-       15: RETURN_VALUE
-L.  4  16: LOAD_FAST 0
-       19: LOAD_CONST 2
-       22: COMPARE_OP 2
-       25: POP_JUMP_IF_FALSE 32
-L.  5  28: LOAD_CONST 2
-       31: RETURN_VALUE
-L.  6  32: LOAD_CONST 3
-       35: RETURN_VALUE
-""".lstrip(
-                "\n"
-            )
+            "\n"
+        )
         self.check_dump_bytecode(code, expected, lineno=True)
 
     def test_type_validation(self):

@@ -35,7 +35,7 @@ def thread_func2(n):
 
 
 th = threading.Thread(target=lambda: thread_func2(1))
-th.setDaemon(True)
+th.daemon = True
 th.start()
 
 th.join()

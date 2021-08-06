@@ -17,7 +17,8 @@ from _pydevd_frame_eval.vendored.bytecode import (
     BasicBlock,
     ControlFlowGraph,
 )
-from _pydevd_frame_eval.vendored.bytecode.tests import disassemble as _disassemble, TestCase, WORDCODE
+from _pydevd_frame_eval.vendored.bytecode.concrete import OFFSET_AS_INSTRUCTION
+from _pydevd_frame_eval.vendored.bytecode.tests import disassemble as _disassemble, TestCase
 
 
 def disassemble(
@@ -566,20 +567,14 @@ class BytecodeBlocksFunctionalTests(TestCase):
             ]
         )
 
-        if WORDCODE:
+        if OFFSET_AS_INSTRUCTION:
+            # The argument of the jump is divided by 2
             expected = (
-                b"|\x05" b"r\x08" b"|\x00" b"}\x05" b"d\x01" b"}\x05" b"|\x05" b"S\x00"
+                b"|\x05" b"r\x04" b"|\x00" b"}\x05" b"d\x01" b"}\x05" b"|\x05" b"S\x00"
             )
         else:
             expected = (
-                b"|\x05\x00"
-                b"r\x0c\x00"
-                b"|\x00\x00"
-                b"}\x05\x00"
-                b"d\x01\x00"
-                b"}\x05\x00"
-                b"|\x05\x00"
-                b"S"
+                b"|\x05" b"r\x08" b"|\x00" b"}\x05" b"d\x01" b"}\x05" b"|\x05" b"S\x00"
             )
 
         code = bytecode.to_code()

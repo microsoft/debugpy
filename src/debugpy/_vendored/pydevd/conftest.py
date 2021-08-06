@@ -92,7 +92,7 @@ def _start_monitoring_threads():
                 os._exit(123)
 
         dump_current_frames_thread = DumpThreads()
-        dump_current_frames_thread.setDaemon(True)  # Daemon so that this thread doesn't halt it!
+        dump_current_frames_thread.daemon = True  # Daemon so that this thread doesn't halt it!
         dump_current_frames_thread.start()
 
 

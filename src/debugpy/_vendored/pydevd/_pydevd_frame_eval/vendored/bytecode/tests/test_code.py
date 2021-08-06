@@ -68,6 +68,26 @@ class CodeTests(unittest.TestCase):
             function=True,
         )
 
+    # Added because Python 3.10 added some special beahavior with respect to
+    # generators in term of stack size
+    def test_generator_func(self):
+        self.check(
+            """
+            def func(arg, arg2):
+                yield
+        """,
+            function=True,
+        )
+
+    def test_async_func(self):
+        self.check(
+            """
+            async def func(arg, arg2):
+                pass
+        """,
+            function=True,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()  # pragma: no cover

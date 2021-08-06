@@ -45,7 +45,7 @@
         "git": {
           "Name": "bytecode",
           "RepositoryUrl": "https://github.com/MatthieuDartiailh/bytecode",
-          "CommitHash": "826344ec533643fad068754e0b9799bfeac46634"
+          "CommitHash": "ccb8a7b4bf12a85ff53c3c42517d2633c5225829"
         },
         "DevelopmentDependency": false
       }

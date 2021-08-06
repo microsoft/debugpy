@@ -201,7 +201,7 @@ class ReaderThread(threading.Thread):
         except ImportError:
             from Queue import Queue
 
-        self.setDaemon(True)
+        self.daemon = True
         self._buffer = b''
         self.sock = sock
         self._queue = Queue()
@@ -382,7 +382,7 @@ def read_process(stream, buffer, debug_stream, stream_name, finish):
 
 def start_in_daemon_thread(target, args):
     t0 = threading.Thread(target=target, args=args)
-    t0.setDaemon(True)
+    t0.daemon = True
     t0.start()
 
 
@@ -671,7 +671,7 @@ class AbstractWriterThread(threading.Thread):
     def __init__(self, *args, **kwargs):
         threading.Thread.__init__(self, *args, **kwargs)
         self.process = None  # Set after the process is created.
-        self.setDaemon(True)
+        self.daemon = True
         self.finished_ok = False
         self.finished_initialization = False
         self._next_breakpoint_id = 0
