@@ -194,6 +194,11 @@ class _StackInterpreter(object):
     on_DICT_UPDATE = on_POP_TOP
     on_SET_UPDATE = on_POP_TOP
 
+    on_GEN_START = on_POP_TOP
+
+    def on_NOP(self, instr):
+        pass
+
     def _handle_call_from_instr(self, func_name_instr, func_call_instr):
         self.load_attrs.pop(_TargetIdHashable(func_name_instr), None)
         call_name = self._getcallname(func_name_instr)

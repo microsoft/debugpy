@@ -1,10 +1,7 @@
 # alias to keep the 'bytecode' variable free
+import sys
+from enum import IntFlag
 from _pydevd_frame_eval.vendored import bytecode as _bytecode
-
-try:
-    from enum import IntFlag
-except ImportError:
-    from aenum import IntFlag
 
 
 class CompilerFlags(IntFlag):
@@ -33,7 +30,14 @@ class CompilerFlags(IntFlag):
     ASYNC_GENERATOR = 0x00200  # noqa
 
     # __future__ flags
-    FUTURE_GENERATOR_STOP = 0x80000  # noqa
+    # future flags changed in Python 3.9
+    if sys.version_info < (3, 9):
+        FUTURE_GENERATOR_STOP = 0x80000  # noqa
+        if sys.version_info > (3, 6):
+            FUTURE_ANNOTATIONS = 0x100000
+    else:
+        FUTURE_GENERATOR_STOP = 0x800000  # noqa
+        FUTURE_ANNOTATIONS = 0x1000000
 
 
 def infer_flags(bytecode, is_async=None):

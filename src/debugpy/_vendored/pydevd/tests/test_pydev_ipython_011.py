@@ -238,7 +238,7 @@ class TestRunningCode(TestBase):
                     self.client_server.shutdown()
 
             client_thread = ClientThread(client_port)
-            client_thread.setDaemon(True)
+            client_thread.daemon = True
             client_thread.start()
             return client_thread
 

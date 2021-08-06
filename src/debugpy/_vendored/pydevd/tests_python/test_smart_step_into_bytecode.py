@@ -22,13 +22,16 @@ def check(found, expected):
 
     last_offset = -1
     for f, e in zip(found, expected):
-        if isinstance(e.name, (list, tuple, set)):
-            assert f.name in e.name
-        else:
-            assert f.name == e.name
-        assert f.is_visited == e.is_visited
-        assert f.line == e.line
-        assert f.call_order == e.call_order
+        try:
+            if isinstance(e.name, (list, tuple, set)):
+                assert f.name in e.name
+            else:
+                assert f.name == e.name
+            assert f.is_visited == e.is_visited
+            assert f.line == e.line
+            assert f.call_order == e.call_order
+        except AssertionError as exc:
+            raise AssertionError('%s\nError with: %s - %s' % (exc, f, e))
 
         # We can't check the offset because it may be different among different python versions
         # so, just check that it's always in order.
@@ -1098,18 +1101,23 @@ def _test_find_bytecode():
     import glob
     import dis
     from io import StringIO
-    root_dir = 'C:\\bin\\Miniconda\\envs\\py36_tests\\Lib\\site-packages\\'
+    root_dir = 'C:\\bin\\Python310\\Lib\\site-packages\\'
 
     i = 0
     for filename in glob.iglob(root_dir + '**/*.py', recursive=True):
         print(filename)
         with open(filename, 'r', encoding='utf-8') as stream:
-            contents = stream.read()
+            try:
+                contents = stream.read()
+            except:
+                sys.stderr.write('Unable to read file: %s' % (filename,))
+                continue
 
             code_obj = compile(contents, filename, 'exec')
             s = StringIO()
             dis.dis(code_obj, file=s)
-            if 'EXTENDED_ARG' in s.getvalue():
+            # https://docs.python.org/3.10/library/dis.html has references to the new opcodes added.
+            if 'COPY_DICT_WITHOUT_KEYS' in s.getvalue():
                 dis.dis(code_obj)
                 raise AssertionError('Found bytecode in: %s' % filename)
 

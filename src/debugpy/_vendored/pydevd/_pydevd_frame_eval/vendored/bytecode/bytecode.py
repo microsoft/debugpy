@@ -198,8 +198,12 @@ class Bytecode(_InstrList, _BaseBytecodeList):
     def to_code(
         self, compute_jumps_passes=None, stacksize=None, *, check_pre_and_post=True
     ):
+        # Prevent reconverting the concrete bytecode to bytecode and cfg to do the
+        # calculation if we need to do it.
+        if stacksize is None:
+            stacksize = self.compute_stacksize(check_pre_and_post=check_pre_and_post)
         bc = self.to_concrete_bytecode(compute_jumps_passes=compute_jumps_passes)
-        return bc.to_code(stacksize=stacksize, check_pre_and_post=check_pre_and_post)
+        return bc.to_code(stacksize=stacksize)
 
     def to_concrete_bytecode(self, compute_jumps_passes=None):
         converter = _bytecode._ConvertBytecodeToConcrete(self)

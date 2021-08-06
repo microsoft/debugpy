@@ -184,6 +184,7 @@ IS_PY36_OR_GREATER = False
 IS_PY37_OR_GREATER = False
 IS_PY38_OR_GREATER = False
 IS_PY39_OR_GREATER = False
+IS_PY310_OR_GREATER = False
 IS_PY2 = True
 IS_PY27 = False
 IS_PY24 = False
@@ -197,6 +198,7 @@ try:
         IS_PY37_OR_GREATER = sys.version_info >= (3, 7)
         IS_PY38_OR_GREATER = sys.version_info >= (3, 8)
         IS_PY39_OR_GREATER = sys.version_info >= (3, 9)
+        IS_PY310_OR_GREATER = sys.version_info >= (3, 10)
     elif sys.version_info[0] == 2 and sys.version_info[1] == 7:
         IS_PY27 = True
     elif sys.version_info[0] == 2 and sys.version_info[1] == 4:

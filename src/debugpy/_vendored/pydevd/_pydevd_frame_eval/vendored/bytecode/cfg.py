@@ -1,6 +1,9 @@
+import sys
+
 # alias to keep the 'bytecode' variable free
 from _pydevd_frame_eval.vendored import bytecode as _bytecode
 from _pydevd_frame_eval.vendored.bytecode.concrete import ConcreteInstr
+from _pydevd_frame_eval.vendored.bytecode.flags import CompilerFlags
 from _pydevd_frame_eval.vendored.bytecode.instr import Label, SetLineno, Instr
 
 
@@ -219,8 +222,20 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             block.seen = False
             block.startsize = -32768  # INT_MIN
 
+        # Starting with Python 3.10, generator and coroutines start with one object
+        # on the stack (None, anything is an error).
+        initial_stack_size = 0
+        if sys.version_info >= (3, 10) and self.flags & (
+            CompilerFlags.GENERATOR
+            | CompilerFlags.COROUTINE
+            | CompilerFlags.ASYNC_GENERATOR
+        ):
+            initial_stack_size = 1
+
         # Create a generator/coroutine responsible of dealing with the first block
-        coro = _compute_stack_size(self[0], 0, 0, check_pre_and_post=check_pre_and_post)
+        coro = _compute_stack_size(
+            self[0], initial_stack_size, 0, check_pre_and_post=check_pre_and_post
+        )
 
         # Create a list of generator that have not yet been exhausted
         coroutines = []

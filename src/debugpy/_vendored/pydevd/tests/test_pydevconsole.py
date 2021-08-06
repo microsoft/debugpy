@@ -163,7 +163,7 @@ class Test(unittest.TestCase):
         client_thread = ClientThread(client_port)
         client_thread.requested_input = False
         client_thread.notified_finished = 0
-        client_thread.setDaemon(True)
+        client_thread.daemon = True
         client_thread.start()
         return client_thread
 
@@ -185,7 +185,7 @@ class Test(unittest.TestCase):
                 socket_code(socket)
 
         debugger_thread = DebuggerServerThread(debugger_port, socket_code)
-        debugger_thread.setDaemon(True)
+        debugger_thread.daemon = True
         debugger_thread.start()
         return debugger_thread
 
@@ -219,7 +219,7 @@ class Test(unittest.TestCase):
                     pydevconsole.start_server(pydev_localhost.get_localhost(), self.server_port, self.client_port)
 
             server_thread = ServerThread(client_port, server_port)
-            server_thread.setDaemon(True)
+            server_thread.daemon = True
             server_thread.start()
 
             client_thread = self.start_client_thread(client_port)  # @UnusedVariable

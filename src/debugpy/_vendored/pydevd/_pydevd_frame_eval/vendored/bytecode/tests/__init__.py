@@ -14,8 +14,6 @@ from _pydevd_frame_eval.vendored.bytecode import (
     ConcreteBytecode,
 )
 
-WORDCODE = sys.version_info >= (3, 6)
-
 
 def _format_instr_list(block, labels, lineno):
     instr_list = []
