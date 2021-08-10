@@ -382,7 +382,15 @@ class Client(components.Component):
         launcher_path = request("debugLauncherPath", os.path.dirname(launcher.__file__))
         adapter_host = request("debugAdapterHost", "127.0.0.1")
 
-        servers.serve(adapter_host)
+        try:
+            servers.serve(adapter_host)
+        except Exception as exc:
+            raise request.cant_handle(
+                "{0} couldn't create listener socket for servers: {1}",
+                self.session,
+                exc,
+            )
+
         launchers.spawn_debuggee(
             self.session,
             request,
