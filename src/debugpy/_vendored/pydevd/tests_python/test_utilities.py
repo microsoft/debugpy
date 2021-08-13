@@ -371,6 +371,31 @@ def test_tracing_other_threads():
     _check_in_separate_process('_check_tracing_other_threads')
 
 
+def _check_basic_tracing():
+    import pydevd_tracing
+
+    # Note: run this test in a separate process so that it doesn't mess with any current tracing
+    # in our current process.
+    called = [0]
+
+    def tracing_func(frame, event, args):
+        called[0] = called[0] + 1
+        return tracing_func
+
+    assert pydevd_tracing.set_trace_to_threads(tracing_func) == 0
+
+    def foo():
+        pass
+
+    foo()
+    assert called[0] > 2
+
+
+@pytest.mark.skipif(not IS_CPYTHON, reason='Functionality to trace other threads requires CPython.')
+def test_tracing_basic():
+    _check_in_separate_process('_check_basic_tracing')
+
+
 @pytest.mark.skipif(not IS_CPYTHON, reason='Functionality to trace other threads requires CPython.')
 def test_find_main_thread_id():
     # Note: run the checks below in a separate process because they rely heavily on what's available
