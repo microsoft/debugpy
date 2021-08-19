@@ -3,6 +3,8 @@
 
 #include "python.h"
 #include "py_utils.hpp"
+#include "py_custom_pyeval_settrace_common.hpp"
+#include "py_custom_pyeval_settrace_310.hpp"
 
 // On Python 3.7 onwards the thread state is not kept in PyThread_set_key_value (rather
 // it uses PyThread_tss_set using PyThread_tss_set(&_PyRuntime.gilstate.autoTSSkey, (void *)tstate)
@@ -21,58 +23,6 @@
 // to create a local copy of the whole _PyRuntime (defined in pystate.h with several inner structs)
 // which would need to be kept up to date for each new CPython version just to increment that variable).
 
-
-struct InternalInitializeCustomPyEvalSetTrace {
-    PyUnicode_InternFromString* pyUnicode_InternFromString;  // Note: in Py2 will be PyString_InternFromString.
-    PyObject* pyNone;
-    _PyObject_FastCallDict* pyObject_FastCallDict;
-    PyTuple_New* pyTuple_New;
-    PyEval_CallObjectWithKeywords* pyEval_CallObjectWithKeywords;
-    PyTraceBack_Here* pyTraceBack_Here;
-    PyEval_SetTrace* pyEval_SetTrace;
-    bool isDebug;
-};
-
-/**
- * Helper information to access CPython internals.
- */
-static InternalInitializeCustomPyEvalSetTrace *internalInitializeCustomPyEvalSetTrace = NULL;
-
-/*
- * Cached interned string objects used for calling the profile and
- * trace functions.  Initialized by InternalTraceInit().
- */
-static PyObject *InternalWhatstrings_37[8] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
-
-
-static int
-InternalIsTraceInitialized()
-{
-    return internalInitializeCustomPyEvalSetTrace != NULL;
-}
-
-
-static int
-InternalTraceInit(InternalInitializeCustomPyEvalSetTrace *p_internalInitializeSettrace_37)
-{
-    internalInitializeCustomPyEvalSetTrace = p_internalInitializeSettrace_37;
-    static const char * const whatnames[8] = {
-        "call", "exception", "line", "return",
-        "c_call", "c_exception", "c_return",
-        "opcode"
-    };
-    PyObject *name;
-    int i;
-    for (i = 0; i < 8; ++i) {
-        if (InternalWhatstrings_37[i] == NULL) {
-            name = internalInitializeCustomPyEvalSetTrace->pyUnicode_InternFromString(whatnames[i]);
-            if (name == NULL)
-                return -1;
-            InternalWhatstrings_37[i] = name;
-        }
-    }
-    return 0;
-}
 
 
 /**
@@ -108,7 +58,7 @@ InternalTraceInit(InternalInitializeCustomPyEvalSetTrace *p_internalInitializeSe
 
 static PyObject *
 InternalCallTrampoline(PyObject* callback,
-                PyFrameObject *frame, int what, PyObject *arg)
+                PyFrameObjectBaseUpTo39 *frame, int what, PyObject *arg)
 {
     PyObject *result;
     PyObject *stack[3];
@@ -121,6 +71,13 @@ InternalCallTrampoline(PyObject* callback,
     stack[0] = (PyObject *)frame;
     stack[1] = InternalWhatstrings_37[what];
     stack[2] = (arg != NULL) ? arg : internalInitializeCustomPyEvalSetTrace->pyNone;
+    
+    
+    // Helpers to print info.
+    // printf("%s\n", internalInitializeCustomPyEvalSetTrace->pyUnicode_AsUTF8(internalInitializeCustomPyEvalSetTrace->pyObject_Repr((PyObject *)stack[0])));
+    // printf("%s\n", internalInitializeCustomPyEvalSetTrace->pyUnicode_AsUTF8(internalInitializeCustomPyEvalSetTrace->pyObject_Repr((PyObject *)stack[1])));
+    // printf("%s\n", internalInitializeCustomPyEvalSetTrace->pyUnicode_AsUTF8(internalInitializeCustomPyEvalSetTrace->pyObject_Repr((PyObject *)stack[2])));
+    // printf("%s\n", internalInitializeCustomPyEvalSetTrace->pyUnicode_AsUTF8(internalInitializeCustomPyEvalSetTrace->pyObject_Repr((PyObject *)callback)));
 
     // call the Python-level function
     // result = _PyObject_FastCall(callback, stack, 3);
@@ -142,11 +99,13 @@ InternalCallTrampoline(PyObject* callback,
 }
 
 static int
-InternalTraceTrampoline(PyObject *self, PyFrameObject *frame,
+InternalTraceTrampoline(PyObject *self, PyFrameObject *frameParam,
                  int what, PyObject *arg)
 {
     PyObject *callback;
     PyObject *result;
+    
+    PyFrameObjectBaseUpTo39 *frame = reinterpret_cast<PyFrameObjectBaseUpTo39*>(frameParam);
 
     if (what == PyTrace_CALL){
         callback = self;
@@ -219,6 +178,9 @@ void InternalPySetTrace(PyThreadState* curThread, PyObjectHolder* traceFunc, boo
         InternalPySetTrace_Template<PyThreadState_37_38*>(reinterpret_cast<PyThreadState_37_38*>(curThread), traceFunc, isDebug);
     } else if (PyThreadState_39::IsFor(version)) {
         InternalPySetTrace_Template<PyThreadState_39*>(reinterpret_cast<PyThreadState_39*>(curThread), traceFunc, isDebug);
+    } else if (PyThreadState_310::IsFor(version)) {
+        // 3.10 has other changes on the actual algorithm (use_tracing is per-frame now), so, we have a full new version for it.
+        InternalPySetTrace_Template310<PyThreadState_310*>(reinterpret_cast<PyThreadState_310*>(curThread), traceFunc, isDebug);
     } else {
         printf("Unable to set trace to target thread with Python version: %d", version);
     }

@@ -31,6 +31,8 @@ DWORD GetPythonThreadId(PythonVersion version, PyThreadState* curThread) {
         threadId = (DWORD)((PyThreadState_37_38*)curThread)->thread_id;
     } else if (PyThreadState_39::IsFor(version)) {
         threadId = (DWORD)((PyThreadState_39*)curThread)->thread_id;
+    } else if (PyThreadState_310::IsFor(version)) {
+        threadId = (DWORD)((PyThreadState_310*)curThread)->thread_id;
     }
     return threadId;
 }
@@ -128,6 +130,10 @@ int InternalSetSysTraceFunc(
     DEFINE_PROC(pyEval_CallObjectWithKeywords, PyEval_CallObjectWithKeywords*, "PyEval_CallObjectWithKeywords", 532);
 
     if(pyObject_FastCallDict == nullptr) {
+        DEFINE_PROC_NO_CHECK(pyObject_FastCallDict, _PyObject_FastCallDict*, "PyObject_VectorcallDict", 533);
+    }
+                                                                                                         
+    if(pyObject_FastCallDict == nullptr) {
         // we have to use PyObject_FastCallDictCustom for older versions of CPython (pre 3.7).
         pyObject_FastCallDict = reinterpret_cast<_PyObject_FastCallDict*>(&PyObject_FastCallDictCustom);
     }
@@ -135,6 +141,11 @@ int InternalSetSysTraceFunc(
 
     DEFINE_PROC(pyTraceBack_Here, PyTraceBack_Here*, "PyTraceBack_Here", 540);
     DEFINE_PROC(pyEval_SetTrace, PyEval_SetTrace*, "PyEval_SetTrace", 550);
+    
+    // These are defined mostly for printing info while debugging, so, if they're not there, don't bother reporting.
+    DEFINE_PROC_NO_CHECK(pyObject_Repr, PyObject_Repr*, "PyObject_Repr", 551);
+    DEFINE_PROC_NO_CHECK(pyUnicode_AsUTF8, PyUnicode_AsUTF8*, "PyUnicode_AsUTF8", 552);
+
 
     bool found = false;
     for (PyThreadState* curThread = threadHead(head); curThread != nullptr; curThread = threadNext(curThread)) {
@@ -161,6 +172,8 @@ int InternalSetSysTraceFunc(
             internalInitializeCustomPyEvalSetTrace->pyEval_SetTrace = pyEval_SetTrace;
             internalInitializeCustomPyEvalSetTrace->pyTuple_New = pyTuple_New;
             internalInitializeCustomPyEvalSetTrace->pyEval_CallObjectWithKeywords = pyEval_CallObjectWithKeywords;
+            internalInitializeCustomPyEvalSetTrace->pyObject_Repr = pyObject_Repr;
+            internalInitializeCustomPyEvalSetTrace->pyUnicode_AsUTF8 = pyUnicode_AsUTF8;
 
             InternalTraceInit(internalInitializeCustomPyEvalSetTrace);
         }

@@ -393,6 +393,7 @@ def run_python_code_linux(pid, python_code, connect_debugger_tracing=False, show
     target_dll = get_target_filename()
     if not target_dll:
         raise RuntimeError('Could not find .so for attach to process.')
+    target_dll_name = os.path.splitext(os.path.basename(target_dll))[0]
 
     # Note: we currently don't support debug builds
     is_debug = 0
@@ -409,14 +410,18 @@ def run_python_code_linux(pid, python_code, connect_debugger_tracing=False, show
 #         '--batch-silent',
     ]
 
+    # PY-49617: Skip searching for symbols when starting up gdb and instead load just the required ones.
+    cmd.extend(["--init-eval-command='set auto-solib-add off'"])  # Faster loading.
     cmd.extend(["--eval-command='set scheduler-locking off'"])  # If on we'll deadlock.
 
     # Leave auto by default (it should do the right thing as we're attaching to a process in the
     # current host).
     cmd.extend(["--eval-command='set architecture auto'"])
+    cmd.extend(["--eval-command='sharedlibrary libdl'"])  # For dlopen.
 
     cmd.extend([
         "--eval-command='call (void*)dlopen(\"%s\", 2)'" % target_dll,
+        "--eval-command='sharedlibrary %s'" % target_dll_name,
         "--eval-command='call (int)DoAttach(%s, \"%s\", %s)'" % (
             is_debug, python_code, show_debug_info)
     ])

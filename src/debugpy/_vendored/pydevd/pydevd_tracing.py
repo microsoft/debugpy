@@ -237,7 +237,7 @@ def get_python_helper_lib_filename():
 
 
 def _load_python_helper_lib_uncached():
-    if (not IS_CPYTHON or ctypes is None or sys.version_info[:2] > (3, 9)
+    if (not IS_CPYTHON or ctypes is None or sys.version_info[:2] > (3, 10)
             or hasattr(sys, 'gettotalrefcount') or LOAD_NATIVE_LIB_FLAG in ENV_FALSE_LOWER_VALUES):
         pydev_log.info('Helper lib to set tracing to all threads not loaded.')
         return None
@@ -270,10 +270,15 @@ def set_trace_to_threads(tracing_func, thread_idents=None, create_dummy_thread=T
     # in which case a dummy thread would've been created for it).
     if thread_idents is None:
         thread_idents = set(sys._current_frames().keys())
-        thread_idents = thread_idents.difference(
-            # Ignore pydevd threads.
-            set(t.ident for t in threading.enumerate() if getattr(t, 'pydev_do_not_trace', False))
-        )
+
+        for t in threading.enumerate():
+            # PY-44778: ignore pydevd threads and also add any thread that wasn't found on
+            # sys._current_frames() as some existing threads may not appear in
+            # sys._current_frames() but may be available through the `threading` module.
+            if getattr(t, 'pydev_do_not_trace', False):
+                thread_idents.discard(t.ident)
+            else:
+                thread_idents.add(t.ident)
 
     curr_ident = thread.get_ident()
     curr_thread = threading._active.get(curr_ident)

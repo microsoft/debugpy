@@ -48,217 +48,6 @@ public:
     size_t ob_size; /* Number of items in variable part */
 };
 
-// 2.4 - 2.7 compatible
-class PyCodeObject25_27 : public PyObject {
-public:
-    int co_argcount;        /* #arguments, except *args */
-    int co_nlocals;         /* #local variables */
-    int co_stacksize;       /* #entries needed for evaluation stack */
-    int co_flags;           /* CO_..., see below */
-    PyObject *co_code;      /* instruction opcodes */
-    PyObject *co_consts;    /* list (constants used) */
-    PyObject *co_names;     /* list of strings (names used) */
-    PyObject *co_varnames;  /* tuple of strings (local variable names) */
-    PyObject *co_freevars;  /* tuple of strings (free variable names) */
-    PyObject *co_cellvars;  /* tuple of strings (cell variable names) */
-    /* The rest doesn't count for hash/cmp */
-    PyObject *co_filename;  /* string (where it was loaded from) */
-    PyObject *co_name;      /* string (name, for reference) */
-    int co_firstlineno;     /* first source line number */
-    PyObject *co_lnotab;    /* string (encoding addr<->lineno mapping) */
-
-    static bool IsFor(int majorVersion, int minorVersion) {
-        return majorVersion == 2 && (minorVersion >= 5 && minorVersion <= 7);
-    }
-
-    static bool IsFor(PythonVersion version) {
-        return version >= PythonVersion_25 && version <= PythonVersion_27;
-    }
-};
-
-// 3.0-3.2
-class PyCodeObject30_32 : public PyObject {
-public:
-    int co_argcount;        /* #arguments, except *args */
-    int co_kwonlyargcount;  /* #keyword only arguments */
-    int co_nlocals;         /* #local variables */
-    int co_stacksize;       /* #entries needed for evaluation stack */
-    int co_flags;           /* CO_..., see below */
-    PyObject *co_code;      /* instruction opcodes */
-    PyObject *co_consts;    /* list (constants used) */
-    PyObject *co_names;     /* list of strings (names used) */
-    PyObject *co_varnames;  /* tuple of strings (local variable names) */
-    PyObject *co_freevars;  /* tuple of strings (free variable names) */
-    PyObject *co_cellvars;  /* tuple of strings (cell variable names) */
-    /* The rest doesn't count for hash or comparisons */
-    PyObject *co_filename;  /* unicode (where it was loaded from) */
-    PyObject *co_name;      /* unicode (name, for reference) */
-    int co_firstlineno;     /* first source line number */
-    PyObject *co_lnotab;    /* string (encoding addr<->lineno mapping) */
-    void *co_zombieframe;   /* for optimization only (see frameobject.c) */
-
-    static bool IsFor(int majorVersion, int minorVersion) {
-        return majorVersion == 3 && (minorVersion >= 0 && minorVersion <= 2);
-    }
-
-    static bool IsFor(PythonVersion version) {
-        return version >= PythonVersion_30 && version <= PythonVersion_32;
-    }
-};
-
-// 3.3-3.5
-class PyCodeObject33_35 : public PyObject {
-public:
-    int co_argcount;            /* #arguments, except *args */
-    int co_kwonlyargcount;      /* #keyword only arguments */
-    int co_nlocals;             /* #local variables */
-    int co_stacksize;           /* #entries needed for evaluation stack */
-    int co_flags;               /* CO_..., see below */
-    PyObject *co_code;          /* instruction opcodes */
-    PyObject *co_consts;        /* list (constants used) */
-    PyObject *co_names;         /* list of strings (names used) */
-    PyObject *co_varnames;      /* tuple of strings (local variable names) */
-    PyObject *co_freevars;      /* tuple of strings (free variable names) */
-    PyObject *co_cellvars;      /* tuple of strings (cell variable names) */
-    /* The rest doesn't count for hash or comparisons */
-    unsigned char *co_cell2arg; /* Maps cell vars which are arguments. */
-    PyObject *co_filename;      /* unicode (where it was loaded from) */
-    PyObject *co_name;          /* unicode (name, for reference) */
-    int co_firstlineno;         /* first source line number */
-    PyObject *co_lnotab;        /* string (encoding addr<->lineno mapping) */
-    void *co_zombieframe;       /* for optimization only (see frameobject.c) */
-
-    static bool IsFor(int majorVersion, int minorVersion) {
-        return majorVersion == 3 && (minorVersion >= 3 && minorVersion <= 5);
-    }
-
-    static bool IsFor(PythonVersion version) {
-        return version >= PythonVersion_33 && version <= PythonVersion_35;
-    }
-};
-
-// 3.6
-class PyCodeObject36 : public PyObject {
-public:
-    int co_argcount;            /* #arguments, except *args */
-    int co_kwonlyargcount;      /* #keyword only arguments */
-    int co_nlocals;             /* #local variables */
-    int co_stacksize;           /* #entries needed for evaluation stack */
-    int co_flags;               /* CO_..., see below */
-    int co_firstlineno;         /* first source line number */
-    PyObject *co_code;          /* instruction opcodes */
-    PyObject *co_consts;        /* list (constants used) */
-    PyObject *co_names;         /* list of strings (names used) */
-    PyObject *co_varnames;      /* tuple of strings (local variable names) */
-    PyObject *co_freevars;      /* tuple of strings (free variable names) */
-    PyObject *co_cellvars;      /* tuple of strings (cell variable names) */
-    /* The rest doesn't count for hash or comparisons */
-    unsigned char *co_cell2arg; /* Maps cell vars which are arguments. */
-    PyObject *co_filename;      /* unicode (where it was loaded from) */
-    PyObject *co_name;          /* unicode (name, for reference) */
-    PyObject *co_lnotab;        /* string (encoding addr<->lineno mapping) */
-    void *co_zombieframe;       /* for optimization only (see frameobject.c) */
-
-    static bool IsFor(int majorVersion, int minorVersion) {
-        return majorVersion == 3 && minorVersion == 6;
-    }
-
-    static bool IsFor(PythonVersion version) {
-        return version == PythonVersion_36;
-    }
-};
-
-// 3.7
-class PyCodeObject37 : public PyObject {
-public:
-    int co_argcount;            /* #arguments, except *args */
-    int co_kwonlyargcount;      /* #keyword only arguments */
-    int co_nlocals;             /* #local variables */
-    int co_stacksize;           /* #entries needed for evaluation stack */
-    int co_flags;               /* CO_..., see below */
-    int co_firstlineno;         /* first source line number */
-    PyObject *co_code;          /* instruction opcodes */
-    PyObject *co_consts;        /* list (constants used) */
-    PyObject *co_names;         /* list of strings (names used) */
-    PyObject *co_varnames;      /* tuple of strings (local variable names) */
-    PyObject *co_freevars;      /* tuple of strings (free variable names) */
-    PyObject *co_cellvars;      /* tuple of strings (cell variable names) */
-                                /* The rest doesn't count for hash or comparisons */
-    SSIZE_T *co_cell2arg;       /* Maps cell vars which are arguments. */
-    PyObject *co_filename;      /* unicode (where it was loaded from) */
-    PyObject *co_name;          /* unicode (name, for reference) */
-    PyObject *co_lnotab;        /* string (encoding addr<->lineno mapping) */
-    void *co_zombieframe;       /* for optimization only (see frameobject.c) */
-
-    static bool IsFor(int majorVersion, int minorVersion) {
-        return majorVersion == 3 && minorVersion == 7;
-    }
-
-    static bool IsFor(PythonVersion version) {
-        return version == PythonVersion_37;
-    }
-};
-
-typedef struct _PyOpcache _PyOpcache;
-
-// 3.8
-class PyCodeObject38 : public PyObject {
-public:
-    int co_argcount;            /* #arguments, except *args */
-    int co_posonlyargcount;     /* #positional only arguments */
-    int co_kwonlyargcount;      /* #keyword only arguments */
-    int co_nlocals;             /* #local variables */
-    int co_stacksize;           /* #entries needed for evaluation stack */
-    int co_flags;               /* CO_..., see below */
-    int co_firstlineno;         /* first source line number */
-    PyObject *co_code;          /* instruction opcodes */
-    PyObject *co_consts;        /* list (constants used) */
-    PyObject *co_names;         /* list of strings (names used) */
-    PyObject *co_varnames;      /* tuple of strings (local variable names) */
-    PyObject *co_freevars;      /* tuple of strings (free variable names) */
-    PyObject *co_cellvars;      /* tuple of strings (cell variable names) */
-    /* The rest aren't used in either hash or comparisons, except for co_name,
-       used in both. This is done to preserve the name and line number
-       for tracebacks and debuggers; otherwise, constant de-duplication
-       would collapse identical functions/lambdas defined on different lines.
-    */
-    SSIZE_T *co_cell2arg;    /* Maps cell vars which are arguments. */
-    PyObject *co_filename;      /* unicode (where it was loaded from) */
-    PyObject *co_name;          /* unicode (name, for reference) */
-    PyObject *co_lnotab;        /* string (encoding addr<->lineno mapping) See
-                                   Objects/lnotab_notes.txt for details. */
-    void *co_zombieframe;       /* for optimization only (see frameobject.c) */
-    PyObject *co_weakreflist;   /* to support weakrefs to code objects */
-    /* Scratch space for extra data relating to the code object.
-       Type is a void* to keep the format private in codeobject.c to force
-       people to go through the proper APIs. */
-    void *co_extra;
-
-    /* Per opcodes just-in-time cache
-     *
-     * To reduce cache size, we use indirect mapping from opcode index to
-     * cache object:
-     *   cache = co_opcache[co_opcache_map[next_instr - first_instr] - 1]
-     */
-
-    // co_opcache_map is indexed by (next_instr - first_instr).
-    //  * 0 means there is no cache for this opcode.
-    //  * n > 0 means there is cache in co_opcache[n-1].
-    unsigned char *co_opcache_map;
-    _PyOpcache *co_opcache;
-    int co_opcache_flag;  // used to determine when create a cache.
-    unsigned char co_opcache_size;  // length of co_opcache.
-
-    static bool IsFor(int majorVersion, int minorVersion) {
-        return majorVersion == 3 && minorVersion == 8;
-    }
-
-    static bool IsFor(PythonVersion version) {
-        return version == PythonVersion_38;
-    }
-
-};
-
 // 2.5 - 3.7
 class PyFunctionObject : public PyObject {
 public:
@@ -290,10 +79,16 @@ typedef struct {
     long hash;          /* Hash value; -1 if not set */
 } PyUnicodeObject;
 
-// 2.4 - 3.7 compatible
+
 class PyFrameObject : public PyVarObject {
+    // After 3.10 we don't really have things we want to reuse common, so,
+    // create an empty base (based on PyVarObject).
+};
+
+// 2.4 - 3.7 compatible
+class PyFrameObjectBaseUpTo39 : public PyFrameObject {
 public:
-    PyFrameObject *f_back;  /* previous frame, or nullptr */
+    PyFrameObjectBaseUpTo39 *f_back;  /* previous frame, or nullptr */
     PyObject *f_code;           /* code segment */
     PyObject *f_builtins;       /* builtin symbol table (PyDictObject) */
     PyObject *f_globals;        /* global symbol table (PyDictObject) */
@@ -304,72 +99,24 @@ public:
        to the current stack top. */
     PyObject **f_stacktop;
     PyObject *f_trace;          /* Trace function */
+    
+    // It has more things, but we're only interested in things up to f_trace.
+
 };
 
-#define CO_MAXBLOCKS 20
-typedef struct {
-    int b_type;         /* what kind of block this is */
-    int b_handler;      /* where to jump to find handler */
-    int b_level;        /* value stack level to pop to */
-} PyTryBlock;
 
-class PyFrameObject25_33 : public PyFrameObject {
+// https://github.com/python/cpython/blob/3.10/Include/cpython/frameobject.h
+class PyFrameObject310 : public PyFrameObject {
 public:
-    PyObject * f_exc_type, *f_exc_value, *f_exc_traceback;
-    PyThreadState* f_tstate;
-    int f_lasti;                /* Last instruction if called */
-    /* As of 2.3 f_lineno is only valid when tracing is active (i.e. when
-       f_trace is set) -- at other times use PyCode_Addr2Line instead. */
-    int f_lineno;               /* Current line number */
-    int f_iblock;       /* index in f_blockstack */
-    PyTryBlock f_blockstack[CO_MAXBLOCKS]; /* for try and loop blocks */
-    PyObject *f_localsplus[1];    /* locals+stack, dynamically sized */
+    PyFrameObject310 *f_back;      /* previous frame, or NULL */
+    PyObject *f_code;       /* code segment */
+    PyObject *f_builtins;       /* builtin symbol table (PyDictObject) */
+    PyObject *f_globals;        /* global symbol table (PyDictObject) */
+    PyObject *f_locals;         /* local symbol table (any mapping) */
+    PyObject **f_valuestack;    /* points after the last local */
+    PyObject *f_trace;          /* Trace function */
 
-    static bool IsFor(int majorVersion, int minorVersion) {
-        return (majorVersion == 2 && (minorVersion >= 5 && minorVersion <= 7)) ||
-            (majorVersion == 3 && (minorVersion >= 0 && minorVersion <= 3));
-    }
-};
-
-class PyFrameObject34_36 : public PyFrameObject {
-public:
-    PyObject * f_exc_type, *f_exc_value, *f_exc_traceback;
-    /* Borrowed reference to a generator, or nullptr */
-    PyObject *f_gen;
-
-    int f_lasti;                /* Last instruction if called */
-    /* As of 2.3 f_lineno is only valid when tracing is active (i.e. when
-       f_trace is set) -- at other times use PyCode_Addr2Line instead. */
-    int f_lineno;               /* Current line number */
-    int f_iblock;       /* index in f_blockstack */
-    char f_executing;           /* whether the frame is still executing */
-    PyTryBlock f_blockstack[CO_MAXBLOCKS]; /* for try and loop blocks */
-    PyObject *f_localsplus[1];    /* locals+stack, dynamically sized */
-
-    static bool IsFor(int majorVersion, int minorVersion) {
-        return majorVersion == 3 && minorVersion >= 4 && minorVersion <= 6;
-    }
-};
-
-class PyFrameObject37_38 : public PyFrameObject {
-public:
-    char f_trace_lines;         /* Emit per-line trace events? */
-    char f_trace_opcodes;       /* Emit per-opcode trace events? */
-    /* Borrowed reference to a generator, or nullptr */
-    PyObject *f_gen;
-
-    int f_lasti;                /* Last instruction if called */
-    /* As of 2.3 f_lineno is only valid when tracing is active (i.e. when
-       f_trace is set) -- at other times use PyCode_Addr2Line instead. */
-    int f_lineno;               /* Current line number */
-    int f_iblock;       /* index in f_blockstack */
-    char f_executing;           /* whether the frame is still executing */
-    PyTryBlock f_blockstack[CO_MAXBLOCKS]; /* for try and loop blocks */
-    PyObject *f_localsplus[1];    /* locals+stack, dynamically sized */
-
-    static bool IsFor(int majorVersion, int minorVersion) {
-        return majorVersion == 3 && minorVersion >= 7;
-    }
+    // It has more things, but we're only interested in things up to f_trace.
 };
 
 
@@ -509,7 +256,7 @@ public:
     PyThreadState *next;
     PyInterpreterState *interp;
 
-    PyFrameObject *frame;
+    PyFrameObjectBaseUpTo39 *frame;
     int recursion_depth;
     /* 'tracing' keeps track of the execution depth when tracing/profiling.
        This is to prevent the actual trace/profile code from being recorded in
@@ -560,7 +307,7 @@ public:
     PyThreadState *next;
     PyInterpreterState *interp;
 
-    PyFrameObject *frame;
+    PyFrameObjectBaseUpTo39 *frame;
     int recursion_depth;
     char overflowed; /* The stack has overflowed. Allow 50 more calls
                         to handle the runtime error. */
@@ -616,7 +363,7 @@ public:
     PyThreadState *next;
     PyInterpreterState *interp;
 
-    PyFrameObject *frame;
+    PyFrameObjectBaseUpTo39 *frame;
     int recursion_depth;
     char overflowed; /* The stack has overflowed. Allow 50 more calls
                         to handle the runtime error. */
@@ -671,7 +418,7 @@ public:
     PyThreadState *next;
     PyInterpreterState *interp;
 
-    PyFrameObject *frame;
+    PyFrameObjectBaseUpTo39 *frame;
     int recursion_depth;
     char overflowed; /* The stack has overflowed. Allow 50 more calls
                      to handle the runtime error. */
@@ -721,7 +468,7 @@ public:
     PyThreadState *next;
     PyInterpreterState *interp;
 
-    PyFrameObject *frame;
+    PyFrameObjectBaseUpTo39 *frame;
     int recursion_depth;
     char overflowed; /* The stack has overflowed. Allow 50 more calls
                      to handle the runtime error. */
@@ -756,6 +503,72 @@ public:
 
     static bool IsFor(PythonVersion version) {
         return version == PythonVersion_39;
+    }
+};
+
+typedef struct _cframe {
+    /* This struct will be threaded through the C stack
+     * allowing fast access to per-thread state that needs
+     * to be accessed quickly by the interpreter, but can
+     * be modified outside of the interpreter.
+     *
+     * WARNING: This makes data on the C stack accessible from
+     * heap objects. Care must be taken to maintain stack
+     * discipline and make sure that instances of this struct cannot
+     * accessed outside of their lifetime.
+     */
+    int use_tracing;
+    struct _cframe *previous;
+} CFrame;
+
+// i.e.: https://github.com/python/cpython/blob/master/Include/cpython/pystate.h
+class PyThreadState_310 : public PyThreadState {
+public:
+    PyThreadState *prev;
+    PyThreadState *next;
+    PyInterpreterState *interp;
+
+    PyFrameObject310 *frame;
+    int recursion_depth;
+    int recursion_headroom; /* Allow 50 more calls to handle any errors. */
+    int stackcheck_counter;
+
+    /* 'tracing' keeps track of the execution depth when tracing/profiling.
+       This is to prevent the actual trace/profile code from being recorded in
+       the trace/profile. */
+    int tracing;
+
+    /* Pointer to current CFrame in the C stack frame of the currently,
+     * or most recently, executing _PyEval_EvalFrameDefault. */
+    CFrame *cframe;
+
+
+    Py_tracefunc c_profilefunc;
+    Py_tracefunc c_tracefunc;
+    PyObject *c_profileobj;
+    PyObject *c_traceobj;
+
+    PyObject *curexc_type;
+    PyObject *curexc_value;
+    PyObject *curexc_traceback;
+
+    _PyErr_StackItem exc_state;
+    _PyErr_StackItem *exc_info;
+
+    PyObject *dict;  /* Stores per-thread state */
+
+    int gilstate_counter;
+
+    PyObject *async_exc; /* Asynchronous exception to raise */
+
+    unsigned long thread_id; /* Thread id where this tstate was created */
+
+    static bool IsFor(int majorVersion, int minorVersion) {
+        return majorVersion == 3 && minorVersion == 10;
+    }
+
+    static bool IsFor(PythonVersion version) {
+        return version == PythonVersion_310;
     }
 };
 
