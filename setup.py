@@ -21,6 +21,22 @@ elif "--abi" in sys.argv:
     sys.argv.remove("--abi")
 
 
+# bdist_wheel determines whether the package is pure or not based on ext_modules.
+# However, all pydevd native modules are prebuilt and packaged as data, so they
+# should not be in the list.
+#
+# The proper way to handle this is by overriding has_ext_modules. However, due to
+# https://bugs.python.org/issue32957, in setuptools 57.0.0 and below, it is not
+# always called when it should be, with ext_modules tested directly instead.
+#
+# So, for non-pure builds, we provide a customized empty list for ext_modules that
+# tests as truthful - this causes the package to be treated as non-pure on all
+# relevant setuptools versions.
+class ExtModules(list):
+    def __bool__(self):
+        return not pure
+
+
 from setuptools import setup  # noqa
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -70,24 +86,9 @@ with open("DESCRIPTION.md", "r") as fh:
     long_description = fh.read()
 
 
-try:
-    from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
-
-    class bdist_wheel(_bdist_wheel):
-        def finalize_options(self):
-            _bdist_wheel.finalize_options(self)
-            self.root_is_pure = pure
-
-
-except ImportError:
-    bdist_wheel = None
-
 if __name__ == "__main__":
     if not os.getenv("SKIP_CYTHON_BUILD"):
         cython_build()
-
-    cmds = versioneer.get_cmdclass()
-    cmds["bdist_wheel"] = bdist_wheel
 
     extras = {}
     platforms = get_buildplatform()
@@ -133,6 +134,8 @@ if __name__ == "__main__":
             "debugpy": ["ThirdPartyNotices.txt"],
             "debugpy._vendored": list(iter_vendored_files()),
         },
-        cmdclass=cmds,
+        ext_modules=ExtModules(),
+        has_ext_modules=lambda: not pure,
+        cmdclass=versioneer.get_cmdclass(),
         **extras
     )
