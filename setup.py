@@ -73,32 +73,6 @@ class ExtModules(list):
         return True
 
 
-# Filter platform-specific binaries in data files for binary builds.
-# If a data file is not in this list, it is assumed to be applicable to all platforms.
-
-win_all = {"win32", "win-amd64"}
-vendored_binaries = dict(
-    (os.path.normpath(k), v)
-    for k, v in {
-        "pydevd/pydevd_attach_to_process/attach_x86.dll": win_all,
-        "pydevd/pydevd_attach_to_process/attach_x86.pdb": win_all,
-        "pydevd/pydevd_attach_to_process/attach_amd64.dll": win_all,
-        "pydevd/pydevd_attach_to_process/attach_amd64.pdb": win_all,
-        "pydevd/pydevd_attach_to_process/inject_dll_x86.exe": win_all,
-        "pydevd/pydevd_attach_to_process/inject_dll_x86.pdb": win_all,
-        "pydevd/pydevd_attach_to_process/inject_dll_amd64.exe": win_all,
-        "pydevd/pydevd_attach_to_process/inject_dll_amd64.pdb": win_all,
-        "pydevd/pydevd_attach_to_process/run_code_on_dllmain_x86.dll": win_all,
-        "pydevd/pydevd_attach_to_process/run_code_on_dllmain_x86.pdb": win_all,
-        "pydevd/pydevd_attach_to_process/run_code_on_dllmain_amd64.dll": win_all,
-        "pydevd/pydevd_attach_to_process/run_code_on_dllmain_amd64.pdb": win_all,
-        "pydevd/pydevd_attach_to_process/attach_linux_x86.so": {"linux-i686"},
-        "pydevd/pydevd_attach_to_process/attach_linux_amd64.so": {"linux-x86_64"},
-        "pydevd/pydevd_attach_to_process/attach_x86_64.dylib": {"macosx_10_14_x86_64"},
-    }.items()
-)
-
-
 class build(_build):
     def finalize_options(self):
         # Mark all packages as pure if requested to build a universal wheel.
@@ -111,6 +85,7 @@ class build(_build):
 
 
 class build_py(_build_py):
+    # Filter platform-specific binaries in data files for binary builds.
     def finalize_options(self):
         _build_py.finalize_options(self)
 
@@ -122,8 +97,18 @@ class build_py(_build_py):
         data_files = self.data_files
 
         def is_applicable(filename):
-            filename = os.path.normpath(filename)
-            return plat in vendored_binaries.get(filename, {plat})
+            def tail_is(*suffixes):
+                return any((filename.endswith(ext) for ext in suffixes))
+
+            if tail_is(".dylib"):
+                return plat.startswith("macosx")
+            if tail_is(".exe", ".dll", ".pdb", ".pyd"):
+                return plat in ("win32", "win-amd64")
+            if tail_is("-i386-linux-gnu.so", "_linux_x86.so"):
+                return plat == "linux-i686"
+            if tail_is("-x86_64-linux-gnu.so", "_linux_amd64.so"):
+                return plat == "linux-x86_64"
+            return True
 
         self.data_files = [
             (package, src_dir, build_dir, list(filter(is_applicable, filenames)))
