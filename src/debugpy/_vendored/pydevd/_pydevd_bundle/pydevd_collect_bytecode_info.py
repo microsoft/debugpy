@@ -1,11 +1,13 @@
-from opcode import HAVE_ARGUMENT, EXTENDED_ARG, hasconst, opname, hasname, hasjrel, haslocal, \
-    hascompare, hasfree, cmp_op
 import dis
-import sys
 import inspect
+import sys
 from collections import namedtuple
-from _pydevd_bundle.pydevd_constants import IS_PY38_OR_GREATER, dict_iter_items, dict_iter_values
+
 from _pydev_bundle import pydev_log
+from _pydevd_bundle.pydevd_constants import (IS_PY38_OR_GREATER,
+                                             dict_iter_items, dict_iter_values)
+from opcode import (EXTENDED_ARG, HAVE_ARGUMENT, cmp_op, hascompare, hasconst,
+                    hasfree, hasjrel, haslocal, hasname, opname)
 
 try:
     xrange
@@ -172,61 +174,73 @@ def collect_return_info(co, use_func_first_line=False):
     return lst
 
 
-def collect_try_except_info(co, use_func_first_line=False):
-    if not hasattr(co, 'co_lnotab'):
-        return []
+if sys.version_info[:2] < (3, 5):
 
-    if use_func_first_line:
-        firstlineno = co.co_firstlineno
-    else:
-        firstlineno = 0
+    def collect_try_except_info(co, use_func_first_line=False):
+        if not hasattr(co, 'co_lnotab'):
+            return []
 
-    try_except_info_lst = []
-    stack_in_setup = []
+        if use_func_first_line:
+            firstlineno = co.co_firstlineno
+        else:
+            firstlineno = 0
 
-    op_offset_to_line = dict(dis.findlinestarts(co))
+        try_except_info_lst = []
+        stack_in_setup = []
 
-    for instruction in _iter_instructions(co):
-        curr_op_name = instruction.opname
+        op_offset_to_line = dict(dis.findlinestarts(co))
 
-        if curr_op_name in ('SETUP_EXCEPT', 'SETUP_FINALLY'):
-            # We need to collect try..finally blocks too to make sure that
-            # the stack_in_setup we're using to collect info is correct.
-            # Note: On Py3.8 both except and finally statements use 'SETUP_FINALLY'.
-            try_except_info = TryExceptInfo(
-                _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True),
-                ignore=curr_op_name == 'SETUP_FINALLY'
-            )
-            try_except_info.except_bytecode_offset = instruction.argval
-            try_except_info.except_line = _get_line(
-                op_offset_to_line,
-                try_except_info.except_bytecode_offset,
-                firstlineno,
-            )
+        for instruction in _iter_instructions(co):
+            curr_op_name = instruction.opname
 
-            try_except_info.except_end_bytecode_offset = instruction.argval
-            try_except_info.except_end_line = _get_line(op_offset_to_line, instruction.argval, firstlineno, search=True)
+            if curr_op_name in ('SETUP_EXCEPT', 'SETUP_FINALLY'):
+                # We need to collect try..finally blocks too to make sure that
+                # the stack_in_setup we're using to collect info is correct.
+                # Note: On Py3.8 both except and finally statements use 'SETUP_FINALLY'.
+                try_except_info = TryExceptInfo(
+                    _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True),
+                    ignore=curr_op_name == 'SETUP_FINALLY'
+                )
+                try_except_info.except_bytecode_offset = instruction.argval
+                try_except_info.except_line = _get_line(
+                    op_offset_to_line,
+                    try_except_info.except_bytecode_offset,
+                    firstlineno,
+                )
 
-            stack_in_setup.append(try_except_info)
+                try_except_info.except_end_bytecode_offset = instruction.argval
+                try_except_info.except_end_line = _get_line(op_offset_to_line, instruction.argval, firstlineno, search=True)
 
-        elif curr_op_name == 'POP_EXCEPT':
-            # On Python 3.8 there's no SETUP_EXCEPT (both except and finally start with SETUP_FINALLY),
-            # so, we differentiate by a POP_EXCEPT.
-            if IS_PY38_OR_GREATER:
-                stack_in_setup[-1].ignore = False
+                stack_in_setup.append(try_except_info)
 
-        elif curr_op_name in ('WITH_CLEANUP_START', 'WITH_CLEANUP'):  # WITH_CLEANUP is Python 2.7, WITH_CLEANUP_START Python 3.
-            stack_in_setup.append(TryExceptInfo(-1, ignore=True))  # Just there to be removed at END_FINALLY.
+            elif curr_op_name == 'POP_EXCEPT':
+                # On Python 3.8 there's no SETUP_EXCEPT (both except and finally start with SETUP_FINALLY),
+                # so, we differentiate by a POP_EXCEPT.
+                if IS_PY38_OR_GREATER:
+                    stack_in_setup[-1].ignore = False
 
-        elif curr_op_name == 'RAISE_VARARGS':
-            # We want to know about reraises and returns inside of except blocks (unfortunately
-            # a raise appears to the debugger as a return, so, we may need to differentiate).
-            if instruction.argval == 0:
-                for info in stack_in_setup:
-                    info.raise_lines_in_except.append(
-                        _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True))
+            elif curr_op_name in ('WITH_CLEANUP_START', 'WITH_CLEANUP'):  # WITH_CLEANUP is Python 2.7, WITH_CLEANUP_START Python 3.
+                stack_in_setup.append(TryExceptInfo(-1, ignore=True))  # Just there to be removed at END_FINALLY.
 
-        elif curr_op_name == 'END_FINALLY':  # The except block also ends with 'END_FINALLY'.
+            elif curr_op_name == 'RAISE_VARARGS':
+                # We want to know about reraises and returns inside of except blocks (unfortunately
+                # a raise appears to the debugger as a return, so, we may need to differentiate).
+                if instruction.argval == 0:
+                    for info in stack_in_setup:
+                        info.raise_lines_in_except.append(
+                            _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True))
+
+            elif curr_op_name == 'END_FINALLY':  # The except block also ends with 'END_FINALLY'.
+                stack_in_setup[-1].except_end_bytecode_offset = instruction.offset
+                stack_in_setup[-1].except_end_line = _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True)
+                if not stack_in_setup[-1].ignore:
+                    # Don't add try..finally blocks.
+                    try_except_info_lst.append(stack_in_setup[-1])
+                del stack_in_setup[-1]
+
+        while stack_in_setup:
+            # On Py3 the END_FINALLY may not be there (so, the end of the function is also the end
+            # of the stack).
             stack_in_setup[-1].except_end_bytecode_offset = instruction.offset
             stack_in_setup[-1].except_end_line = _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True)
             if not stack_in_setup[-1].ignore:
@@ -234,20 +248,9 @@ def collect_try_except_info(co, use_func_first_line=False):
                 try_except_info_lst.append(stack_in_setup[-1])
             del stack_in_setup[-1]
 
-    while stack_in_setup:
-        # On Py3 the END_FINALLY may not be there (so, the end of the function is also the end
-        # of the stack).
-        stack_in_setup[-1].except_end_bytecode_offset = instruction.offset
-        stack_in_setup[-1].except_end_line = _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True)
-        if not stack_in_setup[-1].ignore:
-            # Don't add try..finally blocks.
-            try_except_info_lst.append(stack_in_setup[-1])
-        del stack_in_setup[-1]
+        return try_except_info_lst
 
-    return try_except_info_lst
-
-
-if sys.version_info[:2] >= (3, 5):
+if (3, 5) <= sys.version_info[:2] <= (3, 9):
 
     class _TargetInfo(object):
 
@@ -273,7 +276,7 @@ if sys.version_info[:2] >= (3, 5):
         if next_3 == ['POP_TOP', 'POP_TOP', 'POP_TOP']:  # try..except without checking exception.
             try:
                 jump_instruction = instructions[exception_end_instruction_index - 1]
-                if jump_instruction.opname not in('JUMP_FORWARD', 'JUMP_ABSOLUTE'):
+                if jump_instruction.opname not in ('JUMP_FORWARD', 'JUMP_ABSOLUTE'):
                     return None
             except IndexError:
                 pass
@@ -348,17 +351,8 @@ if sys.version_info[:2] >= (3, 5):
 
         instructions = list(_iter_instructions(co))
 
-        line_to_instructions = {}
-
-        curr_line_index = firstlineno
         for i, instruction in enumerate(instructions):
             offset_to_instruction_idx[instruction.offset] = i
-
-            new_line_index = op_offset_to_line.get(instruction.offset)
-            if new_line_index is not None:
-                if new_line_index is not None:
-                    curr_line_index = new_line_index - firstlineno
-            line_to_instructions.setdefault(curr_line_index, []).append(instruction)
 
         for i, instruction in enumerate(instructions):
             curr_op_name = instruction.opname
@@ -366,7 +360,7 @@ if sys.version_info[:2] >= (3, 5):
                 exception_end_instruction_index = offset_to_instruction_idx[instruction.argval]
 
                 jump_instruction = instructions[exception_end_instruction_index - 1]
-                if jump_instruction.opname not in('JUMP_FORWARD', 'JUMP_ABSOLUTE'):
+                if jump_instruction.opname not in ('JUMP_FORWARD', 'JUMP_ABSOLUTE'):
                     continue
 
                 except_end_instruction = None
@@ -402,6 +396,139 @@ if sys.version_info[:2] >= (3, 5):
 
                     try_except_info.except_end_bytecode_offset = except_end_instruction.offset
                     try_except_info.except_end_line = _get_line(op_offset_to_line, except_end_instruction.offset, firstlineno, search=True)
+                    try_except_info_lst.append(try_except_info)
+
+                    for raise_instruction in instructions[i:offset_to_instruction_idx[try_except_info.except_end_bytecode_offset]]:
+                        if raise_instruction.opname == 'RAISE_VARARGS':
+                            if raise_instruction.argval == 0:
+                                try_except_info.raise_lines_in_except.append(
+                                    _get_line(op_offset_to_line, raise_instruction.offset, firstlineno, search=True))
+
+        return try_except_info_lst
+
+if sys.version_info[:2] >= (3, 10):
+
+    class _TargetInfo(object):
+
+        def __init__(self, except_end_instruction, jump_if_not_exc_instruction=None):
+            self.except_end_instruction = except_end_instruction
+            self.jump_if_not_exc_instruction = jump_if_not_exc_instruction
+
+        def __str__(self):
+            msg = ['_TargetInfo(']
+            msg.append(self.except_end_instruction.opname)
+            if self.jump_if_not_exc_instruction:
+                msg.append(' - ')
+                msg.append(self.jump_if_not_exc_instruction.opname)
+                msg.append('(')
+                msg.append(str(self.jump_if_not_exc_instruction.argval))
+                msg.append(')')
+            msg.append(')')
+            return ''.join(msg)
+
+    def _get_except_target_info(instructions, exception_end_instruction_index, offset_to_instruction_idx):
+        next_3 = [j_instruction.opname for j_instruction in instructions[exception_end_instruction_index:exception_end_instruction_index + 3]]
+        # print('next_3:', [(j_instruction.opname, j_instruction.argval) for j_instruction in instructions[exception_end_instruction_index:exception_end_instruction_index + 3]])
+        if next_3 == ['POP_TOP', 'POP_TOP', 'POP_TOP']:  # try..except without checking exception.
+            # Previously there was a jump which was able to point where the exception would end. This
+            # is no longer true, now a bare except doesn't really have any indication in the bytecode
+            # where the end would be expected if the exception wasn't raised, so, we just blindly
+            # search for a POP_EXCEPT from the current position.
+            for pop_except_instruction in instructions[exception_end_instruction_index + 3:]:
+                if pop_except_instruction.opname == 'POP_EXCEPT':
+                    except_end_instruction = pop_except_instruction
+                    return _TargetInfo(except_end_instruction)
+
+        elif next_3 and next_3[0] == 'DUP_TOP':  # try..except AssertionError.
+            iter_in = instructions[exception_end_instruction_index + 1:]
+            for jump_if_not_exc_instruction in iter_in:
+                if jump_if_not_exc_instruction.opname == 'JUMP_IF_NOT_EXC_MATCH':
+                    # Python 3.9
+                    except_end_instruction = instructions[offset_to_instruction_idx[jump_if_not_exc_instruction.argval]]
+                    return _TargetInfo(except_end_instruction, jump_if_not_exc_instruction)
+            else:
+                return None  # i.e.: Continue outer loop
+
+        else:
+            # i.e.: we're not interested in try..finally statements, only try..except.
+            return None
+
+    def collect_try_except_info(co, use_func_first_line=False):
+        # We no longer have 'END_FINALLY', so, we need to do things differently in Python 3.9
+        if not hasattr(co, 'co_lnotab'):
+            return []
+
+        if use_func_first_line:
+            firstlineno = co.co_firstlineno
+        else:
+            firstlineno = 0
+
+        try_except_info_lst = []
+
+        op_offset_to_line = dict(dis.findlinestarts(co))
+
+        offset_to_instruction_idx = {}
+
+        instructions = list(_iter_instructions(co))
+
+        for i, instruction in enumerate(instructions):
+            offset_to_instruction_idx[instruction.offset] = i
+
+        for i, instruction in enumerate(instructions):
+            curr_op_name = instruction.opname
+            if curr_op_name == 'SETUP_FINALLY':
+                exception_end_instruction_index = offset_to_instruction_idx[instruction.argval]
+
+                jump_instruction = instructions[exception_end_instruction_index]
+                if jump_instruction.opname != 'DUP_TOP':
+                    continue
+
+                except_end_instruction = None
+                indexes_checked = set()
+                indexes_checked.add(exception_end_instruction_index)
+                target_info = _get_except_target_info(instructions, exception_end_instruction_index, offset_to_instruction_idx)
+                while target_info is not None:
+                    # Handle a try..except..except..except.
+                    jump_instruction = target_info.jump_if_not_exc_instruction
+                    except_end_instruction = target_info.except_end_instruction
+
+                    if jump_instruction is not None:
+                        check_index = offset_to_instruction_idx[jump_instruction.argval]
+                        if check_index in indexes_checked:
+                            break
+                        indexes_checked.add(check_index)
+                        target_info = _get_except_target_info(instructions, check_index, offset_to_instruction_idx)
+                    else:
+                        break
+
+                if except_end_instruction is not None:
+                    try_except_info = TryExceptInfo(
+                        _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True),
+                        ignore=False
+                    )
+                    try_except_info.except_bytecode_offset = instruction.argval
+                    try_except_info.except_line = _get_line(
+                        op_offset_to_line,
+                        try_except_info.except_bytecode_offset,
+                        firstlineno,
+                        search=True
+                    )
+
+                    try_except_info.except_end_bytecode_offset = except_end_instruction.offset
+
+                    # On Python 3.10 the final line of the except end isn't really correct, rather,
+                    # it's engineered to be the same line of the except and not the end line of the
+                    # block, so, the approach taken is to search for the biggest line between the
+                    # except and the end instruction
+                    except_end_line = -1
+                    start_i = offset_to_instruction_idx[try_except_info.except_bytecode_offset]
+                    end_i = offset_to_instruction_idx[except_end_instruction.offset]
+                    for instruction in instructions[start_i: end_i + 1]:
+                        found_at_line = op_offset_to_line.get(instruction.offset)
+                        if found_at_line is not None and found_at_line > except_end_line:
+                            except_end_line = found_at_line
+                    try_except_info.except_end_line = except_end_line - firstlineno
+
                     try_except_info_lst.append(try_except_info)
 
                     for raise_instruction in instructions[i:offset_to_instruction_idx[try_except_info.except_end_bytecode_offset]]:
@@ -786,4 +913,3 @@ def code_to_bytecode_representation(co, use_func_first_line=False):
         firstlineno = 0
 
     return _Disassembler(co, firstlineno).disassemble()
-
