@@ -34,7 +34,7 @@ if (-not $pack) {
 
     (Get-ChildItem $packages\python* -Directory -Filter $filter) | ForEach-Object{ Get-Item $_\tools\python.exe } | Where-Object{ Test-Path $_ } | Select-Object -last 1 | ForEach-Object{
         Write-Host "Building  wheel with $_ for platform."
-        & $_ setup.py build -b "$bin" -t "$obj" bdist_wheel -d "$dist" -p "$platform" --abi
+        & $_ setup.py build -b "$bin" -t "$obj" bdist_wheel -d "$dist" -p "$platform"
         Get-ChildItem $dist\debugpy-*.whl | ForEach-Object{
             Write-Host "Built wheel found at $_"
         }
