@@ -6,7 +6,6 @@ pytest
 pytest-xdist
 pytest-cov
 pytest-timeout
-tox
 
 ## Used by test helpers:
 
