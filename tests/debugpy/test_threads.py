@@ -170,7 +170,7 @@ def test_debug_this_thread(pyfile, target, run):
             from ctypes import CDLL, CFUNCTYPE, byref, c_void_p, c_ulong
             from ctypes.util import find_library
 
-            libpthread = CDLL(find_library("libpthread"))
+            libpthread = CDLL(find_library("pthread"))
             thread_func_p = CFUNCTYPE(c_void_p, c_void_p)
             thread_func = thread_func_p(
                 foo
