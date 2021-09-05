@@ -6478,7 +6478,7 @@ static PyObject *__pyx_f_14_pydevd_bundle_13pydevd_cython_is_unhandled_exception
  * 
  *     else:
  *         try_except_infos = container_obj.try_except_infos             # <<<<<<<<<<<<<<
- *         if not try_except_infos:
+ *         if try_except_infos is None:
  *             container_obj.try_except_infos = try_except_infos = py_db.collect_try_except_info(frame.f_code)
  */
   /*else*/ {
@@ -6490,17 +6490,17 @@ static PyObject *__pyx_f_14_pydevd_bundle_13pydevd_cython_is_unhandled_exception
     /* "_pydevd_bundle/pydevd_cython.pyx":207
  *     else:
  *         try_except_infos = container_obj.try_except_infos
- *         if not try_except_infos:             # <<<<<<<<<<<<<<
+ *         if try_except_infos is None:             # <<<<<<<<<<<<<<
  *             container_obj.try_except_infos = try_except_infos = py_db.collect_try_except_info(frame.f_code)
  * 
  */
-    __pyx_t_3 = __Pyx_PyObject_IsTrue(__pyx_v_try_except_infos); if (unlikely(__pyx_t_3 < 0)) __PYX_ERR(0, 207, __pyx_L1_error)
-    __pyx_t_2 = ((!__pyx_t_3) != 0);
+    __pyx_t_3 = (__pyx_v_try_except_infos == Py_None);
+    __pyx_t_2 = (__pyx_t_3 != 0);
     if (__pyx_t_2) {
 
       /* "_pydevd_bundle/pydevd_cython.pyx":208
  *         try_except_infos = container_obj.try_except_infos
- *         if not try_except_infos:
+ *         if try_except_infos is None:
  *             container_obj.try_except_infos = try_except_infos = py_db.collect_try_except_info(frame.f_code)             # <<<<<<<<<<<<<<
  * 
  *         if not try_except_infos:
@@ -6533,7 +6533,7 @@ static PyObject *__pyx_f_14_pydevd_bundle_13pydevd_cython_is_unhandled_exception
       /* "_pydevd_bundle/pydevd_cython.pyx":207
  *     else:
  *         try_except_infos = container_obj.try_except_infos
- *         if not try_except_infos:             # <<<<<<<<<<<<<<
+ *         if try_except_infos is None:             # <<<<<<<<<<<<<<
  *             container_obj.try_except_infos = try_except_infos = py_db.collect_try_except_info(frame.f_code)
  * 
  */

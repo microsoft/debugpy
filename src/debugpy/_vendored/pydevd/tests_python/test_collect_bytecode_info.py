@@ -87,19 +87,6 @@ def _method_simple_raise_unmatched_except():
         pass
 
 
-def _method_try_except():
-    try:  # SETUP_EXCEPT (to except line)
-        try:  # SETUP_EXCEPT (to except line)
-            raise AssertionError()
-        except:  # POP_TOP
-            raise
-    except:  # POP_TOP
-        return (
-            1,
-            2
-        )
-
-
 class _Tracer(object):
 
     def __init__(self, partial_info=False):
@@ -162,32 +149,58 @@ class _Tracer(object):
 import pytest
 
 
+class _ExcVerifier(object):
+
+    def __init__(self, pyfile):
+        self.pyfile = pyfile
+
+    def check(self, method, expected_as_str, expected_as_str_source_version=None, update_try_except_infos=None):
+        code = method.__code__
+
+        try_except_infos = sorted(collect_try_except_info(code, use_func_first_line=True), key=lambda t:t.try_line)
+        if IS_CPYTHON or IS_PYPY:
+            if update_try_except_infos is not None:
+                update_try_except_infos(try_except_infos)
+
+            if sys.version_info[:2] != (3, 10):
+                assert str(try_except_infos) == expected_as_str
+            from _pydevd_bundle.pydevd_collect_bytecode_info import collect_try_except_info_from_source
+
+            expected_as_str_source_version = expected_as_str_source_version or expected_as_str
+            try_except_infos = collect_try_except_info_from_source(self.pyfile(method))
+            if update_try_except_infos is not None:
+                update_try_except_infos(try_except_infos)
+            assert str(try_except_infos) == expected_as_str_source_version
+        else:
+            assert try_except_infos == []
+
+
+@pytest.fixture
+def exc_verifier(pyfile):
+    return _ExcVerifier(pyfile)
+
+
 @pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
-def test_collect_try_except_info(data_regression):
+def test_collect_try_except_info(data_regression, pyfile):
+    from _pydevd_bundle.pydevd_collect_bytecode_info import collect_try_except_info_from_source
     method_to_info = {}
+    method_to_info_from_source = {}
     for key, method in sorted(dict(globals()).items()):
         if key.startswith('_method'):
+
+            info = collect_try_except_info_from_source(pyfile(method))
+            method_to_info_from_source[key] = sorted(str(x) for x in info)
+
             info = collect_try_except_info(method.__code__, use_func_first_line=True)
-
-            if key == "_method_try_except":
-                if sys.version_info[:2] == (3, 7):
-                    for try_except_info in info:
-                        # On 3.7 the last bytecode actually has a different start line.
-                        if try_except_info.except_end_line == 8:
-                            try_except_info.except_end_line = 9
-
-                elif sys.version_info[:2] >= (3, 8):
-                    for try_except_info in info:
-                        # On 3.8 the last bytecode actually has a different start line.
-                        if try_except_info.except_end_line == 7:
-                            try_except_info.except_end_line = 9
-
             method_to_info[key] = sorted(str(x) for x in info)
 
-    data_regression.check(method_to_info)
+    if sys.version_info[:2] != (3, 10):
+        data_regression.check(method_to_info)
+
+    data_regression.check(method_to_info_from_source)
 
 
-def test_collect_try_except_info2():
+def test_collect_try_except_info2(exc_verifier):
 
     def method():
         try:
@@ -199,15 +212,10 @@ def test_collect_try_except_info2():
             _b = 20
         _c = 20
 
-    code = method.__code__
-    lst = collect_try_except_info(code, use_func_first_line=True)
-    if IS_CPYTHON or IS_PYPY:
-        assert str(lst) == '[{try:1 except 3 end block 5 raises: 5}]'
-    else:
-        assert lst == []
+    exc_verifier.check(method, '[{try:1 except 3 end block 5 raises: 5}]')
 
 
-def test_collect_try_except_info3():
+def test_collect_try_except_info3(exc_verifier):
 
     def method():
         get_exc_class = lambda:AssertionError
@@ -217,15 +225,10 @@ def test_collect_try_except_info3():
                 as e:  # POP_TOP
             raise e
 
-    code = method.__code__
-    lst = collect_try_except_info(code, use_func_first_line=True)
-    if IS_CPYTHON or IS_PYPY:
-        assert str(lst) == '[{try:2 except 4 end block 6}]'
-    else:
-        assert lst == []
+    exc_verifier.check(method, '[{try:2 except 4 end block 6}]')
 
 
-def test_collect_try_except_info4():
+def test_collect_try_except_info4(exc_verifier):
 
     def method():
         for i in range(2):
@@ -240,16 +243,14 @@ def test_collect_try_except_info4():
 
         _foo = 10
 
-    code = method.__code__
-
-    lst = sorted(collect_try_except_info(code, use_func_first_line=True), key=lambda t:t.try_line)
-    if IS_CPYTHON or IS_PYPY:
-        assert str(lst) == '[{try:2 except 4 end block 9 raises: 7}, {try:6 except 8 end block 9 raises: 7}]'
-    else:
-        assert lst == []
+    exc_verifier.check(
+        method,
+        '[{try:2 except 4 end block 9 raises: 7}, {try:6 except 8 end block 9 raises: 7}]',
+        '[{try:2 except 4 end block 9 raises: 7}, {try:6 except 8 end block 9}]',
+    )
 
 
-def test_collect_try_except_info4a():
+def test_collect_try_except_info4a(exc_verifier):
 
     def method():
         for i in range(2):
@@ -264,16 +265,13 @@ def test_collect_try_except_info4a():
 
         _foo = 10
 
-    code = method.__code__
-
-    lst = sorted(collect_try_except_info(code, use_func_first_line=True), key=lambda t:t.try_line)
-    if IS_CPYTHON or IS_PYPY:
-        assert str(lst) == '[{try:2 except 4 end block 9 raises: 7}, {try:6 except 8 end block 9 raises: 7}]'
-    else:
-        assert lst == []
+    exc_verifier.check(method,
+        '[{try:2 except 4 end block 9 raises: 7}, {try:6 except 8 end block 9 raises: 7}]',
+        '[{try:2 except 4 end block 9 raises: 7}, {try:6 except 8 end block 9}]',
+    )
 
 
-def test_collect_try_except_info_raise_unhandled7():
+def test_collect_try_except_info_raise_unhandled7(exc_verifier):
 
     def raise_unhandled7():
         try:
@@ -284,16 +282,10 @@ def test_collect_try_except_info_raise_unhandled7():
             except RuntimeError:
                 pass
 
-    code = raise_unhandled7.__code__
-
-    lst = sorted(collect_try_except_info(code, use_func_first_line=True), key=lambda t:t.try_line)
-    if IS_CPYTHON or IS_PYPY:
-        assert str(lst) == '[{try:1 except 3 end block 7}, {try:4 except 6 end block 7}]'
-    else:
-        assert lst == []
+    exc_verifier.check(raise_unhandled7, '[{try:1 except 3 end block 7}, {try:4 except 6 end block 7}]')
 
 
-def test_collect_try_except_info_raise_unhandled10():
+def test_collect_try_except_info_raise_unhandled10(exc_verifier):
 
     def raise_unhandled10():
         for i in range(2):
@@ -306,16 +298,47 @@ def test_collect_try_except_info_raise_unhandled10():
                     except RuntimeError:
                         pass
 
-    code = raise_unhandled10.__code__
-
-    lst = sorted(collect_try_except_info(code, use_func_first_line=True), key=lambda t:t.try_line)
-    if IS_CPYTHON or IS_PYPY:
-        assert str(lst) == '[{try:2 except 4 end block 9 raises: 7}, {try:6 except 8 end block 9 raises: 7}]'
-    else:
-        assert lst == []
+    exc_verifier.check(
+        raise_unhandled10,
+        '[{try:2 except 4 end block 9 raises: 7}, {try:6 except 8 end block 9 raises: 7}]',
+        '[{try:2 except 4 end block 9 raises: 7}, {try:6 except 8 end block 9}]',
+    )
 
 
-def test_collect_try_except_info_with():
+def test_collect_try_except_info_return_on_except(exc_verifier):
+
+    def method():
+        try:  # SETUP_EXCEPT (to except line)
+            try:  # SETUP_EXCEPT (to except line)
+                raise AssertionError()
+            except:  # POP_TOP
+                raise
+        except:  # POP_TOP
+            return (
+                1,
+                2
+            )
+
+    def update_try_except_infos(try_except_infos):
+        for try_except_info in try_except_infos:
+            # On 3.7/3.8 the last bytecode actually has a different start line.
+            if try_except_info.except_end_line in (7, 8):
+                try_except_info.except_end_line = 9
+
+    try_except_info_for_source = '[{try:1 except 6 end block 10}, {try:2 except 4 end block 5 raises: 5}]'
+    if sys.version_info[:2] <= (3, 7):
+        # The ast doesn't have end_lineno, so, the end block must be calculated based on children lineno (and thus is a bit different).
+        try_except_info_for_source = '[{try:1 except 6 end block 9}, {try:2 except 4 end block 5 raises: 5}]'
+
+    exc_verifier.check(
+        method,
+        '[{try:1 except 6 end block 9 raises: 5}, {try:2 except 4 end block 5 raises: 5}]',
+        try_except_info_for_source,
+        update_try_except_infos=update_try_except_infos
+    )
+
+
+def test_collect_try_except_info_with(exc_verifier):
 
     def try_except_with():
         try:
@@ -324,16 +347,10 @@ def test_collect_try_except_info_with():
         except AssertionError:
             pass
 
-    code = try_except_with.__code__
-
-    lst = sorted(collect_try_except_info(code, use_func_first_line=True), key=lambda t:t.try_line)
-    if IS_CPYTHON or IS_PYPY:
-        assert str(lst) == '[{try:1 except 4 end block 5}]'
-    else:
-        assert lst == []
+    exc_verifier.check(try_except_with, '[{try:1 except 4 end block 5}]')
 
 
-def test_collect_try_except_info_in_single_line_1():
+def test_collect_try_except_info_in_single_line_1(exc_verifier):
 
     def try_except_single_line():
         try:range()
@@ -341,32 +358,20 @@ def test_collect_try_except_info_in_single_line_1():
             return False
         return True
 
-    code = try_except_single_line.__code__
-
-    lst = sorted(collect_try_except_info(code, use_func_first_line=True), key=lambda t:t.try_line)
-    if IS_CPYTHON or IS_PYPY:
-        assert str(lst) == '[{try:1 except 2 end block 3}]'
-    else:
-        assert lst == []
+    exc_verifier.check(try_except_single_line, '[{try:1 except 2 end block 3}]')
 
 
-def test_collect_try_except_info_in_single_line_2():
+def test_collect_try_except_info_in_single_line_2(exc_verifier):
 
     def try_except_single_line():
         try:range()
         except: return False
         return True
 
-    code = try_except_single_line.__code__
-
-    lst = sorted(collect_try_except_info(code, use_func_first_line=True), key=lambda t:t.try_line)
-    if IS_CPYTHON or IS_PYPY:
-        assert str(lst) == '[{try:1 except 2 end block 2}]'
-    else:
-        assert lst == []
+    exc_verifier.check(try_except_single_line, '[{try:1 except 2 end block 2}]')
 
 
-def test_collect_try_except_info_multiple_except():
+def test_collect_try_except_info_multiple_except(exc_verifier):
 
     def try_except_with():
         try:
@@ -378,20 +383,14 @@ def test_collect_try_except_info_multiple_except():
         except:
             a = 3
 
-    code = try_except_with.__code__
-
-    lst = sorted(collect_try_except_info(code, use_func_first_line=True), key=lambda t:t.try_line)
-    if IS_CPYTHON or IS_PYPY:
-        assert str(lst) == '[{try:1 except 3 end block 8}]'
-    else:
-        assert lst == []
+    exc_verifier.check(try_except_with, '[{try:1 except 3 end block 8}]')
 
 
 @pytest.mark.skipif(not IS_PY35_OR_GREATER, reason='Python 3.5 onwards required for async for/async def')
 def test_collect_try_except_info_async_for():
 
     # Not valid on Python 2.
-    code = '''
+    code_str = '''
 async def try_except_with():
     try:
         async for a in object():
@@ -403,7 +402,7 @@ async def try_except_with():
 '''
 
     namespace = {}
-    exec(code, namespace, namespace)
+    exec(code_str, namespace, namespace)
     code = namespace['try_except_with'].__code__
 
     lst = sorted(collect_try_except_info(code, use_func_first_line=True), key=lambda t:t.try_line)
@@ -416,6 +415,11 @@ async def try_except_with():
                 '[{try:1 except 6 end block 7}, {try:2 except 2 end block 7}]',
                 '[{try:1 except 6 end block 7}, {try:2 except 2 end block 2}]'
             )
+
+        # The version from the contents should always be correct.
+        from _pydevd_bundle.pydevd_collect_bytecode_info import collect_try_except_info_from_contents
+        assert str(collect_try_except_info_from_contents(code_str)) == '[{try:3 except 8 end block 9}]'
+
     else:
         assert lst == []
 
