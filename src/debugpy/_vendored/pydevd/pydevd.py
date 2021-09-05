@@ -24,6 +24,7 @@ except ImportError:
 from _pydevd_bundle import pydevd_constants
 
 import atexit
+import dis
 from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial
@@ -87,7 +88,7 @@ from _pydevd_bundle.pydevd_process_net_command import process_net_command
 from _pydevd_bundle.pydevd_net_command import NetCommand
 
 from _pydevd_bundle.pydevd_breakpoints import stop_on_unhandled_exception
-from _pydevd_bundle.pydevd_collect_bytecode_info import collect_try_except_info, collect_return_info
+from _pydevd_bundle.pydevd_collect_bytecode_info import collect_try_except_info, collect_return_info, collect_try_except_info_from_source
 from _pydevd_bundle.pydevd_suspended_frames import SuspendedFramesManager
 from socket import SHUT_RDWR
 from _pydevd_bundle.pydevd_api import PyDevdAPI
@@ -660,7 +661,6 @@ class PyDB(object):
         self.threading_current_thread = threading.currentThread
         self.set_additional_thread_info = set_additional_thread_info
         self.stop_on_unhandled_exception = stop_on_unhandled_exception
-        self.collect_try_except_info = collect_try_except_info
         self.collect_return_info = collect_return_info
         self.get_exception_breakpoint = get_exception_breakpoint
         self._dont_trace_get_file_type = DONT_TRACE.get
@@ -682,6 +682,33 @@ class PyDB(object):
 
         # Stop the tracing as the last thing before the actual shutdown for a clean exit.
         atexit.register(stoptrace)
+
+    def collect_try_except_info(self, code_obj):
+        filename = code_obj.co_filename
+        try:
+            if os.path.exists(filename):
+                pydev_log.debug('Collecting try..except info from source for %s', filename)
+                try_except_infos = collect_try_except_info_from_source(filename)
+                if try_except_infos:
+                    # Filter for the current function
+                    max_line = -1
+                    min_line = sys.maxsize
+                    for _, line in dis.findlinestarts(code_obj):
+
+                        if line > max_line:
+                            max_line = line
+
+                        if line < min_line:
+                            min_line = line
+
+                    try_except_infos = [x for x in try_except_infos if min_line <= x.try_line <= max_line]
+                return try_except_infos
+
+        except:
+            pydev_log.exception('Error collecting try..except info from source (%s)', filename)
+
+        pydev_log.debug('Collecting try..except info from bytecode for %s', filename)
+        return collect_try_except_info(code_obj)
 
     def setup_auto_reload_watcher(self, enable_auto_reload, watch_dirs, poll_target_time, exclude_patterns, include_patterns):
         try:
@@ -2160,7 +2187,7 @@ class PyDB(object):
                         time.sleep(1 / 10.)
                     else:
                         thread_names = [t.name for t in get_pydb_daemon_threads_to_wait()]
-                        if thread_names: 
+                        if thread_names:
                             pydev_log.debug("The following pydb threads may not have finished correctly: %s",
                                             ', '.join(thread_names))
                 finally:
@@ -2346,7 +2373,7 @@ class PyDB(object):
             wrap_threads()
             self.thread_analyser.set_start_time(cur_time())
             send_concurrency_message("threading_event", 0, t.name, thread_id, "thread", "start", file, 1, None, parent=thread_id)
-                                                            
+
         if self.asyncio_analyser is not None:
             # we don't have main thread in asyncio graph, so we should add a fake event
             send_concurrency_message("asyncio_event", 0, "Task", "Task", "thread", "stop", file, 1, frame=None, parent=None)

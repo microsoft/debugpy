@@ -4279,6 +4279,14 @@ def test_frame_eval_mode_corner_case_many(case_setup, break_name):
             hit = writer.wait_for_breakpoint_hit(line=line)
             writer.write_run_thread(hit.thread_id)
 
+            if break_name == 'break with':
+                if sys.version_info[:2] >= (3, 10):
+                    # On Python 3.10 it'll actually backtrack for the
+                    # with and thus will execute the line where the
+                    # 'with' statement was started again.
+                    hit = writer.wait_for_breakpoint_hit(line=line)
+                    writer.write_run_thread(hit.thread_id)
+
             writer.finished_ok = True
 
 

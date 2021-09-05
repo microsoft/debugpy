@@ -26,9 +26,5 @@
     ],
     "_method_simple_raise_unmatched_except": [
         "{try:1 except 3 end block 4}"
-    ],
-    "_method_try_except": [
-        "{try:1 except 6 end block 9 raises: 5}",
-        "{try:2 except 4 end block 5 raises: 5}"
     ]
 }

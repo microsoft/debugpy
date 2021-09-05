@@ -204,7 +204,7 @@ cdef is_unhandled_exception(container_obj, py_db, frame, int last_raise_line, se
 
     else:
         try_except_infos = container_obj.try_except_infos
-        if not try_except_infos:
+        if try_except_infos is None:
             container_obj.try_except_infos = try_except_infos = py_db.collect_try_except_info(frame.f_code)
 
         if not try_except_infos:
