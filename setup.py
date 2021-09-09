@@ -6,12 +6,9 @@
 
 import os
 import os.path
+import setuptools
 import subprocess
 import sys
-
-from setuptools import setup  # noqa
-from distutils.command.build import build as _build
-from distutils.command.build_py import build_py as _build_py
 
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -73,7 +70,7 @@ class ExtModules(list):
         return True
 
 
-class build(_build):
+def override_build(cmds):
     def finalize_options(self):
         # Mark all packages as pure if requested to build a universal wheel.
         # Otherwise, bdist_wheel will silently ignore the request.
@@ -81,13 +78,20 @@ class build(_build):
         if bdist_wheel is not None and bdist_wheel.universal:
             self.distribution.ext_modules = []
             self.distribution.has_ext_modules = lambda: False
-        _build.finalize_options(self)
+        original(self)
+
+    try:
+        build = cmds["build"]
+    except KeyError:
+        from distutils.command.build import build
+    original = build.finalize_options
+    build.finalize_options = finalize_options
 
 
-class build_py(_build_py):
+def override_build_py(cmds):
     # Filter platform-specific binaries in data files for binary builds.
     def finalize_options(self):
-        _build_py.finalize_options(self)
+        original(self)
 
         # Don't filter anything for universal wheels.
         if not self.distribution.ext_modules:
@@ -115,6 +119,14 @@ class build_py(_build_py):
             for package, src_dir, build_dir, filenames in data_files
         ]
 
+    try:
+        build_py = cmds["build_py"]
+    except KeyError:
+        from setuptools.command.build_py import build_py
+
+    original = build_py.finalize_options
+    build_py.finalize_options = finalize_options
+
 
 with open("DESCRIPTION.md", "r") as fh:
     long_description = fh.read()
@@ -130,9 +142,10 @@ if __name__ == "__main__":
         extras["platforms"] = platforms
 
     cmds = versioneer.get_cmdclass()
-    cmds.update(build=build, build_py=build_py)
+    override_build(cmds)
+    override_build_py(cmds)
 
-    setup(
+    setuptools.setup(
         name="debugpy",
         version=versioneer.get_version(),
         description="An implementation of the Debug Adapter Protocol for Python",  # noqa
