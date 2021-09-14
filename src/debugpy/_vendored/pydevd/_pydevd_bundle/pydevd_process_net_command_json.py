@@ -394,7 +394,7 @@ class PyDevJsonCommandProcessor(object):
             py_db.enable_output_redirection(False, False)
 
         self.api.set_show_return_values(py_db, self._options.show_return_value)
-    
+
         if not self._options.break_system_exit_zero:
             ignore_system_exit_codes = [0, None]
             if self._options.django_debug or self._options.flask_debug:
