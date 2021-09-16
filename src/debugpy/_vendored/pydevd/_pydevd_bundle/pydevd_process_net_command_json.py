@@ -397,7 +397,7 @@ class PyDevJsonCommandProcessor(object):
 
         if not self._options.break_system_exit_zero:
             ignore_system_exit_codes = [0, None]
-            if self._options.django_debug:
+            if self._options.django_debug or self._options.flask_debug:
                 ignore_system_exit_codes += [3]
 
             self.api.set_ignore_system_exit_codes(py_db, ignore_system_exit_codes)
