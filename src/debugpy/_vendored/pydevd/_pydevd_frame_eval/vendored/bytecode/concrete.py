@@ -284,11 +284,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         return b"".join(lnotab)
 
     @staticmethod
-    def _pack_linetable(doff, dlineno):
-        linetable = []
-        while doff > 254:
-            linetable.append(b"\xfe\x00")
-            doff -= 254
+    def _pack_linetable(doff, dlineno, linetable):
 
         while dlineno < -127:
             linetable.append(struct.pack("Bb", 0, -127))
@@ -298,11 +294,21 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
             linetable.append(struct.pack("Bb", 0, 127))
             dlineno -= 127
 
+        if doff > 254:
+            linetable.append(struct.pack("Bb", 254, dlineno))
+            doff -= 254
+
+            while doff > 254:
+                linetable.append(b"\xfe\x00")
+                doff -= 254
+            linetable.append(struct.pack("Bb", doff, 0))
+
+        else:
+            linetable.append(struct.pack("Bb", doff, dlineno))
+
         assert 0 <= doff <= 254
         assert -127 <= dlineno <= 127
 
-        linetable.append(struct.pack("Bb", doff, dlineno))
-        return linetable
 
     def _assemble_linestable(self, first_lineno, linenos):
         if not linenos:
@@ -310,9 +316,12 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
 
         linetable = []
         old_offset = 0
-        offset, i_size, old_lineno = linenos[0]
+        
+        iter_in = iter(linenos)
+        
+        offset, i_size, old_lineno = next(iter_in)
         old_dlineno = old_lineno - first_lineno
-        for offset, i_size, lineno in linenos[1:]:
+        for offset, i_size, lineno in iter_in:
             dlineno = lineno - old_lineno
             if dlineno == 0:
                 continue
@@ -321,12 +330,12 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
             doff = offset - old_offset
             old_offset = offset
 
-            linetable.extend(self._pack_linetable(doff, old_dlineno))
+            self._pack_linetable(doff, old_dlineno, linetable)
             old_dlineno = dlineno
 
         # Pack the line of the last instruction.
         doff = offset + i_size - old_offset
-        linetable.extend(self._pack_linetable(doff, old_dlineno))
+        self._pack_linetable(doff, old_dlineno, linetable)
 
         return b"".join(linetable)
 

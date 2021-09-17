@@ -3,6 +3,7 @@ import dis
 from functools import partial
 import itertools
 import os.path
+import sys
 
 from _pydevd_frame_eval.vendored import bytecode
 from _pydevd_frame_eval.vendored.bytecode.instr import Instr, Label
@@ -198,6 +199,36 @@ class _HelperBytecodeList(object):
             node = node.next
 
 
+_PREDICT_TABLE = {
+    'LIST_APPEND': ('JUMP_ABSOLUTE',),
+    'SET_ADD': ('JUMP_ABSOLUTE',),
+    'GET_ANEXT': ('LOAD_CONST',),
+    'GET_AWAITABLE': ('LOAD_CONST',),
+    'DICT_MERGE': ('CALL_FUNCTION_EX',),
+    'MAP_ADD': ('JUMP_ABSOLUTE',),
+    'COMPARE_OP': ('POP_JUMP_IF_FALSE', 'POP_JUMP_IF_TRUE',),
+    'IS_OP': ('POP_JUMP_IF_FALSE', 'POP_JUMP_IF_TRUE',),
+    'CONTAINS_OP': ('POP_JUMP_IF_FALSE', 'POP_JUMP_IF_TRUE',),
+
+    # Note: there are some others with PREDICT on ceval, but they have more logic
+    # and it needs more experimentation to know how it behaves in the static generated
+    # code (and it's only an issue for us if there's actually a line change between
+    # those, so, we don't have to really handle all the cases, only the one where
+    # the line number actually changes from one instruction to the predicted one).
+}
+
+# 3.10 optimizations include copying code branches multiple times (for instance
+# if the body of a finally has a single assign statement it can copy the assign to the case
+# where an exception happens and doesn't happen for optimization purposes) and as such
+# we need to add the programmatic breakpoint multiple times.
+TRACK_MULTIPLE_BRANCHES = sys.version_info[:2] >= (3, 10)
+
+# When tracking multiple branches, we try to fix the bytecodes which would be PREDICTED in the
+# Python eval loop so that we don't have spurious line events that wouldn't usually be issued
+# in the tracing as they're ignored due to the eval prediction (even though they're in the bytecode).
+FIX_PREDICT = sys.version_info[:2] >= (3, 10)
+
+
 def insert_pydevd_breaks(
         code_to_modify,
         breakpoint_lines,
@@ -239,16 +270,49 @@ def insert_pydevd_breaks(
         modified_breakpoint_lines = breakpoint_lines.copy()
 
         curr_node = helper_list.head
+        added_breaks_in_lines = set()
+        last_lineno = None
         while curr_node is not None:
             instruction = curr_node.data
             instruction_lineno = getattr(instruction, 'lineno', None)
+            curr_name = getattr(instruction, 'name', None)
+
+            if FIX_PREDICT:
+                predict_targets = _PREDICT_TABLE.get(curr_name)
+                if predict_targets:
+                    # Odd case: the next instruction may have a line number but it doesn't really
+                    # appear in the tracing due to the PREDICT() in ceval, so, fix the bytecode so
+                    # that it does things the way that ceval actually interprets it.
+                    # See: https://mail.python.org/archives/list/python-dev@python.org/thread/CP2PTFCMTK57KM3M3DLJNWGO66R5RVPB/
+                    next_instruction = curr_node.next.data
+                    next_name = getattr(next_instruction, 'name', None)
+                    if next_name in predict_targets:
+                        next_instruction_lineno = getattr(next_instruction, 'lineno', None)
+                        if next_instruction_lineno:
+                            next_instruction.lineno = None
 
             if instruction_lineno is not None:
+                if TRACK_MULTIPLE_BRANCHES:
+                    if last_lineno is None:
+                        last_lineno = instruction_lineno
+                    else:
+                        if last_lineno == instruction_lineno:
+                            # If the previous is a label, someone may jump into it, so, we need to add
+                            # the break even if it's in the same line.
+                            if curr_node.prev.data.__class__ != Label:
+                                # Skip adding this as the line is still the same.
+                                curr_node = curr_node.next
+                                continue
+                        last_lineno = instruction_lineno
+                else:
+                    if instruction_lineno in added_breaks_in_lines:
+                        curr_node = curr_node.next
+                        continue
 
                 if instruction_lineno in modified_breakpoint_lines:
-                    modified_breakpoint_lines.discard(instruction_lineno)
+                    added_breaks_in_lines.add(instruction_lineno)
                     if curr_node.prev is not None and curr_node.prev.data.__class__ == Label \
-                            and getattr(curr_node.data, 'name', None) == 'POP_TOP':
+                            and curr_name == 'POP_TOP':
 
                         # If we have a SETUP_FINALLY where the target is a POP_TOP, we can't change
                         # the target to be the breakpoint instruction (this can crash the interpreter).

@@ -35,9 +35,9 @@ from _pydevd_frame_eval.vendored.bytecode.concrete import (
     _ConvertBytecodeToConcrete,
 )
 from _pydevd_frame_eval.vendored.bytecode.cfg import BasicBlock, ControlFlowGraph  # noqa
+import sys
 
-
-def dump_bytecode(bytecode, *, lineno=False):
+def dump_bytecode(bytecode, *, lineno=False, stream=sys.stdout):
     def format_line(index, line):
         nonlocal cur_lineno, prev_lineno
         if lineno:
@@ -87,7 +87,7 @@ def dump_bytecode(bytecode, *, lineno=False):
             else:
                 fields.append("% 3s    %s" % (offset, format_instr(instr)))
                 line = "".join(fields)
-            print(line)
+            print(line, file=stream)
 
             offset += instr.size
     elif isinstance(bytecode, Bytecode):
@@ -101,30 +101,30 @@ def dump_bytecode(bytecode, *, lineno=False):
                 label = labels[instr]
                 line = "%s:" % label
                 if index != 0:
-                    print()
+                    print(file=stream)
             else:
                 if instr.lineno is not None:
                     cur_lineno = instr.lineno
                 line = format_instr(instr, labels)
                 line = indent + format_line(index, line)
-            print(line)
-        print()
+            print(line, file=stream)
+        print(file=stream)
     elif isinstance(bytecode, ControlFlowGraph):
         labels = {}
         for block_index, block in enumerate(bytecode, 1):
             labels[id(block)] = "block%s" % block_index
 
         for block_index, block in enumerate(bytecode, 1):
-            print("%s:" % labels[id(block)])
+            print("%s:" % labels[id(block)], file=stream)
             prev_lineno = None
             for index, instr in enumerate(block):
                 if instr.lineno is not None:
                     cur_lineno = instr.lineno
                 line = format_instr(instr, labels)
                 line = indent + format_line(index, line)
-                print(line)
+                print(line, file=stream)
             if block.next_block is not None:
-                print(indent + "-> %s" % labels[id(block.next_block)])
-            print()
+                print(indent + "-> %s" % labels[id(block.next_block)], file=stream)
+            print(file=stream)
     else:
         raise TypeError("unknown bytecode class")

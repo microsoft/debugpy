@@ -1,6 +1,7 @@
 import os.path
 import sys
-from tests_python.test_debugger import IS_PY26
+
+IS_PY26 = sys.version_info[:2] == (2, 6)
 
 IS_JYTHON = sys.platform.find('java') != -1
 
