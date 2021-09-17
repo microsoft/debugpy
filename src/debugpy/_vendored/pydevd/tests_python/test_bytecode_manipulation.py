@@ -158,6 +158,12 @@ def test_set_pydevd_break_01():
     check('_bytecode_overflow_example.py', _bytecode_overflow_example.Dummy.fun, method_kwargs={'text': 'ing'})
 
 
+def test_set_pydevd_break_01a():
+    from tests_python.resources import _bytecode_overflow_example
+
+    check('_bytecode_overflow_example.py', _bytecode_overflow_example.check_backtrack, method_kwargs={'x': 'f'})
+
+
 def test_set_pydevd_break_02():
     from tests_python.resources import _bytecode_many_names_example
 

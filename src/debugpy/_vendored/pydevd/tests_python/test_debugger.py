@@ -4263,6 +4263,8 @@ def test_frame_eval_mode_corner_case_04(case_setup):
         'break finally 1',
         'break except 2',
         'break finally 2',
+        'break finally 3',
+        'break finally 4',
         'break in dict',
         'break else',
     ]
