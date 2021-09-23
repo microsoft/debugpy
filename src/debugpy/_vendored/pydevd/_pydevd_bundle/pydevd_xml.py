@@ -138,19 +138,29 @@ class TypeResolveHandler(object):
         try:
             try:
                 # Faster than type(o) as we don't need the function call.
-                type_object = o.__class__
+                type_object = o.__class__  # could fail here
+                type_name = type_object.__name__
+                return self._get_type(o, type_object, type_name)  # could fail here
             except:
                 # Not all objects have __class__ (i.e.: there are bad bindings around).
                 type_object = type(o)
+                type_name = type_object.__name__
 
-            type_name = type_object.__name__
+                try:
+                    return self._get_type(o, type_object, type_name)
+                except:
+                    if isinstance(type_object, type):
+                        # If it's still something manageable, use the default resolver, otherwise
+                        # fallback to saying that it wasn't possible to get any info on it.
+                        return type_object, str(type_name), pydevd_resolver.defaultResolver
+
+                    return 'Unable to get Type', 'Unable to get Type', None
         except:
             # This happens for org.python.core.InitModule
             return 'Unable to get Type', 'Unable to get Type', None
 
-        return self._get_type(o, type_object, type_name)
-
     def _get_type(self, o, type_object, type_name):
+        # Note: we could have an exception here if the type_object is not hashable...
         resolver = self._type_to_resolver_cache.get(type_object)
         if resolver is not None:
             return type_object, type_name, resolver
