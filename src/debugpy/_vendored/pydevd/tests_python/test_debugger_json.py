@@ -2613,6 +2613,40 @@ def test_set_variable_multiple_cases(case_setup, _check_func):
         writer.finished_ok = True
 
 
+def test_get_variables_corner_case(case_setup, pyfile):
+
+    @pyfile
+    def case_with_class_as_object():
+
+        class ClassField(object):
+            __name__ = 'name?'
+
+            def __hash__(self):
+                raise RuntimeError()
+
+        class SomeClass(object):
+            __class__ = ClassField()
+
+        some_class = SomeClass()
+        print('TEST SUCEEDED')  # Break here
+
+    with case_setup.test_file(case_with_class_as_object) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(justMyCode=False)
+        json_facade.write_set_breakpoints(writer.get_line_index_with_content('Break here'))
+
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+
+        set_var = json_facade.get_local_var(json_hit.frame_id, 'some_class')
+        assert '__main__.SomeClass' in set_var.value
+
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
 @pytest.mark.skipif(IS_JYTHON, reason='Putting unicode on frame vars does not work on Jython.')
 def test_stack_and_variables(case_setup):
 
