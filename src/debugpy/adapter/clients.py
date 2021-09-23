@@ -145,15 +145,12 @@ class Client(components.Component):
         exception_breakpoint_filters = [
             {"filter": "raised", "label": "Raised Exceptions", "default": False},
             {"filter": "uncaught", "label": "Uncaught Exceptions", "default": True},
+            {
+                "filter": "userUnhandled",
+                "label": "User Uncaught Exceptions",
+                "default": True,
+            },
         ]
-        if int(os.getenv("DEBUGPY_EXCEPTION_FILTER_USER_UNHANDLED", "0")) != 0:
-            exception_breakpoint_filters += [
-                {
-                    "filter": "userUnhandled",
-                    "label": "User Uncaught Exceptions",
-                    "default": True,
-                },
-            ]
 
         return {
             "supportsCompletionsRequest": True,
