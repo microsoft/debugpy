@@ -782,6 +782,7 @@ def internal_get_variable_json(py_db, request):
                 'name': '<error>',
                 'value': err,
                 'type': '<error>',
+                'variablesReference': 0
             }]
         except:
             err = '<Internal error - unable to get traceback when getting variables>'
