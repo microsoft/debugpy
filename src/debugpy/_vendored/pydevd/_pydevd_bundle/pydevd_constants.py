@@ -164,7 +164,7 @@ IS_PYTHON_STACKLESS = "stackless" in sys.version.lower()
 CYTHON_SUPPORTED = False
 
 python_implementation = platform.python_implementation()
-if python_implementation == 'CPython' and not IS_PYTHON_STACKLESS:
+if python_implementation == 'CPython':
     # Only available for CPython!
     if (
         (sys.version_info[0] == 2 and sys.version_info[1] >= 6)
