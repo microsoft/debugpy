@@ -2226,14 +2226,16 @@ def test_evaluate_unicode(case_setup):
             assert reference > 0
             variables_response = json_facade.get_variables_response(reference)
             child_variables = variables_response.to_dict()['body']['variables']
-            assert len(child_variables) == 1
-            assert json_facade.pop_variables_reference(child_variables)[0] > 0
-            assert child_variables == [{
-                u'type': u'SyntaxError',
-                u'evaluateName': u'\u16a0.result',
-                u'name': u'result',
-                u'value': u"SyntaxError('invalid syntax', ('<string>', 1, 1, '\\xe1\\x9a\\xa0'))"
-            }]
+            assert len(child_variables) == 2
+            for c in child_variables:
+                if c[u'type'] == u'SyntaxError':
+                    assert c.pop('variablesReference') > 0
+                    assert c == {
+                        u'type': u'SyntaxError',
+                        u'evaluateName': u'\u16a0.result',
+                        u'name': u'result',
+                        u'value': u"SyntaxError('invalid syntax', ('<string>', 1, 1, '\\xe1\\x9a\\xa0'))"
+                    }
 
         else:
             assert evaluate_response_body == {
@@ -2323,6 +2325,42 @@ def test_evaluate_repl_redirect(case_setup):
 
         messages = json_facade.mark_messages(
             OutputEvent, lambda output_event: u'var' in output_event.body.output)
+        assert len(messages) == 1
+
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
+def test_evaluate_no_double_exec(case_setup, pyfile):
+
+    @pyfile
+    def exec_code():
+
+        def print_and_raise():
+            print('Something')
+            raise RuntimeError()
+
+        print('Break here')
+        print('TEST SUCEEDED!')
+
+    with case_setup.test_file(exec_code) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(justMyCode=False)
+        json_facade.write_set_breakpoints(writer.get_line_index_with_content('Break here'))
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        json_hit = json_facade.get_stack_as_json_hit(json_hit.thread_id)
+
+        json_facade.evaluate(
+            "print_and_raise()",
+            frameId=json_hit.frame_id,
+            context="repl",
+            success=False,
+        )
+
+        messages = json_facade.mark_messages(
+            OutputEvent, lambda output_event: u'Something' in output_event.body.output)
         assert len(messages) == 1
 
         json_facade.write_continue()

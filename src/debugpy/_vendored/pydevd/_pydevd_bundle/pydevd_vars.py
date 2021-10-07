@@ -259,20 +259,8 @@ def eval_in_context(expression, globals, locals):
     try:
         result = eval(_expression_to_evaluate(expression), globals, locals)
     except (Exception, KeyboardInterrupt):
-        s = StringIO()
-        traceback.print_exc(file=s)
-        result = s.getvalue()
-
-        try:
-            try:
-                etype, value, tb = sys.exc_info()
-                result = value
-            finally:
-                etype = value = tb = None
-        except:
-            pass
-
-        result = ExceptionOnEvaluate(result)
+        etype, result, tb = sys.exc_info()
+        result = ExceptionOnEvaluate(result, etype, tb)
 
         # Ok, we have the initial error message, but let's see if we're dealing with a name mangling error...
         try:
@@ -373,6 +361,19 @@ def _evaluate_with_timeouts(original_func):
     return new_func
 
 
+def compile_as_eval(expression):
+    '''
+
+    :param expression:
+        The expression to be compiled.
+
+    :return: code object
+
+    :raises Exception if the expression cannot be evaluated.
+    '''
+    return compile(_expression_to_evaluate(expression), '<string>', 'eval')
+
+
 @_evaluate_with_timeouts
 def evaluate_expression(py_db, frame, expression, is_exec):
     '''
@@ -416,7 +417,7 @@ def evaluate_expression(py_db, frame, expression, is_exec):
             try:
                 # try to make it an eval (if it is an eval we can print it, otherwise we'll exec it and
                 # it will have whatever the user actually did)
-                compiled = compile(_expression_to_evaluate(expression), '<string>', 'eval')
+                compiled = compile_as_eval(expression)
             except Exception:
                 Exec(_expression_to_evaluate(expression), updated_globals, frame.f_locals)
                 pydevd_save_locals.save_locals(frame)

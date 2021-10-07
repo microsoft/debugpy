@@ -25,8 +25,10 @@ def make_valid_xml_value(s):
 
 class ExceptionOnEvaluate:
 
-    def __init__(self, result):
+    def __init__(self, result, etype, tb):
         self.result = result
+        self.etype = etype
+        self.tb = tb
 
 
 _IS_JYTHON = sys.platform.startswith("java")
