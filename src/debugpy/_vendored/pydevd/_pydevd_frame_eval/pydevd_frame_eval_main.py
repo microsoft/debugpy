@@ -3,7 +3,7 @@ import os
 from _pydev_bundle import pydev_log
 from _pydevd_bundle.pydevd_trace_dispatch import USING_CYTHON
 from _pydevd_bundle.pydevd_constants import USE_CYTHON_FLAG, ENV_FALSE_LOWER_VALUES, \
-    ENV_TRUE_LOWER_VALUES, IS_PY36_OR_GREATER, SUPPORT_GEVENT, IS_PYTHON_STACKLESS
+    ENV_TRUE_LOWER_VALUES, IS_PY36_OR_GREATER, IS_PY38_OR_GREATER, SUPPORT_GEVENT, IS_PYTHON_STACKLESS
 
 frame_eval_func = None
 stop_frame_eval = None
@@ -18,7 +18,7 @@ use_frame_eval = os.environ.get('PYDEVD_USE_FRAME_EVAL', '').lower()
 if use_frame_eval in ENV_FALSE_LOWER_VALUES or USE_CYTHON_FLAG in ENV_FALSE_LOWER_VALUES or not USING_CYTHON:
     pass
 
-elif SUPPORT_GEVENT or IS_PYTHON_STACKLESS:
+elif SUPPORT_GEVENT or (IS_PYTHON_STACKLESS and not IS_PY38_OR_GREATER):
     pass
     # i.e gevent and frame eval mode don't get along very well.
     # https://github.com/microsoft/debugpy/issues/189
