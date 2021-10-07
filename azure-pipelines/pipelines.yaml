@@ -64,7 +64,7 @@ jobs:
     - job: "Test_MacOS"
       timeoutInMinutes: 30
       displayName: "Tests - macOS"
-      pool: { vmImage: "macOS-latest" }
+      pool: { vmImage: "macOS-10.14" }
 
       strategy:
           matrix:
