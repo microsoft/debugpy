@@ -94,7 +94,7 @@ with VerifyShadowedImport('code') as verify_shadowed:
 
 if IS_PY2:
     with VerifyShadowedImport('thread') as verify_shadowed:
-        import thread;    verify_shadowed.check(thread, ['start_new_thread', 'start_new', 'allocate_lock'])
+        import thread;    verify_shadowed.check(thread, ['start_new_thread', 'allocate_lock'])
 
     with VerifyShadowedImport('Queue') as verify_shadowed:
         import Queue as _queue;    verify_shadowed.check(_queue, ['Queue', 'LifoQueue', 'Empty', 'Full', 'deque'])
