@@ -48,7 +48,8 @@ class ExceptionBreakpoint(object):
 
 class LineBreakpoint(object):
 
-    def __init__(self, line, condition, func_name, expression, suspend_policy="NONE", hit_condition=None, is_logpoint=False):
+    def __init__(self, breakpoint_id, line, condition, func_name, expression, suspend_policy="NONE", hit_condition=None, is_logpoint=False):
+        self.breakpoint_id = breakpoint_id
         self.line = line
         self.condition = condition
         self.func_name = func_name

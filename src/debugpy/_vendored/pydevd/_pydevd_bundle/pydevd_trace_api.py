@@ -1,4 +1,8 @@
-def add_line_breakpoint(plugin, pydb, type, canonical_normalized_filename, line, condition, expression, func_name):
+def add_line_breakpoint(plugin, pydb, type, canonical_normalized_filename, breakpoint_id, line, condition, expression, func_name, hit_condition=None, is_logpoint=False, add_breakpoint_result=None, on_changed_breakpoint_state=None):
+    return None
+
+
+def after_breakpoints_consolidated(py_db, canonical_normalized_filename, id_to_pybreakpoint, file_to_line_to_breakpoints):
     return None
 
 

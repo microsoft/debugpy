@@ -317,6 +317,7 @@ def test_breakpoint_in_nonexistent_file(pyfile, target, run):
                         {"path": some.path("nonexistent_file.py")}
                     ),
                     "line": 1,
+                    "id": 0,
                 }
             ]
 
