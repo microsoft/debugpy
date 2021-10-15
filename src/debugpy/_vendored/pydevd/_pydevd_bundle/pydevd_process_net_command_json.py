@@ -16,7 +16,8 @@ from _pydevd_bundle._debug_adapter.pydevd_schema import (
     SetVariableResponseBody, SourceBreakpoint, SourceResponseBody,
     VariablesResponseBody, SetBreakpointsResponseBody, Response,
     Capabilities, PydevdAuthorizeRequest, Request, StepInTargetsResponse, StepInTarget,
-    StepInTargetsResponseBody, SetFunctionBreakpointsResponseBody)
+    StepInTargetsResponseBody, SetFunctionBreakpointsResponseBody, BreakpointEvent,
+    BreakpointEventBody)
 from _pydevd_bundle.pydevd_api import PyDevdAPI
 from _pydevd_bundle.pydevd_breakpoints import get_exception_class, FunctionBreakpoint
 from _pydevd_bundle.pydevd_comm_constants import (
@@ -762,7 +763,7 @@ class PyDevJsonCommandProcessor(object):
             source_breakpoint = SourceBreakpoint(**source_breakpoint)
             line = source_breakpoint.line
             condition = source_breakpoint.condition
-            breakpoint_id = line
+            breakpoint_id = self._next_breakpoint_id()
 
             hit_condition = self._get_hit_condition_expression(source_breakpoint.hitCondition)
             log_message = source_breakpoint.logMessage
@@ -773,36 +774,56 @@ class PyDevJsonCommandProcessor(object):
                 is_logpoint = True
                 expression = convert_dap_log_message_to_expression(log_message)
 
+            on_changed_breakpoint_state = partial(self._on_changed_breakpoint_state, py_db, arguments.source)
             result = self.api.add_breakpoint(
-                py_db, filename, btype, breakpoint_id, line, condition, func_name, expression, suspend_policy, hit_condition, is_logpoint, adjust_line=True)
-            error_code = result.error_code
+                py_db, filename, btype, breakpoint_id, line, condition, func_name, expression,
+                suspend_policy, hit_condition, is_logpoint, adjust_line=True, on_changed_breakpoint_state=on_changed_breakpoint_state)
 
-            if error_code:
-                if error_code == self.api.ADD_BREAKPOINT_FILE_NOT_FOUND:
-                    error_msg = 'Breakpoint in file that does not exist.'
-
-                elif error_code == self.api.ADD_BREAKPOINT_FILE_EXCLUDED_BY_FILTERS:
-                    error_msg = 'Breakpoint in file excluded by filters.'
-                    if py_db.get_use_libraries_filter():
-                        error_msg += ('\nNote: may be excluded because of "justMyCode" option (default == true).'
-                                      'Try setting \"justMyCode\": false in the debug configuration (e.g., launch.json).\n')
-
-                else:
-                    # Shouldn't get here.
-                    error_msg = 'Breakpoint not validated (reason unknown -- please report as bug).'
-
-                breakpoints_set.append(pydevd_schema.Breakpoint(
-                    verified=False, line=result.translated_line, message=error_msg, source=arguments.source).to_dict())
-            else:
-                # Note that the id is made up (the id for pydevd is unique only within a file, so, the
-                # line is used for it).
-                # Also, the id is currently not used afterwards, so, we don't even keep a mapping.
-                breakpoints_set.append(pydevd_schema.Breakpoint(
-                    verified=True, id=self._next_breakpoint_id(), line=result.translated_line, source=arguments.source).to_dict())
+            bp = self._create_breakpoint_from_add_breakpoint_result(py_db, arguments.source, breakpoint_id, result)
+            breakpoints_set.append(bp)
 
         body = {'breakpoints': breakpoints_set}
         set_breakpoints_response = pydevd_base_schema.build_response(request, kwargs={'body': body})
         return NetCommand(CMD_RETURN, 0, set_breakpoints_response, is_json=True)
+
+    def _on_changed_breakpoint_state(self, py_db, source, breakpoint_id, result):
+        bp = self._create_breakpoint_from_add_breakpoint_result(py_db, source, breakpoint_id, result)
+        body = BreakpointEventBody(
+            reason='changed',
+            breakpoint=bp,
+        )
+        event = BreakpointEvent(body)
+        event_id = 0  # Actually ignored in this case
+        py_db.writer.add_command(NetCommand(event_id, 0, event, is_json=True))
+
+    def _create_breakpoint_from_add_breakpoint_result(self, py_db, source, breakpoint_id, result):
+        error_code = result.error_code
+
+        if error_code:
+            if error_code == self.api.ADD_BREAKPOINT_FILE_NOT_FOUND:
+                error_msg = 'Breakpoint in file that does not exist.'
+
+            elif error_code == self.api.ADD_BREAKPOINT_FILE_EXCLUDED_BY_FILTERS:
+                error_msg = 'Breakpoint in file excluded by filters.'
+                if py_db.get_use_libraries_filter():
+                    error_msg += ('\nNote: may be excluded because of "justMyCode" option (default == true).'
+                                  'Try setting \"justMyCode\": false in the debug configuration (e.g., launch.json).\n')
+
+            elif error_code == self.api.ADD_BREAKPOINT_LAZY_VALIDATION:
+                error_msg = 'Waiting for code to be loaded to verify breakpoint.'
+
+            elif error_code == self.api.ADD_BREAKPOINT_INVALID_LINE:
+                error_msg = 'Breakpoint added to invalid line.'
+
+            else:
+                # Shouldn't get here.
+                error_msg = 'Breakpoint not validated (reason unknown -- please report as bug).'
+
+            return pydevd_schema.Breakpoint(
+                verified=False, id=breakpoint_id, line=result.translated_line, message=error_msg, source=source).to_dict()
+        else:
+            return pydevd_schema.Breakpoint(
+                verified=True, id=breakpoint_id, line=result.translated_line, source=source).to_dict()
 
     def on_setexceptionbreakpoints_request(self, py_db, request):
         '''

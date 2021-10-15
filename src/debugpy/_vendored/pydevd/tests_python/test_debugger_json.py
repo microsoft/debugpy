@@ -14,7 +14,8 @@ from _pydevd_bundle._debug_adapter.pydevd_base_schema import from_json
 from _pydevd_bundle._debug_adapter.pydevd_schema import (ThreadEvent, ModuleEvent, OutputEvent,
     ExceptionOptions, Response, StoppedEvent, ContinuedEvent, ProcessEvent, InitializeRequest,
     InitializeRequestArguments, TerminateArguments, TerminateRequest, TerminatedEvent,
-    FunctionBreakpoint, SetFunctionBreakpointsRequest, SetFunctionBreakpointsArguments)
+    FunctionBreakpoint, SetFunctionBreakpointsRequest, SetFunctionBreakpointsArguments,
+    BreakpointEvent)
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
 from _pydevd_bundle.pydevd_constants import (int_types, IS_64BIT_PROCESS,
     PY_VERSION_STR, PY_IMPL_VERSION_STR, PY_IMPL_NAME, IS_PY36_OR_GREATER,
@@ -229,7 +230,12 @@ class JsonFacade(object):
             assert set(lines_in_response) == set(expected_lines_in_response)
 
             for b in body.breakpoints:
-                if b['verified'] != verified:
+                if isinstance(verified, dict):
+                    if b['verified'] != verified[b['id']]:
+                        raise AssertionError('Expected verified breakpoint to be: %s. Found: %s.\nBreakpoint: %s' % (
+                            verified, verified[b['id']], b))
+
+                elif b['verified'] != verified:
                     raise AssertionError('Expected verified breakpoint to be: %s. Found: %s.\nBreakpoint: %s' % (
                         verified, b['verified'], b))
         return response
@@ -1374,7 +1380,7 @@ def test_case_skipping_filters(case_setup, custom_setup):
             other_filename = os.path.join(not_my_code_dir, 'other.py')
             response = json_facade.write_set_breakpoints(1, filename=other_filename, verified=False)
             assert response.body.breakpoints == [
-                {'verified': False, 'message': 'Breakpoint in file excluded by filters.', 'source': {'path': other_filename}, 'line': 1}]
+                {'verified': False, 'id': 0, 'message': 'Breakpoint in file excluded by filters.', 'source': {'path': other_filename}, 'line': 1}]
             # Note: there's actually a use-case where we'd hit that breakpoint even if it was excluded
             # by filters, so, we must actually clear it afterwards (the use-case is that when we're
             # stepping into the context with the breakpoint we wouldn't skip it).
@@ -1383,7 +1389,7 @@ def test_case_skipping_filters(case_setup, custom_setup):
             other_filename = os.path.join(not_my_code_dir, 'file_that_does_not_exist.py')
             response = json_facade.write_set_breakpoints(1, filename=other_filename, verified=False)
             assert response.body.breakpoints == [
-                {'verified': False, 'message': 'Breakpoint in file that does not exist.', 'source': {'path': other_filename}, 'line': 1}]
+                {'verified': False, 'id': 1, 'message': 'Breakpoint in file that does not exist.', 'source': {'path': other_filename}, 'line': 1}]
 
         elif custom_setup == 'set_exclude_launch_module_full':
             json_facade.write_launch(
@@ -1412,6 +1418,7 @@ def test_case_skipping_filters(case_setup, custom_setup):
                 33, filename=other_filename, verified=False, expected_lines_in_response=[14])
             assert response.body.breakpoints == [{
                 'verified': False,
+                'id': 0,
                 'message': 'Breakpoint in file excluded by filters.\nNote: may be excluded because of \"justMyCode\" option (default == true).Try setting \"justMyCode\": false in the debug configuration (e.g., launch.json).\n',
                 'source': {'path': other_filename},
                 'line': 14
@@ -4269,6 +4276,129 @@ def test_case_django_no_attribute_exception_breakpoint(case_setup_django, jmc):
             {'name': 'val', 'value': "'v1'", 'type': 'str', 'evaluateName': 'entry.val', 'presentationHint': {'attributes': ['rawString']}, 'variablesReference': 0}
         ]
 
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not TEST_DJANGO, reason='No django available')
+def test_case_django_line_validation(case_setup_django):
+    import django  # noqa (may not be there if TEST_DJANGO == False)
+    django_version = [int(x) for x in django.get_version().split('.')][:2]
+
+    support_lazy_line_validation = django_version >= [1, 9]
+
+    import django  # noqa (may not be there if TEST_DJANGO == False)
+
+    with case_setup_django.test_file(EXPECTED_RETURNCODE='any') as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch(debugOptions=['DebugStdLib', 'Django'])
+        template_file = debugger_unittest._get_debugger_test_file(os.path.join(writer.DJANGO_FOLDER, 'my_app', 'templates', 'my_app', 'index.html'))
+        file_doesnt_exist = os.path.join(os.path.dirname(template_file), 'this_does_not_exist.html')
+
+        # At this point, breakpoints will still not be verified (that'll happen when we
+        # actually load the template).
+        if support_lazy_line_validation:
+            json_facade.write_set_breakpoints([1, 2, 4], template_file, verified=False)
+        else:
+            json_facade.write_set_breakpoints([1, 2, 4], template_file, verified=True)
+
+        writer.write_make_initial_run()
+
+        t = writer.create_request_thread('my_app')
+        time.sleep(5)  # Give django some time to get to startup before requesting the page
+        t.start()
+
+        json_facade.wait_for_thread_stopped(line=1)
+        breakpoint_events = json_facade.mark_messages(BreakpointEvent)
+
+        found = {}
+        for breakpoint_event in breakpoint_events:
+            bp = breakpoint_event.body.breakpoint
+            found[bp.id] = (bp.verified, bp.line)
+
+        if support_lazy_line_validation:
+            # At this point breakpoints were added.
+            # id=0 / Line 1 is ok
+            # id=1 / Line 2 will be disabled (because line 1 is already taken)
+            # id=2 / Line 4 will be moved to line 3
+            assert found == {
+                0: (True, 1),
+                1: (False, 2),
+                2: (True, 3),
+            }
+        else:
+            assert found == {}
+
+        # Now, after the template was loaded, when setting the breakpoints we can already
+        # know about the template validation.
+        if support_lazy_line_validation:
+            json_facade.write_set_breakpoints(
+                [1, 2, 8], template_file, expected_lines_in_response=set((1, 2, 7)),
+                # i.e.: breakpoint id to whether it's verified.
+                verified={3: True, 4: False, 5: True})
+        else:
+            json_facade.write_set_breakpoints(
+                [1, 2, 7], template_file, verified=True)
+
+        json_facade.write_continue()
+        json_facade.wait_for_thread_stopped(line=7)
+
+        json_facade.write_continue()
+        json_facade.wait_for_thread_stopped(line=7)
+
+        # To finish, check that setting on a file that doesn't exist is not verified.
+        response = json_facade.write_set_breakpoints([1], file_doesnt_exist, verified=False)
+        for bp in response.body.breakpoints:
+            assert 'Breakpoint in file that does not exist' in bp['message']
+
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not TEST_FLASK, reason='No flask available')
+def test_case_flask_line_validation(case_setup_flask):
+    with case_setup_flask.test_file(EXPECTED_RETURNCODE='any') as writer:
+        json_facade = JsonFacade(writer)
+        writer.write_set_project_roots([debugger_unittest._get_debugger_test_file('flask1')])
+        json_facade.write_launch(debugOptions=['Jinja'])
+        json_facade.write_make_initial_run()
+
+        template_file = debugger_unittest._get_debugger_test_file(os.path.join('flask1', 'templates', 'hello.html'))
+
+        # At this point, breakpoints will still not be verified (that'll happen when we
+        # actually load the template).
+        json_facade.write_set_breakpoints([1, 5, 6, 10], template_file, verified=False)
+
+        writer.write_make_initial_run()
+
+        t = writer.create_request_thread()
+        time.sleep(2)  # Give flask some time to get to startup before requesting the page
+        t.start()
+
+        json_facade.wait_for_thread_stopped(line=5)
+        breakpoint_events = json_facade.mark_messages(BreakpointEvent)
+
+        found = {}
+        for breakpoint_event in breakpoint_events:
+            bp = breakpoint_event.body.breakpoint
+            found[bp.id] = (bp.verified, bp.line)
+
+        # At this point breakpoints were added.
+        # id=0 / Line 1 will be disabled
+        # id=1 / Line 5 is correct
+        # id=2 / Line 6 will be disabled (because line 5 is already taken)
+        # id=3 / Line 10 will be moved to line 8
+        assert found == {
+            0: (False, 1),
+            1: (True, 5),
+            2: (False, 6),
+            3: (True, 8),
+        }
+
+        json_facade.write_continue()
+
+        json_facade.wait_for_thread_stopped(line=8)
         json_facade.write_continue()
         writer.finished_ok = True
 

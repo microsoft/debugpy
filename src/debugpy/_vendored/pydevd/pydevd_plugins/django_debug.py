@@ -1,12 +1,14 @@
 import inspect
 
 from _pydev_bundle import pydev_log
-from _pydevd_bundle.pydevd_breakpoints import LineBreakpoint
 from _pydevd_bundle.pydevd_comm import CMD_SET_BREAK, CMD_ADD_EXCEPTION_BREAK
 from _pydevd_bundle.pydevd_constants import STATE_SUSPEND, dict_iter_items, DJANGO_SUSPEND, IS_PY2, \
     DebugInfoHolder
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, FCode, just_raised, ignore_exception_trace
 from pydevd_file_utils import canonical_normalized_path, absolute_path
+from _pydevd_bundle.pydevd_api import PyDevdAPI
+from pydevd_plugins.pydevd_line_validation import LineBreakpointWithLazyValidation, ValidationInfo
+from _pydev_bundle.pydev_override import overrides
 
 IS_DJANGO18 = False
 IS_DJANGO19 = False
@@ -21,23 +23,81 @@ except:
     pass
 
 
-class DjangoLineBreakpoint(LineBreakpoint):
+class DjangoLineBreakpoint(LineBreakpointWithLazyValidation):
 
-    def __init__(self, canonical_normalized_filename, line, condition, func_name, expression, hit_condition=None, is_logpoint=False):
+    def __init__(self, canonical_normalized_filename, breakpoint_id, line, condition, func_name, expression, hit_condition=None, is_logpoint=False):
         self.canonical_normalized_filename = canonical_normalized_filename
-        LineBreakpoint.__init__(self, line, condition, func_name, expression, hit_condition=hit_condition, is_logpoint=is_logpoint)
+        LineBreakpointWithLazyValidation.__init__(self, breakpoint_id, line, condition, func_name, expression, hit_condition=hit_condition, is_logpoint=is_logpoint)
 
     def __str__(self):
         return "DjangoLineBreakpoint: %s-%d" % (self.canonical_normalized_filename, self.line)
 
 
-def add_line_breakpoint(plugin, pydb, type, canonical_normalized_filename, line, condition, expression, func_name, hit_condition=None, is_logpoint=False):
+class _DjangoValidationInfo(ValidationInfo):
+
+    @overrides(ValidationInfo._collect_valid_lines_in_template_uncached)
+    def _collect_valid_lines_in_template_uncached(self, template):
+        lines = set()
+        for node in self._iternodes(template.nodelist):
+            if node.__class__.__name__ in _IGNORE_RENDER_OF_CLASSES:
+                continue
+            lineno = self._get_lineno(node)
+            if lineno is not None:
+                lines.add(lineno)
+        return lines
+
+    def _get_lineno(self, node):
+        if hasattr(node, 'token') and hasattr(node.token, 'lineno'):
+            return node.token.lineno
+        return None
+
+    def _iternodes(self, nodelist):
+        for node in nodelist:
+            yield node
+
+            try:
+                children = node.child_nodelists
+            except:
+                pass
+            else:
+                for attr in children:
+                    nodelist = getattr(node, attr, None)
+                    if nodelist:
+                        # i.e.: yield from _iternodes(nodelist)
+                        for node in self._iternodes(nodelist):
+                            yield node
+
+
+def add_line_breakpoint(plugin, pydb, type, canonical_normalized_filename, breakpoint_id, line, condition, expression, func_name, hit_condition=None, is_logpoint=False, add_breakpoint_result=None, on_changed_breakpoint_state=None):
     if type == 'django-line':
-        django_line_breakpoint = DjangoLineBreakpoint(canonical_normalized_filename, line, condition, func_name, expression, hit_condition=hit_condition, is_logpoint=is_logpoint)
+        django_line_breakpoint = DjangoLineBreakpoint(canonical_normalized_filename, breakpoint_id, line, condition, func_name, expression, hit_condition=hit_condition, is_logpoint=is_logpoint)
         if not hasattr(pydb, 'django_breakpoints'):
             _init_plugin_breaks(pydb)
+
+        if IS_DJANGO19_OR_HIGHER:
+            add_breakpoint_result.error_code = PyDevdAPI.ADD_BREAKPOINT_LAZY_VALIDATION
+            django_line_breakpoint.add_breakpoint_result = add_breakpoint_result
+            django_line_breakpoint.on_changed_breakpoint_state = on_changed_breakpoint_state
+        else:
+            add_breakpoint_result.error_code = PyDevdAPI.ADD_BREAKPOINT_NO_ERROR
+
         return django_line_breakpoint, pydb.django_breakpoints
     return None
+
+
+def after_breakpoints_consolidated(plugin, py_db, canonical_normalized_filename, id_to_pybreakpoint, file_to_line_to_breakpoints):
+    if IS_DJANGO19_OR_HIGHER:
+        django_breakpoints_for_file = file_to_line_to_breakpoints.get(canonical_normalized_filename)
+        if not django_breakpoints_for_file:
+            return
+
+        if not hasattr(py_db, 'django_validation_info'):
+            _init_plugin_breaks(py_db)
+
+        # In general we validate the breakpoints only when the template is loaded, but if the template
+        # was already loaded, we can validate the breakpoints based on the last loaded value.
+        py_db.django_validation_info.verify_breakpoints_from_template_cached_lines(
+            py_db, canonical_normalized_filename, django_breakpoints_for_file)
 
 
 def add_exception_breakpoint(plugin, pydb, type, exception):
@@ -52,6 +112,8 @@ def add_exception_breakpoint(plugin, pydb, type, exception):
 def _init_plugin_breaks(pydb):
     pydb.django_exception_break = {}
     pydb.django_breakpoints = {}
+
+    pydb.django_validation_info = _DjangoValidationInfo()
 
 
 def remove_exception_breakpoint(plugin, pydb, type, exception):
@@ -88,6 +150,9 @@ def _inherits(cls, *names):
     return inherits_node
 
 
+_IGNORE_RENDER_OF_CLASSES = ('TextNode', 'NodeList')
+
+
 def _is_django_render_call(frame, debug=False):
     try:
         name = frame.f_code.co_name
@@ -112,7 +177,7 @@ def _is_django_render_call(frame, debug=False):
                     context = frame.f_locals['context']
                     context._has_included_template = True
 
-        return clsname != 'TextNode' and clsname != 'NodeList'
+        return clsname not in _IGNORE_RENDER_OF_CLASSES
     except:
         pydev_log.exception()
         return False
@@ -282,12 +347,12 @@ def _get_template_original_file_name_from_frame(frame):
 
 def _get_template_line(frame):
     if IS_DJANGO19_OR_HIGHER:
-        # The Node source was removed since Django 1.9
-        self = frame.f_locals['self']
-        if hasattr(self, 'token') and hasattr(self.token, 'lineno'):
-            return self.token.lineno
+        node = frame.f_locals['self']
+        if hasattr(node, 'token') and hasattr(node.token, 'lineno'):
+            return node.token.lineno
         else:
             return None
+
     source = _get_source_django_18_or_lower(frame)
     original_filename = _get_template_original_file_name_from_frame(frame)
     if original_filename is not None:
@@ -445,33 +510,38 @@ def stop(plugin, main_debugger, frame, event, args, stop_info, arg, step_cmd):
     return False
 
 
-def get_breakpoint(plugin, main_debugger, pydb_frame, frame, event, args):
-    main_debugger = args[0]
+def get_breakpoint(plugin, py_db, pydb_frame, frame, event, args):
+    py_db = args[0]
     _filename = args[1]
     info = args[2]
-    flag = False
-    django_breakpoint = None
-    new_frame = None
     breakpoint_type = 'django'
 
-    if event == 'call' and info.pydev_state != STATE_SUSPEND and main_debugger.django_breakpoints and _is_django_render_call(frame):
+    if event == 'call' and info.pydev_state != STATE_SUSPEND and py_db.django_breakpoints and _is_django_render_call(frame):
         original_filename = _get_template_original_file_name_from_frame(frame)
         pydev_log.debug("Django is rendering a template: %s", original_filename)
 
         canonical_normalized_filename = canonical_normalized_path(original_filename)
-        django_breakpoints_for_file = main_debugger.django_breakpoints.get(canonical_normalized_filename)
+        django_breakpoints_for_file = py_db.django_breakpoints.get(canonical_normalized_filename)
 
         if django_breakpoints_for_file:
+
+            # At this point, let's validate whether template lines are correct.
+            if IS_DJANGO19_OR_HIGHER:
+                django_validation_info = py_db.django_validation_info
+                context = frame.f_locals['context']
+                django_template = context.template
+                django_validation_info.verify_breakpoints(py_db, canonical_normalized_filename, django_breakpoints_for_file, django_template)
+
             pydev_log.debug("Breakpoints for that file: %s", django_breakpoints_for_file)
             template_line = _get_template_line(frame)
             pydev_log.debug("Tracing template line: %s", template_line)
 
             if template_line in django_breakpoints_for_file:
                 django_breakpoint = django_breakpoints_for_file[template_line]
-                flag = True
                 new_frame = DjangoTemplateFrame(frame)
+                return True, django_breakpoint, new_frame, breakpoint_type
 
-    return flag, django_breakpoint, new_frame, breakpoint_type
+    return False, None, None, breakpoint_type
 
 
 def suspend(plugin, main_debugger, thread, frame, bp_type):

@@ -60,10 +60,19 @@ def test_django_breakpoint_no_multiproc(start_django, bp_target):
 
     with debug.Session() as session:
         with start_django(session):
-            session.set_breakpoints(bp_file, [bp_line])
+            breakpoints = session.set_breakpoints(bp_file, [bp_line])
+            for bp in breakpoints:
+                # They'll be verified later on for templates.
+                assert bp["verified"] == (bp_target == "code")
 
         with django_server:
             home_request = django_server.get("/home")
+
+            if bp_target == "template":
+                breakpoint_body = session.wait_for_next_event("breakpoint")
+                assert breakpoint_body["reason"] == "changed"
+                assert breakpoint_body["breakpoint"]["verified"]
+
             session.wait_for_stop(
                 "breakpoint",
                 expected_frames=[
@@ -144,6 +153,7 @@ def test_django_exception_no_multiproc(start_django, exc_type):
 
         with django_server:
             django_server.get("/" + exc_type)
+
             stopped = session.wait_for_stop(
                 "exception",
                 expected_frames=[

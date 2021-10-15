@@ -303,21 +303,42 @@ class _PyDevCommandProcessor(object):
         if hit_condition is not None and (len(hit_condition) <= 0 or hit_condition == u"None"):
             hit_condition = None
 
-        result = self.api.add_breakpoint(
-            py_db, self.api.filename_to_str(filename), btype, breakpoint_id, line, condition, func_name, expression, suspend_policy, hit_condition, is_logpoint)
-        error_code = result.error_code
+        def on_changed_breakpoint_state(breakpoint_id, add_breakpoint_result):
+            error_code = add_breakpoint_result.error_code
 
-        if error_code:
-            translated_filename = result.translated_filename
-            if error_code == self.api.ADD_BREAKPOINT_FILE_NOT_FOUND:
-                pydev_log.critical('pydev debugger: warning: Trying to add breakpoint to file that does not exist: %s (will have no effect).' % (translated_filename,))
+            translated_line = add_breakpoint_result.translated_line
+            translated_filename = add_breakpoint_result.translated_filename
+            msg = ''
+            if error_code:
 
-            elif error_code == self.api.ADD_BREAKPOINT_FILE_EXCLUDED_BY_FILTERS:
-                pydev_log.critical('pydev debugger: warning: Trying to add breakpoint to file that is excluded by filters: %s (will have no effect).' % (translated_filename,))
+                if error_code == self.api.ADD_BREAKPOINT_FILE_NOT_FOUND:
+                    msg = 'pydev debugger: Trying to add breakpoint to file that does not exist: %s (will have no effect).\n' % (translated_filename,)
+
+                elif error_code == self.api.ADD_BREAKPOINT_FILE_EXCLUDED_BY_FILTERS:
+                    msg = 'pydev debugger: Trying to add breakpoint to file that is excluded by filters: %s (will have no effect).\n' % (translated_filename,)
+
+                elif error_code == self.api.ADD_BREAKPOINT_LAZY_VALIDATION:
+                    msg = ''  # Ignore this here (if/when loaded, it'll call on_changed_breakpoint_state again accordingly).
+
+                elif error_code == self.api.ADD_BREAKPOINT_INVALID_LINE:
+                    msg = 'pydev debugger: Trying to add breakpoint to line (%s) that is not valid in: %s.\n' % (translated_line, translated_filename,)
+
+                else:
+                    # Shouldn't get here.
+                    msg = 'pydev debugger: Breakpoint not validated (reason unknown -- please report as error): %s (%s).\n' % (translated_filename, translated_line)
 
             else:
-                # Shouldn't get here.
-                pydev_log.critical('pydev debugger: warning: Breakpoint not validated (reason unknown -- please report as error): %s.' % (translated_filename,))
+                if add_breakpoint_result.original_line != translated_line:
+                    msg = 'pydev debugger (info): Breakpoint in line: %s moved to line: %s (in %s).\n' % (add_breakpoint_result.original_line, translated_line, translated_filename)
+
+            if msg:
+                py_db.writer.add_command(py_db.cmd_factory.make_warning_message(msg))
+
+        result = self.api.add_breakpoint(
+            py_db, self.api.filename_to_str(filename), btype, breakpoint_id, line, condition, func_name,
+            expression, suspend_policy, hit_condition, is_logpoint, on_changed_breakpoint_state=on_changed_breakpoint_state)
+
+        on_changed_breakpoint_state(breakpoint_id, result)
 
     def cmd_remove_break(self, py_db, cmd_id, seq, text):
         # command to remove some breakpoint

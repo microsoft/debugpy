@@ -370,22 +370,31 @@ class PyDevdAPI(object):
     ADD_BREAKPOINT_FILE_NOT_FOUND = 1
     ADD_BREAKPOINT_FILE_EXCLUDED_BY_FILTERS = 2
 
+    # This means that the breakpoint couldn't be fully validated (more runtime
+    # information may be needed).
+    ADD_BREAKPOINT_LAZY_VALIDATION = 3
+    ADD_BREAKPOINT_INVALID_LINE = 4
+
     class _AddBreakpointResult(object):
 
         # :see: ADD_BREAKPOINT_NO_ERROR = 0
         # :see: ADD_BREAKPOINT_FILE_NOT_FOUND = 1
         # :see: ADD_BREAKPOINT_FILE_EXCLUDED_BY_FILTERS = 2
+        # :see: ADD_BREAKPOINT_LAZY_VALIDATION = 3
+        # :see: ADD_BREAKPOINT_INVALID_LINE = 4
 
-        __slots__ = ['error_code', 'translated_filename', 'translated_line']
+        __slots__ = ['error_code', 'breakpoint_id', 'translated_filename', 'translated_line', 'original_line']
 
-        def __init__(self, translated_filename, translated_line):
+        def __init__(self, breakpoint_id, translated_filename, translated_line, original_line):
             self.error_code = PyDevdAPI.ADD_BREAKPOINT_NO_ERROR
+            self.breakpoint_id = breakpoint_id
             self.translated_filename = translated_filename
             self.translated_line = translated_line
+            self.original_line = original_line
 
     def add_breakpoint(
             self, py_db, original_filename, breakpoint_type, breakpoint_id, line, condition, func_name,
-            expression, suspend_policy, hit_condition, is_logpoint, adjust_line=False):
+            expression, suspend_policy, hit_condition, is_logpoint, adjust_line=False, on_changed_breakpoint_state=None):
         '''
         :param str original_filename:
             Note: must be sent as it was received in the protocol. It may be translated in this
@@ -423,11 +432,27 @@ class PyDevdAPI(object):
             If True and an expression is passed, pydevd will create an io message command with the
             result of the evaluation.
 
+        :param bool adjust_line:
+            If True, the breakpoint line should be adjusted if the current line doesn't really
+            match an executable line (if possible).
+
+        :param callable on_changed_breakpoint_state:
+            This is called when something changed internally on the breakpoint after it was initially
+            added (for instance, template file_to_line_to_breakpoints could be signaled as invalid initially and later
+            when the related template is loaded, if the line is valid it could be marked as valid).
+
+            The signature for the callback should be:
+                on_changed_breakpoint_state(breakpoint_id: int, add_breakpoint_result: _AddBreakpointResult)
+
+                Note that the add_breakpoint_result should not be modified by the callback (the
+                implementation may internally reuse the same instance multiple times).
+
         :return _AddBreakpointResult:
         '''
         assert original_filename.__class__ == str, 'Expected str, found: %s' % (original_filename.__class__,)  # i.e.: bytes on py2 and str on py3
 
         pydev_log.debug('Request for breakpoint in: %s line: %s', original_filename, line)
+        original_line = line
         # Parameters to reapply breakpoint.
         api_add_breakpoint_params = (original_filename, breakpoint_type, breakpoint_id, line, condition, func_name,
             expression, suspend_policy, hit_condition, is_logpoint)
@@ -449,7 +474,7 @@ class PyDevdAPI(object):
             # (we want the outside world to see the line in the original file and not in the ipython
             # cell, otherwise the editor wouldn't be correct as the returned line is the line to
             # which the breakpoint will be moved in the editor).
-            result = self._AddBreakpointResult(original_filename, line)
+            result = self._AddBreakpointResult(breakpoint_id, original_filename, line, original_line)
 
             # If a multi-mapping was applied, consider it the canonical / source mapped version (translated to ipython cell).
             translated_absolute_filename = source_mapped_filename
@@ -461,7 +486,7 @@ class PyDevdAPI(object):
             canonical_normalized_filename = pydevd_file_utils.canonical_normalized_path(translated_filename)
 
             if adjust_line and not translated_absolute_filename.startswith('<'):
-                # Validate breakpoints and adjust their positions.
+                # Validate file_to_line_to_breakpoints and adjust their positions.
                 try:
                     lines = sorted(_get_code_lines(translated_absolute_filename))
                 except Exception:
@@ -473,7 +498,7 @@ class PyDevdAPI(object):
                         if idx > 0:
                             line = lines[idx - 1]
 
-            result = self._AddBreakpointResult(original_filename, line)
+            result = self._AddBreakpointResult(breakpoint_id, original_filename, line, original_line)
 
         py_db.api_received_breakpoints[(original_filename, breakpoint_id)] = (canonical_normalized_filename, api_add_breakpoint_params)
 
@@ -501,8 +526,10 @@ class PyDevdAPI(object):
                 result.error_code = self.ADD_BREAKPOINT_FILE_EXCLUDED_BY_FILTERS
 
         if breakpoint_type == 'python-line':
-            added_breakpoint = LineBreakpoint(line, condition, func_name, expression, suspend_policy, hit_condition=hit_condition, is_logpoint=is_logpoint)
-            breakpoints = py_db.breakpoints
+            added_breakpoint = LineBreakpoint(
+                breakpoint_id, line, condition, func_name, expression, suspend_policy, hit_condition=hit_condition, is_logpoint=is_logpoint)
+
+            file_to_line_to_breakpoints = py_db.breakpoints
             file_to_id_to_breakpoint = py_db.file_to_id_to_line_breakpoint
             supported_type = True
 
@@ -511,11 +538,13 @@ class PyDevdAPI(object):
             plugin = py_db.get_plugin_lazy_init()
             if plugin is not None:
                 add_plugin_breakpoint_result = plugin.add_breakpoint(
-                    'add_line_breakpoint', py_db, breakpoint_type, canonical_normalized_filename, line, condition, expression, func_name, hit_condition=hit_condition, is_logpoint=is_logpoint)
+                    'add_line_breakpoint', py_db, breakpoint_type, canonical_normalized_filename,
+                    breakpoint_id, line, condition, expression, func_name, hit_condition=hit_condition, is_logpoint=is_logpoint,
+                    add_breakpoint_result=result, on_changed_breakpoint_state=on_changed_breakpoint_state)
 
             if add_plugin_breakpoint_result is not None:
                 supported_type = True
-                added_breakpoint, breakpoints = add_plugin_breakpoint_result
+                added_breakpoint, file_to_line_to_breakpoints = add_plugin_breakpoint_result
                 file_to_id_to_breakpoint = py_db.file_to_id_to_plugin_breakpoint
             else:
                 supported_type = False
@@ -532,9 +561,10 @@ class PyDevdAPI(object):
             id_to_pybreakpoint = file_to_id_to_breakpoint[canonical_normalized_filename] = {}
 
         id_to_pybreakpoint[breakpoint_id] = added_breakpoint
-        py_db.consolidate_breakpoints(canonical_normalized_filename, id_to_pybreakpoint, breakpoints)
+        py_db.consolidate_breakpoints(canonical_normalized_filename, id_to_pybreakpoint, file_to_line_to_breakpoints)
         if py_db.plugin is not None:
             py_db.has_plugin_line_breaks = py_db.plugin.has_line_breaks()
+            py_db.plugin.after_breakpoints_consolidated(py_db, canonical_normalized_filename, id_to_pybreakpoint, file_to_line_to_breakpoints)
 
         py_db.on_breakpoints_changed()
         return result
@@ -626,14 +656,14 @@ class PyDevdAPI(object):
         canonical_normalized_filename = pydevd_file_utils.canonical_normalized_path(received_filename)
 
         if breakpoint_type == 'python-line':
-            breakpoints = py_db.breakpoints
+            file_to_line_to_breakpoints = py_db.breakpoints
             file_to_id_to_breakpoint = py_db.file_to_id_to_line_breakpoint
 
         elif py_db.plugin is not None:
             result = py_db.plugin.get_breakpoints(py_db, breakpoint_type)
             if result is not None:
                 file_to_id_to_breakpoint = py_db.file_to_id_to_plugin_breakpoint
-                breakpoints = result
+                file_to_line_to_breakpoints = result
 
         if file_to_id_to_breakpoint is None:
             pydev_log.critical('Error removing breakpoint. Cannot handle breakpoint of type %s', breakpoint_type)
@@ -647,9 +677,10 @@ class PyDevdAPI(object):
                         canonical_normalized_filename, existing.line, existing.func_name.encode('utf-8'), breakpoint_id))
 
                 del id_to_pybreakpoint[breakpoint_id]
-                py_db.consolidate_breakpoints(canonical_normalized_filename, id_to_pybreakpoint, breakpoints)
+                py_db.consolidate_breakpoints(canonical_normalized_filename, id_to_pybreakpoint, file_to_line_to_breakpoints)
                 if py_db.plugin is not None:
                     py_db.has_plugin_line_breaks = py_db.plugin.has_line_breaks()
+                    py_db.plugin.after_breakpoints_consolidated(py_db, canonical_normalized_filename, id_to_pybreakpoint, file_to_line_to_breakpoints)
 
             except KeyError:
                 pydev_log.info("Error removing breakpoint: Breakpoint id not found: %s id: %s. Available ids: %s\n",

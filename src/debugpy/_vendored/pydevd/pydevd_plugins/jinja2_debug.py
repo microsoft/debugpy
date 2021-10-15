@@ -1,29 +1,61 @@
-from _pydevd_bundle.pydevd_breakpoints import LineBreakpoint
 from _pydevd_bundle.pydevd_constants import STATE_SUSPEND, dict_iter_items, dict_keys, JINJA2_SUSPEND, \
     IS_PY2
 from _pydevd_bundle.pydevd_comm import CMD_SET_BREAK, CMD_ADD_EXCEPTION_BREAK
 from pydevd_file_utils import canonical_normalized_path
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, FCode
 from _pydev_bundle import pydev_log
+from pydevd_plugins.pydevd_line_validation import LineBreakpointWithLazyValidation, ValidationInfo
+from _pydev_bundle.pydev_override import overrides
+from _pydevd_bundle.pydevd_api import PyDevdAPI
 
 
-class Jinja2LineBreakpoint(LineBreakpoint):
+class Jinja2LineBreakpoint(LineBreakpointWithLazyValidation):
 
-    def __init__(self, canonical_normalized_filename, line, condition, func_name, expression, hit_condition=None, is_logpoint=False):
+    def __init__(self, canonical_normalized_filename, breakpoint_id, line, condition, func_name, expression, hit_condition=None, is_logpoint=False):
         self.canonical_normalized_filename = canonical_normalized_filename
-        LineBreakpoint.__init__(self, line, condition, func_name, expression, hit_condition=hit_condition, is_logpoint=is_logpoint)
+        LineBreakpointWithLazyValidation.__init__(self, breakpoint_id, line, condition, func_name, expression, hit_condition=hit_condition, is_logpoint=is_logpoint)
 
     def __str__(self):
         return "Jinja2LineBreakpoint: %s-%d" % (self.canonical_normalized_filename, self.line)
 
 
-def add_line_breakpoint(plugin, pydb, type, canonical_normalized_filename, line, condition, expression, func_name, hit_condition=None, is_logpoint=False):
+class _Jinja2ValidationInfo(ValidationInfo):
+
+    @overrides(ValidationInfo._collect_valid_lines_in_template_uncached)
+    def _collect_valid_lines_in_template_uncached(self, template):
+        lineno_mapping = _get_frame_lineno_mapping(template)
+        if not lineno_mapping:
+            return set()
+
+        return set(x[0] for x in lineno_mapping)
+
+
+def add_line_breakpoint(plugin, pydb, type, canonical_normalized_filename, breakpoint_id, line, condition, expression, func_name, hit_condition=None, is_logpoint=False, add_breakpoint_result=None, on_changed_breakpoint_state=None):
     if type == 'jinja2-line':
-        jinja2_line_breakpoint = Jinja2LineBreakpoint(canonical_normalized_filename, line, condition, func_name, expression, hit_condition=hit_condition, is_logpoint=is_logpoint)
+        jinja2_line_breakpoint = Jinja2LineBreakpoint(canonical_normalized_filename, breakpoint_id, line, condition, func_name, expression, hit_condition=hit_condition, is_logpoint=is_logpoint)
         if not hasattr(pydb, 'jinja2_breakpoints'):
             _init_plugin_breaks(pydb)
+
+        add_breakpoint_result.error_code = PyDevdAPI.ADD_BREAKPOINT_LAZY_VALIDATION
+        jinja2_line_breakpoint.add_breakpoint_result = add_breakpoint_result
+        jinja2_line_breakpoint.on_changed_breakpoint_state = on_changed_breakpoint_state
+
         return jinja2_line_breakpoint, pydb.jinja2_breakpoints
     return None
+
+
+def after_breakpoints_consolidated(plugin, py_db, canonical_normalized_filename, id_to_pybreakpoint, file_to_line_to_breakpoints):
+    jinja2_breakpoints_for_file = file_to_line_to_breakpoints.get(canonical_normalized_filename)
+    if not jinja2_breakpoints_for_file:
+        return
+
+    if not hasattr(py_db, 'jinja2_validation_info'):
+        _init_plugin_breaks(py_db)
+
+    # In general we validate the breakpoints only when the template is loaded, but if the template
+    # was already loaded, we can validate the breakpoints based on the last loaded value.
+    py_db.jinja2_validation_info.verify_breakpoints_from_template_cached_lines(
+        py_db, canonical_normalized_filename, jinja2_breakpoints_for_file)
 
 
 def add_exception_breakpoint(plugin, pydb, type, exception):
@@ -38,6 +70,8 @@ def add_exception_breakpoint(plugin, pydb, type, exception):
 def _init_plugin_breaks(pydb):
     pydb.jinja2_exception_break = {}
     pydb.jinja2_breakpoints = {}
+
+    pydb.jinja2_validation_info = _Jinja2ValidationInfo()
 
 
 def remove_all_exception_breakpoints(plugin, pydb):
@@ -217,14 +251,36 @@ def _find_render_function_frame(frame):
         return old_frame
 
 
-def _get_jinja2_template_line(frame):
-    debug_info = None
-    if '__jinja_template__' in frame.f_globals:
-        _debug_info = frame.f_globals['__jinja_template__']._debug_info
-        if _debug_info != '':
-            # sometimes template contains only plain text
-            debug_info = frame.f_globals['__jinja_template__'].debug_info
+def _get_jinja2_template_debug_info(frame):
+    frame_globals = frame.f_globals
 
+    jinja_template = frame_globals.get('__jinja_template__')
+
+    if jinja_template is None:
+        return None
+
+    return _get_frame_lineno_mapping(jinja_template)
+
+
+def _get_frame_lineno_mapping(jinja_template):
+    '''
+    :rtype: list(tuple(int,int))
+    :return: list((original_line, line_in_frame))
+    '''
+    # _debug_info is a string with the mapping from frame line to actual line
+    # i.e.: "5=13&8=14"
+    _debug_info = jinja_template._debug_info
+    if not _debug_info:
+        # Sometimes template contains only plain text.
+        return None
+
+    # debug_info is a list with the mapping from frame line to actual line
+    # i.e.: [(5, 13), (8, 14)]
+    return jinja_template.debug_info
+
+
+def _get_jinja2_template_line(frame):
+    debug_info = _get_jinja2_template_debug_info(frame)
     if debug_info is None:
         return None
 
@@ -384,31 +440,37 @@ def stop(plugin, pydb, frame, event, args, stop_info, arg, step_cmd):
     return False
 
 
-def get_breakpoint(plugin, pydb, pydb_frame, frame, event, args):
-    pydb = args[0]
+def get_breakpoint(plugin, py_db, pydb_frame, frame, event, args):
+    py_db = args[0]
     _filename = args[1]
     info = args[2]
-    new_frame = None
-    jinja2_breakpoint = None
-    flag = False
     break_type = 'jinja2'
-    if event == 'line' and info.pydev_state != STATE_SUSPEND and \
-            pydb.jinja2_breakpoints and _is_jinja2_render_call(frame):
+
+    if event == 'line' and info.pydev_state != STATE_SUSPEND and py_db.jinja2_breakpoints and _is_jinja2_render_call(frame):
+
+        jinja_template = frame.f_globals.get('__jinja_template__')
+        if jinja_template is None:
+            return False, None, None, break_type
+
         original_filename = _get_jinja2_template_original_filename(frame)
         if original_filename is not None:
             pydev_log.debug("Jinja2 is rendering a template: %s", original_filename)
             canonical_normalized_filename = canonical_normalized_path(original_filename)
-            jinja2_breakpoints_for_file = pydb.jinja2_breakpoints.get(canonical_normalized_filename)
+            jinja2_breakpoints_for_file = py_db.jinja2_breakpoints.get(canonical_normalized_filename)
 
             if jinja2_breakpoints_for_file:
+
+                jinja2_validation_info = py_db.jinja2_validation_info
+                jinja2_validation_info.verify_breakpoints(py_db, canonical_normalized_filename, jinja2_breakpoints_for_file, jinja_template)
+
                 template_lineno = _get_jinja2_template_line(frame)
                 if template_lineno is not None:
                     jinja2_breakpoint = jinja2_breakpoints_for_file.get(template_lineno)
                     if jinja2_breakpoint is not None:
-                        flag = True
                         new_frame = Jinja2TemplateFrame(frame, original_filename, template_lineno)
+                        return True, jinja2_breakpoint, new_frame, break_type
 
-    return flag, jinja2_breakpoint, new_frame, break_type
+    return False, None, None, break_type
 
 
 def suspend(plugin, pydb, thread, frame, bp_type):

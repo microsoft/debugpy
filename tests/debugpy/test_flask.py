@@ -79,10 +79,19 @@ def test_flask_breakpoint_no_multiproc(start_flask, bp_target):
 
     with debug.Session() as session:
         with start_flask(session):
-            session.set_breakpoints(bp_file, [bp_line])
+            breakpoints = session.set_breakpoints(bp_file, [bp_line])
+            for bp in breakpoints:
+                # They'll be verified later on for templates.
+                assert bp["verified"] == (bp_target == "code")
 
         with flask_server:
             home_request = flask_server.get("/")
+
+            if bp_target == "template":
+                breakpoint_body = session.wait_for_next_event("breakpoint")
+                assert breakpoint_body["reason"] == "changed"
+                assert breakpoint_body["breakpoint"]["verified"]
+
             session.wait_for_stop(
                 "breakpoint",
                 expected_frames=[

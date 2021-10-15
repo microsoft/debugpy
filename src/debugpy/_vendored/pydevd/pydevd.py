@@ -1716,12 +1716,12 @@ class PyDB(object):
                 except:
                     pydev_log.exception('Error processing internal command.')
 
-    def consolidate_breakpoints(self, canonical_normalized_filename, id_to_breakpoint, breakpoints):
+    def consolidate_breakpoints(self, canonical_normalized_filename, id_to_breakpoint, file_to_line_to_breakpoints):
         break_dict = {}
         for _breakpoint_id, pybreakpoint in dict_iter_items(id_to_breakpoint):
             break_dict[pybreakpoint.line] = pybreakpoint
 
-        breakpoints[canonical_normalized_filename] = break_dict
+        file_to_line_to_breakpoints[canonical_normalized_filename] = break_dict
         self._clear_skip_caches()
 
     def _clear_skip_caches(self):
