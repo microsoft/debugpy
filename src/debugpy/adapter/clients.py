@@ -148,7 +148,7 @@ class Client(components.Component):
             {
                 "filter": "userUnhandled",
                 "label": "User Uncaught Exceptions",
-                "default": True,
+                "default": False,
             },
         ]
 
