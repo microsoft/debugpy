@@ -141,7 +141,7 @@ def _iter_as_bytecode_as_instructions_py2(co):
                 yield _Instruction(curr_op_name, op, _get_line(op_offset_to_line, initial_bytecode_offset, 0), oparg, is_jump_target, initial_bytecode_offset, str(oparg))
 
 
-def _iter_instructions(co):
+def iter_instructions(co):
     if sys.version_info[0] < 3:
         iter_in = _iter_as_bytecode_as_instructions_py2(co)
     else:
@@ -168,7 +168,7 @@ def collect_return_info(co, use_func_first_line=False):
 
     lst = []
     op_offset_to_line = dict(dis.findlinestarts(co))
-    for instruction in _iter_instructions(co):
+    for instruction in iter_instructions(co):
         curr_op_name = instruction.opname
         if curr_op_name == 'RETURN_VALUE':
             lst.append(ReturnInfo(_get_line(op_offset_to_line, instruction.offset, firstlineno, search=True)))
@@ -192,7 +192,7 @@ if sys.version_info[:2] < (3, 5):
 
         op_offset_to_line = dict(dis.findlinestarts(co))
 
-        for instruction in _iter_instructions(co):
+        for instruction in iter_instructions(co):
             curr_op_name = instruction.opname
 
             if curr_op_name in ('SETUP_EXCEPT', 'SETUP_FINALLY'):
@@ -351,7 +351,7 @@ if (3, 5) <= sys.version_info[:2] <= (3, 9):
 
         offset_to_instruction_idx = {}
 
-        instructions = list(_iter_instructions(co))
+        instructions = list(iter_instructions(co))
 
         for i, instruction in enumerate(instructions):
             offset_to_instruction_idx[instruction.offset] = i
@@ -471,7 +471,7 @@ if sys.version_info[:2] >= (3, 10):
 
         offset_to_instruction_idx = {}
 
-        instructions = list(_iter_instructions(co))
+        instructions = list(iter_instructions(co))
 
         for i, instruction in enumerate(instructions):
             offset_to_instruction_idx[instruction.offset] = i
@@ -656,7 +656,7 @@ class _Disassembler(object):
         self.co = co
         self.firstlineno = firstlineno
         self.level = level
-        self.instructions = list(_iter_instructions(co))
+        self.instructions = list(iter_instructions(co))
         op_offset_to_line = self.op_offset_to_line = dict(dis.findlinestarts(co))
 
         # Update offsets so that all offsets have the line index (and update it based on

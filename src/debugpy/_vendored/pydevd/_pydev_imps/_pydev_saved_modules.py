@@ -123,3 +123,6 @@ else:
     with VerifyShadowedImport('http.server') as verify_shadowed:
         import http.server as BaseHTTPServer;    verify_shadowed.check(BaseHTTPServer, ['BaseHTTPRequestHandler'])
 
+# If set, this is a version of the threading.enumerate that doesn't have the patching to remove the pydevd threads.
+# Note: as it can't be set during execution, don't import the name (import the module and access it through its name).
+pydevd_saved_threading_enumerate = None

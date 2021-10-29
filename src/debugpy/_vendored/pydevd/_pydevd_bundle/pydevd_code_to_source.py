@@ -7,7 +7,7 @@ Note: this is a work in progress / proof of concept / not ready to be used.
 
 import dis
 
-from _pydevd_bundle.pydevd_collect_bytecode_info import _iter_instructions
+from _pydevd_bundle.pydevd_collect_bytecode_info import iter_instructions
 from _pydevd_bundle.pydevd_constants import dict_iter_items, IS_PY2
 from _pydev_bundle import pydev_log
 import sys
@@ -536,7 +536,7 @@ class _PyCodeToSource(object):
             memo = {}
         self.memo = memo
         self.co = co
-        self.instructions = list(_iter_instructions(co))
+        self.instructions = list(iter_instructions(co))
         self.stack = _Stack()
         self.writer = _Writer()
 

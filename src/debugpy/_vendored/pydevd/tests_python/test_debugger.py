@@ -4372,6 +4372,33 @@ def test_debugger_shadowed_imports(case_setup, tmpdir, module_name_and_content):
 
     assert ('the module "%s" could not be imported because it is shadowed by:' % (module_name.split('.')[0])) in writer.get_stderr()
 
+
+def test_debugger_hide_pydevd_threads(case_setup, pyfile):
+
+    @pyfile
+    def target_file():
+        import threading
+        from _pydevd_bundle import pydevd_constants
+        found_pydevd_thread = False
+        for t in threading.enumerate():
+            if getattr(t, 'is_pydev_daemon_thread', False):
+                found_pydevd_thread = True
+
+        if pydevd_constants.IS_CPYTHON:
+            assert not found_pydevd_thread
+        else:
+            assert found_pydevd_thread
+        print('TEST SUCEEDED')
+
+    with case_setup.test_file(target_file) as writer:
+        line = writer.get_line_index_with_content('TEST SUCEEDED')
+        writer.write_add_breakpoint(line)
+        writer.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit(line=line)
+        writer.write_run_thread(hit.thread_id)
+        writer.finished_ok = True
+
 # Jython needs some vars to be set locally.
 # set JAVA_HOME=c:\bin\jdk1.8.0_172
 # set PATH=%PATH%;C:\bin\jython2.7.0\bin
