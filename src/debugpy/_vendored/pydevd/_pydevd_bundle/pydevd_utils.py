@@ -3,6 +3,7 @@ import traceback
 import warnings
 from _pydev_bundle import pydev_log
 from _pydev_imps._pydev_saved_modules import thread
+from _pydev_imps import _pydev_saved_modules
 import signal
 import os
 import ctypes
@@ -177,7 +178,11 @@ def dump_threads(stream=None, show_pydevd_threads=True):
         stream = sys.stderr
     thread_id_to_name_and_is_pydevd_thread = {}
     try:
-        for t in threading.enumerate():
+        threading_enumerate = _pydev_saved_modules.pydevd_saved_threading_enumerate
+        if threading_enumerate is None:
+            threading_enumerate = threading.enumerate
+
+        for t in threading_enumerate():
             is_pydevd_thread = getattr(t, 'is_pydev_daemon_thread', False)
             thread_id_to_name_and_is_pydevd_thread[t.ident] = (
                 '%s  (daemon: %s, pydevd thread: %s)' % (t.name, t.daemon, is_pydevd_thread),
@@ -296,6 +301,7 @@ def hasattr_checked(obj, name):
         return False
     else:
         return True
+
 
 def getattr_checked(obj, name):
     try:

@@ -3,7 +3,7 @@ import threading
 from _pydevd_bundle.pydevd_utils import convert_dap_log_message_to_expression
 from tests_python.debug_constants import IS_PY26, IS_PY3K, TEST_GEVENT, IS_CPYTHON
 import sys
-from _pydevd_bundle.pydevd_constants import IS_WINDOWS, IS_PY2, IS_PYPY
+from _pydevd_bundle.pydevd_constants import IS_WINDOWS, IS_PY2, IS_PYPY, IS_JYTHON
 import pytest
 import os
 import codecs
@@ -424,7 +424,7 @@ def test_find_main_thread_id():
     )
 
 
-@pytest.mark.skipif(not IS_WINDOWS, reason='Windows-only test.')
+@pytest.mark.skipif(not IS_WINDOWS or IS_JYTHON, reason='Windows-only test.')
 def test_get_ppid():
     from _pydevd_bundle.pydevd_api import PyDevdAPI
     api = PyDevdAPI()
@@ -522,3 +522,38 @@ def test_get_smart_step_into_variant_from_frame_offset():
     assert get_smart_step_into_variant_from_frame_offset(2, variants) is variants[0]
     assert get_smart_step_into_variant_from_frame_offset(3, variants) is variants[1]
     assert get_smart_step_into_variant_from_frame_offset(4, variants) is variants[1]
+
+
+def test_threading_hide_pydevd():
+
+    class T(threading.Thread):
+
+        def __init__(self, is_pydev_daemon_thread):
+            from _pydevd_bundle.pydevd_daemon_thread import mark_as_pydevd_daemon_thread
+            threading.Thread.__init__(self)
+            if is_pydev_daemon_thread:
+                mark_as_pydevd_daemon_thread(self)
+            else:
+                self.daemon = True
+            self.event = threading.Event()
+
+        def run(self):
+            self.event.wait(10)
+
+    current_count = threading.active_count()
+    t0 = T(True)
+    t1 = T(False)
+    t0.start()
+    t1.start()
+
+    # i.e.: the patching doesn't work for other implementations.
+    if IS_CPYTHON:
+        assert threading.active_count() == current_count + 1
+        assert t0 not in threading.enumerate()
+    else:
+        assert threading.active_count() == current_count + 2
+        assert t0 in threading.enumerate()
+
+    assert t1 in threading.enumerate()
+    t0.event.set()
+    t1.event.set()
