@@ -12,10 +12,7 @@ from tests import code, debug, log, net, test_data
 from tests.debug import runners, targets
 from tests.patterns import some
 
-pytestmark = [
-    pytest.mark.timeout(60),
-    pytest.mark.skipif(sys.version_info >= (3, 10), reason="https://github.com/microsoft/debugpy/issues/689"),
-]
+pytestmark = pytest.mark.timeout(60)
 
 django_server = net.WebServer(net.get_test_server_port(8000, 8100))
 
