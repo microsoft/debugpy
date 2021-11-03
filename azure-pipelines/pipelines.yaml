@@ -63,10 +63,10 @@ jobs:
 
           - template: "templates/run_tests.yml"
 
-    - job: "Test_MacOS"
+    - job: "Test_MacOS_old"
       timeoutInMinutes: 30
-      displayName: "Tests - macOS"
-      pool: { vmImage: "macOS-11" }
+      displayName: "Tests - macOS (old Python versions)"
+      pool: { vmImage: "macOS-10.14" }
 
       strategy:
           matrix:
@@ -76,6 +76,27 @@ jobs:
                   python.version: "3.5"
               py36:
                   python.version: "3.6"
+
+      steps:
+          - script: |
+                ulimit -Sn 8192
+            displayName: "Increase file descriptor limit"
+
+          - template: "templates/use_python.yml"
+
+          - script: |
+                python -m ensurepip --user
+            displayName: "Bootstrap pip"
+
+          - template: "templates/run_tests.yml"
+
+    - job: "Test_MacOS"
+      timeoutInMinutes: 30
+      displayName: "Tests - macOS"
+      pool: { vmImage: "macOS-11" }
+
+      strategy:
+          matrix:
               py37:
                   python.version: "3.7"
               py38:
