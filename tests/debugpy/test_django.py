@@ -5,7 +5,6 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import pytest
-import sys
 
 from debugpy.common import compat
 from tests import code, debug, log, net, test_data
