@@ -191,33 +191,32 @@ def test_pydevd_log():
         pydev_log.critical('always')
         pydev_log.info('never')
 
-    assert stream.getvalue() == 'always\n'
+    assert stream.getvalue().endswith('always\n')
 
     stream = io.StringIO()
     with log_context(1, stream=stream):
         pydev_log.critical('always')
         pydev_log.info('this too')
-
-    assert stream.getvalue() == 'always\nthis too\n'
+        assert stream.getvalue().endswith('always\n0.00s - this too\n')
 
     stream = io.StringIO()
     with log_context(0, stream=stream):
         pydev_log.critical('always %s', 1)
 
-    assert stream.getvalue() == 'always 1\n'
+    assert stream.getvalue().endswith('always 1\n')
 
     stream = io.StringIO()
     with log_context(0, stream=stream):
         pydev_log.critical('always %s %s', 1, 2)
 
-    assert stream.getvalue() == 'always 1 2\n'
+    assert stream.getvalue().endswith('always 1 2\n')
 
     stream = io.StringIO()
     with log_context(0, stream=stream):
         pydev_log.critical('always %s %s', 1)
 
     # Even if there's an error in the formatting, don't fail, just print the message and args.
-    assert stream.getvalue() == 'always %s %s - (1,)\n'
+    assert stream.getvalue().endswith('always %s %s - (1,)\n')
 
     stream = io.StringIO()
     with log_context(0, stream=stream):
@@ -234,7 +233,7 @@ def test_pydevd_log():
         pydev_log.error_once('always %s %s', 1)
 
     # Even if there's an error in the formatting, don't fail, just print the message and args.
-    assert stream.getvalue() == 'always %s %s - (1,)\n'
+    assert stream.getvalue().endswith('always %s %s - (1,)\n')
 
 
 def test_pydevd_logging_files(tmpdir):

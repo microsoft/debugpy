@@ -272,6 +272,8 @@ USE_CYTHON_FLAG = os.getenv('PYDEVD_USE_CYTHON')
 # Use to disable loading the lib to set tracing to all threads (default is using heuristics based on where we're running).
 LOAD_NATIVE_LIB_FLAG = os.getenv('PYDEVD_LOAD_NATIVE_LIB', '').lower()
 
+LOG_TIME = os.getenv('PYDEVD_LOG_TIME', 'true').lower() in ENV_TRUE_LOWER_VALUES
+
 if USE_CYTHON_FLAG is not None:
     USE_CYTHON_FLAG = USE_CYTHON_FLAG.lower()
     if USE_CYTHON_FLAG not in ENV_TRUE_LOWER_VALUES and USE_CYTHON_FLAG not in ENV_FALSE_LOWER_VALUES:
