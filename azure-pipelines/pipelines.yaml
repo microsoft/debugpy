@@ -65,7 +65,7 @@ jobs:
 
     - job: "Test_MacOS_old"
       timeoutInMinutes: 30
-      displayName: "Tests - macOS (old Python versions)"
+      displayName: "Tests - macOS"
       pool: { vmImage: "macOS-10.14" }
 
       strategy:
