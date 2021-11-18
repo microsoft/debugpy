@@ -84,7 +84,7 @@ To test integration between debugpy and Visual Studio Code, the latter can be di
 ```json5
 {
     "type": "python",
-    "debugAdapterPath": ".../debugpy/src/debugpy",
+    "debugAdapterPath": ".../debugpy/src/debugpy/adapter",
     ...
 }
 ```
