@@ -108,7 +108,7 @@ from _pydevd_bundle import pydevd_vm_type
 import sys
 import traceback
 from _pydevd_bundle.pydevd_utils import quote_smart as quote, compare_object_attrs_key, \
-    notify_about_gevent_if_needed, isinstance_checked, ScopeRequest, getattr_checked
+    notify_about_gevent_if_needed, isinstance_checked, ScopeRequest, getattr_checked, Timer
 from _pydev_bundle import pydev_log, fsnotify
 from _pydev_bundle.pydev_log import exception as pydev_log_exception
 from _pydev_bundle import _pydev_completer
@@ -821,10 +821,12 @@ class InternalGetVariable(InternalThreadCommand):
             if not (_typeName == "OrderedDict" or val_dict.__class__.__name__ == "OrderedDict" or IS_PY36_OR_GREATER):
                 keys.sort(key=compare_object_attrs_key)
 
+            timer = Timer()
             for k in keys:
                 val = val_dict[k]
                 evaluate_full_value = pydevd_xml.should_evaluate_full_value(val)
                 xml.write(pydevd_xml.var_to_xml(val, k, evaluate_full_value=evaluate_full_value))
+                timer.report_if_compute_repr_attr_slow(self.attributes, k, type(val))
 
             xml.write("</xml>")
             cmd = dbg.cmd_factory.make_get_variable_message(self.sequence, xml.getvalue())
@@ -1255,6 +1257,7 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
     )
     variables_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
     py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response, is_json=True))
+
 
 def _evaluate_response_return_exception(py_db, request, exc_type, exc, initial_tb):
     try:

@@ -249,6 +249,18 @@ def as_float_in_env(env_key, default):
                 env_key, value))
 
 
+def as_int_in_env(env_key, default):
+    value = os.getenv(env_key)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except Exception:
+        raise RuntimeError(
+            'Error: expected the env variable: %s to be set to a int value. Found: %s' % (
+                env_key, value))
+
+
 # If true in env, use gevent mode.
 SUPPORT_GEVENT = is_true_in_env('GEVENT_SUPPORT')
 
@@ -292,6 +304,14 @@ ASYNC_EVAL_TIMEOUT_SEC = 60
 NEXT_VALUE_SEPARATOR = "__pydev_val__"
 BUILTINS_MODULE_NAME = '__builtin__' if IS_PY2 else 'builtins'
 SHOW_DEBUG_INFO_ENV = is_true_in_env(('PYCHARM_DEBUG', 'PYDEV_DEBUG', 'PYDEVD_DEBUG'))
+
+# Pandas customization.
+PANDAS_MAX_ROWS = as_int_in_env('PYDEVD_PANDAS_MAX_ROWS', 300)
+PANDAS_MAX_COLS = as_int_in_env('PYDEVD_PANDAS_MAX_COLS', 300)
+PANDAS_MAX_COLWIDTH = as_int_in_env('PYDEVD_PANDAS_MAX_COLWIDTH', 80)
+
+# If getting an attribute or computing some value is too slow, let the user know if the given timeout elapses.
+PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT = as_float_in_env('PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT', 0.15)
 
 # This timeout is used to track the time to send a message saying that the evaluation
 # is taking too long and possible mitigations.

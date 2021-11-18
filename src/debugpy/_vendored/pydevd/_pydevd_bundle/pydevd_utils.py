@@ -13,10 +13,12 @@ try:
 except:
     from urllib.parse import quote  # @UnresolvedImport
 
+import time
 import inspect
 import sys
 from _pydevd_bundle.pydevd_constants import IS_PY3K, USE_CUSTOM_SYS_CURRENT_FRAMES, IS_PYPY, SUPPORT_GEVENT, \
-    GEVENT_SUPPORT_NOT_SET_MSG, GENERATED_LEN_ATTR_NAME
+    GEVENT_SUPPORT_NOT_SET_MSG, GENERATED_LEN_ATTR_NAME, PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT, \
+    get_global_debugger
 from _pydev_imps._pydev_saved_modules import threading
 
 
@@ -454,3 +456,53 @@ def interrupt_main_thread(main_thread):
                 main_thread._thread.interrupt()  # Jython
         except:
             pydev_log.exception('Error on interrupt main thread fallback.')
+
+
+class Timer(object):
+
+    def __init__(self, min_diff=PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT):
+        self.min_diff = min_diff
+        self._curr_time = time.time()
+
+    def print_time(self, msg='Elapsed:'):
+        old = self._curr_time
+        new = self._curr_time = time.time()
+        diff = new - old
+        if diff >= self.min_diff:
+            print('%s: %.2fs' % (msg, diff))
+
+    def _report_slow(self, compute_msg, *args):
+        old = self._curr_time
+        new = self._curr_time = time.time()
+        diff = new - old
+        if diff >= self.min_diff:
+            py_db = get_global_debugger()
+            if py_db is not None:
+                msg = compute_msg(diff, *args)
+                py_db.writer.add_command(py_db.cmd_factory.make_warning_message(msg))
+
+    def report_if_compute_repr_attr_slow(self, attrs_tab_separated, attr_name, attr_type):
+        self._report_slow(self._compute_repr_slow, attrs_tab_separated, attr_name, attr_type)
+
+    def _compute_repr_slow(self, diff, attrs_tab_separated, attr_name, attr_type):
+        try:
+            attr_type = attr_type.__name__
+        except:
+            pass
+        if attrs_tab_separated:
+            return 'pydevd warning: Computing repr of %s.%s (%s) was slow (took %.2fs)\n' % (
+                attrs_tab_separated.replace('\t', '.'), attr_name, attr_type, diff)
+        else:
+            return 'pydevd warning: Computing repr of %s (%s) was slow (took %.2fs)\n' % (
+                attr_name, attr_type, diff)
+
+    def report_if_getting_attr_slow(self, cls, attr_name):
+        self._report_slow(self._compute_get_attr_slow, cls, attr_name)
+
+    def _compute_get_attr_slow(self, diff, cls, attr_name):
+        try:
+            cls = cls.__name__
+        except:
+            pass
+        return 'pydevd warning: Getting attribute %s.%s was slow (took %.2fs)\n' % (cls, attr_name, diff)
+
