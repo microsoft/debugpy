@@ -3,24 +3,18 @@ from _pydevd_bundle.pydevd_resolver import defaultResolver, MAX_ITEMS_TO_HANDLE,
 from .pydevd_helpers import find_mod_attr
 
 
-# =======================================================================================================================
-# NdArrayResolver
-# =======================================================================================================================
-class NdArrayResolver: pass
-
-
-class NdArrayItemsContainer: pass
+class NdArrayItemsContainer(object):
+    pass
 
 
 class NDArrayTypeResolveProvider(object):
+    '''
+    This resolves a numpy ndarray returning some metadata about the NDArray
+    '''
 
     def can_provide(self, type_object, type_name):
         nd_array = find_mod_attr('numpy', 'ndarray')
         return nd_array is not None and issubclass(type_object, nd_array)
-
-    '''
-       This resolves a numpy ndarray returning some metadata about the NDArray
-   '''
 
     def is_numeric(self, obj):
         if not hasattr(obj, 'dtype'):

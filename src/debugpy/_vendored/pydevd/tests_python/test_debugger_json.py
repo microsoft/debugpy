@@ -5800,6 +5800,86 @@ def test_function_breakpoints_async(case_setup):
         writer.finished_ok = True
 
 
+try:
+    import pandas
+except:
+    pandas = None
+
+
+@pytest.mark.skipif(pandas is None, reason='Pandas not installed.')
+def test_pandas(case_setup, pyfile):
+
+    @pyfile
+    def pandas_mod():
+        import pandas as pd
+        import numpy as np
+
+        rows = 5000
+        cols = 50
+
+        # i.e.: even with these setting our repr will print at most 300 lines/cols by default.
+        pd.set_option('display.max_columns', None)
+        pd.set_option('display.max_rows', None)
+
+        items = rows * cols
+        df = pd.DataFrame(np.arange(items).reshape(rows, cols)).applymap(lambda x: 'Test String')
+        series = df._series[0]
+        styler = df.style
+
+        print('TEST SUCEEDED')  # Break here
+
+    with case_setup.test_file(pandas_mod) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(justMyCode=False)
+
+        bp = writer.get_line_index_with_content('Break here')
+        json_facade.write_set_breakpoints([bp])
+
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        # json_hit = json_facade.get_stack_as_json_hit(json_hit.thread_id)
+        name_to_var = json_facade.get_locals_name_to_var(json_hit.frame_id)
+
+        # Check the custom repr(DataFrame)
+        assert name_to_var['df'].value.count('\n') == 303
+        assert '...' in name_to_var['df'].value
+
+        # Check the custom repr(Series)
+        assert name_to_var['series'].value.count('\n') == 300
+        assert '...' in name_to_var['series'].value
+
+        # Check custom listing (DataFrame)
+        df_variables_response = json_facade.get_variables_response(name_to_var['df'].variablesReference)
+        for v in df_variables_response.body.variables:
+            if v['name'] == 'T':
+                assert v['value'] == "'<transposed dataframe -- debugger:skipped eval>'"
+                break
+        else:
+            raise AssertionError('Did not find variable "T".')
+
+        # Check custom listing (Series)
+        df_variables_response = json_facade.get_variables_response(name_to_var['series'].variablesReference)
+        for v in df_variables_response.body.variables:
+            if v['name'] == 'T':
+                assert v['value'] == "'<transposed dataframe -- debugger:skipped eval>'"
+                break
+        else:
+            raise AssertionError('Did not find variable "T".')
+
+        # Check custom listing (Styler)
+        df_variables_response = json_facade.get_variables_response(name_to_var['styler'].variablesReference)
+        for v in df_variables_response.body.variables:
+            if v['name'] == 'data':
+                assert v['value'] == "'<Styler data -- debugger:skipped eval>'"
+                break
+        else:
+            raise AssertionError('Did not find variable "data".')
+
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
 if __name__ == '__main__':
     pytest.main(['-k', 'test_case_skipping_filters', '-s'])
 

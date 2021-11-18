@@ -7,7 +7,7 @@ from _pydevd_bundle.pydevd_constants import dict_iter_items, dict_keys, IS_PY3K,
     DEFAULT_VALUE
 from _pydev_bundle.pydev_imports import quote
 from _pydevd_bundle.pydevd_extension_api import TypeResolveProvider, StrPresentationProvider
-from _pydevd_bundle.pydevd_utils import isinstance_checked, hasattr_checked, DAPGrouper
+from _pydevd_bundle.pydevd_utils import isinstance_checked, hasattr_checked, DAPGrouper, Timer
 from _pydevd_bundle.pydevd_resolver import get_var_scope
 
 try:
@@ -218,7 +218,10 @@ class TypeResolveHandler(object):
         for provider in self._str_providers:
             if provider.can_provide(type_object, type_name):
                 self._type_to_str_provider_cache[type_object] = provider
-                return provider.get_str(o)
+                try:
+                    return provider.get_str(o)
+                except:
+                    pydev_log.exception("Error when getting str with custom provider: %s." % (provider,))
 
         self._type_to_str_provider_cache[type_object] = self.NO_PROVIDER
         return None

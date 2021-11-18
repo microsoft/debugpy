@@ -1,5 +1,5 @@
 from _pydev_bundle import pydev_log
-from _pydevd_bundle.pydevd_utils import hasattr_checked, DAPGrouper
+from _pydevd_bundle.pydevd_utils import hasattr_checked, DAPGrouper, Timer
 try:
     import StringIO
 except:
@@ -183,6 +183,8 @@ class DefaultResolver:
         # optimize the operation by removing as many items as possible in the
         # first filters, leaving fewer items for later filters
 
+        timer = Timer()
+        cls = type(var)
         for name in names:
             try:
                 name_as_str = name
@@ -203,6 +205,9 @@ class DefaultResolver:
                 strIO = StringIO.StringIO()
                 traceback.print_exc(file=strIO)
                 attr = strIO.getvalue()
+
+            finally:
+                timer.report_if_getting_attr_slow(cls, name_as_str)
 
             d[name_as_str] = attr
 

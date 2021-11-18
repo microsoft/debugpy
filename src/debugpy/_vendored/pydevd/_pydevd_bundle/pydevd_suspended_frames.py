@@ -11,7 +11,7 @@ from _pydev_bundle import pydev_log
 from _pydevd_bundle import pydevd_vars
 from _pydev_bundle.pydev_imports import Exec
 from _pydevd_bundle.pydevd_frame_utils import FramesList
-from _pydevd_bundle.pydevd_utils import ScopeRequest, DAPGrouper
+from _pydevd_bundle.pydevd_utils import ScopeRequest, DAPGrouper, Timer
 
 
 class _AbstractVariable(object):
@@ -40,6 +40,7 @@ class _AbstractVariable(object):
         :param dict fmt:
             Format expected by the DAP (keys: 'hex': bool, 'rawString': bool)
         '''
+        timer = Timer()
         safe_repr = SafeRepr()
         if fmt is not None:
             safe_repr.convert_to_hex = fmt.get('hex', False)
@@ -89,6 +90,7 @@ class _AbstractVariable(object):
         if len(attributes) > 0:
             var_data['presentationHint'] = {'attributes': attributes}
 
+        timer.report_if_compute_repr_attr_slow('', name, type_name)
         return var_data
 
     def get_children_variables(self, fmt=None, scope=None):

@@ -123,6 +123,7 @@ DONT_TRACE = {
     'pydevd_net_command_factory_json.py': PYDEV_FILE,
     'pydevd_net_command_factory_xml.py': PYDEV_FILE,
     'pydevd_plugin_numpy_types.py': PYDEV_FILE,
+    'pydevd_plugin_pandas_types.py': PYDEV_FILE,
     'pydevd_plugin_utils.py': PYDEV_FILE,
     'pydevd_plugins_django_form_str.py': PYDEV_FILE,
     'pydevd_process_net_command.py': PYDEV_FILE,
