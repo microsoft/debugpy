@@ -19,6 +19,7 @@ class DebugOptions(object):
         'flask_debug',
         'stop_on_entry',
         'max_exception_stack_frames',
+        'gui_event_loop',
     ]
 
     def __init__(self):
@@ -30,6 +31,7 @@ class DebugOptions(object):
         self.flask_debug = False
         self.stop_on_entry = False
         self.max_exception_stack_frames = 0
+        self.gui_event_loop = 'matplotlib'
 
     def to_json(self):
         dct = {}
@@ -92,6 +94,8 @@ class DebugOptions(object):
 
         self.max_exception_stack_frames = int_parser(args.get('maxExceptionStackFrames', 0))
 
+        if 'guiEventLoop' in args:
+            self.gui_event_loop = str(args['guiEventLoop'])
 
 def int_parser(s, default_value=0):
     try:

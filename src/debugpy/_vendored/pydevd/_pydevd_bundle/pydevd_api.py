@@ -125,6 +125,9 @@ class PyDevdAPI(object):
         '''
         pydevd_file_utils.set_ide_os(ide_os)
 
+    def set_gui_event_loop(self, py_db, gui_event_loop):
+        py_db._gui_event_loop = gui_event_loop
+
     def send_error_message(self, py_db, msg):
         sys.stderr.write('pydevd: %s\n' % (msg,))
 

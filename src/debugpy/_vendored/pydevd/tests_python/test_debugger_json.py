@@ -5210,6 +5210,7 @@ def test_debug_options(case_setup, val):
             flask=val,
             stopOnEntry=val,
             maxExceptionStackFrames=4 if val else 5,
+            guiEventLoop='qt5' if val else 'matplotlib',
         )
         json_facade.write_launch(**args)
 
@@ -5232,6 +5233,7 @@ def test_debug_options(case_setup, val):
             'breakOnSystemExitZero': 'break_system_exit_zero',
             'stopOnEntry': 'stop_on_entry',
             'maxExceptionStackFrames': 'max_exception_stack_frames',
+            'guiEventLoop': 'gui_event_loop',
         }
 
         assert json.loads(output.body.output) == dict((translation[key], val) for key, val in args.items())
