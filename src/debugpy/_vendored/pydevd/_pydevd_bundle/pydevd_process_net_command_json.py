@@ -460,6 +460,8 @@ class PyDevJsonCommandProcessor(object):
         if self._options.stop_on_entry and start_reason == 'launch':
             self.api.stop_on_entry()
 
+        self.api.set_gui_event_loop(py_db, self._options.gui_event_loop)
+
     def _send_process_event(self, py_db, start_method):
         argv = getattr(sys, 'argv', [])
         if len(argv) > 0:
