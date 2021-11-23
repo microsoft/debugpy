@@ -601,9 +601,19 @@ class PyDB(object):
         self.thread_analyser = None
         self.asyncio_analyser = None
 
+        # The GUI event loop that's going to run.
+        # Possible values:
+        # matplotlib - Whatever GUI backend matplotlib is using.
+        # 'wx'/'qt'/'none'/... - GUI toolkits that have bulitin support. See pydevd_ipython/inputhook.py:24.
+        # Other - A custom function that'll be imported and run.
+        self._gui_event_loop = 'matplotlib'
+        self._installed_gui_support = False
+        self.gui_in_use = False
+
+        # GUI event loop support in debugger
+        self.activate_gui_function = None
+
         # matplotlib support in debugger and debug console
-        self._installed_mpl_support = False
-        self.mpl_in_use = False
         self.mpl_hooks_in_debug_console = False
         self.mpl_modules_for_patching = {}
 
@@ -1506,14 +1516,15 @@ class PyDB(object):
             for module in dict_keys(self.mpl_modules_for_patching):
                 import_hook_manager.add_module_name(module, self.mpl_modules_for_patching.pop(module))
 
-    def init_matplotlib_support(self):
-        if self._installed_mpl_support:
+    def init_gui_support(self):
+        if self._installed_gui_support:
             return
-        self._installed_mpl_support = True
-        # prepare debugger for integration with matplotlib GUI event loop
+        self._installed_gui_support = True
+        # prepare debugger for integration with GUI event loop
         from pydev_ipython.matplotlibtools import activate_matplotlib, activate_pylab, activate_pyplot, do_enable_gui
+        from pydev_ipython.inputhook import enable_gui
 
-        # enable_gui_function in activate_matplotlib should be called in main thread. Unlike integrated console,
+        # enalbe_gui and enable_gui_function in activate_matplotlib should be called in main thread. Unlike integrated console,
         # in the debug console we have no interpreter instance with exec_queue, but we run this code in the main
         # thread and can call it directly.
         class _MatplotlibHelper:
@@ -1529,11 +1540,14 @@ class PyDB(object):
         from pydev_ipython.inputhook import set_return_control_callback
         set_return_control_callback(return_control)
 
-        self.mpl_modules_for_patching = {"matplotlib": lambda: activate_matplotlib(do_enable_gui),
-                            "matplotlib.pyplot": activate_pyplot,
-                            "pylab": activate_pylab }
+        if self._gui_event_loop == 'matplotlib':
+            self.mpl_modules_for_patching = {"matplotlib": lambda: activate_matplotlib(do_enable_gui),
+                                "matplotlib.pyplot": activate_pyplot,
+                                "pylab": activate_pylab }
+        else:
+            self.activate_gui_function = enable_gui
 
-    def _activate_mpl_if_needed(self):
+    def _activate_gui_if_needed(self):
         if len(self.mpl_modules_for_patching) > 0:
             if is_current_thread_main_thread():  # Note that we call only in the main thread.
                 for module in dict_keys(self.mpl_modules_for_patching):
@@ -1541,9 +1555,31 @@ class PyDB(object):
                         activate_function = self.mpl_modules_for_patching.pop(module, None)
                         if activate_function is not None:
                             activate_function()
-                        self.mpl_in_use = True
+                        self.gui_in_use = True
 
-    def _call_mpl_hook(self):
+        if self.activate_gui_function:
+            if is_current_thread_main_thread(): # Only call enable_gui in the main thread.
+                try:
+                    # First try to activate builtin GUI event loops.
+                    self.activate_gui_function(self._gui_event_loop)
+                    self.activate_gui_function = None
+                    self.gui_in_use = True
+                except ValueError:
+                    # The user requested a custom GUI event loop, try to import it.
+                    from importlib import import_module
+                    from pydev_ipython.inputhook import set_inputhook
+                    try:
+                        module_name, inputhook_name = self._gui_event_loop.rsplit('.', 1)
+                        module = import_module(module_name)
+                        inputhook_function = getattr(module, inputhook_name)
+                        set_inputhook(inputhook_function)
+                        self.gui_in_use = True
+                    except Exception as e:
+                        pydev_log.debug("Cannot activate custom GUI event loop {}: {}".format(self._gui_event_loop, e))
+                    finally:
+                        self.activate_gui_function = None
+
+    def _call_input_hook(self):
         try:
             from pydev_ipython.inputhook import get_inputhook
             inputhook = get_inputhook()
@@ -1688,7 +1724,7 @@ class PyDB(object):
                                 # add import hooks for matplotlib patches if only debug console was started
                                 try:
                                     self.init_matplotlib_in_debug_console()
-                                    self.mpl_in_use = True
+                                    self.gui_in_use = True
                                 except:
                                     pydev_log.debug("Matplotlib support in debug console failed", traceback.format_exc())
                                 self.mpl_hooks_in_debug_console = True
@@ -1990,12 +2026,13 @@ class PyDB(object):
         keep_suspended = False
 
         with self._main_lock:  # Use lock to check if suspended state changed
-            activate_matplotlib = info.pydev_state == STATE_SUSPEND and not self.pydb_disposed
+            activate_gui = info.pydev_state == STATE_SUSPEND and not self.pydb_disposed
 
         in_main_thread = is_current_thread_main_thread()
-        if activate_matplotlib and in_main_thread:
+        if activate_gui and in_main_thread:
             # before every stop check if matplotlib modules were imported inside script code
-            self._activate_mpl_if_needed()
+            # or some GUI event loop needs to be activated
+            self._activate_gui_if_needed()
 
         while True:
             with self._main_lock:  # Use lock to check if suspended state changed
@@ -2003,9 +2040,9 @@ class PyDB(object):
                     # Note: we can't exit here if terminate was requested while a breakpoint was hit.
                     break
 
-            if in_main_thread and self.mpl_in_use:
-                # call input hooks if only matplotlib is in use
-                self._call_mpl_hook()
+            if in_main_thread and self.gui_in_use:
+                # call input hooks if only GUI is in use
+                self._call_input_hook()
 
             self.process_internal_commands()
             time.sleep(0.01)
@@ -2380,7 +2417,7 @@ class PyDB(object):
 
         try:
             if INTERACTIVE_MODE_AVAILABLE:
-                self.init_matplotlib_support()
+                self.init_gui_support()
         except:
             pydev_log.exception("Matplotlib support in debugger failed")
 
@@ -2425,7 +2462,7 @@ class PyDB(object):
         return globals
 
     def wait_for_commands(self, globals):
-        self._activate_mpl_if_needed()
+        self._activate_gui_if_needed()
 
         thread = threading.current_thread()
         from _pydevd_bundle import pydevd_frame_utils
@@ -2439,9 +2476,9 @@ class PyDB(object):
             self.writer.add_command(cmd)
 
         while True:
-            if self.mpl_in_use:
-                # call input hooks if only matplotlib is in use
-                self._call_mpl_hook()
+            if self.gui_in_use:
+                # call input hooks if only GUI is in use
+                self._call_input_hook()
             self.process_internal_commands()
             time.sleep(0.01)
 
@@ -2833,7 +2870,7 @@ def _locked_settrace(
 
         try:
             if INTERACTIVE_MODE_AVAILABLE:
-                py_db.init_matplotlib_support()
+                py_db.init_gui_support()
         except:
             pydev_log.exception("Matplotlib support in debugger failed")
 
