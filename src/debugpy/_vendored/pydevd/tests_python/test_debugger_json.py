@@ -291,7 +291,7 @@ class JsonFacade(object):
         if wait_for_response:
             self.wait_for_response(request)
 
-    def get_stack_as_json_hit(self, thread_id):
+    def get_stack_as_json_hit(self, thread_id, no_stack_frame=False):
         stack_trace_request = self.write_request(
             pydevd_schema.StackTraceRequest(pydevd_schema.StackTraceArguments(threadId=thread_id)))
 
@@ -300,15 +300,19 @@ class JsonFacade(object):
         # : :type stack_frame: StackFrame
         stack_trace_response = self.wait_for_response(stack_trace_request)
         stack_trace_response_body = stack_trace_response.body
-        assert len(stack_trace_response_body.stackFrames) > 0
+        if no_stack_frame:
+            assert len(stack_trace_response_body.stackFrames) == 0
+            frame_id = None
+        else:
+            assert len(stack_trace_response_body.stackFrames) > 0
+            for stack_frame in stack_trace_response_body.stackFrames:
+                assert stack_frame['id'] < MAX_EXPECTED_ID
 
-        for stack_frame in stack_trace_response_body.stackFrames:
-            assert stack_frame['id'] < MAX_EXPECTED_ID
-
-        stack_frame = next(iter(stack_trace_response_body.stackFrames))
+            stack_frame = next(iter(stack_trace_response_body.stackFrames))
+            frame_id = stack_frame['id']
 
         return _JsonHit(
-            thread_id=thread_id, frame_id=stack_frame['id'], stack_trace_response=stack_trace_response)
+            thread_id=thread_id, frame_id=frame_id, stack_trace_response=stack_trace_response)
 
     def get_variables_response(self, variables_reference, fmt=None, success=True):
         assert variables_reference < MAX_EXPECTED_ID
@@ -3909,6 +3913,50 @@ def test_wait_for_attach_gevent(case_setup_remote_attach_to):
         json_facade.wait_for_thread_stopped(line=break1_line)
 
         json_facade.write_disconnect()
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not TEST_GEVENT, reason='Gevent not installed.')
+@pytest.mark.parametrize('show', [True, False])
+def test_gevent_show_paused_greenlets(case_setup, show):
+
+    def get_environ(writer):
+        env = os.environ.copy()
+        env['GEVENT_SUPPORT'] = 'True'
+        if show:
+            env['GEVENT_SHOW_PAUSED_GREENLETS'] = 'True'
+        else:
+            env['GEVENT_SHOW_PAUSED_GREENLETS'] = 'False'
+        return env
+
+    with case_setup.test_file('_debugger_case_gevent_simple.py', get_environ=get_environ) as writer:
+        json_facade = JsonFacade(writer)
+
+        break1_line = writer.get_line_index_with_content('break here')
+        json_facade.write_set_breakpoints(break1_line)
+        json_facade.write_make_initial_run()
+        json_facade.wait_for_thread_stopped(line=break1_line)
+
+        response = json_facade.write_list_threads()
+        if show:
+            assert len(response.body.threads) > 1
+
+            thread_name_to_id = dict((t['name'], t['id']) for t in response.body.threads)
+            assert set(thread_name_to_id.keys()) == set((
+                'MainThread',
+                'greenlet: <module> - _debugger_case_gevent_simple.py',
+                'Greenlet: foo - _debugger_case_gevent_simple.py',
+                'Hub: run - hub.py'
+            ))
+
+            for _tname, tid in thread_name_to_id.items():
+                stack = json_facade.get_stack_as_json_hit(tid, no_stack_frame=tid == 4)
+                assert stack
+
+        else:
+            assert len(response.body.threads) == 1
+
+        json_facade.write_continue(wait_for_response=False)
         writer.finished_ok = True
 
 

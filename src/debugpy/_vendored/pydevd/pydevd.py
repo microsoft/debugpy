@@ -55,7 +55,7 @@ from _pydevd_bundle.pydevd_constants import (IS_JYTH_LESS25, get_thread_id, get_
     dict_keys, dict_iter_items, DebugInfoHolder, PYTHON_SUSPEND, STATE_SUSPEND, STATE_RUN, get_frame,
     clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, IS_PY34_OR_GREATER, IS_PY2, NULL,
     NO_FTRACE, IS_IRONPYTHON, JSON_PROTOCOL, IS_CPYTHON, HTTP_JSON_PROTOCOL, USE_CUSTOM_SYS_CURRENT_FRAMES_MAP, call_only_once,
-    ForkSafeLock, IGNORE_BASENAMES_STARTING_WITH, EXCEPTION_TYPE_UNHANDLED)
+    ForkSafeLock, IGNORE_BASENAMES_STARTING_WITH, EXCEPTION_TYPE_UNHANDLED, SUPPORT_GEVENT)
 from _pydevd_bundle.pydevd_defaults import PydevdCustomization  # Note: import alias used on pydev_monkey.
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
 from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE, LIB_FILE, DONT_TRACE_DIRS
@@ -94,6 +94,18 @@ from socket import SHUT_RDWR
 from _pydevd_bundle.pydevd_api import PyDevdAPI
 from _pydevd_bundle.pydevd_timeout import TimeoutTracker
 from _pydevd_bundle.pydevd_thread_lifecycle import suspend_all_threads, mark_thread_suspended
+
+pydevd_gevent_integration = None
+
+if SUPPORT_GEVENT:
+    try:
+        from _pydevd_bundle import pydevd_gevent_integration
+    except:
+        pydev_log.exception(
+            'pydevd: GEVENT_SUPPORT is set but gevent is not available in the environment.\n'
+            'Please unset GEVENT_SUPPORT from the environment variables or install gevent.')
+    else:
+        pydevd_gevent_integration.log_gevent_debug_info()
 
 if USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
     from _pydevd_bundle.pydevd_constants import constructed_tid_to_last_frame
@@ -169,6 +181,7 @@ file_system_encoding = getfilesystemencoding()
 _CACHE_FILE_TYPE = {}
 
 pydev_log.debug('Using GEVENT_SUPPORT: %s', pydevd_constants.SUPPORT_GEVENT)
+pydev_log.debug('Using GEVENT_SHOW_PAUSED_GREENLETS: %s', pydevd_constants.GEVENT_SHOW_PAUSED_GREENLETS)
 pydev_log.debug('pydevd __file__: %s', os.path.abspath(__file__))
 
 
@@ -1046,6 +1059,9 @@ class PyDB(object):
             this function is called on a multi-threaded program (either programmatically or attach
             to pid).
         '''
+        if pydevd_gevent_integration is not None:
+            pydevd_gevent_integration.enable_gevent_integration()
+
         if self.frame_eval_func is not None:
             self.frame_eval_func()
             pydevd_tracing.SetTrace(self.dummy_trace_dispatch)

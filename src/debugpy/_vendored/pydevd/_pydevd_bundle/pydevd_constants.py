@@ -264,6 +264,11 @@ def as_int_in_env(env_key, default):
 # If true in env, use gevent mode.
 SUPPORT_GEVENT = is_true_in_env('GEVENT_SUPPORT')
 
+# Opt-in support to show gevent paused greenlets. False by default because if too many greenlets are
+# paused the UI can slow-down (i.e.: if 1000 greenlets are paused, each one would be shown separate
+# as a different thread, but if the UI isn't optimized for that the experience is lacking...).
+GEVENT_SHOW_PAUSED_GREENLETS = is_true_in_env('GEVENT_SHOW_PAUSED_GREENLETS')
+
 GEVENT_SUPPORT_NOT_SET_MSG = os.getenv(
     'GEVENT_SUPPORT_NOT_SET_MSG',
     'It seems that the gevent monkey-patching is being used.\n'
