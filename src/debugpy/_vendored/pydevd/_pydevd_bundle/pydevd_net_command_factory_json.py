@@ -124,8 +124,18 @@ class NetCommandFactoryJson(NetCommandFactory):
 
         return NetCommand(CMD_THREAD_CREATE, 0, msg, is_json=True)
 
+    @overrides(NetCommandFactory.make_custom_frame_created_message)
+    def make_custom_frame_created_message(self, frame_id, frame_description):
+        self._additional_thread_id_to_thread_name[frame_id] = frame_description
+        msg = pydevd_schema.ThreadEvent(
+            pydevd_schema.ThreadEventBody('started', frame_id),
+        )
+
+        return NetCommand(CMD_THREAD_CREATE, 0, msg, is_json=True)
+
     @overrides(NetCommandFactory.make_thread_killed_message)
     def make_thread_killed_message(self, tid):
+        self._additional_thread_id_to_thread_name.pop(tid, None)
         msg = pydevd_schema.ThreadEvent(
             pydevd_schema.ThreadEventBody('exited', tid),
         )
@@ -144,6 +154,10 @@ class NetCommandFactoryJson(NetCommandFactory):
 
                 thread_schema = pydevd_schema.Thread(id=thread_id, name=thread.name)
                 threads.append(thread_schema.to_dict())
+
+        for thread_id, thread_name in list(self._additional_thread_id_to_thread_name.items()):
+            thread_schema = pydevd_schema.Thread(id=thread_id, name=thread_name)
+            threads.append(thread_schema.to_dict())
 
         body = pydevd_schema.ThreadsResponseBody(threads)
         response = pydevd_schema.ThreadsResponse(

@@ -113,6 +113,7 @@ DONT_TRACE = {
     'pydevd_frame_eval_main.py': PYDEV_FILE,
     'pydevd_frame_tracing.py': PYDEV_FILE,
     'pydevd_frame_utils.py': PYDEV_FILE,
+    'pydevd_gevent_integration.py': PYDEV_FILE,
     'pydevd_helpers.py': PYDEV_FILE,
     'pydevd_import_class.py': PYDEV_FILE,
     'pydevd_io.py': PYDEV_FILE,

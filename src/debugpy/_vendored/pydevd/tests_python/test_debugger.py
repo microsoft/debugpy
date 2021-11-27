@@ -3209,6 +3209,36 @@ def test_gevent(case_setup):
 
 
 @pytest.mark.skipif(not TEST_GEVENT, reason='Gevent not installed.')
+@pytest.mark.parametrize('show', [True, False])
+def test_gevent_show_paused_greenlets(case_setup, show):
+
+    def get_environ(writer):
+        env = os.environ.copy()
+        env['GEVENT_SUPPORT'] = 'True'
+        if show:
+            env['GEVENT_SHOW_PAUSED_GREENLETS'] = 'True'
+        else:
+            env['GEVENT_SHOW_PAUSED_GREENLETS'] = 'False'
+        return env
+
+    with case_setup.test_file('_debugger_case_gevent_simple.py', get_environ=get_environ) as writer:
+        writer.write_add_breakpoint(writer.get_line_index_with_content('break here'))
+        writer.write_make_initial_run()
+        hit = writer.wait_for_breakpoint_hit(name='bar')
+        writer.write_run_thread(hit.thread_id)
+
+        seq = writer.write_list_threads()
+        msg = writer.wait_for_list_threads(seq)
+
+        if show:
+            assert len(msg) > 1
+        else:
+            assert len(msg) == 1
+
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not TEST_GEVENT, reason='Gevent not installed.')
 def test_gevent_remote(case_setup_remote):
 
     def get_environ(writer):

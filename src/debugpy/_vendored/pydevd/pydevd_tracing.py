@@ -78,7 +78,12 @@ def _internal_set_trace(tracing_func):
         TracingFunctionHolder._original_tracing(tracing_func)
 
 
+_last_tracing_func_thread_local = threading.local()
+
+
 def SetTrace(tracing_func):
+    _last_tracing_func_thread_local.tracing_func = tracing_func
+
     if tracing_func is not None:
         if set_trace_to_threads(tracing_func, thread_idents=[thread.get_ident()], create_dummy_thread=False) == 0:
             # If we can use our own tracer instead of the one from sys.settrace, do it (the reason
@@ -92,6 +97,15 @@ def SetTrace(tracing_func):
     # If it didn't work (or if it was None), use the Python version.
     set_trace = TracingFunctionHolder._original_tracing or sys.settrace
     set_trace(tracing_func)
+
+
+def reapply_settrace():
+    try:
+        tracing_func = _last_tracing_func_thread_local.tracing_func
+    except AttributeError:
+        return
+    else:
+        SetTrace(tracing_func)
 
 
 def replace_sys_set_trace_func():

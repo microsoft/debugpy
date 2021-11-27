@@ -45,11 +45,14 @@ if IS_IRONPYTHON:
 #=======================================================================================================================
 class NetCommandFactory(object):
 
+    def __init__(self):
+        self._additional_thread_id_to_thread_name = {}
+
     def _thread_to_xml(self, thread):
         """ thread information as XML """
         name = pydevd_xml.make_valid_xml_value(thread.name)
-        cmdText = '<thread name="%s" id="%s" />' % (quote(name), get_thread_id(thread))
-        return cmdText
+        cmd_text = '<thread name="%s" id="%s" />' % (quote(name), get_thread_id(thread))
+        return cmd_text
 
     def make_error_message(self, seq, text):
         cmd = NetCommand(CMD_ERROR, seq, text)
@@ -75,6 +78,7 @@ class NetCommandFactory(object):
             return self.make_error_message(0, get_exception_traceback_str())
 
     def make_custom_frame_created_message(self, frame_id, frame_description):
+        self._additional_thread_id_to_thread_name[frame_id] = frame_description
         frame_description = pydevd_xml.make_valid_xml_value(frame_description)
         return NetCommand(CMD_THREAD_CREATE, 0, '<xml><thread name="%s" id="%s"/></xml>' % (frame_description, frame_id))
 
@@ -87,6 +91,11 @@ class NetCommandFactory(object):
             for thread in threads:
                 if is_thread_alive(thread):
                     append(self._thread_to_xml(thread))
+
+            for thread_id, thread_name in list(self._additional_thread_id_to_thread_name.items()):
+                name = pydevd_xml.make_valid_xml_value(thread_name)
+                append('<thread name="%s" id="%s" />' % (quote(name), thread_id))
+
             append("</xml>")
             return NetCommand(CMD_RETURN, seq, ''.join(cmd_text))
         except:
@@ -153,6 +162,7 @@ class NetCommandFactory(object):
             return self.make_error_message(seq, get_exception_traceback_str())
 
     def make_thread_killed_message(self, tid):
+        self._additional_thread_id_to_thread_name.pop(tid, None)
         try:
             return NetCommand(CMD_THREAD_KILL, 0, str(tid))
         except:
