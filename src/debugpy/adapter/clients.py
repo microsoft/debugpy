@@ -143,12 +143,23 @@ class Client(components.Component):
         self._initialize_request = request
 
         exception_breakpoint_filters = [
-            {"filter": "raised", "label": "Raised Exceptions", "default": False},
-            {"filter": "uncaught", "label": "Uncaught Exceptions", "default": True},
+            {
+                "filter": "raised",
+                "label": "Raised Exceptions",
+                "default": False,
+                "description": "Break whenever any exception is raised.",
+            },
+            {
+                "filter": "uncaught",
+                "label": "Uncaught Exceptions",
+                "default": True,
+                "description": "Break when the process is exiting due to unhandled exception.",
+            },
             {
                 "filter": "userUnhandled",
                 "label": "User Uncaught Exceptions",
                 "default": False,
+                "description": "Break when exception escapes into library code.",
             },
         ]
 
