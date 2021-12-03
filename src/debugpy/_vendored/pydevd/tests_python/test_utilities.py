@@ -556,3 +556,16 @@ def test_threading_hide_pydevd():
     assert t1 in threading.enumerate()
     t0.event.set()
     t1.event.set()
+
+
+def test_import_token_from_module():
+    from _pydevd_bundle.pydevd_utils import import_attr_from_module
+
+    with pytest.raises(ImportError):
+        import_attr_from_module('sys')
+
+    with pytest.raises(ImportError):
+        import_attr_from_module('sys.settrace.foo')
+
+    assert import_attr_from_module('sys.settrace') == sys.settrace
+    assert import_attr_from_module('threading.Thread.start') == threading.Thread.start

@@ -64,7 +64,8 @@ from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, remove_exc
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
 from _pydevd_bundle.pydevd_trace_dispatch import (
     trace_dispatch as _trace_dispatch, global_cache_skips, global_cache_frame_skips, fix_top_level_trace_and_get_trace_func)
-from _pydevd_bundle.pydevd_utils import save_main_module, is_current_thread_main_thread
+from _pydevd_bundle.pydevd_utils import save_main_module, is_current_thread_main_thread, \
+    import_attr_from_module
 from _pydevd_frame_eval.pydevd_frame_eval_main import (
     frame_eval_func, dummy_trace_dispatch)
 import pydev_ipython  # @UnusedImport
@@ -1536,27 +1537,28 @@ class PyDB(object):
         if self._installed_gui_support:
             return
         self._installed_gui_support = True
-        # prepare debugger for integration with GUI event loop
-        from pydev_ipython.matplotlibtools import activate_matplotlib, activate_pylab, activate_pyplot, do_enable_gui
-        from pydev_ipython.inputhook import enable_gui
 
-        # enalbe_gui and enable_gui_function in activate_matplotlib should be called in main thread. Unlike integrated console,
+        # enable_gui and enable_gui_function in activate_matplotlib should be called in main thread. Unlike integrated console,
         # in the debug console we have no interpreter instance with exec_queue, but we run this code in the main
         # thread and can call it directly.
-        class _MatplotlibHelper:
+        class _ReturnGuiLoopControlHelper:
             _return_control_osc = False
 
         def return_control():
             # Some of the input hooks (e.g. Qt4Agg) check return control without doing
             # a single operation, so we don't return True on every
             # call when the debug hook is in place to allow the GUI to run
-            _MatplotlibHelper._return_control_osc = not _MatplotlibHelper._return_control_osc
-            return _MatplotlibHelper._return_control_osc
+            _ReturnGuiLoopControlHelper._return_control_osc = not _ReturnGuiLoopControlHelper._return_control_osc
+            return _ReturnGuiLoopControlHelper._return_control_osc
 
-        from pydev_ipython.inputhook import set_return_control_callback
+        from pydev_ipython.inputhook import set_return_control_callback, enable_gui
+
         set_return_control_callback(return_control)
 
         if self._gui_event_loop == 'matplotlib':
+            # prepare debugger for matplotlib integration with GUI event loop
+            from pydev_ipython.matplotlibtools import activate_matplotlib, activate_pylab, activate_pyplot, do_enable_gui
+
             self.mpl_modules_for_patching = {"matplotlib": lambda: activate_matplotlib(do_enable_gui),
                                 "matplotlib.pyplot": activate_pyplot,
                                 "pylab": activate_pylab }
@@ -1564,6 +1566,9 @@ class PyDB(object):
             self.activate_gui_function = enable_gui
 
     def _activate_gui_if_needed(self):
+        if self.gui_in_use:
+            return
+
         if len(self.mpl_modules_for_patching) > 0:
             if is_current_thread_main_thread():  # Note that we call only in the main thread.
                 for module in dict_keys(self.mpl_modules_for_patching):
@@ -1574,7 +1579,7 @@ class PyDB(object):
                         self.gui_in_use = True
 
         if self.activate_gui_function:
-            if is_current_thread_main_thread(): # Only call enable_gui in the main thread.
+            if is_current_thread_main_thread():  # Only call enable_gui in the main thread.
                 try:
                     # First try to activate builtin GUI event loops.
                     self.activate_gui_function(self._gui_event_loop)
@@ -1582,12 +1587,9 @@ class PyDB(object):
                     self.gui_in_use = True
                 except ValueError:
                     # The user requested a custom GUI event loop, try to import it.
-                    from importlib import import_module
                     from pydev_ipython.inputhook import set_inputhook
                     try:
-                        module_name, inputhook_name = self._gui_event_loop.rsplit('.', 1)
-                        module = import_module(module_name)
-                        inputhook_function = getattr(module, inputhook_name)
+                        inputhook_function = import_attr_from_module(self._gui_event_loop)
                         set_inputhook(inputhook_function)
                         self.gui_in_use = True
                     except Exception as e:
@@ -1736,7 +1738,7 @@ class PyDB(object):
                         while True:
                             int_cmd = queue.get(False)
 
-                            if not self.mpl_hooks_in_debug_console and isinstance(int_cmd, InternalConsoleExec):
+                            if not self.mpl_hooks_in_debug_console and isinstance(int_cmd, InternalConsoleExec) and not self.gui_in_use:
                                 # add import hooks for matplotlib patches if only debug console was started
                                 try:
                                     self.init_matplotlib_in_debug_console()
