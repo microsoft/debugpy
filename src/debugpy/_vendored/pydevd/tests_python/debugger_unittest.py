@@ -701,6 +701,9 @@ class AbstractWriterThread(threading.Thread):
         for expected in (
             'PyDev console: using IPython',
             'Attempting to work in a virtualenv. If you encounter problems, please',
+            'Unable to create basic Accelerated OpenGL',  # Issue loading qt5
+            'Core Image is now using the software OpenGL',  # Issue loading qt5
+            'XDG_RUNTIME_DIR not set',  # Issue loading qt5
             ):
             if expected in line:
                 return True

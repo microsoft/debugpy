@@ -535,7 +535,7 @@ def enable_gui(gui=None, app=None):
         if gui is None or gui == '':
             gui_hook = clear_inputhook
         else:
-            e = "Invalid GUI request %r, valid ones are:%s" % (gui, guis.keys())
+            e = "Invalid GUI request %r, valid ones are:%s" % (gui, list(guis.keys()))
             raise ValueError(e)
     return gui_hook(app)
 

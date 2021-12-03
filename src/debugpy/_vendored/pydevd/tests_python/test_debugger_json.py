@@ -3949,8 +3949,11 @@ def test_gevent_show_paused_greenlets(case_setup, show):
                 'Hub: run - hub.py'
             ))
 
-            for _tname, tid in thread_name_to_id.items():
-                stack = json_facade.get_stack_as_json_hit(tid, no_stack_frame=tid == 4)
+            for tname, tid in thread_name_to_id.items():
+                stack = json_facade.get_stack_as_json_hit(
+                    tid,
+                    no_stack_frame=tname == 'Hub: run - hub.py'
+                )
                 assert stack
 
         else:
@@ -5201,6 +5204,14 @@ def test_stop_on_entry2(case_setup):
 def test_debug_options(case_setup, val):
     with case_setup.test_file('_debugger_case_debug_options.py') as writer:
         json_facade = JsonFacade(writer)
+        gui_event_loop = 'matplotlib'
+        if val:
+            try:
+                import PySide2.QtCore
+            except ImportError:
+                pass
+            else:
+                gui_event_loop = 'qt5'
         args = dict(
             justMyCode=val,
             redirectOutput=True,  # Always redirect the output regardless of other values.
@@ -5210,7 +5221,7 @@ def test_debug_options(case_setup, val):
             flask=val,
             stopOnEntry=val,
             maxExceptionStackFrames=4 if val else 5,
-            guiEventLoop='qt5' if val else 'matplotlib',
+            guiEventLoop=gui_event_loop,
         )
         json_facade.write_launch(**args)
 
@@ -5237,6 +5248,50 @@ def test_debug_options(case_setup, val):
         }
 
         assert json.loads(output.body.output) == dict((translation[key], val) for key, val in args.items())
+        json_facade.wait_for_terminated()
+        writer.finished_ok = True
+
+
+def test_gui_event_loop_custom(case_setup):
+    with case_setup.test_file('_debugger_case_gui_event_loop.py') as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(guiEventLoop='__main__.LoopHolder.gui_loop', redirectOutput=True)
+        break_line = writer.get_line_index_with_content('break here')
+        json_facade.write_set_breakpoints(break_line)
+
+        json_facade.write_make_initial_run()
+        json_facade.wait_for_thread_stopped()
+
+        json_facade.wait_for_json_message(
+            OutputEvent, lambda msg: msg.body.category == 'stdout' and 'gui_loop() called' in msg.body.output)
+
+        json_facade.write_continue()
+        json_facade.wait_for_terminated()
+        writer.finished_ok = True
+
+
+def test_gui_event_loop_qt5(case_setup):
+    try:
+        from PySide2 import QtCore
+    except ImportError:
+        pytest.skip('PySide2 not available')
+
+    with case_setup.test_file('_debugger_case_gui_event_loop_qt5.py') as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(guiEventLoop='qt5', redirectOutput=True)
+        break_line = writer.get_line_index_with_content('break here')
+        json_facade.write_set_breakpoints(break_line)
+
+        json_facade.write_make_initial_run()
+        json_facade.wait_for_thread_stopped()
+
+        # i.e.: if we don't have the event loop running in this test, this
+        # output is not shown (as the QTimer timeout wouldn't be executed).
+        for _i in range(3):
+            json_facade.wait_for_json_message(
+                OutputEvent, lambda msg: msg.body.category == 'stdout' and 'on_timeout() called' in msg.body.output)
+
+        json_facade.write_continue()
         json_facade.wait_for_terminated()
         writer.finished_ok = True
 
