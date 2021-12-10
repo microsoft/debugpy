@@ -546,7 +546,8 @@ def patch_args(args, is_exec=False):
         add_module_at = len(new_args) + 1
 
         new_args.extend(setup_to_argv(
-            _get_setup_updated_with_protocol_and_ppid(SetupHolder.setup, is_exec=is_exec)
+            _get_setup_updated_with_protocol_and_ppid(SetupHolder.setup, is_exec=is_exec),
+            skip_names=set(('module', 'cmd-line'))
         ))
         new_args.append('--file')
 
