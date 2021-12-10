@@ -4,14 +4,10 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import pytest
-import sys
-
 from tests import debug
 from tests.patterns import some
 
 
-@pytest.mark.skipif(sys.version_info >= (3, 10), reason="https://github.com/microsoft/debugpy/issues/688")
 def test_gevent(pyfile, target, run):
     @pyfile
     def code_to_debug():
