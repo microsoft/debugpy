@@ -218,6 +218,8 @@ if sys.platform == 'win32':
             parts = parts.lower().split(os.path.sep)
 
             try:
+                if parts == ['']:
+                    return drive
                 return _resolve_listing(drive, iter(parts))
             except FileNotFoundError:
                 _listdir_cache.clear()
