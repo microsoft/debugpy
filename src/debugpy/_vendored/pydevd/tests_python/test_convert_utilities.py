@@ -5,6 +5,7 @@ from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
 import io
 from _pydev_bundle.pydev_log import log_context
 import pytest
+import sys
 
 
 def test_convert_utilities(tmpdir):
@@ -97,6 +98,12 @@ def test_source_reference(tmpdir):
         source_reference = pydevd_file_utils.get_client_filename_source_reference('\\another\\my')
         assert source_reference != 0
         assert pydevd_file_utils.get_server_filename_from_source_reference(source_reference) == '/another/my'
+
+
+@pytest.mark.skipif(sys.platform != 'win32', reason='Windows-only test.')
+def test_translate_only_drive():
+    import pydevd_file_utils
+    assert pydevd_file_utils.get_path_with_real_case('c:\\') == 'C:\\'
 
 
 def test_to_server_and_to_client(tmpdir):
