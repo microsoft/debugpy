@@ -1234,8 +1234,6 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
             _evaluate_response(py_db, request, result='', error_message='Thread id: %s is not current thread id.' % (thread_id,))
             return
 
-    variable = frame_tracker.obtain_as_variable(expression, eval_result, frame=frame)
-
     safe_repr_custom_attrs = {}
     if context == 'clipboard':
         safe_repr_custom_attrs = dict(
@@ -1245,16 +1243,25 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
             maxother_inner=2 ** 64,
         )
 
-    var_data = variable.get_var_data(fmt=fmt, **safe_repr_custom_attrs)
+    if context == 'repl' and eval_result is None:
+        # We don't want "None" to appear when typing in the repl.
+        body = pydevd_schema.EvaluateResponseBody(
+            result=None,
+            variablesReference=0,
+        )
 
-    body = pydevd_schema.EvaluateResponseBody(
-        result=var_data['value'],
-        variablesReference=var_data.get('variablesReference', 0),
-        type=var_data.get('type'),
-        presentationHint=var_data.get('presentationHint'),
-        namedVariables=var_data.get('namedVariables'),
-        indexedVariables=var_data.get('indexedVariables'),
-    )
+    else:
+        variable = frame_tracker.obtain_as_variable(expression, eval_result, frame=frame)
+        var_data = variable.get_var_data(fmt=fmt, **safe_repr_custom_attrs)
+
+        body = pydevd_schema.EvaluateResponseBody(
+            result=var_data['value'],
+            variablesReference=var_data.get('variablesReference', 0),
+            type=var_data.get('type'),
+            presentationHint=var_data.get('presentationHint'),
+            namedVariables=var_data.get('namedVariables'),
+            indexedVariables=var_data.get('indexedVariables'),
+        )
     variables_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
     py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response, is_json=True))
 
