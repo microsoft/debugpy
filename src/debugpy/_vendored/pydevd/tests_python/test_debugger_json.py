@@ -504,6 +504,8 @@ class JsonFacade(object):
         '''
         :param wait_for_response:
             If True returns the response, otherwise returns the request.
+
+        :returns EvaluateResponse
         '''
         eval_request = self.write_request(
             pydevd_schema.EvaluateRequest(pydevd_schema.EvaluateArguments(
@@ -1926,26 +1928,25 @@ def test_evaluate_no_name_mangling(case_setup):
         json_hit = json_facade.get_stack_as_json_hit(json_hit.thread_id)
 
         # Check eval with a properly indented block
-        json_facade.evaluate(
-            'x = "_"',
-            frameId=json_hit.frame_id,
-            context="repl",
-        )
-        json_facade.evaluate(
-            'x',
-            frameId=json_hit.frame_id,
-            context="repl",
-        )
-        json_facade.evaluate(
-            'y = "__"',
-            frameId=json_hit.frame_id,
-            context="repl",
-        )
-        json_facade.evaluate(
-            'y',
-            frameId=json_hit.frame_id,
-            context="repl",
-        )
+        evaluate_response = json_facade.evaluate(
+            'x = "_"', frameId=json_hit.frame_id, context="repl")
+        assert not evaluate_response.body.result
+
+        evaluate_response = json_facade.evaluate(
+            'x', frameId=json_hit.frame_id, context="repl")
+        assert evaluate_response.body.result == "'_'"
+
+        evaluate_response = json_facade.evaluate(
+            'y = "__"', frameId=json_hit.frame_id, context="repl")
+        assert not evaluate_response.body.result
+
+        evaluate_response = json_facade.evaluate(
+            'y', frameId=json_hit.frame_id, context="repl")
+        assert evaluate_response.body.result == "'__'"
+
+        evaluate_response = json_facade.evaluate(
+            'None', json_hit.frame_id, context='repl')
+        assert not evaluate_response.body.result
 
         json_facade.write_continue()
         writer.finished_ok = True
