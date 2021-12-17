@@ -179,6 +179,7 @@ class Session(object):
                 timeline.Event("output", some.dict.containing({"category": "stdout"})),
                 timeline.Event("output", some.dict.containing({"category": "stderr"})),
                 timeline.Event("output", some.dict.containing({"category": "console"})),
+                timeline.Event("output", some.dict.containing({"category": "important"})),
             ]
         )
 

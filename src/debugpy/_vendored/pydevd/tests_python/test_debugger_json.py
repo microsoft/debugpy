@@ -1458,9 +1458,11 @@ def test_case_skipping_filters(case_setup, custom_setup):
         messages = json_facade.mark_messages(
             OutputEvent, lambda output_event: 'Frame skipped from debugging during step-in.' in output_event.body.output)
         assert len(messages) == 1
-        found_just_my_code = 'Note: may have been skipped because of \"justMyCode\" option (default == true)' in next(iter(messages)).body.output
+        body = next(iter(messages)).body
+        found_just_my_code = 'Note: may have been skipped because of \"justMyCode\" option (default == true)' in body.output
 
         assert found_just_my_code == expect_just_my_code
+        assert body.category == 'important'
 
         json_facade.write_step_in(json_hit.thread_id)
         json_hit = json_facade.wait_for_thread_stopped('step', name='callback2')
