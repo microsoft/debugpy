@@ -8,6 +8,13 @@ import pytest
 import sys
 
 
+@pytest.fixture(autouse=True)
+def _reset_ide_os():
+    yield
+    from pydevd_file_utils import set_ide_os
+    set_ide_os('WINDOWS' if sys.platform == 'win32' else 'UNIX')
+
+
 def test_convert_utilities(tmpdir):
     import pydevd_file_utils
 
