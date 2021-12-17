@@ -808,6 +808,13 @@ class StoppedEvent(BaseSchema):
                 "allThreadsStopped": {
                     "type": "boolean",
                     "description": "If 'allThreadsStopped' is true, a debug adapter can announce that all threads have stopped.\n- The client should use this information to enable that all threads can be expanded to access their stacktraces.\n- If the attribute is missing or false, only the thread with the given threadId can be expanded."
+                },
+                "hitBreakpointIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    },
+                    "description": "Ids of the breakpoints that triggered the event. In most cases there will be only a single breakpoint but here are some examples for multiple breakpoints:\n- Different types of breakpoints map to the same location.\n- Multiple source breakpoints get collapsed to the same instruction by the compiler/runtime.\n- Multiple function breakpoints with different function names map to the same location."
                 }
             },
             "required": [
@@ -1207,12 +1214,20 @@ class OutputEvent(BaseSchema):
             "properties": {
                 "category": {
                     "type": "string",
-                    "description": "The output category. If not specified, 'console' is assumed.",
+                    "description": "The output category. If not specified or if the category is not understand by the client, 'console' is assumed.",
                     "_enum": [
                         "console",
+                        "important",
                         "stdout",
                         "stderr",
                         "telemetry"
+                    ],
+                    "enumDescriptions": [
+                        "Show the output in the client's default message UI, e.g. a 'debug console'. This category should only be used for informational output from the debugger (as opposed to the debuggee).",
+                        "A hint for the client to show the ouput in the client's UI for important and highly visible information, e.g. as a popup notification. This category should only be used for important messages from the debugger (as opposed to the debuggee). Since this category value is a hint, clients might ignore the hint and assume the 'console' category.",
+                        "Show the output as normal program output from the debuggee.",
+                        "Show the output as error program output from the debuggee.",
+                        "Send the output to telemetry instead of showing it to the user."
                     ]
                 },
                 "output": {
@@ -2110,6 +2125,103 @@ class InvalidatedEvent(BaseSchema):
         return dct
 
 
+@register_event('memory')
+@register
+class MemoryEvent(BaseSchema):
+    """
+    This event indicates that some memory range has been updated. It should only be sent if the debug
+    adapter has received a value true for the `supportsMemoryEvent` capability of the `initialize`
+    request.
+    
+    Clients typically react to the event by re-issuing a `readMemory` request if they show the memory
+    identified by the `memoryReference` and if the updated memory range overlaps the displayed range.
+    Clients should not make assumptions how individual memory references relate to each other, so they
+    should not assume that they are part of a single continuous address range and might overlap.
+    
+    Debug adapters can use this event to indicate that the contents of a memory range has changed due to
+    some other DAP request like `setVariable` or `setExpression`. Debug adapters are not expected to
+    emit this event for each and every memory change of a running program, because that information is
+    typically not available from debuggers and it would flood clients with too many events.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "seq": {
+            "type": "integer",
+            "description": "Sequence number (also known as message ID). For protocol messages of type 'request' this ID can be used to cancel the request."
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "event"
+            ]
+        },
+        "event": {
+            "type": "string",
+            "enum": [
+                "memory"
+            ]
+        },
+        "body": {
+            "type": "object",
+            "properties": {
+                "memoryReference": {
+                    "type": "string",
+                    "description": "Memory reference of a memory range that has been updated."
+                },
+                "offset": {
+                    "type": "integer",
+                    "description": "Starting offset in bytes where memory has been updated. Can be negative."
+                },
+                "count": {
+                    "type": "integer",
+                    "description": "Number of bytes updated."
+                }
+            },
+            "required": [
+                "memoryReference",
+                "offset",
+                "count"
+            ]
+        }
+    }
+    __refs__ = set(['body'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, body, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string type: 
+        :param string event: 
+        :param MemoryEventBody body: 
+        :param integer seq: Sequence number (also known as message ID). For protocol messages of type 'request' this ID can be used to cancel the request.
+        """
+        self.type = 'event'
+        self.event = 'memory'
+        if body is None:
+            self.body = MemoryEventBody()
+        else:
+            self.body = MemoryEventBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  MemoryEventBody else body
+        self.seq = seq
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        event = self.event
+        body = self.body
+        seq = self.seq
+        dct = {
+            'type': type,
+            'event': event,
+            'body': body.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
+        }
+        dct.update(self.kwargs)
+        return dct
+
+
 @register_request('runInTerminal')
 @register
 class RunInTerminalRequest(BaseSchema):
@@ -2520,13 +2632,17 @@ class InitializeRequestArguments(BaseSchema):
         "supportsInvalidatedEvent": {
             "type": "boolean",
             "description": "Client supports the invalidated event."
+        },
+        "supportsMemoryEvent": {
+            "type": "boolean",
+            "description": "Client supports the memory event."
         }
     }
     __refs__ = set()
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, adapterID, clientID=None, clientName=None, locale=None, linesStartAt1=None, columnsStartAt1=None, pathFormat=None, supportsVariableType=None, supportsVariablePaging=None, supportsRunInTerminalRequest=None, supportsMemoryReferences=None, supportsProgressReporting=None, supportsInvalidatedEvent=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, adapterID, clientID=None, clientName=None, locale=None, linesStartAt1=None, columnsStartAt1=None, pathFormat=None, supportsVariableType=None, supportsVariablePaging=None, supportsRunInTerminalRequest=None, supportsMemoryReferences=None, supportsProgressReporting=None, supportsInvalidatedEvent=None, supportsMemoryEvent=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string adapterID: The ID of the debug adapter.
         :param string clientID: The ID of the (frontend) client using this adapter.
@@ -2541,6 +2657,7 @@ class InitializeRequestArguments(BaseSchema):
         :param boolean supportsMemoryReferences: Client supports memory references.
         :param boolean supportsProgressReporting: Client supports progress reporting.
         :param boolean supportsInvalidatedEvent: Client supports the invalidated event.
+        :param boolean supportsMemoryEvent: Client supports the memory event.
         """
         self.adapterID = adapterID
         self.clientID = clientID
@@ -2555,6 +2672,7 @@ class InitializeRequestArguments(BaseSchema):
         self.supportsMemoryReferences = supportsMemoryReferences
         self.supportsProgressReporting = supportsProgressReporting
         self.supportsInvalidatedEvent = supportsInvalidatedEvent
+        self.supportsMemoryEvent = supportsMemoryEvent
         self.kwargs = kwargs
 
 
@@ -2572,6 +2690,7 @@ class InitializeRequestArguments(BaseSchema):
         supportsMemoryReferences = self.supportsMemoryReferences
         supportsProgressReporting = self.supportsProgressReporting
         supportsInvalidatedEvent = self.supportsInvalidatedEvent
+        supportsMemoryEvent = self.supportsMemoryEvent
         dct = {
             'adapterID': adapterID,
         }
@@ -2599,6 +2718,8 @@ class InitializeRequestArguments(BaseSchema):
             dct['supportsProgressReporting'] = supportsProgressReporting
         if supportsInvalidatedEvent is not None:
             dct['supportsInvalidatedEvent'] = supportsInvalidatedEvent
+        if supportsMemoryEvent is not None:
+            dct['supportsMemoryEvent'] = supportsMemoryEvent
         dct.update(self.kwargs)
         return dct
 
@@ -3443,22 +3564,37 @@ class RestartArguments(BaseSchema):
     Note: automatically generated code. Do not edit manually.
     """
 
-    __props__ = {}
+    __props__ = {
+        "arguments": {
+            "oneOf": [
+                {
+                    "$ref": "#/definitions/LaunchRequestArguments"
+                },
+                {
+                    "$ref": "#/definitions/AttachRequestArguments"
+                }
+            ],
+            "description": "The latest version of the 'launch' or 'attach' configuration."
+        }
+    }
     __refs__ = set()
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, arguments=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
-    
+        :param TypeNA arguments: The latest version of the 'launch' or 'attach' configuration.
         """
-    
+        self.arguments = arguments
         self.kwargs = kwargs
 
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        arguments = self.arguments
         dct = {
         }
+        if arguments is not None:
+            dct['arguments'] = arguments
         dct.update(self.kwargs)
         return dct
 
@@ -3663,33 +3799,44 @@ class DisconnectArguments(BaseSchema):
         "terminateDebuggee": {
             "type": "boolean",
             "description": "Indicates whether the debuggee should be terminated when the debugger is disconnected.\nIf unspecified, the debug adapter is free to do whatever it thinks is best.\nThe attribute is only honored by a debug adapter if the capability 'supportTerminateDebuggee' is true."
+        },
+        "suspendDebuggee": {
+            "type": "boolean",
+            "description": "Indicates whether the debuggee should stay suspended when the debugger is disconnected.\nIf unspecified, the debuggee should resume execution.\nThe attribute is only honored by a debug adapter if the capability 'supportSuspendDebuggee' is true."
         }
     }
     __refs__ = set()
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, restart=None, terminateDebuggee=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, restart=None, terminateDebuggee=None, suspendDebuggee=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param boolean restart: A value of true indicates that this 'disconnect' request is part of a restart sequence.
         :param boolean terminateDebuggee: Indicates whether the debuggee should be terminated when the debugger is disconnected.
         If unspecified, the debug adapter is free to do whatever it thinks is best.
         The attribute is only honored by a debug adapter if the capability 'supportTerminateDebuggee' is true.
+        :param boolean suspendDebuggee: Indicates whether the debuggee should stay suspended when the debugger is disconnected.
+        If unspecified, the debuggee should resume execution.
+        The attribute is only honored by a debug adapter if the capability 'supportSuspendDebuggee' is true.
         """
         self.restart = restart
         self.terminateDebuggee = terminateDebuggee
+        self.suspendDebuggee = suspendDebuggee
         self.kwargs = kwargs
 
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         restart = self.restart
         terminateDebuggee = self.terminateDebuggee
+        suspendDebuggee = self.suspendDebuggee
         dct = {
         }
         if restart is not None:
             dct['restart'] = restart
         if terminateDebuggee is not None:
             dct['terminateDebuggee'] = terminateDebuggee
+        if suspendDebuggee is not None:
+            dct['suspendDebuggee'] = suspendDebuggee
         dct.update(self.kwargs)
         return dct
 
@@ -4915,8 +5062,23 @@ class SetExceptionBreakpointsArguments(BaseSchema):
 @register
 class SetExceptionBreakpointsResponse(BaseSchema):
     """
-    Response to 'setExceptionBreakpoints' request. This is just an acknowledgement, so no body field is
-    required.
+    Response to 'setExceptionBreakpoints' request.
+    
+    The response contains an array of Breakpoint objects with information about each exception
+    breakpoint or filter. The Breakpoint objects are in the same order as the elements of the 'filters',
+    'filterOptions', 'exceptionOptions' arrays given as arguments. If both 'filters' and 'filterOptions'
+    are given, the returned array must start with 'filters' information first, followed by
+    'filterOptions' information.
+    
+    The mandatory 'verified' property of a Breakpoint object signals whether the exception breakpoint or
+    filter could be successfully created and whether the optional condition or hit count expressions are
+    valid. In case of an error the 'message' property explains the problem. An optional 'id' property
+    can be used to introduce a unique ID for the exception breakpoint or filter so that it can be
+    updated subsequently by sending breakpoint events.
+    
+    For backward compatibility both the 'breakpoints' array and the enclosing 'body' are optional. If
+    these elements are missing a client will not be able to show problems for individual exception
+    breakpoints or filters.
 
     Note: automatically generated code. Do not edit manually.
     """
@@ -4955,19 +5117,19 @@ class SetExceptionBreakpointsResponse(BaseSchema):
             ]
         },
         "body": {
-            "type": [
-                "array",
-                "boolean",
-                "integer",
-                "null",
-                "number",
-                "object",
-                "string"
-            ],
-            "description": "Contains request result if success is true and optional error details if success is false."
+            "type": "object",
+            "properties": {
+                "breakpoints": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Breakpoint"
+                    },
+                    "description": "Information about the exception breakpoints or filters.\nThe breakpoints returned are in the same order as the elements of the 'filters', 'filterOptions', 'exceptionOptions' arrays in the arguments. If both 'filters' and 'filterOptions' are given, the returned array must start with 'filters' information first, followed by 'filterOptions' information."
+                }
+            }
         }
     }
-    __refs__ = set()
+    __refs__ = set(['body'])
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
@@ -4983,7 +5145,7 @@ class SetExceptionBreakpointsResponse(BaseSchema):
         :param string message: Contains the raw error in short form if 'success' is false.
         This raw error might be interpreted by the frontend and is not shown in the UI.
         Some predefined values exist.
-        :param ['array', 'boolean', 'integer', 'null', 'number', 'object', 'string'] body: Contains request result if success is true and optional error details if success is false.
+        :param SetExceptionBreakpointsResponseBody body: 
         """
         self.type = 'response'
         self.request_seq = request_seq
@@ -4991,7 +5153,10 @@ class SetExceptionBreakpointsResponse(BaseSchema):
         self.command = command
         self.seq = seq
         self.message = message
-        self.body = body
+        if body is None:
+            self.body = SetExceptionBreakpointsResponseBody()
+        else:
+            self.body = SetExceptionBreakpointsResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  SetExceptionBreakpointsResponseBody else body
         self.kwargs = kwargs
 
 
@@ -5013,7 +5178,7 @@ class SetExceptionBreakpointsResponse(BaseSchema):
         if message is not None:
             dct['message'] = message
         if body is not None:
-            dct['body'] = body
+            dct['body'] = body.to_dict(update_ids_to_dap=update_ids_to_dap)
         dct.update(self.kwargs)
         return dct
 
@@ -5101,7 +5266,7 @@ class DataBreakpointInfoArguments(BaseSchema):
         },
         "name": {
             "type": "string",
-            "description": "The name of the Variable's child to obtain data breakpoint information for.\nIf variableReference isn\u2019t provided, this can be an expression."
+            "description": "The name of the Variable's child to obtain data breakpoint information for.\nIf variablesReference isn't provided, this can be an expression."
         }
     }
     __refs__ = set()
@@ -5111,7 +5276,7 @@ class DataBreakpointInfoArguments(BaseSchema):
     def __init__(self, name, variablesReference=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string name: The name of the Variable's child to obtain data breakpoint information for.
-        If variableReference isn’t provided, this can be an expression.
+        If variablesReference isn't provided, this can be an expression.
         :param integer variablesReference: Reference to the Variable container if the data breakpoint is requested for a child of the container.
         """
         self.name = name
@@ -5735,7 +5900,10 @@ class SetInstructionBreakpointsResponse(BaseSchema):
 @register
 class ContinueRequest(BaseSchema):
     """
-    The request starts the debuggee to run again.
+    The request resumes execution of all threads. If the debug adapter supports single thread execution
+    (see capability 'supportsSingleThreadExecutionRequests') setting the 'singleThread' argument to true
+    resumes only the specified thread. If not all threads were resumed, the 'allThreadsContinued'
+    attribute of the response must be set to false.
 
     Note: automatically generated code. Do not edit manually.
     """
@@ -5808,19 +5976,24 @@ class ContinueArguments(BaseSchema):
     __props__ = {
         "threadId": {
             "type": "integer",
-            "description": "Continue execution for the specified thread (if possible).\nIf the backend cannot continue on a single thread but will continue on all threads, it should set the 'allThreadsContinued' attribute in the response to true."
+            "description": "Specifies the active thread. If the debug adapter supports single thread execution (see 'supportsSingleThreadExecutionRequests') and the optional argument 'singleThread' is true, only the thread with this ID is resumed."
+        },
+        "singleThread": {
+            "type": "boolean",
+            "description": "If this optional flag is true, execution is resumed only for the thread with given 'threadId'."
         }
     }
     __refs__ = set()
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, threadId, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, threadId, singleThread=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
-        :param integer threadId: Continue execution for the specified thread (if possible).
-        If the backend cannot continue on a single thread but will continue on all threads, it should set the 'allThreadsContinued' attribute in the response to true.
+        :param integer threadId: Specifies the active thread. If the debug adapter supports single thread execution (see 'supportsSingleThreadExecutionRequests') and the optional argument 'singleThread' is true, only the thread with this ID is resumed.
+        :param boolean singleThread: If this optional flag is true, execution is resumed only for the thread with given 'threadId'.
         """
         self.threadId = threadId
+        self.singleThread = singleThread
         if update_ids_from_dap:
             self.threadId = self._translate_id_from_dap(self.threadId)
         self.kwargs = kwargs
@@ -5834,12 +6007,15 @@ class ContinueArguments(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         threadId = self.threadId
+        singleThread = self.singleThread
         if update_ids_to_dap:
             if threadId is not None:
                 threadId = self._translate_id_to_dap(threadId)
         dct = {
             'threadId': threadId,
         }
+        if singleThread is not None:
+            dct['singleThread'] = singleThread
         dct.update(self.kwargs)
         return dct    
     
@@ -5897,7 +6073,7 @@ class ContinueResponse(BaseSchema):
             "properties": {
                 "allThreadsContinued": {
                     "type": "boolean",
-                    "description": "If true, the 'continue' request has ignored the specified thread and continued all threads instead.\nIf this attribute is missing a value of 'true' is assumed for backward compatibility."
+                    "description": "The value true (or a missing property) signals to the client that all threads have been resumed. The value false must be returned if not all threads were resumed."
                 }
             }
         }
@@ -5959,7 +6135,12 @@ class ContinueResponse(BaseSchema):
 @register
 class NextRequest(BaseSchema):
     """
-    The request starts the debuggee to run again for one step.
+    The request executes one step (in the given granularity) for the specified thread and allows all
+    other threads to run freely by resuming them.
+    
+    If the debug adapter supports single thread execution (see capability
+    'supportsSingleThreadExecutionRequests') setting the 'singleThread' argument to true prevents other
+    suspended threads from resuming.
     
     The debug adapter first sends the response and then a 'stopped' event (with reason 'step') after the
     step has completed.
@@ -6035,7 +6216,11 @@ class NextArguments(BaseSchema):
     __props__ = {
         "threadId": {
             "type": "integer",
-            "description": "Execute 'next' for this thread."
+            "description": "Specifies the thread for which to resume execution for one step (of the given granularity)."
+        },
+        "singleThread": {
+            "type": "boolean",
+            "description": "If this optional flag is true, all other suspended threads are not resumed."
         },
         "granularity": {
             "description": "Optional granularity to step. If no granularity is specified, a granularity of 'statement' is assumed.",
@@ -6046,12 +6231,14 @@ class NextArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, threadId, granularity=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, threadId, singleThread=None, granularity=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
-        :param integer threadId: Execute 'next' for this thread.
+        :param integer threadId: Specifies the thread for which to resume execution for one step (of the given granularity).
+        :param boolean singleThread: If this optional flag is true, all other suspended threads are not resumed.
         :param SteppingGranularity granularity: Optional granularity to step. If no granularity is specified, a granularity of 'statement' is assumed.
         """
         self.threadId = threadId
+        self.singleThread = singleThread
         if granularity is not None:
             assert granularity in SteppingGranularity.VALID_VALUES
         self.granularity = granularity
@@ -6068,6 +6255,7 @@ class NextArguments(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         threadId = self.threadId
+        singleThread = self.singleThread
         granularity = self.granularity
         if update_ids_to_dap:
             if threadId is not None:
@@ -6075,6 +6263,8 @@ class NextArguments(BaseSchema):
         dct = {
             'threadId': threadId,
         }
+        if singleThread is not None:
+            dct['singleThread'] = singleThread
         if granularity is not None:
             dct['granularity'] = granularity
         dct.update(self.kwargs)
@@ -6197,9 +6387,14 @@ class NextResponse(BaseSchema):
 @register
 class StepInRequest(BaseSchema):
     """
-    The request starts the debuggee to step into a function/method if possible.
+    The request resumes the given thread to step into a function/method and allows all other threads to
+    run freely by resuming them.
     
-    If it cannot step into a target, 'stepIn' behaves like 'next'.
+    If the debug adapter supports single thread execution (see capability
+    'supportsSingleThreadExecutionRequests') setting the 'singleThread' argument to true prevents other
+    suspended threads from resuming.
+    
+    If the request cannot step into a target, 'stepIn' behaves like the 'next' request.
     
     The debug adapter first sends the response and then a 'stopped' event (with reason 'step') after the
     step has completed.
@@ -6282,7 +6477,11 @@ class StepInArguments(BaseSchema):
     __props__ = {
         "threadId": {
             "type": "integer",
-            "description": "Execute 'stepIn' for this thread."
+            "description": "Specifies the thread for which to resume execution for one step-into (of the given granularity)."
+        },
+        "singleThread": {
+            "type": "boolean",
+            "description": "If this optional flag is true, all other suspended threads are not resumed."
         },
         "targetId": {
             "type": "integer",
@@ -6297,13 +6496,15 @@ class StepInArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, threadId, targetId=None, granularity=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, threadId, singleThread=None, targetId=None, granularity=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
-        :param integer threadId: Execute 'stepIn' for this thread.
+        :param integer threadId: Specifies the thread for which to resume execution for one step-into (of the given granularity).
+        :param boolean singleThread: If this optional flag is true, all other suspended threads are not resumed.
         :param integer targetId: Optional id of the target to step into.
         :param SteppingGranularity granularity: Optional granularity to step. If no granularity is specified, a granularity of 'statement' is assumed.
         """
         self.threadId = threadId
+        self.singleThread = singleThread
         self.targetId = targetId
         if granularity is not None:
             assert granularity in SteppingGranularity.VALID_VALUES
@@ -6321,6 +6522,7 @@ class StepInArguments(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         threadId = self.threadId
+        singleThread = self.singleThread
         targetId = self.targetId
         granularity = self.granularity
         if update_ids_to_dap:
@@ -6329,6 +6531,8 @@ class StepInArguments(BaseSchema):
         dct = {
             'threadId': threadId,
         }
+        if singleThread is not None:
+            dct['singleThread'] = singleThread
         if targetId is not None:
             dct['targetId'] = targetId
         if granularity is not None:
@@ -6453,7 +6657,12 @@ class StepInResponse(BaseSchema):
 @register
 class StepOutRequest(BaseSchema):
     """
-    The request starts the debuggee to run again for one step.
+    The request resumes the given thread to step out (return) from a function/method and allows all
+    other threads to run freely by resuming them.
+    
+    If the debug adapter supports single thread execution (see capability
+    'supportsSingleThreadExecutionRequests') setting the 'singleThread' argument to true prevents other
+    suspended threads from resuming.
     
     The debug adapter first sends the response and then a 'stopped' event (with reason 'step') after the
     step has completed.
@@ -6529,7 +6738,11 @@ class StepOutArguments(BaseSchema):
     __props__ = {
         "threadId": {
             "type": "integer",
-            "description": "Execute 'stepOut' for this thread."
+            "description": "Specifies the thread for which to resume execution for one step-out (of the given granularity)."
+        },
+        "singleThread": {
+            "type": "boolean",
+            "description": "If this optional flag is true, all other suspended threads are not resumed."
         },
         "granularity": {
             "description": "Optional granularity to step. If no granularity is specified, a granularity of 'statement' is assumed.",
@@ -6540,12 +6753,14 @@ class StepOutArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, threadId, granularity=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, threadId, singleThread=None, granularity=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
-        :param integer threadId: Execute 'stepOut' for this thread.
+        :param integer threadId: Specifies the thread for which to resume execution for one step-out (of the given granularity).
+        :param boolean singleThread: If this optional flag is true, all other suspended threads are not resumed.
         :param SteppingGranularity granularity: Optional granularity to step. If no granularity is specified, a granularity of 'statement' is assumed.
         """
         self.threadId = threadId
+        self.singleThread = singleThread
         if granularity is not None:
             assert granularity in SteppingGranularity.VALID_VALUES
         self.granularity = granularity
@@ -6562,6 +6777,7 @@ class StepOutArguments(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         threadId = self.threadId
+        singleThread = self.singleThread
         granularity = self.granularity
         if update_ids_to_dap:
             if threadId is not None:
@@ -6569,6 +6785,8 @@ class StepOutArguments(BaseSchema):
         dct = {
             'threadId': threadId,
         }
+        if singleThread is not None:
+            dct['singleThread'] = singleThread
         if granularity is not None:
             dct['granularity'] = granularity
         dct.update(self.kwargs)
@@ -6691,7 +6909,12 @@ class StepOutResponse(BaseSchema):
 @register
 class StepBackRequest(BaseSchema):
     """
-    The request starts the debuggee to run one step backwards.
+    The request executes one backward step (in the given granularity) for the specified thread and
+    allows all other threads to run backward freely by resuming them.
+    
+    If the debug adapter supports single thread execution (see capability
+    'supportsSingleThreadExecutionRequests') setting the 'singleThread' argument to true prevents other
+    suspended threads from resuming.
     
     The debug adapter first sends the response and then a 'stopped' event (with reason 'step') after the
     step has completed.
@@ -6769,7 +6992,11 @@ class StepBackArguments(BaseSchema):
     __props__ = {
         "threadId": {
             "type": "integer",
-            "description": "Execute 'stepBack' for this thread."
+            "description": "Specifies the thread for which to resume execution for one step backwards (of the given granularity)."
+        },
+        "singleThread": {
+            "type": "boolean",
+            "description": "If this optional flag is true, all other suspended threads are not resumed."
         },
         "granularity": {
             "description": "Optional granularity to step. If no granularity is specified, a granularity of 'statement' is assumed.",
@@ -6780,12 +7007,14 @@ class StepBackArguments(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, threadId, granularity=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, threadId, singleThread=None, granularity=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
-        :param integer threadId: Execute 'stepBack' for this thread.
+        :param integer threadId: Specifies the thread for which to resume execution for one step backwards (of the given granularity).
+        :param boolean singleThread: If this optional flag is true, all other suspended threads are not resumed.
         :param SteppingGranularity granularity: Optional granularity to step. If no granularity is specified, a granularity of 'statement' is assumed.
         """
         self.threadId = threadId
+        self.singleThread = singleThread
         if granularity is not None:
             assert granularity in SteppingGranularity.VALID_VALUES
         self.granularity = granularity
@@ -6802,6 +7031,7 @@ class StepBackArguments(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         threadId = self.threadId
+        singleThread = self.singleThread
         granularity = self.granularity
         if update_ids_to_dap:
             if threadId is not None:
@@ -6809,6 +7039,8 @@ class StepBackArguments(BaseSchema):
         dct = {
             'threadId': threadId,
         }
+        if singleThread is not None:
+            dct['singleThread'] = singleThread
         if granularity is not None:
             dct['granularity'] = granularity
         dct.update(self.kwargs)
@@ -6931,7 +7163,10 @@ class StepBackResponse(BaseSchema):
 @register
 class ReverseContinueRequest(BaseSchema):
     """
-    The request starts the debuggee to run backward.
+    The request resumes backward execution of all threads. If the debug adapter supports single thread
+    execution (see capability 'supportsSingleThreadExecutionRequests') setting the 'singleThread'
+    argument to true resumes only the specified thread. If not all threads were resumed, the
+    'allThreadsContinued' attribute of the response must be set to false.
     
     Clients should only call this request if the capability 'supportsStepBack' is true.
 
@@ -7006,18 +7241,24 @@ class ReverseContinueArguments(BaseSchema):
     __props__ = {
         "threadId": {
             "type": "integer",
-            "description": "Execute 'reverseContinue' for this thread."
+            "description": "Specifies the active thread. If the debug adapter supports single thread execution (see 'supportsSingleThreadExecutionRequests') and the optional argument 'singleThread' is true, only the thread with this ID is resumed."
+        },
+        "singleThread": {
+            "type": "boolean",
+            "description": "If this optional flag is true, backward execution is resumed only for the thread with given 'threadId'."
         }
     }
     __refs__ = set()
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, threadId, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, threadId, singleThread=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
-        :param integer threadId: Execute 'reverseContinue' for this thread.
+        :param integer threadId: Specifies the active thread. If the debug adapter supports single thread execution (see 'supportsSingleThreadExecutionRequests') and the optional argument 'singleThread' is true, only the thread with this ID is resumed.
+        :param boolean singleThread: If this optional flag is true, backward execution is resumed only for the thread with given 'threadId'.
         """
         self.threadId = threadId
+        self.singleThread = singleThread
         if update_ids_from_dap:
             self.threadId = self._translate_id_from_dap(self.threadId)
         self.kwargs = kwargs
@@ -7031,12 +7272,15 @@ class ReverseContinueArguments(BaseSchema):
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         threadId = self.threadId
+        singleThread = self.singleThread
         if update_ids_to_dap:
             if threadId is not None:
                 threadId = self._translate_id_to_dap(threadId)
         dct = {
             'threadId': threadId,
         }
+        if singleThread is not None:
+            dct['singleThread'] = singleThread
         dct.update(self.kwargs)
         return dct    
     
@@ -8634,6 +8878,9 @@ class SetVariableRequest(BaseSchema):
     """
     Set the variable with the given name in the variable container to a new value. Clients should only
     call this request if the capability 'supportsSetVariable' is true.
+    
+    If a debug adapter implements both setVariable and setExpression, a client will only use
+    setExpression if the variable has an evaluateName property.
 
     Note: automatically generated code. Do not edit manually.
     """
@@ -10269,6 +10516,9 @@ class SetExpressionRequest(BaseSchema):
     The expressions have access to any variables and arguments that are in scope of the specified frame.
     
     Clients should only call this request if the capability 'supportsSetExpression' is true.
+    
+    If a debug adapter implements both setExpression and setVariable, a client will only use
+    setExpression if the variable has an evaluateName property.
 
     Note: automatically generated code. Do not edit manually.
     """
@@ -11746,6 +11996,246 @@ class ReadMemoryResponse(BaseSchema):
         return dct
 
 
+@register_request('writeMemory')
+@register
+class WriteMemoryRequest(BaseSchema):
+    """
+    Writes bytes to memory at the provided location.
+    
+    Clients should only call this request if the capability 'supportsWriteMemoryRequest' is true.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "seq": {
+            "type": "integer",
+            "description": "Sequence number (also known as message ID). For protocol messages of type 'request' this ID can be used to cancel the request."
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "request"
+            ]
+        },
+        "command": {
+            "type": "string",
+            "enum": [
+                "writeMemory"
+            ]
+        },
+        "arguments": {
+            "type": "WriteMemoryArguments"
+        }
+    }
+    __refs__ = set(['arguments'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, arguments, seq=-1, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string type: 
+        :param string command: 
+        :param WriteMemoryArguments arguments: 
+        :param integer seq: Sequence number (also known as message ID). For protocol messages of type 'request' this ID can be used to cancel the request.
+        """
+        self.type = 'request'
+        self.command = 'writeMemory'
+        if arguments is None:
+            self.arguments = WriteMemoryArguments()
+        else:
+            self.arguments = WriteMemoryArguments(update_ids_from_dap=update_ids_from_dap, **arguments) if arguments.__class__ !=  WriteMemoryArguments else arguments
+        self.seq = seq
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        command = self.command
+        arguments = self.arguments
+        seq = self.seq
+        dct = {
+            'type': type,
+            'command': command,
+            'arguments': arguments.to_dict(update_ids_to_dap=update_ids_to_dap),
+            'seq': seq,
+        }
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class WriteMemoryArguments(BaseSchema):
+    """
+    Arguments for 'writeMemory' request.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "memoryReference": {
+            "type": "string",
+            "description": "Memory reference to the base location to which data should be written."
+        },
+        "offset": {
+            "type": "integer",
+            "description": "Optional offset (in bytes) to be applied to the reference location before writing data. Can be negative."
+        },
+        "allowPartial": {
+            "type": "boolean",
+            "description": "Optional property to control partial writes. If true, the debug adapter should attempt to write memory even if the entire memory region is not writable. In such a case the debug adapter should stop after hitting the first byte of memory that cannot be written and return the number of bytes written in the response via the 'offset' and 'bytesWritten' properties.\nIf false or missing, a debug adapter should attempt to verify the region is writable before writing, and fail the response if it is not."
+        },
+        "data": {
+            "type": "string",
+            "description": "Bytes to write, encoded using base64."
+        }
+    }
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, memoryReference, data, offset=None, allowPartial=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string memoryReference: Memory reference to the base location to which data should be written.
+        :param string data: Bytes to write, encoded using base64.
+        :param integer offset: Optional offset (in bytes) to be applied to the reference location before writing data. Can be negative.
+        :param boolean allowPartial: Optional property to control partial writes. If true, the debug adapter should attempt to write memory even if the entire memory region is not writable. In such a case the debug adapter should stop after hitting the first byte of memory that cannot be written and return the number of bytes written in the response via the 'offset' and 'bytesWritten' properties.
+        If false or missing, a debug adapter should attempt to verify the region is writable before writing, and fail the response if it is not.
+        """
+        self.memoryReference = memoryReference
+        self.data = data
+        self.offset = offset
+        self.allowPartial = allowPartial
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        memoryReference = self.memoryReference
+        data = self.data
+        offset = self.offset
+        allowPartial = self.allowPartial
+        dct = {
+            'memoryReference': memoryReference,
+            'data': data,
+        }
+        if offset is not None:
+            dct['offset'] = offset
+        if allowPartial is not None:
+            dct['allowPartial'] = allowPartial
+        dct.update(self.kwargs)
+        return dct
+
+
+@register_response('writeMemory')
+@register
+class WriteMemoryResponse(BaseSchema):
+    """
+    Response to 'writeMemory' request.
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "seq": {
+            "type": "integer",
+            "description": "Sequence number (also known as message ID). For protocol messages of type 'request' this ID can be used to cancel the request."
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "response"
+            ]
+        },
+        "request_seq": {
+            "type": "integer",
+            "description": "Sequence number of the corresponding request."
+        },
+        "success": {
+            "type": "boolean",
+            "description": "Outcome of the request.\nIf true, the request was successful and the 'body' attribute may contain the result of the request.\nIf the value is false, the attribute 'message' contains the error in short form and the 'body' may contain additional information (see 'ErrorResponse.body.error')."
+        },
+        "command": {
+            "type": "string",
+            "description": "The command requested."
+        },
+        "message": {
+            "type": "string",
+            "description": "Contains the raw error in short form if 'success' is false.\nThis raw error might be interpreted by the frontend and is not shown in the UI.\nSome predefined values exist.",
+            "_enum": [
+                "cancelled"
+            ],
+            "enumDescriptions": [
+                "request was cancelled."
+            ]
+        },
+        "body": {
+            "type": "object",
+            "properties": {
+                "offset": {
+                    "type": "integer",
+                    "description": "Optional property that should be returned when 'allowPartial' is true to indicate the offset of the first byte of data successfully written. Can be negative."
+                },
+                "bytesWritten": {
+                    "type": "integer",
+                    "description": "Optional property that should be returned when 'allowPartial' is true to indicate the number of bytes starting from address that were successfully written."
+                }
+            }
+        }
+    }
+    __refs__ = set(['body'])
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, request_seq, success, command, seq=-1, message=None, body=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string type: 
+        :param integer request_seq: Sequence number of the corresponding request.
+        :param boolean success: Outcome of the request.
+        If true, the request was successful and the 'body' attribute may contain the result of the request.
+        If the value is false, the attribute 'message' contains the error in short form and the 'body' may contain additional information (see 'ErrorResponse.body.error').
+        :param string command: The command requested.
+        :param integer seq: Sequence number (also known as message ID). For protocol messages of type 'request' this ID can be used to cancel the request.
+        :param string message: Contains the raw error in short form if 'success' is false.
+        This raw error might be interpreted by the frontend and is not shown in the UI.
+        Some predefined values exist.
+        :param WriteMemoryResponseBody body: 
+        """
+        self.type = 'response'
+        self.request_seq = request_seq
+        self.success = success
+        self.command = command
+        self.seq = seq
+        self.message = message
+        if body is None:
+            self.body = WriteMemoryResponseBody()
+        else:
+            self.body = WriteMemoryResponseBody(update_ids_from_dap=update_ids_from_dap, **body) if body.__class__ !=  WriteMemoryResponseBody else body
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        type = self.type  # noqa (assign to builtin)
+        request_seq = self.request_seq
+        success = self.success
+        command = self.command
+        seq = self.seq
+        message = self.message
+        body = self.body
+        dct = {
+            'type': type,
+            'request_seq': request_seq,
+            'success': success,
+            'command': command,
+            'seq': seq,
+        }
+        if message is not None:
+            dct['message'] = message
+        if body is not None:
+            dct['body'] = body.to_dict(update_ids_to_dap=update_ids_to_dap)
+        dct.update(self.kwargs)
+        return dct
+
+
 @register_request('disassemble')
 @register
 class DisassembleRequest(BaseSchema):
@@ -12102,6 +12592,10 @@ class Capabilities(BaseSchema):
             "type": "boolean",
             "description": "The debug adapter supports the 'terminateDebuggee' attribute on the 'disconnect' request."
         },
+        "supportSuspendDebuggee": {
+            "type": "boolean",
+            "description": "The debug adapter supports the 'suspendDebuggee' attribute on the 'disconnect' request."
+        },
         "supportsDelayedStackTraceLoading": {
             "type": "boolean",
             "description": "The debug adapter supports the delayed loading of parts of the stack, which requires that both the 'startFrame' and 'levels' arguments and an optional 'totalFrames' result of the 'StackTrace' request are supported."
@@ -12134,6 +12628,10 @@ class Capabilities(BaseSchema):
             "type": "boolean",
             "description": "The debug adapter supports the 'readMemory' request."
         },
+        "supportsWriteMemoryRequest": {
+            "type": "boolean",
+            "description": "The debug adapter supports the 'writeMemory' request."
+        },
         "supportsDisassembleRequest": {
             "type": "boolean",
             "description": "The debug adapter supports the 'disassemble' request."
@@ -12161,13 +12659,17 @@ class Capabilities(BaseSchema):
         "supportsExceptionFilterOptions": {
             "type": "boolean",
             "description": "The debug adapter supports 'filterOptions' as an argument on the 'setExceptionBreakpoints' request."
+        },
+        "supportsSingleThreadExecutionRequests": {
+            "type": "boolean",
+            "description": "The debug adapter supports the 'singleThread' property on the execution requests ('continue', 'next', 'stepIn', 'stepOut', 'reverseContinue', 'stepBack')."
         }
     }
     __refs__ = set()
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, supportsConfigurationDoneRequest=None, supportsFunctionBreakpoints=None, supportsConditionalBreakpoints=None, supportsHitConditionalBreakpoints=None, supportsEvaluateForHovers=None, exceptionBreakpointFilters=None, supportsStepBack=None, supportsSetVariable=None, supportsRestartFrame=None, supportsGotoTargetsRequest=None, supportsStepInTargetsRequest=None, supportsCompletionsRequest=None, completionTriggerCharacters=None, supportsModulesRequest=None, additionalModuleColumns=None, supportedChecksumAlgorithms=None, supportsRestartRequest=None, supportsExceptionOptions=None, supportsValueFormattingOptions=None, supportsExceptionInfoRequest=None, supportTerminateDebuggee=None, supportsDelayedStackTraceLoading=None, supportsLoadedSourcesRequest=None, supportsLogPoints=None, supportsTerminateThreadsRequest=None, supportsSetExpression=None, supportsTerminateRequest=None, supportsDataBreakpoints=None, supportsReadMemoryRequest=None, supportsDisassembleRequest=None, supportsCancelRequest=None, supportsBreakpointLocationsRequest=None, supportsClipboardContext=None, supportsSteppingGranularity=None, supportsInstructionBreakpoints=None, supportsExceptionFilterOptions=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, supportsConfigurationDoneRequest=None, supportsFunctionBreakpoints=None, supportsConditionalBreakpoints=None, supportsHitConditionalBreakpoints=None, supportsEvaluateForHovers=None, exceptionBreakpointFilters=None, supportsStepBack=None, supportsSetVariable=None, supportsRestartFrame=None, supportsGotoTargetsRequest=None, supportsStepInTargetsRequest=None, supportsCompletionsRequest=None, completionTriggerCharacters=None, supportsModulesRequest=None, additionalModuleColumns=None, supportedChecksumAlgorithms=None, supportsRestartRequest=None, supportsExceptionOptions=None, supportsValueFormattingOptions=None, supportsExceptionInfoRequest=None, supportTerminateDebuggee=None, supportSuspendDebuggee=None, supportsDelayedStackTraceLoading=None, supportsLoadedSourcesRequest=None, supportsLogPoints=None, supportsTerminateThreadsRequest=None, supportsSetExpression=None, supportsTerminateRequest=None, supportsDataBreakpoints=None, supportsReadMemoryRequest=None, supportsWriteMemoryRequest=None, supportsDisassembleRequest=None, supportsCancelRequest=None, supportsBreakpointLocationsRequest=None, supportsClipboardContext=None, supportsSteppingGranularity=None, supportsInstructionBreakpoints=None, supportsExceptionFilterOptions=None, supportsSingleThreadExecutionRequests=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param boolean supportsConfigurationDoneRequest: The debug adapter supports the 'configurationDone' request.
         :param boolean supportsFunctionBreakpoints: The debug adapter supports function breakpoints.
@@ -12190,6 +12692,7 @@ class Capabilities(BaseSchema):
         :param boolean supportsValueFormattingOptions: The debug adapter supports a 'format' attribute on the stackTraceRequest, variablesRequest, and evaluateRequest.
         :param boolean supportsExceptionInfoRequest: The debug adapter supports the 'exceptionInfo' request.
         :param boolean supportTerminateDebuggee: The debug adapter supports the 'terminateDebuggee' attribute on the 'disconnect' request.
+        :param boolean supportSuspendDebuggee: The debug adapter supports the 'suspendDebuggee' attribute on the 'disconnect' request.
         :param boolean supportsDelayedStackTraceLoading: The debug adapter supports the delayed loading of parts of the stack, which requires that both the 'startFrame' and 'levels' arguments and an optional 'totalFrames' result of the 'StackTrace' request are supported.
         :param boolean supportsLoadedSourcesRequest: The debug adapter supports the 'loadedSources' request.
         :param boolean supportsLogPoints: The debug adapter supports logpoints by interpreting the 'logMessage' attribute of the SourceBreakpoint.
@@ -12198,6 +12701,7 @@ class Capabilities(BaseSchema):
         :param boolean supportsTerminateRequest: The debug adapter supports the 'terminate' request.
         :param boolean supportsDataBreakpoints: The debug adapter supports data breakpoints.
         :param boolean supportsReadMemoryRequest: The debug adapter supports the 'readMemory' request.
+        :param boolean supportsWriteMemoryRequest: The debug adapter supports the 'writeMemory' request.
         :param boolean supportsDisassembleRequest: The debug adapter supports the 'disassemble' request.
         :param boolean supportsCancelRequest: The debug adapter supports the 'cancel' request.
         :param boolean supportsBreakpointLocationsRequest: The debug adapter supports the 'breakpointLocations' request.
@@ -12205,6 +12709,7 @@ class Capabilities(BaseSchema):
         :param boolean supportsSteppingGranularity: The debug adapter supports stepping granularities (argument 'granularity') for the stepping requests.
         :param boolean supportsInstructionBreakpoints: The debug adapter supports adding breakpoints based on instruction references.
         :param boolean supportsExceptionFilterOptions: The debug adapter supports 'filterOptions' as an argument on the 'setExceptionBreakpoints' request.
+        :param boolean supportsSingleThreadExecutionRequests: The debug adapter supports the 'singleThread' property on the execution requests ('continue', 'next', 'stepIn', 'stepOut', 'reverseContinue', 'stepBack').
         """
         self.supportsConfigurationDoneRequest = supportsConfigurationDoneRequest
         self.supportsFunctionBreakpoints = supportsFunctionBreakpoints
@@ -12236,6 +12741,7 @@ class Capabilities(BaseSchema):
         self.supportsValueFormattingOptions = supportsValueFormattingOptions
         self.supportsExceptionInfoRequest = supportsExceptionInfoRequest
         self.supportTerminateDebuggee = supportTerminateDebuggee
+        self.supportSuspendDebuggee = supportSuspendDebuggee
         self.supportsDelayedStackTraceLoading = supportsDelayedStackTraceLoading
         self.supportsLoadedSourcesRequest = supportsLoadedSourcesRequest
         self.supportsLogPoints = supportsLogPoints
@@ -12244,6 +12750,7 @@ class Capabilities(BaseSchema):
         self.supportsTerminateRequest = supportsTerminateRequest
         self.supportsDataBreakpoints = supportsDataBreakpoints
         self.supportsReadMemoryRequest = supportsReadMemoryRequest
+        self.supportsWriteMemoryRequest = supportsWriteMemoryRequest
         self.supportsDisassembleRequest = supportsDisassembleRequest
         self.supportsCancelRequest = supportsCancelRequest
         self.supportsBreakpointLocationsRequest = supportsBreakpointLocationsRequest
@@ -12251,6 +12758,7 @@ class Capabilities(BaseSchema):
         self.supportsSteppingGranularity = supportsSteppingGranularity
         self.supportsInstructionBreakpoints = supportsInstructionBreakpoints
         self.supportsExceptionFilterOptions = supportsExceptionFilterOptions
+        self.supportsSingleThreadExecutionRequests = supportsSingleThreadExecutionRequests
         self.kwargs = kwargs
 
 
@@ -12284,6 +12792,7 @@ class Capabilities(BaseSchema):
         supportsValueFormattingOptions = self.supportsValueFormattingOptions
         supportsExceptionInfoRequest = self.supportsExceptionInfoRequest
         supportTerminateDebuggee = self.supportTerminateDebuggee
+        supportSuspendDebuggee = self.supportSuspendDebuggee
         supportsDelayedStackTraceLoading = self.supportsDelayedStackTraceLoading
         supportsLoadedSourcesRequest = self.supportsLoadedSourcesRequest
         supportsLogPoints = self.supportsLogPoints
@@ -12292,6 +12801,7 @@ class Capabilities(BaseSchema):
         supportsTerminateRequest = self.supportsTerminateRequest
         supportsDataBreakpoints = self.supportsDataBreakpoints
         supportsReadMemoryRequest = self.supportsReadMemoryRequest
+        supportsWriteMemoryRequest = self.supportsWriteMemoryRequest
         supportsDisassembleRequest = self.supportsDisassembleRequest
         supportsCancelRequest = self.supportsCancelRequest
         supportsBreakpointLocationsRequest = self.supportsBreakpointLocationsRequest
@@ -12299,6 +12809,7 @@ class Capabilities(BaseSchema):
         supportsSteppingGranularity = self.supportsSteppingGranularity
         supportsInstructionBreakpoints = self.supportsInstructionBreakpoints
         supportsExceptionFilterOptions = self.supportsExceptionFilterOptions
+        supportsSingleThreadExecutionRequests = self.supportsSingleThreadExecutionRequests
         dct = {
         }
         if supportsConfigurationDoneRequest is not None:
@@ -12343,6 +12854,8 @@ class Capabilities(BaseSchema):
             dct['supportsExceptionInfoRequest'] = supportsExceptionInfoRequest
         if supportTerminateDebuggee is not None:
             dct['supportTerminateDebuggee'] = supportTerminateDebuggee
+        if supportSuspendDebuggee is not None:
+            dct['supportSuspendDebuggee'] = supportSuspendDebuggee
         if supportsDelayedStackTraceLoading is not None:
             dct['supportsDelayedStackTraceLoading'] = supportsDelayedStackTraceLoading
         if supportsLoadedSourcesRequest is not None:
@@ -12359,6 +12872,8 @@ class Capabilities(BaseSchema):
             dct['supportsDataBreakpoints'] = supportsDataBreakpoints
         if supportsReadMemoryRequest is not None:
             dct['supportsReadMemoryRequest'] = supportsReadMemoryRequest
+        if supportsWriteMemoryRequest is not None:
+            dct['supportsWriteMemoryRequest'] = supportsWriteMemoryRequest
         if supportsDisassembleRequest is not None:
             dct['supportsDisassembleRequest'] = supportsDisassembleRequest
         if supportsCancelRequest is not None:
@@ -12373,6 +12888,8 @@ class Capabilities(BaseSchema):
             dct['supportsInstructionBreakpoints'] = supportsInstructionBreakpoints
         if supportsExceptionFilterOptions is not None:
             dct['supportsExceptionFilterOptions'] = supportsExceptionFilterOptions
+        if supportsSingleThreadExecutionRequests is not None:
+            dct['supportsSingleThreadExecutionRequests'] = supportsSingleThreadExecutionRequests
         dct.update(self.kwargs)
         return dct
 
@@ -12395,6 +12912,10 @@ class ExceptionBreakpointsFilter(BaseSchema):
             "type": "string",
             "description": "The name of the filter option. This will be shown in the UI."
         },
+        "description": {
+            "type": "string",
+            "description": "An optional help text providing additional information about the exception filter. This string is typically shown as a hover and must be translated."
+        },
         "default": {
             "type": "boolean",
             "description": "Initial value of the filter option. If not specified a value 'false' is assumed."
@@ -12402,39 +12923,53 @@ class ExceptionBreakpointsFilter(BaseSchema):
         "supportsCondition": {
             "type": "boolean",
             "description": "Controls whether a condition can be specified for this filter option. If false or missing, a condition can not be set."
+        },
+        "conditionDescription": {
+            "type": "string",
+            "description": "An optional help text providing information about the condition. This string is shown as the placeholder text for a text box and must be translated."
         }
     }
     __refs__ = set()
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, filter, label, default=None, supportsCondition=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, filter, label, description=None, default=None, supportsCondition=None, conditionDescription=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string filter: The internal ID of the filter option. This value is passed to the 'setExceptionBreakpoints' request.
         :param string label: The name of the filter option. This will be shown in the UI.
+        :param string description: An optional help text providing additional information about the exception filter. This string is typically shown as a hover and must be translated.
         :param boolean default: Initial value of the filter option. If not specified a value 'false' is assumed.
         :param boolean supportsCondition: Controls whether a condition can be specified for this filter option. If false or missing, a condition can not be set.
+        :param string conditionDescription: An optional help text providing information about the condition. This string is shown as the placeholder text for a text box and must be translated.
         """
         self.filter = filter
         self.label = label
+        self.description = description
         self.default = default
         self.supportsCondition = supportsCondition
+        self.conditionDescription = conditionDescription
         self.kwargs = kwargs
 
 
     def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
         filter = self.filter  # noqa (assign to builtin)
         label = self.label
+        description = self.description
         default = self.default
         supportsCondition = self.supportsCondition
+        conditionDescription = self.conditionDescription
         dct = {
             'filter': filter,
             'label': label,
         }
+        if description is not None:
+            dct['description'] = description
         if default is not None:
             dct['default'] = default
         if supportsCondition is not None:
             dct['supportsCondition'] = supportsCondition
+        if conditionDescription is not None:
+            dct['conditionDescription'] = conditionDescription
         dct.update(self.kwargs)
         return dct
 
@@ -13032,6 +13567,10 @@ class StackFrame(BaseSchema):
             "type": "integer",
             "description": "An optional end column of the range covered by the stack frame."
         },
+        "canRestart": {
+            "type": "boolean",
+            "description": "Indicates whether this frame can be restarted with the 'restart' request. Clients should only use this if the debug adapter supports the 'restart' request (capability 'supportsRestartRequest' is true)."
+        },
         "instructionPointerReference": {
             "type": "string",
             "description": "Optional memory reference for the current instruction pointer in this frame."
@@ -13057,7 +13596,7 @@ class StackFrame(BaseSchema):
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, id, name, line, column, source=None, endLine=None, endColumn=None, instructionPointerReference=None, moduleId=None, presentationHint=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, id, name, line, column, source=None, endLine=None, endColumn=None, canRestart=None, instructionPointerReference=None, moduleId=None, presentationHint=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param integer id: An identifier for the stack frame. It must be unique across all threads.
         This id can be used to retrieve the scopes of the frame with the 'scopesRequest' or to restart the execution of a stackframe.
@@ -13067,6 +13606,7 @@ class StackFrame(BaseSchema):
         :param Source source: The optional source of the frame.
         :param integer endLine: An optional end line of the range covered by the stack frame.
         :param integer endColumn: An optional end column of the range covered by the stack frame.
+        :param boolean canRestart: Indicates whether this frame can be restarted with the 'restart' request. Clients should only use this if the debug adapter supports the 'restart' request (capability 'supportsRestartRequest' is true).
         :param string instructionPointerReference: Optional memory reference for the current instruction pointer in this frame.
         :param ['integer', 'string'] moduleId: The module associated with this frame, if any.
         :param string presentationHint: An optional hint for how to present this frame in the UI.
@@ -13082,6 +13622,7 @@ class StackFrame(BaseSchema):
             self.source = Source(update_ids_from_dap=update_ids_from_dap, **source) if source.__class__ !=  Source else source
         self.endLine = endLine
         self.endColumn = endColumn
+        self.canRestart = canRestart
         self.instructionPointerReference = instructionPointerReference
         self.moduleId = moduleId
         self.presentationHint = presentationHint
@@ -13104,6 +13645,7 @@ class StackFrame(BaseSchema):
         source = self.source
         endLine = self.endLine
         endColumn = self.endColumn
+        canRestart = self.canRestart
         instructionPointerReference = self.instructionPointerReference
         moduleId = self.moduleId
         presentationHint = self.presentationHint
@@ -13122,6 +13664,8 @@ class StackFrame(BaseSchema):
             dct['endLine'] = endLine
         if endColumn is not None:
             dct['endColumn'] = endColumn
+        if canRestart is not None:
+            dct['canRestart'] = canRestart
         if instructionPointerReference is not None:
             dct['instructionPointerReference'] = instructionPointerReference
         if moduleId is not None:
@@ -13475,7 +14019,7 @@ class VariablePresentationHint(BaseSchema):
                 "Indicates that the object is an interface.",
                 "Indicates that the object is the most derived class.",
                 "Indicates that the object is virtual, that means it is a synthetic object introducedby the\nadapter for rendering purposes, e.g. an index range for large arrays.",
-                "Indicates that a data breakpoint is registered for the object."
+                "Deprecated: Indicates that a data breakpoint is registered for the object. The 'hasDataBreakpoint' attribute should generally be used instead."
             ]
         },
         "attributes": {
@@ -13490,7 +14034,8 @@ class VariablePresentationHint(BaseSchema):
                     "rawString",
                     "hasObjectId",
                     "canHaveObjectId",
-                    "hasSideEffects"
+                    "hasSideEffects",
+                    "hasDataBreakpoint"
                 ],
                 "enumDescriptions": [
                     "Indicates that the object is static.",
@@ -13499,7 +14044,8 @@ class VariablePresentationHint(BaseSchema):
                     "Indicates that the object is a raw string.",
                     "Indicates that the object can have an Object ID created for it.",
                     "Indicates that the object has an Object ID associated with it.",
-                    "Indicates that the evaluation had side effects."
+                    "Indicates that the evaluation had side effects.",
+                    "Indicates that the object has its value tracked by a data breakpoint."
                 ]
             }
         },
@@ -16395,13 +16941,20 @@ class StoppedEventBody(BaseSchema):
         "allThreadsStopped": {
             "type": "boolean",
             "description": "If 'allThreadsStopped' is true, a debug adapter can announce that all threads have stopped.\n- The client should use this information to enable that all threads can be expanded to access their stacktraces.\n- If the attribute is missing or false, only the thread with the given threadId can be expanded."
+        },
+        "hitBreakpointIds": {
+            "type": "array",
+            "items": {
+                "type": "integer"
+            },
+            "description": "Ids of the breakpoints that triggered the event. In most cases there will be only a single breakpoint but here are some examples for multiple breakpoints:\n- Different types of breakpoints map to the same location.\n- Multiple source breakpoints get collapsed to the same instruction by the compiler/runtime.\n- Multiple function breakpoints with different function names map to the same location."
         }
     }
     __refs__ = set()
 
     __slots__ = list(__props__.keys()) + ['kwargs']
 
-    def __init__(self, reason, description=None, threadId=None, preserveFocusHint=None, text=None, allThreadsStopped=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+    def __init__(self, reason, description=None, threadId=None, preserveFocusHint=None, text=None, allThreadsStopped=None, hitBreakpointIds=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string reason: The reason for the event.
         For backward compatibility this string is shown in the UI if the 'description' attribute is missing (but it must not be translated).
@@ -16412,6 +16965,10 @@ class StoppedEventBody(BaseSchema):
         :param boolean allThreadsStopped: If 'allThreadsStopped' is true, a debug adapter can announce that all threads have stopped.
         - The client should use this information to enable that all threads can be expanded to access their stacktraces.
         - If the attribute is missing or false, only the thread with the given threadId can be expanded.
+        :param array hitBreakpointIds: Ids of the breakpoints that triggered the event. In most cases there will be only a single breakpoint but here are some examples for multiple breakpoints:
+        - Different types of breakpoints map to the same location.
+        - Multiple source breakpoints get collapsed to the same instruction by the compiler/runtime.
+        - Multiple function breakpoints with different function names map to the same location.
         """
         self.reason = reason
         self.description = description
@@ -16419,6 +16976,7 @@ class StoppedEventBody(BaseSchema):
         self.preserveFocusHint = preserveFocusHint
         self.text = text
         self.allThreadsStopped = allThreadsStopped
+        self.hitBreakpointIds = hitBreakpointIds
         if update_ids_from_dap:
             self.threadId = self._translate_id_from_dap(self.threadId)
         self.kwargs = kwargs
@@ -16437,6 +16995,9 @@ class StoppedEventBody(BaseSchema):
         preserveFocusHint = self.preserveFocusHint
         text = self.text
         allThreadsStopped = self.allThreadsStopped
+        hitBreakpointIds = self.hitBreakpointIds
+        if hitBreakpointIds and hasattr(hitBreakpointIds[0], "to_dict"):
+            hitBreakpointIds = [x.to_dict() for x in hitBreakpointIds]
         if update_ids_to_dap:
             if threadId is not None:
                 threadId = self._translate_id_to_dap(threadId)
@@ -16453,6 +17014,8 @@ class StoppedEventBody(BaseSchema):
             dct['text'] = text
         if allThreadsStopped is not None:
             dct['allThreadsStopped'] = allThreadsStopped
+        if hitBreakpointIds is not None:
+            dct['hitBreakpointIds'] = hitBreakpointIds
         dct.update(self.kwargs)
         return dct    
     
@@ -16679,12 +17242,20 @@ class OutputEventBody(BaseSchema):
     __props__ = {
         "category": {
             "type": "string",
-            "description": "The output category. If not specified, 'console' is assumed.",
+            "description": "The output category. If not specified or if the category is not understand by the client, 'console' is assumed.",
             "_enum": [
                 "console",
+                "important",
                 "stdout",
                 "stderr",
                 "telemetry"
+            ],
+            "enumDescriptions": [
+                "Show the output in the client's default message UI, e.g. a 'debug console'. This category should only be used for informational output from the debugger (as opposed to the debuggee).",
+                "A hint for the client to show the ouput in the client's UI for important and highly visible information, e.g. as a popup notification. This category should only be used for important messages from the debugger (as opposed to the debuggee). Since this category value is a hint, clients might ignore the hint and assume the 'console' category.",
+                "Show the output as normal program output from the debuggee.",
+                "Show the output as error program output from the debuggee.",
+                "Send the output to telemetry instead of showing it to the user."
             ]
         },
         "output": {
@@ -16741,7 +17312,7 @@ class OutputEventBody(BaseSchema):
     def __init__(self, output, category=None, group=None, variablesReference=None, source=None, line=None, column=None, data=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
         :param string output: The output to report.
-        :param string category: The output category. If not specified, 'console' is assumed.
+        :param string category: The output category. If not specified or if the category is not understand by the client, 'console' is assumed.
         :param string group: Support for keeping an output log organized by grouping related messages.
         :param integer variablesReference: If an attribute 'variablesReference' exists and its value is > 0, the output contains objects which can be retrieved by passing 'variablesReference' to the 'variables' request. The value should be less than or equal to 2147483647 (2^31-1).
         :param Source source: An optional source location where the output was produced.
@@ -17343,6 +17914,57 @@ class InvalidatedEventBody(BaseSchema):
 
 
 @register
+class MemoryEventBody(BaseSchema):
+    """
+    "body" of MemoryEvent
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "memoryReference": {
+            "type": "string",
+            "description": "Memory reference of a memory range that has been updated."
+        },
+        "offset": {
+            "type": "integer",
+            "description": "Starting offset in bytes where memory has been updated. Can be negative."
+        },
+        "count": {
+            "type": "integer",
+            "description": "Number of bytes updated."
+        }
+    }
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, memoryReference, offset, count, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param string memoryReference: Memory reference of a memory range that has been updated.
+        :param integer offset: Starting offset in bytes where memory has been updated. Can be negative.
+        :param integer count: Number of bytes updated.
+        """
+        self.memoryReference = memoryReference
+        self.offset = offset
+        self.count = count
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        memoryReference = self.memoryReference
+        offset = self.offset
+        count = self.count
+        dct = {
+            'memoryReference': memoryReference,
+            'offset': offset,
+            'count': count,
+        }
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
 class RunInTerminalRequestArgumentsEnv(BaseSchema):
     """
     "env" of RunInTerminalRequestArguments
@@ -17546,6 +18168,51 @@ class SetFunctionBreakpointsResponseBody(BaseSchema):
 
 
 @register
+class SetExceptionBreakpointsResponseBody(BaseSchema):
+    """
+    "body" of SetExceptionBreakpointsResponse
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "breakpoints": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/Breakpoint"
+            },
+            "description": "Information about the exception breakpoints or filters.\nThe breakpoints returned are in the same order as the elements of the 'filters', 'filterOptions', 'exceptionOptions' arrays in the arguments. If both 'filters' and 'filterOptions' are given, the returned array must start with 'filters' information first, followed by 'filterOptions' information."
+        }
+    }
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, breakpoints=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param array breakpoints: Information about the exception breakpoints or filters.
+        The breakpoints returned are in the same order as the elements of the 'filters', 'filterOptions', 'exceptionOptions' arrays in the arguments. If both 'filters' and 'filterOptions' are given, the returned array must start with 'filters' information first, followed by 'filterOptions' information.
+        """
+        self.breakpoints = breakpoints
+        if update_ids_from_dap and self.breakpoints:
+            for o in self.breakpoints:
+                Breakpoint.update_dict_ids_from_dap(o)
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        breakpoints = self.breakpoints
+        if breakpoints and hasattr(breakpoints[0], "to_dict"):
+            breakpoints = [x.to_dict() for x in breakpoints]
+        dct = {
+        }
+        if breakpoints is not None:
+            dct['breakpoints'] = [Breakpoint.update_dict_ids_to_dap(o) for o in breakpoints] if (update_ids_to_dap and breakpoints) else breakpoints
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
 class DataBreakpointInfoResponseBody(BaseSchema):
     """
     "body" of DataBreakpointInfoResponse
@@ -17714,7 +18381,7 @@ class ContinueResponseBody(BaseSchema):
     __props__ = {
         "allThreadsContinued": {
             "type": "boolean",
-            "description": "If true, the 'continue' request has ignored the specified thread and continued all threads instead.\nIf this attribute is missing a value of 'true' is assumed for backward compatibility."
+            "description": "The value true (or a missing property) signals to the client that all threads have been resumed. The value false must be returned if not all threads were resumed."
         }
     }
     __refs__ = set()
@@ -17723,8 +18390,7 @@ class ContinueResponseBody(BaseSchema):
 
     def __init__(self, allThreadsContinued=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
         """
-        :param boolean allThreadsContinued: If true, the 'continue' request has ignored the specified thread and continued all threads instead.
-        If this attribute is missing a value of 'true' is assumed for backward compatibility.
+        :param boolean allThreadsContinued: The value true (or a missing property) signals to the client that all threads have been resumed. The value false must be returned if not all threads were resumed.
         """
         self.allThreadsContinued = allThreadsContinued
         self.kwargs = kwargs
@@ -18622,6 +19288,51 @@ class ReadMemoryResponseBody(BaseSchema):
             dct['unreadableBytes'] = unreadableBytes
         if data is not None:
             dct['data'] = data
+        dct.update(self.kwargs)
+        return dct
+
+
+@register
+class WriteMemoryResponseBody(BaseSchema):
+    """
+    "body" of WriteMemoryResponse
+
+    Note: automatically generated code. Do not edit manually.
+    """
+
+    __props__ = {
+        "offset": {
+            "type": "integer",
+            "description": "Optional property that should be returned when 'allowPartial' is true to indicate the offset of the first byte of data successfully written. Can be negative."
+        },
+        "bytesWritten": {
+            "type": "integer",
+            "description": "Optional property that should be returned when 'allowPartial' is true to indicate the number of bytes starting from address that were successfully written."
+        }
+    }
+    __refs__ = set()
+
+    __slots__ = list(__props__.keys()) + ['kwargs']
+
+    def __init__(self, offset=None, bytesWritten=None, update_ids_from_dap=False, **kwargs):  # noqa (update_ids_from_dap may be unused)
+        """
+        :param integer offset: Optional property that should be returned when 'allowPartial' is true to indicate the offset of the first byte of data successfully written. Can be negative.
+        :param integer bytesWritten: Optional property that should be returned when 'allowPartial' is true to indicate the number of bytes starting from address that were successfully written.
+        """
+        self.offset = offset
+        self.bytesWritten = bytesWritten
+        self.kwargs = kwargs
+
+
+    def to_dict(self, update_ids_to_dap=False):  # noqa (update_ids_to_dap may be unused)
+        offset = self.offset
+        bytesWritten = self.bytesWritten
+        dct = {
+        }
+        if offset is not None:
+            dct['offset'] = offset
+        if bytesWritten is not None:
+            dct['bytesWritten'] = bytesWritten
         dct.update(self.kwargs)
         return dct
 

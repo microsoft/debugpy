@@ -493,6 +493,10 @@ def update_class_to_generate_enums(class_to_generate):
 def update_class_to_generate_objects(classes_to_generate, class_to_generate):
     properties = class_to_generate['properties']
     for key, val in properties.items():
+        if 'type' not in val:
+            val['type'] = 'TypeNA'
+            continue
+
         if val['type'] == 'object':
             create_new = val.copy()
             create_new.update({
