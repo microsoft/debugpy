@@ -3,7 +3,7 @@
 """
 import pickle
 from _pydevd_bundle.pydevd_constants import get_frame, get_current_thread_id, xrange, IS_PY2, \
-    iter_chars, silence_warnings_decorator
+    iter_chars, silence_warnings_decorator, dict_iter_items
 
 from _pydevd_bundle.pydevd_xml import ExceptionOnEvaluate, get_type, var_to_xml
 from _pydev_bundle import pydev_log
@@ -254,10 +254,13 @@ def _expression_to_evaluate(expression):
     return expression
 
 
-def eval_in_context(expression, globals, locals):
+def eval_in_context(expression, globals, locals=None):
     result = None
     try:
-        result = eval(_expression_to_evaluate(expression), globals, locals)
+        if locals is None:
+            result = eval(_expression_to_evaluate(expression), globals)
+        else:
+            result = eval(_expression_to_evaluate(expression), globals, locals)
     except (Exception, KeyboardInterrupt):
         etype, result, tb = sys.exc_info()
         result = ExceptionOnEvaluate(result, etype, tb)
@@ -272,6 +275,8 @@ def eval_in_context(expression, globals, locals):
                 split = expression.split('.')
                 entry = split[0]
 
+                if locals is None:
+                    locals = globals
                 curr = locals[entry]  # Note: we want the KeyError if it's not there.
                 for entry in split[1:]:
                     if entry.startswith('__') and not hasattr(curr, entry):
@@ -347,6 +352,10 @@ def _evaluate_with_timeouts(original_func):
 
     @functools.wraps(original_func)
     def new_func(py_db, frame, expression, is_exec):
+        if py_db is None:
+            # Only for testing...
+            pydev_log.critical('_evaluate_with_timeouts called without py_db!')
+            return original_func(py_db, frame, expression, is_exec)
         warn_evaluation_timeout = pydevd_constants.PYDEVD_WARN_EVALUATION_TIMEOUT
         curr_thread = threading.current_thread()
 
@@ -374,6 +383,27 @@ def compile_as_eval(expression):
     return compile(_expression_to_evaluate(expression), '<string>', 'eval')
 
 
+def _update_globals_and_locals(updated_globals, initial_globals, frame):
+    # We don't have the locals and passed all in globals, so, we have to
+    # manually choose how to update the variables.
+    #
+    # Note that the current implementation is a bit tricky: it does work in general
+    # but if we do something as 'some_var = 10' and 'some_var' is already defined to have
+    # the value '10' in the globals, we won't actually put that value in the locals
+    # (which means that the frame locals won't be updated).
+    # Still, the approach to have a single namespace was chosen because it was the only
+    # one that enabled creating and using variables during the same evaluation.
+    assert updated_globals is not None
+    changed = False
+    for key, val in dict_iter_items(updated_globals):
+        if initial_globals.get(key) is not val:
+            changed = True
+            frame.f_locals[key] = val
+
+    if changed:
+        pydevd_save_locals.save_locals(frame)
+
+
 @_evaluate_with_timeouts
 def evaluate_expression(py_db, frame, expression, is_exec):
     '''
@@ -394,18 +424,46 @@ def evaluate_expression(py_db, frame, expression, is_exec):
     if frame is None:
         return
 
-    # Note: not using frame.f_globals directly because we need variables to be mutated in that
-    # context to support generator expressions (i.e.: the case below doesn't work unless
-    # globals=locals) because a generator expression actually creates a new function context.
-    # i.e.:
-    # global_vars = {}
-    # local_vars = {'ar':["foo", "bar"], 'y':"bar"}
-    # print eval('all((x == y for x in ar))', global_vars, local_vars)
-    # See: https://mail.python.org/pipermail/python-list/2009-January/522213.html
+    # This is very tricky. Some statements can change locals and use them in the same
+    # call (see https://github.com/microsoft/debugpy/issues/815), also, if locals and globals are
+    # passed separately, it's possible that one gets updated but apparently Python will still
+    # try to load from the other, so, what's done is that we merge all in a single dict and
+    # then go on and update the frame with the results afterwards.
 
+    # -- see tests in test_evaluate_expression.py
+
+    # This doesn't work because the variables aren't updated in the locals in case the
+    # evaluation tries to set a variable and use it in the same expression.
+    # updated_globals = frame.f_globals
+    # updated_locals = frame.f_locals
+
+    # This doesn't work because the variables aren't updated in the locals in case the
+    # evaluation tries to set a variable and use it in the same expression.
+    # updated_globals = {}
+    # updated_globals.update(frame.f_globals)
+    # updated_globals.update(frame.f_locals)
+    #
+    # updated_locals = frame.f_locals
+
+    # This doesn't work either in the case where the evaluation tries to set a variable and use
+    # it in the same expression (I really don't know why as it seems like this *should* work
+    # in theory but doesn't in practice).
+    # updated_globals = {}
+    # updated_globals.update(frame.f_globals)
+    #
+    # updated_locals = {}
+    # updated_globals.update(frame.f_locals)
+
+    # This is the only case that worked consistently to run the tests in test_evaluate_expression.py
+    # It's a bit unfortunate because although the exec works in this case, we have to manually
+    # put the updates in the frame locals afterwards.
     updated_globals = {}
     updated_globals.update(frame.f_globals)
-    updated_globals.update(frame.f_locals)  # locals later because it has precedence over the actual globals
+    updated_globals.update(frame.f_locals)
+
+    initial_globals = updated_globals.copy()
+
+    updated_locals = None
 
     try:
         if IS_PY2 and isinstance(expression, unicode):
@@ -419,10 +477,16 @@ def evaluate_expression(py_db, frame, expression, is_exec):
                 # it will have whatever the user actually did)
                 compiled = compile_as_eval(expression)
             except Exception:
-                Exec(_expression_to_evaluate(expression), updated_globals, frame.f_locals)
-                pydevd_save_locals.save_locals(frame)
+                compiled = None
+
+            if compiled is None:
+                try:
+                    Exec(_expression_to_evaluate(expression), updated_globals, updated_locals)
+                finally:
+                    # Update the globals even if it errored as it may have partially worked.
+                    _update_globals_and_locals(updated_globals, initial_globals, frame)
             else:
-                result = eval(compiled, updated_globals, frame.f_locals)
+                result = eval(compiled, updated_globals, updated_locals)
                 if result is not None:  # Only print if it's not None (as python does)
                     if IS_PY2 and isinstance(result, unicode):
                         encoding = sys.stdout.encoding
@@ -433,7 +497,7 @@ def evaluate_expression(py_db, frame, expression, is_exec):
             return
 
         else:
-            ret = eval_in_context(expression, updated_globals, frame.f_locals)
+            ret = eval_in_context(expression, updated_globals, updated_locals)
             try:
                 is_exception_returned = ret.__class__ == ExceptionOnEvaluate
             except:
@@ -442,11 +506,13 @@ def evaluate_expression(py_db, frame, expression, is_exec):
                 if not is_exception_returned:
                     # i.e.: by using a walrus assignment (:=), expressions can change the locals,
                     # so, make sure that we save the locals back to the frame.
-                    pydevd_save_locals.save_locals(frame)
+                    _update_globals_and_locals(updated_globals, initial_globals, frame)
             return ret
     finally:
         # Should not be kept alive if an exception happens and this frame is kept in the stack.
         del updated_globals
+        del updated_locals
+        del initial_globals
         del frame
 
 
@@ -480,7 +546,7 @@ def change_attr_expression(frame, attr, expression, dbg, value=SENTINEL_VALUE):
                     pydevd_save_locals.save_locals(frame)
                     return frame.f_locals[attr]
 
-            # default way (only works for changing it in the topmost frame)
+            # i.e.: case with '.' or save locals not available (just exec the assignment in the frame).
             if value is SENTINEL_VALUE:
                 value = eval(expression, frame.f_globals, frame.f_locals)
             result = value
