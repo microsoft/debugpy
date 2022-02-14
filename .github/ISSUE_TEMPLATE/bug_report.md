@@ -4,6 +4,8 @@ about: Create a report to help us improve
 
 ---
 
+Before creating a new issue, please check the [FAQ](https://github.com/microsoft/debugpy/wiki/FAQ) to see if your question is answered there.
+
 ## Environment data
 
 - debugpy version: XXX (run `import debugpy; print(debugpy.__version__)` if uncertain)
