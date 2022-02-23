@@ -155,10 +155,9 @@ if __name__ == "__main__":
         author="Microsoft Corporation",
         author_email="ptvshelp@microsoft.com",
         url="https://aka.ms/debugpy",
-        python_requires=">=3.5",
+        python_requires=">=3.6",
         classifiers=[
             "Development Status :: 5 - Production/Stable",
-            "Programming Language :: Python :: 3.5",
             "Programming Language :: Python :: 3.6",
             "Programming Language :: Python :: 3.7",
             "Programming Language :: Python :: 3.8",
