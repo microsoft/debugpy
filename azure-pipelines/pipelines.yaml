@@ -37,8 +37,6 @@ jobs:
 
       strategy:
           matrix:
-              py35:
-                  python.version: "3.5"
               py36:
                   python.version: "3.6"
               py37:
@@ -58,31 +56,6 @@ jobs:
             displayName: "Setup gdb"
 
           - template: "templates/use_python.yml"
-
-          - template: "templates/run_tests.yml"
-
-    - job: "Test_MacOS_old"
-      timeoutInMinutes: 30
-      displayName: "Tests - macOS"
-      pool: { vmImage: "macOS-10.14" }
-
-      strategy:
-          matrix:
-              py35:
-                  python.version: "3.5"
-              py36:
-                  python.version: "3.6"
-
-      steps:
-          - script: |
-                ulimit -Sn 8192
-            displayName: "Increase file descriptor limit"
-
-          - template: "templates/use_python.yml"
-
-          - script: |
-                python -m ensurepip --user
-            displayName: "Bootstrap pip"
 
           - template: "templates/run_tests.yml"
 
@@ -122,8 +95,6 @@ jobs:
 
       strategy:
           matrix:
-              py35:
-                  python.version: "3.5"
               py36:
                   python.version: "3.6"
               py37:
