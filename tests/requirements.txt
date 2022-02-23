@@ -1,4 +1,4 @@
-setuptools>=57.4.0
+setuptools
 
 ## Used to run the tests:
 
@@ -16,4 +16,4 @@ psutil
 django
 requests
 gevent
-flask>=1.1.2
+flask
