@@ -1,15 +1,30 @@
+import pytest
 pytest_plugins = [
     str('_pytest.pytester'),
 ]
 
 
-def _run_and_check(testdir, path, check_for='Worked'):
-    result = testdir.runpython(path)
+def _run_and_check(testdir_or_pytester, path, check_for='Worked'):
+    result = testdir_or_pytester.runpython(path)
     result.stdout.fnmatch_lines([
         check_for
     ])
 
-def test_run(testdir):
+
+if hasattr(pytest, 'version_tuple') and pytest.version_tuple[0] >= 7:
+
+    @pytest.fixture
+    def testdir_or_pytester(pytester):
+        return pytester
+
+else:
+
+    @pytest.fixture
+    def testdir_or_pytester(testdir):
+        return testdir
+
+
+def test_run(testdir_or_pytester):
     from tests_python import debugger_unittest
     import sys
     import os
@@ -24,7 +39,7 @@ def test_run(testdir):
     pydevd_dir = os.path.dirname(os.path.dirname(__file__))
     assert os.path.exists(os.path.join(pydevd_dir, 'pydevd.py'))
 
-    _run_and_check(testdir, testdir.makepyfile('''
+    _run_and_check(testdir_or_pytester, testdir_or_pytester.makepyfile('''
 import sys
 sys.path.append(%(pydevd_dir)r)
 import pydevd
@@ -33,7 +48,7 @@ py_db.ready_to_run = True
 py_db.run(%(foo_dir)r)
 ''' % locals()))
 
-    _run_and_check(testdir, testdir.makepyfile('''
+    _run_and_check(testdir_or_pytester, testdir_or_pytester.makepyfile('''
 import sys
 sys.path.append(%(pydevd_dir)r)
 import pydevd
@@ -45,7 +60,7 @@ py_db.run(%(foo_dir)r, set_trace=False)
         # Not valid for Python 2.6
         return
 
-    _run_and_check(testdir, testdir.makepyfile('''
+    _run_and_check(testdir_or_pytester, testdir_or_pytester.makepyfile('''
 import sys
 sys.path.append(%(pydevd_dir)r)
 sys.argv.append('--as-module')
@@ -55,7 +70,7 @@ py_db.ready_to_run = True
 py_db.run(%(foo_module)r, is_module=True)
 ''' % locals()))
 
-    _run_and_check(testdir, testdir.makepyfile('''
+    _run_and_check(testdir_or_pytester, testdir_or_pytester.makepyfile('''
 import sys
 sys.argv.append('--as-module')
 sys.path.append(%(pydevd_dir)r)
@@ -65,7 +80,7 @@ py_db.run(%(foo_module)r, is_module=True, set_trace=False)
 ''' % locals()))
 
 
-def test_run_on_local_module_without_adding_to_pythonpath(testdir):
+def test_run_on_local_module_without_adding_to_pythonpath(testdir_or_pytester):
     import sys
     import os
 
@@ -76,7 +91,7 @@ def test_run_on_local_module_without_adding_to_pythonpath(testdir):
     with open(os.path.join(os.getcwd(), 'local_foo.py'), 'w') as stream:
         stream.write('print("WorkedLocalFoo")')
 
-    _run_and_check(testdir, testdir.makepyfile('''
+    _run_and_check(testdir_or_pytester, testdir_or_pytester.makepyfile('''
 import sys
 import os
 sys.path.append(%(pydevd_dir)r)
@@ -90,7 +105,7 @@ py_db.ready_to_run = True
 py_db.run(%(foo_module)r, is_module=True)
 ''' % locals()), check_for='WorkedLocalFoo')
 
-    _run_and_check(testdir, testdir.makepyfile('''
+    _run_and_check(testdir_or_pytester, testdir_or_pytester.makepyfile('''
 import sys
 import os
 sys.argv.append('--as-module')
