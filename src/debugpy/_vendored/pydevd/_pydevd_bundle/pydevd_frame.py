@@ -544,7 +544,7 @@ class PyDBFrame:
     #     cdef str curr_func_name;
     #     cdef bint exist_result;
     #     cdef dict frame_skips_cache;
-    #     cdef tuple frame_cache_key;
+    #     cdef object frame_cache_key;
     #     cdef tuple line_cache_key;
     #     cdef int breakpoints_in_line_cache;
     #     cdef int breakpoints_in_frame_cache;

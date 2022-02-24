@@ -19,7 +19,7 @@ from _pydevd_bundle._debug_adapter.pydevd_schema import (ThreadEvent, ModuleEven
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
 from _pydevd_bundle.pydevd_constants import (int_types, IS_64BIT_PROCESS,
     PY_VERSION_STR, PY_IMPL_VERSION_STR, PY_IMPL_NAME, IS_PY36_OR_GREATER,
-    IS_PYPY, GENERATED_LEN_ATTR_NAME, IS_WINDOWS, IS_LINUX, IS_MAC)
+    IS_PYPY, GENERATED_LEN_ATTR_NAME, IS_WINDOWS, IS_LINUX, IS_MAC, IS_PY38_OR_GREATER)
 from tests_python import debugger_unittest
 from tests_python.debug_constants import TEST_CHERRYPY, IS_PY2, TEST_DJANGO, TEST_FLASK, IS_PY26, \
     IS_PY27, IS_CPYTHON, TEST_GEVENT, TEST_CYTHON
@@ -5985,6 +5985,43 @@ def test_pandas(case_setup, pyfile):
             raise AssertionError('Did not find variable "data".')
 
         json_facade.write_continue()
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not IS_PY38_OR_GREATER, reason='Python 3.8 onwards required for test.')
+def test_same_lineno_and_filename(case_setup, pyfile):
+
+    @pyfile
+    def target():
+
+        def some_code():
+            print('1')  # Break here
+
+        code_obj = compile('''
+        func()
+        ''', __file__, 'exec')
+
+        code_obj = code_obj.replace(co_name=some_code.__code__.co_name, co_firstlineno=some_code.__code__.co_firstlineno)
+        exec(code_obj, {'func': some_code})
+
+        print('TEST SUCEEDED')
+
+    with case_setup.test_file(target) as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'))
+        json_facade.write_launch(justMyCode=False)
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        json_facade.write_continue()
+
+        if sys.version_info[:2] >= (3, 10):
+            # On Python 3.10 we'll stop twice in this specific case
+            # because the line actually matches in the caller (so
+            # this is correct based on what the debugger is seeing...)
+            json_hit = json_facade.wait_for_thread_stopped()
+            json_facade.write_continue()
         writer.finished_ok = True
 
 
