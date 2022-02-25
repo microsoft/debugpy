@@ -63,6 +63,43 @@ def test_with_tab_in_output(pyfile, target, run):
     assert session.output("stdout").startswith("Hello\tWorld")
 
 
+@pytest.mark.parametrize("redirect_mode", ["internalConsole", "redirectOutput"])
+def test_redirect_output_and_eval(pyfile, target, run, redirect_mode):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        import sys
+
+        debuggee.setup()
+        sys.stdout.write("line\n")
+        ()  # @wait_for_output
+
+    with debug.Session() as session:
+        if redirect_mode == "redirectOutput":
+            session.config["redirectOutput"] = True
+        elif redirect_mode == "internalConsole":
+            session.config["console"] = "internalConsole"
+        else:
+            raise AssertionError("Unexpected: " + redirect_mode)
+
+        with run(session, target(code_to_debug)):
+            session.set_breakpoints(code_to_debug, all)
+
+        stop = session.wait_for_stop()
+        session.request(
+            "evaluate",
+            {
+                "expression": "sys.stdout.write('evaluated\\n')",
+                "frameId": stop.frame_id,
+                "context": "repl",
+            },
+        )
+
+        session.request_continue()
+
+    assert session.output("stdout") == "line\nevaluated\n"
+
+
 @pytest.mark.parametrize("run", runners.all)
 @pytest.mark.parametrize("redirect", ["enabled", "disabled"])
 def test_redirect_output(pyfile, target, run, redirect):
