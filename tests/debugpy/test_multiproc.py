@@ -135,6 +135,7 @@ def test_multiprocessing(pyfile, target, run, start_method):
 
         expected_child_config = expected_subprocess_config(parent_session)
         child_config = parent_session.wait_for_next_event("debugpyAttach")
+        child_config.pop("isOutputRedirected", None)
         assert child_config == expected_child_config
         parent_session.proceed()
 
@@ -144,6 +145,7 @@ def test_multiprocessing(pyfile, target, run, start_method):
 
             expected_grandchild_config = expected_subprocess_config(child_session)
             grandchild_config = child_session.wait_for_next_event("debugpyAttach")
+            grandchild_config.pop("isOutputRedirected", None)
             assert grandchild_config == expected_grandchild_config
 
             with debug.Session(grandchild_config) as grandchild_session:
@@ -204,6 +206,7 @@ def test_subprocess(pyfile, target, run, subProcess):
 
         expected_child_config = expected_subprocess_config(parent_session)
         child_config = parent_session.wait_for_next_event("debugpyAttach")
+        child_config.pop("isOutputRedirected", None)
         assert child_config == expected_child_config
         parent_session.proceed()
 

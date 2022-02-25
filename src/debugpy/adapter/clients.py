@@ -217,6 +217,7 @@ class Client(components.Component):
 
                 arguments = request.arguments
                 if self.launcher:
+                    redirecting = arguments.get("console") == "internalConsole"
                     if "RedirectOutput" in debug_options:
                         # The launcher is doing output redirection, so we don't need the
                         # server to do it, as well.
@@ -224,10 +225,14 @@ class Client(components.Component):
                         arguments["debugOptions"] = list(
                             debug_options - {"RedirectOutput"}
                         )
+                        redirecting = True
 
                     if arguments.get("redirectOutput"):
                         arguments = dict(arguments)
                         del arguments["redirectOutput"]
+                        redirecting = True
+
+                    arguments["isOutputRedirected"] = redirecting
 
                 # pydevd doesn't send "initialized", and responds to the start request
                 # immediately, without waiting for "configurationDone". If it changes

@@ -639,6 +639,9 @@ class PyDB(object):
         self.show_return_values = False
         self.remove_return_values_flag = False
         self.redirect_output = False
+        # Note that besides the `redirect_output` flag, we also need to consider that someone
+        # else is already redirecting (i.e.: debugpy).
+        self.is_output_redirected = False
 
         # this flag disables frame evaluation even if it's available
         self.use_frame_eval = True

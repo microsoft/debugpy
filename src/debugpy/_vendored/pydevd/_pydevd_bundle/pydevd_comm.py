@@ -1161,7 +1161,7 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
     if hasattr(fmt, 'to_dict'):
         fmt = fmt.to_dict()
 
-    if context == 'repl':
+    if context == 'repl' and not py_db.is_output_redirected:
         ctx = pydevd_io.redirect_stream_to_pydb_io_messages_context()
     else:
         ctx = NULL

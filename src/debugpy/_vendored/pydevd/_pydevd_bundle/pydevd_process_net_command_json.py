@@ -389,10 +389,14 @@ class PyDevJsonCommandProcessor(object):
         if bool(path_mappings):
             pydevd_file_utils.setup_client_server_paths(path_mappings)
 
+        redirecting = args.get("isOutputRedirected")
         if self._options.redirect_output:
             py_db.enable_output_redirection(True, True)
+            redirecting = True
         else:
             py_db.enable_output_redirection(False, False)
+
+        py_db.is_output_redirected = redirecting
 
         self.api.set_show_return_values(py_db, self._options.show_return_value)
 
