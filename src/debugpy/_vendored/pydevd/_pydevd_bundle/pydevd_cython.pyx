@@ -1031,14 +1031,17 @@ cdef class PyDBFrame:
                         elif breakpoint.is_logpoint:
                             stop = False
 
-                    if is_call and frame.f_code.co_name in ('<module>', '<lambda>'):
+                    if is_call and (frame.f_code.co_name in ('<lambda>', '<module>') or (line == 1 and frame.f_code.co_name.startswith('<cell'))):
                         # If we find a call for a module, it means that the module is being imported/executed for the
                         # first time. In this case we have to ignore this hit as it may later duplicated by a
                         # line event at the same place (so, if there's a module with a print() in the first line
                         # the user will hit that line twice, which is not what we want).
                         #
-                        # As for lambda, as it only has a single statement, it's not interesting to trace
+                        # For lambda, as it only has a single statement, it's not interesting to trace
                         # its call and later its line event as they're usually in the same line.
+                        #
+                        # For ipython, <cell xxx> may be executed having each line compiled as a new
+                        # module, so it's the same case as <module>.
 
                         return self.trace_dispatch
 
