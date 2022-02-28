@@ -155,6 +155,9 @@ if __name__ == "__main__":
         author="Microsoft Corporation",
         author_email="ptvshelp@microsoft.com",
         url="https://aka.ms/debugpy",
+        project_urls={
+            "Source": "https://github.com/microsoft/debugpy",
+        },
         python_requires=">=3.6",
         classifiers=[
             "Development Status :: 5 - Production/Stable",
