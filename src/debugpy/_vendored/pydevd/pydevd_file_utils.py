@@ -42,7 +42,8 @@ r'''
 '''
 
 from _pydev_bundle import pydev_log
-from _pydevd_bundle.pydevd_constants import IS_PY2, IS_PY3K, DebugInfoHolder, IS_WINDOWS, IS_JYTHON
+from _pydevd_bundle.pydevd_constants import IS_PY2, IS_PY3K, DebugInfoHolder, IS_WINDOWS, IS_JYTHON, \
+    DISABLE_FILE_VALIDATION
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding, filesystem_encoding_is_utf8
 from _pydev_bundle.pydev_log import error_once
@@ -534,19 +535,31 @@ def exists(filename):
 
 
 try:
+    report = pydev_log.critical
+    if DISABLE_FILE_VALIDATION:
+        report = pydev_log.debug
+
     try:
         code = os_path_real_path.func_code
     except AttributeError:
         code = os_path_real_path.__code__
-    if not os.path.isabs(code.co_filename):
-        pydev_log.critical('This version of python seems to be incorrectly compiled')
-        pydev_log.critical('(internal generated filenames are not absolute).')
-        pydev_log.critical('This may make the debugger miss breakpoints.')
-        pydev_log.critical('Related bug: http://bugs.python.org/issue1666807')
+
+    if code.co_filename.startswith('<frozen'):
+        # See: https://github.com/fabioz/PyDev.Debugger/issues/213
+        report('Debugger warning: It seems that frozen modules are being used, which may')
+        report('make the debugger miss breakpoints. Please pass -Xfrozen_modules=off')
+        report('to python to disable frozen modules.')
+        report('Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.')
+
+    elif not os.path.isabs(code.co_filename):
+        report('Debugger warning: The os.path.realpath.__code__.co_filename (%s)', code.co_filename)
+        report('is not absolute, which may make the debugger miss breakpoints.')
+        report('Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.')
+
     elif not exists(code.co_filename):  # Note: checks for files inside .zip containers.
-        pydev_log.critical('It seems the debugger cannot resolve %s', code.co_filename)
-        pydev_log.critical('This may make the debugger miss breakpoints in the standard library.')
-        pydev_log.critical('Related bug: https://bugs.python.org/issue1180193')
+        report('Debugger warning: It seems the debugger cannot find os.path.realpath.__code__.co_filename (%s).', code.co_filename)
+        report('This may make the debugger miss breakpoints in the standard library.')
+        report('Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.')
 except:
     # Don't fail if there's something not correct here -- but at least print it to the user so that we can correct that
     pydev_log.exception()
