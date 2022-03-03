@@ -5,7 +5,7 @@ from _pydev_bundle import pydev_log
 backends = {'tk': 'TkAgg',
             'gtk': 'GTKAgg',
             'wx': 'WXAgg',
-            'qt': 'Qt4Agg',  # qt3 not supported
+            'qt': 'QtAgg', # Auto-choose qt4/5
             'qt4': 'Qt4Agg',
             'qt5': 'Qt5Agg',
             'osx': 'MacOSX'}
@@ -15,8 +15,6 @@ backends = {'tk': 'TkAgg',
 # most part it's just a reverse of the above dict, but we also need to add a
 # few others that map to the same GUI manually:
 backend2gui = dict(zip(backends.values(), backends.keys()))
-backend2gui['Qt4Agg'] = 'qt4'
-backend2gui['Qt5Agg'] = 'qt5'
 # In the reverse mapping, there are a few extra valid matplotlib backends that
 # map to the same GUI support
 backend2gui['GTK'] = backend2gui['GTKCairo'] = 'gtk'
