@@ -269,6 +269,8 @@ SUPPORT_GEVENT = is_true_in_env('GEVENT_SUPPORT')
 # as a different thread, but if the UI isn't optimized for that the experience is lacking...).
 GEVENT_SHOW_PAUSED_GREENLETS = is_true_in_env('GEVENT_SHOW_PAUSED_GREENLETS')
 
+DISABLE_FILE_VALIDATION = is_true_in_env('PYDEVD_DISABLE_FILE_VALIDATION')
+
 GEVENT_SUPPORT_NOT_SET_MSG = os.getenv(
     'GEVENT_SUPPORT_NOT_SET_MSG',
     'It seems that the gevent monkey-patching is being used.\n'
