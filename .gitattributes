@@ -1,1 +1,1 @@
-debugpy/_version.py export-subst
+src/debugpy/_version.py export-subst
