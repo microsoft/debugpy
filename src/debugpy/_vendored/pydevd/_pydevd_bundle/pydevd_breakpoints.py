@@ -1,4 +1,3 @@
-from _pydevd_bundle.pydevd_constants import dict_iter_values, IS_PY24
 from _pydev_bundle import pydev_log
 from _pydevd_bundle import pydevd_import_class
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame
@@ -119,7 +118,7 @@ def get_exception_breakpoint(exctype, exceptions):
         try:
             return exceptions[exception_full_qname]
         except KeyError:
-            for exception_breakpoint in dict_iter_values(exceptions):
+            for exception_breakpoint in exceptions.values():
                 if exception_breakpoint.type is not None and issubclass(exctype, exception_breakpoint.type):
                     if exc is None or issubclass(exception_breakpoint.type, exc.type):
                         exc = exception_breakpoint
@@ -179,9 +178,6 @@ def stop_on_unhandled_exception(py_db, thread, additional_info, arg):
 
 
 def get_exception_class(kls):
-    if IS_PY24 and "BaseException" == kls:
-        kls = "Exception"
-
     try:
         return eval(kls)
     except:

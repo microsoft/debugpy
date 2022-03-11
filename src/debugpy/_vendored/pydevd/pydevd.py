@@ -51,9 +51,9 @@ from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, CMD_STEP_I
     CMD_STEP_INTO_MY_CODE, CMD_STEP_OVER, CMD_SMART_STEP_INTO, CMD_RUN_TO_LINE,
     CMD_SET_NEXT_STATEMENT, CMD_STEP_RETURN, CMD_ADD_EXCEPTION_BREAK, CMD_STEP_RETURN_MY_CODE,
     CMD_STEP_OVER_MY_CODE, constant_to_str, CMD_STEP_INTO_COROUTINE)
-from _pydevd_bundle.pydevd_constants import (IS_JYTH_LESS25, get_thread_id, get_current_thread_id,
-    dict_keys, dict_iter_items, DebugInfoHolder, PYTHON_SUSPEND, STATE_SUSPEND, STATE_RUN, get_frame,
-    clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, IS_PY34_OR_GREATER, IS_PY2, NULL,
+from _pydevd_bundle.pydevd_constants import (get_thread_id, get_current_thread_id,
+    DebugInfoHolder, PYTHON_SUSPEND, STATE_SUSPEND, STATE_RUN, get_frame,
+    clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, NULL,
     NO_FTRACE, IS_IRONPYTHON, JSON_PROTOCOL, IS_CPYTHON, HTTP_JSON_PROTOCOL, USE_CUSTOM_SYS_CURRENT_FRAMES_MAP, call_only_once,
     ForkSafeLock, IGNORE_BASENAMES_STARTING_WITH, EXCEPTION_TYPE_UNHANDLED, SUPPORT_GEVENT)
 from _pydevd_bundle.pydevd_defaults import PydevdCustomization  # Note: import alias used on pydev_monkey.
@@ -111,7 +111,7 @@ if SUPPORT_GEVENT:
 if USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
     from _pydevd_bundle.pydevd_constants import constructed_tid_to_last_frame
 
-__version_info__ = (2, 7, 0)
+__version_info__ = (2, 8, 0)
 __version_info_str__ = []
 for v in __version_info__:
     __version_info_str__.append(str(v))
@@ -161,10 +161,7 @@ def install_breakpointhook(pydevd_breakpointhook=None):
 # Install the breakpoint hook at import time.
 install_breakpointhook()
 
-SUPPORT_PLUGINS = not IS_JYTH_LESS25
-PluginManager = None
-if SUPPORT_PLUGINS:
-    from _pydevd_bundle.pydevd_plugin_utils import PluginManager
+from _pydevd_bundle.pydevd_plugin_utils import PluginManager
 
 threadingEnumerate = threading.enumerate
 threadingCurrentThread = threading.current_thread
@@ -885,11 +882,6 @@ class PyDB(object):
 
             return eval(condition, new_frame.f_globals, new_frame.f_locals)
         except Exception as e:
-            if IS_PY2:
-                # Must be bytes on py2.
-                if isinstance(condition, unicode):  # noqa
-                    condition = condition.encode('utf-8')
-
             if not isinstance(e, self.skip_print_breakpoint_exception):
                 sys.stderr.write('Error while evaluating expression: %s\n' % (condition,))
 
@@ -1165,7 +1157,7 @@ class PyDB(object):
         return self._threads_suspended_single_notification
 
     def get_plugin_lazy_init(self):
-        if self.plugin is None and SUPPORT_PLUGINS:
+        if self.plugin is None:
             self.plugin = PluginManager(self)
         return self.plugin
 
@@ -1533,7 +1525,7 @@ class PyDB(object):
         # import hook and patches for matplotlib support in debug console
         from _pydev_bundle.pydev_import_hook import import_hook_manager
         if is_current_thread_main_thread():
-            for module in dict_keys(self.mpl_modules_for_patching):
+            for module in list(self.mpl_modules_for_patching):
                 import_hook_manager.add_module_name(module, self.mpl_modules_for_patching.pop(module))
 
     def init_gui_support(self):
@@ -1574,7 +1566,7 @@ class PyDB(object):
 
         if len(self.mpl_modules_for_patching) > 0:
             if is_current_thread_main_thread():  # Note that we call only in the main thread.
-                for module in dict_keys(self.mpl_modules_for_patching):
+                for module in list(self.mpl_modules_for_patching):
                     if module in sys.modules:
                         activate_function = self.mpl_modules_for_patching.pop(module, None)
                         if activate_function is not None:
@@ -1775,7 +1767,7 @@ class PyDB(object):
 
     def consolidate_breakpoints(self, canonical_normalized_filename, id_to_breakpoint, file_to_line_to_breakpoints):
         break_dict = {}
-        for _breakpoint_id, pybreakpoint in dict_iter_items(id_to_breakpoint):
+        for _breakpoint_id, pybreakpoint in id_to_breakpoint.items():
             break_dict[pybreakpoint.line] = pybreakpoint
 
         file_to_line_to_breakpoints[canonical_normalized_filename] = break_dict
@@ -2016,7 +2008,7 @@ class PyDB(object):
             with CustomFramesContainer.custom_frames_lock:  # @UndefinedVariable
                 from_this_thread = []
 
-                for frame_custom_thread_id, custom_frame in dict_iter_items(CustomFramesContainer.custom_frames):
+                for frame_custom_thread_id, custom_frame in CustomFramesContainer.custom_frames.items():
                     if custom_frame.thread_id == thread.ident:
                         frames_tracker.track(thread_id, pydevd_frame_utils.create_frames_list_from_frame(custom_frame.frame), frame_custom_thread_id=frame_custom_thread_id)
                         # print('Frame created as thread: %s' % (frame_custom_thread_id,))
@@ -2230,7 +2222,7 @@ class PyDB(object):
                 try:
 
                     def get_pydb_daemon_threads_to_wait():
-                        pydb_daemon_threads = set(dict_keys(self.created_pydb_daemon_threads))
+                        pydb_daemon_threads = set(self.created_pydb_daemon_threads)
                         pydb_daemon_threads.discard(self.check_alive_thread)
                         pydb_daemon_threads.discard(threading.current_thread())
                         return pydb_daemon_threads
@@ -2298,7 +2290,7 @@ class PyDB(object):
             else:
                 pydev_log.debug("PyDB.dispose_and_kill_all_pydevd_threads timed out waiting for writer to be empty.")
 
-            pydb_daemon_threads = set(dict_keys(self.created_pydb_daemon_threads))
+            pydb_daemon_threads = set(self.created_pydb_daemon_threads)
             for t in pydb_daemon_threads:
                 if hasattr(t, 'do_kill_pydev_thread'):
                     pydev_log.debug("PyDB.dispose_and_kill_all_pydevd_threads killing thread: %s", t)
@@ -2909,7 +2901,7 @@ def _locked_settrace(
         py_db.set_trace_for_frame_and_parents(get_frame().f_back)
 
         with CustomFramesContainer.custom_frames_lock:  # @UndefinedVariable
-            for _frameId, custom_frame in dict_iter_items(CustomFramesContainer.custom_frames):
+            for _frameId, custom_frame in CustomFramesContainer.custom_frames.items():
                 py_db.set_trace_for_frame_and_parents(custom_frame.frame)
 
     else:
@@ -3374,8 +3366,7 @@ def main():
         if setup['save-threading']:
             debugger.thread_analyser = ThreadingLogger()
         if setup['save-asyncio']:
-            if IS_PY34_OR_GREATER:
-                debugger.asyncio_analyser = AsyncioLogger()
+            debugger.asyncio_analyser = AsyncioLogger()
 
         apply_debugger_options(setup)
 

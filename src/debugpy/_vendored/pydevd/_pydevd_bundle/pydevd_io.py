@@ -1,4 +1,4 @@
-from _pydevd_bundle.pydevd_constants import ForkSafeLock, get_global_debugger, IS_PY2
+from _pydevd_bundle.pydevd_constants import ForkSafeLock, get_global_debugger
 import os
 import sys
 from contextlib import contextmanager
@@ -100,18 +100,9 @@ class RedirectToPyDBIoMessages(object):
             return
 
         if s:
-            if IS_PY2:
-                # Need s in utf-8 bytes
-                if isinstance(s, unicode):  # noqa
-                    # Note: python 2.6 does not accept the "errors" keyword.
-                    s = s.encode('utf-8', 'replace')
-                else:
-                    s = s.decode(self.encoding, 'replace').encode('utf-8', 'replace')
-
-            else:
-                # Need s in str
-                if isinstance(s, bytes):
-                    s = s.decode(self.encoding, errors='replace')
+            # Need s in str
+            if isinstance(s, bytes):
+                s = s.decode(self.encoding, errors='replace')
 
             py_db = self.get_pydb()
             if py_db is not None:
@@ -139,13 +130,8 @@ class IOBuf:
         return ''.join(b)  # bytes on py2, str on py3.
 
     def write(self, s):
-        if IS_PY2:
-            if isinstance(s, unicode):
-                # can't use 'errors' as kwargs in py 2.6
-                s = s.encode(self.encoding, 'replace')
-        else:
-            if isinstance(s, bytes):
-                s = s.decode(self.encoding, errors='replace')
+        if isinstance(s, bytes):
+            s = s.decode(self.encoding, errors='replace')
         self.buflist.append(s)
 
     def isatty(self):
@@ -192,7 +178,7 @@ def start_redirect(keep_original_redirection=False, std='stdout', redirect_to=No
             stack = getattr(_RedirectionsHolder, '_stack_%s' % std)
 
             if keep_original_redirection:
-                wrap_buffer = True if not IS_PY2 and hasattr(redirect_to, 'buffer') else False
+                wrap_buffer = True if hasattr(redirect_to, 'buffer') else False
                 new_std_instance = IORedirector(getattr(sys, std), redirect_to, wrap_buffer=wrap_buffer)
                 setattr(sys, std, new_std_instance)
             else:
@@ -224,7 +210,7 @@ def redirect_stream_to_pydb_io_messages(std):
     with _RedirectionsHolder._lock:
         redirect_to_name = '_pydevd_%s_redirect_' % (std,)
         if getattr(_RedirectionsHolder, redirect_to_name) is None:
-            wrap_buffer = True if not IS_PY2 else False
+            wrap_buffer = True
             original = getattr(sys, std)
 
             redirect_to = RedirectToPyDBIoMessages(1 if std == 'stdout' else 2, original, wrap_buffer)

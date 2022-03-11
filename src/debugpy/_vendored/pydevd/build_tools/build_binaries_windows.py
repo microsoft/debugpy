@@ -16,17 +16,18 @@ import sys
 miniconda_envs = os.getenv('MINICONDA_ENVS', r'C:\bin\Miniconda3\envs')
 
 python_installations = [
-    r'%s\py27_32\python.exe' % miniconda_envs,
+
     r'%s\py36_32\python.exe' % miniconda_envs,
     r'%s\py37_32\python.exe' % miniconda_envs,
     r'%s\py38_32\python.exe' % miniconda_envs,
     r'%s\py39_32\python.exe' % miniconda_envs,
+    r'%s\py310_32\python.exe' % miniconda_envs,
 
-    r'%s\py27_64\python.exe' % miniconda_envs,
     r'%s\py36_64\python.exe' % miniconda_envs,
     r'%s\py37_64\python.exe' % miniconda_envs,
     r'%s\py38_64\python.exe' % miniconda_envs,
     r'%s\py39_64\python.exe' % miniconda_envs,
+    r'%s\py310_64\python.exe' % miniconda_envs,
 ]
 
 root_dir = os.path.dirname(os.path.dirname(__file__))
@@ -69,12 +70,14 @@ def main():
             python_install, os.path.join(root_dir, 'build_tools', 'build.py'), '--no-remove-binaries', '--target-pyd-name=%s' % new_name, '--force-cython']
         if i != 0:
             args.append('--no-regenerate-files')
-        version_number = extract_version(python_install)
-        if version_number.startswith('36') or version_number.startswith('37'):
-            name_frame_eval = 'pydevd_frame_evaluator_%s_%s' % (sys.platform, extract_version(python_install))
-            args.append('--target-pyd-frame-eval=%s' % name_frame_eval)
+        name_frame_eval = 'pydevd_frame_evaluator_%s_%s' % (sys.platform, extract_version(python_install))
+        args.append('--target-pyd-frame-eval=%s' % name_frame_eval)
         print('Calling: %s' % (' '.join(args)))
-        subprocess.check_call(args)
+
+        env = os.environ.copy()
+        python_exe_dir = os.path.dirname(python_install)
+        env['PATH'] = env['PATH'] + ';' + os.path.join(python_exe_dir, 'DLLs') + ';' + os.path.join(python_exe_dir, 'Library', 'bin')
+        subprocess.check_call(args, env=env)
 
 
 if __name__ == '__main__':

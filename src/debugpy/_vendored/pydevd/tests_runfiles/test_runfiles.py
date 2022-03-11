@@ -1,17 +1,14 @@
 import os.path
 import sys
 
-IS_PY26 = sys.version_info[:2] == (2, 6)
-
 IS_JYTHON = sys.platform.find('java') != -1
 
 try:
     this_file_name = __file__
 except NameError:
     # stupid jython. plain old __file__ isnt working for some reason
-    import test_runfiles  #@UnresolvedImport - importing the module itself
+    import test_runfiles  # @UnresolvedImport - importing the module itself
     this_file_name = test_runfiles.__file__
-
 
 desired_runfiles_path = os.path.normpath(os.path.dirname(this_file_name) + "/..")
 sys.path.insert(0, desired_runfiles_path)
@@ -20,12 +17,11 @@ from _pydev_runfiles import pydev_runfiles_unittest
 from _pydev_runfiles import pydev_runfiles_xml_rpc
 from _pydevd_bundle import pydevd_io
 
-#remove existing pydev_runfiles from modules (if any), so that we can be sure we have the correct version
+# remove existing pydev_runfiles from modules (if any), so that we can be sure we have the correct version
 if 'pydev_runfiles' in sys.modules:
     del sys.modules['pydev_runfiles']
 if '_pydev_runfiles.pydev_runfiles' in sys.modules:
     del sys.modules['_pydev_runfiles.pydev_runfiles']
-
 
 from _pydev_runfiles import pydev_runfiles
 import unittest
@@ -37,7 +33,7 @@ try:
 except:
     from sets import Set as set
 
-#this is an early test because it requires the sys.path changed
+# this is an early test because it requires the sys.path changed
 orig_syspath = sys.path
 a_file = pydev_runfiles.__file__
 pydev_runfiles.PydevTestRunner(pydev_runfiles.Configuration(files_or_dirs=[a_file]))
@@ -45,8 +41,9 @@ file_dir = os.path.dirname(os.path.dirname(a_file))
 assert file_dir in sys.path
 sys.path = orig_syspath[:]
 
-#remove it so that we leave it ok for other tests
+# remove it so that we leave it ok for other tests
 sys.path.remove(desired_runfiles_path)
+
 
 class RunfilesTest(unittest.TestCase):
 
@@ -80,7 +77,6 @@ class RunfilesTest(unittest.TestCase):
     def setUp(self):
         self.file_dir = [os.path.abspath(os.path.join(desired_runfiles_path, 'tests_runfiles/samples'))]
         self._setup_scenario(self.file_dir, None)
-
 
     def test_suite_used(self):
         for suite in self.all_tests + self.filtered_tests:
@@ -134,14 +130,12 @@ class RunfilesTest(unittest.TestCase):
         configuration = pydev_runfiles.parse_cmdline()
         self.assertEqual(['*__todo', 'test*bar'], configuration.exclude_tests)
 
-
     def test___adjust_python_path_works_for_directories(self):
         orig_syspath = sys.path
         tempdir = tempfile.gettempdir()
         pydev_runfiles.PydevTestRunner(pydev_runfiles.Configuration(files_or_dirs=[tempdir]))
         self.assertEqual(1, tempdir in sys.path)
         sys.path = orig_syspath[:]
-
 
     def test___is_valid_py_file(self):
         isvalid = self.MyTestRunner._PydevTestRunner__is_valid_py_file
@@ -201,18 +195,13 @@ class RunfilesTest(unittest.TestCase):
         for t in tests:
             total += t.countTestCases()
         return total
-    
+
     def test_runfile_imports(self):
         from _pydev_runfiles import pydev_runfiles_coverage
         from _pydev_runfiles import pydev_runfiles_parallel_client
         from _pydev_runfiles import pydev_runfiles_parallel
         import pytest
-        if IS_PY26:
-            with pytest.raises(AssertionError) as e:
-                from _pydev_runfiles import pydev_runfiles_pytest2
-            assert 'Please upgrade pytest' in str(e)
-        else:
-            from _pydev_runfiles import pydev_runfiles_pytest2
+        from _pydev_runfiles import pydev_runfiles_pytest2
         from _pydev_runfiles import pydev_runfiles_unittest
         from _pydev_runfiles import pydev_runfiles_xml_rpc
         from _pydev_runfiles import pydev_runfiles
@@ -277,7 +266,6 @@ class RunfilesTest(unittest.TestCase):
         filtered_tests = self.MyTestRunner.filter_tests(self.all_tests)
         self.assertEqual(self.count_suite(filtered_tests), 0)
 
-
         self._setup_scenario(self.file_dir, None, exclude_tests=['*a*'])
         filtered_tests = self.MyTestRunner.filter_tests(self.all_tests)
         self.assertEqual(self.count_suite(filtered_tests), 6)
@@ -320,31 +308,30 @@ class RunfilesTest(unittest.TestCase):
         import sys
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'samples'))
         notifications = []
+
         class Server:
 
             def __init__(self, notifications):
                 self.notifications = notifications
 
             def notifyConnected(self):
-                #This method is called at the very start (in runfiles.py), and we do not check this here
+                # This method is called at the very start (in runfiles.py), and we do not check this here
                 raise AssertionError('Should not be called from the run tests.')
-
 
             def notifyTestsCollected(self, number_of_tests):
                 self.notifications.append(('notifyTestsCollected', number_of_tests))
-
 
             def notifyStartTest(self, file, test):
                 pass
 
             def notifyTest(self, cond, captured_output, error_contents, file, test, time):
                 try:
-                    #I.e.: when marked as Binary in xml-rpc
+                    # I.e.: when marked as Binary in xml-rpc
                     captured_output = captured_output.data
                 except:
                     pass
                 try:
-                    #I.e.: when marked as Binary in xml-rpc
+                    # I.e.: when marked as Binary in xml-rpc
                     error_contents = error_contents.data
                 except:
                     pass
@@ -380,13 +367,13 @@ class RunfilesTest(unittest.TestCase):
             if sys.version_info[:2] <= (2, 6):
                 # The setUpClass is not supported in Python 2.6 (thus we have no collection error).
                 expected = [
-                    ('notifyTest', 'fail', '', 'AssertionError: Fail test 2', simple_test, 'SampleTest.test_xxxxxx1'), 
-                    ('notifyTest', 'ok', '', '', simple_test2, 'YetAnotherSampleTest.test_abc'), 
-                    ('notifyTest', 'ok', '', '', simpleClass_test, 'SetUpClassTest.test_blank'), 
-                    ('notifyTest', 'ok', '', '', simpleModule_test, 'SetUpModuleTest.test_blank'), 
-                    ('notifyTest', 'ok', '', '', simple_test, 'SampleTest.test_xxxxxx2'), 
-                    ('notifyTest', 'ok', 'non unique name ran', '', simple_test, 'SampleTest.test_non_unique_name'), 
-                    ('notifyTestRunFinished',), 
+                    ('notifyTest', 'fail', '', 'AssertionError: Fail test 2', simple_test, 'SampleTest.test_xxxxxx1'),
+                    ('notifyTest', 'ok', '', '', simple_test2, 'YetAnotherSampleTest.test_abc'),
+                    ('notifyTest', 'ok', '', '', simpleClass_test, 'SetUpClassTest.test_blank'),
+                    ('notifyTest', 'ok', '', '', simpleModule_test, 'SetUpModuleTest.test_blank'),
+                    ('notifyTest', 'ok', '', '', simple_test, 'SampleTest.test_xxxxxx2'),
+                    ('notifyTest', 'ok', 'non unique name ran', '', simple_test, 'SampleTest.test_non_unique_name'),
+                    ('notifyTestRunFinished',),
                     ('notifyTestsCollected', 6)
                 ]
             else:
@@ -397,7 +384,7 @@ class RunfilesTest(unittest.TestCase):
                         ('notifyTest', 'ok', '', '', simple_test, 'SampleTest.test_xxxxxx2'),
                         ('notifyTest', 'ok', '', '', simple_test2, 'YetAnotherSampleTest.test_abc'),
                     ]
-    
+
                 if not IS_JYTHON:
                     if 'samples.simpleClass_test' in str(notifications):
                         expected.append(('notifyTest', 'error', '', 'ValueError: This is an INTENTIONAL value error in setUpClass.',
@@ -414,7 +401,7 @@ class RunfilesTest(unittest.TestCase):
                     expected.append(('notifyTest', 'ok', '', '', simpleModule_test, 'SetUpModuleTest.test_blank'))
 
                 expected.append(('notifyTestRunFinished',))
-                
+
             expected.sort()
             new_notifications = []
             for notification in expected:

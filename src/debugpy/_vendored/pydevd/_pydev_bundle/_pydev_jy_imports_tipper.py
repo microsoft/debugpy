@@ -1,34 +1,26 @@
-try:
-    import StringIO
-except:
-    import io as StringIO
-
 import traceback
-from java.lang import StringBuffer #@UnresolvedImport
-from java.lang import String #@UnresolvedImport
-import java.lang #@UnresolvedImport
+from io import StringIO
+from java.lang import StringBuffer  # @UnresolvedImport
+from java.lang import String  # @UnresolvedImport
+import java.lang  # @UnresolvedImport
 import sys
 from _pydev_bundle._pydev_tipper_common import do_find
 
+from org.python.core import PyReflectedFunction  # @UnresolvedImport
 
-from org.python.core import PyReflectedFunction #@UnresolvedImport
+from org.python import core  # @UnresolvedImport
+from org.python.core import PyClass  # @UnresolvedImport
 
-from org.python import core #@UnresolvedImport
-from org.python.core import PyClass #@UnresolvedImport
+xrange = range
 
-try:
-    xrange
-except:
-    xrange = range
-
-
-#completion types.
+# completion types.
 TYPE_IMPORT = '0'
 TYPE_CLASS = '1'
 TYPE_FUNCTION = '2'
 TYPE_ATTR = '3'
 TYPE_BUILTIN = '4'
 TYPE_PARAM = '5'
+
 
 def _imp(name):
     try:
@@ -41,8 +33,10 @@ def _imp(name):
             s = 'Unable to import module: %s - sys.path: %s' % (str(name), sys.path)
             raise RuntimeError(s)
 
+
 import java.util
 _java_rt_file = getattr(java.util, '__file__', None)
+
 
 def Find(name):
     f = None
@@ -61,14 +55,13 @@ def Find(name):
     except:
         f = None
 
-
     components = name.split('.')
     old_comp = None
     for comp in components[1:]:
         try:
-            #this happens in the following case:
-            #we have mx.DateTime.mxDateTime.mxDateTime.pyd
-            #but after importing it, mx.DateTime.mxDateTime does shadows access to mxDateTime.pyd
+            # this happens in the following case:
+            # we have mx.DateTime.mxDateTime.mxDateTime.pyd
+            # but after importing it, mx.DateTime.mxDateTime does shadows access to mxDateTime.pyd
             mod = getattr(mod, comp)
         except AttributeError:
             if old_comp != comp:
@@ -82,7 +75,7 @@ def Find(name):
             foundAs = foundAs + comp
 
         old_comp = comp
-        
+
     if f is None and name.startswith('java.lang'):
         # Hack: java.lang.__file__ is None on Jython 2.7 (whereas it pointed to rt.jar on Jython 2.5).
         f = _java_rt_file
@@ -94,9 +87,10 @@ def Find(name):
             f = f[:-len('$py.class')] + '.py'
     return f, mod, parent, foundAs
 
+
 def format_param_class_name(paramClassName):
     if paramClassName.startswith('<type \'') and paramClassName.endswith('\'>'):
-        paramClassName = paramClassName[len('<type \''): -2]
+        paramClassName = paramClassName[len('<type \''):-2]
     if paramClassName.startswith('['):
         if paramClassName == '[C':
             paramClassName = 'char[]'
@@ -131,10 +125,10 @@ class Info:
     def __init__(self, name, **kwargs):
         self.name = name
         self.doc = kwargs.get('doc', None)
-        self.args = kwargs.get('args', ()) #tuple of strings
-        self.varargs = kwargs.get('varargs', None) #string
-        self.kwargs = kwargs.get('kwargs', None) #string
-        self.ret = kwargs.get('ret', None) #string
+        self.args = kwargs.get('args', ())  # tuple of strings
+        self.varargs = kwargs.get('varargs', None)  # string
+        self.kwargs = kwargs.get('kwargs', None)  # string
+        self.ret = kwargs.get('ret', None)  # string
 
     def basic_as_str(self):
         '''@returns this class information as a string (just basic format)
@@ -146,7 +140,6 @@ class Info:
         s = 'function:%s args=%s, varargs=%s, kwargs=%s, docs:%s' % \
             (self.name, args, self.varargs, self.kwargs, self.doc)
         return s
-
 
     def get_as_doc(self):
         s = str(self.name)
@@ -173,8 +166,10 @@ class Info:
 
         return str(s)
 
+
 def isclass(cls):
     return isinstance(cls, core.PyClass) or type(cls) == java.lang.Class
+
 
 def ismethod(func):
     '''this function should return the information gathered on a function
@@ -189,8 +184,8 @@ def ismethod(func):
 
     try:
         if isinstance(func, core.PyFunction):
-            #ok, this is from python, created by jython
-            #print_ '    PyFunction'
+            # ok, this is from python, created by jython
+            # print_ '    PyFunction'
 
             def getargs(func_code):
                 """Get information about the arguments accepted by a code object.
@@ -225,29 +220,29 @@ def ismethod(func):
             return 1, [Info(func.func_name, args=args[0], varargs=args[1], kwargs=args[2], doc=func.func_doc)]
 
         if isinstance(func, core.PyMethod):
-            #this is something from java itself, and jython just wrapped it...
+            # this is something from java itself, and jython just wrapped it...
 
-            #things to play in func:
-            #['__call__', '__class__', '__cmp__', '__delattr__', '__dir__', '__doc__', '__findattr__', '__name__', '_doget', 'im_class',
-            #'im_func', 'im_self', 'toString']
-            #print_ '    PyMethod'
-            #that's the PyReflectedFunction... keep going to get it
+            # things to play in func:
+            # ['__call__', '__class__', '__cmp__', '__delattr__', '__dir__', '__doc__', '__findattr__', '__name__', '_doget', 'im_class',
+            # 'im_func', 'im_self', 'toString']
+            # print_ '    PyMethod'
+            # that's the PyReflectedFunction... keep going to get it
             func = func.im_func
 
         if isinstance(func, PyReflectedFunction):
-            #this is something from java itself, and jython just wrapped it...
+            # this is something from java itself, and jython just wrapped it...
 
-            #print_ '    PyReflectedFunction'
+            # print_ '    PyReflectedFunction'
 
             infos = []
             for i in xrange(len(func.argslist)):
-                #things to play in func.argslist[i]:
+                # things to play in func.argslist[i]:
 
-                #'PyArgsCall', 'PyArgsKeywordsCall', 'REPLACE', 'StandardCall', 'args', 'compare', 'compareTo', 'data', 'declaringClass'
-                #'flags', 'isStatic', 'matches', 'precedence']
+                # 'PyArgsCall', 'PyArgsKeywordsCall', 'REPLACE', 'StandardCall', 'args', 'compare', 'compareTo', 'data', 'declaringClass'
+                # 'flags', 'isStatic', 'matches', 'precedence']
 
-                #print_ '        ', func.argslist[i].data.__class__
-                #func.argslist[i].data.__class__ == java.lang.reflect.Method
+                # print_ '        ', func.argslist[i].data.__class__
+                # func.argslist[i].data.__class__ == java.lang.reflect.Method
 
                 if func.argslist[i]:
                     met = func.argslist[i].data
@@ -268,36 +263,36 @@ def ismethod(func):
                                 paramClassName = paramTypesClass.getName(paramTypesClass)
                         except AttributeError:
                             try:
-                                paramClassName = repr(paramTypesClass) #should be something like <type 'object'>
+                                paramClassName = repr(paramTypesClass)  # should be something like <type 'object'>
                                 paramClassName = paramClassName.split('\'')[1]
                             except:
-                                paramClassName = repr(paramTypesClass) #just in case something else happens... it will at least be visible
-                        #if the parameter equals [C, it means it it a char array, so, let's change it
+                                paramClassName = repr(paramTypesClass)  # just in case something else happens... it will at least be visible
+                        # if the parameter equals [C, it means it it a char array, so, let's change it
 
                         a = format_param_class_name(paramClassName)
-                        #a = a.replace('[]','Array')
-                        #a = a.replace('Object', 'obj')
-                        #a = a.replace('String', 's')
-                        #a = a.replace('Integer', 'i')
-                        #a = a.replace('Char', 'c')
-                        #a = a.replace('Double', 'd')
-                        args.append(a) #so we don't leave invalid code
-
+                        # a = a.replace('[]','Array')
+                        # a = a.replace('Object', 'obj')
+                        # a = a.replace('String', 's')
+                        # a = a.replace('Integer', 'i')
+                        # a = a.replace('Char', 'c')
+                        # a = a.replace('Double', 'd')
+                        args.append(a)  # so we don't leave invalid code
 
                     info = Info(name, args=args, ret=ret)
-                    #print_ info.basic_as_str()
+                    # print_ info.basic_as_str()
                     infos.append(info)
 
             return 1, infos
     except Exception:
-        s = StringIO.StringIO()
+        s = StringIO()
         traceback.print_exc(file=s)
         return 1, [Info(str('ERROR'), doc=s.getvalue())]
 
     return 0, None
 
+
 def ismodule(mod):
-    #java modules... do we have other way to know that?
+    # java modules... do we have other way to know that?
     if not hasattr(mod, 'getClass') and not hasattr(mod, '__class__') \
        and hasattr(mod, '__name__'):
             return 1
@@ -312,20 +307,20 @@ def dir_obj(obj):
     if hasattr(obj, '__class__'):
         if obj.__class__ == java.lang.Class:
 
-            #get info about superclasses
+            # get info about superclasses
             classes = []
             classes.append(obj)
             try:
                 c = obj.getSuperclass()
             except TypeError:
-                #may happen on jython when getting the java.lang.Class class
+                # may happen on jython when getting the java.lang.Class class
                 c = obj.getSuperclass(obj)
 
             while c != None:
                 classes.append(c)
                 c = c.getSuperclass()
 
-            #get info about interfaces
+            # get info about interfaces
             interfs = []
             for obj in classes:
                 try:
@@ -334,7 +329,7 @@ def dir_obj(obj):
                     interfs.extend(obj.getInterfaces(obj))
             classes.extend(interfs)
 
-            #now is the time when we actually get info on the declared methods and fields
+            # now is the time when we actually get info on the declared methods and fields
             for obj in classes:
                 try:
                     declaredMethods = obj.getDeclaredMethods()
@@ -356,17 +351,15 @@ def dir_obj(obj):
                     ret.append(name)
                     found.put(name, 1)
 
-
         elif isclass(obj.__class__):
             d = dir(obj.__class__)
             for name in d:
                 ret.append(name)
                 found.put(name, 1)
 
-
-    #this simple dir does not always get all the info, that's why we have the part before
-    #(e.g.: if we do a dir on String, some methods that are from other interfaces such as
-    #charAt don't appear)
+    # this simple dir does not always get all the info, that's why we have the part before
+    # (e.g.: if we do a dir on String, some methods that are from other interfaces such as
+    # charAt don't appear)
     d = dir(original)
     for name in d:
         if found.get(name) != 1:
@@ -391,7 +384,6 @@ def format_arg(arg):
         s = c + s[1:]
 
     return s
-
 
 
 def search_definition(data):
@@ -437,36 +429,36 @@ def generate_imports_tip_for_module(obj_to_complete, dir_comps=None, getattr=get
         try:
             obj = getattr(obj_to_complete, d)
         except (AttributeError, java.lang.NoClassDefFoundError):
-            #jython has a bug in its custom classloader that prevents some things from working correctly, so, let's see if
-            #we can fix that... (maybe fixing it in jython itself would be a better idea, as this is clearly a bug)
-            #for that we need a custom classloader... we have references from it in the below places:
+            # jython has a bug in its custom classloader that prevents some things from working correctly, so, let's see if
+            # we can fix that... (maybe fixing it in jython itself would be a better idea, as this is clearly a bug)
+            # for that we need a custom classloader... we have references from it in the below places:
             #
-            #http://mindprod.com/jgloss/classloader.html
-            #http://www.javaworld.com/javaworld/jw-03-2000/jw-03-classload-p2.html
-            #http://freshmeat.net/articles/view/1643/
+            # http://mindprod.com/jgloss/classloader.html
+            # http://www.javaworld.com/javaworld/jw-03-2000/jw-03-classload-p2.html
+            # http://freshmeat.net/articles/view/1643/
             #
-            #note: this only happens when we add things to the sys.path at runtime, if they are added to the classpath
-            #before the run, everything goes fine.
+            # note: this only happens when we add things to the sys.path at runtime, if they are added to the classpath
+            # before the run, everything goes fine.
             #
-            #The code below ilustrates what I mean...
+            # The code below ilustrates what I mean...
             #
-            #import sys
-            #sys.path.insert(1, r"C:\bin\eclipse310\plugins\org.junit_3.8.1\junit.jar" )
+            # import sys
+            # sys.path.insert(1, r"C:\bin\eclipse310\plugins\org.junit_3.8.1\junit.jar" )
             #
-            #import junit.framework
-            #print_ dir(junit.framework) #shows the TestCase class here
+            # import junit.framework
+            # print_ dir(junit.framework) #shows the TestCase class here
             #
-            #import junit.framework.TestCase
+            # import junit.framework.TestCase
             #
-            #raises the error:
-            #Traceback (innermost last):
+            # raises the error:
+            # Traceback (innermost last):
             #  File "<console>", line 1, in ?
-            #ImportError: No module named TestCase
+            # ImportError: No module named TestCase
             #
-            #whereas if we had added the jar to the classpath before, everything would be fine by now...
+            # whereas if we had added the jar to the classpath before, everything would be fine by now...
 
             ret.append((d, '', '', retType))
-            #that's ok, private things cannot be gotten...
+            # that's ok, private things cannot be gotten...
             continue
         else:
 
@@ -494,9 +486,8 @@ def generate_imports_tip_for_module(obj_to_complete, dir_comps=None, getattr=get
             elif ismodule(obj):
                 retType = TYPE_IMPORT
 
-        #add token and doc to return - assure only strings.
+        # add token and doc to return - assure only strings.
         ret.append((d, doc, args, retType))
-
 
     return ret
 

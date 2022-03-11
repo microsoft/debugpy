@@ -27,11 +27,7 @@ from pydevd_tracing import get_exception_traceback_str
 from _pydev_bundle._pydev_completer import completions_to_xml
 from _pydev_bundle import pydev_log
 from _pydevd_bundle.pydevd_frame_utils import FramesList
-
-try:
-    from StringIO import StringIO
-except:
-    from io import StringIO
+from io import StringIO
 
 if IS_IRONPYTHON:
 

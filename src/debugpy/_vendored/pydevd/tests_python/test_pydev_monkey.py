@@ -7,7 +7,6 @@ import pytest
 from _pydev_bundle.pydev_monkey import pydev_src_dir
 from _pydevd_bundle.pydevd_constants import sorted_dict_repr
 from pydevd import SetupHolder
-from tests_python.debug_constants import IS_PY2
 
 try:
     from _pydev_bundle import pydev_monkey
@@ -477,13 +476,8 @@ def test_monkey_patch_c_program_arg(use_bytes):
 
     encode = lambda s:s
     if use_bytes:
-        if not IS_PY2:
-            check = [c.encode('utf-8') for c in check]
-            encode = lambda s:s.encode('utf-8')
-    else:
-        if IS_PY2:
-            check = [c.decode('utf-8') for c in check]
-            encode = lambda s:s.decode('utf-8')
+        check = [c.encode('utf-8') for c in check]
+        encode = lambda s:s.encode('utf-8')
 
     assert pydev_monkey.patch_args(check) == [
         encode('C:\\bin\\python.exe'),

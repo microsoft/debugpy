@@ -15,12 +15,15 @@ import sys
 
 try:
     import os.path
+
     def fully_normalize_path(path):
         '''fixes the path so that the format of the path really reflects the directories in the system
         '''
         return os.path.normpath(path)
+
     join = os.path.join
 except:  # ImportError or AttributeError.
+
     # See: http://stackoverflow.com/questions/10254353/error-while-installing-jython-for-pydev
     def fully_normalize_path(path):
         '''fixes the path so that the format of the path really reflects the directories in the system
@@ -31,7 +34,6 @@ except:  # ImportError or AttributeError.
         if a.endswith('/') or a.endswith('\\'):
             return a + b
         return a + '/' + b
-
 
 IS_PYTHON_3_ONWARDS = 0
 
@@ -50,11 +52,7 @@ except:
 
 if sys.platform == "cygwin":
 
-    try:
-        import ctypes  # use from the system if available
-    except ImportError:
-        sys.path.append(join(sys.path[0], 'third_party/wrapped_for_pydev'))
-        import ctypes
+    import ctypes
 
     def native_path(path):
         MAX_PATH = 512  # On cygwin NT, its 260 lately, but just need BIG ENOUGH buffer
@@ -64,15 +62,15 @@ if sys.platform == "cygwin":
         path = fully_normalize_path(path)
         path = tobytes(path)
         CCP_POSIX_TO_WIN_A = 0
-        cygwin1dll = ctypes.cdll.LoadLibrary( 'cygwin1.dll' )
+        cygwin1dll = ctypes.cdll.LoadLibrary('cygwin1.dll')
         cygwin1dll.cygwin_conv_path(CCP_POSIX_TO_WIN_A, path, retval, MAX_PATH)
 
         return retval.value
 
 else:
+
     def native_path(path):
         return fully_normalize_path(path)
-
 
 
 def __getfilesystemencoding():
@@ -100,11 +98,12 @@ def __getfilesystemencoding():
             return 'mbcs'
         return 'utf-8'
 
+
 def getfilesystemencoding():
     try:
         ret = __getfilesystemencoding()
 
-        #Check if the encoding is actually there to be used!
+        # Check if the encoding is actually there to be used!
         if hasattr('', 'encode'):
             ''.encode(ret)
         if hasattr('', 'decode'):
@@ -113,6 +112,7 @@ def getfilesystemencoding():
         return ret
     except:
         return 'utf-8'
+
 
 file_system_encoding = getfilesystemencoding()
 
@@ -132,11 +132,13 @@ def tounicode(s):
             return s.decode(file_system_encoding)
     return s
 
+
 def tobytes(s):
     if hasattr(s, 'encode'):
         if not isinstance(s, bytes_type):
             return s.encode(file_system_encoding)
     return s
+
 
 def toasciimxl(s):
     # output for xml without a declared encoding
@@ -179,7 +181,6 @@ if __name__ == '__main__':
     if sys.platform == "cygwin" and not executable.endswith(tounicode('.exe')):
         executable += tounicode('.exe')
 
-
     try:
         major = str(sys.version_info[0])
         minor = str(sys.version_info[1])
@@ -203,7 +204,6 @@ if __name__ == '__main__':
     # (previously, we were getting the executable dir, but that is not always correct...)
     prefix = tounicode(native_path(sys.prefix))
     # print_ 'prefix is', prefix
-
 
     result = []
 
@@ -241,7 +241,6 @@ if __name__ == '__main__':
 
     for builtinMod in sys.builtin_module_names:
         contents.append(tounicode('<forced_lib>%s</forced_lib>') % tounicode(builtinMod))
-
 
     contents.append(tounicode('</xml>'))
     unic = tounicode('\n').join(contents)

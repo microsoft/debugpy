@@ -1,8 +1,8 @@
 from contextlib import contextmanager
 import sys
 
-from _pydevd_bundle.pydevd_constants import get_frame, dict_items, RETURN_VALUES_DICT, \
-    dict_iter_items, ForkSafeLock, GENERATED_LEN_ATTR_NAME, silence_warnings_decorator
+from _pydevd_bundle.pydevd_constants import get_frame, RETURN_VALUES_DICT, \
+    ForkSafeLock, GENERATED_LEN_ATTR_NAME, silence_warnings_decorator
 from _pydevd_bundle.pydevd_xml import get_variable_details, get_type
 from _pydev_bundle.pydev_override import overrides
 from _pydevd_bundle.pydevd_resolver import sorted_attributes_key, TOO_LARGE_ATTR, get_var_scope
@@ -169,8 +169,7 @@ class _ObjectVariable(_AbstractVariable):
             else:
                 # If there's no special implementation, the default is sorting the keys.
                 dct = resolver.get_dictionary(self.value)
-                lst = dict_items(dct)
-                lst.sort(key=lambda tup: sorted_attributes_key(tup[0]))
+                lst = sorted(dct.items(), key=lambda tup: sorted_attributes_key(tup[0]))
                 # No evaluate name in this case.
                 lst = [(key, value, None) for (key, value) in lst]
 
@@ -276,7 +275,7 @@ class _FrameVariable(_AbstractVariable):
         else:
             raise AssertionError('Unexpected scope: %s' % (scope,))
 
-        lst, group_entries = self._group_entries([(x[0], x[1], None) for x in dict_items(dct) if x[0] != '_pydev_stop_at_break'], handle_return_values=True)
+        lst, group_entries = self._group_entries([(x[0], x[1], None) for x in list(dct.items()) if x[0] != '_pydev_stop_at_break'], handle_return_values=True)
         group_variables = []
 
         for key, val, _ in group_entries:
@@ -288,7 +287,7 @@ class _FrameVariable(_AbstractVariable):
         for key, val, _ in lst:
             is_return_value = key == RETURN_VALUES_DICT
             if is_return_value:
-                for return_key, return_value in dict_iter_items(val):
+                for return_key, return_value in val.items():
                     variable = _ObjectVariable(
                         self.py_db, return_key, return_value, self._register_variable, is_return_value, '%s[%r]' % (key, return_key), frame=self.frame)
                     children_variables.append(variable)
@@ -452,7 +451,7 @@ class SuspendedFramesManager(object):
         if tracker is not None:
             return tracker
 
-        for _thread_id, tracker in dict_iter_items(self._thread_id_to_tracker):
+        for _thread_id, tracker in self._thread_id_to_tracker.items():
             try:
                 tracker.get_variable(variable_reference)
             except KeyError:

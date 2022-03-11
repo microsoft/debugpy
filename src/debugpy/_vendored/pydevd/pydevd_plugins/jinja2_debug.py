@@ -1,5 +1,4 @@
-from _pydevd_bundle.pydevd_constants import STATE_SUSPEND, dict_iter_items, dict_keys, JINJA2_SUSPEND, \
-    IS_PY2
+from _pydevd_bundle.pydevd_constants import STATE_SUSPEND, JINJA2_SUSPEND
 from _pydevd_bundle.pydevd_comm import CMD_SET_BREAK, CMD_ADD_EXCEPTION_BREAK
 from pydevd_file_utils import canonical_normalized_path
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, FCode
@@ -294,9 +293,6 @@ def _get_jinja2_template_line(frame):
 
 
 def _convert_to_str(s):
-    if IS_PY2:
-        if isinstance(s, unicode):
-            s = s.encode('utf-8', 'replace')
     return s
 
 
@@ -318,7 +314,7 @@ def has_exception_breaks(plugin):
 
 
 def has_line_breaks(plugin):
-    for _canonical_normalized_filename, breakpoints in dict_iter_items(plugin.main_debugger.jinja2_breakpoints):
+    for _canonical_normalized_filename, breakpoints in plugin.main_debugger.jinja2_breakpoints.items():
         if len(breakpoints) > 0:
             return True
     return False
@@ -336,20 +332,14 @@ def can_skip(plugin, pydb, frame):
     if pydb.jinja2_exception_break:
         name = frame.f_code.co_name
 
-        if IS_PY2:
-            if name == 'fail':
-                module_name = frame.f_globals.get('__name__', '')
-                if module_name == 'jinja2.parser':
-                    return False
-        else:
-            # errors in compile time
-            if name in ('template', 'top-level template code', '<module>') or name.startswith('block '):
-                f_back = frame.f_back
-                module_name = ''
-                if f_back is not None:
-                    module_name = f_back.f_globals.get('__name__', '')
-                if module_name.startswith('jinja2.'):
-                    return False
+        # errors in compile time
+        if name in ('template', 'top-level template code', '<module>') or name.startswith('block '):
+            f_back = frame.f_back
+            module_name = ''
+            if f_back is not None:
+                module_name = f_back.f_globals.get('__name__', '')
+            if module_name.startswith('jinja2.'):
+                return False
 
     return True
 
@@ -484,7 +474,7 @@ def exception_break(plugin, pydb, pydb_frame, frame, args, arg):
     thread = args[3]
     exception, value, trace = arg
     if pydb.jinja2_exception_break and exception is not None:
-        exception_type = dict_keys(pydb.jinja2_exception_break)[0]
+        exception_type = list(pydb.jinja2_exception_break.keys())[0]
         if exception.__name__ in ('UndefinedError', 'TemplateNotFound', 'TemplatesNotFound'):
             # errors in rendering
             render_frame = _find_jinja2_render_frame(frame)
@@ -499,35 +489,18 @@ def exception_break(plugin, pydb, pydb_frame, frame, args, arg):
         elif exception.__name__ in ('TemplateSyntaxError', 'TemplateAssertionError'):
             name = frame.f_code.co_name
 
-            if IS_PY2:
-                if name == 'fail':
-                    module_name = frame.f_globals.get('__name__', '')
-                    if module_name == 'jinja2.parser':
-                        filename = value.filename
-                        lineno = value.lineno
+            # errors in compile time
+            if name in ('template', 'top-level template code', '<module>') or name.startswith('block '):
 
-                        syntax_error_frame = Jinja2TemplateSyntaxErrorFrame(
-                            frame, exception.__name__, filename, lineno, {'name': value.name, 'exception': value})
+                f_back = frame.f_back
+                if f_back is not None:
+                    module_name = f_back.f_globals.get('__name__', '')
 
-                        pydb_frame.set_suspend(thread, CMD_ADD_EXCEPTION_BREAK)
-                        add_exception_to_frame(syntax_error_frame, (exception, value, trace))
-                        thread.additional_info.suspend_type = JINJA2_SUSPEND
-                        thread.additional_info.pydev_message = str(exception_type)
-                        return True, syntax_error_frame
-
-            else:
-                # errors in compile time
-                if name in ('template', 'top-level template code', '<module>') or name.startswith('block '):
-
-                    f_back = frame.f_back
-                    if f_back is not None:
-                        module_name = f_back.f_globals.get('__name__', '')
-
-                    if module_name.startswith('jinja2.'):
-                        # Jinja2 translates exception info and creates fake frame on his own
-                        pydb_frame.set_suspend(thread, CMD_ADD_EXCEPTION_BREAK)
-                        add_exception_to_frame(frame, (exception, value, trace))
-                        thread.additional_info.suspend_type = JINJA2_SUSPEND
-                        thread.additional_info.pydev_message = str(exception_type)
-                        return True, frame
+                if module_name.startswith('jinja2.'):
+                    # Jinja2 translates exception info and creates fake frame on his own
+                    pydb_frame.set_suspend(thread, CMD_ADD_EXCEPTION_BREAK)
+                    add_exception_to_frame(frame, (exception, value, trace))
+                    thread.additional_info.suspend_type = JINJA2_SUSPEND
+                    thread.additional_info.pydev_message = str(exception_type)
+                    return True, frame
     return None

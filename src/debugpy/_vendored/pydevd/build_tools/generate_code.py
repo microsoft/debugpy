@@ -103,8 +103,6 @@ def generate_dont_trace_files():
 # DO NOT edit manually!
 # DO NOT edit manually!
 
-from _pydevd_bundle.pydevd_constants import IS_PY3K
-
 LIB_FILE = 1
 PYDEV_FILE = 2
 
@@ -128,14 +126,13 @@ DONT_TRACE = {
 %(pydev_files)s
 }
 
-if IS_PY3K:
-    # if we try to trace io.py it seems it can get halted (see http://bugs.python.org/issue4716)
-    DONT_TRACE['io.py'] = LIB_FILE
+# if we try to trace io.py it seems it can get halted (see http://bugs.python.org/issue4716)
+DONT_TRACE['io.py'] = LIB_FILE
 
-    # Don't trace common encodings too
-    DONT_TRACE['cp1252.py'] = LIB_FILE
-    DONT_TRACE['utf_8.py'] = LIB_FILE
-    DONT_TRACE['codecs.py'] = LIB_FILE
+# Don't trace common encodings too
+DONT_TRACE['cp1252.py'] = LIB_FILE
+DONT_TRACE['utf_8.py'] = LIB_FILE
+DONT_TRACE['codecs.py'] = LIB_FILE
 '''
 
     pydev_files = []

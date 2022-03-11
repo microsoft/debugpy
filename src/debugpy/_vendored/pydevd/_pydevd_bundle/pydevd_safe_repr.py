@@ -4,7 +4,7 @@
 
 # Gotten from ptvsd for supporting the format expected there.
 import sys
-from _pydevd_bundle.pydevd_constants import IS_PY2, IS_PY36_OR_GREATER
+from _pydevd_bundle.pydevd_constants import IS_PY36_OR_GREATER
 import locale
 from _pydev_bundle import pydev_log
 
@@ -93,10 +93,7 @@ class SafeRepr(object):
             Returns bytes encoded as utf-8 on py2 and str on py3.
         '''
         try:
-            if IS_PY2:
-                return ''.join((x.encode('utf-8') if isinstance(x, unicode) else x) for x in self._repr(obj, 0))
-            else:
-                return ''.join(self._repr(obj, 0))
+            return ''.join(self._repr(obj, 0))
         except Exception:
             try:
                 return 'An exception was raised: %r' % sys.exc_info()[1]
@@ -387,56 +384,11 @@ class SafeRepr(object):
         # you are using the wrong class.
         left_count, right_count = max(1, int(2 * limit / 3)), max(1, int(limit / 3))  # noqa
 
-        if IS_PY2 and isinstance(obj_repr, self.bytes):
-            # If we can convert to unicode before slicing, that's better (but don't do
-            # it if it's not possible as we may be dealing with actual binary data).
-
-            obj_repr = self._bytes_as_unicode_if_possible(obj_repr)
-            if isinstance(obj_repr, unicode):
-                # Deal with high-surrogate leftovers on Python 2.
-                try:
-                    if left_count > 0 and unichr(0xD800) <= obj_repr[left_count - 1] <= unichr(0xDBFF):
-                        left_count -= 1
-                except ValueError:
-                    # On Jython unichr(0xD800) will throw an error:
-                    # ValueError: unichr() arg is a lone surrogate in range (0xD800, 0xDFFF) (Jython UTF-16 encoding)
-                    # Just ignore it in this case.
-                    pass
-
-                start = obj_repr[:left_count]
-
-                # Note: yielding unicode is fine (it'll be properly converted to utf-8 if needed).
-                yield start
-                yield '...'
-
-                # Deal with high-surrogate leftovers on Python 2.
-                try:
-                    if right_count > 0 and unichr(0xD800) <= obj_repr[-right_count - 1] <= unichr(0xDBFF):
-                        right_count -= 1
-                except ValueError:
-                    # On Jython unichr(0xD800) will throw an error:
-                    # ValueError: unichr() arg is a lone surrogate in range (0xD800, 0xDFFF) (Jython UTF-16 encoding)
-                    # Just ignore it in this case.
-                    pass
-
-                yield obj_repr[-right_count:]
-                return
-            else:
-                # We can't decode it (binary string). Use repr() of bytes.
-                obj_repr = repr(obj_repr)
-
         yield obj_repr[:left_count]
         yield '...'
         yield obj_repr[-right_count:]
 
     def _convert_to_unicode_or_bytes_repr(self, obj_repr):
-        if IS_PY2 and isinstance(obj_repr, self.bytes):
-            obj_repr = self._bytes_as_unicode_if_possible(obj_repr)
-            if isinstance(obj_repr, self.bytes):
-                # If we haven't been able to decode it this means it's some binary data
-                # we can't make sense of, so, we need its repr() -- otherwise json
-                # encoding may break later on.
-                obj_repr = repr(obj_repr)
         return obj_repr
 
     def _bytes_as_unicode_if_possible(self, obj_repr):

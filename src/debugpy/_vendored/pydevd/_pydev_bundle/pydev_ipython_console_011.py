@@ -34,7 +34,6 @@ except ImportError:
 from IPython.core import release
 
 from _pydev_bundle.pydev_imports import xmlrpclib
-from _pydevd_bundle.pydevd_constants import dict_keys
 
 default_pydev_banner_parts = default_banner_parts
 
@@ -364,9 +363,9 @@ class _PyDevFrontEnd:
     def update(self, globals, locals):
         ns = self.ipython.user_ns
 
-        for key in dict_keys(self.ipython.user_ns):
+        for key, value in list(ns.items()):
             if key not in locals:
-                locals[key] = ns[key]
+                locals[key] = value
 
         self.ipython.user_global_ns.clear()
         self.ipython.user_global_ns.update(globals)

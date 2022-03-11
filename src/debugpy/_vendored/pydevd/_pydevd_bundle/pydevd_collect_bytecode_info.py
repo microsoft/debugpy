@@ -4,15 +4,12 @@ import sys
 from collections import namedtuple
 
 from _pydev_bundle import pydev_log
-from _pydevd_bundle.pydevd_constants import (IS_PY38_OR_GREATER,
-                                             dict_iter_items, dict_iter_values)
+from _pydevd_bundle.pydevd_constants import IS_PY38_OR_GREATER
 from opcode import (EXTENDED_ARG, HAVE_ARGUMENT, cmp_op, hascompare, hasconst,
                     hasfree, hasjrel, haslocal, hasname, opname)
 
-try:
-    xrange
-except NameError:
-    xrange = range
+xrange = range
+from io import StringIO
 
 
 class TryExceptInfo(object):
@@ -892,9 +889,9 @@ class _Disassembler(object):
                     instruction.argval, self.firstlineno, self.level + 1
                 ).build_line_to_contents()
 
-                for contents in dict_iter_values(code_line_to_contents):
+                for contents in code_line_to_contents.values():
                     contents.insert(0, '    ')
-                for line, contents in dict_iter_items(code_line_to_contents):
+                for line, contents in code_line_to_contents.items():
                     line_to_contents.setdefault(line, []).extend(contents)
                 return msg(instruction, 'LOAD_CONST(code)')
 
@@ -935,14 +932,10 @@ class _Disassembler(object):
 
     def disassemble(self):
         line_to_contents = self.build_line_to_contents()
-        try:
-            from StringIO import StringIO
-        except ImportError:
-            from io import StringIO
         stream = StringIO()
         last_line = 0
         show_lines = False
-        for line, contents in sorted(dict_iter_items(line_to_contents)):
+        for line, contents in sorted(line_to_contents.items()):
             while last_line < line - 1:
                 if show_lines:
                     stream.write('%s.\n' % (last_line + 1,))

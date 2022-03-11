@@ -17,7 +17,7 @@ import os
 import sys
 
 from _pydev_imps._pydev_saved_modules import threading
-from _pydevd_bundle.pydevd_constants import INTERACTIVE_MODE_AVAILABLE, dict_keys
+from _pydevd_bundle.pydevd_constants import INTERACTIVE_MODE_AVAILABLE
 
 import traceback
 from _pydev_bundle import pydev_log
@@ -26,16 +26,12 @@ from _pydevd_bundle import pydevd_save_locals
 
 from _pydev_bundle.pydev_imports import Exec, _queue
 
-if sys.version_info[0] >= 3:
-    import builtins as __builtin__
-else:
-    import __builtin__
+import builtins as __builtin__
 
 from _pydev_bundle.pydev_console_utils import BaseInterpreterInterface, BaseStdIn  # @UnusedImport
 from _pydev_bundle.pydev_console_utils import CodeFragment
 
 IS_PYTHON_3_ONWARDS = sys.version_info[0] >= 3
-IS_PY24 = sys.version_info[0] == 2 and sys.version_info[1] == 4
 
 
 class Command:
@@ -138,7 +134,7 @@ def set_debug_hook(debug_hook):
 
 def activate_mpl_if_already_imported(interpreter):
     if interpreter.mpl_modules_for_patching:
-        for module in dict_keys(interpreter.mpl_modules_for_patching):
+        for module in list(interpreter.mpl_modules_for_patching):
             if module in sys.modules:
                 activate_function = interpreter.mpl_modules_for_patching.pop(module)
                 activate_function()
@@ -176,7 +172,7 @@ def init_mpl_in_console(interpreter):
 
     activate_mpl_if_already_imported(interpreter)
     from _pydev_bundle.pydev_import_hook import import_hook_manager
-    for mod in dict_keys(interpreter.mpl_modules_for_patching):
+    for mod in list(interpreter.mpl_modules_for_patching):
         import_hook_manager.add_module_name(mod, interpreter.mpl_modules_for_patching.pop(mod))
 
 
@@ -371,10 +367,7 @@ def start_console_server(host, port, interpreter):
         from _pydev_bundle.pydev_imports import SimpleXMLRPCServer as XMLRPCServer  # @Reimport
 
         try:
-            if IS_PY24:
-                server = XMLRPCServer((host, port), logRequests=False)
-            else:
-                server = XMLRPCServer((host, port), logRequests=False, allow_none=True)
+            server = XMLRPCServer((host, port), logRequests=False, allow_none=True)
 
         except:
             sys.stderr.write('Error starting server with host: "%s", port: "%s", client_port: "%s"\n' % (host, port, interpreter.client_port))

@@ -8,15 +8,12 @@ Note: this is a work in progress / proof of concept / not ready to be used.
 import dis
 
 from _pydevd_bundle.pydevd_collect_bytecode_info import iter_instructions
-from _pydevd_bundle.pydevd_constants import dict_iter_items, IS_PY2
 from _pydev_bundle import pydev_log
 import sys
 import inspect
+from io import StringIO
 
-try:
-    xrange = xrange
-except:
-    xrange = range
+xrange = range
 
 
 class _Stack(object):
@@ -354,110 +351,90 @@ class _CallFunction(_BaseHandler):
         self.stack.push(self)
 
 
-if IS_PY2:
+@_register
+class _MakeFunctionPy3(_BaseHandler):
+    """
+    Pushes a new function object on the stack. From bottom to top, the consumed stack must consist
+    of values if the argument carries a specified flag value
 
-    @_register
-    class _MakeFunctionPy2(_BaseHandler):
-        """
-        Pushes a new function object on the stack. TOS is the code associated with the function. The
-        function object is defined to have argc default parameters, which are found below TOS.
-        """
+        0x01 a tuple of default values for positional-only and positional-or-keyword parameters in positional order
 
-        opname = "MAKE_FUNCTION"
+        0x02 a dictionary of keyword-only parameters' default values
 
-        def _handle(self):
-            stack = self.stack
-            self.code = stack.pop()
+        0x04 an annotation dictionary
 
-            stack.push(self)
+        0x08 a tuple containing cells for free variables, making a closure
 
-    _MakeFunction = _MakeFunctionPy2
+        the code associated with the function (at TOS1)
 
-else:
+        the qualified name of the function (at TOS)
+    """
 
-    @_register
-    class _MakeFunctionPy3(_BaseHandler):
-        """
-        Pushes a new function object on the stack. From bottom to top, the consumed stack must consist
-        of values if the argument carries a specified flag value
+    opname = "MAKE_FUNCTION"
+    is_lambda = False
 
-            0x01 a tuple of default values for positional-only and positional-or-keyword parameters in positional order
+    def _handle(self):
+        stack = self.stack
+        self.qualified_name = stack.pop()
+        self.code = stack.pop()
 
-            0x02 a dictionary of keyword-only parameters' default values
+        default_node = None
+        if self.instruction.argval & 0x01:
+            default_node = stack.pop()
 
-            0x04 an annotation dictionary
+        is_lambda = self.is_lambda = '<lambda>' in [x.tok for x in self.qualified_name.tokens]
 
-            0x08 a tuple containing cells for free variables, making a closure
+        if not is_lambda:
+            def_token = _Token(self.i_line, None, 'def ')
+            self.tokens.append(def_token)
 
-            the code associated with the function (at TOS1)
-
-            the qualified name of the function (at TOS)
-        """
-
-        opname = "MAKE_FUNCTION"
-        is_lambda = False
-
-        def _handle(self):
-            stack = self.stack
-            self.qualified_name = stack.pop()
-            self.code = stack.pop()
-
-            default_node = None
-            if self.instruction.argval & 0x01:
-                default_node = stack.pop()
-
-            is_lambda = self.is_lambda = '<lambda>' in [x.tok for x in self.qualified_name.tokens]
-
+        for token in self.qualified_name.tokens:
+            self.tokens.append(token)
             if not is_lambda:
-                def_token = _Token(self.i_line, None, 'def ')
-                self.tokens.append(def_token)
+                token.mark_after(def_token)
+        prev = token
 
-            for token in self.qualified_name.tokens:
-                self.tokens.append(token)
-                if not is_lambda:
-                    token.mark_after(def_token)
-            prev = token
+        open_parens_token = _Token(self.i_line, None, '(', after=prev)
+        self.tokens.append(open_parens_token)
+        prev = open_parens_token
 
-            open_parens_token = _Token(self.i_line, None, '(', after=prev)
-            self.tokens.append(open_parens_token)
-            prev = open_parens_token
+        code = self.code.instruction.argval
 
-            code = self.code.instruction.argval
+        if default_node:
+            defaults = ([_SENTINEL] * (len(code.co_varnames) - len(default_node.instruction.argval))) + list(default_node.instruction.argval)
+        else:
+            defaults = [_SENTINEL] * len(code.co_varnames)
 
-            if default_node:
-                defaults = ([_SENTINEL] * (len(code.co_varnames) - len(default_node.instruction.argval))) + list(default_node.instruction.argval)
-            else:
-                defaults = [_SENTINEL] * len(code.co_varnames)
+        for i, arg in enumerate(code.co_varnames):
+            if i > 0:
+                comma_token = _Token(prev.i_line, None, ', ', after=prev)
+                self.tokens.append(comma_token)
+                prev = comma_token
 
-            for i, arg in enumerate(code.co_varnames):
-                if i > 0:
-                    comma_token = _Token(prev.i_line, None, ', ', after=prev)
-                    self.tokens.append(comma_token)
-                    prev = comma_token
+            arg_token = _Token(self.i_line, None, arg, after=prev)
+            self.tokens.append(arg_token)
 
-                arg_token = _Token(self.i_line, None, arg, after=prev)
-                self.tokens.append(arg_token)
+            default = defaults[i]
+            if default is not _SENTINEL:
+                eq_token = _Token(default_node.i_line, None, '=', after=prev)
+                self.tokens.append(eq_token)
+                prev = eq_token
 
-                default = defaults[i]
-                if default is not _SENTINEL:
-                    eq_token = _Token(default_node.i_line, None, '=', after=prev)
-                    self.tokens.append(eq_token)
-                    prev = eq_token
+                default_token = _Token(default_node.i_line, None, str(default), after=prev)
+                self.tokens.append(default_token)
+                prev = default_token
 
-                    default_token = _Token(default_node.i_line, None, str(default), after=prev)
-                    self.tokens.append(default_token)
-                    prev = default_token
+        tok_close_parens = _Token(prev.i_line, None, '):', after=prev)
+        self.tokens.append(tok_close_parens)
 
-            tok_close_parens = _Token(prev.i_line, None, '):', after=prev)
-            self.tokens.append(tok_close_parens)
+        self._write_tokens()
 
-            self._write_tokens()
+        stack.push(self)
+        self.writer.indent(prev.i_line + 1)
+        self.writer.dedent(max(self.disassembler.merge_code(code)))
 
-            stack.push(self)
-            self.writer.indent(prev.i_line + 1)
-            self.writer.dedent(max(self.disassembler.merge_code(code)))
 
-    _MakeFunction = _MakeFunctionPy3
+_MakeFunction = _MakeFunctionPy3
 
 
 def _print_after_info(line_contents, stream=None):
@@ -518,10 +495,6 @@ def _compose_line_contents(line_contents, previous_line_tokens):
                 if token not in handled:
                     lst.append(token.tok)
 
-            try:
-                from StringIO import StringIO
-            except:
-                from io import StringIO
             stream = StringIO()
             _print_after_info(line_contents, stream)
             pydev_log.critical('Error. After markers are not correct:\n%s', stream.getvalue())
@@ -577,7 +550,7 @@ class _PyCodeToSource(object):
         #         print(d, getattr(code, d))
         line_to_contents = _PyCodeToSource(code, self.memo).build_line_to_contents()
         lines = []
-        for line, contents in sorted(dict_iter_items(line_to_contents)):
+        for line, contents in sorted(line_to_contents.items()):
             lines.append(line)
             self.writer.get_line(line).extend(contents)
         if DEBUG:
@@ -587,13 +560,11 @@ class _PyCodeToSource(object):
     def disassemble(self):
         show_lines = False
         line_to_contents = self.build_line_to_contents()
-        from io import StringIO
-
         stream = StringIO()
         last_line = 0
         indent = ''
         previous_line_tokens = set()
-        for i_line, contents in sorted(dict_iter_items(line_to_contents)):
+        for i_line, contents in sorted(line_to_contents.items()):
             while last_line < i_line - 1:
                 if show_lines:
                     stream.write(u"%s.\n" % (last_line + 1,))

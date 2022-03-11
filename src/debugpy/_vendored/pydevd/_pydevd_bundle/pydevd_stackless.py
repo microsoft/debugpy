@@ -6,7 +6,6 @@ import sys
 from _pydevd_bundle.pydevd_comm import get_global_debugger
 from _pydevd_bundle.pydevd_constants import call_only_once
 from _pydev_imps._pydev_saved_modules import threading
-from _pydevd_bundle.pydevd_constants import dict_items
 from _pydevd_bundle.pydevd_custom_frames import update_custom_frame, remove_custom_frame, add_custom_frame
 import stackless  # @UnresolvedImport
 from _pydev_bundle import pydev_log
@@ -201,7 +200,7 @@ def _schedule_callback(prev, next):
             register_tasklet_info(prev)
 
         try:
-            for tasklet_ref, tasklet_info in dict_items(_weak_tasklet_registered_to_info):  # Make sure it's a copy!
+            for tasklet_ref, tasklet_info in list(_weak_tasklet_registered_to_info.items()):  # Make sure it's a copy!
                 tasklet = tasklet_ref()
                 if tasklet is None or not tasklet.alive:
                     # Garbage-collected already!
@@ -276,7 +275,7 @@ if not hasattr(stackless.tasklet, "trace_function"):
                 register_tasklet_info(prev)
 
             try:
-                for tasklet_ref, tasklet_info in dict_items(_weak_tasklet_registered_to_info):  # Make sure it's a copy!
+                for tasklet_ref, tasklet_info in list(_weak_tasklet_registered_to_info.items()):  # Make sure it's a copy!
                     tasklet = tasklet_ref()
                     if tasklet is None or not tasklet.alive:
                         # Garbage-collected already!

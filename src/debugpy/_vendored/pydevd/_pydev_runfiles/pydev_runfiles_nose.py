@@ -5,6 +5,8 @@ from _pydev_runfiles import pydev_runfiles_xml_rpc
 import time
 from _pydev_runfiles.pydev_runfiles_coverage import start_coverage_support
 from contextlib import contextmanager
+from io import StringIO
+import traceback
 
 
 #=======================================================================================================================
@@ -91,7 +93,7 @@ class PydevPlugin(Plugin):
                     address = f, '?'
         except:
             sys.stderr.write("PyDev: Internal pydev error getting test address. Please report at the pydev bug tracker\n")
-            import traceback;traceback.print_exc()
+            traceback.print_exc()
             sys.stderr.write("\n\n\n")
             address = '?', '?'
         return address
@@ -121,15 +123,11 @@ class PydevPlugin(Plugin):
             if len(err) != 3:
                 if len(err) == 2:
                     return err[1]  # multiprocess
-            try:
-                from StringIO import StringIO
-            except:
-                from io import StringIO
             s = StringIO()
             etype, value, tb = err
             if isinstance(value, str):
                 return value
-            import traceback;traceback.print_exception(etype, value, tb, file=s)
+            traceback.print_exception(etype, value, tb, file=s)
             return s.getvalue()
         return err
 

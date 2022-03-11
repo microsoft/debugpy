@@ -104,15 +104,12 @@ IS_MAC = sys.platform == 'darwin'
 IS_64BIT_PROCESS = sys.maxsize > (2 ** 32)
 
 IS_JYTHON = pydevd_vm_type.get_vm_type() == pydevd_vm_type.PydevdVmType.JYTHON
-IS_JYTH_LESS25 = False
 
 IS_PYPY = platform.python_implementation() == 'PyPy'
 
 if IS_JYTHON:
     import java.lang.System  # @UnresolvedImport
     IS_WINDOWS = java.lang.System.getProperty("os.name").lower().startswith("windows")
-    if sys.version_info[0] == 2 and sys.version_info[1] < 5:
-        IS_JYTH_LESS25 = True
 
 USE_CUSTOM_SYS_CURRENT_FRAMES = not hasattr(sys, '_current_frames') or IS_PYPY
 USE_CUSTOM_SYS_CURRENT_FRAMES_MAP = USE_CUSTOM_SYS_CURRENT_FRAMES and (IS_PYPY or IS_IRONPYTHON)
@@ -166,45 +163,16 @@ CYTHON_SUPPORTED = False
 python_implementation = platform.python_implementation()
 if python_implementation == 'CPython':
     # Only available for CPython!
-    if (
-        (sys.version_info[0] == 2 and sys.version_info[1] >= 6)
-        or (sys.version_info[0] == 3 and sys.version_info[1] >= 3)
-        or (sys.version_info[0] > 3)
-        ):
-        # Supported in 2.6,2.7 or 3.3 onwards (32 or 64)
-        CYTHON_SUPPORTED = True
+    CYTHON_SUPPORTED = True
 
 #=======================================================================================================================
 # Python 3?
 #=======================================================================================================================
-IS_PY3K = False
-IS_PY34_OR_GREATER = False
-IS_PY35_OR_GREATER = False
-IS_PY36_OR_GREATER = False
-IS_PY37_OR_GREATER = False
-IS_PY38_OR_GREATER = False
-IS_PY39_OR_GREATER = False
-IS_PY310_OR_GREATER = False
-IS_PY2 = True
-IS_PY27 = False
-IS_PY24 = False
-try:
-    if sys.version_info[0] >= 3:
-        IS_PY3K = True
-        IS_PY2 = False
-        IS_PY34_OR_GREATER = sys.version_info >= (3, 4)
-        IS_PY35_OR_GREATER = sys.version_info >= (3, 5)
-        IS_PY36_OR_GREATER = sys.version_info >= (3, 6)
-        IS_PY37_OR_GREATER = sys.version_info >= (3, 7)
-        IS_PY38_OR_GREATER = sys.version_info >= (3, 8)
-        IS_PY39_OR_GREATER = sys.version_info >= (3, 9)
-        IS_PY310_OR_GREATER = sys.version_info >= (3, 10)
-    elif sys.version_info[0] == 2 and sys.version_info[1] == 7:
-        IS_PY27 = True
-    elif sys.version_info[0] == 2 and sys.version_info[1] == 4:
-        IS_PY24 = True
-except AttributeError:
-    pass  # Not all versions have sys.version_info
+IS_PY36_OR_GREATER = sys.version_info >= (3, 6)
+IS_PY37_OR_GREATER = sys.version_info >= (3, 7)
+IS_PY38_OR_GREATER = sys.version_info >= (3, 8)
+IS_PY39_OR_GREATER = sys.version_info >= (3, 9)
+IS_PY310_OR_GREATER = sys.version_info >= (3, 10)
 
 
 def version_str(v):
@@ -309,7 +277,7 @@ LOAD_VALUES_ASYNC = is_true_in_env('PYDEVD_LOAD_VALUES_ASYNC')
 DEFAULT_VALUE = "__pydevd_value_async"
 ASYNC_EVAL_TIMEOUT_SEC = 60
 NEXT_VALUE_SEPARATOR = "__pydev_val__"
-BUILTINS_MODULE_NAME = '__builtin__' if IS_PY2 else 'builtins'
+BUILTINS_MODULE_NAME = 'builtins'
 SHOW_DEBUG_INFO_ENV = is_true_in_env(('PYCHARM_DEBUG', 'PYDEV_DEBUG', 'PYDEVD_DEBUG'))
 
 # Pandas customization.
@@ -472,68 +440,10 @@ def after_fork():
 _thread_id_lock = ForkSafeLock()
 thread_get_ident = thread.get_ident
 
-if IS_PY3K:
 
-    def dict_keys(d):
-        return list(d.keys())
-
-    def dict_values(d):
-        return list(d.values())
-
-    dict_iter_values = dict.values
-
-    def dict_iter_items(d):
-        return d.items()
-
-    def dict_items(d):
-        return list(d.items())
-
-    def as_str(s):
-        assert isinstance(s, str)
-        return s
-
-else:
-    dict_keys = None
-    try:
-        dict_keys = dict.keys
-    except:
-        pass
-
-    if IS_JYTHON or not dict_keys:
-
-        def dict_keys(d):
-            return d.keys()
-
-    try:
-        dict_iter_values = dict.itervalues
-    except:
-        try:
-            dict_iter_values = dict.values  # Older versions don't have the itervalues
-        except:
-
-            def dict_iter_values(d):
-                return d.values()
-
-    try:
-        dict_values = dict.values
-    except:
-
-        def dict_values(d):
-            return d.values()
-
-    def dict_iter_items(d):
-        try:
-            return d.iteritems()
-        except:
-            return d.items()
-
-    def dict_items(d):
-        return d.items()
-
-    def as_str(s):
-        if isinstance(s, unicode):
-            return s.encode('utf-8')
-        return s
+def as_str(s):
+    assert isinstance(s, str)
+    return s
 
 
 def silence_warnings_decorator(func):
@@ -548,36 +458,22 @@ def silence_warnings_decorator(func):
 
 
 def sorted_dict_repr(d):
-    s = sorted(dict_iter_items(d), key=lambda x:str(x[0]))
+    s = sorted(d.items(), key=lambda x:str(x[0]))
     return '{' + ', '.join(('%r: %r' % x) for x in s) + '}'
 
 
 def iter_chars(b):
     # In Python 2, we can iterate bytes or unicode with individual characters, but Python 3 onwards
     # changed that behavior so that when iterating bytes we actually get ints!
-    if not IS_PY2:
-        if isinstance(b, bytes):
-            # i.e.: do something as struct.unpack('3c', b)
-            return iter(struct.unpack(str(len(b)) + 'c', b))
+    if isinstance(b, bytes):
+        # i.e.: do something as struct.unpack('3c', b)
+        return iter(struct.unpack(str(len(b)) + 'c', b))
     return iter(b)
 
 
-try:
-    xrange = xrange
-except:
-    # Python 3k does not have it
-    xrange = range
-
-try:
-    import itertools
-    izip = itertools.izip
-except:
-    izip = zip
-
-try:
-    from StringIO import StringIO
-except:
-    from io import StringIO
+# Python 3k does not have it
+xrange = range
+izip = zip
 
 if IS_JYTHON:
 

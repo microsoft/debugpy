@@ -1,12 +1,8 @@
 from _pydevd_bundle.pydevd_code_to_source import code_obj_to_source
 import pytest
-from tests_python.debug_constants import IS_PY26
 
 # i.e.: Skip these tests (this is a work in progress / proof of concept / not ready to be used).
 pytestmark = pytest.mark.skip
-
-if IS_PY26:  # pytestmark not available in older versions of pytest.
-    pytest.skip('Work in progress')
 
 
 def check(obtained, expected, strip_return_none=True):

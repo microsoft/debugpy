@@ -1,5 +1,4 @@
 from _pydevd_bundle.pydevd_breakpoints import LineBreakpoint
-from _pydevd_bundle.pydevd_constants import dict_items
 from _pydevd_bundle.pydevd_api import PyDevdAPI
 import bisect
 from _pydev_bundle import pydev_log
@@ -71,7 +70,7 @@ class ValidationInfo(object):
             self._verify_breakpoints_with_lines_collected(py_db, canonical_normalized_filename, template_breakpoints_for_file, valid_lines_frozenset, sorted_lines)
 
     def _verify_breakpoints_with_lines_collected(self, py_db, canonical_normalized_filename, template_breakpoints_for_file, valid_lines_frozenset, sorted_lines):
-        for line, template_bp in dict_items(template_breakpoints_for_file):  # Note: iterate in a copy (we may mutate it).
+        for line, template_bp in list(template_breakpoints_for_file.items()):  # Note: iterate in a copy (we may mutate it).
             if template_bp.verified_cache_key != valid_lines_frozenset:
                 template_bp.verified_cache_key = valid_lines_frozenset
                 valid = line in valid_lines_frozenset

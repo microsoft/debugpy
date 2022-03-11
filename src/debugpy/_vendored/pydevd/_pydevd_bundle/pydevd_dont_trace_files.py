@@ -3,8 +3,6 @@
 # DO NOT edit manually!
 # DO NOT edit manually!
 
-from _pydevd_bundle.pydevd_constants import IS_PY3K
-
 LIB_FILE = 1
 PYDEV_FILE = 2
 
@@ -36,23 +34,17 @@ DONT_TRACE = {
     # things from pydev that we don't want to trace
     '_pydev_execfile.py':PYDEV_FILE,
     '__main__pydevd_gen_debug_adapter_protocol.py': PYDEV_FILE,
-    '_pydev_BaseHTTPServer.py': PYDEV_FILE,
-    '_pydev_SimpleXMLRPCServer.py': PYDEV_FILE,
-    '_pydev_SocketServer.py': PYDEV_FILE,
     '_pydev_calltip_util.py': PYDEV_FILE,
     '_pydev_completer.py': PYDEV_FILE,
     '_pydev_execfile.py': PYDEV_FILE,
     '_pydev_filesystem_encoding.py': PYDEV_FILE,
     '_pydev_getopt.py': PYDEV_FILE,
     '_pydev_imports_tipper.py': PYDEV_FILE,
-    '_pydev_inspect.py': PYDEV_FILE,
     '_pydev_jy_imports_tipper.py': PYDEV_FILE,
     '_pydev_log.py': PYDEV_FILE,
-    '_pydev_pkgutil_old.py': PYDEV_FILE,
     '_pydev_saved_modules.py': PYDEV_FILE,
     '_pydev_sys_patch.py': PYDEV_FILE,
     '_pydev_tipper_common.py': PYDEV_FILE,
-    '_pydev_xmlrpclib.py': PYDEV_FILE,
     'django_debug.py': PYDEV_FILE,
     'jinja2_debug.py': PYDEV_FILE,
     'pycompletionserver.py': PYDEV_FILE,
@@ -102,7 +94,6 @@ DONT_TRACE = {
     'pydevd_defaults.py': PYDEV_FILE,
     'pydevd_dont_trace.py': PYDEV_FILE,
     'pydevd_dont_trace_files.py': PYDEV_FILE,
-    'pydevd_exec.py': PYDEV_FILE,
     'pydevd_exec2.py': PYDEV_FILE,
     'pydevd_extension_api.py': PYDEV_FILE,
     'pydevd_extension_utils.py': PYDEV_FILE,
@@ -155,11 +146,10 @@ DONT_TRACE = {
     'scandir_vendored.py': PYDEV_FILE,
 }
 
-if IS_PY3K:
-    # if we try to trace io.py it seems it can get halted (see http://bugs.python.org/issue4716)
-    DONT_TRACE['io.py'] = LIB_FILE
+# if we try to trace io.py it seems it can get halted (see http://bugs.python.org/issue4716)
+DONT_TRACE['io.py'] = LIB_FILE
 
-    # Don't trace common encodings too
-    DONT_TRACE['cp1252.py'] = LIB_FILE
-    DONT_TRACE['utf_8.py'] = LIB_FILE
-    DONT_TRACE['codecs.py'] = LIB_FILE
+# Don't trace common encodings too
+DONT_TRACE['cp1252.py'] = LIB_FILE
+DONT_TRACE['utf_8.py'] = LIB_FILE
+DONT_TRACE['codecs.py'] = LIB_FILE

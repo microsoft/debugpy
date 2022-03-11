@@ -2,20 +2,16 @@
 License: Apache 2.0
 Author: Yuli Fitterman
 '''
-# noinspection PyBroadException
 import types
 
-from _pydevd_bundle.pydevd_constants import IS_JYTHON, IS_PY3K
+from _pydevd_bundle.pydevd_constants import IS_JYTHON
 
 try:
     import inspect
 except:
-    try:
-        from _pydev_imps import _pydev_inspect as inspect
-    except:
-        import traceback;
+    import traceback;
 
-        traceback.print_exc()  # Ok, no inspect available (search will not work)from _pydevd_bundle.pydevd_constants import IS_JYTHON, IS_PY3K
+    traceback.print_exc()  # Ok, no inspect available (search will not work)
 
 from _pydev_bundle._pydev_imports_tipper import signature_from_docstring
 
@@ -57,7 +53,7 @@ def get_description(obj):
     fn_name = None
     fn_class = None
     if isinstance(fob, (types.FunctionType, types.MethodType)):
-        spec_info = inspect.getfullargspec(fob) if IS_PY3K else inspect.getargspec(fob)
+        spec_info = inspect.getfullargspec(fob)
         argspec = inspect.formatargspec(*spec_info)
         fn_name = getattr(fob, '__name__', None)
         if isinstance(obj, type) or type(obj).__name__ == 'classobj':
@@ -141,6 +137,7 @@ def create_class_stub(class_name, contents):
 
 
 def create_function_stub(fn_name, fn_argspec, fn_docstring, indent=0):
+
     def shift_right(string, prefix):
         return ''.join(prefix + line for line in string.splitlines(True))
 

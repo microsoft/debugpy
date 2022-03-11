@@ -26,7 +26,6 @@ import json
 import pydevd_file_utils
 import subprocess
 import threading
-from tests_python.debug_constants import IS_PY26
 from _pydev_bundle import pydev_log
 try:
     from urllib import unquote
@@ -39,15 +38,9 @@ pytest_plugins = [
     str('tests_python.debugger_fixtures'),
 ]
 
-try:
-    xrange
-except:
-    xrange = range
+xrange = range
 
-if IS_PY2:
-    builtin_qualifier = "__builtin__"
-else:
-    builtin_qualifier = "builtins"
+builtin_qualifier = "builtins"
 
 
 @pytest.mark.skipif(not IS_CPYTHON, reason='Test needs gc.get_referrers/reference counting to really check anything.')
@@ -1360,10 +1353,7 @@ def test_case_handled_and_unhandled_exception_generator(case_setup, target_file,
         if 'generator' in target_file:
             expected_frame_names = ['<genexpr>', 'f', '<module>']
         else:
-            if IS_PY27 or IS_PY26:
-                expected_frame_names = ['f', '<module>']
-            else:
-                expected_frame_names = ['<listcomp>', 'f', '<module>']
+            expected_frame_names = ['<listcomp>', 'f', '<module>']
 
         writer.write_get_current_exception(hit.thread_id)
         msg = writer.wait_for_message(accept_message=lambda msg:'exc_type="' in msg and 'exc_desc="' in msg, unquote_msg=False)
@@ -1374,15 +1364,10 @@ def test_case_handled_and_unhandled_exception_generator(case_setup, target_file,
         writer.write_run_thread(hit.thread_id)
 
         if not unhandled:
-            if (IS_PY26 or IS_PY27) and 'listcomp' in target_file:
-                expected_lines = [
-                    writer.get_line_index_with_content('# call exc'),
-                ]
-            else:
-                expected_lines = [
-                    writer.get_line_index_with_content('# exc line'),
-                    writer.get_line_index_with_content('# call exc'),
-                ]
+            expected_lines = [
+                writer.get_line_index_with_content('# exc line'),
+                writer.get_line_index_with_content('# call exc'),
+            ]
 
             for expected_line in expected_lines:
                 hit = writer.wait_for_breakpoint_hit(REASON_CAUGHT_EXCEPTION)
@@ -1965,7 +1950,7 @@ def test_case_settrace(case_setup):
         writer.finished_ok = True
 
 
-@pytest.mark.skipif(True or IS_PY26 or IS_JYTHON, reason='This is *very* flaky. Scapy only supports 2.7 onwards, not available for jython.')
+@pytest.mark.skipif(True, reason='This is *very* flaky.')
 def test_case_scapy(case_setup):
     with case_setup.test_file('_debugger_case_scapy.py') as writer:
         writer.FORCE_KILL_PROCESS_WHEN_FINISHED_OK = True
@@ -2433,14 +2418,11 @@ def test_py_37_breakpoint(case_setup, filename):
 
 
 def _get_generator_cases():
-    if IS_PY2:
-        return ('_debugger_case_generator_py2.py',)
-    else:
-        # On py3 we should check both versions.
-        return (
-            '_debugger_case_generator_py2.py',
-            '_debugger_case_generator_py3.py',
-        )
+    # On py3 we should check both versions.
+    return (
+        '_debugger_case_generator_py2.py',
+        '_debugger_case_generator_py3.py',
+    )
 
 
 @pytest.mark.parametrize("filename", _get_generator_cases())
@@ -2653,8 +2635,7 @@ def test_multiprocessing_with_stopped_breakpoints(case_setup_multiprocessing, co
         secondary_process_thread_communication.start()
 
         ok = listening_event.wait(timeout=10)
-        if not IS_PY26:
-            assert ok
+        assert ok
         writer.write_make_initial_run()
         hit2 = writer.wait_for_breakpoint_hit()  # Breaks in thread.
         writer.write_step_over(hit2.thread_id)
@@ -3083,7 +3064,6 @@ def test_trace_dispatch_correct(case_setup):
         writer.finished_ok = True
 
 
-@pytest.mark.skipif(IS_PY26, reason='Failing on Python 2.6 on travis (needs investigation).')
 def test_case_single_notification_on_step(case_setup):
     from tests_python.debugger_unittest import REASON_STEP_INTO
     with case_setup.test_file('_debugger_case_import_main.py') as writer:
@@ -3509,7 +3489,6 @@ def test_step_return_my_code(case_setup):
         writer.finished_ok = True
 
 
-@pytest.mark.skipif(IS_PY2, reason='Python 3 onwards required.')
 def test_smart_step_into_case1(case_setup):
     with case_setup.test_file('_debugger_case_smart_step_into.py') as writer:
         line = writer.get_line_index_with_content('break here')
@@ -3532,7 +3511,6 @@ def test_smart_step_into_case1(case_setup):
         writer.finished_ok = True
 
 
-@pytest.mark.skipif(IS_PY2, reason='Python 3 onwards required.')
 def test_smart_step_into_case2(case_setup):
     with case_setup.test_file('_debugger_case_smart_step_into2.py') as writer:
         line = writer.get_line_index_with_content('break here')
@@ -3561,7 +3539,6 @@ def test_smart_step_into_case2(case_setup):
         writer.finished_ok = True
 
 
-@pytest.mark.skipif(IS_PY2, reason='Python 3 onwards required.')
 def test_smart_step_into_case3(case_setup):
     with case_setup.test_file('_debugger_case_smart_step_into3.py') as writer:
         line = writer.get_line_index_with_content('break here')
@@ -3915,11 +3892,9 @@ def test_matplotlib_activation(case_setup):
 
 _GENERATOR_FILES = [
     '_debugger_case_generator3.py',
+    '_debugger_case_generator.py',
+    '_debugger_case_generator2.py',
 ]
-
-if not IS_PY2:
-    _GENERATOR_FILES.append('_debugger_case_generator.py')
-    _GENERATOR_FILES.append('_debugger_case_generator2.py')
 
 
 @pytest.mark.parametrize('target_filename', _GENERATOR_FILES)
@@ -4326,8 +4301,7 @@ def test_frame_eval_mode_corner_case_many(case_setup, break_name):
             writer.finished_ok = True
 
 
-if IS_PY3K:
-    check_shadowed = [
+check_shadowed = [
     (
         u'''
 if __name__ == '__main__':
@@ -4347,30 +4321,7 @@ if __name__ == '__main__':
         'queue.py',
         u'raise AssertionError("error on import")'
     )
-    ]
-
-else:
-    check_shadowed = [
-    (
-        u'''
-if __name__ == '__main__':
-    import Queue
-    print(Queue)
-''',
-        'Queue.py',
-        u'shadowed = True\n'
-    ),
-
-    (
-        u'''
-if __name__ == '__main__':
-    import Queue
-    print(Queue)
-''',
-        'Queue.py',
-        u'raise AssertionError("error on import")'
-    )
-    ]
+]
 
 
 @pytest.mark.parametrize('module_name_and_content', check_shadowed)

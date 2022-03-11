@@ -1,4 +1,3 @@
-from tests_python.debug_constants import IS_PY2
 from _pydevd_bundle.pydevd_constants import IS_PY36_OR_GREATER, GENERATED_LEN_ATTR_NAME
 
 
@@ -19,9 +18,6 @@ def test_dict_resolver():
         assert contents_debug_adapter_protocol == [
             ('(1, 2)', 2, '[(1, 2)]'), ("'22'", 22, "['22']")]
 
-    elif IS_PY2:
-        assert contents_debug_adapter_protocol == [
-            ('(1, 2)', 2, '[(1, 2)]'), (u"u'22'", 22, u"[u'22']")]
     else:
         assert contents_debug_adapter_protocol == [
             ("'22'", 22, "['22']"), ('(1, 2)', 2, '[(1, 2)]')]
@@ -117,22 +113,11 @@ def test_object_resolver__dict__non_strings():
 
     obj = MyObject()
     dictionary = clear_contents_dictionary(default_resolver.get_dictionary(obj))
-    if IS_PY2:
-        assert 'attribute name must be string' in dictionary.pop('(1, 2)')
-        assert dictionary == {}
-    else:
-        assert dictionary == {'(1, 2)': (3, 4)}
+    assert dictionary == {'(1, 2)': (3, 4)}
 
     contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(
         default_resolver.get_contents_debug_adapter_protocol(obj))
-    if IS_PY2:
-        assert len(contents_debug_adapter_protocol) == 1
-        entry = contents_debug_adapter_protocol[0]
-        assert entry[0] == '(1, 2)'
-        assert 'attribute name must be string' in entry[1]
-        assert entry[2] == '.(1, 2)'
-    else:
-        assert contents_debug_adapter_protocol == [('(1, 2)', (3, 4), '.__dict__[(1, 2)]')]
+    assert contents_debug_adapter_protocol == [('(1, 2)', (3, 4), '.__dict__[(1, 2)]')]
 
 
 def test_django_forms_resolver():
@@ -148,19 +133,11 @@ def test_django_forms_resolver():
     obj = MyObject()
 
     dictionary = clear_contents_dictionary(django_form_resolver.get_dictionary(obj))
-    if IS_PY2:
-        assert 'attribute name must be string' in dictionary.pop('(1, 2)')
-        assert dictionary == {'errors': None}
-    else:
-        assert dictionary == {'(1, 2)': (3, 4), 'errors': None}
+    assert dictionary == {'(1, 2)': (3, 4), 'errors': None}
 
     obj._errors = 'bar'
     dictionary = clear_contents_dictionary(django_form_resolver.get_dictionary(obj))
-    if IS_PY2:
-        assert 'attribute name must be string' in dictionary.pop('(1, 2)')
-        assert dictionary == {'errors': 'bar', '_errors': 'bar'}
-    else:
-        assert dictionary == {'(1, 2)': (3, 4), 'errors': 'bar', '_errors': 'bar'}
+    assert dictionary == {'(1, 2)': (3, 4), 'errors': 'bar', '_errors': 'bar'}
 
 
 def clear_contents_debug_adapter_protocol(contents_debug_adapter_protocol):

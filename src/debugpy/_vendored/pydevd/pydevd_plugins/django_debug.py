@@ -2,7 +2,7 @@ import inspect
 
 from _pydev_bundle import pydev_log
 from _pydevd_bundle.pydevd_comm import CMD_SET_BREAK, CMD_ADD_EXCEPTION_BREAK
-from _pydevd_bundle.pydevd_constants import STATE_SUSPEND, dict_iter_items, DJANGO_SUSPEND, IS_PY2, \
+from _pydevd_bundle.pydevd_constants import STATE_SUSPEND, DJANGO_SUSPEND, \
     DebugInfoHolder
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, FCode, just_raised, ignore_exception_trace
 from pydevd_file_utils import canonical_normalized_path, absolute_path
@@ -241,10 +241,7 @@ def _find_django_render_frame(frame):
 
 def _read_file(filename):
     # type: (str) -> str
-    if IS_PY2:
-        f = open(filename, 'r')
-    else:
-        f = open(filename, 'r', encoding='utf-8', errors='replace')
+    f = open(filename, 'r', encoding='utf-8', errors='replace')
     s = f.read()
     f.close()
     return s
@@ -292,9 +289,6 @@ def _get_source_django_18_or_lower(frame):
 
 
 def _convert_to_str(s):
-    if IS_PY2:
-        if isinstance(s, unicode):
-            s = s.encode('utf-8')
     return s
 
 
@@ -461,7 +455,7 @@ def has_exception_breaks(plugin):
 
 
 def has_line_breaks(plugin):
-    for _canonical_normalized_filename, breakpoints in dict_iter_items(plugin.main_debugger.django_breakpoints):
+    for _canonical_normalized_filename, breakpoints in plugin.main_debugger.django_breakpoints.items():
         if len(breakpoints) > 0:
             return True
     return False

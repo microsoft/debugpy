@@ -4,7 +4,7 @@ import re
 import sys
 from _pydev_imps._pydev_saved_modules import threading
 from _pydevd_bundle.pydevd_constants import get_global_debugger, IS_WINDOWS, IS_JYTHON, get_current_thread_id, \
-    sorted_dict_repr, IS_PY2
+    sorted_dict_repr
 from _pydev_bundle import pydev_log
 from contextlib import contextmanager
 from _pydevd_bundle import pydevd_constants
@@ -278,9 +278,6 @@ def remove_quotes_from_args(args):
         for x in args:
             if Path is not None and isinstance(x, Path):
                 x = str(x)
-            elif IS_PY2:
-                if not isinstance(x, (str, unicode)):
-                    raise InvalidTypeInArgsException(str(type(x)))
             else:
                 if not isinstance(x, (bytes, str)):
                     raise InvalidTypeInArgsException(str(type(x)))
@@ -298,9 +295,6 @@ def remove_quotes_from_args(args):
         for x in args:
             if Path is not None and isinstance(x, Path):
                 x = x.as_posix()
-            elif IS_PY2:
-                if not isinstance(x, (str, unicode)):
-                    raise InvalidTypeInArgsException(str(type(x)))
             else:
                 if not isinstance(x, (bytes, str)):
                     raise InvalidTypeInArgsException(str(type(x)))

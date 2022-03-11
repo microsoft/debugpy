@@ -1,8 +1,6 @@
 import sys
 import os
 
-IS_PY2 = sys.version_info < (3,)
-
 
 def find_in_pythonpath(module_name):
     # Check all the occurrences where we could match the given module/package in the PYTHONPATH.
@@ -92,36 +90,20 @@ with VerifyShadowedImport('select') as verify_shadowed:
 with VerifyShadowedImport('code') as verify_shadowed:
     import code as _code;    verify_shadowed.check(_code, ['compile_command', 'InteractiveInterpreter'])
 
-if IS_PY2:
-    with VerifyShadowedImport('thread') as verify_shadowed:
-        import thread;    verify_shadowed.check(thread, ['start_new_thread', 'allocate_lock'])
+with VerifyShadowedImport('_thread') as verify_shadowed:
+    import _thread as thread;    verify_shadowed.check(thread, ['start_new_thread', 'start_new', 'allocate_lock'])
 
-    with VerifyShadowedImport('Queue') as verify_shadowed:
-        import Queue as _queue;    verify_shadowed.check(_queue, ['Queue', 'LifoQueue', 'Empty', 'Full', 'deque'])
+with VerifyShadowedImport('queue') as verify_shadowed:
+    import queue as _queue;    verify_shadowed.check(_queue, ['Queue', 'LifoQueue', 'Empty', 'Full', 'deque'])
 
-    with VerifyShadowedImport('xmlrpclib') as verify_shadowed:
-        import xmlrpclib;    verify_shadowed.check(xmlrpclib, ['ServerProxy', 'Marshaller', 'Server'])
+with VerifyShadowedImport('xmlrpclib') as verify_shadowed:
+    import xmlrpc.client as xmlrpclib;    verify_shadowed.check(xmlrpclib, ['ServerProxy', 'Marshaller', 'Server'])
 
-    with VerifyShadowedImport('SimpleXMLRPCServer') as verify_shadowed:
-        import SimpleXMLRPCServer as _pydev_SimpleXMLRPCServer;    verify_shadowed.check(_pydev_SimpleXMLRPCServer, ['SimpleXMLRPCServer'])
+with VerifyShadowedImport('xmlrpc.server') as verify_shadowed:
+    import xmlrpc.server as xmlrpcserver;    verify_shadowed.check(xmlrpcserver, ['SimpleXMLRPCServer'])
 
-    with VerifyShadowedImport('BaseHTTPServer') as verify_shadowed:
-        import BaseHTTPServer;    verify_shadowed.check(BaseHTTPServer, ['BaseHTTPRequestHandler'])
-else:
-    with VerifyShadowedImport('_thread') as verify_shadowed:
-        import _thread as thread;    verify_shadowed.check(thread, ['start_new_thread', 'start_new', 'allocate_lock'])
-
-    with VerifyShadowedImport('queue') as verify_shadowed:
-        import queue as _queue;    verify_shadowed.check(_queue, ['Queue', 'LifoQueue', 'Empty', 'Full', 'deque'])
-
-    with VerifyShadowedImport('xmlrpclib') as verify_shadowed:
-        import xmlrpc.client as xmlrpclib;    verify_shadowed.check(xmlrpclib, ['ServerProxy', 'Marshaller', 'Server'])
-
-    with VerifyShadowedImport('xmlrpc.server') as verify_shadowed:
-        import xmlrpc.server as _pydev_SimpleXMLRPCServer;    verify_shadowed.check(_pydev_SimpleXMLRPCServer, ['SimpleXMLRPCServer'])
-
-    with VerifyShadowedImport('http.server') as verify_shadowed:
-        import http.server as BaseHTTPServer;    verify_shadowed.check(BaseHTTPServer, ['BaseHTTPRequestHandler'])
+with VerifyShadowedImport('http.server') as verify_shadowed:
+    import http.server as BaseHTTPServer;    verify_shadowed.check(BaseHTTPServer, ['BaseHTTPRequestHandler'])
 
 # If set, this is a version of the threading.enumerate that doesn't have the patching to remove the pydevd threads.
 # Note: as it can't be set during execution, don't import the name (import the module and access it through its name).
