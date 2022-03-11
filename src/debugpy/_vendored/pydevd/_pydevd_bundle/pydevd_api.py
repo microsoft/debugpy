@@ -15,7 +15,7 @@ from _pydevd_bundle.pydevd_comm import (InternalGetThreadStack, internal_get_com
 from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, file_system_encoding,
     CMD_STEP_INTO_MY_CODE, CMD_STOP_ON_START, CMD_SMART_STEP_INTO)
 from _pydevd_bundle.pydevd_constants import (get_current_thread_id, set_protocol, get_protocol,
-    HTTP_JSON_PROTOCOL, JSON_PROTOCOL, IS_PY3K, DebugInfoHolder, dict_keys, dict_items, IS_WINDOWS)
+    HTTP_JSON_PROTOCOL, JSON_PROTOCOL, DebugInfoHolder, IS_WINDOWS)
 from _pydevd_bundle.pydevd_net_command_factory_json import NetCommandFactoryJson
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
 import pydevd_file_utils
@@ -329,10 +329,7 @@ class PyDevdAPI(object):
         -- in py3 raises an error if it's not str already.
         '''
         if s.__class__ != str:
-            if not IS_PY3K:
-                s = s.encode('utf-8')
-            else:
-                raise AssertionError('Expected to have str on Python 3. Found: %s (%s)' % (s, s.__class__))
+            raise AssertionError('Expected to have str on Python 3. Found: %s (%s)' % (s, s.__class__))
         return s
 
     def filename_to_str(self, filename):
@@ -341,10 +338,7 @@ class PyDevdAPI(object):
         -- in py3 raises an error if it's not str already.
         '''
         if filename.__class__ != str:
-            if not IS_PY3K:
-                filename = filename.encode(file_system_encoding)
-            else:
-                raise AssertionError('Expected to have str on Python 3. Found: %s (%s)' % (filename, filename.__class__))
+            raise AssertionError('Expected to have str on Python 3. Found: %s (%s)' % (filename, filename.__class__))
         return filename
 
     def filename_to_server(self, filename):
@@ -578,9 +572,9 @@ class PyDevdAPI(object):
         translations are applied).
         '''
         pydev_log.debug('Reapplying breakpoints.')
-        items = dict_items(py_db.api_received_breakpoints)  # Create a copy with items to reapply.
+        values = list(py_db.api_received_breakpoints.values())  # Create a copy with items to reapply.
         self.remove_all_breakpoints(py_db, '*')
-        for _key, val in items:
+        for val in values:
             _new_filename, api_add_breakpoint_params = val
             self.add_breakpoint(py_db, *api_add_breakpoint_params)
 
@@ -614,7 +608,7 @@ class PyDevdAPI(object):
                     changed = True
 
         else:
-            items = dict_items(py_db.api_received_breakpoints)  # Create a copy to remove items.
+            items = list(py_db.api_received_breakpoints.items())  # Create a copy to remove items.
             translated_filenames = []
             for key, val in items:
                 original_filename, _breakpoint_id = key
@@ -644,7 +638,7 @@ class PyDevdAPI(object):
 
         :param int breakpoint_id:
         '''
-        for key, val in dict_items(py_db.api_received_breakpoints):
+        for key, val in list(py_db.api_received_breakpoints.items()):
             original_filename, existing_breakpoint_id = key
             _new_filename, _api_add_breakpoint_params = val
             if received_filename == original_filename and existing_breakpoint_id == breakpoint_id:
@@ -687,7 +681,7 @@ class PyDevdAPI(object):
 
             except KeyError:
                 pydev_log.info("Error removing breakpoint: Breakpoint id not found: %s id: %s. Available ids: %s\n",
-                    canonical_normalized_filename, breakpoint_id, dict_keys(id_to_pybreakpoint))
+                    canonical_normalized_filename, breakpoint_id, list(id_to_pybreakpoint))
 
         py_db.on_breakpoints_changed(removed=True)
 

@@ -5,7 +5,7 @@ import re
 import pytest
 from _pydevd_bundle.pydevd_safe_repr import SafeRepr
 import json
-from _pydevd_bundle.pydevd_constants import IS_JYTHON, IS_PY2, IS_PY36_OR_GREATER
+from _pydevd_bundle.pydevd_constants import IS_JYTHON, IS_PY36_OR_GREATER
 
 try:
     import numpy as np
@@ -605,105 +605,12 @@ class TestNumpy(SafeReprTestBase):
 
 
 @pytest.mark.parametrize('params', [
-    # In python 2, unicode slicing may or may not work well depending on whether it's a ucs-2 or
-    # ucs-4 build (so, we have to strip the high-surrogate if it's ucs-2 and the number of chars
-    # will be different).
-
-    {'maxother_outer': 20, 'input': u"😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄F😄FF😄F", 'output': (u"😄😄😄😄😄😄...FF😄F", u"😄😄😄😄😄😄😄😄😄😄😄😄😄...F😄FF😄F"), 'output_str': ("u'\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\ud83d...\\ude04FF\\U0001f604F'", "u'\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604...F\\U0001f604FF\\U0001f604F'")},
-
-    {'maxother_outer': 20, 'input': u"😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄FFFFFFFF", 'output': (u"😄😄😄😄😄😄...FFFFFF", u"😄😄😄😄😄😄😄😄😄😄😄😄😄...FFFFFF"), 'output_str': ("u'\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\ud83d...FFFFFF'", "u'\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604...FFFFFF'")},
-    {'maxother_outer': 20, 'input': u"🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐FFFFFFFF", 'output': (u"🌐🌐🌐🌐🌐🌐...FFFFFF", u"🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐🌐...FFFFFF"), 'output_str': ("u'\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\ud83c...FFFFFF'", "u'\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310...FFFFFF'")},
-    {'maxother_outer': 10, 'input': u"😄😄😄😄😄😄😄😄😄FFFFFFFF", 'output': (u"😄😄😄...FFF", u"😄😄😄😄😄😄...FFF"), 'output_str': ("u'\\U0001f604\\U0001f604\\U0001f604...FFF'", "u'\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604\\U0001f604...FFF'")},
-    {'maxother_outer': 10, 'input': u"🌐🌐🌐🌐🌐🌐🌐🌐🌐FFFFFFFF", 'output': (u"🌐🌐🌐...FFF", u"🌐🌐🌐🌐🌐🌐...FFF"), 'output_str': ("u'\\U0001f310\\U0001f310\\U0001f310...FFF'", "u'\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310\\U0001f310...FFF'")},
-
-    # Regular unicode
-    {'maxother_outer': 20, 'input': u"ωωωωωωωωωωωωωωωωωωωωωωωFFFFFFFF", 'output': u"ωωωωωωωωωωωωω...FFFFFF", 'output_str': repr(u"ωωωωωωωωωωωωω...FFFFFF")},
-    {'maxother_outer': 10, 'input': u"������������FFFFFFFF", 'output': u"������...FFF", 'output_str': repr(u"������...FFF")},
-
-    # Note: as unicode directly doesn't reach the limit and is not elided.
-    {'maxother_outer': 20, 'input': u"������������FFFFFFFF", 'output': u"������������F...FFFFFF", 'output_str': repr(u"������������FFFFFFFF")},
-
-    # Note that we actually get the repr() in this case as we can't decode it with any of the available encodings.
-    {'maxother_outer': 10, 'input': b'\xed\xbd\xbf\xff\xfe\xfa\xfd' * 10, 'output': b"'\\xed\\...fd'", 'output_str': "'\\xed\\xbd\\xbf\\xff\\xfe\\xfa...\\xfe\\xfa\\xfd'"},
-    {'maxother_outer': 20, 'input': b'\xed\xbd\xbf\xff\xfe\xfa\xfd' * 10, 'output': b"'\\xed\\xbd\\xbf...a\\xfd'", 'output_str': "'\\xed\\xbd\\xbf\\xff\\xfe\\xfa\\xfd\\xed\\xbd\\xbf\\xff\\xfe\\xfa...\\xbd\\xbf\\xff\\xfe\\xfa\\xfd'"},
-    # Check that we use repr() even if it fits the maxother_outer limit.
-    {'maxother_outer': 100, 'input': b'\xed\xbd\xbf\xff\xfe\xfa\xfd', 'output': "'\\xed\\xbd\\xbf\\xff\\xfe\\xfa\\xfd'", 'output_str': repr(b'\xed\xbd\xbf\xff\xfe\xfa\xfd')},
-
-    # Note that with latin1 encoding we can actually decode the string but when encoding back to utf-8 we have garbage
-    # (couldn't find a good approach to know what to do here as we've actually been able to decode it as
-    # latin-1 because it's a very permissive encoding).
-    {
-        'maxother_outer': 10,
-        'sys_stdout_encoding': 'latin1',
-        'input': b'\xed\xbd\xbf\xff\xfe\xfa\xfd' * 10,
-        'output': b'\xc3\xad\xc2\xbd\xc2\xbf\xc3\xbf\xc3\xbe\xc3\xba...\xc3\xbe\xc3\xba\xc3\xbd',
-        'output_str': "\'\\xed\\xbd\\xbf\\xff\\xfe\\xfa...\\xfe\\xfa\\xfd\'",
-    },
-])
-@pytest.mark.parametrize('use_str', [True, False])
-@pytest.mark.skipif(not IS_PY2, reason='Py2 specific test.')
-def test_py2_bytes_slicing(params, use_str):
-    safe_repr = SafeRepr()
-    safe_repr.locale_preferred_encoding = 'ascii'
-    safe_repr.sys_stdout_encoding = params.get('sys_stdout_encoding', 'ascii')
-
-    safe_repr.maxother_outer = params['maxother_outer']
-
-    # This is the encoding that we expect back (because json needs to be able to encode it
-    # later on, so, the return from SafeRepr must always be utf-8 regardless of the input).
-    encoding = 'utf-8'
-
-    if not use_str:
-
-        class MyObj(object):
-
-            def __repr__(self):
-                ret = params['input']
-                if isinstance(ret, unicode):
-                    ret = ret.encode(encoding)
-                return ret
-
-        safe_repr_input = MyObj()
-    else:
-        safe_repr_input = params['input']
-
-    computed = safe_repr(safe_repr_input)
-
-    if use_str:
-        expected_output = params['output_str']
-    else:
-        expected_output = params['output']
-
-    expect_unicode = False
-    if isinstance(expected_output, unicode):
-        expect_unicode = True
-    if isinstance(expected_output, tuple) and isinstance(expected_output[0], unicode):
-        expect_unicode = True
-
-    if expect_unicode:
-        computed = computed.decode(encoding)
-        if isinstance(expected_output, tuple):
-            assert computed in expected_output
-        else:
-            assert computed == expected_output
-    else:
-        if isinstance(expected_output, tuple):
-            assert computed in expected_output
-        else:
-            assert computed == expected_output
-
-    # Check that we can json-encode the return.
-    assert json.dumps(computed)
-
-
-@pytest.mark.parametrize('params', [
     {'maxother_outer': 20, 'input': "😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄FFFFFFFF", 'output': '😄😄😄😄😄😄😄😄😄😄😄😄😄...FFFFFF'},
     {'maxother_outer': 10, 'input': "😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄FFFFFFFF", 'output': '😄😄😄😄😄😄...FFF'},
     {'maxother_outer': 10, 'input': u"������������FFFFFFFF", 'output': u"������...FFF"},
 
     # Because we can't return bytes, byte-related tests aren't needed (and str works as it should).
 ])
-@pytest.mark.skipif(IS_PY2, reason='Py3 specific test')
 @pytest.mark.parametrize('use_str', [True, False])
 def test_py3_str_slicing(params, use_str):
     # Note: much simpler in python because __repr__ is required to return str
@@ -741,10 +648,7 @@ def test_raw_bytes():
     obj = b'\xed\xbd\xbf\xff\xfe\xfa\xfd'
     raw_value_repr = safe_repr(obj)
     assert isinstance(raw_value_repr, str)  # bytes on py2, str on py3
-    if IS_PY2:
-        assert raw_value_repr == obj.decode('latin1').encode('utf-8')
-    else:
-        assert raw_value_repr == obj.decode('latin1')
+    assert raw_value_repr == obj.decode('latin1')
 
 
 def test_raw_unicode():
@@ -753,10 +657,7 @@ def test_raw_unicode():
     obj = u'\xed\xbd\xbf\xff\xfe\xfa\xfd'
     raw_value_repr = safe_repr(obj)
     assert isinstance(raw_value_repr, str)  # bytes on py2, str on py3
-    if IS_PY2:
-        assert raw_value_repr == obj.encode('utf-8')
-    else:
-        assert raw_value_repr == obj
+    assert raw_value_repr == obj
 
 
 def test_no_repr():

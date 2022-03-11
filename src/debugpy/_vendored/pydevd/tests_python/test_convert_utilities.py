@@ -1,6 +1,6 @@
 # coding: utf-8
 import os.path
-from _pydevd_bundle.pydevd_constants import IS_WINDOWS, IS_PY2
+from _pydevd_bundle.pydevd_constants import IS_WINDOWS
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
 import io
 from _pydev_bundle.pydev_log import log_context
@@ -53,15 +53,6 @@ def test_convert_utilities(tmpdir):
                 # Check that we have the expected paths in the cache.
                 assert pydevd_file_utils._listdir_cache[os.path.dirname(normalized).lower()] == ['Test_Convert_Utilities']
                 assert pydevd_file_utils._listdir_cache[(os.path.dirname(normalized).lower(), 'Test_Convert_Utilities'.lower())] == real_case
-
-            if IS_PY2:
-                # Test with unicode in python 2 too.
-                real_case = pydevd_file_utils.get_path_with_real_case(normalized.decode(
-                    getfilesystemencoding()))
-                assert isinstance(real_case, str)  # bytes on py2, unicode on py3
-                # Note test_dir itself cannot be compared with because pytest may
-                # have passed the case normalized.
-                assert real_case.endswith("Test_Convert_Utilities")
 
         # Check that it works with a shortened path.
         shortened = pydevd_file_utils.convert_to_short_pathname(normalized)

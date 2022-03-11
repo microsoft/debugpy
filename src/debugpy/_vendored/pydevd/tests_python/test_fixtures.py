@@ -1,7 +1,6 @@
 import json
 
 from tests_python.debugger_unittest import ReaderThread, IS_JYTHON
-from tests_python.debug_constants import IS_PY3K
 import pytest
 import socket
 from _pydev_bundle import pydev_localhost
@@ -29,7 +28,7 @@ class _DummySocket(object):
         return self._sock_for_reader_thread.recv(*args, **kwargs)
 
     def put(self, msg):
-        if IS_PY3K and not isinstance(msg, bytes):
+        if not isinstance(msg, bytes):
             msg = msg.encode('utf-8')
 
         if self._sock_for_fixture_test is None:

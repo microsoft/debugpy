@@ -2,12 +2,11 @@ from _pydev_bundle import pydev_log
 from _pydevd_bundle import pydevd_extension_utils
 from _pydevd_bundle import pydevd_resolver
 import sys
-from _pydevd_bundle.pydevd_constants import dict_iter_items, dict_keys, IS_PY3K, \
-    BUILTINS_MODULE_NAME, MAXIMUM_VARIABLE_REPRESENTATION_SIZE, RETURN_VALUES_DICT, LOAD_VALUES_ASYNC, \
-    DEFAULT_VALUE
+from _pydevd_bundle.pydevd_constants import BUILTINS_MODULE_NAME, MAXIMUM_VARIABLE_REPRESENTATION_SIZE, \
+    RETURN_VALUES_DICT, LOAD_VALUES_ASYNC, DEFAULT_VALUE
 from _pydev_bundle.pydev_imports import quote
 from _pydevd_bundle.pydevd_extension_api import TypeResolveProvider, StrPresentationProvider
-from _pydevd_bundle.pydevd_utils import isinstance_checked, hasattr_checked, DAPGrouper, Timer
+from _pydevd_bundle.pydevd_utils import isinstance_checked, hasattr_checked, DAPGrouper
 from _pydevd_bundle.pydevd_resolver import get_var_scope
 
 try:
@@ -253,25 +252,21 @@ def should_evaluate_full_value(val):
 
 
 def return_values_from_dict_to_xml(return_dict):
-    res = ""
-    for name, val in dict_iter_items(return_dict):
-        res += var_to_xml(val, name, additional_in_xml=' isRetVal="True"')
-    return res
+    res = []
+    for name, val in return_dict.items():
+        res.append(var_to_xml(val, name, additional_in_xml=' isRetVal="True"'))
+    return ''.join(res)
 
 
 def frame_vars_to_xml(frame_f_locals, hidden_ns=None):
     """ dumps frame variables to XML
     <var name="var_name" scope="local" type="type" value="value"/>
     """
-    xml = ""
+    xml = []
 
-    keys = dict_keys(frame_f_locals)
-    if hasattr(keys, 'sort'):
-        keys.sort()  # Python 3.0 does not have it
-    else:
-        keys = sorted(keys)  # Jython 2.1 does not have it
+    keys = sorted(frame_f_locals)
 
-    return_values_xml = ''
+    return_values_xml = []
 
     for k in keys:
         try:
@@ -282,20 +277,21 @@ def frame_vars_to_xml(frame_f_locals, hidden_ns=None):
                 continue
 
             if k == RETURN_VALUES_DICT:
-                for name, val in dict_iter_items(v):
-                    return_values_xml += var_to_xml(val, name, additional_in_xml=' isRetVal="True"')
+                for name, val in v.items():
+                    return_values_xml.append(var_to_xml(val, name, additional_in_xml=' isRetVal="True"'))
 
             else:
                 if hidden_ns is not None and k in hidden_ns:
-                    xml += var_to_xml(v, str(k), additional_in_xml=' isIPythonHidden="True"',
-                                      evaluate_full_value=eval_full_val)
+                    xml.append(var_to_xml(v, str(k), additional_in_xml=' isIPythonHidden="True"',
+                                      evaluate_full_value=eval_full_val))
                 else:
-                    xml += var_to_xml(v, str(k), evaluate_full_value=eval_full_val)
+                    xml.append(var_to_xml(v, str(k), evaluate_full_value=eval_full_val))
         except Exception:
             pydev_log.exception("Unexpected error, recovered safely.")
 
     # Show return values as the first entry.
-    return return_values_xml + xml
+    return_values_xml.extend(xml)
+    return ''.join(return_values_xml)
 
 
 def get_variable_details(val, evaluate_full_value=True, to_string=None):
@@ -357,12 +353,8 @@ def get_variable_details(val, evaluate_full_value=True, to_string=None):
 
     # fix to work with unicode values
     try:
-        if not IS_PY3K:
-            if value.__class__ == unicode:  # @UndefinedVariable
-                value = value.encode('utf-8', 'replace')
-        else:
-            if value.__class__ == bytes:
-                value = value.decode('utf-8', 'replace')
+        if value.__class__ == bytes:
+            value = value.decode('utf-8', 'replace')
     except TypeError:
         pass
 

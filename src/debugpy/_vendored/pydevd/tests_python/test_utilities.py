@@ -1,12 +1,11 @@
 import threading
 
 from _pydevd_bundle.pydevd_utils import convert_dap_log_message_to_expression
-from tests_python.debug_constants import IS_PY26, IS_PY3K, TEST_GEVENT, IS_CPYTHON
+from tests_python.debug_constants import TEST_GEVENT, IS_CPYTHON
 import sys
-from _pydevd_bundle.pydevd_constants import IS_WINDOWS, IS_PY2, IS_PYPY, IS_JYTHON
+from _pydevd_bundle.pydevd_constants import IS_WINDOWS, IS_PYPY, IS_JYTHON
 import pytest
 import os
-import codecs
 from _pydevd_bundle.pydevd_thread_lifecycle import pydevd_find_thread_by_id
 
 
@@ -19,11 +18,8 @@ def test_expression_to_evaluate():
     assert _expression_to_evaluate(b'  for a in b:\nfoo') == b'  for a in b:\nfoo'
     assert _expression_to_evaluate(b'\tfor a in b:\n\t\tfoo') == b'for a in b:\n\tfoo'
 
-    if IS_PY2:
-        assert _expression_to_evaluate(u'  expr') == (codecs.BOM_UTF8 + b'expr')
-    else:
-        assert _expression_to_evaluate(u'  expr') == u'expr'
-        assert _expression_to_evaluate(u'  for a in expr:\n  pass') == u'for a in expr:\npass'
+    assert _expression_to_evaluate(u'  expr') == u'expr'
+    assert _expression_to_evaluate(u'  for a in expr:\n  pass') == u'for a in expr:\npass'
 
 
 @pytest.mark.skipif(IS_WINDOWS, reason='Brittle on Windows.')
@@ -88,10 +84,7 @@ conftest.py:67: AssertionError
             error_msg += 'Current main thread not instance of: %s (%s)' % (
                 threading._MainThread, current_thread.__class__.__mro__,)
 
-        try:
-            from StringIO import StringIO
-        except:
-            from io import StringIO
+        from io import StringIO
 
         stream = StringIO()
         dump_threads(stream=stream)
@@ -162,13 +155,11 @@ def test_convert_dap_log_message_to_expression():
         'a (22, 33)} 2'
     )
 
-    if not IS_PY26:
-        # Note: set literal not valid for Python 2.6.
-        assert check_dap_log_message(
-            'a {{1: {1}}}',
-            "'a %s' % ({1: {1}},)",
-            'a {1: {1}}' if IS_PY3K else 'a {1: set([1])}',
-        )
+    assert check_dap_log_message(
+        'a {{1: {1}}}',
+        "'a %s' % ({1: {1}},)",
+        'a {1: {1}}'
+    )
 
     # Error condition.
     assert check_dap_log_message(
@@ -180,10 +171,7 @@ def test_convert_dap_log_message_to_expression():
 
 def test_pydevd_log():
     from _pydev_bundle import pydev_log
-    try:
-        import StringIO as io
-    except:
-        import io
+    import io
     from _pydev_bundle.pydev_log import log_context
 
     stream = io.StringIO()
@@ -242,10 +230,7 @@ def test_pydevd_logging_files(tmpdir):
     import os.path
     from _pydev_bundle.pydev_log import _LoggingGlobals
 
-    try:
-        import StringIO as io
-    except:
-        import io
+    import io
     from _pydev_bundle.pydev_log import log_context
 
     stream = io.StringIO()
@@ -427,13 +412,10 @@ def test_find_main_thread_id():
 def test_get_ppid():
     from _pydevd_bundle.pydevd_api import PyDevdAPI
     api = PyDevdAPI()
-    if IS_PY3K:
-        # On python 3 we can check that our internal api which is used for Python 2 gives the
-        # same result as os.getppid.
-        ppid = os.getppid()
-        assert api._get_windows_ppid() == ppid
-    else:
-        assert api._get_windows_ppid() is not None
+    # On python 3 we can check that our internal api which is used for Python 2 gives the
+    # same result as os.getppid.
+    ppid = os.getppid()
+    assert api._get_windows_ppid() == ppid
 
 
 def _check_gevent(expect_msg):

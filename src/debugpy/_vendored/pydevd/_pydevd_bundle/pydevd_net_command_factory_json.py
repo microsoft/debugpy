@@ -16,7 +16,7 @@ from _pydevd_bundle.pydevd_comm_constants import CMD_THREAD_CREATE, CMD_RETURN, 
     CMD_THREAD_RESUME_SINGLE_NOTIFICATION, CMD_THREAD_KILL, CMD_STOP_ON_START, CMD_INPUT_REQUESTED, \
     CMD_EXIT, CMD_STEP_INTO_COROUTINE, CMD_STEP_RETURN_MY_CODE, CMD_SMART_STEP_INTO, \
     CMD_SET_FUNCTION_BREAK
-from _pydevd_bundle.pydevd_constants import get_thread_id, dict_values, ForkSafeLock
+from _pydevd_bundle.pydevd_constants import get_thread_id, ForkSafeLock
 from _pydevd_bundle.pydevd_net_command import NetCommand, NULL_NET_COMMAND
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
 from _pydevd_bundle.pydevd_utils import get_non_pydevd_threads
@@ -26,11 +26,7 @@ from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_i
 from _pydevd_bundle import pydevd_frame_utils, pydevd_constants, pydevd_utils
 import linecache
 from _pydevd_bundle.pydevd_thread_lifecycle import pydevd_find_thread_by_id
-
-try:
-    from StringIO import StringIO
-except:
-    from io import StringIO
+from io import StringIO
 
 
 class ModulesManager(object):
@@ -86,7 +82,7 @@ class ModulesManager(object):
         :return list(Module)
         '''
         with self._lock:
-            return dict_values(self._modules)
+            return list(self._modules.values())
 
 
 class NetCommandFactoryJson(NetCommandFactory):

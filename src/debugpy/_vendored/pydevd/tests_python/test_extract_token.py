@@ -2,18 +2,13 @@
 from __future__ import unicode_literals
 from _pydev_bundle._pydev_completer import (isidentifier, extract_token_and_qualifier,
     TokenAndQualifier)
-from _pydevd_bundle.pydevd_constants import IS_PY2
 
 
 def test_isidentifier():
     assert isidentifier('abc')
     assert not isidentifier('<')
     assert not isidentifier('')
-    if IS_PY2:
-        # Py3 accepts unicode identifiers
-        assert not isidentifier('áéíóú')
-    else:
-        assert isidentifier('áéíóú')
+    assert isidentifier('áéíóú')
 
 
 def test_extract_token_and_qualifier():

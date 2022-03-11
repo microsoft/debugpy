@@ -4,7 +4,7 @@ from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
 from _pydev_imps._pydev_saved_modules import threading
 from _pydevd_bundle import pydevd_xml
 from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder
-from _pydevd_bundle.pydevd_constants import get_thread_id, IS_PY3K
+from _pydevd_bundle.pydevd_constants import get_thread_id
 from _pydevd_bundle.pydevd_net_command import NetCommand
 from pydevd_concurrency_analyser.pydevd_thread_wrappers import ObjectWrapper, wrap_attr
 import pydevd_file_utils
@@ -13,10 +13,7 @@ import sys
 
 file_system_encoding = getfilesystemencoding()
 
-try:
-    from urllib import quote
-except:
-    from urllib.parse import quote  # @UnresolvedImport
+from urllib.parse import quote
 
 threadingCurrentThread = threading.current_thread
 
@@ -69,7 +66,7 @@ def get_text_list_for_frame(frame):
             cmdTextList.append(variables)
             cmdTextList.append("</frame>")
             curFrame = curFrame.f_back
-    except :
+    except:
         pydev_log.exception()
 
     return cmdTextList
@@ -183,7 +180,7 @@ class ThreadingLogger:
                                 my_back = frame.f_back.f_back
                                 my_thread_id = get_thread_id(my_self_obj)
                                 send_massage = True
-                                if IS_PY3K and hasattr(my_self_obj, "_pydev_join_called"):
+                                if hasattr(my_self_obj, "_pydev_join_called"):
                                     send_massage = False
                                     # we can't detect stop after join in Python 2 yet
                                 if send_massage:

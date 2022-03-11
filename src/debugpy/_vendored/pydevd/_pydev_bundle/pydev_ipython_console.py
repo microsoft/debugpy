@@ -1,14 +1,13 @@
 import sys
 from _pydev_bundle.pydev_console_utils import BaseInterpreterInterface
 
-import os
 import traceback
 
 # Uncomment to force PyDev standard shell.
 # raise ImportError()
 
 from _pydev_bundle.pydev_ipython_console_011 import get_pydev_frontend
-from _pydevd_bundle.pydevd_constants import dict_iter_items
+
 
 #=======================================================================================================================
 # InterpreterInterface
@@ -48,10 +47,8 @@ class InterpreterInterface(BaseInterpreterInterface):
 
         return res
 
-
     def get_namespace(self):
         return self.interpreter.get_namespace()
-
 
     def getCompletions(self, text, act_tok):
         return self.interpreter.getCompletions(text, act_tok)
@@ -61,8 +58,8 @@ class InterpreterInterface(BaseInterpreterInterface):
 
     def notify_about_magic(self):
         if not self.notification_succeeded:
-            self.notification_tries+=1
-            if self.notification_tries>self.notification_max_tries:
+            self.notification_tries += 1
+            if self.notification_tries > self.notification_max_tries:
                 return
             completions = self.getCompletions("%", "%")
             magic_commands = [x[0] for x in completions]
@@ -73,7 +70,7 @@ class InterpreterInterface(BaseInterpreterInterface):
                 try:
                     server.NotifyAboutMagic(magic_commands, self.interpreter.is_automagic())
                     self.notification_succeeded = True
-                except :
+                except:
                     self.notification_succeeded = False
 
     def get_ipython_hidden_vars_dict(self):
@@ -85,7 +82,7 @@ class InterpreterInterface(BaseInterpreterInterface):
                     user_hidden_dict = user_ns_hidden.copy()
                 else:
                     # In IPython 1.x `user_ns_hidden` used to be a set with names of hidden variables
-                    user_hidden_dict = dict([(key, val) for key, val in dict_iter_items(self.interpreter.ipython.user_ns)
+                    user_hidden_dict = dict([(key, val) for key, val in self.interpreter.ipython.user_ns.items()
                                              if key in user_ns_hidden])
 
                 # while `_`, `__` and `___` were not initialized, they are not presented in `user_ns_hidden`

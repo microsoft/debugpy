@@ -1,24 +1,17 @@
 from _pydevd_bundle.pydevd_constants import get_frame, IS_CPYTHON, IS_64BIT_PROCESS, IS_WINDOWS, \
-    IS_LINUX, IS_MAC, IS_PY2, DebugInfoHolder, LOAD_NATIVE_LIB_FLAG, \
-    ENV_FALSE_LOWER_VALUES, GlobalDebuggerHolder, ForkSafeLock
+    IS_LINUX, IS_MAC, DebugInfoHolder, LOAD_NATIVE_LIB_FLAG, \
+    ENV_FALSE_LOWER_VALUES, ForkSafeLock
 from _pydev_imps._pydev_saved_modules import thread, threading
 from _pydev_bundle import pydev_log, pydev_monkey
-from os.path import os
+import os.path
 import platform
 try:
     import ctypes
 except ImportError:
     ctypes = None
 
-try:
-    import cStringIO as StringIO  # may not always be available @UnusedImport
-except:
-    try:
-        import StringIO  # @Reimport
-    except:
-        import io as StringIO
-
-import sys  # @Reimport
+from io import StringIO
+import sys
 import traceback
 
 _original_settrace = sys.settrace
@@ -35,7 +28,7 @@ class TracingFunctionHolder:
 
 def get_exception_traceback_str():
     exc_info = sys.exc_info()
-    s = StringIO.StringIO()
+    s = StringIO()
     traceback.print_exception(exc_info[0], exc_info[1], exc_info[2], file=s)
     return s.getvalue()
 
@@ -47,7 +40,7 @@ def _get_stack_str(frame):
           '\nto see how to restore the debug tracing back correctly.\n'
 
     if TracingFunctionHolder._traceback_limit:
-        s = StringIO.StringIO()
+        s = StringIO()
         s.write('Call Location:\n')
         traceback.print_stack(f=frame, limit=TracingFunctionHolder._traceback_limit, file=s)
         msg = msg + s.getvalue()
@@ -314,10 +307,7 @@ def set_trace_to_threads(tracing_func, thread_idents=None, create_dummy_thread=T
 
                     def _set_ident(self):
                         # Note: Hack to set the thread ident that we want.
-                        if IS_PY2:
-                            self._Thread__ident = thread_ident
-                        else:
-                            self._ident = thread_ident
+                        self._ident = thread_ident
 
                 t = _DummyThread()
                 # Reset to the base class (don't expose our own version of the class).

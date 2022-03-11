@@ -12,12 +12,8 @@ from _pydev_bundle.pydev_imports import _queue as queue
 from _pydev_bundle.pydev_imports import SimpleXMLRPCServer
 import time
 import socket
-from tests_python.debug_constants import IS_PY2
 
-if IS_PY2:
-    builtin_qualifier = "__builtin__"
-else:
-    builtin_qualifier = "builtins"
+builtin_qualifier = "builtins"
 
 
 @pytest.fixture

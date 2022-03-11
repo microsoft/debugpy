@@ -2,26 +2,19 @@
     resolution/conversion to XML.
 """
 import pickle
-from _pydevd_bundle.pydevd_constants import get_frame, get_current_thread_id, xrange, IS_PY2, \
-    iter_chars, silence_warnings_decorator, dict_iter_items
+from _pydevd_bundle.pydevd_constants import get_frame, get_current_thread_id, xrange, \
+    iter_chars, silence_warnings_decorator
 
 from _pydevd_bundle.pydevd_xml import ExceptionOnEvaluate, get_type, var_to_xml
 from _pydev_bundle import pydev_log
-import codecs
-import os
 import functools
 from _pydevd_bundle.pydevd_thread_lifecycle import resume_threads, mark_thread_suspended, suspend_all_threads
 from _pydevd_bundle.pydevd_comm_constants import CMD_SET_BREAK
 
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
 import sys  # @Reimport
 
 from _pydev_imps._pydev_saved_modules import threading
-import traceback
-from _pydevd_bundle import pydevd_save_locals, pydevd_timeout, pydevd_constants, pydevd_utils
+from _pydevd_bundle import pydevd_save_locals, pydevd_timeout, pydevd_constants
 from _pydev_bundle.pydev_imports import Exec, execfile
 from _pydevd_bundle.pydevd_utils import to_string
 
@@ -244,13 +237,6 @@ def _expression_to_evaluate(expression):
             else:
                 expression = u''.join(new_lines)
 
-    if IS_PY2 and isinstance(expression, unicode):
-        # In Python 2 we need to compile with bytes and not unicode (otherwise it'd use
-        # the default encoding which could be ascii).
-        # See https://github.com/microsoft/ptvsd/issues/1864 and https://bugs.python.org/issue18870
-        # for why we're using the utf-8 bom.
-        # i.e.: ... if an utf-8 bom is present, it is considered utf-8 in eval/exec.
-        expression = codecs.BOM_UTF8 + expression.encode('utf-8')
     return expression
 
 
@@ -267,9 +253,6 @@ def eval_in_context(expression, globals, locals=None):
 
         # Ok, we have the initial error message, but let's see if we're dealing with a name mangling error...
         try:
-            if IS_PY2 and isinstance(expression, unicode):
-                expression = expression.encode('utf-8')
-
             if '.__' in expression:
                 # Try to handle '__' name mangling (for simple cases such as self.__variable.__another_var).
                 split = expression.split('.')
@@ -395,7 +378,7 @@ def _update_globals_and_locals(updated_globals, initial_globals, frame):
     # one that enabled creating and using variables during the same evaluation.
     assert updated_globals is not None
     changed = False
-    for key, val in dict_iter_items(updated_globals):
+    for key, val in updated_globals.items():
         if initial_globals.get(key) is not val:
             changed = True
             frame.f_locals[key] = val
@@ -466,10 +449,7 @@ def evaluate_expression(py_db, frame, expression, is_exec):
     updated_locals = None
 
     try:
-        if IS_PY2 and isinstance(expression, unicode):
-            expression = expression.replace(u'@LINE@', u'\n')
-        else:
-            expression = expression.replace('@LINE@', '\n')
+        expression = expression.replace('@LINE@', '\n')
 
         if is_exec:
             try:
@@ -488,11 +468,6 @@ def evaluate_expression(py_db, frame, expression, is_exec):
             else:
                 result = eval(compiled, updated_globals, updated_locals)
                 if result is not None:  # Only print if it's not None (as python does)
-                    if IS_PY2 and isinstance(result, unicode):
-                        encoding = sys.stdout.encoding
-                        if not encoding:
-                            encoding = os.environ.get('PYTHONIOENCODING', 'utf-8')
-                        result = result.encode(encoding, 'replace')
                     sys.stdout.write('%s\n' % (result,))
             return
 

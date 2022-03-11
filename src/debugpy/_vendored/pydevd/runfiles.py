@@ -4,13 +4,13 @@ Entry point module (keep at root):
 Used to run with tests with unittest/pytest/nose.
 '''
 
-
 import os
 
 try:
     xrange
 except:
     xrange = range
+
 
 def main():
     import sys
@@ -36,9 +36,12 @@ def main():
     try:
         # Convert to the case stored in the filesystem
         import win32api
+
         def get_with_filesystem_case(f):
             return win32api.GetLongPathName(win32api.GetShortPathName(f))
+
     except:
+
         def get_with_filesystem_case(f):
             return f
 
@@ -106,7 +109,6 @@ def main():
         # --tests = Constants.ATTR_UNITTEST_TESTS
         # --config-file = Constants.ATTR_UNITTEST_CONFIGURATION_FILE
 
-
         # The only thing actually handled here are the tests that we want to run, which we'll
         # handle and pass as what the test framework expects.
 
@@ -150,7 +152,6 @@ def main():
                 files_or_dirs = configuration.files_or_dirs
 
         argv = other_test_framework_params + files_or_dirs
-
 
         if test_framework == NOSE_FRAMEWORK:
             # Nose usage: http://somethingaboutorange.com/mrl/projects/nose/0.11.2/usage.html
@@ -219,7 +220,7 @@ def main():
                 # Workaround bug in py.test: if we pass the full path it ends up importing conftest
                 # more than once (so, always work with relative paths).
                 if os.path.isfile(arg) or os.path.isdir(arg):
-                    
+
                     # Args must be passed with the proper case in the filesystem (otherwise
                     # python itself may not recognize it).
                     arg = get_with_filesystem_case(arg)
@@ -251,8 +252,7 @@ def main():
 
             # Set what should be skipped in the plugin through an environment variable
             s = base64.b64encode(zlib.compress(pickle.dumps(py_test_accept_filter)))
-            if pydevd_constants.IS_PY3K:
-                s = s.decode('ascii')  # Must be str in py3.
+            s = s.decode('ascii')  # Must be str in py3.
             os.environ['PYDEV_PYTEST_SKIP'] = s
 
             # Identifies the main pid (i.e.: if it's not the main pid it has to connect back to the
@@ -286,6 +286,7 @@ if __name__ == '__main__':
         import traceback
 
         class DumpThreads(threading.Thread):
+
             def run(self):
                 time.sleep(10)
 
@@ -315,7 +316,6 @@ if __name__ == '__main__':
                             stack_trace.append("   %s" % (line.strip()))
                 stack_trace.append('\n=============================== END Thread Dump ===============================')
                 sys.stderr.write('\n'.join(stack_trace))
-
 
         dump_current_frames_thread = DumpThreads()
         dump_current_frames_thread.daemon = True  # Daemon so that this thread doesn't halt it!

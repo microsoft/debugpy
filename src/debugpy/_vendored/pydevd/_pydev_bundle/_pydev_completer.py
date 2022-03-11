@@ -2,13 +2,9 @@ from collections import namedtuple
 from string import ascii_letters, digits
 
 from _pydevd_bundle import pydevd_xml
-from _pydevd_bundle.pydevd_constants import IS_PY2
 import pydevconsole
 
-if IS_PY2:
-    import __builtin__
-else:
-    import builtins as __builtin__  # Py3
+import builtins as __builtin__  # Py3
 
 try:
     import java.lang  # @UnusedImport
@@ -192,8 +188,6 @@ def completions_to_xml(completions):
     msg = ["<xml>"]
 
     for comp in completions:
-        if IS_PY2:
-            comp = [(x.encode('utf-8') if x.__class__ == unicode else x) for x in comp]
         msg.append('<comp p0="')
         msg.append(valid_xml(quote(comp[0], '/>_= \t')))
         msg.append('" p1="')
@@ -211,31 +205,13 @@ def completions_to_xml(completions):
 identifier_start = ascii_letters + '_'
 identifier_part = ascii_letters + '_' + digits
 
-if IS_PY2:
-    identifier_start = identifier_start.decode('utf-8')
-    identifier_part = identifier_part.decode('utf-8')
-
 identifier_start = set(identifier_start)
 identifier_part = set(identifier_part)
 
-if IS_PY2:
 
-    # There's no string.isidentifier() on py2.
-    def isidentifier(s):
-        if not s:
-            return False
-        if s[0] not in identifier_start:
-            return False
+def isidentifier(s):
+    return s.isidentifier()
 
-        for c in s[1:]:
-            if c not in identifier_part:
-                return False
-        return True
-
-else:
-
-    def isidentifier(s):
-        return s.isidentifier()
 
 TokenAndQualifier = namedtuple('TokenAndQualifier', 'token, qualifier')
 

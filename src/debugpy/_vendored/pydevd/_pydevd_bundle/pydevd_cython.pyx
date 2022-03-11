@@ -149,7 +149,7 @@ import re
 
 from _pydev_bundle import pydev_log
 from _pydevd_bundle import pydevd_dont_trace
-from _pydevd_bundle.pydevd_constants import (dict_iter_values, IS_PY3K, RETURN_VALUES_DICT, NO_FTRACE,
+from _pydevd_bundle.pydevd_constants import (RETURN_VALUES_DICT, NO_FTRACE,
     EXCEPTION_TYPE_HANDLED, EXCEPTION_TYPE_USER_UNHANDLED)
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, just_raised, remove_exception_from_frame, ignore_exception_trace
 from _pydevd_bundle.pydevd_utils import get_clsname_for_code
@@ -955,7 +955,7 @@ cdef class PyDBFrame:
                             if curr_func_name in ('?', '<module>', '<lambda>'):
                                 curr_func_name = ''
 
-                            for bp in dict_iter_values(breakpoints_for_file):  # jython does not support itervalues()
+                            for bp in breakpoints_for_file.values():
                                 # will match either global or some function
                                 if bp.func_name in ('None', curr_func_name):
                                     has_breakpoint_in_frame = True
@@ -1239,7 +1239,7 @@ cdef class PyDBFrame:
                 else:
                     stop = False
 
-                if stop and step_cmd != -1 and is_return and IS_PY3K and hasattr(frame, "f_back"):
+                if stop and step_cmd != -1 and is_return and hasattr(frame, "f_back"):
                     f_code = getattr(frame.f_back, 'f_code', None)
                     if f_code is not None:
                         if main_debugger.get_file_type(frame.f_back) == main_debugger.PYDEV_FILE:

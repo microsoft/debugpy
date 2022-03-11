@@ -5,19 +5,13 @@ from _pydev_bundle.pydev_imports import xmlrpclib, _queue, Exec
 from  _pydev_bundle._pydev_calltip_util import get_description
 from _pydevd_bundle import pydevd_vars
 from _pydevd_bundle import pydevd_xml
-from _pydevd_bundle.pydevd_constants import (IS_JYTHON, dict_iter_items, NEXT_VALUE_SEPARATOR, get_global_debugger,
+from _pydevd_bundle.pydevd_constants import (IS_JYTHON, NEXT_VALUE_SEPARATOR, get_global_debugger,
     silence_warnings_decorator)
 from contextlib import contextmanager
 from _pydev_bundle import pydev_log
 from _pydevd_bundle.pydevd_utils import interrupt_main_thread
 
-try:
-    import cStringIO as StringIO  # may not always be available @UnusedImport
-except:
-    try:
-        import StringIO  # @Reimport
-    except:
-        import io as StringIO
+from io import StringIO
 
 
 # =======================================================================================================================
@@ -440,7 +434,7 @@ class BaseInterpreterInterface:
             return True
 
     def getFrame(self):
-        xml = StringIO.StringIO()
+        xml = StringIO()
         hidden_ns = self.get_ipython_hidden_vars_dict()
         xml.write("<xml>")
         xml.write(pydevd_xml.frame_vars_to_xml(self.get_namespace(), hidden_ns))
@@ -450,13 +444,13 @@ class BaseInterpreterInterface:
 
     @silence_warnings_decorator
     def getVariable(self, attributes):
-        xml = StringIO.StringIO()
+        xml = StringIO()
         xml.write("<xml>")
         val_dict = pydevd_vars.resolve_compound_var_object_fields(self.get_namespace(), attributes)
         if val_dict is None:
             val_dict = {}
 
-        for k, val in dict_iter_items(val_dict):
+        for k, val in val_dict.items():
             val = val_dict[k]
             evaluate_full_value = pydevd_xml.should_evaluate_full_value(val)
             xml.write(pydevd_vars.var_to_xml(val, k, evaluate_full_value=evaluate_full_value))
@@ -471,7 +465,7 @@ class BaseInterpreterInterface:
         return pydevd_vars.table_like_struct_to_xml(array, name, roffset, coffset, rows, cols, format)
 
     def evaluate(self, expression):
-        xml = StringIO.StringIO()
+        xml = StringIO()
         xml.write("<xml>")
         result = pydevd_vars.eval_in_context(expression, self.get_namespace(), self.get_namespace())
         xml.write(pydevd_vars.var_to_xml(result, expression))
@@ -536,7 +530,7 @@ class BaseInterpreterInterface:
             debugger_options = {}
         env_key = "PYDEVD_EXTRA_ENVS"
         if env_key in debugger_options:
-            for (env_name, value) in dict_iter_items(debugger_options[env_key]):
+            for (env_name, value) in debugger_options[env_key].items():
                 existing_value = os.environ.get(env_name, None)
                 if existing_value:
                     os.environ[env_name] = "%s%c%s" % (existing_value, os.path.pathsep, value)

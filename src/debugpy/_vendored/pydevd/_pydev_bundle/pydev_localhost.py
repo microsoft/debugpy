@@ -1,10 +1,11 @@
-from _pydevd_bundle import pydevd_constants
 from _pydev_imps._pydev_saved_modules import socket
 import sys
 
 IS_JYTHON = sys.platform.find('java') != -1
 
 _cache = None
+
+
 def get_localhost():
     '''
     Should return 127.0.0.1 in ipv4 and ::1 in ipv6
@@ -48,17 +49,19 @@ def get_socket_names(n_sockets, close=False):
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind((get_localhost(), 0))
             socket_name = sock.getsockname()
-            
+
         sockets.append(sock)
         socket_names.append(socket_name)
-        
+
     if close:
         for s in sockets:
             s.close()
     return socket_names
-    
+
+
 def get_socket_name(close=False):
     return get_socket_names(1, close)[0]
+
 
 if __name__ == '__main__':
     print(get_socket_name())

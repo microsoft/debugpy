@@ -5,17 +5,17 @@ import warnings
 
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
 from _pydev_bundle.pydev_imports import xmlrpclib, _queue
-from _pydevd_bundle.pydevd_constants import Null, IS_PY3K
+from _pydevd_bundle.pydevd_constants import Null
 
 Queue = _queue.Queue
 
-#This may happen in IronPython (in Python it shouldn't happen as there are
-#'fast' replacements that are used in xmlrpclib.py)
+# This may happen in IronPython (in Python it shouldn't happen as there are
+# 'fast' replacements that are used in xmlrpclib.py)
 warnings.filterwarnings(
     'ignore', 'The xmllib module is obsolete.*', DeprecationWarning)
 
-
 file_system_encoding = getfilesystemencoding()
+
 
 #=======================================================================================================================
 # _ServerHolder
@@ -34,7 +34,6 @@ def set_server(server):
     _ServerHolder.SERVER = server
 
 
-
 #=======================================================================================================================
 # ParallelNotification
 #=======================================================================================================================
@@ -46,7 +45,6 @@ class ParallelNotification(object):
 
     def to_tuple(self):
         return self.method, self.args
-
 
 
 #=======================================================================================================================
@@ -61,10 +59,8 @@ class KillServer(object):
 #=======================================================================================================================
 class ServerFacade(object):
 
-
     def __init__(self, notifications_queue):
         self.notifications_queue = notifications_queue
-
 
     def notifyTestsCollected(self, *args):
         self.notifications_queue.put_nowait(ParallelNotification('notifyTestsCollected', args))
@@ -72,14 +68,11 @@ class ServerFacade(object):
     def notifyConnected(self, *args):
         self.notifications_queue.put_nowait(ParallelNotification('notifyConnected', args))
 
-
     def notifyTestRunFinished(self, *args):
         self.notifications_queue.put_nowait(ParallelNotification('notifyTestRunFinished', args))
 
-
     def notifyStartTest(self, *args):
         self.notifications_queue.put_nowait(ParallelNotification('notifyStartTest', args))
-
 
     def notifyTest(self, *args):
         new_args = []
@@ -89,19 +82,14 @@ class ServerFacade(object):
         self.notifications_queue.put_nowait(ParallelNotification('notifyTest', args))
 
 
-
-
-
 #=======================================================================================================================
 # ServerComm
 #=======================================================================================================================
 class ServerComm(threading.Thread):
 
-
-
     def __init__(self, notifications_queue, port, daemon=False):
         threading.Thread.__init__(self)
-        self.setDaemon(daemon) # If False, wait for all the notifications to be passed before exiting!
+        self.setDaemon(daemon)  # If False, wait for all the notifications to be passed before exiting!
         self.finished = False
         self.notifications_queue = notifications_queue
 
@@ -126,7 +114,6 @@ class ServerComm(threading.Thread):
         self.server = xmlrpclib.Server('http://%s:%s' % (pydev_localhost.get_localhost(), port),
                                        encoding=encoding)
 
-
     def run(self):
         while True:
             kill_found = False
@@ -140,15 +127,14 @@ class ServerComm(threading.Thread):
 
             try:
                 while True:
-                    command = self.notifications_queue.get(block=False) #No block to create a batch.
+                    command = self.notifications_queue.get(block=False)  # No block to create a batch.
                     if isinstance(command, KillServer):
                         kill_found = True
                     else:
                         assert isinstance(command, ParallelNotification)
                         commands.append(command.to_tuple())
             except:
-                pass #That's OK, we're getting it until it becomes empty so that we notify multiple at once.
-
+                pass  # That's OK, we're getting it until it becomes empty so that we notify multiple at once.
 
             if commands:
                 try:
@@ -159,7 +145,6 @@ class ServerComm(threading.Thread):
             if kill_found:
                 self.finished = True
                 return
-
 
 
 #=======================================================================================================================
@@ -173,7 +158,7 @@ def initialize_server(port, daemon=False):
             _ServerHolder.SERVER_COMM = ServerComm(notifications_queue, port, daemon)
             _ServerHolder.SERVER_COMM.start()
         else:
-            #Create a null server, so that we keep the interface even without any connection.
+            # Create a null server, so that we keep the interface even without any connection.
             _ServerHolder.SERVER = Null()
             _ServerHolder.SERVER_COMM = Null()
 
@@ -181,7 +166,6 @@ def initialize_server(port, daemon=False):
         _ServerHolder.SERVER.notifyConnected()
     except:
         traceback.print_exc()
-
 
 
 #=======================================================================================================================
@@ -205,7 +189,7 @@ def notifyStartTest(file, test):
     '''
     assert file is not None
     if test is None:
-        test = '' #Could happen if we have an import error importing module.
+        test = ''  # Could happen if we have an import error importing module.
 
     try:
         _ServerHolder.SERVER.notifyStartTest(file, test)
@@ -215,26 +199,15 @@ def notifyStartTest(file, test):
 
 def _encode_if_needed(obj):
     # In the java side we expect strings to be ISO-8859-1 (org.python.pydev.debug.pyunit.PyUnitServer.initializeDispatches().new Dispatch() {...}.getAsStr(Object))
-    if not IS_PY3K:
-        if isinstance(obj, str):
-            try:
-                return xmlrpclib.Binary(obj.decode(sys.stdin.encoding).encode('ISO-8859-1', 'xmlcharrefreplace'))
-            except:
-                return xmlrpclib.Binary(obj)
+    if isinstance(obj, str):  # Unicode in py3
+        return xmlrpclib.Binary(obj.encode('ISO-8859-1', 'xmlcharrefreplace'))
 
-        elif isinstance(obj, unicode):
-            return xmlrpclib.Binary(obj.encode('ISO-8859-1', 'xmlcharrefreplace'))
+    elif isinstance(obj, bytes):
+        try:
+            return xmlrpclib.Binary(obj.decode(sys.stdin.encoding).encode('ISO-8859-1', 'xmlcharrefreplace'))
+        except:
+            return xmlrpclib.Binary(obj)  # bytes already
 
-    else:
-        if isinstance(obj, str): # Unicode in py3
-            return xmlrpclib.Binary(obj.encode('ISO-8859-1', 'xmlcharrefreplace'))
-        
-        elif isinstance(obj, bytes):
-            try:
-                return xmlrpclib.Binary(obj.decode(sys.stdin.encoding).encode('ISO-8859-1', 'xmlcharrefreplace'))
-            except:
-                return xmlrpclib.Binary(obj) #bytes already
-            
     return obj
 
 
@@ -255,7 +228,7 @@ def notifyTest(cond, captured_output, error_contents, file, test, time):
     assert error_contents is not None
     assert file is not None
     if test is None:
-        test = '' #Could happen if we have an import error importing module.
+        test = ''  # Could happen if we have an import error importing module.
     assert time is not None
     try:
         captured_output = _encode_if_needed(captured_output)
@@ -264,6 +237,7 @@ def notifyTest(cond, captured_output, error_contents, file, test, time):
         _ServerHolder.SERVER.notifyTest(cond, captured_output, error_contents, file, test, time)
     except:
         traceback.print_exc()
+
 
 #=======================================================================================================================
 # notifyTestRunFinished

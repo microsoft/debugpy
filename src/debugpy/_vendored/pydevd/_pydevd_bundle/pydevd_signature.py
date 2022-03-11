@@ -10,7 +10,7 @@ else:
 import os
 from _pydevd_bundle.pydevd_comm import CMD_SIGNATURE_CALL_TRACE, NetCommand
 from _pydevd_bundle import pydevd_xml
-from _pydevd_bundle.pydevd_constants import xrange, dict_iter_items
+from _pydevd_bundle.pydevd_constants import xrange
 from _pydevd_bundle.pydevd_utils import get_clsname_for_code
 
 
@@ -62,7 +62,7 @@ def get_type_of_value(value, ignore_module_name=('__main__', '__builtin__', 'bui
     if class_name == 'dict':
         class_name = 'Dict'
         if len(value) > 0 and recursive:
-            for (k, v) in dict_iter_items(value):
+            for (k, v) in value.items():
                 class_name += '[%s, %s]' % (get_type_of_value(k, recursive=recursive),
                                             get_type_of_value(v, recursive=recursive))
                 break

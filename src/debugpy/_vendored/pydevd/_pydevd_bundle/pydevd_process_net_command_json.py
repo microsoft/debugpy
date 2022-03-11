@@ -29,7 +29,7 @@ from _pydevd_bundle.pydevd_json_debug_options import _extract_debug_options, Deb
 from _pydevd_bundle.pydevd_net_command import NetCommand
 from _pydevd_bundle.pydevd_utils import convert_dap_log_message_to_expression, ScopeRequest
 from _pydevd_bundle.pydevd_constants import (PY_IMPL_NAME, DebugInfoHolder, PY_VERSION_STR,
-    PY_IMPL_VERSION_STR, IS_64BIT_PROCESS, IS_PY2)
+    PY_IMPL_VERSION_STR, IS_64BIT_PROCESS)
 from _pydevd_bundle.pydevd_trace_dispatch import USING_CYTHON
 from _pydevd_frame_eval.pydevd_frame_eval_main import USING_FRAME_EVAL
 from _pydevd_bundle.pydevd_comm import internal_get_step_in_targets_json
@@ -447,9 +447,6 @@ class PyDevJsonCommandProcessor(object):
         new_watch_dirs = set()
         for w in watch_dirs:
             try:
-                if IS_PY2 and isinstance(w, unicode):
-                    w = w.encode(getfilesystemencoding())
-
                 new_watch_dirs.add(pydevd_file_utils.get_path_with_real_case(pydevd_file_utils.absolute_path(w)))
             except Exception:
                 pydev_log.exception('Error adding watch dir: %s', w)

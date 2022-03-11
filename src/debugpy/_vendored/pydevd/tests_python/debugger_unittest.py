@@ -291,8 +291,7 @@ class ReaderThread(threading.Thread):
 
                 if SHOW_WRITES_AND_READS:
                     show_line = line
-                    if IS_PY3K:
-                        show_line = line.decode('utf-8')
+                    show_line = line.decode('utf-8')
 
                     print('%s Received %s' % (self.name, show_line,))
 
@@ -311,8 +310,7 @@ class ReaderThread(threading.Thread):
                             return  # Finished communication.
 
                         msg = json_contents
-                        if IS_PY3K:
-                            msg = msg.decode('utf-8')
+                        msg = msg.decode('utf-8')
                         print('Test Reader Thread Received %s' % (msg,))
                         self._queue.put(msg)
 
@@ -329,9 +327,8 @@ class ReaderThread(threading.Thread):
                         line = line[:-1]
 
                     msg = line
-                    if IS_PY3K:
-                        msg = msg.decode('utf-8')
-                        print('Test Reader Thread Received %s' % (msg,))
+                    msg = msg.decode('utf-8')
+                    print('Test Reader Thread Received %s' % (msg,))
                     self._queue.put(msg)
 
         except:
@@ -369,8 +366,7 @@ def read_process(stream, buffer, debug_stream, stream_name, finish):
         if not line:
             break
 
-        if IS_PY3K:
-            line = line.decode('utf-8', errors='replace')
+        line = line.decode('utf-8', errors='replace')
 
         if SHOW_STDOUT:
             debug_stream.write('%s: %s' % (stream_name, line,))
@@ -742,14 +738,6 @@ class AbstractWriterThread(threading.Thread):
             if line.strip().startswith('at '):
                 return True
 
-        if IS_PY26:
-            # Sometimes in the ci there's an unhandled exception which doesn't have a stack trace
-            # (apparently this happens when a daemon thread dies during process shutdown).
-            # This was only reproducible on the ci on Python 2.6, so, ignoring that output on Python 2.6 only.
-            for expected in (
-                'Unhandled exception in thread started by <_pydev_bundle.pydev_monkey._NewThreadStartupWithTrace'):
-                if expected in line:
-                    return True
         return False
 
     def additional_output_checks(self, stdout, stderr):
@@ -847,8 +835,7 @@ class AbstractWriterThread(threading.Thread):
             print('%s.sock not available when sending: %s' % (self, msg))
             return
 
-        if IS_PY3K:
-            msg = msg.encode('utf-8')
+        msg = msg.encode('utf-8')
 
         self.sock.send(msg)
 
@@ -1440,8 +1427,7 @@ class AbstractWriterThread(threading.Thread):
                     try:
                         stream = urlopen(full_url)
                         contents = stream.read()
-                        if IS_PY3K:
-                            contents = contents.decode('utf-8')
+                        contents = contents.decode('utf-8')
                         self.contents = contents
                         break
                     except IOError:

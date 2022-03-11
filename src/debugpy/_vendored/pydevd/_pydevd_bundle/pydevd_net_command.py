@@ -1,4 +1,4 @@
-from _pydevd_bundle.pydevd_constants import DebugInfoHolder, IS_PY2, \
+from _pydevd_bundle.pydevd_constants import DebugInfoHolder, \
     get_global_debugger, GetGlobalDebugger, set_global_debugger  # Keep for backward compatibility @UnusedImport
 from _pydevd_bundle.pydevd_utils import quote_smart as quote, to_string
 from _pydevd_bundle.pydevd_comm_constants import ID_TO_MEANING, CMD_EXIT
@@ -72,13 +72,7 @@ class NetCommand(_BaseNetCommand):
             self.as_dict = as_dict
             text = json.dumps(as_dict)
 
-        if IS_PY2:
-            if isinstance(text, unicode):
-                text = text.encode('utf-8')
-            else:
-                assert isinstance(text, str)
-        else:
-            assert isinstance(text, str)
+        assert isinstance(text, str)
 
         if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 1:
             self._show_debug_info(cmd_id, seq, text)
@@ -93,15 +87,11 @@ class NetCommand(_BaseNetCommand):
             else:
                 msg = '%s\t%s\t%s' % (cmd_id, seq, text)
 
-        if IS_PY2:
-            assert isinstance(msg, str)  # i.e.: bytes
-            as_bytes = msg
-        else:
-            if isinstance(msg, str):
-                msg = msg.encode('utf-8')
+        if isinstance(msg, str):
+            msg = msg.encode('utf-8')
 
-            assert isinstance(msg, bytes)
-            as_bytes = msg
+        assert isinstance(msg, bytes)
+        as_bytes = msg
         self._as_bytes = as_bytes
 
     def send(self, sock):

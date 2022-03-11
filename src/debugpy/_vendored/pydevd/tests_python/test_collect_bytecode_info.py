@@ -7,9 +7,7 @@ import traceback
 from _pydevd_bundle.pydevd_collect_bytecode_info import collect_try_except_info, \
     collect_return_info, code_to_bytecode_representation
 from tests_python.debugger_unittest import IS_CPYTHON, IS_PYPY
-from tests_python.debug_constants import IS_PY2, IS_PY3K
-from _pydevd_bundle.pydevd_constants import IS_PY38_OR_GREATER, IS_JYTHON, IS_PY36_OR_GREATER, \
-    IS_PY35_OR_GREATER
+from _pydevd_bundle.pydevd_constants import IS_PY38_OR_GREATER, IS_JYTHON
 
 
 def _method_call_with_error():
@@ -386,7 +384,6 @@ def test_collect_try_except_info_multiple_except(exc_verifier):
     exc_verifier.check(try_except_with, '[{try:1 except 3 end block 8}]')
 
 
-@pytest.mark.skipif(not IS_PY35_OR_GREATER, reason='Python 3.5 onwards required for async for/async def')
 def test_collect_try_except_info_async_for():
 
     # Not valid on Python 2.
@@ -460,9 +457,7 @@ def test_collect_return_info():
     assert str(collect_return_info(method5.__code__, use_func_first_line=True)) == \
         '[{return: 1}]' if IS_PY38_OR_GREATER else '[{return: 3}]'
 
-    if not IS_PY2:
-        # return in generator is not valid for python 2.
-        code = '''
+    code = '''
 def method():
     if a:
         yield 1
@@ -472,10 +467,10 @@ def method():
         pass
 '''
 
-        scope = {}
-        exec(code, scope)
-        assert str(collect_return_info(scope['method'].__code__, use_func_first_line=True)) == \
-            '[{return: 4}, {return: 6}]'
+    scope = {}
+    exec(code, scope)
+    assert str(collect_return_info(scope['method'].__code__, use_func_first_line=True)) == \
+        '[{return: 4}, {return: 6}]'
 
 
 @pytest.mark.skipif(IS_JYTHON, reason='Jython does not have bytecode support.')
@@ -624,10 +619,10 @@ def test_simple_code_to_bytecode_cls_method():
 def test_simple_code_to_bytecode_repr_unicode():
 
     def method4():
-        return 'αινσϊ'
+        return 'Γ‘Γ©Γ­Γ³ΓΊ'
 
     new_repr = code_to_bytecode_representation(method4.__code__, use_func_first_line=True)
-    assert repr('αινσϊ') in new_repr
+    assert repr('Γ‘Γ©Γ­Γ³ΓΊ') in new_repr
 
 
 def _create_entry(instruction):

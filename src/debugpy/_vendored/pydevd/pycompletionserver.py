@@ -3,14 +3,6 @@ Entry-point module to start the code-completion server for PyDev.
 
 @author Fabio Zadrozny
 '''
-import sys
-IS_PYTHON_3_ONWARDS = sys.version_info[0] >= 3
-
-if not IS_PYTHON_3_ONWARDS:
-    import __builtin__
-else:
-    import builtins as __builtin__  # Python 3.0
-
 from _pydevd_bundle.pydevd_constants import IS_JYTHON
 
 if IS_JYTHON:
@@ -24,7 +16,6 @@ else:
     SERVER_NAME = 'pycompletionserver'
     from _pydev_bundle import _pydev_imports_tipper
 
-
 from _pydev_imps._pydev_saved_modules import socket
 
 import sys
@@ -34,7 +25,6 @@ if sys.platform == "darwin":
         import _CF  # Don't fail if it doesn't work -- do it because it must be loaded on the main thread! @UnresolvedImport @UnusedImport
     except:
         pass
-
 
 # initial sys.path
 _sys_path = []
@@ -47,20 +37,11 @@ _sys_modules = {}
 for name, mod in sys.modules.items():
     _sys_modules[name] = mod
 
-
 import traceback
 
-from _pydev_imps._pydev_saved_modules import time
+from io import StringIO
 
-try:
-    import StringIO
-except:
-    import io as StringIO #Python 3.0
-
-try:
-    from urllib import quote_plus, unquote_plus
-except ImportError:
-    from urllib.parse import quote_plus, unquote_plus #Python 3.0
+from urllib.parse import quote_plus, unquote_plus
 
 INFO1 = 1
 INFO2 = 2
@@ -69,6 +50,7 @@ ERROR = 8
 
 DEBUG = INFO1 | ERROR
 
+
 def dbg(s, prior):
     if prior & DEBUG != 0:
         sys.stdout.write('%s\n' % (s,))
@@ -76,8 +58,9 @@ def dbg(s, prior):
 #        print_ >> f, s
 #        f.close()
 
+
 from _pydev_bundle import pydev_localhost
-HOST = pydev_localhost.get_localhost() # Symbolic name meaning the local host
+HOST = pydev_localhost.get_localhost()  # Symbolic name meaning the local host
 
 MSG_KILL_SERVER = '@@KILL_SERVER_END@@'
 MSG_COMPLETIONS = '@@COMPLETIONS'
@@ -94,9 +77,8 @@ MSG_SEARCH = '@@SEARCH'
 
 BUFFER_SIZE = 1024
 
-
-
 currDirModule = None
+
 
 def complete_from_dir(directory):
     '''
@@ -173,8 +155,10 @@ class Processor:
 
         return '%s(%s)%s' % (MSG_COMPLETIONS, ''.join(compMsg), MSG_END)
 
+
 class Exit(Exception):
     pass
+
 
 class CompletionServer:
 
@@ -184,7 +168,6 @@ class CompletionServer:
         self.socket = None  # socket to send messages.
         self.exit_process_on_kill = True
         self.processor = Processor()
-
 
     def connect_to_server(self):
         from _pydev_imps._pydev_saved_modules import socket
@@ -225,17 +208,8 @@ class CompletionServer:
                 return
             totalsent = totalsent + sent
 
-
     def send(self, msg):
-        if not hasattr(self.socket, 'sendall'):
-            #Older versions (jython 2.1)
-            self.emulated_sendall(msg)
-        else:
-            if IS_PYTHON_3_ONWARDS:
-                self.socket.sendall(bytearray(msg, 'utf-8'))
-            else:
-                self.socket.sendall(msg)
-
+        self.socket.sendall(bytearray(msg, 'utf-8'))
 
     def run(self):
         # Echo server program
@@ -249,7 +223,6 @@ class CompletionServer:
 
             dbg(SERVER_NAME + ' Connected to java server', INFO1)
 
-
             while not self.ended:
                 data = ''
 
@@ -257,10 +230,7 @@ class CompletionServer:
                     received = self.socket.recv(BUFFER_SIZE)
                     if len(received) == 0:
                         raise Exit()  # ok, connection ended
-                    if IS_PYTHON_3_ONWARDS:
-                        data = data + received.decode('utf-8')
-                    else:
-                        data = data + received
+                    data = data + received.decode('utf-8')
 
                 try:
                     try:
@@ -355,13 +325,13 @@ class CompletionServer:
                         try:
                             self.send(msg)
                         except socket.error:
-                            pass # Ok, may be closed already
+                            pass  # Ok, may be closed already
 
-                        raise e # raise original error.
+                        raise e  # raise original error.
 
                     except:
                         dbg(SERVER_NAME + ' exception occurred', ERROR)
-                        s = StringIO.StringIO()
+                        s = StringIO()
                         traceback.print_exc(file=s)
 
                         err = s.getvalue()
@@ -370,8 +340,7 @@ class CompletionServer:
                         try:
                             self.send(msg)
                         except socket.error:
-                            pass # Ok, may be closed already
-
+                            pass  # Ok, may be closed already
 
                 finally:
                     log.clear_log()
@@ -380,20 +349,18 @@ class CompletionServer:
             self.ended = True
             raise Exit()  # connection broken
 
-
         except Exit:
             if self.exit_process_on_kill:
                 sys.exit(0)
             # No need to log SystemExit error
         except:
-            s = StringIO.StringIO()
+            s = StringIO()
             exc_info = sys.exc_info()
 
             traceback.print_exception(exc_info[0], exc_info[1], exc_info[2], limit=None, file=s)
             err = s.getvalue()
             dbg(SERVER_NAME + ' received error: ' + str(err), ERROR)
             raise
-
 
 
 if __name__ == '__main__':

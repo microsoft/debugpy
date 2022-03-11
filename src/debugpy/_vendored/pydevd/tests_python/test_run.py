@@ -29,12 +29,8 @@ def test_run(testdir_or_pytester):
     import sys
     import os
 
-    if debugger_unittest.IS_PY3K:
-        foo_dir = debugger_unittest._get_debugger_test_file(os.path.join('resources', 'launch', 'foo'))
-        foo_module = 'tests_python.resources.launch.foo'
-    else:
-        foo_dir = debugger_unittest._get_debugger_test_file(os.path.join('resources', 'launch_py2', 'foo'))
-        foo_module = 'tests_python.resources.launch_py2.foo'
+    foo_dir = debugger_unittest._get_debugger_test_file(os.path.join('resources', 'launch', 'foo'))
+    foo_module = 'tests_python.resources.launch.foo'
 
     pydevd_dir = os.path.dirname(os.path.dirname(__file__))
     assert os.path.exists(os.path.join(pydevd_dir, 'pydevd.py'))

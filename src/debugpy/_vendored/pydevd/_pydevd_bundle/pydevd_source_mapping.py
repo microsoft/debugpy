@@ -1,5 +1,5 @@
 import bisect
-from _pydevd_bundle.pydevd_constants import dict_items, NULL, KeyifyList
+from _pydevd_bundle.pydevd_constants import NULL, KeyifyList
 import pydevd_file_utils
 
 
@@ -86,7 +86,7 @@ class SourceMapping(object):
         try:
             return self._cache[key]
         except KeyError:
-            for _, mapping in dict_items(self._mappings_to_server):
+            for _, mapping in list(self._mappings_to_server.items()):
                 for map_entry in mapping:
                     if map_entry.runtime_source == runtime_source_filename:  # <cell1>
                         if map_entry.contains_runtime_line(lineno):  # matches line range
@@ -107,7 +107,7 @@ class SourceMapping(object):
         try:
             return self._cache[key]
         except KeyError:
-            for _absolute_normalized_filename, mapping in dict_items(self._mappings_to_server):
+            for _absolute_normalized_filename, mapping in list(self._mappings_to_server.items()):
                 for map_entry in mapping:
                     if map_entry.runtime_source == runtime_source_filename:
                         self._cache[key] = True

@@ -42,7 +42,7 @@ r'''
 '''
 
 from _pydev_bundle import pydev_log
-from _pydevd_bundle.pydevd_constants import IS_PY2, IS_PY3K, DebugInfoHolder, IS_WINDOWS, IS_JYTHON, \
+from _pydevd_bundle.pydevd_constants import DebugInfoHolder, IS_WINDOWS, IS_JYTHON, \
     DISABLE_FILE_VALIDATION
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding, filesystem_encoding_is_utf8
@@ -140,27 +140,19 @@ if sys.platform == 'win32':
         def _convert_to_long_pathname(filename):
             buf = ctypes.create_unicode_buffer(MAX_PATH)
 
-            if IS_PY2 and isinstance(filename, str):
-                filename = filename.decode(getfilesystemencoding())
             rv = GetLongPathName(filename, buf, MAX_PATH)
             if rv != 0 and rv <= MAX_PATH:
                 filename = buf.value
 
-            if IS_PY2:
-                filename = filename.encode(getfilesystemencoding())
             return filename
 
         def _convert_to_short_pathname(filename):
             buf = ctypes.create_unicode_buffer(MAX_PATH)
 
-            if IS_PY2 and isinstance(filename, str):
-                filename = filename.decode(getfilesystemencoding())
             rv = GetShortPathName(filename, buf, MAX_PATH)
             if rv != 0 and rv <= MAX_PATH:
                 filename = buf.value
 
-            if IS_PY2:
-                filename = filename.encode(getfilesystemencoding())
             return filename
 
         # Note that we have a cache for previous list dirs... the only case where this may be an
@@ -201,9 +193,6 @@ if sys.platform == 'win32':
             # but this is no longer done because we can't rely on getting the shortname
             # consistently (there are settings to disable it on Windows).
             # So, using approach which resolves by listing the dir.
-
-            if IS_PY2 and isinstance(filename, unicode):  # noqa
-                filename = filename.encode(getfilesystemencoding())
 
             if '~' in filename:
                 filename = convert_to_long_pathname(filename)
@@ -257,8 +246,6 @@ elif IS_JYTHON and IS_WINDOWS:
         from java.io import File  # noqa
         f = File(filename)
         ret = f.getCanonicalPath()
-        if IS_PY2 and not isinstance(ret, str):
-            return ret.encode(getfilesystemencoding())
         return ret
 
 if IS_JYTHON:
@@ -574,18 +561,8 @@ except:
 
 
 def _path_to_expected_str(filename):
-    if IS_PY2:
-        if not filesystem_encoding_is_utf8 and hasattr(filename, "decode"):
-            # filename_in_utf8 is a byte string encoded using the file system encoding
-            # convert it to utf8
-            filename = filename.decode(file_system_encoding)
-
-        if not isinstance(filename, bytes):
-            filename = filename.encode('utf-8')
-
-    else:  # py3
-        if isinstance(filename, bytes):
-            filename = filename.decode(file_system_encoding)
+    if isinstance(filename, bytes):
+        filename = filename.decode(file_system_encoding)
 
     return filename
 
@@ -691,12 +668,6 @@ def setup_client_server_paths(paths):
     # Apply normcase to the existing paths to follow the os preferences.
 
     for i, (path0, path1) in enumerate(paths):
-        if IS_PY2:
-            if isinstance(path0, unicode):  # noqa
-                path0 = path0.encode(sys.getfilesystemencoding())
-            if isinstance(path1, unicode):  # noqa
-                path1 = path1.encode(sys.getfilesystemencoding())
-
         force_only_slash = path0.endswith(('/', '\\')) and path1.endswith(('/', '\\'))
 
         if not force_only_slash:
@@ -902,10 +873,7 @@ def get_abs_path_real_path_and_base_from_frame(frame, NORM_PATHS_AND_BASE_CONTAI
 
 
 def get_fullname(mod_name):
-    if IS_PY3K:
-        import pkgutil
-    else:
-        from _pydev_imps import _pydev_pkgutil_old as pkgutil
+    import pkgutil
     try:
         loader = pkgutil.get_loader(mod_name)
     except:

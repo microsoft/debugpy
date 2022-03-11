@@ -4,10 +4,6 @@ Bytecode analysing utils. Originally added for using in smart step into.
 Note: not importable from Python 2.
 """
 
-import sys
-if sys.version_info[0] < 3:
-    raise ImportError('This module is only compatible with Python 3.')
-
 from _pydev_bundle import pydev_log
 from types import CodeType
 from _pydevd_frame_eval.vendored.bytecode.instr import _Variable

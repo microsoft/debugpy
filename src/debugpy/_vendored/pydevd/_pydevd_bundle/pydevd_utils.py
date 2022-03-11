@@ -9,15 +9,12 @@ import os
 import ctypes
 from importlib import import_module
 
-try:
-    from urllib import quote
-except:
-    from urllib.parse import quote  # @UnresolvedImport
+from urllib.parse import quote  # @UnresolvedImport
 
 import time
 import inspect
 import sys
-from _pydevd_bundle.pydevd_constants import IS_PY3K, USE_CUSTOM_SYS_CURRENT_FRAMES, IS_PYPY, SUPPORT_GEVENT, \
+from _pydevd_bundle.pydevd_constants import USE_CUSTOM_SYS_CURRENT_FRAMES, IS_PYPY, SUPPORT_GEVENT, \
     GEVENT_SUPPORT_NOT_SET_MSG, GENERATED_LEN_ATTR_NAME, PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT, \
     get_global_debugger
 from _pydev_imps._pydev_saved_modules import threading
@@ -94,19 +91,12 @@ def compare_object_attrs_key(x):
         return (-1, to_string(x))
 
 
-if IS_PY3K:
-
-    def is_string(x):
-        return isinstance(x, str)
-
-else:
-
-    def is_string(x):
-        return isinstance(x, basestring)
+def is_string(x):
+    return isinstance(x, str)
 
 
 def to_string(x):
-    if is_string(x):
+    if isinstance(x, str):
         return x
     else:
         return str(x)
@@ -117,18 +107,8 @@ def print_exc():
         traceback.print_exc()
 
 
-if IS_PY3K:
-
-    def quote_smart(s, safe='/'):
-        return quote(s, safe)
-
-else:
-
-    def quote_smart(s, safe='/'):
-        if isinstance(s, unicode):
-            s = s.encode('utf-8')
-
-        return quote(s, safe)
+def quote_smart(s, safe='/'):
+    return quote(s, safe)
 
 
 def get_clsname_for_code(code, frame):
