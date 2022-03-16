@@ -33,7 +33,7 @@ jobs:
       - name: Generate report
         run: |
           mkdir -p reports
-          ghreport -o reports/report%a.md $env.GITHUB_REPOSITORY ${{ secrets.GITHUB_TOKEN }}
+          ghreport -o reports/report%a.md $GITHUB_REPOSITORY ${{ secrets.GITHUB_TOKEN }}
 
       - name: Commit report
         id: commit
