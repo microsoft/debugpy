@@ -2,6 +2,10 @@ name: 'Generate Daily Report'
 
 on:
   workflow_dispatch 
+  
+permissions:
+  issues: read
+  contents: write
 
 jobs:
   report:
@@ -12,4 +16,5 @@ jobs:
         uses: gramster/github-issue-reporter@main
         with:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
+          team: '+luabud,ijoosong,heejaechang,zooba,brettcannon,kieferrm,ronglums,DonJayamanne,kimadeline,int19h,gramster,qubitron,rchiodo,greazer,ericsnowcurrently,judej,paulacamargo25,bschnurr,karthiknadig,JoshuaPartlow,AdamYoblick,karrtikr,StellaHuang95'
         
