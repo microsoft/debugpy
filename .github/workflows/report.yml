@@ -16,5 +16,6 @@ jobs:
         uses: gramster/github-issue-reporter@main
         with:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
+          branch: reports
           team: '+luabud,ijoosong,heejaechang,zooba,brettcannon,kieferrm,ronglums,DonJayamanne,kimadeline,int19h,gramster,qubitron,rchiodo,greazer,ericsnowcurrently,judej,paulacamargo25,bschnurr,karthiknadig,JoshuaPartlow,AdamYoblick,karrtikr,StellaHuang95'
         
