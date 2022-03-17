@@ -1,7 +1,9 @@
 name: 'Generate Weekly Full Report'
 
 on:
-    workflow_dispatch
+  schedule:
+    - cron: 5 * * * 1    
+  workflow_dispatch:
   
 permissions:
   issues: read
