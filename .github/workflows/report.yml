@@ -8,49 +8,9 @@ jobs:
   report:
     runs-on: ubuntu-18.04
     timeout-minutes: 10
-
     steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-
-      - name: Setup Python
-        uses: actions/setup-python@v2
+      - id: report
+        uses: gramster/github-issue-reporter@main
         with:
-          python-version: "3.9"
-
-      - name: Cache pip
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install reporter
-        run:
-          python -m pip install ghreport
-
-      - name: Generate report
-        run: |
-          mkdir -p reports
-          ghreport -o reports/report%a.md $GITHUB_REPOSITORY ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Commit report
-        id: commit
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "github-actions"
-          git add reports
-          if [-z "$(git status --porcelain)"]; then
-             echo "::set-output name=push::false"
-          else
-             git commit -m "Daily report update" -a
-             echo "::set-output name=push::true"
-          fi
-        shell: bash
-
-      - name: Push changes
-        if: steps.commit.outputs.push == 'true'
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+        
