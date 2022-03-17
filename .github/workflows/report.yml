@@ -2,7 +2,8 @@ name: 'Generate Daily Report'
 
 on:
   schedule:
-    - cron: '0 5 * * *'
+    - cron: 6 * * * *    
+  workflow_dispatch:
   
 permissions:
   issues: read
