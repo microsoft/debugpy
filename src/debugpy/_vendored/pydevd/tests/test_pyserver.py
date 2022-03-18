@@ -1,40 +1,21 @@
-'''
-@author Fabio Zadrozny
-'''
 import sys
-import pytest
-from _pydev_imps._pydev_saved_modules import thread
+from _pydev_bundle._pydev_saved_modules import thread
+import pycompletionserver
+import socket
+from urllib.parse import quote_plus
 
 start_new_thread = thread.start_new_thread
 
-IS_PYTHON_3_ONWARDS = sys.version_info[0] >= 3
-IS_JYTHON = sys.platform.find('java') != -1
+BUILTIN_MOD = 'builtins'
 
-try:
-    import __builtin__  # @UnusedImport
-    BUILTIN_MOD = '__builtin__'
-except ImportError:
-    BUILTIN_MOD = 'builtins'
 
-if not IS_JYTHON:
-    import pycompletionserver
-    import socket
-    if not IS_PYTHON_3_ONWARDS:
-        from urllib import quote_plus, unquote_plus
+def send(s, msg):
+    s.send(bytearray(msg, 'utf-8'))
 
-        def send(s, msg):
-            s.send(msg)
-
-    else:
-        from urllib.parse import quote_plus, unquote_plus  # Python 3.0
-
-        def send(s, msg):
-            s.send(bytearray(msg, 'utf-8'))
 
 import unittest
 
 
-@pytest.mark.skipif(IS_JYTHON, reason='Not applicable to Jython')
 class TestCPython(unittest.TestCase):
 
     def test_message(self):
@@ -77,8 +58,7 @@ class TestCPython(unittest.TestCase):
         msg = ''
         while finish == False:
             m = self.socket.recv(1024 * 4)
-            if IS_PYTHON_3_ONWARDS:
-                m = m.decode('utf-8')
+            m = m.decode('utf-8')
             if m.startswith('@@PROCESSING'):
                 sys.stdout.write('Status msg: %s\n' % (msg,))
             else:

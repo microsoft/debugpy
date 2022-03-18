@@ -51,7 +51,7 @@ class _AbstractVariable(object):
         type_name, _type_qualifier, _is_exception_on_eval, resolver, value = get_variable_details(
             self.value, to_string=safe_repr)
 
-        is_raw_string = type_name in ('str', 'unicode', 'bytes', 'bytearray')
+        is_raw_string = type_name in ('str', 'bytes', 'bytearray')
 
         attributes = []
 

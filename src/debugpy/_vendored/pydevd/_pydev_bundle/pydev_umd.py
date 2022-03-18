@@ -32,6 +32,8 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 import sys
 import os
+from _pydev_bundle._pydev_execfile import execfile
+
 
 # The following classes and functions are mainly intended to be used from
 # an interactive Python session
@@ -43,6 +45,7 @@ class UserModuleDeleter:
     pathlist [list]: ignore list in terms of module path
     namelist [list]: ignore list in terms of module name
     """
+
     def __init__(self, namelist=None, pathlist=None):
         if namelist is None:
             namelist = []
@@ -93,12 +96,17 @@ class UserModuleDeleter:
             print("\x1b[4;33m%s\x1b[24m%s\x1b[0m" % ("UMD has deleted",
                                                      ": " + ", ".join(log)))
 
+
 __umd__ = None
 
 _get_globals_callback = None
+
+
 def _set_globals_function(get_globals):
     global _get_globals_callback
     _get_globals_callback = get_globals
+
+
 def _get_globals():
     """Return current Python interpreter globals namespace"""
     if _get_globals_callback is not None:
@@ -144,7 +152,7 @@ def runfile(filename, args=None, wdir=None, namespace=None):
         else:
             verbose = os.environ.get("PYDEV_UMD_VERBOSE", "").lower() == "true"
             __umd__.run(verbose=verbose)
-    if args is not None and not isinstance(args, basestring):
+    if args is not None and not isinstance(args, (bytes, str)):
         raise TypeError("expected a character buffer object")
     if namespace is None:
         namespace = _get_globals()

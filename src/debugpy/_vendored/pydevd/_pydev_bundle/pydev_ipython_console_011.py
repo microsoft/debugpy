@@ -70,10 +70,7 @@ def create_editor_hook(pydev_host, pydev_client_port):
         server.IPythonEditor(filename, str(line))
 
         if wait:
-            try:
-                raw_input("Press Enter when done editing:")
-            except NameError:
-                input("Press Enter when done editing:")
+            input("Press Enter when done editing:")
 
     return call_editor
 

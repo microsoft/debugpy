@@ -67,9 +67,9 @@ import linecache
 import os
 
 from _pydev_bundle.pydev_imports import _queue
-from _pydev_imps._pydev_saved_modules import time
-from _pydev_imps._pydev_saved_modules import threading
-from _pydev_imps._pydev_saved_modules import socket as socket_module
+from _pydev_bundle._pydev_saved_modules import time
+from _pydev_bundle._pydev_saved_modules import threading
+from _pydev_bundle._pydev_saved_modules import socket as socket_module
 from _pydevd_bundle.pydevd_constants import (DebugInfoHolder, IS_WINDOWS, IS_JYTHON,
     IS_PY36_OR_GREATER, STATE_RUN, ASYNC_EVAL_TIMEOUT_SEC,
     get_global_debugger, GetGlobalDebugger, set_global_debugger, silence_warnings_decorator)  # Keep for backward compatibility @UnusedImport
@@ -267,7 +267,7 @@ class ReaderThread(PyDBDaemonThread):
                         self._terminate_on_socket_close()
                     return  # Finished communication.
 
-                # Note: the java backend is always expected to pass utf-8 encoded strings. We now work with unicode
+                # Note: the java backend is always expected to pass utf-8 encoded strings. We now work with str
                 # internally and thus, we may need to convert to the actual encoding where needed (i.e.: filenames
                 # on python 2 may need to be converted to the filesystem encoding).
                 if hasattr(line, 'decode'):

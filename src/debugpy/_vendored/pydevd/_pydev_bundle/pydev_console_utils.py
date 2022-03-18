@@ -545,7 +545,7 @@ class BaseInterpreterInterface:
             try:
                 # Try to import the packages needed to attach the debugger
                 import pydevd
-                from _pydev_imps._pydev_saved_modules import threading
+                from _pydev_bundle._pydev_saved_modules import threading
             except:
                 # This happens on Jython embedded in host eclipse
                 traceback.print_exc()

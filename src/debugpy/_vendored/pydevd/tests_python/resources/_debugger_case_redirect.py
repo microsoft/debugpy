@@ -3,10 +3,7 @@ if __name__ == '__main__':
     import sys
     for stream_name in ('stdout', 'stderr'):
         stream = getattr(sys, stream_name)
-        if sys.version_info[0] == 2 and sys.version_info[1] == 6:
-            stream.write('text\n')
-        else:
-            stream.write(u'text\n')  # Can't write unicode on py 2.6
+        stream.write('text\n')
         stream.write('binary or text\n')
         stream.write('ação1\n')
 

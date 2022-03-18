@@ -1,10 +1,7 @@
 from collections import namedtuple
 from contextlib import contextmanager
 import json
-try:
-    from urllib import quote, quote_plus, unquote_plus
-except ImportError:
-    from urllib.parse import quote, quote_plus, unquote_plus  # @UnresolvedImport
+from urllib.parse import quote, quote_plus, unquote_plus
 
 import re
 import socket
@@ -126,11 +123,6 @@ try:
     from thread import start_new_thread
 except ImportError:
     from _thread import start_new_thread  # @UnresolvedImport
-
-try:
-    xrange
-except:
-    xrange = range
 
 Hit = namedtuple('Hit', 'thread_id, frame_id, line, suspend_type, name, file')
 

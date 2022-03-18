@@ -224,5 +224,5 @@ def show_compile_cython_command_line():
     if SHOW_COMPILE_CYTHON_COMMAND_LINE:
         dirname = os.path.dirname(os.path.dirname(__file__))
         error_once("warning: Debugger speedups using cython not found. Run '\"%s\" \"%s\" build_ext --inplace' to build.",
-            sys.executable, os.path.join(dirname, 'setup_cython.py'))
+            sys.executable, os.path.join(dirname, 'setup_pydevd_cython.py'))
 

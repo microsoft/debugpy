@@ -5,7 +5,7 @@ import re
 import pytest
 from _pydevd_bundle.pydevd_safe_repr import SafeRepr
 import json
-from _pydevd_bundle.pydevd_constants import IS_JYTHON, IS_PY36_OR_GREATER
+from _pydevd_bundle.pydevd_constants import IS_PY36_OR_GREATER
 
 try:
     import numpy as np
@@ -15,10 +15,6 @@ except ImportError:
 PY_VER = sys.version_info[0]
 assert PY_VER <= 3  # Fix the code when Python 4 comes around.
 PY3K = PY_VER == 3
-
-if PY3K:
-    unicode = str
-    xrange = range
 
 
 class SafeReprTestBase(object):
@@ -449,24 +445,24 @@ class TestOtherPythonTypes(SafeReprTestBase):
     #     raise NotImplementedError
 
     def test_range_small(self):
-        range_name = xrange.__name__
-        value = xrange(1, 42)
+        range_name = range.__name__
+        value = range(1, 42)
 
         self.assert_unchanged(value, '%s(1, 42)' % (range_name,))
 
     @pytest.mark.skipif(sys.version_info < (3, 0), reason='Py3 specific test')
     def test_range_large_stop_only(self):
-        range_name = xrange.__name__
+        range_name = range.__name__
         stop = SafeRepr.maxcollection[0]
-        value = xrange(stop)
+        value = range(stop)
 
         self.assert_unchanged(value,
                               '%s(0, %s)' % (range_name, stop))
 
     def test_range_large_with_start(self):
-        range_name = xrange.__name__
+        range_name = range.__name__
         stop = SafeRepr.maxcollection[0] + 1
-        value = xrange(1, stop)
+        value = range(1, stop)
 
         self.assert_unchanged(value,
                               '%s(1, %s)' % (range_name, stop))
@@ -556,10 +552,10 @@ class TestUserDefinedObjects(SafeReprTestBase):
             def __repr__(self):
                 return 'MyRepr'
 
-        value1 = TestClass(xrange(0, 15))
-        value2 = TestClass(xrange(0, 16))
-        value3 = TestClass([TestClass(xrange(0, 10))])
-        value4 = TestClass([TestClass(xrange(0, 11))])
+        value1 = TestClass(range(0, 15))
+        value2 = TestClass(range(0, 16))
+        value3 = TestClass([TestClass(range(0, 10))])
+        value4 = TestClass([TestClass(range(0, 11))])
 
         self.assert_unchanged(value1, 'MyRepr')
         self.assert_shortened(value2, '<TestClass, len() = 16>')
@@ -614,7 +610,6 @@ class TestNumpy(SafeReprTestBase):
 @pytest.mark.parametrize('use_str', [True, False])
 def test_py3_str_slicing(params, use_str):
     # Note: much simpler in python because __repr__ is required to return str
-    # (which is actually unicode).
     safe_repr = SafeRepr()
     safe_repr.locale_preferred_encoding = 'ascii'
     safe_repr.sys_stdout_encoding = params.get('sys_stdout_encoding', 'ascii')

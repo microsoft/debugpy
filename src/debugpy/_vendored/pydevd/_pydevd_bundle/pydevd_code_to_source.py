@@ -13,8 +13,6 @@ import sys
 import inspect
 from io import StringIO
 
-xrange = range
-
 
 class _Stack(object):
 
@@ -317,7 +315,7 @@ class _CallFunction(_BaseHandler):
 
     def _handle(self):
         args = []
-        for _i in xrange(self.instruction.argval + 1):
+        for _i in range(self.instruction.argval + 1):
             arg = self.stack.pop()
             args.append(arg)
         it = reversed(args)

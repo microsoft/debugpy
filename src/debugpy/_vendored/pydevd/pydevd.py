@@ -4,19 +4,17 @@ Entry point module (keep at root):
 This module starts the debugger.
 '''
 import sys  # @NoMove
-if sys.version_info[:2] < (2, 6):
-    raise RuntimeError('The PyDev.Debugger requires Python 2.6 onwards to be run. If you need to use an older Python version, use an older version of the debugger.')
+if sys.version_info[:2] < (3, 6):
+    raise RuntimeError('The PyDev.Debugger requires Python 3.6 onwards to be run. If you need to use an older Python version, use an older version of the debugger.')
 import os
 
 try:
     # Just empty packages to check if they're in the PYTHONPATH.
-    import _pydev_imps
     import _pydev_bundle
 except ImportError:
     # On the first import of a pydevd module, add pydevd itself to the PYTHONPATH
     # if its dependencies cannot be imported.
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    import _pydev_imps
     import _pydev_bundle
 
 # Import this first as it'll check for shadowed modules and will make sure that we import
@@ -39,7 +37,7 @@ from _pydev_bundle import pydev_imports, pydev_log
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
 from _pydev_bundle.pydev_is_thread_alive import is_thread_alive
 from _pydev_bundle.pydev_override import overrides
-from _pydev_imps._pydev_saved_modules import threading, time, thread
+from _pydev_bundle._pydev_saved_modules import threading, time, thread
 from _pydevd_bundle import pydevd_extension_utils, pydevd_frame_utils
 from _pydevd_bundle.pydevd_filtering import FilesFiltering, glob_matches_path
 from _pydevd_bundle import pydevd_io, pydevd_vm_type
@@ -70,8 +68,8 @@ from _pydevd_frame_eval.pydevd_frame_eval_main import (
     frame_eval_func, dummy_trace_dispatch)
 import pydev_ipython  # @UnusedImport
 from _pydevd_bundle.pydevd_source_mapping import SourceMapping
-from pydevd_concurrency_analyser.pydevd_concurrency_logger import ThreadingLogger, AsyncioLogger, send_concurrency_message, cur_time
-from pydevd_concurrency_analyser.pydevd_thread_wrappers import wrap_threads
+from _pydevd_bundle.pydevd_concurrency_analyser.pydevd_concurrency_logger import ThreadingLogger, AsyncioLogger, send_concurrency_message, cur_time
+from _pydevd_bundle.pydevd_concurrency_analyser.pydevd_thread_wrappers import wrap_threads
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame, NORM_PATHS_AND_BASE_CONTAINER
 from pydevd_file_utils import get_fullname, get_package_dir
 from os.path import abspath as os_path_abspath

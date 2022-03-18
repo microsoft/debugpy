@@ -3,7 +3,7 @@ from __future__ import nested_scopes
 import fnmatch
 import os.path
 from _pydev_runfiles.pydev_runfiles_coverage import start_coverage_support
-from _pydevd_bundle.pydevd_constants import * #@UnusedWildImport
+from _pydevd_bundle.pydevd_constants import *  # @UnusedWildImport
 import re
 import time
 
@@ -237,7 +237,7 @@ def parse_cmdline(argv=None):
     ret_dirs = []
     for d in dirs:
         if '|' in d:
-            #paths may come from the ide separated by |
+            # paths may come from the ide separated by |
             ret_dirs.extend(d.split('|'))
         else:
             ret_dirs.append(d)
@@ -280,18 +280,18 @@ class PydevTestRunner(object):
     __py_extensions = ["*.py", "*.pyw"]
     __exclude_files = ["__init__.*"]
 
-    #Just to check that only this attributes will be written to this file
+    # Just to check that only this attributes will be written to this file
     __slots__ = [
-        'verbosity',  #Always used
+        'verbosity',  # Always used
 
-        'files_to_tests',  #If this one is given, the ones below are not used
+        'files_to_tests',  # If this one is given, the ones below are not used
 
-        'files_or_dirs',  #Files or directories received in the command line
-        'include_tests',  #The filter used to collect the tests
-        'tests',  #Strings with the tests to be run
+        'files_or_dirs',  # Files or directories received in the command line
+        'include_tests',  # The filter used to collect the tests
+        'tests',  # Strings with the tests to be run
 
-        'jobs',  #Integer with the number of jobs that should be used to run the test cases
-        'split_jobs',  #String with 'tests' or 'module' (how should the jobs be split)
+        'jobs',  # Integer with the number of jobs that should be used to run the test cases
+        'split_jobs',  # String with 'tests' or 'module' (how should the jobs be split)
 
         'configuration',
         'coverage',
@@ -316,11 +316,10 @@ class PydevTestRunner(object):
         self.configuration = configuration
         self.__adjust_path()
 
-
     def __adjust_path(self):
         """ add the current file or directory to the python path """
         path_to_append = None
-        for n in xrange(len(self.files_or_dirs)):
+        for n in range(len(self.files_or_dirs)):
             dir_name = self.__unixify(self.files_or_dirs[n])
             if os.path.isdir(dir_name):
                 if not dir_name.endswith("/"):
@@ -336,8 +335,8 @@ class PydevTestRunner(object):
                 msg = ("unknown type. \n%s\nshould be file or a directory.\n" % (dir_name))
                 raise RuntimeError(msg)
         if path_to_append is not None:
-            #Add it as the last one (so, first things are resolved against the default dirs and
-            #if none resolves, then we try a relative import).
+            # Add it as the last one (so, first things are resolved against the default dirs and
+            # if none resolves, then we try a relative import).
             sys.path.append(path_to_append)
 
     def __is_valid_py_file(self, fname):
@@ -362,7 +361,7 @@ class PydevTestRunner(object):
             dirname, fname = os.path.split(s)
 
             if fname.count('.') > 1:
-                #if there's a file named xxx.xx.py, it is not a valid module, so, let's not load it...
+                # if there's a file named xxx.xx.py, it is not a valid module, so, let's not load it...
                 return
 
             imp_stmt_pieces = [dirname.replace("\\", "/").replace("/", "."), os.path.splitext(fname)[0]]
@@ -372,7 +371,7 @@ class PydevTestRunner(object):
 
             return ".".join(imp_stmt_pieces)
 
-        else:  #handle dir
+        else:  # handle dir
             return s.replace("\\", "/").replace("/", ".")
 
     def __add_files(self, pyfiles, root, files):
@@ -381,7 +380,6 @@ class PydevTestRunner(object):
             if self.__is_valid_py_file(fname):
                 name_without_base_dir = self.__unixify(os.path.join(root, fname))
                 pyfiles.append(name_without_base_dir)
-
 
     def find_import_files(self):
         """ return a list of files to import """
@@ -392,31 +390,26 @@ class PydevTestRunner(object):
 
             for base_dir in self.files_or_dirs:
                 if os.path.isdir(base_dir):
-                    if hasattr(os, 'walk'):
-                        for root, dirs, files in os.walk(base_dir):
+                    for root, dirs, files in os.walk(base_dir):
+                        # Note: handling directories that should be excluded from the search because
+                        # they don't have __init__.py
+                        exclude = {}
+                        for d in dirs:
+                            for init in ['__init__.py', '__init__.pyo', '__init__.pyc', '__init__.pyw', '__init__$py.class']:
+                                if os.path.exists(os.path.join(root, d, init).replace('\\', '/')):
+                                    break
+                            else:
+                                exclude[d] = 1
 
-                            #Note: handling directories that should be excluded from the search because
-                            #they don't have __init__.py
-                            exclude = {}
+                        if exclude:
+                            new = []
                             for d in dirs:
-                                for init in ['__init__.py', '__init__.pyo', '__init__.pyc', '__init__.pyw', '__init__$py.class']:
-                                    if os.path.exists(os.path.join(root, d, init).replace('\\', '/')):
-                                        break
-                                else:
-                                    exclude[d] = 1
+                                if d not in exclude:
+                                    new.append(d)
 
-                            if exclude:
-                                new = []
-                                for d in dirs:
-                                    if d not in exclude:
-                                        new.append(d)
+                            dirs[:] = new
 
-                                dirs[:] = new
-
-                            self.__add_files(pyfiles, root, files)
-                    else:
-                        # jython2.1 is too old for os.walk!
-                        os.path.walk(base_dir, self.__add_files, pyfiles)
+                        self.__add_files(pyfiles, root, files)
 
                 elif os.path.isfile(base_dir):
                     pyfiles.append(base_dir)
@@ -457,7 +450,6 @@ class PydevTestRunner(object):
 
             pyfiles = ret
 
-
         return pyfiles
 
     def __get_module_from_str(self, modname, print_exception, pyfile):
@@ -494,7 +486,7 @@ class PydevTestRunner(object):
 
     def find_modules_from_files(self, pyfiles):
         """ returns a list of modules given a list of files """
-        #let's make sure that the paths we want are in the pythonpath...
+        # let's make sure that the paths we want are in the pythonpath...
         imports = [(s, self.__importify(s)) for s in pyfiles]
 
         sys_path = [os.path.normpath(path) for path in sys.path]
@@ -507,14 +499,14 @@ class PydevTestRunner(object):
         ret = []
         for pyfile, imp in imports:
             if imp is None:
-                continue  #can happen if a file is not a valid module
+                continue  # can happen if a file is not a valid module
             choices = []
             for s in system_paths:
                 if imp.startswith(s):
                     add = imp[len(s) + 1:]
                     if add:
                         choices.append(add)
-                    #sys.stdout.write(' ' + add + ' ')
+                    # sys.stdout.write(' ' + add + ' ')
 
             if not choices:
                 sys.stdout.write('PYTHONPATH not found for file: %s\n' % imp)
@@ -525,7 +517,6 @@ class PydevTestRunner(object):
                     if mod is not None:
                         ret.append((pyfile, mod, import_str))
                         break
-
 
         return ret
 
@@ -546,21 +537,20 @@ class PydevTestRunner(object):
 
             if className in self.accepted_classes:
                 for attrname in dir(testCaseClass):
-                    #If a class is chosen, we select all the 'test' methods'
+                    # If a class is chosen, we select all the 'test' methods'
                     if attrname.startswith('test') and hasattr(getattr(testCaseClass, attrname), '__call__'):
                         testFnNames.append(attrname)
 
             else:
                 for attrname in dir(testCaseClass):
-                    #If we have the class+method name, we must do a full check and have an exact match.
+                    # If we have the class+method name, we must do a full check and have an exact match.
                     if className + '.' + attrname in self.accepted_methods:
                         if hasattr(getattr(testCaseClass, attrname), '__call__'):
                             testFnNames.append(attrname)
 
-            #sorted() is not available in jython 2.1
+            # sorted() is not available in jython 2.1
             testFnNames.sort()
             return testFnNames
-
 
     def _decorate_test_suite(self, suite, pyfile, module_name):
         import unittest
@@ -583,11 +573,9 @@ class PydevTestRunner(object):
         else:
             return False
 
-
-
     def find_tests_from_modules(self, file_and_modules_and_module_name):
         """ returns the unittests given a list of modules """
-        #Use our own suite!
+        # Use our own suite!
         from _pydev_runfiles import pydev_runfiles_unittest
         import unittest
         unittest.TestLoader.suiteClass = pydev_runfiles_unittest.PydevTestSuite
@@ -609,7 +597,6 @@ class PydevTestRunner(object):
                     ret.append(suite)
             return ret
 
-
         if self.tests:
             accepted_classes = {}
             accepted_methods = {}
@@ -624,7 +611,6 @@ class PydevTestRunner(object):
 
             loader.getTestCaseNames = self.GetTestCaseNames(accepted_classes, accepted_methods)
 
-
         for pyfile, m, module_name in file_and_modules_and_module_name:
             suite = loader.loadTestsFromModule(m)
             if self._decorate_test_suite(suite, pyfile, module_name):
@@ -632,14 +618,13 @@ class PydevTestRunner(object):
 
         return ret
 
-
     def filter_tests(self, test_objs, internal_call=False):
         """ based on a filter name, only return those tests that have
             the test case names that match """
         import unittest
         if not internal_call:
             if not self.configuration.include_tests and not self.tests and not self.configuration.exclude_tests:
-                #No need to filter if we have nothing to filter!
+                # No need to filter if we have nothing to filter!
                 return test_objs
 
             if self.verbosity > 1:
@@ -656,17 +641,17 @@ class PydevTestRunner(object):
         for test_obj in test_objs:
 
             if isinstance(test_obj, unittest.TestSuite):
-                #Note: keep the suites as they are and just 'fix' the tests (so, don't use the iter_tests).
+                # Note: keep the suites as they are and just 'fix' the tests (so, don't use the iter_tests).
                 if test_obj._tests:
                     test_obj._tests = self.filter_tests(test_obj._tests, True)
-                    if test_obj._tests:  #Only add the suite if we still have tests there.
+                    if test_obj._tests:  # Only add the suite if we still have tests there.
                         test_suite.append(test_obj)
 
             elif isinstance(test_obj, unittest.TestCase):
                 try:
                     testMethodName = test_obj._TestCase__testMethodName
                 except AttributeError:
-                    #changed in python 2.5
+                    # changed in python 2.5
                     testMethodName = test_obj._testMethodName
 
                 add = True
@@ -699,9 +684,8 @@ class PydevTestRunner(object):
                                     testMethodName, self.configuration.include_tests,))
         return test_suite
 
-
     def iter_tests(self, test_objs):
-        #Note: not using yield because of Jython 2.1.
+        # Note: not using yield because of Jython 2.1.
         import unittest
         tests = []
         for test_obj in test_objs:
@@ -712,18 +696,16 @@ class PydevTestRunner(object):
                 tests.append(test_obj)
         return tests
 
-
     def list_test_names(self, test_objs):
         names = []
         for tc in self.iter_tests(test_objs):
             try:
                 testMethodName = tc._TestCase__testMethodName
             except AttributeError:
-                #changed in python 2.5
+                # changed in python 2.5
                 testMethodName = tc._testMethodName
             names.append(testMethodName)
         return names
-
 
     def __match_tests(self, tests, test_case, test_method_name):
         if not tests:
@@ -732,7 +714,7 @@ class PydevTestRunner(object):
         for t in tests:
             class_and_method = t.split('.')
             if len(class_and_method) == 1:
-                #only class name
+                # only class name
                 if class_and_method[0] == test_case.__class__.__name__:
                     return 1
 
@@ -741,7 +723,6 @@ class PydevTestRunner(object):
                     return 1
 
         return 0
-
 
     def __match(self, filter_list, name):
         """ returns whether a test name matches the test filter """
@@ -752,7 +733,6 @@ class PydevTestRunner(object):
                 return 1
         return 0
 
-
     def run_tests(self, handle_coverage=True):
         """ runs all tests """
         sys.stdout.write("Finding files... ")
@@ -762,7 +742,6 @@ class PydevTestRunner(object):
         else:
             sys.stdout.write('done.\n')
         sys.stdout.write("Importing test modules ... ")
-
 
         if handle_coverage:
             coverage_files, coverage = start_coverage_support(self.configuration)
@@ -785,14 +764,14 @@ class PydevTestRunner(object):
             if self.jobs > 1:
                 from _pydev_runfiles import pydev_runfiles_parallel
 
-                #What may happen is that the number of jobs needed is lower than the number of jobs requested
-                #(e.g.: 2 jobs were requested for running 1 test) -- in which case execute_tests_in_parallel will
-                #return False and won't run any tests.
+                # What may happen is that the number of jobs needed is lower than the number of jobs requested
+                # (e.g.: 2 jobs were requested for running 1 test) -- in which case execute_tests_in_parallel will
+                # return False and won't run any tests.
                 executed_in_parallel = pydev_runfiles_parallel.execute_tests_in_parallel(
                     all_tests, self.jobs, self.split_jobs, self.verbosity, coverage_files, self.configuration.coverage_include)
 
             if not executed_in_parallel:
-                #If in coverage, we don't need to pass anything here (coverage is already enabled for this execution).
+                # If in coverage, we don't need to pass anything here (coverage is already enabled for this execution).
                 runner = pydev_runfiles_unittest.PydevTextTestRunner(stream=sys.stdout, descriptions=1, verbosity=self.verbosity)
                 sys.stdout.write('\n')
                 runner.run(test_suite)
@@ -811,6 +790,7 @@ class PydevTestRunner(object):
 
 
 DJANGO_TEST_SUITE_RUNNER = None
+
 
 def get_django_test_suite_runner():
     global DJANGO_TEST_SUITE_RUNNER
@@ -836,12 +816,15 @@ def get_django_test_suite_runner():
 
             def run_suite(self, *args, **kwargs):
                 self.on_run_suite()
+
     except:
         # django < 1.8
         try:
             from django.test.simple import DjangoTestSuiteRunner
         except:
+
             class DjangoTestSuiteRunner:
+
                 def __init__(self):
                     pass
 

@@ -9,7 +9,7 @@ from ._util import cwd, iter_all_files
 
 
 INCLUDES = [
-    'setup_cython.py',
+    'setup_pydevd_cython.py',
 ]
 
 

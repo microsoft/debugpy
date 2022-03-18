@@ -1,5 +1,5 @@
 from __future__ import print_function
-from _pydev_imps._pydev_saved_modules import threading, thread
+from _pydev_bundle._pydev_saved_modules import threading, thread
 from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder
 import dis
 import sys

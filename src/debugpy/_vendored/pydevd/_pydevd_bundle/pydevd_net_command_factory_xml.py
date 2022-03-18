@@ -1,7 +1,7 @@
 import json
 
 from _pydev_bundle.pydev_is_thread_alive import is_thread_alive
-from _pydev_imps._pydev_saved_modules import thread
+from _pydev_bundle._pydev_saved_modules import thread
 from _pydevd_bundle import pydevd_xml, pydevd_frame_utils, pydevd_constants, pydevd_utils
 from _pydevd_bundle.pydevd_comm_constants import (
     CMD_THREAD_CREATE, CMD_THREAD_KILL, CMD_THREAD_SUSPEND, CMD_THREAD_RUN, CMD_GET_VARIABLE,
@@ -17,7 +17,7 @@ from _pydevd_bundle.pydevd_comm_constants import (
     CMD_GET_NEXT_STATEMENT_TARGETS, CMD_VERSION,
     CMD_RETURN, CMD_SET_PROTOCOL, CMD_ERROR, MAX_IO_MSG_SIZE, VERSION_STRING,
     CMD_RELOAD_CODE, CMD_LOAD_SOURCE_FROM_FRAME_ID)
-from _pydevd_bundle.pydevd_constants import (DebugInfoHolder, get_thread_id, IS_IRONPYTHON,
+from _pydevd_bundle.pydevd_constants import (DebugInfoHolder, get_thread_id,
     get_global_debugger, GetGlobalDebugger, set_global_debugger)  # Keep for backward compatibility @UnusedImport
 from _pydevd_bundle.pydevd_net_command import NetCommand, NULL_NET_COMMAND, NULL_EXIT_COMMAND
 from _pydevd_bundle.pydevd_utils import quote_smart as quote, get_non_pydevd_threads
@@ -28,12 +28,6 @@ from _pydev_bundle._pydev_completer import completions_to_xml
 from _pydev_bundle import pydev_log
 from _pydevd_bundle.pydevd_frame_utils import FramesList
 from io import StringIO
-
-if IS_IRONPYTHON:
-
-    # redefine `unquote` for IronPython, since we use it only for logging messages, but it leads to SOF with IronPython
-    def unquote(s):
-        return s
 
 
 #=======================================================================================================================

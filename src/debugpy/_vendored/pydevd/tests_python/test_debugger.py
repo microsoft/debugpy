@@ -27,18 +27,13 @@ import pydevd_file_utils
 import subprocess
 import threading
 from _pydev_bundle import pydev_log
-try:
-    from urllib import unquote
-except ImportError:
-    from urllib.parse import unquote
+from urllib.parse import unquote
 
 from tests_python.debug_constants import *  # noqa
 
 pytest_plugins = [
     str('tests_python.debugger_fixtures'),
 ]
-
-xrange = range
 
 builtin_qualifier = "builtins"
 
@@ -2986,7 +2981,7 @@ def test_remote_debugger_multi_proc(case_setup_remote, authenticate):
         writer.log.append('run thread')
         writer.write_run_thread(hit.thread_id)
 
-        for _i in xrange(400):
+        for _i in range(400):
             if secondary_multi_proc_process_writer.finished_ok:
                 break
             time.sleep(.1)

@@ -151,7 +151,7 @@ def build():
         additional_args.append('--force-cython')  # Build always forces cython!
 
     args = [
-        sys.executable, os.path.join(os.path.dirname(__file__), '..', 'setup_cython.py'), 'build_ext', '--inplace',
+        sys.executable, os.path.join(os.path.dirname(__file__), '..', 'setup_pydevd_cython.py'), 'build_ext', '--inplace',
     ] + additional_args
     print('Calling args: %s' % (args,))
     subprocess.check_call(args, env=env,)

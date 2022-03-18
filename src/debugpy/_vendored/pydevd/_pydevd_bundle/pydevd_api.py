@@ -2,7 +2,7 @@ import sys
 import bisect
 import types
 
-from _pydev_imps._pydev_saved_modules import threading
+from _pydev_bundle._pydev_saved_modules import threading
 from _pydevd_bundle import pydevd_utils, pydevd_source_mapping
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
 from _pydevd_bundle.pydevd_comm import (InternalGetThreadStack, internal_get_completions,
@@ -325,7 +325,6 @@ class PyDevdAPI(object):
 
     def to_str(self, s):
         '''
-        In py2 converts a unicode to str (bytes) using utf-8.
         -- in py3 raises an error if it's not str already.
         '''
         if s.__class__ != str:
@@ -334,7 +333,6 @@ class PyDevdAPI(object):
 
     def filename_to_str(self, filename):
         '''
-        In py2 converts a unicode to str (bytes) using the file system encoding.
         -- in py3 raises an error if it's not str already.
         '''
         if filename.__class__ != str:
@@ -844,7 +842,7 @@ class PyDevdAPI(object):
 
     def set_project_roots(self, py_db, project_roots):
         '''
-        :param unicode project_roots:
+        :param str project_roots:
         '''
         py_db.set_project_roots(project_roots)
 

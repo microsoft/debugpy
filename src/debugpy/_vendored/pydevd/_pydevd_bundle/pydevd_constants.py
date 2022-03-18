@@ -15,10 +15,7 @@ PYTHON_SUSPEND = 1
 DJANGO_SUSPEND = 2
 JINJA2_SUSPEND = 3
 
-try:
-    int_types = (int, long)
-except NameError:
-    int_types = (int,)
+int_types = (int,)
 
 # types does not include a MethodWrapperType
 try:
@@ -336,7 +333,7 @@ def protect_libraries_from_patching():
       `_pydev_saved_modules` in order to save their original copies there. After that we can use these
       saved modules within the debugger to protect them from patching by external libraries (e.g. gevent).
     """
-    patched = ['threading', 'thread', '_thread', 'time', 'socket', 'Queue', 'queue', 'select',
+    patched = ['threading', 'thread', '_thread', 'time', 'socket', 'queue', 'select',
                'xmlrpclib', 'SimpleXMLRPCServer', 'BaseHTTPServer', 'SocketServer',
                'xmlrpc.client', 'xmlrpc.server', 'http.server', 'socketserver']
 
@@ -353,7 +350,7 @@ def protect_libraries_from_patching():
         del sys.modules[name]
 
     # import for side effects
-    import _pydev_imps._pydev_saved_modules
+    import _pydev_bundle._pydev_saved_modules
 
     for name in patched_modules:
         sys.modules[name] = patched_modules[name]
@@ -362,7 +359,7 @@ def protect_libraries_from_patching():
 if USE_LIB_COPY:
     protect_libraries_from_patching()
 
-from _pydev_imps._pydev_saved_modules import thread, threading
+from _pydev_bundle._pydev_saved_modules import thread, threading
 
 _fork_safe_locks = []
 
@@ -463,17 +460,13 @@ def sorted_dict_repr(d):
 
 
 def iter_chars(b):
-    # In Python 2, we can iterate bytes or unicode with individual characters, but Python 3 onwards
+    # In Python 2, we can iterate bytes or str with individual characters, but Python 3 onwards
     # changed that behavior so that when iterating bytes we actually get ints!
     if isinstance(b, bytes):
         # i.e.: do something as struct.unpack('3c', b)
         return iter(struct.unpack(str(len(b)) + 'c', b))
     return iter(b)
 
-
-# Python 3k does not have it
-xrange = range
-izip = zip
 
 if IS_JYTHON:
 

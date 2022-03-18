@@ -1,7 +1,6 @@
 # coding: utf-8
 import os.path
 from _pydevd_bundle.pydevd_constants import IS_WINDOWS
-from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
 import io
 from _pydev_bundle.pydev_log import log_context
 import pytest
@@ -22,7 +21,7 @@ def test_convert_utilities(tmpdir):
 
     if IS_WINDOWS:
         normalized = pydevd_file_utils.normcase(test_dir)
-        assert isinstance(normalized, str)  # bytes on py2, unicode on py3
+        assert isinstance(normalized, str)
         assert normalized.lower() == normalized
 
         upper_version = os.path.join(test_dir, 'ÁÉÍÓÚ')
@@ -44,7 +43,7 @@ def test_convert_utilities(tmpdir):
 
             assert pydevd_file_utils.get_path_with_real_case('<does not EXIST>') == '<does not EXIST>'
             real_case = pydevd_file_utils.get_path_with_real_case(normalized)
-            assert isinstance(real_case, str)  # bytes on py2, unicode on py3
+            assert isinstance(real_case, str)
             # Note test_dir itself cannot be compared with because pytest may
             # have passed the case normalized.
             assert real_case.endswith("Test_Convert_Utilities")
@@ -110,14 +109,14 @@ def test_to_server_and_to_client(tmpdir):
         def check(obtained, expected):
             assert obtained == expected, '%s (%s) != %s (%s)' % (obtained, type(obtained), expected, type(expected))
             if isinstance(obtained, tuple):
-                assert isinstance(obtained[0], str)  # bytes on py2, unicode on py3
+                assert isinstance(obtained[0], str)
             else:
-                assert isinstance(obtained, str)  # bytes on py2, unicode on py3
+                assert isinstance(obtained, str)
 
             if isinstance(expected, tuple):
-                assert isinstance(expected[0], str)  # bytes on py2, unicode on py3
+                assert isinstance(expected[0], str)
             else:
-                assert isinstance(expected, str)  # bytes on py2, unicode on py3
+                assert isinstance(expected, str)
 
         import pydevd_file_utils
         if IS_WINDOWS:

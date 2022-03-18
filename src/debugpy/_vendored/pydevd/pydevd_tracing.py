@@ -1,15 +1,11 @@
 from _pydevd_bundle.pydevd_constants import get_frame, IS_CPYTHON, IS_64BIT_PROCESS, IS_WINDOWS, \
     IS_LINUX, IS_MAC, DebugInfoHolder, LOAD_NATIVE_LIB_FLAG, \
     ENV_FALSE_LOWER_VALUES, ForkSafeLock
-from _pydev_imps._pydev_saved_modules import thread, threading
+from _pydev_bundle._pydev_saved_modules import thread, threading
 from _pydev_bundle import pydev_log, pydev_monkey
 import os.path
 import platform
-try:
-    import ctypes
-except ImportError:
-    ctypes = None
-
+import ctypes
 from io import StringIO
 import sys
 import traceback
@@ -244,7 +240,7 @@ def get_python_helper_lib_filename():
 
 
 def _load_python_helper_lib_uncached():
-    if (not IS_CPYTHON or ctypes is None or sys.version_info[:2] > (3, 10)
+    if (not IS_CPYTHON or sys.version_info[:2] > (3, 10)
             or hasattr(sys, 'gettotalrefcount') or LOAD_NATIVE_LIB_FLAG in ENV_FALSE_LOWER_VALUES):
         pydev_log.info('Helper lib to set tracing to all threads not loaded.')
         return None

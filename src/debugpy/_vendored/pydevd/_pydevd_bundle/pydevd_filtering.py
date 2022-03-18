@@ -7,28 +7,16 @@ from _pydev_bundle import pydev_log
 import pydevd_file_utils
 import json
 from collections import namedtuple
-from _pydev_imps._pydev_saved_modules import threading
+from _pydev_bundle._pydev_saved_modules import threading
 from pydevd_file_utils import normcase
 from _pydevd_bundle.pydevd_constants import USER_CODE_BASENAMES_STARTING_WITH, \
     LIBRARY_CODE_BASENAMES_STARTING_WITH, IS_PYPY, IS_WINDOWS
 from _pydevd_bundle import pydevd_constants
 
-try:
-    xrange  # noqa
-except NameError:
-    xrange = range  # noqa
-
 ExcludeFilter = namedtuple('ExcludeFilter', 'name, exclude, is_path')
 
 
 def _convert_to_str_and_clear_empty(roots):
-    if sys.version_info[0] <= 2:
-        # In py2 we need bytes for the files.
-        roots = [
-            root if not isinstance(root, unicode) else root.encode(sys.getfilesystemencoding())
-            for root in roots
-        ]
-
     new_roots = []
     for root in roots:
         assert isinstance(root, str), '%s not str (found: %s)' % (root, type(root))
@@ -57,7 +45,7 @@ def _check_matches(patterns, paths):
         if len(patterns) == 1:
             return True  # if ** is the last one it matches anything to the right.
 
-        for i in xrange(len(paths)):
+        for i in range(len(paths)):
             # Recursively check the remaining patterns as the
             # current pattern could match any number of paths.
             if _check_matches(patterns[1:], paths[i:]):

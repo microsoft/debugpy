@@ -4,7 +4,7 @@ import time
 import unittest
 import pytest
 from _pydevd_bundle import pydevd_referrers
-from _pydev_bundle.pydev_imports import StringIO
+from io import StringIO
 from tests_python.debugger_unittest import IS_PYPY
 
 try:

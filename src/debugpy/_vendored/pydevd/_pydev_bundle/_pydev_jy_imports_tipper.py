@@ -11,8 +11,6 @@ from org.python.core import PyReflectedFunction  # @UnresolvedImport
 from org.python import core  # @UnresolvedImport
 from org.python.core import PyClass  # @UnresolvedImport
 
-xrange = range
-
 # completion types.
 TYPE_IMPORT = '0'
 TYPE_CLASS = '1'
@@ -134,9 +132,6 @@ class Info:
         '''@returns this class information as a string (just basic format)
         '''
         args = self.args
-        if sys.version_info[0] <= 2:
-            # Supress the u''
-            args = [arg.encode('utf-8') if isinstance(arg, unicode) else arg for arg in args]
         s = 'function:%s args=%s, varargs=%s, kwargs=%s, docs:%s' % \
             (self.name, args, self.varargs, self.kwargs, self.doc)
         return s
@@ -235,7 +230,7 @@ def ismethod(func):
             # print_ '    PyReflectedFunction'
 
             infos = []
-            for i in xrange(len(func.argslist)):
+            for i in range(len(func.argslist)):
                 # things to play in func.argslist[i]:
 
                 # 'PyArgsCall', 'PyArgsKeywordsCall', 'REPLACE', 'StandardCall', 'args', 'compare', 'compareTo', 'data', 'declaringClass'
@@ -254,7 +249,7 @@ def ismethod(func):
                     parameterTypes = met.getParameterTypes()
 
                     args = []
-                    for j in xrange(len(parameterTypes)):
+                    for j in range(len(parameterTypes)):
                         paramTypesClass = parameterTypes[j]
                         try:
                             try:
@@ -341,12 +336,12 @@ def dir_obj(obj):
                 except TypeError:
                     declaredFields = obj.getDeclaredFields(obj)
 
-                for i in xrange(len(declaredMethods)):
+                for i in range(len(declaredMethods)):
                     name = declaredMethods[i].getName()
                     ret.append(name)
                     found.put(name, 1)
 
-                for i in xrange(len(declaredFields)):
+                for i in range(len(declaredFields)):
                     name = declaredFields[i].getName()
                     ret.append(name)
                     found.put(name, 1)

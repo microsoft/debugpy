@@ -3,7 +3,7 @@ A simpler setup version just to compile the speedup module.
 
 It should be used as:
 
-python setup_cython build_ext --inplace
+python setup_pydevd_cython build_ext --inplace
 
 Note: the .c file and other generated files are regenerated from
 the .pyx file by running "python build_tools/build.py"

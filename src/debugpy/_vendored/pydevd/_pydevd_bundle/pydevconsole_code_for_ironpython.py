@@ -4,22 +4,14 @@
 
 # Inspired by similar code by Jeff Epler and Fredrik Lundh.
 
-
 import sys
 import traceback
 
-
-
-
-
-
-
-
-#START --------------------------- from codeop import CommandCompiler, compile_command
-#START --------------------------- from codeop import CommandCompiler, compile_command
-#START --------------------------- from codeop import CommandCompiler, compile_command
-#START --------------------------- from codeop import CommandCompiler, compile_command
-#START --------------------------- from codeop import CommandCompiler, compile_command
+# START --------------------------- from codeop import CommandCompiler, compile_command
+# START --------------------------- from codeop import CommandCompiler, compile_command
+# START --------------------------- from codeop import CommandCompiler, compile_command
+# START --------------------------- from codeop import CommandCompiler, compile_command
+# START --------------------------- from codeop import CommandCompiler, compile_command
 r"""Utilities to compile possibly incomplete Python source code.
 
 This module provides two interfaces, broadly similar to the builtin
@@ -85,43 +77,46 @@ _features = [getattr(__future__, fname)
 
 __all__ = ["compile_command", "Compile", "CommandCompiler"]
 
-PyCF_DONT_IMPLY_DEDENT = 0x200          # Matches pythonrun.h
+PyCF_DONT_IMPLY_DEDENT = 0x200  # Matches pythonrun.h
+
 
 def _maybe_compile(compiler, source, filename, symbol):
     # Check for source consisting of only blank lines and comments
     for line in source.split("\n"):
         line = line.strip()
         if line and line[0] != '#':
-            break               # Leave it alone
+            break  # Leave it alone
     else:
         if symbol != "eval":
-            source = "pass"     # Replace it with a 'pass' statement
+            source = "pass"  # Replace it with a 'pass' statement
 
     err = err1 = err2 = None
     code = code1 = code2 = None
 
     try:
         code = compiler(source, filename, symbol)
-    except SyntaxError, err:
+    except SyntaxError as err:
         pass
 
     try:
         code1 = compiler(source + "\n", filename, symbol)
-    except SyntaxError, err1:
+    except SyntaxError as err1:
         pass
 
     try:
         code2 = compiler(source + "\n\n", filename, symbol)
-    except SyntaxError, err2:
+    except SyntaxError as err2:
         pass
 
     if code:
         return code
     if not code1 and repr(err1) == repr(err2):
-        raise SyntaxError, err1
+        raise SyntaxError(err1)
+
 
 def _compile(source, filename, symbol):
     return compile(source, filename, symbol, PyCF_DONT_IMPLY_DEDENT)
+
 
 def compile_command(source, filename="<input>", symbol="single"):
     r"""Compile a command and determine whether it is incomplete.
@@ -143,11 +138,13 @@ def compile_command(source, filename="<input>", symbol="single"):
     """
     return _maybe_compile(_compile, source, filename, symbol)
 
+
 class Compile:
     """Instances of this class behave much like the built-in compile
     function, but if one is used to compile text containing a future
     statement, it "remembers" and compiles all subsequent program texts
     with the statement in force."""
+
     def __init__(self):
         self.flags = PyCF_DONT_IMPLY_DEDENT
 
@@ -157,6 +154,7 @@ class Compile:
             if codeob.co_flags & feature.compiler_flag:
                 self.flags |= feature.compiler_flag
         return codeob
+
 
 class CommandCompiler:
     """Instances of this class have __call__ methods identical in
@@ -189,30 +187,16 @@ class CommandCompiler:
         """
         return _maybe_compile(self.compiler, source, filename, symbol)
 
-#END --------------------------- from codeop import CommandCompiler, compile_command
-#END --------------------------- from codeop import CommandCompiler, compile_command
-#END --------------------------- from codeop import CommandCompiler, compile_command
-#END --------------------------- from codeop import CommandCompiler, compile_command
-#END --------------------------- from codeop import CommandCompiler, compile_command
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# END --------------------------- from codeop import CommandCompiler, compile_command
+# END --------------------------- from codeop import CommandCompiler, compile_command
+# END --------------------------- from codeop import CommandCompiler, compile_command
+# END --------------------------- from codeop import CommandCompiler, compile_command
+# END --------------------------- from codeop import CommandCompiler, compile_command
 
 
 __all__ = ["InteractiveInterpreter", "InteractiveConsole", "interact",
            "compile_command"]
+
 
 def softspace(file, newvalue):
     oldvalue = 0
@@ -226,6 +210,7 @@ def softspace(file, newvalue):
         # "attribute-less object" or "read-only attributes"
         pass
     return oldvalue
+
 
 class InteractiveInterpreter:
     """Base class for InteractiveConsole.
@@ -302,7 +287,7 @@ class InteractiveInterpreter:
 
         """
         try:
-            exec code in self.locals
+            exec(code, self.locals)
         except SystemExit:
             raise
         except:
@@ -411,11 +396,11 @@ class InteractiveConsole(InteractiveInterpreter):
 
         """
         try:
-            sys.ps1 #@UndefinedVariable
+            sys.ps1  # @UndefinedVariable
         except AttributeError:
             sys.ps1 = ">>> "
         try:
-            sys.ps2 #@UndefinedVariable
+            sys.ps2  # @UndefinedVariable
         except AttributeError:
             sys.ps2 = "... "
         cprt = 'Type "help", "copyright", "credits" or "license" for more information.'
@@ -429,14 +414,14 @@ class InteractiveConsole(InteractiveInterpreter):
         while 1:
             try:
                 if more:
-                    prompt = sys.ps2 #@UndefinedVariable
+                    prompt = sys.ps2  # @UndefinedVariable
                 else:
-                    prompt = sys.ps1 #@UndefinedVariable
+                    prompt = sys.ps1  # @UndefinedVariable
                 try:
                     line = self.raw_input(prompt)
                     # Can be None if sys.stdin was redefined
                     encoding = getattr(sys.stdin, "encoding", None)
-                    if encoding and not isinstance(line, unicode):
+                    if encoding and not isinstance(line, str):
                         line = line.decode(encoding)
                 except EOFError:
                     self.write("\n")
@@ -480,7 +465,7 @@ class InteractiveConsole(InteractiveInterpreter):
         implementation.
 
         """
-        return raw_input(prompt)
+        return input(prompt)
 
 
 def interact(banner=None, readfunc=None, local=None):
