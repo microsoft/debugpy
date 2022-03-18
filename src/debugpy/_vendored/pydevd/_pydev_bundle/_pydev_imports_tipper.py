@@ -13,8 +13,6 @@ def getargspec(*args, **kwargs):
     return arg_spec.args, arg_spec.varargs, arg_spec.varkw, arg_spec.defaults, arg_spec.kwonlyargs or [], arg_spec.kwonlydefaults or {}
 
 
-xrange = range
-
 # completion types.
 TYPE_IMPORT = '0'
 TYPE_CLASS = '1'
@@ -351,7 +349,7 @@ def signature_from_docstring(doc, obj_name):
                             # now, get rid of unwanted chars
                             l = len(args) - 1
                             r = []
-                            for i in xrange(len(args)):
+                            for i in range(len(args)):
                                 if i == 0 or i == l:
                                     r.append(args[i])
                                 else:

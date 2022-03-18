@@ -1,12 +1,12 @@
 import time
 
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
-from _pydev_imps._pydev_saved_modules import threading
+from _pydev_bundle._pydev_saved_modules import threading
 from _pydevd_bundle import pydevd_xml
 from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder
 from _pydevd_bundle.pydevd_constants import get_thread_id
 from _pydevd_bundle.pydevd_net_command import NetCommand
-from pydevd_concurrency_analyser.pydevd_thread_wrappers import ObjectWrapper, wrap_attr
+from _pydevd_bundle.pydevd_concurrency_analyser.pydevd_thread_wrappers import ObjectWrapper, wrap_attr
 import pydevd_file_utils
 from _pydev_bundle import pydev_log
 import sys

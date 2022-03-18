@@ -59,11 +59,6 @@ def _create_default_type_map():
     except:
         pass  # not available on all python versions
 
-    try:
-        default_type_map.append((unicode, None))  # @UndefinedVariable
-    except:
-        pass  # not available on all python versions
-
     default_type_map.append((DAPGrouper, pydevd_resolver.dapGrouperResolver))
 
     try:

@@ -1,12 +1,8 @@
 import sys
 from _pydevd_bundle import pydevd_xml
 from os.path import basename
-import traceback
 from _pydev_bundle import pydev_log
-try:
-    from urllib import quote, quote_plus, unquote, unquote_plus
-except:
-    from urllib.parse import quote, quote_plus, unquote, unquote_plus  # @Reimport @UnresolvedImport
+from urllib.parse import unquote_plus
 
 
 #===================================================================================================

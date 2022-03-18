@@ -2034,8 +2034,8 @@ static const char __pyx_k_TopLevelThreadTracerNoBackFrame[] = "TopLevelThreadTra
 static const char __pyx_k_Unable_to_get_topmost_frame_for[] = "Unable to get topmost frame for thread: %s, thread.ident: %s, id(thread): %s\nCurrent frames: %s.\nGEVENT_SUPPORT: %s";
 static const char __pyx_k_get_abs_path_real_path_and_base[] = "get_abs_path_real_path_and_base_from_frame";
 static const char __pyx_k_global_notify_skipped_step_in_l[] = "_global_notify_skipped_step_in_lock";
+static const char __pyx_k_pydev_bundle__pydev_saved_modul[] = "_pydev_bundle._pydev_saved_modules";
 static const char __pyx_k_pydev_bundle_pydev_is_thread_al[] = "_pydev_bundle.pydev_is_thread_alive";
-static const char __pyx_k_pydev_imps__pydev_saved_modules[] = "_pydev_imps._pydev_saved_modules";
 static const char __pyx_k_pydevd_bundle_pydevd_bytecode_u[] = "_pydevd_bundle.pydevd_bytecode_utils";
 static const char __pyx_k_pydevd_bundle_pydevd_comm_const[] = "_pydevd_bundle.pydevd_comm_constants";
 static const char __pyx_k_pydevd_bundle_pydevd_cython_pyx[] = "_pydevd_bundle/pydevd_cython.pyx";
@@ -2255,11 +2255,11 @@ static PyObject *__pyx_n_s_pop;
 static PyObject *__pyx_n_s_py_db;
 static PyObject *__pyx_n_s_pydb_disposed;
 static PyObject *__pyx_n_s_pydev_bundle;
+static PyObject *__pyx_n_s_pydev_bundle__pydev_saved_modul;
 static PyObject *__pyx_n_s_pydev_bundle_pydev_is_thread_al;
 static PyObject *__pyx_n_s_pydev_bundle_pydev_log;
 static PyObject *__pyx_n_s_pydev_do_not_trace;
 static PyObject *__pyx_kp_s_pydev_execfile_py;
-static PyObject *__pyx_n_s_pydev_imps__pydev_saved_modules;
 static PyObject *__pyx_n_s_pydev_log;
 static PyObject *__pyx_n_s_pydev_log_exception;
 static PyObject *__pyx_n_s_pydev_monkey;
@@ -36407,11 +36407,11 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_n_s_py_db, __pyx_k_py_db, sizeof(__pyx_k_py_db), 0, 0, 1, 1},
   {&__pyx_n_s_pydb_disposed, __pyx_k_pydb_disposed, sizeof(__pyx_k_pydb_disposed), 0, 0, 1, 1},
   {&__pyx_n_s_pydev_bundle, __pyx_k_pydev_bundle, sizeof(__pyx_k_pydev_bundle), 0, 0, 1, 1},
+  {&__pyx_n_s_pydev_bundle__pydev_saved_modul, __pyx_k_pydev_bundle__pydev_saved_modul, sizeof(__pyx_k_pydev_bundle__pydev_saved_modul), 0, 0, 1, 1},
   {&__pyx_n_s_pydev_bundle_pydev_is_thread_al, __pyx_k_pydev_bundle_pydev_is_thread_al, sizeof(__pyx_k_pydev_bundle_pydev_is_thread_al), 0, 0, 1, 1},
   {&__pyx_n_s_pydev_bundle_pydev_log, __pyx_k_pydev_bundle_pydev_log, sizeof(__pyx_k_pydev_bundle_pydev_log), 0, 0, 1, 1},
   {&__pyx_n_s_pydev_do_not_trace, __pyx_k_pydev_do_not_trace, sizeof(__pyx_k_pydev_do_not_trace), 0, 0, 1, 1},
   {&__pyx_kp_s_pydev_execfile_py, __pyx_k_pydev_execfile_py, sizeof(__pyx_k_pydev_execfile_py), 0, 0, 1, 0},
-  {&__pyx_n_s_pydev_imps__pydev_saved_modules, __pyx_k_pydev_imps__pydev_saved_modules, sizeof(__pyx_k_pydev_imps__pydev_saved_modules), 0, 0, 1, 1},
   {&__pyx_n_s_pydev_log, __pyx_k_pydev_log, sizeof(__pyx_k_pydev_log), 0, 0, 1, 1},
   {&__pyx_n_s_pydev_log_exception, __pyx_k_pydev_log_exception, sizeof(__pyx_k_pydev_log_exception), 0, 0, 1, 1},
   {&__pyx_n_s_pydev_monkey, __pyx_k_pydev_monkey, sizeof(__pyx_k_pydev_monkey), 0, 0, 1, 1},
@@ -37781,7 +37781,7 @@ if (!__Pyx_RefNanny) {
  *         # end trace_dispatch
  * from _pydev_bundle.pydev_is_thread_alive import is_thread_alive             # <<<<<<<<<<<<<<
  * from _pydev_bundle.pydev_log import exception as pydev_log_exception
- * from _pydev_imps._pydev_saved_modules import threading
+ * from _pydev_bundle._pydev_saved_modules import threading
  */
   __pyx_t_2 = PyList_New(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1310, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
@@ -37801,7 +37801,7 @@ if (!__Pyx_RefNanny) {
  *         # end trace_dispatch
  * from _pydev_bundle.pydev_is_thread_alive import is_thread_alive
  * from _pydev_bundle.pydev_log import exception as pydev_log_exception             # <<<<<<<<<<<<<<
- * from _pydev_imps._pydev_saved_modules import threading
+ * from _pydev_bundle._pydev_saved_modules import threading
  * from _pydevd_bundle.pydevd_constants import (get_current_thread_id, NO_FTRACE,
  */
   __pyx_t_1 = PyList_New(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1311, __pyx_L1_error)
@@ -37821,7 +37821,7 @@ if (!__Pyx_RefNanny) {
   /* "_pydevd_bundle/pydevd_cython.pyx":1312
  * from _pydev_bundle.pydev_is_thread_alive import is_thread_alive
  * from _pydev_bundle.pydev_log import exception as pydev_log_exception
- * from _pydev_imps._pydev_saved_modules import threading             # <<<<<<<<<<<<<<
+ * from _pydev_bundle._pydev_saved_modules import threading             # <<<<<<<<<<<<<<
  * from _pydevd_bundle.pydevd_constants import (get_current_thread_id, NO_FTRACE,
  *     USE_CUSTOM_SYS_CURRENT_FRAMES_MAP, ForkSafeLock)
  */
@@ -37830,7 +37830,7 @@ if (!__Pyx_RefNanny) {
   __Pyx_INCREF(__pyx_n_s_threading);
   __Pyx_GIVEREF(__pyx_n_s_threading);
   PyList_SET_ITEM(__pyx_t_2, 0, __pyx_n_s_threading);
-  __pyx_t_1 = __Pyx_Import(__pyx_n_s_pydev_imps__pydev_saved_modules, __pyx_t_2, -1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1312, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_Import(__pyx_n_s_pydev_bundle__pydev_saved_modul, __pyx_t_2, -1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1312, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __pyx_t_2 = __Pyx_ImportFrom(__pyx_t_1, __pyx_n_s_threading); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1312, __pyx_L1_error)
@@ -37841,7 +37841,7 @@ if (!__Pyx_RefNanny) {
 
   /* "_pydevd_bundle/pydevd_cython.pyx":1313
  * from _pydev_bundle.pydev_log import exception as pydev_log_exception
- * from _pydev_imps._pydev_saved_modules import threading
+ * from _pydev_bundle._pydev_saved_modules import threading
  * from _pydevd_bundle.pydevd_constants import (get_current_thread_id, NO_FTRACE,             # <<<<<<<<<<<<<<
  *     USE_CUSTOM_SYS_CURRENT_FRAMES_MAP, ForkSafeLock)
  * from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame, NORM_PATHS_AND_BASE_CONTAINER

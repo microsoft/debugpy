@@ -8,7 +8,6 @@ PYDEV_FILE = 2
 
 DONT_TRACE_DIRS = {
     '_pydev_bundle': PYDEV_FILE,
-    '_pydev_imps': PYDEV_FILE,
     '_pydev_runfiles': PYDEV_FILE,
     '_pydevd_bundle': PYDEV_FILE,
     '_pydevd_frame_eval': PYDEV_FILE,
@@ -32,7 +31,6 @@ DONT_TRACE = {
     'dis.py':LIB_FILE,
 
     # things from pydev that we don't want to trace
-    '_pydev_execfile.py':PYDEV_FILE,
     '__main__pydevd_gen_debug_adapter_protocol.py': PYDEV_FILE,
     '_pydev_calltip_util.py': PYDEV_FILE,
     '_pydev_completer.py': PYDEV_FILE,
@@ -143,7 +141,6 @@ DONT_TRACE = {
     'pydevd_vars.py': PYDEV_FILE,
     'pydevd_vm_type.py': PYDEV_FILE,
     'pydevd_xml.py': PYDEV_FILE,
-    'scandir_vendored.py': PYDEV_FILE,
 }
 
 # if we try to trace io.py it seems it can get halted (see http://bugs.python.org/issue4716)

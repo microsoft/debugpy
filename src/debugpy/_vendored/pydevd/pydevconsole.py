@@ -1,7 +1,7 @@
 '''
 Entry point module to start the interactive console.
 '''
-from _pydev_imps._pydev_saved_modules import thread, _code
+from _pydev_bundle._pydev_saved_modules import thread, _code
 from _pydevd_bundle.pydevd_constants import IS_JYTHON
 start_new_thread = thread.start_new_thread
 
@@ -16,7 +16,7 @@ InteractiveInterpreter = _code.InteractiveInterpreter
 import os
 import sys
 
-from _pydev_imps._pydev_saved_modules import threading
+from _pydev_bundle._pydev_saved_modules import threading
 from _pydevd_bundle.pydevd_constants import INTERACTIVE_MODE_AVAILABLE
 
 import traceback
@@ -30,8 +30,6 @@ import builtins as __builtin__
 
 from _pydev_bundle.pydev_console_utils import BaseInterpreterInterface, BaseStdIn  # @UnusedImport
 from _pydev_bundle.pydev_console_utils import CodeFragment
-
-IS_PYTHON_3_ONWARDS = sys.version_info[0] >= 3
 
 
 class Command:
@@ -65,12 +63,9 @@ class Command:
 
 
 try:
-    try:
-        execfile  # Not in Py3k
-    except NameError:
-        from _pydev_bundle.pydev_imports import execfile
+    from _pydev_bundle.pydev_imports import execfile
 
-        __builtin__.execfile = execfile
+    __builtin__.execfile = execfile
 except:
     pass
 

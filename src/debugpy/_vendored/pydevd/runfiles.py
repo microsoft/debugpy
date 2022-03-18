@@ -6,11 +6,6 @@ Used to run with tests with unittest/pytest/nose.
 
 import os
 
-try:
-    xrange
-except:
-    xrange = range
-
 
 def main():
     import sys
@@ -215,7 +210,7 @@ def main():
                     break
 
             remove = []
-            for i in xrange(len(argv)):
+            for i in range(len(argv)):
                 arg = argv[i]
                 # Workaround bug in py.test: if we pass the full path it ends up importing conftest
                 # more than once (so, always work with relative paths).

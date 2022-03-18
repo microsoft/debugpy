@@ -22,7 +22,7 @@ Authors
 
 import os
 import sys
-from _pydev_imps._pydev_saved_modules import time
+from _pydev_bundle._pydev_saved_modules import time
 from timeit import default_timer as clock
 import pyglet  # @UnresolvedImport
 from pydev_ipython.inputhook import stdin_ready

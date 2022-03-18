@@ -7,11 +7,7 @@ from pydevd_file_utils import canonical_normalized_path
 import pytest
 import sys
 import time
-
-try:
-    from pathlib import Path
-except:
-    Path = None
+from pathlib import Path
 
 #=========================================================================
 # Load filters with tests we should skip
@@ -27,14 +23,13 @@ def _load_filters():
             py_test_accept_filter = pickle.loads(
                 zlib.decompress(base64.b64decode(py_test_accept_filter)))
 
-            if Path is not None:
-                # Newer versions of pytest resolve symlinks, so, we
-                # may need to filter with a resolved path too.
-                new_dct = {}
-                for filename, value in py_test_accept_filter.items():
-                    new_dct[canonical_normalized_path(str(Path(filename).resolve()))] = value
+            # Newer versions of pytest resolve symlinks, so, we
+            # may need to filter with a resolved path too.
+            new_dct = {}
+            for filename, value in py_test_accept_filter.items():
+                new_dct[canonical_normalized_path(str(Path(filename).resolve()))] = value
 
-                py_test_accept_filter.update(new_dct)
+            py_test_accept_filter.update(new_dct)
 
         else:
             py_test_accept_filter = {}
@@ -203,30 +198,14 @@ def append_strings(s1, s2):
     if s1.__class__ == s2.__class__:
         return s1 + s2
 
-    if sys.version_info[0] == 2:
-        if not isinstance(s1, basestring):
-            s1 = str(s1)
+    # Prefer str
+    if isinstance(s1, bytes):
+        s1 = s1.decode('utf-8', 'replace')
 
-        if not isinstance(s2, basestring):
-            s2 = str(s2)
+    if isinstance(s2, bytes):
+        s2 = s2.decode('utf-8', 'replace')
 
-        # Prefer bytes
-        if isinstance(s1, unicode):
-            s1 = s1.encode('utf-8')
-
-        if isinstance(s2, unicode):
-            s2 = s2.encode('utf-8')
-
-        return s1 + s2
-    else:
-        # Prefer str
-        if isinstance(s1, bytes):
-            s1 = s1.decode('utf-8', 'replace')
-
-        if isinstance(s2, bytes):
-            s2 = s2.decode('utf-8', 'replace')
-
-        return s1 + s2
+    return s1 + s2
 
 
 def pytest_runtest_logreport(report):

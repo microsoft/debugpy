@@ -1,4 +1,4 @@
-from _pydev_imps._pydev_saved_modules import socket
+from _pydev_bundle._pydev_saved_modules import socket
 import sys
 
 IS_JYTHON = sys.platform.find('java') != -1

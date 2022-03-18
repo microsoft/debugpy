@@ -16,7 +16,7 @@ else:
     SERVER_NAME = 'pycompletionserver'
     from _pydev_bundle import _pydev_imports_tipper
 
-from _pydev_imps._pydev_saved_modules import socket
+from _pydev_bundle._pydev_saved_modules import socket
 
 import sys
 if sys.platform == "darwin":
@@ -170,7 +170,7 @@ class CompletionServer:
         self.processor = Processor()
 
     def connect_to_server(self):
-        from _pydev_imps._pydev_saved_modules import socket
+        from _pydev_bundle._pydev_saved_modules import socket
 
         self.socket = s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:

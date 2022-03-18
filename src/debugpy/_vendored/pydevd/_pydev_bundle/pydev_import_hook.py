@@ -4,10 +4,7 @@ import traceback
 from types import ModuleType
 from _pydevd_bundle.pydevd_constants import DebugInfoHolder
 
-if sys.version_info[0] >= 3:
-    import builtins  # py3
-else:
-    import __builtin__ as builtins
+import builtins
 
 
 class ImportHookManager(ModuleType):

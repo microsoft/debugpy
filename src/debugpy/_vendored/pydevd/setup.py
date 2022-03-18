@@ -63,10 +63,10 @@ args = dict(
     packages=[
         '_pydev_bundle',
         '_pydev_bundle.fsnotify',
-        '_pydev_imps',
         '_pydev_runfiles',
         '_pydevd_bundle',
         '_pydevd_bundle._debug_adapter',
+        '_pydevd_bundle.pydevd_concurrency_analyser',
         '_pydevd_frame_eval',
         '_pydevd_frame_eval.vendored',
         '_pydevd_frame_eval.vendored.bytecode',
@@ -76,7 +76,6 @@ args = dict(
 
         'pydevd_attach_to_process',
 
-        'pydevd_concurrency_analyser',
         'pydevd_plugins',
         'pydevd_plugins.extensions',
         'pydevd_plugins.extensions.types',
@@ -93,7 +92,7 @@ args = dict(
         'pydevd',
         'pydevd_tracing',
         # 'runfiles', -- Not needed for debugger
-        'setup_cython',  # Distributed to clients. See: https://github.com/fabioz/PyDev.Debugger/issues/102
+        'setup_pydevd_cython',  # Distributed to clients. See: https://github.com/fabioz/PyDev.Debugger/issues/102
         # 'setup', -- Should not be included as a module
     ],
     classifiers=[
@@ -170,7 +169,7 @@ try:
             Extension(
                 '_pydevd_bundle.pydevd_cython',
                 ["_pydevd_bundle/pydevd_cython.c", ],
-                define_macros = [('Py_BUILD_CORE_MODULE', '1')],
+                define_macros=[('Py_BUILD_CORE_MODULE', '1')],
                 **kwargs
             )
         ]

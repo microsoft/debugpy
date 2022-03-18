@@ -10,7 +10,6 @@ else:
 import os
 from _pydevd_bundle.pydevd_comm import CMD_SIGNATURE_CALL_TRACE, NetCommand
 from _pydevd_bundle import pydevd_xml
-from _pydevd_bundle.pydevd_constants import xrange
 from _pydevd_bundle.pydevd_utils import get_clsname_for_code
 
 
@@ -33,7 +32,7 @@ class Signature(object):
         code = frame.f_code
         locals = frame.f_locals
 
-        for i in xrange(0, code.co_argcount):
+        for i in range(0, code.co_argcount):
             name = code.co_varnames[i]
             class_name = get_type_of_value(locals[name], recursive=recursive)
 

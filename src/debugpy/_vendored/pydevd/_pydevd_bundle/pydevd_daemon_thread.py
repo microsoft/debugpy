@@ -1,5 +1,5 @@
-from _pydev_imps._pydev_saved_modules import threading
-from _pydev_imps import _pydev_saved_modules
+from _pydev_bundle._pydev_saved_modules import threading
+from _pydev_bundle import _pydev_saved_modules
 from _pydevd_bundle.pydevd_utils import notify_about_gevent_if_needed
 import weakref
 from _pydevd_bundle.pydevd_constants import IS_JYTHON, IS_IRONPYTHON, \

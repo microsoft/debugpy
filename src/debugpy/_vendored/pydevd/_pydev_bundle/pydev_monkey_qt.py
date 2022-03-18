@@ -1,6 +1,6 @@
 from __future__ import nested_scopes
 
-from _pydev_imps._pydev_saved_modules import threading
+from _pydev_bundle._pydev_saved_modules import threading
 import os
 from _pydev_bundle import pydev_log
 
@@ -111,7 +111,7 @@ def _patch_import_to_patch_pyqt_on_import(patch_qt_on_import, get_qt_core_module
     dotted = patch_qt_on_import + '.'
     original_import = __import__
 
-    from _pydev_imps._pydev_sys_patch import patch_sys_module, patch_reload, cancel_patches_in_sys_module
+    from _pydev_bundle._pydev_sys_patch import patch_sys_module, patch_reload, cancel_patches_in_sys_module
 
     patch_sys_module()
     patch_reload()
@@ -123,11 +123,7 @@ def _patch_import_to_patch_pyqt_on_import(patch_qt_on_import, get_qt_core_module
             _internal_patch_qt(get_qt_core_module())  # Patch it only when the user would import the qt module
         return original_import(name, *args, **kwargs)
 
-    import sys
-    if sys.version_info[0] >= 3:
-        import builtins  # Py3
-    else:
-        import __builtin__ as builtins
+    import builtins  # Py3
 
     builtins.__import__ = patched_import
 

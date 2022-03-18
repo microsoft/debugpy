@@ -4,11 +4,9 @@ import sys
 from collections import namedtuple
 
 from _pydev_bundle import pydev_log
-from _pydevd_bundle.pydevd_constants import IS_PY38_OR_GREATER
 from opcode import (EXTENDED_ARG, HAVE_ARGUMENT, cmp_op, hascompare, hasconst,
                     hasfree, hasjrel, haslocal, hasname, opname)
 
-xrange = range
 from io import StringIO
 
 
@@ -173,83 +171,7 @@ def collect_return_info(co, use_func_first_line=False):
     return lst
 
 
-if sys.version_info[:2] < (3, 5):
-
-    def collect_try_except_info(co, use_func_first_line=False):
-        if not hasattr(co, 'co_lnotab'):
-            return []
-
-        if use_func_first_line:
-            firstlineno = co.co_firstlineno
-        else:
-            firstlineno = 0
-
-        try_except_info_lst = []
-        stack_in_setup = []
-
-        op_offset_to_line = dict(dis.findlinestarts(co))
-
-        for instruction in iter_instructions(co):
-            curr_op_name = instruction.opname
-
-            if curr_op_name in ('SETUP_EXCEPT', 'SETUP_FINALLY'):
-                # We need to collect try..finally blocks too to make sure that
-                # the stack_in_setup we're using to collect info is correct.
-                # Note: On Py3.8 both except and finally statements use 'SETUP_FINALLY'.
-                try_except_info = TryExceptInfo(
-                    _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True),
-                    ignore=curr_op_name == 'SETUP_FINALLY'
-                )
-                try_except_info.except_bytecode_offset = instruction.argval
-                try_except_info.except_line = _get_line(
-                    op_offset_to_line,
-                    try_except_info.except_bytecode_offset,
-                    firstlineno,
-                )
-
-                try_except_info.except_end_bytecode_offset = instruction.argval
-                try_except_info.except_end_line = _get_line(op_offset_to_line, instruction.argval, firstlineno, search=True)
-
-                stack_in_setup.append(try_except_info)
-
-            elif curr_op_name == 'POP_EXCEPT':
-                # On Python 3.8 there's no SETUP_EXCEPT (both except and finally start with SETUP_FINALLY),
-                # so, we differentiate by a POP_EXCEPT.
-                if IS_PY38_OR_GREATER:
-                    stack_in_setup[-1].ignore = False
-
-            elif curr_op_name in ('WITH_CLEANUP_START', 'WITH_CLEANUP'):  # WITH_CLEANUP is Python 2.7, WITH_CLEANUP_START Python 3.
-                stack_in_setup.append(TryExceptInfo(-1, ignore=True))  # Just there to be removed at END_FINALLY.
-
-            elif curr_op_name == 'RAISE_VARARGS':
-                # We want to know about reraises and returns inside of except blocks (unfortunately
-                # a raise appears to the debugger as a return, so, we may need to differentiate).
-                if instruction.argval == 0:
-                    for info in stack_in_setup:
-                        info.raise_lines_in_except.append(
-                            _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True))
-
-            elif curr_op_name == 'END_FINALLY':  # The except block also ends with 'END_FINALLY'.
-                stack_in_setup[-1].except_end_bytecode_offset = instruction.offset
-                stack_in_setup[-1].except_end_line = _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True)
-                if not stack_in_setup[-1].ignore:
-                    # Don't add try..finally blocks.
-                    try_except_info_lst.append(stack_in_setup[-1])
-                del stack_in_setup[-1]
-
-        while stack_in_setup:
-            # On Py3 the END_FINALLY may not be there (so, the end of the function is also the end
-            # of the stack).
-            stack_in_setup[-1].except_end_bytecode_offset = instruction.offset
-            stack_in_setup[-1].except_end_line = _get_line(op_offset_to_line, instruction.offset, firstlineno, search=True)
-            if not stack_in_setup[-1].ignore:
-                # Don't add try..finally blocks.
-                try_except_info_lst.append(stack_in_setup[-1])
-            del stack_in_setup[-1]
-
-        return try_except_info_lst
-
-if (3, 5) <= sys.version_info[:2] <= (3, 9):
+if sys.version_info[:2] <= (3, 9):
 
     class _TargetInfo(object):
 

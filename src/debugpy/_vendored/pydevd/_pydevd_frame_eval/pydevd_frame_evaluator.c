@@ -1794,7 +1794,7 @@ static const char __pyx_k_pydevd_bundle_pydevd_constants[] = "_pydevd_bundle.pyd
 static const char __pyx_k_pydevd_frame_eval_pydevd_frame[] = "_pydevd_frame_eval.pydevd_frame_tracing";
 static const char __pyx_k_If_a_code_object_is_cached_that[] = "If a code object is cached, that same code object must be reused.";
 static const char __pyx_k_get_abs_path_real_path_and_base[] = "get_abs_path_real_path_and_base_from_frame";
-static const char __pyx_k_pydev_imps__pydev_saved_modules[] = "_pydev_imps._pydev_saved_modules";
+static const char __pyx_k_pydev_bundle__pydev_saved_modul[] = "_pydev_bundle._pydev_saved_modules";
 static const char __pyx_k_pydevd_bundle_pydevd_additional[] = "_pydevd_bundle.pydevd_additional_thread_info";
 static const char __pyx_k_pydevd_bundle_pydevd_trace_disp[] = "_pydevd_bundle.pydevd_trace_dispatch";
 static const char __pyx_k_pydevd_frame_eval_pydevd_modify[] = "_pydevd_frame_eval.pydevd_modify_bytecode";
@@ -1903,7 +1903,7 @@ static PyObject *__pyx_n_s_obj;
 static PyObject *__pyx_n_s_offset;
 static PyObject *__pyx_n_s_pickle;
 static PyObject *__pyx_n_s_plugin;
-static PyObject *__pyx_n_s_pydev_imps__pydev_saved_modules;
+static PyObject *__pyx_n_s_pydev_bundle__pydev_saved_modul;
 static PyObject *__pyx_n_s_pydev_monkey;
 static PyObject *__pyx_n_s_pydevd;
 static PyObject *__pyx_n_s_pydevd_bundle_pydevd_additional;
@@ -15989,7 +15989,7 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_n_s_offset, __pyx_k_offset, sizeof(__pyx_k_offset), 0, 0, 1, 1},
   {&__pyx_n_s_pickle, __pyx_k_pickle, sizeof(__pyx_k_pickle), 0, 0, 1, 1},
   {&__pyx_n_s_plugin, __pyx_k_plugin, sizeof(__pyx_k_plugin), 0, 0, 1, 1},
-  {&__pyx_n_s_pydev_imps__pydev_saved_modules, __pyx_k_pydev_imps__pydev_saved_modules, sizeof(__pyx_k_pydev_imps__pydev_saved_modules), 0, 0, 1, 1},
+  {&__pyx_n_s_pydev_bundle__pydev_saved_modul, __pyx_k_pydev_bundle__pydev_saved_modul, sizeof(__pyx_k_pydev_bundle__pydev_saved_modul), 0, 0, 1, 1},
   {&__pyx_n_s_pydev_monkey, __pyx_k_pydev_monkey, sizeof(__pyx_k_pydev_monkey), 0, 0, 1, 1},
   {&__pyx_n_s_pydevd, __pyx_k_pydevd, sizeof(__pyx_k_pydevd), 0, 0, 1, 1},
   {&__pyx_n_s_pydevd_bundle_pydevd_additional, __pyx_k_pydevd_bundle_pydevd_additional, sizeof(__pyx_k_pydevd_bundle_pydevd_additional), 0, 0, 1, 1},
@@ -16578,7 +16578,7 @@ if (!__Pyx_RefNanny) {
 
   /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":2
  * from __future__ import print_function
- * from _pydev_imps._pydev_saved_modules import threading, thread             # <<<<<<<<<<<<<<
+ * from _pydev_bundle._pydev_saved_modules import threading, thread             # <<<<<<<<<<<<<<
  * from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder
  * import dis
  */
@@ -16590,7 +16590,7 @@ if (!__Pyx_RefNanny) {
   __Pyx_INCREF(__pyx_n_s_thread);
   __Pyx_GIVEREF(__pyx_n_s_thread);
   PyList_SET_ITEM(__pyx_t_1, 1, __pyx_n_s_thread);
-  __pyx_t_2 = __Pyx_Import(__pyx_n_s_pydev_imps__pydev_saved_modules, __pyx_t_1, -1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 2, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_Import(__pyx_n_s_pydev_bundle__pydev_saved_modul, __pyx_t_1, -1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 2, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __pyx_t_1 = __Pyx_ImportFrom(__pyx_t_2, __pyx_n_s_threading); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 2, __pyx_L1_error)
@@ -16605,7 +16605,7 @@ if (!__Pyx_RefNanny) {
 
   /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":3
  * from __future__ import print_function
- * from _pydev_imps._pydev_saved_modules import threading, thread
+ * from _pydev_bundle._pydev_saved_modules import threading, thread
  * from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder             # <<<<<<<<<<<<<<
  * import dis
  * import sys
@@ -16625,7 +16625,7 @@ if (!__Pyx_RefNanny) {
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
   /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":4
- * from _pydev_imps._pydev_saved_modules import threading, thread
+ * from _pydev_bundle._pydev_saved_modules import threading, thread
  * from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder
  * import dis             # <<<<<<<<<<<<<<
  * import sys
@@ -17063,7 +17063,7 @@ if (!__Pyx_RefNanny) {
 
   /* "_pydevd_frame_eval/pydevd_frame_evaluator.pyx":1
  * from __future__ import print_function             # <<<<<<<<<<<<<<
- * from _pydev_imps._pydev_saved_modules import threading, thread
+ * from _pydev_bundle._pydev_saved_modules import threading, thread
  * from _pydevd_bundle.pydevd_constants import GlobalDebuggerHolder
  */
   __pyx_t_2 = __Pyx_PyDict_NewPresized(0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1, __pyx_L1_error)

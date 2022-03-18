@@ -2227,7 +2227,7 @@ def test_evaluate_exec_unicode(case_setup):
         )
 
         messages = json_facade.mark_messages(
-            OutputEvent, lambda output_event: u'中' in output_event.body.output)
+            OutputEvent, lambda output_event: (u'中' in output_event.body.output) and ('pydevd warning' not in output_event.body.output))
         assert len(messages) == 1
 
         # Check exec
@@ -2238,7 +2238,7 @@ def test_evaluate_exec_unicode(case_setup):
         )
 
         messages = json_facade.mark_messages(
-            OutputEvent, lambda output_event: u'中' in output_event.body.output)
+            OutputEvent, lambda output_event: (u'中' in output_event.body.output) and ('pydevd warning' not in output_event.body.output))
         assert len(messages) == 1
 
         response = json_facade.evaluate(
@@ -2249,7 +2249,7 @@ def test_evaluate_exec_unicode(case_setup):
         assert response.body.result in ("u'\\u4e2d'", "'\u4e2d'")  # py2 or py3
 
         messages = json_facade.mark_messages(
-            OutputEvent, lambda output_event: u'中' in output_event.body.output)
+            OutputEvent, lambda output_event: (u'中' in output_event.body.output) and ('pydevd warning' not in output_event.body.output))
         assert len(messages) == 0  # i.e.: we don't print in this case.
 
         json_facade.write_continue()

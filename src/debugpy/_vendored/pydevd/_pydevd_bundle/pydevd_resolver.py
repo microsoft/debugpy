@@ -5,7 +5,7 @@ import traceback
 from os.path import basename
 
 from functools import partial
-from _pydevd_bundle.pydevd_constants import xrange, IS_PY36_OR_GREATER, \
+from _pydevd_bundle.pydevd_constants import IS_PY36_OR_GREATER, \
     MethodWrapperType, RETURN_VALUES_DICT, DebugInfoHolder, IS_PYPY, GENERATED_LEN_ATTR_NAME
 from _pydevd_bundle.pydevd_safe_repr import SafeRepr
 
@@ -117,12 +117,12 @@ class DefaultResolver:
 
                 declaredMethods = obj.getDeclaredMethods()
                 declaredFields = obj.getDeclaredFields()
-                for i in xrange(len(declaredMethods)):
+                for i in range(len(declaredMethods)):
                     name = declaredMethods[i].getName()
                     ret[name] = declaredMethods[i].toString()
                     found.put(name, 1)
 
-                for i in xrange(len(declaredFields)):
+                for i in range(len(declaredFields)):
                     name = declaredFields[i].getName()
                     found.put(name, 1)
                     # if declaredFields[i].isAccessible():
@@ -218,10 +218,6 @@ class DAPGrouperResolver:
 
 
 _basic_immutable_types = (int, float, complex, str, bytes, type(None), bool, frozenset)
-try:
-    _basic_immutable_types += (long, unicode)  # Py2 types
-except NameError:
-    pass
 
 
 def _does_obj_repr_evaluate_to_obj(obj):
@@ -514,7 +510,7 @@ class InstanceResolver:
         ret = {}
 
         declaredFields = obj.__class__.getDeclaredFields()
-        for i in xrange(len(declaredFields)):
+        for i in range(len(declaredFields)):
             name = declaredFields[i].getName()
             try:
                 declaredFields[i].setAccessible(True)
@@ -541,7 +537,7 @@ class JyArrayResolver:
     def get_dictionary(self, obj):
         ret = {}
 
-        for i in xrange(len(obj)):
+        for i in range(len(obj)):
             ret[ i ] = obj[i]
 
         ret[GENERATED_LEN_ATTR_NAME] = len(obj)

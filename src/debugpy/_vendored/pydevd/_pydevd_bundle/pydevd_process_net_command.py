@@ -14,7 +14,7 @@ from _pydevd_bundle.pydevd_comm import (
 from _pydevd_bundle.pydevd_constants import NEXT_VALUE_SEPARATOR, IS_WINDOWS, NULL
 from _pydevd_bundle.pydevd_comm_constants import ID_TO_MEANING, CMD_EXEC_EXPRESSION, CMD_AUTHENTICATE
 from _pydevd_bundle.pydevd_api import PyDevdAPI
-from _pydev_bundle.pydev_imports import StringIO
+from io import StringIO
 from _pydevd_bundle.pydevd_net_command import NetCommand
 from _pydevd_bundle.pydevd_thread_lifecycle import pydevd_find_thread_by_id
 import pydevd_file_utils

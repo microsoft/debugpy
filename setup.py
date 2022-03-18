@@ -38,7 +38,7 @@ def cython_build():
     subprocess.call(
         [
             sys.executable,
-            os.path.join(PYDEVD_ROOT, "setup_cython.py"),
+            os.path.join(PYDEVD_ROOT, "setup_pydevd_cython.py"),
             "build_ext",
             "-i",
         ]

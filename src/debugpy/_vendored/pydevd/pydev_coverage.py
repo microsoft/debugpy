@@ -30,15 +30,12 @@ def execute():
 
         if '--pydev-analyze' in sys.argv:
 
-            #Ok, what we want here is having the files passed through stdin (because
-            #there may be too many files for passing in the command line -- we could
-            #just pass a dir and make the find files here, but as that's already
-            #given in the java side, let's just gather that info here).
+            # Ok, what we want here is having the files passed through stdin (because
+            # there may be too many files for passing in the command line -- we could
+            # just pass a dir and make the find files here, but as that's already
+            # given in the java side, let's just gather that info here).
             sys.argv.remove('--pydev-analyze')
-            try:
-                s = raw_input()  # @UndefinedVariable
-            except:
-                s = input()
+            s = input()
             s = s.replace('\r', '')
             s = s.replace('\n', '')
 
@@ -53,17 +50,17 @@ def execute():
                 sys.stderr.write('Invalid files not passed to coverage: %s\n'
                                  % ', '.join(invalid_files))
 
-            # Note that in this case we'll already be in the working dir with the coverage files, 
+            # Note that in this case we'll already be in the working dir with the coverage files,
             # so, the coverage file location is not passed.
 
         else:
-            # For all commands, the coverage file is configured in pydev, and passed as the first 
+            # For all commands, the coverage file is configured in pydev, and passed as the first
             # argument in the command line, so, let's make sure this gets to the coverage module.
             os.environ['COVERAGE_FILE'] = sys.argv[1]
             del sys.argv[1]
 
     try:
-        import coverage #@UnresolvedImport
+        import coverage  # @UnresolvedImport
     except:
         sys.stderr.write('Error: coverage module could not be imported\n')
         sys.stderr.write('Please make sure that the coverage module '
@@ -77,20 +74,21 @@ def execute():
         version = tuple(map(int, coverage.__version__.split('.')[:2]))
         if version < (4, 3):
             sys.stderr.write('Error: minimum supported coverage version is 4.3.'
-                             '\nFound: %s\nLocation: %s\n' 
+                             '\nFound: %s\nLocation: %s\n'
                              % ('.'.join(str(x) for x in version), coverage.__file__))
             sys.exit(1)
     else:
         sys.stderr.write('Warning: Could not determine version of python module coverage.'
                          '\nEnsure coverage version is >= 4.3\n')
 
-    from coverage.cmdline import main #@UnresolvedImport
+    from coverage.cmdline import main  # @UnresolvedImport
 
     if files is not None:
         sys.argv.append('xml')
         sys.argv += files
 
     main()
+
 
 if __name__ == '__main__':
     execute()

@@ -1,4 +1,4 @@
-from _pydev_imps._pydev_saved_modules import threading
+from _pydev_bundle._pydev_saved_modules import threading
 
 # Hack for https://www.brainwy.com/tracker/PyDev/363 (i.e.: calling is_alive() can throw AssertionError under some
 # circumstances).

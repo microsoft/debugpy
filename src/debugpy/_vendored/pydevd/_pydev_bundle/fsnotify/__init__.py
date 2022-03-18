@@ -41,15 +41,7 @@ import threading
 import sys
 from os.path import basename
 from _pydev_bundle import pydev_log
-try:
-    from os import scandir
-except:
-    try:
-        # Search an installed version (which may have speedups).
-        from scandir import scandir
-    except:
-        # If all fails, use our vendored version (which won't have speedups).
-        from .scandir_vendored import scandir
+from os import scandir
 
 try:
     from enum import IntEnum
@@ -261,12 +253,12 @@ class Watcher(object):
         # Sort by the path len so that the bigger paths come first (so,
         # if there's any nesting we want the nested paths to be visited
         # before the parent paths so that the max_recursion_level is correct).
-        paths = sorted(set(paths), key=lambda path: -len(path))
+        paths = sorted(set(paths), key=lambda path:-len(path))
         path_watchers = set()
 
         self._single_visit_info = _SingleVisitInfo()
 
-        initial_time = time.time()        
+        initial_time = time.time()
         for path in paths:
             sleep_time = 0.  # When collecting the first time, sleep_time should be 0!
             path_watcher = _PathWatcher(
@@ -279,9 +271,9 @@ class Watcher(object):
             )
 
             path_watchers.add(path_watcher)
-            
+
         actual_time = (time.time() - initial_time)
-        
+
         pydev_log.debug('Tracking the following paths for changes: %s', paths)
         pydev_log.debug('Time to track: %.2fs', actual_time)
         pydev_log.debug('Folders found: %s', len(self._single_visit_info.visited_dirs))

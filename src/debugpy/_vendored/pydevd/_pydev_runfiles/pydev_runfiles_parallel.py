@@ -1,14 +1,12 @@
 import unittest
-from _pydev_imps._pydev_saved_modules import thread
-try:
-    import Queue
-except:
-    import queue as Queue #@UnresolvedImport
+from _pydev_bundle._pydev_saved_modules import thread
+import queue as Queue
 from _pydev_runfiles import pydev_runfiles_xml_rpc
 import time
 import os
 import threading
 import sys
+
 
 #=======================================================================================================================
 # flatten_test_suite
@@ -52,11 +50,11 @@ def execute_tests_in_parallel(tests, jobs, split, verbosity, coverage_files, cov
         if get_global_debugger() is not None:
             return False
     except:
-        pass #Ignore any error here.
+        pass  # Ignore any error here.
 
-    #This queue will receive the tests to be run. Each entry in a queue is a list with the tests to be run together When
-    #split == 'tests', each list will have a single element, when split == 'module', each list will have all the tests
-    #from a given module.
+    # This queue will receive the tests to be run. Each entry in a queue is a list with the tests to be run together When
+    # split == 'tests', each list will have a single element, when split == 'module', each list will have all the tests
+    # from a given module.
     tests_queue = []
 
     queue_elements = []
@@ -73,7 +71,7 @@ def execute_tests_in_parallel(tests, jobs, split, verbosity, coverage_files, cov
             queue_elements.append(tests)
 
         if len(queue_elements) < jobs:
-            #Don't create jobs we will never use.
+            # Don't create jobs we will never use.
             jobs = len(queue_elements)
 
     elif split == 'tests':
@@ -84,7 +82,7 @@ def execute_tests_in_parallel(tests, jobs, split, verbosity, coverage_files, cov
                 queue_elements.append([test])
 
         if len(queue_elements) < jobs:
-            #Don't create jobs we will never use.
+            # Don't create jobs we will never use.
             jobs = len(queue_elements)
 
     else:
@@ -94,25 +92,23 @@ def execute_tests_in_parallel(tests, jobs, split, verbosity, coverage_files, cov
         test_queue_elements = []
         for test_case in test_cases:
             try:
-                test_name = test_case.__class__.__name__+"."+test_case._testMethodName
+                test_name = test_case.__class__.__name__ + "." + test_case._testMethodName
             except AttributeError:
-                #Support for jython 2.1 (__testMethodName is pseudo-private in the test case)
-                test_name = test_case.__class__.__name__+"."+test_case._TestCase__testMethodName
+                # Support for jython 2.1 (__testMethodName is pseudo-private in the test case)
+                test_name = test_case.__class__.__name__ + "." + test_case._TestCase__testMethodName
 
-            test_queue_elements.append(test_case.__pydev_pyfile__+'|'+test_name)
+            test_queue_elements.append(test_case.__pydev_pyfile__ + '|' + test_name)
 
         tests_queue.append(test_queue_elements)
 
     if jobs < 2:
         return False
 
-    sys.stdout.write('Running tests in parallel with: %s jobs.\n' %(jobs,))
-
+    sys.stdout.write('Running tests in parallel with: %s jobs.\n' % (jobs,))
 
     queue = Queue.Queue()
     for item in tests_queue:
         queue.put(item, block=False)
-
 
     providers = []
     clients = []
@@ -135,7 +131,7 @@ def execute_tests_in_parallel(tests, jobs, split, verbosity, coverage_files, cov
     while client_alive:
         client_alive = False
         for client in clients:
-            #Wait for all the clients to exit.
+            # Wait for all the clients to exit.
             if not client.finished:
                 client_alive = True
                 time.sleep(.2)
@@ -145,7 +141,6 @@ def execute_tests_in_parallel(tests, jobs, split, verbosity, coverage_files, cov
         provider.shutdown()
 
     return True
-
 
 
 #=======================================================================================================================
@@ -159,27 +154,9 @@ class CommunicationThread(threading.Thread):
         self.queue = tests_queue
         self.finished = False
         from _pydev_bundle.pydev_imports import SimpleXMLRPCServer
-
-
-        # This is a hack to patch slow socket.getfqdn calls that
-        # BaseHTTPServer (and its subclasses) make.
-        # See: http://bugs.python.org/issue6085
-        # See: http://www.answermysearches.com/xmlrpc-server-slow-in-python-how-to-fix/2140/
-        try:
-            import BaseHTTPServer
-            def _bare_address_string(self):
-                host, port = self.client_address[:2]
-                return '%s' % host
-            BaseHTTPServer.BaseHTTPRequestHandler.address_string = _bare_address_string
-
-        except:
-            pass
-        # End hack.
-
+        from _pydev_bundle import pydev_localhost
 
         # Create server
-
-        from _pydev_bundle import pydev_localhost
         server = SimpleXMLRPCServer((pydev_localhost.get_localhost(), 0), logRequests=False)
         server.register_function(self.GetTestsToRun)
         server.register_function(self.notifyStartTest)
@@ -187,7 +164,6 @@ class CommunicationThread(threading.Thread):
         server.register_function(self.notifyCommands)
         self.port = server.socket.getsockname()[1]
         self.server = server
-
 
     def GetTestsToRun(self, job_id):
         '''
@@ -199,13 +175,12 @@ class CommunicationThread(threading.Thread):
         try:
             ret = self.queue.get(block=False)
             return ret
-        except: #Any exception getting from the queue (empty or not) means we finished our work on providing the tests.
+        except:  # Any exception getting from the queue (empty or not) means we finished our work on providing the tests.
             self.finished = True
             return []
 
-
     def notifyCommands(self, job_id, commands):
-        #Batch notification.
+        # Batch notification.
         for command in commands:
             getattr(self, command[0])(job_id, *command[1], **command[2])
 
@@ -214,7 +189,6 @@ class CommunicationThread(threading.Thread):
     def notifyStartTest(self, job_id, *args, **kwargs):
         pydev_runfiles_xml_rpc.notifyStartTest(*args, **kwargs)
         return True
-
 
     def notifyTest(self, job_id, *args, **kwargs):
         pydev_runfiles_xml_rpc.notifyTest(*args, **kwargs)
@@ -235,7 +209,6 @@ class CommunicationThread(threading.Thread):
                 self.server.handle_request()
 
 
-
 #=======================================================================================================================
 # Client
 #=======================================================================================================================
@@ -251,22 +224,20 @@ class ClientThread(threading.Thread):
         self.coverage_output_file = coverage_output_file
         self.coverage_include = coverage_include
 
-
     def _reader_thread(self, pipe, target):
         while True:
             target.write(pipe.read(1))
 
-
     def run(self):
         try:
             from _pydev_runfiles import pydev_runfiles_parallel_client
-            #TODO: Support Jython:
+            # TODO: Support Jython:
             #
-            #For jython, instead of using sys.executable, we should use:
-            #r'D:\bin\jdk_1_5_09\bin\java.exe',
-            #'-classpath',
-            #'D:/bin/jython-2.2.1/jython.jar',
-            #'org.python.util.jython',
+            # For jython, instead of using sys.executable, we should use:
+            # r'D:\bin\jdk_1_5_09\bin\java.exe',
+            # '-classpath',
+            # 'D:/bin/jython-2.2.1/jython.jar',
+            # 'org.python.util.jython',
 
             args = [
                 sys.executable,
@@ -284,9 +255,9 @@ class ClientThread(threading.Thread):
             if False:
                 proc = subprocess.Popen(args, env=os.environ, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-                thread.start_new_thread(self._reader_thread,(proc.stdout, sys.stdout))
+                thread.start_new_thread(self._reader_thread, (proc.stdout, sys.stdout))
 
-                thread.start_new_thread(target=self._reader_thread,args=(proc.stderr, sys.stderr))
+                thread.start_new_thread(target=self._reader_thread, args=(proc.stderr, sys.stderr))
             else:
                 proc = subprocess.Popen(args, env=os.environ, shell=False)
                 proc.wait()

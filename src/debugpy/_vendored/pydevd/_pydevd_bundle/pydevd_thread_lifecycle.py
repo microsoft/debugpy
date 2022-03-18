@@ -2,8 +2,7 @@ from _pydevd_bundle import pydevd_utils
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
 from _pydevd_bundle.pydevd_comm_constants import CMD_STEP_INTO, CMD_THREAD_SUSPEND
 from _pydevd_bundle.pydevd_constants import PYTHON_SUSPEND, STATE_SUSPEND, get_thread_id, STATE_RUN
-from _pydev_imps._pydev_saved_modules import threading
-import sys
+from _pydev_bundle._pydev_saved_modules import threading
 from _pydev_bundle import pydev_log
 
 
