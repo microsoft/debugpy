@@ -4,8 +4,6 @@ build-backend = "setuptools.build_meta"
 
 
 [tool.black]
-# TODO: remove exclusions as code is reformatted to conform to the Black style.
-# The only exclusions that should remain in the end are _vendored and versioneer.
 exclude = '''
 ( __pycache__
 | ^/.tox
