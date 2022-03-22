@@ -83,14 +83,14 @@ debugpy.wait_for_client()  # blocks execution until client is attached
 ```
 
 ### `breakpoint()` function
-In Python 3.7 and above, `debugpy` supports the standard `breakpoint()` function. Use `debugpy.breakpoint()` function for similar behavior and compatibility with older versions of Python. If the debugger is attached when either of these functions is invoked, it will pause execution on the calling line, as if it had a breakpoint set. If there's no client attached, the functions do nothing, and the code continues to execute normally.
+Where available, debugpy supports the standard `breakpoint()` function for programmatic breakpoints. Use `debugpy.breakpoint()` function to get the same behavior when `breakpoint()` handler installed by debugpy is overridden by another handler. If the debugger is attached when either of these functions is invoked, it will pause execution on the calling line, as if it had a breakpoint set. If there's no client attached, the functions do nothing, and the code continues to execute normally.
 ```python
 import debugpy
 debugpy.listen(...)
 
 while True:
     ...
-    breakpoint()  # or debugpy.breakpoint() on 3.6 and below
+    breakpoint()  # or debugpy.breakpoint()
     ...
 ```
 
