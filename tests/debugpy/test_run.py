@@ -327,7 +327,7 @@ def test_frame_eval(pyfile, target, run, frame_eval):
             pass
 
         using_frame_eval = backchannel.receive()
-        assert using_frame_eval == (frame_eval == "yes")
+        assert using_frame_eval == (frame_eval in ("yes", ""))
 
 
 @pytest.mark.skipif(
