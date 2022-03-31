@@ -5937,6 +5937,69 @@ def test_same_lineno_and_filename(case_setup, pyfile):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(sys.platform == 'win32', reason='Windows does not have execvp.')
+def test_replace_process(case_setup_multiprocessing):
+    import threading
+    from tests_python.debugger_unittest import AbstractWriterThread
+    from _pydevd_bundle._debug_adapter.pydevd_schema import ExitedEvent
+
+    with case_setup_multiprocessing.test_file(
+            '_debugger_case_replace_process.py',
+        ) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch()
+
+        break1_line = writer.get_line_index_with_content("print('In sub')")
+        json_facade.write_set_breakpoints([break1_line])
+
+        server_socket = writer.server_socket
+        secondary_finished_ok = [False]
+
+        class SecondaryProcessWriterThread(AbstractWriterThread):
+
+            TEST_FILE = writer.get_main_filename()
+            _sequence = -1
+
+        class SecondaryProcessThreadCommunication(threading.Thread):
+
+            def run(self):
+                from tests_python.debugger_unittest import ReaderThread
+                server_socket.listen(1)
+                self.server_socket = server_socket
+                new_sock, addr = server_socket.accept()
+
+                reader_thread = ReaderThread(new_sock)
+                reader_thread.name = '  *** Multiprocess Reader Thread'
+                reader_thread.start()
+
+                writer2 = SecondaryProcessWriterThread()
+                writer2.reader_thread = reader_thread
+                writer2.sock = new_sock
+                json_facade2 = JsonFacade(writer2)
+
+                json_facade2.write_set_breakpoints([break1_line, ])
+                json_facade2.write_make_initial_run()
+
+                json_facade2.wait_for_thread_stopped()
+                json_facade2.write_continue()
+                secondary_finished_ok[0] = True
+
+        secondary_process_thread_communication = SecondaryProcessThreadCommunication()
+        secondary_process_thread_communication.start()
+        time.sleep(.1)
+
+        json_facade.write_make_initial_run()
+        exited_event = json_facade.wait_for_json_message(ExitedEvent)
+        assert exited_event.body.kwargs['pydevdReason'] == "processReplaced"
+
+        secondary_process_thread_communication.join(10)
+        if secondary_process_thread_communication.is_alive():
+            raise AssertionError('The SecondaryProcessThreadCommunication did not finish')
+
+        assert secondary_finished_ok[0]
+        writer.finished_ok = True
+
+
 if __name__ == '__main__':
-    pytest.main(['-k', 'test_case_skipping_filters', '-s'])
+    pytest.main(['-k', 'test_replace_process', '-s'])
 

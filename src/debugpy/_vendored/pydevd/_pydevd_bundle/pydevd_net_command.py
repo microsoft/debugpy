@@ -19,6 +19,9 @@ class _BaseNetCommand(object):
     def send(self, *args, **kwargs):
         pass
 
+    def call_after_send(self, callback):
+        pass
+
 
 class _NullNetCommand(_BaseNetCommand):
     pass
@@ -47,6 +50,8 @@ class NetCommand(_BaseNetCommand):
 
     _showing_debug_info = 0
     _show_debug_info_lock = ForkSafeLock(rlock=True)
+
+    _after_send = None
 
     def __init__(self, cmd_id, seq, text, is_json=False):
         """
@@ -100,6 +105,9 @@ class NetCommand(_BaseNetCommand):
             if get_protocol() in (HTTP_PROTOCOL, HTTP_JSON_PROTOCOL):
                 sock.sendall(('Content-Length: %s\r\n\r\n' % len(as_bytes)).encode('ascii'))
             sock.sendall(as_bytes)
+            if self._after_send:
+                for method in self._after_send:
+                    method(sock)
         except:
             if IS_JYTHON:
                 # Ignore errors in sock.sendall in Jython (seems to be common for Jython to
@@ -107,6 +115,12 @@ class NetCommand(_BaseNetCommand):
                 pass
             else:
                 raise
+
+    def call_after_send(self, callback):
+        if not self._after_send:
+            self._after_send = [callback]
+        else:
+            self._after_send.append(callback)
 
     @classmethod
     def _show_debug_info(cls, cmd_id, seq, text):

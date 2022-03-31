@@ -699,6 +699,7 @@ def create_execl(original_name):
         if _get_apply_arg_patching():
             args = patch_args(args, is_exec=True)
             send_process_created_message()
+            send_process_about_to_be_replaced()
 
         return getattr(os, original_name)(path, *args)
 
@@ -715,6 +716,7 @@ def create_execv(original_name):
         if _get_apply_arg_patching():
             args = patch_args(args, is_exec=True)
             send_process_created_message()
+            send_process_about_to_be_replaced()
 
         return getattr(os, original_name)(path, args)
 
@@ -731,6 +733,7 @@ def create_execve(original_name):
         if _get_apply_arg_patching():
             args = patch_args(args, is_exec=True)
             send_process_created_message()
+            send_process_about_to_be_replaced()
 
         return getattr(os, original_name)(path, args, env)
 
@@ -913,6 +916,12 @@ def send_process_created_message():
     py_db = get_global_debugger()
     if py_db is not None:
         py_db.send_process_created_message()
+
+
+def send_process_about_to_be_replaced():
+    py_db = get_global_debugger()
+    if py_db is not None:
+        py_db.send_process_about_to_be_replaced()
 
 
 def patch_new_process_functions():

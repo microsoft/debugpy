@@ -61,6 +61,9 @@ class NetCommandFactory(object):
         cmdText = '<process/>'
         return NetCommand(CMD_PROCESS_CREATED, 0, cmdText)
 
+    def make_process_about_to_be_replaced_message(self):
+        return NULL_NET_COMMAND
+
     def make_show_cython_warning_message(self):
         try:
             return NetCommand(CMD_SHOW_CYTHON_WARNING, 0, '')

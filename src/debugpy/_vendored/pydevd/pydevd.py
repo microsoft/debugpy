@@ -84,7 +84,7 @@ from _pydevd_bundle.pydevd_comm import(InternalConsoleExec,
 from _pydevd_bundle.pydevd_daemon_thread import PyDBDaemonThread, mark_as_pydevd_daemon_thread
 from _pydevd_bundle.pydevd_process_net_command_json import PyDevJsonCommandProcessor
 from _pydevd_bundle.pydevd_process_net_command import process_net_command
-from _pydevd_bundle.pydevd_net_command import NetCommand
+from _pydevd_bundle.pydevd_net_command import NetCommand, NULL_NET_COMMAND
 
 from _pydevd_bundle.pydevd_breakpoints import stop_on_unhandled_exception
 from _pydevd_bundle.pydevd_collect_bytecode_info import collect_try_except_info, collect_return_info, collect_try_except_info_from_source
@@ -1908,6 +1908,32 @@ class PyDB(object):
             return
         cmd = self.cmd_factory.make_process_created_message()
         self.writer.add_command(cmd)
+
+    def send_process_about_to_be_replaced(self):
+        """Sends a message that a new process has been created.
+        """
+        if self.writer is None or self.cmd_factory is None:
+            return
+        cmd = self.cmd_factory.make_process_about_to_be_replaced_message()
+        if cmd is NULL_NET_COMMAND:
+            return
+
+        sent = [False]
+
+        def after_sent(*args, **kwargs):
+            sent[0] = True
+
+        cmd.call_after_send(after_sent)
+        self.writer.add_command(cmd)
+
+        timeout = 5  # Wait up to 5 seconds
+        initial_time = time.time()
+        while not sent[0]:
+            time.sleep(.05)
+
+            if (time.time() - initial_time) > timeout:
+                pydev_log.critical('pydevd: Sending message related to process being replaced timed-out after %s seconds', timeout)
+                break
 
     def set_next_statement(self, frame, event, func_name, next_line):
         stop = False
