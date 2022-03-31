@@ -1,6 +1,8 @@
 from functools import partial
 import itertools
 import os
+import sys
+import socket as socket_module
 
 from _pydev_bundle._pydev_imports_tipper import TYPE_IMPORT, TYPE_CLASS, TYPE_FUNCTION, TYPE_ATTR, \
     TYPE_BUILTIN, TYPE_PARAM
@@ -8,7 +10,8 @@ from _pydev_bundle.pydev_is_thread_alive import is_thread_alive
 from _pydev_bundle.pydev_override import overrides
 from _pydevd_bundle._debug_adapter import pydevd_schema
 from _pydevd_bundle._debug_adapter.pydevd_schema import ModuleEvent, ModuleEventBody, Module, \
-    OutputEventBody, OutputEvent, ContinuedEventBody
+    OutputEventBody, OutputEvent, ContinuedEventBody, ExitedEventBody, \
+    ExitedEvent
 from _pydevd_bundle.pydevd_comm_constants import CMD_THREAD_CREATE, CMD_RETURN, CMD_MODULE_EVENT, \
     CMD_WRITE_TO_CONSOLE, CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE, \
     CMD_STEP_RETURN, CMD_STEP_CAUGHT_EXCEPTION, CMD_ADD_EXCEPTION_BREAK, CMD_SET_BREAK, \
@@ -397,6 +400,18 @@ class NetCommandFactoryJson(NetCommandFactory):
     @overrides(NetCommandFactory.make_process_created_message)
     def make_process_created_message(self, *args, **kwargs):
         return NULL_NET_COMMAND  # Not a part of the debug adapter protocol
+
+    @overrides(NetCommandFactory.make_process_about_to_be_replaced_message)
+    def make_process_about_to_be_replaced_message(self):
+        event = ExitedEvent(ExitedEventBody(-1, pydevdReason="processReplaced"))
+
+        cmd = NetCommand(CMD_RETURN, 0, event, is_json=True)
+
+        def after_send(socket):
+            socket.setsockopt(socket_module.IPPROTO_TCP, socket_module.TCP_NODELAY, 1)
+
+        cmd.call_after_send(after_send)
+        return cmd
 
     @overrides(NetCommandFactory.make_thread_suspend_message)
     def make_thread_suspend_message(self, *args, **kwargs):
