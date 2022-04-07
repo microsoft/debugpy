@@ -2,8 +2,6 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 """Provides facilities to use objects as modules, enabling __getattr__, __call__
 etc on module level.
 """
