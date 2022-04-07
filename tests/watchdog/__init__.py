@@ -2,8 +2,6 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 """A watchdog process for debuggee processes spawned by tests.
 
 Interacts with the main test runner process over stdio, and keeps track of running

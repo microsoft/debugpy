@@ -2,8 +2,6 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 """Provides a custom string.Formatter with JSON support.
 
 The formatter object is directly exposed as a module, such that all its members
