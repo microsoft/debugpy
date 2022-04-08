@@ -3,12 +3,7 @@
 # for license information.
 
 import os
-import sys
-
-if sys.version_info >= (3, 3):
-    from collections.abc import MutableMapping, MutableSet
-else:
-    from collections import MutableMapping, MutableSet
+from collections.abc import MutableMapping, MutableSet
 
 
 class DebugConfig(MutableMapping):

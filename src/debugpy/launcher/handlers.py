@@ -2,7 +2,6 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-import functools
 import os
 import sys
 
@@ -135,14 +134,6 @@ def launch_request(request):
                 '"waitOnAbnormalExit" is not supported for "console":"internalConsole"'
             )
         debuggee.wait_on_exit_predicates.append(lambda code: code != 0)
-
-    if sys.version_info < (3,):
-        # Popen() expects command line and environment to be bytes, not Unicode.
-        # Assume that values are filenames - it's usually either that, or numbers -
-        # but don't allow encoding to fail if we guessed wrong.
-        encode = functools.partial(compat.filename_bytes, errors="replace")
-        cmdline = [encode(s) for s in cmdline]
-        env = {encode(k): encode(v) for k, v in env.items()}
 
     debuggee.spawn(process_name, cmdline, env, redirect_output)
     return {}

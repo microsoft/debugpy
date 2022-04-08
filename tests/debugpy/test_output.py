@@ -134,10 +134,7 @@ def test_non_ascii_output(pyfile, target, run):
 
         debuggee.setup()
         a = b"\xc3\xa9 \xc3\xa0 \xc3\xb6 \xc3\xb9\n"
-        if sys.version_info[0] >= 3:
-            sys.stdout.buffer.write(a)
-        else:
-            sys.stdout.write(a)
+        sys.stdout.buffer.write(a)
         ()  # @wait_for_output
 
     with debug.Session() as session:

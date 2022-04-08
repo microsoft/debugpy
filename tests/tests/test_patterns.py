@@ -3,7 +3,6 @@
 # for license information.
 
 import pytest
-import sys
 
 from debugpy.common import log
 from tests.patterns import some
@@ -122,11 +121,7 @@ def test_in_range():
 def test_str():
     log_repr(some.str)
     assert some.str == "abc"
-
-    if sys.version_info < (3,):
-        assert b"abc" == some.str
-    else:
-        assert b"abc" != some.str
+    assert b"abc" != some.str
 
 
 def test_matching():

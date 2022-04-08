@@ -40,11 +40,7 @@ def expected_subprocess_config(parent_session):
 
 @pytest.mark.parametrize(
     "start_method",
-    [""]
-    if sys.version_info < (3,)
-    else ["spawn"]
-    if sys.platform == "win32"
-    else ["spawn", "fork"],
+    ["spawn"] if sys.platform == "win32" else ["spawn", "fork"],
 )
 def test_multiprocessing(pyfile, target, run, start_method):
     if start_method == "spawn" and sys.platform != "win32":
@@ -404,8 +400,7 @@ def test_echo_and_shell(pyfile, target, run):
             cwd=os.path.dirname(os.path.abspath(__file__)),
         )
         stdout, _stderr = p.communicate()
-        if sys.version_info[0] >= 3:
-            stdout = stdout.decode("utf-8")
+        stdout = stdout.decode("utf-8")
 
         if "code_to_run.py" not in stdout:
             raise AssertionError(

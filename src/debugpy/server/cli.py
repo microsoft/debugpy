@@ -7,6 +7,7 @@ import os
 import re
 import runpy
 import sys
+from importlib.util import find_spec
 
 # debugpy.__main__ should have preloaded pydevd properly before importing this module.
 # Otherwise, some stdlib modules above might have had imported threading before pydevd
@@ -289,20 +290,13 @@ def run_module():
     sys.path.insert(0, str(""))
 
     # We want to do the same thing that run_module() would do here, without
-    # actually invoking it. On Python 3, it's exposed as a public API, but
-    # on Python 2, we have to invoke a private function in runpy for this.
-    # Either way, if it fails to resolve for any reason, just leave argv as is.
+    # actually invoking it.
     argv_0 = sys.argv[0]
     target_as_str = compat.filename_str(options.target)
     try:
-        if sys.version_info >= (3,):
-            from importlib.util import find_spec
-
-            spec = find_spec(target_as_str)
-            if spec is not None:
-                argv_0 = spec.origin
-        else:
-            _, _, _, argv_0 = runpy._get_module_details(target_as_str)
+        spec = find_spec(target_as_str)
+        if spec is not None:
+            argv_0 = spec.origin
     except Exception:
         log.swallow_exception("Error determining module path for sys.argv")
 
