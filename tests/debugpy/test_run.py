@@ -328,10 +328,6 @@ def test_frame_eval(pyfile, target, run, frame_eval):
         assert using_frame_eval == (frame_eval in ("yes", ""))
 
 
-@pytest.mark.skipif(
-    not sys.version_info[0] >= 3,
-    reason="Test structure must still be updated to properly support Python 2 with unicode",
-)
 @pytest.mark.parametrize("run", [runners.all_launch[0]])
 def test_unicode_dir(tmpdir, run, target):
     from debugpy.common import compat

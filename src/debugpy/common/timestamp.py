@@ -5,25 +5,18 @@
 """Provides monotonic timestamps with a resetable zero.
 """
 
-import sys
 import time
 
 __all__ = ["current", "reset"]
 
 
-if sys.version_info >= (3, 5):
-    clock = time.monotonic
-else:
-    clock = time.clock
-
-
 def current():
-    return clock() - timestamp_zero
+    return time.monotonic() - timestamp_zero
 
 
 def reset():
     global timestamp_zero
-    timestamp_zero = clock()
+    timestamp_zero = time.monotonic()
 
 
 reset()

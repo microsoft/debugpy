@@ -37,13 +37,6 @@ def test_path_with_ampersand(target, run):
         session.request_continue()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 0), reason="Paths are not Unicode in Python 2.7"
-)
-@pytest.mark.skipif(
-    sys.platform == "win32" and sys.version_info < (3, 6),
-    reason="https://github.com/microsoft/ptvsd/issues/1124#issuecomment-459506802",
-)
 @pytest.mark.parametrize("target", targets.all_named)
 def test_path_with_unicode(target, run):
     test_py = bp_root / "ನನ್ನ_ಸ್ಕ್ರಿಪ್ಟ್.py"
@@ -349,8 +342,7 @@ def test_invalid_breakpoints(pyfile, target, run):
 
     with debug.Session() as session:
         with run(session, target(code_to_debug)):
-            count = 5 if sys.version_info < (3,) else 3
-            requested_markers = ["r" + str(i) for i in range(0, count)]
+            requested_markers = ["r" + str(i) for i in range(0, 3)]
 
             bps = session.set_breakpoints(code_to_debug, requested_markers)
             actual_lines = [bp["line"] for bp in bps]
@@ -430,9 +422,6 @@ def test_deep_stacks(pyfile, target, run):
 @pytest.mark.parametrize("target", targets.all)
 @pytest.mark.parametrize("func", ["breakpoint", "debugpy.breakpoint"])
 def test_break_api(pyfile, target, run, func):
-    if func == "breakpoint" and sys.version_info < (3, 7):
-        pytest.skip("breakpoint() was introduced in Python 3.7")
-
     @pyfile
     def code_to_debug():
         import debuggee

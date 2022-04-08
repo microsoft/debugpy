@@ -147,7 +147,7 @@ def test_vsc_exception_options_raise_without_except(
 
 
 @pytest.mark.skipif(
-    sys.platform == "darwin" and sys.version_info >= (3,),
+    sys.platform == "darwin",
     reason="https://github.com/microsoft/ptvsd/issues/1988",
 )
 @pytest.mark.parametrize("target", targets.all_named)

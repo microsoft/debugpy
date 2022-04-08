@@ -74,22 +74,8 @@ class JsonIOStream(object):
     def from_stdio(cls, name="stdio"):
         """Creates a new instance that receives messages from sys.stdin, and sends
         them to sys.stdout.
-
-        On Win32, this also sets stdin and stdout to binary mode, since the protocol
-        requires that to work properly.
         """
-        if sys.version_info >= (3,):
-            stdin = sys.stdin.buffer
-            stdout = sys.stdout.buffer
-        else:
-            stdin = sys.stdin
-            stdout = sys.stdout
-            if sys.platform == "win32":
-                import os, msvcrt
-
-                msvcrt.setmode(stdin.fileno(), os.O_BINARY)
-                msvcrt.setmode(stdout.fileno(), os.O_BINARY)
-        return cls(stdin, stdout, name)
+        return cls(sys.stdin.buffer, sys.stdout.buffer, name)
 
     @classmethod
     def from_process(cls, process, name="stdio"):
@@ -174,10 +160,7 @@ class JsonIOStream(object):
             # On Python 2, close() will raise an exception if there is a concurrent
             # read() or write(), which is a common and expected occurrence with
             # JsonMessageChannel, so don't even bother logging it.
-            if sys.version_info >= (3,):
-                log.reraise_exception(
-                    "Error while closing {0} message stream", self.name
-                )
+            log.reraise_exception("Error while closing {0} message stream", self.name)
 
     def _log_message(self, dir, data, logger=log.debug):
         format_string = "{0} {1} " + (

@@ -80,26 +80,15 @@ def exit_app(request):
     return HttpResponse("Done")
 
 
-if sys.version_info < (3, 0):
-    from django.conf.urls import url
+from django.urls import path
 
-    urlpatterns = [
-        url(r"home", home, name="home"),
-        url(r"^handled$", bad_route_handled, name="bad_route_handled"),
-        url(r"^unhandled$", bad_route_unhandled, name="bad_route_unhandled"),
-        url(r"badtemplate", bad_template, name="bad_template"),
-        url(r"exit", exit_app, name="exit_app"),
-    ]
-else:
-    from django.urls import path
-
-    urlpatterns = [
-        path("home", home, name="home"),
-        path("handled", bad_route_handled, name="bad_route_handled"),
-        path("unhandled", bad_route_unhandled, name="bad_route_unhandled"),
-        path("badtemplate", bad_template, name="bad_template"),
-        path("exit", exit_app, name="exit_app"),
-    ]
+urlpatterns = [
+    path("home", home, name="home"),
+    path("handled", bad_route_handled, name="bad_route_handled"),
+    path("unhandled", bad_route_unhandled, name="bad_route_unhandled"),
+    path("badtemplate", bad_template, name="bad_template"),
+    path("exit", exit_app, name="exit_app"),
+]
 
 if __name__ == "__main__":
     execute_from_command_line(sys.argv)

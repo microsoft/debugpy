@@ -4,7 +4,6 @@
 
 import codecs
 import os
-import sys
 import threading
 
 from debugpy import launcher
@@ -33,7 +32,7 @@ class CaptureOutput(object):
             # Can happen if running under pythonw.exe.
             self._stream = None
         else:
-            self._stream = stream if sys.version_info < (3,) else stream.buffer
+            self._stream = stream.buffer
             encoding = stream.encoding
             if encoding is None or encoding == "cp65001":
                 encoding = "utf-8"
