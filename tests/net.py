@@ -12,7 +12,7 @@ import socket
 import threading
 import time
 
-from debugpy.common import compat, fmt, log
+from debugpy.common import compat, log
 from tests.patterns import some
 
 
@@ -115,13 +115,13 @@ class WebRequest(object):
         func = getattr(requests, method)
         self._worker_thread = threading.Thread(
             target=lambda: self._worker(func, *args, **kwargs),
-            name=fmt("WebRequest({0})", self),
+            name=f"WebRequest({self})",
         )
         self._worker_thread.daemon = True
         self._worker_thread.start()
 
     def __str__(self):
-        return fmt("HTTP {0} {1}", self.method.upper(), self.url)
+        return f"HTTP {self.method.upper()} {self.url}"
 
     def _worker(self, func, *args, **kwargs):
         try:
@@ -158,7 +158,7 @@ class WebServer(object):
 
     def __init__(self, port):
         self.port = port
-        self.url = fmt("http://localhost:{0}", port)
+        self.url = f"http://localhost:{port}"
 
     def __enter__(self):
         """Blocks until the server starts listening on self.port.

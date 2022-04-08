@@ -13,7 +13,7 @@ import os
 import socket
 
 import debuggee
-from debugpy.common import fmt, log, messaging
+from debugpy.common import log, messaging
 
 
 def send(value):
@@ -52,7 +52,7 @@ class _stream:
     close = lambda: None
 
 
-name = fmt("backchannel-{0}", debuggee.session_id)
+name = f"backchannel-{debuggee.session_id}"
 port = os.environ.pop("DEBUGPY_TEST_BACKCHANNEL_PORT", None)
 if port is not None:
     port = int(port)

@@ -10,7 +10,6 @@ import inspect
 import itertools
 import sys
 
-from debugpy.common import fmt
 
 if sys.version_info[0] < 3:
     # Py2
@@ -159,13 +158,13 @@ def srcnameof(obj):
     except Exception:
         pass
     else:
-        name += fmt(" (file {0!r}", src_file)
+        name += " (file {0!r}".format(src_file)
         try:
             _, src_lineno = inspect.getsourcelines(obj)
         except Exception:
             pass
         else:
-            name += fmt(", line {0}", src_lineno)
+            name += ", line {0}".format(src_lineno)
         name += ")"
 
     return name

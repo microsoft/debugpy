@@ -56,7 +56,7 @@ class JsonObject(object):
 
         Example::
 
-            fmt("{0!j} {0!j:indent=4,sort_keys=True}", x)
+            format("{0} {0:indent=4,sort_keys=True}", json.repr(x))
         """
         if format_spec:
             # At this point, format_spec is a string that looks something like
@@ -223,7 +223,7 @@ def array(validate_item=False, vectorize=False, size=None):
             try:
                 value[i] = validate_item(item)
             except (TypeError, ValueError) as exc:
-                raise type(exc)(fmt("[{0!j}] {1}", i, exc))
+                raise type(exc)(f"[{repr(i)}] {exc}")
         return value
 
     return validate
@@ -257,15 +257,15 @@ def object(validate_value=False):
                 try:
                     value[k] = validate_value(v)
                 except (TypeError, ValueError) as exc:
-                    raise type(exc)(fmt("[{0!j}] {1}", k, exc))
+                    raise type(exc)(f"[{repr(k)}] {exc}")
         return value
 
     return validate
 
 
-# A helper to resolve the circular dependency between common.fmt and common.json
-# on Python 2.
-def fmt(*args, **kwargs):
-    from debugpy.common import fmt
+def repr(value):
+    return JsonObject(value)
 
-    return fmt(*args, **kwargs)
+
+dumps = json.dumps
+loads = json.loads

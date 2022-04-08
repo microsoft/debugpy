@@ -7,13 +7,13 @@ import os
 import pytest_timeout
 import sys
 
-from debugpy.common import log
+from debugpy.common import json, log
 
 
 def dump():
     if log.log_dir is None:
         return
-    log.info("Dumping logs from {0!j}", log.log_dir)
+    log.info("Dumping logs from {0}", json.repr(log.log_dir))
 
     for dirpath, dirnames, filenames in os.walk(log.log_dir):
         for name in sorted(filenames):

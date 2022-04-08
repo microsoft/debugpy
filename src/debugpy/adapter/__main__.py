@@ -5,7 +5,6 @@
 import argparse
 import atexit
 import codecs
-import json
 import locale
 import os
 import sys
@@ -26,7 +25,7 @@ def main(args):
         atexit.register(stderr.close)
 
     from debugpy import adapter
-    from debugpy.common import compat, log, sockets
+    from debugpy.common import compat, json, log, sockets
     from debugpy.adapter import clients, servers, sessions
 
     if args.for_server is not None:
@@ -73,9 +72,9 @@ def main(args):
             endpoints["server"] = {"host": server_host, "port": server_port}
 
         log.info(
-            "Sending endpoints info to debug server at localhost:{0}:\n{1!j}",
+            "Sending endpoints info to debug server at localhost:{0}:\n{1}",
             args.for_server,
-            endpoints,
+            json.repr(endpoints),
         )
 
         try:
@@ -99,7 +98,7 @@ def main(args):
 
     listener_file = os.getenv("DEBUGPY_ADAPTER_ENDPOINTS")
     if listener_file is not None:
-        log.info("Writing endpoints info to {0!r}:\n{1!j}", listener_file, endpoints)
+        log.info("Writing endpoints info to {0!r}:\n{1}", listener_file, json.repr(endpoints))
 
         def delete_listener_file():
             log.info("Listener ports closed; deleting {0!r}", listener_file)

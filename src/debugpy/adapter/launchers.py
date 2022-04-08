@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 from debugpy import adapter, common
-from debugpy.common import compat, fmt, log, messaging, sockets
+from debugpy.common import compat, json, log, messaging, sockets
 from debugpy.adapter import components, servers
 
 
@@ -106,7 +106,7 @@ def spawn_debuggee(
         launcher_addr = (
             launcher_port
             if launcher_host == "127.0.0.1"
-            else fmt("{0}:{1}", launcher_host, launcher_port)
+            else f"{launcher_host}:{launcher_port}"
         )
         cmdline += [str(launcher_addr), "--"]
         cmdline += args
@@ -124,7 +124,7 @@ def spawn_debuggee(
                         cmdline[i] = compat.filename_str(arg)
                     except UnicodeEncodeError as exc:
                         raise start_request.cant_handle(
-                            "Invalid command line argument {0!j}: {1}", arg, exc
+                            "Invalid command line argument {0}: {1}", json.repr(arg), exc
                         )
 
                 # If we are talking to the client over stdio, sys.stdin and sys.stdout

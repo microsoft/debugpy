@@ -7,7 +7,6 @@
 
 import collections
 import functools
-import json
 import io
 import pytest
 import random
@@ -16,7 +15,7 @@ import socket
 import threading
 import time
 
-from debugpy.common import log, messaging
+from debugpy.common import json, log, messaging
 from tests.patterns import some
 
 
@@ -45,9 +44,9 @@ class JsonMemoryStream(object):
 
     def _log_message(self, dir, data):
         format_string = "{0} {1} " + (
-            "{2!j:indent=None}" if isinstance(data, list) else "{2!j}"
+            "{2:indent=None}" if isinstance(data, list) else "{2}"
         )
-        return log.debug(format_string, self.name, dir, data)
+        return log.debug(format_string, self.name, dir, json.repr(data))
 
     def read_json(self, decoder=None):
         decoder = decoder if decoder is not None else self.json_decoder_factory()

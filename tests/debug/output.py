@@ -6,7 +6,7 @@ import os
 import re
 import threading
 
-from debugpy.common import fmt, log
+from debugpy.common import log
 
 
 class CapturedOutput(object):
@@ -24,7 +24,7 @@ class CapturedOutput(object):
             self._capture(fd, stream_name)
 
     def __str__(self):
-        return fmt("CapturedOutput[{0}]", self.session.id)
+        return f"CapturedOutput[{self.session.id}]"
 
     def _worker(self, fd, name):
         chunks = self._chunks[name]
@@ -52,7 +52,7 @@ class CapturedOutput(object):
         self._chunks[name] = []
 
         thread = threading.Thread(
-            target=lambda: self._worker(fd, name), name=fmt("{0} {1}", self, name)
+            target=lambda: self._worker(fd, name), name=f"{self} {name}"
         )
         thread.daemon = True
         thread.start()
@@ -73,7 +73,7 @@ class CapturedOutput(object):
             result = self._chunks[which]
         except KeyError:
             raise AssertionError(
-                fmt("{0} was not captured for {1}", which, self.session.debuggee_id)
+                f"{which} was not captured for {self.session.debuggee_id}"
             )
 
         with self._lock:

@@ -7,7 +7,7 @@ import contextlib
 import itertools
 import threading
 
-from debugpy.common import compat, fmt, log, messaging, timestamp
+from debugpy.common import compat, json, log, messaging, timestamp
 from debugpy.common.compat import queue
 
 from tests.patterns import some
@@ -18,9 +18,9 @@ SINGLE_LINE_REPR_LIMIT = 120
 be formatted to use multiple shorter lines if possible.
 """
 
-# For use by Expectation.__repr__. Uses fmt() to create unique instances.
-_INDENT = fmt("{0}", "_INDENT")
-_DEDENT = fmt("{0}", "_DEDENT")
+# For use by Expectation.__repr__. Uses format() to create unique instances.
+_INDENT = "{0}".format("_INDENT")
+_DEDENT = "{0}".format("_DEDENT")
 
 
 class Timeline(object):
@@ -36,7 +36,7 @@ class Timeline(object):
         self._record_queue = queue.Queue()
 
         self._recorder_thread = threading.Thread(
-            target=self._recorder_worker, name=fmt("{0} recorder", self)
+            target=self._recorder_worker, name=f"{self} recorder"
         )
         self._recorder_thread.daemon = True
         self._recorder_thread.start()
@@ -275,7 +275,7 @@ class Timeline(object):
         assert expectation not in self.new()
 
     def _explain_how_realized(self, expectation, reasons):
-        message = fmt("Realized {0!r}", expectation)
+        message = f"Realized {expectation!r}"
 
         # For the breakdown, we want to skip any expectations that were exact occurrences,
         # since there's no point explaining that occurrence was realized by itself.
@@ -288,14 +288,14 @@ class Timeline(object):
             # one, then we have already printed it, so just add the explanation.
             reason = reasons[expectation]
             if "\n" in message:
-                message += fmt(" == {0!r}", reason)
+                message += f" == {reason!r}"
             else:
-                message += fmt("\n      == {0!r}", reason)
+                message += f"\n      == {reason!r}"
         elif reasons:
             # Otherwise, break it down expectation by expectation.
             message += ":"
             for exp, reason in reasons.items():
-                message += fmt("\n\n   where {0!r}\n      == {1!r}", exp, reason)
+                message += "\n\n   where {exp!r}\n      == {reason!r}"
         else:
             message += "."
 
@@ -501,7 +501,7 @@ class DerivativeExpectation(Expectation):
         if len(timelines) > 1:
             offending_expectations = ""
             for tl_id, tl in timelines.items():
-                offending_expectations += fmt("\n    {0}: {1!r}\n", tl_id, tl)
+                offending_expectations += f"\n    {tl_id}: {tl!r}\n"
             raise log.error(
                 "Cannot mix expectations from multiple timelines:\n{0}",
                 offending_expectations,
@@ -753,7 +753,7 @@ class PatternExpectation(Expectation):
         rest = repr(self.circumstances[1:])
         if rest.endswith(",)"):
             rest = rest[:-2] + ")"
-        return fmt("<{0}{1}>", self.circumstances[0], rest)
+        return f"<{self.circumstances[0]}{rest}>"
 
     def __repr__(self):
         return self.describe()
@@ -768,8 +768,8 @@ def _describe_message(message_type, *items):
     d = collections.OrderedDict(items)
 
     # Keep it all on one line if it's short enough, but indent longer ones.
-    for format_string in "{0!j:indent=None}", "{0!j}":
-        s = fmt(format_string, d)
+    for format_string in "{0:indent=None}", "{0}":
+        s = format_string.format(json.repr(d))
         s = "{..., " + s[1:]
 
         # Used by some.dict.containing to inject ... as needed.
@@ -816,7 +816,7 @@ def Response(request, body=some.object):
     # Try to be as specific as possible.
     if isinstance(request, Expectation):
         if request.circumstances[0] != "request":
-            exp.describe = lambda: fmt("response to {0!r}", request)
+            exp.describe = lambda: f"response to {request!r}"
             return
         else:
             items = (("command", request.circumstances[1]),)
@@ -951,18 +951,13 @@ class Occurrence(Expectation):
         return hash(id(self))
 
     def __repr__(self):
-        return fmt(
-            "{2}{0}.{1}",
-            self.index,
-            self.describe_circumstances(),
-            "" if self.observed else "*",
-        )
+        return ("" if self.observed else "*") + f"{self.index}.{self.describe_circumstances()}"
 
     def describe_circumstances(self):
         rest = repr(self.circumstances[1:])
         if rest.endswith(",)"):
             rest = rest[:-2] + ")"
-        return fmt("{0}{1}", self.circumstances[0], rest)
+        return f"{self.circumstances[0]}{rest}"
 
 
 class MessageOccurrence(Occurrence):
@@ -1019,9 +1014,9 @@ class MessageOccurrence(Occurrence):
         id = collections.OrderedDict(self._id)
 
         # Keep it all on one line if it's short enough, but indent longer ones.
-        s = fmt("{0!j:indent=None}", id)
+        s = f"{json.repr(id):indent=None}"
         if len(s) > SINGLE_LINE_REPR_LIMIT:
-            s = fmt("{0!j}", id)
+            s = f"{json.repr(id)}"
         return s
 
     # For messages, we don't want to include their index, because they already have

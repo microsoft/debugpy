@@ -12,7 +12,7 @@ import sys
 import time
 
 import debugpy.adapter
-from debugpy.common import compat, fmt, json, log, messaging, sockets, util
+from debugpy.common import compat, json, log, messaging, sockets, util
 from debugpy.common.compat import unicode
 import tests
 from tests import code, timeline, watchdog
@@ -203,15 +203,15 @@ class Session(object):
         self.spawn_debuggee.env = util.Env()
 
     def __str__(self):
-        return fmt("Session[{0}]", self.id)
+        return f"Session[{self.id}]"
 
     @property
     def adapter_id(self):
-        return fmt("Adapter[{0}]", self.id)
+        return f"Adapter[{self.id}]"
 
     @property
     def debuggee_id(self):
-        return fmt("Debuggee[{0}]", self.id)
+        return f"Debuggee[{self.id}]"
 
     def __enter__(self):
         return self
@@ -294,7 +294,7 @@ class Session(object):
         if self.log_dir is None:
             return False
 
-        log.info("Logs for {0} will be in {1!j}", self, self.log_dir)
+        log.info("Logs for {0} will be in {1}", self, json.repr(self.log_dir))
         try:
             self.log_dir.remove()
         except Exception:
@@ -358,13 +358,13 @@ class Session(object):
 
         log.info(
             "Spawning {0}:\n\n"
-            "Current directory: {1!j}\n\n"
-            "Command line: {2!j}\n\n"
-            "Environment variables: {3!j}\n\n",
+            "Current directory: {1}\n\n"
+            "Command line: {2}\n\n"
+            "Environment variables: {3}\n\n",
             self.debuggee_id,
-            cwd,
-            args,
-            env,
+            json.repr(cwd),
+            json.repr(args),
+            json.repr(env),
         )
 
         popen_fds = {}
@@ -405,11 +405,11 @@ class Session(object):
 
         log.info(
             "Spawning {0}:\n\n"
-            "Command line: {1!j}\n\n"
-            "Environment variables: {2!j}\n\n",
+            "Command line: {1}\n\n"
+            "Environment variables: {2}\n\n",
             self.adapter_id,
-            args,
-            env,
+            json.repr(args),
+            json.repr(env),
         )
         self.adapter = psutil.Popen(
             args,
@@ -446,7 +446,7 @@ class Session(object):
             return self.request_attach()
         else:
             raise ValueError(
-                fmt('Unsupported "request":{0!j} in session.config', request)
+                f'Unsupported "request":{json.repr(request)} in session.config'
             )
 
     def request(self, *args, **kwargs):
@@ -485,7 +485,7 @@ class Session(object):
             self.observe(occ)
             pid = event("subProcessId", int)
             watchdog.register_spawn(
-                pid, fmt("{0}-subprocess-{1}", self.debuggee_id, pid)
+                pid, f"{self.debuggee_id}-subprocess-{pid}"
             )
 
     def run_in_terminal(self, args, cwd, env):
@@ -662,7 +662,7 @@ class Session(object):
             else:
                 marker = line
                 line = get_marked_line_numbers()[marker]
-                descr = fmt("{0} (@{1})", line, marker)
+                descr = f"{line} (@{marker})"
             bp_log.append((line, descr))
             return {"line": line}
 
