@@ -4,7 +4,7 @@
 
 import functools
 
-from debugpy.common import fmt, json, log, messaging, util
+from debugpy.common import json, log, messaging, util
 
 
 ACCEPT_CONNECTIONS_TIMEOUT = 10
@@ -13,7 +13,7 @@ ACCEPT_CONNECTIONS_TIMEOUT = 10
 class ComponentNotAvailable(Exception):
     def __init__(self, type):
         super(ComponentNotAvailable, self).__init__(
-            fmt("{0} is not available", type.__name__)
+           f"{type.__name__} is not available"
         )
 
 
@@ -60,7 +60,7 @@ class Component(util.Observable):
         self.observers += [lambda *_: self.session.notify_changed()]
 
     def __str__(self):
-        return fmt("{0}[{1}]", type(self).__name__, self.session.id)
+        return f"{type(self).__name__}[{self.session.id}]"
 
     @property
     def client(self):
@@ -108,7 +108,7 @@ class Component(util.Observable):
     def disconnect(self):
         with self.session:
             self.is_connected = False
-            self.session.finalize(fmt("{0} has disconnected", self))
+            self.session.finalize("{0} has disconnected".format(self))
 
 
 def missing(session, type):
@@ -165,21 +165,19 @@ class Capabilities(dict):
             try:
                 value = validate(value)
             except Exception as exc:
-                raise message.isnt_valid("{0!j} {1}", name, exc)
+                raise message.isnt_valid("{0} {1}", json.repr(name), exc)
 
-            assert value != (), fmt(
-                "{0!j} must provide a default value for missing properties.", validate
-            )
+            assert value != (), f"{validate} must provide a default value for missing properties."
             self[name] = value
 
         log.debug("{0}", self)
 
     def __repr__(self):
-        return fmt("{0}: {1!j}", type(self).__name__, dict(self))
+        return f"{type(self).__name__}: {json.repr(dict(self))}"
 
     def require(self, *keys):
         for key in keys:
             if not self[key]:
                 raise messaging.MessageHandlingError(
-                    fmt("{0} does not have capability {1!j}", self.component, key)
+                    f"{self.component} does not have capability {json.repr(key)}",
                 )

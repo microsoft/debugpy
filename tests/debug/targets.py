@@ -5,7 +5,7 @@
 import py
 import os
 
-from debugpy.common import fmt, compat
+from debugpy.common import compat, json
 from tests.patterns import some
 
 
@@ -108,13 +108,9 @@ class Program(Target):
 
     def __repr__(self):
         if self._cwd:
-            return fmt(
-                "program (relative) {0!j} / {1!j}",
-                self._cwd,
-                self._get_relative_program(),
-            )
+            return f"program (relative) {json.repr(self._cwd)} / {json.repr(self._get_relative_program())}"
         else:
-            return fmt("program {0!j}", compat.filename(self.filename.strpath))
+            return f"program {json.repr(compat.filename(self.filename.strpath))}"
 
     def configure(self, session):
         if self._cwd:
@@ -147,7 +143,7 @@ class Module(Target):
         self.name = name if name is not None else self.filename.purebasename
 
     def __repr__(self):
-        return fmt("module {0}", self.name)
+        return f"module {self.name}"
 
     def configure(self, session):
         session.config["module"] = self.name
@@ -175,7 +171,7 @@ class Code(Target):
 
     def __repr__(self):
         lines = self.code.split("\n")
-        return fmt("code: {0!j}", lines)
+        return f"code: {json.repr(lines)}"
 
     def configure(self, session):
         session.config["code"] = self.code

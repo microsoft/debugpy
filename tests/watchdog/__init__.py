@@ -19,13 +19,13 @@ import sys
 import threading
 import time
 
-from debugpy.common import fmt, log, messaging
+from debugpy.common import log, messaging
 from tests.watchdog import worker
 
 WATCHDOG_TIMEOUT = 3
 
 
-_name = fmt("watchdog-{0}", os.getpid())
+_name = f"watchdog-{os.getpid()}"
 _stream = None
 _process = None
 _worker_log_filename = None
@@ -57,7 +57,7 @@ def start():
 
 
 def _dump_worker_log(command, problem, exc_info=None):
-    reason = fmt("{0}.{1}() {2}", _name, command, problem)
+    reason = f"{_name}.{command}() {problem}"
     if _worker_log_filename is None:
         reason += ", but there is no log."
     else:
@@ -65,9 +65,9 @@ def _dump_worker_log(command, problem, exc_info=None):
             with open(_worker_log_filename) as f:
                 worker_log = f.read()
         except Exception:
-            reason += fmt(", but log {0} could not be retrieved.", _worker_log_filename)
+            reason += f", but log {_worker_log_filename} could not be retrieved."
         else:
-            reason += fmt("; watchdog worker process log:\n\n{0}", worker_log)
+            reason += f"; watchdog worker process log:\n\n{worker_log}"
 
     if exc_info is None:
         log.error("{0}", reason)
@@ -91,7 +91,7 @@ def _invoke(command, *args):
         try:
             _stream.write_json([command] + list(args))
             response = _stream.read_json()
-            assert response == ["ok"], fmt("{0} {1!r}", _name, response)
+            assert response == ["ok"], f"{_name} {response!r}"
         finally:
             timeout.occurred = False
     except Exception:

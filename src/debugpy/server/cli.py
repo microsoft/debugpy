@@ -16,7 +16,7 @@ assert "pydevd" in sys.modules
 import pydevd
 
 import debugpy
-from debugpy.common import compat, fmt, log
+from debugpy.common import compat, log
 from debugpy.server import api
 
 
@@ -56,9 +56,9 @@ def in_range(parser, start, stop):
     def parse(s):
         n = parser(s)
         if start is not None and n < start:
-            raise ValueError(fmt("must be >= {0}", start))
+            raise ValueError("must be >= {0}".format(start))
         if stop is not None and n >= stop:
-            raise ValueError(fmt("must be < {0}", stop))
+            raise ValueError("must be < {0}".format(stop))
         return n
 
     return parse
@@ -123,7 +123,7 @@ def set_config(arg, it):
     value = next(it)
 
     if name not in options.config:
-        raise ValueError(fmt("unknown property {0!r}", name))
+        raise ValueError("unknown property {0!r}".format(name))
 
     expected_type = type(options.config[name])
     try:
@@ -132,7 +132,7 @@ def set_config(arg, it):
         else:
             value = expected_type(value)
     except Exception:
-        raise ValueError(fmt("{0!r} must be a {1}", name, expected_type.__name__))
+        raise ValueError("{0!r} must be a {1}".format(name, expected_type.__name__))
 
     options.config[name] = value
 
@@ -221,9 +221,9 @@ def parse_argv():
             action(arg, it)
         except StopIteration:
             assert placeholder is not None
-            raise ValueError(fmt("{0}: missing {1}", switch, placeholder))
+            raise ValueError("{0}: missing {1}".format(switch, placeholder))
         except Exception as exc:
-            raise ValueError(fmt("invalid {0} {1}: {2}", switch, placeholder, exc))
+            raise ValueError("invalid {0} {1}: {2}".format(switch, placeholder, exc))
 
         if options.target is not None:
             break

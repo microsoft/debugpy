@@ -56,7 +56,7 @@ import pytest
 import sys
 
 import debugpy
-from debugpy.common import compat, fmt, log
+from debugpy.common import compat, json, log
 from tests import net, timeline
 from tests.debug import session
 from tests.patterns import some
@@ -100,7 +100,7 @@ def _runner(f):
         def __repr__(self):
             result = type(self).__name__
             args = [str(x) for x in self._args] + [
-                fmt("{0}={1}", k, v) for k, v in self._kwargs.items()
+                f"{k}={v}" for k, v in self._kwargs.items()
             ]
             if len(args):
                 result += "(" + ", ".join(args) + ")"
@@ -118,7 +118,7 @@ def _runner(f):
 def launch(session, target, console=None, cwd=None):
     assert console in (None, "internalConsole", "integratedTerminal", "externalTerminal")
 
-    log.info("Launching {0} in {1} using {2!j}.", target, session, console)
+    log.info("Launching {0} in {1} using {2}.", target, session, json.repr(console))
 
     target.configure(session)
     config = session.config
@@ -144,8 +144,8 @@ def launch(session, target, console=None, cwd=None):
 
 
 def _attach_common_config(session, target, cwd):
-    assert target.code is None or "debuggee.setup()" in target.code, fmt(
-        "{0} must invoke debuggee.setup().", target.filename
+    assert target.code is None or "debuggee.setup()" in target.code, (
+        f"{target.filename} must invoke debuggee.setup()."
     )
 
     target.configure(session)
@@ -239,8 +239,7 @@ debugpy.listen(({host!r}, {port!r}))
 if {wait!r}:
     debugpy.wait_for_client()
 """
-        debuggee_setup = fmt(
-            debuggee_setup,
+        debuggee_setup = debuggee_setup.format(
             host=host,
             port=port,
             wait=wait,
@@ -293,16 +292,13 @@ def attach_listen(session, target, method, cwd=None, log_dir=None):
     elif method == "api":
         args = []
         api_config = {k: v for k, v in config.items() if k in {"subProcess"}}
-        debuggee_setup = """
+        debuggee_setup = f"""
 import debugpy
 if {log_dir!r}:
     debugpy.log_to({log_dir!r})
 debugpy.configure({api_config!r})
-debugpy.connect({address!r})
+debugpy.connect({(host, port)!r})
 """
-        debuggee_setup = fmt(
-            debuggee_setup, address=(host, port), log_dir=log_dir, api_config=api_config
-        )
     else:
         raise ValueError
     args += target.cli(session.spawn_debuggee.env)

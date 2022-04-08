@@ -7,7 +7,7 @@
 import threading
 import socket
 
-from debugpy.common import fmt, log, messaging, sockets
+from debugpy.common import log, messaging, sockets
 
 
 class BackChannel(object):
@@ -21,7 +21,7 @@ class BackChannel(object):
         self._server_socket = None
 
     def __str__(self):
-        return fmt("BackChannel[{0}]", self.session.id)
+        return f"BackChannel[{self.session.id}]"
 
     def listen(self):
         self._server_socket = sockets.create_server("127.0.0.1", 0, self.TIMEOUT)
@@ -59,7 +59,7 @@ class BackChannel(object):
             self._setup_stream()
 
         accept_thread = threading.Thread(
-            target=accept_worker, name=fmt("{0} listener", self)
+            target=accept_worker, name=f"{self} listener"
         )
         accept_thread.daemon = True
         accept_thread.start()
@@ -118,5 +118,5 @@ class ScratchPad(object):
         """Sets debuggee.scratchpad[key] = value inside the debugged process.
         """
         log.info("{0} debuggee.scratchpad[{1!r}] = {2!r}", self.session, key, value)
-        expr = fmt("sys.modules['debuggee'].scratchpad[{0!r}] = {1!r}", key, value)
+        expr = f"sys.modules['debuggee'].scratchpad[{key!r}] = {value!r}"
         self.session.request("evaluate", {"context": "repl", "expression": expr})

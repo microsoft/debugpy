@@ -28,9 +28,9 @@ def launch_request(request):
         if flag_name in debug_options:
             if value is False:
                 raise request.isnt_valid(
-                    '{0!j}:false and "debugOptions":[{1!j}] are mutually exclusive',
-                    prop_name,
-                    flag_name,
+                    '{0}:false and "debugOptions":[{1}] are mutually exclusive',
+                    json.repr(prop_name),
+                    json.repr(flag_name),
                 )
             value = True
 

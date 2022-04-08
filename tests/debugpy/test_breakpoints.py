@@ -7,7 +7,6 @@ import pytest
 import re
 import sys
 
-from debugpy.common import fmt
 import tests
 from tests import debug, test_data
 from tests.debug import runners, targets
@@ -229,10 +228,10 @@ def test_log_point(pyfile, target, run, condition):
         assert not session.captured_stdout()
 
     expected_stdout = "".join(
-        (fmt(r"{0}\r?\n", re.escape(str(i))) for i in range(0, 10))
+        (r"{0}\r?\n".format(re.escape(str(i))) for i in range(0, 10))
     )
     expected_stderr = "".join(
-        (fmt(r"{0}\r?\n", re.escape(str(i * 10))) for i in range(0, 10))
+        (r"{0}\r?\n".format(re.escape(str(i * 10))) for i in range(0, 10))
     )
     assert session.output("stdout") == some.str.matching(expected_stdout)
     assert session.output("stderr") == some.str.matching(expected_stderr)
@@ -286,7 +285,7 @@ def test_add_and_remove_breakpoint(pyfile, target, run):
         )
         session.request_continue()
 
-    expected_stdout = "".join((fmt("{0}\n", i) for i in range(0, 10)))
+    expected_stdout = "".join(f"{i}\n" for i in range(0, 10))
     assert session.output("stdout") == expected_stdout
 
 

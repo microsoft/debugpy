@@ -3,7 +3,6 @@
 # for license information.
 
 import codecs
-import json
 import os
 import pydevd
 import socket
@@ -12,7 +11,7 @@ import threading
 
 import debugpy
 from debugpy import adapter
-from debugpy.common import compat, fmt, log, sockets
+from debugpy.common import compat, json, log, sockets
 from _pydevd_bundle.pydevd_constants import get_global_debugger
 from pydevd_file_utils import absolute_path
 
@@ -91,13 +90,13 @@ def configure(properties, **kwargs):
 
     for k, v in properties.items():
         if k not in _config:
-            raise ValueError(fmt("Unknown property {0!r}", k))
+            raise ValueError("Unknown property {0!r}".format(k))
         expected_type = type(_config[k])
         if type(v) is not expected_type:
-            raise ValueError(fmt("{0!r} must be a {1}", k, expected_type.__name__))
+            raise ValueError("{0!r} must be a {1}".format(k, expected_type.__name__))
         valid_values = _config_valid_values.get(k)
         if (valid_values is not None) and (v not in valid_values):
-            raise ValueError(fmt("{0!r} must be one of: {1!r}", k, valid_values))
+            raise ValueError("{0!r} must be one of: {1!r}".format(k, valid_values))
         _config[k] = v
 
 
@@ -120,7 +119,7 @@ def _starts_debugging(func):
 
         ensure_logging()
         log.debug("{0}({1!r}, **{2!r})", func.__name__, address, kwargs)
-        log.info("Initial debug configuration: {0!j}", _config)
+        log.info("Initial debug configuration: {0}", json.repr(_config))
 
         qt_mode = _config.get("qt", "none")
         if qt_mode != "none":
@@ -181,7 +180,7 @@ def listen(address, settrace_kwargs):
         ]
         if log.log_dir is not None:
             adapter_args += ["--log-dir", log.log_dir]
-        log.info("debugpy.listen() spawning adapter: {0!j}", adapter_args)
+        log.info("debugpy.listen() spawning adapter: {0}", json.repr(adapter_args))
 
         # On Windows, detach the adapter from our console, if any, so that it doesn't
         # receive Ctrl+C from it, and doesn't keep it open once we exit.
@@ -235,7 +234,7 @@ def listen(address, settrace_kwargs):
     finally:
         endpoints_listener.close()
 
-    log.info("Endpoints received from adapter: {0!j}", endpoints)
+    log.info("Endpoints received from adapter: {0}", json.repr(endpoints))
 
     if "error" in endpoints:
         raise RuntimeError(str(endpoints["error"]))
@@ -247,7 +246,7 @@ def listen(address, settrace_kwargs):
         client_port = int(endpoints["client"]["port"])
     except Exception as exc:
         log.swallow_exception(
-            "Error parsing adapter endpoints:\n{0!j}\n", endpoints, level="info"
+            "Error parsing adapter endpoints:\n{0}\n", json.repr(endpoints), level="info"
         )
         raise RuntimeError("error parsing adapter endpoints: " + str(exc))
     log.info(

@@ -18,7 +18,7 @@ import socket
 import sys
 import threading
 
-from debugpy.common import compat, fmt, json, log
+from debugpy.common import compat, json, log
 from debugpy.common.compat import unicode
 
 
@@ -125,7 +125,7 @@ class JsonIOStream(object):
         """
 
         if name is None:
-            name = fmt("reader={0!r}, writer={1!r}", reader, writer)
+            name = f"reader={reader!r}, writer={writer!r}"
 
         self.name = name
         self._reader = reader
@@ -164,9 +164,9 @@ class JsonIOStream(object):
 
     def _log_message(self, dir, data, logger=log.debug):
         format_string = "{0} {1} " + (
-            "{2!j:indent=None}" if isinstance(data, list) else "{2!j}"
+            "{2:indent=None}" if isinstance(data, list) else "{2}"
         )
-        return logger(format_string, self.name, dir, data)
+        return logger(format_string, self.name, dir, json.repr(data))
 
     def _read_line(self, reader):
         line = b""
@@ -297,9 +297,7 @@ class JsonIOStream(object):
         if not isinstance(body, bytes):
             body = body.encode("utf-8")
 
-        header = fmt("Content-Length: {0}\r\n\r\n", len(body))
-        header = header.encode("ascii")
-
+        header = f"Content-Length: {len(body)}\r\n\r\n".encode("ascii")
         data = header + body
         data_written = 0
         try:
@@ -319,7 +317,7 @@ class JsonIOStream(object):
         self._log_message("<--", value)
 
     def __repr__(self):
-        return fmt("{0}({1!r})", type(self).__name__, self.name)
+        return f"{type(self).__name__}({self.name!r})"
 
 
 class MessageDict(collections.OrderedDict):
@@ -357,7 +355,7 @@ class MessageDict(collections.OrderedDict):
         """
 
     def __repr__(self):
-        return fmt("{0!j}", self)
+        return json.repr(self)
 
     def __call__(self, key, validate, optional=False):
         """Like get(), but with validation.
@@ -396,10 +394,10 @@ class MessageDict(collections.OrderedDict):
             value = validate(value)
         except (TypeError, ValueError) as exc:
             message = Message if self.message is None else self.message
-            err = fmt("{0}", exc)
+            err = str(exc)
             if not err.startswith("["):
                 err = " " + err
-            raise message.isnt_valid("{0!j}{1}", key, err)
+            raise message.isnt_valid("{0}{1}", json.repr(key), err)
         return value
 
     def _invalid_if_no_key(func):
@@ -463,7 +461,7 @@ class Message(object):
         """
 
     def __str__(self):
-        return fmt("{0!j}", self.json) if self.json is not None else repr(self)
+        return json.repr(self.json) if self.json is not None else repr(self)
 
     def describe(self):
         """A brief description of the message that is enough to identify it.
@@ -523,7 +521,7 @@ class Message(object):
         assert issubclass(exc_type, MessageHandlingError)
 
         silent = kwargs.pop("silent", False)
-        reason = fmt(format_string, *args, **kwargs)
+        reason = format_string.format(*args, **kwargs)
         exc = exc_type(reason, self, silent)  # will log it
 
         if isinstance(self, Request):
@@ -576,7 +574,7 @@ class Event(Message):
         self.body = body
 
     def describe(self):
-        return fmt("#{0} event {1!j} from {2}", self.seq, self.event, self.channel)
+        return f"#{self.seq} event {json.repr(self.event)} from {self.channel}"
 
     @property
     def payload(self):
@@ -596,11 +594,8 @@ class Event(Message):
         try:
             try:
                 result = handler(self)
-                assert result is None, fmt(
-                    "Handler {0} tried to respond to {1}.",
-                    compat.srcnameof(handler),
-                    self.describe(),
-                )
+                assert result is None, \
+                    f"Handler {compat.srcnameof(handler)} tried to respond to {self.describe()}."
             except MessageHandlingError as exc:
                 if not exc.applies_to(self):
                     raise
@@ -681,7 +676,7 @@ class Request(Message):
         """
 
     def describe(self):
-        return fmt("#{0} request {1!j} from {2}", self.seq, self.command, self.channel)
+        return f"#{self.seq} request {json.repr(self.command)} from {self.channel}"
 
     @property
     def payload(self):
@@ -738,25 +733,28 @@ class Request(Message):
                 )
 
             if result is NO_RESPONSE:
-                assert self.response is None, fmt(
+                assert self.response is None, (
                     "Handler {0} for {1} must not return NO_RESPONSE if it has already "
-                    "invoked request.respond().",
-                    compat.srcnameof(handler),
-                    self.describe(),
+                    "invoked request.respond().".format(
+                        compat.srcnameof(handler),
+                        self.describe()
+                    )
                 )
             elif self.response is not None:
-                assert result is None or result is self.response.body, fmt(
+                assert result is None or result is self.response.body, (
                     "Handler {0} for {1} must not return a response body if it has "
-                    "already invoked request.respond().",
-                    compat.srcnameof(handler),
-                    self.describe(),
+                    "already invoked request.respond().".format(
+                        compat.srcnameof(handler),
+                        self.describe()
+                    )
                 )
             else:
-                assert result is not None, fmt(
+                assert result is not None, (
                     "Handler {0} for {1} must either call request.respond() before it "
-                    "returns, or return the response body, or return NO_RESPONSE.",
-                    compat.srcnameof(handler),
-                    self.describe(),
+                    "returns, or return the response body, or return NO_RESPONSE.".format(
+                        compat.srcnameof(handler),
+                        self.describe()
+                    )
                 )
                 try:
                     self.respond(result)
@@ -787,7 +785,7 @@ class OutgoingRequest(Request):
         self._response_handlers = []
 
     def describe(self):
-        return fmt("#{0} request {1!j} to {2}", self.seq, self.command, self.channel)
+        return f"{self.seq} request {json.repr(self.command)} to {self.channel}"
 
     def wait_for_response(self, raise_if_failed=True):
         """Waits until a response is received for this request, records the Response
@@ -913,7 +911,7 @@ class Response(Message):
         """
 
     def describe(self):
-        return fmt("#{0} response to {1}", self.seq, self.request.describe())
+        return f"#{self.seq} response to {self.request.describe()}"
 
     @property
     def payload(self):
@@ -988,7 +986,7 @@ class Disconnect(Message):
         super(Disconnect, self).__init__(channel, None)
 
     def describe(self):
-        return fmt("disconnect from {0}", self.channel)
+        return f"disconnect from {self.channel}"
 
 
 class MessageHandlingError(Exception):
@@ -1068,14 +1066,9 @@ class MessageHandlingError(Exception):
     def __repr__(self):
         s = type(self).__name__
         if self.cause is None:
-            s += fmt("(reason={0!r})", self.reason)
+            s += f"reason={self.reason!r})"
         else:
-            s += fmt(
-                "(channel={0!r}, cause={1!r}, reason={2!r})",
-                self.cause.channel.name,
-                self.cause.seq,
-                self.reason,
-            )
+            s += f"channel={self.cause.channel.name!r}, cause={self.cause.seq!r}, reason={self.reason!r})"
         return s
 
     def applies_to(self, message):
@@ -1145,7 +1138,7 @@ class JsonMessageChannel(object):
         return self.name
 
     def __repr__(self):
-        return fmt("{0}({1!r})", type(self).__name__, self.name)
+        return f"{type(self).__name__}({self.name!r})"
 
     def __enter__(self):
         self._lock.acquire()
@@ -1180,7 +1173,7 @@ class JsonMessageChannel(object):
         self.started = True
 
         self._parser_thread = threading.Thread(
-            target=self._parse_incoming_messages, name=fmt("{0} message parser", self)
+            target=self._parse_incoming_messages, name=f"{self} message parser"
         )
         self._parser_thread.pydev_do_not_trace = True
         self._parser_thread.is_pydev_daemon_thread = True
@@ -1404,16 +1397,16 @@ class JsonMessageChannel(object):
             parser(self, message_dict)
         except InvalidMessageError as exc:
             log.error(
-                "Failed to parse message in channel {0}: {1} in:\n{2!j}",
+                "Failed to parse message in channel {0}: {1} in:\n{2}",
                 self,
                 str(exc),
-                message_dict,
+                json.repr(message_dict),
             )
         except Exception as exc:
             if isinstance(exc, NoMoreMessages) and exc.stream is self.stream:
                 raise
             log.swallow_exception(
-                "Fatal error in channel {0} while parsing:\n{1!j}", self, message_dict
+                "Fatal error in channel {0} while parsing:\n{1}", self, json.repr(message_dict)
             )
             os._exit(1)
 
@@ -1440,7 +1433,7 @@ class JsonMessageChannel(object):
             # of handlers to run.
             if len(self._handler_queue) and self._handler_thread is None:
                 self._handler_thread = threading.Thread(
-                    target=self._run_handlers, name=fmt("{0} message handler", self)
+                    target=self._run_handlers, name=f"{self} message handler",
                 )
                 self._handler_thread.pydev_do_not_trace = True
                 self._handler_thread.is_pydev_daemon_thread = True
@@ -1508,8 +1501,7 @@ class JsonMessageChannel(object):
                 continue
 
         raise AttributeError(
-            fmt(
-                "handler object {0} for channel {1} has no handler for {2} {3!r}",
+            "handler object {0} for channel {1} has no handler for {2} {3!r}".format(
                 compat.srcnameof(handlers),
                 self,
                 type,

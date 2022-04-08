@@ -10,7 +10,7 @@ import sys
 import threading
 import types
 
-from debugpy.common import compat, fmt, log, timestamp
+from debugpy.common import compat, log, timestamp
 import tests
 from tests import code, logs
 from tests.debug import runners, session, targets
@@ -57,7 +57,7 @@ def test_wrapper(request, long_tmpdir):
             log_subdir = request.node.nodeid
             log_subdir = log_subdir.replace("::", "/")
             for ch in r":?*|<>":
-                log_subdir = log_subdir.replace(ch, fmt("&#{0};", ord(ch)))
+                log_subdir = log_subdir.replace(ch, f"&#{ord(ch)};")
             log.log_dir += "/" + log_subdir
 
         try:

@@ -10,7 +10,7 @@ import time
 
 import debugpy
 from debugpy import adapter
-from debugpy.common import compat, fmt, json, log, messaging, sockets
+from debugpy.common import compat, json, log, messaging, sockets
 from debugpy.adapter import components
 
 
@@ -89,7 +89,7 @@ if 'debugpy' not in sys.modules:
     finally:
         del sys.path[0]
 """
-            inject_debugpy = fmt(inject_debugpy, debugpy_dir=debugpy_dir)
+            inject_debugpy = inject_debugpy.format(debugpy_dir=debugpy_dir)
 
             try:
                 self.channel.request("evaluate", {"expression": inject_debugpy})
@@ -111,7 +111,7 @@ if 'debugpy' not in sys.modules:
 
                 if any(conn.pid == self.pid for conn in _connections):
                     raise KeyError(
-                        fmt("{0} is already connected to this adapter", self)
+                        f"{self} is already connected to this adapter"
                     )
 
                 is_first_server = len(_connections) == 0
@@ -167,7 +167,7 @@ if 'debugpy' not in sys.modules:
             self.channel.close()
 
     def __str__(self):
-        return "Server" + fmt("[?]" if self.pid is None else "[pid={0}]", self.pid)
+        return "Server" + ("[?]" if self.pid is None else f"[pid={self.pid}]")
 
     def authenticate(self):
         if access_token is None and adapter.access_token is None:
@@ -468,9 +468,7 @@ def inject(pid, debugpy_args):
             "Failed to inject debug server into process with PID={0}", pid
         )
         raise messaging.MessageHandlingError(
-            fmt(
-                "Failed to inject debug server into process with PID={0}: {1}", pid, exc
-            )
+                "Failed to inject debug server into process with PID={0}: {1}".format(pid, exc)
         )
 
     # We need to capture the output of the injector - otherwise it can get blocked
@@ -485,7 +483,7 @@ def inject(pid, debugpy_args):
         log.info("Injector[PID={0}] exited.", pid)
 
     thread = threading.Thread(
-        target=capture_output, name=fmt("Injector[PID={0}] output", pid)
+        target=capture_output, name=f"Injector[PID={pid}] output",
     )
     thread.daemon = True
     thread.start()

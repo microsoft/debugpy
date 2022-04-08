@@ -9,7 +9,7 @@ import threading
 import time
 
 from debugpy import common
-from debugpy.common import fmt, log, util
+from debugpy.common import log, util
 from debugpy.adapter import components, launchers, servers
 
 
@@ -64,7 +64,7 @@ class Session(util.Observable):
         self.observers += [lambda *_: self.notify_changed()]
 
     def __str__(self):
-        return fmt("Session[{0}]", self.id)
+        return f"Session[{self.id}]"
 
     def __enter__(self):
         """Lock the session for exclusive access."""

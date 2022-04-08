@@ -8,7 +8,7 @@ import sys
 
 import debugpy
 from debugpy import adapter, common, launcher
-from debugpy.common import compat, fmt, json, log, messaging, sockets
+from debugpy.common import compat, json, log, messaging, sockets
 from debugpy.common.compat import unicode
 from debugpy.adapter import components, servers, sessions
 
@@ -244,10 +244,9 @@ class Client(components.Component):
                     # here at this point, either, so just bail out.
                     request.respond({})
                     self.session.finalize(
-                        fmt(
-                            "{0} disconnected before responding to {1!j}",
+                        "{0} disconnected before responding to {1}".format(
                             self.server,
-                            request.command,
+                            json.repr(request.command),
                         )
                     )
                     return
@@ -309,9 +308,9 @@ class Client(components.Component):
             if flag_name in debug_options:
                 if value is False:
                     raise request.isnt_valid(
-                        '{0!j}:false and "debugOptions":[{1!j}] are mutually exclusive',
-                        prop_name,
-                        flag_name,
+                        '{0}:false and "debugOptions":[{1}] are mutually exclusive',
+                        json.repr(prop_name),
+                        json.repr(flag_name),
                     )
                 value = True
 
@@ -517,7 +516,7 @@ class Client(components.Component):
                 # request was successful, but that the session terminated immediately.
                 request.respond({})
                 self.session.finalize(
-                    fmt('No known subprocess with "subProcessId":{0}', sub_pid)
+                    'No known subprocess with "subProcessId":{0}'.format(sub_pid)
                 )
                 return
 
@@ -555,10 +554,9 @@ class Client(components.Component):
                 request.respond({})
                 self.start_request.respond({})
                 self.session.finalize(
-                    fmt(
-                        "{0} disconnected before responding to {1!j}",
+                    "{0} disconnected before responding to {1}".format(
                         self.server,
-                        request.command,
+                        json.repr(request.command),
                     )
                 )
                 return
@@ -651,7 +649,7 @@ class Client(components.Component):
         for key in "processId", "listen", "preLaunchTask", "postDebugTask":
             body.pop(key, None)
 
-        body["name"] = fmt("Subprocess {0}", conn.pid)
+        body["name"] = "Subprocess {0}".format(conn.pid)
         body["request"] = "attach"
         body["subProcessId"] = conn.pid
 

@@ -12,7 +12,7 @@ import sys
 import threading
 
 from debugpy import launcher
-from debugpy.common import fmt, log, messaging, compat
+from debugpy.common import log, messaging, compat
 from debugpy.launcher import output
 
 if sys.platform == "win32":
@@ -34,7 +34,7 @@ returns True, the launcher pauses and waits for user input before exiting.
 
 
 def describe():
-    return fmt("Debuggee[PID={0}]", process.pid)
+    return f"Debuggee[PID={process.pid}]" 
 
 
 def spawn(process_name, cmdline, env, redirect_output):
@@ -91,7 +91,7 @@ def spawn(process_name, cmdline, env, redirect_output):
             process = subprocess.Popen(cmdline, env=env, bufsize=0, **kwargs)
         except Exception as exc:
             raise messaging.MessageHandlingError(
-                fmt("Couldn't spawn debuggee: {0}\n\nCommand line:{1!r}", exc, cmdline)
+                "Couldn't spawn debuggee: {0}\n\nCommand line:{1!r}".format(exc, cmdline)
             )
 
         log.info("Spawned {0}.", describe())

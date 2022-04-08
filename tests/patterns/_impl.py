@@ -12,7 +12,7 @@ import py.path
 import re
 import sys
 
-from debugpy.common import compat, fmt
+from debugpy.common import compat
 from debugpy.common.compat import unicode, xrange
 import pydevd_file_utils
 
@@ -90,7 +90,7 @@ class Not(Some):
         self.pattern = pattern
 
     def __repr__(self):
-        return fmt("~{0!r}", self.pattern)
+        return f"~{self.pattern!r}"
 
     def matches(self, value):
         return value != self.pattern
@@ -108,7 +108,7 @@ class Either(Some):
         try:
             return self.name
         except AttributeError:
-            return fmt("({0})", " | ".join(repr(pat) for pat in self.patterns))
+            return "({0})".format(" | ".join(repr(pat) for pat in self.patterns))
 
     def matches(self, value):
         return any(pattern == value for pattern in self.patterns)
@@ -156,7 +156,7 @@ class InstanceOf(Some):
             name = self.name
         else:
             name = " | ".join(cls.__name__ for cls in self.classinfo)
-        return fmt("<{0}>", name)
+        return f"<{name}>"
 
     def matches(self, value):
         return isinstance(value, self.classinfo)
@@ -180,7 +180,7 @@ class Path(Some):
         self.path = path
 
     def __repr__(self):
-        return fmt("path({0!r})", self.path)
+        return "path({self.path!r})"
 
     def __str__(self):
         return compat.filename_str(self.path)
@@ -218,7 +218,7 @@ class ListContaining(Some):
         if not self.items:
             return "[...]"
         s = repr(list(self.items))
-        return fmt("[..., {0}, ...]", s[1:-1])
+        return f"[..., {s[1:-1]}, ...]"
 
     def __getstate__(self):
         items = ["\002...\003"]
@@ -302,7 +302,7 @@ class SuchThat(Also):
         try:
             return self.name
         except AttributeError:
-            return fmt("({0!r} if {1})", self.pattern, compat.nameof(self.condition))
+            return f"({self.pattern!r} if {compat.nameof(self.condition)})"
 
     def _also(self, value):
         return self.condition(value)
@@ -321,7 +321,7 @@ class InRange(Also):
         try:
             return self.name
         except AttributeError:
-            return fmt("({0!r} <= {1!r} < {2!r})", self.start, self.pattern, self.stop)
+            return f"({self.start!r} <= {self.pattern!r} < {self.stop!r})"
 
     def _also(self, value):
         return self.start <= value < self.stop
@@ -360,7 +360,7 @@ class NotEqualTo(Also):
         self.obj = obj
 
     def __repr__(self):
-        return fmt("<!={0!r}>", self.obj)
+        return f"<!={self.obj!r}>"
 
     def _also(self, value):
         return self.obj != value
@@ -375,7 +375,7 @@ class SameAs(Also):
         self.obj = obj
 
     def __repr__(self):
-        return fmt("<is {0!r}>", self.obj)
+        return f"<is {self.obj!r}>"
 
     def _also(self, value):
         return self.obj is value

@@ -14,7 +14,7 @@ import threading
 import traceback
 
 import debugpy
-from debugpy.common import compat, fmt, timestamp, util
+from debugpy.common import compat, json, timestamp, util
 
 
 LEVELS = ("debug", "info", "warning", "error")
@@ -43,8 +43,7 @@ def _update_levels():
 
 class LogFile(object):
     def __init__(self, filename, file, levels=LEVELS, close_file=True):
-        info("Also logging to {0!j}.", filename)
-
+        info("Also logging to {0}.", json.repr(filename))
         self.filename = filename
         self.file = file
         self.close_file = close_file
@@ -86,7 +85,7 @@ class LogFile(object):
         with _lock:
             del _files[self.filename]
             _update_levels()
-        info("Not logging to {0!j} anymore.", self.filename)
+        info("Not logging to {0} anymore.", json.repr(self.filename))
 
         if self.close_file:
             try:
@@ -128,7 +127,7 @@ def write(level, text, _to_files=all):
 
     t = timestamp.current()
     format_string = "{0}+{1:" + timestamp_format + "}: "
-    prefix = fmt(format_string, level[0].upper(), t)
+    prefix = format_string.format(level[0].upper(), t)
 
     text = getattr(_tls, "prefix", "") + text
     indent = "\n" + (" " * len(prefix))
@@ -151,7 +150,7 @@ def write_format(level, format_string, *args, **kwargs):
         return
 
     try:
-        text = fmt(format_string, *args, **kwargs)
+        text = format_string.format(*args, **kwargs)
     except Exception:
         reraise_exception()
 
@@ -168,12 +167,12 @@ def error(*args, **kwargs):
 
     Returns the output wrapped in AssertionError. Thus, the following::
 
-        raise log.error(...)
+        raise log.error(s, ...)
 
     has the same effect as::
 
         log.error(...)
-        assert False, fmt(...)
+        assert False, (s.format(...))
     """
     return AssertionError(write_format("error", *args, **kwargs))
 
@@ -203,7 +202,7 @@ def _exception(format_string="", *args, **kwargs):
 def swallow_exception(format_string="", *args, **kwargs):
     """Logs an exception with full traceback.
 
-    If format_string is specified, it is formatted with fmt(*args, **kwargs), and
+    If format_string is specified, it is formatted with format(*args, **kwargs), and
     prepended to the exception traceback on a separate line.
 
     If exc_info is specified, the exception it describes will be logged. Otherwise,
@@ -257,7 +256,7 @@ def to_file(filename=None, prefix=None, levels=LEVELS):
             os.makedirs(log_dir)
         except OSError:
             pass
-        filename = fmt("{0}/{1}-{2}.log", log_dir, prefix, os.getpid())
+        filename = f"{log_dir}/{prefix}-{os.getpid()}.log"
 
     file = _files.get(filename)
     if file is None:
@@ -272,7 +271,7 @@ def prefixed(format_string, *args, **kwargs):
     """Adds a prefix to all messages logged from the current thread for the duration
     of the context manager.
     """
-    prefix = fmt(format_string, *args, **kwargs)
+    prefix = format_string.format(*args, **kwargs)
     old_prefix = getattr(_tls, "prefix", "")
     _tls.prefix = prefix + old_prefix
     try:
@@ -287,11 +286,11 @@ def describe_environment(header):
 
     result = [header, "\n\n"]
 
-    def report(*args, **kwargs):
-        result.append(fmt(*args, **kwargs))
+    def report(s, *args, **kwargs):
+        result.append(s.format(*args, **kwargs))
 
     def report_paths(get_paths, label=None):
-        prefix = fmt("    {0}: ", label or get_paths)
+        prefix = f"    {label or get_paths}: "
 
         expr = None
         if not callable(get_paths):
@@ -337,7 +336,7 @@ def describe_environment(header):
     report_paths(lambda: site_packages, "sys.path (site-packages)")
 
     for name in sysconfig.get_path_names():
-        expr = fmt("sysconfig.get_path({0!r})", name)
+        expr = "sysconfig.get_path({0!r})".format(name)
         report_paths(expr)
 
     report_paths("os.__file__")
