@@ -410,14 +410,40 @@ def run_python_code_linux(pid, python_code, connect_debugger_tracing=False, show
 #         '--batch-silent',
     ]
 
-    # PY-49617: Skip searching for symbols when starting up gdb and instead load just the required ones.
-    cmd.extend(["--init-eval-command='set auto-solib-add off'"])  # Faster loading.
+    # PYDEVD_GDB_SCAN_SHARED_LIBRARIES can be a list of strings with the shared libraries
+    # which should be scanned by default to make the attach to process (i.e.: libdl, libltdl, libc, libfreebl3).
+    #
+    # The default is scanning all shared libraries, but on some cases this can be in the 20-30
+    # seconds range for some corner cases.
+    # See: https://github.com/JetBrains/intellij-community/pull/1608
+    #
+    # By setting PYDEVD_GDB_SCAN_SHARED_LIBRARIES (to a comma-separated string), it's possible to
+    # specify just a few libraries to be loaded (not many are needed for the attach,
+    # but it can be tricky to pre-specify for all Linux versions as this may change
+    # across different versions).
+    #
+    # See: https://github.com/microsoft/debugpy/issues/762#issuecomment-947103844
+    # for a comment that explains the basic steps on how to discover what should be available
+    # in each case (mostly trying different versions based on the output of gdb).
+    #
+    # The upside is that for cases when too many libraries are loaded the attach could be slower
+    # and just specifying the one that is actually needed for the attach can make it much faster.
+    #
+    # The downside is that it may be dependent on the Linux version being attached to (which is the
+    # reason why this is no longer done by default -- see: https://github.com/microsoft/debugpy/issues/882).
+    gdb_load_shared_libraries = os.environ.get('PYDEVD_GDB_SCAN_SHARED_LIBRARIES', '').strip()
+    if gdb_load_shared_libraries:
+        cmd.extend(["--init-eval-command='set auto-solib-add off'"])  # Don't scan all libraries.
+
+        for lib in gdb_load_shared_libraries.split(','):
+            lib = lib.strip()
+            cmd.extend(["--eval-command='sharedlibrary %s'" % (lib,)])  # Scan the specified library
+
     cmd.extend(["--eval-command='set scheduler-locking off'"])  # If on we'll deadlock.
 
     # Leave auto by default (it should do the right thing as we're attaching to a process in the
     # current host).
     cmd.extend(["--eval-command='set architecture auto'"])
-    cmd.extend(["--eval-command='sharedlibrary libdl'"])  # For dlopen.
 
     cmd.extend([
         "--eval-command='call (void*)dlopen(\"%s\", 2)'" % target_dll,
