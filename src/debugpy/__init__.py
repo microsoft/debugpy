@@ -206,6 +206,8 @@ def trace_this_thread(should_trace):
 
 __version__ = _version.get_versions()["version"]
 
+__bundling_disabled__ = False
+
 # Force absolute path on Python 2.
 __file__ = os.path.abspath(__file__)
 

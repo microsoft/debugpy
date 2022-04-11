@@ -11,6 +11,9 @@ import subprocess
 import sys
 
 
+DEBUGPY_BUNDLING_DISABLED = bool(os.getenv('DEBUGPY_BUNDLING_DISABLED'))
+
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import versioneer  # noqa
 
@@ -18,12 +21,15 @@ del sys.path[0]
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
 import debugpy
-import debugpy._vendored
+
+if not DEBUGPY_BUNDLING_DISABLED:
+    import debugpy._vendored
 
 del sys.path[0]
 
 
-PYDEVD_ROOT = debugpy._vendored.project_root("pydevd")
+PYDEVD_ROOT = (None if DEBUGPY_BUNDLING_DISABLED else
+               debugpy._vendored.project_root("pydevd"))
 DEBUGBY_ROOT = os.path.dirname(os.path.abspath(debugpy.__file__))
 
 
@@ -67,7 +73,7 @@ def iter_vendored_files():
 # relevant setuptools versions.
 class ExtModules(list):
     def __bool__(self):
-        return True
+        return not DEBUGPY_BUNDLING_DISABLED
 
 
 def override_build(cmds):
@@ -133,8 +139,23 @@ with open("DESCRIPTION.md", "r") as fh:
 
 
 if __name__ == "__main__":
-    if not os.getenv("SKIP_CYTHON_BUILD"):
+    if not (os.getenv("SKIP_CYTHON_BUILD") or DEBUGPY_BUNDLING_DISABLED):
         cython_build()
+
+    # Etch bundling status in the source.
+    if debugpy.__bundling_disabled__ != DEBUGPY_BUNDLING_DISABLED:
+
+        with open(os.path.join(DEBUGBY_ROOT, '__init__.py'), 'r') as f:
+            lines = f.readlines()
+        with open(os.path.join(DEBUGBY_ROOT, '__init__.py'), 'w') as f:
+            edited = []
+            for line in lines:
+                if line.startswith('__bundling_disabled__'):
+                    edited.append(
+                        f'__bundling_disabled__ = {DEBUGPY_BUNDLING_DISABLED}\n')
+                else:
+                    edited.append(line)
+            f.writelines(edited)
 
     extras = {}
     platforms = get_buildplatform()
@@ -144,6 +165,18 @@ if __name__ == "__main__":
     cmds = versioneer.get_cmdclass()
     override_build(cmds)
     override_build_py(cmds)
+
+    data = {"debugpy": ["ThirdPartyNotices.txt"]}
+    packages = [
+            "debugpy",
+            "debugpy.adapter",
+            "debugpy.common",
+            "debugpy.launcher",
+            "debugpy.server",
+        ]
+    if not DEBUGPY_BUNDLING_DISABLED:
+        data.update({"debugpy._vendored": list(iter_vendored_files())})
+        packages.append("debugpy._vendored")
 
     setuptools.setup(
         name="debugpy",
@@ -173,20 +206,10 @@ if __name__ == "__main__":
             "License :: OSI Approved :: MIT License",
         ],
         package_dir={"": "src"},
-        packages=[
-            "debugpy",
-            "debugpy.adapter",
-            "debugpy.common",
-            "debugpy.launcher",
-            "debugpy.server",
-            "debugpy._vendored",
-        ],
-        package_data={
-            "debugpy": ["ThirdPartyNotices.txt"],
-            "debugpy._vendored": list(iter_vendored_files()),
-        },
+        packages=packages,
+        package_data=data,
         ext_modules=ExtModules(),
-        has_ext_modules=lambda: True,
+        has_ext_modules=lambda: not DEBUGPY_BUNDLING_DISABLED,
         cmdclass=cmds,
         **extras
     )

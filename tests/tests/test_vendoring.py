@@ -1,3 +1,8 @@
+import pytest
+
+import debugpy
+
+@pytest.mark.skipif(debugpy.__bundling_disabled__, reason='Bundling disabled')
 def test_vendoring(pyfile):
     @pyfile
     def import_debugpy():
