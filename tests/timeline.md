@@ -1,6 +1,6 @@
 # Timeline testing
 
-A ptvsd debug session consists of the DAP ([Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/specification)) requests, responses and events, which, in general, don't have any specific *absolute* ordering that can be meaningfully expected. Related requests, responses and events have *relative* ordering, and so tests for a debug session have to be able to express such ordering. For example: event E1, and either event E2 or event E3, all happened after request R was sent, but before response S to R was received.
+A debugpy debug session consists of the DAP ([Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/specification)) requests, responses and events, which, in general, don't have any specific *absolute* ordering that can be meaningfully expected. Related requests, responses and events have *relative* ordering, and so tests for a debug session have to be able to express such ordering. For example: event E1, and either event E2 or event E3, all happened after request R was sent, but before response S to R was received.
 
 The timeline framework, as implemented by the [timeline module](timeline.py), allows to express such tests straightforwardly in a declarative fashion in either blocking or non-blocking mode:
 ```py
@@ -11,7 +11,7 @@ expectation = (
     >>
     Response(Request(R))
 )
-timeline.wait_until(expectation)
+timeline.wait_until_realized(expectation)
 assert expectation in timeline
 ```
 
@@ -21,17 +21,17 @@ assert expectation in timeline
 
 An *occurrence* is something that occurs on a [timeline](#Timeline); it is represented by an immutable instance of `Occurrence`. An occurrence is described by its *timestamp*  (`occurrence.timestamp`) and its *circumstances* (`occurrence.circumstances`), the latter being a tuple containing everything that describes the occurrence. By convention, the first element of the tuple is a string that identifies the *kind* of occurrence, while the following elements have different meanings depending on the kind.
 
-in a ptvsd debug session as seen from the perspective of a test, the fundamental occurrences and their respective circumstances are:
+in a debugpy debug session as seen from the perspective of a test, the fundamental occurrences and their respective circumstances are:
 
 - request sent: `('Request', command, arguments)`
 - response received: `('Response', request, body)`
 - event received: `('Event', event, body)`
 
-(Note that ptvsd itself never sends requests - it only receives and handles them.)
+(Note that debugpy itself never sends requests - it only receives and handles them.)
 
-For a response, `body` is `RequestFailure(error_message)` if the request failed, and the actual body of the response if it succeeded.
+For a response, `body` is `MessageHandlingError(error_message)` if the request failed, and the actual body of the response if it succeeded.
 
-There's a pseudo-occurrence called *mark*, which is never caused by ptvsd itself, and exists solely so that tests can mark important points on a timeline for ordering and debugging purposes. Its circumstances are `('Mark', id)`, where `id` is an arbitrary value.
+There's a pseudo-occurrence called *mark*, which is never caused by debugpy itself, and exists solely so that tests can mark important points on a timeline for ordering and debugging purposes. Its circumstances are `('Mark', id)`, where `id` is an arbitrary value.
 
 For objects representing these occurrences, named members are provided to extract individual components of `circumstances`. Thus, if it is a request, you can write `request.command` instead of `request.circumstances[1]`.
 
@@ -47,26 +47,26 @@ Timelines are completely thread-safe for both recording and inspection. However,
 
 It is, however, possible to take a snapshot of a timeline via `timeline.history()`; the returned value is a list of all occurrences that were in the timeline at the point of the call, in order from first to last. This is just a shortcut for `reversed(list(timeline.last()))`.
 
-Note that, since instances of `Occurrences` are immutable, it is safe to inspect them even as  timeline grows.
+Note that, since instances of `Occurrences` are immutable, it is safe to inspect them even as the timeline grows.
 
 ### Expectation
 
 An *expectation* is to an [occurrence](#Occurrence) as a regex is to a string; it is represented by an instance of `Expectation`. An expectation can be *realized* at a specific occurrence. It can also be said that an expectation is realized in a [timeline](#Timeline), which means that it is realized at the last occurrence in the timeline.
 
-Testing an occurrence against an expectation is done with `has_occurred_by`:
+Testing an occurrence against an expectation is done with `realizes`:
 ```py
-expectation.has_occurred_by(occurrence)
+occurrence.realizes(expectation)
 ```
 alternatively, if we have a timeline, then operator `in` can be used to check the expectation against it:
 ```py
-expectation in timeline     # expectation.has_occurred_by(timeline.last())
+expectation in timeline     # there's some occurrence X in timeline such that X.realizes(expectation)
 ```
-Finally, a timeline can also perform a blocking wait for an expectation to be realized with `wait_until()`:
+Finally, a timeline can also perform a blocking wait for an expectation to be realized with `wait_until_realized()`:
 ```py
-t = timeline.wait_until(expectation)    # blocks this thread
+t = timeline.wait_until_realized(expectation)    # blocks this thread
 assert expectation in timeline
 ```
-the return value of `wait_until()` is the first occurrence that realized the expectation. If that occurrence was already in the timeline when `wait_until()` was invoked, it returns immediately.
+the return value of `wait_until_realized()` is the first occurrence that realized the expectation. If that occurrence was already in the timeline when `wait_until()` was invoked, it returns immediately.
 
 
 ### Basic expectations
@@ -88,27 +88,31 @@ but not by any of these:
 
 From this definition follows that if a basic expectation is realized at some occurrence `now`, then it is also realized at any future occurrence `later` in the same timeline such that `later.follows(now)`. Thus, once a basic expectation is realized in a timeline, it cannot be un-realized. Note that this is not necessarily true for other expectations!
 
-Basic expectations can be created by instantiating `BasicExpectation` directly with the desired circumstances, but it is more common to use the helper functions:
+Basic expectations can be created by instantiating `Expectation` directly with the desired circumstances, but it is more common to use the helper functions:
 ```py
-Request(command, arguments)     # BasicExpectation('Request', command, arguments)
-Response(request, body)         # BasicExpectation('Response', request, body)
-Event(event, body)              # BasicExpectation('Event', event, body)
-Mark(id)                        # BasicExpectation('Mark', id)
+Request(command, arguments)     # Expectation('Request', command, arguments)
+Response(request, body)         # Expectation('Response', request, body)
+Event(event, body)              # Expectation('Event', event, body)
+Mark(id)                        # Expectation('Mark', id)
 ```
 
-For responses, it is often desirable to specify success or failure in general, without details. This can be done by using `SUCCESS` and `FAILURE` in the pattern:
+For responses, it is often desirable to specify success or failure in general, without details. This can be done by using `some.exception` in the pattern:
 ```py
-Response(request, SUCCESS)
-Response(request, FAILURE)
+Response(request, some.error)
+Response(request, ~some.error)  # success
 ```
 Note that you don't need to do it if you specify the body of the response explicitly, since a succesful response will always have a dict as a body, and a failed response will have an exception as a body.
 
 Since it is very common to wait for a response to a particular request, there is a shortcut to do it directly via the request occurrence:
 ```py
-initialize = debug_session.send_request('initialize', {'adapterID': 'test'})
-initialize.wait_for_response()  # timeline.wait_until(Response(initialize, ANY))
+initialize_request = debug_session.send_request('initialize', {'adapterID': 'test'})
+initialize_request.wait_for_response()  # timeline.wait_until(Response(initialize, ANY))
 ```
-
+and a further shortcut to issue a request, wait for response, and retrieve the response body, all in a single call:
+```py
+initialize_response_body = debug_session.request('initialize', {'adapterID': 'test'})
+```
+On success, `request()` returns the body of the sucessful response directly, rather than the `Response` object. On failure, it raises the appropriate exception.
 
 ## Expectation algebra
 
@@ -205,7 +209,7 @@ This is most commonly used as seen above, with related events where their relati
 ```py
 pause1 = debug_session.send_request('pause', {'threadId': '1'})
 pause2 = debug_session.send_request('pause', {'threadId': '2'})
-debug_session.wait_until(Response(pause1) & Response(pause2))
+debug_session.wait_until_realized(Response(pause1) & Response(pause2))
 ```
 
 ### Disjunction (`|`)
@@ -234,7 +238,7 @@ It is usually used to concurrently send multiple requests, and wait until the fi
 ```py
 pause1 = debug_session.send_request('pause', {'threadId': '1'})
 pause2 = debug_session.send_request('pause', {'threadId': '2'})
-pause_response = debug_session.wait_until(Response(pause1) | Response(pause2))
+pause_response = debug_session.wait_until_realized(Response(pause1) | Response(pause2))
 handled_request = pause_response.request
 if handled_request is pause1:
     ...
@@ -266,48 +270,38 @@ This can be used, for example, to test a request that can produce different even
 
 Given an expectation `X`, a conditional expectation `X.when(condition)` is realized at the occurrence `O` at which `X` is realized, but only if `condition(O)` returns `True`. In practice, it is typically used with a lambda to check for events that are caused by requests, but only happen when a request is successful, e.g.:
 ```
-initialize = debug_session.send_request('initialize', {'adapterID': 'test'}).wait_for_response()
+initialize_request = debug_session.send_request('initialize', {'adapterID': 'test'}).wait_for_response()
 assert Event('initialized', {}).when(
-    lambda occ: Response(initialize, SUCCESS) in occ.timeline
+    lambda occ: Response(initialize_request, SUCCESS) in occ.timeline
 ) in debug_session.timeline
 ```
 
 ## Debug session
 
-A debug session runs ptvsd, and records requests, responses and events on a timeline as they occur. It is an instance of `DebugSession`. A test normally obtains an instance by using the `debug_session` fixture:
+A debug session runs debugpy, and records requests, responses and events on a timeline as they occur. It is an instance of `tests.debug.Session`. A test normally creates an instance in a `with`-statement to ensure proper cleanup:
 ```py
-def test_run(debug_session):
-    ...
+def test_run():
+    with debug.Session() as debug_session:
+        ...
 ```
 
-The timeline is exposed as `debug_session.timeline`. In addition to that, the following map directly to the corresponding `debug_session.timeline` methods:
-- `debug_session.mark()`
-- `debug_session.wait_until()`
-- `debug_session.history()`
+The timeline is exposed as `debug_session.timeline`. In addition to that, a number of common timeline methods are exposed directly on the session object.
 
-A freshly obtained session is dormant - there's no ptvsd running, and nothing to record. To make it useful, it needs to be primed to run some code:
+A freshly obtained session is dormant - there's no debugpy running, and nothing to record. To make it useful, it needs to be primed with a *target* to run some code:
 ```py
-debug_session.configure('program', 'example.py')
-```
-or, alternatively:
-```py
-debug_session.configure(t'module', 'example')
+with debug_session.launch(targets.Program('example.py')):
+   ...
 ```
 
-At this point ptvsd is spinned up and connected to the test process, and the initial handshake sequence ("initialize" and "configurationDone" requests) has been performed. The timeline is also live, containing the recording of the handshake, and waiting for further occurrences. However, the debugger is still idle - the script or module we specified isn't actually running yet. This is a good time to issue requests to set any breakpoints:
+Inside the with-statement, debugpy is spun up and connected to the test process, and the initial handshake sequence ("initialize" request/response) has been performed. The timeline is also live, containing the recording of the handshake, and waiting for further occurrences. However, the debugger is still idle - the script or module we specified isn't actually running yet. This is a good time to adjust debug configuration, and to issue requests to set any breakpoints:
 ```py
-debug_session.send_request('setBreakpoints', [
-    {
-        'source': {'path': 'example.py'},
-        'breakpoints': [{'line': 3}, {'line': 5}]
-    }
-]).wait_for_response()
+with debug_session.launch(targets.Program('example.py')):
+    debug_session.config['redirectOutput]' = True
+    debug_session.request('setBreakpoints', [
+        {
+            'source': {'path': 'example.py'},
+            'breakpoints': [{'line': 3}, {'line': 5}]
+        }
+    ])
 ```
-
-Once all the initial setup is performed, we can start execution:
-```py
-debug_session.start_debugging()
-debug_session.wait_until(Event('stopped', some.dict.containing({'reason': 'breakpoint'})))
-```
-
-
+Once the with-statement exits, a "launch" or "attach" request with the appropriate configuration is issued, and actual debugging begins.
