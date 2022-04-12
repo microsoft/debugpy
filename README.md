@@ -1,5 +1,7 @@
 # debugpy - a debugger for Python
 
+An implementation of the [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/) for Python 3.
+
 [![Build Status](https://dev.azure.com/debugpy/debugpy/_apis/build/status/debugpy-test-automation?branchName=main)](https://dev.azure.com/debugpy/debugpy/_build/latest?definitionId=1&branchName=main)
 [![GitHub](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://raw.githubusercontent.com/microsoft/debugpy/main/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/debugpy.svg)](https://pypi.org/project/debugpy/)
@@ -12,8 +14,6 @@
 | Windows | ![Azure DevOps coverage](https://img.shields.io/azure-devops/coverage/debugpy/debugpy/2) |
 | Linux | ![Azure DevOps coverage](https://img.shields.io/azure-devops/coverage/debugpy/debugpy/3) |
 | Mac | ![Azure DevOps coverage](https://img.shields.io/azure-devops/coverage/debugpy/debugpy/4) |
-
-This debugger implements the Debug Adapter Protocol: [debugProtocol.json](https://github.com/microsoft/vscode-debugadapter-node/blob/master/debugProtocol.json)
 
 ## `debugpy` CLI Usage
 ### Debugging a script file
