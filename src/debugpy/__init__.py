@@ -22,6 +22,14 @@ __all__ = [
     "wait_for_client",
 ]
 
+import sys
+
+assert sys.version_info >= (3, 7), (
+    "Python 3.6 and below is not supported by this version of debugpy; "
+    "use debugpy 1.5.1 or earlier."
+)
+
+
 import codecs
 import os
 
