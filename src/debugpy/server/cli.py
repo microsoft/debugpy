@@ -16,7 +16,7 @@ assert "pydevd" in sys.modules
 import pydevd
 
 import debugpy
-from debugpy.common import compat, log
+from debugpy.common import log
 from debugpy.server import api
 
 
@@ -42,7 +42,7 @@ class Options(object):
     address = None
     log_to = None
     log_to_stderr = False
-    target = None  # unicode
+    target = None
     target_kind = None
     wait_for_client = False
     adapter_access_token = None
@@ -203,7 +203,7 @@ def parse_argv():
         except StopIteration:
             raise ValueError("missing target: " + TARGET)
 
-        switch = compat.filename(arg)
+        switch = arg
         if not switch.startswith("-"):
             switch = ""
         for pattern, placeholder, action in switches:
@@ -244,7 +244,7 @@ def start_debugging(argv_0):
     # We need to set up sys.argv[0] before invoking either listen() or connect(),
     # because they use it to report the "process" event. Thus, we can't rely on
     # run_path() and run_module() doing that, even though they will eventually.
-    sys.argv[0] = compat.filename_str(argv_0)
+    sys.argv[0] = argv_0
 
     log.debug("sys.argv after patching: {0!r}", sys.argv)
 
@@ -265,15 +265,13 @@ def run_file():
     target = options.target
     start_debugging(target)
 
-    target_as_str = compat.filename_str(target)
-
     # run_path has one difference with invoking Python from command-line:
     # if the target is a file (rather than a directory), it does not add its
     # parent directory to sys.path. Thus, importing other modules from the
     # same directory is broken unless sys.path is patched here.
 
-    if os.path.isfile(target_as_str):
-        dir = os.path.dirname(target_as_str)
+    if os.path.isfile(target):
+        dir = os.path.dirname(target)
         sys.path.insert(0, dir)
     else:
         log.debug("Not a file: {0!r}", target)
@@ -281,7 +279,7 @@ def run_file():
     log.describe_environment("Pre-launch environment:")
 
     log.info("Running file {0!r}", target)
-    runpy.run_path(target_as_str, run_name=compat.force_str("__main__"))
+    runpy.run_path(target, run_name="__main__")
 
 
 def run_module():
@@ -292,20 +290,14 @@ def run_module():
     # We want to do the same thing that run_module() would do here, without
     # actually invoking it.
     argv_0 = sys.argv[0]
-    target_as_str = compat.filename_str(options.target)
     try:
-        spec = find_spec(target_as_str)
+        spec = find_spec(options.target)
         if spec is not None:
             argv_0 = spec.origin
     except Exception:
         log.swallow_exception("Error determining module path for sys.argv")
 
     start_debugging(argv_0)
-
-    # On Python 2, module name must be a non-Unicode string, because it ends up
-    # a part of module's __package__, and Python will refuse to run the module
-    # if __package__ is Unicode.
-
     log.describe_environment("Pre-launch environment:")
     log.info("Running module {0!r}", options.target)
 
@@ -318,9 +310,9 @@ def run_module():
         run_module_as_main = runpy._run_module_as_main
     except AttributeError:
         log.warning("runpy._run_module_as_main is missing, falling back to run_module.")
-        runpy.run_module(target_as_str, alter_sys=True)
+        runpy.run_module(options.target, alter_sys=True)
     else:
-        run_module_as_main(target_as_str, alter_argv=True)
+        run_module_as_main(options.target, alter_argv=True)
 
 
 def run_code():

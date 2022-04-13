@@ -79,10 +79,10 @@ __all__ = [
     "tuple",
 ]
 
+import builtins
 import numbers
 import re
 
-from debugpy.common.compat import builtins
 from tests.patterns import _impl
 
 

@@ -2,10 +2,9 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+import inspect
 import os
 import sys
-
-from debugpy.common import compat
 
 
 def evaluate(code, path=__file__, mode="eval"):
@@ -59,8 +58,97 @@ class Env(dict):
             tail = ""
         self[key] = entry + tail
 
-    def for_popen(self):
-        """Returns a copy of this dict, with all strings converted to the type
-        suitable for subprocess.Popen() and other similar APIs.
-        """
-        return {compat.filename_str(k): compat.filename_str(v) for k, v in self.items()}
+
+def force_str(s, encoding, errors="strict"):
+    """Converts s to str, using the provided encoding. If s is already str,
+    it is returned as is.
+    """
+    return s.decode(encoding, errors) if isinstance(s, bytes) else str(s)
+
+
+def force_bytes(s, encoding, errors="strict"):
+    """Converts s to bytes, using the provided encoding. If s is already bytes,
+    it is returned as is.
+
+    If errors="strict" and s is bytes, its encoding is verified by decoding it;
+    UnicodeError is raised if it cannot be decoded.
+    """
+    if isinstance(s, str):
+        return s.encode(encoding, errors)
+    else:
+        s = bytes(s)
+        if errors == "strict":
+            # Return value ignored - invoked solely for verification.
+            s.decode(encoding, errors)
+        return s
+
+
+def force_ascii(s, errors="strict"):
+    """Same as force_bytes(s, "ascii", errors)
+    """
+    return force_bytes(s, "ascii", errors)
+
+
+def force_utf8(s, errors="strict"):
+    """Same as force_bytes(s, "utf8", errors)
+    """
+    return force_bytes(s, "utf8", errors)
+
+
+def nameof(obj, quote=False):
+    """Returns the most descriptive name of a Python module, class, or function,
+    as a Unicode string
+
+    If quote=True, name is quoted with repr().
+
+    Best-effort, but guaranteed to not fail - always returns something.
+    """
+
+    try:
+        name = obj.__qualname__
+    except Exception:
+        try:
+            name = obj.__name__
+        except Exception:
+            # Fall back to raw repr(), and skip quoting.
+            try:
+                name = repr(obj)
+            except Exception:
+                return "<unknown>"
+            else:
+                quote = False
+
+    if quote:
+        try:
+            name = repr(name)
+        except Exception:
+            pass
+
+    return force_str(name, "utf-8", "replace")
+
+
+def srcnameof(obj):
+    """Returns the most descriptive name of a Python module, class, or function,
+    including source information (filename and linenumber), if available.
+
+    Best-effort, but guaranteed to not fail - always returns something.
+    """
+
+    name = nameof(obj, quote=True)
+
+    # Get the source information if possible.
+    try:
+        src_file = inspect.getsourcefile(obj)
+    except Exception:
+        pass
+    else:
+        name += f" (file {src_file!r}"
+        try:
+            _, src_lineno = inspect.getsourcelines(obj)
+        except Exception:
+            pass
+        else:
+            name += f", line {src_lineno}"
+        name += ")"
+
+    return name

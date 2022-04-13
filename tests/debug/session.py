@@ -12,8 +12,7 @@ import sys
 import time
 
 import debugpy.adapter
-from debugpy.common import compat, json, log, messaging, sockets, util
-from debugpy.common.compat import unicode
+from debugpy.common import json, log, messaging, sockets, util
 import tests
 from tests import code, timeline, watchdog
 from tests.debug import comms, config, output
@@ -343,16 +342,15 @@ class Session(object):
         assert not len(self.captured_output - {"stdout", "stderr"})
 
         args = [exe] + [
-            compat.filename_str(s.strpath if isinstance(s, py.path.local) else s)
+            str(s.strpath if isinstance(s, py.path.local) else s)
             for s in args
         ]
 
-        cwd = compat.filename_str(cwd) if isinstance(cwd, py.path.local) else cwd
+        cwd = cwd.strpath if isinstance(cwd, py.path.local) else cwd
 
         env = self._make_env(self.spawn_debuggee.env, codecov=False)
-        env["DEBUGPY_ADAPTER_ENDPOINTS"] = self.adapter_endpoints = (
-            self.tmpdir / "adapter_endpoints"
-        )
+        self.adapter_endpoints = self.tmpdir / "adapter_endpoints"
+        env["DEBUGPY_ADAPTER_ENDPOINTS"] = self.adapter_endpoints.strpath
         if setup is not None:
             env["DEBUGPY_TEST_DEBUGGEE_SETUP"] = setup
 
@@ -376,7 +374,7 @@ class Session(object):
         self.debuggee = psutil.Popen(
             args,
             cwd=cwd,
-            env=env.for_popen(),
+            env=env,
             bufsize=0,
             stdin=subprocess.PIPE,
             **popen_fds
@@ -416,7 +414,7 @@ class Session(object):
             bufsize=0,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            env=env.for_popen(),
+            env=env,
         )
         log.info("Spawned {0} with PID={1}", self.adapter_id, self.adapter.pid)
         watchdog.register_spawn(self.adapter.pid, self.adapter_id)
@@ -497,9 +495,9 @@ class Session(object):
     def _process_request(self, request):
         self.timeline.record_request(request, block=False)
         if request.command == "runInTerminal":
-            args = request("args", json.array(unicode))
+            args = request("args", json.array(str))
             cwd = request("cwd", ".")
-            env = request("env", json.object(unicode))
+            env = request("env", json.object(str))
             try:
                 return self.run_in_terminal(args, cwd, env)
             except Exception as exc:
@@ -578,7 +576,7 @@ class Session(object):
         all the "output" events received for that category so far.
         """
         events = self.all_events("output", some.dict.containing({"category": category}))
-        return "".join(event("output", unicode) for event in events)
+        return "".join(event("output", str) for event in events)
 
     def _request_start(self, method):
         self.config.normalize()
@@ -718,7 +716,7 @@ class Session(object):
         )("variables", json.array())
 
         variables = collections.OrderedDict(
-            ((v("name", unicode), v) for v in variables)
+            ((v("name", str), v) for v in variables)
         )
         if varnames:
             assert set(varnames) <= set(variables.keys())
@@ -765,7 +763,7 @@ class Session(object):
             expected_stopped["text"] = expected_text
         if expected_description is not None:
             expected_stopped["description"] = expected_description
-        if stopped("reason", unicode) not in [
+        if stopped("reason", str) not in [
             "step",
             "exception",
             "breakpoint",

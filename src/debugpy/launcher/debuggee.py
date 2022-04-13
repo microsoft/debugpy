@@ -12,7 +12,7 @@ import sys
 import threading
 
 from debugpy import launcher
-from debugpy.common import log, messaging, compat
+from debugpy.common import log, messaging
 from debugpy.launcher import output
 
 if sys.platform == "win32":
@@ -147,7 +147,7 @@ def spawn(process_name, cmdline, env, redirect_output):
                 "isLocalProcess": True,
                 "systemProcessId": process.pid,
                 "name": process_name,
-                "pointerSize": struct.calcsize(compat.force_str("P")) * 8,
+                "pointerSize": struct.calcsize("P") * 8,
             },
         )
 

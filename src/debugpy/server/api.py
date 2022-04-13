@@ -11,7 +11,7 @@ import threading
 
 import debugpy
 from debugpy import adapter
-from debugpy.common import compat, json, log, sockets
+from debugpy.common import json, log, sockets
 from _pydevd_bundle.pydevd_constants import get_global_debugger
 from pydevd_file_utils import absolute_path
 
@@ -149,7 +149,7 @@ def listen(address, settrace_kwargs):
 
     import subprocess
 
-    server_access_token = compat.force_str(codecs.encode(os.urandom(32), "hex"))
+    server_access_token = codecs.encode(os.urandom(32), "hex").decode("ascii")
 
     try:
         endpoints_listener = sockets.create_server("127.0.0.1", 0, timeout=10)

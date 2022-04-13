@@ -25,7 +25,7 @@ def main(args):
         atexit.register(stderr.close)
 
     from debugpy import adapter
-    from debugpy.common import compat, json, log, sockets
+    from debugpy.common import json, log, sockets
     from debugpy.adapter import clients, servers, sessions
 
     if args.for_server is not None:
@@ -51,7 +51,7 @@ def main(args):
 
     servers.access_token = args.server_access_token
     if args.for_server is None:
-        adapter.access_token = compat.force_str(codecs.encode(os.urandom(32), "hex"))
+        adapter.access_token = codecs.encode(os.urandom(32), "hex").decode("ascii")
 
     endpoints = {}
     try:

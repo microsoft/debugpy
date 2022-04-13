@@ -65,9 +65,9 @@ def test_log_dir_env(pyfile, tmpdir, run, target):
     with check_logs(tmpdir, run, pydevd_log=True):
         with debug.Session() as session:
             session.log_dir = None
-            session.spawn_adapter.env["DEBUGPY_LOG_DIR"] = tmpdir
+            session.spawn_adapter.env["DEBUGPY_LOG_DIR"] = tmpdir.strpath
             if run.request != "launch":
-                session.spawn_debuggee.env["DEBUGPY_LOG_DIR"] = tmpdir
+                session.spawn_debuggee.env["DEBUGPY_LOG_DIR"] = tmpdir.strpath
 
             backchannel = session.open_backchannel()
             with run(session, target(code_to_debug)):

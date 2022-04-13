@@ -7,13 +7,12 @@ import sys
 
 import debugpy
 from debugpy import launcher
-from debugpy.common import compat, json
-from debugpy.common.compat import unicode
+from debugpy.common import json
 from debugpy.launcher import debuggee
 
 
 def launch_request(request):
-    debug_options = set(request("debugOptions", json.array(unicode)))
+    debug_options = set(request("debugOptions", json.array(str)))
 
     # Handling of properties that can also be specified as legacy "debugOptions" flags.
     # If property is explicitly set to false, but the flag is in "debugOptions", treat
@@ -36,13 +35,13 @@ def launch_request(request):
 
         return value
 
-    python = request("python", json.array(unicode, size=(1,)))
+    python = request("python", json.array(str, size=(1,)))
     cmdline = list(python)
 
     if not request("noDebug", json.default(False)):
         port = request("port", int)
         cmdline += [
-            compat.filename(os.path.dirname(debugpy.__file__)),
+            os.path.dirname(debugpy.__file__),
             "--connect",
             launcher.adapter_host + ":" + str(port),
         ]
@@ -58,11 +57,11 @@ def launch_request(request):
         )
         cmdline += ["--configure-qt", qt_mode]
 
-        adapter_access_token = request("adapterAccessToken", unicode, optional=True)
+        adapter_access_token = request("adapterAccessToken", str, optional=True)
         if adapter_access_token != ():
-            cmdline += ["--adapter-access-token", compat.filename(adapter_access_token)]
+            cmdline += ["--adapter-access-token", adapter_access_token]
 
-        debugpy_args = request("debugpyArgs", json.array(unicode))
+        debugpy_args = request("debugpyArgs", json.array(str))
         cmdline += debugpy_args
 
     # Further arguments can come via two channels: the launcher's own command line, or
@@ -70,12 +69,12 @@ def launch_request(request):
     # Arguments for debugpy (such as -m) always come via CLI, but those specified by the
     # user via "args" are passed differently by the adapter depending on "argsExpansion".
     cmdline += sys.argv[1:]
-    cmdline += request("args", json.array(unicode))
+    cmdline += request("args", json.array(str))
 
-    process_name = request("processName", compat.filename(sys.executable))
+    process_name = request("processName", sys.executable)
 
     env = os.environ.copy()
-    env_changes = request("env", json.object((unicode, type(None))))
+    env_changes = request("env", json.object((str, type(None))))
     if sys.platform == "win32":
         # Environment variables are case-insensitive on Win32, so we need to normalize
         # both dicts to make sure that env vars specified in the debug configuration

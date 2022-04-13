@@ -12,8 +12,7 @@ import py.path
 import re
 import sys
 
-from debugpy.common import compat
-from debugpy.common.compat import unicode, xrange
+from debugpy.common import util
 import pydevd_file_utils
 
 
@@ -166,26 +165,18 @@ class Path(Some):
     """Matches any string that matches the specified path.
 
     Uses os.path.normcase() to normalize both strings before comparison.
-
-    If one string is unicode, but the other one is not, both strings are normalized
-    to unicode using sys.getfilesystemencoding().
     """
 
     def __init__(self, path):
         if isinstance(path, py.path.local):
             path = path.strpath
-        if isinstance(path, bytes):
-            path = path.encode(sys.getfilesystemencoding())
-        assert isinstance(path, unicode)
+        assert isinstance(path, str)
         self.path = path
 
     def __repr__(self):
         return "path({self.path!r})"
 
     def __str__(self):
-        return compat.filename_str(self.path)
-
-    def __unicode__(self):
         return self.path
 
     def __getstate__(self):
@@ -195,7 +186,7 @@ class Path(Some):
         if isinstance(other, py.path.local):
             other = other.strpath
 
-        if isinstance(other, unicode):
+        if isinstance(other, str):
             pass
         elif isinstance(other, bytes):
             other = other.encode(sys.getfilesystemencoding())
@@ -242,8 +233,8 @@ class ListContaining(Some):
         # tuples of equal length with items - i.e. all potential subsequences. So,
         # given other=[1, 2, 3, 4, 5] and items=(2, 3, 4), we want to get a list
         # like [(1, 2, 3), (2, 3, 4), (3, 4, 5)] - and then search for items in it.
-        iters = [itertools.islice(other, i, None) for i in xrange(0, len(items))]
-        subseqs = compat.izip(*iters)
+        iters = [itertools.islice(other, i, None) for i in range(0, len(items))]
+        subseqs = zip(*iters)
         return any(subseq == items for subseq in subseqs)
 
 
@@ -302,7 +293,7 @@ class SuchThat(Also):
         try:
             return self.name
         except AttributeError:
-            return f"({self.pattern!r} if {compat.nameof(self.condition)})"
+            return f"({self.pattern!r} if {util.nameof(self.condition)})"
 
     def _also(self, value):
         return self.condition(value)
@@ -340,9 +331,6 @@ class EqualTo(Also):
 
     def __str__(self):
         return str(self.obj)
-
-    def __unicode__(self):
-        return unicode(self.obj)
 
     def __getstate__(self):
         return self.obj
@@ -386,7 +374,7 @@ class Matching(Also):
     """
 
     def __init__(self, pattern, regex, flags=0):
-        assert isinstance(regex, bytes) or isinstance(regex, unicode)
+        assert isinstance(regex, bytes) or isinstance(regex, str)
         super(Matching, self).__init__(pattern)
         self.regex = regex
         self.flags = flags
@@ -407,8 +395,8 @@ class Matching(Also):
             if not isinstance(value, bytes):
                 return NotImplemented
             regex += b"$"
-        elif isinstance(regex, unicode):
-            if not isinstance(value, unicode):
+        elif isinstance(regex, str):
+            if not isinstance(value, str):
                 return NotImplemented
             regex += "$"
         else:

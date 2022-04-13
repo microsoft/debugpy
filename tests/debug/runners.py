@@ -56,7 +56,7 @@ import pytest
 import sys
 
 import debugpy
-from debugpy.common import compat, json, log
+from debugpy.common import json, log
 from tests import net, timeline
 from tests.debug import session
 from tests.patterns import some
@@ -218,7 +218,7 @@ def attach_connect(session, target, method, cwd=None, wait=True, log_dir=None):
         args = [
             os.path.dirname(debugpy.__file__),
             "--listen",
-            compat.filename_str(host) + ":" + str(port),
+            f"{host}:{port}",
         ]
         if wait:
             args += ["--wait-for-client"]
@@ -282,7 +282,7 @@ def attach_listen(session, target, method, cwd=None, log_dir=None):
         args = [
             os.path.dirname(debugpy.__file__),
             "--connect",
-            compat.filename_str(host) + ":" + str(port),
+            f"{host}:{port}",
         ]
         if log_dir is not None:
             args += ["--log-to", log_dir]

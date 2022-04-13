@@ -10,7 +10,7 @@ import time
 
 import debugpy
 from debugpy import adapter
-from debugpy.common import compat, json, log, messaging, sockets
+from debugpy.common import json, log, messaging, sockets
 from debugpy.adapter import components
 
 
@@ -445,7 +445,7 @@ def inject(pid, debugpy_args):
 
     cmdline = [
         sys.executable,
-        compat.filename(os.path.dirname(debugpy.__file__)),
+        os.path.dirname(debugpy.__file__),
         "--connect",
         host + ":" + str(port),
     ]

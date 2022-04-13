@@ -14,7 +14,7 @@ import threading
 import traceback
 
 import debugpy
-from debugpy.common import compat, json, timestamp, util
+from debugpy.common import json, timestamp, util
 
 
 LEVELS = ("debug", "info", "warning", "error")
@@ -304,7 +304,7 @@ def describe_environment(header):
         except Exception:
             swallow_exception(
                 "Error evaluating {0}",
-                repr(expr) if expr else compat.srcnameof(get_paths),
+                repr(expr) if expr else util.srcnameof(get_paths),
             )
             return
 
@@ -331,7 +331,7 @@ def describe_environment(header):
         p
         for p in sys.path
         if os.path.exists(p)
-        and os.path.basename(p) == compat.filename_str("site-packages")
+        and os.path.basename(p) == "site-packages"
     ]
     report_paths(lambda: site_packages, "sys.path (site-packages)")
 
