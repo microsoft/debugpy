@@ -55,7 +55,7 @@ def test_shell_expansion(pyfile, target, run, expansion):
     class Session(debug.Session):
         def run_in_terminal(self, args, cwd, env):
             expand(args)
-            return super(Session, self).run_in_terminal(args, cwd, env)
+            return super().run_in_terminal(args, cwd, env)
 
     args = ["0", "$1", "2"]
     with Session() as session:

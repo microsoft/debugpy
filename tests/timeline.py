@@ -403,7 +403,7 @@ class Interval(tuple):
                 occs = occ.and_following(up_to=stop)
                 break
 
-        result = super(Interval, cls).__new__(cls, occs)
+        result = super().__new__(cls, occs)
         result.timeline = timeline
         result.start = start
         result.stop = stop
@@ -610,7 +610,7 @@ class SequencedExpectation(DerivativeExpectation):
     OPERATOR = ">>"
 
     def __init__(self, first, second):
-        super(SequencedExpectation, self).__init__(first, second)
+        super().__init__(first, second)
 
     @property
     def first(self):
@@ -717,7 +717,7 @@ class XorExpectation(DerivativeExpectation):
 class ConditionalExpectation(DerivativeExpectation):
     def __init__(self, expectation, condition):
         self.condition = condition
-        super(ConditionalExpectation, self).__init__(expectation)
+        super().__init__(expectation)
 
     @property
     def expectation(self):
@@ -980,7 +980,7 @@ class MessageOccurrence(Occurrence):
 
         # Assign message first for the benefit of self._data in child classes.
         self.message = message
-        super(MessageOccurrence, self).__init__(self.TYPE, self._key, self._data)
+        super().__init__(self.TYPE, self._key, self._data)
 
     @property
     def seq(self):
@@ -1032,7 +1032,7 @@ class EventOccurrence(MessageOccurrence):
 
     def __init__(self, message):
         assert isinstance(message, messaging.Event)
-        super(EventOccurrence, self).__init__(message)
+        super().__init__(message)
 
     @property
     def event(self):
@@ -1052,7 +1052,7 @@ class EventOccurrence(MessageOccurrence):
 
     @property
     def _id(self):
-        return super(EventOccurrence, self)._id + [("event", self.message.event)]
+        return super()._id + [("event", self.message.event)]
 
 
 class RequestOccurrence(MessageOccurrence):
@@ -1060,7 +1060,7 @@ class RequestOccurrence(MessageOccurrence):
 
     def __init__(self, message):
         assert isinstance(message, messaging.Request)
-        super(RequestOccurrence, self).__init__(message)
+        super().__init__(message)
         self.response = None
         if isinstance(message, messaging.OutgoingRequest):
             self.on_response = message.on_response
@@ -1083,7 +1083,7 @@ class RequestOccurrence(MessageOccurrence):
 
     @property
     def _id(self):
-        return super(RequestOccurrence, self)._id + [("command", self.message.command)]
+        return super()._id + [("command", self.message.command)]
 
     def wait_for_response(self, freeze=True, raise_if_failed=True):
         response = Response(self, some.object).wait_until_realized(freeze)
@@ -1104,7 +1104,7 @@ class ResponseOccurrence(MessageOccurrence):
         # Assign request first for the benefit of self._key.
         self.request = request_occ
         request_occ.response = self
-        super(ResponseOccurrence, self).__init__(message)
+        super().__init__(message)
 
     @property
     def body(self):
@@ -1128,7 +1128,7 @@ class ResponseOccurrence(MessageOccurrence):
 
     @property
     def _id(self):
-        return super(ResponseOccurrence, self)._id + [
+        return super()._id + [
             ("command", self.message.request.command),
             ("request_seq", self.message.request.seq),
         ]

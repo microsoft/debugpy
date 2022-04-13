@@ -29,7 +29,7 @@ class JsonIOError(IOError):
         cause = kwargs.pop("cause", None)
         if not len(args) and cause is not None:
             args = [str(cause)]
-        super(JsonIOError, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.stream = stream
         """The stream that couldn't be read or written.
@@ -51,7 +51,7 @@ class NoMoreMessages(JsonIOError, EOFError):
 
     def __init__(self, *args, **kwargs):
         args = args if len(args) else ["No more messages"]
-        super(NoMoreMessages, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
 class JsonIOStream(object):
@@ -326,9 +326,9 @@ class MessageDict(collections.OrderedDict):
         assert message is None or isinstance(message, Message)
 
         if items is None:
-            super(MessageDict, self).__init__()
+            super().__init__()
         else:
-            super(MessageDict, self).__init__(items)
+            super().__init__(items)
 
         self.message = message
         """The Message object that owns this dict.
@@ -548,7 +548,7 @@ class Event(Message):
     """
 
     def __init__(self, channel, seq, event, body, json=None):
-        super(Event, self).__init__(channel, seq, json)
+        super().__init__(channel, seq, json)
 
         self.event = event
 
@@ -642,7 +642,7 @@ class Request(Message):
     """
 
     def __init__(self, channel, seq, command, arguments, json=None):
-        super(Request, self).__init__(channel, seq, json)
+        super().__init__(channel, seq, json)
 
         self.command = command
 
@@ -753,7 +753,7 @@ class OutgoingRequest(Request):
     _parse = _handle = None
 
     def __init__(self, channel, seq, command, arguments):
-        super(OutgoingRequest, self).__init__(channel, seq, command, arguments)
+        super().__init__(channel, seq, command, arguments)
         self._response_handlers = []
 
     def describe(self):
@@ -862,7 +862,7 @@ class Response(Message):
     """
 
     def __init__(self, channel, seq, request, body, json=None):
-        super(Response, self).__init__(channel, seq, json)
+        super().__init__(channel, seq, json)
 
         self.request = request
         """The request to which this is the response."""
@@ -954,7 +954,7 @@ class Disconnect(Message):
     """
 
     def __init__(self, channel):
-        super(Disconnect, self).__init__(channel, None)
+        super().__init__(channel, None)
 
     def describe(self):
         return f"disconnect from {self.channel}"

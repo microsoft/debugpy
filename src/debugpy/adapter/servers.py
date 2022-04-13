@@ -255,7 +255,7 @@ class Server(components.Component):
         assert connection.server is None
         with session:
             assert not session.server
-            super(Server, self).__init__(session, channel=connection.channel)
+            super().__init__(session, channel=connection.channel)
 
             self.connection = connection
 
@@ -361,7 +361,7 @@ class Server(components.Component):
         with _lock:
             _connections.remove(self.connection)
             _connections_changed.set()
-        super(Server, self).disconnect()
+        super().disconnect()
 
 
 def serve(host="127.0.0.1", port=0):

@@ -12,7 +12,7 @@ ACCEPT_CONNECTIONS_TIMEOUT = 10
 
 class ComponentNotAvailable(Exception):
     def __init__(self, type):
-        super(ComponentNotAvailable, self).__init__(f"{type.__name__} is not available")
+        super().__init__(f"{type.__name__} is not available")
 
 
 class Component(util.Observable):
@@ -40,7 +40,7 @@ class Component(util.Observable):
         finally:
             session.lock.release()
 
-        super(Component, self).__init__()
+        super().__init__()
 
         self.session = session
 

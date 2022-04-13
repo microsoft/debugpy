@@ -30,7 +30,7 @@ class Session(util.Observable):
     def __init__(self):
         from debugpy.adapter import clients
 
-        super(Session, self).__init__()
+        super().__init__()
 
         self.lock = threading.RLock()
         self.id = next(self._counter)

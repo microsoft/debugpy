@@ -273,7 +273,7 @@ class SuchThat(Also):
     """Matches only if condition is true."""
 
     def __init__(self, pattern, condition):
-        super(SuchThat, self).__init__(pattern)
+        super().__init__(pattern)
         self.condition = condition
 
     def __repr__(self):
@@ -290,7 +290,7 @@ class InRange(Also):
     """Matches only if the value is within the specified range."""
 
     def __init__(self, pattern, start, stop):
-        super(InRange, self).__init__(pattern)
+        super().__init__(pattern)
         self.start = start
         self.stop = stop
 
@@ -308,7 +308,7 @@ class EqualTo(Also):
     """Matches any object that is equal to the specified object."""
 
     def __init__(self, pattern, obj):
-        super(EqualTo, self).__init__(pattern)
+        super().__init__(pattern)
         self.obj = obj
 
     def __repr__(self):
@@ -328,7 +328,7 @@ class NotEqualTo(Also):
     """Matches any object that is not equal to the specified object."""
 
     def __init__(self, pattern, obj):
-        super(NotEqualTo, self).__init__(pattern)
+        super().__init__(pattern)
         self.obj = obj
 
     def __repr__(self):
@@ -342,7 +342,7 @@ class SameAs(Also):
     """Matches one specific object only (i.e. makes '==' behave like 'is')."""
 
     def __init__(self, pattern, obj):
-        super(SameAs, self).__init__(pattern)
+        super().__init__(pattern)
         self.obj = obj
 
     def __repr__(self):
@@ -357,7 +357,7 @@ class Matching(Also):
 
     def __init__(self, pattern, regex, flags=0):
         assert isinstance(regex, bytes) or isinstance(regex, str)
-        super(Matching, self).__init__(pattern)
+        super().__init__(pattern)
         self.regex = regex
         self.flags = flags
 
