@@ -7,7 +7,6 @@
 
 import py.path
 
-from debugpy.common.compat import unicode
 from tests import code
 from tests.patterns import some, _impl
 
@@ -33,14 +32,14 @@ def frame(source, line, **kwargs):
 
     If source is py.path.local, it's automatically wrapped with some.dap.source().
 
-    If line is unicode, it is treated as a line marker, and translated to a line
+    If line is str, it is treated as a line marker, and translated to a line
     number via get_marked_line_numbers(source["path"]) if possible.
     """
 
     if isinstance(source, py.path.local):
         source = some.dap.source(source)
 
-    if isinstance(line, unicode):
+    if isinstance(line, str):
         if isinstance(source, dict):
             path = source["path"]
         elif isinstance(source, _impl.DictContaining):

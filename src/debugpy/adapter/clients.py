@@ -8,8 +8,7 @@ import sys
 
 import debugpy
 from debugpy import adapter, common, launcher
-from debugpy.common import compat, json, log, messaging, sockets
-from debugpy.common.compat import unicode
+from debugpy.common import json, log, messaging, sockets
 from debugpy.adapter import components, servers, sessions
 
 
@@ -202,7 +201,7 @@ class Client(components.Component):
                 servers.dont_wait_for_first_connection()
 
             self.session.debug_options = debug_options = set(
-                request("debugOptions", json.array(unicode))
+                request("debugOptions", json.array(str))
             )
 
             f(self, request)
@@ -293,7 +292,7 @@ class Client(components.Component):
         if self.session.id != 1 or len(servers.connections()):
             raise request.cant_handle('"attach" expected')
 
-        debug_options = set(request("debugOptions", json.array(unicode)))
+        debug_options = set(request("debugOptions", json.array(str)))
 
         # Handling of properties that can also be specified as legacy "debugOptions" flags.
         # If property is explicitly set to false, but the flag is in "debugOptions", treat
@@ -326,29 +325,29 @@ class Client(components.Component):
                 )
         elif "pythonPath" in request:
             python_key = "pythonPath"
-        python = request(python_key, json.array(unicode, vectorize=True, size=(0,)))
+        python = request(python_key, json.array(str, vectorize=True, size=(0,)))
         if not len(python):
-            python = [compat.filename(sys.executable)]
+            python = [sys.executable]
 
-        python += request("pythonArgs", json.array(unicode, size=(0,)))
+        python += request("pythonArgs", json.array(str, size=(0,)))
         request.arguments["pythonArgs"] = python[1:]
         request.arguments["python"] = python
 
-        launcher_python = request("debugLauncherPython", unicode, optional=True)
+        launcher_python = request("debugLauncherPython", str, optional=True)
         if launcher_python == ():
             launcher_python = python[0]
 
         program = module = code = ()
         if "program" in request:
-            program = request("program", unicode)
+            program = request("program", str)
             args = [program]
             request.arguments["processName"] = program
         if "module" in request:
-            module = request("module", unicode)
+            module = request("module", str)
             args = ["-m", module]
             request.arguments["processName"] = module
         if "code" in request:
-            code = request("code", json.array(unicode, vectorize=True, size=(1,)))
+            code = request("code", json.array(str, vectorize=True, size=(1,)))
             args = ["-c", "\n".join(code)]
             request.arguments["processName"] = "-c"
 
@@ -367,10 +366,10 @@ class Client(components.Component):
             "argsExpansion", json.enum("shell", "none", optional=True)
         )
         if args_expansion == "shell":
-            args += request("args", json.array(unicode))
+            args += request("args", json.array(str))
             request.arguments.pop("args", None)
 
-        cwd = request("cwd", unicode, optional=True)
+        cwd = request("cwd", str, optional=True)
         if cwd == ():
             # If it's not specified, but we're launching a file rather than a module,
             # and the specified path has a directory in it, use that.
@@ -421,11 +420,11 @@ class Client(components.Component):
         if self.session.no_debug:
             raise request.isnt_valid('"noDebug" is not supported for "attach"')
 
-        host = request("host", unicode, optional=True)
+        host = request("host", str, optional=True)
         port = request("port", int, optional=True)
         listen = request("listen", dict, optional=True)
         connect = request("connect", dict, optional=True)
-        pid = request("processId", (int, unicode), optional=True)
+        pid = request("processId", (int, str), optional=True)
         sub_pid = request("subProcessId", int, optional=True)
 
         if host != () or port != ():
@@ -494,7 +493,7 @@ class Client(components.Component):
                     pid = int(pid)
                 except Exception:
                     raise request.isnt_valid('"processId" must be parseable as int')
-            debugpy_args = request("debugpyArgs", json.array(unicode))
+            debugpy_args = request("debugpyArgs", json.array(str))
             servers.inject(pid, debugpy_args)
             timeout = common.PROCESS_SPAWN_TIMEOUT
             pred = lambda conn: conn.pid == pid

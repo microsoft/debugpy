@@ -275,15 +275,12 @@ def test_return_values(pyfile, target, run, ret_vis):
 
 
 # On Python 3, variable names can contain Unicode characters.
-# On Python 2, they must be ASCII, but using a Unicode character in an expression should not crash debugger.
 def test_unicode(pyfile, target, run):
     @pyfile
     def code_to_debug():
         import debuggee
         import debugpy
 
-        # Since Unicode variable name is a SyntaxError at parse time in Python 2,
-        # this needs to do a roundabout way of setting it to avoid parse issues.
         globals()["\u16A0"] = 123
         debuggee.setup()
         debugpy.breakpoint()
@@ -634,8 +631,8 @@ def test_evaluate_thread_locks(pyfile, target, run):
         """
 
         import debuggee
+        import queue
         import threading
-        from debugpy.common.compat import queue
 
         debuggee.setup()
 

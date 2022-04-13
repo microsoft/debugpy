@@ -5,10 +5,10 @@
 import collections
 import contextlib
 import itertools
+import queue
 import threading
 
-from debugpy.common import compat, json, log, messaging, timestamp
-from debugpy.common.compat import queue
+from debugpy.common import json, log, messaging, timestamp
 
 from tests.patterns import some
 
@@ -831,7 +831,7 @@ def Response(request, body=some.object):
     elif body is some.error or body == some.error:
         items += (("success", False),)
         if body == some.error:
-            items += (("message", compat.force_str(body)),)
+            items += (("message", str(body)),)
     else:
         items += (("body", body),)
 

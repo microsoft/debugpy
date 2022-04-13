@@ -4,7 +4,6 @@
 
 import pytest
 
-from debugpy.common import compat
 from tests import code, debug, log, net, test_data
 from tests.debug import runners, targets
 from tests.patterns import some
@@ -50,7 +49,7 @@ def test_django_breakpoint_no_multiproc(start_django, bp_target):
         "code": (paths.app_py, lines.app_py["bphome"], "home"),
         "template": (paths.hello_html, 8, "Django Template"),
     }[bp_target]
-    bp_var_content = compat.force_str("Django-Django-Test")
+    bp_var_content = "Django-Django-Test"
 
     with debug.Session() as session:
         with start_django(session):
@@ -79,7 +78,7 @@ def test_django_breakpoint_no_multiproc(start_django, bp_target):
                 {
                     "name": "content",
                     "type": "str",
-                    "value": compat.unicode_repr(bp_var_content),
+                    "value": repr(bp_var_content),
                     "presentationHint": {"attributes": ["rawString"]},
                     "evaluateName": "content",
                     "variablesReference": 0,
@@ -188,7 +187,7 @@ def test_django_exception_no_multiproc(start_django, exc_type):
 
 def test_django_breakpoint_multiproc(start_django):
     bp_line = lines.app_py["bphome"]
-    bp_var_content = compat.force_str("Django-Django-Test")
+    bp_var_content = "Django-Django-Test"
 
     with debug.Session() as parent_session:
         with start_django(parent_session, multiprocess=True):
@@ -214,7 +213,7 @@ def test_django_breakpoint_multiproc(start_django):
                     {
                         "name": "content",
                         "type": "str",
-                        "value": compat.unicode_repr(bp_var_content),
+                        "value": repr(bp_var_content),
                         "presentationHint": {"attributes": ["rawString"]},
                         "evaluateName": "content",
                     }

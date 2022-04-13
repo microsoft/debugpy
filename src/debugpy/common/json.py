@@ -5,6 +5,7 @@
 """Improved JSON serialization.
 """
 
+import builtins
 import json
 import operator
 
@@ -23,9 +24,10 @@ class JsonEncoder(json.JSONEncoder):
         try:
             get_state = value.__getstate__
         except AttributeError:
-            return super(JsonEncoder, self).default(value)
+            pass
         else:
             return get_state()
+        return super(JsonEncoder, self).default(value)
 
 
 class JsonObject(object):
@@ -40,10 +42,14 @@ class JsonObject(object):
     """The default encoder used by __format__ when format_spec is empty."""
 
     def __init__(self, value):
+        assert not isinstance(value, JsonObject)
         self.value = value
 
+    def __getstate__(self):
+        raise NotImplementedError
+
     def __repr__(self):
-        return repr(self.value)
+        return builtins.repr(self.value)
 
     def __str__(self):
         return format(self)

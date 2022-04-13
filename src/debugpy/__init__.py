@@ -26,7 +26,6 @@ import codecs
 import os
 
 from debugpy import _version
-from debugpy.common import compat
 
 
 # Expose debugpy.server API from subpackage, but do not actually import it unless
@@ -111,8 +110,7 @@ def listen(address):
     return api.listen(address)
 
 
-@compat.kwonly
-def connect(address, access_token=None):
+def connect(address, *, access_token=None):
     """Tells an existing debug adapter instance that is listening on the
     specified address to debug this process.
 

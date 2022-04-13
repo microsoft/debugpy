@@ -86,27 +86,27 @@ class CapturedOutput(object):
     def stdout(self, encoding=None):
         """Returns stdout captured from the debugged process, as a single string.
 
-        If encoding is None, returns bytes. Otherwise, returns unicode.
+        If encoding is None, returns bytes. Otherwise, returns str.
         """
         return self._output("stdout", encoding, lines=False)
 
     def stderr(self, encoding=None):
         """Returns stderr captured from the debugged process, as a single string.
 
-        If encoding is None, returns bytes. Otherwise, returns unicode.
+        If encoding is None, returns bytes. Otherwise, returns str.
         """
         return self._output("stderr", encoding, lines=False)
 
     def stdout_lines(self, encoding=None):
         """Returns stdout captured from the debugged process, as a list of lines.
 
-        If encoding is None, each line is bytes. Otherwise, each line is unicode.
+        If encoding is None, each line is bytes. Otherwise, each line is str.
         """
         return self._output("stdout", encoding, lines=True)
 
     def stderr_lines(self, encoding=None):
         """Returns stderr captured from the debugged process, as a list of lines.
 
-        If encoding is None, each line is bytes. Otherwise, each line is unicode.
+        If encoding is None, each line is bytes. Otherwise, each line is str.
         """
         return self._output("stderr", encoding, lines=True)

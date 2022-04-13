@@ -12,7 +12,7 @@ import socket
 import threading
 import time
 
-from debugpy.common import compat, log
+from debugpy.common import log, util
 from tests.patterns import some
 
 
@@ -29,7 +29,7 @@ def get_test_server_port(start, stop):
     """
 
     try:
-        worker_id = compat.force_ascii(os.environ["PYTEST_XDIST_WORKER"])
+        worker_id = util.force_ascii(os.environ["PYTEST_XDIST_WORKER"])
     except KeyError:
         n = 0
     else:
@@ -56,7 +56,7 @@ def wait_until_port_is_listening(port, interval=1, max_attempts=1000):
     Connection is immediately closed before returning.
     """
 
-    for i in compat.xrange(1, max_attempts + 1):
+    for i in range(1, max_attempts + 1):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             log.info("Probing localhost:{0} (attempt {1})...", port, i)

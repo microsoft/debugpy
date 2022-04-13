@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 from debugpy import adapter, common
-from debugpy.common import compat, json, log, messaging, sockets
+from debugpy.common import json, log, messaging, sockets
 from debugpy.adapter import components, servers
 
 
@@ -112,7 +112,7 @@ def spawn_debuggee(
         cmdline += args
 
         if log.log_dir is not None:
-            env[str("DEBUGPY_LOG_DIR")] = compat.filename_str(log.log_dir)
+            env[str("DEBUGPY_LOG_DIR")] = log.log_dir
         if log.stderr.levels != {"warning", "error"}:
             env[str("DEBUGPY_LOG_STDERR")] = str(" ".join(log.stderr.levels))
 
@@ -121,7 +121,7 @@ def spawn_debuggee(
             try:
                 for i, arg in enumerate(cmdline):
                     try:
-                        cmdline[i] = compat.filename_str(arg)
+                        cmdline[i] = arg
                     except UnicodeEncodeError as exc:
                         raise start_request.cant_handle(
                             "Invalid command line argument {0}: {1}", json.repr(arg), exc

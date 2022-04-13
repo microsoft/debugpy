@@ -26,8 +26,7 @@ def cli(pyfile):
             os.write(1, pickle.dumps(exc))
             sys.exit(1)
 
-        # Check that sys.argv has the correct type after parsing - there should be
-        # no bytes on Python 3, nor unicode on Python 2.
+        # Check that sys.argv has the correct type after parsing - there should be no bytes.
         assert all(isinstance(s, str) for s in sys.argv)
 
         # We only care about options that correspond to public switches.

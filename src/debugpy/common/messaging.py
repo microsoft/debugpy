@@ -18,8 +18,7 @@ import socket
 import sys
 import threading
 
-from debugpy.common import compat, json, log
-from debugpy.common.compat import unicode
+from debugpy.common import json, log, util
 
 
 class JsonIOError(IOError):
@@ -157,16 +156,10 @@ class JsonIOStream(object):
             finally:
                 self._cleanup()
         except Exception:
-            # On Python 2, close() will raise an exception if there is a concurrent
-            # read() or write(), which is a common and expected occurrence with
-            # JsonMessageChannel, so don't even bother logging it.
             log.reraise_exception("Error while closing {0} message stream", self.name)
 
     def _log_message(self, dir, data, logger=log.debug):
-        format_string = "{0} {1} " + (
-            "{2:indent=None}" if isinstance(data, list) else "{2}"
-        )
-        return logger(format_string, self.name, dir, json.repr(data))
+        return logger("{0} {1} {2}", self.name, dir, data)
 
     def _read_line(self, reader):
         line = b""
@@ -277,7 +270,7 @@ class JsonIOStream(object):
 
         Value is written as encoded by encoder.encode().
         """
-
+       
         if self._closed:
             # Don't log this - it's a common pattern to write to a stream while
             # anticipating EOFError from it in case it got closed concurrently.
@@ -293,9 +286,8 @@ class JsonIOStream(object):
         try:
             body = encoder.encode(value)
         except Exception:
-            self._log_message("<--", value, logger=log.reraise_exception)
-        if not isinstance(body, bytes):
-            body = body.encode("utf-8")
+            self._log_message("<--", repr(value), logger=log.reraise_exception)
+        body = body.encode("utf-8")
 
         header = f"Content-Length: {len(body)}\r\n\r\n".encode("ascii")
         data = header + body
@@ -355,7 +347,10 @@ class MessageDict(collections.OrderedDict):
         """
 
     def __repr__(self):
-        return json.repr(self)
+        try:
+            return format(json.repr(self))
+        except Exception:
+            return super().__repr__()
 
     def __call__(self, key, validate, optional=False):
         """Like get(), but with validation.
@@ -583,7 +578,7 @@ class Event(Message):
     @staticmethod
     def _parse(channel, message_dict):
         seq = message_dict("seq", int)
-        event = message_dict("event", unicode)
+        event = message_dict("event", str)
         body = message_dict("body", _payload)
         message = Event(channel, seq, event, body, json=message_dict)
         channel._enqueue_handlers(message, message._handle)
@@ -595,20 +590,20 @@ class Event(Message):
             try:
                 result = handler(self)
                 assert result is None, \
-                    f"Handler {compat.srcnameof(handler)} tried to respond to {self.describe()}."
+                    f"Handler {util.srcnameof(handler)} tried to respond to {self.describe()}."
             except MessageHandlingError as exc:
                 if not exc.applies_to(self):
                     raise
                 log.error(
                     "Handler {0}\ncouldn't handle {1}:\n{2}",
-                    compat.srcnameof(handler),
+                    util.srcnameof(handler),
                     self.describe(),
                     str(exc),
                 )
         except Exception:
             log.reraise_exception(
                 "Handler {0}\ncouldn't handle {1}:",
-                compat.srcnameof(handler),
+                util.srcnameof(handler),
                 self.describe(),
             )
 
@@ -688,16 +683,7 @@ class Request(Message):
 
         if isinstance(body, Exception):
             d["success"] = False
-            err_text = str(body)
-            try:
-                err_text = compat.force_unicode(err_text, "utf-8")
-            except Exception:
-                # On Python 2, the error message might not be Unicode, and we don't
-                # really know what encoding it is. So if treating it as UTF-8 failed,
-                # use repr() as a fallback - it should escape all non-ASCII chars in
-                # the string.
-                err_text = compat.force_unicode(repr(body), "ascii", errors="replace")
-            d["message"] = err_text
+            d["message"] = str(body)
         else:
             d["success"] = True
             if body is not None and body != {}:
@@ -710,7 +696,7 @@ class Request(Message):
     @staticmethod
     def _parse(channel, message_dict):
         seq = message_dict("seq", int)
-        command = message_dict("command", unicode)
+        command = message_dict("command", str)
         arguments = message_dict("arguments", _payload)
         message = Request(channel, seq, command, arguments, json=message_dict)
         channel._enqueue_handlers(message, message._handle)
@@ -727,7 +713,7 @@ class Request(Message):
                 result = exc
                 log.error(
                     "Handler {0}\ncouldn't handle {1}:\n{2}",
-                    compat.srcnameof(handler),
+                    util.srcnameof(handler),
                     self.describe(),
                     str(exc),
                 )
@@ -736,7 +722,7 @@ class Request(Message):
                 assert self.response is None, (
                     "Handler {0} for {1} must not return NO_RESPONSE if it has already "
                     "invoked request.respond().".format(
-                        compat.srcnameof(handler),
+                        util.srcnameof(handler),
                         self.describe()
                     )
                 )
@@ -744,7 +730,7 @@ class Request(Message):
                 assert result is None or result is self.response.body, (
                     "Handler {0} for {1} must not return a response body if it has "
                     "already invoked request.respond().".format(
-                        compat.srcnameof(handler),
+                        util.srcnameof(handler),
                         self.describe()
                     )
                 )
@@ -752,7 +738,7 @@ class Request(Message):
                 assert result is not None, (
                     "Handler {0} for {1} must either call request.respond() before it "
                     "returns, or return the response body, or return NO_RESPONSE.".format(
-                        compat.srcnameof(handler),
+                        util.srcnameof(handler),
                         self.describe()
                     )
                 )
@@ -761,14 +747,14 @@ class Request(Message):
                 except NoMoreMessages:
                     log.warning(
                         "Channel was closed before the response from handler {0} to {1} could be sent",
-                        compat.srcnameof(handler),
+                        util.srcnameof(handler),
                         self.describe(),
                     )
 
         except Exception:
             log.reraise_exception(
                 "Handler {0}\ncouldn't handle {1}:",
-                compat.srcnameof(handler),
+                util.srcnameof(handler),
                 self.describe(),
             )
 
@@ -844,14 +830,14 @@ class OutgoingRequest(Request):
                             raise
                         log.error(
                             "Handler {0}\ncouldn't handle {1}:\n{2}",
-                            compat.srcnameof(handler),
+                            util.srcnameof(handler),
                             response.describe(),
                             str(exc),
                         )
                 except Exception:
                     log.reraise_exception(
                         "Handler {0}\ncouldn't handle {1}:",
-                        compat.srcnameof(handler),
+                        util.srcnameof(handler),
                         response.describe(),
                     )
 
@@ -937,13 +923,13 @@ class Response(Message):
     def _parse(channel, message_dict, body=None):
         seq = message_dict("seq", int) if (body is None) else None
         request_seq = message_dict("request_seq", int)
-        command = message_dict("command", unicode)
+        command = message_dict("command", str)
         success = message_dict("success", bool)
         if body is None:
             if success:
                 body = message_dict("body", _payload)
             else:
-                error_message = message_dict("message", unicode)
+                error_message = message_dict("message", str)
                 exc_type = MessageHandlingError
                 if error_message.startswith(InvalidMessageError.PREFIX):
                     error_message = error_message[len(InvalidMessageError.PREFIX) :]
@@ -1326,7 +1312,7 @@ class JsonMessageChannel(object):
             log.debug("Exiting message loop for channel {0}: {1}", self, exc)
             with self:
                 # Generate dummy responses for all outstanding requests.
-                err_message = compat.force_unicode(str(exc), "utf-8", errors="replace")
+                err_message = str(exc)
 
                 # Response._parse() will remove items from _sent_requests, so
                 # make a snapshot before iterating.
@@ -1502,7 +1488,7 @@ class JsonMessageChannel(object):
 
         raise AttributeError(
             "handler object {0} for channel {1} has no handler for {2} {3!r}".format(
-                compat.srcnameof(handlers),
+                util.srcnameof(handlers),
                 self,
                 type,
                 name,
@@ -1516,7 +1502,7 @@ class JsonMessageChannel(object):
         except Exception:
             log.reraise_exception(
                 "Handler {0}\ncouldn't handle disconnect from {1}:",
-                compat.srcnameof(handler),
+                util.srcnameof(handler),
                 self,
             )
 

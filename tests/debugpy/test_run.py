@@ -330,15 +330,12 @@ def test_frame_eval(pyfile, target, run, frame_eval):
 
 @pytest.mark.parametrize("run", [runners.all_launch[0]])
 def test_unicode_dir(tmpdir, run, target):
-    from debugpy.common import compat
-
     unicode_chars = "á"
 
-    directory = os.path.join(compat.force_unicode(str(tmpdir), "ascii"), unicode_chars)
-    directory = compat.filename_str(directory)
+    directory = os.path.join(str(tmpdir), unicode_chars)
     os.makedirs(directory)
 
-    code_to_debug = os.path.join(directory, compat.filename_str("experiment.py"))
+    code_to_debug = os.path.join(directory, "experiment.py")
     with open(code_to_debug, "wb") as stream:
         stream.write(
             b"""
@@ -352,7 +349,7 @@ backchannel.send('ok')
 
     with debug.Session() as session:
         backchannel = session.open_backchannel()
-        with run(session, target(compat.filename_str(code_to_debug))):
+        with run(session, target(code_to_debug)):
             pass
 
         received = backchannel.receive()

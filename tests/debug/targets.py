@@ -5,7 +5,7 @@
 import py
 import os
 
-from debugpy.common import compat, json
+from debugpy.common import json
 from tests.patterns import some
 
 
@@ -102,7 +102,7 @@ class Program(Target):
 
     def _get_relative_program(self):
         assert self._cwd
-        relative_filename = compat.filename(self.filename.strpath)[len(self._cwd) :]
+        relative_filename = self.filename.strpath[len(self._cwd) :]
         assert not relative_filename.startswith(("/", "\\"))
         return relative_filename
 
@@ -110,14 +110,14 @@ class Program(Target):
         if self._cwd:
             return f"program (relative) {json.repr(self._cwd)} / {json.repr(self._get_relative_program())}"
         else:
-            return f"program {json.repr(compat.filename(self.filename.strpath))}"
+            return f"program {json.repr(self.filename.strpath)}"
 
     def configure(self, session):
         if self._cwd:
             session.config["cwd"] = self._cwd
             session.config["program"] = self._get_relative_program()
         else:
-            session.config["program"] = compat.filename(self.filename.strpath)
+            session.config["program"] = self.filename.strpath
 
         session.config["args"] = self.args
 

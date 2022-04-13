@@ -10,7 +10,7 @@ import sys
 import threading
 import types
 
-from debugpy.common import compat, log, timestamp
+from debugpy.common import log, timestamp
 import tests
 from tests import code, logs
 from tests.debug import runners, session, targets
@@ -151,7 +151,7 @@ else:
     def long_tmpdir(request, tmpdir):
         """Like tmpdir, but ensures that it's a long rather than short filename on Win32.
         """
-        path = compat.filename(tmpdir.strpath)
+        path = tmpdir.strpath
         buffer = ctypes.create_unicode_buffer(512)
         if GetLongPathNameW(path, buffer, len(buffer)):
             path = buffer.value
@@ -222,7 +222,7 @@ def pyfile(request, long_tmpdir):
 
         # Write it to file.
         tmpfile = long_tmpdir / (name + ".py")
-        tmpfile.strpath = compat.filename(tmpfile.strpath)
+        tmpfile.strpath = tmpfile.strpath
         assert not tmpfile.check()
         tmpfile.write(source)
 
