@@ -133,11 +133,11 @@ def test_matching():
     log_repr(pattern)
     assert pattern != "abbbc"
 
-    pattern = some.bytes.matching(br".(b+).")
+    pattern = some.bytes.matching(rb".(b+).")
     log_repr(pattern)
     assert pattern == b"abbbc"
 
-    pattern = some.bytes.matching(br"bbb")
+    pattern = some.bytes.matching(rb"bbb")
     log_repr(pattern)
     assert pattern != b"abbbc"
 

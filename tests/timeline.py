@@ -951,7 +951,9 @@ class Occurrence(Expectation):
         return hash(id(self))
 
     def __repr__(self):
-        return ("" if self.observed else "*") + f"{self.index}.{self.describe_circumstances()}"
+        return (
+            "" if self.observed else "*"
+        ) + f"{self.index}.{self.describe_circumstances()}"
 
     def describe_circumstances(self):
         rest = repr(self.circumstances[1:])

@@ -110,9 +110,7 @@ if 'debugpy' not in sys.modules:
                     return
 
                 if any(conn.pid == self.pid for conn in _connections):
-                    raise KeyError(
-                        f"{self} is already connected to this adapter"
-                    )
+                    raise KeyError(f"{self} is already connected to this adapter")
 
                 is_first_server = len(_connections) == 0
                 _connections.append(self)
@@ -468,7 +466,9 @@ def inject(pid, debugpy_args):
             "Failed to inject debug server into process with PID={0}", pid
         )
         raise messaging.MessageHandlingError(
-                "Failed to inject debug server into process with PID={0}: {1}".format(pid, exc)
+            "Failed to inject debug server into process with PID={0}: {1}".format(
+                pid, exc
+            )
         )
 
     # We need to capture the output of the injector - otherwise it can get blocked
@@ -483,7 +483,8 @@ def inject(pid, debugpy_args):
         log.info("Injector[PID={0}] exited.", pid)
 
     thread = threading.Thread(
-        target=capture_output, name=f"Injector[PID={pid}] output",
+        target=capture_output,
+        name=f"Injector[PID={pid}] output",
     )
     thread.daemon = True
     thread.start()

@@ -33,13 +33,11 @@ class Observable(object):
 
 
 class Env(dict):
-    """A dict for environment variables.
-    """
+    """A dict for environment variables."""
 
     @staticmethod
     def snapshot():
-        """Returns a snapshot of the current environment.
-        """
+        """Returns a snapshot of the current environment."""
         return Env(os.environ)
 
     def copy(self, updated_from=None):
@@ -84,14 +82,12 @@ def force_bytes(s, encoding, errors="strict"):
 
 
 def force_ascii(s, errors="strict"):
-    """Same as force_bytes(s, "ascii", errors)
-    """
+    """Same as force_bytes(s, "ascii", errors)"""
     return force_bytes(s, "ascii", errors)
 
 
 def force_utf8(s, errors="strict"):
-    """Same as force_bytes(s, "utf8", errors)
-    """
+    """Same as force_bytes(s, "utf8", errors)"""
     return force_bytes(s, "utf8", errors)
 
 

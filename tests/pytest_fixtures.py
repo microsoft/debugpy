@@ -139,7 +139,6 @@ if sys.platform != "win32":
     def long_tmpdir(request, tmpdir):
         return tmpdir
 
-
 else:
     import ctypes
 
@@ -149,8 +148,7 @@ else:
 
     @pytest.fixture
     def long_tmpdir(request, tmpdir):
-        """Like tmpdir, but ensures that it's a long rather than short filename on Win32.
-        """
+        """Like tmpdir, but ensures that it's a long rather than short filename on Win32."""
         path = tmpdir.strpath
         buffer = ctypes.create_unicode_buffer(512)
         if GetLongPathNameW(path, buffer, len(buffer)):

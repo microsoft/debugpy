@@ -34,7 +34,7 @@ def get_test_server_port(start, stop):
         n = 0
     else:
         assert worker_id == some.bytes.matching(
-            br"gw(\d+)"
+            rb"gw(\d+)"
         ), "Unrecognized PYTEST_XDIST_WORKER format"
         n = int(worker_id[2:])
 
@@ -75,8 +75,7 @@ def wait_until_port_is_listening(port, interval=1, max_attempts=1000):
 
 
 class WebRequest(object):
-    """An async wrapper around requests.
-    """
+    """An async wrapper around requests."""
 
     @staticmethod
     def get(*args, **kwargs):
@@ -136,8 +135,7 @@ class WebRequest(object):
             )
 
     def wait_for_response(self, timeout=None):
-        """Blocks until the request completes, and returns self.request.
-        """
+        """Blocks until the request completes, and returns self.request."""
         if self._worker_thread.is_alive():
             log.info("Waiting for response to {0} ...", self)
             self._worker_thread.join(timeout)
@@ -147,22 +145,19 @@ class WebRequest(object):
         return self.request
 
     def response_text(self):
-        """Blocks until the request completes, and returns the response body.
-        """
+        """Blocks until the request completes, and returns the response body."""
         return self.wait_for_response().text
 
 
 class WebServer(object):
-    """Interacts with a web server listening on localhost on the specified port.
-    """
+    """Interacts with a web server listening on localhost on the specified port."""
 
     def __init__(self, port):
         self.port = port
         self.url = f"http://localhost:{port}"
 
     def __enter__(self):
-        """Blocks until the server starts listening on self.port.
-        """
+        """Blocks until the server starts listening on self.port."""
         log.info("Web server expected on {0}", self.url)
         wait_until_port_is_listening(self.port, interval=3)
         return self

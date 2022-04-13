@@ -10,8 +10,7 @@ from debugpy.common import log
 
 
 class CapturedOutput(object):
-    """Captures stdout and stderr of the debugged process.
-    """
+    """Captures stdout and stderr of the debugged process."""
 
     def __init__(self, session, **fds):
         self.session = session
@@ -59,8 +58,7 @@ class CapturedOutput(object):
         self._worker_threads.append(thread)
 
     def wait(self, timeout=None):
-        """Wait for all remaining output to be captured.
-        """
+        """Wait for all remaining output to be captured."""
         if not self._worker_threads:
             return
         log.debug("Waiting for remaining {0} output...", self.session.debuggee_id)

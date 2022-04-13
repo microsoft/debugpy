@@ -2,6 +2,7 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+
 def test_vendoring(pyfile):
     @pyfile
     def import_debugpy():
@@ -12,15 +13,15 @@ def test_vendoring(pyfile):
 
         class Dummy2(object):
             pass
-        
+
         class Dummy3(object):
             def __getattribute__(self, *args, **kwargs):
-                raise AssertionError('Error')
+                raise AssertionError("Error")
 
         sys.modules["pydev_dummy"] = Dummy()
         sys.modules["pydev_dummy2"] = Dummy2()
         sys.modules["pydev_dummy3"] = Dummy3()
-        
+
         sys.modules["_pydev_dummy"] = Dummy()
         sys.modules["_pydev_dummy2"] = Dummy2()
         sys.modules["_pydev_dummy3"] = Dummy3()

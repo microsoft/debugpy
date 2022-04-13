@@ -22,8 +22,7 @@ from debugpy.common import json, log, util
 
 
 class JsonIOError(IOError):
-    """Indicates that a read or write operation on JsonIOStream has failed.
-    """
+    """Indicates that a read or write operation on JsonIOStream has failed."""
 
     def __init__(self, *args, **kwargs):
         stream = kwargs.pop("stream")
@@ -85,8 +84,7 @@ class JsonIOStream(object):
 
     @classmethod
     def from_socket(cls, sock, name=None):
-        """Creates a new instance that sends and receives messages over a socket.
-        """
+        """Creates a new instance that sends and receives messages over a socket."""
         sock.settimeout(None)  # make socket blocking
         if name is None:
             name = repr(sock)
@@ -133,8 +131,7 @@ class JsonIOStream(object):
         self._closed = False
 
     def close(self):
-        """Closes the stream, the reader, and the writer.
-        """
+        """Closes the stream, the reader, and the writer."""
 
         if self._closed:
             return
@@ -270,7 +267,7 @@ class JsonIOStream(object):
 
         Value is written as encoded by encoder.encode().
         """
-       
+
         if self._closed:
             # Don't log this - it's a common pattern to write to a stream while
             # anticipating EOFError from it in case it got closed concurrently.
@@ -478,15 +475,13 @@ class Message(object):
         return key in self.payload
 
     def is_event(self, *event):
-        """Returns True if this message is an Event of one of the specified types.
-        """
+        """Returns True if this message is an Event of one of the specified types."""
         if not isinstance(self, Event):
             return False
         return event == () or self.event in event
 
     def is_request(self, *command):
-        """Returns True if this message is a Request of one of the specified types.
-        """
+        """Returns True if this message is a Request of one of the specified types."""
         if not isinstance(self, Request):
             return False
         return command == () or self.command in command
@@ -519,13 +514,11 @@ class Message(object):
         return exc
 
     def isnt_valid(self, *args, **kwargs):
-        """Same as self.error(InvalidMessageError, ...).
-        """
+        """Same as self.error(InvalidMessageError, ...)."""
         return self.error(InvalidMessageError, *args, **kwargs)
 
     def cant_handle(self, *args, **kwargs):
-        """Same as self.error(MessageHandlingError, ...).
-        """
+        """Same as self.error(MessageHandlingError, ...)."""
         return self.error(MessageHandlingError, *args, **kwargs)
 
 
@@ -584,8 +577,9 @@ class Event(Message):
         try:
             try:
                 result = handler(self)
-                assert result is None, \
-                    f"Handler {util.srcnameof(handler)} tried to respond to {self.describe()}."
+                assert (
+                    result is None
+                ), f"Handler {util.srcnameof(handler)} tried to respond to {self.describe()}."
             except MessageHandlingError as exc:
                 if not exc.applies_to(self):
                     raise
@@ -717,24 +711,21 @@ class Request(Message):
                 assert self.response is None, (
                     "Handler {0} for {1} must not return NO_RESPONSE if it has already "
                     "invoked request.respond().".format(
-                        util.srcnameof(handler),
-                        self.describe()
+                        util.srcnameof(handler), self.describe()
                     )
                 )
             elif self.response is not None:
                 assert result is None or result is self.response.body, (
                     "Handler {0} for {1} must not return a response body if it has "
                     "already invoked request.respond().".format(
-                        util.srcnameof(handler),
-                        self.describe()
+                        util.srcnameof(handler), self.describe()
                     )
                 )
             else:
                 assert result is not None, (
                     "Handler {0} for {1} must either call request.respond() before it "
                     "returns, or return the response body, or return NO_RESPONSE.".format(
-                        util.srcnameof(handler),
-                        self.describe()
+                        util.srcnameof(handler), self.describe()
                     )
                 )
                 try:
@@ -900,8 +891,7 @@ class Response(Message):
 
     @property
     def success(self):
-        """Whether the request succeeded or not.
-        """
+        """Whether the request succeeded or not."""
         return not isinstance(self.body, Exception)
 
     @property
@@ -1194,8 +1184,7 @@ class JsonMessageChannel(object):
     )
 
     def _prettify(self, message_dict):
-        """Reorders items in a MessageDict such that it is more readable.
-        """
+        """Reorders items in a MessageDict such that it is more readable."""
         for key in self._prettify_order:
             if key not in message_dict:
                 continue
@@ -1270,8 +1259,7 @@ class JsonMessageChannel(object):
             pass
 
     def request(self, *args, **kwargs):
-        """Same as send_request(...).wait_for_response()
-        """
+        """Same as send_request(...).wait_for_response()"""
         return self.send_request(*args, **kwargs).wait_for_response()
 
     def propagate(self, message):
@@ -1387,7 +1375,9 @@ class JsonMessageChannel(object):
             if isinstance(exc, NoMoreMessages) and exc.stream is self.stream:
                 raise
             log.swallow_exception(
-                "Fatal error in channel {0} while parsing:\n{1}", self, json.repr(message_dict)
+                "Fatal error in channel {0} while parsing:\n{1}",
+                self,
+                json.repr(message_dict),
             )
             os._exit(1)
 
@@ -1414,7 +1404,8 @@ class JsonMessageChannel(object):
             # of handlers to run.
             if len(self._handler_queue) and self._handler_thread is None:
                 self._handler_thread = threading.Thread(
-                    target=self._run_handlers, name=f"{self} message handler",
+                    target=self._run_handlers,
+                    name=f"{self} message handler",
                 )
                 self._handler_thread.pydev_do_not_trace = True
                 self._handler_thread.is_pydev_daemon_thread = True
@@ -1469,8 +1460,7 @@ class JsonMessageChannel(object):
                         os._exit(1)
 
     def _get_handler_for(self, type, name):
-        """Returns the handler for a message of a given type.
-        """
+        """Returns the handler for a message of a given type."""
 
         with self:
             handlers = self.handlers

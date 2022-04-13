@@ -28,7 +28,9 @@ def test_env_replace_var(pyfile, target, run, case, new_value):
 
     with debug.Session() as session:
         backchannel = session.open_backchannel()
-        session.config.env[varname if case == "match_case" else varname.lower()] = new_value
+        session.config.env[
+            varname if case == "match_case" else varname.lower()
+        ] = new_value
 
         os.environ[varname] = "1"
         try:

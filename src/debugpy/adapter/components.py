@@ -12,9 +12,7 @@ ACCEPT_CONNECTIONS_TIMEOUT = 10
 
 class ComponentNotAvailable(Exception):
     def __init__(self, type):
-        super(ComponentNotAvailable, self).__init__(
-           f"{type.__name__} is not available"
-        )
+        super(ComponentNotAvailable, self).__init__(f"{type.__name__} is not available")
 
 
 class Component(util.Observable):
@@ -167,7 +165,9 @@ class Capabilities(dict):
             except Exception as exc:
                 raise message.isnt_valid("{0} {1}", json.repr(name), exc)
 
-            assert value != (), f"{validate} must provide a default value for missing properties."
+            assert (
+                value != ()
+            ), f"{validate} must provide a default value for missing properties."
             self[name] = value
 
         log.debug("{0}", self)

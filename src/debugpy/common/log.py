@@ -58,7 +58,7 @@ class LogFile(object):
                 platform.machine(),
                 platform.python_implementation(),
                 platform.python_version(),
-                64 if sys.maxsize > 2 ** 32 else 32,
+                64 if sys.maxsize > 2**32 else 32,
                 debugpy.__version__,
                 _to_files=[self],
             )
@@ -216,8 +216,7 @@ def swallow_exception(format_string="", *args, **kwargs):
 
 
 def reraise_exception(format_string="", *args, **kwargs):
-    """Like swallow_exception(), but re-raises the current exception after logging it.
-    """
+    """Like swallow_exception(), but re-raises the current exception after logging it."""
 
     assert "exc_info" not in kwargs
     _exception(format_string, *args, **kwargs)
@@ -330,8 +329,7 @@ def describe_environment(header):
     site_packages = [
         p
         for p in sys.path
-        if os.path.exists(p)
-        and os.path.basename(p) == "site-packages"
+        if os.path.exists(p) and os.path.basename(p) == "site-packages"
     ]
     report_paths(lambda: site_packages, "sys.path (site-packages)")
 

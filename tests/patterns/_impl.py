@@ -17,8 +17,7 @@ import pydevd_file_utils
 
 
 class Some(object):
-    """A pattern that can be tested against a value with == to see if it matches.
-    """
+    """A pattern that can be tested against a value with == to see if it matches."""
 
     def matches(self, value):
         raise NotImplementedError
@@ -36,23 +35,19 @@ class Some(object):
         return not self.matches(value)
 
     def __invert__(self):
-        """The inverse pattern - matches everything that this one doesn't.
-        """
+        """The inverse pattern - matches everything that this one doesn't."""
         return Not(self)
 
     def __or__(self, pattern):
-        """Union pattern - matches if either of the two patterns match.
-        """
+        """Union pattern - matches if either of the two patterns match."""
         return Either(self, pattern)
 
     def such_that(self, condition):
-        """Same pattern, but it only matches if condition() is true.
-        """
+        """Same pattern, but it only matches if condition() is true."""
         return SuchThat(self, condition)
 
     def in_range(self, start, stop):
-        """Same pattern, but it only matches if the start <= value < stop.
-        """
+        """Same pattern, but it only matches if the start <= value < stop."""
         return InRange(self, start, stop)
 
     def equal_to(self, obj):
@@ -82,8 +77,7 @@ class Some(object):
 
 
 class Not(Some):
-    """Matches the inverse of the pattern.
-    """
+    """Matches the inverse of the pattern."""
 
     def __init__(self, pattern):
         self.pattern = pattern
@@ -96,8 +90,7 @@ class Not(Some):
 
 
 class Either(Some):
-    """Matches either of the patterns.
-    """
+    """Matches either of the patterns."""
 
     def __init__(self, *patterns):
         assert len(patterns) > 0
@@ -117,8 +110,7 @@ class Either(Some):
 
 
 class Object(Some):
-    """Matches anything.
-    """
+    """Matches anything."""
 
     name = "<?>"
 
@@ -127,8 +119,7 @@ class Object(Some):
 
 
 class Thing(Some):
-    """Matches anything that is not None.
-    """
+    """Matches anything that is not None."""
 
     name = "<>"
 
@@ -137,8 +128,7 @@ class Thing(Some):
 
 
 class InstanceOf(Some):
-    """Matches any object that is an instance of the specified type.
-    """
+    """Matches any object that is an instance of the specified type."""
 
     def __init__(self, classinfo, name=None):
         if isinstance(classinfo, type):
@@ -199,8 +189,7 @@ class Path(Some):
 
 
 class ListContaining(Some):
-    """Matches any list that contains the specified subsequence of elements.
-    """
+    """Matches any list that contains the specified subsequence of elements."""
 
     def __init__(self, *items):
         self.items = tuple(items)
@@ -241,10 +230,10 @@ class ListContaining(Some):
 class DictContaining(Some):
     """Matches any dict that contains the specified key-value pairs::
 
-        d1 = {'a': 1, 'b': 2, 'c': 3}
-        d2 = {'a': 1, 'b': 2}
-        assert d1 == some.dict.containing(d2)
-        assert d2 != some.dict.containing(d1)
+    d1 = {'a': 1, 'b': 2, 'c': 3}
+    d2 = {'a': 1, 'b': 2}
+    assert d1 == some.dict.containing(d2)
+    assert d2 != some.dict.containing(d1)
     """
 
     def __init__(self, items):
@@ -268,8 +257,7 @@ class DictContaining(Some):
 
 
 class Also(Some):
-    """Base class for patterns that narrow down another pattern.
-    """
+    """Base class for patterns that narrow down another pattern."""
 
     def __init__(self, pattern):
         self.pattern = pattern
@@ -282,8 +270,7 @@ class Also(Some):
 
 
 class SuchThat(Also):
-    """Matches only if condition is true.
-    """
+    """Matches only if condition is true."""
 
     def __init__(self, pattern, condition):
         super(SuchThat, self).__init__(pattern)
@@ -300,8 +287,7 @@ class SuchThat(Also):
 
 
 class InRange(Also):
-    """Matches only if the value is within the specified range.
-    """
+    """Matches only if the value is within the specified range."""
 
     def __init__(self, pattern, start, stop):
         super(InRange, self).__init__(pattern)
@@ -319,8 +305,7 @@ class InRange(Also):
 
 
 class EqualTo(Also):
-    """Matches any object that is equal to the specified object.
-    """
+    """Matches any object that is equal to the specified object."""
 
     def __init__(self, pattern, obj):
         super(EqualTo, self).__init__(pattern)
@@ -340,8 +325,7 @@ class EqualTo(Also):
 
 
 class NotEqualTo(Also):
-    """Matches any object that is not equal to the specified object.
-    """
+    """Matches any object that is not equal to the specified object."""
 
     def __init__(self, pattern, obj):
         super(NotEqualTo, self).__init__(pattern)
@@ -355,8 +339,7 @@ class NotEqualTo(Also):
 
 
 class SameAs(Also):
-    """Matches one specific object only (i.e. makes '==' behave like 'is').
-    """
+    """Matches one specific object only (i.e. makes '==' behave like 'is')."""
 
     def __init__(self, pattern, obj):
         super(SameAs, self).__init__(pattern)
@@ -370,8 +353,7 @@ class SameAs(Also):
 
 
 class Matching(Also):
-    """Matches any string that matches the specified regular expression.
-    """
+    """Matches any string that matches the specified regular expression."""
 
     def __init__(self, pattern, regex, flags=0):
         assert isinstance(regex, bytes) or isinstance(regex, str)

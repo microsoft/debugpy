@@ -58,9 +58,7 @@ class BackChannel(object):
             self._socket = sock
             self._setup_stream()
 
-        accept_thread = threading.Thread(
-            target=accept_worker, name=f"{self} listener"
-        )
+        accept_thread = threading.Thread(target=accept_worker, name=f"{self} listener")
         accept_thread.daemon = True
         accept_thread.start()
 
@@ -115,8 +113,7 @@ class ScratchPad(object):
         raise NotImplementedError
 
     def __setitem__(self, key, value):
-        """Sets debuggee.scratchpad[key] = value inside the debugged process.
-        """
+        """Sets debuggee.scratchpad[key] = value inside the debugged process."""
         log.info("{0} debuggee.scratchpad[{1!r}] = {2!r}", self.session, key, value)
         expr = f"sys.modules['debuggee'].scratchpad[{key!r}] = {value!r}"
         self.session.request("evaluate", {"context": "repl", "expression": expr})

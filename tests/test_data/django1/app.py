@@ -15,10 +15,11 @@ from django.template import loader
 
 exiting = False
 
+
 @receiver(request_finished)
 def on_request_finished(sender, **kwargs):
     if exiting:
-        os._exit(0)   
+        os._exit(0)
 
 
 settings.configure(

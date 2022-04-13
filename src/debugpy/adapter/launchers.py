@@ -124,7 +124,9 @@ def spawn_debuggee(
                         cmdline[i] = arg
                     except UnicodeEncodeError as exc:
                         raise start_request.cant_handle(
-                            "Invalid command line argument {0}: {1}", json.repr(arg), exc
+                            "Invalid command line argument {0}: {1}",
+                            json.repr(arg),
+                            exc,
                         )
 
                 # If we are talking to the client over stdio, sys.stdin and sys.stdout

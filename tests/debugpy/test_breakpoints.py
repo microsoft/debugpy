@@ -348,7 +348,12 @@ def test_invalid_breakpoints(pyfile, target, run):
             expected_markers = []
             for r in requested_markers:
                 e_generic = "e" + r[1:]
-                e_versioned = e_generic + "-" + str(sys.version_info.major) + str(sys.version_info.minor)
+                e_versioned = (
+                    e_generic
+                    + "-"
+                    + str(sys.version_info.major)
+                    + str(sys.version_info.minor)
+                )
                 for e in e_versioned, e_generic, r:
                     if e in code_to_debug.lines:
                         expected_markers.append(e)

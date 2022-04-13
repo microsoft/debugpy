@@ -18,8 +18,7 @@ generates those ids sequentially.
 
 
 def source(path, **kwargs):
-    """Matches DAP Source objects.
-    """
+    """Matches DAP Source objects."""
     if isinstance(path, py.path.local):
         path = some.path(path)
     d = {"path": path}

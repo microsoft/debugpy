@@ -88,7 +88,9 @@ def launch_request(request):
                 if new_env_changes[k_upper] == v:
                     continue
                 else:
-                    raise request.isnt_valid('Found duplicate in "env": {0}.'.format(k_upper))
+                    raise request.isnt_valid(
+                        'Found duplicate in "env": {0}.'.format(k_upper)
+                    )
             new_env_changes[k_upper] = v
         env_changes = new_env_changes
     if "DEBUGPY_TEST" in env:
