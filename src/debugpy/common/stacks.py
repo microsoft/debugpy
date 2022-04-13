@@ -15,8 +15,7 @@ from debugpy.common import log
 
 
 def dump():
-    """Dump stacks of all threads in this process, except for the current thread.
-    """
+    """Dump stacks of all threads in this process, except for the current thread."""
 
     tid = threading.current_thread().ident
     pid = os.getpid()
@@ -49,8 +48,7 @@ def dump():
 
 
 def dump_after(secs):
-    """Invokes dump() on a background thread after waiting for the specified time.
-    """
+    """Invokes dump() on a background thread after waiting for the specified time."""
 
     def dumper():
         time.sleep(secs)

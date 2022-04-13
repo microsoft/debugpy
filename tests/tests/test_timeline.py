@@ -15,8 +15,7 @@ from tests.timeline import Timeline, Mark, Event, Request, Response
 
 
 class MessageFactory(object):
-    """A factory for DAP messages that are not bound to a message channel.
-    """
+    """A factory for DAP messages that are not bound to a message channel."""
 
     def __init__(self):
         self._seq_iter = itertools.count(1)

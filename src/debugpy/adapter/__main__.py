@@ -95,7 +95,9 @@ def main(args):
 
     listener_file = os.getenv("DEBUGPY_ADAPTER_ENDPOINTS")
     if listener_file is not None:
-        log.info("Writing endpoints info to {0!r}:\n{1}", listener_file, json.repr(endpoints))
+        log.info(
+            "Writing endpoints info to {0!r}:\n{1}", listener_file, json.repr(endpoints)
+        )
 
         def delete_listener_file():
             log.info("Listener ports closed; deleting {0!r}", listener_file)

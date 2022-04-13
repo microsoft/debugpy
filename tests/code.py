@@ -36,7 +36,7 @@ def get_marked_line_numbers(path):
     with open(path, "rb") as f:
         lines = {}
         for i, line in enumerate(f):
-            match = re.search(br"#\s*@(.+?)\s*$", line)
+            match = re.search(rb"#\s*@(.+?)\s*$", line)
             if match:
                 markers = match.group(1).decode("ascii")
                 for marker in markers.split(","):

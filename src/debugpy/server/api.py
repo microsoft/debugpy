@@ -52,8 +52,7 @@ _settrace.called = False
 
 
 def ensure_logging():
-    """Starts logging to log.log_dir, if it hasn't already been done.
-    """
+    """Starts logging to log.log_dir, if it hasn't already been done."""
     if ensure_logging.ensured:
         return
     ensure_logging.ensured = True
@@ -114,7 +113,7 @@ def _starts_debugging(func):
             port.__index__()  # ensure it's int-like
         except Exception:
             raise ValueError("expected port or (host, port)")
-        if not (0 <= port < 2 ** 16):
+        if not (0 <= port < 2**16):
             raise ValueError("invalid port number")
 
         ensure_logging()
@@ -246,7 +245,9 @@ def listen(address, settrace_kwargs):
         client_port = int(endpoints["client"]["port"])
     except Exception as exc:
         log.swallow_exception(
-            "Error parsing adapter endpoints:\n{0}\n", json.repr(endpoints), level="info"
+            "Error parsing adapter endpoints:\n{0}\n",
+            json.repr(endpoints),
+            level="info",
         )
         raise RuntimeError("error parsing adapter endpoints: " + str(exc))
     log.info(

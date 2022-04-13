@@ -10,8 +10,7 @@ from tests.patterns import some
 
 
 class Target(object):
-    """Describes Python code that gets run by a Runner.
-    """
+    """Describes Python code that gets run by a Runner."""
 
     def __init__(self, filename, args=()):
         if filename is not None and not isinstance(filename, py.path.local):
@@ -63,8 +62,7 @@ class Target(object):
 
     @property
     def lines(self):
-        """Same as self.filename.lines, if it is valid - e.g. for @pyfile objects.
-        """
+        """Same as self.filename.lines, if it is valid - e.g. for @pyfile objects."""
         assert (
             self.filename is not None
         ), "lines() requires Target created from filename"
@@ -74,13 +72,13 @@ class Target(object):
 class Program(Target):
     """
     A Python script, executed directly.
-    
+
     By default executes a program through its absolute path with:
         python /full/path/to/foo.py
-        
+
     If made relative through make_relative(cwd), the cwd is set and the
     launch is made relative to it.
-    
+
         i.e.:
         Given a path such as /full/path/to/foo.py
         if make_relative('/full/path') is called,

@@ -698,4 +698,3 @@ def test_evaluate_thread_locks(pyfile, target, run):
         assert evaluate == some.dict.containing({"result": "None"})
 
         session.request_continue()
-

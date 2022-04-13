@@ -29,7 +29,7 @@ def pytest_configure(config):
     if config.option.debugpy_log_dir:
         log.log_dir = config.option.debugpy_log_dir
     else:
-        bits = 64 if sys.maxsize > 2 ** 32 else 32
+        bits = 64 if sys.maxsize > 2**32 else 32
         ver = "{0}.{1}-{bits}".format(*sys.version_info, bits=bits)
         log.log_dir = (tests.root / "_logs" / ver).strpath
     log.info("debugpy and pydevd logs will be under {0}", log.log_dir)

@@ -40,6 +40,7 @@ def exit_app():
     exiting = True
     return "Done"
 
+
 @app.teardown_request
 def teardown(exception):
     if exiting:

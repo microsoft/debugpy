@@ -34,7 +34,7 @@ returns True, the launcher pauses and waits for user input before exiting.
 
 
 def describe():
-    return f"Debuggee[PID={process.pid}]" 
+    return f"Debuggee[PID={process.pid}]"
 
 
 def spawn(process_name, cmdline, env, redirect_output):
@@ -91,7 +91,9 @@ def spawn(process_name, cmdline, env, redirect_output):
             process = subprocess.Popen(cmdline, env=env, bufsize=0, **kwargs)
         except Exception as exc:
             raise messaging.MessageHandlingError(
-                "Couldn't spawn debuggee: {0}\n\nCommand line:{1!r}".format(exc, cmdline)
+                "Couldn't spawn debuggee: {0}\n\nCommand line:{1!r}".format(
+                    exc, cmdline
+                )
             )
 
         log.info("Spawned {0}.", describe())
@@ -116,7 +118,8 @@ def spawn(process_name, cmdline, env, redirect_output):
                 job_info.BasicLimitInformation.LimitFlags |= (
                     # Ensure that the job will be terminated by the OS once the
                     # launcher exits, even if it doesn't terminate the job explicitly.
-                    winapi.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE |
+                    winapi.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+                    |
                     # Allow the debuggee to create its own jobs unrelated to ours.
                     winapi.JOB_OBJECT_LIMIT_BREAKAWAY_OK
                 )

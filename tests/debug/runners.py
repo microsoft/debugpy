@@ -116,7 +116,12 @@ def _runner(f):
 
 @_runner
 def launch(session, target, console=None, cwd=None):
-    assert console in (None, "internalConsole", "integratedTerminal", "externalTerminal")
+    assert console in (
+        None,
+        "internalConsole",
+        "integratedTerminal",
+        "externalTerminal",
+    )
 
     log.info("Launching {0} in {1} using {2}.", target, session, json.repr(console))
 
@@ -144,9 +149,9 @@ def launch(session, target, console=None, cwd=None):
 
 
 def _attach_common_config(session, target, cwd):
-    assert target.code is None or "debuggee.setup()" in target.code, (
-        f"{target.filename} must invoke debuggee.setup()."
-    )
+    assert (
+        target.code is None or "debuggee.setup()" in target.code
+    ), f"{target.filename} must invoke debuggee.setup()."
 
     target.configure(session)
     config = session.config

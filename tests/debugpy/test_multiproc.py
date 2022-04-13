@@ -460,11 +460,13 @@ def test_subprocess_unobserved(pyfile, run, target, wait):
             if wait:
                 # The child process should not have started running user code until
                 # there was a client connection, so the breakpoint should be hit.
-                child_session.wait_for_stop(expected_frames=[some.dap.frame(child, line="bp")])
+                child_session.wait_for_stop(
+                    expected_frames=[some.dap.frame(child, line="bp")]
+                )
                 child_session.request_continue()
             else:
                 # The breakpoint shouldn't be hit, since that line should have been
-                # executed before we attached. 
+                # executed before we attached.
                 pass
 
             backchannel.send("proceed")
@@ -472,7 +474,9 @@ def test_subprocess_unobserved(pyfile, run, target, wait):
 
 
 @pytest.mark.parametrize("run", runners.all_launch)
-@pytest.mark.skipif(sys.platform != "win32", reason="job objects are specific to Windows")
+@pytest.mark.skipif(
+    sys.platform != "win32", reason="job objects are specific to Windows"
+)
 def test_breakaway_job(pyfile, target, run):
     @pyfile
     def child():
@@ -509,10 +513,12 @@ def test_breakaway_job(pyfile, target, run):
         proc.wait()
 
     with debug.Session() as parent_session:
-        parent_session.config.update({
-            "redirectOutput": False,
-            "subProcess": False,
-        })
+        parent_session.config.update(
+            {
+                "redirectOutput": False,
+                "subProcess": False,
+            }
+        )
         parent_session.expected_exit_code = some.int
         backchannel = parent_session.open_backchannel()
 

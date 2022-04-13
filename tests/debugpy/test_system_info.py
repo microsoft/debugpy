@@ -46,7 +46,7 @@ def expected_system_info():
                 {
                     "pid": some.int,
                     "executable": sys.executable,
-                    "bitness": 64 if sys.maxsize > 2 ** 32 else 32,
+                    "bitness": 64 if sys.maxsize > 2**32 else 32,
                 }
             ),
         }

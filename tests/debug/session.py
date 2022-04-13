@@ -176,7 +176,9 @@ class Session(object):
                 timeline.Event("output", some.dict.containing({"category": "stdout"})),
                 timeline.Event("output", some.dict.containing({"category": "stderr"})),
                 timeline.Event("output", some.dict.containing({"category": "console"})),
-                timeline.Event("output", some.dict.containing({"category": "important"})),
+                timeline.Event(
+                    "output", some.dict.containing({"category": "important"})
+                ),
             ]
         )
 
@@ -342,8 +344,7 @@ class Session(object):
         assert not len(self.captured_output - {"stdout", "stderr"})
 
         args = [exe] + [
-            str(s.strpath if isinstance(s, py.path.local) else s)
-            for s in args
+            str(s.strpath if isinstance(s, py.path.local) else s) for s in args
         ]
 
         cwd = cwd.strpath if isinstance(cwd, py.path.local) else cwd
@@ -372,12 +373,7 @@ class Session(object):
             popen_fds[stream_name] = wfd
             capture_fds[stream_name] = rfd
         self.debuggee = psutil.Popen(
-            args,
-            cwd=cwd,
-            env=env,
-            bufsize=0,
-            stdin=subprocess.PIPE,
-            **popen_fds
+            args, cwd=cwd, env=env, bufsize=0, stdin=subprocess.PIPE, **popen_fds
         )
         log.info("Spawned {0} with PID={1}", self.debuggee_id, self.debuggee.pid)
         watchdog.register_spawn(self.debuggee.pid, self.debuggee_id)
@@ -482,9 +478,7 @@ class Session(object):
         elif event.event == "debugpyAttach":
             self.observe(occ)
             pid = event("subProcessId", int)
-            watchdog.register_spawn(
-                pid, f"{self.debuggee_id}-subprocess-{pid}"
-            )
+            watchdog.register_spawn(pid, f"{self.debuggee_id}-subprocess-{pid}")
 
     def run_in_terminal(self, args, cwd, env):
         exe = args.pop(0)
@@ -715,9 +709,7 @@ class Session(object):
             "variables", {"variablesReference": scopes[0]("variablesReference", int)}
         )("variables", json.array())
 
-        variables = collections.OrderedDict(
-            ((v("name", str), v) for v in variables)
-        )
+        variables = collections.OrderedDict(((v("name", str), v) for v in variables))
         if varnames:
             assert set(varnames) <= set(variables.keys())
             return tuple((variables[name] for name in varnames))
@@ -725,8 +717,7 @@ class Session(object):
             return variables
 
     def get_variable(self, varname, frame_id=None):
-        """Same as get_variables(...)[0].
-        """
+        """Same as get_variables(...)[0]."""
         return self.get_variables(varname, frame_id=frame_id)[0]
 
     def wait_for_next_event(self, event, body=some.object, freeze=True):
