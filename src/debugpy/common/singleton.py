@@ -128,7 +128,7 @@ class ThreadSafeSingleton(Singleton):
     """
 
     def __init__(self, *args, **kwargs):
-        super(ThreadSafeSingleton, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         # Make sure each derived class gets a separate copy.
         type(self).readonly_attrs = set(type(self).readonly_attrs)
 

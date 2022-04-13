@@ -26,7 +26,7 @@ class Observable(object):
 
     def __setattr__(self, name, value):
         try:
-            return super(Observable, self).__setattr__(name, value)
+            return super().__setattr__(name, value)
         finally:
             for ob in self.observers:
                 ob(self, name)

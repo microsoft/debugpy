@@ -19,7 +19,7 @@ class Launcher(components.Component):
     def __init__(self, session, stream):
         with session:
             assert not session.launcher
-            super(Launcher, self).__init__(session, stream)
+            super().__init__(session, stream)
 
             self.pid = None
             """Process ID of the debuggee process, as reported by the launcher."""

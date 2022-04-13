@@ -89,7 +89,7 @@ class Program(Target):
     pytest_id = "program"
 
     def __init__(self, filename, args=()):
-        super(Program, self).__init__(filename, args)
+        super().__init__(filename, args)
         self._cwd = ""
 
     def make_relative(self, cwd):
@@ -137,7 +137,7 @@ class Module(Target):
 
     def __init__(self, filename=None, name=None, args=()):
         assert (filename is None) ^ (name is None)
-        super(Module, self).__init__(filename, args)
+        super().__init__(filename, args)
         self.name = name if name is not None else self.filename.purebasename
 
     def __repr__(self):
@@ -163,7 +163,7 @@ class Code(Target):
 
     def __init__(self, filename=None, code=None, args=()):
         assert (filename is None) ^ (code is None)
-        super(Code, self).__init__(filename, args)
+        super().__init__(filename, args)
         if code is not None:
             self.code = code
 

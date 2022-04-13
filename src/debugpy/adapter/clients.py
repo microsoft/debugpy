@@ -47,7 +47,7 @@ class Client(components.Component):
             stream = messaging.JsonIOStream.from_socket(sock)
 
         with sessions.Session() as session:
-            super(Client, self).__init__(session, stream)
+            super().__init__(session, stream)
 
             self.client_id = None
             """ID of the connecting client. This can be 'test' while running tests."""

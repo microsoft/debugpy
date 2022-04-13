@@ -27,7 +27,7 @@ class JsonEncoder(json.JSONEncoder):
             pass
         else:
             return get_state()
-        return super(JsonEncoder, self).default(value)
+        return super().default(value)
 
 
 class JsonObject(object):
