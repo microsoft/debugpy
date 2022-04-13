@@ -2,6 +2,7 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+import os
 import psutil
 import pytest
 import sys
@@ -213,7 +214,7 @@ def test_subprocess(pyfile, target, run, subProcess):
             assert str(child_pid) in child_config["name"]
 
             debugpy_file = backchannel.receive()
-            assert debugpy_file == debugpy.__file__
+            assert os.path.abspath(debugpy_file) == os.path.abspath(debugpy.__file__)
 
             child_argv = backchannel.receive()
             assert child_argv == [child, "--arg1", "--arg2", "--arg3"]

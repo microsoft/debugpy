@@ -19,11 +19,6 @@ ProcessInfo = collections.namedtuple("ProcessInfo", ["process", "name"])
 
 
 def main(tests_pid):
-    # To import debugpy, the "" entry in sys.path - which is added automatically on
-    # Python 2 - must be removed first; otherwise, we end up importing tests/debugpy.
-    if "" in sys.path:
-        sys.path.remove("")
-
     from debugpy.common import log, messaging
 
     # log.stderr_levels |= {"info"}

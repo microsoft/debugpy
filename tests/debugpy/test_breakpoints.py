@@ -323,16 +323,15 @@ def test_invalid_breakpoints(pyfile, target, run):
         # If there's no eN for some rN, it's assumed to be the same line.
         # fmt: off
         b = True
-        while b:         # @e0-27,e0-35,e0-36,e0-37,e0-38,e0-39
+        while b:         # @e0-37,e0-38,e0-39
             pass         # @r0
             break
 
-        print()         # @e1-27,e1-35,e1-36,e1-37 
+        print()         # @e1-37 
         [               # @r1,e2
-            1, 2, 3,    # @e2-27,e2-35,e2-36,e2-37,e2-38
+            1, 2, 3,    # @e2-37,e2-38
         ]               # @r2
 
-        # Python 2.7 only.
         print()         # @e3,e4
         print(1,        # @r3
               2, 3,     # @r4
