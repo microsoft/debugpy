@@ -295,11 +295,6 @@ class JsonIOStream(object):
         try:
             while data_written < len(data):
                 written = writer.write(data[data_written:])
-                # On Python 2, socket.makefile().write() does not properly implement
-                # BytesIO.write(), and always returns None instead of the number of
-                # bytes written - but also guarantees that it is always a full write.
-                if written is None:
-                    break
                 data_written += written
             writer.flush()
         except Exception as exc:

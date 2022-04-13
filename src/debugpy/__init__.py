@@ -209,10 +209,3 @@ def trace_this_thread(should_trace):
 
 
 __version__ = _version.get_versions()["version"]
-
-# Force absolute path on Python 2.
-__file__ = os.path.abspath(__file__)
-
-# Preload encodings that we're going to use to avoid import deadlocks on Python 2,
-# before importing anything from debugpy.
-map(codecs.lookup, ["ascii", "utf8", "utf-8", "latin1", "latin-1", "idna", "hex"])

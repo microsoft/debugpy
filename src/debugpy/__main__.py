@@ -2,11 +2,7 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-import os
 import sys
-
-# Force absolute path on Python 2.
-__file__ = os.path.abspath(__file__)
 
 
 if __name__ == "__main__":

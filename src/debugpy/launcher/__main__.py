@@ -5,15 +5,11 @@
 __all__ = ["main"]
 
 import locale
-import os
 import signal
 import sys
 
 # WARNING: debugpy and submodules must not be imported on top level in this module,
 # and should be imported locally inside main() instead.
-
-# Force absolute path on Python 2.
-__file__ = os.path.abspath(__file__)
 
 
 def main():
