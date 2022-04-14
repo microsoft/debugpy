@@ -184,7 +184,7 @@ class PyDevdAPI(object):
 
     def request_disconnect(self, py_db, resume_threads):
         self.set_enable_thread_notifications(py_db, False)
-        self.remove_all_breakpoints(py_db, filename='*')
+        self.remove_all_breakpoints(py_db, '*')
         self.remove_all_exception_breakpoints(py_db)
         self.notify_disconnect(py_db)
 
@@ -446,6 +446,8 @@ class PyDevdAPI(object):
         '''
         assert original_filename.__class__ == str, 'Expected str, found: %s' % (original_filename.__class__,)  # i.e.: bytes on py2 and str on py3
 
+        original_filename_normalized = pydevd_file_utils.normcase_from_client(original_filename)
+
         pydev_log.debug('Request for breakpoint in: %s line: %s', original_filename, line)
         original_line = line
         # Parameters to reapply breakpoint.
@@ -495,7 +497,7 @@ class PyDevdAPI(object):
 
             result = self._AddBreakpointResult(breakpoint_id, original_filename, line, original_line)
 
-        py_db.api_received_breakpoints[(original_filename, breakpoint_id)] = (canonical_normalized_filename, api_add_breakpoint_params)
+        py_db.api_received_breakpoints[(original_filename_normalized, breakpoint_id)] = (canonical_normalized_filename, api_add_breakpoint_params)
 
         if not translated_absolute_filename.startswith('<'):
             # Note: if a mapping pointed to a file starting with '<', don't validate.
@@ -576,15 +578,15 @@ class PyDevdAPI(object):
             _new_filename, api_add_breakpoint_params = val
             self.add_breakpoint(py_db, *api_add_breakpoint_params)
 
-    def remove_all_breakpoints(self, py_db, filename):
+    def remove_all_breakpoints(self, py_db, received_filename):
         '''
-        Removes all the breakpoints from a given file or from all files if filename == '*'.
+        Removes all the breakpoints from a given file or from all files if received_filename == '*'.
 
-        :param str filename:
+        :param str received_filename:
             Note: must be sent as it was received in the protocol. It may be translated in this
             function.
         '''
-        assert filename.__class__ == str  # i.e.: bytes on py2 and str on py3
+        assert received_filename.__class__ == str  # i.e.: bytes on py2 and str on py3
         changed = False
         lst = [
             py_db.file_to_id_to_line_breakpoint,
@@ -597,7 +599,7 @@ class PyDevdAPI(object):
         if hasattr(py_db, 'jinja2_breakpoints'):
             lst.append(py_db.jinja2_breakpoints)
 
-        if filename == '*':
+        if received_filename == '*':
             py_db.api_received_breakpoints.clear()
 
             for file_to_id_to_breakpoint in lst:
@@ -606,11 +608,12 @@ class PyDevdAPI(object):
                     changed = True
 
         else:
+            received_filename_normalized = pydevd_file_utils.normcase_from_client(received_filename)
             items = list(py_db.api_received_breakpoints.items())  # Create a copy to remove items.
             translated_filenames = []
             for key, val in items:
-                original_filename, _breakpoint_id = key
-                if original_filename == filename:
+                original_filename_normalized, _breakpoint_id = key
+                if original_filename_normalized == received_filename_normalized:
                     canonical_normalized_filename, _api_add_breakpoint_params = val
                     # Note: there can be actually 1:N mappings due to source mapping (i.e.: ipython).
                     translated_filenames.append(canonical_normalized_filename)
@@ -636,10 +639,11 @@ class PyDevdAPI(object):
 
         :param int breakpoint_id:
         '''
+        received_filename_normalized = pydevd_file_utils.normcase_from_client(received_filename)
         for key, val in list(py_db.api_received_breakpoints.items()):
-            original_filename, existing_breakpoint_id = key
+            original_filename_normalized, existing_breakpoint_id = key
             _new_filename, _api_add_breakpoint_params = val
-            if received_filename == original_filename and existing_breakpoint_id == breakpoint_id:
+            if received_filename_normalized == original_filename_normalized and existing_breakpoint_id == breakpoint_id:
                 del py_db.api_received_breakpoints[key]
                 break
         else:
