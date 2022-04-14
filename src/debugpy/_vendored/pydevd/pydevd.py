@@ -23,6 +23,7 @@ from _pydevd_bundle import pydevd_constants
 
 import atexit
 import dis
+import io
 from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial
@@ -881,10 +882,14 @@ class PyDB(object):
             return eval(condition, new_frame.f_globals, new_frame.f_locals)
         except Exception as e:
             if not isinstance(e, self.skip_print_breakpoint_exception):
-                sys.stderr.write('Error while evaluating expression: %s\n' % (condition,))
-
+                stack_trace = io.StringIO()
                 etype, value, tb = sys.exc_info()
-                traceback.print_exception(etype, value, tb.tb_next)
+                traceback.print_exception(etype, value, tb.tb_next, file=stack_trace)
+
+                msg = 'Error while evaluating expression in conditional breakpoint: %s\n%s' % (
+                    condition, stack_trace.getvalue())
+                api = PyDevdAPI()
+                api.send_error_message(self, msg)
 
             if not isinstance(e, self.skip_suspend_on_breakpoint_exception):
                 try:
